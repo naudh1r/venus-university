@@ -64,6 +64,11 @@ const TEXTING_PERSONA = [
 
 /** The prompt-facing slice of state a texting turn needs. */
 export interface TextingPromptState {
+  /**
+   * Ask for every field, and give her only what she could know. Absent reads as off, which is
+   * the call this build has always sent.
+   */
+  strictSchema?: boolean
   date: number
   time: TimeSlot
   /** The reader's accumulated stats, used for relationship requirement guidance. */
@@ -274,6 +279,13 @@ export function buildTextingPrompt(
   reader: string
 ): StructuredRequest {
   const name = character.firstName
+  // The hours she is enrolled in with him: the same class code in the same slot on both
+  // timetables. Her own schedule is already in her block above.
+  const sharedClasses = Object.fromEntries(
+    Object.entries(state.playerSchedule).filter(
+      ([slot, code]) => info?.schedule?.[Number(slot)] === code
+    )
+  )
   const away = state.springBreakAway?.includes(character.charId) ?? false
   // The new text is the last line of the log, so it gets its own stamp when it lands in a new slot.
   const history = stampedStubs(
@@ -342,13 +354,28 @@ export function buildTextingPrompt(
   const user = [
     'READER',
     reader,
-    ...scheduleLines(
-      "The reader's Schedule:",
-      state.playerSchedule,
-      state.classes,
-      state.playerJob,
-      state.date
-    ),
+    /**
+     * Under `strictSchema` she gets only the hours she is enrolled in with him, and no job at
+     * all. His whole week — classes and shifts, ungated by how well she knows him — is defensible
+     * on a model that merely respects a fact, and on a cheap one it is a fact to be *used*: the
+     * player told her he had a shift and was answered "I know about the shift, nick. badminton
+     * class is tonight, and you're behind the bar after it." She was not being consistent with
+     * his week, she was arguing with him out of it.
+     *
+     * Sharing a class is something she would know from sitting in it, and survives as good
+     * writing. His other lectures and his roster are things she could only know if he said so —
+     * and if he said so, the thread already carries it. The job is not filtered but gone: a shift
+     * is never shared, so there is nothing for the two timetables to have in common.
+     */
+    ...(state.strictSchema === true
+      ? scheduleLines(`Classes ${name} is in with the reader:`, sharedClasses, state.classes)
+      : scheduleLines(
+          "The reader's Schedule:",
+          state.playerSchedule,
+          state.classes,
+          state.playerJob,
+          state.date
+        )),
     '',
     ...characterBlock,
     '',

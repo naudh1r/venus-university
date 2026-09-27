@@ -476,7 +476,8 @@ export async function sendMessage(charId: string, text: string): Promise<void> {
         // What she is there for, on a slot she is standing at her own haunt.
         charHaunt: charStandingHauntNow(charId),
         // The one absence a thread survives, so her block has to say it.
-        springBreakAway: game.springBreakAway
+        springBreakAway: game.springBreakAway,
+        strictSchema: useSettingsStore.getState().settings?.strictSchema === true
       },
       // The same reader block a scene gets, grades and all.
       readerBlockOf(game)
