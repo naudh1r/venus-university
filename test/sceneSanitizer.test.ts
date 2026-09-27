@@ -1,3 +1,4 @@
+import { BG_UNCHANGED } from '../src/shared/backgroundSets'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_PLAYER_STATS, statsForTiers } from '@shared/playerStats'
 import { emptyFlags, MEMORY_CAP } from '@shared/relationship'
@@ -78,6 +79,45 @@ describe('sanitizeLine — speakers and backgrounds', () => {
     useGameStore.setState({ cast: ['a'], roomReady: { a: true, b: true } })
     const line = createSceneSanitizer().sanitizeLine({ speaker: '', bg: 'mina_kwon_room', text: 'x' })
     expect(line.bg).toBeUndefined()
+  })
+
+  /**
+   * Every line answers `bg` now, so most lines answer with where the scene already is. Keeping
+   * those would re-set the stage to itself on every line, and drop a background the player chose
+   * by hand, since `advanceLine` reads any `bg` as the scene taking the stage back.
+   */
+  it('keeps only a background that moves the scene', () => {
+    const sanitizer = createSceneSanitizer({ stageBg: 'dorm', strictSchema: true })
+
+    expect(sanitizer.sanitizeLine({ speaker: '', bg: 'dorm', text: 'x' }).bg).toBeUndefined()
+    expect(sanitizer.sanitizeLine({ speaker: '', bg: 'quad', text: 'x' }).bg).toBe('quad')
+    // And the move is remembered: naming it again is no longer a move.
+    expect(sanitizer.sanitizeLine({ speaker: '', bg: 'quad', text: 'x' }).bg).toBeUndefined()
+    expect(sanitizer.sanitizeLine({ speaker: '', bg: 'dorm', text: 'x' }).bg).toBe('dorm')
+  })
+
+  /** With the switch off a `bg` was volunteered, so it is taken at face value as it always was. */
+  it('takes a background at face value with the switch off', () => {
+    const sanitizer = createSceneSanitizer({ stageBg: 'dorm' })
+    expect(sanitizer.sanitizeLine({ speaker: '', bg: 'dorm', text: 'x' }).bg).toBe('dorm')
+  })
+
+  it('reads the sentinel as the line saying nothing changed', () => {
+    const line = createSceneSanitizer({ stageBg: 'dorm', strictSchema: true }).sanitizeLine({
+      speaker: '',
+      bg: BG_UNCHANGED,
+      text: 'x'
+    })
+    expect(line.bg).toBeUndefined()
+  })
+
+  /** A model that answers null instead, or omits the field, is read the same way. */
+  it('reads a null or a missing background the same way', () => {
+    const sanitizer = createSceneSanitizer({ stageBg: 'dorm', strictSchema: true })
+    expect(
+      sanitizer.sanitizeLine({ speaker: '', bg: null as unknown as string, text: 'x' }).bg
+    ).toBeUndefined()
+    expect(sanitizer.sanitizeLine({ speaker: '', text: 'x' }).bg).toBeUndefined()
   })
 })
 

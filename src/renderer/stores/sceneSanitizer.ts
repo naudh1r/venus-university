@@ -15,6 +15,7 @@ import {
   overTextDesc
 } from '@shared/relationship'
 import { storedMemoryDesc } from '@shared/readerVoice'
+import { BG_UNCHANGED } from '@shared/backgroundSets'
 import { parseAction, showAction, spriteAction } from '@shared/sceneActions'
 import { splitSentences } from '@shared/sentences'
 import { giftStatusMarkedLine } from '@shared/shop'
@@ -73,6 +74,18 @@ export interface SanitizerOptions {
    * once at the top of the call and given to both of its passes.
    */
   stage?: readonly string[]
+  /**
+   * The background this call's lines will land on — {@link stageAsWritten}'s, captured with
+   * `stage` and given to both passes, so both read the same line as a move.
+   */
+  stageBg?: string | null
+  /**
+   * Whether the schema asked for every field. It changes what a `bg` on a line *means*: asked
+   * for on every line, most lines answer with where the scene already is, and only a move may be
+   * kept. Left off, a `bg` is volunteered and is taken at face value, which is how this build
+   * has always read it.
+   */
+  strictSchema?: boolean
   /**
    * Whether a line fits the dialogue box (`views/boxRows.ts`), deciding where
    * {@link splitOverflow} cuts. **Both of a call's passes get the same one**, or they'd produce
@@ -148,6 +161,8 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
   }
   // Anyone the reply has already staged, so a walked-off character is not dragged back on.
   const everOnScreen = new Set<string>(onScreen)
+  // Where the scene stands as this pass walks it, so a line naming it again is not a move.
+  let bgSoFar = options.stageBg ?? stageAsWritten().bg
 
   return {
     sanitizeLine(raw) {
@@ -159,7 +174,26 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
           console.warn(`[scene] unknown speaker "${raw.speaker}" — treating the line as narration.`)
       }
 
-      if (raw?.bg !== undefined) {
+      if (options.strictSchema === true) {
+        /**
+         * Every line is required to answer `bg`, so most lines answer with where the scene
+         * already is. Only a move is kept: a line carrying the current background would re-set
+         * the stage to itself and, worse, drop the background the player picked by hand, since
+         * `advanceLine` reads any `bg` as the scene taking the stage back.
+         *
+         * `BG_UNCHANGED` is the enum's way of saying the scene has not moved; `null` and a
+         * missing field are read the same way, for a model that answers in either.
+         */
+        if (raw?.bg !== undefined && raw.bg !== null && raw.bg !== BG_UNCHANGED) {
+          if (!backgrounds.has(raw.bg)) {
+            console.warn(`[scene] unknown background "${raw.bg}" — keeping the current one.`)
+          } else if (raw.bg !== bgSoFar) {
+            line.bg = raw.bg
+            bgSoFar = raw.bg
+          }
+        }
+      } else if (raw?.bg !== undefined) {
+        // Volunteered rather than asked for, so it is taken at face value.
         if (backgrounds.has(raw.bg)) line.bg = raw.bg
         else console.warn(`[scene] unknown background "${raw.bg}" — keeping the current one.`)
       }

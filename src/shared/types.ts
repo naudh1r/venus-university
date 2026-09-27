@@ -1737,6 +1737,17 @@ export interface Settings {
    */
   lessNsfwText: boolean
   /**
+   * Ask the model for every structured field, rather than letting it omit what it may.
+   *
+   * Off by default, and off is the behaviour this build has always had. It exists because
+   * whether a schema is *enforced* is a property of the endpoint, not of the model: Gemini's
+   * `responseJsonSchema` is constrained decoding and an omitted required field is impossible,
+   * while an OpenAI-compatible endpoint is sent `strict: false`, which makes the schema
+   * advisory — the model is asked and may decline. On that path a field the model is allowed to
+   * omit is one it omits almost always, silently.
+   */
+  strictSchema?: boolean
+  /**
    * Silence what a CG carries: the act and the breath under one, and the climax's own sting.
    * Optional on disk, absent meaning they play.
    */

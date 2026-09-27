@@ -7,6 +7,7 @@ import { DEFAULT_PLAYER_STATS, STAT_KEYS, type PlayerStats } from '@shared/playe
 import { fullDescriptionOf, kindSentenceOf, projectStandingLine } from '@shared/academics'
 import type { ClassKind, ProjectProgress } from '@shared/academics'
 import { isPosition, POSITIONS } from '@shared/positions'
+import { BG_UNCHANGED } from '@shared/backgroundSets'
 import { readerize } from '@shared/readerVoice'
 import { cgAction, showAction, spriteAction } from '@shared/sceneActions'
 import { andList } from '@shared/sentences'
@@ -283,6 +284,11 @@ export interface PromptState {
   textedWith?: readonly string[]
   /** The cast when every one of them is off-stage and the scene is still running; absent otherwise. */
   hiddenCast?: readonly Character[]
+  /**
+   * Ask for every field rather than letting the model omit what it may. Absent reads as off,
+   * which leaves the schema and the instructions exactly as this build has always sent them.
+   */
+  strictSchema?: boolean
   /** The player's `lessNsfwText` setting. */
   lessNsfwText: boolean
 }
@@ -393,14 +399,27 @@ function jsonRules(
   allowPositions: boolean,
   outfitSets: readonly StockOutfitSet[],
   /** The first names of the cast who have CGs, said out loud only when the cast is a crowd. */
-  cgNames: readonly string[]
+  cgNames: readonly string[],
+  /**
+   * Whether the schema asks for every field. The instructions have to agree with it: a model
+   * told to answer `bg` on every line, by a schema that does not require it, is being given a
+   * rule it can decline — and one required to answer it, with no instruction saying what to
+   * answer when nothing moved, has nowhere to put "nothing".
+   */
+  strict: boolean
 ): string[] {
   return [
     'JSON RULES',
     'Use an empty speaker ("") for narration lines. Otherwise, match who\'s saying what to their character key.',
     'Never mix dialogue and narration on a single line. Split them into two lines instead.',
     'Also, an empty text field on a line isn\'t valid. Always write something.',
-    'The "actions" array holds stage directions, applied in the order you write them. A line may carry several.',
+    ...(strict
+      ? [
+          `Every line carries "bg". On the first line it is where the scene is happening; on every line after it is "${BG_UNCHANGED}", unless that line is where the location changes — then name the new one.`,
+          'Change it where they arrive, not for every place named in passing. A walk across campus that ends at the library is one change, on the line that gets them there.',
+          'Every line carries "actions": the stage directions it applies, in the order written. Most lines have none and carry an empty array; a line may carry several.'
+        ]
+      : ['The "actions" array holds stage directions, applied in the order you write them. A line may carry several.']),
     'Use "show:<charKey>" when a character makes their entrance (which won\'t always be on the first line). Only use "hide:<charKey>" when a character leaves the scene and won\'t return.',
     `Use "sprite:<charKey>,<sprite>" to change what a character looks like on screen. A sprite is one of these emotions: ${EMOTIONS.join(', ')}.`,
     // Described only when the schema carries the suffixes: a tag the model cannot emit is a rejected line.
@@ -427,7 +446,12 @@ function jsonRules(
           'NEVER use a cg if the characters aren\'t actively having sex on screen.'
         ]
       : []),
-    ...bgLines(backgrounds, 'Set "bg" whenever the location changes. Pick only from the backgrounds below OR a character\'s own room (listed under her character info):')
+    ...bgLines(
+      backgrounds,
+      strict
+        ? `Name a background on the line where the location changes, and "${BG_UNCHANGED}" on every other line. Pick only from the backgrounds below OR a character's own room (listed under her character info):`
+        : `Set "bg" whenever the location changes. Pick only from the backgrounds below OR a character's own room (listed under her character info):`
+    )
   ]
 }
 
@@ -852,8 +876,20 @@ function sceneSchema(
     ...(actions.length > 0
       ? { actions: { type: 'array', items: { type: 'string', enum: actions } } }
       : {}),
-    // Cast room ids ride on the enum, never on the cached-prefix background lines.
-    bg: { type: 'string', enum: [...allBackgrounds(backgrounds), ...castRoomBgs(cast, state)] },
+    /**
+     * Cast room ids ride on the enum, never on the cached-prefix background lines.
+     *
+     * Under `strictSchema` the enum also carries {@link BG_UNCHANGED}, because the field becomes
+     * required below and a line that did not move needs a legal way to say so.
+     */
+    bg: {
+      type: 'string',
+      enum: [
+        ...allBackgrounds(backgrounds),
+        ...castRoomBgs(cast, state),
+        ...(state.strictSchema === true ? [BG_UNCHANGED] : [])
+      ]
+    },
     text: { type: 'string' }
   }
 
@@ -864,7 +900,21 @@ function sceneSchema(
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['speaker', 'text'],
+        /**
+         * On an endpoint that cannot enforce the schema, an optional field is one the model
+         * omits almost always — an omitted `bg` is a scene that never moves, and an omitted
+         * `actions` is a stage nobody tells anything. Asking for them outright is what
+         * `strictSchema` is for; without it the list is what this build has always sent.
+         *
+         * `actions` is required only where the scene has any to offer: a required field with an
+         * empty enum is not answerable, and a solo scene drops the property altogether above.
+         */
+        required:
+          state.strictSchema === true
+            ? actions.length > 0
+              ? ['speaker', 'bg', 'actions', 'text']
+              : ['speaker', 'bg', 'text']
+            : ['speaker', 'text'],
         properties: lineProperties
       }
     }
@@ -898,7 +948,8 @@ function systemPrompt(
       state.backgrounds,
       positionsAllowed(cast, state),
       castOutfitSets(cast, state),
-      cgReadyNames(cast, state)
+      cgReadyNames(cast, state),
+      state.strictSchema === true
     ),
     '',
     'SETTING',

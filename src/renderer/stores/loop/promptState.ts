@@ -244,6 +244,11 @@ export function lessNsfwTextNow(): boolean {
   return useSettingsStore.getState().settings?.lessNsfwText === true
 }
 
+/** The player's `strictSchema` setting. Absent reads as off, which is how this build shipped. */
+export function strictSchemaNow(): boolean {
+  return useSettingsStore.getState().settings?.strictSchema === true
+}
+
 /** Reads the prompt-facing slice of game state. */
 export function promptState(): PromptState {
   const game = useGameStore.getState()
@@ -373,6 +378,7 @@ export function promptState(): PromptState {
       return charId ? [charId] : []
     }),
     lessNsfwText: lessNsfwTextNow(),
+    strictSchema: strictSchemaNow(),
     cgReady: game.cgReady,
     outfitReady: game.outfitReady,
     roomReady: game.roomReady,

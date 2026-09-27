@@ -1,3 +1,4 @@
+import { BG_UNCHANGED } from '@shared/backgroundSets'
 import { describe, expect, it } from 'vitest'
 import {
   addsAnnouncedBy,
@@ -402,5 +403,64 @@ describe('the slot rumor in the lorebook', () => {
     // The entry itself is still matched — it is the rumor that is spent.
     expect(user).toContain('Kendall Library')
     expect(user).not.toContain(RUMOR.sentence)
+  })
+})
+
+/**
+ * The schema is the only thing that makes a cheap model answer these. On an endpoint that sends
+ * `strict: false` the schema is advisory, but a field the model is *asked* for is answered far
+ * more often than one it may omit — and an omitted `bg` is a scene that never moves, while an
+ * omitted `actions` is a stage that is never told anything.
+ */
+describe('buildScenePrompt — the fields a line must answer', () => {
+  function lineSchemaFor(state: Partial<ScenePromptState>): {
+    required: string[]
+    bgEnum: string[]
+    properties: Record<string, unknown>
+  } {
+    const { schema } = buildScenePrompt(
+      [sarah],
+      'find her',
+      { ...promptState(), ...state },
+      'SETTING',
+      'READER'
+    )
+    const properties = schema.schema.properties as {
+      lines: { items: { required: string[]; properties: { bg: { enum: string[] } } } }
+    }
+    return {
+      required: properties.lines.items.required,
+      bgEnum: properties.lines.items.properties.bg.enum,
+      properties: properties.lines.items.properties as unknown as Record<string, unknown>
+    }
+  }
+
+  it('requires a background on every line, with a legal way to say it did not change', () => {
+    const { required, bgEnum } = lineSchemaFor({ onStage: ['char-1'], strictSchema: true })
+    expect(required).toContain('bg')
+    expect(bgEnum).toContain(BG_UNCHANGED)
+  })
+
+  it('requires actions wherever the scene has any to offer', () => {
+    const { required } = lineSchemaFor({ onStage: ['char-1'], strictSchema: true })
+    expect(required).toContain('actions')
+  })
+
+  /**
+   * The switch off is what this build has always sent, and that is the whole point of it being a
+   * switch: the default path has to be untouched, sentinel included.
+   */
+  it('leaves the schema alone with the switch off', () => {
+    const { required, bgEnum } = lineSchemaFor({ onStage: ['char-1'] })
+    expect(required).toEqual(['speaker', 'text'])
+    expect(bgEnum).not.toContain(BG_UNCHANGED)
+  })
+
+  // A required field with an empty enum is not answerable, so the property is dropped and must
+  // not be required either.
+  it('requires no actions where the scene offers none', () => {
+    const { required, properties } = lineSchemaFor({ onStage: [], strictSchema: true })
+    if (properties.actions === undefined) expect(required).not.toContain('actions')
+    expect(required).toContain('bg')
   })
 })

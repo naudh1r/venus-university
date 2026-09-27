@@ -17,6 +17,8 @@ export const SETTINGS_SCHEMA_VERSION = 1
 const SETTINGS_REQUIRED: Record<
   keyof Omit<
     Settings,
+    // `strictSchema` is optional, and absent reads as off — the behaviour this build shipped with.
+    | 'strictSchema'
     | 'apiKey'
     | 'endpointApiKey'
     | 'endpointUrl'
