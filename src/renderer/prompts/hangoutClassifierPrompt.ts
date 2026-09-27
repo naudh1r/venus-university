@@ -31,6 +31,11 @@ export interface HangoutClassifierState {
   date: number
   time: TimeSlot
   /**
+   * Ask the verdict to cite the words it is judging. Absent reads as off, which is the call this
+   * build has always sent.
+   */
+  strictSchema?: boolean
+  /**
    * The whole semester's sky, one reading per slot — the NOW line walks back through it for how
    * long the weather has held. Absent means nothing is said about it.
    */
@@ -45,6 +50,7 @@ export function buildHangoutClassifierPrompt(
   replyMessages: readonly ChatMessage[],
   state: HangoutClassifierState
 ): StructuredRequest {
+  const strict = state.strictSchema === true
   const background = stampedStubs(recent.slice(-HANGOUT_CONTEXT_CAP), firstName)
 
   const user = [
@@ -72,6 +78,14 @@ export function buildHangoutClassifierPrompt(
     ...stampedStubs(replyMessages, firstName),
     "'''",
     '',
+    ...(strict
+      ? [
+          'First, set "quote" to the words that do the asking, copied exactly from THE MESSAGE or THE REPLY.',
+          'Copy them character for character. Do not tidy them, do not complete them, do not write them in your own words.',
+          'If neither one contains words that ask to meet up right now, "quote" is an empty string and both flags below are false.',
+          ''
+        ]
+      : []),
     `Set "playerAsked" to true when THE MESSAGE asks ${firstName} to meet up in person right now — today, this ${slotHalf(state.time)}, immediately — AND THE REPLY does not turn it down.`,
     'It is false when she refuses, deflects, or is unsure in THE REPLY.',
     'It is false for a plan at any other time: "tonight" while it is still day, "tomorrow", "this weekend", "sometime", "we should do this again".',
@@ -89,27 +103,39 @@ export function buildHangoutClassifierPrompt(
     'Examples:',
     '',
     'THE MESSAGE "we should hang out sometime" / THE REPLY "yeah for sure!"',
-    '{"playerAsked":false,"characterOffered":false,"description":""}',
+    strict
+      ? '{"quote":"","playerAsked":false,"characterOffered":false,"description":""}'
+      : '{"playerAsked":false,"characterOffered":false,"description":""}',
     '',
     'THE MESSAGE "wanna grab coffee at the union right now" / THE REPLY "omg yes im starving, bringing mia too"',
-    '{"playerAsked":true,"characterOffered":false,"description":"Coffee at the student union with Mina and Mia."}',
+    strict
+      ? '{"quote":"wanna grab coffee at the union right now","playerAsked":true,"characterOffered":false,"description":"Coffee at the student union with Mina and Mia."}'
+      : '{"playerAsked":true,"characterOffered":false,"description":"Coffee at the student union with Mina and Mia."}',
     '',
     'THE MESSAGE "wanna grab coffee right now" / THE REPLY "cant, im swamped tonight sorry"',
-    '{"playerAsked":false,"characterOffered":false,"description":""}',
+    strict
+      ? '{"quote":"","playerAsked":false,"characterOffered":false,"description":""}'
+      : '{"playerAsked":false,"characterOffered":false,"description":""}',
     '',
     'THE MESSAGE "how was your day" / THE REPLY "long lol. come walk by the river with me, im heading out now"',
-    '{"playerAsked":false,"characterOffered":true,"description":"A walk along the river with Mina."}',
+    strict
+      ? '{"quote":"come walk by the river with me, im heading out now","playerAsked":false,"characterOffered":true,"description":"A walk along the river with Mina."}'
+      : '{"playerAsked":false,"characterOffered":true,"description":"A walk along the river with Mina."}',
     '',
     'THE MESSAGE "what are you up to" / THE REPLY "hazel and colette dragged me to the arcade, come meet us"',
-    '{"playerAsked":false,"characterOffered":true,"description":"BTB Arcade with Mina, Hazel and Colette."}',
+    strict
+      ? '{"quote":"hazel and colette dragged me to the arcade, come meet us","playerAsked":false,"characterOffered":true,"description":"BTB Arcade with Mina, Hazel and Colette."}'
+      : '{"playerAsked":false,"characterOffered":true,"description":"BTB Arcade with Mina, Hazel and Colette."}',
     '',
-    'Fill in "playerAsked", "characterOffered", and "description" for the exchange above.'
+    strict
+      ? 'Fill in "quote", "playerAsked", "characterOffered", and "description" for the exchange above.'
+      : 'Fill in "playerAsked", "characterOffered", and "description" for the exchange above.'
   ].join('\n')
 
   return {
     system: '',
     user,
-    schema: hangoutClassifierSchema(),
+    schema: hangoutClassifierSchema(strict),
     cacheKey: 'hangout-classifier',
     // The classifier is judged better at a floor of low.
     minThinking: 'low'
@@ -120,7 +146,25 @@ export function buildHangoutClassifierPrompt(
  * The {@link HangoutClassifierResponse} schema. The two flags come before the description so
  * each is decided before anything is written about the plan.
  */
-function hangoutClassifierSchema(): { name: string; schema: Record<string, unknown> } {
+function hangoutClassifierSchema(strict: boolean): {
+  name: string
+  schema: Record<string, unknown>
+} {
+  // `quote` comes first so the words that do the asking have to be found before either flag is
+  // raised, and the flags come before the description so each is decided before anything is
+  // written about the plan.
+  if (strict) {
+    return objectSchema(
+      'hangoutClassifier',
+      ['quote', 'playerAsked', 'characterOffered', 'description'],
+      {
+        quote: { type: 'string' },
+        playerAsked: { type: 'boolean' },
+        characterOffered: { type: 'boolean' },
+        description: { type: 'string' }
+      }
+    )
+  }
   return objectSchema('hangoutClassifier', ['playerAsked', 'characterOffered', 'description'], {
     playerAsked: { type: 'boolean' },
     characterOffered: { type: 'boolean' },
@@ -132,12 +176,70 @@ function hangoutClassifierSchema(): { name: string; schema: Record<string, unkno
  * Collapses a parsed reply into the verdict the texting loop consumes, or null when nobody
  * proposed anything.
  */
-export function normalizeHangout(parsed: unknown): HangoutVerdict | null {
+/** The fewest words a quote may be. "right now" is in half of all texts and proves nothing. */
+const QUOTE_MIN_WORDS = 3
+
+/**
+ * Flattens text to what a quote has to survive being copied: case, punctuation and runs of space
+ * all go, because a model that quotes correctly still re-punctuates. What is left is the words in
+ * order, which is the part it cannot invent and still match.
+ */
+function flatten(text: string): string {
+  return (
+    text
+      .toLowerCase()
+      // Apostrophes are dropped rather than spaced: a model quoting "im" back as "I'm" is quoting
+      // correctly, and splitting it into two words would fail a quote that stands up.
+      .replace(/['’ʼ]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+  )
+}
+
+/** Whether the quoted words are really in the side they are attributed to. */
+function quoteStandsUp(quote: string, source: string): boolean {
+  const needle = flatten(quote)
+  if (needle.split(' ').filter(Boolean).length < QUOTE_MIN_WORDS) return false
+  return flatten(source).includes(needle)
+}
+
+/**
+ * The verdict, with the claim checked where `sources` is given.
+ *
+ * Without it the reply is taken at its word, which is how this build has always read it. With it,
+ * a verdict that cannot cite the words it is judging is dropped: the model stays free to be wrong
+ * about what the words *mean*, and is no longer free to be wrong about whether they were written.
+ */
+export function normalizeHangout(
+  parsed: unknown,
+  sources?: { message: string; reply: string }
+): HangoutVerdict | null {
   const reply = (parsed ?? {}) as Partial<HangoutClassifierResponse>
   const description = typeof reply.description === 'string' ? reply.description.trim() : ''
   // A plan with no description is nothing the scene loop can cast from.
   if (!description) return null
-  if (reply.playerAsked === true) return { initiatedBy: 'player', description }
-  if (reply.characterOffered === true) return { initiatedBy: 'contact', description }
+  if (!sources) {
+    if (reply.playerAsked === true) return { initiatedBy: 'player', description }
+    if (reply.characterOffered === true) return { initiatedBy: 'contact', description }
+    return null
+  }
+
+  const quote = typeof reply.quote === 'string' ? reply.quote : ''
+  const grounded = (side: string, who: 'player' | 'contact'): boolean => {
+    if (quoteStandsUp(quote, side)) return true
+    console.warn(
+      `[hangout] dropped a ${who} invitation: the quoted words are not in ${
+        who === 'player' ? 'the message' : 'the reply'
+      } — ${JSON.stringify(quote)}`
+    )
+    return false
+  }
+
+  if (reply.playerAsked === true) {
+    return grounded(sources.message, 'player') ? { initiatedBy: 'player', description } : null
+  }
+  if (reply.characterOffered === true) {
+    return grounded(sources.reply, 'contact') ? { initiatedBy: 'contact', description } : null
+  }
   return null
 }

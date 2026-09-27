@@ -856,6 +856,12 @@ export interface TextingResponse {
 
 /** The raw hangout-classifier reply, before {@link normalizeHangout} in the renderer. */
 export interface HangoutClassifierResponse {
+  /**
+   * The words that do the asking, copied from whichever message contains them. Asked for under
+   * `strictSchema` only, and checked against that message before the verdict is taken: an
+   * invitation nobody wrote cannot be quoted.
+   */
+  quote?: string
   /** The reader asked to meet up right now, and the reply did not refuse. */
   playerAsked: boolean
   /** The reply itself offers to meet up right now. */

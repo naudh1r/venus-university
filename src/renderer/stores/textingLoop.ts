@@ -64,6 +64,7 @@ import {
 } from '@shared/types'
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
+import { useSettingsStore } from './settingsStore'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
 import { createRetryGate } from './retryGate'
 import { createTextExtractor } from './textingStream'
@@ -669,19 +670,30 @@ async function classifyHangout(
   if (replies.length === 0) return null
 
   const game = useGameStore.getState()
+  const strict = useSettingsStore.getState().settings?.strictSchema === true
   // Built once, outside the loop: a retry re-sends the identical request.
   const request = buildHangoutClassifierPrompt(
     character.firstName,
     conversation?.messages ?? [],
     sent,
     replies.map((text) => chatMessage('contact', text)),
-    { date: game.date, time: game.time, weather: game.weather }
+    {
+      date: game.date,
+      time: game.time,
+      weather: game.weather,
+      strictSchema: strict
+    }
   )
 
   for (;;) {
     const result = await window.api.llm.classifyHangout(request)
     if (result.ok) {
-      const verdict = normalizeHangout(result.data)
+      // The two sides the quote is checked against: whichever is said to have done the asking
+      // has to actually contain the words. Unchecked with the switch off, as it always was.
+      const verdict = normalizeHangout(
+        result.data,
+        strict ? { message: sent.text, reply: replies.join(' ') } : undefined
+      )
       console.log(
         `[hangout] = ${verdict ? `${verdict.initiatedBy}: ${verdict.description}` : 'no hangout'}`
       )
