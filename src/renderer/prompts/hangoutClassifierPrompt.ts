@@ -114,9 +114,33 @@ export function buildHangoutClassifierPrompt(
         ]
       : []),
     '',
-    'When either flag is true, set "description" to the plan written as a calendar entry: what is happening, where it is happening, and the name of every single person going.',
-    'Write it as a phrase, not a sentence about anybody: no "the reader", no "you", no verb about who does what. "Coffee at the student union with Mina and Mia." — not "The reader gets coffee with Mina."',
-    'Name everyone who is going, including anybody either message says is coming along. Nobody present may be left out.',
+    ...(strict
+      ? [
+          /**
+           * The three lines this replaces contradicted each other, and the contradiction cost
+           * more thought than the verdict did. "The name of every single person going" and
+           * "Nobody present may be left out" sat beside "no 'the reader'" and five examples that
+           * name nobody but the girls. A reasoning trace over a single heart emoji settled the
+           * verdict in four lines and then spent the great majority of its budget here:
+           * *"instruction says every single person going. If we omit, we violate... But examples
+           * omitted reader"*, and *"Is Bunnyboard a place? If Bunnyboard is app, wrong. Need
+           * decide."*
+           *
+           * A rule that cannot be satisfied does not produce a worse answer. It produces the
+           * same answer far more slowly — and on a reasoning model the bill for that arrives as
+           * output tokens.
+           */
+          'When either flag is true, set "description" to the plan written as a calendar entry: what is happening, where it is happening, and who is going.',
+          'Write it as a phrase, not a sentence about anybody: no verb about who does what. "Coffee at the student union with Mina and Mia." — not "The reader gets coffee with Mina."',
+          'Never name the reader. He is going by definition, so he is never one of the names: "with Mina and Mia", never "with the reader" and never a name or nickname of his.',
+          'Name the other characters going, including anybody either message says is coming along.',
+          'Where neither message names a place, leave the place out rather than settling on one.'
+        ]
+      : [
+          'When either flag is true, set "description" to the plan written as a calendar entry: what is happening, where it is happening, and the name of every single person going.',
+          'Write it as a phrase, not a sentence about anybody: no "the reader", no "you", no verb about who does what. "Coffee at the student union with Mina and Mia." — not "The reader gets coffee with Mina."',
+          'Name everyone who is going, including anybody either message says is coming along. Nobody present may be left out.'
+        ]),
     'When both flags are false, "description" is an empty string.',
     '',
     'Examples:',

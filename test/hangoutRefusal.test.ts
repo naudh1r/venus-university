@@ -44,3 +44,45 @@ describe('the classifier is told he has already refused', () => {
     expect(user).not.toContain('"quote"')
   })
 })
+
+/**
+ * A rule that cannot be satisfied does not produce a worse answer; it produces the same answer far
+ * more slowly. These three did contradict each other, and a trace over a single heart emoji spent
+ * the great majority of its reasoning budget on them rather than on the verdict.
+ */
+describe('the description rules do not contradict each other', () => {
+  const msg = (sender: ChatMessage['sender'], text: string): ChatMessage => ({
+    id: `${sender}-${text}`,
+    sender,
+    text,
+    date: 0,
+    time: 0 as TimeSlot
+  })
+
+  function userFor(strictSchema: boolean): string {
+    return buildHangoutClassifierPrompt(
+      'Mina',
+      [],
+      msg('player', 'how was your day'),
+      [msg('contact', 'come get coffee, im at the union')],
+      { date: 0, time: 0 as TimeSlot, strictSchema }
+    ).user
+  }
+
+  it('does not ask for every person and then forbid the reader', () => {
+    const user = userFor(true)
+    expect(user).not.toContain('every single person going')
+    expect(user).not.toContain('Nobody present may be left out')
+    expect(user).toContain('Never name the reader')
+  })
+
+  it('says what to do when neither message names a place', () => {
+    expect(userFor(true)).toContain('leave the place out')
+  })
+
+  it('leaves the wording alone with the switch off', () => {
+    const user = userFor(false)
+    expect(user).toContain('every single person going')
+    expect(user).toContain('Nobody present may be left out')
+  })
+})
