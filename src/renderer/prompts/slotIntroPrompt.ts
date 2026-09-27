@@ -7,6 +7,7 @@ import {
   type CharInfo,
   type Haunt,
   type Occasion,
+  type SlotIntroResponse,
   type StructuredRequest,
   type TimeSlot
 } from '@shared/types'
@@ -130,6 +131,21 @@ export interface SlotIntroInput {
    * scene the reader spends the slot in; absent means the block is not written at all.
    */
   rumorPlace?: LoreEntry
+}
+
+/**
+ * The opening's narration, however the model shaped it. The schema asks for `{ text }` objects;
+ * some endpoints answer with bare strings, and one that did took the whole slot down with it —
+ * `line.text.trim()` threw on a string, the throw escaped an async path with no catch, so the
+ * boundary never crossed and the reader went on playing a scene the loop believed was over.
+ *
+ * Read both, and drop anything that is neither.
+ */
+export function introLines(lines: SlotIntroResponse['lines'] | undefined): string[] {
+  return (lines ?? [])
+    .map((line) => (typeof line === 'string' ? line : (line?.text ?? '')))
+    .map((text) => (typeof text === 'string' ? text.trim() : ''))
+    .filter(Boolean)
 }
 
 /** The narration-only schema: no speaker, emotion, action or bg to emit. */

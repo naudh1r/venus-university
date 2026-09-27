@@ -1935,7 +1935,11 @@ export interface LedgerResponse {
  * speaker, emotion, action or bg, so nothing in it can touch the stage.
  */
 export interface SlotIntroResponse {
-  lines: Array<{ text: string }>
+  /**
+   * The narration, one entry per line. The schema asks for objects, and a model that answers
+   * with bare strings instead is read the same way — see `introLines` in `slotIntroPrompt.ts`.
+   */
+  lines: Array<{ text: string } | string>
   /**
    * One text-message invitation per character the slot rolled in: `char` is her
    * charKey, `text` the message and `description` the plan a yes starts the scene from.
