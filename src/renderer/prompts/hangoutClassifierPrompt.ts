@@ -138,7 +138,17 @@ export function buildHangoutClassifierPrompt(
     schema: hangoutClassifierSchema(strict),
     cacheKey: 'hangout-classifier',
     // The classifier is judged better at a floor of low.
-    minThinking: 'low'
+    minThinking: 'low',
+    /**
+     * And a ceiling to match, under `strictSchema`. This is one judgement with six worked
+     * examples and a sixty-character answer; at the player's `medium` it billed a median 330
+     * output tokens — about sixteen of them the visible answer — cost 78% of the reply it
+     * followed, and took as long, on every single message.
+     *
+     * The reasoning was not buying accuracy either: at `medium` this is the same classifier that
+     * reported "Meeting at Stalestein with Ines" for a girl called Ingrid, on a goodnight.
+     */
+    ...(strict ? { maxThinking: 'low' as const } : {})
   }
 }
 

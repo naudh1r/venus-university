@@ -61,6 +61,15 @@ export interface StructuredRequest {
    * every call that takes the setting as it is.
    */
   minThinking?: ThinkingLevel
+  /**
+   * The most thought this call may be given, whatever the player's setting. For a fixed judgement
+   * with worked examples: the answer is short and the examples say what it is, so reasoning past
+   * that is time and tokens spent on a question already answered.
+   *
+   * The counterpart to {@link StructuredRequest.minThinking}. Absent leaves the setting alone,
+   * which is every call that does not name one.
+   */
+  maxThinking?: ThinkingLevel
   /** Images attached to the user turn, base64 without the `data:` prefix. */
   images?: ReferenceImage[]
   /**

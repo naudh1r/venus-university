@@ -194,7 +194,12 @@ export async function completeStructured<T>(
   const model = modelToRun(settings, request.kind)
   // Against the model that will actually run, so a secondary that takes fewer levels than the
   // primary falls to its own default rather than 400ing.
-  const thinkingLevel = reasoningToSend(settings, model.id, request.minThinking)
+  const thinkingLevel = reasoningToSend(
+    settings,
+    model.id,
+    request.minThinking,
+    request.maxThinking
+  )
   // Absent is `priority`: the tier is a hand-edited switch rather than a player setting.
   const serviceTier = serviceTierFor(settings.apiProvider, settings.serviceTier ?? 'priority')
   // The player's own cap where a custom endpoint names one, else the pinned ceiling.
