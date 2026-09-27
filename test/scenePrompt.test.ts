@@ -464,3 +464,83 @@ describe('buildScenePrompt — the fields a line must answer', () => {
     expect(required).toContain('bg')
   })
 })
+
+/**
+ * `EVENT_GLOSS` offered every milestone on every scene, so a model could answer `became_lovers`
+ * for two people who had just met — which one did, on a first afternoon, while the same save was
+ * telling the player on screen that his Heart was too low to catch her interest. Under
+ * `strictSchema` a milestone the save cannot accept is kept out of the schema, where no amount of
+ * skimming can reach it.
+ */
+describe('buildLedgerPrompt — which milestones are offered', () => {
+  const her = character({ charId: 'char-1', preferredStat: 'heart' })
+
+  /** `CRUSH_FLOOR` is tier 3, which is 35 points. */
+  const MET = { brain: 0, body: 0, heart: 40 }
+  const UNMET = { brain: 0, body: 0, heart: 10 }
+
+  function eventsFor(state: Partial<ScenePromptState>): { user: string; offered: string[] } {
+    const { user, schema } = buildLedgerPrompt(
+      [her],
+      transcript(),
+      { ...promptState(), ...state },
+      'READER',
+      { date: 0, time: 0 as TimeSlot, threads: [], characters: charactersById(her), planned: [] }
+    )
+    const props = schema.schema.properties as Record<
+      string,
+      { items?: { properties?: { event?: { enum?: string[] } } } }
+    >
+    return { user, offered: props.events?.items?.properties?.event?.enum ?? [] }
+  }
+
+  it('offers becoming a couple to a reader she could want', () => {
+    const { user, offered } = eventsFor({ stats: MET, strictSchema: true })
+    expect(offered).toContain('became_lovers')
+    expect(user).toContain('- became_lovers:')
+  })
+
+  it('does not offer it to a reader who is nowhere near her standards', () => {
+    const { user, offered } = eventsFor({ stats: UNMET, strictSchema: true })
+    expect(offered).not.toContain('became_lovers')
+    expect(user).not.toContain('- became_lovers:')
+    // Only that one goes: the rest of a scene's bookkeeping is unaffected.
+    expect(offered).toContain('gave_contact_info')
+    expect(offered).toContain('friendzoned_reader')
+  })
+
+  it('still offers it to the girl he is already with, so getting back together reports', () => {
+    const { offered } = eventsFor({
+      stats: UNMET,
+      strictSchema: true,
+      charInfo: {
+        'char-1': { flags: { isLover: true } }
+      } as unknown as ScenePromptState['charInfo']
+    })
+    expect(offered).toContain('became_lovers')
+  })
+
+  /** With the switch off the whole menu is offered, exactly as this build has always offered it. */
+  it('offers the whole menu with the switch off', () => {
+    const { user, offered } = eventsFor({ stats: UNMET })
+    expect(offered).toContain('became_lovers')
+    expect(user).toContain('- became_lovers:')
+  })
+
+  /** The printed list and the schema are built from one array, so they cannot disagree. */
+  it('prints exactly the milestones it will accept, and no others', () => {
+    for (const stats of [MET, UNMET]) {
+      const { user, offered } = eventsFor({ stats, strictSchema: true })
+      for (const key of [
+        'became_lovers',
+        'broke_up',
+        'friendzoned_by_reader',
+        'friendzoned_reader',
+        'gave_contact_info'
+      ]) {
+        expect(user.includes(`- ${key}:`)).toBe(offered.includes(key))
+      }
+      expect(offered.length).toBeGreaterThan(0)
+    }
+  })
+})

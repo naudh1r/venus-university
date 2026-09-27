@@ -18,6 +18,7 @@ import {
   emptyFlags,
   loveLifeBlurb,
   MEMORY_CAP,
+  missingCrushStatOf,
   overTextDesc
 } from '@shared/relationship'
 import { OUTFIT_SKIN_EXPOSURE } from '@shared/tags'
@@ -1555,6 +1556,37 @@ const EVENT_GLOSS: ReadonlyArray<readonly [string, string]> = [
   ]
 ]
 
+/**
+ * The milestones this scene's cast may actually reach, which is what the ledger is offered.
+ *
+ * `became_lovers` is dropped where nobody in the scene could have one: the game already works
+ * out whether the reader is anywhere near her standards — it is what puts "Your Heart needs to be
+ * at least Good to catch her interest" on screen — and then accepts a couple formed on the first
+ * afternoon anyway. A girl already at `isLover` keeps it, so getting back together after a
+ * breakup still reports.
+ *
+ * Nothing is dropped where the stats are unknown: a missing reader is a reason to ask for less
+ * confidence, not to quietly delete a milestone the save might need.
+ *
+ * The general rule this is an instance of: **if the engine can already decide, do not offer the
+ * choice.** Prose asking for restraint is a request, and a request is what a cheaper model skims;
+ * a value absent from the enum cannot be answered with.
+ */
+function eventGlossFor(
+  cast: readonly Character[],
+  charInfo: Record<string, CharInfo>,
+  stats: PlayerStats | undefined
+): ReadonlyArray<readonly [string, string]> {
+  if (!stats) return EVENT_GLOSS
+  const reachable = cast.some(
+    (character) =>
+      charInfo[character.charId]?.flags?.isLover === true ||
+      missingCrushStatOf(character, stats) === null
+  )
+  return reachable ? EVENT_GLOSS : EVENT_GLOSS.filter(([key]) => key !== 'became_lovers')
+}
+
+
 
 /**
  * Builds the scene ledger's `LedgerResponse` schema — memories, milestones, stats,
@@ -1565,7 +1597,9 @@ function ledgerSchema(
   rosterKeys: readonly string[],
   // Null when the scene was not a class; `factoid` is for a lecture class only.
   classScene: { factoid: boolean } | null,
-  castStats: boolean
+  castStats: boolean,
+  // The same list the EVENTS section prints, so the menu and the schema cannot disagree.
+  eventGloss: ReadonlyArray<readonly [string, string]>
 ): { name: string; schema: Record<string, unknown> } {
   const charKey = { type: 'string', enum: [...charKeys] }
   // Dropped whole when no plans are asked for: an uninstructed field invites filling.
@@ -1645,7 +1679,7 @@ function ledgerSchema(
           required: ['charKey', 'event'],
           properties: {
             charKey,
-            event: { type: 'string', enum: EVENT_GLOSS.map(([key]) => key) }
+            event: { type: 'string', enum: eventGloss.map(([key]) => key) }
           }
         }
       },
@@ -1702,6 +1736,12 @@ export function buildLedgerPrompt(
 ): StructuredRequest {
   const charKeys = cast.map((c) => charKeyOf(c.firstName, c.lastName))
   const rosterKeys = scheduleCharKeys(schedule.characters)
+  // Trimmed to what this scene's cast can reach, under `strictSchema`; the whole menu otherwise,
+  // which is what this build has always offered.
+  const eventGloss =
+    state.strictSchema === true
+      ? eventGlossFor(cast, state.charInfo, state.stats)
+      : EVENT_GLOSS
   // The reader's own lines are kept: a typed plan is half of what PLANS looks for.
   const stubs = transcriptStubs(
     ledgerTranscriptOf(scene),
@@ -1752,7 +1792,7 @@ export function buildLedgerPrompt(
           '',
           'EVENTS',
           'List any of these milestones that actually happened IN THIS SCENE:',
-          ...EVENT_GLOSS.map(([key, gloss]) => `- ${key}: ${gloss}`),
+          ...eventGloss.map(([key, gloss]) => `- ${key}: ${gloss}`),
           'A milestone that did not happen this scene is simply left out. If one happened again — they agreed to be a couple again after a breakup — report it again.',
           'An empty "events" list is the ordinary answer and it is always allowed. Meeting for the first time, getting along, opening up or helping each other out is not a milestone.',
           '',
@@ -1816,7 +1856,7 @@ export function buildLedgerPrompt(
   return {
     system: ledgerPersonaFor(state.lessNsfwText),
     user: `${preamble}\n${rest}`,
-    schema: ledgerSchema(charKeys, rosterKeys, classScene, castStats),
+    schema: ledgerSchema(charKeys, rosterKeys, classScene, castStats, eventGloss),
     // Constant, not the playthrough: nothing above the seam varies by save.
     cacheKey: 'ledger',
     logFrom: preamble.length + 1,
