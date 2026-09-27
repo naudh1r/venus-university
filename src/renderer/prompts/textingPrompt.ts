@@ -255,17 +255,47 @@ function meetUpLines(
   location: string | null | undefined,
   haunt: Haunt | null | undefined,
   time: TimeSlot,
-  away: boolean
+  away: boolean,
+  strict: boolean
 ): string[] {
   // Dropped while she is off campus: the line claims she can meet, and her block says she can't.
   if (away) return []
-  if (!location || location === ROOM_LOCATION) {
+
+  if (!strict) {
+    if (!location || location === ROOM_LOCATION) {
+      return [
+        `${name}'s schedule is clear, so if the reader asks to meet up right now assume ${name} is free to... though not necessarily willing.`
+      ]
+    }
     return [
-      `${name}'s schedule is clear, so if the reader asks to meet up right now assume ${name} is free to... though not necessarily willing.`
+      `${name}'s schedule is clear, so if the reader asks to meet up right now assume ${name} is free to — she is already ${hauntClause(location, haunt, time)} and would sooner have him come to her than go somewhere else — though not necessarily willing.`
     ]
   }
+
+  /**
+   * Worth counting what a character is actually told she may do, in the block she writes her
+   * reply under. Four lines say write it in her voice and keep it text-length. Thirteen are about
+   * sending a picture. Three are about blocking him for good. And one is this.
+   *
+   * That is the whole menu: three affordances, every one an engine feature, and nothing at all
+   * about having a conversation — no topics, no interests, nothing about her day. So when the
+   * model asks what it may *do* in a reply, the answer is: offer to meet, send a nude, or block
+   * him. Photos are rationed ("Most replies are just words") and blocking is terminal, which
+   * leaves meeting the only move always available, for every character, every turn, whatever the
+   * conversation was about.
+   *
+   * And "would sooner have him come to her" is not availability. It is a stated want, sitting one
+   * line under "write her reply" — a model reading that is being told she would *like* him to come
+   * over, not merely that she could.
+   */
+  const where =
+    !location || location === ROOM_LOCATION
+      ? ''
+      : ` She is already ${hauntClause(location, haunt, time)}, so her own spot is the easy answer if she says yes.`
   return [
-    `${name}'s schedule is clear, so if the reader asks to meet up right now assume ${name} is free to — she is already ${hauntClause(location, haunt, time)} and would sooner have him come to her than go somewhere else — though not necessarily willing.`
+    `If the reader asks to meet up right now, ${name}'s schedule is clear enough that she could — though not necessarily willing.${where}`,
+    // The brake the photo rules have and this never did.
+    `This answers him if he asks. It is not a reason for ${name} to bring it up: she has her own day and is not looking for company, and most replies are not invitations.`
   ]
 }
 
@@ -398,7 +428,14 @@ export function buildTextingPrompt(
     `${name} is texting the reader back in a private DM.`,
     `Write ${name}'s reply to the reader's newest message, the last line of RECENT MESSAGES, as the "messages" array: each entry is one text bubble she sends.`,
     'Stay in her voice and keep it text-length: this is a phone thread, not prose.',
-    ...meetUpLines(name, state.charLocation, state.charHaunt, state.time, away),
+    ...meetUpLines(
+      name,
+      state.charLocation,
+      state.charHaunt,
+      state.time,
+      away,
+      state.strictSchema === true
+    ),
     '',
     'BLOCKING',
     `Set "blocked" to true only if these texts have pushed ${name} to cut the reader off completely. She is done, and blocks him on Bunnyboard as her last text lands.`,

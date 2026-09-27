@@ -421,7 +421,18 @@ function jsonRules(
           'Every line carries "actions": the stage directions it applies, in the order written. Most lines have none and carry an empty array; a line may carry several.'
         ]
       : ['The "actions" array holds stage directions, applied in the order you write them. A line may carry several.']),
-    'Use "show:<charKey>" when a character makes their entrance (which won\'t always be on the first line). Only use "hide:<charKey>" when a character leaves the scene and won\'t return.',
+    ...(strict
+      ? [
+          // "Only use hide: when a character leaves" reads as a limit on hiding rather than a
+          // duty to hide, and it covers only her leaving, not the reader walking out. Whoever is
+          // not hidden is still standing there — which is how a scene ends on an empty room with
+          // somebody still drawn in it.
+          `Use "show:<charKey>" when a character makes their entrance (which won't always be on the first line).`,
+          'Use "hide:<charKey>" on the line a character stops being in the scene, and never for one who is still in it. She walks off, or she says goodbye, or the reader leaves the place she stays in — on that line she is hidden. Anybody the reader walks away from is hidden as he goes; only the ones who come with him stay shown.'
+        ]
+      : [
+          `Use "show:<charKey>" when a character makes their entrance (which won't always be on the first line). Only use "hide:<charKey>" when a character leaves the scene and won't return.`
+        ]),
     `Use "sprite:<charKey>,<sprite>" to change what a character looks like on screen. A sprite is one of these emotions: ${EMOTIONS.join(', ')}.`,
     // Described only when the schema carries the suffixes: a tag the model cannot emit is a rejected line.
     ...(outfitSets.length > 0
@@ -1788,6 +1799,22 @@ export function buildLedgerPrompt(
           'Write a single memory of what the character should still remember weeks from now.',
           'Each desc completes the sentence "<Name> <type> that ...", in the past tense, e.g. "the reader helped her carry books".',
           'Call the reader "the reader" every time, never "you", "he" or "him": "the reader lent her the reader\'s notes", not "he lent her his notes".',
+          /**
+           * The four types were offered with no explanation while every *event* got one. A warm
+           * memory came back `disliked`, and memories are read back into later prompts as *"she
+           * disliked that …"* — so one mislabel teaches her a grudge she never had, and keeps
+           * teaching it for the rest of the playthrough.
+           */
+          ...(state.strictSchema === true
+            ? [
+                '"type" is how she feels about it, and it is read back to you later as her feeling. Match it to the desc:',
+                '- liked: it was good, in an ordinary way',
+                '- loved: it was one of the best things anybody has done for her',
+                '- disliked: it put her off, in an ordinary way',
+                '- hated: it was one of the worst things anybody has done to her',
+                'A warm desc never takes "disliked" or "hated", and a desc about being pushed, lied to or let down never takes "liked" or "loved". Most memories are "liked" or "disliked"; the other two are for the scenes she would still be telling people about.'
+              ]
+            : []),
           'If a scene was uneventful for someone, give her nothing.',
           '',
           'EVENTS',

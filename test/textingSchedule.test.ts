@@ -63,3 +63,51 @@ describe('the reader’s week, as she sees it', () => {
     expect(user).toContain('Human Anatomy')
   })
 })
+
+/**
+ * What a character is told she may *do* in a reply: four lines on voice, thirteen on sending a
+ * picture, three on blocking him, and one on meeting up. Photos are rationed and blocking is
+ * terminal, which leaves meeting the only move always available — for every character, every
+ * turn, whatever the conversation was about.
+ */
+describe('the meet-up line is an answer, not a want', () => {
+  const base = {
+    date: 0,
+    time: 0 as const,
+    roster: [],
+    npcRelationships: {},
+    occasions: [],
+    classes: {},
+    playerSchedule: {},
+    playerJob: null,
+    charInfo: {},
+    charLocation: 'arcade'
+  }
+
+  function userFor(strictSchema: boolean): string {
+    return buildTextingPrompt(
+      character({ charId: 'a', firstName: 'Risa' }),
+      undefined,
+      undefined,
+      'hey',
+      { ...base, strictSchema },
+      'READER'
+    ).user
+  }
+
+  it('brakes it, the way the photo rules are braked', () => {
+    const user = userFor(true)
+    expect(user).toContain('not a reason for Risa to bring it up')
+    expect(user).toContain('most replies are not invitations')
+  })
+
+  it('stops telling her she would rather he came to her', () => {
+    expect(userFor(true)).not.toContain('would sooner have him come to her')
+  })
+
+  it('leaves the line alone with the switch off', () => {
+    const user = userFor(false)
+    expect(user).toContain('would sooner have him come to her')
+    expect(user).not.toContain('most replies are not invitations')
+  })
+})
