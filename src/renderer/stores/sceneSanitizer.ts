@@ -135,6 +135,10 @@ export function stageAsWritten(): StageAsWritten {
  */
 export function createSceneSanitizer(options: SanitizerOptions = {}): {
   sanitizeLine: (raw: Partial<SceneLine> | undefined) => SceneLine
+  /** How many are on stage now, the pass's shows and hides counted. */
+  onStageCount: () => number
+  /** Whether anybody was on stage when this pass began — a scene nobody left is not emptied. */
+  startedPeopled: () => boolean
 } {
   const game = useGameStore.getState()
   const knownKeys = new Set(Object.keys(game.charKeyToId))
@@ -164,7 +168,14 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
   // Where the scene stands as this pass walks it, so a line naming it again is not a move.
   let bgSoFar = options.stageBg ?? stageAsWritten().bg
 
+  // Read before the walk, so an opening call onto a bare stage is not mistaken for one the cast
+  // walked out of.
+  const peopledAtStart = onScreen.size > 0
+
   return {
+    onStageCount: () => onScreen.size,
+    startedPeopled: () => peopledAtStart,
+
     sanitizeLine(raw) {
       const line: SceneLine = { speaker: '', text: unquoteLine(raw?.text ?? '') }
 
@@ -322,6 +333,20 @@ export function splitOverflow(line: SceneLine, fits?: (text: string) => boolean)
   )
 }
 
+/**
+ * The end of the scene written as a line of text — `{"text": "end_scene"}` — instead of set on
+ * the field beside `lines`. The same failure as a stage direction written as prose, and from the
+ * same cause: the prompt says to *send* `end_scene`, which reads like a token to emit rather than
+ * a boolean to raise.
+ *
+ * Found in a log where the only character in the scene left and the model wrote this as its last
+ * line. The reader was then asked what to do next, alone, in a scene with nobody in it — which is
+ * why this is read rather than shown.
+ */
+function endWrittenAsText(text: string): boolean {
+  return /^\s*["']?end[_\s-]?scene["']?[.!]?\s*$/i.test(text)
+}
+
 /** Hardens a whole `SceneResponse` — the authoritative pass, run on the resolved reply. */
 export function sanitizeScene(
   response: SceneResponse,
@@ -334,12 +359,45 @@ export function sanitizeScene(
   const sanitizer = createSceneSanitizer(options)
   // A blank or missing summary is not a summary: the previous one stands.
   const summary = typeof response.summary === 'string' ? response.summary.trim() : ''
+
+  if (options.strictSchema !== true) {
+    return {
+      lines: (response.lines ?? []).flatMap((raw) =>
+        splitOverflow(sanitizer.sanitizeLine(raw), options.fits)
+      ),
+      summary: summary || null,
+      end: response.end_scene === true
+    }
+  }
+
+  // Raised by either of the two ways a reply can mean "the scene is over" without saying so on
+  // the field: the token written as a line, or the stage emptying.
+  let endWritten = false
+  // Dropped rather than blanked: a silent line still costs the reader a click, and this one
+  // carries nothing to apply.
+  const kept = (response.lines ?? []).filter((raw) => {
+    if (!endWrittenAsText(raw?.text ?? '')) return true
+    console.warn(
+      '[scene] the end of the scene was written as a line of text — reading it as end_scene.'
+    )
+    endWritten = true
+    return false
+  })
+
+  const lines = kept.flatMap((raw) => splitOverflow(sanitizer.sanitizeLine(raw), options.fits))
+
+  // Everybody who was in the scene has walked out of it. Whatever the model meant, there is
+  // nobody left to play against, and the reader has been handed an empty stage and asked what he
+  // would like to do. A scene with no cast is over.
+  const emptied = sanitizer.startedPeopled() && sanitizer.onStageCount() === 0
+  if (emptied && !endWritten && response.end_scene !== true) {
+    console.warn('[scene] every character has left — ending the scene the reply did not end.')
+  }
+
   return {
-    lines: (response.lines ?? []).flatMap((raw) =>
-      splitOverflow(sanitizer.sanitizeLine(raw), options.fits)
-    ),
+    lines,
     summary: summary || null,
-    end: response.end_scene === true
+    end: response.end_scene === true || endWritten || emptied
   }
 }
 

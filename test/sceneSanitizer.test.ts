@@ -1022,3 +1022,66 @@ describe('projectLedger', () => {
     })
   })
 })
+
+/**
+ * A scene is ended by one boolean, and the cost of missing it is not a cosmetic slip — it is a
+ * slot spent standing in an empty room. On the advisory path the model can satisfy "send
+ * end_scene" in the medium it is writing in, and can simply forget.
+ */
+describe('sanitizeScene — a scene that ends without saying so', () => {
+  const strict = { strictSchema: true, stage: ['sarah_rose'] }
+
+  it('reads the token written as a line, and does not show it', () => {
+    useGameStore.setState({ cast: ['a'] })
+    const out = sanitizeScene(
+      { lines: [{ speaker: '', bg: BG_UNCHANGED, text: 'She goes.' }, { speaker: '', text: 'end_scene' }] },
+      strict
+    )
+    expect(out.end).toBe(true)
+    expect(out.lines.some((line) => line.text.includes('end_scene'))).toBe(false)
+  })
+
+  it('ends a scene everybody has walked out of, whatever the reply said', () => {
+    useGameStore.setState({ cast: ['a'] })
+    const out = sanitizeScene(
+      { lines: [{ speaker: '', bg: BG_UNCHANGED, actions: ['hide:sarah_rose'], text: 'She leaves.' }] },
+      strict
+    )
+    expect(out.end).toBe(true)
+  })
+
+  /** Or every opening call would end itself: a pass that began on a bare stage is exempt. */
+  it('does not end a scene that opened on an empty stage', () => {
+    useGameStore.setState({ cast: ['a'] })
+    const out = sanitizeScene(
+      { lines: [{ speaker: '', bg: BG_UNCHANGED, text: 'The room is empty.' }] },
+      { strictSchema: true, stage: [] }
+    )
+    expect(out.end).toBe(false)
+  })
+
+  it('leaves prose that merely mentions the token alone', () => {
+    useGameStore.setState({ cast: ['a'] })
+    const out = sanitizeScene(
+      { lines: [{ speaker: '', bg: BG_UNCHANGED, text: 'That would end_scene the whole thing.' }] },
+      strict
+    )
+    expect(out.lines.length).toBe(1)
+  })
+
+  /** With the switch off none of it runs: the reply's own flag is the whole answer. */
+  it('does neither with the switch off', () => {
+    useGameStore.setState({ cast: ['a'] })
+    const out = sanitizeScene(
+      {
+        lines: [
+          { speaker: '', actions: ['hide:sarah_rose'], text: 'She leaves.' },
+          { speaker: '', text: 'end_scene' }
+        ]
+      },
+      { stage: ['sarah_rose'] }
+    )
+    expect(out.end).toBe(false)
+    expect(out.lines.some((line) => line.text === 'end_scene')).toBe(true)
+  })
+})
