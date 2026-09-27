@@ -681,7 +681,11 @@ async function classifyHangout(
       date: game.date,
       time: game.time,
       weather: game.weather,
-      strictSchema: strict
+      strictSchema: strict,
+      // What one exchange cannot show: he has said no to her already, so pressing the same offer
+      // again is not a new one to be raised at him a second time.
+      alreadyDeclined:
+        (conversation?.declined ?? 0) > 0 || conversation?.pendingHangout?.dismissed === true
     }
   )
 
@@ -718,6 +722,31 @@ function handleHangout(charId: string, hangout: HangoutVerdict | null): void {
   if (charAwayNow(charId)) return
 
   if (hangout.initiatedBy === 'contact') {
+    /**
+     * The same wait her slot-opening asks already keep, which this path never consulted: an
+     * invitation raised, declined and raised again inside one exchange is the loop the player
+     * reported. `declined` doubles it each time, so a girl turned down twice asks half as often
+     * as one turned down once.
+     *
+     * It also makes the refusal *count*. `sendMessage` clears a pending invitation and settles it
+     * at the end of the turn — but the settle returns early when a fresh one is already standing,
+     * so a second ask inside the same exchange erased the evidence of the refusal before it, and
+     * `declined` never moved off zero. Refusing the second ask here is what lets the settle find
+     * nothing standing and file the decline.
+     */
+    if (useSettingsStore.getState().settings?.strictSchema === true) {
+      const conversation = game.bunnyboard.conversations[charId]
+      const gap = declineCooldownSlots(conversation?.declined ?? 0)
+      const last = lastInviteSlotOf(conversation)
+      if (!askCooldownOver(last, globalSlotOf(game.date, game.time), gap)) {
+        console.log(
+          `[hangout] not raising ${charId}'s invitation: asked ${
+            last === null ? 'never' : `slot ${last}`
+          }, waiting ${gap} slot(s) after ${conversation?.declined ?? 0} decline(s)`
+        )
+        return
+      }
+    }
     game.setPendingHangout(charId, { description: hangout.description })
     // Her texts have all drained by now, so the newest in the thread is the ask itself.
     game.markInvitation(charId)
@@ -790,8 +819,21 @@ export function answerHangout(charId: string, yes: boolean): void {
     return
   }
 
-  // No writes nothing back: the footer comes down and the invitation stands underneath.
+  /**
+   * A No the thread can see. Yes writes "Sure" into it; No wrote nothing at all — so her next turn
+   * read an invitation followed by him talking about something else, and she asked again, which is
+   * the only sensible thing to do with what she was shown. Logged: the same espresso offered three
+   * times in four verdicts, in her own words, quoting cleanly, so nothing to drop.
+   *
+   * A `system` line rather than words in his mouth: the app owns the fact that he was asked and
+   * did not take it up, the way it owns a rescheduled plan. What he says about it is still his.
+   */
   game.setPendingHangout(charId, { ...pending, dismissed: true })
+  if (useSettingsStore.getState().settings?.strictSchema === true) {
+    const character = game.characters[charId]
+    const whose = character?.firstName ? `${character.firstName}'s` : 'her'
+    deliver(charId, chatMessage('system', `You didn't take up ${whose} invitation.`))
+  }
 }
 
 /**

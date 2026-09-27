@@ -36,6 +36,17 @@ export interface HangoutClassifierState {
    */
   strictSchema?: boolean
   /**
+   * Whether the reader has already turned down an invitation from her that still stands — he was
+   * asked, he said no, and she has not been asked to drop it since.
+   *
+   * Each classification is one exchange: six messages of background, his message, her reply.
+   * Nothing in that view says he was asked yesterday and said no, so a standing offer pressed
+   * again reads as a fresh proposal, every turn. It is the same distinction the prompt already
+   * draws for a plan already made — pressing an offer he has answered is not a new one — given
+   * the fact it needed to apply it.
+   */
+  alreadyDeclined?: boolean
+  /**
    * The whole semester's sky, one reading per slot — the NOW line walks back through it for how
    * long the weather has held. Absent means nothing is said about it.
    */
@@ -94,6 +105,14 @@ export function buildHangoutClassifierPrompt(
     'A vague maybe, an agreement to something the reader proposed, or a reference to a plan already made is not an offer.',
     '',
     'Look for proposals ONLY in THE MESSAGE and THE REPLY. Nowhere else.',
+    ...(strict && state.alreadyDeclined
+      ? [
+          '',
+          `The reader has already turned down an invitation from ${firstName} and has not changed his mind since.`,
+          'So "characterOffered" is false here unless THE REPLY proposes something genuinely new — a different thing to do, not the same one pressed again, reworded, or held open.',
+          'Keeping an offer standing, repeating it, or telling him where she will be is not a new proposal.'
+        ]
+      : []),
     '',
     'When either flag is true, set "description" to the plan written as a calendar entry: what is happening, where it is happening, and the name of every single person going.',
     'Write it as a phrase, not a sentence about anybody: no "the reader", no "you", no verb about who does what. "Coffee at the student union with Mina and Mia." — not "The reader gets coffee with Mina."',
