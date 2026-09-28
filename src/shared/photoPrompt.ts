@@ -9,6 +9,7 @@ import type { Character } from './types'
 // and pulls in what they import — so the feature brings its own types rather than relying on a
 // tsconfig line, which would be one more thing to re-add on a sync.
 import type {} from './photoTypes'
+import { photoWardrobe } from './photoWardrobe'
 import { saysAny } from './photoWords'
 
 /**
@@ -196,10 +197,9 @@ export function buildPhotoPrompt(
 
   const wardrobe = bare
     ? `nude, completely_nude, ${BARE_POSITIVE}`
-    : // Her own clothes, unless the picture she described already put her in something.
-      dressed
-      ? ''
-      : character.outfit.join(', ')
+    : // One of her own sets, or nothing where the picture she described dressed her in
+      // something none of them is.
+      (photoWardrobe(character, scene, dressed, tier !== 'everyday') ?? []).join(', ')
 
   const positive = [
     `${PHOTO_QUALITY}, ${PHOTO_BASE}`,

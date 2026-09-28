@@ -1,5 +1,6 @@
 import { allowedPhotoTier, PHOTO_TIERS, type PhotoTier } from '@shared/photoGate'
 import { affectionFor } from '@shared/relationship'
+import { wardrobeLine } from '@shared/photoWardrobe'
 import type { Character, CharInfo, ChatMessage } from '@shared/types'
 import type { TextingPromptState } from './textingPrompt'
 
@@ -74,6 +75,7 @@ export function photoLines(
     'A picture is worth sending when the texts are already about one — she offers it, or he asked and she wants to. Most replies are just words: set "sendPhoto" false and leave "photoPrompt" empty.',
     `Write "photoPrompt" as what the picture shows, the way ${name} would caption it to herself. One sentence, and a full one: where she is, what she is wearing, how she is sitting or lying or standing, what her hands are doing, how close the shot is, and where she is looking.`,
     'What is not written is not drawn. A caption that says only "a selfie" gets a picture of nobody in particular.',
+    wardrobeLine(character),
     'Then set "photoTier" to what that picture is, which is a separate question from whether she would send it: "everyday" for one with nothing on show, "suggestive" for underwear, swimwear or a towel, "explicit" for one where any part of her usually covered is not. Judge the picture you described, not the words you described it in — a caption that never says a word for it can still be a picture of one. "none" where there is no picture.',
     ...(tier === 'explicit'
       ? [
