@@ -149,6 +149,8 @@ export function patchOf(settings: RendererSettings): SettingsPatch {
     warnEndingEdit: settings.warnEndingEdit,
     noNsfwImages: settings.noNsfwImages,
     lessNsfwText: settings.lessNsfwText,
+    // Carried, or a save made from anywhere else would turn strict schema fields back off.
+    strictSchema: settings.strictSchema,
     noNsfwSound: settings.noNsfwSound,
     sfwAsked: settings.sfwAsked,
     // Carried, or a save made from anywhere else would drop a browser's key on the next visit.

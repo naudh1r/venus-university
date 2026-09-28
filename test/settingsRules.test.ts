@@ -329,3 +329,28 @@ describe('endpointProblem', () => {
   })
 })
 
+/**
+ * `mergePatch` spreads the stored settings and then **names** every field it takes from the
+ * patch. A field that is not named is silently dropped: the stored value survives, the write
+ * appears to succeed, and the control springs back to where it was when the store is read again.
+ *
+ * Nothing about that fails loudly — not the compiler, since the patch type carries the field
+ * either way, and not the write, which returns ok. So it is checked here.
+ */
+describe('mergePatch — a switch the patch names is the switch that lands', () => {
+  it('turns strict schema fields on', () => {
+    const merged = mergePatch(settings(), settingsPatch({ strictSchema: true }))
+    expect(merged.strictSchema).toBe(true)
+  })
+
+  it('turns them off again', () => {
+    const merged = mergePatch(settings({ strictSchema: true }), settingsPatch({ strictSchema: false }))
+    expect(merged.strictSchema).toBe(false)
+  })
+
+  /** Absent is how a save written before the setting existed reads, and absent is off. */
+  it('leaves it absent where the patch says nothing', () => {
+    const merged = mergePatch(settings({ strictSchema: true }), settingsPatch())
+    expect(merged.strictSchema).toBeUndefined()
+  })
+})

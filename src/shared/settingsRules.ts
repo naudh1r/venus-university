@@ -257,6 +257,10 @@ export function mergePatch(current: Settings, patch: SettingsPatch): Settings {
     warnEndingEdit: patch.warnEndingEdit,
     noNsfwImages: patch.noNsfwImages,
     lessNsfwText: patch.lessNsfwText,
+    // Absent stays absent, and absent is off — the behaviour this build shipped with. Named here
+    // like every other switch: `...current` alone would keep the stored value and discard what
+    // the patch is asking for, so the toggle would write nothing and spring back.
+    strictSchema: patch.strictSchema,
     // Absent stays absent, as the volumes below do, and absent is the sound playing.
     noNsfwSound: patch.noNsfwSound,
     sfwAsked: patch.sfwAsked,
