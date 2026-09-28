@@ -38,13 +38,13 @@ describe('posePhotoTags', () => {
       true
     )
     expect(tags).toContain('fingering')
-    expect(tags).toContain('hand_on_own_breast')
+    expect(tags).toContain('grabbing_own_breast')
     expect(tags).toContain('seductive_smile')
   })
 
   it('catches nipple play written around the noun', () => {
     expect(posePhotoTags('lying back, teasing her stiff nipples', true)).toContain(
-      'hand_on_own_breast'
+      'grabbing_own_breast'
     )
   })
 
@@ -71,4 +71,21 @@ describe('posePhotoTags', () => {
     expect(posePhotoTags('naked, masturbating on the bed', true)).toContain('masturbation')
     expect(posePhotoTags('naked, standing by the display case', true)).not.toContain('spread_legs')
   })
+
+  /** Two positions in one prompt leave the checkpoint to pick, and it picks badly. */
+  it('gives an undressed picture one position, never two', () => {
+    const couch = posePhotoTags('naked, fingering herself on the couch', true)
+    expect(couch).toContain('sitting')
+    expect(couch).not.toContain('lying')
+
+    const bed = posePhotoTags('naked, a vibrator between her legs, sitting on the bed', true)
+    expect(bed).toContain('sitting')
+    expect(bed).not.toContain('lying')
+
+    // With no position written at all, her hands decide it.
+    expect(posePhotoTags('masturbating in the bath', true)).toEqual(
+      expect.arrayContaining(['lying', 'on_back'])
+    )
+  })
 })
+

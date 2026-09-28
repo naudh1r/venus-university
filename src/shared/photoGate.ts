@@ -182,9 +182,6 @@ export function describedPhotoTier(photoPrompt: string): PhotoTier {
  */
 const NOT_SOLO_WORDS = [
   // Another body in it.
-  'penis',
-  'cock',
-  'dick',
   'his hand',
   'his fingers',
   'his mouth',
@@ -225,9 +222,17 @@ const NOT_SOLO_WORDS = [
   'anal beads'
 ]
 
+/** The words for a man's body, which mean somebody else is there unless a toy is being named. */
+const PARTNER_BODY_WORDS = ['penis', 'cock', 'dick']
+
+/** What a caption calls the toy she is using by herself: "a dildo shaped like a cock" is hers. */
+const TOY_WORDS = ['dildo', 'vibrator', 'toy', 'magic wand']
+
 /** Whether a caption puts anybody but her in the picture, or anything anal. */
 export function describesSomebodyElse(photoPrompt: string): boolean {
-  return saysAny(photoPrompt.toLowerCase(), NOT_SOLO_WORDS)
+  const text = photoPrompt.toLowerCase()
+  if (saysAny(text, NOT_SOLO_WORDS)) return true
+  return saysAny(text, PARTNER_BODY_WORDS) && !saysAny(text, TOY_WORDS)
 }
 
 /** One photo request, once the gate has had its say. */

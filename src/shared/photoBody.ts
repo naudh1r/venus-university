@@ -228,7 +228,6 @@ function coverageIn(caption: string, bare: boolean): Record<Region, Coverage> {
  */
 const THROUGH_CLOTH: Partial<Record<Region, string>> = {
   bust: 'cleavage',
-  stomach: 'taut_stomach',
   hipsThighs: 'wide_hips'
 }
 

@@ -40,18 +40,18 @@ const DRESSED_POSITIONS: readonly Rule[] = [
     cues: ['selfie', 'close-up', 'close up', 'mirror'],
     tags: ['close-up', 'upper_body', 'hand_up']
   },
-  { cues: ['face shot', 'face only', 'just her face'], tags: ['close-up', 'face_focus'] },
+  { cues: ['face shot', 'face only', 'just her face'], tags: ['close-up', 'portrait'] },
   {
     cues: ['lying', 'laying', 'on the bed', 'on bed', 'on the floor', 'on the grass'],
     tags: ['lying', 'arms_at_sides']
   },
   {
     cues: ['sitting', 'seated', 'cross-legged', 'on the chair', 'on the couch', 'on a bench'],
-    tags: ['sitting', 'cowboy_shot', 'hands_on_own_lap']
+    tags: ['sitting', 'cowboy_shot', 'hands_on_lap']
   },
   { cues: ['kneeling', 'crouching'], tags: ['kneeling', 'hands_on_own_thighs'] },
   { cues: ['leaning over', 'leaning forward'], tags: ['leaning_forward', 'hand_on_own_chin'] },
-  { cues: ['leaning against', 'leaning on'], tags: ['against_wall', 'arms_crossed'] },
+  { cues: ['leaning against', 'leaning on'], tags: ['against_wall', 'crossed_arms'] },
   { cues: ['standing', 'walking'], tags: ['standing', 'cowboy_shot', 'hand_on_own_hip'] },
   { cues: ['stretching', 'reaching up'], tags: ['standing', 'arms_up', 'armpits'] }
 ]
@@ -72,11 +72,11 @@ const FACING: readonly Rule[] = [
 const BARE_POSITIONS: readonly Rule[] = [
   {
     cues: ['on all fours', 'all fours', 'hands and knees'],
-    tags: ['all_fours', 'solo', 'arms_straight', 'ass_up']
+    tags: ['all_fours', 'solo']
   },
   {
     cues: ['bent over', 'bending over', 'bent forward'],
-    tags: ['bent_over', 'solo', 'hands_on_own_knees', 'ass_up']
+    tags: ['bent_over', 'solo', 'hands_on_own_knees']
   },
   { cues: ['from behind'], tags: ['from_behind', 'solo', 'ass_focus'] },
   {
@@ -85,19 +85,19 @@ const BARE_POSITIONS: readonly Rule[] = [
   },
   {
     cues: ['spread eagle', 'spread-eagle', 'splayed out'],
-    tags: ['lying', 'on_back', 'solo', 'spread_eagle', 'spread_legs']
+    tags: ['lying', 'on_back', 'solo', 'spread_legs']
   },
   {
     cues: ['on her back', 'onto her back', 'lying on her back', 'lying back', 'on back'],
-    tags: ['lying', 'on_back', 'solo', 'arms_above_head']
+    tags: ['lying', 'on_back', 'solo', 'arms_up']
   },
   {
     cues: ['on her stomach', 'face down', 'lying on her stomach', 'prone'],
-    tags: ['lying', 'on_stomach', 'solo', 'arms_in_front', 'ass_up']
+    tags: ['lying', 'on_stomach', 'solo', 'head_rest']
   },
   {
     cues: ['on her side', 'lying on her side', 'side lying'],
-    tags: ['on_side', 'solo', 'hand_supporting_head']
+    tags: ['on_side', 'solo', 'head_rest']
   },
   { cues: ['squatting', 'squat'], tags: ['squatting', 'solo', 'spread_legs', 'hand_on_own_thigh'] },
   { cues: ['on her knees', 'kneeling'], tags: ['kneeling', 'solo', 'hands_on_own_thighs'] },
@@ -107,7 +107,7 @@ const BARE_POSITIONS: readonly Rule[] = [
   },
   {
     cues: ['sitting on the bed', 'sitting on her bed'],
-    tags: ['sitting', 'on_bed', 'solo', 'hands_on_own_lap']
+    tags: ['sitting', 'on_bed', 'solo', 'hands_on_lap']
   },
   {
     cues: ['sitting', 'seated', 'cross-legged'],
@@ -133,18 +133,15 @@ const PLACEMENT_TAGS: ReadonlySet<string> = new Set([
   'hand_on_own_hip',
   'hands_on_own_thighs',
   'hand_on_own_thigh',
-  'hands_on_own_lap',
+  'hands_on_lap',
   'hands_on_own_knees',
   'hands_on_own_ass',
-  'hand_supporting_head',
-  'arms_straight',
-  'arms_in_front',
+  'head_rest',
   'arms_at_sides',
-  'arms_above_head',
+  'arms_up',
   'hand_up',
   'hand_on_own_chin',
-  'arms_crossed',
-  'arms_up'
+  'crossed_arms'
 ])
 
 /** What her hands are doing. Up to two fire — she has two of them. */
@@ -168,7 +165,7 @@ const HAND_ACTIONS: readonly ActionRule[] = [
       'slides a finger',
       'working her fingers'
     ],
-    tags: ['masturbation', 'fingering', 'hand_between_legs'],
+    tags: ['masturbation', 'fingering', 'between_legs'],
     implies: ['lying', 'on_back', 'solo', 'spread_legs']
   },
   {
@@ -185,7 +182,7 @@ const HAND_ACTIONS: readonly ActionRule[] = [
       'hand on her breast',
       'hands on her breasts'
     ],
-    tags: ['grabbing_own_breast', 'hand_on_own_breast']
+    tags: ['grabbing_own_breast']
   },
   {
     cues: [
@@ -206,7 +203,7 @@ const HAND_ACTIONS: readonly ActionRule[] = [
       'grabbing her ass'
     ],
     tags: ['grabbing_own_ass', 'ass_focus'],
-    implies: ['bent_over', 'solo', 'ass_up']
+    implies: ['bent_over', 'solo']
   },
   {
     cues: ['dildo', 'toy inside her', 'fucking herself with'],
@@ -276,12 +273,11 @@ const MODIFIERS: readonly Rule[] = [
     cues: ['orgasm', 'climax', 'cumming', 'ahegao', 'ecstasy', 'eyes rolled', 'trembling with'],
     tags: ['orgasm', 'open_mouth', 'rolling_eyes']
   },
-  { cues: ['squirt', 'gushing', 'female ejaculation'], tags: ['squirting', 'female_ejaculation'] },
+  { cues: ['squirt', 'gushing', 'female ejaculation'], tags: ['female_ejaculation'] },
   {
     cues: ['spread legs', 'legs apart', 'legs open', 'thighs spread', 'legs spread'],
     tags: ['spread_legs']
   },
-  { cues: ['presenting', 'showing off', 'showing her'], tags: ['presenting'] },
   { cues: ['arching', 'arched back', 'arches her back'], tags: ['arched_back'] },
   { cues: ['soaking wet', 'dripping', 'soaked'], tags: ['wet', 'sweat'] },
   { cues: ['blushing', 'red cheeks', 'flushed', 'cheeks pink', 'cheeks red'], tags: ['blush'] },
@@ -302,8 +298,7 @@ const DRESSED_MODIFIERS: ReadonlySet<string> = new Set([
   'arched_back',
   'blush',
   'looking_at_viewer',
-  'mirror',
-  'presenting'
+  'mirror'
 ])
 
 /**
@@ -316,11 +311,11 @@ export function posePhotoTags(caption: string, bare: boolean): string[] {
   const tags: string[] = []
 
   const dressed = firstMatch(text, DRESSED_POSITIONS)
-  if (dressed) tags.push(...dressed.tags)
   const facing = firstMatch(text, FACING)
-  if (facing) tags.push(...facing.tags)
 
   if (!bare) {
+    if (dressed) tags.push(...dressed.tags)
+    if (facing) tags.push(...facing.tags)
     for (const modifier of MODIFIERS) {
       if (DRESSED_MODIFIERS.has(modifier.tags[0]) && fires(text, modifier.cues)) {
         tags.push(...modifier.tags)
@@ -336,9 +331,12 @@ export function posePhotoTags(caption: string, bare: boolean): string[] {
   const looseNipples = matched.length === 0 && says(text, 'nipple') && saysAny(text, NIPPLE_VERBS)
   const hands = looseNipples ? [BREAST_ACTION] : matched
 
-  // Her position as the caption gave it, else the one her hands imply, else standing.
+  // One position and never two: the undressed table's, else where the caption put her in the
+  // dressed one's words ("on the couch"), else the one her hands imply, else standing. Taking the
+  // dressed row as well as another is how a picture came out both sitting and lying on her back.
   const implied = hands.find((action) => action.implies)?.implies
-  tags.push(...(position?.tags ?? implied ?? BARE_POSITION_DEFAULT))
+  tags.push(...(position?.tags ?? dressed?.tags ?? implied ?? BARE_POSITION_DEFAULT))
+  if (facing) tags.push(...facing.tags)
 
   for (const modifier of MODIFIERS) {
     if (fires(text, modifier.cues)) tags.push(...modifier.tags)

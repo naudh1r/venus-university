@@ -249,6 +249,11 @@ describe('a picture of anybody but her', () => {
     }
   })
 
+  it('reads a toy described as a man for the toy it is', () => {
+    expect(describesSomebodyElse('naked, riding a dildo shaped like a cock')).toBe(false)
+    expect(describesSomebodyElse('naked, on her knees in front of his cock')).toBe(true)
+  })
+
   it('leaves a picture of her alone that only mentions him', () => {
     expect(describesSomebodyElse('a mirror selfie in his hoodie, for him')).toBe(false)
     expect(describesSomebodyElse('she types up the documents at her desk')).toBe(false)
