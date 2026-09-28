@@ -61,32 +61,60 @@ const BARE_NEGATIVE = 'censored, mosaic_censoring, bar_censor, convenient_censor
 /** Words in her description that say she is already dressed for the picture. */
 const CLOTHING_WORDS = [
   'wearing',
+  'dressed',
+  'outfit',
+  'clothes',
+  // Everything the coverage tables in `photoBody` know as clothing, so the two agree on what
+  // dresses her.
   'dress',
-  'shirt',
-  'top',
-  'skirt',
-  'jeans',
-  'hoodie',
-  'cardigan',
-  'sweater',
-  'jacket',
+  'sundress',
+  'gown',
   'coat',
+  'jacket',
+  'hoodie',
+  'sweater',
+  'cardigan',
+  'shirt',
+  'blouse',
+  'top',
+  'tank top',
+  'crop top',
   'uniform',
-  'swimsuit',
-  'bikini',
-  'underwear',
-  'lingerie',
-  'bra',
-  'panties',
-  'towel',
   'pyjamas',
   'pajamas',
-  'outfit'
+  'jeans',
+  'trousers',
+  'pants',
+  'shorts',
+  'skirt',
+  'towel',
+  'bra',
+  'bralette',
+  'bikini',
+  'swimsuit',
+  'swimwear',
+  'one-piece',
+  'lingerie',
+  'negligee',
+  'corset',
+  'panties',
+  'underwear',
+  'thong',
+  'g-string',
+  'leggings',
+  'stockings',
+  'robe',
+  'bathrobe',
+  'kimono',
+  'yukata',
+  'apron',
+  'costume'
 ]
 
 /** Whether her description dresses her, in which case her everyday wardrobe stays out of it. */
 function describesClothing(photoPrompt: string): boolean {
-  const text = photoPrompt.toLowerCase()
+  // "on top of the bed" is a place, not something she has on.
+  const text = photoPrompt.toLowerCase().replace(/\btop of\b/g, '')
   return saysAny(text, CLOTHING_WORDS)
 }
 

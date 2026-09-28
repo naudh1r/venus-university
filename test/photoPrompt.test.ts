@@ -109,4 +109,14 @@ describe('buildPhotoPrompt', () => {
       expect(negative).toContain(tag)
     }
   })
+
+  /** A caption that dresses her replaces her wardrobe; one that does not keeps it. */
+  it('puts her in the clothes the caption names, and only those', () => {
+    const sundress = promptFor('everyday', 'In a yellow sundress on the quad, waving')
+    expect(sundress).toContain('yellow sundress')
+    expect(sundress).not.toContain('pink cardigan')
+
+    const onTop = promptFor('everyday', 'Sitting on top of her bed with a book')
+    expect(onTop).toContain('pink cardigan')
+  })
 })
