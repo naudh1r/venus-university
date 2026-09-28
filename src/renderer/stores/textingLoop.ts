@@ -62,6 +62,7 @@ import {
   type TextingResponse,
   type TimeSlot
 } from '@shared/types'
+import { asInvitationAnswer, invitationAnswerText } from '@shared/invitationAnswer'
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
 import { canSendPhotos } from './photoStore'
@@ -811,7 +812,16 @@ export function answerHangout(charId: string, yes: boolean): void {
     game.setPendingHangout(charId, null)
     game.setIgnoredInvitation(charId, false)
     game.resetDeclined(charId)
-    game.appendChatMessage(charId, chatMessage('player', 'Sure'), 0)
+    game.appendChatMessage(
+      charId,
+      useSettingsStore.getState().settings?.strictSchema === true
+        ? asInvitationAnswer(
+            chatMessage('system', invitationAnswerText(game.characters[charId]?.firstName, true)),
+            true
+          )
+        : chatMessage('player', 'Sure'),
+      0
+    )
     // An invitation raised before she left and accepted after it.
     if (charAwayNow(charId)) {
       const character = game.characters[charId]
@@ -840,9 +850,8 @@ export function answerHangout(charId: string, yes: boolean): void {
    */
   game.setPendingHangout(charId, { ...pending, dismissed: true })
   if (useSettingsStore.getState().settings?.strictSchema === true) {
-    const character = game.characters[charId]
-    const whose = character?.firstName ? `${character.firstName}'s` : 'her'
-    deliver(charId, chatMessage('system', `You didn't take up ${whose} invitation.`))
+    const text = invitationAnswerText(game.characters[charId]?.firstName, false)
+    deliver(charId, asInvitationAnswer(chatMessage('system', text), false))
   }
 }
 

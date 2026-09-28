@@ -46,6 +46,7 @@ import {
   useGameStore
 } from './gameStore'
 import { stageFactsOf, stepStage } from './stageStep'
+import { liftWrittenActions, linesWithOpeningBg } from './strictSceneRepairs'
 import { addContact, IGNORED_TEXT_DESC, TURNED_DOWN_DESC, unblockContact } from './textingLoop'
 
 /**
@@ -176,7 +177,8 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
     onStageCount: () => onScreen.size,
     startedPeopled: () => peopledAtStart,
 
-    sanitizeLine(raw) {
+    sanitizeLine(written) {
+      const raw = options.strictSchema === true ? liftWrittenActions(written) : written
       const line: SceneLine = { speaker: '', text: unquoteLine(raw?.text ?? '') }
 
       if (raw?.speaker) {
@@ -375,7 +377,7 @@ export function sanitizeScene(
   let endWritten = false
   // Dropped rather than blanked: a silent line still costs the reader a click, and this one
   // carries nothing to apply.
-  const kept = (response.lines ?? []).filter((raw) => {
+  const kept = linesWithOpeningBg(response).filter((raw) => {
     if (!endWrittenAsText(raw?.text ?? '')) return true
     console.warn(
       '[scene] the end of the scene was written as a line of text — reading it as end_scene.'
