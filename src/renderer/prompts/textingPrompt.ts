@@ -1,6 +1,5 @@
 import { affectionFor, dedupedMemoriesFor, emptyFlags } from '@shared/relationship'
 import { invitationAnswerOf } from '@shared/invitationAnswer'
-import { strictTextingPersona } from './strictSceneBrief'
 import { ROOM_LOCATION } from '@shared/locations'
 import type { NpcRelationshipMap } from '@shared/npcRelationships'
 import {
@@ -463,7 +462,7 @@ export function buildTextingPrompt(
   ].join('\n')
 
   return {
-    system: state.strictSchema === true ? strictTextingPersona(TEXTING_PERSONA) : TEXTING_PERSONA,
+    system: TEXTING_PERSONA,
     user,
     schema: textingSchema(),
     // Constant, like the ledger's: nothing above the seam varies by save.

@@ -36,18 +36,3 @@ export const STRICT_END_SCENE_LINES = [
   'Never write end_scene as the text of a line. It is a field beside "lines", not something a line says.',
   'If the last character present leaves, the scene is over: set "end_scene" to true on that same reply, or the reader is left alone with nobody to talk to.'
 ]
-
-/**
- * The texting persona's line about length, and what it becomes. "Some people send one long
- * message" is permission, and a cheap model takes it: a paragraph in one bubble, reading like a
- * letter. The replacement is the same length and asks for what a phone thread looks like.
- */
-const TEXT_LENGTH_RULE =
-  'Some people send one long message, some fire off several short ones — match how SHE would text, keeping her personality and memories in mind.'
-const STRICT_TEXT_LENGTH_RULE =
-  'Each text is one thought, a line or two at most: a longer reply is more texts, never a paragraph in one. Match how SHE would text, keeping her personality and memories in mind.'
-
-/** The texting persona under `strictSchema`: the same, with the length rule said as a limit. */
-export function strictTextingPersona(persona: string): string {
-  return persona.replace(TEXT_LENGTH_RULE, STRICT_TEXT_LENGTH_RULE)
-}
