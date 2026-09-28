@@ -335,8 +335,8 @@ describe('endpointProblem', () => {
  * still reports success, and the control is reseeded from a store that never changed — so the
  * checkbox springs back to where it was.
  *
- * Nothing about that fails loudly. The compiler is happy either way, since the patch type carries
- * the field whichever end drops it.
+ * Nothing about that fails loudly — not the compiler, since the patch type carries the field
+ * either way, and not the write, which returns ok. So both settings are checked here.
  */
 describe('mergePatch — a switch the patch names is the switch that lands', () => {
   it('turns photographs off', () => {
@@ -350,8 +350,28 @@ describe('mergePatch — a switch the patch names is the switch that lands', () 
   })
 
   /** Absent is how a save written before the feature existed reads, and absent is photographs on. */
-  it('leaves it absent where the patch says nothing', () => {
+  it('leaves photographs absent where the patch says nothing', () => {
     const merged = mergePatch(settings({ photos: false }), settingsPatch())
     expect(merged.photos).toBeUndefined()
+  })
+
+  it('turns strict schema fields on', () => {
+    const merged = mergePatch(settings(), settingsPatch({ strictSchema: true }))
+    expect(merged.strictSchema).toBe(true)
+  })
+
+  it('turns them off again', () => {
+    const merged = mergePatch(
+      settings({ strictSchema: true }),
+      settingsPatch({ strictSchema: false })
+    )
+    expect(merged.strictSchema).toBe(false)
+  })
+
+  /** Absent is how a save written before the setting existed reads, and absent is off. */
+  it('leaves strict schema absent where the patch says nothing', () => {
+    const merged = mergePatch(settings({ strictSchema: true }), settingsPatch())
+    expect(merged.strictSchema).toBeUndefined()
+
   })
 })

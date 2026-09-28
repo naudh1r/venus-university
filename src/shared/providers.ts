@@ -194,13 +194,16 @@ export function thinkingLevelFor(
   apiProvider: ProviderApi,
   modelId: string,
   stored: string,
-  floor?: ThinkingLevel
+  floor?: ThinkingLevel,
+  ceiling?: ThinkingLevel
 ): ThinkingLevel {
   const model = modelFor(apiProvider, modelId)
   const resolved = isThinkingLevel(stored) && model.thinkingLevels.includes(stored)
     ? stored
     : model.defaultThinkingLevel
-  return raiseTo(resolved, floor, model.thinkingLevels)
+  // The floor first: a call that names both is asking for a band, and the floor is the one it
+  // cannot do without.
+  return lowerTo(raiseTo(resolved, floor, model.thinkingLevels), ceiling, model.thinkingLevels)
 }
 
 /**
@@ -219,18 +222,42 @@ export function raiseTo(
 }
 
 /**
+ * `level` lowered to the highest of `accepted` at or below `ceiling`, or left where it is when it
+ * already clears the ceiling, there is no ceiling, or nothing accepted is that low.
+ *
+ * The counterpart to {@link raiseTo}, and the half that was missing: a call could ask for *more*
+ * thought than the player's setting and never for less, so a fixed judgement with worked examples
+ * ran at whatever the scene writer runs at.
+ */
+export function lowerTo(
+  level: ThinkingLevel,
+  ceiling: ThinkingLevel | undefined,
+  accepted: readonly ThinkingLevel[]
+): ThinkingLevel {
+  if (!ceiling) return level
+  const ceilingIndex = THINKING_LEVELS.indexOf(ceiling)
+  if (THINKING_LEVELS.indexOf(level) <= ceilingIndex) return level
+  return (
+    THINKING_LEVELS.slice(0, ceilingIndex + 1)
+      .reverse()
+      .find((candidate) => accepted.includes(candidate)) ?? level
+  )
+}
+
+/**
  * The level a call names. Gemini reads its own setting, a custom endpoint the reasoning effort
  * beside it — an absent one reading as minimal — and either is resolved against the model that
- * will run, with a floor raising it.
+ * will run, with a floor raising it and a ceiling lowering it.
  */
 export function reasoningToSend(
   settings: Settings,
   modelId: string,
-  floor?: ThinkingLevel
+  floor?: ThinkingLevel,
+  ceiling?: ThinkingLevel
 ): ThinkingLevel {
   const stored =
     settings.apiProvider === 'openai' ? (settings.reasoningEffort ?? '') : settings.thinkingLevel
-  return thinkingLevelFor(settings.apiProvider, modelId, stored, floor)
+  return thinkingLevelFor(settings.apiProvider, modelId, stored, floor, ceiling)
 }
 
 /**

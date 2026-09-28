@@ -1,6 +1,7 @@
 import { appError } from '@shared/errors'
 import type { AppError, SceneLine, StructuredRequest } from '@shared/types'
 import { useGameStore } from '../gameStore'
+import { useSettingsStore } from '../settingsStore'
 import {
   createSceneSanitizer,
   sanitizeScene,
@@ -145,6 +146,11 @@ export async function streamScene(
   options = {
     ...options,
     stage: options.stage ?? stageAsWritten().onStage,
+    // Captured with the stage, for the same reason: both passes must read the same line as the
+    // move, or the preview shows a background the authoritative pass then drops.
+    stageBg: options.stageBg ?? stageAsWritten().bg,
+    strictSchema:
+      options.strictSchema ?? useSettingsStore.getState().settings?.strictSchema === true,
     fits: options.fits ?? boxFits
   }
 

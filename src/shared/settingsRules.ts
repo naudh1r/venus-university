@@ -20,6 +20,8 @@ const SETTINGS_REQUIRED: Record<
     // `photos` — the photo feature's, and optional: absent reads as on, since a save written
     // before the feature existed is not a save that asked for it to be off.
     | 'photos'
+    // `strictSchema` is optional, and absent reads as off — the behaviour this build shipped with.
+    | 'strictSchema'
     | 'apiKey'
     | 'endpointApiKey'
     | 'endpointUrl'
@@ -261,6 +263,7 @@ export function mergePatch(current: Settings, patch: SettingsPatch): Settings {
     // Named like every other switch: `...current` alone would keep the stored value and discard
     // what the patch asks for, so the toggle would write nothing and spring back.
     photos: patch.photos,
+    strictSchema: patch.strictSchema,
     // Absent stays absent, as the volumes below do, and absent is the sound playing.
     noNsfwSound: patch.noNsfwSound,
     sfwAsked: patch.sfwAsked,

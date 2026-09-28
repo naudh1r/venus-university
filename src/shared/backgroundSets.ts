@@ -2,6 +2,14 @@ import type { BackgroundSets } from './types'
 
 /** Which of the shipped backgrounds are usable: a base name with both a day and a night render. */
 
+/**
+ * What a line answers for `bg` when the scene has not moved. A member of the same string enum
+ * rather than a null, because the schema is read by every endpoint the game can be pointed at
+ * and a plain string enum is the one shape all of them accept: a union type or a null member
+ * is a portability bet, and this costs nothing to avoid.
+ */
+export const BG_UNCHANGED = 'unchanged'
+
 /** The two folders the backgrounds are split into, and the order a collision resolves in. */
 const BG_CATEGORIES = ['interior', 'exterior'] as const
 

@@ -15,6 +15,7 @@ import {
   overTextDesc
 } from '@shared/relationship'
 import { storedMemoryDesc } from '@shared/readerVoice'
+import { BG_UNCHANGED } from '@shared/backgroundSets'
 import { parseAction, showAction, spriteAction } from '@shared/sceneActions'
 import { splitSentences } from '@shared/sentences'
 import { giftStatusMarkedLine } from '@shared/shop'
@@ -74,6 +75,18 @@ export interface SanitizerOptions {
    */
   stage?: readonly string[]
   /**
+   * The background this call's lines will land on — {@link stageAsWritten}'s, captured with
+   * `stage` and given to both passes, so both read the same line as a move.
+   */
+  stageBg?: string | null
+  /**
+   * Whether the schema asked for every field. It changes what a `bg` on a line *means*: asked
+   * for on every line, most lines answer with where the scene already is, and only a move may be
+   * kept. Left off, a `bg` is volunteered and is taken at face value, which is how this build
+   * has always read it.
+   */
+  strictSchema?: boolean
+  /**
    * Whether a line fits the dialogue box (`views/boxRows.ts`), deciding where
    * {@link splitOverflow} cuts. **Both of a call's passes get the same one**, or they'd produce
    * different line counts and reconciliation would read it as a divergence.
@@ -122,6 +135,10 @@ export function stageAsWritten(): StageAsWritten {
  */
 export function createSceneSanitizer(options: SanitizerOptions = {}): {
   sanitizeLine: (raw: Partial<SceneLine> | undefined) => SceneLine
+  /** How many are on stage now, the pass's shows and hides counted. */
+  onStageCount: () => number
+  /** Whether anybody was on stage when this pass began — a scene nobody left is not emptied. */
+  startedPeopled: () => boolean
 } {
   const game = useGameStore.getState()
   const knownKeys = new Set(Object.keys(game.charKeyToId))
@@ -148,8 +165,17 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
   }
   // Anyone the reply has already staged, so a walked-off character is not dragged back on.
   const everOnScreen = new Set<string>(onScreen)
+  // Where the scene stands as this pass walks it, so a line naming it again is not a move.
+  let bgSoFar = options.stageBg ?? stageAsWritten().bg
+
+  // Read before the walk, so an opening call onto a bare stage is not mistaken for one the cast
+  // walked out of.
+  const peopledAtStart = onScreen.size > 0
 
   return {
+    onStageCount: () => onScreen.size,
+    startedPeopled: () => peopledAtStart,
+
     sanitizeLine(raw) {
       const line: SceneLine = { speaker: '', text: unquoteLine(raw?.text ?? '') }
 
@@ -159,7 +185,26 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
           console.warn(`[scene] unknown speaker "${raw.speaker}" — treating the line as narration.`)
       }
 
-      if (raw?.bg !== undefined) {
+      if (options.strictSchema === true) {
+        /**
+         * Every line is required to answer `bg`, so most lines answer with where the scene
+         * already is. Only a move is kept: a line carrying the current background would re-set
+         * the stage to itself and, worse, drop the background the player picked by hand, since
+         * `advanceLine` reads any `bg` as the scene taking the stage back.
+         *
+         * `BG_UNCHANGED` is the enum's way of saying the scene has not moved; `null` and a
+         * missing field are read the same way, for a model that answers in either.
+         */
+        if (raw?.bg !== undefined && raw.bg !== null && raw.bg !== BG_UNCHANGED) {
+          if (!backgrounds.has(raw.bg)) {
+            console.warn(`[scene] unknown background "${raw.bg}" — keeping the current one.`)
+          } else if (raw.bg !== bgSoFar) {
+            line.bg = raw.bg
+            bgSoFar = raw.bg
+          }
+        }
+      } else if (raw?.bg !== undefined) {
+        // Volunteered rather than asked for, so it is taken at face value.
         if (backgrounds.has(raw.bg)) line.bg = raw.bg
         else console.warn(`[scene] unknown background "${raw.bg}" — keeping the current one.`)
       }
@@ -288,6 +333,20 @@ export function splitOverflow(line: SceneLine, fits?: (text: string) => boolean)
   )
 }
 
+/**
+ * The end of the scene written as a line of text — `{"text": "end_scene"}` — instead of set on
+ * the field beside `lines`. The same failure as a stage direction written as prose, and from the
+ * same cause: the prompt says to *send* `end_scene`, which reads like a token to emit rather than
+ * a boolean to raise.
+ *
+ * Found in a log where the only character in the scene left and the model wrote this as its last
+ * line. The reader was then asked what to do next, alone, in a scene with nobody in it — which is
+ * why this is read rather than shown.
+ */
+function endWrittenAsText(text: string): boolean {
+  return /^\s*["']?end[_\s-]?scene["']?[.!]?\s*$/i.test(text)
+}
+
 /** Hardens a whole `SceneResponse` — the authoritative pass, run on the resolved reply. */
 export function sanitizeScene(
   response: SceneResponse,
@@ -300,12 +359,45 @@ export function sanitizeScene(
   const sanitizer = createSceneSanitizer(options)
   // A blank or missing summary is not a summary: the previous one stands.
   const summary = typeof response.summary === 'string' ? response.summary.trim() : ''
+
+  if (options.strictSchema !== true) {
+    return {
+      lines: (response.lines ?? []).flatMap((raw) =>
+        splitOverflow(sanitizer.sanitizeLine(raw), options.fits)
+      ),
+      summary: summary || null,
+      end: response.end_scene === true
+    }
+  }
+
+  // Raised by either of the two ways a reply can mean "the scene is over" without saying so on
+  // the field: the token written as a line, or the stage emptying.
+  let endWritten = false
+  // Dropped rather than blanked: a silent line still costs the reader a click, and this one
+  // carries nothing to apply.
+  const kept = (response.lines ?? []).filter((raw) => {
+    if (!endWrittenAsText(raw?.text ?? '')) return true
+    console.warn(
+      '[scene] the end of the scene was written as a line of text — reading it as end_scene.'
+    )
+    endWritten = true
+    return false
+  })
+
+  const lines = kept.flatMap((raw) => splitOverflow(sanitizer.sanitizeLine(raw), options.fits))
+
+  // Everybody who was in the scene has walked out of it. Whatever the model meant, there is
+  // nobody left to play against, and the reader has been handed an empty stage and asked what he
+  // would like to do. A scene with no cast is over.
+  const emptied = sanitizer.startedPeopled() && sanitizer.onStageCount() === 0
+  if (emptied && !endWritten && response.end_scene !== true) {
+    console.warn('[scene] every character has left — ending the scene the reply did not end.')
+  }
+
   return {
-    lines: (response.lines ?? []).flatMap((raw) =>
-      splitOverflow(sanitizer.sanitizeLine(raw), options.fits)
-    ),
+    lines,
     summary: summary || null,
-    end: response.end_scene === true
+    end: response.end_scene === true || endWritten || emptied
   }
 }
 

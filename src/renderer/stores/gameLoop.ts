@@ -57,6 +57,7 @@ import { occasionLeadUpLines, occasionsAt } from '../prompts/occasions'
 import { examOn, projectPeriodOf, workedOn } from '../prompts/classProgress'
 import {
   buildSlotIntroPrompt,
+  introLines,
   type IntroAsker,
   type IntroBreakup,
   type IntroPoster
@@ -400,7 +401,9 @@ async function beginSlot(): Promise<void> {
   const lines = [
     // The standing heads the opening.
     ...grades.standing.map((text) => ({ speaker: '', text })),
-    ...(tutorial ? tutorialLines().map((text) => ({ speaker: '', text })) : opening.lines),
+    ...(tutorial
+      ? tutorialLines().map((text) => ({ speaker: '', text }))
+      : introLines(opening.lines).map((text) => ({ speaker: '', text }))),
     // The finals close the list, so the narration's last line is theirs.
     ...grades.finals.map((text) => ({ speaker: '', text }))
   ]
@@ -786,7 +789,10 @@ async function fetchSlotIntro(
     // Null is the "player left" answer; it also keeps a stale failure off the menu.
     if (runStale(run) || stale()) return null
     if (result.ok) {
-      const written = result.data.lines.map((line) => line.text.trim()).filter(Boolean)
+      // Read through `introLines`, which takes the objects the schema asks for and the bare
+      // strings some endpoints answer with instead. Before it, a string here threw on `.trim()`
+      // and the throw escaped an async path with no catch.
+      const written = introLines(result.data.lines)
       // What the narration actually said about the place it was handed. A rumor about
       // an entry that is not a place, or one the narration never named, banks nothing.
       const said = rumorPlace?.id ? rumorSentenceFor(rumorPlace, written) : null

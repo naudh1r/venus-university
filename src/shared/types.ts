@@ -61,6 +61,15 @@ export interface StructuredRequest {
    * every call that takes the setting as it is.
    */
   minThinking?: ThinkingLevel
+  /**
+   * The most thought this call may be given, whatever the player's setting. For a fixed judgement
+   * with worked examples: the answer is short and the examples say what it is, so reasoning past
+   * that is time and tokens spent on a question already answered.
+   *
+   * The counterpart to {@link StructuredRequest.minThinking}. Absent leaves the setting alone,
+   * which is every call that does not name one.
+   */
+  maxThinking?: ThinkingLevel
   /** Images attached to the user turn, base64 without the `data:` prefix. */
   images?: ReferenceImage[]
   /**
@@ -856,6 +865,12 @@ export interface TextingResponse {
 
 /** The raw hangout-classifier reply, before {@link normalizeHangout} in the renderer. */
 export interface HangoutClassifierResponse {
+  /**
+   * The words that do the asking, copied from whichever message contains them. Asked for under
+   * `strictSchema` only, and checked against that message before the verdict is taken: an
+   * invitation nobody wrote cannot be quoted.
+   */
+  quote?: string
   /** The reader asked to meet up right now, and the reply did not refuse. */
   playerAsked: boolean
   /** The reply itself offers to meet up right now. */
@@ -1737,6 +1752,17 @@ export interface Settings {
    */
   lessNsfwText: boolean
   /**
+   * Ask the model for every structured field, rather than letting it omit what it may.
+   *
+   * Off by default, and off is the behaviour this build has always had. It exists because
+   * whether a schema is *enforced* is a property of the endpoint, not of the model: Gemini's
+   * `responseJsonSchema` is constrained decoding and an omitted required field is impossible,
+   * while an OpenAI-compatible endpoint is sent `strict: false`, which makes the schema
+   * advisory — the model is asked and may decline. On that path a field the model is allowed to
+   * omit is one it omits almost always, silently.
+   */
+  strictSchema?: boolean
+  /**
    * Silence what a CG carries: the act and the breath under one, and the climax's own sting.
    * Optional on disk, absent meaning they play.
    */
@@ -1924,7 +1950,11 @@ export interface LedgerResponse {
  * speaker, emotion, action or bg, so nothing in it can touch the stage.
  */
 export interface SlotIntroResponse {
-  lines: Array<{ text: string }>
+  /**
+   * The narration, one entry per line. The schema asks for objects, and a model that answers
+   * with bare strings instead is read the same way — see `introLines` in `slotIntroPrompt.ts`.
+   */
+  lines: Array<{ text: string } | string>
   /**
    * One text-message invitation per character the slot rolled in: `char` is her
    * charKey, `text` the message and `description` the plan a yes starts the scene from.

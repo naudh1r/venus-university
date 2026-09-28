@@ -151,6 +151,8 @@ export function patchOf(settings: RendererSettings): SettingsPatch {
     lessNsfwText: settings.lessNsfwText,
     // Carried, or a save made from anywhere else would turn photographs back on.
     photos: settings.photos,
+    // Carried, or a save made from anywhere else would turn strict schema fields back off.
+    strictSchema: settings.strictSchema,
     noNsfwSound: settings.noNsfwSound,
     sfwAsked: settings.sfwAsked,
     // Carried, or a save made from anywhere else would drop a browser's key on the next visit.

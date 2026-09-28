@@ -7,6 +7,7 @@ import { DEFAULT_PLAYER_STATS, STAT_KEYS, type PlayerStats } from '@shared/playe
 import { fullDescriptionOf, kindSentenceOf, projectStandingLine } from '@shared/academics'
 import type { ClassKind, ProjectProgress } from '@shared/academics'
 import { isPosition, POSITIONS } from '@shared/positions'
+import { BG_UNCHANGED } from '@shared/backgroundSets'
 import { readerize } from '@shared/readerVoice'
 import { cgAction, showAction, spriteAction } from '@shared/sceneActions'
 import { andList } from '@shared/sentences'
@@ -17,6 +18,7 @@ import {
   emptyFlags,
   loveLifeBlurb,
   MEMORY_CAP,
+  missingCrushStatOf,
   overTextDesc
 } from '@shared/relationship'
 import { OUTFIT_SKIN_EXPOSURE } from '@shared/tags'
@@ -283,6 +285,11 @@ export interface PromptState {
   textedWith?: readonly string[]
   /** The cast when every one of them is off-stage and the scene is still running; absent otherwise. */
   hiddenCast?: readonly Character[]
+  /**
+   * Ask for every field rather than letting the model omit what it may. Absent reads as off,
+   * which leaves the schema and the instructions exactly as this build has always sent them.
+   */
+  strictSchema?: boolean
   /** The player's `lessNsfwText` setting. */
   lessNsfwText: boolean
 }
@@ -393,15 +400,39 @@ function jsonRules(
   allowPositions: boolean,
   outfitSets: readonly StockOutfitSet[],
   /** The first names of the cast who have CGs, said out loud only when the cast is a crowd. */
-  cgNames: readonly string[]
+  cgNames: readonly string[],
+  /**
+   * Whether the schema asks for every field. The instructions have to agree with it: a model
+   * told to answer `bg` on every line, by a schema that does not require it, is being given a
+   * rule it can decline — and one required to answer it, with no instruction saying what to
+   * answer when nothing moved, has nowhere to put "nothing".
+   */
+  strict: boolean
 ): string[] {
   return [
     'JSON RULES',
     'Use an empty speaker ("") for narration lines. Otherwise, match who\'s saying what to their character key.',
     'Never mix dialogue and narration on a single line. Split them into two lines instead.',
     'Also, an empty text field on a line isn\'t valid. Always write something.',
-    'The "actions" array holds stage directions, applied in the order you write them. A line may carry several.',
-    'Use "show:<charKey>" when a character makes their entrance (which won\'t always be on the first line). Only use "hide:<charKey>" when a character leaves the scene and won\'t return.',
+    ...(strict
+      ? [
+          `Every line carries "bg". On the first line it is where the scene is happening; on every line after it is "${BG_UNCHANGED}", unless that line is where the location changes — then name the new one.`,
+          'Change it where they arrive, not for every place named in passing. A walk across campus that ends at the library is one change, on the line that gets them there.',
+          'Every line carries "actions": the stage directions it applies, in the order written. Most lines have none and carry an empty array; a line may carry several.'
+        ]
+      : ['The "actions" array holds stage directions, applied in the order you write them. A line may carry several.']),
+    ...(strict
+      ? [
+          // "Only use hide: when a character leaves" reads as a limit on hiding rather than a
+          // duty to hide, and it covers only her leaving, not the reader walking out. Whoever is
+          // not hidden is still standing there — which is how a scene ends on an empty room with
+          // somebody still drawn in it.
+          `Use "show:<charKey>" when a character makes their entrance (which won't always be on the first line).`,
+          'Use "hide:<charKey>" on the line a character stops being in the scene, and never for one who is still in it. She walks off, or she says goodbye, or the reader leaves the place she stays in — on that line she is hidden. Anybody the reader walks away from is hidden as he goes; only the ones who come with him stay shown.'
+        ]
+      : [
+          `Use "show:<charKey>" when a character makes their entrance (which won't always be on the first line). Only use "hide:<charKey>" when a character leaves the scene and won't return.`
+        ]),
     `Use "sprite:<charKey>,<sprite>" to change what a character looks like on screen. A sprite is one of these emotions: ${EMOTIONS.join(', ')}.`,
     // Described only when the schema carries the suffixes: a tag the model cannot emit is a rejected line.
     ...(outfitSets.length > 0
@@ -427,7 +458,12 @@ function jsonRules(
           'NEVER use a cg if the characters aren\'t actively having sex on screen.'
         ]
       : []),
-    ...bgLines(backgrounds, 'Set "bg" whenever the location changes. Pick only from the backgrounds below OR a character\'s own room (listed under her character info):')
+    ...bgLines(
+      backgrounds,
+      strict
+        ? `Name a background on the line where the location changes, and "${BG_UNCHANGED}" on every other line. Pick only from the backgrounds below OR a character's own room (listed under her character info):`
+        : `Set "bg" whenever the location changes. Pick only from the backgrounds below OR a character's own room (listed under her character info):`
+    )
   ]
 }
 
@@ -852,8 +888,20 @@ function sceneSchema(
     ...(actions.length > 0
       ? { actions: { type: 'array', items: { type: 'string', enum: actions } } }
       : {}),
-    // Cast room ids ride on the enum, never on the cached-prefix background lines.
-    bg: { type: 'string', enum: [...allBackgrounds(backgrounds), ...castRoomBgs(cast, state)] },
+    /**
+     * Cast room ids ride on the enum, never on the cached-prefix background lines.
+     *
+     * Under `strictSchema` the enum also carries {@link BG_UNCHANGED}, because the field becomes
+     * required below and a line that did not move needs a legal way to say so.
+     */
+    bg: {
+      type: 'string',
+      enum: [
+        ...allBackgrounds(backgrounds),
+        ...castRoomBgs(cast, state),
+        ...(state.strictSchema === true ? [BG_UNCHANGED] : [])
+      ]
+    },
     text: { type: 'string' }
   }
 
@@ -864,7 +912,21 @@ function sceneSchema(
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['speaker', 'text'],
+        /**
+         * On an endpoint that cannot enforce the schema, an optional field is one the model
+         * omits almost always — an omitted `bg` is a scene that never moves, and an omitted
+         * `actions` is a stage nobody tells anything. Asking for them outright is what
+         * `strictSchema` is for; without it the list is what this build has always sent.
+         *
+         * `actions` is required only where the scene has any to offer: a required field with an
+         * empty enum is not answerable, and a solo scene drops the property altogether above.
+         */
+        required:
+          state.strictSchema === true
+            ? actions.length > 0
+              ? ['speaker', 'bg', 'actions', 'text']
+              : ['speaker', 'bg', 'text']
+            : ['speaker', 'text'],
         properties: lineProperties
       }
     }
@@ -898,7 +960,8 @@ function systemPrompt(
       state.backgrounds,
       positionsAllowed(cast, state),
       castOutfitSets(cast, state),
-      cgReadyNames(cast, state)
+      cgReadyNames(cast, state),
+      state.strictSchema === true
     ),
     '',
     'SETTING',
@@ -1504,6 +1567,37 @@ const EVENT_GLOSS: ReadonlyArray<readonly [string, string]> = [
   ]
 ]
 
+/**
+ * The milestones this scene's cast may actually reach, which is what the ledger is offered.
+ *
+ * `became_lovers` is dropped where nobody in the scene could have one: the game already works
+ * out whether the reader is anywhere near her standards — it is what puts "Your Heart needs to be
+ * at least Good to catch her interest" on screen — and then accepts a couple formed on the first
+ * afternoon anyway. A girl already at `isLover` keeps it, so getting back together after a
+ * breakup still reports.
+ *
+ * Nothing is dropped where the stats are unknown: a missing reader is a reason to ask for less
+ * confidence, not to quietly delete a milestone the save might need.
+ *
+ * The general rule this is an instance of: **if the engine can already decide, do not offer the
+ * choice.** Prose asking for restraint is a request, and a request is what a cheaper model skims;
+ * a value absent from the enum cannot be answered with.
+ */
+function eventGlossFor(
+  cast: readonly Character[],
+  charInfo: Record<string, CharInfo>,
+  stats: PlayerStats | undefined
+): ReadonlyArray<readonly [string, string]> {
+  if (!stats) return EVENT_GLOSS
+  const reachable = cast.some(
+    (character) =>
+      charInfo[character.charId]?.flags?.isLover === true ||
+      missingCrushStatOf(character, stats) === null
+  )
+  return reachable ? EVENT_GLOSS : EVENT_GLOSS.filter(([key]) => key !== 'became_lovers')
+}
+
+
 
 /**
  * Builds the scene ledger's `LedgerResponse` schema — memories, milestones, stats,
@@ -1514,7 +1608,9 @@ function ledgerSchema(
   rosterKeys: readonly string[],
   // Null when the scene was not a class; `factoid` is for a lecture class only.
   classScene: { factoid: boolean } | null,
-  castStats: boolean
+  castStats: boolean,
+  // The same list the EVENTS section prints, so the menu and the schema cannot disagree.
+  eventGloss: ReadonlyArray<readonly [string, string]>
 ): { name: string; schema: Record<string, unknown> } {
   const charKey = { type: 'string', enum: [...charKeys] }
   // Dropped whole when no plans are asked for: an uninstructed field invites filling.
@@ -1594,7 +1690,7 @@ function ledgerSchema(
           required: ['charKey', 'event'],
           properties: {
             charKey,
-            event: { type: 'string', enum: EVENT_GLOSS.map(([key]) => key) }
+            event: { type: 'string', enum: eventGloss.map(([key]) => key) }
           }
         }
       },
@@ -1651,6 +1747,12 @@ export function buildLedgerPrompt(
 ): StructuredRequest {
   const charKeys = cast.map((c) => charKeyOf(c.firstName, c.lastName))
   const rosterKeys = scheduleCharKeys(schedule.characters)
+  // Trimmed to what this scene's cast can reach, under `strictSchema`; the whole menu otherwise,
+  // which is what this build has always offered.
+  const eventGloss =
+    state.strictSchema === true
+      ? eventGlossFor(cast, state.charInfo, state.stats)
+      : EVENT_GLOSS
   // The reader's own lines are kept: a typed plan is half of what PLANS looks for.
   const stubs = transcriptStubs(
     ledgerTranscriptOf(scene),
@@ -1697,11 +1799,27 @@ export function buildLedgerPrompt(
           'Write a single memory of what the character should still remember weeks from now.',
           'Each desc completes the sentence "<Name> <type> that ...", in the past tense, e.g. "the reader helped her carry books".',
           'Call the reader "the reader" every time, never "you", "he" or "him": "the reader lent her the reader\'s notes", not "he lent her his notes".',
+          /**
+           * The four types were offered with no explanation while every *event* got one. A warm
+           * memory came back `disliked`, and memories are read back into later prompts as *"she
+           * disliked that …"* — so one mislabel teaches her a grudge she never had, and keeps
+           * teaching it for the rest of the playthrough.
+           */
+          ...(state.strictSchema === true
+            ? [
+                '"type" is how she feels about it, and it is read back to you later as her feeling. Match it to the desc:',
+                '- liked: it was good, in an ordinary way',
+                '- loved: it was one of the best things anybody has done for her',
+                '- disliked: it put her off, in an ordinary way',
+                '- hated: it was one of the worst things anybody has done to her',
+                'A warm desc never takes "disliked" or "hated", and a desc about being pushed, lied to or let down never takes "liked" or "loved". Most memories are "liked" or "disliked"; the other two are for the scenes she would still be telling people about.'
+              ]
+            : []),
           'If a scene was uneventful for someone, give her nothing.',
           '',
           'EVENTS',
           'List any of these milestones that actually happened IN THIS SCENE:',
-          ...EVENT_GLOSS.map(([key, gloss]) => `- ${key}: ${gloss}`),
+          ...eventGloss.map(([key, gloss]) => `- ${key}: ${gloss}`),
           'A milestone that did not happen this scene is simply left out. If one happened again — they agreed to be a couple again after a breakup — report it again.',
           'An empty "events" list is the ordinary answer and it is always allowed. Meeting for the first time, getting along, opening up or helping each other out is not a milestone.',
           '',
@@ -1765,7 +1883,7 @@ export function buildLedgerPrompt(
   return {
     system: ledgerPersonaFor(state.lessNsfwText),
     user: `${preamble}\n${rest}`,
-    schema: ledgerSchema(charKeys, rosterKeys, classScene, castStats),
+    schema: ledgerSchema(charKeys, rosterKeys, classScene, castStats, eventGloss),
     // Constant, not the playthrough: nothing above the seam varies by save.
     cacheKey: 'ledger',
     logFrom: preamble.length + 1,

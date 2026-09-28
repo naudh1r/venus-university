@@ -108,6 +108,7 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
   )
   const [secondaryModel, setSecondaryModel] = useState(() => settings?.secondaryModel ?? '')
   // A custom endpoint always names an effort: an absent one reads as minimal.
+  const [strictSchema, setStrictSchema] = useState(settings?.strictSchema === true)
   const [reasoningEffort, setReasoningEffort] = useState<ThinkingLevel>(() =>
     thinkingLevelFor('openai', '', settings?.reasoningEffort ?? '')
   )
@@ -391,6 +392,13 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
     void write({ photos: checked }).then(reseed((stored) => setPhotos(stored.photos !== false)))
   }
 
+  function handleStrictSchemaChange(checked: boolean): void {
+    setStrictSchema(checked)
+    void write({ strictSchema: checked }).then(
+      reseed((stored) => setStrictSchema(stored.strictSchema === true))
+    )
+  }
+
   function handleWarnEndingEditChange(checked: boolean): void {
     setWarnEndingEdit(checked)
     void write({ warnEndingEdit: checked }).then(
@@ -543,6 +551,17 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
                       options={probe.modelIds}
                       emptyOption="None (Use one model for everything)"
                       popupHost={popupHost}
+                    />
+
+                    {/* Offered here and only here: Google AI Studio is sent a schema it decodes
+                        against, so a required field cannot go missing and none of this applies.
+                        A chat-completions endpoint is sent the same schema as advice. */}
+                    <CheckField
+                      id="settings-strict-schema"
+                      label="Ask for every field"
+                      note="Turn this on if scenes feel static, backgrounds never change, or she keeps inviting you out after you have said no. This server is sent the response format as advice rather than a rule, so the model is free to leave fields out — and a cheaper one leaves them out almost always, silently. On, the game asks for each field outright and checks a few answers it cannot take on trust. It does not change how anything is written."
+                      checked={strictSchema}
+                      onChange={handleStrictSchemaChange}
                     />
                   </>
                 )}
