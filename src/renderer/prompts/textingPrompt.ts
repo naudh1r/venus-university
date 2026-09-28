@@ -1,4 +1,5 @@
 import { affectionFor, dedupedMemoriesFor, emptyFlags } from '@shared/relationship'
+import { invitationAnswerOf } from '@shared/invitationAnswer'
 import { ROOM_LOCATION } from '@shared/locations'
 import type { NpcRelationshipMap } from '@shared/npcRelationships'
 import {
@@ -160,9 +161,9 @@ export function hasTexted(conversation: Conversation | undefined): boolean {
 }
 
 /**
- * Her hangout ask when it ends the thread, with his "Sure" when that answered it. A reminder
- * about a plan already made is not flagged as an invite but stands behind `pendingHangout`
- * just the same.
+ * Her hangout ask when it ends the thread, with his answer when one closed it — his "Sure", or
+ * the app's line recording what he chose. A reminder about a plan already made is not flagged as
+ * an invite but stands behind `pendingHangout` just the same.
  */
 function hangoutTail(
   conversation: Conversation
@@ -174,7 +175,9 @@ function hangoutTail(
     return last.invite || conversation.pendingHangout ? { ask: last } : null
   }
   const before = messages[messages.length - 2]
-  if (last.sender === 'player' && last.text === 'Sure' && before?.sender === 'contact') {
+  const answered =
+    (last.sender === 'player' && last.text === 'Sure') || invitationAnswerOf(last) !== undefined
+  if (answered && before?.sender === 'contact') {
     return { ask: before, answer: last }
   }
   return null
@@ -212,7 +215,15 @@ export function composeTextingSummary(
     const tail = hangoutTail(conversation)
     // Her ask and his Sure never pass through a texting call, so no summary holds them:
     // the scene is shown the texts themselves.
-    if (tail?.answer) {
+    const answer = invitationAnswerOf(tail?.answer)
+    if (tail && answer) {
+      // Reported rather than quoted: the answer is a button he pressed, not something he said.
+      lines.push(
+        `The last text in the thread was sent ${when}. ${firstName}: "${flatText(tail.ask.text)}" The reader ${
+          answer === 'yes' ? 'took her up on it' : 'did not take it up'
+        }.`
+      )
+    } else if (tail?.answer) {
       lines.push(
         `The last texts in the thread were sent ${when}. ${firstName}: "${flatText(tail.ask.text)}" The reader: "${flatText(tail.answer.text)}"`
       )

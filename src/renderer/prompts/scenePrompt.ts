@@ -73,6 +73,12 @@ import {
 import { farewellNowLines, graduationCastLines } from './graduation'
 import { moodLine } from './moods'
 import { springBreakLines } from './springBreak'
+import {
+  STRICT_BG_PLACEMENT,
+  STRICT_END_SCENE_LINES,
+  STRICT_SPRITE_CHANGE,
+  STRICT_STAYS_SHOWN
+} from './strictSceneBrief'
 import { bestFriendLines, npcBehaviorLines, npcPairLines } from './npcRelationship'
 import { occasionLoreLines } from './occasions'
 import { milestoneLine, relationshipLines } from './relationship'
@@ -418,7 +424,8 @@ function jsonRules(
       ? [
           `Every line carries "bg". On the first line it is where the scene is happening; on every line after it is "${BG_UNCHANGED}", unless that line is where the location changes — then name the new one.`,
           'Change it where they arrive, not for every place named in passing. A walk across campus that ends at the library is one change, on the line that gets them there.',
-          'Every line carries "actions": the stage directions it applies, in the order written. Most lines have none and carry an empty array; a line may carry several.'
+          'Every line carries "actions": the stage directions it applies, in the order written. Most lines have none and carry an empty array; a line may carry several.',
+          STRICT_BG_PLACEMENT
         ]
       : ['The "actions" array holds stage directions, applied in the order you write them. A line may carry several.']),
     ...(strict
@@ -428,7 +435,8 @@ function jsonRules(
           // not hidden is still standing there — which is how a scene ends on an empty room with
           // somebody still drawn in it.
           `Use "show:<charKey>" when a character makes their entrance (which won't always be on the first line).`,
-          'Use "hide:<charKey>" on the line a character stops being in the scene, and never for one who is still in it. She walks off, or she says goodbye, or the reader leaves the place she stays in — on that line she is hidden. Anybody the reader walks away from is hidden as he goes; only the ones who come with him stay shown.'
+          'Use "hide:<charKey>" on the line a character stops being in the scene, and never for one who is still in it. She walks off, or she says goodbye, or the reader leaves the place she stays in — on that line she is hidden. Anybody the reader walks away from is hidden as he goes; only the ones who come with him stay shown.',
+          STRICT_STAYS_SHOWN
         ]
       : [
           `Use "show:<charKey>" when a character makes their entrance (which won't always be on the first line). Only use "hide:<charKey>" when a character leaves the scene and won't return.`
@@ -442,7 +450,9 @@ function jsonRules(
           )}. An unsuffixed emotion puts her back in her main outfit. Don't remove the suffix unless the character's changed back into her default clothes.`
         ]
       : []),
-    'Every "show:" must be paired with a "sprite:" in the same actions array. Afterwards, change a character\'s sprite whenever it makes sense.',
+    strict
+      ? STRICT_SPRITE_CHANGE
+      : 'Every "show:" must be paired with a "sprite:" in the same actions array. Afterwards, change a character\'s sprite whenever it makes sense.',
     ...(allowPositions
       ? [
           `If sex is happening on screen, use the "cg:<name>" action instead of a sprite. CG list: ${POSITIONS.filter((p) => !p.endsWith('_after')).join(', ')}.`,
@@ -1490,7 +1500,11 @@ export function buildContinuationPrompt(
     'However, if the time is Day and the two make plans to do something tonight, don\'t write that scene; that plan will happen in a different turn.',
     '',
     'ENDING THE SCENE',
-    'However, if the scene feels like it\'s drawing to a close, invent an excuse for the characters to need/want to part ways, and send end_scene.',
+    ...(state.strictSchema === true
+      ? STRICT_END_SCENE_LINES
+      : [
+          'However, if the scene feels like it\'s drawing to a close, invent an excuse for the characters to need/want to part ways, and send end_scene.'
+        ]),
     'No need to fully wrap up the scene yet, we\'ll do that in a separate prompt.',
     '',
     'SUMMARY',

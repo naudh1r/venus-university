@@ -211,6 +211,111 @@ describe('sanitizeLine — show and hide', () => {
   })
 })
 
+/**
+ * Some endpoints write a stage direction as the line's own text rather than in `actions`. The
+ * CG positions get this treatment most, and it costs twice: the stage never changes, and the
+ * reader is shown a line of narration reading "cg:sex".
+ */
+describe('sanitizeLine — a direction written as text', () => {
+  const strict = { strictSchema: true }
+
+  it('lifts it into the actions and leaves the line silent', () => {
+    const sanitizer = createSceneSanitizer(strict)
+    sanitizer.sanitizeLine(acting(['show:sarah_rose']))
+
+    const line = sanitizer.sanitizeLine({ speaker: '', text: 'cg:sex' })
+
+    expect(line.actions).toEqual(['cg:sex'])
+    expect(line.text).toBe('')
+  })
+
+  it('takes it with a space after the colon, the way it is often written', () => {
+    const sanitizer = createSceneSanitizer(strict)
+    sanitizer.sanitizeLine(acting(['show:sarah_rose']))
+
+    expect(sanitizer.sanitizeLine({ speaker: '', text: 'cg: nude_foreplay' }).actions).toEqual([
+      'cg:nude_foreplay'
+    ])
+  })
+
+  it('lifts a sprite change, comma and all', () => {
+    const sanitizer = createSceneSanitizer(strict)
+    sanitizer.sanitizeLine(acting(['show:sarah_rose']))
+
+    expect(
+      sanitizer.sanitizeLine({ speaker: '', text: 'sprite:sarah_rose,happy' }).actions
+    ).toEqual(['sprite:sarah_rose,happy'])
+  })
+
+  it('silences a direction attributed to somebody, since she says nothing on it', () => {
+    const sanitizer = createSceneSanitizer(strict)
+    sanitizer.sanitizeLine(acting(['show:sarah_rose']))
+
+    expect(sanitizer.sanitizeLine({ speaker: 'sarah_rose', text: 'cg:sex' }).speaker).toBe('')
+  })
+
+  it('leaves ordinary prose alone, including a line that merely mentions one', () => {
+    const sanitizer = createSceneSanitizer(strict)
+    const prose = 'She laughs: the sound of it fills the room.'
+
+    expect(sanitizer.sanitizeLine({ speaker: '', text: prose }).text).toBe(prose)
+    expect(sanitizer.sanitizeLine({ speaker: '', text: 'He says cg:sex out loud.' }).text).toBe(
+      'He says cg:sex out loud.'
+    )
+  })
+
+  it('reads the line as written with the switch off', () => {
+    const sanitizer = createSceneSanitizer()
+    sanitizer.sanitizeLine(acting(['show:sarah_rose']))
+
+    const line = sanitizer.sanitizeLine({ speaker: '', text: 'cg:sex' })
+
+    expect(line.text).toBe('cg:sex')
+    expect(line.actions).toBeUndefined()
+  })
+})
+
+/** Some models put the background beside `lines`, although it is described on each line. */
+describe('sanitizeScene — a background written beside the lines', () => {
+  const opening = (first: Partial<SceneLine>): SceneResponse =>
+    ({ bg: 'quad', lines: [{ speaker: '', text: 'The scene opens.', ...first }] }) as SceneResponse
+
+  it('moves a valid one onto the opening line', () => {
+    const { lines } = sanitizeScene(opening({}), { stageBg: 'dorm', strictSchema: true })
+    expect(lines[0].bg).toBe('quad')
+  })
+
+  it('moves it onto a first line that says the scene has not moved', () => {
+    const { lines } = sanitizeScene(opening({ bg: BG_UNCHANGED }), {
+      stageBg: 'dorm',
+      strictSchema: true
+    })
+    expect(lines[0].bg).toBe('quad')
+  })
+
+  it('leaves a first line that names a background of its own with it', () => {
+    const { lines } = sanitizeScene(opening({ bg: 'dorm' }), {
+      stageBg: 'quad',
+      strictSchema: true
+    })
+    expect(lines[0].bg).toBe('dorm')
+  })
+
+  it('still drops one that is not a background', () => {
+    const response = { bg: 'moon', lines: [{ speaker: '', text: 'The scene opens.' }] }
+    const { lines } = sanitizeScene(response as SceneResponse, {
+      stageBg: 'dorm',
+      strictSchema: true
+    })
+    expect(lines[0].bg).toBeUndefined()
+  })
+
+  it('ignores it with the switch off', () => {
+    const { lines } = sanitizeScene(opening({}), { stageBg: 'dorm' })
+    expect(lines[0].bg).toBeUndefined()
+  })
+})
+
 describe('splitOverflow', () => {
   /**
    * The box, standing in for the real one: `views/boxRows.ts` measures a rendered paragraph and
