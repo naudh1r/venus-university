@@ -1,3 +1,24 @@
+> [!IMPORTANT]
+> **This is an unofficial, modified version of Venus University.** It is not made, endorsed or
+> supported by Venus Dev. The official game is on itch.io, linked below.
+>
+> - **Please do not report problems with this version to Venus Dev** — neither by email nor in the
+>   game's community. Anything you find here may have been caused by the changes below.
+> - **Modified by naudh1r, September 2026**, from Venus Dev's public mirror at commit `b56a990`.
+>   The full list of changes is this branch's commit history.
+> - **What it adds**, each with its own switch in Settings:
+>   - *Photos* — characters can text you a picture, or post one to the feed, rendered on your own
+>     machine by the local ComfyUI. Some can be explicit, depending on your relationship and your
+>     content settings. On by default wherever ComfyUI can render; switch it off for a
+>     text-only playthrough.
+>   - *Strict schema fields* — for OpenAI-compatible endpoints that do not enforce a JSON schema.
+>     Off by default; shown under Generation only when a custom endpoint is selected.
+> - **Licences are unchanged.** The code, including these changes, is AGPL-3.0-only (`LICENSE`).
+>   Images, audio and video remain © Venus Dev, all rights reserved (`LICENSE-ASSETS.md`); they
+>   are here only so the game builds from source.
+>
+> Venus Dev's own README follows, unedited.
+
 # Venus University
 
 Venus University is a single-player AI-driven dating sim available for web and desktop (via Electron).
