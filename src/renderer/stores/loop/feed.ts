@@ -1,6 +1,5 @@
-import { rollComments } from '../photoComments'
+import { postLikes, rollComments, strangerLikes } from '../photoComments'
 import { beginSlotPhotos, holdPostPhoto, preparePostPhoto } from '../photoPost'
-import { rollPostLikes } from '@shared/feed'
 import { npcFriendsOf } from '@shared/npcRelationships'
 import type { EndingPostsResponse, FeedExtras, SlotIntroResponse, TimeSlot } from '@shared/types'
 import { bunnybotFirstPostTexts, FRIENDS_INTRO_SLOT } from '../../prompts/bunnybot'
@@ -43,13 +42,13 @@ export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promi
     // Awaited before anything is filed: the picture's name has to be in the post the slot save
     // is about to write down.
     const shot = await preparePostPhoto(charId, extra.image)
-    const comments = rollComments(charId, extra.comments)
+    const comments = rollComments(charId, extra.comments, shot?.shot.tier)
     const written = {
       id,
       text,
       date: game.date,
       time: game.time,
-      likes: rollPostLikes(npcFriendsOf(game.npcRelationships, charId, game.chars).length),
+      likes: postLikes(charId, shot?.shot.tier),
       // Left off entirely where nobody answered, rather than an empty array in every post.
       ...(comments.length > 0 ? { comments } : {})
     }
@@ -124,7 +123,7 @@ export function deliverEndingPosts(
       text,
       date: stamp.date,
       time: stamp.time,
-      likes: rollPostLikes(npcFriendsOf(game.npcRelationships, charId, game.chars).length)
+      likes: postLikes(charId)
     })
     filed++
   }
@@ -172,7 +171,7 @@ export function rollFeedExtrasIfNewSlot(): void {
     date: game.date,
     time: game.time,
     teaser: null,
-    randomPost: { ...student, likes: rollPostLikes(0) }
+    randomPost: { ...student, likes: strangerLikes(student.handle) }
   })
 }
 

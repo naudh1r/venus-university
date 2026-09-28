@@ -87,8 +87,20 @@ const HOOKS: readonly { file: string; needs: readonly string[]; why: string }[] 
   },
   {
     file: 'src/renderer/stores/loop/feed.ts',
-    needs: ['beginSlotPhotos()', 'preparePostPhoto(', 'holdPostPhoto(', 'rollComments('],
-    why: 'a post carries no picture and no replies without these'
+    needs: [
+      'beginSlotPhotos()',
+      'preparePostPhoto(',
+      'holdPostPhoto(',
+      'rollComments(',
+      'postLikes(',
+      'strangerLikes('
+    ],
+    why: 'a post carries no picture and no replies, and its likes ignore her following, without these'
+  },
+  {
+    file: 'src/renderer/views/NewGameView.tsx',
+    needs: ['rollAudienceLikes(', 'reachOf('],
+    why: 'her winter posts are liked by her roster friends alone, not by her following'
   },
   {
     file: 'src/renderer/prompts/textingPrompt.ts',
