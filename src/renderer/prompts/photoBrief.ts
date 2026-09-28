@@ -80,10 +80,13 @@ export function photoLines(
           // The gate has already allowed this; a caption that will not say it renders a picture
           // that does not show it, and the tease is read as the whole of what she sent.
           `So a picture of ${name} undressed is captioned as one, in plain words: what is bare, what she is doing, what the shot shows. Coy wording is a coy picture — "the top of a shirt" is a photograph of a shirt.`,
-          'Write it as she would, not as a catalogue: she is sending this to somebody she has slept with, and she knows what she is doing.'
+          'Write it as she would, not as a catalogue: she is sending this to somebody she has slept with, and she knows what she is doing.',
+          'Nothing anal.'
         ]
       : []),
     'Write the picture, not the sending of it: no phone in her hand unless it is a mirror shot, and no words about pressing send.',
+    // The renderer draws one girl and nobody else, and the gate refuses a caption that says otherwise.
+    `${name} is alone in the picture and took it herself. Nobody else is in it or touching her, and nothing in it is done with anybody else.`,
     'Name nobody and nowhere: not herself, not the reader, not a building, a dorm or a place on the map. A picture cannot show a name. "her room", "a lecture hall", "the cafe" — what it looks like, never what it is called.',
     'Her texts should read like somebody who just sent that picture. Do not describe it in them.',
     'Any picture she has already sent is written into RECENT MESSAGES beside the text it came with. She knows what she sent him and would not send the same one twice.',
@@ -118,6 +121,7 @@ export function postPhotoLines(canRenderImages: boolean): string[] {
     'What is not written is not drawn: "a selfie" gets a picture of nobody in particular.',
     'Her whole year sees this, so it is an ordinary picture or a flirty one at most — what she is wearing, a day out, a swimsuit. Never anything undressed, whatever she might send one person in a message.',
     'Name nobody and nowhere: a picture cannot show a name. "her room", "the quad", "a cafe" — what it looks like, never what it is called.',
+    'She is the only person in the picture.',
     'The post’s own "text" should read like somebody who just posted that picture, without describing it.'
   ]
 }

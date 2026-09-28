@@ -9,6 +9,7 @@ import type { Character } from './types'
 // and pulls in what they import — so the feature brings its own types rather than relying on a
 // tsconfig line, which would be one more thing to re-add on a sync.
 import type {} from './photoTypes'
+import { saysAny } from './photoWords'
 
 /**
  * The prompt one phone photo is drawn from. Built like the CG prompt — her appearance tags
@@ -40,6 +41,8 @@ const PHOTO_BASE = '1girl, solo, depth_of_field'
 const PHOTO_NEGATIVE =
   'worst_quality, bad_quality, lowres, simple_background, white_background, transparent_background, ' +
   'multiple_views, reference_sheet, text, watermark, signature, ' +
+  // Every photo is her alone and taken by her: nobody else is drawn into it, and nothing anal.
+  '1boy, multiple_boys, multiple_girls, 2girls, hetero, penis, sex, anal, anus, ' +
   // `photo` holds the illustration against photographic realism the checkpoint drifts toward;
   // the rest are what it adds to a body unasked.
   'stain, gold, photo, cum'
@@ -84,7 +87,7 @@ const CLOTHING_WORDS = [
 /** Whether her description dresses her, in which case her everyday wardrobe stays out of it. */
 function describesClothing(photoPrompt: string): boolean {
   const text = photoPrompt.toLowerCase()
-  return CLOTHING_WORDS.some((word) => text.includes(word))
+  return saysAny(text, CLOTHING_WORDS)
 }
 
 /**

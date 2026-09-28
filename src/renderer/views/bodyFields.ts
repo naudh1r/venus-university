@@ -14,6 +14,5 @@ export const BODY_FIELD_LABELS: Readonly<Record<BodyField, string>> = {
   nipples: 'Nipples',
   stomach: 'Stomach',
   hipsThighs: 'Hips and thighs',
-  buttocks: 'Backside',
-  pubic: 'Between her legs'
+  buttocks: 'Backside'
 }

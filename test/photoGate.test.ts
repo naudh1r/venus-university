@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { allowedPhotoTier, describedPhotoTier, settlePhoto } from '@shared/photoGate'
+import {
+  allowedPhotoTier,
+  describedPhotoTier,
+  describesSomebodyElse,
+  settlePhoto
+} from '@shared/photoGate'
 import type { CharacterTrait } from '@shared/traits'
 import type { CharFlags } from '@shared/types'
 
@@ -226,5 +231,40 @@ describe('settlePhoto with a tier she stated', () => {
     expect(settlePhoto({ sendPhoto: true, photoPrompt: words, allowed: 'explicit' }).tier).toBe(
       'suggestive'
     )
+  })
+})
+
+/** Every photo is her alone and taken by her; the renderer draws nobody else. */
+describe('a picture of anybody but her', () => {
+  it('is refused, whatever the gate would allow', () => {
+    for (const photoPrompt of [
+      'naked, riding him on the bed',
+      'on her knees, his hand in her hair',
+      'naked, lying back with her boyfriend',
+      'on all fours, a butt plug in',
+      'a selfie with another girl on the couch'
+    ]) {
+      const verdict = settlePhoto({ sendPhoto: true, photoPrompt, allowed: 'explicit' })
+      expect(verdict.send).toBe(false)
+    }
+  })
+
+  it('leaves a picture of her alone that only mentions him', () => {
+    expect(describesSomebodyElse('a mirror selfie in his hoodie, for him')).toBe(false)
+    expect(describesSomebodyElse('she types up the documents at her desk')).toBe(false)
+  })
+})
+
+/** Words are read as words: a cue inside another word says nothing. */
+describe('describedPhotoTier, reading words rather than letters', () => {
+  it('does not find a cue inside another word', () => {
+    expect(describedPhotoTier('reading in the library, a necklace on')).toBe('everyday')
+    expect(describedPhotoTier('her desk covered in documents')).toBe('everyday')
+    expect(describedPhotoTier('curled up with cumin tea in the bathroom')).toBe('everyday')
+  })
+
+  it('still reads a plural or a longer form of a stem', () => {
+    expect(describedPhotoTier('in matching bras and panties')).toBe('suggestive')
+    expect(describedPhotoTier('masturbating on her bed')).toBe('explicit')
   })
 })

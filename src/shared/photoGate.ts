@@ -1,3 +1,4 @@
+import { saysAny } from './photoWords'
 import { dispositionOf } from './relationship'
 import { hasTrait } from './traits'
 import type { CharFlags, Character } from './types'
@@ -99,10 +100,11 @@ const EXPLICIT_WORDS = [
   'bare breasts',
   'pussy',
   'vagina',
-  'genital',
-  'masturbat',
+  'genital*',
+  'masturbat*',
   'spread legs',
   'cum',
+  'cumming',
   'sex',
   // Ways of saying it that carry no word from the list above. She wrote "bare-chested and
   // wearing only black lace panties" and it read as suggestive, because every word naming what
@@ -165,9 +167,67 @@ const SUGGESTIVE_WORDS = [
 export function describedPhotoTier(photoPrompt: string): PhotoTier {
   const text = photoPrompt.toLowerCase()
   if (!text.trim()) return 'none'
-  if (EXPLICIT_WORDS.some((word) => text.includes(word))) return 'explicit'
-  if (SUGGESTIVE_WORDS.some((word) => text.includes(word))) return 'suggestive'
+  if (saysAny(text, EXPLICIT_WORDS)) return 'explicit'
+  if (saysAny(text, SUGGESTIVE_WORDS)) return 'suggestive'
   return 'everyday'
+}
+
+/**
+ * Words that put somebody else in the picture, or something anal. Every photo is her alone, taken
+ * by her — the renderer is asked for one girl and nobody else — so a caption describing a partner
+ * or an act with one cannot be drawn as written. Taking the words out would leave a caption that
+ * still implies somebody, so a picture that says any of these is not sent at all.
+ *
+ * Only acts and other bodies: "his hoodie" and "a selfie for him" are pictures of her alone.
+ */
+const NOT_SOLO_WORDS = [
+  // Another body in it.
+  'penis',
+  'cock',
+  'dick',
+  'his hand',
+  'his fingers',
+  'his mouth',
+  'his tongue',
+  'his lap',
+  'his chest',
+  'his arms',
+  'on top of him',
+  'riding him',
+  'straddling him',
+  'with him',
+  'boyfriend',
+  'another girl',
+  'other girl',
+  'two girls',
+  'threesome',
+  'couple',
+  // Acts that take two.
+  'blowjob',
+  'fellatio',
+  'handjob',
+  'titjob',
+  'paizuri',
+  'deepthroat*',
+  'intercourse',
+  'creampie',
+  'fucking him',
+  'fucked by',
+  'sucking him',
+  'kissing him',
+  // Anal, which the feature does not draw.
+  'anal',
+  'anus',
+  'asshole',
+  'butthole',
+  'butt plug',
+  'buttplug',
+  'anal beads'
+]
+
+/** Whether a caption puts anybody but her in the picture, or anything anal. */
+export function describesSomebodyElse(photoPrompt: string): boolean {
+  return saysAny(photoPrompt.toLowerCase(), NOT_SOLO_WORDS)
 }
 
 /** One photo request, once the gate has had its say. */
@@ -199,6 +259,9 @@ export function settlePhoto(input: {
   const { sendPhoto, photoPrompt, allowed, stated } = input
   if (!sendPhoto || !photoPrompt.trim()) return { send: false, tier: 'none' }
   if (allowed === 'none') return { send: false, tier: 'none', note: 'she sends him nothing' }
+  if (describesSomebodyElse(photoPrompt)) {
+    return { send: false, tier: 'none', note: 'the picture is not of her alone' }
+  }
 
   const described = describedPhotoTier(photoPrompt)
   const tier =

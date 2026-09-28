@@ -15,8 +15,7 @@ const celest = {
     nipples: ['pink nipples', 'small areolae'],
     stomach: ['soft stomach', 'navel'],
     hipsThighs: ['wide hips', 'thick thighs'],
-    buttocks: ['round ass'],
-    pubic: ['trimmed pubic hair']
+    buttocks: ['round ass']
   },
   negativeTags: ['glasses']
 } as unknown as Character
@@ -53,7 +52,7 @@ describe('buildPhotoPrompt', () => {
     // On her back and bare: her chest and between her legs are both in shot.
     const back = promptFor('explicit', 'naked, lying on her back on the sheets')
     expect(back).toContain('pink nipples')
-    expect(back).toContain('trimmed pubic hair')
+    expect(back).toContain('pussy')
     expect(back).not.toContain('round ass')
 
     // Turned away: her chest is not, and saying so would put a second woman in the frame.
@@ -80,5 +79,34 @@ describe('buildPhotoPrompt', () => {
 
   it('leaves her wardrobe out when the picture already dresses her', () => {
     expect(promptFor('suggestive', 'in a black bikini at the lake')).not.toContain('pink cardigan')
+  })
+
+  /**
+   * The game's cast has no body written, so a bare picture is described the way her nude sprite
+   * is: the same fixed words, for only the parts in shot.
+   */
+  it("names a bare picture in the nude sprite's words, for the parts in shot", () => {
+    const plain = { ...celest, body: undefined } as unknown as Character
+    const front = buildPhotoPrompt(plain, 'explicit', 'naked, lying on her back').positive
+    expect(front).toContain('nipples')
+    expect(front).toContain('navel')
+    expect(front).toContain('pussy')
+    expect(front).not.toContain('pubic_hair')
+
+    const back = buildPhotoPrompt(plain, 'explicit', 'naked, standing from behind').positive
+    expect(back).not.toMatch(/\bnipples\b|\bpussy\b/)
+  })
+
+  it('never reads a covered part through the cloth by the tags that confused the checkpoint', () => {
+    const bra = promptFor('suggestive', 'in a black lace bra and panties, sitting on the bed')
+    expect(bra).not.toContain('visible_through_clothes')
+    expect(bra).not.toContain('cameltoe')
+  })
+
+  it('refuses a second person and anything anal in every picture', () => {
+    const { negative } = buildPhotoPrompt(celest, 'explicit', 'naked, lying on her back')
+    for (const tag of ['1boy', 'multiple_girls', 'hetero', 'penis', 'anal']) {
+      expect(negative).toContain(tag)
+    }
   })
 })

@@ -4,6 +4,7 @@ import {
   type BodyField,
   type CharacterBody
 } from './characterBody'
+import { says, saysAny } from './photoWords'
 
 /**
  * Which parts of her a photograph actually shows.
@@ -17,14 +18,21 @@ import {
  * that is the gate's, and arrives as `bare`.
  */
 
+/**
+ * The parts a photograph can frame or cover on its own: every field her body stores, and between
+ * her legs, which nothing stores and a single tag describes.
+ */
+type Region = BodyField | 'pubic'
+const REGIONS: readonly Region[] = [...BODY_FIELDS, 'pubic']
+
 /** Always in shot, whatever the pose: her build, and the middle of her. */
-const ALWAYS_SEEN: readonly BodyField[] = ['bodyType', 'stomach']
+const ALWAYS_SEEN: readonly Region[] = ['bodyType', 'stomach']
 
 /** What the front of her offers when the caption says nothing about which way she is turned. */
-const SEEN_BY_DEFAULT: readonly BodyField[] = ['bust', 'nipples', 'pubic', 'hipsThighs']
+const SEEN_BY_DEFAULT: readonly Region[] = ['bust', 'nipples', 'pubic', 'hipsThighs']
 
 /** A framing or a facing, and the parts it leaves in shot. First match wins. */
-const FRAMING: readonly { cues: readonly string[]; seen: readonly BodyField[] }[] = [
+const FRAMING: readonly { cues: readonly string[]; seen: readonly Region[] }[] = [
   {
     // Shoulders up: nothing below her chest is in the picture at all.
     cues: ['waist up', 'upper body', 'bust shot', 'headshot', 'portrait', 'close-up', 'close up'],
@@ -35,15 +43,10 @@ const FRAMING: readonly { cues: readonly string[]; seen: readonly BodyField[] }[
     cues: [
       'all fours',
       'hands and knees',
-      'doggy',
       'bent over',
       'bending over',
       'ass up',
       'presenting',
-      'asshole',
-      'anus',
-      'anal',
-      'butthole',
       'spreading her ass',
       'spreading her cheeks',
       'grabbing her ass'
@@ -91,26 +94,16 @@ const SPREAD_CUES = [
 ]
 
 /** Anything about her behind puts it in shot the same way. */
-const REAR_CUES = [
-  'asshole',
-  'anus',
-  'anal',
-  'butthole',
-  'spreading her ass',
-  'her cheeks',
-  'butt plug',
-  'buttplug',
-  'anal beads'
-]
+const REAR_CUES = ['spreading her ass', 'spreading her cheeks', 'holding her cheeks apart']
 
 /** The parts of her this picture contains. */
-function seenIn(caption: string): Set<BodyField> {
+function seenIn(caption: string): Set<Region> {
   const text = caption.toLowerCase()
-  const framing = FRAMING.find((rule) => rule.cues.some((cue) => text.includes(cue)))
-  const seen = new Set<BodyField>(framing?.seen ?? SEEN_BY_DEFAULT)
+  const framing = FRAMING.find((rule) => saysAny(text, rule.cues))
+  const seen = new Set<Region>(framing?.seen ?? SEEN_BY_DEFAULT)
 
-  if (SPREAD_CUES.some((cue) => text.includes(cue))) seen.add('pubic')
-  if (REAR_CUES.some((cue) => text.includes(cue))) seen.add('buttocks')
+  if (saysAny(text, SPREAD_CUES)) seen.add('pubic')
+  if (saysAny(text, REAR_CUES)) seen.add('buttocks')
   for (const field of ALWAYS_SEEN) seen.add(field)
   return seen
 }
@@ -119,7 +112,7 @@ function seenIn(caption: string): Set<BodyField> {
 type Coverage = 'hidden' | 'shape' | 'exposed'
 
 /** Clothing words in the caption, and which parts each one puts away entirely. */
-const HIDES: Readonly<Record<string, readonly BodyField[]>> = {
+const HIDES: Readonly<Record<string, readonly Region[]>> = {
   dress: ['bust', 'nipples', 'stomach', 'hipsThighs', 'buttocks', 'pubic'],
   sundress: ['bust', 'nipples', 'stomach', 'hipsThighs', 'buttocks', 'pubic'],
   gown: ['bust', 'nipples', 'stomach', 'hipsThighs', 'buttocks', 'pubic'],
@@ -144,7 +137,7 @@ const HIDES: Readonly<Record<string, readonly BodyField[]>> = {
 }
 
 /** Clothing that keeps the shape and gives away the rest: what suggestive is made of. */
-const SHAPES: Readonly<Record<string, readonly BodyField[]>> = {
+const SHAPES: Readonly<Record<string, readonly Region[]>> = {
   bra: ['bust', 'nipples'],
   bralette: ['bust', 'nipples'],
   'bikini top': ['bust', 'nipples'],
@@ -205,36 +198,38 @@ const BARE_CUES = [
  * What is covering each part. `bare` is the gate's verdict, and overrules the caption: a
  * picture allowed to be undressed and described as undressed has nothing on it to detect.
  */
-function coverageIn(caption: string, bare: boolean): Record<BodyField, Coverage> {
+function coverageIn(caption: string, bare: boolean): Record<Region, Coverage> {
   const text = caption.toLowerCase()
-  const stripped = bare && BARE_CUES.some((cue) => text.includes(cue))
+  const stripped = bare && saysAny(text, BARE_CUES)
 
-  const coverage = Object.fromEntries(BODY_FIELDS.map((field) => [field, 'exposed'])) as Record<
-    BodyField,
+  const coverage = Object.fromEntries(REGIONS.map((field) => [field, 'exposed'])) as Record<
+    Region,
     Coverage
   >
   if (stripped) return coverage
 
   for (const [word, fields] of Object.entries(SHAPES)) {
-    if (!text.includes(word)) continue
+    if (!says(text, word)) continue
     for (const field of fields) coverage[field] = 'shape'
   }
   // Second, so a shirt over a bra still hides what the bra only shaped.
   for (const [word, fields] of Object.entries(HIDES)) {
-    if (!text.includes(word)) continue
+    if (!says(text, word)) continue
     for (const field of fields) coverage[field] = 'hidden'
   }
   return coverage
 }
 
-/** How a part reads through what is still on her. */
-const THROUGH_CLOTH: Partial<Record<BodyField, string>> = {
+/**
+ * How a part reads through what is still on her. Only the parts with a plain tag for it: the
+ * `*_visible_through_clothes` tags and `cameltoe` asked the checkpoint to draw a part and to hide
+ * it at once, and it did neither well — a covered part says nothing rather than something
+ * confusing.
+ */
+const THROUGH_CLOTH: Partial<Record<Region, string>> = {
   bust: 'cleavage',
-  nipples: 'nipples_visible_through_clothes',
   stomach: 'taut_stomach',
-  hipsThighs: 'wide_hips',
-  buttocks: 'ass_visible_through_clothes',
-  pubic: 'cameltoe'
+  hipsThighs: 'wide_hips'
 }
 
 /**
@@ -247,21 +242,24 @@ export function bodyTagsFor(
   caption: string,
   bare: boolean
 ): string[] {
-  if (!body) return []
   const seen = seenIn(caption)
   const coverage = coverageIn(caption, bare)
 
   const tags: string[] = []
-  for (const field of BODY_FIELDS) {
-    const written = bodyTags(body, field).join(', ')
-    if (!written) continue
+  for (const field of REGIONS) {
+    const written = field === 'pubic' ? '' : bodyTags(body, field).join(', ')
     // Her build is the one fact no framing hides: it is how she is shaped, not a part of her.
     if (field !== 'bodyType' && !seen.has(field)) continue
 
     const state = field === 'bodyType' ? 'exposed' : coverage[field]
     if (state === 'exposed') {
+      // The same words her nude sprite is drawn with, for the parts of her this picture shows.
+      const nude = BARE_TAGS[field]
+      if (bare && nude) tags.push(nude)
       // Bare parts are named only where the gate allows them to be bare.
-      if (bare || field === 'bodyType' || !UNDRESSED_ONLY.has(field)) tags.push(written)
+      if (written && (bare || field === 'bodyType' || !UNDRESSED_ONLY.has(field))) {
+        tags.push(written)
+      }
       continue
     }
     if (state === 'shape') {
@@ -272,5 +270,16 @@ export function bodyTagsFor(
   return tags
 }
 
+/**
+ * What a bare part is called, in the vocabulary the game's nude sprite and solo CG already use,
+ * so a photograph of her undressed matches the rest of her art. Between her legs is `pussy` and
+ * nothing more, as it is there: no character stores anything about it.
+ */
+const BARE_TAGS: Partial<Record<Region, string>> = {
+  nipples: 'nipples',
+  stomach: 'navel',
+  pubic: 'pussy'
+}
+
 /** The parts that only a picture past the gate may name outright. */
-const UNDRESSED_ONLY: ReadonlySet<BodyField> = new Set(['nipples', 'pubic', 'buttocks', 'bust'])
+const UNDRESSED_ONLY: ReadonlySet<Region> = new Set(['nipples', 'pubic', 'buttocks', 'bust'])

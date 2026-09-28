@@ -9,8 +9,7 @@ const written = {
   nipples: [],
   stomach: ['soft stomach'],
   hipsThighs: ['wide hips'],
-  buttocks: [],
-  pubic: []
+  buttocks: []
 } as CharacterBody
 
 describe('bodyTags', () => {
@@ -25,7 +24,7 @@ describe('bodyTags', () => {
   })
 
   it('answers nothing for a region nobody wrote, or a character with no body', () => {
-    expect(bodyTags(written, 'pubic')).toEqual([])
+    expect(bodyTags(written, 'nipples')).toEqual([])
     expect(bodyTags(undefined, 'bust')).toEqual([])
   })
 })
@@ -38,8 +37,7 @@ describe('cleanBody', () => {
       nipples: [],
       stomach: [],
       hipsThighs: [],
-      buttocks: [],
-      pubic: []
+      buttocks: []
     } as unknown as CharacterBody
 
     expect(cleanBody(ragged)).toEqual({
@@ -48,14 +46,13 @@ describe('cleanBody', () => {
       nipples: [],
       stomach: [],
       hipsThighs: [],
-      buttocks: [],
-      pubic: []
+      buttocks: []
     })
   })
 
   it('answers nothing for a body with nothing written in it', () => {
     const blank = Object.fromEntries(
-      (['bodyType', 'bust', 'nipples', 'stomach', 'hipsThighs', 'buttocks', 'pubic'] as const).map(
+      (['bodyType', 'bust', 'nipples', 'stomach', 'hipsThighs', 'buttocks'] as const).map(
         (field) => [field, []]
       )
     ) as unknown as CharacterBody

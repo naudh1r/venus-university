@@ -9,7 +9,8 @@
 /**
  * Her undressed body, one field per region a photograph can frame or cover on its own, each a
  * short run of booru tags like the wardrobes. Anything true of her all over belongs in
- * `bodyType`.
+ * `bodyType`. Between her legs is not stored: a picture says it with one tag, the same for
+ * everybody.
  *
  * It is declared here rather than beside the rest of the save's shapes because nothing outside
  * the photo feature reads it: a build that drops these files loses the type with them, and
@@ -31,8 +32,6 @@ export interface CharacterBody {
   hipsThighs: string[]
   /** Her backside. */
   buttocks: string[]
-  /** Between her legs, and how she keeps it. */
-  pubic: string[]
 }
 
 /** Every region, in the order a prompt reads them: top down. */
@@ -42,8 +41,7 @@ export const BODY_FIELDS = [
   'nipples',
   'stomach',
   'hipsThighs',
-  'buttocks',
-  'pubic'
+  'buttocks'
 ] as const
 
 export type BodyField = (typeof BODY_FIELDS)[number]
@@ -55,8 +53,7 @@ const BODY_FIELD_BRIEF: Record<BodyField, string> = {
   nipples: 'her nipples: size, colour, areola',
   stomach: 'her middle: stomach, waist, navel',
   hipsThighs: 'her hips and thighs, and how they meet',
-  buttocks: 'her backside: size and shape',
-  pubic: 'between her legs, and how she keeps it'
+  buttocks: 'her backside: size and shape'
 }
 
 /** The brief as prompt lines, one per field. */

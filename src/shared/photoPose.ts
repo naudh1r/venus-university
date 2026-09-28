@@ -1,3 +1,5 @@
+import { says, saysAny } from './photoWords'
+
 /**
  * Composition tags read off the sentence she wrote.
  *
@@ -24,7 +26,7 @@ interface ActionRule extends Rule {
 
 /** Whether any of `cues` appears in the caption, which is already lowercased. */
 function fires(text: string, cues: readonly string[]): boolean {
-  return cues.some((cue) => text.includes(cue))
+  return saysAny(text, cues)
 }
 
 /** The first row whose cues appear, or null. Order is precedence: specific before general. */
@@ -76,7 +78,7 @@ const BARE_POSITIONS: readonly Rule[] = [
     cues: ['bent over', 'bending over', 'bent forward'],
     tags: ['bent_over', 'solo', 'hands_on_own_knees', 'ass_up']
   },
-  { cues: ['from behind', 'doggy'], tags: ['from_behind', 'solo', 'ass_focus'] },
+  { cues: ['from behind'], tags: ['from_behind', 'solo', 'ass_focus'] },
   {
     cues: ['legs up', 'legs in the air', 'legs raised', 'knees to her chest', 'ankles up'],
     tags: ['lying', 'on_back', 'solo', 'legs_up', 'knees_up']
@@ -100,7 +102,7 @@ const BARE_POSITIONS: readonly Rule[] = [
   { cues: ['squatting', 'squat'], tags: ['squatting', 'solo', 'spread_legs', 'hand_on_own_thigh'] },
   { cues: ['on her knees', 'kneeling'], tags: ['kneeling', 'solo', 'hands_on_own_thighs'] },
   {
-    cues: ['against the wall', 'against wall', 'pinned against'],
+    cues: ['against the wall', 'against wall'],
     tags: ['against_wall', 'solo', 'arms_at_sides']
   },
   {
@@ -157,7 +159,7 @@ const HAND_ACTIONS: readonly ActionRule[] = [
       'rubbing herself',
       'hand between her legs',
       'fingers inside',
-      'masturbat',
+      'masturbat*',
       'pleasuring herself',
       'rubbing her clit',
       'playing with her clit',
@@ -207,11 +209,6 @@ const HAND_ACTIONS: readonly ActionRule[] = [
     implies: ['bent_over', 'solo', 'ass_up']
   },
   {
-    cues: ['asshole', 'anus', 'butthole', 'anal', 'fingering her ass', 'teasing her hole'],
-    tags: ['anal_fingering', 'anus', 'hand_on_own_ass'],
-    implies: ['all_fours', 'solo', 'ass_up']
-  },
-  {
     cues: ['dildo', 'toy inside her', 'fucking herself with'],
     tags: ['sex_toy', 'dildo', 'vaginal_object_insertion'],
     implies: ['lying', 'on_back', 'solo', 'spread_legs']
@@ -220,11 +217,6 @@ const HAND_ACTIONS: readonly ActionRule[] = [
     cues: ['vibrator', 'magic wand', 'vibe on her'],
     tags: ['vibrator', 'sex_toy', 'clitoris'],
     implies: ['sitting', 'solo', 'spread_legs']
-  },
-  {
-    cues: ['butt plug', 'buttplug', 'anal beads', 'anal toy', 'plug in her'],
-    tags: ['sex_toy', 'anal_object_insertion', 'anus'],
-    implies: ['all_fours', 'solo', 'ass_up']
   }
 ]
 
@@ -232,7 +224,17 @@ const HAND_ACTIONS: readonly ActionRule[] = [
 const BREAST_ACTION = HAND_ACTIONS[1]
 
 /** Nipple play written around the noun instead of at it: "teasing her stiff nipples". */
-const NIPPLE_VERBS = ['play', 'teas', 'pinch', 'tweak', 'roll', 'squeez', 'tug', 'rub', 'flick']
+const NIPPLE_VERBS = [
+  'play*',
+  'teas*',
+  'pinch*',
+  'tweak*',
+  'roll*',
+  'squeez*',
+  'tug*',
+  'rub*',
+  'flick*'
+]
 
 /** No action matched, but her hands are clearly on herself somewhere. */
 const VAGUE_TOUCH: Rule = {
@@ -331,10 +333,7 @@ export function posePhotoTags(caption: string, bare: boolean): string[] {
 
   // Both hands, but no more: two actions is a picture, three is a puzzle.
   const matched = HAND_ACTIONS.filter((action) => fires(text, action.cues)).slice(0, 2)
-  const looseNipples =
-    matched.length === 0 &&
-    text.includes('nipple') &&
-    NIPPLE_VERBS.some((verb) => text.includes(verb))
+  const looseNipples = matched.length === 0 && says(text, 'nipple') && saysAny(text, NIPPLE_VERBS)
   const hands = looseNipples ? [BREAST_ACTION] : matched
 
   // Her position as the caption gave it, else the one her hands imply, else standing.
