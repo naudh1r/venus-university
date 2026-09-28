@@ -10,8 +10,9 @@ import { restoreApi, stubApi } from './fixtures'
  * and the part that has no compiler to answer to.
  *
  * Every rule checked here is one that was broken at some point while this was being ported, and
- * each one failed silently: a post that stood over an empty frame, a render per poster instead of
- * one a slot, a trigger that fired on every turn of a scene rather than the first.
+ * each one failed silently: a post that stood over an empty frame, a trigger that fired on every
+ * turn of a scene rather than the first, and a second picture post in one slot filed as text
+ * under replies written for its picture.
  */
 
 stubApi({ jobs: { onProgress: () => () => {} } })
@@ -113,6 +114,91 @@ describe('the held render', () => {
     startHeldPostPhoto()
     await Promise.resolve()
     expect(api.generate).toHaveBeenCalledTimes(1)
+  })
+
+  it('draws every post a slot held, one after the other', async () => {
+    // Each render waits for the test to finish it, so the order can be watched.
+    const finish: Array<() => void> = []
+    const generate = vi.fn<GeneratePhoto>(
+      () =>
+        new Promise<Result<string>>((resolve) => {
+          finish.push(() => resolve({ ok: true, data: 'done' }))
+        })
+    )
+    stubApi({
+      jobs: { onProgress: () => () => {} },
+      photo: { reserveName: vi.fn<ReserveName>(), generate },
+      // A post that lands is saved on its own.
+      saves: { autosave: async () => ({ ok: true, data: {} as never }) }
+    })
+    const { useGameStore } = await import('../src/renderer/stores/gameStore')
+    const { beginSlotPhotos, holdPostPhoto, startHeldPostPhoto } = await import(
+      '../src/renderer/stores/photoPost'
+    )
+    const appended = vi.fn()
+    useGameStore.setState({
+      playthroughId: '1',
+      characters: {
+        c1: { charId: 'c1', firstName: 'Florentine' },
+        c2: { charId: 'c2', firstName: 'April' }
+      },
+      charInfo: {},
+      appendFeedPost: appended
+    } as never)
+
+    beginSlotPhotos()
+    holdPostPhoto(
+      'c1',
+      { id: 'p1', text: 'milkshake', date: 0, time: 0, likes: 1 },
+      { shot: { tier: 'everyday', scene: 'a milkshake' }, file: 'c1_bunnyboard_001.png' },
+      () => {}
+    )
+    holdPostPhoto(
+      'c2',
+      { id: 'p2', text: 'fries', date: 0, time: 0, likes: 1 },
+      { shot: { tier: 'everyday', scene: 'a booth' }, file: 'c2_bunnyboard_001.png' },
+      () => {}
+    )
+
+    startHeldPostPhoto()
+    await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(1))
+    // The second waits for the first: never two renders at once.
+    expect(generate.mock.calls[0]?.[4]).toBe('c1_bunnyboard_001.png')
+    finish[0]?.()
+    await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(2))
+    expect(generate.mock.calls[1]?.[4]).toBe('c2_bunnyboard_001.png')
+    finish[1]?.()
+    await vi.waitFor(() => expect(appended).toHaveBeenCalledTimes(2))
+  })
+
+  it('lets a slot nobody acted in go, rather than drawing it late', async () => {
+    const api = pendingRender()
+    stubApi({
+      jobs: { onProgress: () => () => {} },
+      photo: { reserveName: api.reserve, generate: api.generate }
+    })
+    const { useGameStore } = await import('../src/renderer/stores/gameStore')
+    const { beginSlotPhotos, holdPostPhoto, startHeldPostPhoto } = await import(
+      '../src/renderer/stores/photoPost'
+    )
+    useGameStore.setState({
+      playthroughId: '1',
+      characters: { c1: { charId: 'c1', firstName: 'Gwen' } } as never
+    })
+
+    beginSlotPhotos()
+    holdPostPhoto(
+      'c1',
+      { id: 'p1', text: 'hi', date: 0, time: 0, likes: 1 },
+      { shot: { tier: 'everyday', scene: 'on the grass' }, file: 'gwen_bunnyboard_001.png' },
+      () => {}
+    )
+    // The next slot opens before he committed to anything in this one.
+    beginSlotPhotos()
+    startHeldPostPhoto()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(api.generate).not.toHaveBeenCalled()
   })
 
   it('has nothing to fire when the slot prepared no picture', async () => {

@@ -473,10 +473,6 @@ async function startOrientationScene(): Promise<void> {
   game.setInputDraft('')
   game.setAwaitingInput(false)
   game.setBusy(true)
-  // The slot's held feed picture, now that he is busy with something: it draws under the scene
-  // and the post is waiting on the feed when he is free again. Takes the hold, so the turns
-  // after this one find nothing.
-  startHeldPostPhoto()
   game.setStreaming(true)
 
   // The same settling every other scene start runs; an unanswered invitation is a snub here too.
@@ -1068,6 +1064,10 @@ export async function submitAction(
   game.setInputDraft('')
   game.setAwaitingInput(false)
   game.setBusy(true)
+  // The slot's held feed pictures, now that he is busy with something: they draw under the scene
+  // and the posts are waiting on the feed when he is free again. Takes the hold, so the turns
+  // after this one find nothing.
+  startHeldPostPhoto()
   // Stamped here, so the classifier's latency sits inside the reply floor.
   loopState.turnStartedAt = performance.now()
   // Set before `classifyAction`, so `advance()` never sees an empty queue with the scene not over.

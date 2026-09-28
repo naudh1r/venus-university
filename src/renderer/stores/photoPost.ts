@@ -48,9 +48,9 @@ async function reservePostPhotoName(charId: string): Promise<string | null> {
 }
 
 /**
- * Draws one post's picture and files the post where it landed. Never awaited: the feed is read
- * long after the slot opened, so nothing is kept waiting on a render — but the post itself does
- * not appear until the picture it was written for is on disk.
+ * Draws one post's picture and files the post where it landed. Never awaited by the game, only by
+ * the queue: the feed is read long after the slot opened, so nothing is kept waiting on a render —
+ * but the post itself does not appear until the picture it was written for is on disk.
  *
  * A render that fails takes the post with it, rather than leaving text under an empty frame.
  */
@@ -97,26 +97,28 @@ async function postWhenDrawn(
   console.log(`[feed] ${character.firstName} posted ${file}`)
 }
 
-/** A picture this slot has settled on and reserved a name for, waiting on the post it belongs to. */
+/** A picture a post has settled on and reserved a name for, waiting on the post it belongs to. */
 export interface PreparedPostPhoto {
   shot: { tier: PhotoTier; scene: string }
   file: string
 }
 
-/** Whether this slot has already settled on a picture. Cleared by {@link beginSlotPhotos}. */
-let drawnThisSlot = false
-
-/** Called as a slot's posts are filed, before any of them are looked at. */
+/**
+ * Called as a slot's posts are filed, before any of them are looked at. Whatever the last slot
+ * held and the reader never started is let go here: he passed through that slot without doing
+ * anything, and the posts it belonged to never existed, which is the same answer a failed render
+ * gives.
+ */
 export function beginSlotPhotos(): void {
-  drawnThisSlot = false
+  held = []
 }
 
 /**
  * The picture one post will carry, or `null` for a post that carries none.
  *
- * **One picture a slot at most**: a render is half a minute of the machine, and a feed where
- * every post carries a photograph reads as an advertisement rather than a year group. The first
- * post whose caption settles takes it and the rest are filed as text.
+ * Every post whose caption settles gets its picture. Two in one slot are two renders, drawn one
+ * after the other by {@link startHeldPostPhoto}; capping a slot at one filed the second post as
+ * text under replies the model wrote for its picture.
  *
  * The name is reserved here, and the caller awaits it before filing anything: the slot save is
  * written the moment the posts are filed, and a post that goes into it without the name of the
@@ -126,34 +128,37 @@ export async function preparePostPhoto(
   charId: string,
   image: string | undefined
 ): Promise<PreparedPostPhoto | null> {
-  if (drawnThisSlot) return null
   const shot = settlePostPhoto(image)
   if (!shot) return null
-  drawnThisSlot = true
   const file = await reservePostPhotoName(charId)
   return file ? { shot, file } : null
 }
 
-/**
- * The post waiting for its picture to be drawn, and the slot's own render held with it.
- *
- * Why it waits rather than starting as the slot opens: a render is half a minute of the machine,
- * and the reader spends the start of a slot on the map deciding where to go. Starting it then
- * puts the whole render in the one stretch he might be reading the feed, and finishes it in the
- * one stretch he is not. Held until he commits to something instead, it runs underneath the
- * scene he committed to — and the post is on the feed by the time he is free to look at it.
- *
- * One at a time, since only one picture is drawn a slot anyway. A hold that is never taken up —
- * a slot the reader passed through without doing anything — is replaced by the next slot's, and
- * the post it belonged to never existed, which is the same answer a failed render gives.
- */
-let held: {
+/** A post waiting for its picture to be drawn. */
+interface HeldPost {
   charId: string
   written: SocialPost
   shot: { tier: PhotoTier; scene: string }
   file: string
   nudge: (charId: string) => void
-} | null = null
+}
+
+/**
+ * The slot's posts waiting for their pictures, in the order they were written.
+ *
+ * Why they wait rather than starting as the slot opens: a render is half a minute of the machine,
+ * and the reader spends the start of a slot on the map deciding where to go. Starting then puts
+ * the renders in the one stretch he might be reading the feed, and finishes them in the one
+ * stretch he is not. Held until he commits to something instead, they run underneath the scene
+ * he committed to — and the posts are on the feed by the time he is free to look at them.
+ */
+let held: HeldPost[] = []
+
+/**
+ * The renders already started, as one chain: each waits for the one before it, so two posts are
+ * never drawn at once and a slot's batch never overlaps the last slot's.
+ */
+let drawing: Promise<void> = Promise.resolve()
 
 /** Files the post and its picture to be drawn when the reader next commits to something. */
 export function holdPostPhoto(
@@ -162,17 +167,26 @@ export function holdPostPhoto(
   prepared: PreparedPostPhoto,
   nudge: (charId: string) => void
 ): void {
-  held = { charId, written, shot: prepared.shot, file: prepared.file, nudge }
+  held.push({ charId, written, shot: prepared.shot, file: prepared.file, nudge })
 }
 
 /**
- * Starts the held render, if there is one. Called as the reader commits to an action, which is
- * every turn of a scene as well as the first — so it takes the hold before starting, and a
- * second call finds nothing.
+ * Starts the held renders, if there are any, one after the other. Called as the reader commits
+ * to an action, which is every turn of a scene as well as the first — so it takes the whole hold
+ * before starting, and a second call finds nothing.
  */
 export function startHeldPostPhoto(): void {
-  const start = held
-  if (!start) return
-  held = null
-  void postWhenDrawn(start.charId, start.written, start.shot, start.file, start.nudge)
+  if (held.length === 0) return
+  const batch = held
+  held = []
+  drawing = drawing.then(async () => {
+    for (const one of batch) {
+      try {
+        await postWhenDrawn(one.charId, one.written, one.shot, one.file, one.nudge)
+      } catch (error) {
+        // One post lost, not the queue: the renders behind it still get drawn.
+        console.warn("[feed] a post's picture threw, so the post is dropped:", error)
+      }
+    }
+  })
 }

@@ -2,6 +2,7 @@ import type { Character } from '@shared/types'
 import { buildScenePrompt } from '../../prompts/scenePrompt'
 import { SETTING } from '../../prompts/setting'
 import { useGameStore } from '../gameStore'
+import { startHeldPostPhoto } from '../photoPost'
 import { coverSceneOpening } from '../slotCrossing'
 import { castCharactersOf, nameOf } from './cast'
 import {
@@ -126,6 +127,8 @@ export async function startHangoutScene(
   game.setAwaitingInput(false)
   // Raised before the classify call, so one flag covers the whole in-flight window.
   game.setBusy(true)
+  // Begin never passes through `submitAction`, so the slot's held feed pictures start here.
+  startHeldPostPhoto()
   loopState.turnStartedAt = performance.now()
   game.setStreaming(true)
   game.setWaitingForLine(true)

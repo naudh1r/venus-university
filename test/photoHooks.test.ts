@@ -25,11 +25,31 @@ import { describe, expect, it } from 'vitest'
 const ROOT = join(__dirname, '..')
 
 function source(rel: string): string {
-  return readFileSync(join(ROOT, rel), 'utf-8')
+  return readFileSync(join(ROOT, rel), 'utf-8').replace(/\r\n/g, '\n')
 }
 
-/** Each core file, and the call that must still be written in it. */
-const HOOKS: readonly { file: string; needs: readonly string[]; why: string }[] = [
+/**
+ * The body of one top-level function, from its signature to the brace that closes it at the
+ * start of a line. Empty when the signature is not in the file, which fails the check below.
+ */
+function bodyOf(text: string, signature: string): string {
+  const start = text.indexOf(signature)
+  if (start < 0) return ''
+  const end = text.indexOf('\n}\n', start)
+  return text.slice(start, end < 0 ? undefined : end)
+}
+
+/**
+ * Each core file, and the call that must still be written in it — inside one function, where
+ * `within` names it. Being somewhere in the file was once not enough: the held-render trigger sat
+ * in the day-0 opening, which shares its first three lines with `submitAction`, and passed.
+ */
+const HOOKS: readonly {
+  file: string
+  needs: readonly string[]
+  within?: string
+  why: string
+}[] = [
   {
     file: 'src/renderer/index.html',
     needs: ['playimg:'],
@@ -82,8 +102,20 @@ const HOOKS: readonly { file: string; needs: readonly string[]; why: string }[] 
   },
   {
     file: 'src/renderer/stores/gameLoop.ts',
-    needs: ['startHeldPostPhoto()', 'settlePendingPhotos()', 'await deliverSlotPosts('],
-    why: 'the held render never fires, and a picture that outlived its save is never found'
+    needs: ['settlePendingPhotos()', 'await deliverSlotPosts('],
+    why: 'a picture that outlived its save is never found, and posts are never filed'
+  },
+  {
+    file: 'src/renderer/stores/gameLoop.ts',
+    within: 'export async function submitAction(',
+    needs: ['startHeldPostPhoto()'],
+    why: "every choice goes through here; without it a post's picture is never drawn and the post never appears"
+  },
+  {
+    file: 'src/renderer/stores/loop/hangouts.ts',
+    within: 'export async function startHangoutScene(',
+    needs: ['startHeldPostPhoto()'],
+    why: "Begin on a hangout skips submitAction; without it that slot's photo posts never appear"
   },
   {
     file: 'src/renderer/stores/loop/feed.ts',
@@ -152,8 +184,10 @@ const HOOKS: readonly { file: string; needs: readonly string[]; why: string }[] 
 describe('every core file still calls into the photo feature', () => {
   for (const hook of HOOKS) {
     for (const needle of hook.needs) {
-      it(`${hook.file} — ${needle}`, () => {
-        expect(source(hook.file), hook.why).toContain(needle)
+      const where = hook.within ? ` in ${hook.within.replace(/^export |async |function |\($/g, '')}` : ''
+      it(`${hook.file} — ${needle}${where}`, () => {
+        const text = source(hook.file)
+        expect(hook.within ? bodyOf(text, hook.within) : text, hook.why).toContain(needle)
       })
     }
   }
