@@ -63,6 +63,7 @@ import {
   type TimeSlot
 } from '@shared/types'
 import { asInvitationAnswer, invitationAnswerText } from '@shared/invitationAnswer'
+import { textBubbles } from '@shared/textBubbles'
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
 import { canSendPhotos } from './photoStore'
@@ -523,6 +524,9 @@ async function runReply(
   // stays authoritative for anything the preview missed.
   const extractor = createTextExtractor()
   let seen = 0
+  // Read once for the turn, so the preview and the resolved reply cut her texts the same way and
+  // count the same bubbles.
+  const strict = useSettingsStore.getState().settings?.strictSchema === true
   // Every in-flight reply hears every other one's deltas: only this turn's group feeds the
   // extractor, or a foreign chunk splices two JSON documents into one buffer.
   const group = `texting:${charId}`
@@ -530,10 +534,10 @@ async function runReply(
     if (deltaGroup !== group) return
     if (entry.abandoned) return
     for (const message of extractor.feed(delta)) {
-      const clean = message.trim()
-      if (!clean) continue
-      seen += 1
-      if (seen > skip) pacer.push(clean)
+      for (const clean of textBubbles(message, strict)) {
+        seen += 1
+        if (seen > skip) pacer.push(clean)
+      }
     }
   })
 
@@ -559,7 +563,7 @@ async function runReply(
   }
 
   const data: TextingResponse = result.data
-  const messages = (data.messages ?? []).map((text) => text.trim()).filter(Boolean)
+  const messages = (data.messages ?? []).flatMap((text) => textBubbles(text, strict))
   // Anything the preview did not already queue — nor an earlier attempt release.
   for (const text of messages.slice(Math.max(seen, skip))) {
     pacer.push(text)
