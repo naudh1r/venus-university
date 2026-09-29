@@ -1,9 +1,4 @@
-import {
-  BODY_FIELDS,
-  bodyTags,
-  type BodyField,
-  type CharacterBody
-} from './characterBody'
+import type { CharacterBody } from './characterBody'
 import { says, saysAny } from './photoWords'
 
 /**
@@ -19,14 +14,14 @@ import { says, saysAny } from './photoWords'
  */
 
 /**
- * The parts a photograph can frame or cover on its own: every field her body stores, and between
- * her legs, which nothing stores and a single tag describes.
+ * The parts a photograph can frame or cover on its own. Her build and her chest are not among
+ * them: they are how she is shaped, true of every picture of her, and ride in her appearance.
  */
-type Region = BodyField | 'pubic'
-const REGIONS: readonly Region[] = [...BODY_FIELDS, 'pubic']
+type Region = 'bust' | 'nipples' | 'stomach' | 'hipsThighs' | 'buttocks' | 'pubic'
+const REGIONS: readonly Region[] = ['bust', 'nipples', 'stomach', 'hipsThighs', 'buttocks', 'pubic']
 
-/** Always in shot, whatever the pose: her build, and the middle of her. */
-const ALWAYS_SEEN: readonly Region[] = ['bodyType', 'stomach']
+/** Always in shot, whatever the pose: the middle of her. */
+const ALWAYS_SEEN: readonly Region[] = ['stomach']
 
 /** What the front of her offers when the caption says nothing about which way she is turned. */
 const SEEN_BY_DEFAULT: readonly Region[] = ['bust', 'nipples', 'pubic', 'hipsThighs']
@@ -232,9 +227,23 @@ const THROUGH_CLOTH: Partial<Record<Region, string>> = {
 }
 
 /**
+ * The region her body names on its own, where it names one: her hips and her backside are a
+ * shape a picture shows dressed or not, and the hair between her legs only undressed.
+ */
+function ownTag(body: CharacterBody, region: Region, bare: boolean): string | undefined {
+  if (region === 'hipsThighs') return body.hipsThighs
+  if (region === 'buttocks') return body.buttocks
+  if (region === 'pubic') return bare ? body.pubicHair : undefined
+  return undefined
+}
+
+/**
  * Her body as this one picture may describe it: only the parts in shot, and only as far as
  * what she is wearing allows. A picture with nothing of her in it answers an empty list,
  * which is a photograph of her face and her room — still a photograph.
+ *
+ * `body` is absent while the body switch is off, and then nothing of hers is named: only the
+ * nude sprite's words for what is bare, and what cloth does to a shape.
  */
 export function bodyTagsFor(
   body: CharacterBody | undefined,
@@ -245,24 +254,24 @@ export function bodyTagsFor(
   const coverage = coverageIn(caption, bare)
 
   const tags: string[] = []
-  for (const field of REGIONS) {
-    const written = field === 'pubic' ? '' : bodyTags(body, field).join(', ')
-    // Her build is the one fact no framing hides: it is how she is shaped, not a part of her.
-    if (field !== 'bodyType' && !seen.has(field)) continue
+  for (const region of REGIONS) {
+    if (!seen.has(region)) continue
+    const state = coverage[region]
+    if (state === 'hidden') continue
 
-    const state = field === 'bodyType' ? 'exposed' : coverage[field]
-    if (state === 'exposed') {
-      // The same words her nude sprite is drawn with, for the parts of her this picture shows.
-      const nude = BARE_TAGS[field]
-      if (bare && nude) tags.push(nude)
-      // Bare parts are named only where the gate allows them to be bare.
-      if (written && (bare || field === 'bodyType' || !UNDRESSED_ONLY.has(field))) {
-        tags.push(written)
-      }
+    // The same words her nude sprite is drawn with, for the parts of her this picture shows.
+    const nude = BARE_TAGS[region]
+    if (state === 'exposed' && bare && nude) tags.push(nude)
+
+    const own = body ? ownTag(body, region, bare && state === 'exposed') : undefined
+    if (own) {
+      tags.push(own)
       continue
     }
+    // Her own hips say what cloth over them shows, where she has them: the generic shape is
+    // only for a picture that knows nothing of her.
     if (state === 'shape') {
-      const through = THROUGH_CLOTH[field]
+      const through = region === 'hipsThighs' && body ? undefined : THROUGH_CLOTH[region]
       if (through) tags.push(through)
     }
   }
@@ -271,14 +280,11 @@ export function bodyTagsFor(
 
 /**
  * What a bare part is called, in the vocabulary the game's nude sprite and solo CG already use,
- * so a photograph of her undressed matches the rest of her art. Between her legs is `pussy` and
- * nothing more, as it is there: no character stores anything about it.
+ * so a photograph of her undressed matches the rest of her art. Between her legs is `pussy`, and
+ * her hair there is her body's own, where she has any.
  */
 const BARE_TAGS: Partial<Record<Region, string>> = {
   nipples: 'nipples',
   stomach: 'navel',
   pubic: 'pussy'
 }
-
-/** The parts that only a picture past the gate may name outright. */
-const UNDRESSED_ONLY: ReadonlySet<Region> = new Set(['nipples', 'pubic', 'buttocks', 'bust'])

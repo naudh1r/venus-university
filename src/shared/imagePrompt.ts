@@ -1,4 +1,5 @@
 import type { Character, Emotion, OutfitSet, Position } from './types'
+import { bodyAppearance, bodyNegative } from './characterBody'
 import { negativeTagsFor, outfitTagsFor } from './outfits'
 import { CG_BASE_PROMPT, POSITION_TAGS } from './positions'
 import { EXPRESSION_EYES, EXPRESSION_MOUTH } from './tags'
@@ -88,13 +89,14 @@ export function spriteDraft(
     kind: 'sprite',
     set,
     base: [...QUALITY_TAGS, ...BASE_TAGS],
-    appearance: [...character.baseAppearance],
+    appearance: bodyAppearance(character, set === 'nude' ? 'nude' : 'sprite'),
     outfit: set === null ? [...character.outfit] : [...outfitTagsFor(character, set)],
     pose: [...poseTags],
     // Her own negatives come last, after the shared ones and the set's own.
     negative: [
       ...NEGATIVE_TAGS,
       ...(set ? negativeTagsFor(set) : []),
+      ...bodyNegative(character),
       ...(character.negativeTags ?? [])
     ]
   }
@@ -119,8 +121,8 @@ export function cgSetDraft(character: Character): Extract<PromptEdit, { kind: 'c
   return {
     kind: 'cgs',
     base: [...QUALITY_TAGS, ...tagsOf(CG_BASE_PROMPT)],
-    appearance: [...character.baseAppearance],
-    negative: [...CG_NEGATIVE_TAGS, ...(character.negativeTags ?? [])]
+    appearance: bodyAppearance(character, 'cg'),
+    negative: [...CG_NEGATIVE_TAGS, ...bodyNegative(character), ...(character.negativeTags ?? [])]
   }
 }
 

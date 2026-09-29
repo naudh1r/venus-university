@@ -19,6 +19,7 @@ import {
 import { reshuffleSuggestions } from '../prompts/characterSuggestions'
 import { useComfyStore } from '../stores/comfyStore'
 import { noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
+import { BodyDetailsToggle } from './bodyFields'
 import { useSetupStore } from '../stores/setupStore'
 import { useUiStore } from '../stores/uiStore'
 import { CharacterModal } from './CharacterModal'
@@ -279,6 +280,7 @@ export function ManageCharactersView(): JSX.Element {
           >
             {restoring ? 'Restoring…' : 'Restore default characters'}
           </motion.button>
+          <BodyDetailsToggle />
           {/* The one that always has something to do: dead only while it is doing it. */}
           <motion.button
             id="manage-import"

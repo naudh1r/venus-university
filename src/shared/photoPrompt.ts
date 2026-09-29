@@ -1,5 +1,6 @@
 import type { PhotoTier } from './photoGate'
 import { DORM_IDS, dormLabel } from './dorms'
+import { bodyAppearance, bodyNegative } from './characterBody'
 import { bodyTagsFor } from './photoBody'
 import { posePhotoTags } from './photoPose'
 import { LOCATIONS, NARRATIVE_LOCATIONS } from './locations'
@@ -203,7 +204,8 @@ export function buildPhotoPrompt(
 
   const positive = [
     `${PHOTO_QUALITY}, ${PHOTO_BASE}`,
-    character.baseAppearance.join(', '),
+    // Her appearance, with her build and her chest in it while the body switch is on.
+    bodyAppearance(character, 'photo').join(', '),
     body.join(', '),
     wardrobe,
     [scene, pose.join(', ')].filter((part) => part.length > 0).join(', ')
@@ -214,6 +216,7 @@ export function buildPhotoPrompt(
   const negative = [
     PHOTO_NEGATIVE,
     ...(bare ? [BARE_NEGATIVE] : []),
+    ...bodyNegative(character),
     ...(character.negativeTags ?? [])
   ].join(', ')
   return { positive, negative }

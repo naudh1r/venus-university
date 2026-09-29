@@ -92,8 +92,55 @@ const HOOKS: readonly {
   },
   {
     file: 'src/shared/settingsRules.ts',
-    needs: ["| 'photos'"],
-    why: 'the switch is optional, so the guard must not require it'
+    needs: ["| 'photos'", "| 'bodyDetails'"],
+    why: 'the switches are optional, so the guard must not require them'
+  },
+  {
+    file: 'src/shared/settingsRules.ts',
+    within: 'export function mergePatch(',
+    needs: ['bodyDetails: patch.bodyDetails'],
+    why: 'the body switch writes nothing and springs back off'
+  },
+  {
+    file: 'src/renderer/stores/settingsStore.ts',
+    within: 'export function patchOf(',
+    needs: ['bodyDetails: settings.bodyDetails'],
+    why: 'a save made from any other control turns the body switch back off'
+  },
+  {
+    file: 'src/shared/imagePrompt.ts',
+    within: 'export function spriteDraft(',
+    needs: ["bodyAppearance(character, set === 'nude' ? 'nude' : 'sprite')", 'bodyNegative(character)'],
+    why: 'her sprites are drawn without her body, and a petite one with nothing keeping her adult'
+  },
+  {
+    file: 'src/shared/imagePrompt.ts',
+    within: 'export function cgSetDraft(',
+    needs: ["bodyAppearance(character, 'cg')", 'bodyNegative(character)'],
+    why: 'her CGs are drawn without her body, and a petite one with nothing keeping her adult'
+  },
+  {
+    file: 'src/main/services/comfyService.ts',
+    within: 'export async function generateSprite(',
+    needs: ['character = await withBodySetting(character)'],
+    why: 'a sprite draws her body whether or not the switch is on'
+  },
+  {
+    file: 'src/main/services/comfyService.ts',
+    within: 'export async function generateCg(',
+    needs: ['character = await withBodySetting(character)'],
+    why: 'a CG draws her body whether or not the switch is on'
+  },
+  {
+    file: 'src/main/services/comfyService.ts',
+    within: 'export async function fixHands(',
+    needs: ['character = await withBodySetting(character)'],
+    why: 'a hand fix redraws her frame with a body the base was drawn without'
+  },
+  {
+    file: 'src/renderer/views/ManageCharactersView.tsx',
+    needs: ['<BodyDetailsToggle />'],
+    why: 'the body switch cannot be turned on'
   },
   {
     file: 'src/renderer/stores/textingLoop.ts',
@@ -146,8 +193,8 @@ const HOOKS: readonly {
   },
   {
     file: 'src/renderer/prompts/characterPrompt.ts',
-    needs: ['BODY_FIELD_LINES', 'cleanBody(', "'body',"],
-    why: 'characters are written without a body, so every photograph is a face and a room'
+    needs: ['bodyBriefLines()', 'bodySchemaRequired()', 'bodySchemaFields()', 'bodyOfDraft('],
+    why: 'a character is written without a body while the switch is on'
   },
   {
     file: 'src/renderer/views/BunnyboardModal.tsx',
@@ -176,8 +223,8 @@ const HOOKS: readonly {
   },
   {
     file: 'src/renderer/views/EditCharacterModal.tsx',
-    needs: ['BODY_FIELDS.map', 'bodyForm(', 'cleanBody('],
-    why: 'her body cannot be read or written by hand'
+    needs: ['<BodyFieldsSection', 'bodyForm(', 'cleanBody(', "} from './bodyDrafts'"],
+    why: 'her body cannot be read or written by hand, and a regenerate draws it with the switch off'
   }
 ]
 

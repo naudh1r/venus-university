@@ -9,13 +9,13 @@ const celest = {
   lastName: 'Varga',
   baseAppearance: ['aqua_hair', 'light_purple_eyes'],
   outfit: ['pink cardigan', 'white blouse'],
+  // A body is only here while the body switch is on: the render strips it otherwise.
   body: {
-    bodyType: ['slim', 'pale skin'],
-    bust: ['large_breasts', 'heavy'],
-    nipples: ['pink nipples', 'small areolae'],
-    stomach: ['soft stomach', 'navel'],
-    hipsThighs: ['wide hips', 'thick thighs'],
-    buttocks: ['round ass']
+    build: 'curvy',
+    breasts: 'large_breasts',
+    hipsThighs: 'wide_hips',
+    buttocks: 'huge_ass',
+    pubicHair: 'female_pubic_hair'
   },
   negativeTags: ['glasses']
 } as unknown as Character
@@ -51,24 +51,42 @@ describe('buildPhotoPrompt', () => {
   it('names only the parts the picture contains', () => {
     // On her back and bare: her chest and between her legs are both in shot.
     const back = promptFor('explicit', 'naked, lying on her back on the sheets')
-    expect(back).toContain('pink nipples')
+    expect(back).toContain('nipples')
     expect(back).toContain('pussy')
-    expect(back).not.toContain('round ass')
+    expect(back).toContain('female_pubic_hair')
+    expect(back).not.toContain('huge_ass')
 
     // Turned away: her chest is not, and saying so would put a second woman in the frame.
     const behind = promptFor('explicit', 'naked, standing with her back turned to the mirror')
-    expect(behind).toContain('round ass')
-    expect(behind).not.toContain('pink nipples')
+    expect(behind).toContain('huge_ass')
+    expect(behind).not.toContain('nipples')
+    expect(behind).not.toContain('female_pubic_hair')
   })
 
   it('reads her through her clothes rather than under them', () => {
     const bra = promptFor('suggestive', 'in a black lace bra, sitting on the edge of the bed')
     expect(bra).toContain('cleavage')
-    expect(bra).not.toContain('pink nipples')
+    expect(bra).not.toContain('nipples')
   })
 
-  it('keeps her build whatever the picture shows', () => {
-    expect(promptFor('everyday', 'a close-up of her face by the window')).toContain('slim, pale skin')
+  it('keeps her build and her chest whatever the picture shows', () => {
+    const face = promptFor('everyday', 'a close-up of her face by the window')
+    expect(face).toContain('curvy')
+    expect(face).toContain('large_breasts')
+  })
+
+  it('names the hair between her legs only when she is undressed', () => {
+    expect(promptFor('suggestive', 'in black lace panties on the bed')).not.toContain('pubic')
+  })
+
+  /** Her hips through cloth are her own hips, not the shape every other girl gets. */
+  it('reads her own hips through cloth, where she has them', () => {
+    const shorts = promptFor('suggestive', 'in black leggings, standing by the mirror')
+    expect(shorts).toContain('wide_hips')
+    const plain = { ...celest, body: { build: 'toned' } } as unknown as Character
+    expect(
+      buildPhotoPrompt(plain, 'suggestive', 'in black leggings, standing by the mirror').positive
+    ).not.toContain('wide_hips')
   })
 
   it('gives the composition its own tags', () => {

@@ -1,11 +1,5 @@
-import {
-  BODY_FIELDS,
-  bodyTags,
-  cleanBody,
-  type BodyField,
-  type CharacterBody
-} from '@shared/characterBody'
-import { BODY_FIELD_LABELS } from './bodyFields'
+import { cleanBody, type CharacterBody } from '@shared/characterBody'
+import { BodyFieldsSection, bodyForm } from './bodyFields'
 import { useRef, useState, type CSSProperties, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
@@ -35,7 +29,7 @@ import {
   expressionDraft,
   spriteDraft,
   type PromptEdit
-} from '@shared/imagePrompt'
+} from './bodyDrafts'
 import {
   CUSTOM_OUTFIT_NAME_MAX,
   CUSTOM_OUTFIT_SLOTS,
@@ -180,16 +174,6 @@ function isSetTarget(target: RenderTarget): target is SetTarget {
 }
 
 /**
- * Her body as the form holds it: every region present, so each chip list has something to edit.
- * Read through `bodyTags`, which also takes the comma string the first records kept.
- */
-function bodyForm(body: CharacterBody | undefined): Record<BodyField, string[]> {
-  return Object.fromEntries(
-    BODY_FIELDS.map((field) => [field, bodyTags(body, field)])
-  ) as Record<BodyField, string[]>
-}
-
-/**
  * Every editable field, in one object. One state rather than twenty, because a save has to
  * **re-seed the whole form** from what was written — a field left out of that reset would read
  * as dirty forever.
@@ -215,8 +199,8 @@ interface Form {
   outfit: string[]
   peOutfit: string[]
   swimOutfit: string[]
-  /** Her body a region at a time; every field present, empty where nothing is written. */
-  body: Record<BodyField, string[]>
+  /** Her body, one pooled pick per field; empty where she is average. */
+  body: CharacterBody
   negativeTags: string[]
   roomPrompt: string
   height: number
@@ -1235,38 +1219,11 @@ export function EditCharacterModal({
                           </label>
                         ))}
 
-                        {/* Her body a region at a time, because a photograph frames her that
-                            way: a shot taken from behind names her backside and says nothing
-                            about her chest, and a bra reads as a shape rather than as her
-                            nipples. Which is also why it overlaps Appearance — that field is one
-                            line for every picture of her, this one is read a region at a time
-                            and only for the regions in shot. */}
-                        <div className="vu-edit-body-head">
-                          <span className="vu-field-label">Body</span>
-                          <span className="vu-check-note">
-                            What she looks like undressed, used only by the photos she sends on
-                            Bunnyboard. A photo names a region only when the shot shows it and her
-                            clothes allow it, which is why each one is written on its own.
-                            Appearance is the whole of her in every picture; this is not, so a tag
-                            in both is not a mistake.
-                          </span>
-                        </div>
-                        {BODY_FIELDS.map((field) => (
-                          <label key={field} className="vu-field" htmlFor={`edit-body-${field}`}>
-                            <span className="vu-field-label">{BODY_FIELD_LABELS[field]}</span>
-                            <ChipListInput
-                              id={`edit-body-${field}`}
-                              values={form.body[field]}
-                              onChange={(values) =>
-                                setForm((current) => ({
-                                  ...current,
-                                  body: { ...current.body, [field]: values }
-                                }))
-                              }
-                              placeholder="Enter or comma to add a tag"
-                            />
-                          </label>
-                        ))}
+                        <BodyFieldsSection
+                          body={form.body}
+                          baseAppearance={form.baseAppearance}
+                          onChange={(body) => setForm((current) => ({ ...current, body }))}
+                        />
 
                         <label className="vu-field" htmlFor="edit-negative-tags">
                           <span className="vu-field-label">Additional Negative Prompts</span>

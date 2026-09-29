@@ -38,9 +38,9 @@ export interface ChatPhoto {
 declare module './types' {
   interface Character {
     /**
-     * Her body, region by region, for the pictures she sends. Optional throughout: a character
-     * written before the feature arrived has none, and a photograph of her is then her face and
-     * her room, which is still a photograph.
+     * Her body, one pooled tag per field, drawn into her pictures while the body switch is on.
+     * Optional throughout: a character written before it existed has none, and is drawn as she
+     * always was.
      */
     body?: CharacterBody
   }
@@ -78,6 +78,12 @@ declare module './types' {
      * the feed. Off leaves every thread as it was before the feature existed.
      */
     photos?: boolean
+    /**
+     * Whether a character's body is asked for, edited and drawn: her build, chest, hips,
+     * backside and hair, one pooled tag each, in her sprites, CGs and photographs. Off, and
+     * absent, leaves every picture as the build draws it.
+     */
+    bodyDetails?: boolean
   }
 }
 
