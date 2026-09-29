@@ -120,6 +120,19 @@ describe('drawBody', () => {
     }
   })
 
+  /** The editor's reroll: the same build again, and a fresh draw of everything it decides. */
+  it('keeps her build and chest across rerolls, and varies the rest within the rules', () => {
+    const seen = new Set<string>()
+    for (let step = 0; step < 100; step++) {
+      const body = drawBody('curvy', ['small_breasts'], at(step / 100))
+      expect(body.build).toBe('curvy')
+      expect(body.breasts).toBe('small_breasts')
+      expect(body.buttocks).not.toBe('flat_ass')
+      seen.add(JSON.stringify(body))
+    }
+    expect(seen.size).toBeGreaterThan(1)
+  })
+
   it('ignores a build outside the pool', () => {
     expect(drawBody('slim', [], at(0)).build).toBeUndefined()
   })

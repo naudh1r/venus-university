@@ -8,3 +8,14 @@
   flex-direction: column;
   gap: 4px;
 }
+
+/* ---- what the engine drew, under her build --------------------------------- */
+
+/* The drawn fields read as one line, with the reroll beside them rather than under: it is the
+   one thing to do with that line. */
+.vu-edit-body-drawn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}

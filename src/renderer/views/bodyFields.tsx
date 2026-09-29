@@ -1,11 +1,11 @@
 import { useState, type JSX } from 'react'
 import { motion } from 'motion/react'
 import {
-  allowedBeside,
   appearanceBreasts,
   BODY_FIELDS,
   BODY_POOLS,
   cleanBody,
+  drawBody,
   type BodyField,
   type CharacterBody
 } from '@shared/characterBody'
@@ -41,14 +41,13 @@ export function BodyDetailsToggle(): JSX.Element {
 }
 
 /**
- * Her body in the character editor: one pick per field, from the pools and nothing else, so the
- * editor cannot write a tag the checkpoint does not know. An option that contradicts a field
- * above it is shown and cannot be chosen, and changing a field clears any below it that no
- * longer fits.
+ * Her body in the character editor: her build, picked from the pool, and the rest drawn to fit it
+ * by the same rules creation draws with — so any character, however old, can be given a body in
+ * one choice, and another combination in one click. Her chest follows her appearance; nothing
+ * here can write a tag the checkpoint does not know, or two that contradict each other.
  *
  * Its own file, on the rule the rest of the feature follows: the editor carries one element.
  */
-
 const LABELS: Readonly<Record<BodyField, string>> = {
   build: 'Build',
   breasts: 'Breasts',
@@ -88,22 +87,13 @@ export function BodyFieldsSection({
   // Off, the section is not there; what she has is kept, and written back as it was.
   if (!on) return null
 
-  /** The fields above `field`, which are what decide what it may hold. */
-  function before(field: BodyField): CharacterBody {
-    const settled: CharacterBody = {}
-    for (const one of BODY_FIELDS) {
-      if (one === field) break
-      settled[one] = body[one]
-    }
-    return settled
-  }
+  // A drawn body always names her chest, so an empty one is a character with none yet.
+  const hasBody = BODY_FIELDS.some((field) => body[field])
 
-  function pick(field: BodyField, value: string): void {
-    const next: CharacterBody = { ...body }
-    if (value) next[field] = value
-    else delete next[field]
-    // Re-settled top down, so a field below that the new pick contradicts is cleared.
-    onChange(cleanBody(next) ?? {})
+  /** Her build as picked, and everything else drawn fresh to agree with it. */
+  function pickBuild(value: string): void {
+    if (value === NOT_SET) onChange({})
+    else onChange(drawBody(value === AVERAGE ? undefined : value, baseAppearance))
   }
 
   return (
@@ -111,29 +101,54 @@ export function BodyFieldsSection({
       <div className="vu-edit-body-head">
         <span className="vu-field-label">Body</span>
         <span className="vu-check-note">
-          Drawn into her sprites, CGs and photos. One pick each, all of them tags the image model
-          knows; an empty field is average. Her build and her chest are in every picture, her hips
-          wherever they show, her backside where the picture is of it, and the rest only undressed.
+          Pick her build and the rest is drawn to fit it, from tags the image model knows; reroll
+          for another combination. Her chest follows her appearance. Used in her sprites, CGs and
+          photos once they are generated again.
         </span>
       </div>
-      {BODY_FIELDS.map((field) => (
-        <label key={field} className="vu-field" htmlFor={`edit-body-${field}`}>
-          <span className="vu-field-label">{LABELS[field]}</span>
-          <select
-            id={`edit-body-${field}`}
-            className="vu-input vu-select"
-            value={body[field] ?? ''}
-            onChange={(e) => pick(field, e.target.value)}
+      <label className="vu-field" htmlFor="edit-body-build">
+        <span className="vu-field-label">{LABELS.build}</span>
+        <select
+          id="edit-body-build"
+          className="vu-input vu-select"
+          value={hasBody ? (body.build ?? AVERAGE) : NOT_SET}
+          onChange={(e) => pickBuild(e.target.value)}
+        >
+          <option value={NOT_SET}>Not set (her appearance only)</option>
+          <option value={AVERAGE}>Average</option>
+          {BODY_POOLS.build.map((tag) => (
+            <option key={tag} value={tag}>
+              {spoken(tag)}
+            </option>
+          ))}
+        </select>
+      </label>
+      {hasBody && (
+        <div className="vu-edit-body-drawn">
+          <span className="vu-check-note">
+            {DRAWN_FIELDS.map(
+              (field) =>
+                `${LABELS[field]}: ${body[field] ? spoken(body[field]) : noneLabel(field, baseAppearance)}`
+            ).join(' · ')}
+          </span>
+          <motion.button
+            type="button"
+            id="edit-body-reroll"
+            className="vu-pill"
+            {...gestures(false, quietLift, quietPress)}
+            onClick={() => onChange(drawBody(body.build, baseAppearance))}
           >
-            <option value="">{noneLabel(field, baseAppearance)}</option>
-            {BODY_POOLS[field].map((tag) => (
-              <option key={tag} value={tag} disabled={!allowedBeside(before(field), field, tag)}>
-                {spoken(tag)}
-              </option>
-            ))}
-          </select>
-        </label>
-      ))}
+            Reroll
+          </motion.button>
+        </div>
+      )}
     </>
   )
 }
+
+/** The build dropdown's two answers that are not a tag. */
+const NOT_SET = 'not-set'
+const AVERAGE = 'average'
+
+/** What the engine drew, shown under her build. */
+const DRAWN_FIELDS: readonly BodyField[] = ['breasts', 'hipsThighs', 'buttocks', 'pubicHair']
