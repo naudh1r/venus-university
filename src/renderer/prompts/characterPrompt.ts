@@ -1,9 +1,10 @@
 import {
-  BODY_FIELD_LINES,
-  BODY_FIELDS,
-  cleanBody,
-  type CharacterBody
-} from '@shared/characterBody'
+  bodyBriefLines,
+  bodyOfDraft,
+  bodySchemaFields,
+  bodySchemaRequired,
+  type DraftBody
+} from './bodyBrief'
 import { SUBJECT_TAGS } from '@shared/characterRules'
 import { EMOTIONS } from '@shared/emotions'
 import {
@@ -100,8 +101,8 @@ export interface CharacterDraft {
   /** The two alternate wardrobes, always written whether or not they get rendered. */
   peOutfit: string[]
   swimOutfit: string[]
-  /** Optional in the draft: an older reply, or one that skipped it, leaves her body unwritten. */
-  body?: CharacterBody
+  /** Asked for only while the body switch is on; absent leaves her without one. */
+  body?: DraftBody
   pose: string
   /** Flat tag list per emotion, free-form so the model can reweight a tag. */
   expressions: Record<Emotion, string[]>
@@ -285,14 +286,7 @@ export function buildCharacterPrompt(
     `"${ROOM_PROMPT_PREFIX}..."`,
     'Write ONLY the continuation of that sentence as roomPrompt. Include furnishings, the color palette, the general mood and lighting.',
     '',
-    'BODY',
-    'What is she like under all that? Booru-style comma separated tags, the same vocabulary as the outfits.',
-    'Two to five tags per field, as a list of strings. A picture frames her a part at a time, so each part is written on its own:',
-    ...BODY_FIELD_LINES,
-    'Keep it to what a picture would show. No clothes anywhere here — the wardrobes above dress her.',
-    'Be specific and be varied: bodies differ as much as faces do, and a cast where everyone is built the same is a cast nobody believes.',
-    'This is written once and is true of her everywhere, so nothing here may contradict her appearance or her build above.',
-    '',
+    ...bodyBriefLines(),
     'POSE',
     'How does she usually stand? That tells us a lot about her.',
     'Read the options below carefully, then pick the one that suits her best.',
@@ -350,7 +344,7 @@ export function buildCharacterPrompt(
       'outfit',
       'peOutfit',
       'swimOutfit',
-      'body',
+      ...bodySchemaRequired(),
       'pose',
       'expressions',
       'roomPrompt',
@@ -427,14 +421,7 @@ export function buildCharacterPrompt(
       outfit: stringArray(),
       peOutfit: stringArray(),
       swimOutfit: stringArray(),
-      body: {
-        type: 'object',
-        additionalProperties: false,
-        required: [...BODY_FIELDS],
-        properties: Object.fromEntries(
-          BODY_FIELDS.map((field) => [field, { type: 'array', items: { type: 'string' } }])
-        )
-      },
+      ...bodySchemaFields(),
       pose: enumField(poseKeys),
       // Free-form so a tag can carry a raised weight.
       expressions: {
@@ -563,7 +550,7 @@ export function draftToCharacter(
     outfit: cleanTags(draft.outfit),
     peOutfit: cleanTags(draft.peOutfit),
     swimOutfit: cleanTags(draft.swimOutfit),
-    body: cleanBody(draft.body),
+    body: bodyOfDraft(draft.body, baseAppearance),
     pose,
     expressionTags,
     roomPrompt: (draft.roomPrompt ?? '').trim()

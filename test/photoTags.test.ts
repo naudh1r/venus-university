@@ -16,6 +16,31 @@ import { describe, expect, it } from 'vitest'
 
 /** Verified against danbooru.donmai.us: each exists, is not deprecated, and has posts. */
 const VERIFIED = new Set([
+  // The body pools and a petite girl's negatives, looked up on the API for `characterBody`: each
+  // present, not deprecated, not an alias, with thousands of posts.
+  'petite',
+  'curvy',
+  'plump',
+  'toned',
+  'muscular_female',
+  'tall_female',
+  'flat_chest',
+  'small_breasts',
+  'medium_breasts',
+  'large_breasts',
+  'wide_hips',
+  'thick_thighs',
+  'narrow_waist',
+  'long_legs',
+  'thigh_gap',
+  'huge_ass',
+  'flat_ass',
+  'female_pubic_hair',
+  'sparse_pubic_hair',
+  'excessive_pubic_hair',
+  'loli',
+  'child',
+  'aged_down',
   '1boy',
   '1girl',
   '2girls',
@@ -162,7 +187,10 @@ function emittedTags(): string[] {
   const pose = source('src/shared/photoPose.ts')
   const body = source('src/shared/photoBody.ts')
   const prompt = source('src/shared/photoPrompt.ts')
+  const character = source('src/shared/characterBody.ts')
   return [
+    // Every pool, and the petite negatives: `BUILD_TAGS = [...]` and the rest.
+    ...quoted(character, /_TAGS\s*=\s*\[([^\]]*)\]/g),
     ...quoted(pose, /(?:tags|implies):\s*\[([^\]]*)\]/g),
     ...quoted(pose, /BARE_POSITION_DEFAULT[^=]*=\s*\[([^\]]*)\]/g),
     ...quoted(pose, /PLACEMENT_TAGS[^=]*=\s*new Set\(\[([^\]]*)\]/g),

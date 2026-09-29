@@ -372,6 +372,11 @@ describe('mergePatch — a switch the patch names is the switch that lands', () 
   it('leaves strict schema absent where the patch says nothing', () => {
     const merged = mergePatch(settings({ strictSchema: true }), settingsPatch())
     expect(merged.strictSchema).toBeUndefined()
+  })
 
+  it('turns body details on, and off again', () => {
+    const on = mergePatch(settings(), settingsPatch({ bodyDetails: true }))
+    expect(on.bodyDetails).toBe(true)
+    expect(mergePatch(on, settingsPatch({ bodyDetails: false })).bodyDetails).toBe(false)
   })
 })

@@ -12,6 +12,7 @@ import { isPhotoTier, type PhotoTier } from '@shared/photoGate'
 import { buildPhotoPrompt } from '@shared/photoPrompt'
 import type { Character } from '@shared/types'
 import { getPhotoPath, getPhotosPath } from '../photoProtocol'
+import { withBodySetting } from '../bodySetting'
 import { runGenerationJob } from './comfyService'
 import { assertSafeCharId } from './characterService'
 import { assertSafePlaythroughId } from './saveService'
@@ -146,7 +147,8 @@ export async function generatePhoto(
     {
       workflowFile: 'characterPhoto.json',
       nodes: PHOTO_NODE,
-      prompts: buildPhotoPrompt(character, tier as PhotoTier, photoPrompt),
+      // Her body only while the body switch is on, as her sprites are drawn.
+      prompts: buildPhotoPrompt(await withBodySetting(character), tier as PhotoTier, photoPrompt),
       seed,
       destPath: getPhotoPath(playthroughId, character.charId, file),
       label: `${character.charId} / photo:${tier}`,
