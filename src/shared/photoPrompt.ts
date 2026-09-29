@@ -42,8 +42,8 @@ const PHOTO_BASE = '1girl, solo, depth_of_field'
 const PHOTO_NEGATIVE =
   'worst_quality, bad_quality, lowres, simple_background, white_background, transparent_background, ' +
   'multiple_views, reference_sheet, english_text, speech_bubble, artist_name, watermark, signature, ' +
-  // Every photo is her alone and taken by her: nobody else is drawn into it, and nothing anal.
-  '1boy, multiple_boys, multiple_girls, 2girls, hetero, penis, sex, anal, anus, ' +
+  // Every photo is her alone: nobody else is drawn into it, whoever took it.
+  '1boy, multiple_boys, multiple_girls, 2girls, hetero, penis, sex, ' +
   // `photo_(medium)` holds the illustration against photographic realism the checkpoint drifts
   // toward; the rest are what it adds to a body unasked.
   'gold, photo_(medium), cum'

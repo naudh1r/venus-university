@@ -60,7 +60,7 @@ describe('posePhotoTags', () => {
     expect(posePhotoTags('naked in the bathroom light', true)).toContain('standing')
   })
 
-  it('draws nothing anal and no partner position, whatever the caption says', () => {
+  it('adds no anal or partner position tags of its own, whatever the caption says', () => {
     const tags = posePhotoTags('naked on all fours, doggy, fingering her anus', true)
     expect(tags).not.toContain('anal_fingering')
     expect(tags).not.toContain('anus')
