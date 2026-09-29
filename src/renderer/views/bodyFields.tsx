@@ -2,6 +2,7 @@ import { useState, type JSX } from 'react'
 import { motion } from 'motion/react'
 import {
   appearanceBreasts,
+  bodyTagLabel,
   BODY_FIELDS,
   BODY_POOLS,
   cleanBody,
@@ -59,14 +60,9 @@ const LABELS: Readonly<Record<BodyField, string>> = {
 /** What an empty field is drawn as. */
 function noneLabel(field: BodyField, baseAppearance: readonly string[]): string {
   if (field === 'breasts')
-    return `As her appearance says (${spoken(appearanceBreasts(baseAppearance))})`
+    return `As her appearance says (${bodyTagLabel(appearanceBreasts(baseAppearance))})`
   if (field === 'pubicHair') return 'Hairless'
   return 'Average'
-}
-
-/** A tag as a word: `thick_thighs` is "thick thighs". */
-function spoken(tag: string): string {
-  return tag.replace(/_/g, ' ')
 }
 
 /** Her body as the form holds it: whatever the pools allow of what her file has. */
@@ -118,7 +114,7 @@ export function BodyFieldsSection({
           <option value={AVERAGE}>Average</option>
           {BODY_POOLS.build.map((tag) => (
             <option key={tag} value={tag}>
-              {spoken(tag)}
+              {bodyTagLabel(tag)}
             </option>
           ))}
         </select>
@@ -128,7 +124,7 @@ export function BodyFieldsSection({
           <span className="vu-check-note">
             {DRAWN_FIELDS.map(
               (field) =>
-                `${LABELS[field]}: ${body[field] ? spoken(body[field]) : noneLabel(field, baseAppearance)}`
+                `${LABELS[field]}: ${body[field] ? bodyTagLabel(body[field]) : noneLabel(field, baseAppearance)}`
             ).join(' · ')}
           </span>
           <motion.button

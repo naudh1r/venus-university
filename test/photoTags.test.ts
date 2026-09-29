@@ -190,7 +190,10 @@ function emittedTags(): string[] {
   const character = source('src/shared/characterBody.ts')
   return [
     // Every pool, and the petite negatives: `BUILD_TAGS = [...]` and the rest.
-    ...quoted(character, /_TAGS\s*=\s*\[([^\]]*)\]/g),
+    // A weighted pick, `(huge_ass:0.6)`, is its tag at a lighter weight: the tag is what is checked.
+    ...quoted(character, /_TAGS\s*=\s*\[([^\]]*)\]/g).map((tag) =>
+      tag.replace(/^\((.+):[\d.]+\)$/, '$1')
+    ),
     ...quoted(pose, /(?:tags|implies):\s*\[([^\]]*)\]/g),
     ...quoted(pose, /BARE_POSITION_DEFAULT[^=]*=\s*\[([^\]]*)\]/g),
     ...quoted(pose, /PLACEMENT_TAGS[^=]*=\s*new Set\(\[([^\]]*)\]/g),
