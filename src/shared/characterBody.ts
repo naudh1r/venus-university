@@ -37,8 +37,14 @@ const BREAST_TAGS = ['flat_chest', 'small_breasts', 'medium_breasts', 'large_bre
 
 const HIPS_TAGS = ['wide_hips', 'thick_thighs', 'narrow_waist', 'long_legs', 'thigh_gap']
 
-/** The only two Danbooru has: every other name for it is empty or an alias of `huge_ass`. */
-const BUTTOCKS_TAGS = ['huge_ass', 'flat_ass']
+/**
+ * Danbooru has two sizes and nothing between: every other name for it is empty or an alias of
+ * `huge_ass`. The middle two are the same learned tags at a lighter weight, which the checkpoint
+ * reads as less of the same shape rather than as a word it does not know. Smallest first.
+ */
+const SMALL_ASS = '(flat_ass:0.6)'
+const FULL_ASS = '(huge_ass:0.6)'
+const BUTTOCKS_TAGS = ['flat_ass', '(flat_ass:0.6)', '(huge_ass:0.6)', 'huge_ass']
 
 /** None is hairless, as her nude sprite is drawn. `trimmed_` and `shaved_` have no posts. */
 const PUBIC_TAGS = ['female_pubic_hair', 'sparse_pubic_hair', 'excessive_pubic_hair']
@@ -63,20 +69,27 @@ const CONFLICTS: readonly {
   {
     field: 'build',
     tag: 'petite',
-    rules: { hipsThighs: ['wide_hips', 'thick_thighs', 'long_legs'], buttocks: ['huge_ass'] }
+    rules: {
+      hipsThighs: ['wide_hips', 'thick_thighs', 'long_legs'],
+      buttocks: [FULL_ASS, 'huge_ass']
+    }
   },
-  { field: 'build', tag: 'curvy', rules: { breasts: ['flat_chest'], buttocks: ['flat_ass'] } },
+  {
+    field: 'build',
+    tag: 'curvy',
+    rules: { breasts: ['flat_chest'], buttocks: ['flat_ass', SMALL_ASS] }
+  },
   {
     field: 'build',
     tag: 'plump',
     rules: {
       breasts: ['flat_chest'],
       hipsThighs: ['narrow_waist', 'thigh_gap'],
-      buttocks: ['flat_ass']
+      buttocks: ['flat_ass', SMALL_ASS]
     }
   },
-  { field: 'hipsThighs', tag: 'wide_hips', rules: { buttocks: ['flat_ass'] } },
-  { field: 'hipsThighs', tag: 'thick_thighs', rules: { buttocks: ['flat_ass'] } }
+  { field: 'hipsThighs', tag: 'wide_hips', rules: { buttocks: ['flat_ass', SMALL_ASS] } },
+  { field: 'hipsThighs', tag: 'thick_thighs', rules: { buttocks: ['flat_ass', SMALL_ASS] } }
 ]
 
 /** Whether `tag` may stand in `field` beside what the fields before it already hold. */
@@ -166,7 +179,8 @@ const DRAW_WEIGHTS: Readonly<Partial<Record<BodyField, Readonly<Record<string, n
     long_legs: 1,
     thigh_gap: 1
   },
-  buttocks: { '': 4, huge_ass: 1, flat_ass: 1 },
+  // The in-between sizes more often than the ends.
+  buttocks: { '': 4, [SMALL_ASS]: 2, [FULL_ASS]: 2, flat_ass: 1, huge_ass: 1 },
   pubicHair: { '': 3, female_pubic_hair: 3, sparse_pubic_hair: 1, excessive_pubic_hair: 1 }
 }
 
@@ -204,6 +218,17 @@ export function drawBody(
     if (tag) body[field] = tag
   }
   return body
+}
+
+/** The weighted picks, which read as nothing like their tag. */
+const WEIGHTED_LABELS: Readonly<Record<string, string>> = {
+  [SMALL_ASS]: 'small ass',
+  [FULL_ASS]: 'full ass'
+}
+
+/** What a pick is called where a person reads it: `thick_thighs` is "thick thighs". */
+export function bodyTagLabel(tag: string): string {
+  return WEIGHTED_LABELS[tag] ?? tag.replace(/_/g, ' ')
 }
 
 /**

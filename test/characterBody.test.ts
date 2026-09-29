@@ -4,6 +4,7 @@ import {
   appearanceBreasts,
   bodyAppearance,
   bodyNegative,
+  bodyTagLabel,
   BODY_FIELDS,
   BODY_POOLS,
   cleanBody,
@@ -78,6 +79,33 @@ describe('cleanBody', () => {
   it('answers nothing for no body at all', () => {
     expect(cleanBody(undefined)).toBeUndefined()
     expect(cleanBody('curvy')).toBeUndefined()
+  })
+})
+
+/** Danbooru has flat and huge; the sizes between are the same tags at a lighter weight. */
+describe('the backside sizes', () => {
+  it('runs from flat to huge, with the weighted two between', () => {
+    expect(BODY_POOLS.buttocks).toEqual([
+      'flat_ass',
+      '(flat_ass:0.6)',
+      '(huge_ass:0.6)',
+      'huge_ass'
+    ])
+    expect(bodyTagLabel('(flat_ass:0.6)')).toBe('small ass')
+    expect(bodyTagLabel('(huge_ass:0.6)')).toBe('full ass')
+    expect(bodyTagLabel('thick_thighs')).toBe('thick thighs')
+  })
+
+  it('keeps the smaller sizes off a full figure, and the larger off a petite one', () => {
+    expect(allowedBeside({ build: 'curvy' }, 'buttocks', '(flat_ass:0.6)')).toBe(false)
+    expect(allowedBeside({ hipsThighs: 'wide_hips' }, 'buttocks', '(flat_ass:0.6)')).toBe(false)
+    expect(allowedBeside({ build: 'petite' }, 'buttocks', '(huge_ass:0.6)')).toBe(false)
+    expect(allowedBeside({ build: 'petite' }, 'buttocks', '(flat_ass:0.6)')).toBe(true)
+    expect(allowedBeside({ build: 'curvy' }, 'buttocks', '(huge_ass:0.6)')).toBe(true)
+  })
+
+  it('writes the weighted size into a CG as it is', () => {
+    expect(bodyAppearance(her({ buttocks: '(huge_ass:0.6)' }), 'cg')).toContain('(huge_ass:0.6)')
   })
 })
 
