@@ -33,6 +33,7 @@ import { occasionLoreLines } from './occasions'
 import { objectSchema } from './schema'
 import { memoryLines, profileLines, scheduleLines, yearMajorLine } from './scenePrompt'
 import { springBreakLines } from './springBreak'
+import { STRICT_TEXTING_LINES, strictTextingPersona } from './strictTexting'
 import {
   bestFriendLines,
   hauntClause,
@@ -445,6 +446,7 @@ export function buildTextingPrompt(
     `${name} is texting the reader back in a private DM.`,
     `Write ${name}'s reply to the reader's newest message, the last line of RECENT MESSAGES, as the "messages" array: each entry is one text bubble she sends.`,
     'Stay in her voice and keep it text-length: this is a phone thread, not prose.',
+    ...(state.strictSchema === true ? STRICT_TEXTING_LINES : []),
     ...meetUpLines(
       name,
       state.charLocation,
@@ -469,7 +471,8 @@ export function buildTextingPrompt(
   ].join('\n')
 
   return {
-    system: TEXTING_PERSONA,
+    system:
+      state.strictSchema === true ? strictTextingPersona(TEXTING_PERSONA) : TEXTING_PERSONA,
     user,
     schema: textingSchema(),
     // Constant, like the ledger's: nothing above the seam varies by save.
