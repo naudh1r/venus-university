@@ -202,18 +202,24 @@ function draw(
 }
 
 /**
- * A new character's body: the build she was written with, her chest as her appearance already
- * says it, and the rest drawn so that nothing contradicts what came before it.
+ * A new character's body: the build she was written with, her chest as it was picked in the
+ * editor or as her appearance already says it, and the rest drawn so that nothing contradicts
+ * what came before it. Her build and her chest are kept across a reroll; the rest is drawn anew.
  */
 export function drawBody(
   build: string | undefined,
   baseAppearance: readonly string[],
-  rand: () => number = Math.random
+  rand: () => number = Math.random,
+  chosenBreasts?: string
 ): CharacterBody {
   const body: CharacterBody = {}
   if (build && allowedBeside(body, 'build', build)) body.build = build
-  const breasts = appearanceBreasts(baseAppearance)
-  if (allowedBeside(body, 'breasts', breasts)) body.breasts = breasts
+  // The chest picked by hand where there is one, else her appearance's, else medium: the first of
+  // them her build allows.
+  const breasts = [chosenBreasts, appearanceBreasts(baseAppearance), 'medium_breasts'].find(
+    (tag): tag is string => tag !== undefined && allowedBeside(body, 'breasts', tag)
+  )
+  if (breasts) body.breasts = breasts
   for (const field of ['hipsThighs', 'buttocks', 'pubicHair'] as const) {
     const tag = draw(DRAW_WEIGHTS[field] ?? {}, (one) => allowedBeside(body, field, one), rand)
     if (tag) body[field] = tag
