@@ -165,6 +165,19 @@ describe('drawBody', () => {
   it('ignores a build outside the pool', () => {
     expect(drawBody('slim', [], at(0)).build).toBeUndefined()
   })
+
+  /** The editor's Breasts dropdown: a chest picked by hand is kept over her appearance's. */
+  it('keeps a chest picked by hand, across a reroll and a new build', () => {
+    expect(drawBody('toned', ['1girl'], at(0.5), 'large_breasts').breasts).toBe('large_breasts')
+    expect(drawBody('petite', ['medium_breasts'], at(0.5), 'small_breasts').breasts).toBe(
+      'small_breasts'
+    )
+  })
+
+  it("falls back to her appearance's chest, then medium, where her build rules the pick out", () => {
+    expect(drawBody('curvy', ['large_breasts'], at(0), 'flat_chest').breasts).toBe('large_breasts')
+    expect(drawBody('curvy', ['1girl'], at(0), 'flat_chest').breasts).toBe('medium_breasts')
+  })
 })
 
 describe('gateBody', () => {

@@ -1,6 +1,7 @@
 import { useState, type JSX } from 'react'
 import { motion } from 'motion/react'
 import {
+  allowedBeside,
   appearanceBreasts,
   bodyTagLabel,
   BODY_FIELDS,
@@ -44,7 +45,8 @@ export function BodyDetailsToggle(): JSX.Element {
 /**
  * Her body in the character editor: her build, picked from the pool, and the rest drawn to fit it
  * by the same rules creation draws with — so any character, however old, can be given a body in
- * one choice, and another combination in one click. Her chest follows her appearance; nothing
+ * one choice, and another combination in one click. Her chest starts from her appearance and can
+ * be picked here, the sizes her build rules out left unpickable; nothing
  * here can write a tag the checkpoint does not know, or two that contradict each other.
  *
  * Its own file, on the rule the rest of the feature follows: the editor carries one element.
@@ -86,10 +88,18 @@ export function BodyFieldsSection({
   // A drawn body always names her chest, so an empty one is a character with none yet.
   const hasBody = BODY_FIELDS.some((field) => body[field])
 
-  /** Her build as picked, and everything else drawn fresh to agree with it. */
+  /** Her build as picked, her chest kept where the build allows it, and the rest drawn fresh. */
   function pickBuild(value: string): void {
     if (value === NOT_SET) onChange({})
-    else onChange(drawBody(value === AVERAGE ? undefined : value, baseAppearance))
+    else
+      onChange(
+        drawBody(value === AVERAGE ? undefined : value, baseAppearance, Math.random, body.breasts)
+      )
+  }
+
+  /** Her chest as picked; nothing else is drawn again. */
+  function pickBreasts(value: string): void {
+    onChange(cleanBody({ ...body, breasts: value }) ?? {})
   }
 
   return (
@@ -97,9 +107,9 @@ export function BodyFieldsSection({
       <div className="vu-edit-body-head">
         <span className="vu-field-label">Body</span>
         <span className="vu-check-note">
-          Pick her build and the rest is drawn to fit it, from tags the image model knows; reroll
-          for another combination. Her chest follows her appearance. Used in her sprites, CGs and
-          photos once they are generated again.
+          Pick her build and her chest, and the rest is drawn to fit, from tags the image model
+          knows; reroll for another combination. Her chest starts from her appearance. Used in her
+          sprites, CGs and photos once they are generated again.
         </span>
       </div>
       <label className="vu-field" htmlFor="edit-body-build">
@@ -120,6 +130,27 @@ export function BodyFieldsSection({
         </select>
       </label>
       {hasBody && (
+        <label className="vu-field" htmlFor="edit-body-breasts">
+          <span className="vu-field-label">{LABELS.breasts}</span>
+          <select
+            id="edit-body-breasts"
+            className="vu-input vu-select"
+            value={body.breasts ?? appearanceBreasts(baseAppearance)}
+            onChange={(e) => pickBreasts(e.target.value)}
+          >
+            {BODY_POOLS.breasts.map((tag) => (
+              <option
+                key={tag}
+                value={tag}
+                disabled={!allowedBeside({ build: body.build }, 'breasts', tag)}
+              >
+                {bodyTagLabel(tag)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {hasBody && (
         <div className="vu-edit-body-drawn">
           <span className="vu-check-note">
             {DRAWN_FIELDS.map(
@@ -132,7 +163,9 @@ export function BodyFieldsSection({
             id="edit-body-reroll"
             className="vu-pill"
             {...gestures(false, quietLift, quietPress)}
-            onClick={() => onChange(drawBody(body.build, baseAppearance))}
+            onClick={() =>
+              onChange(drawBody(body.build, baseAppearance, Math.random, body.breasts))
+            }
           >
             Reroll
           </motion.button>
@@ -146,5 +179,5 @@ export function BodyFieldsSection({
 const NOT_SET = 'not-set'
 const AVERAGE = 'average'
 
-/** What the engine drew, shown under her build. */
-const DRAWN_FIELDS: readonly BodyField[] = ['breasts', 'hipsThighs', 'buttocks', 'pubicHair']
+/** What the engine drew, shown under her build and her chest. */
+const DRAWN_FIELDS: readonly BodyField[] = ['hipsThighs', 'buttocks', 'pubicHair']
