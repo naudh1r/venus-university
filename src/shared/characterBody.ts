@@ -1,3 +1,4 @@
+import type { PromptEdit } from './imagePrompt'
 import type { Character } from './types'
 
 /**
@@ -277,4 +278,39 @@ const PETITE_NEGATIVE_TAGS = ['loli', 'child', 'aged_down']
 /** Her own extra negatives: none, unless her frame is `petite`. */
 export function bodyNegative(character: Character): string[] {
   return character.body?.build === 'petite' ? [...PETITE_NEGATIVE_TAGS] : []
+}
+
+/** Every tag that is hers only while the switch is on: every pool but her chest's. */
+const BODY_ONLY_TAGS: ReadonlySet<string> = new Set([
+  ...BUILD_TAGS,
+  ...HIPS_TAGS,
+  ...BUTTOCKS_TAGS,
+  ...PUBIC_TAGS
+])
+
+/**
+ * A regenerate's remembered tags, with her body in them as it is now.
+ *
+ * The regenerate dialog reopens on what its button last sent, group by group, so a set rendered
+ * before she had a body — or before her build was rerolled — would go on being drawn with that
+ * body. Her body's tags are taken out of the remembered Appearance and Negative groups and hers
+ * from the fresh draft put back; every other tag the player wrote by hand stays where it was.
+ *
+ * With the switch off only the body's own tags come out. Her chest is left as remembered, since
+ * a chest tag in an old edit may be the player's own and not the body's.
+ */
+export function withBodyTags(kept: PromptEdit, draft: PromptEdit, on: boolean): PromptEdit {
+  if (kept === draft || kept.kind === 'expression' || draft.kind === 'expression') return kept
+  const owned = (tag: string): boolean =>
+    BODY_ONLY_TAGS.has(tag) || (on && ANY_BREAST_TAG.test(tag))
+  const appearance = [
+    ...kept.appearance.filter((tag) => !owned(tag)),
+    ...draft.appearance.filter(owned)
+  ]
+  const petite = new Set(PETITE_NEGATIVE_TAGS)
+  const negative = [
+    ...kept.negative.filter((tag) => !petite.has(tag)),
+    ...draft.negative.filter((tag) => petite.has(tag))
+  ]
+  return { ...kept, appearance, negative }
 }

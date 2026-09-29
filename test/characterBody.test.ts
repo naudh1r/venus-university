@@ -10,6 +10,7 @@ import {
   cleanBody,
   drawBody,
   gateBody,
+  withBodyTags,
   type CharacterBody
 } from '../src/shared/characterBody'
 import { cgSetDraft, spriteDraft } from '../src/shared/imagePrompt'
@@ -246,5 +247,59 @@ describe('bodyNegative', () => {
   it('adds nothing to anybody else', () => {
     expect(bodyNegative(her({ build: 'curvy' }))).toEqual([])
     expect(spriteDraft(her({ build: 'toned' }), ['standing'], null).negative).not.toContain('loli')
+  })
+})
+
+/** A regenerate reopens on what it last sent; her body in it is always her body now. */
+describe('withBodyTags', () => {
+  const now = her({
+    build: 'curvy',
+    breasts: 'large_breasts',
+    hipsThighs: 'wide_hips',
+    pubicHair: 'female_pubic_hair'
+  })
+  const draft = spriteDraft(now, ['standing'], 'nude')
+
+  /** What the button sent before she had a body, with a hand edit in it. */
+  const remembered = {
+    ...spriteDraft(her(), ['standing'], 'nude'),
+    appearance: ['1girl', 'aqua_hair', 'big_breasts', 'hair_flower'],
+    negative: ['worst_quality', 'glasses']
+  }
+
+  it('puts her body into tags remembered from before she had one', () => {
+    const merged = withBodyTags(remembered, draft, true)
+    expect(merged.kind === 'sprite' && merged.appearance).toEqual(
+      expect.arrayContaining(['curvy', 'large_breasts', 'wide_hips', 'female_pubic_hair'])
+    )
+  })
+
+  it('keeps every tag written by hand, and drops the chest her body replaced', () => {
+    const merged = withBodyTags(remembered, draft, true)
+    if (merged.kind !== 'sprite') throw new Error('kind')
+    expect(merged.appearance).toContain('hair_flower')
+    expect(merged.appearance).not.toContain('big_breasts')
+    expect(merged.negative).toContain('glasses')
+  })
+
+  it('replaces a body she has since rerolled', () => {
+    const before = { ...draft, appearance: [...draft.appearance, 'petite'], negative: ['loli'] }
+    const merged = withBodyTags(before, draft, true)
+    if (merged.kind !== 'sprite') throw new Error('kind')
+    expect(merged.appearance.filter((tag) => tag === 'curvy')).toHaveLength(1)
+    expect(merged.appearance).not.toContain('petite')
+    expect(merged.negative).not.toContain('loli')
+  })
+
+  it('takes her body out, and nothing else, with the switch off', () => {
+    const plain = spriteDraft(her(), ['standing'], 'nude')
+    const before = { ...remembered, appearance: [...remembered.appearance, 'curvy'] }
+    const merged = withBodyTags(before, plain, false)
+    if (merged.kind !== 'sprite') throw new Error('kind')
+    expect(merged.appearance).toEqual(['1girl', 'aqua_hair', 'big_breasts', 'hair_flower'])
+  })
+
+  it('leaves a regenerate with nothing remembered as its draft', () => {
+    expect(withBodyTags(draft, draft, true)).toBe(draft)
   })
 })

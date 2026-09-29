@@ -61,7 +61,7 @@ const LABELS: Readonly<Record<BodyField, string>> = {
 function noneLabel(field: BodyField, baseAppearance: readonly string[]): string {
   if (field === 'breasts')
     return `As her appearance says (${bodyTagLabel(appearanceBreasts(baseAppearance))})`
-  if (field === 'pubicHair') return 'Hairless'
+  if (field === 'pubicHair') return 'Clean'
   return 'Average'
 }
 
