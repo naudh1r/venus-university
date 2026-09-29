@@ -3,6 +3,7 @@ import {
   allowedPhotoTier,
   describedPhotoTier,
   describesSomebodyElse,
+  photoReasonOf,
   settlePhoto
 } from '@shared/photoGate'
 import type { CharacterTrait } from '@shared/traits'
@@ -69,10 +70,24 @@ describe('allowedPhotoTier', () => {
       'suggestive'
     )
   })
+
+  /** Into him and not yet with him: how far she may go, and the brief says it is her decision. */
+  it('opens the explicit ones to a girl with a crush on him, and the player can close them', () => {
+    const crush = { flags: flags({ hasCrush: true }), affection: AT_EASE, traits: [], canRender: true }
+    expect(allowedPhotoTier({ ...crush, noNsfwImages: false })).toBe('explicit')
+    expect(allowedPhotoTier({ ...crush, noNsfwImages: true })).toBe('suggestive')
+  })
+
+  /** Friendship is not attraction: a devoted friend with no crush stays on the everyday ones. */
+  it('keeps a close friend who is not into him on the everyday ones', () => {
+    expect(allowedPhotoTier({ flags: flags(), affection: 60, traits: [], noNsfwImages: false, canRender: true })).toBe(
+      'everyday'
+    )
+  })
 })
 
 describe('a bold character', () => {
-  it('sends what she likes to anyone with her number, however she feels about him', () => {
+  it('sends what she likes to anyone with her number, without the milestones', () => {
     const bold = {
       flags: flags(),
       traits: ['Promiscuous'] as CharacterTrait[],
@@ -81,8 +96,18 @@ describe('a bold character', () => {
     }
     // No kiss, no milestones, and she barely knows him.
     expect(allowedPhotoTier({ ...bold, affection: 0 })).toBe('explicit')
-    // Sour on him, which stops everybody else outright.
-    expect(allowedPhotoTier({ ...bold, affection: -40 })).toBe('explicit')
+  })
+
+  /** Hooking up with anybody is not hooking up with somebody she cannot stand. */
+  it('sends nothing to somebody she is sour on, like everybody else', () => {
+    const bold = {
+      flags: flags(),
+      traits: ['Promiscuous'] as CharacterTrait[],
+      noNsfwImages: false,
+      canRender: true
+    }
+    expect(allowedPhotoTier({ ...bold, affection: -20 })).toBe('none')
+    expect(allowedPhotoTier({ ...bold, affection: -40 })).toBe('none')
   })
 
   it("is still bound by the player's switch and by a block", () => {
@@ -234,14 +259,14 @@ describe('settlePhoto with a tier she stated', () => {
   })
 })
 
-/** Every photo is her alone and taken by her; the renderer draws nobody else. */
+/** Every photo is her alone, whoever took it; the renderer draws nobody else. */
 describe('a picture of anybody but her', () => {
   it('is refused, whatever the gate would allow', () => {
     for (const photoPrompt of [
       'naked, riding him on the bed',
       'on her knees, his hand in her hair',
       'naked, lying back with her boyfriend',
-      'on all fours, a butt plug in',
+      'on all fours, his fingers in her ass',
       'a selfie with another girl on the couch'
     ]) {
       const verdict = settlePhoto({ sendPhoto: true, photoPrompt, allowed: 'explicit' })
@@ -257,6 +282,58 @@ describe('a picture of anybody but her', () => {
   it('leaves a picture of her alone that only mentions him', () => {
     expect(describesSomebodyElse('a mirror selfie in his hoodie, for him')).toBe(false)
     expect(describesSomebodyElse('she types up the documents at her desk')).toBe(false)
+  })
+
+  it('leaves a picture somebody else took of her alone', () => {
+    expect(describesSomebodyElse('her friend took this one of her laughing on the pier')).toBe(false)
+  })
+})
+
+/** Anal on her own is hers to send, and only where an undressed picture is. */
+describe('a solo anal picture', () => {
+  const alone = 'naked on all fours on her bed, a butt plug in, looking back over her shoulder'
+
+  it('is her alone, and reads as explicit', () => {
+    expect(describesSomebodyElse(alone)).toBe(false)
+    for (const said of [
+      alone,
+      'bent over, spreading her cheeks to show her asshole',
+      'fingering her anus, lying on her back',
+      'anal beads on the sheets beside her'
+    ]) {
+      expect(describedPhotoTier(said)).toBe('explicit')
+    }
+  })
+
+  it('is sent where explicit is allowed, and refused where it is not', () => {
+    expect(settlePhoto({ sendPhoto: true, photoPrompt: alone, allowed: 'explicit' })).toEqual({
+      send: true,
+      tier: 'explicit'
+    })
+    expect(settlePhoto({ sendPhoto: true, photoPrompt: alone, allowed: 'suggestive' }).send).toBe(
+      false
+    )
+  })
+})
+
+/** Why an undressed picture is hers to send: the most true reason first. */
+describe('photoReasonOf', () => {
+  const promiscuous = ['Promiscuous'] as CharacterTrait[]
+
+  it('names what they have done ahead of who she is', () => {
+    expect(photoReasonOf(flags({ hadSex: true }), promiscuous)).toBe('intimate')
+    expect(photoReasonOf(flags({ benefits: true }), [])).toBe('intimate')
+    expect(photoReasonOf(flags({ isLover: true, hasCrush: true }), [])).toBe('intimate')
+  })
+
+  it('names who she is ahead of a crush', () => {
+    expect(photoReasonOf(flags({ hasCrush: true }), promiscuous)).toBe('promiscuous')
+  })
+
+  it('names a crush where that is all there is, and nothing where nothing is', () => {
+    expect(photoReasonOf(flags({ hasCrush: true }), [])).toBe('crush')
+    expect(photoReasonOf(flags({ hasKissed: true }), [])).toBeNull()
+    expect(photoReasonOf(undefined, undefined)).toBeNull()
   })
 })
 

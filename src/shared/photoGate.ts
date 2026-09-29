@@ -49,27 +49,47 @@ export function allowedPhotoTier(input: {
   // Nobody photographs for a stranger, and a blocked number reaches nobody at all.
   if (!flags?.gaveContactInfo || flags.blocked) return 'none'
 
+  // Out of sorts with him: she is not in the mood to be photographed for him, whoever she is.
+  // Before the trait below, because hooking up with anybody is not hooking up with somebody she
+  // cannot stand.
+  const feeling = dispositionOf(affection)
+  if (feeling === 'hostile' || feeling === 'annoyed') return 'none'
+
   /**
-   * A `Promiscuous` girl sends what she likes to whoever has her number. She is not being
-   * won over, so nothing here is earned: not the milestones, not the affection. The player's
-   * own switch still binds her, and a blocked number still reaches nobody.
+   * A `Promiscuous` girl sends what she likes to whoever has her number. She is not being won
+   * over, so the milestones are not earned first. The player's own switch still binds her.
    */
   if (hasTrait(traits ? { traits } : undefined, 'Promiscuous')) {
     return noNsfwImages ? 'suggestive' : 'explicit'
   }
 
-  // Out of sorts with him: she is not in the mood to be photographed for anybody.
-  const feeling = dispositionOf(affection)
-  if (feeling === 'hostile' || feeling === 'annoyed') return 'none'
+  // Undressed needs a reason of hers — what they have done, or that she is into him — and the
+  // player's consent to see it. Whether she ever sends one is still hers: this is how far she may
+  // go, and the brief says a crush sends one only when she wants to.
+  if (photoReasonOf(flags, traits) !== null && !noNsfwImages) return 'explicit'
 
-  // Undressed needs both a reason of hers and the player's consent to see it.
-  const intimate = flags.hadSex || flags.benefits || flags.isLover
-  if (intimate && !noNsfwImages) return 'explicit'
-
-  // Teasing comes earlier than nudity, and earlier than being lovers: they have kissed.
-  if (flags.hasKissed || flags.benefits || flags.isLover) return 'suggestive'
+  // Teasing comes earlier than nudity: they have kissed, or she is into him.
+  if (flags.hasKissed || flags.hasCrush || flags.benefits || flags.isLover) return 'suggestive'
 
   return 'everyday'
+}
+
+/** What makes an undressed picture something she would send him. */
+export type PhotoReason = 'intimate' | 'promiscuous' | 'crush'
+
+/**
+ * Why she would send him an undressed picture, where there is a reason: what they have done, who
+ * she is, or that she is into him — in that order, because the brief says which is true and the
+ * first is the most true. `null` where none is.
+ */
+export function photoReasonOf(
+  flags: CharFlags | undefined,
+  traits: Character['traits'] | undefined
+): PhotoReason | null {
+  if (flags?.hadSex || flags?.benefits || flags?.isLover) return 'intimate'
+  if (hasTrait(traits ? { traits } : undefined, 'Promiscuous')) return 'promiscuous'
+  if (flags?.hasCrush) return 'crush'
+  return null
 }
 
 /**
@@ -106,6 +126,15 @@ const EXPLICIT_WORDS = [
   'cum',
   'cumming',
   'sex',
+  // Her own, and hers alone: explicit, so only a girl the gate lets undress sends it. Anything
+  // with somebody else in it is refused whatever it is, by the list below.
+  'anal',
+  'anus',
+  'asshole',
+  'butthole',
+  'butt plug',
+  'buttplug',
+  'anal beads',
   // Ways of saying it that carry no word from the list above. She wrote "bare-chested and
   // wearing only black lace panties" and it read as suggestive, because every word naming what
   // was bare was one nobody had thought of.
@@ -173,9 +202,9 @@ export function describedPhotoTier(photoPrompt: string): PhotoTier {
 }
 
 /**
- * Words that put somebody else in the picture, or something anal. Every photo is her alone, taken
- * by her — the renderer is asked for one girl and nobody else — so a caption describing a partner
- * or an act with one cannot be drawn as written. Taking the words out would leave a caption that
+ * Words that put somebody else in the picture. Every photo is her alone — the renderer is asked
+ * for one girl and nobody else, and whoever took it stays behind the camera — so a caption
+ * describing a partner or an act with one cannot be drawn as written. Taking the words out would leave a caption that
  * still implies somebody, so a picture that says any of these is not sent at all.
  *
  * Only acts and other bodies: "his hoodie" and "a selfie for him" are pictures of her alone.
@@ -211,15 +240,7 @@ const NOT_SOLO_WORDS = [
   'fucking him',
   'fucked by',
   'sucking him',
-  'kissing him',
-  // Anal, which the feature does not draw.
-  'anal',
-  'anus',
-  'asshole',
-  'butthole',
-  'butt plug',
-  'buttplug',
-  'anal beads'
+  'kissing him'
 ]
 
 /** The words for a man's body, which mean somebody else is there unless a toy is being named. */
@@ -228,7 +249,7 @@ const PARTNER_BODY_WORDS = ['penis', 'cock', 'dick']
 /** What a caption calls the toy she is using by herself: "a dildo shaped like a cock" is hers. */
 const TOY_WORDS = ['dildo', 'vibrator', 'toy', 'magic wand']
 
-/** Whether a caption puts anybody but her in the picture, or anything anal. */
+/** Whether a caption puts anybody but her in the picture. */
 export function describesSomebodyElse(photoPrompt: string): boolean {
   const text = photoPrompt.toLowerCase()
   if (saysAny(text, NOT_SOLO_WORDS)) return true

@@ -1,4 +1,10 @@
-import { allowedPhotoTier, PHOTO_TIERS, type PhotoTier } from '@shared/photoGate'
+import {
+  allowedPhotoTier,
+  PHOTO_TIERS,
+  photoReasonOf,
+  type PhotoReason,
+  type PhotoTier
+} from '@shared/photoGate'
 import { affectionFor } from '@shared/relationship'
 import { wardrobeLine } from '@shared/photoWardrobe'
 import type { Character, CharInfo, ChatMessage } from '@shared/types'
@@ -46,7 +52,6 @@ export function photoLines(
   info: CharInfo | undefined,
   state: TextingPromptState
 ): string[] {
-  const name = character.firstName
   // Settled from the save before she is asked anything, and read again when the reply lands.
   const tier: PhotoTier = allowedPhotoTier({
     flags: info?.flags,
@@ -61,34 +66,82 @@ export function photoLines(
     return []
   }
 
-  const may =
-    tier === 'explicit'
-      ? `${name} will send anything, undressed included. She has already been that far with him, so nothing is being asked for the first time.`
-      : tier === 'suggestive'
-        ? `${name} will send a flirty one — what she is wearing, a swimsuit, underwear — but nothing more than that. Nothing undressed.`
-        : `${name} only sends ordinary pictures: where she is, what she is eating, her outfit, something that made her laugh. Nothing flirty, nothing undressed.`
+  // Two briefs, and she reads only hers: how an undressed picture is captioned, and why she would
+  // send one, are said only to a girl who may.
+  return tier === 'explicit'
+    ? intimateBrief(character, photoReasonOf(info?.flags, character.traits) ?? 'crush')
+    : normalBrief(character, tier)
+}
 
+/** An everyday or a suggestive picture: what she will send, and the rules every picture keeps. */
+function normalBrief(character: Character, tier: 'everyday' | 'suggestive'): string[] {
+  const name = character.firstName
+  return [
+    ...opening(name),
+    tier === 'suggestive'
+      ? `${name} will send a flirty one — what she is wearing, a swimsuit, underwear — but nothing more than that. Nothing undressed.`
+      : `${name} only sends ordinary pictures: where she is, what she is eating, her outfit, something that made her laugh. Nothing flirty, nothing undressed.`,
+    ...captioning(character),
+    ...keeping(name)
+  ]
+}
+
+/**
+ * An undressed picture. Why she would send one is said as what is true of the two of them, since
+ * a model told she has slept with somebody she has not writes the history in: what they have
+ * done, or who she is, or that she is into him and it is her own decision.
+ */
+function intimateBrief(character: Character, reason: PhotoReason): string[] {
+  const name = character.firstName
+  return [
+    ...opening(name),
+    `${name} will send anything of herself, undressed included. ${INTIMATE_REASON[reason]}`,
+    ...captioning(character),
+    // The gate has already allowed this; a caption that will not say it renders a picture that
+    // does not show it, and the tease is read as the whole of what she sent.
+    `So a picture of ${name} undressed is captioned as one, in plain words: what is bare, what she is doing, what the shot shows. Coy wording is a coy picture — "the top of a shirt" is a photograph of a shirt.`,
+    `Write it as she would, not as a catalogue: she is sending this to ${reason === 'intimate' ? 'somebody she has slept with' : "somebody she's into"}, and she knows what she is doing.`,
+    ...keeping(name)
+  ]
+}
+
+/** Why an undressed picture is hers to send, in the order `photoReasonOf` settles it. */
+const INTIMATE_REASON: Readonly<Record<PhotoReason, string>> = {
+  intimate: 'She has already been that far with him, so nothing is being asked for the first time.',
+  promiscuous:
+    "This is nothing new for her: she sends pictures like this to people she's into, and he has her number.",
+  crush:
+    "She's into him, but they haven't been together. Sending one is her own decision, and not a small one: she does it when she wants to, never because he pushed."
+}
+
+/** Both briefs open the same way. */
+function opening(name: string): string[] {
   return [
     'PHOTOS',
-    `${name} can attach one picture to this reply. Set "sendPhoto" and describe it in "photoPrompt".`,
-    may,
+    `${name} can attach one picture to this reply. Set "sendPhoto" and describe it in "photoPrompt".`
+  ]
+}
+
+/** When a picture is worth sending, how it is captioned, and what it is. Both briefs. */
+function captioning(character: Character): string[] {
+  const name = character.firstName
+  return [
     'A picture is worth sending when the texts are already about one — she offers it, or he asked and she wants to. Most replies are just words: set "sendPhoto" false and leave "photoPrompt" empty.',
     `Write "photoPrompt" as what the picture shows, the way ${name} would caption it to herself. One sentence, and a full one: where she is, what she is wearing, how she is sitting or lying or standing, what her hands are doing, how close the shot is, and where she is looking.`,
     'What is not written is not drawn. A caption that says only "a selfie" gets a picture of nobody in particular.',
     wardrobeLine(character),
-    'Then set "photoTier" to what that picture is, which is a separate question from whether she would send it: "everyday" for one with nothing on show, "suggestive" for underwear, swimwear or a towel, "explicit" for one where any part of her usually covered is not. Judge the picture you described, not the words you described it in — a caption that never says a word for it can still be a picture of one. "none" where there is no picture.',
-    ...(tier === 'explicit'
-      ? [
-          // The gate has already allowed this; a caption that will not say it renders a picture
-          // that does not show it, and the tease is read as the whole of what she sent.
-          `So a picture of ${name} undressed is captioned as one, in plain words: what is bare, what she is doing, what the shot shows. Coy wording is a coy picture — "the top of a shirt" is a photograph of a shirt.`,
-          'Write it as she would, not as a catalogue: she is sending this to somebody she has slept with, and she knows what she is doing.',
-          'Nothing anal.'
-        ]
-      : []),
-    'Write the picture, not the sending of it: no phone in her hand unless it is a mirror shot, and no words about pressing send.',
+    'Then set "photoTier" to what that picture is, which is a separate question from whether she would send it: "everyday" for one with nothing on show, "suggestive" for underwear, swimwear or a towel, "explicit" for one where any part of her usually covered is not. Judge the picture you described, not the words you described it in — a caption that never says a word for it can still be a picture of one. "none" where there is no picture.'
+  ]
+}
+
+/** What every picture keeps to, whatever it shows. Both briefs close on it. */
+function keeping(name: string): string[] {
+  return [
+    // Not every picture is a selfie: somebody else may have taken it, or a timer, so the phone is
+    // in it only where it would be.
+    "Describe the picture itself: how she looks in it, not how it was taken or sent. A phone only appears in it when it's a mirror selfie.",
     // The renderer draws one girl and nobody else, and the gate refuses a caption that says otherwise.
-    `${name} is alone in the picture and took it herself. Nobody else is in it or touching her, and nothing in it is done with anybody else.`,
+    `${name} is the only person in the picture. Whoever took it stays behind the camera: nobody else is in it, touching her, or doing anything with her.`,
     'Name nobody and nowhere: not herself, not the reader, not a building, a dorm or a place on the map. A picture cannot show a name. "her room", "a lecture hall", "the cafe" — what it looks like, never what it is called.',
     'Her texts should read like somebody who just sent that picture. Do not describe it in them.',
     'Any picture she has already sent is written into RECENT MESSAGES beside the text it came with. She knows what she sent him and would not send the same one twice.',

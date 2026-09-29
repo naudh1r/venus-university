@@ -103,11 +103,19 @@ describe('buildPhotoPrompt', () => {
     expect(bra).not.toContain('cameltoe')
   })
 
-  it('refuses a second person and anything anal in every picture', () => {
+  it('refuses a second person in every picture', () => {
     const { negative } = buildPhotoPrompt(celest, 'explicit', 'naked, lying on her back')
-    for (const tag of ['1boy', 'multiple_girls', 'hetero', 'penis', 'anal']) {
+    for (const tag of ['1boy', 'multiple_girls', 'hetero', 'penis']) {
       expect(negative).toContain(tag)
     }
+  })
+
+  /** Anal on her own is hers to send; only somebody else doing it is refused, by the tags above. */
+  it('does not refuse anything she does on her own', () => {
+    const { negative } = buildPhotoPrompt(celest, 'explicit', 'naked on all fours, a butt plug in')
+    const tags = String(negative).split(',').map((tag) => tag.trim())
+    expect(tags).not.toContain('anal')
+    expect(tags).not.toContain('anus')
   })
 
   /** A caption that dresses her replaces her wardrobe; one that does not keeps it. */
