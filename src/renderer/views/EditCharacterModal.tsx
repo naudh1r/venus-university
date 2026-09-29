@@ -28,6 +28,7 @@ import {
   cgSetDraft,
   expressionDraft,
   spriteDraft,
+  withRegenTags,
   type PromptEdit
 } from './bodyDrafts'
 import {
@@ -40,7 +41,7 @@ import {
 import { isStatKey, type StatKey } from '@shared/playerStats'
 import { POSITIONS } from '@shared/positions'
 import { ROOM_PROMPT_LEAD, ROOM_VARIANTS } from '@shared/room'
-import { withRegenTags, type PromptGroup } from '@shared/regenTags'
+import type { PromptGroup } from '@shared/regenTags'
 import { pictureKeySet } from '@shared/settingsRules'
 import { sfwWithholds } from '@shared/sfw'
 import { isGiftCategory } from '@shared/shop'

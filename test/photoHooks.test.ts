@@ -223,7 +223,13 @@ const HOOKS: readonly {
   },
   {
     file: 'src/renderer/views/EditCharacterModal.tsx',
-    needs: ['<BodyFieldsSection', 'bodyForm(', 'cleanBody(', "} from './bodyDrafts'"],
+    needs: [
+      '<BodyFieldsSection',
+      'bodyForm(',
+      'cleanBody(',
+      "} from './bodyDrafts'",
+      "import type { PromptGroup } from '@shared/regenTags'"
+    ],
     why: 'her body cannot be read or written by hand, and a regenerate draws it with the switch off'
   }
 ]
