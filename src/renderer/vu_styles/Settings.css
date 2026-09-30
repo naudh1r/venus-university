@@ -106,6 +106,11 @@
   min-height: 0;
 }
 
+/* Where the column scrolls, 430px of settings and the gap that keeps the scrollbar off them. */
+.vu-settings-content:has(> .vu-scroll-box) {
+  width: 442px;
+}
+
 /* The scroller between the heading and the foot takes whatever height is left, so the foot
    keeps its place and the settings scroll under it rather than over it. */
 .vu-settings-content > .vu-scroll-box {
@@ -121,7 +126,8 @@
   flex-direction: column;
   gap: 18px;
   min-width: 0;
-  padding: 4px 6px 34px;
+  /* The right side is wider than the left: room between the settings and the scrollbar. */
+  padding: 4px 18px 34px 6px;
   /* The line that makes it a scroller rather than a column that grows under the foot, as on
      the generation side. Without it the box takes the height of its contents and the last
      setting is drawn over Save. */
