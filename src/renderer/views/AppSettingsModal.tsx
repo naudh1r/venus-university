@@ -706,7 +706,7 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
               <CheckField
                 id="settings-photos"
                 label="No photos on Bunnyboard"
-                note="Nobody texts you a picture of herself or posts one, and nobody is even offered the option. Only what comes next changes: photos already sent stay, and any still being drawn will still arrive. The same goes for the NSFW settings below."
+                note="Photos on Bunnyboard feeds and DMs are turned off. Existing photos stay visible, and any still waiting are held until you turn this back on."
                 checked={!photos}
                 onChange={(checked) => handlePhotosChange(!checked)}
               />

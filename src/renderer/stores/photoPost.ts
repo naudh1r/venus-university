@@ -251,6 +251,9 @@ export function startHeldPostPhoto(): void {
   const game = useGameStore.getState()
   const playthroughId = game.playthroughId
   if (!playthroughId) return
+  // Photos switched off: every held post stays held, in the save and off the feed, and is drawn
+  // the first time the reader commits to something after they are switched back on.
+  if (!canSendPhotos()) return
   const held = Object.entries(game.charInfo).flatMap(([charId, info]) =>
     (info?.feed ?? []).filter((post) => post.photo?.held).map((post) => ({ charId, post }))
   )
@@ -272,7 +275,7 @@ export function startHeldPostPhoto(): void {
 export function rerollPostPhoto(charId: string, postId: string): void {
   const game = useGameStore.getState()
   const photo = photoOf(charId, postId)
-  if (!game.playthroughId || !photo?.file || !photo.scene) return
+  if (!game.playthroughId || !photo?.file || !photo.scene || !canSendPhotos()) return
   const { tier, scene, file } = photo
   setFeedPostPhoto(charId, postId, { tier, scene, file, pending: true })
   if (drawing.has(keyOf(game.playthroughId, postId))) return
