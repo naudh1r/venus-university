@@ -69,8 +69,12 @@ describe('cleanBody', () => {
 
   it('drops a field that contradicts one before it', () => {
     expect(cleanBody({ build: 'petite', buttocks: 'huge_ass' })).toEqual({ build: 'petite' })
-    expect(cleanBody({ build: 'plump', breasts: 'flat_chest', hipsThighs: 'thigh_gap' })).toEqual({
-      build: 'plump'
+    expect(cleanBody({ build: 'curvy', breasts: 'small_breasts', buttocks: 'flat_ass' })).toEqual({
+      build: 'curvy'
+    })
+    // `plump` left the pool: a build written before then reads as none.
+    expect(cleanBody({ build: 'plump', breasts: 'large_breasts' })).toEqual({
+      breasts: 'large_breasts'
     })
     expect(cleanBody({ hipsThighs: 'wide_hips', buttocks: 'flat_ass' })).toEqual({
       hipsThighs: 'wide_hips'
@@ -153,9 +157,9 @@ describe('drawBody', () => {
   it('keeps her build and chest across rerolls, and varies the rest within the rules', () => {
     const seen = new Set<string>()
     for (let step = 0; step < 100; step++) {
-      const body = drawBody('curvy', ['small_breasts'], at(step / 100))
+      const body = drawBody('curvy', ['large_breasts'], at(step / 100))
       expect(body.build).toBe('curvy')
-      expect(body.breasts).toBe('small_breasts')
+      expect(body.breasts).toBe('large_breasts')
       expect(body.buttocks).not.toBe('flat_ass')
       seen.add(JSON.stringify(body))
     }
@@ -177,6 +181,9 @@ describe('drawBody', () => {
   it("falls back to her appearance's chest, then medium, where her build rules the pick out", () => {
     expect(drawBody('curvy', ['large_breasts'], at(0), 'flat_chest').breasts).toBe('large_breasts')
     expect(drawBody('curvy', ['1girl'], at(0), 'flat_chest').breasts).toBe('medium_breasts')
+    expect(drawBody('curvy', ['small_breasts'], at(0), 'small_breasts').breasts).toBe(
+      'medium_breasts'
+    )
   })
 })
 

@@ -20,7 +20,6 @@ const VERIFIED = new Set([
   // present, not deprecated, not an alias, with thousands of posts.
   'petite',
   'curvy',
-  'plump',
   'toned',
   'muscular_female',
   'tall_female',
