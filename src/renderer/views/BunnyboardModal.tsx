@@ -1227,7 +1227,9 @@ function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
   return (
     <>
       {message.text && <div className={`vu-bb-bubble vu-bb-bubble--${side}`}>{message.text}</div>}
-      {message.photo && <MessagePhotoBubble photo={message.photo} sender={message.sender} />}
+      {message.photo && (
+        <MessagePhotoBubble photo={message.photo} sender={message.sender} messageId={message.id} />
+      )}
     </>
   )
 }

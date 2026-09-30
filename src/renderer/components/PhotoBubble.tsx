@@ -5,6 +5,7 @@ import type { ChatPhoto } from '@shared/photoTypes'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { useGameStore } from '../stores/gameStore'
 import { rerollPostPhoto } from '../stores/photoPost'
+import { rerollMessagePhoto } from '../stores/photoTurn'
 import { bunnyHop } from '../views/motion'
 import { BunnyMark, EyeIcon, EyeOffIcon } from '../views/screenIcons'
 import { Lightbox } from './Lightbox'
@@ -124,9 +125,33 @@ export function MessagePhoto({
 }
 
 /**
- * The picture on one of her posts: the same frame a thread draws, except that a render that
- * failed says so plainly and offers to draw it again, since the post went up without it.
+ * A picture whose render failed or never answered: the frame says so plainly and offers to draw
+ * it again. Only a picture with a name and a scene can be drawn again; an older one without falls
+ * back to the quiet line.
  */
+function RerollablePhoto({
+  charId,
+  photo,
+  onReroll
+}: {
+  charId: string
+  photo: ChatPhoto
+  onReroll: () => void
+}): JSX.Element {
+  if (photo.failed && photo.file && photo.scene) {
+    return (
+      <div className="vu-bb-photo vu-bb-photo--failed vu-bb-photo--reroll">
+        <span>Image failed to generate.</span>
+        <button type="button" className="vu-bb-photo-reroll" onClick={onReroll}>
+          Reroll
+        </button>
+      </div>
+    )
+  }
+  return <MessagePhoto charId={charId} photo={photo} onOpen={openShot} />
+}
+
+/** The picture on one of her posts, which went up without it where the render failed. */
 export function PostPhoto({
   charId,
   postId,
@@ -136,22 +161,13 @@ export function PostPhoto({
   postId: string
   photo: ChatPhoto
 }): JSX.Element {
-  // Only a picture with a name and a scene can be drawn again; an older one without says so.
-  if (photo.failed && photo.file && photo.scene) {
-    return (
-      <div className="vu-bb-photo vu-bb-photo--failed vu-bb-photo--reroll">
-        <span>Image failed to generate.</span>
-        <button
-          type="button"
-          className="vu-bb-photo-reroll"
-          onClick={() => rerollPostPhoto(charId, postId)}
-        >
-          Reroll
-        </button>
-      </div>
-    )
-  }
-  return <MessagePhoto charId={charId} photo={photo} onOpen={openShot} />
+  return (
+    <RerollablePhoto
+      charId={charId}
+      photo={photo}
+      onReroll={() => rerollPostPhoto(charId, postId)}
+    />
+  )
 }
 
 /**
@@ -163,17 +179,23 @@ export function PostPhoto({
  */
 export function MessagePhotoBubble({
   photo,
-  sender
+  sender,
+  messageId
 }: {
   photo: ChatPhoto
   sender: 'player' | 'contact'
+  messageId: string
 }): JSX.Element | null {
   const charId = useBunnyboardStore((s) => s.viewingCharId)
   if (!charId) return null
   const side = sender === 'player' ? 'mine' : 'theirs'
   return (
     <div className={`vu-bb-bubble vu-bb-bubble--${side} vu-bb-bubble--photo`}>
-      <MessagePhoto charId={charId} photo={photo} onOpen={openShot} />
+      <RerollablePhoto
+        charId={charId}
+        photo={photo}
+        onReroll={() => rerollMessagePhoto(charId, messageId)}
+      />
     </div>
   )
 }

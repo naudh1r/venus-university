@@ -219,7 +219,7 @@ const HOOKS: readonly {
   },
   {
     file: 'src/renderer/views/BunnyboardModal.tsx',
-    needs: ['MessagePhotoBubble', 'PhotoLightboxHost', 'MessagePhoto', 'PostComments'],
+    needs: ['MessagePhotoBubble', 'messageId={message.id}', 'PhotoLightboxHost', 'PostComments'],
     why: 'nothing draws the picture on a text, on a post, or the replies under one'
   },
   {

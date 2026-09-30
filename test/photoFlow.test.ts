@@ -319,6 +319,115 @@ describe('a picture that does not come', () => {
   })
 })
 
+describe('a picture on a text that does not come', () => {
+  /** A thread with one text from her, carrying a picture in whatever state the test gives it. */
+  async function thread(photo: Record<string, unknown>): Promise<{
+    turn: typeof import('../src/renderer/stores/photoTurn')
+    photoOf: () => Record<string, unknown> | undefined
+  }> {
+    const { useGameStore } = await import('../src/renderer/stores/gameStore')
+    const turn = await import('../src/renderer/stores/photoTurn')
+    useGameStore.setState({
+      playthroughId: '1',
+      characters: { c1: { charId: 'c1', firstName: 'Gwen' } } as never,
+      bunnyboard: {
+        ...useGameStore.getState().bunnyboard,
+        conversations: {
+          c1: {
+            charId: 'c1',
+            unread: 0,
+            summary: null,
+            messages: [{ id: 'm1', sender: 'contact', text: 'look', photo }]
+          }
+        }
+      } as never
+    })
+    const photoOf = (): Record<string, unknown> | undefined =>
+      useGameStore.getState().bunnyboard.conversations.c1?.messages[0]?.photo as unknown as
+        | Record<string, unknown>
+        | undefined
+    return { turn, photoOf }
+  }
+
+  const failed = {
+    tier: 'everyday',
+    scene: 'on the grass',
+    file: 'gwen_chat_001.png',
+    failed: true
+  }
+
+  it('draws it again on a reroll, under the same name, and fills the bubble in', async () => {
+    const generate = vi.fn<GeneratePhoto>(async () => ({ ok: true, data: 'done' }))
+    stubApi({
+      jobs: { onProgress: () => () => {} },
+      photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+      saves
+    })
+    const { turn, photoOf } = await thread(failed)
+    turn.rerollMessagePhoto('c1', 'm1')
+    // The bubble waits while it draws.
+    expect(photoOf()?.pending).toBe(true)
+    await vi.waitFor(() => expect(photoOf()?.pending).toBeUndefined())
+    expect(photoOf()).toEqual({
+      tier: 'everyday',
+      scene: 'on the grass',
+      file: 'gwen_chat_001.png'
+    })
+    expect(generate.mock.calls[0]?.[4]).toBe('gwen_chat_001.png')
+  })
+
+  it('says so again when the reroll fails too', async () => {
+    const generate = vi.fn<GeneratePhoto>(async () => ({
+      ok: false,
+      error: { code: 'COMFY_OFFLINE', message: 'down' }
+    }))
+    stubApi({
+      jobs: { onProgress: () => () => {} },
+      photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+      saves
+    })
+    const { turn, photoOf } = await thread(failed)
+    turn.rerollMessagePhoto('c1', 'm1')
+    await vi.waitFor(() => expect(photoOf()?.failed).toBe(true))
+    expect(photoOf()?.pending).toBeUndefined()
+  })
+
+  it('gives up waiting in time, and fills the bubble in if the picture lands later', async () => {
+    vi.useFakeTimers()
+    try {
+      let finish: (() => void) | undefined
+      const generate = vi.fn<GeneratePhoto>(
+        () =>
+          new Promise<Result<string>>((resolve) => {
+            finish = () => resolve({ ok: true, data: 'done' })
+          })
+      )
+      stubApi({
+        jobs: { onProgress: () => () => {} },
+        photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+        saves
+      })
+      const { turn, photoOf } = await thread(failed)
+      const { RENDER_PATIENCE_MS } = await import('../src/renderer/stores/photoPost')
+      turn.rerollMessagePhoto('c1', 'm1')
+      await vi.advanceTimersByTimeAsync(RENDER_PATIENCE_MS - 1000)
+      expect(photoOf()?.pending).toBe(true)
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(photoOf()?.failed).toBe(true)
+
+      finish?.()
+      await vi.waitFor(() => expect(photoOf()?.failed).toBeUndefined())
+      expect(photoOf()).toEqual({
+        tier: 'everyday',
+        scene: 'on the grass',
+        file: 'gwen_chat_001.png'
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe('what the crowd said', () => {
   it('keeps nothing where the model wrote nothing, whatever the roll', async () => {
     stubApi({ jobs: { onProgress: () => () => {} } })
