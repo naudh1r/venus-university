@@ -2,10 +2,12 @@ import { allowedPhotoTier, isPhotoTier, settlePhoto } from '@shared/photoGate'
 import { affectionFor } from '@shared/relationship'
 import type { ChatPhoto } from '@shared/photoTypes'
 import type { Character, TextingResponse } from '@shared/types'
+import { bunnybotPhotoTexts } from '../prompts/photoTips'
 import { useGameStore } from './gameStore'
 import { RENDER_PATIENCE_MS } from './photoPost'
 import { canSendPhotos, savePhotoState, setMessagePhoto } from './photoStore'
 import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
+import { deliverBunnybotNow } from './textingLoop'
 
 /**
  * The picture attached to one reply: settled against the save, hung on her last text as a
@@ -56,7 +58,13 @@ export async function sendPhoto(
     return
   }
   const file = named.data
+  // Her first picture to him is the moment BunnyBot explains them: counted off the threads rather
+  // than kept as a flag, so the save carries nothing new for it.
+  const first = !Object.values(game.bunnyboard.conversations).some((chat) =>
+    chat?.messages.some((message) => message.photo)
+  )
   setMessagePhoto(charId, last.id, { tier: verdict.tier, scene, file, pending: true })
+  if (first) deliverBunnybotNow(bunnybotPhotoTexts(character.firstName))
   // The waiting bubble is saved too, carrying the name the render will land under: that name is
   // the only thing `settlePendingPhotos` has to look for, and a bubble that never reached disk
   // leaves the finished picture orphaned there with nothing pointing at it.
