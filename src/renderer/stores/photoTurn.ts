@@ -141,7 +141,7 @@ function drawMessagePhoto(charId: string, messageId: string): void {
  */
 export function rerollMessagePhoto(charId: string, messageId: string): void {
   const photo = messagePhotoOf(charId, messageId)
-  if (!photo?.file || !photo.scene) return
+  if (!photo?.file || !photo.scene || !canSendPhotos()) return
   const { tier, scene, file } = photo
   setMessagePhoto(charId, messageId, { tier, scene, file, pending: true })
   drawMessagePhoto(charId, messageId)

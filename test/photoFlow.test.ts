@@ -68,6 +68,17 @@ function heldPost(id = 'p1'): {
   }
 }
 
+/**
+ * Photos switched on, with a renderer that says it is ready — what `canSendPhotos` asks. `on`
+ * false is the player's switch turned off.
+ */
+async function photosSwitched(on: boolean): Promise<void> {
+  const { useSettingsStore } = await import('../src/renderer/stores/settingsStore')
+  const { useSetupStore } = await import('../src/renderer/stores/setupStore')
+  useSettingsStore.setState({ settings: { photos: on, comfyDeferred: false } as never })
+  useSetupStore.setState({ status: { comfyReady: true } as never })
+}
+
 /** A fresh store with one character in it, and the feature's modules loaded against it. */
 async function loaded(): Promise<{
   useGameStore: typeof import('../src/renderer/stores/gameStore').useGameStore
@@ -76,6 +87,7 @@ async function loaded(): Promise<{
 }> {
   const { useGameStore } = await import('../src/renderer/stores/gameStore')
   const post = await import('../src/renderer/stores/photoPost')
+  await photosSwitched(true)
   useGameStore.setState({
     playthroughId: '1',
     characters: { c1: { charId: 'c1', firstName: 'Gwen' } } as never,
@@ -95,7 +107,8 @@ describe('a post that carries a picture', () => {
       photo: { reserveName: api.reserve, generate: api.generate }
     })
     const { post } = await loaded()
-    // No renderer configured in a test environment, so the gate refuses and nothing is prepared.
+    await photosSwitched(false)
+    // Photos switched off, so the gate refuses and nothing is prepared.
     expect(await post.preparePostPhoto('c1', 'lying on the grass in a red top')).toBeNull()
     expect(api.reserve).not.toHaveBeenCalled()
   })
@@ -235,6 +248,47 @@ describe('the held render', () => {
   })
 })
 
+describe('photos switched off', () => {
+  it('keeps a held post held and undrawn, and draws it once they are back on', async () => {
+    const api = pendingRender()
+    stubApi({
+      jobs: { onProgress: () => () => {} },
+      photo: { reserveName: api.reserve, generate: api.generate, landed: notLanded }
+    })
+    const { post, photoOf } = await loaded()
+    const { written, prepared } = heldPost()
+    post.holdPostPhoto('c1', written, prepared, () => {})
+
+    await photosSwitched(false)
+    post.startHeldPostPhoto()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(api.generate).not.toHaveBeenCalled()
+    expect(photoOf()?.held).toBe(true)
+
+    await photosSwitched(true)
+    post.startHeldPostPhoto()
+    await vi.waitFor(() => expect(api.generate).toHaveBeenCalledTimes(1))
+  })
+
+  it('does not reroll a failed picture', async () => {
+    const api = pendingRender()
+    stubApi({
+      jobs: { onProgress: () => () => {} },
+      photo: { reserveName: api.reserve, generate: api.generate, landed: notLanded }
+    })
+    const { useGameStore, post, photoOf } = await loaded()
+    useGameStore.getState().appendFeedPost('c1', {
+      ...heldPost().written,
+      photo: { tier: 'everyday', scene: 'on the grass', file: 'gwen_p1.png', failed: true }
+    })
+    await photosSwitched(false)
+    post.rerollPostPhoto('c1', 'p1')
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(api.generate).not.toHaveBeenCalled()
+    expect(photoOf()?.failed).toBe(true)
+  })
+})
+
 describe('a picture that does not come', () => {
   it('lets the post out saying so when the render fails', async () => {
     const generate = vi.fn<GeneratePhoto>(async () => ({
@@ -327,6 +381,7 @@ describe('a picture on a text that does not come', () => {
   }> {
     const { useGameStore } = await import('../src/renderer/stores/gameStore')
     const turn = await import('../src/renderer/stores/photoTurn')
+    await photosSwitched(true)
     useGameStore.setState({
       playthroughId: '1',
       characters: { c1: { charId: 'c1', firstName: 'Gwen' } } as never,

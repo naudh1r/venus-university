@@ -4,6 +4,7 @@ import { photoUrl } from '@shared/photoFiles'
 import type { ChatPhoto } from '@shared/photoTypes'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { useGameStore } from '../stores/gameStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import { rerollPostPhoto } from '../stores/photoPost'
 import { rerollMessagePhoto } from '../stores/photoTurn'
 import { bunnyHop } from '../views/motion'
@@ -127,7 +128,8 @@ export function MessagePhoto({
 /**
  * A picture whose render failed or never answered: the frame says so plainly and offers to draw
  * it again. Only a picture with a name and a scene can be drawn again; an older one without falls
- * back to the quiet line.
+ * back to the quiet line. With photos switched off the frame still says so, and the reroll waits
+ * for them to be switched back on.
  */
 function RerollablePhoto({
   charId,
@@ -138,13 +140,16 @@ function RerollablePhoto({
   photo: ChatPhoto
   onReroll: () => void
 }): JSX.Element {
+  const photosOn = useSettingsStore((s) => s.settings?.photos !== false)
   if (photo.failed && photo.file && photo.scene) {
     return (
       <div className="vu-bb-photo vu-bb-photo--failed vu-bb-photo--reroll">
         <span>Image failed to generate.</span>
-        <button type="button" className="vu-bb-photo-reroll" onClick={onReroll}>
-          Reroll
-        </button>
+        {photosOn && (
+          <button type="button" className="vu-bb-photo-reroll" onClick={onReroll}>
+            Reroll
+          </button>
+        )}
       </div>
     )
   }
