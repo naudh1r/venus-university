@@ -29,9 +29,9 @@ export type BodyField = (typeof BODY_FIELDS)[number]
 
 /**
  * Her frame. `slim` is deprecated and `slender` only an alias; `skinny` drawn beside `petite`
- * read as the same body, so one of the two went.
+ * read as the same body, so one of the two went, and `plump` was not a body anybody asked for.
  */
-const BUILD_TAGS = ['petite', 'curvy', 'plump', 'toned', 'muscular_female', 'tall_female']
+const BUILD_TAGS = ['petite', 'curvy', 'toned', 'muscular_female', 'tall_female']
 
 /** Her chest. Nothing past `large_breasts`: the next size up is a different kind of picture. */
 const BREAST_TAGS = ['flat_chest', 'small_breasts', 'medium_breasts', 'large_breasts']
@@ -78,16 +78,8 @@ const CONFLICTS: readonly {
   {
     field: 'build',
     tag: 'curvy',
-    rules: { breasts: ['flat_chest'], buttocks: ['flat_ass', SMALL_ASS] }
-  },
-  {
-    field: 'build',
-    tag: 'plump',
-    rules: {
-      breasts: ['flat_chest'],
-      hipsThighs: ['narrow_waist', 'thigh_gap'],
-      buttocks: ['flat_ass', SMALL_ASS]
-    }
+    // `curvy` is a full chest as much as full hips: anything under medium contradicts it.
+    rules: { breasts: ['flat_chest', 'small_breasts'], buttocks: ['flat_ass', SMALL_ASS] }
   },
   { field: 'hipsThighs', tag: 'wide_hips', rules: { buttocks: ['flat_ass', SMALL_ASS] } },
   { field: 'hipsThighs', tag: 'thick_thighs', rules: { buttocks: ['flat_ass', SMALL_ASS] } }
