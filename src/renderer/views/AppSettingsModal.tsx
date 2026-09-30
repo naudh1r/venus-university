@@ -34,7 +34,6 @@ import { useEndpointProbe } from './useEndpointProbe'
 import { sfwValuesOf, type SfwKey } from './sfwFields'
 import { VOLUME_FIELDS } from './volumeFields'
 import { PROMPT_KIND_FIELDS, promptKindValuesOf, promptKindsFrom } from './promptKindFields'
-import { PhotoSettingsHint } from '../components/PhotoSettingsHint'
 import '../vu_styles/Settings.css'
 
 export interface AppSettingsModalProps {
@@ -707,12 +706,11 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
               <CheckField
                 id="settings-photos"
                 label="No photos on Bunnyboard"
-                note="Nobody texts the reader a picture of herself. Nobody is even offered the option, so no reply asks for a photo the playthrough does not want."
+                note="Nobody texts you a picture of herself or posts one, and nobody is even offered the option. Only what comes next changes: photos already sent stay, and any still being drawn will still arrive. The same goes for the NSFW settings below."
                 checked={!photos}
                 onChange={(checked) => handlePhotosChange(!checked)}
               />
             )}
-            {!webBuild && <PhotoSettingsHint />}
 
             {/* Each toggle carries what turning it on costs; the note is the whole of what the
                 app promises about either setting. */}
