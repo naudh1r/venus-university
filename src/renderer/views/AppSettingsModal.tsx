@@ -34,6 +34,7 @@ import { useEndpointProbe } from './useEndpointProbe'
 import { sfwValuesOf, type SfwKey } from './sfwFields'
 import { VOLUME_FIELDS } from './volumeFields'
 import { PROMPT_KIND_FIELDS, promptKindValuesOf, promptKindsFrom } from './promptKindFields'
+import { PhotoSettingsHint } from '../components/PhotoSettingsHint'
 import '../vu_styles/Settings.css'
 
 export interface AppSettingsModalProps {
@@ -711,6 +712,7 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
                 onChange={(checked) => handlePhotosChange(!checked)}
               />
             )}
+            {!webBuild && <PhotoSettingsHint />}
 
             {/* Each toggle carries what turning it on costs; the note is the whole of what the
                 app promises about either setting. */}

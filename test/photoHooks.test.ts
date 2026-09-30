@@ -233,6 +233,11 @@ const HOOKS: readonly {
     why: 'the player cannot turn photographs off'
   },
   {
+    file: 'src/renderer/views/AppSettingsModal.tsx',
+    needs: ['<PhotoSettingsHint />'],
+    why: 'nothing says a photo already on its way still arrives after the switch is turned'
+  },
+  {
     file: 'src/renderer/vu_styles/PhotoBubble.css',
     needs: ['.vu-bb-bubble.vu-bb-bubble--photo'],
     why: 'at one class the build’s own bubble rule wins on load order and the picture sits in a padded bubble'
