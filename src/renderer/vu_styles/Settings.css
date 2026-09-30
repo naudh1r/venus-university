@@ -102,8 +102,15 @@
   flex: none;
   flex-direction: column;
   gap: 18px;
-  width: 430px;
+  /* 430px of settings, and the padding below on either side of them. */
+  width: 442px;
   min-height: 0;
+  /* Scrolls inside the capped panel once the toggles outgrow it, as the fields beside it do;
+     the padding is room for a checkbox's swell and shadow, taken back by the margin so the
+     column still lines up with the heading beside it. */
+  margin: -4px -6px;
+  padding: 4px 6px;
+  overflow: hidden auto;
 }
 
 /* The sliders and the two data copies are each a set rather than a run of settings, so they
