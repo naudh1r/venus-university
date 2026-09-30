@@ -1,16 +1,16 @@
 import { allowedPhotoTier, isPhotoTier, settlePhoto } from '@shared/photoGate'
 import { affectionFor } from '@shared/relationship'
+import type { ChatPhoto } from '@shared/photoTypes'
 import type { Character, TextingResponse } from '@shared/types'
 import { useGameStore } from './gameStore'
+import { RENDER_PATIENCE_MS } from './photoPost'
 import { canSendPhotos, savePhotoState, setMessagePhoto } from './photoStore'
 import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
 
 /**
  * The picture attached to one reply: settled against the save, hung on her last text as a
- * placeholder, and filled in when the render lands.
- *
- * Never awaited by the turn — a thread that waited on ComfyUI would leave her mid-sentence for
- * half a minute — so everything after the render re-reads the store rather than trusting what it
+ * placeholder, and filled in when the render lands — or, when it does not, left saying so with a
+ * reroll on it. Everything after the render re-reads the store rather than trusting what it
  * captured before.
  */
 export async function sendPhoto(
@@ -62,23 +62,87 @@ export async function sendPhoto(
   // leaves the finished picture orphaned there with nothing pointing at it.
   savePhotoState()
 
+  drawMessagePhoto(charId, last.id)
+}
+
+/**
+ * The texts whose picture is being drawn right now, by playthrough and message. A text stays in it
+ * until its render answers, however late, so a reroll never asks for a second picture under the
+ * same name while the first is still on its way.
+ */
+const drawing = new Set<string>()
+
+/** One text's picture as it stands, or null where the text or its picture has gone. */
+function messagePhotoOf(charId: string, messageId: string): ChatPhoto | null {
+  const chat = useGameStore.getState().bunnyboard.conversations[charId]
+  return chat?.messages.find((message) => message.id === messageId)?.photo ?? null
+}
+
+/**
+ * Draws the picture on one of her texts, from the scene and the name it already carries.
+ *
+ * Never awaited by the turn — a thread that waited on ComfyUI would leave her mid-sentence for
+ * half a minute. The bubble waits while it draws; a render that fails, or that has not answered
+ * in {@link RENDER_PATIENCE_MS}, turns it into a frame that says so and offers a reroll, and a
+ * picture that lands after that still fills it in. The text itself is never touched: she sent
+ * it, whatever ComfyUI did about it.
+ */
+function drawMessagePhoto(charId: string, messageId: string): void {
+  const game = useGameStore.getState()
+  const playthroughId = game.playthroughId
+  const character = game.characters[charId]
+  const photo = messagePhotoOf(charId, messageId)
+  if (!playthroughId || !character || !photo?.file || !photo.scene) return
+  const key = `${playthroughId}:${messageId}`
+  if (drawing.has(key)) return
+  const { tier, scene, file } = photo
+  const drawn: ChatPhoto = { tier, scene, file }
+  // The save may have moved on under a render: a photo from a playthrough the player has left
+  // belongs to nothing.
+  const live = (): boolean => useGameStore.getState().playthroughId === playthroughId
+
+  /** Sets the bubble, and saves it: a picture on disk but not in the save comes back waiting. */
+  const settle = (next: ChatPhoto): void => {
+    if (!live() || !messagePhotoOf(charId, messageId)) return
+    setMessagePhoto(charId, messageId, next)
+    savePhotoState()
+  }
+
+  drawing.add(key)
+  const timer = setTimeout(() => {
+    if (messagePhotoOf(charId, messageId)?.pending) {
+      console.warn(`[texting] her photo has not answered in time`)
+      settle({ ...drawn, failed: true })
+    }
+  }, RENDER_PATIENCE_MS)
+
   void window.api.photo
-    .generate(playthroughId, character, verdict.tier, data.photoPrompt ?? '', file)
+    .generate(playthroughId, character, tier, scene, file)
+    .catch((error: unknown) => ({
+      ok: false as const,
+      error: { code: 'PHOTO_THREW', message: String(error) }
+    }))
     .then((result) => {
-      // The save may have moved on under a render: a photo from a playthrough the player has
-      // left belongs to nothing.
-      if (useGameStore.getState().playthroughId !== playthroughId) return
+      clearTimeout(timer)
+      drawing.delete(key)
       if (result.ok) {
-        setMessagePhoto(charId, last.id, { tier: verdict.tier, scene, file })
-        // Straight to disk: the next slot may be a long way off, and a picture that is on disk
-        // but not in the save comes back as a bubble waiting for something already there.
-        savePhotoState()
+        settle(drawn)
         return
       }
       console.warn(`[texting] her photo failed: ${result.error.code}`, result.error.message)
-      // Kept even here: she sent it, whatever ComfyUI did about it.
-      setMessagePhoto(charId, last.id, { tier: verdict.tier, scene, file, failed: true })
-      // Saved as well: a bubble that failed has to come back failed, not still waiting.
-      savePhotoState()
+      settle({ ...drawn, failed: true })
     })
+}
+
+/**
+ * Draws a failed picture on one of her texts again, under the same name and from the same scene:
+ * no model call, and nothing she said changes. Where the first render is in fact still going,
+ * the bubble only waits for it rather than asking for a second.
+ */
+export function rerollMessagePhoto(charId: string, messageId: string): void {
+  const photo = messagePhotoOf(charId, messageId)
+  if (!photo?.file || !photo.scene) return
+  const { tier, scene, file } = photo
+  setMessagePhoto(charId, messageId, { tier, scene, file, pending: true })
+  drawMessagePhoto(charId, messageId)
 }
