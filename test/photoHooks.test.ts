@@ -228,6 +228,11 @@ const HOOKS: readonly {
     why: 'her gallery has no tab to open it and nothing to draw'
   },
   {
+    file: 'src/renderer/views/sfwFields.ts',
+    needs: ['note: NO_NSFW_IMAGES_NOTE'],
+    why: 'the NSFW switch does not say it covers photos too'
+  },
+  {
     file: 'src/renderer/views/AppSettingsModal.tsx',
     needs: ['settings-photos'],
     why: 'the player cannot turn photographs off'

@@ -483,6 +483,70 @@ describe('a picture on a text that does not come', () => {
   })
 })
 
+describe("BunnyBot's photo tip", () => {
+  it('comes with her first picture, and never again', async () => {
+    const api = pendingRender()
+    stubApi({
+      jobs: { onProgress: () => () => {} },
+      photo: {
+        reserveName: vi.fn<ReserveName>(async () => ({ ok: true, data: 'gwen_chat_001.png' })),
+        generate: api.generate,
+        landed: notLanded
+      },
+      saves
+    })
+    const { useGameStore } = await import('../src/renderer/stores/gameStore')
+    const { sendPhoto } = await import('../src/renderer/stores/photoTurn')
+    const { BUNNYBOT_CHAT_ID } = await import('../src/renderer/prompts/bunnybot')
+    await photosSwitched(true)
+    const gwen = { charId: 'c1', firstName: 'Gwen' } as never
+    useGameStore.setState({
+      playthroughId: '1',
+      characters: { c1: gwen },
+      charInfo: { c1: { flags: { gaveContactInfo: true }, memories: [] } } as never,
+      bunnyboard: {
+        ...useGameStore.getState().bunnyboard,
+        conversations: {
+          c1: {
+            charId: 'c1',
+            unread: 0,
+            summary: null,
+            messages: [{ id: 'm1', sender: 'contact', text: 'look' }]
+          }
+        }
+      } as never
+    })
+    const tips = (): number =>
+      useGameStore.getState().bunnyboard.conversations[BUNNYBOT_CHAT_ID]?.messages.length ?? 0
+
+    await sendPhoto('c1', gwen, { sendPhoto: true, photoPrompt: 'me at the library' } as never)
+    const told = tips()
+    expect(told).toBeGreaterThan(0)
+    expect(
+      useGameStore
+        .getState()
+        .bunnyboard.conversations[BUNNYBOT_CHAT_ID]?.messages.some((m) => m.text.includes('gwen'))
+    ).toBe(true)
+
+    // A second text from her, and a second picture: nothing more from BunnyBot.
+    const chat = useGameStore.getState().bunnyboard.conversations.c1!
+    useGameStore.setState({
+      bunnyboard: {
+        ...useGameStore.getState().bunnyboard,
+        conversations: {
+          ...useGameStore.getState().bunnyboard.conversations,
+          c1: {
+            ...chat,
+            messages: [...chat.messages, { id: 'm2', sender: 'contact', text: 'again' } as never]
+          }
+        }
+      }
+    })
+    await sendPhoto('c1', gwen, { sendPhoto: true, photoPrompt: 'me at the cafe' } as never)
+    expect(tips()).toBe(told)
+  })
+})
+
 describe('what the crowd said', () => {
   it('keeps nothing where the model wrote nothing, whatever the roll', async () => {
     stubApi({ jobs: { onProgress: () => () => {} } })
