@@ -33,6 +33,12 @@ export interface ChatPhoto {
   pending?: true
   /** The render failed and nothing arrived; the bubble says so once, quietly. */
   failed?: true
+  /**
+   * A post's picture that has not been drawn yet. The post is in the save from the moment the
+   * slot wrote it, so a reload or a new slot cannot lose it — and nobody sees it until the
+   * picture lands or fails (`postIsOut`). Never on a thread's picture.
+   */
+  held?: true
 }
 
 declare module './types' {

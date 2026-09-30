@@ -11,8 +11,9 @@ import { restoreApi, stubApi } from './fixtures'
  *
  * Every rule checked here is one that was broken at some point while this was being ported, and
  * each one failed silently: a post that stood over an empty frame, a trigger that fired on every
- * turn of a scene rather than the first, and a second picture post in one slot filed as text
- * under replies written for its picture.
+ * turn of a scene rather than the first, a second picture post in one slot filed as text under
+ * replies written for its picture, and a post lost because the slot moved on before its picture
+ * was drawn.
  */
 
 stubApi({ jobs: { onProgress: () => () => {} } })
@@ -48,40 +49,85 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+type Landed = (playthroughId: string, charId: string, file: string) => Promise<Result<boolean>>
+
+/** Nothing on disk yet: every held post has to be drawn. */
+const notLanded = vi.fn<Landed>(async () => ({ ok: true, data: false }))
+
+/** A save write that succeeds, since a post that comes out is saved on its own. */
+const saves = { autosave: async () => ({ ok: true as const, data: {} as never }) }
+
+/** The one post the tests hold, and the picture it was written for. */
+function heldPost(id = 'p1'): {
+  written: { id: string; text: string; date: number; time: 0; likes: number }
+  prepared: { shot: { tier: 'everyday'; scene: string }; file: string }
+} {
+  return {
+    written: { id, text: 'hi', date: 0, time: 0, likes: 1 },
+    prepared: { shot: { tier: 'everyday', scene: 'on the grass' }, file: `gwen_${id}.png` }
+  }
+}
+
+/** A fresh store with one character in it, and the feature's modules loaded against it. */
+async function loaded(): Promise<{
+  useGameStore: typeof import('../src/renderer/stores/gameStore').useGameStore
+  post: typeof import('../src/renderer/stores/photoPost')
+  photoOf: (postId?: string) => Record<string, unknown> | undefined
+}> {
+  const { useGameStore } = await import('../src/renderer/stores/gameStore')
+  const post = await import('../src/renderer/stores/photoPost')
+  useGameStore.setState({
+    playthroughId: '1',
+    characters: { c1: { charId: 'c1', firstName: 'Gwen' } } as never,
+    charInfo: {}
+  })
+  const photoOf = (postId = 'p1'): Record<string, unknown> | undefined =>
+    useGameStore.getState().charInfo.c1?.feed?.find((one) => one.id === postId)
+      ?.photo as unknown as Record<string, unknown> | undefined
+  return { useGameStore, post, photoOf }
+}
+
 describe('a post that carries a picture', () => {
-  it('is not filed while the picture is still being drawn', async () => {
+  it('reserves nothing for a picture the gate refuses', async () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
       photo: { reserveName: api.reserve, generate: api.generate }
     })
-    const { useGameStore } = await import('../src/renderer/stores/gameStore')
-    const { beginSlotPhotos, holdPostPhoto, preparePostPhoto, startHeldPostPhoto } = await import(
-      '../src/renderer/stores/photoPost'
-    )
-
-    useGameStore.setState({ playthroughId: '1', characters: {}, charInfo: {} })
-    beginSlotPhotos()
-    // No renderer configured in a test environment, so the gate refuses and nothing is prepared:
-    // the assertion is that a refused picture reserves no name and files no post either.
-    const shot = await preparePostPhoto('c1', 'lying on the grass in a red top')
-    expect(shot).toBeNull()
+    const { post } = await loaded()
+    // No renderer configured in a test environment, so the gate refuses and nothing is prepared.
+    expect(await post.preparePostPhoto('c1', 'lying on the grass in a red top')).toBeNull()
     expect(api.reserve).not.toHaveBeenCalled()
+  })
 
-    // And with one prepared by hand, the post still does not reach the feed until it is drawn.
-    const appended = vi.fn()
-    useGameStore.setState({ appendFeedPost: appended } as never)
-    holdPostPhoto(
-      'c1',
-      { id: 'p1', text: 'hi', date: 0, time: 0, likes: 1 },
-      { shot: { tier: 'everyday', scene: 'on the grass' }, file: 'gwen_bunnyboard_001.png' },
-      () => {}
-    )
-    expect(appended).not.toHaveBeenCalled()
-    startHeldPostPhoto()
-    // The render is in flight and never settles, so the post is still not filed.
-    await Promise.resolve()
-    expect(appended).not.toHaveBeenCalled()
+  it('is filed held, in the save and off every list, while the picture is being drawn', async () => {
+    const api = pendingRender()
+    stubApi({
+      jobs: { onProgress: () => () => {} },
+      photo: { reserveName: api.reserve, generate: api.generate, landed: notLanded }
+    })
+    const { useGameStore, post, photoOf } = await loaded()
+    const { postIsOut } = await import('../src/shared/heldPosts')
+    const { contactFeedPosts } = await import('../src/renderer/stores/feedView')
+    const { written, prepared } = heldPost()
+
+    post.holdPostPhoto('c1', written, prepared, () => {})
+    expect(photoOf()).toEqual({
+      tier: 'everyday',
+      scene: 'on the grass',
+      file: 'gwen_p1.png',
+      held: true
+    })
+    const game = useGameStore.getState()
+    expect(game.charInfo.c1?.feed?.every(postIsOut)).toBe(false)
+    // Even a contact's: the Updates tab lists nothing that is still held.
+    game.charInfo.c1!.flags = { gaveContactInfo: true } as never
+    expect(contactFeedPosts(['c1'], game.charInfo)).toEqual([])
+
+    post.startHeldPostPhoto()
+    // The render is in flight and never settles, so the post is still held.
+    await vi.waitFor(() => expect(api.generate).toHaveBeenCalledTimes(1))
+    expect(photoOf()?.held).toBe(true)
   })
 })
 
@@ -90,33 +136,22 @@ describe('the held render', () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: api.reserve, generate: api.generate }
+      photo: { reserveName: api.reserve, generate: api.generate, landed: notLanded }
     })
-    const { useGameStore } = await import('../src/renderer/stores/gameStore')
-    const { holdPostPhoto, startHeldPostPhoto } = await import(
-      '../src/renderer/stores/photoPost'
-    )
-
-    useGameStore.setState({
-      playthroughId: '1',
-      characters: { c1: { charId: 'c1', firstName: 'Gwen' } } as never
-    })
-    holdPostPhoto(
-      'c1',
-      { id: 'p1', text: 'hi', date: 0, time: 0, likes: 1 },
-      { shot: { tier: 'everyday', scene: 'on the grass' }, file: 'gwen_bunnyboard_001.png' },
-      () => {}
-    )
+    const { post } = await loaded()
+    const { written, prepared } = heldPost()
+    post.holdPostPhoto('c1', written, prepared, () => {})
 
     // `submitAction` calls this on every turn of a scene, not only the first.
-    startHeldPostPhoto()
-    startHeldPostPhoto()
-    startHeldPostPhoto()
-    await Promise.resolve()
+    post.startHeldPostPhoto()
+    post.startHeldPostPhoto()
+    post.startHeldPostPhoto()
+    await vi.waitFor(() => expect(api.generate).toHaveBeenCalledTimes(1))
+    await new Promise((resolve) => setTimeout(resolve, 10))
     expect(api.generate).toHaveBeenCalledTimes(1)
   })
 
-  it('draws every post a slot held, one after the other', async () => {
+  it('draws every held post, one after the other, and lets each out as it lands', async () => {
     // Each render waits for the test to finish it, so the order can be watched.
     const finish: Array<() => void> = []
     const generate = vi.fn<GeneratePhoto>(
@@ -127,90 +162,160 @@ describe('the held render', () => {
     )
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: vi.fn<ReserveName>(), generate },
-      // A post that lands is saved on its own.
-      saves: { autosave: async () => ({ ok: true, data: {} as never }) }
+      photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+      saves
     })
-    const { useGameStore } = await import('../src/renderer/stores/gameStore')
-    const { beginSlotPhotos, holdPostPhoto, startHeldPostPhoto } = await import(
-      '../src/renderer/stores/photoPost'
-    )
-    const appended = vi.fn()
-    useGameStore.setState({
-      playthroughId: '1',
-      characters: {
-        c1: { charId: 'c1', firstName: 'Florentine' },
-        c2: { charId: 'c2', firstName: 'April' }
-      },
-      charInfo: {},
-      appendFeedPost: appended
-    } as never)
+    const { post, photoOf } = await loaded()
+    const one = heldPost('p1')
+    const two = heldPost('p2')
+    post.holdPostPhoto('c1', one.written, one.prepared, () => {})
+    post.holdPostPhoto('c1', two.written, two.prepared, () => {})
 
-    beginSlotPhotos()
-    holdPostPhoto(
-      'c1',
-      { id: 'p1', text: 'milkshake', date: 0, time: 0, likes: 1 },
-      { shot: { tier: 'everyday', scene: 'a milkshake' }, file: 'c1_bunnyboard_001.png' },
-      () => {}
-    )
-    holdPostPhoto(
-      'c2',
-      { id: 'p2', text: 'fries', date: 0, time: 0, likes: 1 },
-      { shot: { tier: 'everyday', scene: 'a booth' }, file: 'c2_bunnyboard_001.png' },
-      () => {}
-    )
-
-    startHeldPostPhoto()
+    post.startHeldPostPhoto()
     await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(1))
     // The second waits for the first: never two renders at once.
-    expect(generate.mock.calls[0]?.[4]).toBe('c1_bunnyboard_001.png')
+    expect(generate.mock.calls[0]?.[4]).toBe('gwen_p1.png')
     finish[0]?.()
     await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(2))
-    expect(generate.mock.calls[1]?.[4]).toBe('c2_bunnyboard_001.png')
+    expect(generate.mock.calls[1]?.[4]).toBe('gwen_p2.png')
+    expect(photoOf('p1')).toEqual({ tier: 'everyday', scene: 'on the grass', file: 'gwen_p1.png' })
     finish[1]?.()
-    await vi.waitFor(() => expect(appended).toHaveBeenCalledTimes(2))
+    await vi.waitFor(() => expect(photoOf('p2')?.held).toBeUndefined())
   })
 
-  it('lets a slot nobody acted in go, rather than drawing it late', async () => {
+  it('keeps a post held over a reload or into the next slot, and draws it then', async () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: api.reserve, generate: api.generate }
+      photo: { reserveName: api.reserve, generate: api.generate, landed: notLanded }
     })
-    const { useGameStore } = await import('../src/renderer/stores/gameStore')
-    const { beginSlotPhotos, holdPostPhoto, startHeldPostPhoto } = await import(
-      '../src/renderer/stores/photoPost'
-    )
-    useGameStore.setState({
-      playthroughId: '1',
-      characters: { c1: { charId: 'c1', firstName: 'Gwen' } } as never
-    })
+    const first = await loaded()
+    const { written, prepared } = heldPost()
+    first.post.holdPostPhoto('c1', written, prepared, () => {})
+    const charInfo = first.useGameStore.getState().charInfo
 
-    beginSlotPhotos()
-    holdPostPhoto(
-      'c1',
-      { id: 'p1', text: 'hi', date: 0, time: 0, likes: 1 },
-      { shot: { tier: 'everyday', scene: 'on the grass' }, file: 'gwen_bunnyboard_001.png' },
-      () => {}
-    )
-    // The next slot opens before he committed to anything in this one.
-    beginSlotPhotos()
-    startHeldPostPhoto()
-    await Promise.resolve()
-    await Promise.resolve()
-    expect(api.generate).not.toHaveBeenCalled()
+    // A reload: every module fresh, the save's feed all that is left.
+    vi.resetModules()
+    const again = await loaded()
+    again.useGameStore.setState({ charInfo })
+    again.post.startHeldPostPhoto()
+    await vi.waitFor(() => expect(api.generate).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(api.generate).mock.calls[0]?.[4]).toBe('gwen_p1.png')
   })
 
-  it('has nothing to fire when the slot prepared no picture', async () => {
+  it('lets out a post whose picture landed before the save said so, without drawing it', async () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: api.reserve, generate: api.generate }
+      photo: {
+        reserveName: api.reserve,
+        generate: api.generate,
+        landed: vi.fn<Landed>(async () => ({ ok: true, data: true }))
+      },
+      saves
     })
-    const { startHeldPostPhoto } = await import('../src/renderer/stores/photoPost')
-    startHeldPostPhoto()
-    await Promise.resolve()
+    const { post, photoOf } = await loaded()
+    const { written, prepared } = heldPost()
+    post.holdPostPhoto('c1', written, prepared, () => {})
+    post.startHeldPostPhoto()
+    await vi.waitFor(() => expect(photoOf()?.held).toBeUndefined())
     expect(api.generate).not.toHaveBeenCalled()
+  })
+
+  it('has nothing to fire when no post is held', async () => {
+    const api = pendingRender()
+    stubApi({
+      jobs: { onProgress: () => () => {} },
+      photo: { reserveName: api.reserve, generate: api.generate, landed: notLanded }
+    })
+    const { post } = await loaded()
+    post.startHeldPostPhoto()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(api.generate).not.toHaveBeenCalled()
+  })
+})
+
+describe('a picture that does not come', () => {
+  it('lets the post out saying so when the render fails', async () => {
+    const generate = vi.fn<GeneratePhoto>(async () => ({
+      ok: false,
+      error: { code: 'COMFY_OFFLINE', message: 'ComfyUI is not running' }
+    }))
+    stubApi({
+      jobs: { onProgress: () => () => {} },
+      photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+      saves
+    })
+    const { post, photoOf } = await loaded()
+    const { written, prepared } = heldPost()
+    post.holdPostPhoto('c1', written, prepared, () => {})
+    post.startHeldPostPhoto()
+    await vi.waitFor(() => expect(photoOf()?.failed).toBe(true))
+    expect(photoOf()?.held).toBeUndefined()
+    // The name and the scene stay, so it can be drawn again.
+    expect(photoOf()).toMatchObject({ file: 'gwen_p1.png', scene: 'on the grass' })
+  })
+
+  it('lets the post out when the render does not answer in time, and fills it in if it lands later', async () => {
+    vi.useFakeTimers()
+    try {
+      let finish: (() => void) | undefined
+      const generate = vi.fn<GeneratePhoto>(
+        () =>
+          new Promise<Result<string>>((resolve) => {
+            finish = () => resolve({ ok: true, data: 'done' })
+          })
+      )
+      stubApi({
+        jobs: { onProgress: () => () => {} },
+        photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+        saves
+      })
+      const { post, photoOf } = await loaded()
+      const { written, prepared } = heldPost()
+      post.holdPostPhoto('c1', written, prepared, () => {})
+      post.startHeldPostPhoto()
+      await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(1))
+
+      await vi.advanceTimersByTimeAsync(post.RENDER_PATIENCE_MS - 1000)
+      expect(photoOf()?.held).toBe(true)
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(photoOf()?.failed).toBe(true)
+
+      finish?.()
+      await vi.waitFor(() => expect(photoOf()?.failed).toBeUndefined())
+      expect(photoOf()).toEqual({ tier: 'everyday', scene: 'on the grass', file: 'gwen_p1.png' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('draws a failed picture again on a reroll, under the same name', async () => {
+    let fail = true
+    const generate = vi.fn<GeneratePhoto>(async () =>
+      fail
+        ? { ok: false, error: { code: 'COMFY_OFFLINE', message: 'down' } }
+        : { ok: true, data: 'done' }
+    )
+    stubApi({
+      jobs: { onProgress: () => () => {} },
+      photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+      saves
+    })
+    const { post, photoOf } = await loaded()
+    const { written, prepared } = heldPost()
+    post.holdPostPhoto('c1', written, prepared, () => {})
+    post.startHeldPostPhoto()
+    await vi.waitFor(() => expect(photoOf()?.failed).toBe(true))
+
+    fail = false
+    post.rerollPostPhoto('c1', 'p1')
+    // The frame waits while it draws.
+    expect(photoOf()?.pending).toBe(true)
+    await vi.waitFor(() => expect(photoOf()?.pending).toBeUndefined())
+    expect(photoOf()).toEqual({ tier: 'everyday', scene: 'on the grass', file: 'gwen_p1.png' })
+    expect(generate).toHaveBeenCalledTimes(2)
+    expect(generate.mock.calls[1]?.[4]).toBe('gwen_p1.png')
   })
 })
 

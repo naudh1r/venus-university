@@ -167,7 +167,6 @@ const HOOKS: readonly {
   {
     file: 'src/renderer/stores/loop/feed.ts',
     needs: [
-      'beginSlotPhotos()',
       'preparePostPhoto(',
       'holdPostPhoto(',
       'rollComments(',
@@ -175,6 +174,28 @@ const HOOKS: readonly {
       'strangerLikes('
     ],
     why: 'a post carries no picture and no replies, and its likes ignore her following, without these'
+  },
+  {
+    file: 'src/renderer/stores/loop/feed.ts',
+    within: 'export async function deliverSlotPosts(',
+    needs: ['postIsOut(post)'],
+    why: 'a post still waiting for its picture is used to fill out the feed before it exists'
+  },
+  {
+    file: 'src/renderer/stores/feedView.ts',
+    within: 'export function contactFeedPosts(',
+    needs: ['.filter(postIsOut)'],
+    why: 'a post still waiting for its picture shows on the Updates tab before it exists'
+  },
+  {
+    file: 'src/renderer/views/ContactPage.tsx',
+    needs: ['.filter(postIsOut)'],
+    why: 'a post still waiting for its picture shows on her page before it exists'
+  },
+  {
+    file: 'src/renderer/views/BunnyboardModal.tsx',
+    needs: ['<PostPhoto '],
+    why: 'a post whose picture failed has no frame saying so and nothing to reroll it with'
   },
   {
     file: 'src/renderer/views/NewGameView.tsx',

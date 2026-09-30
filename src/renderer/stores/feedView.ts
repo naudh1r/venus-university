@@ -8,6 +8,7 @@ import {
   type TimeSlot
 } from '@shared/types'
 import { seededRand } from '@shared/hash'
+import { postIsOut } from '@shared/heldPosts'
 import { GRADUATION_DATE } from '../prompts/occasions'
 import { newestFirst } from './feedRolls'
 
@@ -38,7 +39,7 @@ export function contactFeedPosts(
 ): FeedPostEntry[] {
   return chars.flatMap((charId) =>
     isFeedContact(charInfo[charId])
-      ? (charInfo[charId]?.feed ?? []).map((post) => ({ charId, post }))
+      ? (charInfo[charId]?.feed ?? []).filter(postIsOut).map((post) => ({ charId, post }))
       : []
   )
 }
