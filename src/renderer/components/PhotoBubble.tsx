@@ -6,6 +6,7 @@ import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { useGameStore } from '../stores/gameStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { rerollPostPhoto } from '../stores/photoPost'
+import { tellAboutFeedPhotos } from '../stores/photoTipDelivery'
 import { rerollMessagePhoto } from '../stores/photoTurn'
 import { bunnyHop } from '../views/motion'
 import { BunnyMark, EyeIcon, EyeOffIcon } from '../views/screenIcons'
@@ -166,6 +167,8 @@ export function PostPhoto({
   postId: string
   photo: ChatPhoto
 }): JSX.Element {
+  // The first post with a picture on the tab, whoever posted it, is when BunnyBot explains them.
+  useEffect(() => tellAboutFeedPhotos(charId), [charId])
   return (
     <RerollablePhoto
       charId={charId}

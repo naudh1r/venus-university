@@ -501,6 +501,7 @@ describe("BunnyBot's photo tip", () => {
     await photosSwitched(true)
     const gwen = { charId: 'c1', firstName: 'Gwen' } as never
     useGameStore.setState({
+      bunnybotThrough: 99,
       playthroughId: '1',
       characters: { c1: gwen },
       charInfo: { c1: { flags: { gaveContactInfo: true }, memories: [] } } as never,
@@ -544,6 +545,34 @@ describe("BunnyBot's photo tip", () => {
     })
     await sendPhoto('c1', gwen, { sendPhoto: true, photoPrompt: 'me at the cafe' } as never)
     expect(tips()).toBe(told)
+  })
+})
+
+describe("BunnyBot's feed photo tip", () => {
+  it('comes with the first picture post on the tab, whoever posted it, and never again', async () => {
+    stubApi({ jobs: { onProgress: () => () => {} } })
+    const { useGameStore } = await import('../src/renderer/stores/gameStore')
+    const { tellAboutFeedPhotos } = await import('../src/renderer/stores/photoTipDelivery')
+    const { BUNNYBOT_CHAT_ID } = await import('../src/renderer/prompts/bunnybot')
+    const thread = (): string[] =>
+      (useGameStore.getState().bunnyboard.conversations[BUNNYBOT_CHAT_ID]?.messages ?? []).map(
+        (message) => message.text
+      )
+
+    useGameStore.setState({
+      characters: { c1: { firstName: 'Mini' }, c2: { firstName: 'April' } } as never,
+      bunnybotThrough: 0
+    })
+    // Before BunnyBot has introduced himself: nothing yet.
+    tellAboutFeedPhotos('c1')
+    expect(thread()).toEqual([])
+
+    useGameStore.setState({ bunnybotThrough: 99 })
+    tellAboutFeedPhotos('c1')
+    const told = thread()
+    expect(told.some((text) => text.includes('mini posted a pic'))).toBe(true)
+    tellAboutFeedPhotos('c2')
+    expect(thread()).toEqual(told)
   })
 })
 
