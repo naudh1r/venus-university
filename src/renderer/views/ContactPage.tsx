@@ -2,6 +2,7 @@ import { Fragment, useState, type JSX, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { slotPartsOf, yearLabel } from '@shared/classes'
 import { dormLabel } from '@shared/dorms'
+import { postIsOut } from '@shared/heldPosts'
 import { jobDefOf, WEEK_DAY_HEADERS } from '@shared/jobs'
 import { OUTFIT_SET_LABELS, spriteRef, STOCK_OUTFIT_SETS } from '@shared/outfits'
 import { npcEnemiesOf, npcFriendsOf } from '@shared/npcRelationships'
@@ -101,7 +102,7 @@ export function ContactPage({
   // Her gallery, and the tab strip it brings with it.
   const gallery = useContactGallery({ charId, isContact })
   const handle = info?.handle
-  const feed = [...(info?.feed ?? [])].sort(newestFirst)
+  const feed = (info?.feed ?? []).filter(postIsOut).sort(newestFirst)
   // The days she made a friend, among what she posted. The other girl has to be one the
   // reader can name — a stranger is omitted rather than masked, as everywhere else.
   const made = npcFriendships.flatMap((pair) => {

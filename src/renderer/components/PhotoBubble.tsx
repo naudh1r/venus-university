@@ -4,6 +4,7 @@ import { photoUrl } from '@shared/photoFiles'
 import type { ChatPhoto } from '@shared/photoTypes'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { useGameStore } from '../stores/gameStore'
+import { rerollPostPhoto } from '../stores/photoPost'
 import { bunnyHop } from '../views/motion'
 import { BunnyMark, EyeIcon, EyeOffIcon } from '../views/screenIcons'
 import { Lightbox } from './Lightbox'
@@ -120,6 +121,37 @@ export function MessagePhoto({
       {eye}
     </div>
   )
+}
+
+/**
+ * The picture on one of her posts: the same frame a thread draws, except that a render that
+ * failed says so plainly and offers to draw it again, since the post went up without it.
+ */
+export function PostPhoto({
+  charId,
+  postId,
+  photo
+}: {
+  charId: string
+  postId: string
+  photo: ChatPhoto
+}): JSX.Element {
+  // Only a picture with a name and a scene can be drawn again; an older one without says so.
+  if (photo.failed && photo.file && photo.scene) {
+    return (
+      <div className="vu-bb-photo vu-bb-photo--failed vu-bb-photo--reroll">
+        <span>Image failed to generate.</span>
+        <button
+          type="button"
+          className="vu-bb-photo-reroll"
+          onClick={() => rerollPostPhoto(charId, postId)}
+        >
+          Reroll
+        </button>
+      </div>
+    )
+  }
+  return <MessagePhoto charId={charId} photo={photo} onOpen={openShot} />
 }
 
 /**

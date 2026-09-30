@@ -1,5 +1,6 @@
 import { postLikes, rollComments, strangerLikes } from '../photoComments'
-import { beginSlotPhotos, holdPostPhoto, preparePostPhoto } from '../photoPost'
+import { postIsOut } from '@shared/heldPosts'
+import { holdPostPhoto, preparePostPhoto } from '../photoPost'
 import { npcFriendsOf } from '@shared/npcRelationships'
 import type { EndingPostsResponse, FeedExtras, SlotIntroResponse, TimeSlot } from '@shared/types'
 import { bunnybotFirstPostTexts, FRIENDS_INTRO_SLOT } from '../../prompts/bunnybot'
@@ -27,7 +28,6 @@ import { deliverBunnybotNow } from '../textingLoop'
  */
 export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promise<void> {
   const fresh: TeaserCandidate[] = []
-  beginSlotPhotos()
 
   for (const post of posts ?? []) {
     const game = useGameStore.getState()
@@ -80,7 +80,7 @@ export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promi
     game.charInfo[charId]?.flags?.gaveContactInfo
       ? []
       : (game.charInfo[charId]?.feed ?? [])
-          .filter((post) => post.id !== teaser?.postId)
+          .filter((post) => post.id !== teaser?.postId && postIsOut(post))
           .map((post) => ({ charId, post }))
   )
   const fill = pickFeedFill({

@@ -15,12 +15,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import type { ChatPhoto } from '@shared/photoTypes'
 import type { PostComment } from '@shared/postComments'
 import { PostComments } from '../components/PostComments'
-import {
-  MessagePhoto,
-  MessagePhotoBubble,
-  openShot,
-  PhotoLightboxHost
-} from '../components/PhotoBubble'
+import { MessagePhotoBubble, PhotoLightboxHost, PostPhoto } from '../components/PhotoBubble'
 import {
   fullNameOf,
   type Character,
@@ -1739,9 +1734,9 @@ const FeedPost = memo(function FeedPost({
         )}
       </div>
       <p className="vu-bb-post-text">{post.text}</p>
-      {post.photo && charId && (
+      {post.photo && charId && post.id && (
         <div className="vu-bb-post-shot">
-          <MessagePhoto charId={charId} photo={post.photo} onOpen={openShot} />
+          <PostPhoto charId={charId} postId={post.id} photo={post.photo} />
         </div>
       )}
       {post.comments && <PostComments comments={post.comments} />}

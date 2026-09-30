@@ -1,7 +1,8 @@
 import { allowedPostTier, settlePhoto, type PhotoTier } from '@shared/photoGate'
+import type { ChatPhoto } from '@shared/photoTypes'
 import type { SocialPost } from '@shared/types'
 import { useGameStore } from './gameStore'
-import { canSendPhotos, savePhotoState } from './photoStore'
+import { canSendPhotos, savePhotoState, setFeedPostPhoto } from './photoStore'
 import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
 
 /**
@@ -12,11 +13,13 @@ import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
  * her whole year gets to see. `allowedPostTier` says so: a swimsuit is ordinary on a feed, and
  * nothing past it is.
  *
- * The other rule here is that a post she took a picture for **waits for the picture**. She
- * posted both at once or she posted nothing: an hour of text under an empty frame is not what
- * anybody wrote, and a picture that never renders leaves no evidence it was meant to. This is
- * the one place the feed and the thread part company — a bubble on a thread appears at once and
- * fills in, because her words have already landed and the reader is watching them land.
+ * The other rule here is that a post she took a picture for **waits for the picture**: it is
+ * filed as the slot writes it, held (`postIsOut`), and comes out when the picture lands. A render
+ * that fails, or that has not answered in {@link RENDER_PATIENCE_MS}, brings the post out anyway
+ * with the frame saying so and a reroll on it — the words were written once, by the model, and
+ * a machine that could not draw that minute is no reason to lose them. This is the one place the
+ * feed and the thread part company — a bubble on a thread appears at once and fills in, because
+ * her words have already landed and the reader is watching them land.
  */
 
 /**
@@ -47,70 +50,10 @@ async function reservePostPhotoName(charId: string): Promise<string | null> {
   return null
 }
 
-/**
- * Draws one post's picture and files the post where it landed. Never awaited by the game, only by
- * the queue: the feed is read long after the slot opened, so nothing is kept waiting on a render —
- * but the post itself does not appear until the picture it was written for is on disk.
- *
- * A render that fails takes the post with it, rather than leaving text under an empty frame.
- */
-async function postWhenDrawn(
-  charId: string,
-  written: SocialPost,
-  shot: { tier: PhotoTier; scene: string },
-  file: string,
-  nudge: (charId: string) => void
-): Promise<void> {
-  const game = useGameStore.getState()
-  const character = game.characters[charId]
-  const playthroughId = game.playthroughId
-  if (!character || !playthroughId) return
-
-  const result = await window.api.photo.generate(
-    playthroughId,
-    character,
-    shot.tier,
-    shot.scene,
-    file
-  )
-  const live = useGameStore.getState()
-  // The save may have moved on under a render: a picture from a playthrough the player has left
-  // belongs to nothing, and neither does the post that was waiting on it.
-  if (live.playthroughId !== playthroughId) return
-  if (!result.ok) {
-    console.warn(
-      `[feed] a post's picture failed, so the post is dropped: ${result.error.code}`,
-      result.error.message
-    )
-    return
-  }
-
-  live.appendFeedPost(charId, {
-    ...written,
-    photo: { tier: shot.tier, scene: shot.scene, file }
-  })
-  // Held back with the post, since there was nothing to be notified about until now.
-  const flags = live.charInfo[charId]?.flags
-  if (flags?.gaveContactInfo && !flags.blocked) nudge(charId)
-  // The post reached the feed after the slot save was written, so it goes to disk on its own.
-  savePhotoState()
-  console.log(`[feed] ${character.firstName} posted ${file}`)
-}
-
 /** A picture a post has settled on and reserved a name for, waiting on the post it belongs to. */
 export interface PreparedPostPhoto {
   shot: { tier: PhotoTier; scene: string }
   file: string
-}
-
-/**
- * Called as a slot's posts are filed, before any of them are looked at. Whatever the last slot
- * held and the reader never started is let go here: he passed through that slot without doing
- * anything, and the posts it belonged to never existed, which is the same answer a failed render
- * gives.
- */
-export function beginSlotPhotos(): void {
-  held = []
 }
 
 /**
@@ -134,59 +77,204 @@ export async function preparePostPhoto(
   return file ? { shot, file } : null
 }
 
-/** A post waiting for its picture to be drawn. */
-interface HeldPost {
-  charId: string
-  written: SocialPost
-  shot: { tier: PhotoTier; scene: string }
-  file: string
-  nudge: (charId: string) => void
-}
+/**
+ * How long a render may go unanswered before its post comes out without it. A picture takes
+ * about half a minute; the first after ComfyUI starts, or after the checkpoint changes, loads the
+ * model first, and any of them can wait behind a sprite. Three minutes is past all of that, so
+ * what this catches is a render that has stopped answering rather than a slow one — and a
+ * picture that lands after it still fills the frame in.
+ */
+export const RENDER_PATIENCE_MS = 3 * 60 * 1000
 
 /**
- * The slot's posts waiting for their pictures, in the order they were written.
- *
- * Why they wait rather than starting as the slot opens: a render is half a minute of the machine,
- * and the reader spends the start of a slot on the map deciding where to go. Starting then puts
- * the renders in the one stretch he might be reading the feed, and finishes them in the one
- * stretch he is not. Held until he commits to something instead, they run underneath the scene
- * he committed to — and the posts are on the feed by the time he is free to look at them.
+ * What tells BunnyBot a contact posted, handed in by the feed with each post it holds. Kept from
+ * the last one, since a post held over a reload comes out with nobody left to hand it in.
  */
-let held: HeldPost[] = []
+let nudgeOf: ((charId: string) => void) | null = null
 
 /**
- * The renders already started, as one chain: each waits for the one before it, so two posts are
- * never drawn at once and a slot's batch never overlaps the last slot's.
+ * Files the post held: in her feed and in the save from now on, and on nobody's screen until
+ * {@link startHeldPostPhoto} has drawn its picture — whenever the reader next commits to
+ * something, in this slot or a later one.
  */
-let drawing: Promise<void> = Promise.resolve()
-
-/** Files the post and its picture to be drawn when the reader next commits to something. */
 export function holdPostPhoto(
   charId: string,
   written: SocialPost,
   prepared: PreparedPostPhoto,
   nudge: (charId: string) => void
 ): void {
-  held.push({ charId, written, shot: prepared.shot, file: prepared.file, nudge })
+  nudgeOf = nudge
+  const { tier, scene } = prepared.shot
+  useGameStore.getState().appendFeedPost(charId, {
+    ...written,
+    photo: { tier, scene, file: prepared.file, held: true }
+  })
 }
 
 /**
- * Starts the held renders, if there are any, one after the other. Called as the reader commits
- * to an action, which is every turn of a scene as well as the first — so it takes the whole hold
- * before starting, and a second call finds nothing.
+ * The posts whose picture is being drawn right now, by playthrough and post. A post stays in it
+ * until its render answers, however late — a timed-out post is out, but its picture may still
+ * be on its way, and a second render of the same name would race it.
  */
-export function startHeldPostPhoto(): void {
-  if (held.length === 0) return
-  const batch = held
-  held = []
-  drawing = drawing.then(async () => {
-    for (const one of batch) {
-      try {
-        await postWhenDrawn(one.charId, one.written, one.shot, one.file, one.nudge)
-      } catch (error) {
-        // One post lost, not the queue: the renders behind it still get drawn.
-        console.warn("[feed] a post's picture threw, so the post is dropped:", error)
+const drawing = new Set<string>()
+
+/**
+ * The renders already started, as one chain: each waits for the one before it (or for its
+ * patience to run out), so two pictures are never asked for at once.
+ */
+let chain: Promise<void> = Promise.resolve()
+
+/** The posts queued behind the render in progress, so a second call does not queue them twice. */
+const queued = new Set<string>()
+
+function keyOf(playthroughId: string, postId: string): string {
+  return `${playthroughId}:${postId}`
+}
+
+/** One post's picture as it stands, or null where the post or its picture has gone. */
+function photoOf(charId: string, postId: string): ChatPhoto | null {
+  const post = useGameStore.getState().charInfo[charId]?.feed?.find((one) => one.id === postId)
+  return post?.photo ?? null
+}
+
+/**
+ * Sets the picture on a post, and brings the post out if it was held. A post coming out is the
+ * moment BunnyBot may say so — there was nothing to be notified about until now.
+ */
+function settle(charId: string, postId: string, photo: ChatPhoto): void {
+  const before = photoOf(charId, postId)
+  if (!before) return
+  setFeedPostPhoto(charId, postId, photo)
+  if (before.held) {
+    const flags = useGameStore.getState().charInfo[charId]?.flags
+    if (flags?.gaveContactInfo && !flags.blocked) nudgeOf?.(charId)
+  }
+  // The post changed after the slot save was written, so it goes to disk on its own.
+  savePhotoState()
+}
+
+/**
+ * Draws one post's picture, and answers when it is done or has run out of patience — whichever
+ * comes first, so one render that never answers does not hold up every post behind it.
+ *
+ * Nothing is dropped here. A picture that lands fills the frame; one that fails, or does not
+ * answer in time, leaves the post out with a frame that says so and a reroll on it. The name was
+ * reserved when the post was written, so a picture that lands after its post gave up on it
+ * still finds its frame.
+ */
+async function drawPostPhoto(charId: string, postId: string): Promise<void> {
+  const game = useGameStore.getState()
+  const playthroughId = game.playthroughId
+  const character = game.characters[charId]
+  const photo = photoOf(charId, postId)
+  if (!playthroughId || !character || !photo?.file || !photo.scene) return
+  const key = keyOf(playthroughId, postId)
+  if (drawing.has(key)) return
+  const { tier, scene, file } = photo
+  const drawn: ChatPhoto = { tier, scene, file }
+  const live = (): boolean => useGameStore.getState().playthroughId === playthroughId
+
+  // A render can finish after the save that was waiting on it was written: the picture is on disk
+  // and the save still says held. Found, it only has to be let out.
+  const landed = await window.api.photo.landed(playthroughId, charId, file)
+  if (!live()) return
+  if (landed.ok && landed.data) {
+    settle(charId, postId, drawn)
+    console.log(`[feed] ${character.firstName}'s picture was already drawn: ${file}`)
+    return
+  }
+
+  drawing.add(key)
+  const render = window.api.photo
+    .generate(playthroughId, character, tier, scene, file)
+    .catch((error: unknown) => ({
+      ok: false as const,
+      error: { code: 'PHOTO_THREW', message: String(error) }
+    }))
+    .then((result) => {
+      drawing.delete(key)
+      // The save may have moved on under a render: a picture from a playthrough the player has
+      // left belongs to nothing.
+      if (!live()) return
+      if (result.ok) {
+        settle(charId, postId, drawn)
+        console.log(`[feed] ${character.firstName} posted ${file}`)
+        return
       }
+      console.warn(
+        `[feed] a post's picture failed, so the post goes up without it: ${result.error.code}`,
+        result.error.message
+      )
+      settle(charId, postId, { ...drawn, failed: true })
+    })
+
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const patience = new Promise<void>((resolve) => {
+    timer = setTimeout(() => {
+      // Only a post still waiting: one the render has answered for already is left as it is.
+      const now = photoOf(charId, postId)
+      if (live() && (now?.held || now?.pending)) {
+        console.warn(`[feed] a post's picture has not answered in time, so it goes up without it`)
+        settle(charId, postId, { ...drawn, failed: true })
+      }
+      resolve()
+    }, RENDER_PATIENCE_MS)
+  })
+  await Promise.race([render, patience])
+  clearTimeout(timer)
+}
+
+/** Queues one post's picture behind every render already asked for. */
+function enqueue(charId: string, postId: string): void {
+  chain = chain.then(async () => {
+    try {
+      await drawPostPhoto(charId, postId)
+    } catch (error) {
+      // One post, not the queue: the renders behind it still get drawn.
+      console.warn("[feed] a post's picture threw:", error)
     }
   })
+}
+
+/**
+ * Starts every held post's picture, oldest first. Called as the reader commits to an action,
+ * which is every turn of a scene as well as the first, and so as often as he likes: a post
+ * already queued or being drawn is not queued again.
+ *
+ * Why they wait for that rather than starting as the slot opens: a render is half a minute of the
+ * machine, and the reader spends the start of a slot on the map deciding where to go. Held until
+ * he commits to something, they run underneath the scene he committed to — and the posts are on
+ * the feed by the time he is free to look at them. Read off the save rather than a list kept
+ * here, so a post held over a reload or into the next slot is picked up the same way.
+ */
+export function startHeldPostPhoto(): void {
+  const game = useGameStore.getState()
+  const playthroughId = game.playthroughId
+  if (!playthroughId) return
+  const held = Object.entries(game.charInfo).flatMap(([charId, info]) =>
+    (info?.feed ?? []).filter((post) => post.photo?.held).map((post) => ({ charId, post }))
+  )
+  held.sort((a, b) => a.post.date - b.post.date || a.post.time - b.post.time)
+  for (const { charId, post } of held) {
+    const key = keyOf(playthroughId, post.id)
+    if (drawing.has(key) || queued.has(key)) continue
+    queued.add(key)
+    enqueue(charId, post.id)
+    chain = chain.finally(() => queued.delete(key))
+  }
+}
+
+/**
+ * Draws a failed post's picture again, from the scene and the name it already has: no model call,
+ * and the post keeps every word it had. The frame waits while it draws. Where the first render
+ * is in fact still going, the frame only waits for it rather than asking for a second.
+ */
+export function rerollPostPhoto(charId: string, postId: string): void {
+  const game = useGameStore.getState()
+  const photo = photoOf(charId, postId)
+  if (!game.playthroughId || !photo?.file || !photo.scene) return
+  const { tier, scene, file } = photo
+  setFeedPostPhoto(charId, postId, { tier, scene, file, pending: true })
+  if (drawing.has(keyOf(game.playthroughId, postId))) return
+  enqueue(charId, postId)
 }

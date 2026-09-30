@@ -49,6 +49,27 @@
   text-align: center;
 }
 
+/* A post's frame that failed: the line, and the one thing to do about it under it. */
+.vu-bb-photo--reroll {
+  align-content: center;
+  gap: 10px;
+}
+
+.vu-bb-photo-reroll {
+  justify-self: center;
+  padding: 6px 16px;
+  border: 1px solid color-mix(in oklab, var(--vu-text) 30%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--vu-text) 8%, transparent);
+  color: var(--vu-text);
+  font: 600 13px/1 var(--font-body);
+  cursor: pointer;
+}
+
+.vu-bb-photo-reroll:hover {
+  background: color-mix(in oklab, var(--vu-text) 16%, transparent);
+}
+
 /* The bunny carries the wait, alone: a line of text under it said what the hop already says. */
 .vu-bb-photo--pending {
   place-items: center;
