@@ -75,3 +75,41 @@
   border: 3px dashed var(--vu-border);
   background: none;
 }
+
+/* Where a picture came from, in the cell's corner: the page's own small mono voice on a chip, so
+   it reads over a photograph and over a covered cell alike. */
+.vu-gallery-cell.vu-contact-shot {
+  position: relative;
+}
+
+.vu-contact-shot-from {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--vu-recessed);
+  color: var(--vu-text-muted);
+  font: 700 10px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* The post's picture on her profile's feed list: the like pill's shape, with a small frame drawn
+   in front of the word. */
+.vu-contact-like.vu-contact-photo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.vu-contact-photo svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
