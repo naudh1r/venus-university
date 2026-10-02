@@ -85,16 +85,18 @@ function Shot({
   return (
     <li className="vu-gallery-item vu-contact-shot-item">
       <motion.button
-        className={`vu-gallery-cell vu-contact-shot${shown ? '' : ' vu-contact-shot--covered'}`}
+        className="vu-gallery-cell vu-contact-shot"
         type="button"
         {...gestures(false, quietLift, quietPress)}
         onClick={() => (shown ? openShot(src) : setShown(true))}
       >
-        {shown ? (
-          <img className="vu-gallery-img" src={src} alt="" decoding="async" />
-        ) : (
-          <span className="vu-gallery-empty">TAP TO SEE</span>
-        )}
+        {/* Covered the way the thread covers it: the picture itself, blurred past reading. */}
+        <img
+          className={`vu-gallery-img${shown ? '' : ' vu-contact-shot-img--veiled'}`}
+          src={src}
+          alt=""
+          decoding="async"
+        />
         <span className="vu-contact-shot-from">{from === 'dm' ? 'DM' : 'Feed'}</span>
       </motion.button>
       {/* The thread's own eye, so an explicit one can be covered again once seen. Beside the cell

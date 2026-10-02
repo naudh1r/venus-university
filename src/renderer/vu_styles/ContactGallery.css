@@ -69,11 +69,12 @@
   cursor: pointer;
 }
 
-/* Face down until asked for, the same rule her bubble follows: a grid is more exposed than a
-   thread, not less. */
-.vu-contact-shot--covered {
-  border: 3px dashed var(--vu-border);
-  background: none;
+/* Covered until asked for, the same rule her bubble follows and the same look: the picture
+   blurred past reading rather than a blank, scaled up so the blur does not pale the cell's
+   rounded edge. A grid is more exposed than a thread, not less. */
+.vu-gallery-img.vu-contact-shot-img--veiled {
+  filter: blur(26px);
+  transform: scale(1.08);
 }
 
 /* Where a picture came from, in the cell's corner: the page's own small mono voice on a chip, so
