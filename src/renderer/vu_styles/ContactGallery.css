@@ -119,3 +119,13 @@
   justify-content: flex-start;
   margin: 0 0 12px;
 }
+
+/* The eye over an explicit picture sits in the cell's other top corner, and stays on show: a
+   grid has no hover-to-reveal frame the way a thread's bubble does. */
+.vu-gallery-item.vu-contact-shot-item {
+  position: relative;
+}
+
+.vu-bb-photo-eye.vu-contact-shot-eye {
+  opacity: 1;
+}
