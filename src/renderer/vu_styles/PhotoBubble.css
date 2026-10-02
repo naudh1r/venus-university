@@ -75,11 +75,14 @@
   place-items: center;
 }
 
-/* Sized for a bubble rather than a screen: the mark carries no size of its own. */
+/* Sized for a bubble rather than a screen: the mark carries no size of its own. Faded as a
+   whole rather than in a translucent colour: the ears overlap the body, and a see-through fill
+   would paint the overlap twice and show the seams. */
 .vu-bb-photo__bunny {
   display: block;
   width: 34px;
-  color: color-mix(in oklab, var(--vu-text) 45%, transparent);
+  color: var(--vu-text);
+  opacity: 0.45;
 }
 
 .vu-bb-photo__bunny svg {
