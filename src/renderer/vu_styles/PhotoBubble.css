@@ -5,7 +5,6 @@
    nothing of the feature away with it. Class names stay in the `vu-bb-` family, since what they
    style is a bubble on that thread. */
 
-
 /* A photograph arrives as its own message, so its bubble is the frame and nothing else: the
    padding is a mount rather than the breathing room text wants. */
 /* A picture is the bubble rather than something inside one: no padding and no surface, or the
@@ -47,6 +46,15 @@
   color: color-mix(in oklab, var(--vu-text) 65%, transparent);
   font: 500 13.5px/1.4 var(--font-body);
   text-align: center;
+}
+
+/* On a thread the frame is one of her messages that has not arrived yet: her bubble's own
+   colour and no dashed edge, so it sits in the column like the texts around it. The feed keeps
+   the edge, since a post's card is that colour already and the frame would vanish into it. */
+.vu-bb-bubble--photo .vu-bb-photo--pending,
+.vu-bb-bubble--photo .vu-bb-photo--failed {
+  border: none;
+  background: var(--vu-recessed);
 }
 
 /* A post's frame that failed: the line, and the one thing to do about it under it. */
@@ -167,4 +175,50 @@
 .vu-bb-post-shot .vu-bb-photo {
   width: 100%;
   border-radius: 16px;
+}
+
+/* The dot shimmer: a field of dots over the whole frame, and a brighter band that sweeps
+   across it on a slant. The dots are separate marks, so the translucent colour never doubles. */
+.vu-bb-photo--shimmer {
+  place-items: stretch;
+  overflow: hidden;
+}
+
+.vu-bb-photo__shimmer {
+  display: block;
+  background: radial-gradient(
+      circle,
+      color-mix(in oklab, var(--vu-text) 30%, transparent) 1.6px,
+      transparent 2.2px
+    )
+    0 0 / 14px 14px;
+  mask-image: linear-gradient(115deg, rgb(0 0 0 / 0.3) 35%, #000 50%, rgb(0 0 0 / 0.3) 65%);
+  mask-size: 300% 100%;
+  animation: vu-bb-photo-shimmer 2.4s linear infinite;
+}
+
+@keyframes vu-bb-photo-shimmer {
+  from {
+    mask-position: 100% 0;
+  }
+  to {
+    mask-position: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vu-bb-photo__shimmer {
+    animation: none;
+  }
+}
+
+/* Her typing dots, a size up for the frame: the beat is the thread's own. */
+.vu-bb-photo__dots {
+  display: flex;
+  gap: 10px;
+}
+
+.vu-bb-photo__dots .vu-bb-dot {
+  width: 11px;
+  height: 11px;
 }

@@ -1,6 +1,7 @@
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useState, type JSX } from 'react'
 import { photoUrl } from '@shared/photoFiles'
+import { photoLoaderOf } from '@shared/photoLoader'
 import type { ChatPhoto } from '@shared/photoTypes'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { useGameStore } from '../stores/gameStore'
@@ -8,7 +9,7 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { rerollPostPhoto } from '../stores/photoPost'
 import { tellAboutFeedPhotos } from '../stores/photoTipDelivery'
 import { rerollMessagePhoto } from '../stores/photoTurn'
-import { bunnyHop } from '../views/motion'
+import { bunnyHop, typingDot } from '../views/motion'
 import { BunnyMark, EyeIcon, EyeOffIcon } from '../views/screenIcons'
 import { Lightbox } from './Lightbox'
 import '../vu_styles/PhotoBubble.css'
@@ -21,22 +22,38 @@ import '../vu_styles/PhotoBubble.css'
  */
 
 /**
- * The frame while her picture is being drawn: the same bunny the game waits behind between slots,
- * at the size a bubble can carry it, hopping on the same beat. Reduced motion keeps the bunny and
- * drops the hop — the wait still has to be legible as a wait.
+ * The frame while her picture is being drawn, in the wait the player picked in Settings: the
+ * same bunny the game waits behind between slots, hopping on the same beat; a field of dots a
+ * shimmer runs across; or her typing dots, at the size a frame carries them. Reduced motion
+ * keeps each one and stills it — the wait still has to be legible as a wait.
  */
 function PhotoWait(): JSX.Element {
   const still = useReducedMotion() ?? false
+  const loader = useSettingsStore((s) => photoLoaderOf(s.settings?.photoLoader))
   return (
-    <div className="vu-bb-photo vu-bb-photo--pending" role="img" aria-label="Sending a photo">
-      <motion.span
-        className="vu-bb-photo__bunny"
-        aria-hidden="true"
-        animate={still ? undefined : { y: [0, -9, 0] }}
-        transition={bunnyHop}
-      >
-        <BunnyMark />
-      </motion.span>
+    <div
+      className={`vu-bb-photo vu-bb-photo--pending vu-bb-photo--${loader}`}
+      role="img"
+      aria-label="Sending a photo"
+    >
+      {loader === 'shimmer' ? (
+        <span className="vu-bb-photo__shimmer" aria-hidden="true" />
+      ) : loader === 'dots' ? (
+        <span className="vu-bb-photo__dots" aria-hidden="true">
+          {typingDot.map((beat, index) => (
+            <motion.span key={index} className="vu-bb-dot" animate={still ? undefined : beat} />
+          ))}
+        </span>
+      ) : (
+        <motion.span
+          className="vu-bb-photo__bunny"
+          aria-hidden="true"
+          animate={still ? undefined : { y: [0, -9, 0] }}
+          transition={bunnyHop}
+        >
+          <BunnyMark />
+        </motion.span>
+      )}
     </div>
   )
 }
