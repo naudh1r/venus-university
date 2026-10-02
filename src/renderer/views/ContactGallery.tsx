@@ -33,6 +33,15 @@ interface GalleryShot {
   time: TimeSlot
 }
 
+/** Which of her pictures the gallery is showing: all of them, or one source's. */
+type ShotFilter = 'all' | ShotSource
+
+const SHOT_FILTERS: readonly { key: ShotFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'dm', label: 'DM' },
+  { key: 'feed', label: 'Feed' }
+]
+
 /** The two readings of her the page offers once she has pictures to show. */
 type ContactTab = 'profile' | 'gallery'
 
@@ -106,45 +115,43 @@ export function useContactGallery({
   isContact: boolean
 }): ContactGallery {
   const [tab, setTab] = useState<ContactTab>('profile')
+  const [filter, setFilter] = useState<ShotFilter>('all')
   const playthroughId = useGameStore((s) => s.playthroughId)
   const conversation = useGameStore((s) => s.bunnyboard.conversations[charId])
   const feed = useGameStore((s) => s.charInfo[charId]?.feed)
 
   // The thread's newest first, then merged with her posts by the slot each was sent in. The sort
   // is stable, so two pictures from one slot keep the order they arrived in.
-  const sent: GalleryShot[] = [...(conversation?.messages ?? [])]
-    .reverse()
-    .flatMap((message) =>
-      message.photo?.file
-        ? [
-            {
-              id: message.id,
-              photo: message.photo,
-              file: message.photo.file,
-              from: 'dm' as const,
-              date: message.date,
-              time: message.time
-            }
-          ]
-        : []
-    )
-  const posted: GalleryShot[] = (feed ?? [])
-    .filter(postIsOut)
-    .flatMap((post) =>
-      post.photo?.file
-        ? [
-            {
-              id: `post:${post.id}`,
-              photo: post.photo,
-              file: post.photo.file,
-              from: 'feed' as const,
-              date: post.date,
-              time: post.time
-            }
-          ]
-        : []
-    )
+  const sent: GalleryShot[] = [...(conversation?.messages ?? [])].reverse().flatMap((message) =>
+    message.photo?.file
+      ? [
+          {
+            id: message.id,
+            photo: message.photo,
+            file: message.photo.file,
+            from: 'dm' as const,
+            date: message.date,
+            time: message.time
+          }
+        ]
+      : []
+  )
+  const posted: GalleryShot[] = (feed ?? []).filter(postIsOut).flatMap((post) =>
+    post.photo?.file
+      ? [
+          {
+            id: `post:${post.id}`,
+            photo: post.photo,
+            file: post.photo.file,
+            from: 'feed' as const,
+            date: post.date,
+            time: post.time
+          }
+        ]
+      : []
+  )
   const photos = [...sent, ...posted].sort(newestFirst)
+  const shown = filter === 'all' ? photos : photos.filter((shot) => shot.from === filter)
 
   /* Two readings of the same girl, named the way every section on this page is named: the one
      being read in accent, the other quiet. No pill and no underline — this screen holds one boxed
@@ -178,18 +185,43 @@ export function useContactGallery({
       ) : photos.length === 0 ? (
         <p className="vu-contact-empty">No photos yet.</p>
       ) : (
-        <ul className="vu-gallery-grid vu-contact-shots">
-          {photos.map((shot) => (
-            <Shot
-              key={shot.id}
-              charId={charId}
-              playthroughId={playthroughId}
-              file={shot.file}
-              tier={shot.photo.tier}
-              from={shot.from}
-            />
-          ))}
-        </ul>
+        <>
+          {/* Same voice as the page's own two tabs: type, with the one being read in accent. */}
+          <div className="vu-contact-tabs vu-contact-shot-filter">
+            {SHOT_FILTERS.map(({ key, label }, index) => (
+              <Fragment key={key}>
+                {index > 0 && <span className="vu-contact-tabs-slash">/</span>}
+                <motion.button
+                  className={`vu-contact-tab${filter === key ? ' vu-contact-tab--on' : ''}`}
+                  type="button"
+                  aria-pressed={filter === key}
+                  {...gestures(false, quietLift, quietPress)}
+                  onClick={() => setFilter(key)}
+                >
+                  {label}
+                </motion.button>
+              </Fragment>
+            ))}
+          </div>
+          {shown.length === 0 ? (
+            <p className="vu-contact-empty">
+              {filter === 'dm' ? 'No photos in DMs yet.' : 'No photos on her feed yet.'}
+            </p>
+          ) : (
+            <ul className="vu-gallery-grid vu-contact-shots">
+              {shown.map((shot) => (
+                <Shot
+                  key={shot.id}
+                  charId={charId}
+                  playthroughId={playthroughId}
+                  file={shot.file}
+                  tier={shot.photo.tier}
+                  from={shot.from}
+                />
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </Card>
   )
