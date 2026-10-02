@@ -1,20 +1,37 @@
 import { motion } from 'motion/react'
 import { Fragment, useState, type JSX } from 'react'
+import { postIsOut } from '@shared/heldPosts'
 import { photoUrl } from '@shared/photoFiles'
+import type { ChatPhoto } from '@shared/photoTypes'
+import type { TimeSlot } from '@shared/types'
 import { openShot } from '../components/PhotoBubble'
+import { newestFirst } from '../stores/feedRolls'
 import { useGameStore } from '../stores/gameStore'
 import { Card, Locked } from './ContactPage'
 import { gestures, quietLift, quietPress } from './motion'
 import '../vu_styles/ContactGallery.css'
 
 /**
- * Her gallery: every picture she has sent on this thread, newest first.
+ * Her gallery: every picture of her, the ones she sent on the thread and the ones she posted on
+ * the feed, newest first, each marked with where it came from.
  *
  * The tab strip comes with it. `ContactPage` had no tabs before this feature — the page was one
  * reading of her — so the strip is the gallery's own, and the hook on that page is four lines:
  * a call to {@link useContactGallery}, its `tabs` in the header, and its `panel` in place of the
  * profile cards while the gallery is the one being read.
  */
+
+/** Where a picture in her gallery was sent: on the thread, or on the feed. */
+type ShotSource = 'dm' | 'feed'
+
+interface GalleryShot {
+  id: string
+  photo: ChatPhoto
+  file: string
+  from: ShotSource
+  date: number
+  time: TimeSlot
+}
 
 /** The two readings of her the page offers once she has pictures to show. */
 type ContactTab = 'profile' | 'gallery'
@@ -42,12 +59,14 @@ function Shot({
   charId,
   playthroughId,
   file,
-  tier
+  tier,
+  from
 }: {
   charId: string
   playthroughId: string | null
   file: string
   tier: string
+  from: ShotSource
 }): JSX.Element {
   const [shown, setShown] = useState(tier !== 'explicit')
   if (!playthroughId) return <li className="vu-gallery-item" />
@@ -66,6 +85,7 @@ function Shot({
         ) : (
           <span className="vu-gallery-empty">TAP TO SEE</span>
         )}
+        <span className="vu-contact-shot-from">{from === 'dm' ? 'DM' : 'Feed'}</span>
       </motion.button>
     </li>
   )
@@ -88,12 +108,43 @@ export function useContactGallery({
   const [tab, setTab] = useState<ContactTab>('profile')
   const playthroughId = useGameStore((s) => s.playthroughId)
   const conversation = useGameStore((s) => s.bunnyboard.conversations[charId])
+  const feed = useGameStore((s) => s.charInfo[charId]?.feed)
 
-  const photos = [...(conversation?.messages ?? [])]
+  // The thread's newest first, then merged with her posts by the slot each was sent in. The sort
+  // is stable, so two pictures from one slot keep the order they arrived in.
+  const sent: GalleryShot[] = [...(conversation?.messages ?? [])]
     .reverse()
     .flatMap((message) =>
-      message.photo?.file ? [{ id: message.id, photo: message.photo, file: message.photo.file }] : []
+      message.photo?.file
+        ? [
+            {
+              id: message.id,
+              photo: message.photo,
+              file: message.photo.file,
+              from: 'dm' as const,
+              date: message.date,
+              time: message.time
+            }
+          ]
+        : []
     )
+  const posted: GalleryShot[] = (feed ?? [])
+    .filter(postIsOut)
+    .flatMap((post) =>
+      post.photo?.file
+        ? [
+            {
+              id: `post:${post.id}`,
+              photo: post.photo,
+              file: post.photo.file,
+              from: 'feed' as const,
+              date: post.date,
+              time: post.time
+            }
+          ]
+        : []
+    )
+  const photos = [...sent, ...posted].sort(newestFirst)
 
   /* Two readings of the same girl, named the way every section on this page is named: the one
      being read in accent, the other quiet. No pill and no underline — this screen holds one boxed
@@ -135,6 +186,7 @@ export function useContactGallery({
               playthroughId={playthroughId}
               file={shot.file}
               tier={shot.photo.tier}
+              from={shot.from}
             />
           ))}
         </ul>
@@ -143,4 +195,37 @@ export function useContactGallery({
   )
 
   return { tabs, showing: tab === 'gallery', panel }
+}
+
+/**
+ * The way to a post's picture from the feed list on her profile, which is text only: a small pill
+ * beside the post's date that opens the picture at full size. Nothing for a post without one, or
+ * one whose render has not landed.
+ */
+export function PostPhotoLink({
+  charId,
+  photo
+}: {
+  charId: string
+  photo: ChatPhoto | undefined
+}): JSX.Element | null {
+  const playthroughId = useGameStore((s) => s.playthroughId)
+  if (!playthroughId || !photo?.file) return null
+  const src = photoUrl(playthroughId, charId, photo.file)
+  return (
+    <motion.button
+      className="vu-contact-like vu-contact-photo"
+      type="button"
+      aria-label="Open the photo"
+      {...gestures(false, quietLift, quietPress)}
+      onClick={() => openShot(src)}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="14" rx="3" />
+        <circle cx="9" cy="10" r="1.6" />
+        <path d="M21 16l-5-5-8 8" />
+      </svg>
+      Photo
+    </motion.button>
+  )
 }

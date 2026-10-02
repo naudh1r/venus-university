@@ -25,7 +25,7 @@ import { formatShortGameDate } from '../prompts/gameDate'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { profileUrl, spriteUrl, useSpriteVersion } from '../stores/characterStore'
 import { newestFirst } from '../stores/feedRolls'
-import { useContactGallery } from './ContactGallery'
+import { PostPhotoLink, useContactGallery } from './ContactGallery'
 import { useGameStore } from '../stores/gameStore'
 import { noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
 import { sendFriendRequest } from '../stores/textingLoop'
@@ -342,6 +342,8 @@ export function ContactPage({
                         {formatShortGameDate(entry.post.date)} · ♥{' '}
                         {entry.post.likes + (entry.post.liked ? 1 : 0)}
                       </motion.button>
+                      {' '}
+                      <PostPhotoLink charId={charId} photo={entry.post.photo} />
                     </li>
                   )
                 )}
