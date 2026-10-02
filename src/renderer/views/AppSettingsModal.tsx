@@ -22,6 +22,7 @@ import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
 import { ComboField } from '../components/ComboField'
 import { SelectField } from '../components/SelectField'
+import { PhotoLoaderField } from './photoLoaderField'
 import { TextField } from '../components/TextField'
 import { CheckField } from '../components/CheckField'
 import { SfwCheckList } from '../components/SfwCheckList'
@@ -713,6 +714,7 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
                     onChange={(checked) => handlePhotosChange(!checked)}
                   />
                 )}
+                {!webBuild && photos && <PhotoLoaderField />}
 
                 {/* Each toggle carries what turning it on costs; the note is the whole of what the
                     app promises about either setting. */}

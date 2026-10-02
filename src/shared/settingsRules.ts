@@ -24,6 +24,8 @@ const SETTINGS_REQUIRED: Record<
     | 'strictSchema'
     // `bodyDetails` — the photo feature's, and optional: absent is off.
     | 'bodyDetails'
+    // `photoLoader` — the same feature's, and optional: absent is the bunny.
+    | 'photoLoader'
     | 'apiKey'
     | 'endpointApiKey'
     | 'endpointUrl'
@@ -267,6 +269,7 @@ export function mergePatch(current: Settings, patch: SettingsPatch): Settings {
     photos: patch.photos,
     strictSchema: patch.strictSchema,
     bodyDetails: patch.bodyDetails,
+    photoLoader: patch.photoLoader,
     // Absent stays absent, as the volumes below do, and absent is the sound playing.
     noNsfwSound: patch.noNsfwSound,
     sfwAsked: patch.sfwAsked,

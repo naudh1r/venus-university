@@ -379,4 +379,9 @@ describe('mergePatch — a switch the patch names is the switch that lands', () 
     expect(on.bodyDetails).toBe(true)
     expect(mergePatch(on, settingsPatch({ bodyDetails: false })).bodyDetails).toBe(false)
   })
+
+  it('keeps the photo loading animation the player picked', () => {
+    const merged = mergePatch(settings(), settingsPatch({ photoLoader: 'shimmer' }))
+    expect(merged.photoLoader).toBe('shimmer')
+  })
 })

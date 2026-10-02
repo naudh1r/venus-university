@@ -92,19 +92,19 @@ const HOOKS: readonly {
   },
   {
     file: 'src/shared/settingsRules.ts',
-    needs: ["| 'photos'", "| 'bodyDetails'"],
+    needs: ["| 'photos'", "| 'bodyDetails'", "| 'photoLoader'"],
     why: 'the switches are optional, so the guard must not require them'
   },
   {
     file: 'src/shared/settingsRules.ts',
     within: 'export function mergePatch(',
-    needs: ['bodyDetails: patch.bodyDetails'],
+    needs: ['bodyDetails: patch.bodyDetails', 'photoLoader: patch.photoLoader'],
     why: 'the body switch writes nothing and springs back off'
   },
   {
     file: 'src/renderer/stores/settingsStore.ts',
     within: 'export function patchOf(',
-    needs: ['bodyDetails: settings.bodyDetails'],
+    needs: ['bodyDetails: settings.bodyDetails', 'photoLoader: settings.photoLoader'],
     why: 'a save made from any other control turns the body switch back off'
   },
   {
@@ -236,6 +236,11 @@ const HOOKS: readonly {
     file: 'src/renderer/views/AppSettingsModal.tsx',
     needs: ['settings-photos'],
     why: 'the player cannot turn photographs off'
+  },
+  {
+    file: 'src/renderer/views/AppSettingsModal.tsx',
+    needs: ['{!webBuild && photos && <PhotoLoaderField />}'],
+    why: 'the player cannot pick how a photo waits'
   },
   {
     file: 'src/renderer/vu_styles/PhotoBubble.css',
