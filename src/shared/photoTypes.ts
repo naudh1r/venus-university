@@ -90,6 +90,11 @@ declare module './types' {
      * absent, leaves every picture as the build draws it.
      */
     bodyDetails?: boolean
+    /**
+     * How a picture still being drawn waits in a DM: one of `PHOTO_LOADERS`. Absent, or a value
+     * this build does not know, is the bunny.
+     */
+    photoLoader?: string
   }
 }
 

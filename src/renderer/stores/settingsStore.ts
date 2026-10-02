@@ -153,6 +153,8 @@ export function patchOf(settings: RendererSettings): SettingsPatch {
     photos: settings.photos,
     // Carried, or a save made from anywhere else would turn body details back off.
     bodyDetails: settings.bodyDetails,
+    // Carried, or a save made from anywhere else would put the bunny back.
+    photoLoader: settings.photoLoader,
     noNsfwSound: settings.noNsfwSound,
     sfwAsked: settings.sfwAsked,
     // Carried, or a save made from anywhere else would drop a browser's key on the next visit.

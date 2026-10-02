@@ -22,6 +22,8 @@ const SETTINGS_REQUIRED: Record<
     | 'photos'
     // `bodyDetails` — the same feature's, and optional: absent is off.
     | 'bodyDetails'
+    // `photoLoader` — the same feature's, and optional: absent is the bunny.
+    | 'photoLoader'
     | 'apiKey'
     | 'endpointApiKey'
     | 'endpointUrl'
@@ -264,6 +266,7 @@ export function mergePatch(current: Settings, patch: SettingsPatch): Settings {
     // what the patch asks for, so the toggle would write nothing and spring back.
     photos: patch.photos,
     bodyDetails: patch.bodyDetails,
+    photoLoader: patch.photoLoader,
     // Absent stays absent, as the volumes below do, and absent is the sound playing.
     noNsfwSound: patch.noNsfwSound,
     sfwAsked: patch.sfwAsked,
