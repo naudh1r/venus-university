@@ -228,6 +228,11 @@ const HOOKS: readonly {
     why: 'her gallery has no tab to open it and nothing to draw'
   },
   {
+    file: 'src/renderer/views/ContactPage.tsx',
+    needs: ['<PostPhotoLink charId={charId} photo={entry.post.photo} />'],
+    why: "a post's picture cannot be opened from her profile's feed list"
+  },
+  {
     file: 'src/renderer/views/sfwFields.ts',
     needs: ['note: NO_NSFW_IMAGES_NOTE'],
     why: 'the NSFW switch does not say it covers photos too'
