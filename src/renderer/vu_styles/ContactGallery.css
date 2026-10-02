@@ -113,3 +113,9 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* All, DM or Feed, over the grid: the page's tab row, left-aligned under the card's label. */
+.vu-contact-tabs.vu-contact-shot-filter {
+  justify-content: flex-start;
+  margin: 0 0 12px;
+}
