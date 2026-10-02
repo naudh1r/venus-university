@@ -123,7 +123,7 @@ export function defaultSettings(): Settings {
     // `serviceTier`, `streamResponses`, `comfyGpu`, `updateAsVersion` and `updateFeed` are
     // deliberately absent: they are hand-edited switches, and absent is what resolves to
     // priority, to streaming on, to whichever GPU vendor the machine reports and to the real
-    // build on itch.io. `checkUpdates` is absent too, and absent is offering.
+    // build on itch.io. `checkUpdates` is absent too, and absent is checking.
     comfyDeferred: false,
     // Nothing is withheld until the player says so; an unanswered `sfwAsked` raises the question.
     noNsfwImages: false,
@@ -253,7 +253,7 @@ export function mergePatch(current: Settings, patch: SettingsPatch): Settings {
     // the renderer's to send: `...current` is what carries whatever is stored, so a hand-edited
     // switch survives every save.
     comfyDeferred: patch.comfyDeferred,
-    // Absent stays absent, and absent is offering.
+    // Absent stays absent, and absent is checking.
     checkUpdates: patch.checkUpdates,
     // Absent stays absent, and absent is warning.
     warnEndingInterrupt: patch.warnEndingInterrupt,

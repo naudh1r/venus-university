@@ -1,23 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { characterArchive, isPublic } from '../scripts/syncPublic.mjs'
+import { isPublic } from '../scripts/syncPublic.mjs'
 
 /**
  * The one gate between this repo and the public mirror. Everything under
- * `assets/` is art, much of it explicit, so the rule is an allowlist and a new
- * folder there has to stay private without anyone remembering to say so. The
- * characters folder and the two music folders under `sound/` are the private
- * parts of `assets/`.
+ * `assets/` is art, most of it explicit, so the rule is an allowlist and a new
+ * folder there has to stay private without anyone remembering to say so.
  */
 
 const PRIVATE = [
   'assets/characters/x/cg/sex.png',
+  'assets/bg/lab/day.png',
+  'assets/bg_thumbs/lab/day.webp',
   'assets/sound/music/a.ogg',
-  'assets/sound/ambient_music/edm_music.ogg',
   'assets/newfolder/thing.json',
+  'assets/pose/poseMaterial/bold.png',
   'build/itch-page/shots/lab.jpg',
   '.github/workflows/sync-public.yml',
   'private/supporters.json',
-  'private/notes.md'
+  'private/notes.md',
+  'testsave/README.md',
+  'testsave/backup.zip',
+  'testsave/1700000000000/playthrough.json',
+  'testsave/harness/mock.mjs',
+  'CLAUDE.md',
+  'DESIGN_GUIDE.md',
+  'UI_STYLE_GUIDE.md',
+  'TESTING_PLAN.md'
 ]
 
 const PUBLIC = [
@@ -29,20 +37,7 @@ const PUBLIC = [
   'src/main/index.ts',
   'README.md',
   'build/icon.ico',
-  'scripts/release.mjs',
-  'assets/bg/lab/day.png',
-  'assets/bg_thumbs/lab/day.webp',
-  'assets/pose/poseMaterial/bold.png',
-  'assets/sound/sfx/ui_click.ogg',
-  'assets/sound/ambient/amb_indoor.ogg',
-  'assets/sound/nsfw/climax.ogg',
-  'assets/sound/README.md',
-  'testsave/README.md',
-  'testsave/1700000000000/playthrough.json',
-  'testsave/harness/mock.mjs',
-  'CLAUDE.md',
-  'DESIGN_GUIDE.md',
-  'TESTING_PLAN.md'
+  'scripts/release.mjs'
 ]
 
 describe('isPublic', () => {
@@ -52,19 +47,5 @@ describe('isPublic', () => {
 
   it.each(PUBLIC.map((path) => [path]))('publishes %s', (path) => {
     expect(isPublic(path)).toBe(true)
-  })
-})
-
-describe('characterArchive', () => {
-  it('names the character for a file inside its folder', () => {
-    expect(characterArchive('assets/characters/x/cg/sex.png')).toBe('x')
-    expect(characterArchive('assets/characters/x/character.json')).toBe('x')
-  })
-
-  it('names nobody for anything else', () => {
-    expect(characterArchive('assets/characters/x.zip')).toBeNull()
-    expect(characterArchive('assets/characters/x')).toBeNull()
-    expect(characterArchive('assets/bg/a.png')).toBeNull()
-    expect(characterArchive('src/main/index.ts')).toBeNull()
   })
 })

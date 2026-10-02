@@ -4,12 +4,11 @@ import { readdir, rename, stat, writeFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 
 /**
- * electron-builder's `afterSign` hook, which runs once the exe carries its icon and
- * version strings: walks the packed app folder and writes `resources/build-manifest.json`,
- * the file list both sides of an update plan from.
+ * electron-builder's `afterPack` hook: walks the packed app folder and writes
+ * `resources/build-manifest.json`, the file list both sides of an update plan from.
  */
 
-export const MANIFEST_REL = 'resources/build-manifest.json'
+const MANIFEST_REL = 'resources/build-manifest.json'
 
 /** Every file under `dir`, as `/`-joined paths relative to it, the manifest itself excluded. */
 async function walk(dir) {
@@ -35,24 +34,21 @@ function sha256Of(path) {
   })
 }
 
-/** The size and hash of every file under `dir`, sorted by path, the manifest itself excluded. */
-export async function stampTree(dir) {
+/** Hashes every packed file and writes the manifest beside the app's resources. */
+export default async function afterPack(context) {
+  const { appOutDir } = context
+  const version = context.packager.appInfo.version
+
+  const rels = await walk(appOutDir)
   const files = []
-  for (const rel of await walk(dir)) {
-    const path = join(dir, rel)
+  for (const rel of rels) {
+    const path = join(appOutDir, rel)
     const size = (await stat(path)).size
     const sha256 = await sha256Of(path)
     files.push({ rel, size, sha256 })
   }
-  return files
-}
 
-/** Stamps the packed folder and writes the manifest beside the app's resources. */
-export default async function afterSign(context) {
-  const { appOutDir } = context
-  const version = context.packager.appInfo.version
-
-  const manifest = { schemaVersion: 1, version, files: await stampTree(appOutDir) }
+  const manifest = { schemaVersion: 1, version, files }
   const target = join(appOutDir, MANIFEST_REL)
   const tmp = `${target}.tmp`
   await writeFile(tmp, JSON.stringify(manifest, null, 2))

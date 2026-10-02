@@ -1,9 +1,8 @@
 import { spawn } from 'node:child_process'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { zipSync } from 'fflate'
 
 /**
  * The snapshot mirror of this repo onto a public one. Each run replays HEAD's
@@ -12,9 +11,6 @@ import { zipSync } from 'fflate'
  * `Source-Commit:` trailer so the next run knows where the last one stopped.
  *
  * `isPublic` is the only gate deciding what goes public; nothing else filters.
- * The cast under `assets/characters`, which it rejects file by file, is instead
- * replaced by one stored zip per character, `assets/characters/<id>.zip`, built
- * from HEAD's blobs so GitHub cannot preview the sprites.
  */
 
 const REPO = resolve(fileURLToPath(new URL('..', import.meta.url)))
@@ -33,54 +29,32 @@ const MAX_BODY_SUBJECTS = 100
 /** How far back the mirror's history is searched for the last `Source-Commit:` trailer. */
 const MAX_TRAILER_LOOKBACK = 50
 
-/**
- * The date on every zip entry, fixed so an unchanged cast zips to the same
- * bytes, and so to the same blob and tree, and the run makes no new mirror
- * commit. A zip stores a local wall-clock time with no zone, so this is built as
- * one: an instant would fall out of the 1980-2099 range the format allows west
- * of Greenwich.
- */
-const ZIP_MTIME = new Date(2000, 0, 1, 0, 0, 0, 0)
-
-/** GitHub refuses a file at or over 100 MiB, so no character zip may reach it. */
-const MAX_ZIP_BYTES = 100 * 1024 * 1024
+/** The working notes, which stay private. */
+const PRIVATE_DOCS = new Set(['CLAUDE.md', 'DESIGN_GUIDE.md', 'UI_STYLE_GUIDE.md', 'TESTING_PLAN.md'])
 
 /**
  * Whether one tracked path, as `git ls-tree` prints it, belongs in the public
  * repo. `assets/` holds gigabytes of art including explicit images, so it is
- * allowlisted: a folder added there is private until this names it. Under
- * `sound/`, the `music/` and `ambient_music/` folders stay private because
- * their licence does not allow redistribution. `private/` holds records that
- * stay in this repo.
+ * allowlisted: a folder added there is private until this says otherwise,
+ * `private/` is the folder for records that stay in this repo, and `testsave/`
+ * is the generator harness's own fixture data.
  */
 export function isPublic(path) {
   if (path.startsWith('private/')) return false
+  if (path.startsWith('testsave/')) return false
   if (path.startsWith('.github/')) return false
   if (path.startsWith('build/itch-page/')) return false
+  if (PRIVATE_DOCS.has(path)) return false
   if (path.startsWith('assets/')) {
     const rest = path.slice('assets/'.length)
     if (!rest.includes('/')) return true
-    if (rest.startsWith('sound/')) {
-      return !rest.startsWith('sound/music/') && !rest.startsWith('sound/ambient_music/')
-    }
     return (
       rest.startsWith('workflows/') ||
-      rest.startsWith('bg/') ||
-      rest.startsWith('bg_thumbs/') ||
-      rest.startsWith('pose/')
+      rest.startsWith('pose/skeletons/') ||
+      rest === 'pose/pose.json'
     )
   }
   return true
-}
-
-/**
- * The character whose folder holds one tracked path, for a path under
- * `assets/characters/<id>/`, or null. Those files never go public as they are;
- * each character's folder ships as `assets/characters/<id>.zip` instead.
- */
-export function characterArchive(path) {
-  const match = /^assets\/characters\/([^/]+)\/./.exec(path)
-  return match ? match[1] : null
 }
 
 /** Spawns a child with no shell, writing `input` to its stdin when given. */
@@ -121,32 +95,6 @@ function capture(file, argv, opts = {}) {
   })
 }
 
-/**
- * The same for a binary payload: the child's stdout comes back as one Buffer,
- * and a non-zero exit fails.
- */
-function captureBuffer(file, argv, { input, ...opts } = {}) {
-  return new Promise((ok, fail) => {
-    const child = spawn(file, argv, {
-      cwd: REPO,
-      stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
-      shell: false,
-      ...opts
-    })
-    const chunks = []
-    let err = ''
-    child.stderr.setEncoding('utf8')
-    child.stdout.on('data', (chunk) => chunks.push(chunk))
-    child.stderr.on('data', (chunk) => (err += chunk))
-    child.on('error', fail)
-    child.on('close', (code) => {
-      if (code === 0) ok(Buffer.concat(chunks))
-      else fail(new Error(`${file} ${argv.join(' ')} failed:\n${err.trim()}`))
-    })
-    if (input !== undefined) child.stdin.end(input)
-  })
-}
-
 /** Reads git's stdout, failing the run on a non-zero exit. */
 async function git(argv, opts) {
   const { code, out, err } = await capture('git', argv, opts)
@@ -161,15 +109,7 @@ async function refExists(ref) {
 
 /** Brings `refs/public/main` up to date, answering whether the remote has a main. */
 async function fetchMirror() {
-  // Only the tip commit and its tree are needed (the trailer and the tree
-  // comparison); the push excludes the mirror's objects by sha, so its ~2 GB
-  // of art is never downloaded.
-  const fetched = await capture('git', [
-    'fetch',
-    '--filter=blob:none',
-    PUBLIC_REPO,
-    `+refs/heads/main:${MIRROR_REF}`
-  ])
+  const fetched = await capture('git', ['fetch', PUBLIC_REPO, `+refs/heads/main:${MIRROR_REF}`])
   if (fetched.code === 0) return true
   // An empty public repo is the first-sync case; auth and network failures are not.
   if (!/couldn.t find remote ref/i.test(fetched.err)) {
@@ -197,86 +137,18 @@ async function bodyFor(lastSynced, head, subject) {
   return subjects.length > 0 ? subjects.join('\n') : subject
 }
 
-/** A byte count in MiB to one decimal. */
-function mib(bytes) {
-  return (bytes / 1024 / 1024).toFixed(1)
-}
-
-/**
- * One character's folder as a single zip blob in the object store, its entries
- * named `<id>/…` and read from HEAD's blobs rather than the working tree.
- */
-async function archiveCharacter(id, blobs) {
-  // One cat-file answers every blob in the order asked, each as
-  // `<sha> <type> <size>\n`, then its bytes and a newline.
-  const out = await captureBuffer('git', ['cat-file', '--batch'], {
-    input: blobs.map((blob) => blob.sha).join('\n') + '\n'
-  })
-  const prefix = `assets/characters/${id}/`
-  const read = []
-  let at = 0
-  for (const blob of blobs) {
-    const eol = out.indexOf(0x0a, at)
-    if (eol === -1) throw new Error(`git cat-file stopped before ${blob.path}.`)
-    const [sha, type, size] = out.toString('utf8', at, eol).split(' ')
-    if (type !== 'blob' || sha !== blob.sha) {
-      throw new Error(`git cat-file answered ${sha} ${type} for ${blob.path} (${blob.sha}).`)
-    }
-    const start = eol + 1
-    const end = start + Number(size)
-    if (end >= out.length) throw new Error(`git cat-file cut ${blob.path} short.`)
-    read.push([`${id}/${blob.path.slice(prefix.length)}`, out.subarray(start, end)])
-    at = end + 1
-  }
-  read.sort(([a], [b]) => (a < b ? -1 : 1))
-  const entries = {}
-  for (const [name, bytes] of read) entries[name] = bytes
-
-  // Stored, not deflated: PNG does not shrink, and git delta-compresses a stored
-  // zip well against its last version when only some entries changed.
-  const zip = zipSync(entries, { level: 0, mtime: ZIP_MTIME })
-  if (zip.length >= MAX_ZIP_BYTES) {
-    throw new Error(
-      `assets/characters/${id}.zip would be ${mib(zip.length)} MiB, which GitHub refuses ` +
-        `(its cap is 100 MiB a file); ${id} has to be split.`
-    )
-  }
-
-  // A dry run writes these loose objects too; nothing reaches them, and they are
-  // harmless until gc reclaims them.
-  const dir = await mkdtemp(join(tmpdir(), 'vu-cast-'))
-  let sha
-  try {
-    const file = join(dir, `${id}.zip`)
-    await writeFile(file, zip)
-    sha = (await git(['hash-object', '-w', '--no-filters', file])).trim()
-  } finally {
-    await rm(dir, { recursive: true, force: true })
-  }
-  return { mode: '100644', sha, path: `assets/characters/${id}.zip`, bytes: zip.length }
-}
-
-/**
- * Every blob HEAD tracks that `isPublic` keeps, plus one zip per character in
- * place of its folder, sorted by path.
- */
+/** Every blob HEAD tracks that `isPublic` keeps, sorted by path. */
 async function publicEntries() {
   const raw = await git(['ls-tree', '-r', '-z', 'HEAD'])
   const kept = []
-  const cast = new Map()
   for (const record of raw.split('\0')) {
     if (!record) continue
     const tab = record.indexOf('\t')
     const [mode, type, sha] = record.slice(0, tab).split(' ')
     const path = record.slice(tab + 1)
     if (type !== 'blob') throw new Error(`${path} is a ${type}; the mirror carries blobs only.`)
-    const id = characterArchive(path)
-    if (id !== null) {
-      if (!cast.has(id)) cast.set(id, [])
-      cast.get(id).push({ mode, sha, path })
-    } else if (isPublic(path)) kept.push({ mode, sha, path })
+    if (isPublic(path)) kept.push({ mode, sha, path })
   }
-  for (const id of [...cast.keys()].sort()) kept.push(await archiveCharacter(id, cast.get(id)))
   kept.sort((a, b) => (a.path < b.path ? -1 : 1))
   return kept
 }
@@ -286,12 +158,14 @@ function assertNothingPrivate(paths) {
   for (const path of paths) {
     const underAssets = path.startsWith('assets/')
     const allowedAsset =
-      /^assets\/characters\/[^/]+\.zip$/.test(path) ||
       /^assets\/[^/]+$/.test(path) ||
-      /^assets\/(workflows|bg|bg_thumbs|pose)\//.test(path) ||
-      (/^assets\/sound\//.test(path) && !/^assets\/sound\/(music|ambient_music)\//.test(path))
+      path.startsWith('assets/workflows/') ||
+      path.startsWith('assets/pose/skeletons/') ||
+      path === 'assets/pose/pose.json'
     if (
+      PRIVATE_DOCS.has(path) ||
       path.startsWith('private/') ||
+      path.startsWith('testsave/') ||
       path.startsWith('.github/') ||
       path.startsWith('build/itch-page/') ||
       (underAssets && !allowedAsset)
@@ -341,9 +215,7 @@ async function main() {
   const message = `Sync ${head.slice(0, 7)}: ${subject}\n\n${body}\n\nSource-Commit: ${head}\n`
 
   if (dryRun) {
-    for (const entry of entries) {
-      console.log(entry.bytes === undefined ? entry.path : `${entry.path}  (${mib(entry.bytes)} MiB)`)
-    }
+    for (const entry of entries) console.log(entry.path)
     console.log(`\n${entries.length} files, tree ${tree}\n`)
     console.log(message)
   }

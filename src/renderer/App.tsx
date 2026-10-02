@@ -20,10 +20,11 @@ import { SupportModal } from './views/SupportModal'
 import { UpdateFailedModal } from './views/UpdateFailedModal'
 import { UpdateModal } from './views/UpdateModal'
 import { heldScreenTheme } from './views/clockTheme'
+import { updateCaption } from './views/updateCaption'
 import { useAssetStore } from './stores/assetStore'
 import { useAudioStore } from './stores/audioStore'
 import { useCharacterStore } from './stores/characterStore'
-import { cancelCrossing, endCrossing } from './stores/crossingStore'
+import { cancelCrossing, endCrossing, nameCrossingWait } from './stores/crossingStore'
 import { useGameStore } from './stores/gameStore'
 import { useGrabBagStore } from './stores/grabBagStore'
 import { useSaveStore } from './stores/saveStore'
@@ -58,17 +59,23 @@ async function boot(): Promise<void> {
     return
   }
 
-  // A newer build on itch.io, offered under the cover the boot is already behind unless Settings
-  // has turned the launch offer off; word of a swap that did not land last time comes first. On
-  // "Update" the app quits into the swap, so boot ends here; a failure is waited out like any
-  // other modal in front of a cover, and the launch goes on.
-  const update = useUpdateStore.getState()
-  const rolledBack = await update.check()
-  if (rolledBack) await update.showFailure(rolledBack)
-  const version = useUpdateStore.getState().available
-  const offering = useSettingsStore.getState().settings?.checkUpdates !== false
-  if (version && offering && (await update.ask(version)) === 'update') {
-    if ((await update.apply()) === null) return
+  // A newer build on itch.io, offered under the cover the boot is already behind. On "Update"
+  // the mark's caption reports each phase and the app quits into the swap, so boot ends here;
+  // a failure is waited out like any other modal in front of a cover, and the launch goes on.
+  const version = await useUpdateStore.getState().check()
+  if (version && (await useUpdateStore.getState().ask(version)) === 'update') {
+    nameCrossingWait(updateCaption(null))
+    let shown = updateCaption(null)
+    const stop = useUpdateStore.subscribe((state) => {
+      const caption = updateCaption(state.progress)
+      if (caption !== shown) {
+        shown = caption
+        nameCrossingWait(caption)
+      }
+    })
+    const failure = await useUpdateStore.getState().apply()
+    stop()
+    if (!failure) return
   }
 
   // Non-fatal: a failed read leaves the grab bags running in memory for the session.
@@ -165,7 +172,7 @@ function App(): JSX.Element {
 }
 
 /**
- * The modals no single view owns — the menu's five, the tier-2 error and the update's two
+ * The modals no single view owns — the menu's five, the tier-2 error and the boot's two update
  * panels — portalled out with a theme read once via `heldScreenTheme()`, remounted fresh each
  * time one of them opens.
  */
@@ -192,6 +199,10 @@ function AppModals(): JSX.Element {
         {download && (
           <DownloadModal key="download" theme={theme} name={download.name} url={download.url} />
         )}
+        {offer && <UpdateModal key="update-offer" theme={theme} version={offer.version} />}
+        {updateFailure && (
+          <UpdateFailedModal key="update-failed" theme={theme} error={updateFailure} />
+        )}
         {error && (
           <ErrorModal
             key="app-error"
@@ -201,17 +212,6 @@ function AppModals(): JSX.Element {
             onClose={dismissError}
           />
         )}
-      </AnimatePresence>
-      {/* The offer and the failure follow one another — at boot after a swap that did not land,
-          from the menu when the update fails fast — so they share one presence in wait mode,
-          beside the other rather than inside it, and the second never arrives over the first
-          still fading. */}
-      <AnimatePresence propagate mode="wait">
-        {offer ? (
-          <UpdateModal key="update-offer" theme={theme} version={offer.version} />
-        ) : updateFailure ? (
-          <UpdateFailedModal key="update-failed" theme={theme} error={updateFailure} />
-        ) : null}
       </AnimatePresence>
     </>
   )
