@@ -9,6 +9,7 @@ import { newestFirst } from '../stores/feedRolls'
 import { useGameStore } from '../stores/gameStore'
 import { Card, Locked } from './ContactPage'
 import { gestures, quietLift, quietPress } from './motion'
+import { EyeIcon, EyeOffIcon } from './screenIcons'
 import '../vu_styles/ContactGallery.css'
 
 /**
@@ -82,7 +83,7 @@ function Shot({
 
   const src = photoUrl(playthroughId, charId, file)
   return (
-    <li className="vu-gallery-item">
+    <li className="vu-gallery-item vu-contact-shot-item">
       <motion.button
         className={`vu-gallery-cell vu-contact-shot${shown ? '' : ' vu-contact-shot--covered'}`}
         type="button"
@@ -96,6 +97,20 @@ function Shot({
         )}
         <span className="vu-contact-shot-from">{from === 'dm' ? 'DM' : 'Feed'}</span>
       </motion.button>
+      {/* The thread's own eye, so an explicit one can be covered again once seen. Beside the cell
+          rather than in it, since a button cannot sit inside another. */}
+      {tier === 'explicit' && (
+        <button
+          type="button"
+          className={`vu-bb-photo-eye vu-contact-shot-eye${shown ? '' : ' vu-bb-photo-eye--covered'}`}
+          aria-pressed={!shown}
+          aria-label={shown ? 'Cover the photo' : 'Uncover the photo'}
+          title={shown ? 'Cover the photo' : 'Uncover the photo'}
+          onClick={() => setShown(!shown)}
+        >
+          {shown ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+        </button>
+      )}
     </li>
   )
 }
