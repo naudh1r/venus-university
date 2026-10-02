@@ -1,0 +1,14 @@
+{
+  "name": "venus-photo-mod-patcher",
+  "private": true,
+  "type": "module",
+  "description": "Builds the photo feature's setup wizard, which installs it on top of the official Venus University build.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "@electron/asar": "3.4.1",
+    "esbuild": "0.25.12",
+    "fflate": "0.8.3"
+  }
+}
