@@ -708,7 +708,7 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
                 {!webBuild && (
                   <CheckField
                     id="settings-photos"
-                    label="No photos on Bunnyboard"
+                    label="No DM and feed photos"
                     note="Photos on Bunnyboard feeds and DMs are turned off. Existing photos stay visible, and any still waiting are held until you turn this back on."
                     checked={!photos}
                     onChange={(checked) => handlePhotosChange(!checked)}
