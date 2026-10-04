@@ -5,7 +5,7 @@
       "title": "CheckpointLoaderSimple"
     },
     "inputs": {
-      "ckpt_name": "novaAnimeXL_ilV190.safetensors"
+      "ckpt_name": "DasiwaIllustriousAnime_epitaphecstasy.safetensors"
     }
   },
   "3": {
@@ -22,7 +22,7 @@
         "1",
         1
       ],
-      "lora_name": "usnrStyle.safetensors",
+      "lora_name": "Niji_Semi_realism_F_N_R_epoch_10.safetensors",
       "strength_model": 1,
       "strength_clip": 1
     }

@@ -39,7 +39,7 @@ describe('buildPhotoPrompt', () => {
   // on quality and refuses a sprite's cut-out background, not that the two strings match.
   it('leads with quality tags, and no white background', () => {
     const { positive, negative } = buildPhotoPrompt(celest, 'everyday', 'at a window in the rain')
-    expect(positive.startsWith('masterpiece, best_quality, very_aesthetic')).toBe(true)
+    expect(positive.startsWith('SemiRrealism, masterpiece, best_quality, very_aesthetic')).toBe(true)
     expect(negative).toContain('white_background')
   })
 

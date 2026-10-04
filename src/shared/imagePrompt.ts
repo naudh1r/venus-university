@@ -13,8 +13,11 @@ import { EXPRESSION_EYES, EXPRESSION_MOUTH } from './tags'
 const SIDEWAYS_GLANCE: (typeof EXPRESSION_EYES)[number] = 'sideways_glance'
 const LOOKING_AT_VIEWER: (typeof EXPRESSION_EYES)[number] = 'looking_at_viewer'
 
+/** The style LoRA's trigger (the R variant of its F/N/R tags); leads every prompt it styles. */
+const LORA_TRIGGER = 'SemiRrealism'
+
 /** Quality tag preamble, lowercase with underscores like every booru tag. */
-const QUALITY_TAGS: readonly string[] = ['masterpiece', 'best_quality', 'very_aesthetic']
+const QUALITY_TAGS: readonly string[] = [LORA_TRIGGER, 'masterpiece', 'best_quality', 'very_aesthetic']
 
 /** Composition preamble: standing full-body figure on a removable white background. */
 const BASE_TAGS: readonly string[] = [

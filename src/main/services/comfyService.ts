@@ -119,14 +119,14 @@ const HANDS_NODE = {
 const WARM_WORKFLOW = {
   '1': {
     class_type: 'CheckpointLoaderSimple',
-    inputs: { ckpt_name: 'novaAnimeXL_ilV190.safetensors' }
+    inputs: { ckpt_name: 'DasiwaIllustriousAnime_epitaphecstasy.safetensors' }
   },
   '2': {
     class_type: 'LoraLoader',
     inputs: {
       model: ['1', 0],
       clip: ['1', 1],
-      lora_name: 'usnrStyle.safetensors',
+      lora_name: 'Niji_Semi_realism_F_N_R_epoch_10.safetensors',
       strength_model: 1,
       strength_clip: 1
     }
