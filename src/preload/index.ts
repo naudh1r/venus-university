@@ -41,6 +41,8 @@ const api: VenusUniversityApi = {
     generateQuiz: (request) => ipcRenderer.invoke('llm:generateQuiz', request),
     listModels: (endpointUrl, apiKey) => ipcRenderer.invoke('llm:listModels', endpointUrl, apiKey),
     testWriter: (candidate) => ipcRenderer.invoke('llm:testWriter', candidate),
+    listImageModels: (candidate) => ipcRenderer.invoke('llm:listImageModels', candidate),
+    testImages: (candidate) => ipcRenderer.invoke('llm:testImages', candidate),
     classify: (request, charKeys, group) =>
       ipcRenderer.invoke('llm:classify', request, charKeys, group),
     classifyHangout: (request) => ipcRenderer.invoke('llm:classifyHangout', request),
@@ -94,9 +96,12 @@ const api: VenusUniversityApi = {
     room: (charId) => ipcRenderer.invoke('chars:room', charId),
     generateRoom: (character, variant, staged) =>
       ipcRenderer.invoke('chars:generateRoom', character, variant, staged),
+    uploadRoom: (charId, variant, png) =>
+      ipcRenderer.invoke('chars:uploadRoom', charId, variant, png),
     export: (charId) => ipcRenderer.invoke('chars:export', charId),
     import: () => ipcRenderer.invoke('chars:import'),
     duplicate: (charId) => ipcRenderer.invoke('chars:duplicate', charId),
+    saveExport: (kind, name, base64) => ipcRenderer.invoke('chars:saveExport', kind, name, base64),
     defaults: () => ipcRenderer.invoke('chars:defaults'),
     restoreDefaults: () => ipcRenderer.invoke('chars:restoreDefaults'),
     openFolder: (charId) => ipcRenderer.invoke('chars:openFolder', charId)
@@ -131,6 +136,18 @@ const api: VenusUniversityApi = {
       ipcRenderer.invoke('saves:writeProfilePicture', playthroughId, png),
     deleteProfilePicture: (playthroughId) =>
       ipcRenderer.invoke('saves:deleteProfilePicture', playthroughId)
+  },
+  photos: {
+    options: () => ipcRenderer.invoke('photos:options'),
+    generate: (request, group) => ipcRenderer.invoke('photos:generate', request, group),
+    list: (playthroughId) => ipcRenderer.invoke('photos:list', playthroughId),
+    read: (playthroughId, photoId) => ipcRenderer.invoke('photos:read', playthroughId, photoId),
+    write: (playthroughId, photoId, image, thumb, meta) =>
+      ipcRenderer.invoke('photos:write', playthroughId, photoId, image, thumb, meta),
+    writeThumb: (playthroughId, photoId, thumb) =>
+      ipcRenderer.invoke('photos:writeThumb', playthroughId, photoId, thumb),
+    delete: (playthroughId, photoId) => ipcRenderer.invoke('photos:delete', playthroughId, photoId),
+    export: (playthroughId, photoId) => ipcRenderer.invoke('photos:export', playthroughId, photoId)
   },
   comfy: {
     start: () => ipcRenderer.invoke('comfy:start'),
@@ -185,6 +202,12 @@ const api: VenusUniversityApi = {
   backup: {
     export: () => ipcRenderer.invoke('backup:export'),
     import: () => ipcRenderer.invoke('backup:import')
+  },
+  backgrounds: {
+    list: () => ipcRenderer.invoke('backgrounds:list'),
+    add: (draft, images) => ipcRenderer.invoke('backgrounds:add', draft, images),
+    remove: (name) => ipcRenderer.invoke('backgrounds:remove', name),
+    readImage: (name, variant) => ipcRenderer.invoke('backgrounds:readImage', name, variant)
   }
 }
 

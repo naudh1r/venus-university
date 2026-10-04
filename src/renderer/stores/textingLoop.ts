@@ -14,6 +14,8 @@ import {
   type NpcSlotOverlay
 } from '@shared/npcRelationships'
 import { readerBlockOf } from '../prompts/setting'
+import { memoryBudgetsOf } from '@shared/settingsRules'
+import { useSettingsStore } from './settingsStore'
 import {
   bossChatIdOf,
   globalSlotOf,
@@ -62,18 +64,18 @@ import {
   type TextingResponse,
   type TimeSlot
 } from '@shared/types'
-import { asInvitationAnswer, invitationAnswerText } from '@shared/invitationAnswer'
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
-import { canSendPhotos } from './photoStore'
+import { canSendPhotos } from './localPhotoStore'
 import { sendPhoto } from './photoTurn'
-import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
+import { noNsfwImagesOf } from './settingsStore'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
 import { createRetryGate } from './retryGate'
 import { createTextExtractor } from './textingStream'
 import { BOT_REPLY_MS, createTypingPacer, typingDelayFor, type TypingPacer } from './textingPace'
 import {
   charAwayNow,
+  charBusyNow,
   charHiddenLocationNow,
   charOverlayGroupNow,
   charStandingHauntAt,
@@ -480,10 +482,10 @@ export async function sendMessage(charId: string, text: string): Promise<void> {
         charHaunt: charStandingHauntNow(charId),
         // The one absence a thread survives, so her block has to say it.
         springBreakAway: game.springBreakAway,
+        memoryBudget: memoryBudgetsOf(useSettingsStore.getState().settings ?? {}).one,
         // What she may photograph is settled in the brief from these two.
         canRenderImages: canSendPhotos(),
-        noNsfwImages: noNsfwImagesOf(useSettingsStore.getState()),
-        strictSchema: useSettingsStore.getState().settings?.strictSchema === true
+        noNsfwImages: noNsfwImagesOf(useSettingsStore.getState())
       },
       // The same reader block a scene gets, grades and all.
       readerBlockOf(game)
@@ -681,34 +683,19 @@ async function classifyHangout(
   if (replies.length === 0) return null
 
   const game = useGameStore.getState()
-  const strict = useSettingsStore.getState().settings?.strictSchema === true
   // Built once, outside the loop: a retry re-sends the identical request.
   const request = buildHangoutClassifierPrompt(
     character.firstName,
     conversation?.messages ?? [],
     sent,
     replies.map((text) => chatMessage('contact', text)),
-    {
-      date: game.date,
-      time: game.time,
-      weather: game.weather,
-      strictSchema: strict,
-      // What one exchange cannot show: he has said no to her already, so pressing the same offer
-      // again is not a new one to be raised at him a second time.
-      alreadyDeclined:
-        (conversation?.declined ?? 0) > 0 || conversation?.pendingHangout?.dismissed === true
-    }
+    { date: game.date, time: game.time, weather: game.weather }
   )
 
   for (;;) {
     const result = await window.api.llm.classifyHangout(request)
     if (result.ok) {
-      // The two sides the quote is checked against: whichever is said to have done the asking
-      // has to actually contain the words. Unchecked with the switch off, as it always was.
-      const verdict = normalizeHangout(
-        result.data,
-        strict ? { message: sent.text, reply: replies.join(' ') } : undefined
-      )
+      const verdict = normalizeHangout(result.data)
       console.log(
         `[hangout] = ${verdict ? `${verdict.initiatedBy}: ${verdict.description}` : 'no hangout'}`
       )
@@ -730,34 +717,12 @@ function handleHangout(charId: string, hangout: HangoutVerdict | null): void {
   const game = useGameStore.getState()
   if (sceneActiveOf(game)) return
   // A girl who has left campus cannot meet him this week, however the exchange read.
-  if (charAwayNow(charId)) return
+  if (charAwayNow(charId)) {
+    deliverAwayNotice(charId)
+    return
+  }
 
   if (hangout.initiatedBy === 'contact') {
-    /**
-     * The same wait her slot-opening asks already keep, which this path never consulted: an
-     * invitation raised, declined and raised again inside one exchange is the loop the player
-     * reported. `declined` doubles it each time, so a girl turned down twice asks half as often
-     * as one turned down once.
-     *
-     * It also makes the refusal *count*. `sendMessage` clears a pending invitation and settles it
-     * at the end of the turn — but the settle returns early when a fresh one is already standing,
-     * so a second ask inside the same exchange erased the evidence of the refusal before it, and
-     * `declined` never moved off zero. Refusing the second ask here is what lets the settle find
-     * nothing standing and file the decline.
-     */
-    if (useSettingsStore.getState().settings?.strictSchema === true) {
-      const conversation = game.bunnyboard.conversations[charId]
-      const gap = declineCooldownSlots(conversation?.declined ?? 0)
-      const last = lastInviteSlotOf(conversation)
-      if (!askCooldownOver(last, globalSlotOf(game.date, game.time), gap)) {
-        console.log(
-          `[hangout] not raising ${charId}'s invitation: asked ${
-            last === null ? 'never' : `slot ${last}`
-          }, waiting ${gap} slot(s) after ${conversation?.declined ?? 0} decline(s)`
-        )
-        return
-      }
-    }
     game.setPendingHangout(charId, { description: hangout.description })
     // Her texts have all drained by now, so the newest in the thread is the ask itself.
     game.markInvitation(charId)
@@ -802,6 +767,18 @@ export async function beginHangout(): Promise<void> {
   await startHangoutScene(armed.charId, armed.description)
 }
 
+/** The line under a meet-up agreed with a girl who has left campus for spring break. */
+function deliverAwayNotice(charId: string): void {
+  const character = useGameStore.getState().characters[charId]
+  deliver(
+    charId,
+    chatMessage(
+      'system',
+      `${character?.firstName ?? 'She'} is away for spring break and can't meet up.`
+    )
+  )
+}
+
 /** The Yes/No footer under her pending ask-out. */
 export function answerHangout(charId: string, yes: boolean): void {
   const game = useGameStore.getState()
@@ -812,26 +789,10 @@ export function answerHangout(charId: string, yes: boolean): void {
     game.setPendingHangout(charId, null)
     game.setIgnoredInvitation(charId, false)
     game.resetDeclined(charId)
-    game.appendChatMessage(
-      charId,
-      useSettingsStore.getState().settings?.strictSchema === true
-        ? asInvitationAnswer(
-            chatMessage('system', invitationAnswerText(game.characters[charId]?.firstName, true)),
-            true
-          )
-        : chatMessage('player', 'Sure'),
-      0
-    )
+    game.appendChatMessage(charId, chatMessage('player', 'Sure'), 0)
     // An invitation raised before she left and accepted after it.
     if (charAwayNow(charId)) {
-      const character = game.characters[charId]
-      deliver(
-        charId,
-        chatMessage(
-          'system',
-          `${character?.firstName ?? 'She'} is away for spring break and can't meet up.`
-        )
-      )
+      deliverAwayNotice(charId)
       return
     }
     // The same armed button the player's own ask gets.
@@ -839,20 +800,8 @@ export function answerHangout(charId: string, yes: boolean): void {
     return
   }
 
-  /**
-   * A No the thread can see. Yes writes "Sure" into it; No wrote nothing at all — so her next turn
-   * read an invitation followed by him talking about something else, and she asked again, which is
-   * the only sensible thing to do with what she was shown. Logged: the same espresso offered three
-   * times in four verdicts, in her own words, quoting cleanly, so nothing to drop.
-   *
-   * A `system` line rather than words in his mouth: the app owns the fact that he was asked and
-   * did not take it up, the way it owns a rescheduled plan. What he says about it is still his.
-   */
+  // No writes nothing back: the footer comes down and the invitation stands underneath.
   game.setPendingHangout(charId, { ...pending, dismissed: true })
-  if (useSettingsStore.getState().settings?.strictSchema === true) {
-    const text = invitationAnswerText(game.characters[charId]?.firstName, false)
-    deliver(charId, asInvitationAnswer(chatMessage('system', text), false))
-  }
 }
 
 /**
@@ -1227,15 +1176,18 @@ export function pickSlotAskers(
 
   for (const event of view.events) {
     if (event.date !== day || event.time !== half) continue
-    // The first attendee who is free and not already asking about another plan. A plan
-    // overrides the dice but not a block, so the block is tested here as well.
-    const messenger = event.charIds.find(
+    // Every attendee in the city not already asking about another plan. A plan overrides the
+    // dice but not a block, so the block is tested here as well.
+    const reachable = event.charIds.filter(
       (charId) =>
         !chosen.has(charId) &&
         game.characters[charId] &&
         !view.charInfo[charId]?.flags?.blocked &&
-        !charUnavailableNow(charId, day, half)
+        !charAwayNow(charId, day)
     )
+    // A free one first; one with class or work texts anyway, to meet him before or after it.
+    const messenger =
+      reachable.find((charId) => !charBusyNow(charId, day, half)) ?? reachable[0]
     if (messenger) take(messenger)
   }
 
@@ -1375,10 +1327,7 @@ export function addPlanContacts(events: readonly CalendarEvent[]): void {
   }
 }
 
-/**
- * Tells the reader which characters have backed out of a plan, and which of their two standing
- * commitments took them.
- */
+/** Tells the reader which characters have backed out of a plan, and what took them. */
 export function deliverEventCancellations(
   cancellations: readonly EventCancellation[]
 ): void {

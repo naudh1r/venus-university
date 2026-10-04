@@ -1,21 +1,26 @@
-import { mkdir, rename, rm, utimes, writeFile } from 'fs/promises'
+import { mkdir, readFile, rename, rm, utimes, writeFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
 import {
   BACKUP_NAME,
   BACKUP_READ,
   BACKUP_SCHEMA_VERSION,
   BACKUP_ZIP_LIMITS,
+  backgroundEntry,
+  backgroundsFromBackup,
   CHARACTERS_DIR,
   charFileEntry,
   classifyBackupEntry,
   endingArtEntry,
+  photoEntry,
   profilePictureEntry,
   type BackupFile,
+  type BackupPhoto,
   type BackupPlaythrough,
   type BackupSave
 } from '@shared/backup'
 import { isCharFileRel, STAGING_DIR } from '@shared/characterFiles'
 import { CHARACTER_NOT_FOUND, SAFE_CHAR_ID } from '@shared/characterRules'
+import { BG_VARIANTS, type BgVariant, type CustomBackground } from '@shared/customBackgrounds'
 import { appError, messageOf } from '@shared/errors'
 import { imageTypeOf } from '@shared/imageBytes'
 import {
@@ -26,7 +31,7 @@ import {
   SAFE_NUMERIC_ID,
   SAVE_NOT_FOUND
 } from '@shared/saveRules'
-import { upgradeSettings } from '@shared/settingsRules'
+import { settingsFromBackup } from '@shared/settingsRules'
 import type { AppError, Character } from '@shared/types'
 import {
   isPregenChar,
@@ -35,6 +40,9 @@ import {
   getCharactersPath,
   getEndingArtPath,
   getEnrollmentPath,
+  getPhotoMetaPath,
+  getPhotoPath,
+  getPhotosPath,
   getPlaythroughRecordPath,
   getProfilePicturePath,
   getSaveFilePath,
@@ -49,11 +57,17 @@ import {
   relPathsUnder,
   scratchDir
 } from './archiveService'
+import {
+  listCustomBackgrounds,
+  readCustomBackgroundImage,
+  restoreCustomBackground
+} from './backgroundService'
 import { getCharacter, ownCharIds } from './characterService'
 import { readEndingArt } from './endingArtService'
 import { getGrabBags, setGrabBags } from './grabBagService'
 import { sniffImageFile } from './imageFiles'
 import { readValidatedJson, writeAtomicJson } from './jsonFile'
+import { listPhotos } from './photoService'
 import { readProfilePicture } from './profilePictureService'
 import {
   forgetParsedSaves,
@@ -63,7 +77,7 @@ import {
   readPlaythroughRecord,
   saveIdsOf
 } from './saveService'
-import { applySettingsPatch, getRendererSettings, setRemovedDefaults } from './settingsService'
+import { getRendererSettings, getSettings, replaceSettings } from './settingsService'
 
 /** The data folder as one backup zip, and one backup zip back over the data folder. */
 
@@ -125,6 +139,36 @@ async function backupPlaythrough(playthroughId: string): Promise<BackupPlaythrou
   }
 }
 
+/**
+ * Copies the player's own backgrounds into `scratch` and answers the records of the ones it
+ * copied. A background goes whole or not at all: a day or a night whose bytes are not a
+ * picture's leaves it out, a rain render that is not one leaves out only itself.
+ */
+async function backupBackgrounds(scratch: string): Promise<CustomBackground[]> {
+  const backgrounds: CustomBackground[] = []
+  for (const { record, urls } of await listCustomBackgrounds()) {
+    const pictures: Partial<Record<BgVariant, Uint8Array>> = {}
+    for (const variant of BG_VARIANTS) {
+      if (!urls[variant]) continue
+      const bytes = await readCustomBackgroundImage(record.name, variant).catch(() => null)
+      const entry = backgroundEntry(record.name, variant)
+      if (bytes && imageTypeOf(bytes)) pictures[variant] = bytes
+      else console.warn(`[backup] leaving out ${entry}: not an image`)
+    }
+    if (!pictures.day || !pictures.night) continue
+
+    for (const variant of BG_VARIANTS) {
+      const bytes = pictures[variant]
+      if (!bytes) continue
+      const path = join(scratch, backgroundEntry(record.name, variant))
+      await mkdir(dirname(path), { recursive: true })
+      await writeFile(path, bytes)
+    }
+    backgrounds.push(record)
+  }
+  return backgrounds
+}
+
 /** Writes everything this install keeps into `targetPath` as one zip. */
 export async function exportBackup(targetPath: string): Promise<void> {
   const scratch = scratchDir('backup')
@@ -138,6 +182,7 @@ export async function exportBackup(targetPath: string): Promise<void> {
     const saves: BackupSave[] = []
     const endingArt: string[] = []
     const profilePictures: string[] = []
+    const photos: BackupPhoto[] = []
 
     for (const playthroughId of await playthroughIds()) {
       playthroughs[playthroughId] = await backupPlaythrough(playthroughId)
@@ -170,6 +215,17 @@ export async function exportBackup(targetPath: string): Promise<void> {
           console.warn(`[backup] leaving out ${profilePictureEntry(playthroughId)}: not an image`)
         }
       }
+
+      for (const entry of await listPhotos(playthroughId)) {
+        const bytes = await readFile(getPhotoPath(playthroughId, entry.photoId)).catch(() => null)
+        // Bytes that are not a picture's are left out rather than packed under a name that says
+        // they are one: a backup a restore would refuse is no backup.
+        if (!bytes || !imageTypeOf(bytes)) continue
+        const path = join(scratch, photoEntry(playthroughId, entry.photoId))
+        await mkdir(dirname(path), { recursive: true })
+        await writeFile(path, bytes)
+        photos.push({ playthroughId, photoId: entry.photoId, meta: entry.meta })
+      }
     }
 
     // The player's own only: the shipped cast is the build's, wherever it is read from, and a
@@ -197,6 +253,8 @@ export async function exportBackup(targetPath: string): Promise<void> {
       }
     }
 
+    const backgrounds = await backupBackgrounds(scratch)
+
     const record: BackupFile = {
       schemaVersion: BACKUP_SCHEMA_VERSION,
       settings,
@@ -205,6 +263,8 @@ export async function exportBackup(targetPath: string): Promise<void> {
       saves,
       endingArt,
       profilePictures,
+      photos,
+      backgrounds,
       characters
     }
     await writeAtomicJson(join(scratch, BACKUP_NAME), record, {
@@ -318,6 +378,27 @@ async function restoreSaves(scratch: string, record: BackupFile): Promise<void> 
           }
         )
       }
+
+      const ownPhotos = (record.photos ?? []).filter(
+        (entry) => entry.playthroughId === playthroughId && SAFE_NUMERIC_ID.test(entry.photoId)
+      )
+      if (ownPhotos.length > 0) {
+        const photosDir = join(folder, basename(getPhotosPath(playthroughId)))
+        await mkdir(photosDir, { recursive: true })
+        for (const entry of ownPhotos) {
+          const picture = join(photosDir, basename(getPhotoPath(playthroughId, entry.photoId)))
+          // Named but not in the zip is one missing photo, not a failed restore.
+          await rename(join(scratch, photoEntry(playthroughId, entry.photoId)), picture).catch(
+            (err: unknown) => {
+              console.warn(`[backup] no photo ${entry.photoId} for ${playthroughId}:`, err)
+            }
+          )
+          if (entry.meta) {
+            const metaPath = join(photosDir, basename(getPhotoMetaPath(playthroughId, entry.photoId)))
+            await writeAtomicJson(metaPath, entry.meta, RESTORE_FAILED)
+          }
+        }
+      }
     }
 
     await swapSaves(staged)
@@ -359,9 +440,29 @@ async function restoreCharacters(scratch: string, record: BackupFile): Promise<v
 }
 
 /**
+ * Merges the backup's backgrounds in by name, each replacing whatever was kept under its name,
+ * a rain render the backup's copy lacks included.
+ */
+async function restoreBackgrounds(
+  scratch: string,
+  backgrounds: readonly CustomBackground[]
+): Promise<void> {
+  for (const background of backgrounds) {
+    const pictures: Partial<Record<BgVariant, Uint8Array>> = {}
+    for (const variant of BG_VARIANTS) {
+      const path = join(scratch, backgroundEntry(background.name, variant))
+      const bytes = await readFile(path).catch(() => null)
+      if (bytes && bytes.length > 0) pictures[variant] = bytes
+    }
+    await restoreCustomBackground(background, pictures)
+  }
+}
+
+/**
  * Reads one backup back over everything this install holds: settings, grab bags and saves are
- * replaced by the backup's, the player's own characters are merged in by id, and the shipped
- * cast is left as the build ships it.
+ * replaced by the backup's — the settings keeping this install's keys and switches — the
+ * player's own characters and backgrounds are merged in by id and name, and the shipped cast is
+ * left as the build ships it.
  */
 export async function importBackup(archivePath: string): Promise<void> {
   const scratch = scratchDir('backup')
@@ -371,30 +472,16 @@ export async function importBackup(archivePath: string): Promise<void> {
     await checkExtractedContent(scratch, classifyBackupEntry, 'backup')
     const record = await readBackupRecord(scratch)
 
-    // The stored key stays: a backup carries settings as the renderer sees them, so it never
-    // carries one. The dev switches and the ComfyUI build stay too, being this install's own;
-    // which shipped characters the player took off the roster travels with the backup, through
-    // its own writer. A custom endpoint's model ids held in Gemini's fields move into the
-    // endpoint's own first, since the patch writes the endpoint's id blank where it names none.
-    const {
-      apiKeySet: _flag,
-      endpointApiKeySet: _endpointFlag,
-      schemaVersion: _version,
-      removedDefaults,
-      freezeSeeds: _seeds,
-      editPregens: _pregens,
-      forceTime: _clock,
-      serviceTier: _tier,
-      streamResponses: _stream,
-      comfyGpu: _gpu,
-      ...patch
-    } = upgradeSettings(record.settings).settings
+    // Everything the record says is checked before anything here is written. The stored keys,
+    // the dev switches and the ComfyUI build stay, being this install's own.
+    const settings = settingsFromBackup(await getSettings(), record.settings, BACKUP_READ.malformed)
+    const backgrounds = backgroundsFromBackup(record)
 
-    await applySettingsPatch(patch)
-    await setRemovedDefaults(removedDefaults)
+    await replaceSettings(settings)
     await setGrabBags(record.grabbags)
     await restoreSaves(scratch, record)
     await restoreCharacters(scratch, record)
+    await restoreBackgrounds(scratch, backgrounds)
   } finally {
     await discard(scratch)
   }

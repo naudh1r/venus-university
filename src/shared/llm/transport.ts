@@ -1,6 +1,14 @@
 import { endpointProblem } from '../endpoint'
 import { appError, messageOf } from '../errors'
-import { pictureKeyOf, writerReady } from '../settingsRules'
+import { isModelId } from '../photos'
+import {
+  GEMINI_IMAGE_MODELS,
+  IMAGE_MODEL_ID,
+  imageApiFor,
+  providerFor,
+  type ImageApi
+} from '../providers'
+import { imageEndpointOf, imageModelOf, pictureKeyOf, writerReady } from '../settingsRules'
 import type { Settings } from '../types'
 import type { LlmAdapter, LlmCall } from './adapter'
 import { readSettings } from './settingsPort'
@@ -32,24 +40,84 @@ export async function writerSettings(purpose: string, override?: Settings): Prom
   throw appError('API_KEY_MISSING', `No API key is configured. Add one in Settings to ${purpose}.`)
 }
 
+/** Where one picture is drawn: its wire format, root, model and key, and who its lines name. */
+export interface PictureTarget {
+  api: ImageApi
+  baseUrl: string
+  modelId: string
+  apiKey: string
+  /** The display label, for the console and for user-facing messages. */
+  label: string
+}
+
 /**
- * Settings with the Gemini key the pictures are drawn with proven present, or the permanent
- * failure saying how to add one. The pictures never run on a custom endpoint.
+ * Where the pictures are drawn, or the permanent failure naming what is missing; `purpose`
+ * completes that message. Gemini draws on `model` when it names one of its own image models —
+ * the graduation picture's pro one, or a photo's pick — else on the room pair's; a custom
+ * endpoint draws at its images root on `customModel`, a photo's pick, where the host may be
+ * asked for it, else on its images model, `model` going unused. `override` runs candidate
+ * settings instead of the stored ones.
  */
-export async function pictureSettings(
-  purpose: string
-): Promise<Settings & { pictureKey: string }> {
-  const settings = await readSettings()
-  const pictureKey = pictureKeyOf(settings)
-  if (!pictureKey) {
-    throw appError(
-      'API_KEY_MISSING',
-      settings.apiProvider === 'openai'
-        ? `No Gemini key is set. Add one in Settings to ${purpose}.`
-        : `No API key is configured. Add one in Settings to ${purpose}.`
-    )
+export async function pictureTarget(
+  purpose: string,
+  model: string | undefined,
+  override?: Settings,
+  customModel?: string
+): Promise<PictureTarget> {
+  const settings = override ?? (await readSettings())
+  const apiKey = pictureKeyOf(settings)
+
+  if (settings.apiProvider !== 'openai') {
+    if (!apiKey) {
+      throw appError('API_KEY_MISSING', `No API key is configured. Add one in Settings to ${purpose}.`)
+    }
+    const gemini = providerFor('gemini')
+    const modelId =
+      model && GEMINI_IMAGE_MODELS.some((candidate) => candidate.id === model) ? model : IMAGE_MODEL_ID
+    return {
+      api: 'gemini',
+      baseUrl: gemini.baseUrl,
+      modelId,
+      apiKey,
+      label: gemini.label
+    }
   }
-  return { ...settings, pictureKey }
+
+  const baseUrl = imageEndpointOf(settings)
+  const problem = endpointProblem(baseUrl, 'images endpoint URL')
+  if (problem) {
+    throw appError('LLM_ENDPOINT_INVALID', `${problem} Fix it in Settings to ${purpose}.`)
+  }
+  if (!apiKey) {
+    throw appError('API_KEY_MISSING', `No Image API key is set. Add one in Settings to ${purpose}.`)
+  }
+  const api = imageApiFor(baseUrl)
+  return {
+    api,
+    baseUrl,
+    modelId: customModelOf(settings, api, customModel),
+    apiKey,
+    label: imageLabelOf(api)
+  }
+}
+
+/**
+ * The model a custom endpoint draws on: `pick` where it may be sent — on Google's host, whose URL
+ * path carries it, only one of Gemini's own image models or the stored one; on an Images API host,
+ * any well-formed id, which rides in the body — else the stored images model.
+ */
+function customModelOf(settings: Settings, api: ImageApi, pick: string | undefined): string {
+  const stored = imageModelOf(settings)
+  if (!pick || pick === stored) return stored
+  if (api === 'gemini') {
+    return GEMINI_IMAGE_MODELS.some((candidate) => candidate.id === pick) ? pick : stored
+  }
+  return isModelId(pick) ? pick : stored
+}
+
+/** How a picture's lines name who draws it: Gemini by its own label, anywhere else the image endpoint. */
+export function imageLabelOf(api: ImageApi): string {
+  return api === 'gemini' ? providerFor('gemini').label : 'Image endpoint'
 }
 
 /** Wall clock for a round trip, in ms; read on every exit path. */

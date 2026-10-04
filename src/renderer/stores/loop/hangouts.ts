@@ -4,10 +4,13 @@ import { SETTING } from '../../prompts/setting'
 import { useGameStore } from '../gameStore'
 import { startHeldPostPhoto } from '../photoPost'
 import { coverSceneOpening } from '../slotCrossing'
+import { plannedWith } from '../textingLoop'
 import { castCharactersOf, nameOf } from './cast'
 import {
   admitLocals,
+  commitmentNotes,
   injectPasserby,
+  planAttendees,
   resolveAttendance,
   resolveLocationId,
   runIntoNote,
@@ -194,11 +197,20 @@ async function castHangout(
   verdict: Verdict
 ): Promise<{ cast: string[]; action: string }> {
   const { mentioned, inPublic, sceneLocation } = verdict
+  const game = useGameStore.getState()
+
+  // The plan she has with him this slot, if any: every attendee comes, named or not, and her
+  // class or her shift is over by the time they meet.
+  const event = plannedWith(charId, game.date, game.time)
+  const attendees = event ? planAttendees(event) : []
 
   // A girl at work where they are meeting is available rather than busy.
   const workers = workersAtLocation(sceneLocation).map((worker) => worker.charId)
-  const attendance = resolveAttendance(mentioned, charId, workers)
-  const notes = [...attendance.notes]
+  const attendance = resolveAttendance([...attendees, ...mentioned], charId, [
+    ...workers,
+    ...attendees
+  ])
+  const notes = [...attendance.notes, ...commitmentNotes(attendance.cast, attendees, workers)]
   let cast = attendance.cast
 
   // A hangout rolls like a named typed action: the pinned character is the naming.

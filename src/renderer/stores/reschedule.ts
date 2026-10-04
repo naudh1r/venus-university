@@ -3,14 +3,7 @@ import { globalSlotOf, jobDefOf } from '@shared/jobs'
 import type { CalendarEvent, TimeSlot } from '@shared/types'
 import { shiftWeekdayOf } from '../prompts/gameDate'
 import { useGameStore } from './gameStore'
-import {
-  charAwayNow,
-  charBusyNow,
-  charClassNow,
-  charJobNow,
-  playerClassNow,
-  shiftNow
-} from './timetable'
+import { charAwayNow, charCommitmentAt, playerClassNow, shiftNow } from './timetable'
 
 /**
  * The slots a plan may be moved to: the reschedule grid's two weeks, and why each tile the
@@ -62,8 +55,8 @@ function readerVerdict(event: CalendarEvent, date: number, time: TimeSlot): Verd
 }
 
 /**
- * Whichever attendee cannot make the slot, `away` ahead of `busy` as `filterEventsByAttendance`
- * ranks them. One blocked attendee blocks the tile.
+ * Whichever attendee cannot make the slot, `away` ahead of `busy`: out of town, or at her class
+ * or her shift. One blocked attendee blocks the tile.
  */
 function attendeeVerdict(event: CalendarEvent, date: number, time: TimeSlot): Verdict {
   const game = useGameStore.getState()
@@ -73,12 +66,9 @@ function attendeeVerdict(event: CalendarEvent, date: number, time: TimeSlot): Ve
   if (gone) return { blocked: 'away', label: `${nameOf(gone)} away` }
 
   for (const charId of event.charIds) {
-    if (!charBusyNow(charId, date, time)) continue
-    const classCode = charClassNow(charId, date, time)
-    const jobId = classCode ? null : charJobNow(charId, date, time)
-    const where = classCode
-      ? game.classes[classCode]?.name ?? classCode
-      : jobDefOf(jobId ?? '')?.employer ?? 'work'
+    const commitment = charCommitmentAt(charId, date, time)
+    if (!commitment) continue
+    const where = commitment.kind === 'class' ? commitment.name : commitment.employer
     return { blocked: 'busy', label: `${nameOf(charId)} — ${where}` }
   }
   return null

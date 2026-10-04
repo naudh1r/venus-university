@@ -6,9 +6,10 @@ import {
   type SchedulePromptInput
 } from '../src/renderer/prompts/schedulePrompt'
 import { buildLedgerPrompt } from '../src/renderer/prompts/scenePrompt'
-import { charKeyOf, type CalendarEvent, type Occasion, type TimeSlot } from '@shared/types'
+import { DEFAULT_MEMORY_BUDGETS } from '@shared/settingsRules'
+import { charKeyOf, type CalendarEvent, type TimeSlot } from '@shared/types'
 import { SPRING_BREAK_LEAVE } from '../src/renderer/prompts/springBreak'
-import { calendarEvent, character, charactersById, charInfo, charJob } from './fixtures'
+import { calendarEvent, character, charactersById } from './fixtures'
 
 /** Day 0 is a Monday, so this is Monday day — every case is dated from it. */
 const MADE_ON = { date: 0, time: 0 as TimeSlot }
@@ -107,6 +108,7 @@ describe('the PLANS half of the ledger request', () => {
       cgReady: {},
       outfitReady: {},
       lessNsfwText: false,
+      memoryBudgets: DEFAULT_MEMORY_BUDGETS,
       roomReady: {}
     }
   }
@@ -206,22 +208,9 @@ describe('the PLANS half of the ledger request', () => {
 })
 
 describe('filterEventsByAttendance', () => {
-  // Day 1 is a Tuesday, so its night is class slot 3.
-  const busy = { 'char-1': charInfo({ schedule: { 3: 'ART101' } }), 'char-2': charInfo() }
-
-  it('drops a character who has class then, and reports the cancellation', () => {
-    const result = filterEventsByAttendance([event({ charIds: ['char-1', 'char-2'] })], busy)
-    expect(result.events[0].charIds).toEqual(['char-2'])
-    expect(result.cancellations).toEqual([
-      { charId: 'char-1', date: 1, time: 1, reason: 'class' }
-    ])
-  })
-
   it('drops a character who has left campus for the week, and says which reason', () => {
     const result = filterEventsByAttendance(
       [event({ charIds: ['char-1', 'char-2'], date: SPRING_BREAK_LEAVE })],
-      { 'char-1': charInfo(), 'char-2': charInfo() },
-      [],
       ['char-1']
     )
     expect(result.events[0].charIds).toEqual(['char-2'])
@@ -230,90 +219,20 @@ describe('filterEventsByAttendance', () => {
     ])
   })
 
-  it('drops an event whose every character is busy', () => {
-    const result = filterEventsByAttendance([event({ charIds: ['char-1'] })], busy)
+  it('drops an event whose every character is away', () => {
+    const result = filterEventsByAttendance(
+      [event({ charIds: ['char-1'], date: SPRING_BREAK_LEAVE })],
+      ['char-1']
+    )
     expect(result.events).toEqual([])
     expect(result.cancellations).toHaveLength(1)
   })
 
-  it('never finds anyone busy on a weekend, when nothing meets', () => {
-    // Day 5 is a Saturday: `classSlotOf` is null and no slot exists to clash.
-    const weekend = filterEventsByAttendance([event({ date: 5, charIds: ['char-1'] })], busy)
-    expect(weekend.events[0].charIds).toEqual(['char-1'])
-    expect(weekend.cancellations).toEqual([])
-  })
-
-  // The same null, reached the other way: a day the university closed has no
-  // slot either, so a timetable clash on it is not a clash.
-  it('never finds anyone busy on a day an occasion cancelled', () => {
-    const holiday: Occasion = {
-      id: 'test-holiday',
-      title: 'A day off',
-      description: 'Nothing meets.',
-      startDate: 1,
-      endDate: 1,
-      time: null,
-      cancelsClasses: true,
-      kind: 'academic'
-    }
-    const off = filterEventsByAttendance([event({ charIds: ['char-1'] })], busy, [holiday])
-    expect(off.events[0].charIds).toEqual(['char-1'])
-    expect(off.cancellations).toEqual([])
-  })
-
-  // A shift is asked about differently from a class, and these three pin the
-  // difference down: it is not excused by a weekend or by the university
-  // closing, and a freshman does not have one yet.
-  describe('shifts', () => {
-    // Day 1 is a Tuesday: its night is shift slot 3, the same number the class
-    // week uses for it, which is what makes the weekend cases below the
-    // interesting ones.
-    const working = { 'char-1': charInfo({ job: charJob({ shifts: [3] }) }) }
-
-    it('drops a character who is on shift then', () => {
-      const result = filterEventsByAttendance([event({ charIds: ['char-1'] })], working)
-      expect(result.events).toEqual([])
-      expect(result.cancellations).toEqual([
-        { charId: 'char-1', date: 1, time: 1, reason: 'shift', jobId: 'cutetea' }
-      ])
-    })
-
-    it('still finds her busy on a weekend — she works Saturdays', () => {
-      // Day 5 is a Saturday night: shift slot 11, which no `ClassSlot` covers.
-      const weekend = { 'char-1': charInfo({ job: charJob({ shifts: [11] }) }) }
-      const result = filterEventsByAttendance([event({ date: 5, charIds: ['char-1'] })], weekend)
-      expect(result.events).toEqual([])
-      expect(result.cancellations).toEqual([
-        { charId: 'char-1', date: 5, time: 1, reason: 'shift', jobId: 'cutetea' }
-      ])
-    })
-
-    it('still finds her busy on a day an occasion cancelled — the cafe stays open', () => {
-      const holiday: Occasion = {
-        id: 'test-holiday',
-        title: 'A day off',
-        description: 'Nothing meets.',
-        startDate: 1,
-        endDate: 1,
-        time: null,
-        cancelsClasses: true,
-        kind: 'academic'
-      }
-      const result = filterEventsByAttendance([event({ charIds: ['char-1'] })], working, [holiday])
-      expect(result.events).toEqual([])
-      expect(result.cancellations).toHaveLength(1)
-    })
-
-    it('leaves a freshman free until the day her job starts', () => {
-      const later = { 'char-1': charInfo({ job: charJob({ shifts: [3], startsOn: 14 }) }) }
-      const before = filterEventsByAttendance([event({ charIds: ['char-1'] })], later)
-      expect(before.events[0].charIds).toEqual(['char-1'])
-      expect(before.cancellations).toEqual([])
-
-      // Day 15 is the Tuesday after: the same slot, now that the job exists.
-      const after = filterEventsByAttendance([event({ date: 15, charIds: ['char-1'] })], later)
-      expect(after.events).toEqual([])
-      expect(after.cancellations).toHaveLength(1)
-    })
+  // Her timetable is never read: a class or a shift in the slot is something she comes to
+  // the plan from, and only the week she is out of the city takes her off it.
+  it('keeps a leaver on a plan outside her week away, and cancels nothing', () => {
+    const result = filterEventsByAttendance([event({ charIds: ['char-1'] })], ['char-1'])
+    expect(result.events[0].charIds).toEqual(['char-1'])
+    expect(result.cancellations).toEqual([])
   })
 })

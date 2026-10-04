@@ -1100,17 +1100,22 @@ export function giftReactionOf(
   return disliked ? 'unimpressed' : 'neutral'
 }
 
-/** How the handover is reported to the player and to RITA, one sentence per verdict. */
-function giftReactionLine(firstName: string, reaction: GiftReaction): string {
+/**
+ * How the handover is reported to the player and to RITA, one sentence per verdict. A null name
+ * is a girl whose name the reader has not learned, who is "she" instead.
+ */
+function giftReactionLine(firstName: string | null, reaction: GiftReaction): string {
+  const who = firstName ?? 'She'
+  const whose = firstName ? `${firstName}'s` : 'her'
   switch (reaction) {
     case 'loved':
-      return `${firstName} really loves it!`
+      return `${who} really loves it!`
     case 'liked':
-      return `${firstName} likes it.`
+      return `${who} likes it.`
     case 'neutral':
-      return `It's not ${firstName}'s usual thing, but she still appreciates it.`
+      return `It's not ${whose} usual thing, but she still appreciates it.`
     case 'unimpressed':
-      return `${firstName} isn't very impressed...`
+      return `${who} isn't very impressed...`
   }
 }
 
@@ -1166,13 +1171,16 @@ export function withGiftMemory(
 
 // ─── The words a gift is given in ──────────────────────────────────────────────
 
-/** The action the Gift button submits on the player's behalf. */
+/**
+ * The action the Gift button submits on the player's behalf. It says her name only where the
+ * reader knows it (null otherwise): a turn saying a stranger's name is refused.
+ */
 export function giftActionLine(
-  firstName: string,
+  firstName: string | null,
   item: ItemDef,
   reaction: GiftReaction
 ): string {
-  return `I give ${firstName} the ${item.name} that I bought for ${formatMoney(item.price)} before this scene. ${giftReactionLine(firstName, reaction)}`
+  return `I give ${firstName ?? 'her'} the ${item.name} that I bought for ${formatMoney(item.price)} before this scene. ${giftReactionLine(firstName, reaction)}`
 }
 
 /**

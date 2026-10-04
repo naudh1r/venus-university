@@ -15,7 +15,13 @@ import {
   stagedRel,
   STAGING_DIR
 } from '@shared/characterFiles'
+import {
+  CUSTOM_BACKGROUND_RECORD_NAME,
+  customBackgroundFileName,
+  type BgVariant
+} from '@shared/customBackgrounds'
 import { appError } from '@shared/errors'
+import { photoImageName, photoMetaName, photoThumbName, PHOTOS_DIR } from '@shared/photos'
 import type { RoomVariant } from '@shared/room'
 import type { OutfitSet } from '@shared/types'
 
@@ -197,6 +203,46 @@ export function getEndingArtPath(playthroughId: string): string {
 /** `/data/saves/{playthroughId}/profile.png` — the reader's own picture. */
 export function getProfilePicturePath(playthroughId: string): string {
   return join(getPlaythroughPath(playthroughId), 'profile.png')
+}
+
+/** `/data/saves/{playthroughId}/photos` — the Bunnyboard's photos. */
+export function getPhotosPath(playthroughId: string): string {
+  return join(getPlaythroughPath(playthroughId), PHOTOS_DIR)
+}
+
+/** `/data/saves/{playthroughId}/photos/{photoId}.png` */
+export function getPhotoPath(playthroughId: string, photoId: string): string {
+  return join(getPhotosPath(playthroughId), photoImageName(photoId))
+}
+
+/** `/data/saves/{playthroughId}/photos/{photoId}.thumb.jpg` */
+export function getPhotoThumbPath(playthroughId: string, photoId: string): string {
+  return join(getPhotosPath(playthroughId), photoThumbName(photoId))
+}
+
+/** `/data/saves/{playthroughId}/photos/{photoId}.json` */
+export function getPhotoMetaPath(playthroughId: string, photoId: string): string {
+  return join(getPhotosPath(playthroughId), photoMetaName(photoId))
+}
+
+/** `/data/backgrounds` — one folder per background the player brought. */
+export function getBackgroundsPath(): string {
+  return join(getDataPath(), 'backgrounds')
+}
+
+/** `/data/backgrounds/{name}` */
+export function getCustomBackgroundPath(name: string): string {
+  return join(getBackgroundsPath(), name)
+}
+
+/** `/data/backgrounds/{name}/background.json` */
+export function getCustomBackgroundRecordPath(name: string): string {
+  return join(getCustomBackgroundPath(name), CUSTOM_BACKGROUND_RECORD_NAME)
+}
+
+/** `/data/backgrounds/{name}/{name}_{variant}.png` */
+export function getCustomBackgroundImagePath(name: string, variant: BgVariant): string {
+  return join(getCustomBackgroundPath(name), customBackgroundFileName(name, variant))
 }
 
 /** `/data/characters` */

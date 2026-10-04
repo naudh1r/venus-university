@@ -141,6 +141,22 @@ describe('encryption at rest', () => {
     await settingsService.applySettingsPatch(patch(endpoint))
     expect((await settingsService.getSettings()).endpointApiKey).toBe('endpoint-secret')
   })
+
+  it('writes the images key as its own blob, never the plaintext, and keeps it unasked', async () => {
+    const images = { apiProvider: 'openai', imageEndpointUrl: 'https://images.example.com/v1' }
+    await settingsService.applySettingsPatch(patch({ ...images, imageApiKey: 'images-secret' }))
+
+    const file = await fileOnDisk()
+    expect(file.imageApiKeyEnc).toBe(Buffer.from(`${ENC_PREFIX}images-secret`).toString('base64'))
+    expect(file.imageApiKey).toBeUndefined()
+    expect(JSON.stringify(file)).not.toContain('images-secret')
+    expect((await settingsService.getSettings()).imageApiKey).toBe('images-secret')
+
+    const renderer = await settingsService.applySettingsPatch(patch(images))
+    expect(renderer.imageApiKeySet).toBe(true)
+    expect(JSON.stringify(renderer)).not.toContain('images-secret')
+    expect((await settingsService.getSettings()).imageApiKey).toBe('images-secret')
+  })
 })
 
 describe('an incomplete file', () => {
@@ -191,8 +207,8 @@ describe('a blob that will not decrypt', () => {
   })
 })
 
-describe("a custom endpoint's file with its ids in Gemini's fields", () => {
-  it("reads them as the endpoint's own and writes them back, every key blob as it was", async () => {
+describe("a custom endpoint's file an older build wrote", () => {
+  it("reads its ids as the endpoint's own and writes them back, every key blob as it was", async () => {
     const apiKeyEnc = Buffer.from(`${ENC_PREFIX}AIza-secret`).toString('base64')
     // A blob this account cannot open, which the rewrite must keep rather than drop.
     const endpointApiKeyEnc = Buffer.from('written by another windows account').toString('base64')
@@ -215,6 +231,7 @@ describe("a custom endpoint's file with its ids in Gemini's fields", () => {
       secondaryModel: defaultSecondaryModelFor('gemini').id,
       apiKey: 'AIza-secret'
     })
+    expect(settings.imageApiKey).toBeUndefined()
 
     const file = await fileOnDisk()
     expect(file).toMatchObject({
@@ -224,6 +241,7 @@ describe("a custom endpoint's file with its ids in Gemini's fields", () => {
       apiKeyEnc,
       endpointApiKeyEnc
     })
+    expect(file.imageApiKeyEnc).toBeUndefined()
     expect(JSON.stringify(file)).not.toContain('AIza-secret')
   })
 })

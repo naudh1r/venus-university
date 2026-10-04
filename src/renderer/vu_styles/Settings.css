@@ -22,6 +22,22 @@
   font-family: var(--font-body);
 }
 
+/* The full Settings panel stands its two columns over one foot: three answers want more room
+   than the right column has. The columns row is what shrinks under the panel's cap, so the
+   writer's fields still scroll inside it. */
+.vu-settings--split {
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 44px;
+}
+
+.vu-settings-columns {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 56px;
+  min-height: 0;
+}
+
 /* The first-run content question wears the same panel with the writer's column absent: it
    hugs the one column it holds rather than keeping the width of two, and its intro is the
    whole of what the app promises about either setting, said at rest and in full. */
@@ -111,8 +127,8 @@
   width: 442px;
 }
 
-/* The scroller between the heading and the foot takes whatever height is left, so the foot
-   keeps its place and the settings scroll under it rather than over it. */
+/* The scroller takes the column's whole height, so the settings scroll inside the panel's cap
+   rather than pushing the foot under both columns down past it. */
 .vu-settings-content > .vu-scroll-box {
   flex: 1 1 auto;
 }
@@ -132,6 +148,17 @@
      the generation side. Without it the box takes the height of its contents and the last
      setting is drawn over Save. */
   overflow: hidden auto;
+}
+
+/* The full panel's column holds three headings of toggles over the sound and the data, and
+   fits under the panel's cap only a little tighter than the first-run question's. */
+.vu-settings--split .vu-settings-content {
+  gap: 15px;
+}
+
+/* The same tighter rhythm, inside the scroller the photo switches put the column in. */
+.vu-settings--split .vu-settings-content-fields {
+  gap: 15px;
 }
 
 /* The sliders and the two data copies are each a set rather than a run of settings, so they

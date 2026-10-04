@@ -109,7 +109,7 @@
 /* **Sized for three at once in the narrower band, not for one at 16:9.** A slot can cross every
    tier it has, and all three pills stand half again as large at the same moment; this size is
    what still leaves the two on the bottom row a gap between them when they do, on a 1440 stage,
-   with both of them reading `Unremarkable` — the widest word on the ladder, and the one a pill
+   with both of them reading `Below Average` — the widest word on the ladder, and the one a pill
    holds all the way through the swap, its cell being as wide as the wider of the two readings. */
 .vu-rank-radar .vu-radar-tier {
   font-size: 22px;

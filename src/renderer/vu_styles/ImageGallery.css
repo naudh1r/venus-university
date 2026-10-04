@@ -37,7 +37,3 @@
 .vu-gallery-grid--pair {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-
-.vu-gallery-grid--pair .vu-gallery-cell {
-  aspect-ratio: 16 / 9;
-}

@@ -1,7 +1,17 @@
 import type { JSX } from 'react'
 import { motion } from 'motion/react'
 import type { RenderTask } from '../stores/characterStore'
-import { accentLift, gestures, pulse, rowLift, rowPress, spin } from '../views/motion'
+import {
+  accentLift,
+  gestures,
+  pulse,
+  quietLift,
+  quietPress,
+  rowLift,
+  rowPress,
+  spin
+} from '../views/motion'
+import { CloseIcon } from '../views/screenIcons'
 import { DeadNote } from './DeadNote'
 
 export interface SetControlProps {
@@ -16,7 +26,8 @@ export interface SetControlProps {
   note?: string | null
   onGenerate: () => void
   onCancel: () => void
-  /** The landscape row's tiles carry the pill on one line with everything else. */
+  /** The landscape row's tiles carry the pill on one line with everything else, and stop a
+   *  render with a ✕ beside its status rather than a pill. */
   compact?: boolean
 }
 
@@ -53,15 +64,28 @@ export function SetControl({
         )}
         {/* Cancel takes the bucket out of the run's live tasks at once, so the control is
             back to Generate immediately. */}
-        <motion.button
-          id={`${id}-cancel`}
-          className="vu-set-pill vu-set-pill--quiet"
-          type="button"
-          {...gestures(false, rowLift, rowPress)}
-          onClick={onCancel}
-        >
-          ✕ Cancel
-        </motion.button>
+        {compact ? (
+          <motion.button
+            id={`${id}-cancel`}
+            className="vu-x vu-set-x"
+            type="button"
+            aria-label="Cancel render"
+            {...gestures(false, quietLift, quietPress)}
+            onClick={onCancel}
+          >
+            <CloseIcon />
+          </motion.button>
+        ) : (
+          <motion.button
+            id={`${id}-cancel`}
+            className="vu-set-pill vu-set-pill--quiet"
+            type="button"
+            {...gestures(false, rowLift, rowPress)}
+            onClick={onCancel}
+          >
+            ✕ Cancel
+          </motion.button>
+        )}
       </div>
     )
   }

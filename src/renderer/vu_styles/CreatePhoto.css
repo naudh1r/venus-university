@@ -1,0 +1,192 @@
+/* Create Photo: two columns in the wide chassis — the background and the cast on the left, the
+   picture's terms on the right. The left column is a fixed height that already fits the
+   background's slot and twelve rows, so a row arriving or leaving never resizes the panel. The
+   stage is 1080 tall in every band the app draws in, so one measurement below covers both the
+   1920x1080 and the 1440x1080 stage. */
+
+.vu-cp {
+  align-items: flex-start;
+}
+
+/* Held at the height the background's slot and twelve rows take, whatever stands in it: the
+   54px slot and its gap, then the 808px of twelve rows, the add button having left at the
+   twelfth — eleven rows and the button come to less. 876px of column makes a 948px panel,
+   inside the 956px the stage leaves it once the veil's padding and the tab's overhang above,
+   mirrored below by the centring, are given back. */
+.vu-cp-left {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 14px;
+  width: 560px;
+  height: 876px;
+}
+
+/* The background's slot: the add pill alone, or the picture beside its change pill and ✕.
+   Held at the picture's height, so neither state moves the rows below it. */
+.vu-cp-bg {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  height: 54px;
+}
+
+/* The picture the photo will be set in, small and quiet: a reading, not a control. */
+.vu-cp-bg-thumb {
+  display: block;
+  flex: none;
+  width: 96px;
+  height: 54px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--vu-recessed);
+}
+
+.vu-cp-bg-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 60px a row, 8px between them, twelve rows: 60*12 + 8*11 = 808px, the rows' share of the
+   column above. */
+.vu-cp-rows {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+}
+
+.vu-cp-row-wrap {
+  position: relative;
+  flex: none;
+}
+
+.vu-cp-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 60px;
+  padding: 0 44px 0 10px;
+  border-radius: 999px 0 0 999px;
+  background: var(--vu-recessed);
+}
+
+.vu-cp-face {
+  flex: none;
+  width: 32px;
+  height: 38px;
+}
+
+.vu-cp-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vu-text);
+  font: 700 14px var(--font-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-cp-select {
+  flex: none;
+  width: 128px;
+}
+
+/* The row's own selects are smaller than a field's usual gap, having no label to keep clear of. */
+.vu-cp-row .vu-cp-select {
+  gap: 0;
+}
+
+.vu-cp-row .vu-cp-select .vu-input {
+  font-size: 12.5px;
+}
+
+.vu-cp-row-x {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  translate: 0 -50%;
+}
+
+.vu-cp-add {
+  align-self: flex-start;
+}
+
+/* One row of the "Add character" list: her face beside her name, the pop list's own shape. Two
+   classes, so the flex row outranks the pop list's block row whichever sheet loads last. */
+.vu-pop-option.vu-cp-pop-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* A block of its own, so the small arch holds even where the row around it is not a flex box. */
+.vu-cp-pop-face {
+  display: block;
+  flex: none;
+  width: 28px;
+  height: 33px;
+}
+
+.vu-cp-right {
+  display: flex;
+  flex: 1;
+  align-self: stretch;
+  flex-direction: column;
+  min-width: 0;
+  gap: 14px;
+}
+
+.vu-cp-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* The model's terms two to a line: each is a short word, and a column of them the panel's
+   width reads as four empty bars. */
+.vu-cp-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 22px;
+}
+
+/* A model alone on offer: a reading rather than a picker, in the field's own
+   shape so it sits level with the pickers above and below it. */
+.vu-cp-reading {
+  padding: 11px 18px;
+  border: 2.5px solid var(--vu-border);
+  border-radius: 999px;
+  background: var(--vu-ground);
+  color: var(--vu-text-muted);
+  font: 500 14px var(--font-mono);
+}
+
+/* The note and the foot stay pinned to the panel's own foot however many optional fields the
+   model above them offers. */
+.vu-cp-foot-stack {
+  margin-top: auto;
+}
+
+/* The background picker's four skies: the palette at a field's scale, held to the width four
+   short words need rather than stretched across the picker. */
+.vu-cp-sky {
+  width: 640px;
+  max-width: 100%;
+}
+
+.vu-cp-sky .vu-palette-btn {
+  height: 76px;
+}
+
+.vu-cp-sky .vu-palette-btn svg {
+  width: 26px;
+  height: 26px;
+}

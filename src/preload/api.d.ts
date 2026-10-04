@@ -1,6 +1,18 @@
 import type { ClassifierPromptRequest, ClassifierVerdict } from '@shared/classifier'
+import type {
+  BgVariant,
+  CustomBackgroundDraft,
+  CustomBackgroundListing
+} from '@shared/customBackgrounds'
 import type { PromptEdit } from '@shared/imagePrompt'
+import type {
+  PhotoEntry,
+  PhotoMeta,
+  PhotoModelChoice,
+  PhotoRequest
+} from '@shared/photos'
 import type { RoomVariant } from '@shared/room'
+import type { ExportKind } from '@shared/sillyTavern'
 import type {
   Character,
   CharacterBrief,
@@ -18,6 +30,8 @@ import type {
   InstallResult,
   JobProgress,
   HangoutClassifierResponse,
+  ImageCandidate,
+  ImageEndpointCandidate,
   LedgerResponse,
   LogLevel,
   PlaythroughSummary,
@@ -111,6 +125,13 @@ export interface VenusUniversityApi {
     listModels: (endpointUrl: string, apiKey?: string) => Promise<Result<string[]>>
     /** Sends one tiny structured request on the form's writer fields; the error is the answer. */
     testWriter: (candidate: WriterCandidate) => Promise<Result<void>>
+    /**
+     * The image model ids the form's images URL lists, for its suggestions. An absent key tries
+     * the one a picture there would be drawn with.
+     */
+    listImageModels: (candidate: ImageEndpointCandidate) => Promise<Result<string[]>>
+    /** Draws one picture on the form's image fields and discards it; the error is the answer. */
+    testImages: (candidate: ImageCandidate) => Promise<Result<void>>
     /** Reports named roster charKeys, the action type, and any refusal. */
     classify: (
       request: ClassifierPromptRequest,
@@ -246,6 +267,8 @@ export interface VenusUniversityApi {
       variant: RoomVariant,
       staged?: boolean
     ) => Promise<Result<string>>
+    /** Writes a room background the player picked, `png` being the base64 of its PNG bytes. */
+    uploadRoom: (charId: string, variant: RoomVariant, png: string) => Promise<Result<void>>
     /**
      * Writes one character out as a portable zip, through a native save dialog.
      * Resolves the chosen path, or `null` when the dialog was dismissed.
@@ -258,6 +281,12 @@ export interface VenusUniversityApi {
     import: () => Promise<Result<Character | null>>
     /** Copies one character's folder under a fresh charId, staging excluded and name kept. */
     duplicate: (charId: string) => Promise<Result<Character>>
+    /**
+     * Saves bytes the renderer composed — a SillyTavern card or sprite pack — through the
+     * native dialog on desktop and the download panel in the browser. `null` means the dialog
+     * was dismissed.
+     */
+    saveExport: (kind: ExportKind, name: string, base64: string) => Promise<Result<string | null>>
     /**
      * The charIds of the cast the game ships with, and which of them the player has taken off
      * the roster.
@@ -331,6 +360,43 @@ export interface VenusUniversityApi {
     writeProfilePicture: (playthroughId: string, png: string) => Promise<Result<void>>
     /** Removes the reader's picture; already gone is success. */
     deleteProfilePicture: (playthroughId: string) => Promise<Result<void>>
+  }
+  photos: {
+    /** The image models a photo may be drawn on under the stored settings, and what each takes. */
+    options: () => Promise<Result<PhotoModelChoice>>
+    /**
+     * Draws one photo from the reference pictures the renderer built and answers with the bytes
+     * exactly as the model returned them. Writes nothing: the renderer keeps them with {@link write}.
+     */
+    generate: (
+      request: PhotoRequest,
+      group: string
+      // A plain `ArrayBuffer`, as for `readWardrobeImage`.
+    ) => Promise<Result<Uint8Array<ArrayBuffer>>>
+    /** Every photo kept beside the playthrough, newest first; none at all is an empty list. */
+    list: (playthroughId: string) => Promise<Result<PhotoEntry[]>>
+    /** One photo's picture, or `null` where it is gone. */
+    read: (playthroughId: string, photoId: string) => Promise<Result<Uint8Array<ArrayBuffer> | null>>
+    /**
+     * Keeps one photo — its picture and thumbnail as base64 and its sidecar — beside a
+     * playthrough that still exists; refused, and nothing created, where it does not.
+     */
+    write: (
+      playthroughId: string,
+      photoId: string,
+      image: string,
+      thumb: string,
+      meta: PhotoMeta
+    ) => Promise<Result<void>>
+    /** Replaces one photo's thumbnail, base64, where the photo is still kept. */
+    writeThumb: (playthroughId: string, photoId: string, thumb: string) => Promise<Result<void>>
+    /** Removes one photo; already gone is success. */
+    delete: (playthroughId: string, photoId: string) => Promise<Result<void>>
+    /**
+     * Hands the player a copy: the native dialog on the desktop, answering the path or `null`
+     * when dismissed; the download panel in the browser, answering `null`.
+     */
+    export: (playthroughId: string, photoId: string) => Promise<Result<string | null>>
   }
   comfy: {
     start: () => Promise<Result<void>>
@@ -431,6 +497,29 @@ export interface VenusUniversityApi {
   backup: {
     export: () => Promise<Result<string | null>>
     import: () => Promise<Result<boolean>>
+  }
+  /** The backgrounds the player brought, kept for every playthrough beside the shipped ones. */
+  backgrounds: {
+    /** Every whole one, by name, with where each of its pictures is shown from. */
+    list: () => Promise<Result<CustomBackgroundListing[]>>
+    /**
+     * Keeps a new one, `images` holding each picture's base64 PNG bytes by variant, the day and
+     * the night among them; a name already kept is refused with `BACKGROUND_TAKEN`.
+     */
+    add: (
+      draft: CustomBackgroundDraft,
+      images: Partial<Record<BgVariant, string>>
+    ) => Promise<Result<CustomBackgroundListing>>
+    /** Removes one; a name nothing is kept under is success. */
+    remove: (name: string) => Promise<Result<void>>
+    /**
+     * One picture's bytes, or `null` where it has none — what a manual save's picture of the
+     * stage is drawn from. A plain `ArrayBuffer`, as for `chars.readImage`.
+     */
+    readImage: (
+      name: string,
+      variant: BgVariant
+    ) => Promise<Result<Uint8Array<ArrayBuffer> | null>>
   }
 }
 

@@ -20,7 +20,8 @@ import {
   clampVoicePitch,
   VOICE_PITCH_DEFAULT,
   VOICE_PITCH_MAX,
-  VOICE_PITCH_MIN
+  VOICE_PITCH_MIN,
+  volumesOf
 } from '@shared/audio'
 import { EMOTIONS } from '@shared/emotions'
 import {
@@ -93,7 +94,7 @@ import {
   TRAIT_OPTIONS,
   WARDROBES
 } from './characterFields'
-import { DuplicateIcon, FolderIcon } from './characterIcons'
+import { CardIcon, DuplicateIcon, FolderIcon, SpritesIcon } from './characterIcons'
 import { CustomOutfitsModal } from './CustomOutfitsModal'
 import { ImageGalleryModal } from './ImageGalleryModal'
 import { ProfilePictureModal } from './ProfilePictureModal'
@@ -276,6 +277,8 @@ export function EditCharacterModal({
   const [pending, setPending] = useState<PendingAction | null>(null)
   const [working, setWorking] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [exportingCard, setExportingCard] = useState(false)
+  const [exportingSprites, setExportingSprites] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
   const [closing, setClosing] = useState(false)
 
@@ -299,7 +302,8 @@ export function EditCharacterModal({
     const pitch = clampVoicePitch(value)
     if (previewedVoice.current === pitch) return
     previewedVoice.current = pitch
-    const breath = useSettingsStore.getState().settings?.noNsfwSound !== true
+    // A muted NSFW slider skips the breath rather than leaving a silent gap before the blips.
+    const breath = volumesOf(useSettingsStore.getState().settings?.volumes).nsfw > 0
     useAudioStore.getState().previewVoice(pitch, breath)
   }
 
@@ -318,6 +322,8 @@ export function EditCharacterModal({
   const writeRegenTags = useCharacterStore((s) => s.writeRegenTags)
   const deleteCustomOutfit = useCharacterStore((s) => s.deleteCustomOutfit)
   const exportCharacter = useCharacterStore((s) => s.exportCharacter)
+  const exportCard = useCharacterStore((s) => s.exportCard)
+  const exportSpritePack = useCharacterStore((s) => s.exportSpritePack)
   const duplicateCharacter = useCharacterStore((s) => s.duplicateCharacter)
   const openFolder = useCharacterStore((s) => s.openFolder)
   // The same gate the new-character slot uses: rendering needs the optional install.
@@ -325,7 +331,7 @@ export function EditCharacterModal({
   const comfyDeferred = useSettingsStore((s) => s.settings?.comfyDeferred ?? false)
   // The room renders in the cloud, so its gate is whichever key draws the pictures.
   const picturesReady = useSettingsStore((s) => (s.settings ? pictureKeySet(s.settings) : false))
-  // Under a custom endpoint that key is a second one, asked for by a name of its own.
+  // Under a custom endpoint that key is the images one, asked for by a name of its own.
   const customWriter = useSettingsStore((s) => s.settings?.apiProvider === 'openai')
   // Withholds the nude wardrobe and the CGs outright: neither viewable nor renderable under it.
   const noNsfwImages = useSettingsStore(noNsfwImagesOf)
@@ -346,7 +352,7 @@ export function EditCharacterModal({
      own prompt. Where there is no local renderer it holds the prompt alone, and a prompt the
      cloud reads is not waiting on an install, so there it opens like any other panel. */
   const advancedShut = comfyMissing && !webBuild
-  const keyNote = picturesReady ? null : customWriter ? 'Requires Gemini key' : 'Requires API key'
+  const keyNote = picturesReady ? null : customWriter ? 'Requires Image API key' : 'Requires API key'
 
   // Her own pose first, if this install's manifest carries no skeleton for it — otherwise the
   // select would show blank for a record saved somewhere that had one.
@@ -490,6 +496,18 @@ export function EditCharacterModal({
   const runExport = (): void => {
     setExporting(true)
     void exportCharacter(charId).finally(() => setExporting(false))
+  }
+
+  /** Composes her SillyTavern card and saves it through the export dialog. */
+  const runCard = (): void => {
+    setExportingCard(true)
+    void exportCard(charId).finally(() => setExportingCard(false))
+  }
+
+  /** Composes her SillyTavern sprite pack and saves it through the export dialog. */
+  const runSprites = (): void => {
+    setExportingSprites(true)
+    void exportSpritePack(charId).finally(() => setExportingSprites(false))
   }
 
   /**
@@ -959,6 +977,34 @@ export function EditCharacterModal({
                   <DuplicateIcon />
                 </motion.button>
               </DeadNote>
+              {/* Disabled mid-run for Export's reason. */}
+              <DeadNote note="Export SillyTavern card" align="center" below>
+                <motion.button
+                  id="edit-card"
+                  className="vu-edit-icon"
+                  type="button"
+                  aria-label="Export SillyTavern card"
+                  disabled={exportingCard || rendering}
+                  {...gestures(exportingCard || rendering, quietLift, quietPress)}
+                  onClick={() => guardDirty('export', runCard)}
+                >
+                  <CardIcon />
+                </motion.button>
+              </DeadNote>
+              {/* Disabled mid-run for Export's reason. */}
+              <DeadNote note="Export SillyTavern sprites" align="center" below>
+                <motion.button
+                  id="edit-sprites"
+                  className="vu-edit-icon"
+                  type="button"
+                  aria-label="Export SillyTavern sprites"
+                  disabled={exportingSprites || rendering}
+                  {...gestures(exportingSprites || rendering, quietLift, quietPress)}
+                  onClick={() => guardDirty('export', runSprites)}
+                >
+                  <SpritesIcon />
+                </motion.button>
+              </DeadNote>
               {/* Opening the folder spends nothing, so it is gated on nothing — and there is
                   no folder to open in the browser, where her files are the browser's. */}
               {!webBuild && (
@@ -1343,6 +1389,7 @@ export function EditCharacterModal({
             charId={charId}
             kind="room"
             theme={theme}
+            uploadEnabled
             onClose={() => setRoomGallery(false)}
           />
         )}

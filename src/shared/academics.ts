@@ -162,11 +162,20 @@ const SHOWCASE_BRAIN_MAX = 0.5
 const WORK_MAX = 0.5
 
 /**
- * A whole-percent score out of the share the stats bought and how much of the work he did:
- * the work is worth `WORK_MAX` at most, and only as much as `statShare` left unclaimed.
+ * What a Brain below zero costs any score, as a share of it: the points under zero against the
+ * top tier's threshold, and nothing from zero up.
  */
-function gradeOf(statShare: number, done: number): number {
-  const raw = statShare + Math.min(WORK_MAX, 1 - statShare) * done
+function brainDebt(points: number): number {
+  return Math.max(0, -points) / pointsForTier(MAX_TIER)
+}
+
+/**
+ * A whole-percent score out of the share the stats bought and how much of the work he did,
+ * less what his Brain owes: the work is worth `WORK_MAX` at most, and only as much as
+ * `statShare` left unclaimed.
+ */
+function gradeOf(statShare: number, done: number, debt: number): number {
+  const raw = statShare + Math.min(WORK_MAX, 1 - statShare) * done - debt
   const ceiling = done >= 1 ? PERFECT_SCORE : PERFECT_SCORE - 1
   return Math.max(0, Math.min(ceiling, Math.round(raw * 100)))
 }
@@ -186,7 +195,8 @@ export function examScore(a: {
   const pool = a.asked + Math.max(0, a.skipped)
   return gradeOf(
     Math.min(EXAM_BRAIN_MAX, brain),
-    pool > 0 ? Math.min(1, Math.max(0, a.correct / pool)) : 0
+    pool > 0 ? Math.min(1, Math.max(0, a.correct / pool)) : 0,
+    brainDebt(a.brain)
   )
 }
 
@@ -248,7 +258,8 @@ export function projectScore(a: {
   const heart = heartBonusFactor(a.heart) * HEART_BONUS_MAX
   return gradeOf(
     Math.min(SHOWCASE_BRAIN_MAX, brain) + heart,
-    a.needed > 0 ? Math.min(1, Math.max(0, a.worked / a.needed)) : 1
+    a.needed > 0 ? Math.min(1, Math.max(0, a.worked / a.needed)) : 1,
+    brainDebt(a.brain)
   )
 }
 
@@ -495,7 +506,7 @@ export function midtermRecapSummary(kind: ClassKind, attended: boolean, score?: 
 
 /**
  * What charm did to a showcase grade, by the Heart tier the reader presented at; null
- * at the bottom tier, where nothing moved.
+ * at `Unremarkable` and below, where nothing moved.
  */
 export function showcaseCharmLine(tier: StatTier): string | null {
   switch (tier) {

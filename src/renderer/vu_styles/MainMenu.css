@@ -47,7 +47,7 @@
 /* A tease, not a spoiler: her outline in the surface colour, on one hard shadow.
 
    An SVG filter and not a CSS mask, though a mask is the obvious reach: a mask is fetched
-   under CORS, and `charimg://` is a privileged scheme without it (`charImageProtocol.ts`), so
+   under CORS, and `charimg://` is a privileged scheme without it (`imageProtocols.ts`), so
    the mask never loaded and the layer drew nothing at all. A filter reads the image the `img`
    element already has. Nor a filter chain — `brightness(0) invert(1)` can only reach white,
    and this has to be a colour role so it follows the hour.
@@ -116,14 +116,6 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-}
-
-.vu-menu-rule {
-  height: 3px;
-  margin: 0;
-  border: 0;
-  border-radius: 99px;
-  background: var(--vu-tint);
 }
 
 /* App admin, below the rule: quiet tags that hug their own words. */

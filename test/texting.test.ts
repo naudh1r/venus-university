@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { slotOf } from '@shared/classes'
 import { newJobState, shiftSlotOf } from '@shared/jobs'
 import { applyEvent, emptyFlags } from '@shared/relationship'
 import { READER_SPEAKER } from '@shared/types'
@@ -435,6 +436,18 @@ describe('pickSlotAskers', () => {
     const { date, time } = useGameStore.getState()
     useGameStore.setState({ job: newJobState('fast_eats', [shiftSlotOf(date % 7, time)], 0) })
 
+    expect(pickSlotAskers()).toEqual(['sarah_rose'])
+  })
+
+  // A plan outranks her timetable, so she texts the reminder from class; a free attendee is
+  // still the one who sends it when the plan has one.
+  it('sends an attendee in class when nobody on the plan is free, a free one first', () => {
+    seedPlan()
+    const inClass = charInfo({ nameKnown: true, schedule: { [slotOf(0, 0)]: 'BIO 210' } })
+    useGameStore.setState({ charInfo: { a: inClass, b: charInfo({ nameKnown: true }) } })
+    expect(pickSlotAskers()).toEqual(['mina_okafor'])
+
+    useGameStore.setState({ charInfo: { a: inClass, b: inClass } })
     expect(pickSlotAskers()).toEqual(['sarah_rose'])
   })
 

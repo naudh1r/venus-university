@@ -22,6 +22,8 @@ import type {
   EnrollmentDraft,
   GrabBags,
   HangoutClassifierResponse,
+  ImageCandidate,
+  ImageEndpointCandidate,
   InstallProgress,
   JobProgress,
   LedgerResponse,
@@ -96,9 +98,17 @@ import {
 import {
   duplicateCharacter,
   exportCharacter,
-  importCharacter
+  importCharacter,
+  saveExportFile
 } from './services/characterTransferService'
 import { exportBackup, importBackup } from './services/backupService'
+import { exportLocalPhotos, importLocalPhotos } from './localPhotoBackup'
+import {
+  addCustomBackground,
+  listCustomBackgrounds,
+  readCustomBackgroundImage,
+  removeCustomBackground
+} from './services/backgroundService'
 import {
   fixHands,
   generateCg,
@@ -108,11 +118,20 @@ import {
   stopByHand as stopComfyByHand
 } from './services/comfyService'
 import { classifyCloud } from '@shared/llm/cloudClassifier'
+import { generatePhoto } from '@shared/llm/cloudImage'
 import { completeStructured, type StructuredRequest } from '@shared/llm/cloudLlm'
-import { listModels, testWriter } from '@shared/llm/endpointProbe'
+import {
+  listImageModels,
+  listModels,
+  photoModelChoice,
+  testImages,
+  testWriter
+} from '@shared/llm/endpointProbe'
 import { backupName } from '@shared/backup'
+import { photoExportName, type PhotoMeta, type PhotoRequest } from '@shared/photos'
 import { exportFileName } from '@shared/characterTransfer'
 import { ENDING_ART_FILE_NAME } from '@shared/endingPicture'
+import type { ExportKind } from '@shared/sillyTavern'
 import { useSettingsSource } from '@shared/llm/settingsPort'
 import { setTokenSink } from '@shared/llm/tokenPort'
 import { logExportName, logRecordOf } from '@shared/logRules'
@@ -131,7 +150,15 @@ import {
   readProfilePicture,
   writeProfilePicture
 } from './services/profilePictureService'
-import { generateRoomImage } from './services/roomService'
+import {
+  copyPhotoTo,
+  deletePhoto,
+  listPhotos,
+  readPhoto,
+  writePhoto,
+  writePhotoThumb
+} from './services/photoService'
+import { generateRoomImage, writeRoomUpload } from './services/roomService'
 import { applySettingsPatch, getRendererSettings, getSettings } from './services/settingsService'
 import { getGrabBags, setGrabBags } from './services/grabBagService'
 import {
@@ -237,7 +264,17 @@ export function registerIpcHandlers(): void {
 
   // Neither channel carries a key: out is a presence flag, in is a patch.
   handle('settings:get', () => getRendererSettings())
-  handle('settings:set', (_event, patch: SettingsPatch) => applySettingsPatch(patch))
+  // A write that changes the fullscreen setting puts the window there at once; any other write
+  // leaves the window as F11 left it.
+  handle('settings:set', async (event, patch: SettingsPatch) => {
+    const wasFullscreen = (await getSettings()).fullscreen !== false
+    const next = await applySettingsPatch(patch)
+    const fullscreen = next.fullscreen !== false
+    if (fullscreen !== wasFullscreen) {
+      BrowserWindow.fromWebContents(event.sender)?.setFullScreen(fullscreen)
+    }
+    return next
+  })
   // The grab bags' set-aside keys, read once at boot and written behind every draw.
   handle('grabBags:get', () => getGrabBags())
   handle('grabBags:set', (_event, bags: GrabBags) => setGrabBags(bags))
@@ -387,6 +424,55 @@ export function registerIpcHandlers(): void {
     deletePlaythrough(playthroughId)
   )
 
+  // The Bunnyboard's photos.
+  handle('photos:options', () => photoModelChoice())
+  handle('photos:generate', (_event, request: PhotoRequest, group: string) =>
+    runAbortable(group, (signal) => generatePhoto(request, signal))
+  )
+  handle('photos:list', (_event, playthroughId: string) => listPhotos(playthroughId))
+  handle('photos:read', (_event, playthroughId: string, photoId: string) =>
+    readPhoto(playthroughId, photoId)
+  )
+  handle(
+    'photos:write',
+    (
+      _event,
+      playthroughId: string,
+      photoId: string,
+      image: string,
+      thumb: string,
+      meta: PhotoMeta
+    ) => writePhoto(playthroughId, photoId, image, thumb, meta)
+  )
+  handle('photos:writeThumb', (_event, playthroughId: string, photoId: string, thumb: string) =>
+    writePhotoThumb(playthroughId, photoId, thumb)
+  )
+  handle('photos:delete', (_event, playthroughId: string, photoId: string) =>
+    deletePhoto(playthroughId, photoId)
+  )
+  // A copy of the photo, saved where the native dialog points; a dismissed dialog resolves `null`.
+  handle('photos:export', async (event, playthroughId: string, photoId: string) => {
+    const bytes = await readPhoto(playthroughId, photoId)
+    if (bytes === null) {
+      throw appError(
+        'PHOTO_UNEXPORTABLE',
+        'Could not save the photo.',
+        'No picture is stored for that photo.'
+      )
+    }
+    const name = photoExportName(photoId, bytes)
+    const extension = name.slice(name.lastIndexOf('.') + 1)
+    const { canceled, filePath } = await showSaveDialogFor(event, {
+      title: 'Save photo',
+      defaultPath: name,
+      filters: [{ name: `${extension.toUpperCase()} image`, extensions: [extension] }]
+    })
+    if (canceled || filePath === undefined || filePath === '') return null
+
+    await copyPhotoTo(playthroughId, photoId, filePath)
+    return filePath
+  })
+
   handle('comfy:start', () => startComfy())
   handle('comfy:stop', () => stopComfyByHand())
 
@@ -508,13 +594,20 @@ export function registerIpcHandlers(): void {
     await testWriter({
       ...stored,
       ...candidate,
-      // Named rather than left to the spread, so a blank field tests the pinned ceiling
-      // rather than the stored cap.
-      maxOutputTokens: candidate.maxOutputTokens,
       endpointApiKey:
         candidate.endpointApiKey ?? storedEndpointKeyFor(stored, candidate.endpointUrl ?? '')
     })
   })
+
+  // The image models the form's own images URL lists, on the key a picture there would take.
+  handle('llm:listImageModels', async (_event, candidate: ImageEndpointCandidate) =>
+    listImageModels(await getSettings(), candidate)
+  )
+
+  // One picture on the form's own image fields; the error is the answer.
+  handle('llm:testImages', async (_event, candidate: ImageCandidate) =>
+    testImages(await getSettings(), candidate)
+  )
 
   handle('chars:list', () => listCharacters())
   handle(
@@ -607,6 +700,22 @@ export function registerIpcHandlers(): void {
   })
   // The third transfer channel, with no dialog.
   handle('chars:duplicate', (_event, charId: string) => duplicateCharacter(charId))
+  // The fourth: a SillyTavern card or sprite pack the renderer already composed, saved where
+  // the native dialog points; a dismissed dialog resolves `null`.
+  handle('chars:saveExport', async (event, kind: ExportKind, name: string, base64: string) => {
+    const { canceled, filePath } = await showSaveDialogFor(event, {
+      title: kind === 'card' ? 'Export SillyTavern card' : 'Export SillyTavern sprites',
+      defaultPath: name,
+      filters:
+        kind === 'card'
+          ? [{ name: 'PNG image', extensions: ['png'] }]
+          : [{ name: 'Zip archive', extensions: ['zip'] }]
+    })
+    if (canceled || filePath === undefined || filePath === '') return null
+
+    await saveExportFile(kind, filePath, base64)
+    return filePath
+  })
 
   // Everything the app keeps, as one zip saved where the native dialog points; a dismissed
   // dialog resolves `null`.
@@ -619,6 +728,7 @@ export function registerIpcHandlers(): void {
     if (canceled || filePath === undefined || filePath === '') return null
 
     await exportBackup(filePath)
+    await exportLocalPhotos(filePath)
     return filePath
   })
   // A backup read back over everything here; a dismissed dialog resolves `false`.
@@ -631,8 +741,19 @@ export function registerIpcHandlers(): void {
     if (canceled || filePaths.length === 0) return false
 
     await importBackup(filePaths[0])
+    await importLocalPhotos(filePaths[0])
     return true
   })
+
+  // The backgrounds the player brought: kept install-wide beside the characters.
+  handle('backgrounds:list', () => listCustomBackgrounds())
+  handle('backgrounds:add', (_event, draft: unknown, images: unknown) =>
+    addCustomBackground(draft, images)
+  )
+  handle('backgrounds:remove', (_event, name: unknown) => removeCustomBackground(name))
+  handle('backgrounds:readImage', (_event, name: unknown, variant: unknown) =>
+    readCustomBackgroundImage(name, variant)
+  )
 
   // The shipped cast and which of them the player has taken off the roster.
   handle('chars:defaults', () => getDefaultsStatus())
@@ -658,6 +779,14 @@ export function registerIpcHandlers(): void {
           return `room:${variant}`
         }
       })
+    }
+  )
+  // A picture the player picked, already cut and encoded by the renderer.
+  handle(
+    'chars:uploadRoom',
+    async (_event, charId: string, variant: RoomVariant, png: string) => {
+      await assertEditableChar(charId)
+      await writeRoomUpload(charId, variant, png)
     }
   )
 

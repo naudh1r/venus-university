@@ -11,7 +11,21 @@ import { enrollment, record } from './fixtures'
  */
 
 type WebSaves = typeof import('../src/web/db/saves')
+type WebPhotos = typeof import('../src/web/db/photos')
 let saves: WebSaves
+let photos: WebPhotos
+
+/** A complete sidecar, as the game would send with a photo write. */
+function photoMeta(): import('@shared/photos').PhotoMeta {
+  return {
+    schemaVersion: 1,
+    date: 1,
+    time: 0,
+    rows: [],
+    prompt: 'A photo.',
+    options: { aspectRatio: '16:9' }
+  }
+}
 
 /** A complete draft — every field the loader requires — as a fresh store writes one. */
 function draft(over: Partial<SaveDraft> = {}): SaveDraft {
@@ -23,6 +37,7 @@ beforeEach(async () => {
   globalThis.indexedDB = new IDBFactory()
   vi.resetModules()
   saves = await import('../src/web/db/saves')
+  photos = await import('../src/web/db/photos')
 })
 
 describe('the slot-boundary write', () => {
@@ -128,5 +143,51 @@ describe('deleting a playthrough', () => {
     expect((await saves.listSaves(playthroughId)).saves).toEqual([])
     expect(await saves.readEndingArt(playthroughId)).toBeNull()
     expect(await saves.readProfilePicture(playthroughId)).toBeNull()
+  })
+
+  it("takes its photos with it, and leaves another playthrough's alone", async () => {
+    const { playthroughId } = await saves.writeEnrollment(enrollment())
+    await saves.createPlaythrough(record(), draft(), playthroughId)
+    await photos.writePhoto(
+      playthroughId,
+      '1',
+      new Blob([new Uint8Array([1, 2, 3])]),
+      new Blob([new Uint8Array([4, 5, 6])]),
+      photoMeta()
+    )
+
+    const other = await saves.writeEnrollment(enrollment())
+    await saves.createPlaythrough(record(), draft(), other.playthroughId)
+    await photos.writePhoto(
+      other.playthroughId,
+      '2',
+      new Blob([new Uint8Array([7, 8, 9])]),
+      new Blob([new Uint8Array([1, 1, 1])]),
+      photoMeta()
+    )
+
+    await saves.deletePlaythrough(playthroughId)
+
+    expect(await photos.listPhotos(playthroughId)).toEqual([])
+    expect(await photos.readPhoto(playthroughId, '1')).toBeNull()
+    expect((await photos.listPhotos(other.playthroughId)).map((entry) => entry.photoId)).toEqual([
+      '2'
+    ])
+  })
+})
+
+describe('writing a photo', () => {
+  it('is refused, and nothing is written, for a playthrough with no row', async () => {
+    await expect(
+      photos.writePhoto(
+        '1700000000000',
+        '1',
+        new Blob([new Uint8Array([1, 2, 3])]),
+        new Blob([new Uint8Array([4, 5, 6])]),
+        photoMeta()
+      )
+    ).rejects.toMatchObject({ code: 'PHOTO_PLAYTHROUGH_GONE' })
+
+    expect(await photos.listPhotos('1700000000000')).toEqual([])
   })
 })

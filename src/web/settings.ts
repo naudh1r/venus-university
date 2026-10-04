@@ -4,8 +4,8 @@ import type { StoredSettings } from './db/open'
 import { readSettings, writeSettings } from './db/settings'
 
 /**
- * The browser build's settings. Both secrets are held in memory for the visit and written
- * beside the rest only while the player has asked for it to be remembered, since a browser's
+ * The browser build's settings. All three secrets are held in memory for the visit and written
+ * beside the rest only while the player has asked for them to be remembered, since a browser's
  * storage is shared with every other game on the same host.
  */
 
@@ -18,6 +18,9 @@ let key = ''
 /** The custom endpoint's key this visit is running on, remembered or typed in. */
 let endpointKey = ''
 
+/** The custom endpoint's images key this visit is running on, remembered or typed in. */
+let imageKey = ''
+
 /** What is stored, read on the first ask. */
 async function settingsRow(): Promise<StoredSettings> {
   if (!row) {
@@ -25,13 +28,19 @@ async function settingsRow(): Promise<StoredSettings> {
     // A remembered key is this visit's key from the first read on.
     if (row.apiKey) key = row.apiKey
     if (row.endpointApiKey) endpointKey = row.endpointApiKey
+    if (row.imageApiKey) imageKey = row.imageApiKey
   }
   return row
 }
 
 /** The settings the app runs on: what is stored, with this visit's keys. */
 export async function currentSettings(): Promise<Settings> {
-  return { ...(await settingsRow()), apiKey: key, endpointApiKey: endpointKey || undefined }
+  return {
+    ...(await settingsRow()),
+    apiKey: key,
+    endpointApiKey: endpointKey || undefined,
+    imageApiKey: imageKey || undefined
+  }
 }
 
 /** What the renderer is shown: the same settings with each key down to a presence flag. */
@@ -39,14 +48,15 @@ export async function rendererSettings(): Promise<RendererSettings> {
   return redactSettings(await currentSettings())
 }
 
-/** The row `next` is stored as: the two keys ride along together, only where they are wanted. */
-function rowFor(next: Settings): StoredSettings {
-  const { apiKey, endpointApiKey, ...rest } = next
+/** The row `next` is stored as: the three keys ride along together, only where they are wanted. */
+export function rowFor(next: Settings): StoredSettings {
+  const { apiKey, endpointApiKey, imageApiKey, ...rest } = next
   if (!next.rememberKey) return rest
   return {
     ...rest,
     ...(apiKey ? { apiKey } : {}),
-    ...(endpointApiKey ? { endpointApiKey } : {})
+    ...(endpointApiKey ? { endpointApiKey } : {}),
+    ...(imageApiKey ? { imageApiKey } : {})
   }
 }
 
@@ -58,6 +68,7 @@ export async function patchSettings(patch: SettingsPatch): Promise<RendererSetti
   const next = mergePatch(await currentSettings(), patch)
   key = next.apiKey
   endpointKey = next.endpointApiKey ?? ''
+  imageKey = next.imageApiKey ?? ''
 
   const written = rowFor(next)
   await writeSettings(written)

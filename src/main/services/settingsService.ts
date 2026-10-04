@@ -16,13 +16,16 @@ import { readValidatedJson, writeAtomicJson } from './jsonFile'
 
 /**
  * The on-disk shape: {@link Settings} with each secret as a DPAPI blob (`apiKeyEnc`,
- * `endpointApiKeyEnc`), or as the bare string only where encryption is unavailable.
+ * `endpointApiKeyEnc`, `imageApiKeyEnc`), or as the bare string only where encryption is
+ * unavailable.
  */
-type SettingsFile = Omit<Settings, 'apiKey' | 'endpointApiKey'> & {
+type SettingsFile = Omit<Settings, 'apiKey' | 'endpointApiKey' | 'imageApiKey'> & {
   apiKey?: string
   apiKeyEnc?: string
   endpointApiKey?: string
   endpointApiKeyEnc?: string
+  imageApiKey?: string
+  imageApiKeyEnc?: string
 }
 
 /** The codes the OS refuses a write with when the folder is not the player's to write in. */
@@ -73,7 +76,7 @@ function decryptSecret(enc: string | undefined, plain: string | undefined, field
 
 /** Runtime settings in the on-disk shape, each secret encrypted where the keyring allows. */
 function fileShapeOf(settings: Settings): SettingsFile {
-  const { apiKey, endpointApiKey, ...rest } = settings
+  const { apiKey, endpointApiKey, imageApiKey, ...rest } = settings
   const file: SettingsFile = { ...rest, schemaVersion: SETTINGS_SCHEMA_VERSION }
 
   // Exactly one of the two forms, never both.
@@ -84,6 +87,10 @@ function fileShapeOf(settings: Settings): SettingsFile {
   const endpoint = encryptSecret(endpointApiKey ?? '')
   if (endpoint.enc) file.endpointApiKeyEnc = endpoint.enc
   if (endpoint.plain) file.endpointApiKey = endpoint.plain
+
+  const image = encryptSecret(imageApiKey ?? '')
+  if (image.enc) file.imageApiKeyEnc = image.enc
+  if (image.plain) file.imageApiKey = image.plain
 
   return file
 }
@@ -103,9 +110,9 @@ async function writeSettingsFile(settings: Settings): Promise<void> {
 }
 
 /**
- * Reads `/data/settings.json` or defaults, decrypting both secrets; a malformed, wrong-version
- * or incomplete file is a hard error. A custom endpoint's file with its model ids in Gemini's
- * fields is upgraded and written straight back, its key blobs as they were read.
+ * Reads `/data/settings.json` or defaults, decrypting all three secrets; a malformed,
+ * wrong-version or incomplete file is a hard error. A custom endpoint's file an older build wrote
+ * is upgraded and written straight back, its key blobs as they were read.
  */
 export async function getSettings(): Promise<Settings> {
   const read = await readValidatedJson<SettingsFile>(getSettingsPath(), {
@@ -122,13 +129,16 @@ export async function getSettings(): Promise<Settings> {
     apiKey: plain,
     endpointApiKeyEnc,
     endpointApiKey: endpointPlain,
+    imageApiKeyEnc,
+    imageApiKey: imagePlain,
     ...stored
   } = candidate
   return {
     ...stored,
     apiKey: decryptSecret(apiKeyEnc, plain, 'apiKey'),
     endpointApiKey:
-      decryptSecret(endpointApiKeyEnc, endpointPlain, 'endpointApiKey') || undefined
+      decryptSecret(endpointApiKeyEnc, endpointPlain, 'endpointApiKey') || undefined,
+    imageApiKey: decryptSecret(imageApiKeyEnc, imagePlain, 'imageApiKey') || undefined
   }
 }
 
@@ -141,6 +151,11 @@ export async function setRemovedDefaults(charIds: readonly string[]): Promise<vo
 /** `settings:get` — settings as the renderer sees them, with no key in them. */
 export async function getRendererSettings(): Promise<RendererSettings> {
   return redactSettings(await getSettings())
+}
+
+/** Writes `next` whole over the stored settings: a restore, once it has settled what they are. */
+export async function replaceSettings(next: Settings): Promise<void> {
+  await writeSettingsFile(next)
 }
 
 /** `settings:set` — merges a renderer patch over the stored settings and writes. */

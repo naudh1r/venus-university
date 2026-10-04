@@ -5,7 +5,7 @@
       "title": "CheckpointLoaderSimple"
     },
     "inputs": {
-      "ckpt_name": "DasiwaIllustriousAnime_epitaphecstasy.safetensors"
+      "ckpt_name": "novaAnimeXL_ilV190.safetensors"
     }
   },
   "3": {

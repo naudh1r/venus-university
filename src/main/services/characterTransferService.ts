@@ -1,4 +1,4 @@
-import { mkdir, rename, rm } from 'fs/promises'
+import { mkdir, rename, rm, unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { CHARACTER_FILE_NAME, STAGING_DIR } from '@shared/characterFiles'
 import { assertSafeCharId } from '@shared/characterRules'
@@ -16,6 +16,8 @@ import {
   type CharacterManifest
 } from '@shared/characterTransfer'
 import { appError, messageOf } from '@shared/errors'
+import { imageTypeOf } from '@shared/imageBytes'
+import type { ExportKind } from '@shared/sillyTavern'
 import type { Character } from '@shared/types'
 import { randomId } from '@shared/uuid'
 import { getCharacterPath, getCharactersPath } from '../paths'
@@ -65,6 +67,41 @@ export async function exportCharacter(charId: string, targetPath: string): Promi
     throw err
   } finally {
     await discard(stagingDir)
+  }
+}
+
+/** The four bytes every zip local file header opens with. */
+const ZIP_SIGNATURE = [0x50, 0x4b, 0x03, 0x04]
+
+/** True where `bytes` opens with a zip local file header. */
+function looksLikeZip(bytes: Buffer): boolean {
+  return ZIP_SIGNATURE.every((byte, i) => bytes[i] === byte)
+}
+
+/**
+ * Writes a SillyTavern export the renderer composed: `base64` decoded, sniffed for the shape
+ * `kind` claims, then written atomically like every other picture this build saves.
+ */
+export async function saveExportFile(
+  kind: ExportKind,
+  targetPath: string,
+  base64: string
+): Promise<void> {
+  const bytes = Buffer.from(base64, 'base64')
+  if (kind === 'card' && imageTypeOf(bytes) !== 'image/png') {
+    throw appError('EXPORT_FAILED', 'Could not write the export.', 'the card is not a PNG')
+  }
+  if (kind === 'sprites' && !looksLikeZip(bytes)) {
+    throw appError('EXPORT_FAILED', 'Could not write the export.', 'the sprite pack is not a zip')
+  }
+
+  const temp = `${targetPath}.tmp`
+  try {
+    await writeFile(temp, bytes)
+    await rename(temp, targetPath)
+  } catch (err) {
+    await unlink(temp).catch(() => {})
+    throw appError('EXPORT_FAILED', 'Could not write the export.', messageOf(err))
   }
 }
 

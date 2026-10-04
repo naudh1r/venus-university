@@ -119,7 +119,7 @@ const HANDS_NODE = {
 const WARM_WORKFLOW = {
   '1': {
     class_type: 'CheckpointLoaderSimple',
-    inputs: { ckpt_name: 'DasiwaIllustriousAnime_epitaphecstasy.safetensors' }
+    inputs: { ckpt_name: 'novaAnimeXL_ilV190.safetensors' }
   },
   '2': {
     class_type: 'LoraLoader',
@@ -824,7 +824,7 @@ function logJob(spec: GenerationSpec): void {
  * The submit-wait-save pipeline every render shares; callers stage their own input
  * files first.
  *
- * Exported for `photoService`, which renders a texted photograph on the same pipeline but keeps
+ * Exported for `localPhotoService`, which renders a texted photograph on the same pipeline but keeps
  * its own graph, node map and folder. That is the whole of what the photo feature asks of this
  * file: one keyword, so a sync that overwrites it costs one keyword to put back.
  */

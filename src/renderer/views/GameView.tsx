@@ -17,13 +17,21 @@ import { isPosition } from '@shared/positions'
 import { hashString } from '@shared/hash'
 import { isGameOver } from '@shared/money'
 import { quizAnswers, type QuizAnswer } from '@shared/academics'
-import { fullNameOf, roomBgIdOf, type AppError, type Position, type SpriteRef } from '@shared/types'
+import {
+  allBackgrounds,
+  fullNameOf,
+  roomBgIdOf,
+  type AppError,
+  type Position,
+  type SpriteRef
+} from '@shared/types'
 import { isWet } from '@shared/weather'
 import type { GiftReaction } from '@shared/shop'
 import { Burst } from '../components/Burst'
 import { CheckField } from '../components/CheckField'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { isProhibited, LlmFailureModal } from '../components/LlmFailureModal'
+import { PhotoFailedModal } from '../components/PhotoFailedModal'
 import { typingIn, useWindowKeydown } from '../components/useWindowKeydown'
 import { slotHalf } from '../prompts/gameDate'
 import { slotWeather } from '../prompts/weather'
@@ -112,8 +120,9 @@ import {
 import { useAssetStore } from '../stores/assetStore'
 import { useAudioStore } from '../stores/audioStore'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
-import { useGameStore } from '../stores/gameStore'
+import { giftGivenOf, useGameStore } from '../stores/gameStore'
 import { forwardOpenOf, replyRowOfferOf, rewindOpenOf } from '../stores/loop/playback'
+import { firstPhotoFailure, usePhotoStore } from '../stores/photoStore'
 import { displaySlotsOf, displaySpriteRef, wardrobeChanged } from '../stores/stageDisplay'
 import {
   beginCrossing,
@@ -151,7 +160,7 @@ import { ShopModal } from './ShopModal'
 import { BgModal } from './BgModal'
 import mapUrl from '../../../assets/vu_map.png'
 import mapNightUrl from '../../../assets/vu_map_night.png'
-import { bgThumbUrl, bgUrl, SLOT_BG } from './bgAssets'
+import { bgThumbUrl, bgUrl, roomOwnerOf, SLOT_BG } from './bgAssets'
 import { screenTheme } from './clockTheme'
 import { useWarmedImages } from './imagePreload'
 import { accumulateNotch, wheelNotches, type WheelTravel } from './wheel'
@@ -221,7 +230,12 @@ type OpenPanel =
   | { kind: 'feedback' }
   | { kind: 'leaving' }
   | { kind: 'quitting' }
-  | { kind: 'interruptEnding'; action: string }
+  | { kind: 'interruptEnding'; turn: Interjection }
+
+/** What an interjection sends: the reader's words, or a present handed over with his line. */
+type Interjection =
+  | { kind: 'words'; action: string }
+  | { kind: 'gift'; charId: string; itemId: string; message: string }
 
 /** Which of the two horizontal offsets a sprite layer sits at. */
 function sideClass(side: 1 | -1): string {
@@ -500,6 +514,7 @@ export function GameView(): JSX.Element {
   const bg = useGameStore((s) => s.bg)
   const time = useGameStore((s) => s.time)
   const date = useGameStore((s) => s.date)
+  const playthroughId = useGameStore((s) => s.playthroughId)
   const slots = useGameStore((s) => s.slots)
   const emotions = useGameStore((s) => s.emotions)
   const flipped = useGameStore((s) => s.flipped)
@@ -511,6 +526,7 @@ export function GameView(): JSX.Element {
   const characters = useGameStore((s) => s.characters)
   const currentLine = useGameStore((s) => s.currentLine)
   const pendingLines = useGameStore((s) => s.pendingLines)
+  const sceneEnding = useGameStore((s) => s.sceneEnding)
   const activeGameOver = useGameStore((s) => s.activeGameOver)
   const endingArt = useGameStore((s) => s.endingArt)
   const endingArtPending = useGameStore((s) => s.endingArtPending)
@@ -546,6 +562,8 @@ export function GameView(): JSX.Element {
   const farewellsDone = useGameStore((s) => s.farewellsDone)
   const inventory = useGameStore((s) => s.inventory)
   const sceneGifts = useGameStore((s) => s.sceneGifts)
+  /** A gift given this scene still stands behind the line on screen. */
+  const giftGiven = useGameStore(giftGivenOf)
   /** The sparkle the store last raised off a girl written happy, or null while none stands. */
   const sparkle = useGameStore((s) => s.sparkle)
   // The two the landing reads out.
@@ -759,15 +777,20 @@ export function GameView(): JSX.Element {
   // Room bg id → owner, derived from each character's current name; a save naming a
   // since-renamed character misses and falls back to `SLOT_BG` below.
   const roomBgToCharId = useMemo(() => {
-    const map: Record<string, string> = {}
-    for (const character of Object.values(characters)) map[roomBgIdOf(character)] = character.charId
+    const map = new Map<string, string>()
+    for (const character of Object.values(characters)) {
+      map.set(roomBgIdOf(character), character.charId)
+    }
     return map
   }, [characters])
+  // Every background the scene may name, which a room id the same as one of them never shadows.
+  const backgrounds = useAssetStore((s) => s.backgrounds)
+  const listedBgs = useMemo(() => new Set(allBackgrounds(backgrounds)), [backgrounds])
 
   // What the player picked wins the layer, and only the layer: `bg` is still what the scene
   // reports. A game over plays on black, with no background at all.
   const shownBg = bgOverride ?? bg
-  const roomCharId = shownBg ? roomBgToCharId[shownBg] : undefined
+  const roomCharId = shownBg ? roomOwnerOf(shownBg, roomBgToCharId, listedBgs) : undefined
   // Cache-buster for a room regenerated this session.
   const roomVersion = useSpriteVersion(roomCharId)
   // The same cache-buster for the speaker's portrait: the player can reframe one mid-playthrough.
@@ -792,14 +815,15 @@ export function GameView(): JSX.Element {
   )
   useWarmedImages(mapUrls, true)
 
-  // The picker's thumbnails for the stage's half, so Change BG opens on decoded pictures.
-  const backgrounds = useAssetStore((s) => s.backgrounds)
+  // The picker's thumbnails under the stage's sky, so Change BG opens on decoded pictures. The
+  // player's own have none, and every one of their full pictures is left to the picker.
+  const shipped = useAssetStore((s) => s.shipped)
   const thumbUrls = useMemo(
     () =>
-      [...backgrounds.interior, ...backgrounds.exterior]
-        .map((base) => bgThumbUrl(base, half))
+      [...shipped.interior, ...shipped.exterior]
+        .map((base) => bgThumbUrl(base, half, wet))
         .filter((url): url is string => url !== null),
-    [backgrounds, half]
+    [shipped, half, wet]
   )
   useWarmedImages(thumbUrls, true)
   const bgSrc = gameOver
@@ -1114,10 +1138,18 @@ export function GameView(): JSX.Element {
    */
   const shopReady = landingHeld && !sceneActive
 
-  /** Who the reader could hand something to: whoever is standing on the stage that he can name. */
-  const giftTargets = stageNow.filter((charId) => charInfo[charId]?.nameKnown)
-  /** A gift has already been given this scene — the one disabled reason that carries a notice. */
-  const giftSpent = sceneGifts.length > 0
+  /** Who the reader could hand something to: whoever is standing on the stage, named or not. */
+  const giftTargets = stageNow.filter((charId) => Boolean(characters[charId]))
+  /**
+   * Why the Gift is dead, where the reason carries a notice: a gift already given this scene, or
+   * nobody on the stage to give one to.
+   */
+  const giftNote =
+    giftGiven
+      ? 'Already gave one gift this scene.'
+      : giftTargets.length === 0
+        ? 'Nobody here to give a gift to.'
+        : null
 
   /**
    * The failed turn was one the app wrote the action of: its modal answers
@@ -1137,7 +1169,7 @@ export function GameView(): JSX.Element {
    * A modal owns the screen: what stops the window-level key handler and the stage's wheel and
    * right-click below from advancing, submitting or stepping behind one.
    */
-  const blocked = Boolean(
+  const blockedBefore = Boolean(
     statusModal ||
       memoryEdit ||
       turnFailed ||
@@ -1151,6 +1183,23 @@ export function GameView(): JSX.Element {
       showingBunnyboard ||
       bunnyboardLocked
   )
+
+  /**
+   * A photo failure is said only at a moment that cannot trip the game up: the turn is held,
+   * and nothing above has already claimed the screen.
+   */
+  const photoFailure = usePhotoStore((s) => firstPhotoFailure(s.failures, playthroughId))
+  const photoJobsRunning = usePhotoStore((s) => s.jobs.length > 0)
+  const photoShown =
+    Boolean(photoFailure) &&
+    turnHeld &&
+    !blockedBefore &&
+    !covered &&
+    !gameOver &&
+    !quiz &&
+    !action.trim()
+
+  const blocked = blockedBefore || photoShown
 
   /**
    * The playthrough's opening owns the screen: nothing on it but the dialogue box,
@@ -1312,7 +1361,7 @@ export function GameView(): JSX.Element {
     if (!typed) return
     const warns = useSettingsStore.getState().settings?.warnEndingInterrupt !== false
     if (useGameStore.getState().sceneEnding && warns) {
-      setPanel({ kind: 'interruptEnding', action: typed })
+      setPanel({ kind: 'interruptEnding', turn: { kind: 'words', action: typed } })
       return
     }
     sendInterjection(typed)
@@ -1326,6 +1375,23 @@ export function GameView(): JSX.Element {
     setSending(true)
     if (interject(typed)) setAction('')
     else setSending(false)
+  }
+
+  /**
+   * Hands a present over, on the turn or over the lines still to come. The wait is reported as a
+   * turn's is, and a gift that could not go out spends nothing and reports nothing.
+   */
+  function sendGift(charId: string, itemId: string, message: string): void {
+    setSending(true)
+    if (!submitGift(charId, itemId, message)) {
+      setSending(false)
+      return
+    }
+    // How it landed is stamped on the gift as it is given, but the stage holds it back until she
+    // answers: hearts, sparkles, or nothing, off her own slot on the line the reply opens with.
+    const gifts = useGameStore.getState().sceneGifts
+    const glyph = giftGlyphOf(gifts.at(-1)?.reaction)
+    if (glyph) setGiftBurst({ charId, glyph, key: Date.now(), filed: gifts.length, waiting: true })
   }
 
   /** The back mark: a line stepped back to, with the sound a line turned forward makes. */
@@ -1426,7 +1492,7 @@ export function GameView(): JSX.Element {
     // box for the length of a call. It is the gift's own argument, one control along.
     setSending(true)
     // The button's own words are the action: what it says is what the reader did.
-    void submitAction(chosen.text, false, chosen.verdict ?? undefined)
+    void submitAction(chosen.text, false, chosen.verdict ?? undefined, chosen.planId)
   }
 
   /**
@@ -1747,6 +1813,7 @@ export function GameView(): JSX.Element {
           skips={arrivalSkips}
           rowShown={rowShown}
           interject={interjectRow}
+          ending={sceneEnding}
           onAdvance={boxAdvances ? onAdvanceClick : undefined}
           onRewind={rewindOpen && !covered && !blocked ? onRewind : undefined}
           cuts={lineRewound}
@@ -1765,10 +1832,10 @@ export function GameView(): JSX.Element {
           inputDead={interjectRow ? interjectRow !== 'open' : !awaitingInput}
           /* Mid-reply the well takes the caret only on a click. */
           inputFocus={!blocked && !interjectRow}
-          giftShown={!cinematic && !epilogue && giftTargets.length > 0}
+          giftShown={!cinematic && !epilogue}
           giftUnlocked={bunnyshopUnlocked}
-          giftDead={inventory.length === 0 || !bunnyshopUnlocked || giftSpent}
-          giftSpent={giftSpent}
+          giftDead={inventory.length === 0 || !bunnyshopUnlocked || giftNote !== null}
+          giftNote={giftNote}
           onGift={() => setPanel({ kind: 'gift' })}
           calendarBadge={calendarBadge}
           bunnyboardBadge={bunnyboardBadge}
@@ -1918,7 +1985,7 @@ export function GameView(): JSX.Element {
           too, and the epilogue turns the stage to night regardless of the clock. */}
       <AnimatePresence>
         {panel?.kind === 'background' && (
-          <BgModal key="background" theme={half} onClose={closePanel} />
+          <BgModal key="background" theme={half} wet={wet} onClose={closePanel} />
         )}
       </AnimatePresence>
 
@@ -1974,28 +2041,26 @@ export function GameView(): JSX.Element {
           <GiftMessageModal
             key="giftMessage"
             theme={half}
-            firstName={characters[panel.charId]?.firstName ?? 'her'}
+            // A girl the reader has not been told the name of is given to as "her".
+            firstName={
+              charInfo[panel.charId]?.nameKnown
+                ? (characters[panel.charId]?.firstName ?? 'her')
+                : 'her'
+            }
             onClose={closePanel}
             onSend={(message) => {
               const { itemId, charId } = panel
               closePanel()
-              // A gift spends the turn exactly as the box does, so the wait is reported the same.
-              setSending(true)
-              const filed = useGameStore.getState().sceneGifts.length
-              submitGift(charId, itemId, message)
-              // How it landed is stamped on the gift as it is given, but the stage holds it
-              // back until she answers: hearts, sparkles, or nothing, off her own slot on the
-              // line the reply opens with.
-              const gifts = useGameStore.getState().sceneGifts
-              const glyph = gifts.length > filed ? giftGlyphOf(gifts.at(-1)?.reaction) : null
-              if (glyph)
-                setGiftBurst({
-                  charId,
-                  glyph,
-                  key: Date.now(),
-                  filed: gifts.length,
-                  waiting: true
+              // Over an ending under way, a gift asks first as words do.
+              const warns = useSettingsStore.getState().settings?.warnEndingInterrupt !== false
+              if (useGameStore.getState().sceneEnding && warns) {
+                setPanel({
+                  kind: 'interruptEnding',
+                  turn: { kind: 'gift', charId, itemId, message }
                 })
+                return
+              }
+              sendGift(charId, itemId, message)
             }}
           />
         )}
@@ -2270,6 +2335,26 @@ export function GameView(): JSX.Element {
         )}
       </AnimatePresence>
 
+      {/* A photo that did not arrive, said only while the turn is held and nothing above has
+          already claimed the screen. */}
+      <AnimatePresence>
+        {photoShown && photoFailure && (
+          <PhotoFailedModal
+            key={photoFailure.job.jobId}
+            id={`photo-failed-${photoFailure.job.jobId}`}
+            theme={modalTheme}
+            failure={photoFailure}
+            onRetry={() => usePhotoStore.getState().retry(photoFailure, false)}
+            onEdit={() => {
+              useBunnyboardStore.getState().openApp()
+              useBunnyboardStore.getState().setTab('photos')
+              usePhotoStore.getState().edit(photoFailure)
+            }}
+            onDismiss={() => usePhotoStore.getState().dismiss(photoFailure)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* The Game menu — the ⚙ and Escape both open it — the Settings, Controls and Feedback
           modals it opens, Save Game, Load Game re-entering under this view's own crossing rather
           than the Main Menu's, and the leave and quit confirmations. Every one of them wears the stage's
@@ -2347,9 +2432,10 @@ export function GameView(): JSX.Element {
             theme={half}
             title="Quit the game?"
             message={
-              hasDecisionPoint()
+              (hasDecisionPoint()
                 ? "Progress since the last action will be lost."
-                : "Progress since the last autosave will be lost."
+                : "Progress since the last autosave will be lost.") +
+              (photoJobsRunning ? ' A photo still being developed will be lost.' : '')
             }
             confirmText="Quit"
             busy={quitting}
@@ -2371,9 +2457,10 @@ export function GameView(): JSX.Element {
             onCancel={closePanel}
             onConfirm={(mute) => {
               if (mute) void useSettingsStore.getState().update({ warnEndingInterrupt: false })
-              const { action: typed } = panel
+              const { turn } = panel
               closePanel()
-              sendInterjection(typed)
+              if (turn.kind === 'words') sendInterjection(turn.action)
+              else sendGift(turn.charId, turn.itemId, turn.message)
             }}
           />
         )}

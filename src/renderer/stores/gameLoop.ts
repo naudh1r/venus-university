@@ -57,7 +57,6 @@ import { occasionLeadUpLines, occasionsAt } from '../prompts/occasions'
 import { examOn, projectPeriodOf, workedOn } from '../prompts/classProgress'
 import {
   buildSlotIntroPrompt,
-  introLines,
   type IntroAsker,
   type IntroBreakup,
   type IntroPoster
@@ -124,7 +123,7 @@ import {
   revealSceneOpening,
   revealSlot
 } from './slotCrossing'
-import { charJobNow, charStandingHauntAt, shiftNow } from './timetable'
+import { charCommitmentAt, charJobNow, charStandingHauntAt, shiftNow } from './timetable'
 import { useBunnyboardStore } from './bunnyboardStore'
 import {
   addPlanContacts,
@@ -164,10 +163,12 @@ import {
 import {
   admitLocals,
   anyOf,
+  commitmentNotes,
   injectPasserby,
   localsAtLocation,
   pickCast,
   pickFirstNightCast,
+  planAttendees,
   resolveAttendance,
   resolveLocationId,
   runIntoNote,
@@ -401,9 +402,7 @@ async function beginSlot(): Promise<void> {
   const lines = [
     // The standing heads the opening.
     ...grades.standing.map((text) => ({ speaker: '', text })),
-    ...(tutorial
-      ? tutorialLines().map((text) => ({ speaker: '', text }))
-      : introLines(opening.lines).map((text) => ({ speaker: '', text }))),
+    ...(tutorial ? tutorialLines().map((text) => ({ speaker: '', text })) : opening.lines),
     // The finals close the list, so the narration's last line is theirs.
     ...grades.finals.map((text) => ({ speaker: '', text }))
   ]
@@ -667,6 +666,8 @@ async function fetchSlotIntro(
     if (!character || !info) continue
     // Off the view's calendar, which carries the plans the finished scene just settled.
     const plan = plannedWith(charId, date, time, view.events)
+    // The class or the shift she meets him before or after.
+    const commitment = plan ? charCommitmentAt(charId, date, time) : null
     // Where she is texting from and who is with her, off the overlay for the slot about
     // to open — the store's still describes the hour being played.
     const whereabouts = npcWhereaboutsFor(charId, date, time, npcOverlay, view.charInfo)
@@ -676,6 +677,7 @@ async function fetchSlotIntro(
       info,
       texted: hasTexted(game.bunnyboard.conversations[charId]),
       ...(plan ? { plan } : {}),
+      ...(commitment ? { commitment } : {}),
       // A girl with a plan is writing about that; anybody else is asking him to the occasion.
       ...(occasion && !plan ? { occasion } : {}),
       ...(whereabouts
@@ -785,10 +787,7 @@ async function fetchSlotIntro(
     // Null is the "player left" answer; it also keeps a stale failure off the menu.
     if (runStale(run) || stale()) return null
     if (result.ok) {
-      // Read through `introLines`, which takes the objects the schema asks for and the bare
-      // strings some endpoints answer with instead. Before it, a string here threw on `.trim()`
-      // and the throw escaped an async path with no catch.
-      const written = introLines(result.data.lines)
+      const written = result.data.lines.map((line) => line.text.trim()).filter(Boolean)
       // What the narration actually said about the place it was handed. A rumor about
       // an entry that is not a place, or one the narration never named, banks nothing.
       const said = rumorPlace?.id ? rumorSentenceFor(rumorPlace, written) : null
@@ -920,12 +919,7 @@ function settlePlans(
 ): { events: CalendarEvent[]; cancellations: EventCancellation[] } {
   const game = useGameStore.getState()
   const placed = normalizeSchedule(ledger, game.charKeyToId, { date, time })
-  const settled = filterEventsByAttendance(
-    placed,
-    game.charInfo,
-    game.occasions,
-    game.springBreakAway
-  )
+  const settled = filterEventsByAttendance(placed, game.springBreakAway)
 
   // An event that loses every attendee is dropped whole, and named here.
   if (placed.length > settled.events.length) {
@@ -950,7 +944,7 @@ function dispatchTurn(snapshot: TurnSnapshot): void {
   else if (snapshot.farewell) void startFarewellScene(snapshot.farewell)
   else if (snapshot.charId)
     void startHangoutScene(snapshot.charId, snapshot.action, snapshot.preset)
-  else void submitAction(snapshot.action, snapshot.gift, snapshot.preset)
+  else void submitAction(snapshot.action, snapshot.gift, snapshot.preset, snapshot.planId)
 }
 
 /** Re-sends the turn that failed — the retry modal's confirm. */
@@ -1018,21 +1012,25 @@ export function abandonTurn(): void {
   revealSceneOpening()
 }
 
-/** Hands an item to somebody in the scene — what the Gift button submits. */
-export function submitGift(charId: string, itemId: string, message: string): void {
-  const game = useGameStore.getState()
-  if (game.busy || !game.awaitingInput) return
-
-  const character = game.characters[charId]
+/**
+ * Hands an item to somebody in the scene — what the Gift button submits, on the turn or over the
+ * lines still to come, where it interjects exactly as words do. False, spending nothing, when
+ * neither applies.
+ */
+export function submitGift(charId: string, itemId: string, message: string): boolean {
+  const character = useGameStore.getState().characters[charId]
   const item = itemDefOf(itemId)
-  if (!character || !item) return
+  // Checked before anything is cut, so a gift that cannot go out leaves the reply standing.
+  if (!character || !item) return false
+  if (!takeTurnFromReply()) return false
 
   const said = message.trim()
 
   // Given first, then described: `giftItem` stamps how it landed.
-  const reaction = game.giftItem(charId, itemId)
-  const line = giftActionLine(character.firstName, item, reaction)
+  const reaction = useGameStore.getState().giftItem(charId, itemId)
+  const line = giftActionLine(nameIsKnown(charId) ? character.firstName : null, item, reaction)
   void submitAction(said ? `"${said}" ${line}` : line, true)
+  return true
 }
 
 /**
@@ -1042,7 +1040,9 @@ export function submitGift(charId: string, itemId: string, message: string): voi
 export async function submitAction(
   action: string,
   gift = false,
-  preset?: Verdict
+  preset?: Verdict,
+  /** The plan whose landing button this is; its attendees are cast whatever the words name. */
+  planId?: string
 ): Promise<void> {
   const run = currentRun()
   const raw = action.trim()
@@ -1057,7 +1057,8 @@ export async function submitAction(
     scene: game.captureScene(),
     action: raw,
     ...(gift ? { gift } : {}),
-    ...(preset ? { preset } : {})
+    ...(preset ? { preset } : {}),
+    ...(planId ? { planId } : {})
   }
   const snapshot = loopState.lastTurn
 
@@ -1167,13 +1168,26 @@ async function castTurn(
     return null
   }
 
-  const plan = actionType.startsWith('goto_class:')
-    ? await castClassTurn(actionType, mentioned, trimmed, snapshot)
-    : actionType === 'job'
-      ? castJobTurn(trimmed, inPublic, snapshot)
-      : actionType.startsWith('project:')
-        ? castProjectTurn(actionType, trimmed, inPublic, sceneLocation, snapshot)
-        : castPeopleTurn(mentioned, trimmed, inPublic, sceneLocation, snapshot)
+  // A plan's own button is a meeting with its attendees whatever the words sound like, as the
+  // same plan begun from her reminder is; one whose words are project work is also a session.
+  const game = useGameStore.getState()
+  const event = snapshot.planId
+    ? game.events.find(
+        (entry) =>
+          entry.id === snapshot.planId && entry.date === game.date && entry.time === game.time
+      )
+    : undefined
+  const attendees = event ? planAttendees(event) : []
+
+  const plan = actionType.startsWith('project:')
+    ? castProjectTurn(actionType, mentioned, trimmed, inPublic, sceneLocation, snapshot, attendees)
+    : event
+      ? castPeopleTurn(mentioned, trimmed, inPublic, sceneLocation, snapshot, attendees)
+      : actionType.startsWith('goto_class:')
+        ? await castClassTurn(actionType, mentioned, trimmed, snapshot)
+        : actionType === 'job'
+          ? castJobTurn(trimmed, inPublic, snapshot)
+          : castPeopleTurn(mentioned, trimmed, inPublic, sceneLocation, snapshot)
   if (!plan) return null
 
   // After the cast is final: the draw, the passerby roll and the admitted workers may each have
@@ -1299,56 +1313,64 @@ function castJobTurn(
   }
 }
 
-/** A `project:` verdict: a work session, in an otherwise ordinary scene. */
+/**
+ * A `project:` verdict: a work session in an otherwise ordinary scene, cast as
+ * {@link castPeopleTurn} casts it. A plan's button with no project to work on plays as the
+ * meeting alone rather than being refused.
+ */
 function castProjectTurn(
   actionType: string,
+  mentioned: string[],
   sceneAction: string,
   inPublic: boolean,
   sceneLocation: string,
-  snapshot: TurnSnapshot
+  snapshot: TurnSnapshot,
+  attendees: readonly string[] = []
 ): CastPlan | null {
-  // Both refusals are composed from the reader's timetable; the classifier was never told it.
   const resolved = resolveProject(actionType.slice('project:'.length))
-  if (resolved === 'unassigned') {
-    failTurn(rejection("That class hasn't handed out its project yet."), snapshot)
+  if (!resolved || resolved === 'unassigned') {
+    if (attendees.length > 0) {
+      return castPeopleTurn(mentioned, sceneAction, inPublic, sceneLocation, snapshot, attendees)
+    }
+    // Both refusals are composed from the reader's timetable; the classifier was never told it.
+    failTurn(
+      rejection(
+        resolved === 'unassigned'
+          ? "That class hasn't handed out its project yet."
+          : "You don't have a project to work on right now."
+      ),
+      snapshot
+    )
     return null
   }
-  if (!resolved) {
-    failTurn(rejection("You don't have a project to work on right now."), snapshot)
-    return null
-  }
-  loopState.projectWork = resolved
 
-  // An ordinary scene otherwise: the cast draw and the locals it admits.
-  const game = useGameStore.getState()
-  const entry = game.classes[resolved.code]
-  const cast = drawFreeCast(inPublic, sceneLocation)
-  const notes = cast.length > 0 ? [runIntoNote(cast)] : []
-  // Whoever the place holds is simply here; nobody was named.
-  const atWork = admitLocals(cast, sceneLocation, { named: false, inPublic })
-  return {
-    cast: atWork.cast,
-    scene: {
-      projectClass: resolved.code,
-      ...(atWork.jobId ? { visitJobId: atWork.jobId } : {})
-    },
-    passerby: null,
-    sceneAction: [
-      sceneAction,
-      `(He is putting a work session into his ${entry?.name ?? 'course'} project.)`,
-      ...notes,
-      ...atWork.notes
-    ].join('\n')
-  }
+  const entry = useGameStore.getState().classes[resolved.code]
+  // Straight under the reader's words, ahead of the absences and encounters.
+  const people = castPeopleTurn(
+    mentioned,
+    `${sceneAction}\n(He is putting a work session into his ${entry?.name ?? 'course'} project.)`,
+    inPublic,
+    sceneLocation,
+    snapshot,
+    attendees
+  )
+  if (!people) return null
+  // Armed only once the cast is settled, so a refused turn leaves no session behind.
+  loopState.projectWork = resolved
+  return { ...people, scene: { ...people.scene, projectClass: resolved.code } }
 }
 
-/** Every other verdict: the people the reader named, or whoever he runs into. */
+/**
+ * Every other verdict: the people the reader named, or whoever he runs into. A plan's
+ * `attendees` come first and clear the busy gate, as the plan's own button brings them.
+ */
 function castPeopleTurn(
   mentioned: string[],
   sceneAction: string,
   inPublic: boolean,
   sceneLocation: string,
-  snapshot: TurnSnapshot
+  snapshot: TurnSnapshot,
+  attendees: readonly string[] = []
 ): CastPlan | null {
   // Naming her needs her number; checked before availability, so unreachable
   // outranks busy. Safe to name her back: a stranger was refused two gates above.
@@ -1360,17 +1382,18 @@ function castPeopleTurn(
 
   // Whoever is working where the action is set clears the busy gate.
   const workers = workersAtLocation(sceneLocation).map((worker) => worker.charId)
-  const attendance = resolveAttendance(mentioned, undefined, workers)
-  const notes = [...attendance.notes]
+  const called = [...attendees, ...mentioned]
+  const attendance = resolveAttendance(called, undefined, [...workers, ...attendees])
+  const notes = [...attendance.notes, ...commitmentNotes(attendance.cast, attendees, workers)]
 
   // A named cast that is entirely busy is refused; a partly free one plays, with the absences
   // written under the action.
-  if (mentioned.length > 0 && attendance.cast.length === 0) {
+  if (called.length > 0 && attendance.cast.length === 0) {
     failTurn(rejection('Nobody you named is free right now.'), snapshot)
     return null
   }
 
-  const named = mentioned.length > 0
+  const named = called.length > 0
   let cast: string[]
   let passerby: string | null = null
   if (named) {
@@ -2158,7 +2181,18 @@ export function dropEnding(): void {
  */
 export function interject(action: string): boolean {
   const text = action.trim()
-  if (!text) return false
+  if (!text || !takeTurnFromReply()) return false
+  void submitAction(text)
+  return true
+}
+
+/**
+ * Brings the scene to a decision point a turn can go out from, sending nothing: the unread lines
+ * cut, the live scene call and any ending dropped and the cut written as a decision point; over a
+ * reply's last line, that line taken as turned; at a decision point already, nothing to do. False
+ * when none of these applies.
+ */
+function takeTurnFromReply(): boolean {
   const game = useGameStore.getState()
   const offer = interjectOfferOf(game)
 
@@ -2171,23 +2205,17 @@ export function interject(action: string): boolean {
     loopState.turnStartedAt = null
     game.truncateUnread()
     reachDecisionPoint()
-    void submitAction(text)
     return true
   }
 
-  // Go from a well hovered open on the reply's last line takes the steps the click past that line
-  // would — the absences charged, the decision point written — and then sends.
+  // A turn from a well hovered open on the reply's last line takes the steps the click past that
+  // line would — the absences charged, the decision point written — before it goes out.
   if (offer === 'none' && replyRowOfferOf(game) === 'open') {
     reachDecisionPoint()
-    void submitAction(text)
     return true
   }
 
-  if (offer === 'none' && game.awaitingInput && !game.busy && game.pendingLines.length === 0) {
-    void submitAction(text)
-    return true
-  }
-  return false
+  return offer === 'none' && game.awaitingInput && !game.busy && game.pendingLines.length === 0
 }
 
 /**
@@ -2600,6 +2628,17 @@ async function writeDecisionPoint(): Promise<void> {
 export async function leaveToMenu(opts?: { keepCrossing?: boolean }): Promise<void> {
   await writeDecisionPoint()
   leaveGame(opts?.keepCrossing ?? false)
+}
+
+/**
+ * Leaves for the main menu without the last word, for a playthrough about to be deleted: the
+ * decision point is dropped rather than written, and the writes already queued settle so none
+ * lands after its files are gone. The caller is running the crossing back, as `keepCrossing` says.
+ */
+export async function abandonToMenu(): Promise<void> {
+  // The teardown first: it fences the run, so a write queued but not yet started is dropped.
+  leaveGame(true)
+  await writesSettled()
 }
 
 /**

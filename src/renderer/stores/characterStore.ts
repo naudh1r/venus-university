@@ -1,7 +1,10 @@
 import { create } from 'zustand'
+import { bytesToBase64 } from '@shared/base64'
 import { profileRel, roomRel, spriteRel } from '@shared/characterFiles'
 import { blankSheet, isWritten } from '@shared/characterRules'
 import { EMOTIONS } from '@shared/emotions'
+import { appError, isAppError, messageOf, toAppError } from '@shared/errors'
+import { cardFileName, spritePackFileName } from '@shared/sillyTavern'
 import type { PromptEdit } from '@shared/imagePrompt'
 import {
   allFollowMain,
@@ -42,7 +45,7 @@ import type {
   WardrobeFixImage,
   WardrobeLayer
 } from '@shared/types'
-import { randomSeed } from '@shared/types'
+import { randomSeed, roomBgIdOf } from '@shared/types'
 import { ROOM_VARIANTS, type RoomVariant } from '@shared/room'
 import { sfwWithholds } from '@shared/sfw'
 import {
@@ -57,8 +60,17 @@ import { useGrabBagStore } from './grabBagStore'
 import { useJobStore } from './jobStore'
 import { imageUrl } from './imageUrl'
 import { enqueueLlm } from './llmQueue'
+import { cutRoomPicture } from './roomPicture'
+import { composeCard, composeSpritePack } from './sillyTavernExport'
 import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
 import { useUiStore } from './uiStore'
+
+/** An error thrown composing a SillyTavern export, passed through as is or wrapped generically. */
+function exportErrorOf(err: unknown): AppError {
+  return isAppError(err)
+    ? err
+    : appError('EXPORT_FAILED', 'Could not export the character.', messageOf(err))
+}
 
 /** Raised wherever a write needs a pose and the manifest has none. */
 const NO_POSES = {
@@ -289,6 +301,10 @@ interface CharacterStoreState {
   deleteCustomOutfit: (charId: string, slot: CustomOutfitSlot) => Promise<boolean>
   /** Writes one character out as a zip through the native save dialog. */
   exportCharacter: (charId: string) => Promise<ExportOutcome>
+  /** Composes a SillyTavern card for one character and saves it where the player picks. */
+  exportCard: (charId: string) => Promise<ExportOutcome>
+  /** Composes a SillyTavern sprite pack for one character and saves it where the player picks. */
+  exportSpritePack: (charId: string) => Promise<ExportOutcome>
   /** Adopts a character zip picked through the native open dialog into the roster. */
   importCharacter: () => Promise<boolean>
   /** Copies one character under a fresh id and splices the copy into the roster. */
@@ -332,6 +348,16 @@ interface CharacterStoreState {
   readProfileCrop: (charId: string) => Promise<ProfileCropInfo | null>
   /** Which of one character's room backgrounds are rendered, or `null` where that is unknown. */
   loadRoomStatus: (charId: string) => Promise<Record<RoomVariant, boolean> | null>
+  /**
+   * Every character's room id, read fresh, so one made since the store loaded is among them;
+   * the ones already held where the read fails.
+   */
+  listRoomBgIds: () => Promise<string[]>
+  /**
+   * Cuts a picked file to a room background and writes it over that variant, answering whether
+   * it landed; every refusal is shown. Refused while her room set is rendering.
+   */
+  uploadRoom: (charId: string, variant: RoomVariant, file: File) => Promise<boolean>
   /** Frames her portrait, re-cutting the PNG every avatar in the app shows. */
   setProfileCrop: (charId: string, crop: ProfileCrop) => Promise<boolean>
   /** Cancels outstanding work, then deletes the folder. */
@@ -685,6 +711,44 @@ export const useCharacterStore = create<CharacterStoreState>((set, get) => ({
     return result.data === null ? 'cancelled' : 'exported'
   },
 
+  exportCard: async (charId) => {
+    const character = get().characters[charId]
+    let base64: string
+    try {
+      base64 = await composeCard(charId, character)
+    } catch (err) {
+      useUiStore.getState().showError(exportErrorOf(err))
+      return 'failed'
+    }
+    const result = await window.api.chars.saveExport('card', cardFileName(character), base64)
+    if (!result.ok) {
+      useUiStore.getState().showError(result.error)
+      return 'failed'
+    }
+    return result.data === null ? 'cancelled' : 'exported'
+  },
+
+  exportSpritePack: async (charId) => {
+    const character = get().characters[charId]
+    let base64: string
+    try {
+      base64 = await composeSpritePack(charId)
+    } catch (err) {
+      useUiStore.getState().showError(exportErrorOf(err))
+      return 'failed'
+    }
+    const result = await window.api.chars.saveExport(
+      'sprites',
+      spritePackFileName(character),
+      base64
+    )
+    if (!result.ok) {
+      useUiStore.getState().showError(result.error)
+      return 'failed'
+    }
+    return result.data === null ? 'cancelled' : 'exported'
+  },
+
   importCharacter: async () => {
     const result = await window.api.chars.import()
     if (!result.ok) {
@@ -788,6 +852,42 @@ export const useCharacterStore = create<CharacterStoreState>((set, get) => ({
   loadRoomStatus: async (charId) => {
     const result = await window.api.chars.room(charId)
     return result.ok ? result.data : null
+  },
+
+  listRoomBgIds: async () => {
+    const result = await window.api.chars.list()
+    if (!result.ok) console.warn('[characters] could not list them:', result.error.message)
+    const characters = result.ok ? result.data : Object.values(get().characters)
+    return characters.map((character) => roomBgIdOf(character))
+  },
+
+  uploadRoom: async (charId, variant, file) => {
+    const ui = useUiStore.getState()
+    let png: Uint8Array<ArrayBuffer>
+    try {
+      png = await cutRoomPicture(file)
+    } catch (err) {
+      const error = toAppError(err, 'ROOM_PICTURE_INVALID')
+      console.warn('[characters] room picture refused:', error.message)
+      ui.showError(error)
+      return false
+    }
+    // A staged run would commit over the picture and a live one re-lights the day it reads.
+    if (liveTaskFor(get().progress[charId], 'room')) return false
+
+    const written = await window.api.chars.uploadRoom(charId, variant, bytesToBase64(png))
+    if (!written.ok) {
+      ui.showError(written.error)
+      return false
+    }
+    set((state) => ({
+      rooms: {
+        ...state.rooms,
+        [charId]: { ...state.rooms[charId], [variant]: true }
+      },
+      ...bumpSpriteVersion(state, charId)
+    }))
+    return true
   },
 
   setProfileCrop: async (charId, crop) => {

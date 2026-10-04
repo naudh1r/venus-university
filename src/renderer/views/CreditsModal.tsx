@@ -339,7 +339,7 @@ export function CreditsModal({ theme }: CreditsModalProps): JSX.Element | null {
                 )}
                 {PLAYTESTERS.length > 0 && (
                   <section className="vu-credits-section">
-                    <h3 className="vu-credits-title">Playtesters</h3>
+                    <h3 className="vu-credits-title">Special thanks</h3>
                     <p className="vu-row vu-credits-names">{PLAYTESTERS.join(', ')}</p>
                   </section>
                 )}

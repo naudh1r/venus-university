@@ -44,19 +44,28 @@ export interface BuildCallContext {
   maxOutputTokens: number
   /** True when the caller passed an `onDelta` preview channel. */
   streaming: boolean
+  /** The sampling values this call carries under their wire keys, already resolved — send them as they are. */
+  sampling: Record<string, number>
 }
 
 /** Everything an adapter needs to build one image call. */
 export interface BuildImageCallContext {
   prompt: string
-  provider: ProviderConfig
-  /** Which image model — never one of the text models. There are two. */
+  /** The API root the call is sent under, including the version segment. */
+  baseUrl: string
+  /** Which image model — never one of the text models. */
   modelId: string
   apiKey: string
   /** How big the reply should be. */
   imageSize?: ImageSize
-  /** An image to edit rather than start from nothing. */
-  image?: GeneratedImage
+  /** The shape of the picture; absent means `16:9`, every room's. */
+  aspectRatio?: string
+  /** Sent only where the model takes one. */
+  thinkingLevel?: ThinkingLevel
+  /** Sent only where the model takes one. */
+  quality?: string
+  /** Images to edit or take reference from, in order, rather than start from nothing. */
+  images?: GeneratedImage[]
 }
 
 /** Image bytes as the wire carries them: base64 plus the type they decode to. */
@@ -98,12 +107,33 @@ export interface LlmAdapter {
    */
   generatedTokensOf(payload: string): number | undefined
 
+  /** Which tier actually served a response, where the vendor reports one. */
+  servedTierOf?(headers: Headers): string | undefined
+}
+
+/**
+ * Seam between the `cloudImage` transport and a picture's wire format; adding one means
+ * implementing this plus registering its `ImageApi`.
+ */
+export interface ImageAdapter {
   /** Builds the image-model call; `image` makes it an edit rather than a render. */
   buildImageCall(context: BuildImageCallContext): LlmCall
 
   /** Pulls the generated image out of a whole response, throwing `AppError` for blocks. */
   imageOf(rawBody: string, label: string): GeneratedImage
 
-  /** Which tier actually served a response, where the vendor reports one. */
-  servedTierOf?(headers: Headers): string | undefined
+  /** The GET that lists the image models served under `baseUrl`; a blank key rides nowhere. */
+  modelsCall(baseUrl: string, apiKey: string): ModelsCall
+
+  /** The image model ids a listing names, sorted; empty for anything it cannot read. Never throws. */
+  modelIdsOf(rawBody: string): string[]
+
+  /** Maps a non-2xx response to an `AppError`. Never throws. */
+  errorFor(context: ErrorContext): AppError
+}
+
+/** One model-listing request: a GET, so only a URL and its headers. */
+export interface ModelsCall {
+  url: string
+  headers: Record<string, string>
 }

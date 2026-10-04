@@ -1,5 +1,6 @@
 import { useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
+import { volumesOf } from '@shared/audio'
 import { motion } from 'motion/react'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
@@ -7,8 +8,11 @@ import { SfwCheckList } from '../components/SfwCheckList'
 import { patchOf, useSettingsStore } from '../stores/settingsStore'
 import type { ScreenTheme } from './clockTheme'
 import { gestures, lift, panelUnderTab, press, veilIn } from './motion'
-import type { SfwKey } from './sfwFields'
+import { NO_NSFW_SOUND_FIELD, SFW_FIELDS, type SfwField, type SfwPromptKey } from './sfwFields'
 import '../vu_styles/Settings.css'
+
+/** The two content settings, then the sound box. */
+const PROMPT_FIELDS: readonly SfwField<SfwPromptKey>[] = [...SFW_FIELDS, NO_NSFW_SOUND_FIELD]
 
 export interface SfwPromptModalProps {
   /** Drawn by the screen that raises it — a portal inherits neither palette nor state rules. */
@@ -29,7 +33,7 @@ export function SfwPromptModal({ theme, onClose }: SfwPromptModalProps): JSX.Ele
   const saving = useSettingsStore((s) => s.saving)
   const save = useSettingsStore((s) => s.save)
 
-  const [sfw, setSfw] = useState<Record<SfwKey, boolean>>({
+  const [sfw, setSfw] = useState<Record<SfwPromptKey, boolean>>({
     noNsfwImages: false,
     lessNsfwText: false,
     noNsfwSound: false
@@ -37,7 +41,12 @@ export function SfwPromptModal({ theme, onClose }: SfwPromptModalProps): JSX.Ele
 
   async function handleContinue(): Promise<void> {
     if (!settings) return
-    const ok = await save({ ...patchOf(settings), ...sfw, sfwAsked: true })
+    const { noNsfwSound, ...content } = sfw
+    // The sound box is no setting of its own: ticked, it puts the NSFW slider at 0.
+    const volumes = noNsfwSound
+      ? { volumes: { ...volumesOf(settings.volumes), nsfw: 0 } }
+      : {}
+    const ok = await save({ ...patchOf(settings), ...content, ...volumes, sfwAsked: true })
     // A failed write leaves the modal up; the store has already raised the error.
     if (!ok) return
     onClose()
@@ -72,7 +81,7 @@ export function SfwPromptModal({ theme, onClose }: SfwPromptModalProps): JSX.Ele
             Explicit content is optional and can be toggled below or in Settings.
           </p>
 
-          <SfwCheckList sfw={sfw} onChange={setSfw} />
+          <SfwCheckList fields={PROMPT_FIELDS} sfw={sfw} onChange={setSfw} />
 
           <div className="vu-foot">
             <motion.button

@@ -1,5 +1,12 @@
 import { create } from 'zustand'
-import type { RendererSettings, Result, SettingsPatch, WriterCandidate } from '@shared/types'
+import type {
+  ImageCandidate,
+  ImageEndpointCandidate,
+  RendererSettings,
+  Result,
+  SettingsPatch,
+  WriterCandidate
+} from '@shared/types'
 import { useUiStore } from './uiStore'
 
 interface SettingsStoreState {
@@ -26,6 +33,10 @@ interface SettingsStoreState {
   listModels: (endpointUrl: string, apiKey?: string) => Promise<Result<string[]>>
   /** Sends one tiny request on the writer fields as typed; the error is the form's answer. */
   testWriter: (candidate: WriterCandidate) => Promise<Result<void>>
+  /** The image models the typed images URL lists; like `listModels`, a failure is the form's to read. */
+  listImageModels: (candidate: ImageEndpointCandidate) => Promise<Result<string[]>>
+  /** Draws one picture on the image fields as typed; the error is the form's answer. */
+  testImages: (candidate: ImageCandidate) => Promise<Result<void>>
   /**
    * Hands the player everything this build has stored as one file. Answers false where the
    * player picked nowhere to put it.
@@ -94,6 +105,10 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
 
   testWriter: async (candidate) => window.api.llm.testWriter(candidate),
 
+  listImageModels: async (candidate) => window.api.llm.listImageModels(candidate),
+
+  testImages: async (candidate) => window.api.llm.testImages(candidate),
+
   exportBackup: async () => {
     const result = await window.api.backup.export()
     if (!result.ok) {
@@ -132,18 +147,23 @@ export function patchOf(settings: RendererSettings): SettingsPatch {
     apiModel: settings.apiModel,
     thinkingLevel: settings.thinkingLevel,
     // Carried, or a save made from anywhere else would drop the custom endpoint the writer
-    // runs on, the endpoint's models, the effort it runs at and the reply cap it is sent.
+    // runs on, the endpoint's models, the effort it runs at, the reply cap it is sent and where
+    // its pictures are drawn.
     endpointUrl: settings.endpointUrl,
     endpointModel: settings.endpointModel,
     endpointSecondaryModel: settings.endpointSecondaryModel,
     reasoningEffort: settings.reasoningEffort,
     maxOutputTokens: settings.maxOutputTokens,
+    imageEndpointUrl: settings.imageEndpointUrl,
+    imageModel: settings.imageModel,
     // Carried, or a save made from anywhere else would drop Gemini's secondary model.
     secondaryModel: settings.secondaryModel,
     secondaryModelFor: settings.secondaryModelFor,
     comfyDeferred: settings.comfyDeferred,
     // Carried, or a save made from anywhere else would turn the launch offer back on.
     checkUpdates: settings.checkUpdates,
+    // Carried, or a save made from anywhere else would open the next launch fullscreen again.
+    fullscreen: settings.fullscreen,
     // Carried, or a save made from anywhere else would turn the ending warnings back on.
     warnEndingInterrupt: settings.warnEndingInterrupt,
     warnEndingEdit: settings.warnEndingEdit,
@@ -151,17 +171,22 @@ export function patchOf(settings: RendererSettings): SettingsPatch {
     lessNsfwText: settings.lessNsfwText,
     // Carried, or a save made from anywhere else would turn photographs back on.
     photos: settings.photos,
-    // Carried, or a save made from anywhere else would turn strict schema fields back off.
-    strictSchema: settings.strictSchema,
     // Carried, or a save made from anywhere else would turn body details back off.
     bodyDetails: settings.bodyDetails,
     // Carried, or a save made from anywhere else would put the bunny back.
     photoLoader: settings.photoLoader,
-    noNsfwSound: settings.noNsfwSound,
     sfwAsked: settings.sfwAsked,
     // Carried, or a save made from anywhere else would drop a browser's key on the next visit.
     rememberKey: settings.rememberKey,
     // Carried, or a save made from anywhere else would put every group back to full.
-    volumes: settings.volumes
+    volumes: settings.volumes,
+    // Carried, or a save made from anywhere else would drop the custom endpoint's sampling.
+    temperature: settings.temperature,
+    repetitionPenalty: settings.repetitionPenalty,
+    topP: settings.topP,
+    topK: settings.topK,
+    // Carried, or a save made from anywhere else would drop the memory budgets and the persona.
+    memoryBudgets: settings.memoryBudgets,
+    scenePersona: settings.scenePersona
   }
 }

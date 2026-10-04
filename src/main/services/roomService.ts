@@ -4,10 +4,12 @@ import { appError, messageOf } from '@shared/errors'
 import { imageTypeOf } from '@shared/imageBytes'
 import { generateImage } from '@shared/llm/cloudImage'
 import { dayRoomPrompt, isRoomVariant, NIGHT_ROOM_PROMPT, type RoomVariant } from '@shared/room'
+import { assertRoomPicture } from '@shared/roomPicture'
 import type { Character } from '@shared/types'
 import { getCharacterRoomPath } from '../paths'
 import { assertSafeCharId } from './characterService'
 import { dropImageTwins, findImage } from './imageFiles'
+import { writeAtomicBytes } from './jsonFile'
 
 /** The day image the night render re-lights: this run's staged one if any, else the live one. */
 async function readDayImage(charId: string, staged: boolean): Promise<Buffer> {
@@ -56,7 +58,7 @@ export async function generateRoomImage(
     }
     bytes = await generateImage(NIGHT_ROOM_PROMPT, {
       signal,
-      source: { bytes: day, mimeType }
+      sources: [{ bytes: day, mimeType }]
     })
   } else {
     if (!character.roomPrompt.trim()) {
@@ -80,4 +82,29 @@ export async function generateRoomImage(
     await unlink(temp).catch(() => {})
     throw appError('ROOM_UNWRITABLE', 'Could not save the room background.', messageOf(err))
   }
+}
+
+/**
+ * Writes a room background the player picked, `png` being its base64 bytes, once they have
+ * passed the shared check. Into the live folder and never a new one: a character deleted while
+ * the picture was on its way has no folder for it.
+ */
+export async function writeRoomUpload(
+  charId: string,
+  variant: RoomVariant,
+  png: string
+): Promise<void> {
+  assertSafeCharId(charId)
+  if (!isRoomVariant(variant)) {
+    throw appError('ROOM_VARIANT_UNKNOWN', `"${String(variant)}" is not a room variant.`)
+  }
+  const bytes = Buffer.from(png, 'base64')
+  assertRoomPicture(bytes)
+
+  const path = getCharacterRoomPath(charId, variant)
+  await writeAtomicBytes(path, bytes, {
+    code: 'ROOM_UNWRITABLE',
+    message: 'Could not save the room background.'
+  })
+  await dropImageTwins(path)
 }

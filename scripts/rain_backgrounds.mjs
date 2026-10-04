@@ -1,10 +1,13 @@
 // Dev tool, run by hand: asks Gemini 3.1 Flash Image for a "just finished raining" version of
-// each background and writes it beside its source as `<stem>_day_rain.png`.
+// each background and writes it beside its source as `<stem>_day_rain.png`, with the picker's
+// quarter-scale WebP thumbnail of it under `assets/bg_thumbs`.
 //
 //   node scripts/rain_backgrounds.mjs               every listed background without a rain file yet
 //   node scripts/rain_backgrounds.mjs --dry-run     list what would be sent, send nothing
 //   node scripts/rain_backgrounds.mjs --only quad,pool   just those stems (before `_day.png`)
 //   node scripts/rain_backgrounds.mjs --force       regenerate even where a rain file exists
+//   node scripts/rain_backgrounds.mjs --thumbs      write the thumbnail of every rain file on disk,
+//                                                   day or night, and send nothing
 //
 // Not part of the game; nothing imports it.
 
@@ -24,6 +27,11 @@ const PROMPT =
 const BG_DIR = resolve(import.meta.dirname, '..', 'assets', 'bg')
 const EXTERIOR_DIR = join(BG_DIR, 'exterior')
 const INTERIOR_DIR = join(BG_DIR, 'interior')
+/** Where the picker's small stand-ins sit, under the same kind folders as the renders. */
+const THUMB_DIR = resolve(import.meta.dirname, '..', 'assets', 'bg_thumbs')
+/** A thumbnail is the render at a quarter of its size, at the quality the dry ones were cut at. */
+const THUMB_SCALE = 4
+const THUMB_QUALITY = 85
 /** Exterior stems (the name before `_day.png`) never sent; every other exterior day file is. */
 const EXTERIOR_EXCLUDED = ['market']
 /** Interior day backgrounds that get a rain version; the rest of the folder is left alone. */
@@ -58,6 +66,7 @@ const SAFETY_OFF = [
 const argv = process.argv.slice(2)
 const force = argv.includes('--force')
 const dryRun = argv.includes('--dry-run')
+const thumbsOnly = argv.includes('--thumbs')
 const onlyIndex = argv.indexOf('--only')
 const only = onlyIndex >= 0 ? (argv[onlyIndex + 1] ?? '').split(',').filter(Boolean) : null
 if (onlyIndex >= 0 && (!only || only.length === 0)) {
@@ -66,7 +75,7 @@ if (onlyIndex >= 0 && (!only || only.length === 0)) {
 }
 
 const apiKey = GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''
-if (!apiKey && !dryRun) {
+if (!apiKey && !dryRun && !thumbsOnly) {
   console.error('No API key: fill in GEMINI_API_KEY at the top of scripts/rain_backgrounds.mjs or set the GEMINI_API_KEY environment variable.')
   process.exit(2)
 }
@@ -86,6 +95,19 @@ function sniffMime(bytes) {
 const mb = (bytes) => `${(bytes.length / 1024 / 1024).toFixed(1)}MB`
 const short = (mime) => (mime ?? 'unknown').replace('image/', '')
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms))
+
+/** Writes the picker's thumbnail of the render `file` in `dir`, under the same kind folder. */
+async function writeThumb(dir, file) {
+  const kind = dir === EXTERIOR_DIR ? 'exterior' : 'interior'
+  const thumbPath = join(THUMB_DIR, kind, file.replace(/\.png$/, '.webp'))
+  const source = join(dir, file)
+  const { width } = await sharp(source).metadata()
+  await sharp(source)
+    .resize(Math.round(width / THUMB_SCALE))
+    .webp({ quality: THUMB_QUALITY })
+    .toFile(thumbPath)
+  return thumbPath
+}
 
 const sourcePathOf = ({ dir, stem }) => join(dir, `${stem}_day.png`)
 const targetPathOf = ({ dir, stem }) => join(dir, `${stem}_day_rain.png`)
@@ -200,11 +222,24 @@ async function processOne(job) {
   const { png, width, height } = await toPng(answer.bytes)
   await writeFile(tempPath, png)
   await rename(tempPath, targetPath)
+  await writeThumb(job.dir, `${stem}_day_rain.png`)
   const seconds = Math.round((Date.now() - started) / 1000)
   console.log(`← ${stem} ${width}×${height} ${declared} → png ${mb(png)} in ${seconds}s`)
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────────────────
+
+if (thumbsOnly) {
+  let count = 0
+  for (const dir of [EXTERIOR_DIR, INTERIOR_DIR]) {
+    for (const file of (await readdir(dir)).filter((name) => name.endsWith('_rain.png')).sort()) {
+      console.log(`→ ${await writeThumb(dir, file)}`)
+      count++
+    }
+  }
+  console.log(`written ${count} thumbnails`)
+  process.exit(0)
+}
 
 const exteriorNames = await readdir(EXTERIOR_DIR)
 const exteriorJobs = exteriorNames

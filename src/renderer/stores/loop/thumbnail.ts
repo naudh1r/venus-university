@@ -1,4 +1,5 @@
 import { cgRel, roomRel, spriteRel } from '@shared/characterFiles'
+import type { BgVariant } from '@shared/customBackgrounds'
 import { messageOf } from '@shared/errors'
 import { isPosition } from '@shared/positions'
 import type { RoomVariant } from '@shared/room'
@@ -13,10 +14,11 @@ import {
   STAGE_THUMB_WIDTH,
   type StagePlacement
 } from '@shared/stageThumb'
-import { roomBgIdOf, type SceneState } from '@shared/types'
+import { allBackgrounds, roomBgIdOf, type SceneState } from '@shared/types'
 import { slotHalf } from '../../prompts/gameDate'
 import { isEpilogueNight } from '../../prompts/graduation'
-import { bgThumbUrl, SLOT_BG } from '../../views/bgAssets'
+import { bgThumbUrl, customBackgroundOf, roomOwnerOf, SLOT_BG } from '../../views/bgAssets'
+import { useAssetStore } from '../assetStore'
 import { stageContextOf, useGameStore } from '../gameStore'
 import { displaySlotsOf, displaySpriteRef } from '../stageDisplay'
 import { stageOnLoad } from '../stageStep'
@@ -80,7 +82,7 @@ async function layerOf(
 }
 
 /** One of a character's images, or null when she has none at `rel`. */
-async function characterImage(charId: string, rel: string): Promise<Blob | null> {
+export async function characterImage(charId: string, rel: string): Promise<Blob | null> {
   const result = await window.api.chars.readImage(charId, rel)
   if (!result.ok) throw result.error
   return result.data ? new Blob([result.data]) : null
@@ -94,18 +96,45 @@ function characterLayer(charId: string, rel: string, height: number): Promise<Im
 }
 
 /** A bundled picture's bytes. */
-async function bundledImage(url: string): Promise<Blob> {
+export async function bundledImage(url: string): Promise<Blob> {
   const response = await fetch(url)
   if (!response.ok) throw new Error(`${url} answered ${response.status}`)
   return response.blob()
 }
 
-/** The background `base` names at `half`: a character's room, or a bundled thumbnail. */
+/** One of the player's own backgrounds' pictures, or null when it has none at `variant`. */
+export async function customImage(name: string, variant: BgVariant): Promise<Blob | null> {
+  const result = await window.api.backgrounds.readImage(name, variant)
+  if (!result.ok) throw result.error
+  return result.data ? new Blob([result.data]) : null
+}
+
+/** Whose room `base` is under the roster and the listed backgrounds as they stand right now. */
+export function roomOwnerNow(base: string): string | undefined {
+  const owners = new Map(
+    Object.values(useGameStore.getState().characters).map((character) => [
+      roomBgIdOf(character),
+      character.charId
+    ])
+  )
+  const listed = new Set(allBackgrounds(useAssetStore.getState().backgrounds))
+  return roomOwnerOf(base, owners, listed)
+}
+
+/**
+ * The background `base` names at `half`: one of the player's own, a character's room, or a
+ * bundled thumbnail. The first two are read as bytes over the bridge, as the canvas needs them.
+ */
 function backgroundLayer(base: string, half: RoomVariant): Promise<ImageBitmap | null> {
-  const characters = Object.values(useGameStore.getState().characters)
-  const owner = characters.find((character) => roomBgIdOf(character) === base)
-  if (owner) return characterLayer(owner.charId, roomRel(half), STAGE_THUMB_HEIGHT)
-  const url = bgThumbUrl(base, half) ?? bgThumbUrl(SLOT_BG, half)
+  const custom = customBackgroundOf(base)
+  if (custom) {
+    // Keyed on when it was brought, so one re-added under the name is decoded afresh.
+    const key = `bg:${base}@${String(custom.record.createdAt)}/${half}`
+    return layerOf(key, STAGE_THUMB_HEIGHT, () => customImage(base, half))
+  }
+  const owner = roomOwnerNow(base)
+  if (owner) return characterLayer(owner, roomRel(half), STAGE_THUMB_HEIGHT)
+  const url = bgThumbUrl(base, half, false) ?? bgThumbUrl(SLOT_BG, half, false)
   if (!url) return Promise.resolve(null)
   return layerOf(url, STAGE_THUMB_HEIGHT, () => bundledImage(url))
 }

@@ -177,10 +177,12 @@
   align-items: flex-end;
 }
 
-/* Go's seat reaches back across the row's gap to the well's edge, so the well and Go are one
-   unbroken stretch under the pointer: crossing from one to the other while a reply is being read
-   never leaves both, and the hover holding them out never drops between them. */
-.vu-scene-row .vu-turn-goslot {
+/* Go's seat reaches back across the row's gap to the well's edge, and the gift's to Go's, so the
+   well, Go and the gift are one unbroken stretch under the pointer: crossing from one to the next
+   while a reply is being read never leaves them all, and the hover holding them out never drops
+   between them. */
+.vu-scene-row .vu-turn-goslot,
+.vu-scene-row .vu-scene-gift {
   margin-left: calc(-1 * var(--turn-gap));
   padding-left: var(--turn-gap);
 }
@@ -207,10 +209,11 @@
 /* The row says what it is doing with its well: `out` while the well is shown, `away` while the
    divider stands in its place and answers a hover, and `locked` while the class will not be
    interrupted. Anywhere but `out`, the strip is the row's only hover zone: the hidden well's box,
-   Go's reach-back and the tips mark all give the pointer up, so a click above the strip falls
-   through to the stage — and the locked word takes none at all. */
+   Go's reach-back, the gift and the tips mark all give the pointer up, so a click above the strip
+   falls through to the stage — and the locked word takes none at all. */
 .vu-scene-row:not([data-well='out']) > .vu-turn-inputbox,
 .vu-scene-row:not([data-well='out']) > .vu-turn-goslot,
+.vu-scene-row:not([data-well='out']) > .vu-scene-gift,
 .vu-scene-row:not([data-well='out']) > .vu-scene-help {
   pointer-events: none;
 }
@@ -336,7 +339,8 @@
   pointer-events: none;
 }
 
-/* The divider and the gift, which is the turn's second answer. */
+/* The divider and the gift, which is the turn's second answer. The outer layer stands and fades
+   with the well; the seat inside it is the gift's own dim. */
 .vu-scene-gift {
   position: relative;
   display: flex;
@@ -344,9 +348,14 @@
   align-items: center;
 }
 
+.vu-scene-giftseat {
+  display: flex;
+  align-items: center;
+}
+
 /* The rule and the button are one row inside the wrapper that hears the pointer for the dead
    Gift, so the note hangs off the pair rather than off the button alone. */
-.vu-scene-gift > .vu-deadnote {
+.vu-scene-giftseat > .vu-deadnote {
   display: flex;
   align-items: center;
   gap: 26px;

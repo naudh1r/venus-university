@@ -274,7 +274,7 @@
   flex: none;
   flex-direction: row;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 .vu-set-pill {
@@ -300,6 +300,14 @@
   width: auto;
   padding: 8px 18px;
   font-size: 13px;
+}
+
+/* `.vu-x` is the circle; on a tile it is drawn no taller than the pill it stands in for, so
+   the tile keeps its height when a render starts, on one row or two. */
+.vu-set-x {
+  flex: none;
+  width: 32px;
+  height: 32px;
 }
 
 .vu-set-status {

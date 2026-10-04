@@ -20,7 +20,10 @@ const DEFAULT_GIFT_MESSAGE = 'I got you this.'
 export interface GiftMessageModalProps {
   /** Drawn by the screen that opened this — a portal inherits no palette. */
   theme: ScreenTheme
-  /** Who is being given to, for the answer's own words — already nameable to the reader. */
+  /**
+   * Who is being given to, for the answer's own words: her name, or "her" while the reader has
+   * not learned it.
+   */
   firstName: string
   onSend: (message: string) => void
   onClose: () => void

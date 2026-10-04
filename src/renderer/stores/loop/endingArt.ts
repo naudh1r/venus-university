@@ -1,26 +1,17 @@
 import { messageOf } from '@shared/errors'
-import {
-  alphaBounds,
-  layoutLineup,
-  padBox,
-  LINEUP_MIME_TYPE,
-  LINEUP_QUALITY,
-  LINEUP_SCAN_STEP,
-  type LineupSprite
-} from '@shared/lineup'
 import { loadWardrobeImage } from '../characterStore'
+import { stitchLineup } from '../lineupSheet'
 import { useGameStore } from '../gameStore'
 import { retrySilently } from '../silentRetry'
 import { useUiStore } from '../uiStore'
-import { canvasToBase64 } from './encode'
 import { armEndingPosts } from './endingPosts'
 import { friendCharIds } from './farewells'
 import { writeEpilogueSave } from './saves'
 import { currentRun, loopState, runStale, LOOP_LLM_GROUP } from './state'
 
 /**
- * The graduation picture, where it meets the store: the reference sheet's arithmetic is pure in
- * `@shared/lineup.ts`; this half reads the roster, drives a canvas and talks to the bridge.
+ * The graduation picture, where it meets the store: the reference sheet is `../lineupSheet.ts`'s;
+ * this half reads the roster and talks to the bridge.
  * {@link armEpilogue} is the one call every way into the epilogue makes, status updates included.
  */
 
@@ -66,91 +57,15 @@ async function spriteOf(charId: string): Promise<ImageBitmap | null> {
   return null
 }
 
-/** Her opaque bounding box, scanned coarsely and padded back out. */
-function trimOf(bitmap: ImageBitmap): LineupSprite | null {
-  const width = Math.max(1, Math.round(bitmap.width / LINEUP_SCAN_STEP))
-  const height = Math.max(1, Math.round(bitmap.height / LINEUP_SCAN_STEP))
-  const scratch = document.createElement('canvas')
-  scratch.width = width
-  scratch.height = height
-  const ctx = scratch.getContext('2d', { willReadFrequently: true })
-  if (!ctx) return null
-  ctx.drawImage(bitmap, 0, 0, width, height)
-
-  const { data } = ctx.getImageData(0, 0, width, height)
-  const alpha = new Uint8ClampedArray(width * height)
-  for (let i = 0; i < alpha.length; i++) alpha[i] = data[i * 4 + 3]
-
-  const scanned = alphaBounds(alpha, width, height)
-  if (!scanned) return null
-  const full = {
-    x: scanned.x * LINEUP_SCAN_STEP,
-    y: scanned.y * LINEUP_SCAN_STEP,
-    width: scanned.width * LINEUP_SCAN_STEP,
-    height: scanned.height * LINEUP_SCAN_STEP
-  }
-  return {
-    width: bitmap.width,
-    height: bitmap.height,
-    // One scan cell of slack on every side: a downscale averages a hair strand toward nothing.
-    art: padBox(full, LINEUP_SCAN_STEP, bitmap.width, bitmap.height)
-  }
-}
-
 /**
  * Every friend's sprite trimmed, evened out and laid side by side on black — the cast list the
- * image model is handed.
+ * image model is handed. A friend whose sprite is gone is left out of the photograph, silently.
  */
 async function stitchFriendLineup(
   charIds: readonly string[]
 ): Promise<{ data: string; count: number } | null> {
-  // Two passes with one bitmap alive at a time — the first measures, the second draws — since
-  // twelve full frames decoded at once would be ~95MB.
-  const drawn: string[] = []
-  const sprites: LineupSprite[] = []
-  for (const charId of charIds) {
-    const bitmap = await spriteOf(charId)
-    if (!bitmap) continue
-    const sprite = trimOf(bitmap)
-    bitmap.close()
-    if (!sprite) continue
-    drawn.push(charId)
-    sprites.push(sprite)
-  }
-
-  const layout = layoutLineup(sprites)
-  if (layout.placements.length === 0) return null
-
-  const sheet = document.createElement('canvas')
-  sheet.width = layout.width
-  sheet.height = layout.height
-  const ctx = sheet.getContext('2d')
-  if (!ctx) return null
-  // Opaque black: the sheet is a JPEG, and a lineup on black reads as "no background".
-  ctx.fillStyle = '#000'
-  ctx.fillRect(0, 0, sheet.width, sheet.height)
-
-  for (const [i, placement] of layout.placements.entries()) {
-    const bitmap = await spriteOf(drawn[i])
-    if (!bitmap) continue
-    ctx.drawImage(
-      bitmap,
-      placement.sx,
-      placement.sy,
-      placement.sw,
-      placement.sh,
-      placement.dx,
-      placement.dy,
-      placement.dw,
-      placement.dh
-    )
-    bitmap.close()
-  }
-
-  return {
-    data: await canvasToBase64(sheet, LINEUP_MIME_TYPE, LINEUP_QUALITY),
-    count: layout.placements.length
-  }
+  const sheet = await stitchLineup(charIds.map((charId) => () => spriteOf(charId)))
+  return sheet ? { data: sheet.data, count: sheet.drawn.length } : null
 }
 
 /** Sends the sheet, re-sending itself quietly for as long as its budget lasts. */

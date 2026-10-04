@@ -4,7 +4,7 @@ import type { ChatPhoto } from '@shared/photoTypes'
 import type { Character, TextingResponse } from '@shared/types'
 import { useGameStore } from './gameStore'
 import { RENDER_PATIENCE_MS } from './photoPost'
-import { canSendPhotos, savePhotoState, setMessagePhoto } from './photoStore'
+import { canSendPhotos, photoNamesInSave, savePhotoState, setMessagePhoto } from './localPhotoStore'
 import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
 import { tellAboutDmPhotos } from './photoTipDelivery'
 
@@ -51,7 +51,12 @@ export async function sendPhoto(
 
   // The name before the picture, so the bubble carries it into the save whatever the render does
   // next. A bubble saved without one can never be told what landed, and spins for good.
-  const named = await window.api.photo.reserveName(playthroughId, character, 'chat')
+  const named = await window.api.photo.reserveName(
+    playthroughId,
+    character,
+    'chat',
+    photoNamesInSave(charId)
+  )
   if (!named.ok) {
     console.warn(`[texting] no name for her photo: ${named.error.code}`, named.error.message)
     return

@@ -103,3 +103,19 @@ export async function writeAtomicJson(
     throw appError(opts.code, opts.message, detailOf(path, err))
   }
 }
+
+/** `writeAtomicJson`'s twin for raw bytes: a picture, kept whole or not written at all. */
+export async function writeAtomicBytes(
+  path: string,
+  data: Uint8Array,
+  opts: { code: string; message: string }
+): Promise<void> {
+  const tempPath = `${path}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`
+  try {
+    await writeFile(tempPath, data)
+    await renameWithPatience(tempPath, path)
+  } catch (err) {
+    await rm(tempPath, { force: true }).catch(() => {})
+    throw appError(opts.code, opts.message, detailOf(path, err))
+  }
+}

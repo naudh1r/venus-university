@@ -5,10 +5,11 @@
  */
 import { useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 
 import { storedMemoryDesc } from '@shared/readerVoice'
 import type { CharMemory } from '@shared/types'
+import { ConfirmModal } from '../components/ConfirmModal'
 import { MemoryRow } from '../components/MemoryRow'
 import { TitleTab } from '../components/TitleTab'
 import { useModalShell } from '../components/useModalShell'
@@ -41,76 +42,109 @@ export function EditMemoryModal({
   // Opens in the reader's voice, the one it is filed in, whichever voice it was written in.
   const [desc, setDesc] = useState(() => storedMemoryDesc(memory.desc))
   const blank = desc.trim() === ''
-  const { host, overlayProps } = useModalShell(onClose)
+  // The gate in front of leaving with the verb or the words changed.
+  const [closing, setClosing] = useState(false)
+
+  /** The gate in front of leaving, asked on Cancel, on Escape and on an outside click alike. */
+  function requestClose(): void {
+    if (type !== memory.type || desc !== storedMemoryDesc(memory.desc)) setClosing(true)
+    else onClose()
+  }
+
+  const { host, overlayProps } = useModalShell(requestClose)
 
   if (!host) return null
 
   return createPortal(
-    <motion.div
-      className="vu-veil"
-      data-theme={theme}
-      variants={veilIn}
-      initial="hidden"
-      animate="shown"
-      exit="gone"
-      {...overlayProps}
-    >
-      <motion.form
-        id="edit-memory"
-        className="vu-memedit vu-memedit--one vu-paper"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Edit memory"
-        variants={panelUnderTab}
-        // A form, so Enter in the field is Save; a blank line saves nothing.
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (blank) return
-          useGameStore
-            .getState()
-            .replaceMemory(charId, memory, { date: memory.date, type, desc: storedMemoryDesc(desc) })
-          onClose()
-        }}
-        // The key stops here, so no listener behind the panel answers it as well.
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') event.stopPropagation()
-        }}
+    <>
+      <motion.div
+        className="vu-veil"
+        data-theme={theme}
+        variants={veilIn}
+        initial="hidden"
+        animate="shown"
+        exit="gone"
+        {...overlayProps}
       >
-        <TitleTab>Edit memory</TitleTab>
+        <motion.form
+          id="edit-memory"
+          className="vu-memedit vu-memedit--one vu-paper"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Edit memory"
+          variants={panelUnderTab}
+          // A form, so Enter in the field is Save; a blank line saves nothing.
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (blank) return
+            useGameStore
+              .getState()
+              .replaceMemory(charId, memory, { date: memory.date, type, desc: storedMemoryDesc(desc) })
+            onClose()
+          }}
+          // The key stops here, so no listener behind the panel answers it as well.
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.stopPropagation()
+          }}
+        >
+          <TitleTab>Edit memory</TitleTab>
 
-        <MemoryRow
-          id="edit-memory-row"
-          name={name}
-          type={type}
-          desc={desc}
-          onType={setType}
-          onDesc={setDesc}
-          autoFocus
-        />
+          <MemoryRow
+            id="edit-memory-row"
+            name={name}
+            type={type}
+            desc={desc}
+            onType={setType}
+            onDesc={setDesc}
+            autoFocus
+          />
 
-        {/* Dismissing is Cancel: nothing is filed until Save. */}
-        <div className="vu-foot">
-          <motion.button
-            id="edit-memory-cancel"
-            className="vu-btn vu-btn--quiet"
-            type="button"
-            {...gestures(false, quietLift, quietPress)}
-            onClick={onClose}
-          >
-            Cancel
-          </motion.button>
-          <motion.button
-            id="edit-memory-save"
-            className="vu-btn vu-btn--primary vu-btn--panel vu-paper"
-            type="submit"
-            disabled={blank}
-            {...gestures(blank, lift, press)}
-          >
-            Save
-          </motion.button>
-        </div>
-      </motion.form>
-    </motion.div>,
+          {/* Dismissing is Cancel: nothing is filed until Save. */}
+          <div className="vu-foot">
+            <motion.button
+              id="edit-memory-cancel"
+              className="vu-btn vu-btn--quiet"
+              type="button"
+              {...gestures(false, quietLift, quietPress)}
+              onClick={requestClose}
+            >
+              Cancel
+            </motion.button>
+            <motion.button
+              id="edit-memory-save"
+              className="vu-btn vu-btn--primary vu-btn--panel vu-paper"
+              type="submit"
+              disabled={blank}
+              {...gestures(blank, lift, press)}
+            >
+              Save
+            </motion.button>
+          </div>
+        </motion.form>
+      </motion.div>
+
+      {/* Sibling of the veil, not a child: the confirm leaves when this panel does. */}
+      <AnimatePresence propagate>
+        {closing && (
+          <ConfirmModal
+            key="discard"
+            id="edit-memory-discard"
+            theme={theme}
+            title="Discard changes?"
+            message="This memory has not been saved."
+            confirmText="Discard changes"
+            cancelText="Keep editing"
+            // Taken down before the panel goes, so the two do not leave as one exiting child
+            // rendered twice under the same key.
+            onConfirm={() => {
+              setClosing(false)
+              onClose()
+            }}
+            onCancel={() => setClosing(false)}
+          />
+        )}
+      </AnimatePresence>
+    </>,
     host
   )
 }

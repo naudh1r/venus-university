@@ -1,11 +1,12 @@
 import type { Haunt, ShiftSlot, TimeSlot } from '@shared/types'
 import type { NpcGroup } from '@shared/npcRelationships'
 import type { DormId } from '@shared/dorms'
-import { shiftSlotOf } from '@shared/jobs'
+import { jobDefOf, shiftSlotOf } from '@shared/jobs'
 import { ROOM_LOCATION } from '@shared/locations'
 import { classSlotOf, hauntClosedOn, jobClosedOn } from '../prompts/occasions'
 import { charJobAt, shiftWeekdayOf } from '../prompts/gameDate'
 import { isMoodHomebound } from '../prompts/moods'
+import type { Commitment } from '../prompts/slotIntroPrompt'
 import { isAwayForSpringBreak } from '../prompts/springBreak'
 import { useGameStore } from './gameStore'
 
@@ -72,6 +73,23 @@ export function charAwayNow(charId: string, date?: number): boolean {
 /** True when `charId` is somewhere she has to be — a class or a shift. */
 export function charBusyNow(charId: string, date?: number, time?: TimeSlot): boolean {
   return charClassNow(charId, date, time) !== null || charJobNow(charId, date, time) !== null
+}
+
+/**
+ * The class or the shift `charId` has to be at in a slot, defaulting to now, the class ahead of
+ * the shift, or null when she is free.
+ */
+export function charCommitmentAt(
+  charId: string,
+  date?: number,
+  time?: TimeSlot
+): Commitment | null {
+  const game = useGameStore.getState()
+  const classCode = charClassNow(charId, date, time)
+  if (classCode) return { kind: 'class', name: game.classes[classCode]?.name ?? classCode }
+  const jobId = charJobNow(charId, date, time)
+  if (jobId) return { kind: 'shift', employer: jobDefOf(jobId)?.employer ?? 'work' }
+  return null
 }
 
 /** True when `charId` cannot be in a scene at all — busy above, or off campus. */

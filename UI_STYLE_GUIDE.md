@@ -105,16 +105,17 @@
 - `.vu-rows` — the column those rows stand in, its list marks reset, owning the gap.
 - `.vu-empty` — the one line a list with nothing in it says, muted and italic; `--flush` where the panel already pads it.
 - `.vu-sheet` — the wide half-pill list panel the roster modals share.
-- `.vu-sheet--wide` — the wider chassis the edit modal and its wardrobe fixes share.
+- `.vu-sheet--wide` — the wider chassis the edit modal, its wardrobe fixes and Create Photo share; Create Photo holds its left column at the height its background slot and twelve rows take, so the panel never resizes as a girl or the background is added or taken away. The slot is the Add BG pill alone, or the picture small and quiet beside the Change BG pill and the ✕ its hover reveals.
 - `.vu-sheet--saves` — the chassis the Load Game and Save Game panels share for two columns of cards.
 - `.vu-pages-*` — a page of ten cards in two columns of five, numbered down the first column and then the second: a save card is the reading shape with its picture filling the round end at the card's full height, an empty slot is the dashed gap with its one word, the sticker rides every card's flat corner with the ✕ its sibling, the arrows either side stand the grid's full height and turn past either end onto the other, and a dot per page under it fills for the one on screen; the wheel, the arrow keys, the arrows and the dots all turn the page.
 - `.vu-popups` — the frame inside a panel a combobox's floating list is placed against: the panel's whole box, taking no pointer of its own.
-- `.vu-test-row` / `.vu-test-note` — a custom endpoint's Test connection: the quiet button, the mono word it comes back with beside it, and on a failure the sentence on its own line below.
+- `.vu-test-row` / `.vu-test-note` — a custom endpoint's Test connection, the writer's or the images endpoint's: the quiet button, the mono word it comes back with beside it, a `.vu-check-note` on its own line under it where a test costs the player something, and on a failure the sentence on its own line below.
+- `.vu-rule` — the line between two groups on one surface: a flat bar of the tint, round-ended, under the main menu's big buttons and between the writer and the pictures on Settings' custom page.
 - `.vu-note` — the prose panel a note modal is (Feedback, Support Development): action-shaped, `.vu-note-text` paragraphs — the same paragraph a dialog's message is — and whatever the note shows, then a `.vu-note-foot`.
 - `.vu-track` / `.vu-bar` — a bar with a count behind it; both declare `display: block` so they work as inline elements.
 - `.vu-ring` — the dotted circle `spin` turns, drawn in `currentColor`; it is a shape rather than a state, and the word beside it says what it means.
 - `.vu-pic-action` — the pill a picture raises saying what a click on it does, revealed with the picture's own hover or focus.
-- `.vu-x` — the ✕ that removes the thing it rides; it carries no position, and it is always a sibling of the face it rides rather than a child of it.
+- `.vu-x` — the ✕ that removes the thing it rides or stops what it is doing; it carries no position, and it is always a sibling of the face it rides rather than a child of it.
 - `.vu-pill` — the flat outline pill for a utility beside the thing it acts on, never an answer a foot offers.
 - `.vu-link` — an outward link inside prose: accent ink, underlined at rest, since it leaves the app and that is worth saying before the cursor is on it.
 - `.vu-deadnote` / `.vu-deadnote-pill` — the wrapper around a control and the pill a hover raises over it (§14).
@@ -125,7 +126,7 @@
 - `.vu-scene-divider` — the rule and mono word standing in the well's place while a reply is being read, a strip at the row's feet inside the well's own box.
 - `.vu-memrow` — a memory drawn as the sentence it is read as, her face and name, the verb as a select, "that", the words as a three-line field with the rest of the sentence standing level with its first line; one object for the boundary's question and the contact page's edit, on the `.vu-memedit` panel both wear.
 - `.vu-sticker` — a label on the thing rather than a line about it: a quiet mono half-pill hung over the corner of what it names, un-accented and shallowly leaned; its side is the caller's. `.vu-sticker--accent` fills it in the accent with the accent's ink, the title tab's colours, for a label that is the game's rather than the player's — the autosave stickers on the save pages wear it, the numbered slots do not.
-- A tool palette is one control in N states rather than N switches: a row of rounded rectangles, icon over word, the one in force accent-filled, each `aria-pressed`.
+- `.vu-palette` / `.vu-palette-btn` — a tool palette, one control in N states rather than N switches: a row of rounded rectangles, icon over word, the one in force accent-filled, each `aria-pressed`; the wardrobe painter's tools, a custom background's indoors or out, and the four skies over Create Photo's background picker.
 - Surfaces scale their radius to their own size and share no class; a screen's count beside its title is one of them.
 - A row of cells that is one object rounds its two ends and leaves the middle square.
 - No typographic arrow anywhere: where a forward mark helps it is an inline SVG chevron in `currentColor`.
@@ -149,6 +150,7 @@
 - An answer in a foot swells about its own centre rather than lunging at the one beside it.
 - A panel with nothing to spend carries one answer; a panel where every value is already an answer commits on dismissal and carries no cancel.
 - A panel that mixes the two — pickers that commit on change and typed fields that commit at the foot — keeps the foot for the typed fields and gates the way out on those alone.
+- A panel whose typed fields commit as each is left is one where every value is already an answer: it carries one answer, and its way out, the dismissals included, is dead only while a field holds a value it cannot take.
 - A panel that caps its height gives back what its own tab and paper overhang need, in stage units and never `vh`.
 - `.vu-veil--bare` gives up the veil's padding for a modal that is a screen rather than a panel on one.
 - A modal arrives as two layers, three where it wears a tab, on the openings §16 describes.
@@ -170,7 +172,7 @@
 - A select's caret is a pseudo on the box around it, the native one having been removed.
 - A colour input is dressed as a field and keeps the native picker behind it, which is where the system eyedropper lives.
 - A chip well is the one field the chip inputs share, and a select at chip size is its dropdown.
-- A multiline field grows with its own content and scrolls past its cap, so nothing is measured; the memory row's is the one held at three lines, a memory being one sentence with a 200-character cap.
+- A multiline field grows with its own content and scrolls past its cap, so nothing is measured; the memory row's is the one held at three lines, a memory being one sentence, and scrolls past them.
 - A field standing inside a sentence carries no label of its own and names itself with `aria-label`; a select there keeps its caret on the box around it.
 - `.vu-field-hint` is the one line of body text under a label saying what shape the field wants, in the placeholder's muted italic.
 - A field with suggestions is `ComboField`: the same `.vu-input`, wearing the select's caret only while it is empty and has something to offer. It empties when entered, takes its old value back when left empty, and hangs a floating rounded list under itself on the panel's `.vu-popups` frame — quiet, capped and scrolling, the one row in force tinted by state rather than motion. It stays free text whether or not the list arrived.
@@ -193,11 +195,15 @@
 
 - A grid of pictures is a rounded rectangle of quiet cells: the weight in a gallery belongs to the images.
 - Every image is captioned at rest — nothing in a gallery is hidden behind a hover (the app's hover-revealed labels are §14's).
-- A gap in a set is drawn as a gap: a dashed cell carrying the screen's own word for that state.
+- A gap in a set is drawn as a gap: a dashed cell carrying the screen's own word for that state, which fades out while a control on the cell is raised over it, the pill taking the recessed fill there.
 - A control on a cell is revealed through motion variants driven by React state, so focusing the cell reveals it too.
 - A control the player needs now is animated open and left there; hover-to-reveal is for a cell that is only sitting there.
 - `.vu-gallery-*` is the grid, item, cell and caption every gallery is built from, and a picker of pictures is one.
+- The Photos tab is a gallery of square cells: the dashed `+` first, then a cell per photo still being drawn — the ring over its state word — then the photos newest first, each captioned with the in-game date and half it was taken on. A photo opens in a rounded-rectangle viewer whose frame holds the picture at a fixed height budget, portrait or landscape, with the arrows standing either side of it.
 - A gallery's count sits on the panel rather than on its accent tab, where neither state colour reads.
+- `.vu-gallery-grid--wide` holds cells at the stage's own 16:9, the shape every background is drawn in; a cell the player can remove rides its ✕ on its top corner, a sibling of the cell in a `.vu-gallery-item--removable` (`.vu-gallery-x`).
+- The background picker is one panel with two callers, the scene's Change BG and Create Photo's: shelves in a rail beside a grid of those cells, the pick ringed, each place drawn under the sky it is being picked for — a wet one showing its rain render where it has one and the dry picture where it has none, as the stage would. The scene's is the slot's own sky; Create Photo's stands its sky palette over the shelves, and deals a place without the wet sky's render dead.
+- The player's own backgrounds are a gallery of those cells: the dashed `+` first, then each by its day picture under its name. The form that adds one stands its four pictures abreast as cells of the same grid, the plus in each empty one giving way to the upload pill.
 
 ## 12. The week
 
@@ -213,7 +219,7 @@
 - A face in a list is quiet; a face that opens something is a control, and anything riding a face is its sibling rather than its child.
 - A sprite a click re-renders is a control on the picture inside the crop, never on the archway around it; so is the plus that fills an empty set, standing in a dashed crop where the gap's word would.
 - What rides the crop's square bottom corner — Hide, or Delete in the danger ink — is a sibling after the picture, and a title a click renames is the title itself, swapped for a box at its own size.
-- A character with an unknown name is drawn without a face, the mask being the point (`DESIGN_GUIDE.md` "Coding conventions").
+- A character with an unknown name is drawn without a face outside the scene she is in, the mask being the point (`DESIGN_GUIDE.md` "Coding conventions"); inside it, the Cast modal and the gift picker keep her face and mask the name as the box does.
 - Gestures go by size: a card takes the card's lift, a small cluster's face takes none at all, and a portrait-sized control takes the portrait's gentler swell and the chip's press.
 - A card that is waiting carries no paper layer and takes a flat recessed face.
 - A caption is two fixed rows, given name over surname in a letterspaced mono strip, and it keeps its height whether or not the second row has anything in it.
@@ -232,8 +238,8 @@
 - No `::before`/`::after` is ever a hit target: inside a flex or grid control Chromium hit-tests the pseudo before the box, and the crossing from padding to label reads as a hover ending that never comes back.
 - A dead control is 45% opacity with its paper shadow dropped outright, and **it says nothing**: the dim and the missing shadow are the whole of it.
 - A control that deals itself in lands at the dim itself, since motion's inline opacity beats the rule.
-- A disable notice is an exception approved one at a time, the test being that the reason is genuinely outside the screen: the registrar's finalize complaint, the wardrobe cover's setting note, the gallery eye's locked title, an unloadable save's line in Load Game, the job board's stat-shortfall line above the shifts it grays, the Bunnyboard composer's one line while the graduation epilogue is on, the Game menu's Save Game while a reply, an ending's bookkeeping, a slot opening or a text is still out, the Settings foot's status line naming why Save is dead — a URL that cannot be sent to, a missing model id, an id the endpoint's own list does not contain, or a reply cap that is not a whole number — and the note below.
-- The note is the app's hover-revealed label: a quiet mono pill raised over a control through React state. Over a dead control it names the missing prerequisite and nothing else — the scene's Gift once a gift has been given, the Edit Character modal's install-gated controls, Manage Characters' New Character tile where the build has no local renderer to offer, and the Game menu's Save Game while a reply, an ending's bookkeeping, a slot opening or a text is still out. Over an icon-only control it names the action — the Edit Character modal's portrait, its pencil and the file squares under them. The two hover-revealed cards, the scene's tips and the map's Go, are §20's, as is the scene's mid-reply action box. A hover label is added only where the owner has approved it by name, and every site is listed here.
+- A disable notice is an exception approved one at a time, the test being that the reason is genuinely outside the screen: the registrar's finalize complaint, the wardrobe cover's setting note, the gallery eye's locked title, an unloadable save's line in Load Game, the job board's stat-shortfall line above the shifts it grays, the Bunnyboard composer's one line while the graduation epilogue is on, the Game menu's Save Game while a reply, an ending's bookkeeping, a slot opening or a text is still out, the Settings foot's status line naming why Save is dead — a URL that cannot be sent to, a missing model id, or an id the endpoint's own list does not contain — the Advanced Settings foot's status line naming a value its fields cannot take, Create Photo's foot status line while the model it would draw on takes no reference picture, or only one while a background is picked, the Upload custom BG foot's status line naming what keeps its name or its pictures from being saved, and the note below.
+- The note is the app's hover-revealed label: a quiet mono pill raised over a control through React state. Over a dead control it names the missing prerequisite and nothing else — the scene's Gift once a gift has been given or while nobody is on the stage, the Edit Character modal's install-gated controls, Manage Characters' New Character tile where the build has no local renderer to offer, the Photos tab's `+` while no image key is set, and the Game menu's Save Game while a reply, an ending's bookkeeping, a slot opening or a text is still out. Over an icon-only control it names the action — the Edit Character modal's portrait, its pencil and the file squares under them. The two hover-revealed cards, the scene's tips and the map's Go, are §20's, as is the scene's mid-reply action box. A hover label is added only where the owner has approved it by name, and every site is listed here.
 - No `title` attribute anywhere; an icon-only control carries `aria-label`, the scene's back mark included.
 - Text is selectable only where it is meant to be pasted: a field, the error detail well, and the exceptions in §20.
 - Where there is nothing to offer, a control is absent rather than dead — except the ending modal's Download ending CG, which stays dead with no picture to give, since the panel's own copy has just mentioned the picture.
@@ -307,10 +313,10 @@
 - A right-click closes the panel in front as Escape does, and on the bare stage opens the menu.
 - The well takes the focus the moment the turn is the player's, and Enter on an empty well sends nothing.
 - The well is put away the moment a reply starts to be read, whatever the pointer sits over, and comes back only on a mouse move across the divider's strip, never on a pointer merely resting there; it takes the focus only on a click or Tab.
-- The strip lies inside the one-line well's own box and is the row's only hover zone while the well is away: the hidden well's box, Go's seat and the tips mark all give the pointer up.
+- The strip lies inside the one-line well's own box and is the row's only hover zone while the well is away: the hidden well's box, Go's seat, the Gift and the tips mark all give the pointer up.
 - The dialogue box drops onto the strip while the well is away and rises again with the well.
 - A row going down mid-reply keeps the divider standing and the well away as it fades; the offer it loses on the way out swaps nothing in under the fade.
-- The tips mark stands only while the well is out, and fades with it.
+- The tips mark and the Gift stand only while the well is out, and fade with it; the Gift keeps its place in the row either way, so nothing beside it moves as the row changes over, and while it is out it holds the well out as Go does.
 - The row stands over a reply's last line as it does any other, and hands over to the turn's well only on the click past it.
 - A press outside a well holding the caret clears its draft.
 - A picture a cut mounts decodes synchronously, there being nothing left underneath it to hide a deferred decode.
@@ -368,7 +374,7 @@
 - No screen carries an `onError`, and none should — a picture that may be missing is the normal case here.
 - A large picture is decoded before the screen that needs it opens, one at a time, and held in a ref so it is not collected with what it decoded.
 - A picture is shipped at the size it is drawn at: a grid of thumbnails never decodes the full renders behind it, and a drawing is no larger than the stage can show.
-- Backgrounds come from the bundler and character pictures from the app's own protocol.
+- Shipped backgrounds come from the bundler; character pictures and the player's own backgrounds from the app's own protocols.
 - Only what will actually be shown is warmed: one half of the day, not both, and nothing behind a feature the player cannot yet reach — warmed while he is on the screen before the one that opens it.
 
 ## 20. Deliberate exceptions
@@ -398,6 +404,7 @@
 - The milestone heart overrules a `fill` presentation attribute on the mark itself, an outline alone at that size reading as a wire.
 - The milestone modal draws her as the stage's own sprite standing over the panel rather than as an archway: she is the screen's subject, and the crop, the height and the ground are the stage's, a shade closer.
 - The Edit modal's portrait and the reader's own archway on his profile are the only archways in the app that are controls.
+- A character's room and the player's own backgrounds have no thumbnails, so the Change BG picker and the custom background gallery draw their full pictures, and only the shipped thumbnails are warmed.
 - New Game's Start is the only control whose size is a state, which rides a wrapper so the gesture composes.
 - The Bunnyboard's chat rows lift `.vu-row` to a surface fill, the list standing on the ground rather than in a panel.
 - A sticker is the only rotated text outside the fan.

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { isAppError } from '@shared/errors'
+import { providerFor } from '@shared/providers'
+import type { ModelConfig } from '@shared/providers'
 import type { AppError } from '@shared/types'
+import type { BuildCallContext } from '../src/shared/llm/adapter'
 import { readStream } from '../src/shared/llm/cloudLlm'
 import { modelIdsOf, openaiAdapter } from '../src/shared/llm/openaiAdapter'
 
@@ -245,6 +248,43 @@ describe('openaiAdapter.generatedTokensOf', () => {
 
     expect(openaiAdapter.generatedTokensOf(body)).toBe(42)
     expect(openaiAdapter.generatedTokensOf(JSON.stringify({ choices: [] }))).toBeUndefined()
+  })
+})
+
+describe('openaiAdapter.buildCall sampling', () => {
+  const provider = providerFor('openai')
+  const model: ModelConfig = {
+    id: 'local-7b',
+    label: 'local-7b',
+    thinkingLevels: ['minimal'],
+    defaultThinkingLevel: 'minimal'
+  }
+  const context = (sampling: Record<string, number>): BuildCallContext => ({
+    request: { system: '', user: '', schema: { name: 'scene', schema: {} } },
+    provider,
+    model,
+    apiKey: '',
+    thinkingLevel: 'minimal',
+    serviceTier: 'priority',
+    maxOutputTokens: 8000,
+    streaming: false,
+    sampling
+  })
+
+  it('puts each sampling value at the top level of the body', () => {
+    const body = openaiAdapter.buildCall(
+      context({ temperature: 0.8, top_k: 40 })
+    ).body as Record<string, unknown>
+    expect(body.temperature).toBe(0.8)
+    expect(body.top_k).toBe(40)
+  })
+
+  it('adds no sampling keys when none are carried', () => {
+    const body = openaiAdapter.buildCall(context({})).body as Record<string, unknown>
+    expect('temperature' in body).toBe(false)
+    expect('top_p' in body).toBe(false)
+    expect('top_k' in body).toBe(false)
+    expect('repetition_penalty' in body).toBe(false)
   })
 })
 

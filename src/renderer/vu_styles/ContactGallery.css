@@ -121,12 +121,13 @@
   margin: 0 0 12px;
 }
 
-/* The eye over an explicit picture sits in the cell's other top corner, and stays on show: a
-   grid has no hover-to-reveal frame the way a thread's bubble does. */
+/* The eye over an explicit picture sits in the cell's other top corner and behaves as it does
+   on the thread: always on show while the picture is covered, and under the pointer only once
+   it is not. */
 .vu-gallery-item.vu-contact-shot-item {
   position: relative;
 }
 
-.vu-bb-photo-eye.vu-contact-shot-eye {
+.vu-contact-shot-item:hover .vu-bb-photo-eye.vu-contact-shot-eye {
   opacity: 1;
 }

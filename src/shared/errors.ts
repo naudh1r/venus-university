@@ -118,6 +118,19 @@ const PERMANENT_CODES = new Set([
   'EXPRESSION_SOURCE_MISSING',
   // A room job on a character with no room description.
   'ROOM_PROMPT_MISSING',
+  // Photos
+  // A photo request whose prompt, count or options could not be sent as they stand.
+  'PHOTO_REQUEST_INVALID',
+  // A photo id that could escape the folder or key it names.
+  'PHOTO_ID_INVALID',
+  // A girl's chosen sprite is not on disk to build the lineup sheet from.
+  'PHOTO_SPRITE_MISSING',
+  // The playthrough a photo belongs to no longer exists.
+  'PHOTO_PLAYTHROUGH_GONE',
+  // A photo's sidecar is not valid JSON, or is missing a required field.
+  'PHOTO_META_MALFORMED',
+  // A photo's sidecar names a schema version this build does not read.
+  'PHOTO_META_SCHEMA_VERSION',
   // Import
   // The zip is not one of ours, or is one this build cannot read.
   'IMPORT_MANIFEST_MISSING',

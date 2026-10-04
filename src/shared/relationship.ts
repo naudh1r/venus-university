@@ -29,9 +29,6 @@ import type {
 
 /** Affection scoring, disposition tiers and flag transitions. */
 
-/** Memories kept per character; older ones are dropped as new ones arrive. */
-export const MEMORY_CAP = 20
-
 const POINTS: Record<MemoryType, number> = { loved: 2, liked: 1, disliked: -1, hated: -2 }
 
 /** Recency weight: this week hits hardest, last month barely registers. */
@@ -171,9 +168,12 @@ export function dedupedMemoriesFor(
   return dedupedMemories(memoriesFor(info))
 }
 
+/** How many of her newest stored memories her affection is read off; older ones are kept but no longer count. */
+const AFFECTION_WINDOW = 20
+
 /**
  * A character's affection off her `CharInfo`, texting memory and the likes he left on her
- * recent posts included.
+ * recent posts included, off only the newest {@link AFFECTION_WINDOW} of her stored memories.
  */
 export function affectionFor(
   info:
@@ -182,9 +182,13 @@ export function affectionFor(
   today: number,
   character: Pick<Character, 'traits'> | undefined
 ): number {
-  return (
-    affectionOf(memoriesFor(info), today) + likedPostBonus(info?.feed, likedPostWindowOf(character))
+  const windowed = mergedMemories(
+    (info?.memories ?? []).slice(-AFFECTION_WINDOW),
+    info?.textMemory,
+    info?.jealousyMemories,
+    info?.giftMemories
   )
+  return affectionOf(windowed, today) + likedPostBonus(info?.feed, likedPostWindowOf(character))
 }
 
 /**
@@ -512,7 +516,8 @@ export function foldRelationshipEvents(
   const folded: CharInfo = {
     ...info,
     flags,
-    memories: [...info.memories, ...milestones].slice(-MEMORY_CAP)
+    // Every memory is kept, the milestones after the rest.
+    memories: [...info.memories, ...milestones]
   }
 
   // However it ended, the day it ended on is what the exes line counts to.

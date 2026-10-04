@@ -3,29 +3,43 @@ import {
   BACKUP_READ,
   BACKUP_SCHEMA_VERSION,
   BACKUP_ZIP_LIMITS,
+  backgroundEntry,
+  backgroundsFromBackup,
   backupName,
   charFileEntry,
   charFileOf,
   classifyBackupEntry,
   endingArtEntry,
+  photoEntry,
   profilePictureEntry,
   type BackupFile,
+  type BackupPhoto,
   type BackupPlaythrough,
   type BackupSave
 } from '@shared/backup'
 import { namedRel } from '@shared/characterFiles'
 import { SAFE_CHAR_ID } from '@shared/characterRules'
+import {
+  BG_VARIANTS,
+  readCustomBackground,
+  REQUIRED_BG_VARIANTS,
+  type BgVariant,
+  type CustomBackground
+} from '@shared/customBackgrounds'
 import { imageTypeOf } from '@shared/imageBytes'
 import { validateRecord } from '@shared/jsonValidate'
+import { assertSafePhotoId } from '@shared/photos'
 import { SAFE_NUMERIC_ID } from '@shared/saveRules'
+import { settingsFromBackup } from '@shared/settingsRules'
 import { checkArchiveContent } from '@shared/zipRules'
+import { forgetBackgroundUrls } from './backgrounds'
 import { imageBlob } from './blob'
 import { forgetRels } from './db/chars'
 import { database, storage } from './db/open'
 import { offerDownload } from './download'
 import { revokeAll } from './images'
 import { buildPack, isShipped } from './packs'
-import { forgetSettings, rendererSettings } from './settings'
+import { currentSettings, forgetSettings, rendererSettings, rowFor } from './settings'
 import { encodeJson, openArchive, packagedRel, pickFile, readJsonEntry, ZIP_TYPE } from './transfer'
 
 /**
@@ -78,6 +92,19 @@ export async function exportBackup(): Promise<string> {
       files[profilePictureEntry(key)] = bytes
     }
 
+    const photos: BackupPhoto[] = []
+    for (const key of await db.getAllKeys('photos')) {
+      const row = await db.get('photos', key)
+      if (!row) continue
+      const bytes = await bytesOf(row.image)
+      // Bytes that are not a picture's are left out rather than packed under a name that says
+      // they are one: a backup a restore would refuse is no backup.
+      if (!imageTypeOf(bytes)) continue
+      const [playthroughId, photoId] = key
+      photos.push({ playthroughId, photoId, meta: row.meta })
+      files[photoEntry(playthroughId, photoId)] = bytes
+    }
+
     // The shipped cast is the build's and never travels in a backup, record or image.
     for (const key of await db.getAllKeys('charFiles')) {
       if (isShipped(key[0])) continue
@@ -91,6 +118,32 @@ export async function exportBackup(): Promise<string> {
       files[name] = bytes
     }
 
+    // Each background goes whole or not at all: a day or a night whose bytes are not a picture's
+    // leaves it out, a rain render that is not one leaves out only itself.
+    const backgrounds: CustomBackground[] = []
+    for (const row of await db.getAll('backgrounds')) {
+      // A record a restore would refuse would cost the whole backup, so it costs only itself.
+      let background: CustomBackground
+      try {
+        background = readCustomBackground(row.record, 'backgrounds')
+      } catch {
+        continue
+      }
+      const pictures: Partial<Record<BgVariant, Uint8Array>> = {}
+      for (const variant of BG_VARIANTS) {
+        const blob = row.images?.[variant]
+        if (!(blob instanceof Blob)) continue
+        const bytes = await bytesOf(blob)
+        if (imageTypeOf(bytes)) pictures[variant] = bytes
+      }
+      if (REQUIRED_BG_VARIANTS.some((variant) => !pictures[variant])) continue
+      for (const variant of BG_VARIANTS) {
+        const bytes = pictures[variant]
+        if (bytes) files[backgroundEntry(background.name, variant)] = bytes
+      }
+      backgrounds.push(background)
+    }
+
     const backup: BackupFile = {
       schemaVersion: BACKUP_SCHEMA_VERSION,
       settings: await rendererSettings(),
@@ -99,6 +152,8 @@ export async function exportBackup(): Promise<string> {
       saves,
       endingArt,
       profilePictures,
+      photos,
+      backgrounds,
       characters: (await db.getAll('characters')).filter(
         (character) => !isShipped(character.charId)
       )
@@ -112,8 +167,8 @@ export async function exportBackup(): Promise<string> {
 
 /**
  * Puts a backup back: settings, grab bags, playthroughs and saves replace what is there, the
- * player's own characters are merged in by id, and the shipped cast is left as the build ships
- * it. One transaction, with every blob built before it opens.
+ * player's own characters and backgrounds are merged in by id and name, and the shipped cast is
+ * left as the build ships it. One transaction, with every blob built before it opens.
  */
 export async function importBackup(): Promise<boolean> {
   const file = await pickFile(`.zip,${ZIP_TYPE}`)
@@ -127,9 +182,26 @@ export async function importBackup(): Promise<boolean> {
     BACKUP_READ
   )
 
+  // Everything the record says is checked before anything here is written. Remembered keys
+  // stay, as do the switches this build fixes and whether it remembers keys at all.
+  const settings = rowFor(
+    settingsFromBackup(await currentSettings(), record.settings, BACKUP_READ.malformed)
+  )
+  // Each background is put whole, so a rain render the backup's copy lacks goes with the old one.
+  const backgrounds = backgroundsFromBackup(record).flatMap((background) => {
+    const images: Partial<Record<BgVariant, Blob>> = {}
+    for (const variant of BG_VARIANTS) {
+      const bytes = entries[backgroundEntry(background.name, variant)]
+      if (bytes && bytes.length > 0) images[variant] = imageBlob(bytes)
+    }
+    if (REQUIRED_BG_VARIANTS.some((variant) => !images[variant])) {
+      console.warn(`[backup] ${background.name} lacks its day or night picture — not restored.`)
+      return []
+    }
+    return [{ record: background, images }]
+  })
   // Nothing the backup does not name is written: an entry naming a path of its own choosing
   // would put a file where this build never looks for one.
-  const { apiKeySet: _flag, endpointApiKeySet: _endpointFlag, ...settings } = record.settings
   const updatedAt = Date.now()
 
   await storage('restore the backup', async () => {
@@ -142,8 +214,10 @@ export async function importBackup(): Promise<boolean> {
         'saves',
         'endingArt',
         'profilePictures',
+        'photos',
         'characters',
-        'charFiles'
+        'charFiles',
+        'backgrounds'
       ],
       'readwrite'
     )
@@ -182,6 +256,23 @@ export async function importBackup(): Promise<boolean> {
       }
     }
 
+    const photos = tx.objectStore('photos')
+    void photos.clear()
+    for (const entry of record.photos ?? []) {
+      if (!SAFE_NUMERIC_ID.test(entry.playthroughId)) continue
+      try {
+        assertSafePhotoId(entry.photoId)
+      } catch {
+        continue
+      }
+      const bytes = entries[photoEntry(entry.playthroughId, entry.photoId)]
+      if (!bytes) continue
+      void photos.put({ image: imageBlob(bytes), meta: entry.meta }, [
+        entry.playthroughId,
+        entry.photoId
+      ])
+    }
+
     // Merged rather than replaced: a character made since the backup is still the player's. A
     // shipped character is never written, neither her record nor any of her images.
     const characters = tx.objectStore('characters')
@@ -189,6 +280,10 @@ export async function importBackup(): Promise<boolean> {
       if (!SAFE_CHAR_ID.test(character.charId) || isShipped(character.charId)) continue
       void characters.put(character, character.charId)
     }
+
+    // Merged by name, as the characters are by id: one brought in since the backup is still kept.
+    const kept = tx.objectStore('backgrounds')
+    for (const row of backgrounds) void kept.put(row, row.record.name)
 
     const charFiles = tx.objectStore('charFiles')
     for (const [name, bytes] of Object.entries(entries)) {
@@ -206,5 +301,6 @@ export async function importBackup(): Promise<boolean> {
   forgetSettings()
   forgetRels()
   revokeAll()
+  forgetBackgroundUrls()
   return true
 }

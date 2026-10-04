@@ -2,7 +2,12 @@ import { allowedPostTier, settlePhoto, type PhotoTier } from '@shared/photoGate'
 import type { ChatPhoto } from '@shared/photoTypes'
 import type { SocialPost } from '@shared/types'
 import { useGameStore } from './gameStore'
-import { canSendPhotos, savePhotoState, setFeedPostPhoto } from './photoStore'
+import {
+  canSendPhotos,
+  photoNamesInSave,
+  savePhotoState,
+  setFeedPostPhoto
+} from './localPhotoStore'
 import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
 
 /**
@@ -44,7 +49,12 @@ async function reservePostPhotoName(charId: string): Promise<string | null> {
   const game = useGameStore.getState()
   const character = game.characters[charId]
   if (!character || !game.playthroughId) return null
-  const result = await window.api.photo.reserveName(game.playthroughId, character, 'bunnyboard')
+  const result = await window.api.photo.reserveName(
+    game.playthroughId,
+    character,
+    'bunnyboard',
+    photoNamesInSave(charId)
+  )
   if (result.ok) return result.data
   console.warn(`[feed] no name for a post's picture: ${result.error.code}`, result.error.message)
   return null

@@ -43,6 +43,14 @@ const SHOT_FILTERS: readonly { key: ShotFilter; label: string }[] = [
   { key: 'feed', label: 'Feed' }
 ]
 
+/**
+ * Whether a picture finished: it has its name, and is neither still being drawn nor failed. A
+ * name is given before the render starts, so having one says nothing about a file on disk.
+ */
+function landed(photo: ChatPhoto | undefined): photo is ChatPhoto & { file: string } {
+  return Boolean(photo?.file) && !photo?.pending && !photo?.failed
+}
+
 /** The two readings of her the page offers once she has pictures to show. */
 type ContactTab = 'profile' | 'gallery'
 
@@ -77,9 +85,13 @@ function Shot({
   file: string
   tier: string
   from: ShotSource
-}): JSX.Element {
+}): JSX.Element | null {
   const [shown, setShown] = useState(tier !== 'explicit')
+  // A picture the save names but the folder does not hold — one a save brought along without
+  // its pictures — is left out of the grid rather than drawn as an empty frame.
+  const [missing, setMissing] = useState(false)
   if (!playthroughId) return <li className="vu-gallery-item" />
+  if (missing) return null
 
   const src = photoUrl(playthroughId, charId, file)
   return (
@@ -96,6 +108,7 @@ function Shot({
           src={src}
           alt=""
           decoding="async"
+          onError={() => setMissing(true)}
         />
         <span className="vu-contact-shot-from">{from === 'dm' ? 'DM' : 'Feed'}</span>
       </motion.button>
@@ -140,7 +153,7 @@ export function useContactGallery({
   // The thread's newest first, then merged with her posts by the slot each was sent in. The sort
   // is stable, so two pictures from one slot keep the order they arrived in.
   const sent: GalleryShot[] = [...(conversation?.messages ?? [])].reverse().flatMap((message) =>
-    message.photo?.file
+    landed(message.photo)
       ? [
           {
             id: message.id,
@@ -154,7 +167,7 @@ export function useContactGallery({
       : []
   )
   const posted: GalleryShot[] = (feed ?? []).filter(postIsOut).flatMap((post) =>
-    post.photo?.file
+    landed(post.photo)
       ? [
           {
             id: `post:${post.id}`,
@@ -167,7 +180,15 @@ export function useContactGallery({
         ]
       : []
   )
-  const photos = [...sent, ...posted].sort(newestFirst)
+  // One tile per picture: an older bubble can point at the same file as a newer one, when a
+  // save carried over without its pictures let the name be given out again. The newest is the
+  // one the picture was drawn for.
+  const seen = new Set<string>()
+  const photos = [...sent, ...posted].sort(newestFirst).filter((shot) => {
+    if (seen.has(shot.file)) return false
+    seen.add(shot.file)
+    return true
+  })
   const shown = filter === 'all' ? photos : photos.filter((shot) => shot.from === filter)
 
   /* Two readings of the same girl, named the way every section on this page is named: the one

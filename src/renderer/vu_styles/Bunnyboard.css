@@ -15,7 +15,7 @@
 
 /* ---- the rail ------------------------------------------------------------- */
 
-/* The way out on top, then the four destinations, stepping down the -2° diagonal the tiles are
+/* The way out on top, then the five destinations, stepping down the -2° diagonal the tiles are
    tilted at, at 10px a seat. */
 .vu-bb-rail {
   display: flex;
@@ -27,20 +27,25 @@
 }
 
 /* The step itself, which is an index rather than a state: each seat sits 10px left of the one
-   above it, so the column runs down the -2° the tiles are tilted at. */
+   above it, so the column runs down the -2° the tiles are tilted at. Six seats — the back
+   button and five tiles — so the last one's margin is the implicit 0 nothing here overrides. */
 .vu-bb-rail > :nth-child(1) {
-  margin-left: 40px;
+  margin-left: 50px;
 }
 
 .vu-bb-rail > :nth-child(2) {
-  margin-left: 30px;
+  margin-left: 40px;
 }
 
 .vu-bb-rail > :nth-child(3) {
-  margin-left: 20px;
+  margin-left: 30px;
 }
 
 .vu-bb-rail > :nth-child(4) {
+  margin-left: 20px;
+}
+
+.vu-bb-rail > :nth-child(5) {
   margin-left: 10px;
 }
 

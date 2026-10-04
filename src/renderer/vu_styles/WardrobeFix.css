@@ -98,43 +98,6 @@
   font: 500 14px/1.45 var(--font-body);
 }
 
-/* The tools as a palette: three rounded rectangles, an icon over its word, and the one in
-   force filled — a tool is one control in three states, not three independent switches. */
-.vu-fix-palette {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.vu-fix-tool-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 96px;
-  padding: 0;
-  border: 0;
-  border-radius: 20px;
-  background: var(--vu-recessed);
-  color: var(--vu-text-body);
-  font: 700 13px var(--font-body);
-}
-
-/* The icon takes the context's accent; on the filled one it is the ink instead. */
-.vu-fix-tool-btn svg {
-  color: var(--vu-accent);
-}
-
-.vu-fix-tool-btn--on {
-  background: var(--vu-accent);
-  color: var(--vu-accent-ink);
-}
-
-.vu-fix-tool-btn--on svg {
-  color: inherit;
-}
-
 .vu-fix-field {
   display: flex;
   align-items: center;

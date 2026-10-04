@@ -28,7 +28,14 @@ import { formatDateBanner } from '../prompts/gameDate'
 import { GOODBYES_SAVE_LABEL } from '../prompts/graduation'
 import { profileUrl, useCharacterStore } from '../stores/characterStore'
 import { beginCrossing, coverSwap, endCrossing, useCrossingStore } from '../stores/crossingStore'
-import { enterGame, hasDecisionPoint, leaveToMenu, switchGame } from '../stores/gameLoop'
+import {
+  abandonToMenu,
+  enterGame,
+  hasDecisionPoint,
+  leaveToMenu,
+  switchGame
+} from '../stores/gameLoop'
+import { useGameStore } from '../stores/gameStore'
 import { stageEnrollment } from '../stores/newGame'
 import {
   castOf,
@@ -36,6 +43,7 @@ import {
   useSaveStore,
   type ResolvedSave
 } from '../stores/saveStore'
+import { usePhotoStore } from '../stores/photoStore'
 import { entryCrossing, menuCrossing } from '../stores/slotCrossing'
 import { useUiStore } from '../stores/uiStore'
 import { saveThumbUrl } from './bgAssets'
@@ -178,6 +186,8 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
   const setView = useUiStore((s) => s.setView)
   const setMenuTheme = useUiStore((s) => s.setMenuTheme)
   const showError = useUiStore((s) => s.showError)
+  // The playthrough the running game is in, which is none from the Main Menu.
+  const running = useGameStore((s) => s.playthroughId)
 
   // **This modal is the one the curtain goes over**: the crossing into a game starts here,
   // and a panel standing on top of the sheet that is covering the stage for it is a hole in the
@@ -328,6 +338,28 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
   }
 
   /**
+   * Deletes the playthrough the running game is in: the game is left under the curtain without
+   * writing its decision point, the folder deleted once every write already queued has settled,
+   * and the player lands on the Main Menu in the hour the game was left in.
+   */
+  function deleteInProgress(playthroughId: string): void {
+    if (!beginCrossing(undefined, menuCrossing(theme))) return
+    coverSwap(() => {
+      void (async () => {
+        await abandonToMenu()
+        // A photo still being drawn for it is stopped and settled first, so none lands after.
+        await usePhotoStore.getState().cancelFor(playthroughId)
+        // A refused delete reports itself; the game is gone either way, as the player asked.
+        await removePlaythrough(playthroughId)
+        setMenuTheme(theme)
+        setView('mainMenu')
+        onClose?.()
+        endCrossing()
+      })()
+    })
+  }
+
+  /**
    * The player's own way out, a no-op while covered since the panel is not on screen to dismiss.
    * `inert` stops the pointer and the Tab ring, but not Escape: the shell's Escape rides
    * `window`, which no attribute reaches, so this checks `covered` for itself.
@@ -348,6 +380,16 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
     setHovered(null)
     setPage(0)
   }
+
+  // Deleting the playthrough the running game is in leaves the game as well, and says so.
+  const deletingInProgress = Boolean(
+    onClose && deletingPlaythrough && deletingPlaythrough.playthroughId === running
+  )
+  const deletingSaveCount = deletingPlaythrough
+    ? deletingPlaythrough.saveCount +
+      deletingPlaythrough.manualCount +
+      (deletingPlaythrough.hasAutosave ? 1 : 0)
+    : 0
 
   /** Whether a question stands over the panel, which then answers no key of its own. */
   const asking = Boolean(deletingSave || deletingPlaythrough || confirmingLoad || confirmingResume)
@@ -565,16 +607,26 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
             theme={theme}
             title={`Delete ${deletingPlaythrough.label}?`}
             message={
-              deletingPlaythrough.enrolling
-                ? 'All save will be deleted.'
-                : `All ${deletingPlaythrough.saveCount + deletingPlaythrough.manualCount + (deletingPlaythrough.hasAutosave ? 1 : 0)} saves will be permanently deleted.`
+              deletingInProgress
+                ? `${deletingPlaythrough.label} is the playthrough in progress. All ${deletingSaveCount} saves will be permanently deleted, and you will return to the main menu.`
+                : deletingPlaythrough.enrolling
+                  ? 'All save will be deleted.'
+                  : `All ${deletingSaveCount} saves will be permanently deleted.`
             }
-            confirmText="Delete playthrough"
+            confirmText={deletingInProgress ? 'Delete and return to menu' : 'Delete playthrough'}
             onCancel={() => setDeletingPlaythrough(null)}
             onConfirm={() => {
               const playthroughId = deletingPlaythrough.playthroughId
               setDeletingPlaythrough(null)
-              void removePlaythrough(playthroughId)
+              if (deletingInProgress) {
+                deleteInProgress(playthroughId)
+                return
+              }
+              // A photo still being drawn for it is stopped and settled first, so none lands after.
+              void usePhotoStore
+                .getState()
+                .cancelFor(playthroughId)
+                .then(() => removePlaythrough(playthroughId))
             }}
           />
         )}

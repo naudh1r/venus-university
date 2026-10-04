@@ -28,6 +28,8 @@ import { deliverBunnybotNow } from '../textingLoop'
  */
 export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promise<void> {
   const fresh: TeaserCandidate[] = []
+  // Strangers' posts that came with a picture: the teaser is drawn from these first.
+  const freshPhotos: TeaserCandidate[] = []
 
   for (const post of posts ?? []) {
     const game = useGameStore.getState()
@@ -57,6 +59,7 @@ export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promi
     // waits for the reader to commit to something. Both rules live in `photoPost`.
     if (shot) {
       holdPostPhoto(charId, written, shot, nudgeFirstContactPost)
+      if (!game.charInfo[charId]?.flags?.gaveContactInfo) freshPhotos.push({ charId, postId: id })
       continue
     }
 
@@ -71,7 +74,7 @@ export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promi
   // Replaced every slot, whether or not one was drawn: a teaser is never held over.
   const game = useGameStore.getState()
   if (!game.feedExtras) return
-  const teaser = pickTeaser(fresh)
+  const teaser = pickTeaser(freshPhotos.length > 0 ? freshPhotos : fresh)
 
   // What the tab would show as it stands, and everything it could be filled out with: any post
   // by anybody he cannot text, the teaser's own excepted since it is on the feed already.

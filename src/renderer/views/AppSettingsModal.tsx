@@ -2,17 +2,24 @@ import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { VOLUME_MAX, VOLUME_MIN, volumesOf, type AudioGroup, type Volumes } from '@shared/audio'
-import { endpointProblem, normalizeEndpoint } from '@shared/endpoint'
-import { MAX_OUTPUT_TOKENS } from '@shared/llm/adapter'
+import { endpointProblem, normalizeEndpoint, normalizeImageEndpoint } from '@shared/endpoint'
 import {
   THINKING_LEVELS,
   THINKING_LEVEL_LABELS,
   defaultModelFor,
+  imageApiFor,
   modelFor,
   providerFor,
   thinkingLevelFor
 } from '@shared/providers'
-import { endpointKeyStays, maxOutputTokensOf } from '@shared/settingsRules'
+import {
+  endpointKeyStays,
+  imageEndpointOf,
+  imageFieldsProblem,
+  imageFieldsToStore,
+  imageKeyStays,
+  imageModelOf
+} from '@shared/settingsRules'
 
 import type { ProviderApi, ThinkingLevel } from '@shared/providers'
 import type { PromptKind } from '@shared/promptKinds'
@@ -27,12 +34,14 @@ import { TextField } from '../components/TextField'
 import { CheckField } from '../components/CheckField'
 import { SfwCheckList } from '../components/SfwCheckList'
 import { isWebBuild } from '../platform'
+import { AdvancedSettingsModal } from './AdvancedSettingsModal'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useAudioStore } from '../stores/audioStore'
+import { usePhotoStore } from '../stores/photoStore'
 import { useUiStore } from '../stores/uiStore'
 import { gestures, lift, panelUnderTab, press, quietLift, quietPress, veilIn } from './motion'
-import { useEndpointProbe } from './useEndpointProbe'
-import { sfwValuesOf, type SfwKey } from './sfwFields'
+import { useEndpointProbe, useImageProbe } from './useEndpointProbe'
+import { SFW_FIELDS, sfwValuesOf, type SfwKey } from './sfwFields'
 import { VOLUME_FIELDS } from './volumeFields'
 import { PROMPT_KIND_FIELDS, promptKindValuesOf, promptKindsFrom } from './promptKindFields'
 import '../vu_styles/Settings.css'
@@ -53,15 +62,17 @@ const VOLUME_SETTLE_MS = 250
 
 /**
  * Why Save cannot take a custom endpoint's typed fields, in the order the fields are met, or
- * null where it can. An endpoint that listed nothing checks no id, so a save made before its
- * list arrives is simply unchecked, and a blank reply cap is the default rather than a fault.
+ * null where it can. An endpoint or images URL that listed nothing checks no id, so a save made
+ * before its list arrives is simply unchecked.
  */
 function saveProblemOf(
   endpointUrl: string,
   modelId: string,
   secondaryId: string,
-  maxOutputText: string,
-  modelIds: readonly string[]
+  modelIds: readonly string[],
+  imageEndpointUrl: string,
+  imageModel: string,
+  imageModelIds: readonly string[]
 ): string | null {
   const url = endpointProblem(endpointUrl)
   if (url !== null) return url
@@ -72,17 +83,19 @@ function saveProblemOf(
   if (secondaryId !== '' && modelIds.length > 0 && !modelIds.includes(secondaryId)) {
     return `The endpoint does not list ${secondaryId} for the secondary model.`
   }
-  if (maxOutputText !== '' && (!/^\d+$/.test(maxOutputText) || Number(maxOutputText) === 0)) {
-    return 'Enter a whole number of tokens, or leave it blank.'
+  const images = imageFieldsProblem(imageEndpointUrl, imageModel)
+  if (images !== null) return images
+  const imageId = imageModel.trim()
+  if (imageModelIds.length > 0 && !imageModelIds.includes(imageId)) {
+    return `The images endpoint does not list ${imageId}.`
   }
   return null
 }
 
 /**
  * Settings as opened from the Main Menu and the Game View's gear icon. A select, a checkbox or
- * a slider is written the moment it changes; the typed fields — the endpoint URL, the model ids,
- * the reply cap and the two keys — are staged here behind Save, and the way out is gated on
- * those alone.
+ * a slider is written the moment it changes; the typed fields — the two endpoint URLs, the model
+ * ids and the keys — are staged here behind Save, and the way out is gated on those alone.
  */
 export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX.Element | null {
   const settings = useSettingsStore((s) => s.settings)
@@ -109,7 +122,6 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
   )
   const [secondaryModel, setSecondaryModel] = useState(() => settings?.secondaryModel ?? '')
   // A custom endpoint always names an effort: an absent one reads as minimal.
-  const [strictSchema, setStrictSchema] = useState(settings?.strictSchema === true)
   const [reasoningEffort, setReasoningEffort] = useState<ThinkingLevel>(() =>
     thinkingLevelFor('openai', '', settings?.reasoningEffort ?? '')
   )
@@ -121,7 +133,7 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
   const [sfw, setSfw] = useState<Record<SfwKey, boolean>>(() =>
     settings
       ? sfwValuesOf(settings)
-      : { noNsfwImages: false, lessNsfwText: false, noNsfwSound: false }
+      : { noNsfwImages: false, lessNsfwText: false }
   )
   // Heard on every tick and written once the hand has been still, so a drag is one write.
   const [volumes, setVolumes] = useState<Volumes>(() => volumesOf(settings?.volumes))
@@ -129,13 +141,15 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
   const [remember, setRemember] = useState(settings?.rememberKey === true)
   // Absent on the record means the desktop does ask, so only an explicit false is off.
   const [checkUpdates, setCheckUpdates] = useState(settings?.checkUpdates !== false)
+  // Likewise absent means the window opens fullscreen.
+  const [fullscreen, setFullscreen] = useState(settings?.fullscreen !== false)
+  const [photos, setPhotos] = useState(settings?.photos !== false)
   // Likewise absent means a scene warns before an ending is interrupted.
   const [warnEndingInterrupt, setWarnEndingInterrupt] = useState(
     settings?.warnEndingInterrupt !== false
   )
   // And before a line is rewritten while an ending is under way.
   const [warnEndingEdit, setWarnEndingEdit] = useState(settings?.warnEndingEdit !== false)
-  const [photos, setPhotos] = useState(settings?.photos !== false)
 
   // The typed fields, staged until Save. Each is the endpoint's own, seeded whichever provider
   // is stored, so a panel switched away and back finds them as they were.
@@ -144,15 +158,17 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
   const [secondaryIdText, setSecondaryIdText] = useState(
     () => settings?.endpointSecondaryModel ?? ''
   )
-  // The reply cap, seeded like the URL and outliving a provider switch with it; a stored cap
-  // the resolver will not take opens the field blank, which is the ceiling it already sends.
-  const [maxOutputText, setMaxOutputText] = useState(() =>
-    settings ? String(maxOutputTokensOf(settings) ?? '') : ''
+  // Where the custom endpoint's pictures are drawn, seeded as they would be drawn now: Gemini's
+  // own root and the room model wherever nothing else is stored.
+  const [imageUrl, setImageUrl] = useState(() => (settings ? imageEndpointOf(settings) : ''))
+  const [imageModelText, setImageModelText] = useState(() =>
+    settings ? imageModelOf(settings) : ''
   )
-  // The keys are the exception to the seeding: the renderer is never told either, so both
-  // fields open blank and a blank one at Save means "keep what is stored".
+  // The keys are the exception to the seeding: the renderer is never told any, so every key
+  // field opens blank and a blank one at Save means "keep what is stored".
   const [geminiKey, setGeminiKey] = useState('')
   const [endpointKey, setEndpointKey] = useState('')
+  const [imageKey, setImageKey] = useState('')
 
   // What a backup is doing, so the two buttons are dead while one of them is working.
   const [backingUp, setBackingUp] = useState(false)
@@ -161,8 +177,10 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
   const [confirmRestore, setConfirmRestore] = useState(false)
   // Whether the gate in front of leaving unsaved text behind is up.
   const [closing, setClosing] = useState(false)
-  // Whether Save's own write is in flight, which is the button's label and nothing else.
-  const [busy, setBusy] = useState(false)
+  // Whether the Advanced Settings panel stands over this one.
+  const [advanced, setAdvanced] = useState(false)
+  // Holds off a second click while Save's write is in flight.
+  const saving = useRef(false)
   // The layer inside the panel a combobox hangs its list on, once it is in the document.
   const [popupHost, setPopupHost] = useState<HTMLElement | null>(null)
 
@@ -170,11 +188,6 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
   const custom = apiProvider === 'openai'
   // The custom endpoint's typed model id, as it would be saved.
   const modelId = modelIdText.trim()
-  // The typed reply cap, and the number it stands for — undefined where the field is blank or
-  // holds what Save would refuse, so a probe never sends anything but a cap or nothing.
-  const maxOutputCap = maxOutputText.trim()
-  const parsedCap = /^\d+$/.test(maxOutputCap) ? Number(maxOutputCap) : NaN
-  const maxOutputTokens = parsedCap > 0 ? parsedCap : undefined
 
   // What the endpoint has answered — the rows under the two id fields and the last verdict —
   // asked on the staged fields as they stand.
@@ -183,8 +196,18 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
     endpointUrl,
     endpointKey,
     modelId,
-    reasoningEffort,
-    maxOutputTokens
+    reasoningEffort
+  })
+
+  // Which image models the images URL serves and whether it draws at all, asked on the staged
+  // image fields and the staged endpoint beside them, whose key a blank images key may draw on.
+  const imageProbe = useImageProbe({
+    enabled: custom,
+    imageEndpointUrl: imageUrl,
+    imageModel: imageModelText,
+    imageKey,
+    endpointUrl,
+    endpointKey
   })
 
   // Where the sliders stand right now, read by every write and by the flush on the way out.
@@ -204,11 +227,12 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
     []
   )
 
-  // The rows a panel entering the custom endpoint with a sendable URL already has, asked for
-  // once. Every later ask is one of the two fields behind them being left, so the provider is
-  // the whole of what re-runs this.
+  // The rows a panel entering the custom endpoint with sendable URLs already has, asked for
+  // once. Every later ask is a field behind them being left, so the provider is the whole of
+  // what re-runs this.
   useEffect(() => {
     void probe.refreshModels()
+    void imageProbe.refreshModels()
   }, [apiProvider])
 
   // Whether anything staged differs from what is stored. A key counts the moment there is
@@ -219,8 +243,10 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
       ? normalizeEndpoint(endpointUrl) !== (settings.endpointUrl ?? '') ||
         modelIdText.trim() !== (settings.endpointModel ?? '') ||
         secondaryIdText.trim() !== (settings.endpointSecondaryModel ?? '') ||
-        maxOutputText.trim() !== String(maxOutputTokensOf(settings) ?? '') ||
+        normalizeImageEndpoint(imageUrl) !== imageEndpointOf(settings) ||
+        imageModelText.trim() !== imageModelOf(settings) ||
         endpointKey.trim() !== '' ||
+        imageKey.trim() !== '' ||
         geminiKey.trim() !== ''
       : geminiKey.trim() !== '')
 
@@ -249,7 +275,15 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
   // Why Save is dead, checked against the staged text alone. Gemini stages nothing that can
   // be wrong.
   const saveProblem = custom
-    ? saveProblemOf(endpointUrl, modelId, secondaryId, maxOutputCap, probe.modelIds)
+    ? saveProblemOf(
+        endpointUrl,
+        modelId,
+        secondaryId,
+        probe.modelIds,
+        imageUrl,
+        imageModelText,
+        imageProbe.modelIds
+      )
     : null
   // The one line over the answers: the reason Save cannot take the form, else that there is
   // something for it to take, else nothing.
@@ -259,17 +293,30 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
   // origin it was typed for.
   const endpointKeyStored = settings.endpointApiKeySet && endpointKeyStays(settings, endpointUrl)
 
-  // Both key fields open blank — the renderer holds only the two presence flags — so the
+  // Every key field opens blank — the renderer holds only the presence flags — so the
   // placeholder is what carries the state.
   const endpointKeyPlaceholder = endpointKeyStored
     ? 'Leave blank to keep your saved key'
     : 'Optional: only if the endpoint needs one'
 
-  // The pictures run on the Gemini key whoever writes, so a key already saved is what they
-  // would go on drawing with.
-  const geminiKeyPlaceholder = settings.apiKeySet
-    ? 'Leave blank to keep your saved key'
-    : undefined
+  // A blank images key keeps the one saved while the staged URL is still its origin, else draws
+  // on the Gemini key on Google's own host where one is saved, and otherwise on the endpoint's
+  // key above.
+  const imageKeyPlaceholder =
+    settings.imageApiKeySet && imageKeyStays(settings, imageUrl)
+      ? 'Leave blank to keep your saved key'
+      : imageApiFor(imageUrl) === 'gemini' && settings.apiKeySet
+        ? 'Leave blank to use your Google AI Studio key'
+        : 'Leave blank to use the API key above'
+
+  /**
+   * The writer's rows, asked again as one of its fields is left, and the images rows with them
+   * while a blank images key may draw on the endpoint's key.
+   */
+  function refreshEndpointModels(): void {
+    void probe.refreshModels()
+    if (imageKey.trim() === '') void imageProbe.refreshModels()
+  }
 
   /**
    * Writes the fields a control has just changed. The mix is put back where the sliders stand
@@ -296,8 +343,9 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
   function handleProviderChange(value: string): void {
     const next = value as ProviderApi
     setApiProvider(next)
-    // The rows and the last verdict belong to the page left behind.
+    // The rows and the last verdicts belong to the page left behind.
     probe.reset()
+    imageProbe.reset()
     void write({ apiProvider: next }).then(reseed((stored) => setApiProvider(stored.apiProvider)))
   }
 
@@ -363,7 +411,7 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
     void write(fields).then(reseed((stored) => setSfw(sfwValuesOf(stored))))
   }
 
-  /** Whether the browser keeps the key between visits. */
+  /** Whether the browser keeps the keys between visits. */
   function handleRememberChange(checked: boolean): void {
     setRemember(checked)
     void write({ rememberKey: checked }).then(
@@ -379,6 +427,19 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
     )
   }
 
+  /** Whether the window opens fullscreen; main switches the window to it as the write lands. */
+  function handlePhotosChange(checked: boolean): void {
+    setPhotos(checked)
+    void write({ photos: checked }).then(reseed((stored) => setPhotos(stored.photos !== false)))
+  }
+
+  function handleFullscreenChange(checked: boolean): void {
+    setFullscreen(checked)
+    void write({ fullscreen: checked }).then(
+      reseed((stored) => setFullscreen(stored.fullscreen !== false))
+    )
+  }
+
   /** Whether interjecting over a scene that has started its ending asks first. */
   function handleWarnEndingInterruptChange(checked: boolean): void {
     setWarnEndingInterrupt(checked)
@@ -388,18 +449,6 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
   }
 
   /** Whether rewriting a chat-log line in a scene that has started its ending asks first. */
-  function handlePhotosChange(checked: boolean): void {
-    setPhotos(checked)
-    void write({ photos: checked }).then(reseed((stored) => setPhotos(stored.photos !== false)))
-  }
-
-  function handleStrictSchemaChange(checked: boolean): void {
-    setStrictSchema(checked)
-    void write({ strictSchema: checked }).then(
-      reseed((stored) => setStrictSchema(stored.strictSchema === true))
-    )
-  }
-
   function handleWarnEndingEditChange(checked: boolean): void {
     setWarnEndingEdit(checked)
     void write({ warnEndingEdit: checked }).then(
@@ -422,21 +471,22 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
 
   /** Writes the staged text and leaves; a key field left blank keeps the key it stands for. */
   async function handleSave(): Promise<void> {
-    if (busy) return
-    setBusy(true)
+    if (saving.current) return
+    saving.current = true
     const ok = await write({
       ...(custom
         ? {
             endpointUrl: normalizeEndpoint(endpointUrl) || undefined,
             endpointModel: modelId,
             endpointSecondaryModel: secondaryId,
-            maxOutputTokens
+            ...imageFieldsToStore(imageUrl, imageModelText)
           }
         : {}),
       ...(geminiKey.trim() ? { apiKey: geminiKey.trim() } : {}),
-      ...(custom && endpointKey.trim() ? { endpointApiKey: endpointKey.trim() } : {})
+      ...(custom && endpointKey.trim() ? { endpointApiKey: endpointKey.trim() } : {}),
+      ...(custom && imageKey.trim() ? { imageApiKey: imageKey.trim() } : {})
     })
-    setBusy(false)
+    saving.current = false
     if (ok) close()
   }
 
@@ -453,7 +503,7 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
       >
         <motion.div
           id="settings-modal"
-          className="vu-settings vu-paper"
+          className="vu-settings vu-settings--split vu-paper"
           role="dialog"
           aria-modal="true"
           aria-label="Settings"
@@ -461,384 +511,429 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
         >
           <TitleTab>Settings</TitleTab>
 
-          <div className="vu-settings-writer">
-            <span className="vu-settings-heading">Generation</span>
+          {/* The two columns, and under them the answers, which need the width of both. */}
+          <div className="vu-settings-columns">
+            <div className="vu-settings-writer">
+              <span className="vu-settings-heading">Generation</span>
 
-            <div className="vu-scroll-box">
-              <div className="vu-settings-fields">
-                {/* Who writes the scenes: the app's own default, or any endpoint that speaks
-                    chat completions. Everything under it is read off this. */}
-                <SelectField
-                  id="settings-provider"
-                  label="Provider"
-                  value={apiProvider}
-                  onChange={handleProviderChange}
-                  options={[
-                    { value: 'gemini', label: 'Google AI Studio (default)' },
-                    { value: 'openai', label: 'Custom (Compatible with Chat Completions/OpenAI)' }
-                  ]}
-                  hint={
-                    custom
-                      ? 'Please understand that I only test on Gemini API with Gemini Flash 3.6+ models and can\'t provide technical support for other APIs and models. If you are experiencing bad model output or long generation times, consider using Gemini Flash.'
-                      : undefined
-                  }
-                />
+              <div className="vu-scroll-box">
+                <div className="vu-settings-fields">
+                  {/* Who writes the scenes: the app's own default, or any endpoint that speaks
+                      chat completions. Everything under it is read off this. */}
+                  <SelectField
+                    id="settings-provider"
+                    label="Provider"
+                    value={apiProvider}
+                    onChange={handleProviderChange}
+                    options={[
+                      { value: 'gemini', label: 'Google AI Studio (default)' },
+                      { value: 'openai', label: 'Custom (Compatible with Chat Completions/OpenAI)' }
+                    ]}
+                    hint={
+                      custom
+                        ? 'Please understand that I only test on Gemini API with Gemini Flash 3.6+ models and can\'t provide technical support for other APIs and models. If you are experiencing bad model output or long generation times, consider using Gemini Flash.'
+                        : undefined
+                    }
+                  />
 
-                {custom && (
-                  <>
-                    {/* The root every request is sent to. Leaving it asks the endpoint what it
-                        serves, so the two id fields below have something to offer. */}
-                    <TextField
-                      id="settings-endpoint-url"
-                      label="Endpoint URL"
-                      hint="The base URL of a chat completions endpoint (usually ends in /v1)"
-                      value={endpointUrl}
-                      onChange={setEndpointUrl}
-                      onBlur={() => void probe.refreshModels()}
-                    />
+                  {custom && (
+                    <>
+                      {/* The root every request is sent to. Leaving it asks the endpoint what it
+                          serves, so the two id fields below have something to offer. */}
+                      <TextField
+                        id="settings-endpoint-url"
+                        label="Endpoint URL"
+                        hint="The base URL of a chat completions endpoint (usually ends in /v1)"
+                        value={endpointUrl}
+                        onChange={setEndpointUrl}
+                        onBlur={refreshEndpointModels}
+                      />
 
-                    {/* The endpoint's own key, which never follows the player to another host. */}
+                      {/* The endpoint's own key, which never follows the player to another host. */}
+                      <label className="vu-field vu-settings-key" htmlFor="settings-api-key">
+                        <span className="vu-field-label">API key</span>
+                        <input
+                          id="settings-api-key"
+                          className="vu-input"
+                          type="password"
+                          value={endpointKey}
+                          onChange={(e) => setEndpointKey(e.target.value)}
+                          onBlur={refreshEndpointModels}
+                          placeholder={endpointKeyPlaceholder}
+                        />
+                      </label>
+
+                      <ComboField
+                        id="settings-model-id"
+                        label="Model ID"
+                        hint="As the endpoint names it, for example a provider/model id"
+                        value={modelIdText}
+                        onChange={setModelIdText}
+                        options={probe.modelIds}
+                        popupHost={popupHost}
+                      />
+
+                      <SelectField
+                        id="settings-reasoning-effort"
+                        label="Reasoning effort"
+                        hint="Sent with every call. Some servers reject the field outright, and only some models accept Minimal."
+                        value={reasoningEffort}
+                        onChange={handleReasoningChange}
+                        options={THINKING_LEVELS.map((level) => ({
+                          value: level,
+                          label: THINKING_LEVEL_LABELS[level]
+                        }))}
+                      />
+
+                      <ComboField
+                        id="settings-secondary-model-id"
+                        label="Secondary model ID"
+                        hint="Leave this blank to run every call on the model above."
+                        value={secondaryIdText}
+                        onChange={setSecondaryIdText}
+                        options={probe.modelIds}
+                        emptyOption="None (Use one model for everything)"
+                        popupHost={popupHost}
+                      />
+                    </>
+                  )}
+
+                  {!custom && (
+                    <>
+                      <SelectField
+                        id="settings-model"
+                        label="Model"
+                        hint="The default model (Gemini 3.6) is recommended for free-tier keys. The latest model is recommended for paid keys. Downgrade the model version if you are running into connection errors. Using Flash Lite for the primary model is highly discouraged."
+                        value={apiModel}
+                        onChange={handleModelChange}
+                        options={models.map((model) => ({ value: model.id, label: model.label }))}
+                      />
+
+                      <SelectField
+                        id="settings-thinking-level"
+                        label="Thinking"
+                        hint="Recommended to be left at Low. Only 3.6 and older models support Minimal effort. Certain calls run with High thinking level no matter what is set here."
+                        value={thinkingLevel}
+                        onChange={handleThinkingChange}
+                        options={thinkingLevels.map((level) => ({
+                          value: level,
+                          label: THINKING_LEVEL_LABELS[level]
+                        }))}
+                      />
+
+                      {/* A cheaper model for the calls that can take one. The list of what it
+                          writes is absent until there is a model to write anything, rather
+                          than dead. */}
+                      <SelectField
+                        id="settings-secondary-model"
+                        label="Secondary model"
+                        hint="Use a low-power model for less important calls. Set this to None for max quality if cost is not a concern."
+                        value={secondaryModel}
+                        onChange={handleSecondaryChange}
+                        options={[
+                          { value: '', label: 'None (Use one model for everything)' },
+                          ...models.map((model) => ({ value: model.id, label: model.label }))
+                        ]}
+                      />
+                    </>
+                  )}
+
+                  {secondaryPicked && (
+                    <div className="vu-settings-kinds">
+                      <span className="vu-settings-kinds-head">Use it for</span>
+                      {PROMPT_KIND_FIELDS.map((field) => (
+                        <CheckField
+                          key={field.key}
+                          id={field.id}
+                          label={field.label}
+                          meta={field.note}
+                          checked={secondaryFor[field.key]}
+                          onChange={(checked) => handleSecondaryForChange(field.key, checked)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {custom ? (
+                    <>
+                      {/* One tiny request on the fields as typed, so the endpoint answers for them
+                          before a game does. */}
+                      <div className="vu-test-row">
+                        <motion.button
+                          id="settings-test-connection"
+                          className="vu-btn vu-btn--quiet"
+                          type="button"
+                          disabled={probe.testDead}
+                          {...gestures(probe.testDead, quietLift, quietPress)}
+                          onClick={() => void probe.runTest()}
+                        >
+                          Test connection
+                        </motion.button>
+                        {probe.testWord && <span className="vu-btn-sub">{probe.testWord}</span>}
+                        {typeof probe.test === 'object' && (
+                          <span className="vu-test-note">{probe.test.error.message}</span>
+                        )}
+                      </div>
+
+                      {/* Who writes above the rule, who draws below it. */}
+                      <hr className="vu-rule" />
+
+                      {/* Where the pictures are drawn: Gemini's own root speaks its native call,
+                          anywhere else the Images API. Leaving it asks which image models it
+                          serves, so the model field below has something to offer. */}
+                      <TextField
+                        id="settings-image-endpoint"
+                        label="Images endpoint"
+                        hint="This endpoint will be used for non-explicit image generations such as room BG and Bunnyboard photos."
+                        value={imageUrl}
+                        onChange={setImageUrl}
+                        onBlur={() => void imageProbe.refreshModels()}
+                      />
+
+                      {/* Its own key, which never follows the player to another host; blank
+                          draws on the Gemini key at Google's own host, else the endpoint's. */}
+                      <label className="vu-field vu-settings-key" htmlFor="settings-image-api-key">
+                        <span className="vu-field-label">Images API key</span>
+                        <input
+                          id="settings-image-api-key"
+                          className="vu-input"
+                          type="password"
+                          value={imageKey}
+                          onChange={(e) => setImageKey(e.target.value)}
+                          onBlur={() => void imageProbe.refreshModels()}
+                          placeholder={imageKeyPlaceholder}
+                        />
+                      </label>
+
+                      <ComboField
+                        id="settings-image-model"
+                        label="Images API model"
+                        value={imageModelText}
+                        onChange={setImageModelText}
+                        options={imageProbe.modelIds}
+                        popupHost={popupHost}
+                      />
+
+                      {/* One real picture on the fields as typed, which the endpoint may bill. */}
+                      <div className="vu-test-row">
+                        <motion.button
+                          id="settings-test-images"
+                          className="vu-btn vu-btn--quiet"
+                          type="button"
+                          disabled={imageProbe.testDead}
+                          {...gestures(imageProbe.testDead, quietLift, quietPress)}
+                          onClick={() => void imageProbe.runTest()}
+                        >
+                          Test connection
+                        </motion.button>
+                        {imageProbe.testWord && (
+                          <span className="vu-btn-sub">{imageProbe.testWord}</span>
+                        )}
+                        <span className="vu-check-note">On clicking "Test Connection", One test render will be sent.</span>
+                        {typeof imageProbe.test === 'object' && (
+                          <span className="vu-test-note">{imageProbe.test.error.message}</span>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    /* The key Gemini writes on, and the one the pictures are drawn with. */
                     <label className="vu-field vu-settings-key" htmlFor="settings-api-key">
                       <span className="vu-field-label">API key</span>
                       <input
                         id="settings-api-key"
                         className="vu-input"
                         type="password"
-                        value={endpointKey}
-                        onChange={(e) => setEndpointKey(e.target.value)}
-                        onBlur={() => void probe.refreshModels()}
-                        placeholder={endpointKeyPlaceholder}
-                      />
-                    </label>
-
-                    <ComboField
-                      id="settings-model-id"
-                      label="Model ID"
-                      hint="As the endpoint names it, for example a provider/model id"
-                      value={modelIdText}
-                      onChange={setModelIdText}
-                      options={probe.modelIds}
-                      popupHost={popupHost}
-                    />
-
-                    <SelectField
-                      id="settings-reasoning-effort"
-                      label="Reasoning effort"
-                      hint="Sent with every call. Some servers reject the field outright, and only some models accept Minimal."
-                      value={reasoningEffort}
-                      onChange={handleReasoningChange}
-                      options={THINKING_LEVELS.map((level) => ({
-                        value: level,
-                        label: THINKING_LEVEL_LABELS[level]
-                      }))}
-                    />
-
-                    <TextField
-                      id="settings-max-output-tokens"
-                      label="Max output tokens"
-                      hint="A minimum of 12000 is recommended, though the game won't immediately break under this number."
-                      placeholder={String(MAX_OUTPUT_TOKENS)}
-                      value={maxOutputText}
-                      onChange={setMaxOutputText}
-                      maxLength={7}
-                    />
-
-                    <ComboField
-                      id="settings-secondary-model-id"
-                      label="Secondary model ID"
-                      hint="Leave this blank to run every call on the model above."
-                      value={secondaryIdText}
-                      onChange={setSecondaryIdText}
-                      options={probe.modelIds}
-                      emptyOption="None (Use one model for everything)"
-                      popupHost={popupHost}
-                    />
-
-                    {/* Offered here and only here: Google AI Studio is sent a schema it decodes
-                        against, so a required field cannot go missing and none of this applies.
-                        A chat-completions endpoint is sent the same schema as advice. */}
-                    <CheckField
-                      id="settings-strict-schema"
-                      label="Ask for every field"
-                      note="Turn this on if scenes feel static, backgrounds never change, or she keeps inviting you out after you have said no. This server is sent the response format as advice rather than a rule, so the model is free to leave fields out — and a cheaper one leaves them out almost always, silently. On, the game asks for each field outright and checks a few answers it cannot take on trust. It does not change how anything is written."
-                      checked={strictSchema}
-                      onChange={handleStrictSchemaChange}
-                    />
-                  </>
-                )}
-
-                {!custom && (
-                  <>
-                    <SelectField
-                      id="settings-model"
-                      label="Model"
-                      hint="The default model (Gemini 3.6) is recommended for free-tier keys. The latest model is recommended for paid keys. Downgrade the model version if you are running into connection errors. Using Flash Lite for the primary model is highly discouraged."
-                      value={apiModel}
-                      onChange={handleModelChange}
-                      options={models.map((model) => ({ value: model.id, label: model.label }))}
-                    />
-
-                    <SelectField
-                      id="settings-thinking-level"
-                      label="Thinking"
-                      hint="Recommended to be left at Low. Only 3.6 and older models support Minimal effort. Certain calls run with High thinking level no matter what is set here."
-                      value={thinkingLevel}
-                      onChange={handleThinkingChange}
-                      options={thinkingLevels.map((level) => ({
-                        value: level,
-                        label: THINKING_LEVEL_LABELS[level]
-                      }))}
-                    />
-
-                    {/* A cheaper model for the calls that can take one. The list of what it
-                        writes is absent until there is a model to write anything, rather
-                        than dead. */}
-                    <SelectField
-                      id="settings-secondary-model"
-                      label="Secondary model"
-                      hint="Use a low-power model for less important calls. Set this to None for max quality if cost is not a concern."
-                      value={secondaryModel}
-                      onChange={handleSecondaryChange}
-                      options={[
-                        { value: '', label: 'None (Use one model for everything)' },
-                        ...models.map((model) => ({ value: model.id, label: model.label }))
-                      ]}
-                    />
-                  </>
-                )}
-
-                {secondaryPicked && (
-                  <div className="vu-settings-kinds">
-                    <span className="vu-settings-kinds-head">Use it for</span>
-                    {PROMPT_KIND_FIELDS.map((field) => (
-                      <CheckField
-                        key={field.key}
-                        id={field.id}
-                        label={field.label}
-                        meta={field.note}
-                        checked={secondaryFor[field.key]}
-                        onChange={(checked) => handleSecondaryForChange(field.key, checked)}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {custom ? (
-                  <>
-                    {/* One tiny request on the fields as typed, so the endpoint answers for them
-                        before a game does. */}
-                    <div className="vu-test-row">
-                      <motion.button
-                        id="settings-test-connection"
-                        className="vu-btn vu-btn--quiet"
-                        type="button"
-                        disabled={probe.testDead}
-                        {...gestures(probe.testDead, quietLift, quietPress)}
-                        onClick={() => void probe.runTest()}
-                      >
-                        Test connection
-                      </motion.button>
-                      {probe.testWord && <span className="vu-btn-sub">{probe.testWord}</span>}
-                      {typeof probe.test === 'object' && (
-                        <span className="vu-test-note">{probe.test.error.message}</span>
-                      )}
-                    </div>
-
-                    {/* The pictures are Gemini's whoever writes, so a custom endpoint asks for
-                        the Gemini key beside its own. */}
-                    <label className="vu-field vu-settings-key" htmlFor="settings-image-api-key">
-                      <span className="vu-field-label">Gemini key for images</span>
-                      <span className="vu-field-hint">
-                        Room backgrounds and the final game CG are generated by Gemini&apos;s image
-                        model, which a chat-completions endpoint cannot do. Without a key, these
-                        features will be disabled. It is the same key the Google AI Studio provider
-                        uses.
-                      </span>
-                      <input
-                        id="settings-image-api-key"
-                        className="vu-input"
-                        type="password"
                         value={geminiKey}
                         onChange={(e) => setGeminiKey(e.target.value)}
-                        placeholder={geminiKeyPlaceholder}
+                        placeholder={
+                          settings.apiKeySet
+                            ? 'Leave blank to keep your saved key'
+                            : 'Required. Please generate one if you don\'t have one already.'
+                        }
                       />
                     </label>
-                  </>
-                ) : (
-                  /* The key Gemini writes on, and the one the pictures are drawn with. */
-                  <label className="vu-field vu-settings-key" htmlFor="settings-api-key">
-                    <span className="vu-field-label">API key</span>
-                    <input
-                      id="settings-api-key"
-                      className="vu-input"
-                      type="password"
-                      value={geminiKey}
-                      onChange={(e) => setGeminiKey(e.target.value)}
-                      placeholder={
-                        settings.apiKeySet
-                          ? 'Leave blank to keep your saved key'
-                          : 'Required. Please generate one if you don\'t have one already.'
-                      }
-                    />
-                  </label>
-                )}
+                  )}
 
-                {webBuild && (
-                  <CheckField
-                    id="settings-remember-key"
-                    label="Remember my key on this device"
-                    note="By default, your key will be deleted every session. Enabling this setting will save your key in browser storage so you won't have to type it in again next time. Warning: other itch.io games will be able to read your key."
-                    checked={remember}
-                    onChange={handleRememberChange}
-                  />
-                )}
+                  {webBuild && (
+                    <CheckField
+                      id="settings-remember-key"
+                      label="Remember my keys on this device"
+                      note="By default, your keys will be deleted every session. Enabling this setting will save your keys in browser storage so you won't have to type them in again next time. Warning: other itch.io games will be able to read your keys."
+                      checked={remember}
+                      onChange={handleRememberChange}
+                    />
+                  )}
+                </div>
+                <div className="vu-scroll-fade" />
               </div>
-              <div className="vu-scroll-fade" />
+            </div>
+
+            <div className="vu-settings-content">
+              {/* Scrolls as the left column does: the photo switches make it taller than the
+                  panel's cap. */}
+              <div className="vu-scroll-box">
+                <div className="vu-settings-content-fields">
+                  <span className="vu-settings-heading">Gameplay</span>
+
+                  {/* Only the desktop has a window of its own to put fullscreen. */}
+                  {!webBuild && (
+                    <CheckField
+                      id="settings-fullscreen"
+                      label="Fullscreen"
+                      checked={fullscreen}
+                      onChange={handleFullscreenChange}
+                    />
+                  )}
+
+                  <CheckField
+                    id="settings-warn-ending-edit"
+                    label="Warn when editing an ending scene"
+                    checked={warnEndingEdit}
+                    onChange={handleWarnEndingEditChange}
+                  />
+
+                  <CheckField
+                    id="settings-warn-ending-interrupt"
+                    label="Warn when interrupting an ending scene"
+                    checked={warnEndingInterrupt}
+                    onChange={handleWarnEndingInterruptChange}
+                  />
+
+                  <span className="vu-settings-heading">Content</span>
+
+                  {/* The switch that decides whether the cast photographs itself at all sits over the
+                      ones that decide what a picture may show. Named for the playthrough it makes,
+                      like they are: what is turned on here is the absence. */}
+                  {!webBuild && (
+                    <CheckField
+                      id="settings-photos"
+                      label="No DM and feed photos"
+                      note="Photos on Bunnyboard feeds and DMs are turned off. Existing photos stay visible, and any still waiting are held until you turn this back on."
+                      checked={!photos}
+                      onChange={(checked) => handlePhotosChange(!checked)}
+                    />
+                  )}
+                  {!webBuild && photos && <PhotoLoaderField />}
+
+                  {/* Each toggle carries what turning it on costs; the note is the whole of what the
+                      app promises about either setting. */}
+                  <SfwCheckList fields={SFW_FIELDS} sfw={sfw} onChange={handleSfwChange} />
+
+                  <span className="vu-settings-heading vu-settings-sound-heading">Sound</span>
+
+                  {/* Each slider is heard as it moves and written once it stops. */}
+                  <div className="vu-settings-sound">
+                    {VOLUME_FIELDS.map((field) => (
+                      <div className="vu-range-row" key={field.key}>
+                        <span className="vu-range-label">{field.label}</span>
+                        <input
+                          id={field.id}
+                          className="vu-range"
+                          type="range"
+                          min={VOLUME_MIN}
+                          max={VOLUME_MAX}
+                          step={1}
+                          value={volumes[field.key]}
+                          aria-label={field.label}
+                          aria-valuetext={`${volumes[field.key]} percent`}
+                          style={{ '--range-fill': `${volumes[field.key]}%` } as CSSProperties}
+                          onChange={(e) => handleVolumeChange(field.key, Number(e.target.value))}
+                        />
+                        <span className="vu-range-reading">{volumes[field.key]}%</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* One zip of everything this build keeps, and one read back over it. Both builds
+                      write the same format, so a semester started in one goes on in the other. */}
+                  <span className="vu-settings-heading vu-settings-data-heading">Game data</span>
+                  <div className="vu-settings-data">
+                    <div className="vu-settings-data-actions">
+                      <motion.button
+                        id="settings-backup-export"
+                        className="vu-pill"
+                        type="button"
+                        disabled={backingUp || restoring}
+                        {...gestures(backingUp || restoring, quietLift, quietPress)}
+                        onClick={() => {
+                          setBackingUp(true)
+                          void exportBackup().finally(() => setBackingUp(false))
+                        }}
+                      >
+                        {backingUp ? 'Backing up…' : 'Back up game data'}
+                      </motion.button>
+                      <motion.button
+                        id="settings-backup-import"
+                        className="vu-pill"
+                        type="button"
+                        disabled={backingUp || restoring}
+                        {...gestures(backingUp || restoring, quietLift, quietPress)}
+                        onClick={() => setConfirmRestore(true)}
+                      >
+                        {restoring ? 'Restoring…' : 'Restore from backup'}
+                      </motion.button>
+                    </div>
+                    <span className="vu-check-note">
+                      {webBuild
+                        ? "Web saves live in browser storage and can be accidentally wiped. It's highly recommended to regularly back up your saves."
+                        : 'Saves are stored on disk in the data folder. "Back up game data" exports them as a portable zip file for transfer.'}
+                    </span>
+                  </div>
+
+                  {/* Only the desktop has a build of itself to replace, and only it asks. */}
+                  {!webBuild && (
+                    <CheckField
+                      id="settings-check-updates"
+                      label="Ask to update on launch"
+                      checked={checkUpdates}
+                      onChange={handleCheckUpdatesChange}
+                    />
+                  )}
+                </div>
+                <div className="vu-scroll-fade" />
+              </div>
             </div>
           </div>
 
-          <div className="vu-settings-content">
-            <span className="vu-settings-heading">Content</span>
-
-            <div className="vu-scroll-box">
-              <div className="vu-settings-content-fields">
-                {/* The switch that decides whether the cast photographs itself at all sits over the
-                    three that decide what a picture may show. Named for the playthrough it makes,
-                    like they are: what is turned on here is the absence. */}
-                {!webBuild && (
-                  <CheckField
-                    id="settings-photos"
-                    label="No DM and feed photos"
-                    note="Photos on Bunnyboard feeds and DMs are turned off. Existing photos stay visible, and any still waiting are held until you turn this back on."
-                    checked={!photos}
-                    onChange={(checked) => handlePhotosChange(!checked)}
-                  />
-                )}
-                {!webBuild && photos && <PhotoLoaderField />}
-
-                {/* Each toggle carries what turning it on costs; the note is the whole of what the
-                    app promises about either setting. */}
-                <SfwCheckList sfw={sfw} onChange={handleSfwChange} />
-
-                <CheckField
-                  id="settings-warn-ending-edit"
-                  label="Warn when editing an ending scene"
-                  checked={warnEndingEdit}
-                  onChange={handleWarnEndingEditChange}
-                />
-
-                <CheckField
-                  id="settings-warn-ending-interrupt"
-                  label="Warn when interrupting an ending scene"
-                  checked={warnEndingInterrupt}
-                  onChange={handleWarnEndingInterruptChange}
-                />
-
-                <span className="vu-settings-heading vu-settings-sound-heading">Sound</span>
-
-                {/* Each slider is heard as it moves and written once it stops. */}
-                <div className="vu-settings-sound">
-                  {VOLUME_FIELDS.map((field) => (
-                    <div className="vu-range-row" key={field.key}>
-                      <span className="vu-range-label">{field.label}</span>
-                      <input
-                        id={field.id}
-                        className="vu-range"
-                        type="range"
-                        min={VOLUME_MIN}
-                        max={VOLUME_MAX}
-                        step={1}
-                        value={volumes[field.key]}
-                        aria-label={field.label}
-                        aria-valuetext={`${volumes[field.key]} percent`}
-                        style={{ '--range-fill': `${volumes[field.key]}%` } as CSSProperties}
-                        onChange={(e) => handleVolumeChange(field.key, Number(e.target.value))}
-                      />
-                      <span className="vu-range-reading">{volumes[field.key]}%</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* One zip of everything this build keeps, and one read back over it. Both builds
-                    write the same format, so a semester started in one goes on in the other. */}
-                <span className="vu-settings-heading vu-settings-data-heading">Game data</span>
-                <div className="vu-settings-data">
-                  <div className="vu-settings-data-actions">
-                    <motion.button
-                      id="settings-backup-export"
-                      className="vu-pill"
-                      type="button"
-                      disabled={backingUp || restoring}
-                      {...gestures(backingUp || restoring, quietLift, quietPress)}
-                      onClick={() => {
-                        setBackingUp(true)
-                        void exportBackup().finally(() => setBackingUp(false))
-                      }}
-                    >
-                      {backingUp ? 'Backing up…' : 'Back up game data'}
-                    </motion.button>
-                    <motion.button
-                      id="settings-backup-import"
-                      className="vu-pill"
-                      type="button"
-                      disabled={backingUp || restoring}
-                      {...gestures(backingUp || restoring, quietLift, quietPress)}
-                      onClick={() => setConfirmRestore(true)}
-                    >
-                      {restoring ? 'Restoring…' : 'Restore from backup'}
-                    </motion.button>
-                  </div>
-                  <span className="vu-check-note">
-                    {webBuild
-                      ? "Web saves live in browser storage and can be accidentally wiped. It's highly recommended to regularly back up your saves."
-                      : 'Saves are stored on disk in the data folder. "Back up game data" exports them as a portable zip file for transfer.'}
-                  </span>
-                </div>
-
-                {/* Only the desktop has a build of itself to replace, and only it asks. */}
-                {!webBuild && (
-                  <CheckField
-                    id="settings-check-updates"
-                    label="Ask to update on launch"
-                    checked={checkUpdates}
-                    onChange={handleCheckUpdatesChange}
-                  />
-                )}
-              </div>
-              <div className="vu-scroll-fade" />
-            </div>
-
-            <div className="vu-foot-stack">
-              {/* Why Save is dead, or that there is something left for it to take. */}
-              <span className="vu-form-status">
-                {status !== null && (
-                  <>
-                    <span className="vu-form-dot vu-form-dot--warn" />
-                    {status}
-                  </>
-                )}
-              </span>
-              <div className="vu-foot">
-                <motion.button
-                  id="settings-cancel"
-                  className="vu-btn vu-btn--quiet"
-                  type="button"
-                  {...gestures(false, quietLift, quietPress)}
-                  onClick={requestClose}
-                >
-                  Cancel
-                </motion.button>
-                <motion.button
-                  id="settings-save"
-                  className="vu-btn vu-btn--primary vu-paper vu-btn--panel"
-                  type="button"
-                  disabled={saveProblem !== null}
-                  {...gestures(saveProblem !== null, lift, press)}
-                  onClick={() => void handleSave()}
-                >
-                  {busy ? 'Saving…' : 'Save settings'}
-                </motion.button>
-              </div>
+          <div className="vu-foot-stack">
+            {/* Why Save is dead, or that there is something left for it to take. */}
+            <span className="vu-form-status">
+              {status !== null && (
+                <>
+                  <span className="vu-form-dot vu-form-dot--warn" />
+                  {status}
+                </>
+              )}
+            </span>
+            <div className="vu-foot">
+              <motion.button
+                id="settings-cancel"
+                className="vu-btn vu-btn--quiet"
+                type="button"
+                {...gestures(false, quietLift, quietPress)}
+                onClick={requestClose}
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                id="settings-advanced"
+                className="vu-btn vu-btn--quiet"
+                type="button"
+                {...gestures(false, quietLift, quietPress)}
+                onClick={() => setAdvanced(true)}
+              >
+                Advanced Settings
+              </motion.button>
+              <motion.button
+                id="settings-save"
+                className="vu-btn vu-btn--primary vu-paper vu-btn--panel"
+                type="button"
+                disabled={saveProblem !== null}
+                {...gestures(saveProblem !== null, lift, press)}
+                onClick={() => void handleSave()}
+              >
+                Save settings
+              </motion.button>
             </div>
           </div>
 
@@ -864,7 +959,12 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
             onConfirm={() => {
               setConfirmRestore(false)
               setRestoring(true)
-              void importBackup().finally(() => setRestoring(false))
+              // A restore swaps every save underneath a photo that is still being written.
+              void usePhotoStore
+                .getState()
+                .cancelAll()
+                .then(() => importBackup())
+                .finally(() => setRestoring(false))
             }}
           />
         )}
@@ -886,6 +986,10 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
             }}
             onCancel={() => setClosing(false)}
           />
+        )}
+
+        {advanced && (
+          <AdvancedSettingsModal key="advanced" theme={theme} onClose={() => setAdvanced(false)} />
         )}
       </AnimatePresence>
     </>,

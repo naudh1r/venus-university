@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { MEMORY_CAP } from '@shared/relationship'
 import { MAX_RAISES, RAISE_EVERY } from '@shared/jobs'
 import { giftMemoryDesc, itemDefOf, type ItemDef } from '@shared/shop'
 import type { ReaderTallies } from '@shared/tallies'
@@ -13,7 +12,7 @@ import {
   type SocialPost
 } from '@shared/types'
 import { weatherAt } from '@shared/weather'
-import { buildCharKeyToId, useGameStore } from '../src/renderer/stores/gameStore'
+import { buildCharKeyToId, giftGivenOf, useGameStore } from '../src/renderer/stores/gameStore'
 import { useSettingsStore } from '../src/renderer/stores/settingsStore'
 import {
   calendarEvent,
@@ -574,6 +573,26 @@ describe('truncateUnread', () => {
       inventory: [{ itemId: 'rose', count: 1 }]
     })
   })
+
+  it('counts a gift as given only while a turn taken from the line on screen would keep it', () => {
+    const store = useGameStore.getState()
+    useGameStore.setState({ inventory: [{ itemId: 'rose', count: 1 }], sceneGifts: [] })
+    store.logPlayerAction('I wave.', true)
+    store.appendSceneLines(sceneLines('a1', 'a2'))
+    store.appendPendingLines(sceneLines('a1', 'a2'))
+    while (useGameStore.getState().advanceLine()) continue
+    store.giftItem('a', 'rose')
+    store.logPlayerAction('I hand her a rose.', true)
+    store.appendSceneLines(sceneLines('b1'))
+    store.appendPendingLines(sceneLines('b1'))
+    while (useGameStore.getState().advanceLine()) continue
+    expect(giftGivenOf(useGameStore.getState())).toBe(true)
+
+    // Back on a2, behind the gift's own line: a turn from here cuts the gift and hands it back.
+    store.rewindLine()
+    expect(useGameStore.getState().currentLine).toEqual({ speaker: '', text: 'a2' })
+    expect(giftGivenOf(useGameStore.getState())).toBe(false)
+  })
 })
 
 /**
@@ -970,13 +989,37 @@ describe('rescheduleEvent', () => {
 describe('recordMemory', () => {
   const mem = (i: number): CharMemory => ({ date: i, type: 'liked', desc: `m${i}` })
 
-  it('keeps the newest MEMORY_CAP and drops the oldest', () => {
+  it('keeps every memory, the oldest included', () => {
     const store = useGameStore.getState()
-    for (let i = 0; i < MEMORY_CAP + 5; i++) store.recordMemory('a', mem(i))
+    for (let i = 0; i < 25; i++) store.recordMemory('a', mem(i))
     const memories = useGameStore.getState().charInfo.a.memories
-    expect(memories).toHaveLength(MEMORY_CAP)
-    expect(memories[0]).toEqual(mem(5))
-    expect(memories.at(-1)).toEqual(mem(MEMORY_CAP + 4))
+    expect(memories).toHaveLength(25)
+    expect(memories[0]).toEqual(mem(0))
+    expect(memories.at(-1)).toEqual(mem(24))
+  })
+})
+
+describe('setCharNotes', () => {
+  it('keeps trimmed notes on the save and drops blank ones rather than storing them', () => {
+    useGameStore.setState({ charInfo: { a: charInfo() } })
+    const store = useGameStore.getState()
+
+    store.setCharNotes('a', '  Allergic to cats.\nHates mornings.  ')
+    expect(useGameStore.getState().toGameSave().charInfo.a.notes).toBe(
+      'Allergic to cats.\nHates mornings.'
+    )
+
+    // An unchanged value leaves her entry as it was.
+    const before = useGameStore.getState().charInfo.a
+    store.setCharNotes('a', 'Allergic to cats.\nHates mornings.')
+    expect(useGameStore.getState().charInfo.a).toBe(before)
+
+    store.setCharNotes('a', '   ')
+    expect(useGameStore.getState().toGameSave().charInfo.a).not.toHaveProperty('notes')
+
+    // Nobody is invented for notes.
+    store.setCharNotes('b', 'Nothing.')
+    expect(useGameStore.getState().charInfo.b).toBeUndefined()
   })
 })
 

@@ -418,14 +418,15 @@ export async function deletePlaythrough(playthroughId: string): Promise<void> {
 
   await storage('delete the playthrough', async () => {
     const tx = (await database()).transaction(
-      ['playthroughs', 'saves', 'endingArt', 'profilePictures'],
+      ['playthroughs', 'saves', 'endingArt', 'profilePictures', 'photos'],
       'readwrite'
     )
-    // Four deletes, all database requests, so the transaction sees all of them.
+    // Five deletes, all database requests, so the transaction sees all of them.
     void tx.objectStore('playthroughs').delete(playthroughId)
     void tx.objectStore('saves').delete(partRange(playthroughId))
     void tx.objectStore('endingArt').delete(playthroughId)
     void tx.objectStore('profilePictures').delete(playthroughId)
+    void tx.objectStore('photos').delete(partRange(playthroughId))
     await tx.done
   })
 }

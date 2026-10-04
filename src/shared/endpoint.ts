@@ -1,5 +1,5 @@
 /**
- * The custom provider's endpoint URL: what the player typed made sendable, and the check that
+ * The custom provider's endpoint URLs: what the player typed made sendable, and the check that
  * it is a URL fetch can speak to (http or https).
  */
 
@@ -12,6 +12,11 @@ export function normalizeEndpoint(raw: string): string {
     .replace(/\/+$/, '')
 }
 
+/** The typed images URL as the adapters use it: {@link normalizeEndpoint}, and no pasted `/images`. */
+export function normalizeImageEndpoint(raw: string): string {
+  return normalizeEndpoint(raw).replace(/\/images$/, '').replace(/\/+$/, '')
+}
+
 /** Whether two typed URLs name one origin, so a key typed for one may be sent to the other. */
 export function sameEndpointHost(a: string, b: string): boolean {
   try {
@@ -21,16 +26,16 @@ export function sameEndpointHost(a: string, b: string): boolean {
   }
 }
 
-/** The sentence saying why the URL cannot be sent to, or null when it can. */
-export function endpointProblem(raw: string): string | null {
+/** The sentence saying why the URL cannot be sent to, or null when it can; `what` names the field. */
+export function endpointProblem(raw: string, what = 'endpoint URL'): string | null {
   const url = normalizeEndpoint(raw)
-  if (!url) return 'Enter the endpoint URL.'
+  if (!url) return `Enter the ${what}.`
   let parsed: URL
   try {
     parsed = new URL(url)
   } catch {
-    return 'The endpoint URL is not a valid URL.'
+    return `The ${what} is not a valid URL.`
   }
   if (parsed.protocol === 'https:' || parsed.protocol === 'http:') return null
-  return 'The endpoint URL must start with http:// or https://.'
+  return `The ${what} must start with http:// or https://.`
 }

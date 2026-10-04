@@ -47,6 +47,11 @@ const RESERVED_BASENAMES = new Set([
   ...Array.from({ length: 9 }, (_, i) => `LPT${i + 1}`)
 ])
 
+/** Whether Windows reserves `basename` for a device, whatever extension follows it. */
+export function isWindowsDeviceName(basename: string): boolean {
+  return RESERVED_BASENAMES.has(basename.split('.')[0].toUpperCase())
+}
+
 /** True when a path holds a character no filesystem should be handed. */
 function hasControlChar(path: string): boolean {
   return [...path].some((char) => char.charCodeAt(0) < 0x20)
@@ -87,7 +92,7 @@ export function checkZipListing(
     if (hasControlChar(path)) return `${entry.path} holds a control character`
 
     const basename = path.slice(path.lastIndexOf('/') + 1)
-    if (RESERVED_BASENAMES.has(basename.split('.')[0].toUpperCase())) {
+    if (isWindowsDeviceName(basename)) {
       return `${entry.path} is named after a Windows device`
     }
     if (/[. ]$/.test(basename)) return `${entry.path} ends in a dot or a space`

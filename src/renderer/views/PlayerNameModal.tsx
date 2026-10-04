@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import {
   MAX_TIER,
+  MIN_TIER,
   STARTING_TIER,
   STAT_KEYS,
   STAT_LABELS,
@@ -222,7 +223,7 @@ function Step({
   step: -1 | 1
   onStep: (key: StatKey, delta: 1 | -1) => void
 }): JSX.Element {
-  const dead = step < 0 ? tier <= STARTING_TIER : tier >= MAX_TIER
+  const dead = step < 0 ? tier <= MIN_TIER : tier >= MAX_TIER
   return (
     <motion.button
       className="vu-square vu-square--step"

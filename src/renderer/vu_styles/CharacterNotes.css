@@ -1,0 +1,41 @@
+/* The character notes editor: the form modals' frame around one free-text well. Imported from
+   the view module, never from index.css.
+
+   The veil, the field, the buttons and the foot are base.css's. */
+
+/* The single-memory panel's frame and tilt, one form of about the same width. The cap gives
+   back what the tab and the paper's overhang need.
+
+   No `overflow`: the tab overhangs, and the panel's own shadow pseudo would go with it. */
+.vu-charnotes {
+  --paper-offset: 12px 11px;
+  --paper-tilt: -1.2deg;
+  --paper-shadow: var(--vu-panel-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: min(820px, 100% - 60px);
+  max-height: calc(100% - 100px);
+  padding: 78px 56px 28px 100px;
+  border-radius: 120px 0 0 120px;
+  color: var(--vu-text);
+  font-family: var(--font-body);
+}
+
+/* The field gives up height before the foot does, so a short stage keeps both answers. */
+.vu-charnotes .vu-field {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Six lines of well, growing with what is typed to fourteen and then scrolling, with nothing
+   measured. 33px is `.vu-input--multiline`'s 14px padding and `.vu-input`'s 2.5px border
+   doubled. */
+.vu-charnotes .vu-input--multiline {
+  flex: 1 1 auto;
+  min-height: calc(6lh + 33px);
+  max-height: calc(14lh + 33px);
+  overflow: hidden auto;
+  field-sizing: content;
+  resize: none;
+}

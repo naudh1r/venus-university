@@ -26,12 +26,16 @@ export async function generateEndingArt(
 
   const art = Buffer.from(
     await generateImage(endingPicturePrompt(friendCount), {
-      modelId: ENDING_IMAGE_MODEL_ID,
+      model: ENDING_IMAGE_MODEL_ID,
       imageSize: ENDING_PICTURE_SIZE,
-      source: { bytes, mimeType: LINEUP_MIME_TYPE },
+      sources: [{ bytes, mimeType: LINEUP_MIME_TYPE }],
       signal
     })
   )
+
+  // Last gate before the write: the `mkdir` below would recreate a playthrough folder that
+  // was deleted while the picture was being drawn.
+  if (signal?.aborted) throw appError('CANCELLED', 'Generation was cancelled.')
 
   // Atomic like every other write.
   const path = getEndingArtPath(playthroughId)

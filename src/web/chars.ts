@@ -28,6 +28,7 @@ import { OUTFIT_SETS } from '@shared/outfits'
 import { POSITIONS } from '@shared/positions'
 import { dayRoomPrompt, isRoomVariant, NIGHT_ROOM_PROMPT, ROOM_VARIANTS } from '@shared/room'
 import type { RoomVariant } from '@shared/room'
+import { assertRoomPicture } from '@shared/roomPicture'
 import type {
   Character,
   CharacterBrief,
@@ -362,7 +363,7 @@ async function generateRoomImage(
         'The daytime room background could not be read as an image. Render it again.'
       )
     }
-    bytes = await generateImage(NIGHT_ROOM_PROMPT, { signal, source: { bytes: day, mimeType } })
+    bytes = await generateImage(NIGHT_ROOM_PROMPT, { signal, sources: [{ bytes: day, mimeType }] })
   } else {
     if (!character.roomPrompt.trim()) {
       throw appError(
@@ -400,4 +401,26 @@ export async function generateRoom(
       return `room:${variant}`
     }
   })
+}
+
+/**
+ * Keeps a room background the player picked, `png` being its base64 bytes, once they have
+ * passed the shared check. Refused for a character deleted while the picture was on its way.
+ */
+export async function uploadRoom(charId: string, variant: RoomVariant, png: string): Promise<void> {
+  assertEditableChar(charId)
+  if (!isRoomVariant(variant)) {
+    throw appError('ROOM_VARIANT_UNKNOWN', `"${String(variant)}" is not a room variant.`)
+  }
+  const bytes = base64ToBytes(png)
+  assertRoomPicture(bytes)
+  await db.readCharacter(charId)
+
+  const rel = roomRel(variant)
+  try {
+    await db.writeFiles(charId, [{ rel, blob: imageBlob(bytes) }])
+  } catch (err) {
+    throw appError('ROOM_UNWRITABLE', 'Could not save the room background.', messageOf(err))
+  }
+  forgetImages(charId, rel, false)
 }

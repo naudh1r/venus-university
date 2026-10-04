@@ -1,14 +1,9 @@
 import type { BackgroundSets } from './types'
 
-/** Which of the shipped backgrounds are usable: a base name with both a day and a night render. */
-
 /**
- * What a line answers for `bg` when the scene has not moved. A member of the same string enum
- * rather than a null, because the schema is read by every endpoint the game can be pointed at
- * and a plain string enum is the one shape all of them accept: a union type or a null member
- * is a portability bet, and this costs nothing to avoid.
+ * Which backgrounds are usable: a shipped base name with both a day and a night render, and the
+ * player's own beside them.
  */
-export const BG_UNCHANGED = 'unchanged'
 
 /** The two folders the backgrounds are split into, and the order a collision resolves in. */
 const BG_CATEGORIES = ['interior', 'exterior'] as const
@@ -69,4 +64,35 @@ export function pairBackgrounds(
   })
 
   return { interior, exterior: uniqueExterior }
+}
+
+/**
+ * The shipped backgrounds with the player's own added under their kinds, each list sorted, and
+ * which of the player's were kept: a shipped name is the build's, so one of the player's under
+ * it is left out.
+ */
+export function withCustomBackgrounds<T extends { name: string; kind: 'interior' | 'exterior' }>(
+  shipped: BackgroundSets,
+  custom: readonly T[]
+): { sets: BackgroundSets; kept: T[] } {
+  const taken = new Set([...shipped.interior, ...shipped.exterior])
+  const kept: T[] = []
+  for (const background of custom) {
+    if (taken.has(background.name)) {
+      console.warn(`[assets] bg "${background.name}" is shipped — leaving the player's out.`)
+      continue
+    }
+    taken.add(background.name)
+    kept.push(background)
+  }
+
+  const namesOf = (kind: 'interior' | 'exterior'): string[] =>
+    kept.filter((background) => background.kind === kind).map((background) => background.name)
+  return {
+    sets: {
+      interior: [...shipped.interior, ...namesOf('interior')].sort(),
+      exterior: [...shipped.exterior, ...namesOf('exterior')].sort()
+    },
+    kept
+  }
 }

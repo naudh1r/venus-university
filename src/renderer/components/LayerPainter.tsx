@@ -510,11 +510,11 @@ export function LayerPainter({
         </div>
         {/* One control in three states rather than three switches, and the one in force
             is filled — so its hover may not animate a fill. */}
-        <div className="vu-fix-palette" role="group" aria-label="Tool">
+        <div className="vu-palette" role="group" aria-label="Tool">
           {TOOLS.map(({ key, label, Icon }) => (
             <motion.button
               key={key}
-              className={`vu-fix-tool-btn${tool === key ? ' vu-fix-tool-btn--on' : ''}`}
+              className={`vu-palette-btn${tool === key ? ' vu-palette-btn--on' : ''}`}
               type="button"
               aria-pressed={tool === key}
               disabled={disabled}

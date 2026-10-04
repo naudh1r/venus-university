@@ -73,13 +73,15 @@ export function springBreakLines(
   if (date < SPRING_BREAK_LEAVE) {
     return [
       `${firstName} has spring break plans next week${tail}` +
-        " She's leaving campus on Saturday and is fully committed."
+        " She's leaving campus on Saturday without the reader, who is staying in Veridan for" +
+        ' the break, and is fully committed.'
     ]
   }
   if (date < SPRING_BREAK_RETURN) {
     return [
       `${firstName} left campus for spring break on ${formatDatePart(SPRING_BREAK_LEAVE)}` +
-        ` and can't hang out. What she's currently doing${tail}`
+        ` and can't hang out. What she's currently doing${tail}` +
+        ' The reader is not with her: he stayed in Veridan.'
     ]
   }
   return [`${firstName} came back from her spring break vacation on Sunday morning${tail}`]

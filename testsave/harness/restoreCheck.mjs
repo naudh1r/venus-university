@@ -20,6 +20,22 @@ const WEB_PORT = process.env.VU_WEB_PORT || '5199'
 const MOCK_PORT = process.env.VU_MOCK_PORT || '8783'
 const BACKUP_PATH = join(REPO_ROOT, 'testsave', 'backup.zip')
 
+/** The settings a restore leaves as this visit had them rather than as the backup says. */
+const INSTALL_OWN_SETTINGS = new Set([
+  'apiKeySet',
+  'endpointApiKeySet',
+  'imageApiKeySet',
+  'rememberKey',
+  'freezeSeeds',
+  'editPregens',
+  'forceTime',
+  'serviceTier',
+  'streamResponses',
+  'comfyGpu',
+  'updateAsVersion',
+  'updateFeed'
+])
+
 let failures = 0
 function check(ok, label) {
   console.log(`${ok ? 'OK  ' : 'FAIL'} ${label}`)
@@ -175,10 +191,16 @@ async function main() {
       }
     }
 
+    // A restore merges the backup's settings over this visit's, so only what the backup decides
+    // is compared.
     const settings = unwrap(result.settings, 'settings.get()')
+    const differing = Object.keys(expectedSettings).filter(
+      (key) =>
+        !INSTALL_OWN_SETTINGS.has(key) && !isDeepStrictEqual(settings[key], expectedSettings[key])
+    )
     check(
-      isDeepStrictEqual(settings, expectedSettings),
-      'settings.get() deep-equals the backup\'s settings'
+      differing.length === 0,
+      `settings.get() carries the backup's settings${differing.length ? ` (not ${differing.join(', ')})` : ''}`
     )
   } finally {
     if (context) await context.close()

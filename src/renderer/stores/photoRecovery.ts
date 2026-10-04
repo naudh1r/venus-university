@@ -1,5 +1,5 @@
 import { useGameStore } from './gameStore'
-import { savePhotoState, setFeedPostPhoto, setMessagePhoto } from './photoStore'
+import { savePhotoState, setFeedPostPhoto, setMessagePhoto } from './localPhotoStore'
 
 /**
  * Settles every picture a bubble was still waiting for when the game was last closed.

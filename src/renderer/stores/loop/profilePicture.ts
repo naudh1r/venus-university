@@ -1,13 +1,15 @@
 import { bytesToBase64 } from '@shared/base64'
+import { coverCrop } from '@shared/coverCrop'
 import { appError, messageOf, toAppError } from '@shared/errors'
+import { PROFILE_ASPECT } from '@shared/profileCrop'
 import {
   assertProfilePicture,
-  coverCrop,
   PROFILE_PICTURE_MAX_SOURCE_BYTES,
   PROFILE_PICTURE_SIZE,
   PROFILE_PICTURE_TYPES
 } from '@shared/profilePicture'
 import { useGameStore } from '../gameStore'
+import { cropToPng } from '../pngCanvas'
 import { useUiStore } from '../uiStore'
 import { currentRun, runStale } from './state'
 
@@ -51,31 +53,16 @@ export function dropProfilePicture(): void {
 }
 
 /** The picked file cut to the archway's window and encoded as the PNG the bridge is handed. */
-async function cropToPng(file: File): Promise<Uint8Array<ArrayBuffer>> {
+async function cutToArchway(file: File): Promise<Uint8Array<ArrayBuffer>> {
   const bitmap = await createImageBitmap(file)
   try {
-    const crop = coverCrop(bitmap.width, bitmap.height)
-    const canvas = document.createElement('canvas')
-    canvas.width = PROFILE_PICTURE_SIZE.width
-    canvas.height = PROFILE_PICTURE_SIZE.height
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw appError('PROFILE_PICTURE_INVALID', 'That picture could not be used.')
-    ctx.drawImage(
+    const bytes = await cropToPng(
       bitmap,
-      crop.x,
-      crop.y,
-      crop.width,
-      crop.height,
-      0,
-      0,
+      coverCrop(bitmap.width, bitmap.height, PROFILE_ASPECT),
       PROFILE_PICTURE_SIZE.width,
       PROFILE_PICTURE_SIZE.height
     )
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, 'image/png')
-    })
-    if (!blob) throw appError('PROFILE_PICTURE_INVALID', 'That picture could not be encoded.')
-    const bytes = new Uint8Array(await blob.arrayBuffer())
+    if (!bytes) throw appError('PROFILE_PICTURE_INVALID', 'That picture could not be encoded.')
     assertProfilePicture(bytes)
     return bytes
   } finally {
@@ -103,7 +90,7 @@ export async function pickProfilePicture(file: File): Promise<void> {
   const run = currentRun()
   let bytes: Uint8Array<ArrayBuffer>
   try {
-    bytes = await cropToPng(file)
+    bytes = await cutToArchway(file)
   } catch (err) {
     console.warn('[profile] picture refused:', messageOf(err))
     ui.showError(toAppError(err, 'PROFILE_PICTURE_INVALID'))

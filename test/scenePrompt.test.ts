@@ -1,4 +1,3 @@
-import { BG_UNCHANGED } from '@shared/backgroundSets'
 import { describe, expect, it } from 'vitest'
 import {
   addsAnnouncedBy,
@@ -12,6 +11,7 @@ import {
   type ScenePromptState
 } from '../src/renderer/prompts/scenePrompt'
 import { cgAction } from '@shared/sceneActions'
+import { DEFAULT_MEMORY_BUDGETS } from '@shared/settingsRules'
 import { READER_SPEAKER, type SceneLine, type TimeSlot } from '@shared/types'
 import { character, charactersById } from './fixtures'
 
@@ -49,6 +49,7 @@ function promptState() {
     emotions: {},
     onStage: [],
     lessNsfwText: false,
+    memoryBudgets: DEFAULT_MEMORY_BUDGETS,
     cgReady: {},
     outfitReady: {},
     roomReady: {}
@@ -403,144 +404,5 @@ describe('the slot rumor in the lorebook', () => {
     // The entry itself is still matched — it is the rumor that is spent.
     expect(user).toContain('Kendall Library')
     expect(user).not.toContain(RUMOR.sentence)
-  })
-})
-
-/**
- * The schema is the only thing that makes a cheap model answer these. On an endpoint that sends
- * `strict: false` the schema is advisory, but a field the model is *asked* for is answered far
- * more often than one it may omit — and an omitted `bg` is a scene that never moves, while an
- * omitted `actions` is a stage that is never told anything.
- */
-describe('buildScenePrompt — the fields a line must answer', () => {
-  function lineSchemaFor(state: Partial<ScenePromptState>): {
-    required: string[]
-    bgEnum: string[]
-    properties: Record<string, unknown>
-  } {
-    const { schema } = buildScenePrompt(
-      [sarah],
-      'find her',
-      { ...promptState(), ...state },
-      'SETTING',
-      'READER'
-    )
-    const properties = schema.schema.properties as {
-      lines: { items: { required: string[]; properties: { bg: { enum: string[] } } } }
-    }
-    return {
-      required: properties.lines.items.required,
-      bgEnum: properties.lines.items.properties.bg.enum,
-      properties: properties.lines.items.properties as unknown as Record<string, unknown>
-    }
-  }
-
-  it('requires a background on every line, with a legal way to say it did not change', () => {
-    const { required, bgEnum } = lineSchemaFor({ onStage: ['char-1'], strictSchema: true })
-    expect(required).toContain('bg')
-    expect(bgEnum).toContain(BG_UNCHANGED)
-  })
-
-  it('requires actions wherever the scene has any to offer', () => {
-    const { required } = lineSchemaFor({ onStage: ['char-1'], strictSchema: true })
-    expect(required).toContain('actions')
-  })
-
-  /**
-   * The switch off is what this build has always sent, and that is the whole point of it being a
-   * switch: the default path has to be untouched, sentinel included.
-   */
-  it('leaves the schema alone with the switch off', () => {
-    const { required, bgEnum } = lineSchemaFor({ onStage: ['char-1'] })
-    expect(required).toEqual(['speaker', 'text'])
-    expect(bgEnum).not.toContain(BG_UNCHANGED)
-  })
-
-  // A required field with an empty enum is not answerable, so the property is dropped and must
-  // not be required either.
-  it('requires no actions where the scene offers none', () => {
-    const { required, properties } = lineSchemaFor({ onStage: [], strictSchema: true })
-    if (properties.actions === undefined) expect(required).not.toContain('actions')
-    expect(required).toContain('bg')
-  })
-})
-
-/**
- * `EVENT_GLOSS` offered every milestone on every scene, so a model could answer `became_lovers`
- * for two people who had just met — which one did, on a first afternoon, while the same save was
- * telling the player on screen that his Heart was too low to catch her interest. Under
- * `strictSchema` a milestone the save cannot accept is kept out of the schema, where no amount of
- * skimming can reach it.
- */
-describe('buildLedgerPrompt — which milestones are offered', () => {
-  const her = character({ charId: 'char-1', preferredStat: 'heart' })
-
-  /** `CRUSH_FLOOR` is tier 3, which is 35 points. */
-  const MET = { brain: 0, body: 0, heart: 40 }
-  const UNMET = { brain: 0, body: 0, heart: 10 }
-
-  function eventsFor(state: Partial<ScenePromptState>): { user: string; offered: string[] } {
-    const { user, schema } = buildLedgerPrompt(
-      [her],
-      transcript(),
-      { ...promptState(), ...state },
-      'READER',
-      { date: 0, time: 0 as TimeSlot, threads: [], characters: charactersById(her), planned: [] }
-    )
-    const props = schema.schema.properties as Record<
-      string,
-      { items?: { properties?: { event?: { enum?: string[] } } } }
-    >
-    return { user, offered: props.events?.items?.properties?.event?.enum ?? [] }
-  }
-
-  it('offers becoming a couple to a reader she could want', () => {
-    const { user, offered } = eventsFor({ stats: MET, strictSchema: true })
-    expect(offered).toContain('became_lovers')
-    expect(user).toContain('- became_lovers:')
-  })
-
-  it('does not offer it to a reader who is nowhere near her standards', () => {
-    const { user, offered } = eventsFor({ stats: UNMET, strictSchema: true })
-    expect(offered).not.toContain('became_lovers')
-    expect(user).not.toContain('- became_lovers:')
-    // Only that one goes: the rest of a scene's bookkeeping is unaffected.
-    expect(offered).toContain('gave_contact_info')
-    expect(offered).toContain('friendzoned_reader')
-  })
-
-  it('still offers it to the girl he is already with, so getting back together reports', () => {
-    const { offered } = eventsFor({
-      stats: UNMET,
-      strictSchema: true,
-      charInfo: {
-        'char-1': { flags: { isLover: true } }
-      } as unknown as ScenePromptState['charInfo']
-    })
-    expect(offered).toContain('became_lovers')
-  })
-
-  /** With the switch off the whole menu is offered, exactly as this build has always offered it. */
-  it('offers the whole menu with the switch off', () => {
-    const { user, offered } = eventsFor({ stats: UNMET })
-    expect(offered).toContain('became_lovers')
-    expect(user).toContain('- became_lovers:')
-  })
-
-  /** The printed list and the schema are built from one array, so they cannot disagree. */
-  it('prints exactly the milestones it will accept, and no others', () => {
-    for (const stats of [MET, UNMET]) {
-      const { user, offered } = eventsFor({ stats, strictSchema: true })
-      for (const key of [
-        'became_lovers',
-        'broke_up',
-        'friendzoned_by_reader',
-        'friendzoned_reader',
-        'gave_contact_info'
-      ]) {
-        expect(user.includes(`- ${key}:`)).toBe(offered.includes(key))
-      }
-      expect(offered.length).toBeGreaterThan(0)
-    }
   })
 })

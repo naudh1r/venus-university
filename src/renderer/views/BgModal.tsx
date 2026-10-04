@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type JSX } from 'react'
+import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import { ROOM_VARIANTS } from '@shared/room'
-import { roomBgIdOf } from '@shared/types'
+import { allBackgrounds, roomBgIdOf } from '@shared/types'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
 import { roomUrl, useCharacterStore } from '../stores/characterStore'
@@ -10,6 +10,7 @@ import { useAssetStore } from '../stores/assetStore'
 import { UNKNOWN_NAME, useGameStore } from '../stores/gameStore'
 import { bgThumbUrl } from './bgAssets'
 import type { ScreenTheme } from './clockTheme'
+import { DoorIcon, SkyIcon } from './screenIcons'
 import {
   gestures,
   lift,
@@ -38,26 +39,6 @@ const TAB_MARK = {
   'aria-hidden': true
 } as const
 
-function DoorIcon(): JSX.Element {
-  return (
-    <svg {...TAB_MARK}>
-      <path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" />
-      <path d="M3 21h18" />
-      <circle cx="14.5" cy="12" r="1" fill="currentColor" stroke="none" />
-    </svg>
-  )
-}
-
-function SkyIcon(): JSX.Element {
-  return (
-    <svg {...TAB_MARK}>
-      <circle cx="8.5" cy="7.5" r="3" />
-      <path d="M8.5 2.5v1.6" />
-      <path d="M4.4 15.9a3.6 3.6 0 0 1 .7-7.1 4.6 4.6 0 0 1 8.8-1.6 3.8 3.8 0 0 1 3.5 3.8 3.6 3.6 0 0 1-.4 5H5.2Z" />
-    </svg>
-  )
-}
-
 function BedIcon(): JSX.Element {
   return (
     <svg {...TAB_MARK}>
@@ -83,19 +64,76 @@ interface BgTile {
   label: string
 }
 
-/** Where the scene is set, in the player's own hands. */
+export interface BgPickerProps {
+  /** The panel's own theme. */
+  theme: ScreenTheme
+  /** Which half of the day the tiles show each place in. */
+  half: 'day' | 'night'
+  /** Whether the tiles show each place's rain render, where it has one. */
+  wet: boolean
+  title: string
+  /** What the dialog is called to a screen reader. */
+  label: string
+  /** The tile ringed as the one in force; null is none. */
+  picked: string | null
+  /** A tile was pressed, the ringed one included. */
+  onPick: (id: string) => void
+  /** A tile the caller's terms will not take, drawn dead. */
+  dead?: (id: string) => boolean
+  /** What stands above the shelves. */
+  header?: ReactNode
+  onClose: () => void
+}
+
+/** Where the scene is set, in the player's own hands, each place drawn under the slot's sky. */
 export function BgModal({
   theme,
+  wet,
   onClose
 }: {
   theme: ScreenTheme
+  /** Whether the slot is wet, so each place shows the rain render the stage would. */
+  wet: boolean
   onClose: () => void
-}): JSX.Element | null {
+}): JSX.Element {
   const bg = useGameStore((s) => s.bg)
   const bgOverride = useGameStore((s) => s.bgOverride)
+  const setBgOverride = useGameStore((s) => s.setBgOverride)
+  const shown = bgOverride ?? bg
+
+  return (
+    <BgPicker
+      theme={theme}
+      half={theme}
+      wet={wet}
+      title="Change BG"
+      label="Where the scene is set"
+      picked={shown}
+      // Pressing the one already on screen hands the choice back to the scene.
+      onPick={(id) => setBgOverride(id === shown ? null : id)}
+      onClose={onClose}
+    />
+  )
+}
+
+/**
+ * Every place a picture may be set in, shelf by shelf — the listed backgrounds by kind and the
+ * roster's rooms — as a grid of 16:9 tiles, the picked one ringed.
+ */
+export function BgPicker({
+  theme,
+  half,
+  wet,
+  title,
+  label,
+  picked,
+  onPick,
+  dead,
+  header,
+  onClose
+}: BgPickerProps): JSX.Element | null {
   const characters = useGameStore((s) => s.characters)
   const charInfo = useGameStore((s) => s.charInfo)
-  const setBgOverride = useGameStore((s) => s.setBgOverride)
   const backgrounds = useAssetStore((s) => s.backgrounds)
   const spriteVersion = useCharacterStore((s) => s.spriteVersion)
 
@@ -121,26 +159,26 @@ export function BgModal({
     }
   }, [characters])
 
-  const shown = bgOverride ?? bg
-
   const tiles = useMemo<BgTile[]>(() => {
     if (tab === 'rooms') {
       if (!rooms) return []
+      // A room id a listed background answers to is that background, on its own shelf.
+      const listed = new Set(allBackgrounds(backgrounds))
       return Object.values(characters)
-        .filter((character) => rooms[character.charId])
+        .filter((character) => rooms[character.charId] && !listed.has(roomBgIdOf(character)))
         .map((character) => ({
           id: roomBgIdOf(character),
-          src: roomUrl(character.charId, theme, spriteVersion[character.charId] ?? 0),
+          src: roomUrl(character.charId, half, spriteVersion[character.charId] ?? 0),
           // Masked as the Cast Modal masks a name.
           label: charInfo[character.charId]?.nameKnown ? character.firstName : UNKNOWN_NAME
         }))
     }
     return backgrounds[tab].map((base) => ({
       id: base,
-      src: bgThumbUrl(base, theme),
+      src: bgThumbUrl(base, half, wet),
       label: base.replace(/_/g, ' ')
     }))
-  }, [tab, rooms, characters, charInfo, backgrounds, theme, spriteVersion])
+  }, [tab, rooms, characters, charInfo, backgrounds, half, wet, spriteVersion])
 
   const { host, overlayProps } = useModalShell(onClose)
   if (!host) return null
@@ -159,10 +197,12 @@ export function BgModal({
         className="vu-bgpick vu-paper"
         role="dialog"
         aria-modal="true"
-        aria-label="Where the scene is set"
+        aria-label={label}
         variants={panelUnderTab}
       >
-        <TitleTab>Change BG</TitleTab>
+        <TitleTab>{title}</TitleTab>
+
+        {header}
 
         <div className="vu-bgpick-body">
           <div className="vu-bgpick-rail">
@@ -196,17 +236,18 @@ export function BgModal({
             ) : (
               <ul className="vu-gallery-grid vu-bgpick-grid">
                 {tiles.map((tile) => {
-                  const picked = tile.id === shown
+                  const on = tile.id === picked
+                  const off = dead?.(tile.id) === true
                   const empty = tile.src === null ? ' vu-gallery-cell--empty' : ''
                   return (
                     <li key={tile.id} className="vu-gallery-item">
-                      {/* Pressing the one already on screen hands the choice back to the scene. */}
                       <motion.button
                         type="button"
-                        className={`vu-gallery-cell${empty}${picked ? ' vu-bgpick-cell--on' : ''}`}
-                        aria-pressed={picked}
-                        {...gestures(false, quietLift, quietPress)}
-                        onClick={() => setBgOverride(picked ? null : tile.id)}
+                        className={`vu-gallery-cell${empty}${on ? ' vu-bgpick-cell--on' : ''}`}
+                        aria-pressed={on}
+                        disabled={off}
+                        {...gestures(off, quietLift, quietPress)}
+                        onClick={() => onPick(tile.id)}
                       >
                         {tile.src ? (
                           <img className="vu-gallery-img" src={tile.src} alt="" decoding="async" />

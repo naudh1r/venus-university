@@ -1,5 +1,4 @@
 import { affectionFor, dedupedMemoriesFor, emptyFlags } from '@shared/relationship'
-import { invitationAnswerOf } from '@shared/invitationAnswer'
 import { ROOM_LOCATION } from '@shared/locations'
 import type { NpcRelationshipMap } from '@shared/npcRelationships'
 import {
@@ -31,9 +30,8 @@ import {
 } from './lorebook'
 import { occasionLoreLines } from './occasions'
 import { objectSchema } from './schema'
-import { memoryLines, profileLines, scheduleLines, yearMajorLine } from './scenePrompt'
-import { springBreakLines } from './springBreak'
-import { STRICT_TEXTING_LINES, strictTextingPersona } from './strictTexting'
+import { memoryLines, notesLines, profileLines, scheduleLines, yearMajorLine } from './scenePrompt'
+import { isAwayForSpringBreak, springBreakLines } from './springBreak'
 import {
   bestFriendLines,
   hauntClause,
@@ -72,11 +70,6 @@ const TEXTING_PERSONA = [
 
 /** The prompt-facing slice of state a texting turn needs. */
 export interface TextingPromptState {
-  /**
-   * Ask for every field, and give her only what she could know. Absent reads as off, which is
-   * the call this build has always sent.
-   */
-  strictSchema?: boolean
   date: number
   time: TimeSlot
   /** The reader's accumulated stats, used for relationship requirement guidance. */
@@ -123,6 +116,8 @@ export interface TextingPromptState {
    * open through an absence, so this is what says she is texting from somewhere else.
    */
   springBreakAway?: readonly string[] | null
+  /** How many of her memories the thread carries: the one-character budget, the thread being the two of them. */
+  memoryBudget: number
 }
 
 /** A text's line breaks folded to spaces, so a message stays one prompt line. */
@@ -168,9 +163,9 @@ export function hasTexted(conversation: Conversation | undefined): boolean {
 }
 
 /**
- * Her hangout ask when it ends the thread, with his answer when one closed it — his "Sure", or
- * the app's line recording what he chose. A reminder about a plan already made is not flagged as
- * an invite but stands behind `pendingHangout` just the same.
+ * Her hangout ask when it ends the thread, with his "Sure" when that answered it. A reminder
+ * about a plan already made is not flagged as an invite but stands behind `pendingHangout`
+ * just the same.
  */
 function hangoutTail(
   conversation: Conversation
@@ -182,9 +177,7 @@ function hangoutTail(
     return last.invite || conversation.pendingHangout ? { ask: last } : null
   }
   const before = messages[messages.length - 2]
-  const answered =
-    (last.sender === 'player' && last.text === 'Sure') || invitationAnswerOf(last) !== undefined
-  if (answered && before?.sender === 'contact') {
+  if (last.sender === 'player' && last.text === 'Sure' && before?.sender === 'contact') {
     return { ask: before, answer: last }
   }
   return null
@@ -222,15 +215,7 @@ export function composeTextingSummary(
     const tail = hangoutTail(conversation)
     // Her ask and his Sure never pass through a texting call, so no summary holds them:
     // the scene is shown the texts themselves.
-    const answer = invitationAnswerOf(tail?.answer)
-    if (tail && answer) {
-      // Reported rather than quoted: the answer is a button he pressed, not something he said.
-      lines.push(
-        `The last text in the thread was sent ${when}. ${firstName}: "${flatText(tail.ask.text)}" The reader ${
-          answer === 'yes' ? 'took her up on it' : 'did not take it up'
-        }.`
-      )
-    } else if (tail?.answer) {
+    if (tail?.answer) {
       lines.push(
         `The last texts in the thread were sent ${when}. ${firstName}: "${flatText(tail.ask.text)}" The reader: "${flatText(tail.answer.text)}"`
       )
@@ -273,47 +258,17 @@ function meetUpLines(
   location: string | null | undefined,
   haunt: Haunt | null | undefined,
   time: TimeSlot,
-  away: boolean,
-  strict: boolean
+  away: boolean
 ): string[] {
   // Dropped while she is off campus: the line claims she can meet, and her block says she can't.
   if (away) return []
-
-  if (!strict) {
-    if (!location || location === ROOM_LOCATION) {
-      return [
-        `${name}'s schedule is clear, so if the reader asks to meet up right now assume ${name} is free to... though not necessarily willing.`
-      ]
-    }
+  if (!location || location === ROOM_LOCATION) {
     return [
-      `${name}'s schedule is clear, so if the reader asks to meet up right now assume ${name} is free to — she is already ${hauntClause(location, haunt, time)} and would sooner have him come to her than go somewhere else — though not necessarily willing.`
+      `${name}'s schedule is clear, so if the reader asks to meet up right now assume ${name} is free to... though not necessarily willing.`
     ]
   }
-
-  /**
-   * Worth counting what a character is actually told she may do, in the block she writes her
-   * reply under. Four lines say write it in her voice and keep it text-length. Thirteen are about
-   * sending a picture. Three are about blocking him for good. And one is this.
-   *
-   * That is the whole menu: three affordances, every one an engine feature, and nothing at all
-   * about having a conversation — no topics, no interests, nothing about her day. So when the
-   * model asks what it may *do* in a reply, the answer is: offer to meet, send a nude, or block
-   * him. Photos are rationed ("Most replies are just words") and blocking is terminal, which
-   * leaves meeting the only move always available, for every character, every turn, whatever the
-   * conversation was about.
-   *
-   * And "would sooner have him come to her" is not availability. It is a stated want, sitting one
-   * line under "write her reply" — a model reading that is being told she would *like* him to come
-   * over, not merely that she could.
-   */
-  const where =
-    !location || location === ROOM_LOCATION
-      ? ''
-      : ` She is already ${hauntClause(location, haunt, time)}, so her own spot is the easy answer if she says yes.`
   return [
-    `If the reader asks to meet up right now, ${name}'s schedule is clear enough that she could — though not necessarily willing.${where}`,
-    // The brake the photo rules have and this never did.
-    `This answers him if he asks. It is not a reason for ${name} to bring it up: she has her own day and is not looking for company, and most replies are not invitations.`
+    `${name}'s schedule is clear, so if the reader asks to meet up right now assume ${name} is free to — she is already ${hauntClause(location, haunt, time)} and would sooner have him come to her than go somewhere else — though not necessarily willing.`
   ]
 }
 
@@ -327,14 +282,7 @@ export function buildTextingPrompt(
   reader: string
 ): StructuredRequest {
   const name = character.firstName
-  // The hours she is enrolled in with him: the same class code in the same slot on both
-  // timetables. Her own schedule is already in her block above.
-  const sharedClasses = Object.fromEntries(
-    Object.entries(state.playerSchedule).filter(
-      ([slot, code]) => info?.schedule?.[Number(slot)] === code
-    )
-  )
-  const away = state.springBreakAway?.includes(character.charId) ?? false
+  const away = isAwayForSpringBreak(state.springBreakAway, character.charId, state.date)
   // The new text is the last line of the log, so it gets its own stamp when it lands in a new slot.
   const history = stampedStubs(
     [
@@ -396,34 +344,24 @@ export function buildTextingPrompt(
       character.charId,
       state.date
     ),
-    ...memoryLines(character, dedupedMemoriesFor(info), info?.textMemory),
+    ...memoryLines(
+      character,
+      dedupedMemoriesFor(info).slice(-state.memoryBudget),
+      info?.textMemory
+    ),
+    ...notesLines(name, info?.notes)
   ]
 
   const user = [
     'READER',
     reader,
-    /**
-     * Under `strictSchema` she gets only the hours she is enrolled in with him, and no job at
-     * all. His whole week — classes and shifts, ungated by how well she knows him — is defensible
-     * on a model that merely respects a fact, and on a cheap one it is a fact to be *used*: the
-     * player told her he had a shift and was answered "I know about the shift, nick. badminton
-     * class is tonight, and you're behind the bar after it." She was not being consistent with
-     * his week, she was arguing with him out of it.
-     *
-     * Sharing a class is something she would know from sitting in it, and survives as good
-     * writing. His other lectures and his roster are things she could only know if he said so —
-     * and if he said so, the thread already carries it. The job is not filtered but gone: a shift
-     * is never shared, so there is nothing for the two timetables to have in common.
-     */
-    ...(state.strictSchema === true
-      ? scheduleLines(`Classes ${name} is in with the reader:`, sharedClasses, state.classes)
-      : scheduleLines(
-          "The reader's Schedule:",
-          state.playerSchedule,
-          state.classes,
-          state.playerJob,
-          state.date
-        )),
+    ...scheduleLines(
+      "The reader's Schedule:",
+      state.playerSchedule,
+      state.classes,
+      state.playerJob,
+      state.date
+    ),
     '',
     ...characterBlock,
     '',
@@ -446,15 +384,7 @@ export function buildTextingPrompt(
     `${name} is texting the reader back in a private DM.`,
     `Write ${name}'s reply to the reader's newest message, the last line of RECENT MESSAGES, as the "messages" array: each entry is one text bubble she sends.`,
     'Stay in her voice and keep it text-length: this is a phone thread, not prose.',
-    ...(state.strictSchema === true ? STRICT_TEXTING_LINES : []),
-    ...meetUpLines(
-      name,
-      state.charLocation,
-      state.charHaunt,
-      state.time,
-      away,
-      state.strictSchema === true
-    ),
+    ...meetUpLines(name, state.charLocation, state.charHaunt, state.time, away),
     '',
     ...photoLines(character, info, state),
     'BLOCKING',
@@ -471,8 +401,7 @@ export function buildTextingPrompt(
   ].join('\n')
 
   return {
-    system:
-      state.strictSchema === true ? strictTextingPersona(TEXTING_PERSONA) : TEXTING_PERSONA,
+    system: TEXTING_PERSONA,
     user,
     schema: textingSchema(),
     // Constant, like the ledger's: nothing above the seam varies by save.

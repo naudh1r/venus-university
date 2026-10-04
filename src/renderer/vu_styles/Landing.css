@@ -141,7 +141,9 @@
 /* ---- the stats ------------------------------------------------------------ */
 
 /* The three readings as one half-pill surface, flat right. A paper element that may not clip:
-   the balance card and the three badges all ride its edges. */
+   the balance card and the three badges all ride its edges. Its width is what still leaves the
+   two badges on the bottom row a gap between them with both reading `Below Average` at a
+   negative figure, the widest pair the scale can put there. */
 .vu-landing-stats {
   --paper-face: var(--vu-surface);
   --paper-shadow: var(--vu-shadow);
@@ -150,7 +152,7 @@
   position: absolute;
   right: 60px;
   top: 44px;
-  width: 500px;
+  width: 550px;
   height: 360px;
   border-radius: 90px 0 0 90px;
   rotate: 2.4deg;

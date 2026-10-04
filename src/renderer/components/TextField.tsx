@@ -1,4 +1,6 @@
 import { useRef, type JSX } from 'react'
+import { motion } from 'motion/react'
+import { fieldDim } from '../views/motion'
 import { useFitToText } from './useFitToText'
 
 export interface TextFieldProps {
@@ -12,7 +14,7 @@ export interface TextFieldProps {
   hint?: string
   /** Caps how much the field takes, single-line or multiline; a name is 32. */
   maxLength?: number
-  /** Fires when a single-line field is left, for whatever its value has to be checked against. */
+  /** Fires when the field is left, single-line or multiline, for whatever its value is checked against. */
   onBlur?: () => void
   multiline?: boolean
   rows?: number
@@ -20,6 +22,8 @@ export interface TextFieldProps {
   autoGrow?: boolean
   /** Takes focus when the field mounts — a form modal's first field. */
   autoFocus?: boolean
+  /** Dims the whole field and disables its input, the way a dead checkbox row does. */
+  disabled?: boolean
 }
 
 /**
@@ -38,14 +42,22 @@ export function TextField({
   multiline,
   rows = 3,
   autoGrow,
-  autoFocus
+  autoFocus,
+  disabled
 }: TextFieldProps): JSX.Element {
   const area = useRef<HTMLTextAreaElement | null>(null)
 
   useFitToText(area, value, autoGrow ?? false)
 
   return (
-    <label className="vu-field" htmlFor={id}>
+    // The disabled rule in CSS reaches buttons alone, so the field dims itself here instead.
+    <motion.label
+      className="vu-field"
+      htmlFor={id}
+      variants={fieldDim}
+      initial={false}
+      animate={disabled ? 'dead' : 'live'}
+    >
       <span className="vu-field-label">{label}</span>
       {hint && <span className="vu-field-hint">{hint}</span>}
       {multiline ? (
@@ -58,7 +70,9 @@ export function TextField({
           placeholder={placeholder}
           rows={rows}
           maxLength={maxLength}
+          onBlur={onBlur}
           autoFocus={autoFocus}
+          disabled={disabled}
         />
       ) : (
         <input
@@ -71,8 +85,9 @@ export function TextField({
           maxLength={maxLength}
           onBlur={onBlur}
           autoFocus={autoFocus}
+          disabled={disabled}
         />
       )}
-    </label>
+    </motion.label>
   )
 }

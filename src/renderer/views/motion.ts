@@ -170,6 +170,12 @@ export const tuck: TargetAndTransition = {
 /** The pair as one variants object, for a reveal driven by a `shown`/`hidden` label. */
 export const revealed: Variants = { shown: peek, hidden: tuck }
 
+/** The word a {@link revealed} pill stands over, faded out while the pill is up. */
+export const yielded: Variants = {
+  shown: { opacity: 0, transition: REVEAL },
+  hidden: { opacity: 1, transition: REVEAL }
+}
+
 /**
  * What a dead control wears in place of a gesture: a target that moves nothing. Motion only
  * records a hover ending while the prop is present, so a control handed nothing at all comes

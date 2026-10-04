@@ -11,7 +11,6 @@ import {
   initialFlags,
   isNegative,
   isPositive,
-  MEMORY_CAP,
   memoriesFor,
   memoryStatusLine,
   mergedMemories,
@@ -116,6 +115,14 @@ describe('affectionFor', () => {
     expect(dispositionOf(affectionOf(onTheFloor, today))).toBe('neutral')
     const info = infoWith(posts(true), onTheFloor)
     expect(dispositionOf(affectionFor(info, today, undefined))).toBe('friendly')
+  })
+
+  it('ignores stored memories older than the newest 20', () => {
+    const older = Array.from({ length: 10 }, (_, i) => mem(i, 'hated'))
+    const recent = Array.from({ length: 20 }, (_, i) => mem(10 + i, 'liked'))
+    const withOlder = infoWith([], [...older, ...recent])
+    const onlyRecent = infoWith([], recent)
+    expect(affectionFor(withOlder, 100, undefined)).toBe(affectionFor(onlyRecent, 100, undefined))
   })
 })
 
@@ -607,17 +614,17 @@ describe('foldRelationshipEvents', () => {
     expect(folded.flags.brokenUp).toBe(1)
   })
 
-  it('drops the oldest memory rather than growing past the cap', () => {
+  it('appends milestones with nothing dropped', () => {
     const info = charInfo({
-      memories: Array.from({ length: MEMORY_CAP }, (_, at) => ({
+      memories: Array.from({ length: 20 }, (_, at) => ({
         date: 1,
         type: 'liked' as const,
         desc: `old ${at}`
       }))
     })
     const folded = foldRelationshipEvents(info, ['kissed'], 7)
-    expect(folded.memories).toHaveLength(MEMORY_CAP)
-    expect(folded.memories[0].desc).toBe('old 1')
+    expect(folded.memories).toHaveLength(21)
+    expect(folded.memories[0].desc).toBe('old 0')
     expect(folded.memories.at(-1)?.desc).toBe('the reader kissed her for the first time')
   })
 

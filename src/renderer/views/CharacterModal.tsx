@@ -20,7 +20,7 @@ import {
 } from '../stores/characterStore'
 import { noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
 import { BEHAVIOR_FIELDS, TAG_FIELDS, WARDROBES } from './characterFields'
-import { DuplicateIcon, FolderIcon } from './characterIcons'
+import { CardIcon, DuplicateIcon, FolderIcon, SpritesIcon } from './characterIcons'
 import { ImageGalleryModal } from './ImageGalleryModal'
 import {
   gestures,
@@ -127,12 +127,16 @@ export function CharacterModal({
   const noNsfwImages = useSettingsStore(noNsfwImagesOf)
   const progress = useCharacterStore((s) => s.progress[charId])
   const exportCharacter = useCharacterStore((s) => s.exportCharacter)
+  const exportCard = useCharacterStore((s) => s.exportCard)
+  const exportSpritePack = useCharacterStore((s) => s.exportSpritePack)
   const duplicateCharacter = useCharacterStore((s) => s.duplicateCharacter)
   const openFolder = useCharacterStore((s) => s.openFolder)
 
   const [gallery, setGallery] = useState(false)
   const [roomGallery, setRoomGallery] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [exportingCard, setExportingCard] = useState(false)
+  const [exportingSprites, setExportingSprites] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
 
   /** How many of one wardrobe's sprites are on disk; `null` is the default set. */
@@ -270,6 +274,35 @@ export function CharacterModal({
                     }}
                   >
                     <DuplicateIcon />
+                  </motion.button>
+                  {/* Disabled mid-run for Export's reason. */}
+                  <motion.button
+                    id="view-card"
+                    className="vu-edit-icon"
+                    type="button"
+                    aria-label="Export SillyTavern card"
+                    disabled={exportingCard || rendering}
+                    {...gestures(exportingCard || rendering, quietLift, quietPress)}
+                    onClick={() => {
+                      setExportingCard(true)
+                      void exportCard(charId).finally(() => setExportingCard(false))
+                    }}
+                  >
+                    <CardIcon />
+                  </motion.button>
+                  <motion.button
+                    id="view-sprites"
+                    className="vu-edit-icon"
+                    type="button"
+                    aria-label="Export SillyTavern sprites"
+                    disabled={exportingSprites || rendering}
+                    {...gestures(exportingSprites || rendering, quietLift, quietPress)}
+                    onClick={() => {
+                      setExportingSprites(true)
+                      void exportSpritePack(charId).finally(() => setExportingSprites(false))
+                    }}
+                  >
+                    <SpritesIcon />
                   </motion.button>
                   <motion.button
                     className="vu-edit-icon"

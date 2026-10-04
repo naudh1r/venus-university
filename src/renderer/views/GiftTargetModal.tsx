@@ -1,7 +1,8 @@
 /**
- * "To who?" — the second step of a handover, shown only when a scene holds more than one
- * giftable character. Sized like the New Game picker's face slots: what this modal fills a
- * slot with is a person.
+ * "To who?" — the second step of a handover, shown only when more than one girl is standing on
+ * the stage. Sized like the New Game picker's face slots: what this modal fills a slot with is a
+ * person. A girl the reader has not been told the name of keeps her face, the name masked as the
+ * box masks her.
  */
 import type { JSX } from 'react'
 import { createPortal } from 'react-dom'
@@ -10,7 +11,7 @@ import { motion } from 'motion/react'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
 import { profileUrl, useSpriteVersion } from '../stores/characterStore'
-import { useGameStore } from '../stores/gameStore'
+import { UNKNOWN_NAME, useGameStore } from '../stores/gameStore'
 import type { ScreenTheme } from './clockTheme'
 import {
   cardLift,
@@ -31,7 +32,7 @@ const FACE_DEAL = dealt(0, 0.04)
 export interface GiftTargetModalProps {
   /** Drawn by the screen that opened this — a portal inherits no palette. */
   theme: ScreenTheme
-  /** Who can be given to, by charId; the Game View has already dropped anyone unnamed. */
+  /** Who can be given to, by charId: everyone on the stage, named or not. */
   charIds: readonly string[]
   onPick: (charId: string) => void
   onClose: () => void
@@ -44,6 +45,7 @@ export function GiftTargetModal({
   onClose
 }: GiftTargetModalProps): JSX.Element | null {
   const characters = useGameStore((s) => s.characters)
+  const charInfo = useGameStore((s) => s.charInfo)
   const { host, overlayProps } = useModalShell(onClose)
 
   if (!host) return null
@@ -73,7 +75,11 @@ export function GiftTargetModal({
             <Face
               key={charId}
               charId={charId}
-              name={characters[charId]?.firstName ?? charId}
+              name={
+                charInfo[charId]?.nameKnown
+                  ? (characters[charId]?.firstName ?? charId)
+                  : UNKNOWN_NAME
+              }
               onPick={() => onPick(charId)}
             />
           ))}
@@ -98,7 +104,7 @@ export function GiftTargetModal({
   )
 }
 
-/** Her archway and her given name, and the whole card is the control. */
+/** Her archway and her given name, or the mask, and the whole card is the control. */
 function Face({
   charId,
   name,

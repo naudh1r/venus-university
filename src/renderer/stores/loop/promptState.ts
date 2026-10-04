@@ -4,10 +4,12 @@ import type { PlayerStats } from '@shared/playerStats'
 import { POSITIONS } from '@shared/positions'
 import { ROOM_VARIANTS } from '@shared/room'
 import { giftLoreNote, itemDefOf } from '@shared/shop'
+import { memoryBudgetsOf } from '@shared/settingsRules'
 import {
   charKeyOf,
   type CharInfo,
   type Character,
+  type MemoryBudgets,
   type OutfitSet,
   type SceneLine,
   type TimeSlot
@@ -244,14 +246,21 @@ export function lessNsfwTextNow(): boolean {
   return useSettingsStore.getState().settings?.lessNsfwText === true
 }
 
-/** The player's `strictSchema` setting. Absent reads as off, which is how this build shipped. */
-export function strictSchemaNow(): boolean {
-  return useSettingsStore.getState().settings?.strictSchema === true
+/** The player's own cast-scene persona, or absent for the shipped one. */
+export function scenePersonaNow(): string | undefined {
+  return useSettingsStore.getState().settings?.scenePersona
+}
+
+/** The three memory budgets as stored, defaults filled in for whichever are not set. */
+export function memoryBudgetsNow(): Required<MemoryBudgets> {
+  const settings = useSettingsStore.getState().settings
+  return memoryBudgetsOf(settings ?? {})
 }
 
 /** Reads the prompt-facing slice of game state. */
 export function promptState(): PromptState {
   const game = useGameStore.getState()
+  const scenePersona = scenePersonaNow()
 
   // The Bunnyboard recap each character carries into the scene.
   const textingSummaries: Record<string, string[]> = {}
@@ -378,7 +387,9 @@ export function promptState(): PromptState {
       return charId ? [charId] : []
     }),
     lessNsfwText: lessNsfwTextNow(),
-    strictSchema: strictSchemaNow(),
+    // Absent when the player has set no custom one, which is what `scenePersonaFor` reads as.
+    ...(scenePersona !== undefined ? { scenePersona } : {}),
+    memoryBudgets: memoryBudgetsNow(),
     cgReady: game.cgReady,
     outfitReady: game.outfitReady,
     roomReady: game.roomReady,

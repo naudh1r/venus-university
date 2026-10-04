@@ -92,6 +92,8 @@ export interface SceneChromeProps {
    * all while the scene will not be interrupted — `'locked'`. Null for the turn's own row.
    */
   interject: 'open' | 'locked' | null
+  /** The scene has resolved: its closing is coming or playing, which the divider says. */
+  ending: boolean
   /** The current question's answers while an exam is being sat, which the row stands in for. */
   quiz: readonly QuizAnswer[] | null
   action: string
@@ -111,8 +113,8 @@ export interface SceneChromeProps {
   giftShown: boolean
   giftUnlocked: boolean
   giftDead: boolean
-  /** A gift has already gone out this scene — the one dead reason a hover names. */
-  giftSpent: boolean
+  /** The dead reason a hover names — a gift already given, or nobody here — or null. */
+  giftNote: string | null
   onGift: () => void
   calendarBadge: number
   bunnyboardBadge: number
@@ -186,9 +188,17 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
   /** The well is out: always on the turn's own row, and mid-reply only while held open. */
   const wellOut = rowInterject === null || (rowInterject === 'open' && (hover || pinned))
 
+  /**
+   * The Gift takes no click: the turn is out, there is nothing to give or nobody to take it, or
+   * the scene will not be interrupted yet.
+   */
+  const giftOff = props.sending || props.giftDead || props.inputDead
+
   /** Which word the divider last said, held while it fades so it does not change on the way out. */
-  const dividerLocked = useRef(false)
-  if (rowInterject !== null) dividerLocked.current = rowInterject === 'locked'
+  const dividerWord = useRef<DividerWord>('hover')
+  if (rowInterject !== null) {
+    dividerWord.current = props.ending ? 'ending' : rowInterject === 'locked' ? 'locked' : 'hover'
+  }
 
   /**
    * The stamp landing is what lets the box come in — a completion rather than a timer, so the two
@@ -455,35 +465,46 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
               overlay={
                 <SceneDivider
                   state={wellOut ? 'hidden' : rowInterject === 'locked' ? 'dim' : 'shown'}
-                  locked={dividerLocked.current}
+                  word={dividerWord.current}
                 />
               }
               onHover={setHover}
               onFocus={() => setPinned(true)}
               onBlur={() => setPinned(false)}
             />
-            {/* Mid-reply the row offers the well alone: a present is handed over on a turn. */}
-            {props.giftShown && interject === null && (
+            {/* The Gift stands wherever the well does and fades with it, never leaving the row,
+                so the well and Go keep their width as the row changes over. Mid-reply it is part
+                of the hover holding the well out, and a present handed over interjects. */}
+            {props.giftShown && (
               <motion.div
                 className="vu-scene-gift"
-                variants={seat}
+                variants={wellMark}
                 initial={false}
-                animate={seatState(props.giftUnlocked, props.giftDead)}
+                animate={wellOut ? 'shown' : 'hidden'}
+                onPointerMove={() => setHover(true)}
+                onPointerLeave={() => setHover(false)}
               >
-                {/* The Gift stays silent, so what a spent one is short of is said beside it. */}
-                <DeadNote note={props.giftSpent ? 'Already gave one gift this scene.' : null}>
-                  <span className="vu-scene-rule" />
-                  <motion.button
-                    id="game-gift"
-                    className="vu-scene-giftbtn"
-                    aria-label="Gift"
-                    disabled={props.sending || props.giftDead}
-                    {...gestures(props.sending || props.giftDead, quietLift, quietPress)}
-                    onClick={props.onGift}
-                  >
-                    <GiftIcon />
-                  </motion.button>
-                </DeadNote>
+                <motion.div
+                  className="vu-scene-giftseat"
+                  variants={seat}
+                  initial={false}
+                  animate={seatState(props.giftUnlocked, props.giftDead)}
+                >
+                  {/* The Gift stays silent, so what a dead one is short of is said beside it. */}
+                  <DeadNote note={props.giftNote}>
+                    <span className="vu-scene-rule" />
+                    <motion.button
+                      id="game-gift"
+                      className="vu-scene-giftbtn"
+                      aria-label="Gift"
+                      disabled={giftOff}
+                      {...gestures(giftOff, quietLift, quietPress)}
+                      onClick={props.onGift}
+                    >
+                      <GiftIcon />
+                    </motion.button>
+                  </DeadNote>
+                </motion.div>
               </motion.div>
             )}
           </>
@@ -602,18 +623,28 @@ function SceneTips({ live, shown }: { live: boolean; shown: boolean }): JSX.Elem
   )
 }
 
+/** Which state word the divider says. */
+type DividerWord = 'hover' | 'locked' | 'ending'
+
+const DIVIDER_WORDS: Record<DividerWord, string> = {
+  hover: 'HOVER TO SHOW ACTION BOX',
+  locked: 'CLASS IN SESSION',
+  ending: 'SCENE IS ENDING'
+}
+
 /**
  * What stands in the well's place while a reply is being read: a rule either side of a state word
- * saying how to bring the well out, or that the class will not be interrupted yet. It is the row's
- * one hover target while the well is away (`Scene.css`), and the well's box it sits in hears the
- * move that swaps the two as the strip's events bubble up to it.
+ * saying how to bring the well out, that the class will not be interrupted yet, or that the scene
+ * has resolved and is heading into or playing its closing. It is the row's one hover target while
+ * the well is away (`Scene.css`), and the well's box it sits in hears the move that swaps the two
+ * as the strip's events bubble up to it.
  */
 function SceneDivider({
   state,
-  locked
+  word
 }: {
   state: 'shown' | 'dim' | 'hidden'
-  locked: boolean
+  word: DividerWord
 }): JSX.Element {
   return (
     <motion.div
@@ -623,9 +654,7 @@ function SceneDivider({
       animate={state}
     >
       <span className="vu-scene-divider-rule" />
-      <span className="vu-scene-divider-word">
-        {locked ? 'CLASS IN SESSION' : 'HOVER TO SHOW ACTION BOX'}
-      </span>
+      <span className="vu-scene-divider-word">{DIVIDER_WORDS[word]}</span>
       <span className="vu-scene-divider-rule" />
     </motion.div>
   )

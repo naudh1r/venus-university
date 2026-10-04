@@ -27,6 +27,8 @@ export interface SlotAction {
   tone: SlotActionTone
   /** The classifier answer this button already knows, or null to ask for one. */
   verdict: Verdict | null
+  /** The plan this button starts, whose attendees it casts whatever its words name. */
+  planId?: string
 }
 
 /** A verdict for a button that names nobody and knows what it is doing. */
@@ -78,7 +80,13 @@ function commitments(): SlotAction[] {
 
   for (const event of game.events) {
     if (event.date === game.date && event.time === game.time) {
-      actions.push({ key: `event:${event.id}`, text: event.title, tone: 'plan', verdict: null })
+      actions.push({
+        key: `event:${event.id}`,
+        text: event.title,
+        tone: 'plan',
+        verdict: null,
+        planId: event.id
+      })
     }
   }
 

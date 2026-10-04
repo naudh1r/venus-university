@@ -9,8 +9,8 @@ import { calendarEvent, character, charactersById, charInfo, charJob, classEntry
 
 /**
  * The slots a plan may be moved to. The one thing the grid must never do is
- * offer an hour somebody in the plan cannot be at — a plan moved onto her shift
- * would be cancelled out from under him at the next boundary instead.
+ * offer an hour somebody in the plan cannot be at — out of town, or at her
+ * class or her shift.
  */
 
 /** Monday day of the sixth week: class slot 0, shift slot 0, no occasion on the calendar. */

@@ -4,7 +4,7 @@ import {
   POST_PHOTO_SCHEMA_FIELD,
   POST_PHOTO_SCHEMA_REQUIRED
 } from './photoBrief'
-import { canSendPhotos } from '../stores/photoStore'
+import { canSendPhotos } from '../stores/localPhotoStore'
 import { affectionFor, dedupedMemoriesFor, emptyFlags } from '@shared/relationship'
 import { DEFAULT_PLAYER_STATS, type PlayerStats } from '@shared/playerStats'
 import {
@@ -14,7 +14,6 @@ import {
   type CharInfo,
   type Haunt,
   type Occasion,
-  type SlotIntroResponse,
   type StructuredRequest,
   type TimeSlot
 } from '@shared/types'
@@ -24,11 +23,14 @@ import { examLookaheadLine } from './occasions'
 import { whereaboutsLine, type NpcCompanions } from './npcRelationship'
 import { relationshipLines } from './relationship'
 import { objectSchema } from './schema'
-import { memoryLines, personaFor, profileLines, spaced } from './scenePrompt'
+import { memoryLines, notesLines, personaFor, profileLines, spaced } from './scenePrompt'
 import { springBreakLines } from './springBreak'
 import { weatherLines } from './weather'
 
 /** The slot-opening narration prompt. */
+
+/** What a character has to be at in a slot — her class or her shift — named as a prompt says it. */
+export type Commitment = { kind: 'class'; name: string } | { kind: 'shift'; employer: string }
 
 /** A contact this slot rolled in to text the reader an invitation. */
 export interface IntroAsker {
@@ -43,6 +45,11 @@ export interface IntroAsker {
    * Absent for a contact the slot's roll picked out of nowhere.
    */
   plan?: CalendarEvent
+  /**
+   * The class or the shift she has in the slot, beside a {@link plan} she is meeting him before
+   * or after. Absent when she is free.
+   */
+  commitment?: Commitment
   /**
    * The occasion she is asking him to, on a slot one is on and he is free to go. Absent
    * for a girl asking about anything else.
@@ -138,21 +145,6 @@ export interface SlotIntroInput {
    * scene the reader spends the slot in; absent means the block is not written at all.
    */
   rumorPlace?: LoreEntry
-}
-
-/**
- * The opening's narration, however the model shaped it. The schema asks for `{ text }` objects;
- * some endpoints answer with bare strings, and one that did took the whole slot down with it —
- * `line.text.trim()` threw on a string, the throw escaped an async path with no catch, so the
- * boundary never crossed and the reader went on playing a scene the loop believed was over.
- *
- * Read both, and drop anything that is neither.
- */
-export function introLines(lines: SlotIntroResponse['lines'] | undefined): string[] {
-  return (lines ?? [])
-    .map((line) => (typeof line === 'string' ? line : (line?.text ?? '')))
-    .map((text) => (typeof text === 'string' ? text.trim() : ''))
-    .filter(Boolean)
 }
 
 /** The narration-only schema: no speaker, emotion, action or bg to emit. */
@@ -254,6 +246,30 @@ function anyOccasions(input: SlotIntroInput): boolean {
   return input.askers.some(({ occasion }) => occasion !== undefined)
 }
 
+/** Whether anybody reminding him of a plan has a class or a shift in the slot. */
+function anyCommitments(input: SlotIntroInput): boolean {
+  return input.askers.some(({ plan, commitment }) => plan !== undefined && commitment !== undefined)
+}
+
+/** `text` ending on a full stop, so a sentence can follow it. */
+function closedSentence(text: string): string {
+  const trimmed = text.trim()
+  return /[.!?]["')]?$/.test(trimmed) ? trimmed : `${trimmed}.`
+}
+
+/**
+ * The sentence beside a plan for a girl with a class or a shift in the slot, leaving the model to
+ * pick whether she meets him before it or after.
+ */
+function commitmentSentence(firstName: string, commitment: Commitment, time: TimeSlot): string {
+  const what =
+    commitment.kind === 'class'
+      ? `her ${commitment.name} class`
+      : `a shift at ${commitment.employer}`
+  const when = time === 1 ? 'tonight' : 'today'
+  return ` ${firstName} has ${what} ${when} but she will meet up with the reader either before or after it. Choose what makes the most sense.`
+}
+
 /** The characters texting the reader an invitation this slot. */
 function askerBlock(input: SlotIntroInput): string[] {
   if (input.askers.length === 0) return []
@@ -271,10 +287,14 @@ function askerBlock(input: SlotIntroInput): string[] {
           'Where an occasion is listed beside a character, her text is about going to that occasion together — it is described under WHAT\'S GOING ON. She says what she wants to do or see there and asks him to come with her, and her "description" names it, like "Going to the Winter Gala with Sarah".'
         ]
       : []),
-    ...input.askers.map(({ charKey, plan, occasion }) =>
+    ...input.askers.map(({ character, charKey, plan, commitment, occasion }) =>
       // The plan and the occasion ride the key, not the lorebook entry.
       plan
-        ? `- ${charKey} — already planned for this part of the day: ${plan.description}`
+        ? `- ${charKey} — already planned for this part of the day: ` +
+          (commitment
+            ? closedSentence(plan.description) +
+              commitmentSentence(character.firstName, commitment, input.time)
+            : plan.description)
         : occasion
           ? `- ${charKey} — asking him to come to ${occasion.title} with her`
           : `- ${charKey}`
@@ -350,7 +370,8 @@ function characterBlock(input: SlotIntroInput): string[] {
         // Where she is in her cycle, for a Promiscuous girl's DTF days.
         { date: input.date, offset: info.moodCycleOffset ?? 0 }
       ),
-      ...memoryLines(character, dedupedMemoriesFor(info).slice(-2), info.textMemory)
+      ...memoryLines(character, dedupedMemoriesFor(info).slice(-2), info.textMemory),
+      ...notesLines(character.firstName, info.notes)
     ])
   }
 
@@ -377,6 +398,7 @@ export function buildSlotIntroPrompt(
   const waking = input.time === 0
   const rumor = rumorBlock(input)
   const planned = anyPlans(input)
+  const committed = anyCommitments(input)
   const occasioned = anyOccasions(input)
 
   const user = [
@@ -412,6 +434,9 @@ export function buildSlotIntroPrompt(
           'Then fill "hangouts", one entry per character under ASKING TO HANG OUT. "char" is her key exactly as written there. "text" is the message she sends, in her own texting voice — lowercase, slang, typos and emoji are all fine if that is how she types — and it is ONLY about meeting up: what she wants to do and where, asked as a question' +
             (planned
               ? ' — or, where she has a plan listed, that plan, asked as a "we\'re still on, right?"'
+              : '') +
+            (committed
+              ? ', and where she has class or work, she says whether she will meet him before or after it'
               : '') +
             (occasioned
               ? ' — or, where she has an occasion listed, going to that occasion with her, asked as an invitation to come along'

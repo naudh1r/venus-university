@@ -22,7 +22,26 @@ export async function readSettings(): Promise<StoredSettings> {
     validateRecord<Settings>(stored, 'settings', SETTINGS_READ)
   )
   if (upgraded) await writeSettings(settings)
-  return settings
+  return withoutDevSwitches(settings)
+}
+
+/**
+ * The row with the dev and hand-edited switches left out: this build has no file to hand-edit,
+ * so each is fixed at the default its absence means, whatever a row once came to hold.
+ */
+function withoutDevSwitches(settings: StoredSettings): StoredSettings {
+  const {
+    freezeSeeds: _seeds,
+    editPregens: _pregens,
+    forceTime: _clock,
+    serviceTier: _tier,
+    streamResponses: _stream,
+    comfyGpu: _gpu,
+    updateAsVersion: _version,
+    updateFeed: _feed,
+    ...rest
+  } = settings
+  return rest
 }
 
 /** Replaces the row wholesale, so a field left out of `row` is gone from storage. */

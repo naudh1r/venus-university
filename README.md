@@ -1,49 +1,85 @@
 > [!IMPORTANT]
-> **This is an unofficial, modified version of Venus University.** It is not made, endorsed or
-> supported by Venus Dev. The official game is on itch.io, linked below.
+> **This is an unofficial, modified version of Venus University.** It is not made or supported by
+> Venus Dev. The official game is on itch.io, linked below.
 >
-> - **Please do not report problems with this version to Venus Dev** — neither by email nor in the
->   game's community. Anything you find here may have been caused by the changes below.
-> - **Modified by naudh1r, September 2026**, from Venus Dev's public mirror at commit `b56a990`.
->   The full list of changes is this branch's commit history.
-> - **What it adds**, each with its own switch in Settings:
->   - *Photos* — characters can text you a picture, or post one to the feed, rendered on your own
->     machine by the local ComfyUI. Some can be explicit, depending on your relationship and your
->     content settings. On by default wherever ComfyUI can render; switch it off for a
->     text-only playthrough.
->   - *Strict schema fields* — for OpenAI-compatible endpoints that do not enforce a JSON schema.
->     Off by default; shown under Generation only when a custom endpoint is selected.
-> - **Licences are unchanged.** The code, including these changes, is AGPL-3.0-only (`LICENSE`).
->   Images, audio and video remain © Venus Dev, all rights reserved (`LICENSE-ASSETS.md`); they
->   are here only so the game builds from source.
+> Please don't report problems with this version to Venus Dev. They may come from the changes here.
 >
-> ### Installing this version
+> ### What this branch adds
 >
-> Starting fresh:
+> - **Photos.** Characters can send you a photo in DMs and post photos to the feed. How far a
+>   photo goes depends on your relationship and your content settings. To turn photos off, use
+>   **No DM and feed photos** in Settings → Content.
+>
+>   She remembers the photos she sent you in DMs and what was in them. Feed photos work like the
+>   game's own feed posts: once posted, she doesn't remember them, and liking one counts toward
+>   her affection like any other post.
+> - **Body details.** An optional build, chest, hips and backside for each character, so her body
+>   looks the same in sprites, CGs and photos. Off by default. The switch is in Character Manage.
+>   With it on, a character you create gets them from the start, and you can set them in the
+>   editor of any character of your own. The default characters can't be edited, so duplicate one
+>   first and give the copy her body details.
+>
+> ### Backups and character exports
+>
+> - **Back up game data** keeps everything the official backup keeps, plus the photo settings,
+>   your own characters' body details and which texts carried a photo. Her DM and feed photos go
+>   in a second file next to the backup, `<backup name>.photos.zip`. Keep the two files together,
+>   under the same name.
+> - **Restore from backup** brings her photos back when that second file is next to the backup.
+>   Without it the restore still works, and those photos show "Image failed to generate" with a
+>   Reroll button.
+> - A game without this mod can restore the same backup. It ignores the photos file.
+> - **Exporting a character** carries her body details. Her photos belong to a playthrough, not
+>   to her, so they aren't in the export.
+>
+> ### Requirements for photos
+>
+> Photos are drawn by the game's own local ComfyUI. There is no cloud option.
+>
+> - **Use the same models as the official game:**
+>   - checkpoint `novaAnimeXL_ilV190.safetensors`
+>   - LoRA `usnrStyle.safetensors`
+>   - upscaler `RealESRGAN_x4plus_anime_6B.pth`
+>   - face model `segm/Anzhc Face seg 640 v2 y8n.pt`
+>
+>   Another checkpoint may still work, but outfits, bodies and poses will look off.
+> - **ComfyUI starts by itself** the first time a photo is drawn, so the first photo of a session
+>   takes longer. To avoid that wait, start it early from Character Manage.
+> - If ComfyUI can't start, for example because a model is missing, characters still send photos,
+>   but they fail to draw. You'll see "Image failed to generate" with a Reroll button.
+> - If you don't want to run ComfyUI, turn on **No DM and feed photos** and characters won't
+>   send any.
+>
+> ### Installing
+>
+> New install:
 >
 > ```
-> git clone https://github.com/naudh1r/venus-university.git
+> git clone -b photo-feature https://github.com/naudh1r/venus-university.git
 > ```
 >
-> Already have Venus Dev's version cloned? Add this one beside it and switch to it — your unzipped
-> characters and your saves stay where they are. Commit or stash any changes of your own first.
+> If you already have Venus Dev's version, add this one next to it. Your characters and saves stay
+> where they are. Commit or stash your own changes first.
 >
 > ```
 > git remote add naudh1r https://github.com/naudh1r/venus-university.git
 > git fetch naudh1r
-> git checkout -b naudh1r naudh1r/main
+> git checkout -b photo-feature naudh1r/photo-feature
 > ```
 >
-> Then set it up as Venus Dev's instructions below describe. Later, `git pull` on that branch picks
-> up changes to this version, and `git checkout main` takes you back to his.
+> Then follow Venus Dev's setup steps below. Run `git pull` on this branch to get updates, and
+> `git checkout main` to go back to the official version.
 >
-> **This version follows Venus Dev's releases by hand, not automatically.** It is built on his mirror
-> at `b56a990` and keeps working as it is when he publishes something newer; it just does not have
-> his new changes until they are merged in here. If you have already updated to a newer release of
-> his, switching to this version takes you back to an older one, and a save made on his newer
-> version may not load in it.
+> This version is based on Venus Dev's mirror at commit `ec8f7ce`, Venus University 0.3.0. It
+> doesn't update by itself when a new official version comes out. If you've already updated to a newer official version,
+> switching to this one takes you back to an older version, and newer saves may not load.
 >
-> Venus Dev's own README follows, unedited.
+> ### Licences
+>
+> The code is AGPL-3.0-only (`LICENSE`). Images, audio and video are © Venus Dev, all rights
+> reserved (`LICENSE-ASSETS.md`). They're included only so the game builds from source.
+>
+> Venus Dev's own README follows, unchanged.
 
 # Venus University
 

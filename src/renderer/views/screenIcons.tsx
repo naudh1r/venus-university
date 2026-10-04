@@ -213,6 +213,35 @@ export function DownloadIcon({
   )
 }
 
+/** The up-arrow off a line: a file arriving from disk. */
+export function UploadIcon({
+  size,
+  strokeWidth = 2.75,
+  ariaHidden
+}: {
+  size: number
+  strokeWidth?: number
+  ariaHidden?: boolean
+}): JSX.Element {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden={ariaHidden}
+    >
+      <path d="M12 15V3" />
+      <path d="m7 8 5-5 5 5" />
+      <path d="M4 21h16" />
+    </svg>
+  )
+}
+
 /** A die's face. Callers show different numbers so a pair of them is not a mirror. */
 export function DiceIcon({ pips }: { pips: 2 | 4 | 5 }): JSX.Element {
   const dots = pips === 5 ? FIVE : pips === 4 ? FOUR : TWO
@@ -440,6 +469,28 @@ export function MapIcon(): JSX.Element {
     <svg {...APP_MARK}>
       <path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z" />
       <circle cx="12" cy="10" r="2.6" />
+    </svg>
+  )
+}
+
+/** An interior: a door. */
+export function DoorIcon(): JSX.Element {
+  return (
+    <svg {...APP_MARK}>
+      <path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" />
+      <path d="M3 21h18" />
+      <circle cx="14.5" cy="12" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+/** An exterior: the sky, a sun behind a cloud. */
+export function SkyIcon(): JSX.Element {
+  return (
+    <svg {...APP_MARK}>
+      <circle cx="8.5" cy="7.5" r="3" />
+      <path d="M8.5 2.5v1.6" />
+      <path d="M4.4 15.9a3.6 3.6 0 0 1 .7-7.1 4.6 4.6 0 0 1 8.8-1.6 3.8 3.8 0 0 1 3.5 3.8 3.6 3.6 0 0 1-.4 5H5.2Z" />
     </svg>
   )
 }

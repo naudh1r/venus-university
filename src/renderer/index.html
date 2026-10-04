@@ -3,14 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <!-- Every way the renderer can put an image on screen is named in img-src.
-         `blob:` is the graduation picture, the one image shown from bytes the
-         renderer already holds rather than through charimg://.
+         `bgimg:` is the player's own backgrounds. `blob:` is every image shown from
+         bytes the renderer already holds rather than through a scheme: the graduation
+         picture, the reader's own picture, the photos, a picture picked for an upload.
          In script-src, `blob:` is the pitch-shift worklet the stretch library registers from
          an in-memory module, and 'wasm-unsafe-eval' is its WebAssembly, which Chromium
          refuses under a policy that does not name it. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' charimg: playimg: data: blob:"
+      content="default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' charimg: bgimg: playimg: data: blob:"
     />
     <title>Venus University</title>
   </head>

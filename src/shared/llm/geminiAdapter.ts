@@ -5,8 +5,10 @@ import type {
   BuildImageCallContext,
   ErrorContext,
   GeneratedImage,
+  ImageAdapter,
   LlmAdapter,
   LlmCall,
+  ModelsCall,
   StreamDelta
 } from './adapter'
 import { htmlGist, isHtml, permanentStatus, retryableCode } from './httpStatus'
@@ -32,7 +34,9 @@ const BLOCKED_FINISH_REASONS = new Set([
   'SPII',
   'RECITATION',
   'LANGUAGE',
-  'IMAGE_SAFETY'
+  'IMAGE_SAFETY',
+  'IMAGE_PROHIBITED_CONTENT',
+  'IMAGE_RECITATION'
 ])
 
 /** Minimal shape of Gemini's JSON error envelope. */
@@ -59,21 +63,25 @@ interface GeminiResponse {
   error?: GeminiErrorBody['error']
 }
 
+/** Throws the failure an error envelope inside a 200 reply carries, where the reply is one. */
+function assertNoEnvelope(parsed: GeminiResponse, label: string): void {
+  if (!parsed.error) return
+  const code = permanentStatus(parsed.error.code ?? 0)
+    ? 'LLM_REQUEST_REJECTED'
+    : codeForStatus(parsed.error.code ?? 0, parsed.error.message)
+  throw appError(
+    code,
+    // An empty prepayment balance gets Google's own sentence, as over HTTP.
+    code === 'LLM_CREDITS_DEPLETED' && parsed.error.message
+      ? parsed.error.message
+      : `${label} reported an error mid-reply.`,
+    `${parsed.error.status ?? ''} ${parsed.error.message ?? ''}`.trim()
+  )
+}
+
 /** Throws when a parsed Gemini response is blocked, truncated or otherwise unusable. */
 function assertUsable(parsed: GeminiResponse, label: string): void {
-  if (parsed.error) {
-    const code = permanentStatus(parsed.error.code ?? 0)
-      ? 'LLM_REQUEST_REJECTED'
-      : codeForStatus(parsed.error.code ?? 0, parsed.error.message)
-    throw appError(
-      code,
-      // An empty prepayment balance gets Google's own sentence, as over HTTP.
-      code === 'LLM_CREDITS_DEPLETED' && parsed.error.message
-        ? parsed.error.message
-        : `${label} reported an error mid-reply.`,
-      `${parsed.error.status ?? ''} ${parsed.error.message ?? ''}`.trim()
-    )
-  }
+  assertNoEnvelope(parsed, label)
 
   const blockReason = parsed.promptFeedback?.blockReason
   if (blockReason) {
@@ -129,15 +137,19 @@ function textOf(parsed: GeminiResponse): string {
 }
 
 /**
- * `generateContent` against the image model: no `thinkingConfig` or response schema (both
- * rejected), `responseModalities` naming TEXT beside IMAGE, and an edit's source before the text.
+ * `generateContent` against the image model: `responseModalities` naming TEXT beside IMAGE,
+ * `imageConfig`'s shape and size, a `thinkingConfig` only where a level is asked for — the 3.1
+ * flash image models take `minimal` or `high` — and the source images, in order, before the text.
  */
 function buildImageCall(args: BuildImageCallContext): LlmCall {
-  const parts = args.image
-    ? [{ inlineData: { mimeType: args.image.mimeType, data: args.image.data } }, { text: args.prompt }]
-    : [{ text: args.prompt }]
+  const parts = [
+    ...(args.images ?? []).map((image) => ({
+      inlineData: { mimeType: image.mimeType, data: image.data }
+    })),
+    { text: args.prompt }
+  ]
   return {
-    url: `${args.provider.baseUrl}/models/${args.modelId}:generateContent`,
+    url: `${args.baseUrl}/models/${args.modelId}:generateContent`,
     headers: {
       'Content-Type': 'application/json',
       'x-goog-api-key': args.apiKey
@@ -146,16 +158,65 @@ function buildImageCall(args: BuildImageCallContext): LlmCall {
       contents: [{ role: 'user', parts }],
       generationConfig: {
         responseModalities: ['TEXT', 'IMAGE'],
-        // Landscape, matching the shipped /assets/bg backgrounds; an absent `imageSize`
-        // serializes away, so only the graduation picture asks for 4K.
-        imageConfig: { aspectRatio: '16:9', imageSize: args.imageSize }
+        // Landscape by default, matching the shipped /assets/bg backgrounds; an absent
+        // `imageSize` serializes away, so only a caller that asks for one gets a size at all.
+        imageConfig: { aspectRatio: args.aspectRatio ?? '16:9', imageSize: args.imageSize },
+        ...(args.thinkingLevel ? { thinkingConfig: { thinkingLevel: args.thinkingLevel } } : {})
       },
       safetySettings: SAFETY_OFF
     }
   }
 }
 
-/** The first non-thought `inlineData` part of a reply body, vetted like a text reply. */
+/**
+ * Throws when a parsed Gemini image reply is blocked, truncated or otherwise unusable, worded
+ * for a picture rather than a scene.
+ */
+function assertUsableImage(parsed: GeminiResponse, label: string): void {
+  assertNoEnvelope(parsed, label)
+
+  const blockReason = parsed.promptFeedback?.blockReason
+  if (blockReason) {
+    throw appError(
+      'LLM_BLOCKED',
+      `${label} refused the picture's prompt (${blockReason}).`,
+      `promptFeedback.blockReason=${blockReason}`
+    )
+  }
+
+  const finishReason = parsed.candidates?.[0]?.finishReason
+  if (finishReason === 'NO_IMAGE' || finishReason === 'IMAGE_OTHER') {
+    throw appError(
+      'LLM_EMPTY',
+      'The model returned no image.',
+      `finishReason=${finishReason} ${truncate(textOf(parsed), 2000)}`.trim()
+    )
+  }
+  if (finishReason && BLOCKED_FINISH_REASONS.has(finishReason)) {
+    throw appError(
+      'LLM_BLOCKED',
+      `${label} blocked the picture (${finishReason}).`,
+      `finishReason=${finishReason}`
+    )
+  }
+  if (finishReason === 'MAX_TOKENS') {
+    throw appError(
+      'LLM_TRUNCATED',
+      `${label} ran out of room before finishing the picture.`,
+      'finishReason=MAX_TOKENS'
+    )
+  }
+  // Anything not `STOP` is a cut-off picture.
+  if (finishReason && finishReason !== 'STOP') {
+    throw appError(
+      'LLM_TRUNCATED',
+      `${label} stopped before finishing the picture.`,
+      `finishReason=${finishReason}`
+    )
+  }
+}
+
+/** The first non-thought `inlineData` part of a reply body, vetted with a picture's own wording. */
 function imageOf(rawBody: string, label: string): GeneratedImage {
   let parsed: GeminiResponse
   try {
@@ -164,7 +225,7 @@ function imageOf(rawBody: string, label: string): GeneratedImage {
     throw appError('LLM_MALFORMED', 'The API response was not valid JSON.', truncate(rawBody, 2000))
   }
 
-  assertUsable(parsed, label)
+  assertUsableImage(parsed, label)
   for (const part of parsed.candidates?.[0]?.content?.parts ?? []) {
     if (!part.thought && part.inlineData?.data) {
       return { mimeType: part.inlineData.mimeType ?? 'image/png', data: part.inlineData.data }
@@ -177,9 +238,46 @@ function imageOf(rawBody: string, label: string): GeneratedImage {
   )
 }
 
-export const geminiAdapter: LlmAdapter = {
+/** Every model the key can reach, on one page. */
+function modelsCall(baseUrl: string, apiKey: string): ModelsCall {
+  return {
+    url: `${baseUrl}/models?pageSize=1000`,
+    headers: apiKey ? { 'x-goog-api-key': apiKey } : {}
+  }
+}
+
+/**
+ * The image models a listing names. The listing says nothing of what a model draws, so an image
+ * model is one that answers `generateContent` and carries `image` in its id.
+ */
+function modelIdsOf(rawBody: string): string[] {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawBody)
+  } catch {
+    return []
+  }
+  const models = (parsed as { models?: unknown } | null)?.models
+  if (!Array.isArray(models)) return []
+
+  const ids = new Set<string>()
+  for (const entry of models) {
+    const model = entry as { name?: unknown; supportedGenerationMethods?: unknown } | null
+    if (typeof model?.name !== 'string') continue
+    const id = model.name.replace(/^models\//, '')
+    const methods = model.supportedGenerationMethods
+    if (id.includes('image') && Array.isArray(methods) && methods.includes('generateContent')) {
+      ids.add(id)
+    }
+  }
+  return [...ids].sort()
+}
+
+export const geminiAdapter: LlmAdapter & ImageAdapter = {
   buildImageCall,
   imageOf,
+  modelsCall,
+  modelIdsOf,
 
   buildCall({
     request,

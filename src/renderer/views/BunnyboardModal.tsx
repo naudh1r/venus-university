@@ -79,6 +79,7 @@ import {
   shiftNow
 } from '../stores/timetable'
 import { ContactPage } from './ContactPage'
+import { PhotosPage } from './PhotosPage'
 import { RescheduleModal } from './RescheduleModal'
 import {
   cancelLift,
@@ -231,12 +232,22 @@ function ProfileIcon(): JSX.Element {
   )
 }
 
-/** The four destinations, in rail order. */
+function PhotosIcon(): JSX.Element {
+  return (
+    <svg {...RAIL_MARK}>
+      <path d="M4 8h3l1.6-2.5h6.8L17 8h3a1.5 1.5 0 0 1 1.5 1.5V19A1.5 1.5 0 0 1 20 20.5H4A1.5 1.5 0 0 1 2.5 19V9.5A1.5 1.5 0 0 1 4 8Z" />
+      <circle cx="12" cy="14" r="4" />
+    </svg>
+  )
+}
+
+/** The five destinations, in rail order. */
 const TABS: ReadonlyArray<{ id: BunnyboardTab; word: string; Mark: () => JSX.Element }> = [
   { id: 'chats', word: 'CHATS', Mark: ChatsIcon },
   { id: 'friends', word: 'FRIENDS', Mark: FriendsIcon },
   { id: 'updates', word: 'UPDATES', Mark: UpdatesIcon },
-  { id: 'profile', word: 'PROFILE', Mark: ProfileIcon }
+  { id: 'profile', word: 'PROFILE', Mark: ProfileIcon },
+  { id: 'photos', word: 'PHOTOS', Mark: PhotosIcon }
 ]
 
 /** The composer's quick-bar: one tap each, short enough to sit under the field unwrapped. */
@@ -393,6 +404,7 @@ export function BunnyboardModal({
                 {tab === 'friends' && <FriendsList />}
                 {tab === 'updates' && <UpdatesFeed />}
                 {tab === 'profile' && <ProfilePage />}
+                {tab === 'photos' && <PhotosPage theme={theme} />}
               </div>
             </div>
           </motion.div>

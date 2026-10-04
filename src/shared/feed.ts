@@ -3,7 +3,7 @@
  * callers that must not drift.
  */
 
-import { TIER_THRESHOLDS } from './playerStats'
+import { MAX_TIER, pointsForTier } from './playerStats'
 import { hasTrait } from './traits'
 import type { Character, SocialPost } from './types'
 
@@ -37,7 +37,7 @@ export function requestAcceptChance(
   heartPoints: number,
   character?: Pick<Character, 'traits'>
 ): number {
-  const godly = TIER_THRESHOLDS[TIER_THRESHOLDS.length - 1]
+  const godly = pointsForTier(MAX_TIER)
   const base = MAX_ACCEPT_CHANCE * Math.min(1, Math.max(0, heartPoints) / godly)
   // The trait's doubling, capped at certainty.
   return hasTrait(character, 'Terminally Online') ? Math.min(1, base * 2) : base

@@ -16,8 +16,9 @@ import {
 
 import {
   MAX_TIER,
+  MIN_TIER,
   STAT_LABELS,
-  TIER_THRESHOLDS,
+  pointsForTier,
   tierName,
   type PlayerStats,
   type StatKey
@@ -45,7 +46,10 @@ const RADAR_R = 110
  * written down**, so a retuned ladder moves the chart with it — and anything past the ceiling is
  * drawn at the ceiling, there being nothing above Godly to draw.
  */
-const RADAR_CAP = TIER_THRESHOLDS[MAX_TIER - 1]
+const RADAR_CAP = pointsForTier(MAX_TIER)
+
+/** The points at the bottom of the scale, below zero: where a stat drawn nearest the centre sits. */
+const RADAR_BOTTOM = pointsForTier(MIN_TIER)
 
 /** One vertex, `share` of the way out along its own axis. */
 function radarPoint(share: number, angle: number): string {
@@ -67,14 +71,19 @@ const RADAR_RINGS: readonly number[] = [1 / 3, 2 / 3, 1]
  * Where a stat of zero sits: **half way to the first ring**, not at the centre. Three zeroes at
  * the origin draw a dot rather than a shape, and a chart the reader cannot read is one he cannot
  * watch grow — so the scale starts inside the grid and the ceiling still lands on the outer ring.
+ * A stat below zero sits between it and the centre, the bottom of the scale half way in.
  */
 const RADAR_FLOOR = RADAR_RINGS[0] / 2
 
 /** Three rings and three spokes: the scale the reading is judged against. */
 const RADAR_GRID: readonly string[] = RADAR_RINGS.map(radarRing)
 
-/** One stat's share of the radius: the floor, plus what its points buy of what is left above it. */
+/**
+ * One stat's share of the radius: the floor, plus what its points buy of what is left above it;
+ * below zero, the floor less up to half of itself, so a vertex never crosses the centre.
+ */
 function radarShare(points: number): number {
+  if (points < 0) return RADAR_FLOOR * (1 - Math.min(points / RADAR_BOTTOM, 1) / 2)
   return RADAR_FLOOR + (1 - RADAR_FLOOR) * Math.min(points / RADAR_CAP, 1)
 }
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyStatDeltas,
+  MAX_TIER,
+  MIN_TIER,
   pointsForTier,
   resolveStatDeltas,
   statsForTiers,
@@ -20,22 +22,22 @@ import { playerStats } from './fixtures'
 describe('tierOf', () => {
   it('puts each threshold in its own tier and the point below it in the previous one', () => {
     TIER_THRESHOLDS.forEach((threshold, i) => {
-      expect(tierOf(threshold)).toBe(i + 1)
-      if (threshold > 0) expect(tierOf(threshold - 1)).toBe(i)
+      expect(tierOf(threshold)).toBe(i)
+      if (i > MIN_TIER) expect(tierOf(threshold - 1)).toBe(i - 1)
     })
   })
 
-  it('clamps below zero and above the top threshold', () => {
-    // Nothing produces a negative stat — `applyStatDeltas` floors at zero — but
-    // a tier lookup that returned 0 would index past the front of TIER_NAMES.
-    expect(tierOf(-5)).toBe(1)
-    expect(tierOf(10_000)).toBe(TIER_THRESHOLDS.length)
+  it('clamps below the floor and above the top threshold', () => {
+    // Nothing produces a stat under the floor — `applyStatDeltas` stops there — but
+    // a tier lookup that returned -1 would index past the front of TIER_NAMES.
+    expect(tierOf(pointsForTier(MIN_TIER) - 5)).toBe(MIN_TIER)
+    expect(tierOf(10_000)).toBe(MAX_TIER)
   })
 })
 
 describe('pointsForTier / statsForTiers', () => {
   /** Every tier the New Game selector can offer, floor to ceiling. */
-  const ALL_TIERS = TIER_THRESHOLDS.map((_, i) => (i + 1) as StatTier)
+  const ALL_TIERS = TIER_THRESHOLDS.map((_, i) => i as StatTier)
 
   it('round-trips: a seeded tier is the tier the save reports back', () => {
     // The selector shows a tier and the save stores points; if these two
@@ -45,8 +47,8 @@ describe('pointsForTier / statsForTiers', () => {
 
   // A transposed field here seeds New Game's saved stats with another stat's tier.
   it('maps the three tiers independently', () => {
-    expect(statsForTiers({ brain: 4, body: 1, heart: 5 })).toEqual(
-      playerStats(TIER_THRESHOLDS[3], 0, TIER_THRESHOLDS[4])
+    expect(statsForTiers({ brain: 4, body: 0, heart: 5 })).toEqual(
+      playerStats(TIER_THRESHOLDS[4], TIER_THRESHOLDS[0], TIER_THRESHOLDS[5])
     )
   })
 })
@@ -198,8 +200,11 @@ describe('applyStatDeltas', () => {
     expect(before).toEqual(playerStats(4, 4, 4))
   })
 
-  it('floors at zero, so a loss can never drive a stat negative', () => {
-    expect(applyStatDeltas(playerStats(0, 1, 5), playerStats(-1, -1, -1))).toEqual(playerStats(0, 0, 4))
+  it('floors at the bottom of the scale, so a loss can never drive a stat under it', () => {
+    const floor = pointsForTier(MIN_TIER)
+    expect(applyStatDeltas(playerStats(floor, 0, 5), playerStats(-1, -1, -1))).toEqual(
+      playerStats(floor, -1, 4)
+    )
   })
 })
 

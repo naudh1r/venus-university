@@ -1,0 +1,35 @@
+/* The player's own backgrounds: the plus that adds one, then every one of them in the stage's
+   proportions. Imported from the view module, never from index.css.
+
+   The veil, the gallery cells, the ✕, the scroller's box and fade and the foot are base.css's. */
+
+/* A wide panel, so the shallower lean; the cap gives back what the tab and the paper's
+   overhang need. No `overflow`: the tab overhangs, and the shadow pseudo would go with it. */
+.vu-bgcustom {
+  --paper-offset: 11px 10px;
+  --paper-tilt: -0.8deg;
+  --paper-shadow: var(--vu-panel-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: min(1320px, 100% - 60px);
+  max-height: calc(100% - 100px);
+  padding: 78px 60px 34px 100px;
+  border-radius: 100px 0 0 100px;
+  color: var(--vu-text);
+  font-family: var(--font-body);
+}
+
+/* Pads for the plus's swell, which the box holding it takes back, and for the fade at its
+   foot, so the last row scrolls clear of it. */
+.vu-bgcustom-scroll {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px 34px;
+  overflow: hidden auto;
+}
+
+.vu-bgcustom-add {
+  width: 100%;
+  color: var(--vu-text-muted);
+}

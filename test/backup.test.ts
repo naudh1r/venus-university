@@ -35,15 +35,24 @@ const {
 } = await import('../src/main/services/saveService')
 const { getGrabBags, setGrabBags } = await import('../src/main/services/grabBagService')
 const { getSettings } = await import('../src/main/services/settingsService')
+const {
+  addCustomBackground,
+  listCustomBackgrounds,
+  readCustomBackgroundImage,
+  removeCustomBackground
+} = await import('../src/main/services/backgroundService')
+const { listPhotos, readPhoto, writePhoto } = await import('../src/main/services/photoService')
 const { createZip, extractZip, listZip } = await import('../src/main/services/archiveService')
 const {
   BACKUP_NAME,
   BACKUP_READ,
   BACKUP_ZIP_LIMITS,
+  backgroundEntry,
   CHARACTERS_DIR,
   charFileEntry,
   classifyBackupEntry,
   endingArtEntry,
+  photoEntry,
   profilePictureEntry
 } = await import('../src/shared/backup')
 const { cgRel, expressionRel, STAGING_DIR } = await import('../src/shared/characterFiles')
@@ -58,6 +67,7 @@ const {
   getCharactersPath,
   getDataPath,
   getEndingArtPath,
+  getCustomBackgroundPath,
   getGrabBagsPath,
   getPregenCharactersPath,
   getSavesPath,
@@ -74,6 +84,15 @@ const WEBP_BYTES = Uint8Array.from([
 /** The three bytes every JPEG opens with, as the graduation picture is stored. */
 const ENDING_ART = Uint8Array.from([0xff, 0xd8, 0xff])
 const BAGS = { inspiration: ['kettle', 'harbour'] }
+/** One photo's sidecar, as the game writes it. */
+const PHOTO_META = {
+  schemaVersion: 1,
+  date: 3,
+  time: 1 as const,
+  rows: [{ charId: 'char-1', set: 'default' as const, emotion: 'happy' as const }],
+  prompt: 'On the quad.',
+  options: { aspectRatio: '16:9' }
+}
 /** The id one of the shipped cast is seeded under, beside the player's own. */
 const SHIPPED = 'shipped-1'
 
@@ -102,7 +121,10 @@ async function seedSettings(over: Record<string, unknown> = {}): Promise<void> {
   await writeFile(getSettingsPath(), JSON.stringify(body), 'utf-8')
 }
 
-/** One playthrough with two slot saves, an autosave, a manual save and a graduation picture. */
+/**
+ * One playthrough with two slot saves, an autosave, a manual save, a graduation picture and a
+ * photo.
+ */
 async function seedPlaythrough(): Promise<{ playthroughId: string; saveIds: string[] }> {
   const opening = await createPlaythrough(record(), draft())
   const playthroughId = opening.save.playthroughId
@@ -111,6 +133,13 @@ async function seedPlaythrough(): Promise<{ playthroughId: string; saveIds: stri
   const manual = await writeManualSave(playthroughId, 3, draft())
 
   await writeFile(getEndingArtPath(playthroughId), ENDING_ART)
+  await writePhoto(
+    playthroughId,
+    '42',
+    Buffer.from(PNG_BYTES).toString('base64'),
+    Buffer.from(ENDING_ART).toString('base64'),
+    PHOTO_META
+  )
   return {
     playthroughId,
     saveIds: [opening.save.saveId, second.saveId, autosave.saveId, manual.saveId]
@@ -170,6 +199,9 @@ describe('exportBackup', () => {
     expect(backup.playthroughs[playthroughId].createdAt).toBe(Number(playthroughId))
     expect(backup.endingArt).toEqual([playthroughId])
     expect(entries[endingArtEntry(playthroughId)]).toEqual(ENDING_ART)
+    // A photo travels with its record, and without the thumbnail a restore cuts again.
+    expect(backup.photos).toEqual([{ playthroughId, photoId: '42', meta: PHOTO_META }])
+    expect(entries[photoEntry(playthroughId, '42')]).toEqual(PNG_BYTES)
 
     for (const emotion of EMOTIONS) {
       expect(entries).toHaveProperty([charFileEntry(character.charId, expressionRel(emotion))])
@@ -236,6 +268,8 @@ describe('importBackup', () => {
       expect((await loadSave(playthroughId, saveId)).saveId).toBe(saveId)
     }
     expect(await readFile(getEndingArtPath(playthroughId))).toEqual(Buffer.from(ENDING_ART))
+    expect(await readPhoto(playthroughId, '42')).toEqual(Buffer.from(PNG_BYTES))
+    expect(await listPhotos(playthroughId)).toEqual([{ photoId: '42', meta: PHOTO_META }])
 
     const restored = await getCharacter(character.charId)
     expect(restored.personality).toBe('Quietly stubborn.')
@@ -322,6 +356,103 @@ describe('importBackup', () => {
   })
 })
 
+describe('custom backgrounds in a backup', () => {
+  /** A picture's base64 bytes, as the renderer hands one over. */
+  const PNG = Buffer.from(PNG_BYTES).toString('base64')
+
+  it('travels whole, and comes back in place of whatever is kept under its name', async () => {
+    await seedSettings()
+    await addCustomBackground(
+      { name: 'rooftop', kind: 'exterior', music: 'venue_edm' },
+      { day: PNG, night: PNG, day_rain: PNG }
+    )
+    const archive = join(root, 'out.zip')
+    await exportBackup(archive)
+
+    const entries = await entriesOf(archive)
+    const backup = JSON.parse(new TextDecoder().decode(entries[BACKUP_NAME])) as BackupFile
+    expect(backup.backgrounds?.map((background) => background.name)).toEqual(['rooftop'])
+    expect(entries[backgroundEntry('rooftop', 'day_rain')]).toEqual(PNG_BYTES)
+    expect(entries).not.toHaveProperty([backgroundEntry('rooftop', 'night_rain')])
+
+    // Kept again since under the same name, as something else: indoors, songless, and with
+    // the other rain render, which the backup's copy does not have.
+    await removeCustomBackground('rooftop')
+    await addCustomBackground(
+      { name: 'rooftop', kind: 'interior' },
+      { day: PNG, night: PNG, night_rain: PNG }
+    )
+
+    await importBackup(archive)
+
+    const [restored] = await listCustomBackgrounds()
+    expect(restored.record).toMatchObject({ name: 'rooftop', kind: 'exterior', music: 'venue_edm' })
+    expect(Object.keys(restored.urls).sort()).toEqual(['day', 'day_rain', 'night'])
+    expect(await readCustomBackgroundImage('rooftop', 'night_rain')).toBeNull()
+    expect(await readCustomBackgroundImage('rooftop', 'day_rain')).toEqual(Buffer.from(PNG_BYTES))
+  })
+
+  it('is merged in by name, leaving one kept since the backup alone', async () => {
+    await seedSettings()
+    const archive = join(root, 'out.zip')
+    await exportBackup(archive)
+    await addCustomBackground({ name: 'arcade_hall', kind: 'interior' }, { day: PNG, night: PNG })
+
+    await importBackup(archive)
+
+    expect((await listCustomBackgrounds()).map((listing) => listing.record.name)).toEqual([
+      'arcade_hall'
+    ])
+  })
+
+  it('reads a folder left without its record as absent, and a later add clears it', async () => {
+    await seedSettings()
+    await addCustomBackground(
+      { name: 'rooftop', kind: 'exterior' },
+      { day: PNG, night: PNG, day_rain: PNG }
+    )
+    // What a write cut short between the pictures and the record leaves behind.
+    await rm(join(getCustomBackgroundPath('rooftop'), 'background.json'))
+    expect(await listCustomBackgrounds()).toEqual([])
+
+    await addCustomBackground({ name: 'rooftop', kind: 'exterior' }, { day: PNG, night: PNG })
+    const [kept] = await listCustomBackgrounds()
+    expect(Object.keys(kept.urls).sort()).toEqual(['day', 'night'])
+  })
+
+  it('refuses a second background under a name already kept', async () => {
+    await addCustomBackground({ name: 'rooftop', kind: 'exterior' }, { day: PNG, night: PNG })
+    await expect(
+      addCustomBackground({ name: 'rooftop', kind: 'interior' }, { day: PNG, night: PNG })
+    ).rejects.toMatchObject({ code: 'BACKGROUND_TAKEN' })
+  })
+})
+
+describe('importBackup — the settings it carries', () => {
+  it('refuses settings missing a field before anything is written', async () => {
+    await seedSettings()
+    const png = Buffer.from(PNG_BYTES).toString('base64')
+    await addCustomBackground({ name: 'rooftop', kind: 'exterior' }, { day: png, night: png })
+    const archive = join(root, 'out.zip')
+    await exportBackup(archive)
+    const dir = join(root, 'incomplete')
+    await extractZip(archive, dir)
+    const backup = JSON.parse(await readFile(join(dir, BACKUP_NAME), 'utf-8')) as BackupFile
+    const { apiModel: _missing, ...settings } = backup.settings
+    await writeFile(join(dir, BACKUP_NAME), JSON.stringify({ ...backup, settings }), 'utf-8')
+    const incomplete = join(root, 'incomplete.zip')
+    await createZip(dir, incomplete)
+
+    await removeCustomBackground('rooftop')
+    await seedSettings({ lessNsfwText: false })
+
+    await expect(importBackup(incomplete)).rejects.toMatchObject({ code: 'BACKUP_MALFORMED' })
+    // Neither the settings nor anything after them was put back.
+    expect((await getSettings()).lessNsfwText).toBe(false)
+    expect(await listCustomBackgrounds()).toEqual([])
+  })
+})
+
 describe('classifyBackupEntry', () => {
   it('sorts an entry into what it is allowed to be', () => {
     expect(classifyBackupEntry(BACKUP_NAME)).toBe('record')
@@ -333,6 +464,18 @@ describe('classifyBackupEntry', () => {
     expect(classifyBackupEntry(`${endingArtEntry('1700000000000')}/extra`)).toBe('reject')
     expect(classifyBackupEntry(profilePictureEntry('1700000000000'))).toBe('image')
     expect(classifyBackupEntry(`${profilePictureEntry('1700000000000')}/extra`)).toBe('reject')
+    expect(classifyBackupEntry(photoEntry('1700000000000', '1700000000001'))).toBe('image')
+    expect(classifyBackupEntry('photos/1700000000000')).toBe('reject')
+    expect(classifyBackupEntry(`${photoEntry('1700000000000', '1700000000001')}/extra`)).toBe(
+      'reject'
+    )
+    expect(classifyBackupEntry('photos/1700000000000/not-a-number')).toBe('reject')
+    expect(classifyBackupEntry('photos/../x')).toBe('reject')
+    expect(classifyBackupEntry(backgroundEntry('rooftop', 'night_rain'))).toBe('image')
+    expect(classifyBackupEntry('backgrounds/rooftop/dusk')).toBe('reject')
+    expect(classifyBackupEntry('backgrounds/Roof Top/day')).toBe('reject')
+    expect(classifyBackupEntry('backgrounds/__proto__/day')).toBe('reject')
+    expect(classifyBackupEntry(`${backgroundEntry('rooftop', 'day')}/extra`)).toBe('reject')
     expect(classifyBackupEntry('evil.txt')).toBe('reject')
   })
 })

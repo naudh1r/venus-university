@@ -1,7 +1,6 @@
-import { BG_UNCHANGED } from '../src/shared/backgroundSets'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_PLAYER_STATS, statsForTiers } from '@shared/playerStats'
-import { emptyFlags, MEMORY_CAP } from '@shared/relationship'
+import { emptyFlags } from '@shared/relationship'
 import { giftStatusMarkedLine } from '@shared/shop'
 import type { LedgerResponse, SceneGift, SceneLine, SceneResponse } from '@shared/types'
 import { useAssetStore } from '../src/renderer/stores/assetStore'
@@ -79,45 +78,6 @@ describe('sanitizeLine — speakers and backgrounds', () => {
     useGameStore.setState({ cast: ['a'], roomReady: { a: true, b: true } })
     const line = createSceneSanitizer().sanitizeLine({ speaker: '', bg: 'mina_kwon_room', text: 'x' })
     expect(line.bg).toBeUndefined()
-  })
-
-  /**
-   * Every line answers `bg` now, so most lines answer with where the scene already is. Keeping
-   * those would re-set the stage to itself on every line, and drop a background the player chose
-   * by hand, since `advanceLine` reads any `bg` as the scene taking the stage back.
-   */
-  it('keeps only a background that moves the scene', () => {
-    const sanitizer = createSceneSanitizer({ stageBg: 'dorm', strictSchema: true })
-
-    expect(sanitizer.sanitizeLine({ speaker: '', bg: 'dorm', text: 'x' }).bg).toBeUndefined()
-    expect(sanitizer.sanitizeLine({ speaker: '', bg: 'quad', text: 'x' }).bg).toBe('quad')
-    // And the move is remembered: naming it again is no longer a move.
-    expect(sanitizer.sanitizeLine({ speaker: '', bg: 'quad', text: 'x' }).bg).toBeUndefined()
-    expect(sanitizer.sanitizeLine({ speaker: '', bg: 'dorm', text: 'x' }).bg).toBe('dorm')
-  })
-
-  /** With the switch off a `bg` was volunteered, so it is taken at face value as it always was. */
-  it('takes a background at face value with the switch off', () => {
-    const sanitizer = createSceneSanitizer({ stageBg: 'dorm' })
-    expect(sanitizer.sanitizeLine({ speaker: '', bg: 'dorm', text: 'x' }).bg).toBe('dorm')
-  })
-
-  it('reads the sentinel as the line saying nothing changed', () => {
-    const line = createSceneSanitizer({ stageBg: 'dorm', strictSchema: true }).sanitizeLine({
-      speaker: '',
-      bg: BG_UNCHANGED,
-      text: 'x'
-    })
-    expect(line.bg).toBeUndefined()
-  })
-
-  /** A model that answers null instead, or omits the field, is read the same way. */
-  it('reads a null or a missing background the same way', () => {
-    const sanitizer = createSceneSanitizer({ stageBg: 'dorm', strictSchema: true })
-    expect(
-      sanitizer.sanitizeLine({ speaker: '', bg: null as unknown as string, text: 'x' }).bg
-    ).toBeUndefined()
-    expect(sanitizer.sanitizeLine({ speaker: '', text: 'x' }).bg).toBeUndefined()
   })
 })
 
@@ -208,111 +168,6 @@ describe('sanitizeLine — show and hide', () => {
     useGameStore.setState({ slots: ['a', null, null] })
     const line = createSceneSanitizer({ stage: [] }).sanitizeLine(acting(['show:sarah_rose']))
     expect(line.actions).toEqual(['show:sarah_rose'])
-  })
-})
-
-/**
- * Some endpoints write a stage direction as the line's own text rather than in `actions`. The
- * CG positions get this treatment most, and it costs twice: the stage never changes, and the
- * reader is shown a line of narration reading "cg:sex".
- */
-describe('sanitizeLine — a direction written as text', () => {
-  const strict = { strictSchema: true }
-
-  it('lifts it into the actions and leaves the line silent', () => {
-    const sanitizer = createSceneSanitizer(strict)
-    sanitizer.sanitizeLine(acting(['show:sarah_rose']))
-
-    const line = sanitizer.sanitizeLine({ speaker: '', text: 'cg:sex' })
-
-    expect(line.actions).toEqual(['cg:sex'])
-    expect(line.text).toBe('')
-  })
-
-  it('takes it with a space after the colon, the way it is often written', () => {
-    const sanitizer = createSceneSanitizer(strict)
-    sanitizer.sanitizeLine(acting(['show:sarah_rose']))
-
-    expect(sanitizer.sanitizeLine({ speaker: '', text: 'cg: nude_foreplay' }).actions).toEqual([
-      'cg:nude_foreplay'
-    ])
-  })
-
-  it('lifts a sprite change, comma and all', () => {
-    const sanitizer = createSceneSanitizer(strict)
-    sanitizer.sanitizeLine(acting(['show:sarah_rose']))
-
-    expect(
-      sanitizer.sanitizeLine({ speaker: '', text: 'sprite:sarah_rose,happy' }).actions
-    ).toEqual(['sprite:sarah_rose,happy'])
-  })
-
-  it('silences a direction attributed to somebody, since she says nothing on it', () => {
-    const sanitizer = createSceneSanitizer(strict)
-    sanitizer.sanitizeLine(acting(['show:sarah_rose']))
-
-    expect(sanitizer.sanitizeLine({ speaker: 'sarah_rose', text: 'cg:sex' }).speaker).toBe('')
-  })
-
-  it('leaves ordinary prose alone, including a line that merely mentions one', () => {
-    const sanitizer = createSceneSanitizer(strict)
-    const prose = 'She laughs: the sound of it fills the room.'
-
-    expect(sanitizer.sanitizeLine({ speaker: '', text: prose }).text).toBe(prose)
-    expect(sanitizer.sanitizeLine({ speaker: '', text: 'He says cg:sex out loud.' }).text).toBe(
-      'He says cg:sex out loud.'
-    )
-  })
-
-  it('reads the line as written with the switch off', () => {
-    const sanitizer = createSceneSanitizer()
-    sanitizer.sanitizeLine(acting(['show:sarah_rose']))
-
-    const line = sanitizer.sanitizeLine({ speaker: '', text: 'cg:sex' })
-
-    expect(line.text).toBe('cg:sex')
-    expect(line.actions).toBeUndefined()
-  })
-})
-
-/** Some models put the background beside `lines`, although it is described on each line. */
-describe('sanitizeScene — a background written beside the lines', () => {
-  const opening = (first: Partial<SceneLine>): SceneResponse =>
-    ({ bg: 'quad', lines: [{ speaker: '', text: 'The scene opens.', ...first }] }) as SceneResponse
-
-  it('moves a valid one onto the opening line', () => {
-    const { lines } = sanitizeScene(opening({}), { stageBg: 'dorm', strictSchema: true })
-    expect(lines[0].bg).toBe('quad')
-  })
-
-  it('moves it onto a first line that says the scene has not moved', () => {
-    const { lines } = sanitizeScene(opening({ bg: BG_UNCHANGED }), {
-      stageBg: 'dorm',
-      strictSchema: true
-    })
-    expect(lines[0].bg).toBe('quad')
-  })
-
-  it('leaves a first line that names a background of its own with it', () => {
-    const { lines } = sanitizeScene(opening({ bg: 'dorm' }), {
-      stageBg: 'quad',
-      strictSchema: true
-    })
-    expect(lines[0].bg).toBe('dorm')
-  })
-
-  it('still drops one that is not a background', () => {
-    const response = { bg: 'moon', lines: [{ speaker: '', text: 'The scene opens.' }] }
-    const { lines } = sanitizeScene(response as SceneResponse, {
-      stageBg: 'dorm',
-      strictSchema: true
-    })
-    expect(lines[0].bg).toBeUndefined()
-  })
-
-  it('ignores it with the switch off', () => {
-    const { lines } = sanitizeScene(opening({}), { stageBg: 'dorm' })
-    expect(lines[0].bg).toBeUndefined()
   })
 })
 
@@ -1056,9 +911,9 @@ describe('projectLedger', () => {
       // A roster, so the dating pass the two seams share has somebody to fold over.
       chars: ['a', 'b', 'c'],
       charInfo: {
-        // Full to the cap, so the eviction order is part of what is compared.
+        // A few memories already on file, so the append is part of what is compared.
         a: charInfo({
-          memories: Array.from({ length: MEMORY_CAP }, (_, at) => ({
+          memories: Array.from({ length: 3 }, (_, at) => ({
             date: 1,
             type: 'liked' as const,
             desc: `old ${at}`
@@ -1103,7 +958,7 @@ describe('projectLedger', () => {
     expect(projected.charInfo).toEqual(useGameStore.getState().charInfo)
     expect(projected.charInfo.b.jealousyMemories).toHaveLength(1)
     // And it is a projection, not a write: the map it was handed is untouched.
-    expect(before.a.memories.at(-1)).toEqual({ date: 1, type: 'liked', desc: `old ${MEMORY_CAP - 1}` })
+    expect(before.a.memories).toHaveLength(3)
     expect(before.a.flags.hadSex).toBe(false)
   })
 
@@ -1125,68 +980,5 @@ describe('projectLedger', () => {
       charInfo: {},
       breakups: []
     })
-  })
-})
-
-/**
- * A scene is ended by one boolean, and the cost of missing it is not a cosmetic slip — it is a
- * slot spent standing in an empty room. On the advisory path the model can satisfy "send
- * end_scene" in the medium it is writing in, and can simply forget.
- */
-describe('sanitizeScene — a scene that ends without saying so', () => {
-  const strict = { strictSchema: true, stage: ['sarah_rose'] }
-
-  it('reads the token written as a line, and does not show it', () => {
-    useGameStore.setState({ cast: ['a'] })
-    const out = sanitizeScene(
-      { lines: [{ speaker: '', bg: BG_UNCHANGED, text: 'She goes.' }, { speaker: '', text: 'end_scene' }] },
-      strict
-    )
-    expect(out.end).toBe(true)
-    expect(out.lines.some((line) => line.text.includes('end_scene'))).toBe(false)
-  })
-
-  it('ends a scene everybody has walked out of, whatever the reply said', () => {
-    useGameStore.setState({ cast: ['a'] })
-    const out = sanitizeScene(
-      { lines: [{ speaker: '', bg: BG_UNCHANGED, actions: ['hide:sarah_rose'], text: 'She leaves.' }] },
-      strict
-    )
-    expect(out.end).toBe(true)
-  })
-
-  /** Or every opening call would end itself: a pass that began on a bare stage is exempt. */
-  it('does not end a scene that opened on an empty stage', () => {
-    useGameStore.setState({ cast: ['a'] })
-    const out = sanitizeScene(
-      { lines: [{ speaker: '', bg: BG_UNCHANGED, text: 'The room is empty.' }] },
-      { strictSchema: true, stage: [] }
-    )
-    expect(out.end).toBe(false)
-  })
-
-  it('leaves prose that merely mentions the token alone', () => {
-    useGameStore.setState({ cast: ['a'] })
-    const out = sanitizeScene(
-      { lines: [{ speaker: '', bg: BG_UNCHANGED, text: 'That would end_scene the whole thing.' }] },
-      strict
-    )
-    expect(out.lines.length).toBe(1)
-  })
-
-  /** With the switch off none of it runs: the reply's own flag is the whole answer. */
-  it('does neither with the switch off', () => {
-    useGameStore.setState({ cast: ['a'] })
-    const out = sanitizeScene(
-      {
-        lines: [
-          { speaker: '', actions: ['hide:sarah_rose'], text: 'She leaves.' },
-          { speaker: '', text: 'end_scene' }
-        ]
-      },
-      { stage: ['sarah_rose'] }
-    )
-    expect(out.end).toBe(false)
-    expect(out.lines.some((line) => line.text === 'end_scene')).toBe(true)
   })
 })

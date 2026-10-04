@@ -2,8 +2,10 @@ import { dormBuildingOf } from '@shared/dorms'
 import { affectionFor } from '@shared/relationship'
 import { shuffle } from '@shared/shuffle'
 import { PORTRAIT_SLOTS, useGameStore } from '../gameStore'
+import type { CalendarEvent } from '@shared/types'
 import {
   charAwayNow,
+  charCommitmentAt,
   charHiddenLocationNow,
   charJobNow,
   charOverlayGroupNow,
@@ -11,7 +13,7 @@ import {
   charStandingHauntAt,
   charUnavailableNow
 } from '../timetable'
-import { firstNameOf, nameIsKnown } from './classify'
+import { firstNameOf, isContact, nameIsKnown } from './classify'
 import { jobDefOf, JOB_CATALOG } from '@shared/jobs'
 import { ELYSIUM_LOCATION, LOWRISE_LOCATION, ROOM_LOCATION } from '@shared/locations'
 import { loreEntryById } from '../../prompts/lorebook'
@@ -158,6 +160,40 @@ export function resolveAttendance(
     )
   }
   return { cast, notes }
+}
+
+/**
+ * Who a plan's own button brings, in the plan's order: every attendee the reader can reach who is
+ * in the city. Her class or her shift does not keep her away, so these clear the busy gate.
+ */
+export function planAttendees(event: CalendarEvent): string[] {
+  return event.charIds.filter((charId) => isContact(charId) && !charAwayNow(charId))
+}
+
+/**
+ * A line under a plan's opening action for each attendee in the cast who has class or a shift
+ * this slot, leaving the model to pick whether it comes after the scene or she has just come
+ * from it. A girl working where the scene is set gets none.
+ */
+export function commitmentNotes(
+  cast: readonly string[],
+  attendees: readonly string[],
+  workers: readonly string[]
+): string[] {
+  const notes: string[] = []
+  for (const charId of cast) {
+    if (!attendees.includes(charId) || workers.includes(charId)) continue
+    const commitment = charCommitmentAt(charId)
+    if (!commitment) continue
+    const what =
+      commitment.kind === 'class'
+        ? `her ${commitment.name} class`
+        : `a shift at ${commitment.employer}`
+    notes.push(
+      `${firstNameOf(charId)} either has ${what} after this or is just coming from it. Choose what makes the most sense.`
+    )
+  }
+  return notes
 }
 
 /** Spelled-out counts for the stranger item below; `PORTRAIT_SLOTS` bounds the range. */

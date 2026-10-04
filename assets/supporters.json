@@ -2,12 +2,19 @@
   "donors": [
     "ElPapaDon",
     "thatmaestroguy",
+    "Seviy",
+    "Evigan",
     "Stridley",
+    "Supahslm",
+    "sav",
     "0hrichi",
-    "NihilBaxter"
+    "NihilBaxter",
+    "SenpaiDaddy890"
   ],
   "playtesters": [
-    "Maboy"
+    "Evigan",
+    "Maboy",
+    "newlife1999"
   ],
   "handles": [
     {
@@ -19,7 +26,15 @@
       "marbles": 6
     },
     {
+      "name": "Evigan",
+      "marbles": 5
+    },
+    {
       "name": "Maboy",
+      "marbles": 2
+    },
+    {
+      "name": "newlife1999",
       "marbles": 2
     },
     {
@@ -27,7 +42,23 @@
       "marbles": 4
     },
     {
+      "name": "sav",
+      "marbles": 4
+    },
+    {
+      "name": "SenpaiDaddy890",
+      "marbles": 4
+    },
+    {
+      "name": "Seviy",
+      "marbles": 5
+    },
+    {
       "name": "Stridley",
+      "marbles": 4
+    },
+    {
+      "name": "Supahslm",
       "marbles": 4
     },
     {

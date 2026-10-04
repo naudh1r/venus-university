@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { toAppError } from '@shared/errors'
 import { writerReady } from '@shared/settingsRules'
 import { shuffle } from '@shared/shuffle'
 import type { Result } from '@shared/types'
 import logoUrl from '../../../assets/vu_logo.png'
+import { ConfirmModal } from '../components/ConfirmModal'
+import { PhotoFailedModal } from '../components/PhotoFailedModal'
 import { isWebBuild } from '../platform'
 import { formatShortGameDate, formatWeekday } from '../prompts/gameDate'
 import { enterGame } from '../stores/gameLoop'
 import { spriteUrl } from '../stores/characterStore'
 import { beginCrossing, coverSwap, endCrossing, useCrossingStore } from '../stores/crossingStore'
 import { entryCrossing } from '../stores/slotCrossing'
+import { firstPhotoFailure, usePhotoStore } from '../stores/photoStore'
 import { useAssetStore } from '../stores/assetStore'
 import { stageEnrollment } from '../stores/newGame'
 import {
@@ -99,15 +102,27 @@ export function MainMenu(): JSX.Element {
 
   const crossing = useCrossingStore((s) => s.phase !== 'idle')
 
+  const photoJobsRunning = usePhotoStore((s) => s.jobs.length > 0)
+  const [quitConfirm, setQuitConfirm] = useState(false)
+
+  // The idle menu's own failure host: no modal of any kind is up, on this screen or in front of
+  // it, and the crossing has settled.
+  const uiIdle = useUiStore((s) => s.modals.length === 0 && s.error === null && s.download === null)
+  const updateIdle = useUpdateStore((s) => s.offer === null && s.failure === null)
+  const photoFailure = usePhotoStore((s) =>
+    uiIdle && updateIdle && !crossing && !quitConfirm ? firstPhotoFailure(s.failures, null) : null
+  )
+
   // Drawn once per visit: the view remounts on every return to the menu, so each opening gets
   // its own hour, its own places and its own girl. **A game hands the hour it was left in**
   // and the clock answers for every other way here — a crossing back from a night scene must not
   // reveal a menu in daylight (`uiStore.menuTheme`, dropped on the way off the menu).
   const [theme] = useState(heldScreenTheme)
   const [queue] = useState(() => {
-    const { interior, exterior } = useAssetStore.getState().backgrounds
-    // A base with no image in this half of the day is dropped rather than shown as nothing. The
-    // menu stands outside every playthrough's weather, so it is always the dry picture.
+    // The build's own places only. A base with no image in this half of the day is dropped rather
+    // than shown as nothing. The menu stands outside every playthrough's weather, so it is always
+    // the dry picture.
+    const { interior, exterior } = useAssetStore.getState().shipped
     return shuffle([...interior, ...exterior])
       .map((base) => bgUrl(base, theme, false))
       .filter((url): url is string => url !== null)
@@ -400,7 +415,7 @@ export function MainMenu(): JSX.Element {
           </motion.button>
         </motion.nav>
 
-        <hr className="vu-menu-rule" />
+        <hr className="vu-rule" />
 
         <motion.nav className="vu-menu-admin vu-fan" variants={dealt(0.8, 0.045)}>
           <motion.button
@@ -422,14 +437,15 @@ export function MainMenu(): JSX.Element {
           >
             Credits
           </motion.button>
-          {/* The window is the app: closing the last one quits. */}
+          {/* The window is the app: closing the last one quits. A photo still being developed
+              asks first, since quitting drops it. */}
           {!webBuild && (
             <motion.button
               id="menu-quit"
               className="vu-btn vu-btn--quiet"
               variants={dealtItem}
               {...gestures(false, quietLift, quietPress)}
-              onClick={() => window.close()}
+              onClick={() => (photoJobsRunning ? setQuitConfirm(true) : window.close())}
             >
               Quit game
             </motion.button>
@@ -497,6 +513,34 @@ export function MainMenu(): JSX.Element {
           Feedback
         </motion.button>
       </motion.nav>
+
+      <AnimatePresence>
+        {quitConfirm && (
+          <ConfirmModal
+            key="quit-confirm"
+            id="menu-quit-confirm"
+            theme={theme}
+            title="Quit the game?"
+            message="A photo still being developed will be lost."
+            confirmText="Quit"
+            onCancel={() => setQuitConfirm(false)}
+            onConfirm={() => window.close()}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {photoFailure && (
+          <PhotoFailedModal
+            key={photoFailure.job.jobId}
+            id={`photo-failed-${photoFailure.job.jobId}`}
+            theme={theme}
+            failure={photoFailure}
+            onRetry={() => usePhotoStore.getState().retry(photoFailure, false)}
+            onDismiss={() => usePhotoStore.getState().dismiss(photoFailure)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

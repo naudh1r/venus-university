@@ -2,12 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { endpointProblem, normalizeEndpoint } from '@shared/endpoint'
 import {
   defaultSettings,
+  DEFAULT_MEMORY_BUDGETS,
   maxOutputTokensOf,
+  memoryBudgetsOf,
   mergePatch,
   pictureKeyOf,
   pictureKeySet,
   redactSettings,
+  samplingOf,
+  samplingProblem,
   secondaryModelOf,
+  settingsFromBackup,
   upgradeSettings,
   writerModelOf,
   writerReady
@@ -16,8 +21,8 @@ import { defaultModelFor, defaultSecondaryModelFor } from '@shared/providers'
 import type { Settings, SettingsPatch } from '@shared/types'
 
 /**
- * The pure settings rules: what a patch leaves the two keys and each provider's models as,
- * how a custom endpoint's ids in Gemini's fields are upgraded, which model and whether the
+ * The pure settings rules: what a patch leaves the three keys and each provider's models as,
+ * how an older custom endpoint's record is upgraded, which model and whether the
  * writer can run, which key draws pictures, what a custom endpoint URL may be and what reply
  * cap it sends.
  */
@@ -186,9 +191,28 @@ describe('upgradeSettings', () => {
     expect(upgradeSettings(gemini)).toEqual({ settings: gemini, upgraded: false })
     expect(upgradeSettings(gemini).settings).toBe(gemini)
 
-    const blank = settings({ apiProvider: 'openai', apiModel: 'gemini-3.7-pro', endpointModel: '' })
+    const blank = settings({
+      apiProvider: 'openai',
+      apiModel: 'gemini-3.7-pro',
+      endpointModel: ''
+    })
     expect(upgradeSettings(blank).upgraded).toBe(false)
     expect(upgradeSettings(blank).settings).toBe(blank)
+  })
+
+  it('drops the retired NSFW sound switch, a switched-on one putting the NSFW slider at 0', () => {
+    const on = upgradeSettings({
+      ...settings({ volumes: { music: 40, sfx: 60, ambience: 20, nsfw: 90 } }),
+      noNsfwSound: true
+    })
+    expect(on.upgraded).toBe(true)
+    expect('noNsfwSound' in on.settings).toBe(false)
+    expect(on.settings.volumes).toEqual({ music: 40, sfx: 60, ambience: 20, nsfw: 0 })
+
+    const off = upgradeSettings({ ...settings(), noNsfwSound: false })
+    expect(off.upgraded).toBe(true)
+    expect('noNsfwSound' in off.settings).toBe(false)
+    expect(off.settings.volumes).toBeUndefined()
   })
 })
 
@@ -209,18 +233,104 @@ describe('writerModelOf and secondaryModelOf', () => {
 })
 
 describe('mergePatch — the optional switches', () => {
-  it('carries the ending warnings turned off, and leaves an absent one absent', () => {
-    // Absent is warning, so a save that dropped the field would turn the warning back on.
+  it('carries the ending warnings and fullscreen turned off, and leaves an absent one absent', () => {
+    // Absent is on, so a save that dropped the field would turn it back on.
     const off = mergePatch(
       settings(),
-      settingsPatch({ warnEndingInterrupt: false, warnEndingEdit: false })
+      settingsPatch({ warnEndingInterrupt: false, warnEndingEdit: false, fullscreen: false })
     )
     expect(off.warnEndingInterrupt).toBe(false)
     expect(off.warnEndingEdit).toBe(false)
+    expect(off.fullscreen).toBe(false)
 
     const untouched = mergePatch(settings(), settingsPatch())
     expect(untouched.warnEndingInterrupt).toBeUndefined()
     expect(untouched.warnEndingEdit).toBeUndefined()
+    expect(untouched.fullscreen).toBeUndefined()
+  })
+})
+
+describe('mergePatch — the sampling fields, memory budgets and scene persona', () => {
+  it('carries all six, and leaves an absent one absent', () => {
+    const next = mergePatch(
+      settings(),
+      settingsPatch({
+        temperature: 0.8,
+        repetitionPenalty: 1.1,
+        topP: 0.9,
+        topK: 40,
+        memoryBudgets: { one: 30 },
+        scenePersona: 'Custom persona.'
+      })
+    )
+    expect(next.temperature).toBe(0.8)
+    expect(next.repetitionPenalty).toBe(1.1)
+    expect(next.topP).toBe(0.9)
+    expect(next.topK).toBe(40)
+    expect(next.memoryBudgets).toEqual({ one: 30 })
+    expect(next.scenePersona).toBe('Custom persona.')
+
+    const untouched = mergePatch(next, settingsPatch())
+    expect(untouched.temperature).toBeUndefined()
+    expect(untouched.memoryBudgets).toBeUndefined()
+    expect(untouched.scenePersona).toBeUndefined()
+  })
+})
+
+describe('samplingProblem', () => {
+  it('accepts a blank field', () => {
+    expect(samplingProblem('temperature', '')).toBeNull()
+    expect(samplingProblem('temperature', '   ')).toBeNull()
+  })
+
+  it('rejects text that is not a plain decimal number', () => {
+    expect(samplingProblem('temperature', '1e3')).not.toBeNull()
+    expect(samplingProblem('temperature', 'abc')).not.toBeNull()
+  })
+
+  it('rejects a value outside a field\'s own bounds', () => {
+    expect(samplingProblem('temperature', '-1')).not.toBeNull()
+    expect(samplingProblem('temperature', '2.5')).not.toBeNull()
+    expect(samplingProblem('topP', '0')).not.toBeNull()
+    expect(samplingProblem('topK', '1.5')).not.toBeNull()
+  })
+
+  it('accepts a value within bounds', () => {
+    expect(samplingProblem('temperature', '0.8')).toBeNull()
+    expect(samplingProblem('topK', '40')).toBeNull()
+  })
+})
+
+describe('samplingOf', () => {
+  it('sends nothing under gemini', () => {
+    const gemini = settings({ apiProvider: 'gemini', temperature: 0.8, topK: 40 })
+    expect(samplingOf(gemini)).toEqual({})
+  })
+
+  it('keeps valid values under their wire keys and drops junk under openai', () => {
+    const openai = settings({
+      apiProvider: 'openai',
+      temperature: 0.8,
+      repetitionPenalty: 1.1,
+      topP: 0.9,
+      // Out of bounds and non-whole: both read as absent since the file is hand-editable.
+      topK: 1.5
+    })
+    expect(samplingOf(openai)).toEqual({ temperature: 0.8, repetition_penalty: 1.1, top_p: 0.9 })
+  })
+})
+
+describe('memoryBudgetsOf', () => {
+  it('falls back to the default per field', () => {
+    expect(memoryBudgetsOf(settings())).toEqual(DEFAULT_MEMORY_BUDGETS)
+    expect(memoryBudgetsOf(settings({ memoryBudgets: { one: 30 } }))).toEqual({
+      ...DEFAULT_MEMORY_BUDGETS,
+      one: 30
+    })
+    // Out of range, so it falls back like an absent one.
+    expect(memoryBudgetsOf(settings({ memoryBudgets: { two: 1000 } }))).toEqual(
+      DEFAULT_MEMORY_BUDGETS
+    )
   })
 })
 
@@ -274,18 +384,88 @@ describe('pictureKeyOf and pictureKeySet', () => {
     expect(pictureKeySet(redactSettings(current))).toBe(true)
   })
 
-  it('a custom endpoint draws them on the same Gemini key, never its own', () => {
-    const withKey = settings({
+  it('a custom endpoint draws them on its images key first, wherever the images URL points', () => {
+    const all = settings({
+      apiProvider: 'openai',
+      apiKey: 'gemini-key',
+      endpointApiKey: 'endpoint-key',
+      imageApiKey: 'image-key'
+    })
+    expect(pictureKeyOf(all)).toBe('image-key')
+    expect(pictureKeyOf({ ...all, imageEndpointUrl: 'https://images.example.com/v1' })).toBe(
+      'image-key'
+    )
+  })
+
+  it("draws on the Gemini key at Google's own host, else on the endpoint's key", () => {
+    // An absent images URL is Google's root.
+    const google = settings({
       apiProvider: 'openai',
       apiKey: 'gemini-key',
       endpointApiKey: 'endpoint-key'
     })
-    expect(pictureKeyOf(withKey)).toBe('gemini-key')
-    expect(pictureKeySet(redactSettings(withKey))).toBe(true)
+    expect(pictureKeyOf(google)).toBe('gemini-key')
+    expect(pictureKeyOf({ ...google, apiKey: '' })).toBe('endpoint-key')
 
-    const withoutKey = settings({ apiProvider: 'openai', apiKey: '', endpointApiKey: 'endpoint-key' })
-    expect(pictureKeyOf(withoutKey)).toBe('')
-    expect(pictureKeySet(redactSettings(withoutKey))).toBe(false)
+    const geminiOnly = settings({ apiProvider: 'openai', apiKey: 'gemini-key' })
+    expect(pictureKeyOf(geminiOnly)).toBe('gemini-key')
+    expect(pictureKeySet(redactSettings(geminiOnly))).toBe(true)
+  })
+
+  it('never sends the Gemini key to another host', () => {
+    const elsewhere = settings({
+      apiProvider: 'openai',
+      apiKey: 'gemini-key',
+      endpointApiKey: 'endpoint-key',
+      imageEndpointUrl: 'https://openrouter.ai/api/v1'
+    })
+    expect(pictureKeyOf(elsewhere)).toBe('endpoint-key')
+
+    const geminiOnly = { ...elsewhere, endpointApiKey: undefined }
+    expect(pictureKeyOf(geminiOnly)).toBe('')
+    expect(pictureKeySet(redactSettings(geminiOnly))).toBe(false)
+  })
+})
+
+describe('mergePatch — the images key', () => {
+  const current = settings({
+    apiProvider: 'openai',
+    endpointUrl: 'https://one.example.com/v1',
+    imageEndpointUrl: 'https://images.example.com/api/v1',
+    imageApiKey: 'image-key'
+  })
+  const images = { apiProvider: 'openai', endpointUrl: 'https://one.example.com/v1' } as const
+
+  it('survives a provider switch and its own origin, and is dropped on another', () => {
+    const toGemini = mergePatch(
+      current,
+      settingsPatch({ ...images, apiProvider: 'gemini', imageEndpointUrl: current.imageEndpointUrl })
+    )
+    expect(toGemini.imageApiKey).toBe('image-key')
+
+    const samePath = mergePatch(
+      current,
+      settingsPatch({ ...images, imageEndpointUrl: 'https://images.example.com/v2' })
+    )
+    expect(samePath.imageApiKey).toBe('image-key')
+
+    const moved = mergePatch(
+      current,
+      settingsPatch({ ...images, imageEndpointUrl: 'https://other.example.com/v1' })
+    )
+    expect(moved.imageApiKey).toBeUndefined()
+  })
+
+  it("reads an absent images URL as Google's own on either side", () => {
+    // Back to the default: another origin, so the key typed for the old one goes.
+    expect(mergePatch(current, settingsPatch(images)).imageApiKey).toBeUndefined()
+
+    const atGoogle = settings({ apiProvider: 'openai', imageApiKey: 'google-key' })
+    const typedOut = mergePatch(
+      atGoogle,
+      settingsPatch({ ...images, imageEndpointUrl: 'https://generativelanguage.googleapis.com/v1beta' })
+    )
+    expect(typedOut.imageApiKey).toBe('google-key')
   })
 })
 
@@ -335,8 +515,8 @@ describe('endpointProblem', () => {
  * still reports success, and the control is reseeded from a store that never changed — so the
  * checkbox springs back to where it was.
  *
- * Nothing about that fails loudly — not the compiler, since the patch type carries the field
- * either way, and not the write, which returns ok. So both settings are checked here.
+ * Nothing about that fails loudly. The compiler is happy either way, since the patch type carries
+ * the field whichever end drops it.
  */
 describe('mergePatch — a switch the patch names is the switch that lands', () => {
   it('turns photographs off', () => {
@@ -350,28 +530,9 @@ describe('mergePatch — a switch the patch names is the switch that lands', () 
   })
 
   /** Absent is how a save written before the feature existed reads, and absent is photographs on. */
-  it('leaves photographs absent where the patch says nothing', () => {
+  it('leaves it absent where the patch says nothing', () => {
     const merged = mergePatch(settings({ photos: false }), settingsPatch())
     expect(merged.photos).toBeUndefined()
-  })
-
-  it('turns strict schema fields on', () => {
-    const merged = mergePatch(settings(), settingsPatch({ strictSchema: true }))
-    expect(merged.strictSchema).toBe(true)
-  })
-
-  it('turns them off again', () => {
-    const merged = mergePatch(
-      settings({ strictSchema: true }),
-      settingsPatch({ strictSchema: false })
-    )
-    expect(merged.strictSchema).toBe(false)
-  })
-
-  /** Absent is how a save written before the setting existed reads, and absent is off. */
-  it('leaves strict schema absent where the patch says nothing', () => {
-    const merged = mergePatch(settings({ strictSchema: true }), settingsPatch())
-    expect(merged.strictSchema).toBeUndefined()
   })
 
   it('turns body details on, and off again', () => {
@@ -383,5 +544,92 @@ describe('mergePatch — a switch the patch names is the switch that lands', () 
   it('keeps the photo loading animation the player picked', () => {
     const merged = mergePatch(settings(), settingsPatch({ photoLoader: 'shimmer' }))
     expect(merged.photoLoader).toBe('shimmer')
+  })
+})
+
+describe('settingsFromBackup', () => {
+  const MALFORMED = { code: 'BACKUP_MALFORMED', message: 'That zip is not a backup.' }
+
+  /** The code a refusal carries, or undefined where nothing was refused. */
+  function refusalOf(carried: unknown): string | undefined {
+    try {
+      settingsFromBackup(settings(), carried, MALFORMED)
+    } catch (err) {
+      return (err as { code?: string }).code
+    }
+    return undefined
+  }
+
+  it("takes the backup's choices and keeps the install's keys, switches and key remembering", () => {
+    const current = settings({
+      apiKey: 'gemini-key',
+      apiProvider: 'openai',
+      endpointUrl: 'https://one.example/v1',
+      endpointModel: 'local-7b',
+      endpointApiKey: 'endpoint-key',
+      forceTime: 'night',
+      freezeSeeds: true,
+      rememberKey: true,
+      removedDefaults: ['shipped-1']
+    })
+    const carried = redactSettings(
+      settings({
+        apiProvider: 'openai',
+        endpointUrl: 'https://one.example/v1',
+        endpointModel: 'local-13b',
+        lessNsfwText: true,
+        scenePersona: 'A persona the player wrote.',
+        forceTime: 'day',
+        removedDefaults: ['shipped-2']
+      })
+    )
+
+    const restored = settingsFromBackup(current, carried, MALFORMED)
+    expect(restored).toMatchObject({
+      apiKey: 'gemini-key',
+      endpointApiKey: 'endpoint-key',
+      endpointModel: 'local-13b',
+      lessNsfwText: true,
+      scenePersona: 'A persona the player wrote.',
+      forceTime: 'night',
+      freezeSeeds: true,
+      rememberKey: true,
+      removedDefaults: ['shipped-2']
+    })
+    expect(restored).not.toHaveProperty('apiKeySet')
+  })
+
+  it("lets go of the endpoint's key for a backup naming another host, and keeps Gemini's", () => {
+    const current = settings({
+      apiKey: 'gemini-key',
+      apiProvider: 'openai',
+      endpointUrl: 'https://one.example/v1',
+      endpointModel: 'local-7b',
+      endpointApiKey: 'endpoint-key'
+    })
+    const carried = redactSettings(
+      settings({ apiProvider: 'openai', endpointUrl: 'https://two.example/v1', endpointModel: 'x' })
+    )
+    const restored = settingsFromBackup(current, carried, MALFORMED)
+    expect(restored.apiKey).toBe('gemini-key')
+    expect(restored.endpointApiKey).toBeUndefined()
+  })
+
+  it("brings an older custom endpoint's backup up to this build on the way in", () => {
+    const carried = redactSettings(settings({ apiProvider: 'openai', apiModel: 'local-7b' }))
+    const restored = settingsFromBackup(settings(), carried, MALFORMED)
+    expect(restored.endpointModel).toBe('local-7b')
+    expect(restored.apiModel).toBe(defaultModelFor('gemini').id)
+  })
+
+  it('refuses settings missing a field, at another version or carrying no roster list', () => {
+    const { apiModel: _missing, ...incomplete } = redactSettings(settings())
+    expect(refusalOf(incomplete)).toBe('BACKUP_MALFORMED')
+    expect(refusalOf({ ...redactSettings(settings()), schemaVersion: 2 })).toBe('BACKUP_MALFORMED')
+    expect(refusalOf({ ...redactSettings(settings()), removedDefaults: 'shipped-1' })).toBe(
+      'BACKUP_MALFORMED'
+    )
+    expect(refusalOf(null)).toBe('BACKUP_MALFORMED')
+    expect(refusalOf(redactSettings(settings()))).toBeUndefined()
   })
 })

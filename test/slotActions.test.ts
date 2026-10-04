@@ -110,7 +110,9 @@ describe('slotActionsNow', () => {
       ]
     })
     const plans = slotActionsNow().filter((action) => action.tone === 'plan')
-    expect(plans).toEqual([{ key: 'event:now', text: 'Dinner', tone: 'plan', verdict: null }])
+    expect(plans).toEqual([
+      { key: 'event:now', text: 'Dinner', tone: 'plan', verdict: null, planId: 'now' }
+    ])
   })
 
   it('offers the shift the reader is rostered for', () => {

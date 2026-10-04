@@ -111,12 +111,14 @@ declare module '../preload/api' {
     photo: {
       /**
        * The name the next picture of `kind` will land under, settled before it is drawn so the
-       * bubble waiting for it carries that name into the save immediately.
+       * bubble waiting for it carries that name into the save immediately. `inSave` is every
+       * name the save already points at for her, which is never handed out again.
        */
       reserveName: (
         playthroughId: string,
         character: Character,
-        kind: string
+        kind: string,
+        inSave: readonly string[]
       ) => Promise<Result<string>>
       /**
        * Whether a picture a bubble is still waiting for is on disk after all. Asked on load: a

@@ -30,7 +30,7 @@ export function getPhotoPath(playthroughId: string, charId: string, file: string
 }
 
 /**
- * This scheme's entry for `registerCharImageScheme`, which is the only place a scheme may be
+ * This scheme's entry for `registerImageSchemes`, which is the only place a scheme may be
  * privileged: Electron takes one such registration and a second replaces the first, so this is
  * handed to that call rather than registered on its own.
  */

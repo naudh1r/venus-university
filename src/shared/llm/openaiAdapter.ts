@@ -9,11 +9,25 @@ import { htmlGist, isHtml, permanentStatus, retryableCode } from './httpStatus'
  */
 
 /** Minimal shape of the JSON error envelope these endpoints agree on. */
-interface OpenAiError {
+export interface OpenAiError {
   code?: number | string
   message?: string
   type?: string
   metadata?: { reasons?: unknown }
+}
+
+/** How a failure names the URL it was sent to: the Settings field, and what should have answered there. */
+export interface EndpointWording {
+  /** The field a wrong URL is fixed in, as a sentence names it. */
+  urlField: string
+  /** What a 404 says answered nothing at the URL. */
+  service: string
+}
+
+/** The writer's wording: its endpoint URL, answering chat completions. */
+const CHAT_WORDING: EndpointWording = {
+  urlField: 'endpoint URL',
+  service: 'chat completions endpoint'
 }
 
 /** Minimal shape of one chat completion, whole or streamed. */
@@ -31,20 +45,21 @@ interface OpenAiResponse {
 }
 
 /** The HTTP-like status an error envelope names; an unnumbered code classifies as permanent. */
-function statusOf(error: OpenAiError | undefined): number {
+export function statusOf(error: OpenAiError | undefined): number {
   const code = Number(error?.code)
   return Number.isFinite(code) ? code : 0
 }
 
 /**
  * The `AppError` a status and the endpoint's error envelope amount to; `bodyDetail` is what a
- * body carrying no envelope contributes in its place. Never throws.
+ * body carrying no envelope contributes in its place, and `wording` names the URL. Never throws.
  */
-function classify(
+export function classify(
   status: number,
   envelope: OpenAiError | undefined,
   label: string,
-  bodyDetail = ''
+  bodyDetail = '',
+  wording: EndpointWording = CHAT_WORDING
 ): AppError {
   const detail = envelope
     ? `${envelope.type ?? ''} ${envelope.message ?? ''}`.trim()
@@ -75,8 +90,8 @@ function classify(
   if (status === 404) {
     return appError(
       'LLM_REQUEST_REJECTED',
-      'No chat completions endpoint answered at this URL (HTTP 404). ' +
-        'Check the endpoint URL in Settings.',
+      `No ${wording.service} answered at this URL (HTTP 404). ` +
+        `Check the ${wording.urlField} in Settings.`,
       detail
     )
   }
@@ -143,9 +158,31 @@ function textOf(content: unknown): string {
     .join('')
 }
 
-/** The custom endpoint draws nothing; the registry's type is what makes these two exist. */
-function noPictures(): never {
-  throw appError('LLM_REQUEST_REJECTED', 'The custom endpoint does not draw pictures.')
+/**
+ * Maps a non-2xx response from an endpoint speaking this error envelope to an `AppError`, the
+ * URL named by `wording`. Never throws.
+ */
+export function envelopeErrorFor(
+  { status, contentType, body, label }: ErrorContext,
+  wording: EndpointWording
+): AppError {
+  if (isHtml(contentType, body)) {
+    // A base URL naming a web page rather than an API root answers HTML.
+    return appError(
+      'LLM_HTTP',
+      `${label} returned an HTTP ${status} error page rather than JSON. ` +
+        `Check the ${wording.urlField} in Settings.`,
+      htmlGist(body)
+    )
+  }
+
+  let envelope: OpenAiError | undefined
+  try {
+    envelope = (JSON.parse(body) as { error?: OpenAiError }).error
+  } catch {
+    // A non-JSON, non-HTML body classifies by status alone.
+  }
+  return classify(status, envelope, label, truncate(body, 2000), wording)
 }
 
 /**
@@ -177,9 +214,6 @@ export function modelIdsOf(rawBody: string): string[] {
 }
 
 export const openaiAdapter: LlmAdapter = {
-  buildImageCall: noPictures,
-  imageOf: noPictures,
-
   buildCall({
     request,
     provider,
@@ -187,7 +221,8 @@ export const openaiAdapter: LlmAdapter = {
     apiKey,
     thinkingLevel,
     maxOutputTokens,
-    streaming
+    streaming,
+    sampling
   }: BuildCallContext): LlmCall {
     const images = request.images ?? []
     // Plain text where there are no images: the oldest servers take nothing else.
@@ -225,30 +260,18 @@ export const openaiAdapter: LlmAdapter = {
         // tokens; sent so a reply that ran out of room is unambiguous when read back, and the
         // player's own cap where one is set.
         max_tokens: maxOutputTokens,
+        // `temperature` and `top_p` are chat completions' own fields; `top_k` and
+        // `repetition_penalty` are the extensions servers like vLLM and llama.cpp read at the
+        // top level of the same body.
+        ...sampling,
         ...(streaming ? { stream: true, stream_options: { include_usage: true } } : {}),
         ...model.extraBody
       }
     }
   },
 
-  errorFor({ status, contentType, body, label }: ErrorContext): AppError {
-    if (isHtml(contentType, body)) {
-      // A base URL naming a web page rather than an API root answers HTML.
-      return appError(
-        'LLM_HTTP',
-        `${label} returned an HTTP ${status} error page rather than JSON. ` +
-          'Check the endpoint URL in Settings.',
-        htmlGist(body)
-      )
-    }
-
-    let envelope: OpenAiError | undefined
-    try {
-      envelope = (JSON.parse(body) as { error?: OpenAiError }).error
-    } catch {
-      // A non-JSON, non-HTML body classifies by status alone.
-    }
-    return classify(status, envelope, label, truncate(body, 2000))
+  errorFor(context: ErrorContext): AppError {
+    return envelopeErrorFor(context, CHAT_WORDING)
   },
 
   contentOf(rawBody: string, label: string): string {

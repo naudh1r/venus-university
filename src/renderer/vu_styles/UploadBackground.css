@@ -1,0 +1,55 @@
+/* The custom background form: the note on the name, the name, the four pictures in a row, and
+   the two choices under them. Imported from the view module, never from index.css.
+
+   The veil, the fields, the gallery cells, the ✕, the palette and the foot are base.css's. */
+
+/* The form modals' frame, wide enough for four pictures abreast. The cap gives back what the
+   tab and the paper's overhang need. No `overflow`: the tab overhangs, and the panel's own
+   shadow pseudo would go with it. */
+.vu-bgupload {
+  --paper-offset: 12px 11px;
+  --paper-tilt: -0.8deg;
+  --paper-shadow: var(--vu-panel-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: min(1240px, 100% - 60px);
+  max-height: calc(100% - 100px);
+  padding: 78px 56px 28px 100px;
+  border-radius: 120px 0 0 120px;
+  color: var(--vu-text);
+  font-family: var(--font-body);
+}
+
+/* What the name is for, said once above it in the note's own muted voice. */
+.vu-bgupload-note {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 500 14px/1.5 var(--font-body);
+}
+
+/* The hint over the four cards it speaks for. */
+.vu-bgupload-pictures {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* An empty card's plus, in the gap's own muted ink. */
+.vu-bgupload-plus {
+  display: grid;
+  color: var(--vu-text-muted);
+}
+
+/* Indoors or out beside the song, each its own labelled control, standing on one line. */
+.vu-bgupload-row {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  align-items: end;
+  gap: 28px;
+}
+
+/* Two states, not a tool box: the palette at a field's scale rather than the painter's. */
+.vu-bgupload-kind .vu-palette-btn {
+  height: 76px;
+}

@@ -17,7 +17,6 @@ function facts(over: Partial<SoundFacts> = {}): SoundFacts {
     titleDone: false,
     music: null,
     crossing: { phase: 'idle', splash: false, waited: false },
-    nsfwSound: true,
     game: null,
     ...over
   }
@@ -236,6 +235,20 @@ describe('a scene', () => {
     expect(soundscapeOf(hall).music).toEqual({ key: null, fade: 1.5 })
   })
 
+  it("plays a background of the player's own song in either half, over its room tone", () => {
+    const scene = { landing: false, inScene: true } as const
+    const own = { base: 'rooftop', kind: 'exterior', venue: 'venue_lofi' } as const
+
+    for (const half of ['day', 'night'] as const) {
+      const rooftop = inGame({ ...scene, bg: own, half })
+      expect(soundscapeOf(rooftop).music).toEqual({ key: 'venue_lofi', fade: 1.5 })
+      expect(soundscapeOf(rooftop).ambience).toEqual({
+        key: half === 'day' ? 'amb_outdoor_day' : 'amb_outdoor_night',
+        fade: 1.5
+      })
+    }
+  })
+
   it('plays the landing theme and stays out of the room when the reader is alone', () => {
     const solo = {
       landing: false,
@@ -364,19 +377,6 @@ describe('a wet sky', () => {
       weather: 'rain'
     })
     expect(soundscapeOf(hers).ambience).toEqual({ key: 'amb_indoor_rain', fade: 1.5 })
-  })
-})
-
-describe('the NSFW sound switch', () => {
-  it('takes the act and the breath off a CG that is still on stage', () => {
-    const cg = { landing: false, inScene: true, cg: { position: 'sex', voicePitch: 0 } } as const
-    const off = { ...inGame(cg), nsfwSound: false }
-    const mix = soundscapeOf(off)
-    expect(mix.act).toEqual({ key: null, fade: 0.8 })
-    expect(mix.breath).toEqual({ key: null, fade: 0.8 })
-
-    // The scene around it is untouched.
-    expect(mix.music).toEqual({ key: null, fade: 1.5 })
   })
 })
 

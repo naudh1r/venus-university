@@ -1,7 +1,9 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import { APP_ID } from '@shared/appId'
 import type { BackupPlaythrough } from '@shared/backup'
+import type { BgVariant, CustomBackground } from '@shared/customBackgrounds'
 import { appError, messageOf } from '@shared/errors'
+import type { PhotoMeta } from '@shared/photos'
 import type { Character, GameSave, GrabBags, Settings } from '@shared/types'
 
 /**
@@ -23,6 +25,19 @@ interface CharFile {
   updatedAt: number
 }
 
+/** One Bunnyboard photo as the database keeps it; the thumbnail and sidecar only once written. */
+export interface StoredPhoto {
+  image: Blob
+  thumb?: Blob
+  meta?: PhotoMeta
+}
+
+/** One of the player's own backgrounds: its record and its pictures, written as one row. */
+export interface StoredBackground {
+  record: CustomBackground
+  images: Partial<Record<BgVariant, Blob>>
+}
+
 /**
  * Every store, the key each one is written under, and what it holds; the saves are indexed by
  * playthrough and write time, so the newest of one playthrough is found without reading the rest.
@@ -34,9 +49,11 @@ export interface VenusUniversityDb extends DBSchema {
   saves: { key: [string, string]; value: GameSave; indexes: { byDate: [string, number] } }
   endingArt: { key: string; value: Blob }
   profilePictures: { key: string; value: Blob }
+  photos: { key: [string, string]; value: StoredPhoto }
   characters: { key: string; value: Character }
   charFiles: { key: [string, string]; value: CharFile }
   log: { key: 'log'; value: string }
+  backgrounds: { key: string; value: StoredBackground }
 }
 
 /**
@@ -53,10 +70,12 @@ const STORES = [
   'characters',
   'charFiles',
   'log',
-  'profilePictures'
+  'profilePictures',
+  'photos',
+  'backgrounds'
 ] as const
 
-const DB_VERSION = 3
+const DB_VERSION = 5
 
 let opened: Promise<IDBPDatabase<VenusUniversityDb>> | null = null
 

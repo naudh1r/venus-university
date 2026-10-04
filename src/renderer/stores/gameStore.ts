@@ -3,7 +3,6 @@ import {
   affectionFor,
   emptyFlags,
   foldRelationshipEvents,
-  MEMORY_CAP,
   refreshedFlags,
   withMemoryReplaced
 } from '@shared/relationship'
@@ -688,6 +687,8 @@ interface GameStoreState {
    * a memory she does not hold changes nothing.
    */
   replaceMemory: (charId: string, match: CharMemory, next: CharMemory | null) => void
+  /** Keeps the player's notes on her, trimmed; blank ones are dropped rather than stored. */
+  setCharNotes: (charId: string, text: string) => void
   /** Files what this slot's texting left her with, **replacing** the last slot's. */
   setTextMemory: (charId: string, entry: CharMemory) => void
   /** Remembers what the scene-end status lines just told him about her standards. */
@@ -1071,6 +1072,32 @@ function freshStage(): typeof emptyStage {
     sceneActed: false,
     sparkle: null
   }
+}
+
+/**
+ * Where an interjection taken now cuts the transcript: after the line on screen, and never past
+ * the scene's first action — every line after it is a reply's, and a cut taken rewound across a
+ * later action takes that action and the turns after it too.
+ */
+function cutLengthOf(
+  state: Pick<GameStoreState, 'currentSceneTranscript' | 'pendingLines'>
+): number {
+  const transcript = state.currentSceneTranscript
+  return Math.max(
+    transcript.length - state.pendingLines.length,
+    firstReaderIndexOf(transcript) + 1
+  )
+}
+
+/**
+ * Whether a gift has been given this scene that a turn taken from the line on screen keeps: one
+ * handed over past a line a rewind stepped back to would be taken back by that turn's cut.
+ */
+export function giftGivenOf(
+  state: Pick<GameStoreState, 'currentSceneTranscript' | 'pendingLines' | 'sceneGifts'>
+): boolean {
+  const length = cutLengthOf(state)
+  return state.sceneGifts.some((gift) => gift.at === undefined || gift.at < length)
 }
 
 /**
@@ -1597,15 +1624,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   truncateUnread: () =>
     set((state) => {
-      const transcript = state.currentSceneTranscript
-      // Never past the scene's first action: every line after it is a reply's, and a cut taken
-      // rewound across a later action takes that action and the turns after it too.
-      const kept = Math.max(
-        transcript.length - state.pendingLines.length,
-        firstReaderIndexOf(transcript) + 1
-      )
+      const kept = cutLengthOf(state)
       return {
-        currentSceneTranscript: transcript.slice(0, kept),
+        currentSceneTranscript: state.currentSceneTranscript.slice(0, kept),
         pendingLines: [],
         reread: 0,
         ...summariesWithin(state.sceneSummaries, kept),
@@ -1921,14 +1942,27 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set((state) =>
       patchCharInfo(state, charId, (info = blankCharInfo()) => ({
         ...info,
-        // Oldest out first.
-        memories: [...info.memories, entry].slice(-MEMORY_CAP)
+        // Every memory is kept; the prompts and affection read their own newest few.
+        memories: [...info.memories, entry]
       }))
     ),
 
   replaceMemory: (charId, match, next) =>
     set((state) =>
       patchCharInfo(state, charId, (info) => (info ? withMemoryReplaced(info, match, next) : null))
+    ),
+
+  setCharNotes: (charId, text) =>
+    set((state) =>
+      patchCharInfo(state, charId, (info) => {
+        const notes = text.trim()
+        if (!info || (info.notes ?? '') === notes) return null
+        if (notes === '') {
+          const { notes: _cleared, ...rest } = info
+          return rest
+        }
+        return { ...info, notes }
+      })
     ),
 
   setCrush: (charId) =>

@@ -3,9 +3,6 @@ import { MEMORY_TYPES, type MemoryType } from '@shared/types'
 import { profileUrl, useSpriteVersion } from '../stores/characterStore'
 import '../vu_styles/MemoryEdit.css'
 
-/** The most a memory's words may run to. */
-export const MEMORY_DESC_MAX = 200
-
 export interface MemoryRowProps {
   /** Unique per row: the two controls' ids are built on it. */
   id: string
@@ -73,7 +70,6 @@ export function MemoryRow({
         rows={3}
         aria-label="What she remembers"
         value={desc}
-        maxLength={MEMORY_DESC_MAX}
         autoFocus={autoFocus}
         // The caret opens at the end of her words, where an edit to a line usually starts.
         onFocus={(e) => {

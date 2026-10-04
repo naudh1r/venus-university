@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, Menu, screen, shell } from 'electron'
 import type { BaseWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { handleCharImageProtocol, registerCharImageScheme } from './charImageProtocol'
+import { handleImageProtocols, registerImageSchemes } from './imageProtocols'
 import { handlePhotoProtocol } from './photoProtocol'
 import { registerIpcHandlers } from './ipc'
 import { installConsoleLog } from './logFile'
@@ -10,7 +10,7 @@ import { redact } from './redact'
 import { sweepStaging } from './services/characterService'
 import { killStray as killStrayComfy, stop as stopComfy } from './services/comfyService'
 import { ensureAmdNodePatches } from './services/setupService'
-import { ensureDataDir } from './services/settingsService'
+import { ensureDataDir, getSettings } from './services/settingsService'
 import { startUpdateCheck, startUpdateSweep } from './services/updateService'
 import { APP_ID } from '@shared/appId'
 import { toAppError } from '@shared/errors'
@@ -105,8 +105,15 @@ function isOpenableExternally(url: string): boolean {
   }
 }
 
-/** Creates and shows the single main application window. */
-function createWindow(): void {
+/** A 1920x1080 *content* window does not fit a 1080p desktop, so a window that overflows fills it. */
+function fillIfOversized(win: BrowserWindow): void {
+  const { workAreaSize } = screen.getPrimaryDisplay()
+  const { width, height } = win.getBounds()
+  if (width > workAreaSize.width || height > workAreaSize.height) win.maximize()
+}
+
+/** Creates and shows the single main application window, fullscreen or windowed as the setting says. */
+function createWindow(fullscreen: boolean): void {
   const display = screen.getPrimaryDisplay().size
 
   const mainWindow = new BrowserWindow({
@@ -116,7 +123,7 @@ function createWindow(): void {
     useContentSize: true,
     minWidth: 1280,
     minHeight: 720,
-    fullscreen: true,
+    fullscreen,
     // The letterbox, so a resize never flashes white behind the stage.
     backgroundColor: '#000000',
     show: false,
@@ -126,14 +133,16 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       devTools: is.dev,
-      // Right on the first paint; setZoomFactor alone would show one frame at 1.
-      zoomFactor: zoomFor(display.width, display.height)
+      // Right on the first paint, off the size the window opens at; setZoomFactor alone would
+      // show one frame at 1.
+      zoomFactor: fullscreen ? zoomFor(display.width, display.height) : zoomFor(1920, 1080)
     }
   })
 
   bindShortcuts(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
+    if (!fullscreen) fillIfOversized(mainWindow)
     mainWindow.show()
   })
 
@@ -154,12 +163,7 @@ function createWindow(): void {
     console.error(`[renderer] gone: ${details.reason} (exit ${details.exitCode})`)
   })
 
-  // A 1920x1080 *content* window does not fit a 1080p desktop, so leaving fullscreen fills it.
-  mainWindow.on('leave-full-screen', () => {
-    const { workAreaSize } = screen.getPrimaryDisplay()
-    const { width, height } = mainWindow.getBounds()
-    if (width > workAreaSize.width || height > workAreaSize.height) mainWindow.maximize()
-  })
+  mainWindow.on('leave-full-screen', () => fillIfOversized(mainWindow))
 
   // The window shows the app and never becomes another page; the one exception is the page
   // re-becoming itself, which the dev server's full reload does.
@@ -192,14 +196,14 @@ function createWindow(): void {
 installConsoleLog()
 
 // Custom schemes must be declared before the app is ready.
-registerCharImageScheme()
+registerImageSchemes()
 
 app
   .whenReady()
   .then(async () => {
     electronApp.setAppUserModelId(APP_ID)
 
-    handleCharImageProtocol()
+    handleImageProtocols()
     handlePhotoProtocol()
 
     app.on('browser-window-created', (_, window) => {
@@ -232,7 +236,13 @@ app
 
     registerIpcHandlers()
 
-    createWindow()
+    // A settings file that cannot be read is the renderer's to report; the window opens
+    // fullscreen to report it in.
+    const fullscreen = await getSettings().then(
+      (settings) => settings.fullscreen !== false,
+      () => true
+    )
+    createWindow(fullscreen)
   })
   .catch((err: unknown) => {
     // No window exists yet to report into, so a startup failure gets a native dialog, and

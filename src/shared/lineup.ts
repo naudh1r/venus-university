@@ -1,7 +1,7 @@
 /**
  * The reference sheet's geometry: how a row of transparent sprites becomes one landscape
  * image an image model can be handed as a cast list. Pure arithmetic; the canvas that executes
- * the layout lives in `stores/loop/endingArt.ts`.
+ * the layout lives in `stores/lineupSheet.ts`.
  */
 
 /**

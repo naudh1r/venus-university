@@ -11,7 +11,7 @@ import { formatGameDate } from './gameDate'
 import { GRADUATION_DATE } from './occasions'
 import { relationshipLines } from './relationship'
 import { objectSchema } from './schema'
-import { memoryLines, personaFor, profileLines, spaced } from './scenePrompt'
+import { memoryLines, notesLines, personaFor, profileLines, spaced } from './scenePrompt'
 
 /** The epilogue's status updates: the one call the days after graduation are written by. */
 
@@ -100,7 +100,8 @@ function characterBlock(input: EndingPostsInput): string[] {
         { date, offset: info.moodCycleOffset ?? 0 }
       ),
       ...memoryLines(character, dedupedMemoriesFor(info).slice(-3), info.textMemory),
-      postingLine(poster)
+      postingLine(poster),
+      ...notesLines(character.firstName, info.notes)
     ]
   })
 

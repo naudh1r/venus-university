@@ -1,5 +1,4 @@
-import { charJobAt, formatDateBanner, formatDatePart, slotHalf } from './gameDate'
-import { classSlotOf, jobClosedOn } from './occasions'
+import { formatDateBanner, formatDatePart, slotHalf } from './gameDate'
 import { isAwayForSpringBreak } from './springBreak'
 import { FINAL_DATE } from '@shared/classes'
 import { globalSlotOf, slotFromId } from '@shared/jobs'
@@ -7,11 +6,9 @@ import { charKeyOf, fullNameOf, READER_SPEAKER } from '@shared/types'
 import type {
   CalendarEvent,
   Character,
-  CharInfo,
   ChatMessage,
   EventCancellation,
   LedgerResponse,
-  Occasion,
   SceneLine,
   TimeSlot
 } from '@shared/types'
@@ -314,40 +311,22 @@ export function normalizeSchedule(
 }
 
 /**
- * Drops from each event whoever is busy when it falls, and drops outright an event that leaves
- * nobody.
+ * Drops from each event whoever is away for spring break when it falls, and drops outright an
+ * event that leaves nobody. A class or a shift keeps nobody off a plan: she meets him before
+ * or after it.
  */
 export function filterEventsByAttendance(
   events: readonly CalendarEvent[],
-  charInfo: Record<string, CharInfo>,
-  occasions: readonly Occasion[] = [],
   springBreakAway: readonly string[] | null = null
 ): { events: CalendarEvent[]; cancellations: EventCancellation[] } {
   const kept: CalendarEvent[] = []
   const cancellations: EventCancellation[] = []
 
   for (const event of events) {
-    // Null on a weekend or a cancelled day: no class meets, so nobody is in class.
-    const slot = classSlotOf(event.date, event.time, occasions)
     const free: string[] = []
     for (const charId of event.charIds) {
-      const inClass = slot !== null && Boolean(charInfo[charId]?.schedule?.[slot])
-      const shiftJob = charJobAt(charInfo[charId]?.job, event.date, event.time)
-      const onShift = shiftJob !== null && !jobClosedOn(shiftJob, event.date, occasions)
-      // In precedence: away outranks both timetables, class beats a shift; the job
-      // rides along so the message can name the employer.
       if (isAwayForSpringBreak(springBreakAway, charId, event.date)) {
         cancellations.push({ charId, date: event.date, time: event.time, reason: 'away' })
-      } else if (inClass) {
-        cancellations.push({ charId, date: event.date, time: event.time, reason: 'class' })
-      } else if (onShift && shiftJob !== null) {
-        cancellations.push({
-          charId,
-          date: event.date,
-          time: event.time,
-          reason: 'shift',
-          jobId: shiftJob
-        })
       } else {
         free.push(charId)
       }

@@ -140,7 +140,8 @@ export function updatesFeed(input: {
     const character = characters[entry.charId]
     if (seen.has(entry.postId) || !character) continue
     const post = (charInfo[entry.charId]?.feed ?? []).find((one) => one.id === entry.postId)
-    if (!post) continue
+    // A teaser that came with a picture waits for it, as every post does.
+    if (!post || !postIsOut(post)) continue
     seen.add(entry.postId)
     entries.push({
       kind: 'post',

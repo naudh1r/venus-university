@@ -170,7 +170,9 @@ export const PHOTO_SCHEMA_FIELDS: Record<string, unknown> = {
  * an idea to attach one.
  */
 export function postPhotoLines(canRenderImages: boolean): string[] {
-  if (!canRenderImages) return []
+  // The field is in the schema either way, which is fixed so the call stays cacheable, so it
+  // is told it is empty rather than left to guess: unexplained, it comes back as file names.
+  if (!canRenderImages) return ['Leave "image" empty on every post: nobody posts a picture today.']
   return [
     'A post may carry a picture she took. Describe it in "image" — what the photograph shows, the way she would caption it to herself: where she is, what she is wearing, how she is standing or sitting, how close the shot is. One sentence, and a full one. Leave "image" empty on a post that is just words, which most of them are.',
     'What is not written is not drawn: "a selfie" gets a picture of nobody in particular.',

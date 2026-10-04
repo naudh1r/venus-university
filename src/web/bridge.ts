@@ -11,12 +11,27 @@ import { imageTypeOf } from '@shared/imageBytes'
 import { cancelGroup, cancelKeys, runAbortable } from '@shared/jobQueue'
 import { LINEUP_MIME_TYPE } from '@shared/lineup'
 import { classifyCloud } from '@shared/llm/cloudClassifier'
-import { generateImage } from '@shared/llm/cloudImage'
+import { generateImage, generatePhoto } from '@shared/llm/cloudImage'
 import { completeStructured, type StructuredRequest } from '@shared/llm/cloudLlm'
-import { listModels, testWriter } from '@shared/llm/endpointProbe'
+import {
+  listImageModels,
+  listModels,
+  photoModelChoice,
+  testImages,
+  testWriter
+} from '@shared/llm/endpointProbe'
 import { logRecordOf } from '@shared/logRules'
-import { assertProfilePicture } from '@shared/profilePicture'
+import {
+  assertSafePhotoId,
+  photoExportName,
+  photoMetaName,
+  PHOTO_META_READ,
+  type PhotoMeta,
+  type PhotoRequest
+} from '@shared/photos'
+import { validateRecord } from '@shared/jsonValidate'
 import { ENDING_IMAGE_MODEL_ID } from '@shared/providers'
+import { assertProfilePicture } from '@shared/profilePicture'
 import { assertSafePlaythroughId } from '@shared/saveRules'
 import { storedEndpointKeyFor } from '@shared/settingsRules'
 import {
@@ -37,7 +52,14 @@ import { photoBridge } from './photoBridge'
 import { imageBlob } from './blob'
 import { DESKTOP_ONLY_NOTE } from '../renderer/platform'
 import { exportBackup, importBackup } from './backup'
+import {
+  addBackground,
+  listBackgrounds,
+  readBackgroundImage,
+  removeBackground
+} from './backgrounds'
 import * as chars from './chars'
+import * as photos from './db/photos'
 import * as saves from './db/saves'
 import { readGrabBags, writeGrabBags } from './db/grabbags'
 import { getPoseManifest, getQuickstart, readAudio } from './assets'
@@ -45,7 +67,7 @@ import { offerDownload } from './download'
 import { emitter } from './emitter'
 import { exportLog, writeLogLine } from './log'
 import { currentSettings, patchSettings, rendererSettings } from './settings'
-import { duplicateCharacter, exportCharacter, importCharacter } from './transfer'
+import { duplicateCharacter, exportCharacter, importCharacter, ZIP_TYPE } from './transfer'
 
 /**
  * The same bridge the preload builds, against the browser's own storage, `fetch` and the
@@ -90,11 +112,14 @@ async function generateEndingArt(
   assertEndingRequest(friendCount, bytes)
 
   const art = await generateImage(endingPicturePrompt(friendCount), {
-    modelId: ENDING_IMAGE_MODEL_ID,
+    model: ENDING_IMAGE_MODEL_ID,
     imageSize: ENDING_PICTURE_SIZE,
-    source: { bytes, mimeType: LINEUP_MIME_TYPE },
+    sources: [{ bytes, mimeType: LINEUP_MIME_TYPE }],
     signal
   })
+  // Last gate before the write, which would leave a picture behind a playthrough deleted while
+  // it was being drawn.
+  if (signal.aborted) throw appError('CANCELLED', 'Generation was cancelled.')
   await saves.writeEndingArt(playthroughId, imageBlob(art))
   return new Uint8Array(art)
 }
@@ -164,13 +189,20 @@ export function buildApi(): VenusUniversityApi {
           await testWriter({
             ...stored,
             ...candidate,
-            // Named rather than left to the spread, so a blank field tests the pinned ceiling
-            // rather than the stored cap.
-            maxOutputTokens: candidate.maxOutputTokens,
             endpointApiKey:
               candidate.endpointApiKey ?? storedEndpointKeyFor(stored, candidate.endpointUrl ?? '')
           })
         }),
+      // The image models the form's own images URL lists, on the key a picture there would take.
+      listImageModels: (candidate) =>
+        result('list the image models', async () =>
+          listImageModels(await currentSettings(), candidate)
+        ),
+      // One picture on the form's own image fields; the error is the answer.
+      testImages: (candidate) =>
+        result('test the images endpoint', async () =>
+          testImages(await currentSettings(), candidate)
+        ),
       classify: (request: ClassifierPromptRequest, charKeys: string[], group: string) =>
         result<ClassifierVerdict>('classify the action', () =>
           runAbortable(group, (signal) => classifyCloud(request, charKeys, signal))
@@ -254,9 +286,15 @@ export function buildApi(): VenusUniversityApi {
       room: (charId) => result('read the room', () => chars.getRoomStatus(charId)),
       generateRoom: (character, variant, staged) =>
         result('render the room', () => chars.generateRoom(character, variant, staged)),
+      uploadRoom: (charId, variant, png) =>
+        result('upload the room', () => chars.uploadRoom(charId, variant, png)),
       export: (charId) => result('export the character', () => exportCharacter(charId)),
       import: () => result('import the character', importCharacter),
       duplicate: (charId) => result('duplicate the character', () => duplicateCharacter(charId)),
+      saveExport: (kind, name, base64) =>
+        result('export the character', async () =>
+          offerDownload(name, base64ToBytes(base64), kind === 'card' ? 'image/png' : ZIP_TYPE)
+        ),
       defaults: () => result('read the shipped cast', chars.getDefaultsStatus),
       restoreDefaults: () => result('restore the shipped cast', chars.restoreDefaults),
       // The browser has no folders to open.
@@ -324,6 +362,77 @@ export function buildApi(): VenusUniversityApi {
       deleteProfilePicture: (playthroughId) =>
         result('remove the profile picture', () => saves.deleteProfilePicture(playthroughId))
     },
+    photos: {
+      options: () => result('read the photo models', photoModelChoice),
+      generate: (request: PhotoRequest, group: string) =>
+        result('draw the photo', () =>
+          runAbortable(group, async (signal) => new Uint8Array(await generatePhoto(request, signal)))
+        ),
+      list: (playthroughId) => result('read the photos', () => photos.listPhotos(playthroughId)),
+      read: (playthroughId, photoId) =>
+        result('read the photo', async () => {
+          const bytes = await photos.readPhoto(playthroughId, photoId)
+          return bytes === null ? null : new Uint8Array(bytes)
+        }),
+      write: (playthroughId, photoId, image, thumb, meta) =>
+        result('save the photo', async () => {
+          assertSafePlaythroughId(playthroughId)
+          assertSafePhotoId(photoId)
+          const imageBytes = base64ToBytes(image)
+          const thumbBytes = base64ToBytes(thumb)
+          if (!imageTypeOf(imageBytes)) {
+            throw appError(
+              'PHOTO_REQUEST_INVALID',
+              'That photo could not be sent.',
+              'The picture is not an image.'
+            )
+          }
+          if (imageTypeOf(thumbBytes) !== 'image/jpeg') {
+            throw appError(
+              'PHOTO_REQUEST_INVALID',
+              'That photo could not be sent.',
+              'The thumbnail is not a JPEG.'
+            )
+          }
+          const record = validateRecord<PhotoMeta>(meta, photoMetaName(photoId), PHOTO_META_READ)
+          await photos.writePhoto(
+            playthroughId,
+            photoId,
+            imageBlob(imageBytes),
+            imageBlob(thumbBytes),
+            record
+          )
+        }),
+      writeThumb: (playthroughId, photoId, thumb) =>
+        result('save the photo', async () => {
+          assertSafePlaythroughId(playthroughId)
+          assertSafePhotoId(photoId)
+          const thumbBytes = base64ToBytes(thumb)
+          if (imageTypeOf(thumbBytes) !== 'image/jpeg') {
+            throw appError(
+              'PHOTO_REQUEST_INVALID',
+              'That photo could not be sent.',
+              'The thumbnail is not a JPEG.'
+            )
+          }
+          await photos.writePhotoThumb(playthroughId, photoId, imageBlob(thumbBytes))
+        }),
+      delete: (playthroughId, photoId) =>
+        result('delete the photo', () => photos.deletePhoto(playthroughId, photoId)),
+      export: (playthroughId, photoId) =>
+        result('save the photo', async () => {
+          const bytes = await photos.readPhoto(playthroughId, photoId)
+          if (bytes === null) {
+            throw appError(
+              'PHOTO_UNEXPORTABLE',
+              'Could not save the photo.',
+              'No picture is stored for that photo.'
+            )
+          }
+          offerDownload(photoExportName(photoId, bytes), bytes, imageTypeOf(bytes) ?? 'image/png')
+          return null
+        })
+    },
     // Local image generation is the desktop's; no control in the browser reaches any of these.
     comfy: {
       start: () => desktopOnly('comfy.start'),
@@ -356,6 +465,13 @@ export function buildApi(): VenusUniversityApi {
     backup: {
       export: () => result('save the backup', exportBackup),
       import: () => result('restore the backup', importBackup)
+    },
+    backgrounds: {
+      list: () => result('list the backgrounds', listBackgrounds),
+      add: (draft, images) => result('save the background', () => addBackground(draft, images)),
+      remove: (name) => result('remove the background', () => removeBackground(name)),
+      readImage: (name, variant) =>
+        result('read the background', () => readBackgroundImage(name, variant))
     }
   }
 }

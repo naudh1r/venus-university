@@ -9,7 +9,7 @@ import {
   pitchSemitonesOf,
   venueMusicFor
 } from '@shared/audio'
-import type { AudioFile, AudioKey, BackgroundKind, DayHalf } from '@shared/audio'
+import type { AudioFile, AudioKey, BackgroundKind, DayHalf, VenueTrack } from '@shared/audio'
 import type { Polarity, Position, SceneLine } from '@shared/types'
 import { isWet, type Weather } from '@shared/weather'
 import type { CrossingPhase } from './crossingStore'
@@ -63,8 +63,6 @@ export interface SoundFacts {
   /** What the music channel is on now, which is what a scene opening's cover decides by. */
   music: AudioKey | null
   crossing: { phase: CrossingPhase; splash: boolean; waited: boolean }
-  /** Whether a CG's act, breath and climax are the player's to hear. */
-  nsfwSound: boolean
   game: null | {
     gameOver: boolean
     landing: boolean
@@ -72,7 +70,8 @@ export interface SoundFacts {
     solo: boolean
     /** The slot's opening narration on screen: read before the landing, with no scene under it. */
     narrating: boolean
-    bg: { base: string; kind: BackgroundKind | null }
+    /** The place, and the song one of the player's own plays in both halves of the day. */
+    bg: { base: string; kind: BackgroundKind | null; venue?: VenueTrack }
     half: DayHalf
     /** A Saturday or a Sunday, which the landing plays its alternate theme on. */
     weekend: boolean
@@ -190,7 +189,7 @@ function gameMix(facts: SoundFacts): Soundscape {
     }
   }
 
-  const cg = facts.nsfwSound ? cgMix(game.cg) : noCg()
+  const cg = cgMix(game.cg)
   const theme: AudioKey = game.epilogue ? 'ending' : landingThemeOf(game.half, game.weekend)
 
   // The landing's own theme covers the room, but a wet sky still reaches the ambience channel:
@@ -209,8 +208,9 @@ function gameMix(facts: SoundFacts): Soundscape {
   // A cast scene puts the place itself under the writing: the theme goes, and at a venue with a
   // song on the other side of its wall that song comes in its place.
   if (game.inScene && !game.solo) {
+    const venue = game.bg.venue ?? venueMusicFor(game.bg.base, game.bg.kind, game.half)
     return {
-      music: { key: venueMusicFor(game.bg.base, game.bg.kind, game.half), fade: SCENE },
+      music: { key: venue, fade: SCENE },
       ambience: {
         key: ambienceFor(game.bg.base, game.bg.kind, game.half, game.weather),
         fade: SCENE

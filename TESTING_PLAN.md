@@ -20,7 +20,7 @@ You will need externally kept data for testing:
 
 
 ### Main Menu and Setup 
-- [ ] On the Set up text generation screen, click into Custom and enter `https://openrouter.ai/api/v1`. Verify that models show up.
+- [ ] On the Set up text generation screen, click into Custom and enter `https://openrouter.ai/api/v1`. Verify that models show up. Enter `https://openrouter.ai/api/v1/images` for the custom image endpoint and verify models show up.
 - [ ] Click back to Google AI Studio and enter an API key. Select Gemini 3.8 flash. Save.
 - [ ] Open logging by doing `Get-Content data/app.log -Wait -Tail 10` on the root
 - [ ] Install missing and verify that everything installs properly. Continue to main menu past NSFW modal.
@@ -28,6 +28,7 @@ You will need externally kept data for testing:
 - [ ] Verify that version matches.
 - [ ] Open credits and check that all supporters/testers are there.
 - [ ] Open Settings and click everything. Drag the music slider down to see that it still works.
+- [ ] Upload a custom BG
 
 ### Manage Characters
 - [ ] Open manage characters and import a character. Click it and open Edit Character. Click through all expressions on each outfit. Open NSFW CG and room BG.
@@ -37,7 +38,7 @@ You will need externally kept data for testing:
 - [ ] Test Fix Fingers.
 - [ ] Change every field on the right side and verify that Save changes works.
 - [ ] Export the character and reimport it. Delete the duplicate.
-- [ ] Generate a blank character. Scroll through the boxes and check that nothing is prefilled. Clean it up with unfinished characters.
+- [ ] Generate a blank character. Scroll through the boxes and check that nothing is prefilled. Upload a custom BG. Clean it up with unfinished characters.
 - [ ] Generate a character, checking every box
 
 ### Game
@@ -47,7 +48,7 @@ You will need externally kept data for testing:
 - [ ] Change the name to `Taeyung Min` and put `an international super-celebrity famous for his hit single "Lovin it".` Set Charm to Godly and Body to Decent.
 - [ ] Do the first decision. Play to the end of the reply. Scroll back and find a place to edit to completely contradict the LLM output, then input your own action.
 - [ ] Press H to hide/show the UI.
-- [ ] Hide the character. Change her outfit. Change the background.
+- [ ] Hide the character. Change her outfit. Change the background. Check that the custom background is there.
 - [ ] Open the pause menu with Right click and Esc. Check that Controls are still accurate.
 - [ ] Click Report a bug. Check that Download log works.
 - [ ] Save the game on the second line, play to the end, then load the manual save. Load the autosave.
@@ -70,6 +71,7 @@ You will need externally kept data for testing:
 
 ### Midterms
 - [ ] Open Bunnymap and click into Lowrise. Verify that it's either the kitchen or the lounge.
+- [ ] Open Profile and check that bio is present.
 - [ ] Open Bunnyshop and trigger a gameover by buying too many things.
 - [ ] Ditch midterms, buy something in the Bunnyshop, and gift someone something.
 - [ ] Attend midterms. Check the log for the correct answers. Do a correct answer and an incorrect answer.
@@ -81,9 +83,13 @@ You will need externally kept data for testing:
 ### After Spring Break
 - [ ] Open Bunnymap and check that everyone is back.
 - [ ] Go to classes and verify that scores are handed back.
+- [ ] Edit a girl's notes. Enter a scene with her and see that it persisted.
 
 ### Finals
 - [ ] Attend finals.
+- [ ] Open Photos and generate a photo.
+- [ ] Retake a photo.
+- [ ] Delete a photo.
 
 ### Graduation and Goodbyes
 - [ ] Attend graduation, click through a goodbye, then go home.

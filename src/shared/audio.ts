@@ -359,8 +359,27 @@ export function ambienceFor(
   return 'amb_indoor'
 }
 
+/** The songs a place can play through its wall, in the order the player is offered them. */
+export const VENUE_TRACKS = ['venue_edm', 'venue_lofi', 'venue_pop', 'venue_rock'] as const
+
+/** One of the songs a place can play. */
+export type VenueTrack = (typeof VENUE_TRACKS)[number]
+
+/** What each song is called where the player picks one. */
+export const VENUE_TRACK_LABELS: Record<VenueTrack, string> = {
+  venue_edm: 'EDM',
+  venue_lofi: 'Lo-fi',
+  venue_pop: 'Pop',
+  venue_rock: 'Rock'
+}
+
+/** Whether `value` names one of the songs a place can play. */
+export function isVenueTrack(value: unknown): value is VenueTrack {
+  return (VENUE_TRACKS as readonly unknown[]).includes(value)
+}
+
 /** The song a background plays through its wall, and the half of the day it plays it in. */
-const VENUE_MUSIC: Record<string, { key: AudioKey; half?: DayHalf }> = {
+const VENUE_MUSIC: Record<string, { key: VenueTrack; half?: DayHalf }> = {
   club: { key: 'venue_edm', half: 'night' },
   arcade: { key: 'venue_edm' },
   supermarket: { key: 'venue_pop' },
@@ -377,9 +396,8 @@ export function venueMusicFor(
   kind: BackgroundKind | null,
   half: DayHalf
 ): AudioKey | null {
-  if (!kind) return null
+  if (!kind || !Object.hasOwn(VENUE_MUSIC, base)) return null
   const venue = VENUE_MUSIC[base]
-  if (!venue) return null
   return venue.half && venue.half !== half ? null : venue.key
 }
 

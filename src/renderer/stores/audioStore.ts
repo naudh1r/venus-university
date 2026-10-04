@@ -15,7 +15,7 @@ import type { Conversation, Position, RendererSettings } from '@shared/types'
 import { slotHalf, weekendSaturdayOf } from '../prompts/gameDate'
 import { isEpilogueNight } from '../prompts/graduation'
 import { slotWeather } from '../prompts/weather'
-import { SLOT_BG, bgKindOf } from '../views/bgAssets'
+import { SLOT_BG, bgKindOf, customBackgroundOf } from '../views/bgAssets'
 import { heldScreenTheme } from '../views/clockTheme'
 import * as engine from './audioEngine'
 import { AUDIO_CHANNELS } from './audioEngine'
@@ -170,12 +170,7 @@ function recompute(): void {
   // The first pass has nothing to compare against, so nothing has just happened.
   const stings = lastFacts ? stingsOf(lastFacts, facts) : []
   lastFacts = facts
-  // The switch keeps the NSFW group quiet; the climax is still counted below, so the stage
-  // flares over a silent one.
-  for (const key of stings) {
-    if (!facts.nsfwSound && AUDIO_FILES[key].group === 'nsfw') continue
-    engine.playOneShot(key)
-  }
+  for (const key of stings) engine.playOneShot(key)
   if (stings.includes('climax')) {
     useAudioStore.setState({ climaxes: useAudioStore.getState().climaxes + 1 })
   }
@@ -198,9 +193,14 @@ function factsOf(): SoundFacts {
       splash: crossing.splash !== null,
       waited: crossing.waited
     },
-    nsfwSound: useSettingsStore.getState().settings?.noNsfwSound !== true,
     game: view === 'game' ? gameFactsOf() : null
   }
+}
+
+/** The place `base` names, and the song it plays where it is one of the player's own. */
+function venueFacts(base: string): NonNullable<SoundFacts['game']>['bg'] {
+  const venue = customBackgroundOf(base)?.record.music
+  return { base, kind: bgKindOf(base), ...(venue ? { venue } : {}) }
 }
 
 /** What the slot on screen is doing, in the terms the mix reads it in. */
@@ -225,7 +225,7 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
     // The opening narration is what is on screen before the landing takes the turn back, and
     // `busy` is no part of it: the scroll is read while the next call is still out.
     narrating: !inScene && !game.awaitingInput && !game.waitingForLine,
-    bg: { base, kind: bgKindOf(base) },
+    bg: venueFacts(base),
     half: epilogue ? 'night' : slotHalf(game.time),
     weekend: weekendSaturdayOf(game.date) !== null,
     weather: slotWeather(game.weather, game.date, game.time, game.graduationSeen),

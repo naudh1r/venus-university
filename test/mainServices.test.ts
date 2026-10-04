@@ -25,6 +25,7 @@ vi.mock('fs/promises', async (importOriginal) => {
 })
 
 const { assertNode } = await import('../src/main/services/comfyService')
+const { writePhoto } = await import('../src/main/services/photoService')
 const {
   applyWardrobeFix,
   createCharacter,
@@ -36,7 +37,8 @@ const {
   getCharacterImagePath,
   getCharacterOutfitSetPath,
   getComfyOutputFilePath,
-  getComfyOutputPath
+  getComfyOutputPath,
+  getPhotosPath
 } = await import('../src/main/paths')
 
 beforeEach(async () => {
@@ -260,5 +262,34 @@ describe('a repair and the paint layer it keeps', () => {
     // Opening Fix fingers on a set that never had one must not be an error.
     await expect(discardWardrobeLayer('char-1', SET, 'hands')).resolves.toBeUndefined()
     expect(await namesIn()).toEqual(['fix.png', 'neutral.png'])
+  })
+})
+
+/** Base64 for bytes that open with the JPEG signature, which the thumbnail must sniff as. */
+const jpeg = (body: string): string =>
+  Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.from(body)]).toString('base64')
+
+describe('writePhoto', () => {
+  const META = {
+    schemaVersion: 1,
+    date: 1,
+    time: 0 as const,
+    rows: [],
+    prompt: 'A photo.',
+    options: { aspectRatio: '16:9' }
+  }
+
+  it('is refused, and creates no folder, for a playthrough that does not exist', async () => {
+    await expect(
+      writePhoto('1700000000000', '1', png('picture'), jpeg('thumb'), META)
+    ).rejects.toMatchObject({ code: 'PHOTO_PLAYTHROUGH_GONE' })
+
+    await expect(readdir(getPhotosPath('1700000000000'))).rejects.toThrow()
+  })
+
+  it('refuses a photo id that could escape the folder or key it names', async () => {
+    await expect(
+      writePhoto('1700000000000', '../evil', png('picture'), jpeg('thumb'), META)
+    ).rejects.toMatchObject({ code: 'PHOTO_ID_INVALID' })
   })
 })

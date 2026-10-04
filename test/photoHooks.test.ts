@@ -58,10 +58,30 @@ const HOOKS: readonly {
   {
     file: 'src/main/services/comfyService.ts',
     needs: ['export async function runGenerationJob'],
-    why: 'photoService renders on this pipeline'
+    why: 'localPhotoService renders on this pipeline'
   },
   {
-    file: 'src/main/charImageProtocol.ts',
+    file: 'src/renderer/stores/loop/feed.ts',
+    needs: ['pickTeaser(freshPhotos.length > 0 ? freshPhotos : fresh)'],
+    why: "a stranger's photo post is never the slot's teaser, and her picture is drawn for nobody"
+  },
+  {
+    file: 'src/renderer/stores/feedView.ts',
+    needs: ['if (!post || !postIsOut(post)) continue'],
+    why: 'a teaser with a picture shows before the picture exists'
+  },
+  {
+    file: 'src/renderer/views/UpdateModal.tsx',
+    needs: ['${PHOTO_MOD_UPDATE_NOTE}'],
+    why: 'the update offer never says that updating removes the mod'
+  },
+  {
+    file: 'src/main/ipc.ts',
+    needs: ['await exportLocalPhotos(filePath)', 'await importLocalPhotos(filePaths[0])'],
+    why: 'a backup leaves her DM and feed photos behind, and a restore never puts them back'
+  },
+  {
+    file: 'src/main/imageProtocols.ts',
     needs: ['PHOTO_SCHEME'],
     why: 'a second registerSchemesAsPrivileged replaces the first, so playimg joins this one'
   },

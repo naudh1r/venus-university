@@ -104,6 +104,13 @@ describe('examScore', () => {
     expect(examScore({ ...base, brain: 0, present: true, correct: 3, asked: 3 })).toBe(50)
   })
 
+  // A Brain under zero owes points on top of that ceiling, so the bottom tier cannot pass.
+  it('takes a point off for every point of Brain under zero', () => {
+    const paper = { ...base, present: true, correct: 3, asked: 3 } as const
+    expect(examScore({ ...paper, brain: pointsForTier(0) })).toBe(50 + pointsForTier(0))
+    expect(examScore({ ...paper, brain: -1 })).toBe(49)
+  })
+
   it('is never perfect with a question wrong or a class skipped, at any Brain', () => {
     for (const brain of [0, pointsForTier(3), pointsForTier(5), 1000]) {
       expect(examScore({ ...base, brain, present: true, correct: 2, asked: 3 })).toBeLessThan(100)
@@ -176,6 +183,12 @@ describe('projectScore', () => {
     const unfinished = { ...base, present: true, worked: 3 } as const
     expect(projectScore({ ...unfinished, heart: pointsForTier(5) })).toBeLessThan(100)
     expect(projectScore({ ...unfinished, brain: 1000, heart: 500 })).toBeLessThan(100)
+  })
+
+  it('takes a point off for every point of Brain under zero, a finished showcase included', () => {
+    const finished = { ...base, present: true, worked: 4, heart: 0 } as const
+    expect(projectScore({ ...finished, brain: 0 })).toBe(50)
+    expect(projectScore({ ...finished, brain: pointsForTier(0) })).toBe(50 + pointsForTier(0))
   })
 })
 

@@ -66,12 +66,15 @@ function PhotoWait(): JSX.Element {
 export function MessagePhoto({
   charId,
   photo,
-  onOpen
+  onOpen,
+  onMissing
 }: {
   charId: string
   photo: ChatPhoto
   /** Given where the picture may be opened at the size it was drawn; absent on a thread. */
   onOpen?: (src: string) => void
+  /** Told when the file cannot be loaded, so the frame can offer to draw it again. */
+  onMissing?: () => void
 }): JSX.Element {
   const playthroughId = useGameStore((s) => s.playthroughId)
   const [shown, setShown] = useState(photo.tier !== 'explicit')
@@ -114,7 +117,10 @@ export function MessagePhoto({
       className={`vu-bb-photo${shown ? '' : ' vu-bb-photo--veiled'}`}
       src={src}
       alt=""
-      onError={() => setBroken(true)}
+      onError={() => {
+        setBroken(true)
+        onMissing?.()
+      }}
     />
   )
 
@@ -144,10 +150,11 @@ export function MessagePhoto({
 }
 
 /**
- * A picture whose render failed or never answered: the frame says so plainly and offers to draw
- * it again. Only a picture with a name and a scene can be drawn again; an older one without falls
- * back to the quiet line. With photos switched off the frame still says so, and the reroll waits
- * for them to be switched back on.
+ * A picture whose render failed or never answered, or whose file is gone (a backup restored
+ * without the photos beside it): the frame says so plainly and offers to draw it again. Only a
+ * picture with a name and a scene can be drawn again; an older one without falls back to the
+ * quiet line. With photos switched off the frame still says so, and the reroll waits for them to
+ * be switched back on.
  */
 function RerollablePhoto({
   charId,
@@ -159,19 +166,34 @@ function RerollablePhoto({
   onReroll: () => void
 }): JSX.Element {
   const photosOn = useSettingsStore((s) => s.settings?.photos !== false)
-  if (photo.failed && photo.file && photo.scene) {
+  const [missing, setMissing] = useState(false)
+  if ((photo.failed || (missing && !photo.pending)) && photo.file && photo.scene) {
     return (
       <div className="vu-bb-photo vu-bb-photo--failed vu-bb-photo--reroll">
         <span>Image failed to generate.</span>
         {photosOn && (
-          <button type="button" className="vu-bb-photo-reroll" onClick={onReroll}>
+          <button
+            type="button"
+            className="vu-bb-photo-reroll"
+            onClick={() => {
+              setMissing(false)
+              onReroll()
+            }}
+          >
             Reroll
           </button>
         )}
       </div>
     )
   }
-  return <MessagePhoto charId={charId} photo={photo} onOpen={openShot} />
+  return (
+    <MessagePhoto
+      charId={charId}
+      photo={photo}
+      onOpen={openShot}
+      onMissing={() => setMissing(true)}
+    />
+  )
 }
 
 /** The picture on one of her posts, which went up without it where the render failed. */

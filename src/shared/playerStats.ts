@@ -17,8 +17,8 @@ export interface PlayerStats {
   heart: number
 }
 
-/** Tier 1 is the floor, tier 5 the ceiling. */
-export type StatTier = 1 | 2 | 3 | 4 | 5
+/** Tier 0 is the floor, tier 5 the ceiling. */
+export type StatTier = 0 | 1 | 2 | 3 | 4 | 5
 
 /** Every stat key, in the order the status panel lists them. */
 export const STAT_KEYS: readonly StatKey[] = ['brain', 'body', 'heart']
@@ -52,11 +52,15 @@ export function isStatKey(value: unknown): value is StatKey {
   return typeof value === 'string' && (STAT_KEYS as readonly string[]).includes(value)
 }
 
-/** Points needed to *enter* each tier, tier 1 first; gaps widen every tier. */
-export const TIER_THRESHOLDS: readonly number[] = [0, 15, 35, 60, 100]
+/**
+ * Points needed to *enter* each tier, indexed by tier; gaps widen every tier above zero, and the
+ * floor tier's threshold is below zero, being New Game's harder start.
+ */
+export const TIER_THRESHOLDS: readonly number[] = [-15, 0, 15, 35, 60, 100]
 
-/** Tier names, index 0 = tier 1. */
+/** Tier names, indexed by tier. */
 const TIER_NAMES: readonly string[] = [
+  'Below Average',
   'Unremarkable',
   'Decent',
   'Good',
@@ -64,9 +68,10 @@ const TIER_NAMES: readonly string[] = [
   'Godly'
 ]
 
-/** The reader description's wording, indexed by tier - 1; each phrase sits after "the reader is". */
+/** The reader description's wording, indexed by tier; each phrase sits after "the reader is". */
 const STAT_PHRASES: Record<StatKey, readonly string[]> = {
   brain: [
+    'kind of dumb',
     'not that interesting',
     'decently smart',
     'pretty smart',
@@ -74,6 +79,7 @@ const STAT_PHRASES: Record<StatKey, readonly string[]> = {
     'a god-like genius'
   ],
   body: [
+    'weak and clumsy',
     'a little plain',
     'decently fit',
     'pretty strong and fast',
@@ -81,6 +87,7 @@ const STAT_PHRASES: Record<StatKey, readonly string[]> = {
     'a god-like superathlete'
   ],
   heart: [
+    'socially awkward',
     'somewhat forgettable',
     'easy to get along with',
     'pretty charming',
@@ -89,18 +96,24 @@ const STAT_PHRASES: Record<StatKey, readonly string[]> = {
   ]
 }
 
-/** All stats at zero — the loader's fallback, and where New Game's selector opens. */
+/**
+ * All stats at zero, `Unremarkable` — the loader's fallback, Quickstart's start, and where New
+ * Game's selector opens.
+ */
 export const DEFAULT_PLAYER_STATS: PlayerStats = { brain: 0, body: 0, heart: 0 }
 
-/** The floor of New Game's stat selector: the tier an untouched row keeps. */
+/** The tier an untouched row of New Game's selector keeps, and the one every default is. */
 export const STARTING_TIER: StatTier = 1
+
+/** The floor of that selector, and of the scale itself: no stat is ever below its points. */
+export const MIN_TIER: StatTier = 0
 
 /** The ceiling of that selector, and of the scale itself. */
 export const MAX_TIER: StatTier = 5
 
 /** The fewest points that buy `tier` — what New Game seeds a chosen tier with. */
 export function pointsForTier(tier: StatTier): number {
-  return TIER_THRESHOLDS[tier - 1]
+  return TIER_THRESHOLDS[tier]
 }
 
 /** The one place a tier choice becomes a savable stat block. */
@@ -114,10 +127,10 @@ export function statsForTiers(tiers: Record<StatKey, StatTier>): PlayerStats {
 
 /** The tier `points` buys: the highest threshold it reaches, clamped both ends. */
 export function tierOf(points: number): StatTier {
-  let tier = 1
+  let tier: number = MIN_TIER
   for (let i = TIER_THRESHOLDS.length - 1; i >= 0; i--) {
     if (points >= TIER_THRESHOLDS[i]) {
-      tier = i + 1
+      tier = i
       break
     }
   }
@@ -126,7 +139,7 @@ export function tierOf(points: number): StatTier {
 
 /** A tier's display name, e.g. `"Exceptional"` — the one place the table is indexed. */
 export function tierNameOf(tier: StatTier): string {
-  return TIER_NAMES[tier - 1]
+  return TIER_NAMES[tier]
 }
 
 /** The tier `points` buys, by display name. */
@@ -135,8 +148,9 @@ export function tierName(points: number): string {
 }
 
 /**
- * The `READER` block's description of the player, weakest stat to strongest. `but`
- * separates the tier-1 stats from the rest; a reader bad at nothing or at everything gets none.
+ * The `READER` block's description of the player, weakest stat to strongest. `but` separates
+ * the stats at or under `Unremarkable` from the rest; a reader bad at nothing or at everything
+ * gets none.
  */
 export function describePlayer(stats: PlayerStats): string {
   return describeStats(stats, 'The reader is', 'he is')
@@ -167,11 +181,11 @@ export function statsLowestFirst(stats: PlayerStats): StatKey[] {
 function describeStats(stats: PlayerStats, lead: string, rest: string): string {
   const ordered = statsLowestFirst(stats)
   const clauses = ordered.map((key, i) => {
-    const phrase = STAT_PHRASES[key][tierOf(stats[key]) - 1]
+    const phrase = STAT_PHRASES[key][tierOf(stats[key])]
     return [i === 0 ? lead : rest, phrase].filter(Boolean).join(' ')
   })
 
-  const weakCount = ordered.filter((key) => tierOf(stats[key]) === 1).length
+  const weakCount = ordered.filter((key) => tierOf(stats[key]) <= STARTING_TIER).length
   if (weakCount === 0 || weakCount === clauses.length) return `${andList(clauses)}.`
   return `${andList(clauses.slice(0, weakCount))}, but ${andList(clauses.slice(weakCount))}.`
 }
@@ -304,11 +318,12 @@ export function tierUps(before: PlayerStats, deltas: PlayerStats): StatKey[] {
   return STAT_KEYS.filter((key) => tierOf(after[key]) > tierOf(before[key]))
 }
 
-/** Adds `deltas` to `stats`, flooring each at zero. Never mutates its input. */
+/** Adds `deltas` to `stats`, flooring each at the scale's floor. Never mutates its input. */
 export function applyStatDeltas(stats: PlayerStats, deltas: PlayerStats): PlayerStats {
+  const floor = pointsForTier(MIN_TIER)
   return {
-    brain: Math.max(0, stats.brain + deltas.brain),
-    body: Math.max(0, stats.body + deltas.body),
-    heart: Math.max(0, stats.heart + deltas.heart)
+    brain: Math.max(floor, stats.brain + deltas.brain),
+    body: Math.max(floor, stats.body + deltas.body),
+    heart: Math.max(floor, stats.heart + deltas.heart)
   }
 }

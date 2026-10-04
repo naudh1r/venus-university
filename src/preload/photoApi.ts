@@ -17,8 +17,12 @@ import type { Character } from '@shared/types'
 /** Spread into the preload's `api` object; one line there, everything else here. */
 export const photoApi = {
   photo: {
-    reserveName: (playthroughId: string, character: Character, kind: string) =>
-      ipcRenderer.invoke('comfy:reservePhotoName', playthroughId, character, kind),
+    reserveName: (
+      playthroughId: string,
+      character: Character,
+      kind: string,
+      inSave: readonly string[]
+    ) => ipcRenderer.invoke('comfy:reservePhotoName', playthroughId, character, kind, inSave),
     landed: (playthroughId: string, charId: string, file: string) =>
       ipcRenderer.invoke('comfy:photoLanded', playthroughId, charId, file),
     generate: (
@@ -27,6 +31,7 @@ export const photoApi = {
       tier: string,
       photoPrompt: string,
       file: string
-    ) => ipcRenderer.invoke('comfy:generatePhoto', playthroughId, character, tier, photoPrompt, file)
+    ) =>
+      ipcRenderer.invoke('comfy:generatePhoto', playthroughId, character, tier, photoPrompt, file)
   }
 }

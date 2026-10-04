@@ -7,7 +7,7 @@ const supporters: Supporters = supportersJson
 /** The names thanked under Donors. */
 export const DONORS = supporters.donors
 
-/** The names thanked under Playtesters. */
+/** The playtesters, thanked under Special thanks. */
 export const PLAYTESTERS = supporters.playtesters
 
 /** Every supporter's name and the marbles it holds in the feed's handle bag. */
