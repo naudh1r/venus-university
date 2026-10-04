@@ -33,6 +33,11 @@ const SETTINGS_REQUIRED: Record<
     | 'bodyDetails'
     // `photoLoader` — the same feature's, and optional: absent is the bunny.
     | 'photoLoader'
+    // The setup screen's model picks, all optional: absent is the branch's own models.
+    | 'imageCheckpoint'
+    | 'imageLora'
+    | 'imageLoraStrength'
+    | 'imageTrigger'
     | 'apiKey'
     | 'endpointApiKey'
     | 'imageApiKey'
@@ -410,6 +415,10 @@ export function mergePatch(current: Settings, patch: SettingsPatch): Settings {
     photos: patch.photos,
     bodyDetails: patch.bodyDetails,
     photoLoader: patch.photoLoader,
+    imageCheckpoint: patch.imageCheckpoint,
+    imageLora: patch.imageLora,
+    imageLoraStrength: patch.imageLoraStrength,
+    imageTrigger: patch.imageTrigger,
     sfwAsked: patch.sfwAsked,
     // Absent stays absent, `JSON.stringify` dropping the key, which is full volume.
     volumes: patch.volumes,

@@ -46,6 +46,8 @@ import {
   getWorkflowsPath
 } from '../paths'
 import { withBodySetting } from '../bodySetting'
+import { imageModelsOf, withImageModels } from '@shared/imageModels'
+import { getSettings } from './settingsService'
 import { getPoseTags } from './assetService'
 import { assertSafeCharId } from './characterService'
 import { dropImageTwins, findImage } from './imageFiles'
@@ -463,7 +465,11 @@ async function submitWorkflow(workflow: ComfyWorkflow): Promise<string> {
     response = await fetch(`${BASE_URL}/prompt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: workflow, client_id: 'venus-university' })
+      // The checkpoint, LoRA and trigger picked on the setup screen, written into every graph.
+      body: JSON.stringify({
+        prompt: withImageModels(workflow, imageModelsOf(await getSettings())),
+        client_id: 'venus-university'
+      })
     })
   } catch (err) {
     throw appError(

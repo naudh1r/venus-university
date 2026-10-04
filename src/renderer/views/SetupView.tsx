@@ -48,6 +48,7 @@ import {
   spin
 } from './motion'
 import { CloseIcon, DownloadIcon } from './screenIcons'
+import { ImageModelFields } from './imageModelFields'
 import { SfwPromptModal } from './SfwPromptModal'
 import { useEndpointProbe, useImageProbe } from './useEndpointProbe'
 import '../vu_styles/Setup.css'
@@ -475,6 +476,14 @@ function ImageGenStage({ onDone, last }: { onDone: () => void; last: boolean }):
                   installing={installing}
                 />
               ))}
+
+              {/* What the installed models are drawn with: this branch's picker. */}
+              <motion.li className="vu-setup-group" variants={dealtItem}>
+                DRAW WITH
+              </motion.li>
+              <motion.li variants={dealtItem}>
+                <ImageModelFields />
+              </motion.li>
             </motion.ul>
             <div className="vu-setup-fade" />
           </div>

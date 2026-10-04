@@ -242,6 +242,17 @@ export function ManageCharactersView(): JSX.Element {
             </motion.button>
           </span>
         )}
+        {/* The way back to the setup screen once ComfyUI is installed, for its model picker. */}
+        {!webBuild && canGenerate && (
+          <motion.button
+            id="manage-comfy-setup"
+            className="vu-pill vu-manage-install"
+            {...gestures(false, quietLift, quietPress)}
+            onClick={() => setView('setup')}
+          >
+            ComfyUI setup
+          </motion.button>
+        )}
         {comfyNote && <span className="vu-manage-comfy-note">{comfyNote}</span>}
 
         {/* Every action stands at all times and goes dead when it would do nothing, so the

@@ -148,9 +148,7 @@ const QUALITY = new Set([
   'best_quality',
   'very_aesthetic',
   'worst_quality',
-  'bad_quality',
-  // The Niji style LoRA's trigger word, which leads the photo prompt on this branch.
-  'SemiRrealism'
+  'bad_quality'
 ])
 
 const ROOT = join(__dirname, '..')

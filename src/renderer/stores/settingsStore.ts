@@ -175,6 +175,11 @@ export function patchOf(settings: RendererSettings): SettingsPatch {
     bodyDetails: settings.bodyDetails,
     // Carried, or a save made from anywhere else would put the bunny back.
     photoLoader: settings.photoLoader,
+    // Carried, or a save made from anywhere else would put the default models back.
+    imageCheckpoint: settings.imageCheckpoint,
+    imageLora: settings.imageLora,
+    imageLoraStrength: settings.imageLoraStrength,
+    imageTrigger: settings.imageTrigger,
     sfwAsked: settings.sfwAsked,
     // Carried, or a save made from anywhere else would drop a browser's key on the next visit.
     rememberKey: settings.rememberKey,

@@ -516,3 +516,11 @@
 .vu-setup-card-foot .vu-setup-hint {
   flex: none;
 }
+
+/* The model picker under the checklist: the two pickers, the strength and the trigger. */
+.vu-setup-models {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 6px 0 12px;
+}

@@ -144,6 +144,7 @@ import {
   setProgressSink
 } from '@shared/jobQueue'
 import { registerPhotoIpc } from './photoIpc'
+import { registerImageModelsIpc } from './imageModelsIpc'
 import { copyEndingArtTo, generateEndingArt, readEndingArt } from './services/endingArtService'
 import {
   deleteProfilePicture,
@@ -239,6 +240,8 @@ async function enqueueComfyJob<T>(
 export function registerIpcHandlers(): void {
   // The photo feature's three channels, which keep their own module and their own queue.
   registerPhotoIpc(handle)
+  // The setup screen's model picker lists what ComfyUI's model folders hold.
+  registerImageModelsIpc(handle)
   // The key the cloud calls need never leaves main; the transport reads it through this port.
   useSettingsSource(getSettings)
   // Fixed channel: jobs can outlive their original `invoke`, so broadcast progress.

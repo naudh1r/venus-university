@@ -35,8 +35,7 @@ import { saysAny } from './photoWords'
  * sprite checkpoint wants: a photo is a different picture on a different graph, and a feature
  * that borrows the sprites' prefix breaks the day someone retunes it.
  */
-/** Led by the style LoRA's trigger: the photo graph loads the same LoRA as the sprites. */
-const PHOTO_QUALITY = 'SemiRrealism, masterpiece, best_quality, very_aesthetic'
+const PHOTO_QUALITY = 'masterpiece, best_quality, very_aesthetic'
 
 const PHOTO_BASE = '1girl, solo, depth_of_field'
 
