@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react'
 import type {
   Character,
   CharInfo,
@@ -64,7 +65,45 @@ export interface LikesAsk {
   friends: number
 }
 
+/** A tab a mod adds to the Bunnyboard's rail, after the game's own. */
+export interface BunnyboardTabDef {
+  /** Unique within the mod; the rail keys it as `mod:<id>`. */
+  id: string
+  /** The word under the icon, as the game's own tabs are labelled. */
+  word: string
+  Mark: ComponentType
+  /** What the tab shows when it is open. */
+  Page: ComponentType
+  /** Drawn on the tab's corner, like an unread count; renders nothing when there is nothing. */
+  Badge?: ComponentType
+}
+
+/** A post as the feed's row draws it; a mod reads its own fields off it. */
+export interface FeedPostRow {
+  id?: string
+  text: string
+  date: number
+  time: number
+  likes: number
+}
+
+/** The places in the game's screens a mod can draw into, and what each is handed. */
+export interface ScreenSlots {
+  /** After a DM's text, in her thread or his. */
+  'dm-message': { message: ChatMessage }
+  /** Under a feed post's text, above its like button. */
+  'feed-post': { charId?: string; post: FeedPostRow }
+  /** Over the whole Bunnyboard, for something a mod opens on top of it. */
+  'bunnyboard-overlay': object
+}
+
+export type ScreenSlot = keyof ScreenSlots
+
 export interface ModHooks {
+  /** Tabs added to the Bunnyboard's rail. */
+  bunnyboardTabs?: readonly BunnyboardTabDef[]
+  /** What a mod draws into the game's screens. */
+  screens?: { [S in ScreenSlot]?: ComponentType<ScreenSlots[S]> }
   prompts?: { [S in PromptSpot]?: PromptAddition<PromptSpots[S]> }
   /** Added to a DM in the history a prompt quotes, after its text. */
   dmHistoryNote?: (message: ChatMessage) => string
@@ -194,4 +233,17 @@ export function postLikes(ask: LikesAsk, own: () => number): number {
 
 export function postVisible(post: SocialPost): boolean {
   return active().every((hooks) => hooks.postVisible?.(post) ?? true)
+}
+
+/** Every mod's tabs on the Bunnyboard's rail, in list order. */
+export function bunnyboardTabs(): BunnyboardTabDef[] {
+  return active().flatMap((hooks) => [...(hooks.bunnyboardTabs ?? [])])
+}
+
+/** What every mod draws into one slot, in list order. */
+export function screenParts<S extends ScreenSlot>(slot: S): ComponentType<ScreenSlots[S]>[] {
+  return active().flatMap((hooks) => {
+    const part = hooks.screens?.[slot] as ComponentType<ScreenSlots[S]> | undefined
+    return part ? [part] : []
+  })
 }

@@ -207,7 +207,7 @@ const HOOKS: readonly {
     why: 'a post still waiting for its picture shows on her page before it exists'
   },
   {
-    file: 'src/renderer/views/BunnyboardModal.tsx',
+    file: 'src/renderer/mods/photoFeatureScreens.tsx',
     needs: ['<PostPhoto '],
     why: 'a post whose picture failed has no frame saying so and nothing to reroll it with'
   },
@@ -243,8 +243,22 @@ const HOOKS: readonly {
   },
   {
     file: 'src/renderer/views/BunnyboardModal.tsx',
+    needs: [
+      '<ModSlot slot="dm-message" message={message} />',
+      '<ModSlot slot="feed-post" charId={charId} post={post} />',
+      '<ModSlot slot="bunnyboard-overlay" />'
+    ],
+    why: 'nothing draws the picture on a text, on a post, the replies under one, or opens it'
+  },
+  {
+    file: 'src/renderer/mods/photoFeatureScreens.tsx',
     needs: ['MessagePhotoBubble', 'messageId={message.id}', 'PhotoLightboxHost', 'PostComments'],
-    why: 'nothing draws the picture on a text, on a post, or the replies under one'
+    why: 'the slots are there but Photo Feature draws nothing into them'
+  },
+  {
+    file: 'src/renderer/mods/index.ts',
+    needs: ["import './photoFeatureScreens'"],
+    why: "Photo Feature's screen pieces are never registered"
   },
   {
     file: 'src/renderer/views/ContactPage.tsx',

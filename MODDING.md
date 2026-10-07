@@ -187,6 +187,15 @@ imports at boot.
 | `fileFeedPost` | `loop/feed.ts` | Change a slot post before it is filed, or file it later itself (`held`) |
 | `postLikes` | `loop/feed.ts`, `NewGameView.tsx` | Decide likes on ending, stranger and winter posts |
 | `postVisible` | `feedView.ts`, `loop/feed.ts`, `ContactPage.tsx` | Keep a post off the feed for now |
+| `bunnyboardTabs` | `BunnyboardModal.tsx` | Add a tab to the Bunnyboard's rail, with its page and a badge |
+| `screens['dm-message']` | `BunnyboardModal.tsx` | Draw after a DM's text |
+| `screens['feed-post']` | `BunnyboardModal.tsx` | Draw under a feed post's text |
+| `screens['bunnyboard-overlay']` | `BunnyboardModal.tsx` | Draw over the whole Bunnyboard |
+
+Screen slots are drawn with `<ModSlot slot="…" …/>` where the screen has room for them. A tab a
+mod adds is keyed `mod:<id>`, after the game's own five; if its mod is switched off while it is
+open, the Bunnyboard goes back to Chats. A badge is a component of its own, drawing nothing when
+there is nothing to count, so a tab can come and go with its mod.
 
 A hook point is added where mods actually meet, not ahead of need. Once mods use one, it stays
 as it is: renaming it or changing what it passes breaks them. A change that is needed goes in
@@ -194,7 +203,10 @@ as a new hook beside the old one.
 
 ### Photo Feature on hooks
 
-All of Photo Feature's prompt, event and feed additions are in `src/renderer/mods/photoFeature.ts`.
+All of Photo Feature's prompt, event and feed additions are in `src/renderer/mods/photoFeature.ts`,
+and what it draws on the Bunnyboard (the photo under a DM and a post, the replies, the photo opened
+full size) in `src/renderer/mods/photoFeatureScreens.tsx`. A screen part is kept apart because
+the tests run without React.
 In the ten game files involved, lines naming Photo Feature went from 67 to 4: two for its gallery
 on `ContactPage.tsx` (screens have no hook points yet) and two that are Continuing Semesters'
 own photo carry-over in `NewGameView.tsx`.
@@ -206,7 +218,8 @@ an earlier session is settled only once the mod is on again.
 
 ### Not covered yet
 
-- Screens: the photo bubble, the gallery, the character editor's body fields.
+- Screens other than the Bunnyboard: the gallery on her profile, the character editor's body
+  fields.
 - Main process: IPC, image protocols, the ComfyUI service, settings and character rules.
 
 Both are still direct edits, as before.

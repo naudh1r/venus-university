@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { updatesFeed } from '../src/renderer/stores/feedView'
 // The mod plugs into the game's hooks as the app does at boot.
-import '../src/renderer/mods'
+import '../src/renderer/mods/photoFeature'
 import type { SocialPost } from '../src/shared/types'
 import { character, charactersById, charInfo } from './fixtures'
 

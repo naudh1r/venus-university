@@ -28,7 +28,8 @@ import { registerHooks } from './hooks'
 
 /**
  * Photo Feature, plugged into the game through its hooks. Everything it adds to the game's own
- * files is here; the game only asks. The mods store skips it while it is off.
+ * files is here; the game only asks. The mods store skips it while it is off. What it draws into
+ * the game's screens is in `photoFeatureScreens.tsx`.
  */
 registerHooks(PHOTO_FEATURE, {
   prompts: {

@@ -66,4 +66,20 @@ describe('mod hooks', () => {
     expect(filed.held).toBe(true)
     expect(after).not.toHaveBeenCalled()
   })
+
+  it("lists the tabs and screen parts of the mods that are on, and none of a mod that is off", () => {
+    const Page = (): null => null
+    const Part = (): null => null
+    hooks.registerHooks('second', {
+      bunnyboardTabs: [{ id: 'game', word: 'GAME', Mark: Page, Page }],
+      screens: { 'dm-message': Part }
+    })
+    hooks.registerHooks('off', {
+      bunnyboardTabs: [{ id: 'hidden', word: 'NO', Mark: Page, Page }],
+      screens: { 'dm-message': Part, 'feed-post': Part }
+    })
+    expect(hooks.bunnyboardTabs().map((tab) => tab.id)).toEqual(['game'])
+    expect(hooks.screenParts('dm-message')).toEqual([Part])
+    expect(hooks.screenParts('feed-post')).toEqual([])
+  })
 })

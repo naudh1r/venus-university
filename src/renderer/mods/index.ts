@@ -3,3 +3,4 @@
  * here, in the order `MODS` lists it.
  */
 import './photoFeature'
+import './photoFeatureScreens'

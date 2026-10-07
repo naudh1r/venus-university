@@ -12,10 +12,8 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import type { ChatPhoto } from '@shared/photoTypes'
-import type { PostComment } from '@shared/postComments'
-import { PostComments } from '../components/PostComments'
-import { MessagePhotoBubble, PhotoLightboxHost, PostPhoto } from '../components/PhotoBubble'
+import { bunnyboardTabs, type BunnyboardTabDef } from '../mods/hooks'
+import { ModSlot } from '../mods/ModSlot'
 import {
   fullNameOf,
   type Character,
@@ -241,8 +239,13 @@ function PhotosIcon(): JSX.Element {
   )
 }
 
-/** The five destinations, in rail order. */
-const TABS: ReadonlyArray<{ id: BunnyboardTab; word: string; Mark: () => JSX.Element }> = [
+/** The five destinations, in rail order; the mods' own tabs follow them. */
+const TABS: ReadonlyArray<{
+  id: BunnyboardTab
+  word: string
+  Mark: () => JSX.Element
+  Badge?: BunnyboardTabDef['Badge']
+}> = [
   { id: 'chats', word: 'CHATS', Mark: ChatsIcon },
   { id: 'friends', word: 'FRIENDS', Mark: FriendsIcon },
   { id: 'updates', word: 'UPDATES', Mark: UpdatesIcon },
@@ -288,6 +291,14 @@ export function BunnyboardModal({
     0
   )
   const friendsBadge = bunnyboard.contactsBadge
+  // The mods' tabs, keyed apart from the game's own so no mod can take one of its names.
+  const modPages = bunnyboardTabs().map((def) => ({ ...def, id: `mod:${def.id}` as const }))
+  const modTabs = modPages.map(({ id, word, Mark, Badge }) => ({ id, word, Mark, Badge }))
+
+  // A tab whose mod has been switched off falls back to Chats.
+  useEffect(() => {
+    if (tab.startsWith('mod:') && !modPages.some((page) => page.id === tab)) setTab('chats')
+  })
 
   // Opening the Friends tab is seeing what the badge was about.
   useEffect(() => {
@@ -318,7 +329,7 @@ export function BunnyboardModal({
       exit="gone"
       {...overlayProps}
     >
-      <PhotoLightboxHost />
+      <ModSlot slot="bunnyboard-overlay" />
       {contact ? (
         <ContactPage key={contact} charId={contact} theme={theme} />
       ) : (
@@ -337,7 +348,7 @@ export function BunnyboardModal({
               <BackIcon />
             </motion.button>
 
-            {TABS.map((entry) => {
+            {[...TABS, ...modTabs].map((entry) => {
               const on = entry.id === tab
               const badge =
                 entry.id === 'chats' ? chatsBadge : entry.id === 'friends' ? friendsBadge : 0
@@ -368,6 +379,7 @@ export function BunnyboardModal({
                   )}
                   <span className="vu-bb-tile-word">{entry.word}</span>
                   {badge > 0 && <span className="vu-tile-badge">{badge}</span>}
+                  {entry.Badge && <entry.Badge />}
                 </motion.button>
               )
             })}
@@ -405,6 +417,7 @@ export function BunnyboardModal({
                 {tab === 'updates' && <UpdatesFeed />}
                 {tab === 'profile' && <ProfilePage />}
                 {tab === 'photos' && <PhotosPage theme={theme} />}
+                {modPages.map(({ id, Page }) => tab === id && <Page key={id} />)}
               </div>
             </div>
           </motion.div>
@@ -1239,9 +1252,7 @@ function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
   return (
     <>
       {message.text && <div className={`vu-bb-bubble vu-bb-bubble--${side}`}>{message.text}</div>}
-      {message.photo && (
-        <MessagePhotoBubble photo={message.photo} sender={message.sender} messageId={message.id} />
-      )}
+      <ModSlot slot="dm-message" message={message} />
     </>
   )
 }
@@ -1685,10 +1696,6 @@ const FeedPost = memo(function FeedPost({
     time: TimeSlot
     likes: number
     liked?: boolean
-    /** The picture she attached. Declared here because this shape is the row's own, not `SocialPost`. */
-    photo?: ChatPhoto
-    /** What the crowd said under it, for the same reason. */
-    comments?: PostComment[]
   }
   /** Somebody he has no contact info for — the one route by which one reaches his feed. */
   stranger?: boolean
@@ -1748,12 +1755,7 @@ const FeedPost = memo(function FeedPost({
         )}
       </div>
       <p className="vu-bb-post-text">{post.text}</p>
-      {post.photo && charId && post.id && (
-        <div className="vu-bb-post-shot">
-          <PostPhoto charId={charId} postId={post.id} photo={post.photo} />
-        </div>
-      )}
-      {post.comments && <PostComments comments={post.comments} />}
+      <ModSlot slot="feed-post" charId={charId} post={post} />
       <motion.button
         className={`vu-bb-like${post.liked ? ' vu-bb-like--on' : ''}`}
         type="button"

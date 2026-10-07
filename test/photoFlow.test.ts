@@ -90,7 +90,7 @@ async function loaded(): Promise<{
   const { useGameStore } = await import('../src/renderer/stores/gameStore')
   const post = await import('../src/renderer/stores/photoPost')
   // The mod plugs into the game's hooks as the app does at boot.
-  await import('../src/renderer/mods')
+  await import('../src/renderer/mods/photoFeature')
   await photosSwitched(true)
   useGameStore.setState({
     playthroughId: '1',
