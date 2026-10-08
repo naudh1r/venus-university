@@ -174,6 +174,30 @@ game's own; a post a mod holds is not passed on.
 The hook points are naudh1r's design, lifted from his Photo Feature branch, which is the first
 mod on them.
 
+## Opening a pull request
+
+The build lives at `venus-extracurriculars/build`, which is a fork of Venus Dev's repository.
+On a fork, GitHub's **Compare & pull request** button offers to open the pull request on Venus
+Dev's repository instead of ours. Skip the button and use this address, with your branch's name
+at the end:
+
+```
+https://github.com/venus-extracurriculars/build/compare/main...your-branch
+```
+
+Use `core` in place of `main` for a change to the mod system itself. Before you click **Create
+pull request**, check that the top left of the page reads `venus-extracurriculars / build`. If
+it reads `venus-uni-dev / venus-university`, stop: that is Venus Dev's repository.
+
+From the command line, `gh repo set-default venus-extracurriculars/build` once, and
+`gh pr create` targets the right repository from then on.
+
+Where a branch goes:
+
+- `core`: the mod system on the current game version, with no mods.
+- `mod/<name>`: one mod, built on `core`, looked after by its author.
+- `main`: what players get, assembled from `core` and every mod branch.
+
 ## Not decided yet
 
 - The build's name and version (`BUILD` in `mods.ts`).
