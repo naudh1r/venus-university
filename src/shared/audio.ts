@@ -1,4 +1,6 @@
-import type { Position } from './types'
+import { customCgSfxOf, customCgVoiceOf } from './customCgs'
+import { customCgSlotOf, isAfterPosition, isStockPosition } from './positions'
+import type { CgSfx, CgVoice, Character, Position, StockPosition } from './types'
 import type { Weather } from './weather'
 
 /**
@@ -403,8 +405,8 @@ export function venueMusicFor(
 
 /* ---- the CG -------------------------------------------------------------- */
 
-/** The act under each CG position; an `_after` position has none, and only the breath stays. */
-export const ACT_LOOP_BY_POSITION: Record<Position, AudioKey | null> = {
+/** The act under each stock CG position; an `_after` position has none, and only the breath stays. */
+export const ACT_LOOP_BY_POSITION: Record<StockPosition, AudioKey | null> = {
   nude_foreplay: 'cg_foreplay',
   nude_foreplay_after: null,
   sex: 'cg_sex',
@@ -415,9 +417,52 @@ export const ACT_LOOP_BY_POSITION: Record<Position, AudioKey | null> = {
   fellatio_after: null
 }
 
-/** Which breath a position carries: the slow one for a handjob and every afterglow, the fast one otherwise. */
-export function breathFor(position: Position): AudioKey {
-  return position === 'handjob' || position.endsWith('_after') ? 'cg_breath' : 'cg_breath_fast'
+/** Which breath a stock position carries: the slow one for a handjob and every afterglow, the fast one otherwise. */
+export function breathFor(position: StockPosition): AudioKey {
+  return position === 'handjob' || isAfterPosition(position) ? 'cg_breath' : 'cg_breath_fast'
+}
+
+/** The loop each breath a custom CG can name plays. */
+const VOICE_LOOPS: Record<CgVoice, AudioKey | null> = {
+  fast: 'cg_breath_fast',
+  slow: 'cg_breath',
+  none: null
+}
+
+/** The loop each act a custom CG can name plays. */
+const SFX_LOOPS: Record<CgSfx, AudioKey | null> = {
+  sex: 'cg_sex',
+  foreplay: 'cg_foreplay',
+  oral: 'cg_oral',
+  handjob: 'cg_handjob',
+  none: null
+}
+
+/** The two loops one CG plays under the voice: its act, and the breath she makes over it. */
+export interface CgLoops {
+  act: AudioKey | null
+  breath: AudioKey | null
+}
+
+/**
+ * The loops a CG plays: a stock position's from the tables above, a custom main's from its
+ * slot's voice and act, and a custom after's the stock afterglow: the slow breath unless silent.
+ */
+export function cgLoopsOf(
+  position: Position,
+  character: Pick<Character, 'customCgs'> | undefined
+): CgLoops {
+  if (isStockPosition(position)) {
+    return { act: ACT_LOOP_BY_POSITION[position], breath: breathFor(position) }
+  }
+  const slot = customCgSlotOf(position)
+  if (!slot) return { act: null, breath: null }
+  const held = character ?? {}
+  const voice = customCgVoiceOf(held, slot)
+  if (isAfterPosition(position)) {
+    return { act: null, breath: voice === 'none' ? null : 'cg_breath' }
+  }
+  return { act: SFX_LOOPS[customCgSfxOf(held, slot)], breath: VOICE_LOOPS[voice] }
 }
 
 /**
@@ -425,6 +470,6 @@ export function breathFor(position: Position): AudioKey {
  * appears already in one has not climaxed.
  */
 export function climaxed(prev: Position | null, next: Position | null): boolean {
-  if (!next || !next.endsWith('_after')) return false
-  return prev !== null && !prev.endsWith('_after')
+  if (!next || !isAfterPosition(next)) return false
+  return prev !== null && !isAfterPosition(prev)
 }

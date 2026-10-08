@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, readdir, rm, utimes, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { replayIdOf, type GameReplays, type SlotReplay } from '@shared/replays'
 import { AUTOSAVE_ID, MAX_SLOT_SAVES, type SaveDraft } from '@shared/types'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { enrollment, record } from './fixtures'
@@ -17,6 +18,7 @@ vi.mock('electron', () => ({
 }))
 
 const saveService = await import('../src/main/services/saveService')
+const replayService = await import('../src/main/services/replayService')
 const { SAFE_NUMERIC_ID } = await import('../src/shared/saveRules')
 const { getPlaythroughPath, getSaveFilePath, getSavesPath } = await import('../src/main/paths')
 
@@ -462,6 +464,50 @@ describe('the playthrough record', () => {
   })
 })
 
+describe('renaming a playthrough', () => {
+  it('writes the name onto the record alone, and a blank one gives back its place', async () => {
+    await saveService.createPlaythrough(record(), draft())
+    const { save } = await saveService.createPlaythrough(record({ chars: ['a', 'b'] }), draft())
+    const id = save.playthroughId
+    const before = await saveService.readPlaythroughRecord(id)
+
+    await saveService.renamePlaythrough(id, '  The   long\nweekend ')
+    expect(await saveService.readPlaythroughRecord(id)).toEqual({
+      ...before,
+      name: 'The long weekend'
+    })
+    const named = await saveService.listPlaythroughs()
+    expect(named.map((entry) => entry.label)).toEqual(['Playthrough 1', 'The long weekend'])
+    expect(named[1]).toMatchObject({ position: 2, name: 'The long weekend', unloadable: null })
+    await expect(saveService.readSave(id, id)).resolves.toMatchObject({ save: { saveId: id } })
+
+    await saveService.renamePlaythrough(id, '   ')
+    expect(await saveService.readPlaythroughRecord(id)).toEqual(before)
+    const [, unnamed] = await saveService.listPlaythroughs()
+    expect(unnamed.label).toBe('Playthrough 2')
+    expect(unnamed).not.toHaveProperty('name')
+  })
+
+  it('lists a record written before names, or holding one it cannot keep, by its place', async () => {
+    await seedRecord('100', record())
+    await seed('100', '100', draft())
+    await seedRecord('200', { ...record(), name: 42 })
+    await seed('200', '200', draft())
+
+    const summaries = await saveService.listPlaythroughs()
+    expect(summaries.map((entry) => entry.label)).toEqual(['Playthrough 1', 'Playthrough 2'])
+    expect(summaries.every((entry) => entry.unloadable === null && !('name' in entry))).toBe(true)
+    await expect(saveService.readSave('200', '200')).resolves.toBeTruthy()
+  })
+
+  it('is refused for a playthrough with no record, and creates nothing', async () => {
+    await expect(saveService.renamePlaythrough('100', 'Gone')).rejects.toMatchObject({
+      code: 'PLAYTHROUGH_NOT_FOUND'
+    })
+    expect(await saveService.playthroughIds()).toEqual([])
+  })
+})
+
 describe('the enrollment', () => {
   it('is written into a folder of its own, stamped, and read back', async () => {
     const { playthroughId, enrollment: written } = await saveService.writeEnrollment(enrollment())
@@ -533,5 +579,88 @@ describe('deletion', () => {
     await expect(saveService.deletePlaythrough('../..')).rejects.toMatchObject({
       code: 'PLAYTHROUGH_ID_INVALID'
     })
+  })
+})
+
+describe('replays', () => {
+  /** A replay of one short scene; `text` sets its one spoken line, so each text is its own id. */
+  function replay(text: string): SlotReplay {
+    return {
+      schemaVersion: 1,
+      date: 8,
+      time: 0,
+      cast: ['ava'],
+      keys: { ava: 'ava' },
+      transcript: [
+        { speaker: 'reader', text: 'I wave.' },
+        { speaker: 'ava', text }
+      ]
+    }
+  }
+  const A = replay('A.')
+  const B = replay('B.')
+  const a = replayIdOf(A)
+  const b = replayIdOf(B)
+
+  it('lands the replay with the slot save that names it', async () => {
+    const { save } = await saveService.createPlaythrough(record(), draft())
+    const playthroughId = save.playthroughId
+
+    const saved = await saveService.writeSlotSave(
+      playthroughId,
+      draft({ replays: { 8: { 0: a } } }),
+      A
+    )
+
+    expect(await replayService.listReplayIds(playthroughId)).toEqual([a])
+    await expect(replayService.readReplay(playthroughId, a)).resolves.toEqual(A)
+    expect((await saveService.loadSave(playthroughId, saved.saveId)).replays).toEqual({
+      8: { 0: a }
+    })
+  })
+
+  it('deletes a replay only a pruned save named, and keeps one another save names', async () => {
+    for (let i = 0; i < MAX_SLOT_SAVES; i++) {
+      const id = String(1_000_000 + i)
+      // The oldest goes with the next write; it alone names `a`, and the autosave names `b` too.
+      const replays: GameReplays = i === 0 ? { 8: { 0: a, 1: b } } : {}
+      await seed('1', id, { ...draft({ replays }), saveId: id })
+    }
+    await seed('1', AUTOSAVE_ID, { ...draft({ replays: { 8: { 1: b } } }), saveId: AUTOSAVE_ID })
+    await replayService.writeReplay('1', A)
+    await replayService.writeReplay('1', B)
+
+    await saveService.writeSlotSave('1', draft())
+
+    expect(await replayService.listReplayIds('1')).toEqual([b])
+  })
+
+  it('deletes a replay the autosave alone named once it is rewritten without it', async () => {
+    await saveService.writeAutosave('1', draft({ replays: { 8: { 0: a } } }))
+    await replayService.writeReplay('1', A)
+
+    await saveService.writeAutosave('1', draft())
+
+    expect(await replayService.listReplayIds('1')).toEqual([])
+  })
+
+  it('deletes what a deleted save named, but never a replay the running game keeps', async () => {
+    await saveService.writeManualSave('1', 1, draft({ replays: { 8: { 0: a, 1: b } } }))
+    await replayService.writeReplay('1', A)
+    await replayService.writeReplay('1', B)
+
+    await saveService.deleteSave('1', 'manual01', [b])
+
+    expect(await replayService.listReplayIds('1')).toEqual([b])
+  })
+
+  it('deletes nothing while another save cannot be read, since it might name any of them', async () => {
+    await saveService.writeAutosave('1', draft({ replays: { 8: { 0: a } } }))
+    await replayService.writeReplay('1', A)
+    await writeFile(join(getPlaythroughPath('1'), 'manual02.json'), '{ not json')
+
+    await saveService.writeAutosave('1', draft())
+
+    expect(await replayService.listReplayIds('1')).toEqual([a])
   })
 })

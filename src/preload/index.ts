@@ -112,17 +112,19 @@ const api: VenusUniversityApi = {
     enrollment: (playthroughId) => ipcRenderer.invoke('saves:enrollment', playthroughId),
     create: (playthrough, draft, playthroughId) =>
       ipcRenderer.invoke('saves:create', playthrough, draft, playthroughId),
-    slot: (playthroughId, draft) => ipcRenderer.invoke('saves:slot', playthroughId, draft),
+    slot: (playthroughId, draft, replay) =>
+      ipcRenderer.invoke('saves:slot', playthroughId, draft, replay),
     overwrite: (playthroughId, saveId, draft) =>
       ipcRenderer.invoke('saves:overwrite', playthroughId, saveId, draft),
     autosave: (playthroughId, draft) =>
       ipcRenderer.invoke('saves:autosave', playthroughId, draft),
     manual: (playthroughId, slot, draft) =>
       ipcRenderer.invoke('saves:manual', playthroughId, slot, draft),
-    delete: (playthroughId, saveId) =>
-      ipcRenderer.invoke('saves:delete', playthroughId, saveId),
+    delete: (playthroughId, saveId, keep) =>
+      ipcRenderer.invoke('saves:delete', playthroughId, saveId, keep),
     deletePlaythrough: (playthroughId) =>
       ipcRenderer.invoke('saves:deletePlaythrough', playthroughId),
+    rename: (playthroughId, name) => ipcRenderer.invoke('saves:rename', playthroughId, name),
     generateEndingArt: (playthroughId, sheet, friendCount, group) =>
       ipcRenderer.invoke('saves:generateEndingArt', playthroughId, sheet, friendCount, group),
     readEndingArt: (playthroughId) => ipcRenderer.invoke('saves:readEndingArt', playthroughId),
@@ -206,6 +208,18 @@ const api: VenusUniversityApi = {
     add: (draft, images) => ipcRenderer.invoke('backgrounds:add', draft, images),
     remove: (name) => ipcRenderer.invoke('backgrounds:remove', name),
     readImage: (name, variant) => ipcRenderer.invoke('backgrounds:readImage', name, variant)
+  },
+  scenes: {
+    list: () => ipcRenderer.invoke('scenes:list'),
+    read: (id) => ipcRenderer.invoke('scenes:read', id),
+    write: (scene) => ipcRenderer.invoke('scenes:write', scene),
+    delete: (id) => ipcRenderer.invoke('scenes:delete', id)
+  },
+  replays: {
+    list: (playthroughId) => ipcRenderer.invoke('replays:list', playthroughId),
+    read: (playthroughId, replayId) => ipcRenderer.invoke('replays:read', playthroughId, replayId),
+    delete: (playthroughId, replayId) =>
+      ipcRenderer.invoke('replays:delete', playthroughId, replayId)
   }
 }
 

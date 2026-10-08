@@ -23,6 +23,8 @@ export interface ConfirmModalProps {
   busyText?: string
   /** Makes an overlay click do nothing, so the only ways out are the buttons. */
   lockOut?: boolean
+  /** Lets Enter and Space give the confirm, for one the player is already answering by key. */
+  enterConfirms?: boolean
   /**
    * A third answer beside confirm and cancel. Both `extraText` and `onExtra`
    * are needed for the button to appear.
@@ -60,6 +62,7 @@ export function ConfirmModal({
   busy = false,
   busyText,
   lockOut = false,
+  enterConfirms = false,
   extraText,
   onExtra,
   extraDisabled = false,
@@ -68,7 +71,11 @@ export function ConfirmModal({
   onDismiss
 }: ConfirmModalProps): JSX.Element | null {
   const dismiss = onDismiss ?? onCancel ?? onConfirm
-  const { host, overlayProps } = useModalShell(busy || lockOut ? () => {} : dismiss)
+  const { host, overlayProps, primaryProps } = useModalShell(
+    busy || lockOut ? () => {} : dismiss,
+    'panel',
+    enterConfirms && !busy ? onConfirm : undefined
+  )
   if (!host) return null
 
   return createPortal(
@@ -78,6 +85,7 @@ export function ConfirmModal({
       role="dialog"
       ariaLabel={title}
       overlayProps={overlayProps}
+      primaryProps={primaryProps}
       title={title}
       foot={
         <>

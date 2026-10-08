@@ -1,12 +1,14 @@
 /**
  * The boundary's memory question, asked over the curtain once it is down: a row for each memory
  * the ledger filed for somebody in the scene and a blank one for each girl it gave nothing, every
- * row an editable sentence. Every value is already an answer, so a dismissal commits as Save does.
+ * row an editable sentence, and under them whether the scene is kept for the calendar to replay.
+ * Every value is already an answer, so a dismissal commits as Save does.
  */
 import { useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 
+import { CheckField } from '../components/CheckField'
 import { MemoryRow } from '../components/MemoryRow'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
@@ -21,8 +23,11 @@ export interface SceneMemoriesModalProps {
   theme: ScreenTheme
   /** The question's rows, in the order the answers are handed back. */
   rows: readonly MemoryEditRow[]
-  /** The one answer: Save, Escape and a click on the dimming alike. */
-  onSave: (answers: readonly MemoryAnswer[]) => void
+  /**
+   * The one answer: Save, Escape and a click on the dimming alike, with whether the scene's replay
+   * is kept.
+   */
+  onSave: (answers: readonly MemoryAnswer[], keepReplay: boolean) => void
 }
 
 export function SceneMemoriesModal({
@@ -36,8 +41,11 @@ export function SceneMemoriesModal({
   const [drafts, setDrafts] = useState<MemoryAnswer[]>(() =>
     rows.map((row) => ({ type: row.applied?.type ?? 'liked', desc: row.applied?.desc ?? '' }))
   )
-  // The shell reads its close at the moment it fires, so a dismissal commits the latest drafts.
-  const { host, overlayProps } = useModalShell(() => onSave(drafts))
+  const [keepReplay, setKeepReplay] = useState(true)
+  // The shell reads its close and its primary at the moment either fires, so a dismissal or a
+  // key commits the latest drafts.
+  const save = (): void => onSave(drafts, keepReplay)
+  const { host, overlayProps, primaryProps } = useModalShell(save, 'panel', save)
 
   /** Writes one row's verb or words, leaving the others as they stand. */
   function edit(index: number, change: Partial<MemoryAnswer>): void {
@@ -63,15 +71,17 @@ export function SceneMemoriesModal({
         aria-modal="true"
         aria-label="Edit memories?"
         variants={panelUnderTab}
-        // A form, so Enter in any field is the answer the foot gives.
+        // A form, so Enter in any field is the answer the foot gives; the shell gives it to
+        // Enter and Space outside the fields.
         onSubmit={(event) => {
           event.preventDefault()
-          onSave(drafts)
+          save()
         }}
         // And the screen behind this never sees that key.
         onKeyDown={(event) => {
           if (event.key === 'Enter') event.stopPropagation()
         }}
+        {...primaryProps}
       >
         <TitleTab>Edit memories?</TitleTab>
 
@@ -105,6 +115,15 @@ export function SceneMemoriesModal({
             })}
           </div>
           <div className="vu-scroll-fade" />
+        </div>
+
+        <div className="vu-memedit-replay">
+          <CheckField
+            id="scene-memories-replay"
+            label="Save replay"
+            checked={keepReplay}
+            onChange={setKeepReplay}
+          />
         </div>
 
         {/* Every row is already an answer, so the foot carries one and no cancel. */}

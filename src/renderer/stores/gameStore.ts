@@ -7,6 +7,8 @@ import {
   withMemoryReplaced
 } from '@shared/relationship'
 import { escapeRegExp } from '@shared/sentences'
+import { affectionsOf, type SceneSetup } from '@shared/sceneCreator'
+import type { GameReplays } from '@shared/replays'
 import { displaySlotsOf, retireCgs } from './stageDisplay'
 import {
   chargeAbsences,
@@ -97,6 +99,8 @@ import {
   type OwnedItem,
   type SceneGift,
   type ShiftSlot,
+  type CgLock,
+  type CustomCgSlot,
   type OutfitLock,
   type OutfitSet,
   type Position,
@@ -121,6 +125,49 @@ const HAPPY_SPARKLE_CHANCE = 0.5
 function rollsSparkle(rand: () => number): boolean {
   return rand() < HAPPY_SPARKLE_CHANCE
 }
+
+/** A scene from the Scene Creator, played outside any playthrough. */
+interface CreatedScene {
+  setup: SceneSetup
+  /** The saved scene a replay was loaded from, and its lines as they were read off disk. */
+  replay?: { id: string; transcript: readonly SceneLine[] }
+  /** Its last line has been turned: the screen is the save question's, then the creator's. */
+  over?: true
+}
+
+/** What a created scene projects onto the store; everything else stands at a blank game's. */
+export type CreatedSceneFields = Pick<
+  GameStoreState,
+  | 'date'
+  | 'time'
+  | 'chars'
+  | 'playerFirstName'
+  | 'playerLastName'
+  | 'stats'
+  | 'bio'
+  | 'charInfo'
+  | 'npcRelationships'
+  | 'weather'
+  | 'inventory'
+  | 'bunnyshopUnlocked'
+>
+
+/**
+ * What a replay from the calendar projects onto the store, out of the game it was opened from;
+ * everything else stands at a blank game's.
+ */
+export type ReplayStayFields = Pick<
+  GameStoreState,
+  | 'date'
+  | 'time'
+  | 'chars'
+  | 'playerFirstName'
+  | 'playerLastName'
+  | 'charInfo'
+  | 'charKeyToId'
+  | 'weather'
+  | 'occasions'
+>
 
 /**
  * What kind of scene is being cast, as `setCast` takes it: the scene-scoped facts the opening
@@ -187,6 +234,13 @@ function sceneKindFields(scene: SceneKind | null | undefined) {
 interface GameStoreState {
   /** The playthrough being played; every save this session writes goes into it. */
   playthroughId: string | null
+  /** The Scene Creator's scene being played, with no playthrough; null in a game. */
+  createdScene: CreatedScene | null
+  /**
+   * A replay from the calendar being read, with no playthrough to write to while the game it was
+   * opened from is held in memory; `over` once its last line has turned. Null in a game.
+   */
+  replaying: { over?: true } | null
   date: number
   time: TimeSlot
   /** charIds loaded into the current save. */
@@ -222,6 +276,8 @@ interface GameStoreState {
   playerSchedule: Record<number, string>
   /** The playthrough log — every finished scene's summary, by day and slot. Persisted. */
   history: GameHistory
+  /** The replay of each finished scene this save can play, by day and slot. Persisted. */
+  replays: GameReplays
   /** The Bunnyboard app: conversations, friend requests and badges. Persisted. */
   bunnyboard: BunnyboardState
   /** Plans the reader has made, oldest first. Persisted. */
@@ -463,8 +519,8 @@ interface GameStoreState {
    */
   emotions: Record<string, SpriteRef>
   /**
-   * Which cast members have a full set of CGs on disk, by charId. Read at scene start and never
-   * persisted.
+   * Which cast members have the full stock set of CGs on disk, by charId. Read at scene start and
+   * never persisted.
    */
   cgReady: Record<string, boolean>
   /**
@@ -472,6 +528,11 @@ interface GameStoreState {
    * like {@link cgReady}; a partly rendered set does not appear here.
    */
   outfitReady: Record<string, OutfitSet[]>
+  /**
+   * Which custom CG pairs each cast member has whole on disk, both images, by charId. Read and
+   * scoped like {@link cgReady}; a charId absent here has not been read yet.
+   */
+  customCgReady: Record<string, CustomCgSlot[]>
   /**
    * Which cast members have both room backgrounds on disk, by charId. Read and scoped like
    * {@link cgReady}; a character with only one of the two does not appear here.
@@ -503,6 +564,8 @@ interface GameStoreState {
   bgOverride: string | null
   /** Per-character wardrobe locks the player set by hand. */
   outfitLock: Record<string, OutfitLock>
+  /** The CG the player put over the whole stage by hand, or null; the model is never told. */
+  cgLock: CgLock | null
   /**
    * charIds already written happy since the player's last action — the once-a-turn latch the
    * sparkle is rolled behind. **Transient**: never captured, never persisted, never on disk.
@@ -535,6 +598,32 @@ interface GameStoreState {
     record: PlaythroughRecord,
     characters: Record<string, Character>
   ) => void
+  /**
+   * Hydrates the store for a Scene Creator scene: a blank game holding only what the setup
+   * projects, with no playthrough to write to.
+   */
+  loadCreatedScene: (
+    scene: CreatedScene,
+    fields: CreatedSceneFields,
+    characters: Record<string, Character>
+  ) => void
+  /** Says the created scene's last line has been turned. */
+  markCreatedSceneOver: () => void
+  /**
+   * Hydrates the store for a replay from the calendar: a blank game holding only what reading
+   * the scene again needs, with no playthrough to write to.
+   */
+  loadReplay: (fields: ReplayStayFields, characters: Record<string, Character>) => void
+  /** Says the replay's last line has been turned. */
+  markReplayOver: () => void
+  /** Names the replay kept for one finished slot. */
+  setReplay: (date: number, time: TimeSlot, id: string) => void
+  /** Forgets the replay kept for one finished slot, if any. */
+  dropReplay: (date: number, time: TimeSlot) => void
+  /** Rewords a created scene's opening action, typed again after its first send failed. */
+  setCreatedPrompt: (prompt: string) => void
+  /** Puts a created scene's picked background on the empty stage its opening call reads. */
+  seedStageBg: (bg: string) => void
   /** Clears all game state (e.g. on return to main menu). */
   reset: () => void
   setAwaitingInput: (awaiting: boolean) => void
@@ -601,8 +690,9 @@ interface GameStoreState {
   truncateUnread: () => void
   /**
    * Steps playback back to the previous line that says something, across the reader's own lines
-   * as far as the scene's first reply, putting the lines after it back on the queue and the stage
-   * back as it stood there. Returns false, changing nothing, when there is no such line.
+   * as far as the scene's first reply — onto his own lines too in a replay — putting the lines
+   * after it back on the queue and the stage back as it stood there. Returns false, changing
+   * nothing, when there is no such line.
    */
   rewindLine: () => boolean
   /**
@@ -653,6 +743,11 @@ interface GameStoreState {
   setBgOverride: (bg: string | null) => void
   /** Locks a character's rendered wardrobe, or null to unlock her. */
   setOutfitLock: (charId: string, lock: OutfitLock | null) => void
+  /**
+   * Puts one CG over the whole stage by hand, or takes it off with null. One lock for the whole
+   * scene, so a new one replaces any other.
+   */
+  setCgLock: (lock: CgLock | null) => void
   /** Clears background, portraits and emotions — the between-scenes state. */
   clearStage: () => void
   /** Advances to the next time slot, rolling `date` forward when night wraps to day. */
@@ -1022,6 +1117,7 @@ const emptyStage = {
   stageOverride: {} as Record<string, boolean>,
   bgOverride: null as string | null,
   outfitLock: {} as Record<string, OutfitLock>,
+  cgLock: null as CgLock | null,
   // Nobody has been written happy yet and nothing is sparkling: both are scene-scoped too.
   brightened: [] as string[],
   // No action taken from inside this scene yet, and nothing is sparkling: scene-scoped too.
@@ -1068,6 +1164,7 @@ function freshStage(): typeof emptyStage {
     stageOverride: {},
     bgOverride: null,
     outfitLock: {},
+    cgLock: null,
     brightened: [],
     sceneActed: false,
     sparkle: null
@@ -1149,7 +1246,8 @@ function foldedStageOf(
 /**
  * What reaching the next pending line sets — popped and shown, its `bg` and actions applied, one
  * fewer beat ahead read — with the reader's lines in front of it logged and charged on the way.
- * `landed` is false when only his lines were left, and null means the queue was empty.
+ * In a replay his line is charged and then shown like any other. `landed` is false when only his
+ * lines were left, and null means the queue was empty.
  */
 function nextLineFields(
   state: GameStoreState
@@ -1161,7 +1259,12 @@ function nextLineFields(
   let queue = state.pendingLines
   let sceneLog = state.sceneLog
   let absences = { offStage: state.offStage, departed: state.departed }
-  while (queue.length > 0 && queue[0].speaker === READER_SPEAKER) {
+  const reader = (line: SceneLine | undefined): boolean => line?.speaker === READER_SPEAKER
+  if (state.replaying && reader(queue[0])) {
+    const charged = chargeAbsences(absences.offStage, absences.departed)
+    absences = { offStage: charged.offStage, departed: charged.departed }
+  }
+  while (!state.replaying && reader(queue[0])) {
     const charged = chargeAbsences(absences.offStage, absences.departed)
     absences = { offStage: charged.offStage, departed: charged.departed }
     sceneLog = [...sceneLog, queue[0]]
@@ -1193,7 +1296,7 @@ function nextLineFields(
   // A name is learned from the line that says it, whoever is speaking. Scanned as the line is
   // committed, so the tag on that very line already reads her name.
   let charInfo = state.charInfo
-  for (const charId of state.cast) {
+  for (const charId of reader(next) ? [] : state.cast) {
     const info = charInfo[charId]
     const character = state.characters[charId]
     if (!info || info.nameKnown || !character) continue
@@ -1233,6 +1336,8 @@ function nextLineFields(
 
 const initialState = {
   playthroughId: null,
+  createdScene: null as CreatedScene | null,
+  replaying: null as { over?: true } | null,
   date: 0,
   time: 0 as TimeSlot,
   chars: [] as string[],
@@ -1246,6 +1351,7 @@ const initialState = {
   classes: {} as Record<string, ClassEntry>,
   playerSchedule: {} as Record<number, string>,
   history: {} as GameHistory,
+  replays: {} as GameReplays,
   bunnyboard: emptyBunnyboard(),
   events: [] as CalendarEvent[],
   occasions: [] as Occasion[],
@@ -1333,6 +1439,7 @@ const initialState = {
   currentLine: null as SceneLine | null,
   cgReady: {} as Record<string, boolean>,
   outfitReady: {} as Record<string, OutfitSet[]>,
+  customCgReady: {} as Record<string, CustomCgSlot[]>,
   roomReady: {} as Record<string, boolean>,
   ...emptyStage
 }
@@ -1368,6 +1475,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       classes: record.classes,
       playerSchedule: save.playerSchedule,
       history: save.history,
+      // Younger than the save format: a save from before it keeps none.
+      replays: save.replays ?? {},
       bunnyboard: save.bunnyboard,
       events: save.events,
       occasions: record.occasions,
@@ -1410,6 +1519,69 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       charKeyToId: buildCharKeyToId(characters),
       ...freshStage()
     }),
+
+  loadCreatedScene: (scene, fields, characters) =>
+    set({
+      ...initialState,
+      loads: get().loads + 1,
+      ...fields,
+      createdScene: scene,
+      characters,
+      charKeyToId: buildCharKeyToId(characters),
+      ...freshStage()
+    }),
+
+  markCreatedSceneOver: () =>
+    set((state) =>
+      state.createdScene && !state.createdScene.over
+        ? { createdScene: { ...state.createdScene, over: true } }
+        : {}
+    ),
+
+  loadReplay: (fields, characters) =>
+    set({
+      ...initialState,
+      loads: get().loads + 1,
+      ...fields,
+      replaying: {},
+      characters,
+      ...freshStage()
+    }),
+
+  markReplayOver: () =>
+    set((state) =>
+      state.replaying && !state.replaying.over ? { replaying: { over: true } } : {}
+    ),
+
+  setReplay: (date, time, id) =>
+    set((state) => ({
+      replays: { ...state.replays, [date]: { ...state.replays[date], [time]: id } }
+    })),
+
+  dropReplay: (date, time) =>
+    set((state) => {
+      const day = state.replays[date]
+      if (day?.[time] === undefined) return {}
+      const { [time]: _dropped, ...rest } = day
+      const replays = { ...state.replays }
+      if (Object.keys(rest).length > 0) replays[date] = rest
+      else delete replays[date]
+      return { replays }
+    }),
+
+  seedStageBg: (bg) => set({ bg }),
+
+  setCreatedPrompt: (prompt) =>
+    set((state) =>
+      state.createdScene
+        ? {
+            createdScene: {
+              ...state.createdScene,
+              setup: { ...state.createdScene.setup, prompt }
+            }
+          }
+        : {}
+    ),
 
   reset: () => set({ ...initialState, loads: get().loads, ...freshStage() }),
 
@@ -1505,6 +1677,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         : {}),
       ...(state.bgOverride ? { bgOverride: state.bgOverride } : {}),
       ...(Object.keys(state.outfitLock).length > 0 ? { outfitLock: { ...state.outfitLock } } : {}),
+      ...(state.cgLock ? { cgLock: { ...state.cgLock } } : {}),
       sceneLog: [...state.sceneLog],
       currentLine: state.currentLine,
       pendingLines: [...state.pendingLines]
@@ -1537,6 +1710,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       stageOverride: { ...(scene?.stageOverride ?? {}) },
       bgOverride: scene?.bgOverride ?? null,
       outfitLock: { ...(scene?.outfitLock ?? {}) },
+      cgLock: scene?.cgLock ? { ...scene.cgLock } : null,
       sceneLog: scene ? [...scene.sceneLog] : [],
       currentLine: scene?.currentLine ?? null,
       // Nothing ahead of a restored line counts as read.
@@ -1637,7 +1811,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   rewindLine: () => {
     const state = get()
     const log = state.sceneLog
-    const target = rewindTargetOf(log)
+    const replaying = state.replaying !== null
+    const target = rewindTargetOf(log, replaying)
     if (target === -1) return false
     const sceneLog = log.slice(0, target + 1)
     const stepped = log.slice(target + 1)
@@ -1647,9 +1822,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       currentLine: log[target],
       ...foldedStageOf(state, sceneLog),
       lineRewound: state.lineRewound + 1,
-      // The lines stepped back over were read, all but the reader's own counting, and so was the
-      // decision point if it was open.
-      reread: state.reread + nonReaderCount(stepped) + (state.awaitingInput ? 1 : 0)
+      // The lines stepped back over were read, all but the reader's own counting outside a
+      // replay, where his are shown too, and so was the decision point if it was open.
+      reread:
+        state.reread +
+        (replaying ? stepped.length : nonReaderCount(stepped)) +
+        (state.awaitingInput ? 1 : 0)
     })
     return true
   },
@@ -1762,8 +1940,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       const { offStage, departed, settled } = chargeAbsences(state.offStage, state.departed)
       let stageOverride = state.stageOverride
       let outfitLock = state.outfitLock
+      let cgLock = state.cgLock
       for (const charId of settled) {
-        // The manual layer does not outlive a departure: her override and lock go too.
+        // The manual layer does not outlive a departure: her override and locks go too.
         if (charId in stageOverride) {
           if (stageOverride === state.stageOverride) stageOverride = { ...stageOverride }
           delete stageOverride[charId]
@@ -1772,8 +1951,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           if (outfitLock === state.outfitLock) outfitLock = { ...outfitLock }
           delete outfitLock[charId]
         }
+        if (cgLock?.charId === charId) cgLock = null
       }
-      return { offStage, departed, stageOverride, outfitLock }
+      return { offStage, departed, stageOverride, outfitLock, cgLock }
     }),
 
   toggleStageChar: (charId) =>
@@ -1832,6 +2012,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       else delete outfitLock[charId]
       return { outfitLock }
     }),
+
+  // Not checked against the readiness: a CG known missing is passed over where it is drawn.
+  setCgLock: (lock) => set({ cgLock: lock ? { ...lock } : null }),
 
   clearStage: () =>
     set({
@@ -2067,10 +2250,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       for (const charId of charIds) {
         const existing = charInfo[charId]
         if (!existing) continue
-        const flags = refreshedFlags(
-          existing.flags ?? emptyFlags(),
-          affectionFor(existing, state.date, state.characters[charId])
-        )
+        // A created scene's affection is the disposition it was set at, not its memories'.
+        const affection = state.createdScene
+          ? (affectionsOf(state.createdScene.setup)[charId] ?? 0)
+          : affectionFor(existing, state.date, state.characters[charId])
+        const flags = refreshedFlags(existing.flags ?? emptyFlags(), affection)
         if (flags === existing.flags) continue
         charInfo[charId] = { ...existing, flags }
       }
@@ -2616,6 +2800,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       ),
       playerSchedule: state.playerSchedule,
       history: state.history,
+      // Omitted while it names none, as an absent optional is.
+      ...(Object.keys(state.replays).length > 0 ? { replays: state.replays } : {}),
       bunnyboard: state.bunnyboard,
       events: state.events,
       job: state.job,

@@ -22,6 +22,7 @@ import {
 } from '@shared/customBackgrounds'
 import { appError } from '@shared/errors'
 import { photoImageName, photoMetaName, photoThumbName, PHOTOS_DIR } from '@shared/photos'
+import { REPLAYS_DIR } from '@shared/replays'
 import type { RoomVariant } from '@shared/room'
 import type { OutfitSet } from '@shared/types'
 
@@ -225,6 +226,16 @@ export function getPhotoMetaPath(playthroughId: string, photoId: string): string
   return join(getPhotosPath(playthroughId), photoMetaName(photoId))
 }
 
+/** `/data/saves/{playthroughId}/replays` — the calendar's replays. */
+export function getReplaysPath(playthroughId: string): string {
+  return join(getPlaythroughPath(playthroughId), REPLAYS_DIR)
+}
+
+/** `/data/saves/{playthroughId}/replays/{replayId}.json` */
+export function getReplayPath(playthroughId: string, replayId: string): string {
+  return join(getReplaysPath(playthroughId), `${replayId}.json`)
+}
+
 /** `/data/backgrounds` — one folder per background the player brought. */
 export function getBackgroundsPath(): string {
   return join(getDataPath(), 'backgrounds')
@@ -243,6 +254,16 @@ export function getCustomBackgroundRecordPath(name: string): string {
 /** `/data/backgrounds/{name}/{name}_{variant}.png` */
 export function getCustomBackgroundImagePath(name: string, variant: BgVariant): string {
   return join(getCustomBackgroundPath(name), customBackgroundFileName(name, variant))
+}
+
+/** `/data/scenes` — one `{id}.json` per saved scene. */
+export function getScenesPath(): string {
+  return join(getDataPath(), 'scenes')
+}
+
+/** `/data/scenes/{id}.json` */
+export function getSceneFilePath(id: string): string {
+  return join(getScenesPath(), `${id}.json`)
 }
 
 /** `/data/characters` */
@@ -302,7 +323,7 @@ export function getCharacterCgsPath(charId: string): string {
   return getCharacterImagePath(charId, setDirRel('cgs'))
 }
 
-/** `/data/characters/{charId}/cg/{position}.png` */
+/** `/data/characters/{charId}/cg/{position}.png`, or a custom pair's `customcg/{slot}/{position}.png` */
 export function getCharacterCgPath(charId: string, position: string): string {
   return getCharacterImagePath(charId, cgRel(position))
 }

@@ -1,14 +1,16 @@
 import { SENIOR_YEAR, slotFullLabel } from '@shared/classes'
 import { globalSlotOf, slotFromId } from '@shared/jobs'
 import type { PlayerStats } from '@shared/playerStats'
-import { POSITIONS } from '@shared/positions'
+import { STOCK_POSITIONS } from '@shared/positions'
 import { ROOM_VARIANTS } from '@shared/room'
 import { giftLoreNote, itemDefOf } from '@shared/shop'
 import { memoryBudgetsOf } from '@shared/settingsRules'
+import { affectionsOf } from '@shared/sceneCreator'
 import {
   charKeyOf,
   type CharInfo,
   type Character,
+  type CustomCgSlot,
   type MemoryBudgets,
   type OutfitSet,
   type SceneLine,
@@ -31,10 +33,11 @@ import type {
 import { recentLines, SCENE_WINDOW_WORDS, windowFloor } from '../../prompts/sceneWindow'
 import { readerBlockOf } from '../../prompts/setting'
 import { composeTextingSummary, hasTexted } from '../../prompts/textingPrompt'
+import { upcomingPlanLines } from '../../prompts/upcomingPlans'
 import { SEED_WORD_BAG, SEED_WORDS } from '../../prompts/seedWords'
 import { useAssetStore } from '../assetStore'
 import { useSettingsStore } from '../settingsStore'
-import { readyOutfitSets } from '../characterStore'
+import { readyCustomCgs, readyOutfitSets } from '../characterStore'
 import { useGameStore, type SceneKind } from '../gameStore'
 import { useGrabBagStore } from '../grabBagStore'
 import { stageAsWritten } from '../sceneSanitizer'
@@ -125,12 +128,13 @@ export function recentSummaries(
 }
 
 /**
- * Records which cast members have a full set of CGs on disk, and which of their alternate
- * wardrobes are fully rendered.
+ * Records which cast members have the full stock set of CGs on disk and which custom pairs
+ * whole, which of their alternate wardrobes are fully rendered, and whose room is.
  */
 export async function loadCgReady(cast: readonly string[]): Promise<void> {
   const run = currentRun()
   const ready: Record<string, boolean> = {}
+  const customCgReady: Record<string, CustomCgSlot[]> = {}
   const outfitReady: Record<string, OutfitSet[]> = {}
   const roomReady: Record<string, boolean> = {}
   await Promise.all(
@@ -140,8 +144,12 @@ export async function loadCgReady(cast: readonly string[]): Promise<void> {
         window.api.chars.outfits(charId),
         window.api.chars.room(charId)
       ])
-      if (status.ok) ready[charId] = POSITIONS.every((position) => status.data[position])
-      else console.warn(`[cast] could not read CGs for ${charId}:`, status.error)
+      if (status.ok) {
+        ready[charId] = STOCK_POSITIONS.every((position) => status.data[position])
+        customCgReady[charId] = readyCustomCgs(status.data)
+      } else {
+        console.warn(`[cast] could not read CGs for ${charId}:`, status.error)
+      }
 
       if (outfits.ok) outfitReady[charId] = readyOutfitSets(outfits.data)
       else console.warn(`[cast] could not read outfits for ${charId}:`, outfits.error)
@@ -152,7 +160,7 @@ export async function loadCgReady(cast: readonly string[]): Promise<void> {
   )
   // A stale run's cast is no longer on the stage.
   if (runStale(run)) return
-  useGameStore.setState({ cgReady: ready, outfitReady, roomReady })
+  useGameStore.setState({ cgReady: ready, customCgReady, outfitReady, roomReady })
 }
 
 /**
@@ -391,12 +399,23 @@ export function promptState(): PromptState {
     ...(scenePersona !== undefined ? { scenePersona } : {}),
     memoryBudgets: memoryBudgetsNow(),
     cgReady: game.cgReady,
+    customCgReady: game.customCgReady,
     outfitReady: game.outfitReady,
     roomReady: game.roomReady,
     textingSummaries,
     textedWith,
+    // The slots after this one: this slot's plan is the scene itself, or one he is skipping.
+    upcomingPlans: upcomingPlanLines(
+      game.events,
+      game.characters,
+      globalSlotOf(game.date, game.time) + 1
+    ),
     // Whoever the prompt still carries but the stage does not; absent when nobody is.
-    ...(hiddenCast.length > 0 ? { hiddenCast } : {})
+    ...(hiddenCast.length > 0 ? { hiddenCast } : {}),
+    // A Scene Creator scene: its dispositions are set by hand rather than earned.
+    ...(game.createdScene
+      ? { createdScene: true as const, affection: affectionsOf(game.createdScene.setup) }
+      : {})
   }
 }
 

@@ -1,0 +1,30 @@
+/* The CG picker: one character's CGs a page at a time between the page arrows, on the NSFW
+   gallery's chassis. Imported from the view module after ImageGallery.css, never from
+   index.css — a screen's file must load after base.css or its overrides lose at equal
+   specificity. */
+
+/* The page on screen, named in the head beside the hint. */
+.vu-cgpick-page {
+  flex: none;
+  color: var(--vu-text);
+  font: 700 15px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* The page takes the row between the arrows. */
+.vu-cgpick-grid {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Her own pairs are captioned exactly as she named them. */
+.vu-cgpick-grid--custom .vu-gallery-caption {
+  text-transform: none;
+}
+
+/* The CG over the stage, ringed rather than tinted: a border on the cell, which is not a paper
+   element and so may carry one without hiding a shadow behind it. */
+.vu-cgpick-cell--on {
+  border: 3px solid var(--vu-accent);
+}

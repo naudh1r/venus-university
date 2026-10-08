@@ -413,6 +413,15 @@ export function MainMenu(): JSX.Element {
           >
             Manage Characters
           </motion.button>
+          <motion.button
+            id="menu-scene-creator"
+            className="vu-btn vu-btn--outline vu-paper"
+            variants={dealtItem}
+            {...gestures(false, lift, press)}
+            onClick={() => setView('sceneCreator')}
+          >
+            Scene Creator
+          </motion.button>
         </motion.nav>
 
         <hr className="vu-rule" />

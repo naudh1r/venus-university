@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import { ROOM_VARIANTS } from '@shared/room'
-import { allBackgrounds, roomBgIdOf } from '@shared/types'
+import { allBackgrounds, roomBgIdOf, type Character } from '@shared/types'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
 import { roomUrl, useCharacterStore } from '../stores/characterStore'
@@ -82,6 +82,11 @@ export interface BgPickerProps {
   dead?: (id: string) => boolean
   /** What stands above the shelves. */
   header?: ReactNode
+  /**
+   * Whose rooms the rooms shelf offers, every name known — for a picker opened outside a game;
+   * absent, the game's roster with its names as the reader knows them.
+   */
+  rooms?: Readonly<Record<string, Character>>
   onClose: () => void
 }
 
@@ -130,10 +135,12 @@ export function BgPicker({
   onPick,
   dead,
   header,
+  rooms: roomsOf,
   onClose
 }: BgPickerProps): JSX.Element | null {
-  const characters = useGameStore((s) => s.characters)
+  const gameCharacters = useGameStore((s) => s.characters)
   const charInfo = useGameStore((s) => s.charInfo)
+  const characters = roomsOf ?? gameCharacters
   const backgrounds = useAssetStore((s) => s.backgrounds)
   const spriteVersion = useCharacterStore((s) => s.spriteVersion)
 
@@ -170,7 +177,8 @@ export function BgPicker({
           id: roomBgIdOf(character),
           src: roomUrl(character.charId, half, spriteVersion[character.charId] ?? 0),
           // Masked as the Cast Modal masks a name.
-          label: charInfo[character.charId]?.nameKnown ? character.firstName : UNKNOWN_NAME
+          label:
+            roomsOf || charInfo[character.charId]?.nameKnown ? character.firstName : UNKNOWN_NAME
         }))
     }
     return backgrounds[tab].map((base) => ({
@@ -178,7 +186,7 @@ export function BgPicker({
       src: bgThumbUrl(base, half, wet),
       label: base.replace(/_/g, ' ')
     }))
-  }, [tab, rooms, characters, charInfo, backgrounds, half, wet, spriteVersion])
+  }, [tab, rooms, characters, roomsOf, charInfo, backgrounds, half, wet, spriteVersion])
 
   const { host, overlayProps } = useModalShell(onClose)
   if (!host) return null

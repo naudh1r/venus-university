@@ -27,12 +27,15 @@ export interface GameMenuModalProps {
   onSaveGame: () => void
   /** Whether a save can be written now, only once the reply in flight lands, or not at all. */
   saveOffer: ManualSaveOffer
-  onLoadGame: () => void
+  /** Absent where there is no playthrough to load another save of, which drops the entry. */
+  onLoadGame?: () => void
   onFeedback: () => void
   onSettings: () => void
   /** Opens the list of the keys the app answers, in the menu's place. */
   onControls: () => void
   onLeave: () => void
+  /** What the leave entry says, where it leads somewhere other than the main menu. */
+  leaveLabel?: string
   /** Absent where the app has no window of its own to close, which drops the entry. */
   onQuit?: () => void
 }
@@ -51,6 +54,7 @@ export function GameMenuModal({
   onSettings,
   onControls,
   onLeave,
+  leaveLabel,
   onQuit
 }: GameMenuModalProps): JSX.Element | null {
   const { host, overlayProps } = useModalShell(onClose)
@@ -96,16 +100,18 @@ export function GameMenuModal({
               </motion.button>
             </DeadNote>
           )}
-          <motion.button
-            id="game-menu-load"
-            className="vu-btn vu-btn--outline vu-paper"
-            type="button"
-            variants={dealtItem}
-            {...gestures(false, lift, press)}
-            onClick={onLoadGame}
-          >
-            Load Game
-          </motion.button>
+          {onLoadGame && (
+            <motion.button
+              id="game-menu-load"
+              className="vu-btn vu-btn--outline vu-paper"
+              type="button"
+              variants={dealtItem}
+              {...gestures(false, lift, press)}
+              onClick={onLoadGame}
+            >
+              Load Game
+            </motion.button>
+          )}
           <motion.button
             id="game-menu-settings"
             className="vu-btn vu-btn--outline vu-paper"
@@ -144,7 +150,7 @@ export function GameMenuModal({
             {...gestures(false, lift, press)}
             onClick={onLeave}
           >
-            Return to main menu
+            {leaveLabel ?? 'Return to main menu'}
           </motion.button>
           {onQuit && (
             <motion.button

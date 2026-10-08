@@ -1,7 +1,8 @@
 import { appError } from '@shared/errors'
 import { looseNamesOf, setDirRel, STAGING_DIR, stagedRel } from '@shared/characterFiles'
 import { assertSafeCharId, CHARACTER_NOT_FOUND, readCharacterRecord } from '@shared/characterRules'
-import type { Character, CustomOutfitSlot, SetTarget } from '@shared/types'
+import { isCustomCgSlot } from '@shared/positions'
+import type { Character, CustomCgSlot, CustomOutfitSlot, SetTarget } from '@shared/types'
 import { database, partRange, storage } from './open'
 
 /**
@@ -234,11 +235,14 @@ export async function discardStaged(charId: string, target?: SetTarget): Promise
 }
 
 /** Deletes one custom set's images, live and staged; the character's row is untouched. */
-export async function deleteSet(charId: string, slot: CustomOutfitSlot): Promise<void> {
+export async function deleteSet(
+  charId: string,
+  slot: CustomOutfitSlot | CustomCgSlot
+): Promise<void> {
   assertSafeCharId(charId)
   const { live, staged } = setLocation(slot)
 
-  await storage('delete the outfit', async () => {
+  await storage(isCustomCgSlot(slot) ? 'delete the CG' : 'delete the outfit', async () => {
     const tx = (await database()).transaction('charFiles', 'readwrite')
     const keys = await tx.store.getAllKeys(partRange(charId))
     for (const [, rel] of keys) {

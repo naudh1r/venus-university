@@ -18,6 +18,7 @@ import { profileUrl, useSpriteVersion } from '../stores/characterStore'
 import { useGameStore } from '../stores/gameStore'
 import {
   knownWhereabouts,
+  mapFillers,
   placeDestination,
   AWAY_PLACE_KEY,
   CLASS_PLACE_KEY,
@@ -63,10 +64,15 @@ interface Section {
   blurb: string
   onCampus: boolean
   people: Whereabouts[]
+  /** A place the map stands up for want of known ones, holding nobody it can name. */
+  filler?: true
 }
 
 /** The pins are dealt with the panel they arrive on, so no `startDelay` and a tight step. */
 const PIN_DEAL = dealt(0, 0.05)
+
+/** The fewest bubbles the map shows; below it, it stands up places nobody known is at. */
+const MIN_BUBBLES = 5
 
 /** How much of the frame's edge a bubble keeps clear — its hover's own throw, and the float's. */
 const EDGE = 18
@@ -129,6 +135,17 @@ function PlaneIcon(): JSX.Element {
   )
 }
 
+/** A filler's one archway: somewhere to look, standing for nobody in particular. */
+function UnknownFace(): JSX.Element {
+  return (
+    <motion.div className="vu-map-who" variants={dealtItem}>
+      <span className="vu-map-face vu-map-unknown" aria-hidden="true">
+        ?
+      </span>
+    </motion.div>
+  )
+}
+
 /** The phase a face takes when the map has none for her, held rather than rebuilt. */
 const FACE_REST = faceBreath(0)
 
@@ -186,7 +203,19 @@ export function MapModal({ theme, onClose, onGo }: MapModalProps): JSX.Element |
   // DOM order, so this is what starts the bubbles left to right across the city.
   const sections = useMemo(() => {
     const footers: readonly string[] = [AWAY_PLACE_KEY, UNKNOWN_PLACE_KEY]
-    return sectionsOf(rows.filter((row) => !footers.includes(row.placeKey))).sort(
+    const known = sectionsOf(rows.filter((row) => !footers.includes(row.placeKey)))
+    const fillers: Section[] = mapFillers(
+      known.map((section) => section.key),
+      MIN_BUBBLES - known.length
+    ).map((place) => ({
+      key: place.placeKey,
+      label: place.placeLabel,
+      blurb: place.placeBlurb,
+      onCampus: place.onCampus,
+      people: [],
+      filler: true
+    }))
+    return [...known, ...fillers].sort(
       (a, b) => anchorOf(a.key).x - anchorOf(b.key).x || a.key.localeCompare(b.key)
     )
   }, [rows])
@@ -385,7 +414,7 @@ export function MapModal({ theme, onClose, onGo }: MapModalProps): JSX.Element |
                 >
                   <div
                     className="vu-map-pin vu-paper"
-                    style={{ '--cols': columnsFor(section.people.length) } as CSSProperties}
+                    style={{ '--cols': columnsFor(section.people.length || 1) } as CSSProperties}
                   >
                     <motion.div className="vu-map-head" variants={bubbleHead}>
                       {/* The name is printed whole and typed in ink, one span a character, so
@@ -414,6 +443,7 @@ export function MapModal({ theme, onClose, onGo }: MapModalProps): JSX.Element |
                     </motion.div>
 
                     <motion.div className="vu-map-grid" variants={bubbleFaces}>
+                      {section.filler && <UnknownFace />}
                       {section.people.map((row) => (
                         <Face
                           key={row.charId}

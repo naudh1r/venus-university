@@ -187,6 +187,7 @@ export function LlmFailureModal({
         title={title}
         message={connectionMessage}
         confirmText="Retry"
+        enterConfirms
         cancelText="Settings"
         lockOut={lockOut}
         onConfirm={onRetry}
@@ -212,6 +213,7 @@ export function LlmFailureModal({
       title={title}
       message={message}
       confirmText="Retry"
+      enterConfirms
       cancelText={cancelText}
       lockOut={lockOut}
       extraText={editable ? extraText : undefined}

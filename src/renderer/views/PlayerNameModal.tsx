@@ -99,7 +99,7 @@ export function PlayerNameModal({
     )
   }
 
-  const { host, overlayProps } = useModalShell(submit)
+  const { host, overlayProps, primaryProps } = useModalShell(submit, 'panel', submit)
   if (!host) return null
 
   return createPortal(
@@ -119,11 +119,13 @@ export function PlayerNameModal({
         aria-modal="true"
         aria-label="Who are you?"
         variants={panelUnderTab}
-        // A form, so Enter in either field is the answer the foot gives.
+        // A form, so Enter in either field is the answer the foot gives; the shell gives it to
+        // Enter and Space outside the fields.
         onSubmit={(event) => {
           event.preventDefault()
           submit()
         }}
+        {...primaryProps}
       >
         <TitleTab>Who are you?</TitleTab>
 

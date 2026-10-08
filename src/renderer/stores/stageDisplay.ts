@@ -1,7 +1,14 @@
-import { parseSpriteRef, spriteRef } from '@shared/outfits'
-import { isPosition } from '@shared/positions'
+import { isCustomOutfitSlot, parseSpriteRef, spriteRef } from '@shared/outfits'
+import { customCgSlotOf, isPosition } from '@shared/positions'
 import { sfwCgRefOf } from '@shared/sfw'
-import type { OutfitLock, OutfitSet, Position, SpriteRef } from '@shared/types'
+import type {
+  CgLock,
+  CustomCgSlot,
+  OutfitLock,
+  OutfitSet,
+  Position,
+  SpriteRef
+} from '@shared/types'
 
 /** The stage as it is *rendered*, which is not always the stage as the scene was written. */
 
@@ -28,17 +35,87 @@ export function displaySlotsOf(
   return shown
 }
 
-/** The sprite reference actually drawn for a character under a wardrobe lock. */
+/** The one CG drawn over the whole stage, and whose it is. */
+export interface DisplayedCg {
+  charId: string
+  position: Position
+}
+
+/** What the stage knows of which CGs are on disk, by charId; an absent entry is not read yet. */
+export interface CgReadiness {
+  cgReady: Record<string, boolean>
+  customCgReady: Record<string, readonly CustomCgSlot[]>
+}
+
+/**
+ * Whether one of her CGs is known not to be on disk: a custom one whose pair her readiness, once
+ * read, does not list. A stock CG, and any CG before her readiness is read, counts as there.
+ */
+export function cgKnownMissing(charId: string, position: Position, ready: CgReadiness): boolean {
+  const slot = customCgSlotOf(position)
+  if (!slot) return false
+  const held = ready.customCgReady[charId]
+  return held !== undefined && !held.includes(slot)
+}
+
+/**
+ * The CG on screen, the one definition the stage, the sound and the save's picture share: the
+ * player's lock while it names a CG of somebody who exists, not known missing and not withheld,
+ * else the first shown occupant standing in a CG not known missing, else none.
+ */
+export function displayedCgOf(input: {
+  shown: readonly (string | null)[]
+  emotions: Record<string, SpriteRef>
+  lock: CgLock | null | undefined
+  hasCharacter: (charId: string) => boolean
+  ready: CgReadiness
+  noNsfwImages: boolean
+}): DisplayedCg | null {
+  const { lock, ready } = input
+  if (
+    lock &&
+    !input.noNsfwImages &&
+    isPosition(lock.position) &&
+    input.hasCharacter(lock.charId) &&
+    !cgKnownMissing(lock.charId, lock.position, ready)
+  ) {
+    return { charId: lock.charId, position: lock.position }
+  }
+  for (const charId of input.shown) {
+    if (!charId || !input.hasCharacter(charId)) continue
+    const ref = input.emotions[charId]
+    if (ref && isPosition(ref) && !cgKnownMissing(charId, ref, ready)) {
+      return { charId, position: ref }
+    }
+  }
+  return null
+}
+
+/**
+ * The sprite reference actually drawn for a character under a wardrobe lock. A custom wardrobe
+ * no longer whole on disk — deleted under a save that has her in it — draws her default one,
+ * and a custom CG known missing (`customCgs` read and lacking its pair) the sprite it retires to.
+ */
 export function displaySpriteRef(
   ref: SpriteRef,
   lock: OutfitLock | undefined,
-  ready: readonly OutfitSet[] | undefined
+  ready: readonly OutfitSet[] | undefined,
+  customCgs?: readonly CustomCgSlot[]
 ): SpriteRef {
-  if (!lock || isPosition(ref)) return ref
+  if (isPosition(ref)) {
+    const slot = customCgSlotOf(ref)
+    if (!slot || !customCgs || customCgs.includes(slot)) return ref
+    return displaySpriteRef(cgRetiredRef(ref, ready?.includes('nude') === true, false), lock, ready)
+  }
   const parsed = parseSpriteRef(ref)
   if (!parsed) return ref
+  const worn =
+    parsed.set && isCustomOutfitSlot(parsed.set) && ready && !ready.includes(parsed.set)
+      ? spriteRef(parsed.emotion, null)
+      : ref
+  if (!lock) return worn
   if (lock === 'default') return spriteRef(parsed.emotion, null)
-  return ready?.includes(lock) ? spriteRef(parsed.emotion, lock) : ref
+  return ready?.includes(lock) ? spriteRef(parsed.emotion, lock) : worn
 }
 
 /** Whether a change of sprite is a change of wardrobe, and so of her silhouette. */

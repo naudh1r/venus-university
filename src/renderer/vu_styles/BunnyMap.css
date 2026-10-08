@@ -182,6 +182,17 @@
   right: -7px;
 }
 
+/* A place stood up with nobody named at it: the empty archway a room nobody is known in wears,
+   at a face's size and with no caption, since it is nobody. */
+.vu-map-unknown {
+  display: grid;
+  place-items: center;
+  border: 2.5px dashed var(--vu-border);
+  border-radius: 999px 999px 0 0;
+  color: var(--vu-text-muted);
+  font: 700 22px var(--font-mono);
+}
+
 /* Her name under her face, the card caption's first row at a pin's size. */
 .vu-map-name {
   overflow: hidden;

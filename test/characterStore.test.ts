@@ -202,8 +202,9 @@ describe('seedPrefillFor', () => {
   })
 
   it('opens a single CG and a single sprite on the seed of the set they belong to', () => {
-    const own = subject({ seeds: { cg: 555, pe: 999 } })
+    const own = subject({ seeds: { cg: 555, pe: 999, customcg1: 777 } })
     expect(seedPrefillFor(own, cgTargetFor('sex'))).toEqual({ seed: 555, random: true })
+    expect(seedPrefillFor(own, cgTargetFor('customcg1_after'))).toEqual({ seed: 777, random: true })
     expect(seedPrefillFor(own, expressionTargetFor('happy', 'pe'))).toEqual({
       seed: 999,
       random: true
@@ -431,7 +432,8 @@ describe('missingContentPlan', () => {
   })
 
   it('leaves out the nude wardrobe and the CGs while noNsfwImages is set', () => {
-    const plan = missingContentPlan(roster(), { ...OPEN, noNsfwImages: true })
+    const written = roster({}, { customCgs: { customcg2: { tags: ['cowgirl_position'] } } })
+    const plan = missingContentPlan(written, { ...OPEN, noNsfwImages: true })
     expect(plan.map((set) => set.target)).toEqual(['pe', 'swim', 'room'])
   })
 
@@ -454,5 +456,33 @@ describe('missingContentPlan', () => {
       'cgs',
       'room'
     ])
+  })
+
+  it('queues a custom CG pair she has tags for, as one set counting the half it lacks', () => {
+    // Only the slot her record carries: the other three have no tags to render from. A pair
+    // is one bucket, so a running one keeps the sweep off it and off nothing else.
+    const written = roster({}, { customCgs: { customcg2: { tags: ['cowgirl_position'] } } })
+    written.cgs.c1 = { ...written.cgs.c1, customcg2: true }
+    const plan = missingContentPlan(written, OPEN)
+    expect(plan.map((set) => set.target)).toEqual([
+      'pe',
+      'swim',
+      'nude',
+      'cgs',
+      'customcg2',
+      'room'
+    ])
+    expect(plan.find((set) => set.target === 'customcg2')?.missing).toBe(1)
+
+    const pairRunning: CharacterProgress = {
+      phase: 'rendering',
+      tasks: [{ ...taskShapeOf('customcg2'), id: 1, done: 0, total: 1 }],
+      current: 1
+    }
+    expect(
+      missingContentPlan({ ...written, progress: { c1: pairRunning } }, OPEN).map(
+        (set) => set.target
+      )
+    ).toEqual(['pe', 'swim', 'nude', 'cgs', 'room'])
   })
 })

@@ -110,6 +110,11 @@ export interface TextingPromptState {
    * open through an absence, so this is what says she is texting from somewhere else.
    */
   springBreakAway?: readonly string[] | null
+  /**
+   * Each character's plans with the reader from this slot on, one sentence apiece, by charId —
+   * hers and the lorebook's people's.
+   */
+  upcomingPlans?: Record<string, string[]>
   /** How many of her memories the thread carries: the one-character budget, the thread being the two of them. */
   memoryBudget: number
 }
@@ -305,8 +310,15 @@ export function buildTextingPrompt(
     (other) => !new RegExp(keyPattern(other.firstName, false), 'iu').test(scan)
   )
   const lore = lorebookBlock(scan, today, [
-    ...characterLore(scan, state.roster, state.charInfo, state.date, relations),
-    ...characterLoreForIds(ambient, state.charInfo, state.date, relations)
+    ...characterLore(
+      scan,
+      state.roster,
+      state.charInfo,
+      state.date,
+      relations,
+      state.upcomingPlans
+    ),
+    ...characterLoreForIds(ambient, state.charInfo, state.date, relations, state.upcomingPlans)
   ])
 
   const characterBlock = [
@@ -330,6 +342,8 @@ export function buildTextingPrompt(
     // Her closest friend; the roster handed in is everybody but her.
     ...bestFriendLines(character, state.roster, state.npcRelationships),
     ...scheduleLines(`${name}'s Schedule:`, info?.schedule ?? {}, state.classes, info?.job, state.date),
+    // What she and the reader have planned, this slot's included.
+    ...(state.upcomingPlans?.[character.charId] ?? []),
     // Where she is spending the break: on a thread, the only thing saying she has left campus.
     ...springBreakLines(
       name,

@@ -275,6 +275,18 @@ describe('captureScene / restoreScene', () => {
     expect(useGameStore.getState().sceneSummaries).toEqual([])
     expect(useGameStore.getState().captureScene()).not.toHaveProperty('summaries')
   })
+
+  it('round-trips the CG lock, and writes none for a scene without one', () => {
+    const store = useGameStore.getState()
+    store.restoreScene({ ...scene, cgLock: { charId: 'a', position: 'customcg2_after' } })
+    expect(useGameStore.getState().captureScene()).toMatchObject({
+      cgLock: { charId: 'a', position: 'customcg2_after' }
+    })
+
+    store.restoreScene(scene)
+    expect(useGameStore.getState().cgLock).toBeNull()
+    expect(useGameStore.getState().captureScene()).not.toHaveProperty('cgLock')
+  })
 })
 
 describe('advanceLine', () => {
@@ -505,6 +517,17 @@ describe('settleDepartures', () => {
     useGameStore.getState().settleDepartures()
     expect(useGameStore.getState().offStage).toEqual({})
     expect(useGameStore.getState().departed).toEqual(['a'])
+  })
+
+  it('takes the CG lock off once the girl it shows has left, and not before', () => {
+    useGameStore.setState({ offStage: { a: 1, b: 0 } })
+    useGameStore.getState().setCgLock({ charId: 'b', position: 'sex' })
+    // The other girl's departure settles first, and the lock is not hers.
+    useGameStore.getState().settleDepartures()
+    expect(useGameStore.getState().departed).toEqual(['a'])
+    expect(useGameStore.getState().cgLock).toEqual({ charId: 'b', position: 'sex' })
+    useGameStore.getState().settleDepartures()
+    expect(useGameStore.getState().cgLock).toBeNull()
   })
 })
 

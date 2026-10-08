@@ -73,6 +73,12 @@
   pointer-events: none;
 }
 
+/* Her right fifth is cut away: past where any ordinary sprite reaches, so only an unusually wide
+   one (arms flung out, tentacles) is stopped short of the lines rather than laid over them. */
+.vu-mile-stand .vu-stage-portrait {
+  clip-path: inset(0 20% 0 0);
+}
+
 .vu-mile-said {
   display: flex;
   flex-direction: column;

@@ -1,6 +1,13 @@
 import type { Character, Emotion, OutfitSet, Position } from './types'
+import { customCgTagsFor, withAfterTag } from './customCgs'
 import { negativeTagsFor, outfitTagsFor } from './outfits'
-import { CG_BASE_PROMPT, POSITION_TAGS } from './positions'
+import {
+  CG_BASE_PROMPT,
+  customCgSlotOf,
+  isAfterPosition,
+  isStockPosition,
+  POSITION_TAGS
+} from './positions'
 import { EXPRESSION_EYES, EXPRESSION_MOUTH } from './tags'
 
 /**
@@ -124,16 +131,22 @@ export function cgSetDraft(character: Character): Extract<PromptEdit, { kind: 'c
   }
 }
 
-/** The four aftermath positions, told from the during four by their suffix alone. */
-function isAfterPosition(position: Position): boolean {
-  return position.endsWith('_after')
-}
-
-/** The expression a CG wears: her own `happy` after, her own `aroused` during. */
+/**
+ * The expression a CG wears: her own `happy` after an act, stock or custom, her own `aroused`
+ * during one.
+ */
 function cgExpressionTags(character: Character, position: Position): readonly string[] {
   const tags = character.expressionTags[isAfterPosition(position) ? 'happy' : 'aroused']
   if (position !== 'fellatio' && position !== 'fellatio_after') return tags
   return tags.filter((tag) => !(EXPRESSION_MOUTH as readonly string[]).includes(tag))
+}
+
+/** The position group one CG renders from: a stock one's tags, or a custom pair's plus its after tag. */
+function cgPositionTags(character: Character, position: Position): string[] {
+  if (isStockPosition(position)) return tagsOf(POSITION_TAGS[position])
+  const slot = customCgSlotOf(position)
+  const tags = slot ? customCgTagsFor(character, slot) : []
+  return isAfterPosition(position) ? withAfterTag(tags) : [...tags]
 }
 
 /** The groups one CG is drawn from: what her CGs share, plus the position and the face it wears. */
@@ -146,7 +159,7 @@ export function cgDraft(
     kind: 'cg',
     base,
     appearance,
-    position: tagsOf(POSITION_TAGS[position]),
+    position: cgPositionTags(character, position),
     expression: [...cgExpressionTags(character, position)],
     negative
   }

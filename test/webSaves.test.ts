@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { IDBFactory } from 'fake-indexeddb'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { replayIdOf, type SlotReplay } from '@shared/replays'
 import { AUTOSAVE_ID, MAX_SLOT_SAVES, type SaveDraft } from '@shared/types'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { enrollment, record } from './fixtures'
@@ -12,8 +13,10 @@ import { enrollment, record } from './fixtures'
 
 type WebSaves = typeof import('../src/web/db/saves')
 type WebPhotos = typeof import('../src/web/db/photos')
+type WebReplays = typeof import('../src/web/db/replays')
 let saves: WebSaves
 let photos: WebPhotos
+let replays: WebReplays
 
 /** A complete sidecar, as the game would send with a photo write. */
 function photoMeta(): import('@shared/photos').PhotoMeta {
@@ -38,6 +41,7 @@ beforeEach(async () => {
   vi.resetModules()
   saves = await import('../src/web/db/saves')
   photos = await import('../src/web/db/photos')
+  replays = await import('../src/web/db/replays')
 })
 
 describe('the slot-boundary write', () => {
@@ -126,6 +130,37 @@ describe('starting a playthrough', () => {
   })
 })
 
+describe('renaming a playthrough', () => {
+  it('changes the record by its name alone, and a blank one gives back its place', async () => {
+    const { playthroughId } = await saves.writeEnrollment(enrollment())
+    await saves.createPlaythrough(record(), draft(), playthroughId)
+    const before = await saves.readPlaythroughRecord(playthroughId)
+
+    await saves.renamePlaythrough(playthroughId, 'Spring run')
+    expect(await saves.readPlaythroughRecord(playthroughId)).toEqual({
+      ...before,
+      name: 'Spring run'
+    })
+    expect((await saves.listPlaythroughs())[0]).toMatchObject({
+      label: 'Spring run',
+      position: 1,
+      name: 'Spring run'
+    })
+
+    await saves.renamePlaythrough(playthroughId, '')
+    expect(await saves.readPlaythroughRecord(playthroughId)).toEqual(before)
+    expect((await saves.listPlaythroughs())[0].label).toBe('Playthrough 1')
+  })
+
+  it('is refused for a playthrough with no record, leaving its row as it was', async () => {
+    const { playthroughId, enrollment: waiting } = await saves.writeEnrollment(enrollment())
+    await expect(saves.renamePlaythrough(playthroughId, 'Early')).rejects.toMatchObject({
+      code: 'PLAYTHROUGH_NOT_FOUND'
+    })
+    await expect(saves.readEnrollment(playthroughId)).resolves.toEqual(waiting)
+  })
+})
+
 describe('deleting a playthrough', () => {
   it('takes its record, its saves and both of its pictures with it', async () => {
     const { playthroughId } = await saves.writeEnrollment(enrollment())
@@ -189,5 +224,81 @@ describe('writing a photo', () => {
     ).rejects.toMatchObject({ code: 'PHOTO_PLAYTHROUGH_GONE' })
 
     expect(await photos.listPhotos('1700000000000')).toEqual([])
+  })
+})
+
+describe('replays', () => {
+  /** A replay of one short scene; `text` sets its one spoken line, so each text is its own id. */
+  function replay(text: string): SlotReplay {
+    return {
+      schemaVersion: 1,
+      date: 8,
+      time: 0,
+      cast: ['ava'],
+      keys: { ava: 'ava' },
+      transcript: [
+        { speaker: 'reader', text: 'I wave.' },
+        { speaker: 'ava', text }
+      ]
+    }
+  }
+  const A = replay('A.')
+  const B = replay('B.')
+  const a = replayIdOf(A)
+  const b = replayIdOf(B)
+
+  /** A playthrough whose first slot save after the opening names `a`, written with it. */
+  async function withReplay(): Promise<{ playthroughId: string; saveId: string }> {
+    const { playthroughId } = await saves.writeEnrollment(enrollment())
+    await saves.createPlaythrough(record(), draft(), playthroughId)
+    const saved = await saves.writeSlotSave(playthroughId, draft({ replays: { 8: { 0: a } } }), A)
+    return { playthroughId, saveId: saved.saveId }
+  }
+
+  it('lands the replay with the slot save that names it', async () => {
+    const { playthroughId, saveId } = await withReplay()
+
+    expect(await replays.listReplayIds(playthroughId)).toEqual([a])
+    await expect(replays.readReplay(playthroughId, a)).resolves.toEqual(A)
+    expect((await saves.loadSave(playthroughId, saveId)).replays).toEqual({ 8: { 0: a } })
+  })
+
+  it('deletes a replay only pruned saves named, and keeps one another save names', async () => {
+    const { playthroughId } = await withReplay()
+    await saves.writeSlotSave(playthroughId, draft({ replays: { 9: { 0: b } } }), B)
+    await saves.writeAutosave(playthroughId, draft({ replays: { 9: { 0: b } } }))
+
+    for (let i = 0; i < MAX_SLOT_SAVES; i++) await saves.writeSlotSave(playthroughId, draft())
+
+    expect(await replays.listReplayIds(playthroughId)).toEqual([b])
+  })
+
+  it('keeps a replay through one deletion and drops it with the overwrite of the last', async () => {
+    const { playthroughId, saveId } = await withReplay()
+    await saves.writeAutosave(playthroughId, draft({ replays: { 8: { 0: a } } }))
+
+    await saves.deleteSave(playthroughId, saveId)
+    expect(await replays.listReplayIds(playthroughId)).toEqual([a])
+
+    await saves.writeAutosave(playthroughId, draft())
+    expect(await replays.listReplayIds(playthroughId)).toEqual([])
+  })
+
+  it('never deletes a replay the running game keeps', async () => {
+    const { playthroughId, saveId } = await withReplay()
+
+    await saves.deleteSave(playthroughId, saveId, [a])
+
+    expect(await replays.listReplayIds(playthroughId)).toEqual([a])
+  })
+
+  it("go with their playthrough, and another playthrough's stay", async () => {
+    const first = await withReplay()
+    const other = await withReplay()
+
+    await saves.deletePlaythrough(first.playthroughId)
+
+    expect(await replays.listReplayIds(first.playthroughId)).toEqual([])
+    expect(await replays.listReplayIds(other.playthroughId)).toEqual([a])
   })
 })

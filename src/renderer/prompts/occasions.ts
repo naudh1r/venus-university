@@ -455,6 +455,17 @@ export function jobClosedOn(
   return classesCancelledOn(date, generated)
 }
 
+/** Whether `location` is shut on `date` — a university place on a day an occasion closes it. */
+export function placeClosedOn(
+  location: string,
+  date: number,
+  generated: readonly Occasion[] = []
+): boolean {
+  return (
+    locationDefOf(location)?.closesWithUniversity === true && classesCancelledOn(date, generated)
+  )
+}
+
 /**
  * Whether a `kind` haunt at `location` does not happen on `date` — the single test behind every
  * read of a character's week, and `jobClosedOn`'s sibling. Nobody studies in a break week.
@@ -465,9 +476,7 @@ export function hauntClosedOn(
   date: number,
   generated: readonly Occasion[] = []
 ): boolean {
-  if (locationDefOf(location)?.closesWithUniversity && classesCancelledOn(date, generated)) {
-    return true
-  }
+  if (placeClosedOn(location, date, generated)) return true
   if (kind !== 'study') return false
   return BREAK_WEEKS.some((week) => date >= week.startDate && date <= week.endDate)
 }

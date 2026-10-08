@@ -14,6 +14,7 @@ const OK: Result<void> = { ok: true, data: undefined }
 const PLAYTHROUGH: PlaythroughSummary = {
   playthroughId: 'p1',
   label: 'Playthrough 1',
+  position: 1,
   chars: ['char-1'],
   date: 3,
   time: 0,
@@ -57,7 +58,7 @@ describe('removeSave', () => {
     stubApi({ saves: { delete: remove } })
 
     await useSaveStore.getState().removeSave('s1')
-    expect(remove).toHaveBeenCalledWith('p1', 's1')
+    expect(remove).toHaveBeenCalledWith('p1', 's1', undefined)
     expect(useSaveStore.getState().saves.map((entry) => entry.saveId)).toEqual(['s2'])
   })
 })

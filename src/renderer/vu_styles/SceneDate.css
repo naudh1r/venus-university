@@ -1,0 +1,7 @@
+/* The scene date picker: the calendar's month frame with its day pane taken off, so the panel
+   narrows to the one column it holds. Imported from the view module, never from index.css; the
+   month, the grid, the cells and the legend are Calendar.css's. */
+.vu-cal--pick {
+  width: min(1240px, 100% - 60px);
+  padding-right: 60px;
+}

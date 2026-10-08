@@ -253,14 +253,16 @@ function absentNote(firstName: string): string {
 
 /**
  * The roster characters `scanned` mentions, one paragraph each — who she is, what she
- * looks like, how she behaves, and where she stands with the cast and the reader.
+ * looks like, how she behaves, where she stands with the cast and the reader, and the plans
+ * she has with him.
  */
 export function characterLore(
   scanned: string,
   roster: readonly Character[],
   charInfo: Record<string, CharInfo>,
   date: number,
-  relations?: LoreRelations
+  relations?: LoreRelations,
+  plans?: LorePlans
 ): string[] {
   return characterParagraphs(
     roster.filter((character) =>
@@ -268,7 +270,8 @@ export function characterLore(
     ),
     charInfo,
     date,
-    relations
+    relations,
+    plans
   )
 }
 
@@ -277,9 +280,10 @@ export function characterLoreForIds(
   mentions: readonly Character[],
   charInfo: Record<string, CharInfo>,
   date: number,
-  relations?: LoreRelations
+  relations?: LoreRelations,
+  plans?: LorePlans
 ): string[] {
-  return characterParagraphs(mentions, charInfo, date, relations)
+  return characterParagraphs(mentions, charInfo, date, relations, plans)
 }
 
 /**
@@ -308,6 +312,9 @@ export interface LoreRelations {
   relationships: NpcRelationshipMap
   present: readonly Character[]
 }
+
+/** Each character's plans with the reader still ahead, one sentence apiece, keyed by charId. */
+export type LorePlans = Readonly<Record<string, readonly string[]>>
 
 /**
  * Where a described character stands with everybody the prompt is about: one
@@ -345,7 +352,8 @@ function characterParagraphs(
   characters: readonly Character[],
   charInfo: Record<string, CharInfo>,
   date: number,
-  relations?: LoreRelations
+  relations?: LoreRelations,
+  plans?: LorePlans
 ): string[] {
   const lines: string[] = []
   for (const character of characters) {
@@ -362,7 +370,8 @@ function characterParagraphs(
         `${employer ? ` She works part-time at ${employer}.` : ''}` +
         ` ${character.personality} ${absentNote(character.firstName)}` +
         standingSentences(character, relations) +
-        `${reader ? ` ${reader}` : ''}`
+        `${reader ? ` ${reader}` : ''}` +
+        (plans?.[character.charId] ?? []).map((plan) => ` ${plan}`).join('')
     )
   }
   return lines

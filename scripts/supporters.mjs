@@ -40,8 +40,9 @@ function claim(spellings, name) {
 }
 
 /**
- * The shipped list for one ledger: every donor once, largest gift first, every playtester, and a
- * handle per distinct person carrying the marbles their contribution earned.
+ * The shipped list for one ledger: every donor once, largest gift first, every playtester in the
+ * order they were added, and a handle per distinct person carrying the marbles their gifts earned,
+ * the base for a playtester who gave nothing.
  */
 export function deriveSupporters(ledger) {
   const spellings = new Map()
@@ -57,14 +58,13 @@ export function deriveSupporters(ledger) {
     const key = claim(spellings, name)
     if (!playtesters.includes(spellings.get(key))) playtesters.push(spellings.get(key))
   }
-  const handles = [...spellings.values()].map((name) => {
-    const key = name.toLowerCase()
-    const contribution = (dollars.get(key) ?? 0) + (playtesters.includes(name) ? 1 : 0)
-    return { name, marbles: marblesFor(contribution) }
-  })
+  const handles = [...spellings.values()].map((name) => ({
+    name,
+    marbles: marblesFor(dollars.get(name.toLowerCase()) ?? 0)
+  }))
   return {
     donors: donors.sort((a, b) => dollars.get(b.toLowerCase()) - dollars.get(a.toLowerCase()) || byName(a, b)),
-    playtesters: playtesters.sort(byName),
+    playtesters,
     handles: handles.sort((a, b) => byName(a.name, b.name))
   }
 }

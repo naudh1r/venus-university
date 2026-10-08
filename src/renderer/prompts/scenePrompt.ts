@@ -2,11 +2,20 @@ import { SUBJECT_TAGS } from '@shared/characterRules'
 import { slotFullLabel, yearLabel } from '@shared/classes'
 import { dormClause } from '@shared/dorms'
 import { EMOTIONS } from '@shared/emotions'
-import { isCustomOutfitSlot, outfitTagsFor, spriteRefsFor, STOCK_OUTFIT_SETS } from '@shared/outfits'
+import {
+  isCustomOutfitSlot,
+  offeredCustomOutfits,
+  outfitTagsFor,
+  spriteRefsFor,
+  STOCK_OUTFIT_SETS,
+  writtenRefOf,
+  type OfferedOutfit
+} from '@shared/outfits'
 import { DEFAULT_PLAYER_STATS, STAT_KEYS, type PlayerStats } from '@shared/playerStats'
 import { fullDescriptionOf, kindSentenceOf, projectStandingLine } from '@shared/academics'
 import type { ClassKind, ProjectProgress } from '@shared/academics'
-import { isPosition, POSITIONS } from '@shared/positions'
+import { offeredCustomCgs, writtenCgOf, type OfferedCg } from '@shared/customCgs'
+import { isAfterPosition, isPosition, STOCK_POSITIONS } from '@shared/positions'
 import { readerize } from '@shared/readerVoice'
 import { cgAction, showAction, spriteAction } from '@shared/sceneActions'
 import { andList } from '@shared/sentences'
@@ -38,10 +47,12 @@ import {
   type CharMemory,
   type ClassEntry,
   type ClassSlot,
+  type CustomCgSlot,
   type JobState,
   MEMORY_TYPES,
   type MemoryBudgets,
   type Occasion,
+  type OutfitLock,
   type OutfitSet,
   type Position,
   type ProjectSession,
@@ -49,6 +60,7 @@ import {
   type ShiftSlot,
   type SpriteRef,
   type StockOutfitSet,
+  type StockPosition,
   type StructuredRequest,
   type TimeSlot
 } from '@shared/types'
@@ -263,12 +275,21 @@ export interface PromptState {
    * a CG can be offered at all.
    */
   onStage: readonly string[]
-  /** Which cast members have a full set of CGs on disk, by charId — read once at scene start. */
+  /**
+   * Which cast members have the full stock set of CGs on disk, by charId — read once at scene
+   * start.
+   */
   cgReady: Record<string, boolean>
   /**
+   * Which custom CG pairs each cast member has whole on disk, by charId — read once at scene
+   * start; a pair counts only when both of its images exist. A pair listed here is offered only
+   * where it has instructions.
+   */
+  customCgReady: Record<string, CustomCgSlot[]>
+  /**
    * Which alternate wardrobes each cast member has fully rendered, by charId — read once at
-   * scene start; a set counts only when all seven of its sprites exist. It may list a custom
-   * slot, which the prompt never offers.
+   * scene start; a set counts only when all seven of its sprites exist. A custom slot listed
+   * here is offered only where it has instructions.
    */
   outfitReady: Record<string, OutfitSet[]>
   /** Which cast members have both room backgrounds on disk, by charId. */
@@ -278,6 +299,11 @@ export interface PromptState {
    * plus its app-known footnotes, header included.
    */
   textingSummaries?: Record<string, string[]>
+  /**
+   * Each character's plans with the reader in the slots after this one, one sentence apiece,
+   * by charId — read for the cast and the lorebook's people alike.
+   */
+  upcomingPlans?: Record<string, string[]>
   /**
    * The charIds a Bunnyboard thread already exists with (`hasTexted`). Not derivable from
    * {@link textingSummaries}, which can exist over an empty thread.
@@ -291,6 +317,15 @@ export interface PromptState {
   scenePersona?: string
   /** How many memories per character the cast block carries, by cast size. */
   memoryBudgets: Required<MemoryBudgets>
+  /**
+   * Set only for a scene from the Scene Creator, played outside any playthrough: no mood line,
+   * and no line holding romance back on the reader's stats.
+   */
+  createdScene?: true
+  /** Hand-set affection by charId, read in place of what her memories earn. */
+  affection?: Record<string, number>
+  /** The wardrobe each girl opens a created scene in; only its opening call carries it. */
+  openingOutfits?: Record<string, OutfitLock>
 }
 
 /** What a call that writes a scene reads: the state plus the inspiration word its caller drew. */
@@ -381,10 +416,10 @@ const OUTFIT_SUFFIX_GLOSS: Record<StockOutfitSet, string> = {
   nude: "if her breasts or genitals have been exposed"
 }
 
-/** A CG of the act itself, as opposed to its climax twin. */
-type ActPosition = Exclude<Position, `${string}_after`>
+/** A stock CG of the act itself, as opposed to its climax twin. */
+type ActPosition = Exclude<StockPosition, `${string}_after`>
 
-/** What each act's CG is for, in RITA's terms. */
+/** What each stock act's CG is for, in RITA's terms. */
 const ACT_POSITION_GLOSS: Record<ActPosition, string> = {
   nude_foreplay: 'she is naked and he is fingering her, going down on her or playing with her breasts.',
   sex: 'they are having sex.',
@@ -392,9 +427,9 @@ const ACT_POSITION_GLOSS: Record<ActPosition, string> = {
   fellatio: 'she is giving him a blowjob.'
 }
 
-/** True for a CG of the act itself rather than its climax. */
-function isActPosition(position: Position): position is ActPosition {
-  return !position.endsWith('_after')
+/** True for a stock CG of the act itself rather than its climax. */
+function isActPosition(position: StockPosition): position is ActPosition {
+  return !isAfterPosition(position)
 }
 
 /** The wardrobes the cast block describes, with the label each is given; no `nude`. */
@@ -423,11 +458,26 @@ function bgLines(backgrounds: BackgroundSets, rule: string): string[] {
 /** The `JSON RULES` block: how the schema's fields are meant to be filled, background lists included. */
 function jsonRules(
   backgrounds: BackgroundSets,
-  allowPositions: boolean,
+  /** Whether the stock CGs are on offer, listed here. */
+  stockCgs: boolean,
+  /** The CGs of her own the girl alone on stage is offered, listed after the stock ones. */
+  customCgs: readonly OfferedCg[],
   outfitSets: readonly StockOutfitSet[],
-  /** The first names of the cast who have CGs, said out loud only when the cast is a crowd. */
+  /** Whether anybody in the cast has a custom wardrobe on offer, listed in her own entry. */
+  customOffered: boolean,
+  /** The first names of the cast with the stock CGs, said out loud only when the cast is a crowd. */
   cgNames: readonly string[]
 ): string[] {
+  const suffixes = [
+    ...outfitSets.map((set) => `"_${set}" ${OUTFIT_SUFFIX_GLOSS[set]}`),
+    ...(customOffered
+      ? ['"_<outfit>" for one of her own outfits listed in her character info, when its instructions say so']
+      : [])
+  ]
+  const afters = [
+    ...(stockCgs ? STOCK_POSITIONS.filter((p) => !isActPosition(p)) : []),
+    ...customCgs.map((cg) => `${cg.name}_after`)
+  ]
   return [
     'JSON RULES',
     'Use an empty speaker ("") for narration lines. Otherwise, match who\'s saying what to their character key.',
@@ -437,27 +487,28 @@ function jsonRules(
     'Use "show:<charKey>" when a character makes their entrance (which won\'t always be on the first line). Only use "hide:<charKey>" when a character leaves the scene and won\'t return.',
     `Use "sprite:<charKey>,<sprite>" to change what a character looks like on screen. A sprite is one of these emotions: ${EMOTIONS.join(', ')}.`,
     // Described only when the schema carries the suffixes: a tag the model cannot emit is a rejected line.
-    ...(outfitSets.length > 0
+    ...(suffixes.length > 0
       ? [
-          `Suffix the emotion with ${andList(
-            outfitSets.map((set) => `"_${set}" ${OUTFIT_SUFFIX_GLOSS[set]}`)
-          )}. An unsuffixed emotion puts her back in her main outfit. Don't remove the suffix unless the character's changed back into her default clothes.`
+          `Suffix the emotion with ${andList(suffixes)}. An unsuffixed emotion puts her back in her main outfit. Don't remove the suffix unless the character's changed back into her default clothes.`
         ]
       : []),
     'Every "show:" must be paired with a "sprite:" in the same actions array. Afterwards, change a character\'s sprite whenever it makes sense.',
-    ...(allowPositions
+    ...(afters.length > 0
       ? [
           'If sex is happening on screen, use the "cg:<name>" action to replace her sprite with an explicit full-screen picture of her in the middle of a sex act.',
-          ...POSITIONS.filter(isActPosition).map(
-            (position) => `"${cgAction(position)}": ${ACT_POSITION_GLOSS[position]}`
-          ),
-          `When one of them climaxes, switch to that act's "_after" cg: ${POSITIONS.filter((p) => !isActPosition(p)).join(', ')}.`,
+          ...(stockCgs
+            ? STOCK_POSITIONS.filter(isActPosition).map(
+                (position) => `"${cgAction(position)}": ${ACT_POSITION_GLOSS[position]}`
+              )
+            : []),
+          ...customCgs.map((cg) => `"cg:${cg.name}": ${whenClause(cg.instructions)}`),
+          `When one of them climaxes, switch to that act's "_after" cg: ${afters.join(', ')}.`,
           'If the position changes or sex starts again, set "cg:<name>" again.',
           'CG is overwritten by "sprite:". DO NOT use "sprite:" on a character who is in a CG until sex is done.',
           'A cg shows one girl by herself, so only use "cg:" when she is the only character on screen.',
           'Showing anybody else ends the cg.',
-          ...(cgNames.length > 0
-            ? [`Only ${andList(cgNames)} ${cgNames.length === 1 ? 'has' : 'have'} cgs.`]
+          ...(stockCgs && cgNames.length > 0
+            ? [`Only ${andList(cgNames)} ${cgNames.length === 1 ? 'has' : 'have'} the cgs above.`]
             : [])
         ]
       : []),
@@ -475,11 +526,26 @@ function castOutfitSets(cast: readonly Character[], state: PromptState): StockOu
   )
 }
 
+/** The custom wardrobes one cast member is offered under, as her rendered sets allow. */
+function offeredOf(character: Character, state: PromptState): OfferedOutfit[] {
+  return offeredCustomOutfits(character, state.outfitReady[character.charId])
+}
+
 /**
- * True when a CG can be shown: NSFW text on, and the stage as written down to one girl with a
- * full set of CGs on disk — or still empty, where whoever ends up alone on it can be one who has.
+ * Instructions as the end of "Use the <name> outfit when" or as a cg's gloss: a typed "when"
+ * dropped, closed.
  */
-function positionsAllowed(cast: readonly Character[], state: PromptState): boolean {
+function whenClause(instructions: string): string {
+  const clause = instructions.replace(/^when\s+/i, '')
+  return /[.!?]$/.test(clause) ? clause : `${clause}.`
+}
+
+/**
+ * True when a stock CG can be shown: NSFW text on, and the stage as written down to one girl
+ * with the full stock set on disk — or still empty, where whoever ends up alone on it can be one
+ * who has.
+ */
+function stockCgsAllowed(cast: readonly Character[], state: PromptState): boolean {
   if (state.lessNsfwText) return false
   const [only, ...others] = state.onStage
   if (others.length > 0) return false
@@ -488,7 +554,23 @@ function positionsAllowed(cast: readonly Character[], state: PromptState): boole
   return cast.some((character) => Boolean(state.cgReady[character.charId]))
 }
 
-/** The cast who have CGs, by first name — what the rules name when there is a choice of girl. */
+/**
+ * The CGs of her own one cast member is offered: none under `lessNsfwText`, none unless this
+ * call is writing her, and none unless the stage as written holds her and nobody else.
+ */
+function cgsOfferedTo(
+  character: Character,
+  cast: readonly Character[],
+  state: PromptState
+): OfferedCg[] {
+  if (state.lessNsfwText) return []
+  if (!cast.some((c) => c.charId === character.charId)) return []
+  const [only, ...others] = state.onStage
+  if (only !== character.charId || others.length > 0) return []
+  return offeredCustomCgs(character, state.customCgReady[character.charId])
+}
+
+/** The cast with the stock CGs, by first name — what the rules name when there is a choice of girl. */
 function cgReadyNames(cast: readonly Character[], state: PromptState): string[] {
   if (cast.length < 2) return []
   return cast
@@ -546,22 +628,31 @@ function castBlock(cast: readonly Character[], state: PromptState): string[] {
       const tags = wardrobeProse(outfitTagsFor(character, set))
       if (tags) lines.push(`${label}: ${tags}`)
     }
+    // Her own wardrobes on offer, as their tags and when to put her in them.
+    for (const outfit of offeredOf(character, state)) {
+      const tags = wardrobeProse(outfit.tags)
+      if (tags) lines.push(`${outfit.suffix} outfit ("_${outfit.suffix}"): ${tags}`)
+      lines.push(`Use the ${outfit.suffix} outfit when ${whenClause(outfit.instructions)}`)
+    }
 
     // Her room bg, offered only when both of its images exist; scene calls only.
     const room = offeredRoomBg(character, state)
     if (room) lines.push(`The bg for her room is ${room}.`)
 
     const flags = info?.flags ?? emptyFlags()
-    const affection = affectionFor(info, state.date, character)
+    const affection =
+      state.affection?.[character.charId] ?? affectionFor(info, state.date, character)
     lines.push(...profileLines(character, flags, cast.length))
 
-    // What kind of day she is having.
-    const mood = moodLine(
-      character.firstName,
-      state.date,
-      info?.moodCycleOffset ?? 0,
-      hasTrait(character, 'Mood-swings')
-    )
+    // What kind of day she is having; a created scene's notes say it instead.
+    const mood = state.createdScene
+      ? null
+      : moodLine(
+          character.firstName,
+          state.date,
+          info?.moodCycleOffset ?? 0,
+          hasTrait(character, 'Mood-swings')
+        )
     if (mood) lines.push(mood)
 
     // Where the relationship stands: the behavior stage, how she feels, and their history.
@@ -575,7 +666,8 @@ function castBlock(cast: readonly Character[], state: PromptState): string[] {
         // In the room, so this only says whether they have met on the phone first.
         { texting: false, texted: state.textedWith?.includes(character.charId) ?? false },
         // Where she is in her cycle, for a Promiscuous girl's DTF days.
-        { date: state.date, offset: info?.moodCycleOffset ?? 0 }
+        state.createdScene ? undefined : { date: state.date, offset: info?.moodCycleOffset ?? 0 },
+        !state.createdScene
       )
     )
 
@@ -601,6 +693,8 @@ function castBlock(cast: readonly Character[], state: PromptState): string[] {
         state.date
       )
     )
+    // What she and the reader have planned for later.
+    lines.push(...(state.upcomingPlans?.[character.charId] ?? []))
     // Where she is spending the break, from the notice through to the week after.
     lines.push(
       ...springBreakLines(
@@ -847,15 +941,25 @@ function actionEnum(cast: readonly Character[], state: PromptState): string[] {
     values.push(showAction('show', key), showAction('hide', key))
     for (const emotion of EMOTIONS) values.push(spriteAction(key, emotion))
     for (const set of state.outfitReady[character.charId] ?? []) {
-      // A custom wardrobe is the player's own; the model is never offered one.
+      // A custom wardrobe is offered only under its own suffix, below.
       if (isCustomOutfitSlot(set)) continue
       for (const ref of spriteRefsFor(set)) values.push(spriteAction(key, ref))
+    }
+    for (const outfit of offeredOf(character, state)) {
+      for (const emotion of EMOTIONS) values.push(`sprite:${key},${emotion}_${outfit.suffix}`)
     }
   }
   // A CG names no character: it belongs to whoever is alone on the stage, and is offered
   // only while the stage is hers.
-  if (positionsAllowed(cast, state)) {
-    for (const position of POSITIONS) values.push(cgAction(position))
+  if (stockCgsAllowed(cast, state)) {
+    for (const position of STOCK_POSITIONS) values.push(cgAction(position))
+  }
+  // The CGs of her own the girl alone on the stage is offered, under the names she is offered
+  // them by: the sanitizer reads a name against whoever stands alone.
+  for (const character of cast) {
+    for (const cg of cgsOfferedTo(character, cast, state)) {
+      values.push(`cg:${cg.name}`, `cg:${cg.name}_after`)
+    }
   }
   return values
 }
@@ -942,8 +1046,10 @@ function systemPrompt(
     '',
     ...jsonRules(
       state.backgrounds,
-      positionsAllowed(cast, state),
+      stockCgsAllowed(cast, state),
+      cast.flatMap((character) => cgsOfferedTo(character, cast, state)),
       castOutfitSets(cast, state),
+      cast.some((character) => offeredOf(character, state).length > 0),
       cgReadyNames(cast, state)
     ),
     '',
@@ -997,7 +1103,15 @@ function nowBlock(cast: readonly Character[], state: PromptState): string[] {
           ...(state.weather ? weatherLines(state.weather, state.date, state.time) : [])
         ]),
     ...(state.bg ? [`Current bg: ${state.bg}`] : []),
-    ...(onCg ? [`Current CG: ${state.emotions[onCg.charId]} (${onCg.firstName})`] : []),
+    // A custom CG goes by the name its pair is offered under, or its slot id where it is not.
+    ...(onCg
+      ? [
+          `Current CG: ${writtenCgOf(
+            state.emotions[onCg.charId] as Position,
+            offeredCustomCgs(onCg, state.customCgReady[onCg.charId])
+          )} (${onCg.firstName})`
+        ]
+      : []),
     // On screen only: a line about an unshown character would invite a second `show:`.
     ...cast
       .filter(
@@ -1008,8 +1122,12 @@ function nowBlock(cast: readonly Character[], state: PromptState): string[] {
       )
       .map(
         (character) =>
-          `${character.firstName}'s current displayed emotion/outfit: ${state.emotions[character.charId]}`
+          `${character.firstName}'s current displayed emotion/outfit: ${writtenRefOf(
+            state.emotions[character.charId],
+            offeredOf(character, state)
+          )}`
       ),
+    ...openingOutfitLines(cast, state),
     // The whole cast is off-stage on a running scene: the line that stops RITA
     // writing them as present without a `show:` first.
     ...(state.hiddenCast && state.hiddenCast.length > 0
@@ -1021,6 +1139,39 @@ function nowBlock(cast: readonly Character[], state: PromptState): string[] {
       : []),
     ''
   ]
+}
+
+/** How each stock wardrobe a girl opens a created scene in is named. */
+const OPENING_OUTFIT_WORDS: Record<StockOutfitSet, string> = {
+  pe: 'in her PE clothes',
+  swim: 'in her swimwear',
+  nude: 'naked'
+}
+
+/**
+ * The wardrobe each girl opens a created scene in, one line apiece and only on its opening call:
+ * the suffix her sprites carry until she changes, or her main outfit where the set is not offered.
+ */
+function openingOutfitLines(cast: readonly Character[], state: PromptState): string[] {
+  const outfits = state.openingOutfits
+  if (!outfits) return []
+  return cast.flatMap((character) => {
+    const outfit = outfits[character.charId]
+    if (!outfit) return []
+    const name = character.firstName
+    const main = `${name} starts the scene in her main outfit, so use her unsuffixed sprites.`
+    if (outfit === 'default' || !state.outfitReady[character.charId]?.includes(outfit)) return [main]
+    if (isCustomOutfitSlot(outfit)) {
+      const offered = offeredOf(character, state).find((entry) => entry.slot === outfit)
+      if (!offered) return [main]
+      return [
+        `${name} starts the scene in her ${offered.suffix} outfit, so use her "_${offered.suffix}" sprites until she changes.`
+      ]
+    }
+    return [
+      `${name} starts the scene ${OPENING_OUTFIT_WORDS[outfit]}, so use her "_${outfit}" sprites until she changes.`
+    ]
+  })
 }
 
 /**
@@ -1220,8 +1371,21 @@ function characterLoreFor(
   // Where each of them stands with the cast in the room.
   const relations = { relationships: state.npcRelationships, present: cast }
   return [
-    ...characterLore(scanned, state.roster, state.charInfo, state.date, relations),
-    ...characterLoreForIds([...mentions, ...ambient], state.charInfo, state.date, relations)
+    ...characterLore(
+      scanned,
+      state.roster,
+      state.charInfo,
+      state.date,
+      relations,
+      state.upcomingPlans
+    ),
+    ...characterLoreForIds(
+      [...mentions, ...ambient],
+      state.charInfo,
+      state.date,
+      relations,
+      state.upcomingPlans
+    )
   ]
 }
 
@@ -1356,7 +1520,10 @@ export function buildScenePrompt(
     'Open the scene by rewording what the reader decided to do in a fun narration.',
     'Then, entertain them with wacky hijinx until you feel like letting the player in to crash the party at a natural decision point.',
     'Avoid breaking the fourth wall by directly asking the player what they want to do or suggesting an action for them.',
-    'Make sure to set a bg on the first line and DON\'t set end_scene yet.',
+    // A created scene may open on a background the player picked, standing in NOW.
+    state.createdScene && state.bg
+      ? 'Make sure the first line sets the bg to the Current bg in the NOW block, and DON\'t set end_scene yet.'
+      : 'Make sure to set a bg on the first line and DON\'t set end_scene yet.',
     ...lectureTurnLines(state),
     '',
     // The seed word rides in the tail, never in `systemPrompt`.
@@ -1392,7 +1559,13 @@ export function buildSoloPrompt(
   const lore = lorebookBlock(
     scanned,
     alwaysLore(state),
-    characterLoreForIds(state.mentions ?? [], state.charInfo, state.date),
+    characterLoreForIds(
+      state.mentions ?? [],
+      state.charInfo,
+      state.date,
+      undefined,
+      state.upcomingPlans
+    ),
     // A solo scene is an opening too, and the only one it has.
     state.slotRumor
   )

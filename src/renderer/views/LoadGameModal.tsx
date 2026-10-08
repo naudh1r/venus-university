@@ -36,6 +36,7 @@ import {
   switchGame
 } from '../stores/gameLoop'
 import { useGameStore } from '../stores/gameStore'
+import { runningReplayIds } from '../stores/loop/replay'
 import { stageEnrollment } from '../stores/newGame'
 import {
   castOf,
@@ -47,6 +48,7 @@ import { usePhotoStore } from '../stores/photoStore'
 import { entryCrossing, menuCrossing } from '../stores/slotCrossing'
 import { useUiStore } from '../stores/uiStore'
 import { saveThumbUrl } from './bgAssets'
+import { RenamePlaythroughModal } from './RenamePlaythroughModal'
 import {
   dealt,
   gestures,
@@ -200,6 +202,8 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
   const [confirmingLoad, setConfirmingLoad] = useState<ResolvedSave | null>(null)
   // And the semester waiting on it, which is the same question about a registrar.
   const [confirmingResume, setConfirmingResume] = useState<PlaythroughSummary | null>(null)
+  // The open playthrough's name being asked for.
+  const [renaming, setRenaming] = useState<PlaythroughSummary | null>(null)
   // Captured with the promise so the hand-off uses the roster on screen at the click.
   const [entering, setEntering] = useState<Entering | null>(null)
   // Which row is under the cursor: the ✕ is revealed from React rather than by CSS.
@@ -392,7 +396,12 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
     : 0
 
   /** Whether a question stands over the panel, which then answers no key of its own. */
-  const asking = Boolean(deletingSave || deletingPlaythrough || confirmingLoad || confirmingResume)
+  const asking = Boolean(
+    deletingSave || deletingPlaythrough || confirmingLoad || confirmingResume || renaming
+  )
+
+  // A name is written onto the record, so a playthrough whose record was refused takes none.
+  const renamable = Boolean(selected && !waiting && saves.some((entry) => entry.record))
 
   /** The arrow keys turn the page of saves, as the arrows beside it do. */
   useWindowKeydown((event) => {
@@ -567,6 +576,17 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
                 Back
               </motion.button>
             )}
+            {selected && renamable && (
+              <motion.button
+                id="load-game-rename"
+                className="vu-btn vu-btn--quiet"
+                type="button"
+                {...gestures(false, quietLift, quietPress)}
+                onClick={() => setRenaming(selected)}
+              >
+                Rename playthrough
+              </motion.button>
+            )}
             <motion.button
               id="load-game-close"
               className="vu-btn vu-btn--primary vu-paper vu-btn--panel"
@@ -595,7 +615,9 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
             onConfirm={() => {
               const saveId = deletingSave.saveId
               setDeletingSave(null)
-              void removeSave(saveId)
+              // The game being played keeps the replays its next write will name.
+              const keep = selected ? runningReplayIds(selected.playthroughId) : undefined
+              void removeSave(saveId, keep)
             }}
           />
         )}
@@ -649,6 +671,15 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
               setConfirmingLoad(null)
               if (selected) void load(selected.playthroughId, entry)
             }}
+          />
+        )}
+
+        {renaming && (
+          <RenamePlaythroughModal
+            key="rename-playthrough"
+            theme={theme}
+            playthrough={renaming}
+            onClose={() => setRenaming(null)}
           />
         )}
 

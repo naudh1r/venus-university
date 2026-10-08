@@ -36,6 +36,27 @@ export const OUTFIT_SETS: readonly OutfitSet[] = [
 /** The longest a player-authored wardrobe's name may be. */
 export const CUSTOM_OUTFIT_NAME_MAX = 20
 
+/** The longest a player-authored wardrobe's instructions may be. */
+export const CUSTOM_OUTFIT_INSTRUCTIONS_MAX = 200
+
+/**
+ * A custom wardrobe's name as it is kept and shown: lowercase, every space taken out, cut to
+ * {@link CUSTOM_OUTFIT_NAME_MAX}; empty for anything that is not a string.
+ */
+export function customOutfitName(raw: unknown): string {
+  if (typeof raw !== 'string') return ''
+  return raw.toLowerCase().replace(/\s+/g, '').slice(0, CUSTOM_OUTFIT_NAME_MAX)
+}
+
+/**
+ * A custom wardrobe's instructions as they are kept: one line, trimmed, cut to
+ * {@link CUSTOM_OUTFIT_INSTRUCTIONS_MAX}; empty for anything that is not a string.
+ */
+export function customOutfitInstructions(raw: unknown): string {
+  if (typeof raw !== 'string') return ''
+  return raw.replace(/\s+/g, ' ').trim().slice(0, CUSTOM_OUTFIT_INSTRUCTIONS_MAX).trim()
+}
+
 /**
  * The keys of `Character.seedFollowsMain` — every optional set whose next render
  * either follows the character's main seed or rerolls.
@@ -79,7 +100,7 @@ export const OUTFIT_SET_LABELS: Record<StockOutfitSet, string> = {
 /** What one of a character's sets is called on screen: her own name for a custom slot. */
 export function outfitLabelOf(character: Character, set: OutfitSet): string {
   if (!isCustomOutfitSlot(set)) return OUTFIT_SET_LABELS[set]
-  const name = character.customOutfits?.[set]?.name
+  const name = customOutfitName(character.customOutfits?.[set]?.name)
   return name ? name : `Custom outfit ${customSlotNumber(set)}`
 }
 
@@ -116,22 +137,83 @@ export function outfitTagsFor(character: Character, set: OutfitSet): readonly st
 }
 
 /**
- * The record with one player-authored wardrobe written into it; a blank name is dropped
- * rather than stored, and a long one is cut to {@link CUSTOM_OUTFIT_NAME_MAX}.
+ * The record with a write merged into one player-authored wardrobe: a field the patch leaves
+ * `undefined` keeps what the slot holds, and a name or instructions left blank are dropped.
  */
 export function withCustomOutfit(
   character: Character,
   slot: CustomOutfitSlot,
-  entry: CustomOutfit
+  patch: Partial<CustomOutfit>
 ): Character {
-  const name = (entry.name ?? '').trim().slice(0, CUSTOM_OUTFIT_NAME_MAX)
+  const held = character.customOutfits?.[slot]
+  const tags = patch.tags ?? held?.tags ?? []
+  const name = customOutfitName(patch.name !== undefined ? patch.name : held?.name)
+  const instructions = customOutfitInstructions(
+    patch.instructions !== undefined ? patch.instructions : held?.instructions
+  )
   return {
     ...character,
     customOutfits: {
       ...character.customOutfits,
-      [slot]: { tags: entry.tags, ...(name ? { name } : {}) }
+      [slot]: { tags, ...(name ? { name } : {}), ...(instructions ? { instructions } : {}) }
     }
   }
+}
+
+/** One custom wardrobe the writer is offered, under the suffix it writes her into it with. */
+export interface OfferedOutfit {
+  slot: CustomOutfitSlot
+  /** Her name for it, or the slot id where that name is blank or already answers to a set. */
+  suffix: string
+  tags: readonly string[]
+  instructions: string
+}
+
+/**
+ * The custom wardrobes the writer may put her in, in slot order: those rendered whole and given
+ * instructions. Each suffix is unique to her and never a set id.
+ */
+export function offeredCustomOutfits(
+  character: Character,
+  ready: readonly OutfitSet[] | undefined
+): OfferedOutfit[] {
+  const taken = new Set<string>(OUTFIT_SETS)
+  const offered: OfferedOutfit[] = []
+  for (const slot of CUSTOM_OUTFIT_SLOTS) {
+    if (!ready?.includes(slot)) continue
+    const entry = character.customOutfits?.[slot]
+    const instructions = customOutfitInstructions(entry?.instructions)
+    if (!instructions) continue
+    const name = customOutfitName(entry?.name)
+    const suffix = name && !taken.has(name) ? name : slot
+    taken.add(suffix)
+    offered.push({ slot, suffix, tags: outfitTagsFor(character, slot), instructions })
+  }
+  return offered
+}
+
+/**
+ * The sprite reference a written one stands for — `happy_bunnygirl` -> `happy_custom1` — or
+ * `null` where it names no offered wardrobe. Cut at the first underscore: no `Emotion` holds one.
+ */
+export function storedRefOf(written: string, offered: readonly OfferedOutfit[]): SpriteRef | null {
+  const cut = written.indexOf('_')
+  if (cut < 0) return null
+  const emotion = written.slice(0, cut)
+  if (!isEmotion(emotion)) return null
+  const hit = offered.find((outfit) => outfit.suffix === written.slice(cut + 1))
+  return hit ? spriteRef(emotion, hit.slot) : null
+}
+
+/**
+ * A stored sprite reference as the writer reads it: an offered wardrobe under its suffix, a
+ * custom one not offered as the bare emotion, anything else as it is.
+ */
+export function writtenRefOf(ref: SpriteRef, offered: readonly OfferedOutfit[]): string {
+  const parsed = parseSpriteRef(ref)
+  if (!parsed?.set || !isCustomOutfitSlot(parsed.set)) return ref
+  const hit = offered.find((outfit) => outfit.slot === parsed.set)
+  return hit ? `${parsed.emotion}_${hit.suffix}` : parsed.emotion
 }
 
 /**

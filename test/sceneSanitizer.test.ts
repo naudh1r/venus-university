@@ -414,6 +414,30 @@ describe('sanitizeLine — outfit sets', () => {
     )
     expect(line.actions).toEqual(['show:mina_kwon', 'sprite:mina_kwon,angry'])
   })
+
+  it('stores an offered custom outfit under its slot, and degrades one never offered', () => {
+    // Both custom slots are rendered; only the first carries instructions, so only it was offered.
+    const dressed = character({
+      ...sarah,
+      customOutfits: {
+        custom1: { name: 'bunnygirl', tags: ['playboy_bunny'], instructions: 'at the casino' },
+        custom2: { name: 'maid', tags: ['maid'] }
+      }
+    })
+    useGameStore.setState({
+      cast: ['a'],
+      characters: { ...roster, a: dressed },
+      outfitReady: { a: ['pe', 'custom1', 'custom2'] }
+    })
+    const sanitizer = createSceneSanitizer()
+    expect(
+      sanitizer.sanitizeLine(acting(['show:sarah_rose', 'sprite:sarah_rose,happy_bunnygirl']))
+        .actions
+    ).toEqual(['show:sarah_rose', 'sprite:sarah_rose,happy_custom1'])
+    expect(sanitizer.sanitizeLine(acting(['sprite:sarah_rose,sad_custom2'])).actions).toEqual([
+      'sprite:sarah_rose,sad'
+    ])
+  })
 })
 
 describe('sanitizeLine — CGs', () => {
@@ -433,6 +457,36 @@ describe('sanitizeLine — CGs', () => {
     const sanitizer = createSceneSanitizer()
     sanitizer.sanitizeLine(acting(['show:sarah_rose']))
     expect(sanitizer.sanitizeLine(acting(['cg:cuddling'])).actions).toBeUndefined()
+  })
+
+  it('stores an offered custom cg under its slot, and drops one she was not offered', () => {
+    // Both pairs are on disk; only the first carries instructions, so only it was offered.
+    const posed = character({
+      ...sarah,
+      customCgs: {
+        customcg1: { name: 'mirror', tags: ['mirror'], instructions: 'they are by a mirror' },
+        customcg2: { name: 'shower', tags: ['shower'] }
+      }
+    })
+    useGameStore.setState({
+      cast: ['a', 'b'],
+      characters: { ...roster, a: posed },
+      customCgReady: { a: ['customcg1', 'customcg2'], b: [] }
+    })
+    const sanitizer = createSceneSanitizer()
+    expect(sanitizer.sanitizeLine(acting(['show:sarah_rose', 'cg:mirror'])).actions).toEqual([
+      'show:sarah_rose',
+      'cg:customcg1'
+    ])
+    expect(sanitizer.sanitizeLine(acting(['cg:mirror_after'])).actions).toEqual([
+      'cg:customcg1_after'
+    ])
+    expect(sanitizer.sanitizeLine(acting(['cg:customcg2'])).actions).toBeUndefined()
+
+    // The name is Sarah's: with Mina alone on the stage it names nothing.
+    expect(
+      createSceneSanitizer().sanitizeLine(acting(['show:mina_kwon', 'cg:mirror'])).actions
+    ).toEqual(['show:mina_kwon'])
   })
 })
 

@@ -51,6 +51,7 @@ function promptState() {
     lessNsfwText: false,
     memoryBudgets: DEFAULT_MEMORY_BUDGETS,
     cgReady: {},
+    customCgReady: {},
     outfitReady: {},
     roomReady: {}
   }

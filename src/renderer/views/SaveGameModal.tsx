@@ -17,6 +17,7 @@ import { TitleTab } from '../components/TitleTab'
 import { useCrossingStore } from '../stores/crossingStore'
 import { writeManualSave } from '../stores/gameLoop'
 import { useGameStore } from '../stores/gameStore'
+import { runningReplayIds } from '../stores/loop/replay'
 import { useSaveStore, type ResolvedSave } from '../stores/saveStore'
 import { pageEntriesOf, writtenAt } from './LoadGameModal'
 import { gestures, lift, panelUnderTab, press, veilIn } from './motion'
@@ -197,7 +198,11 @@ export function SaveGameModal({ theme, onClose }: SaveGameModalProps): JSX.Eleme
             onConfirm={() => {
               const saveId = deleting.saveId
               setDeleting(null)
-              if (playthroughId) void settleWith(() => removeSaveOf(playthroughId, saveId))
+              // The game being played keeps the replays its next write will name.
+              if (playthroughId) {
+                const keep = runningReplayIds(playthroughId)
+                void settleWith(() => removeSaveOf(playthroughId, saveId, keep))
+              }
             }}
           />
         )}

@@ -11,11 +11,15 @@ import {
   charFileEntry,
   classifyBackupEntry,
   endingArtEntry,
+  namedReplays,
   photoEntry,
   profilePictureEntry,
+  replaysFromBackup,
+  scenesFromBackup,
   type BackupFile,
   type BackupPhoto,
   type BackupPlaythrough,
+  type BackupReplay,
   type BackupSave
 } from '@shared/backup'
 import { isCharFileRel, STAGING_DIR } from '@shared/characterFiles'
@@ -23,6 +27,8 @@ import { CHARACTER_NOT_FOUND, SAFE_CHAR_ID } from '@shared/characterRules'
 import { BG_VARIANTS, type BgVariant, type CustomBackground } from '@shared/customBackgrounds'
 import { appError, messageOf } from '@shared/errors'
 import { imageTypeOf } from '@shared/imageBytes'
+import { REPLAY_NOT_FOUND } from '@shared/replays'
+import { SCENE_NOT_FOUND, type SavedScene } from '@shared/sceneCreator'
 import {
   classifySaveId,
   ENROLLMENT_NOT_FOUND,
@@ -45,6 +51,8 @@ import {
   getPhotosPath,
   getPlaythroughRecordPath,
   getProfilePicturePath,
+  getReplayPath,
+  getReplaysPath,
   getSaveFilePath,
   getSavesPath
 } from '../paths'
@@ -69,6 +77,8 @@ import { sniffImageFile } from './imageFiles'
 import { readValidatedJson, writeAtomicJson } from './jsonFile'
 import { listPhotos } from './photoService'
 import { readProfilePicture } from './profilePictureService'
+import { readReplay } from './replayService'
+import { listScenes, readScene, writeScene } from './sceneService'
 import {
   forgetParsedSaves,
   loadSave,
@@ -169,6 +179,30 @@ async function backupBackgrounds(scratch: string): Promise<CustomBackground[]> {
   return backgrounds
 }
 
+/** Every saved scene, whole; one that cannot be read is left out with a warning. */
+async function backupScenes(): Promise<SavedScene[]> {
+  const scenes: SavedScene[] = []
+  for (const { id } of await listScenes()) {
+    const scene = await optional(`scene ${id}`, SCENE_NOT_FOUND.code, () => readScene(id))
+    if (scene) scenes.push(scene)
+  }
+  return scenes
+}
+
+/** Every replay some carried save names, whole; one that cannot be read is left out with a warning. */
+async function backupReplays(saves: readonly BackupSave[]): Promise<BackupReplay[]> {
+  const replays: BackupReplay[] = []
+  for (const { playthroughId, replayId } of namedReplays(saves)) {
+    const replay = await optional(
+      `replay ${playthroughId}/${replayId}`,
+      REPLAY_NOT_FOUND.code,
+      () => readReplay(playthroughId, replayId)
+    )
+    if (replay) replays.push({ playthroughId, replayId, replay })
+  }
+  return replays
+}
+
 /** Writes everything this install keeps into `targetPath` as one zip. */
 export async function exportBackup(targetPath: string): Promise<void> {
   const scratch = scratchDir('backup')
@@ -254,6 +288,8 @@ export async function exportBackup(targetPath: string): Promise<void> {
     }
 
     const backgrounds = await backupBackgrounds(scratch)
+    const scenes = await backupScenes()
+    const replays = await backupReplays(saves)
 
     const record: BackupFile = {
       schemaVersion: BACKUP_SCHEMA_VERSION,
@@ -265,6 +301,8 @@ export async function exportBackup(targetPath: string): Promise<void> {
       profilePictures,
       photos,
       backgrounds,
+      scenes,
+      replays,
       characters
     }
     await writeAtomicJson(join(scratch, BACKUP_NAME), record, {
@@ -324,7 +362,11 @@ async function swapSaves(staged: string): Promise<void> {
  * Builds the saves folder the backup describes beside the live one, then swaps the two: every
  * playthrough the backup carries arrives at once, or none of them does.
  */
-async function restoreSaves(scratch: string, record: BackupFile): Promise<void> {
+async function restoreSaves(
+  scratch: string,
+  record: BackupFile,
+  replays: readonly BackupReplay[]
+): Promise<void> {
   const staged = scratchDir('saves')
 
   try {
@@ -399,6 +441,16 @@ async function restoreSaves(scratch: string, record: BackupFile): Promise<void> 
           }
         }
       }
+
+      const ownReplays = replays.filter((entry) => entry.playthroughId === playthroughId)
+      if (ownReplays.length > 0) {
+        const replaysDir = join(folder, basename(getReplaysPath(playthroughId)))
+        await mkdir(replaysDir, { recursive: true })
+        for (const entry of ownReplays) {
+          const path = join(replaysDir, basename(getReplayPath(playthroughId, entry.replayId)))
+          await writeAtomicJson(path, entry.replay, RESTORE_FAILED)
+        }
+      }
     }
 
     await swapSaves(staged)
@@ -458,11 +510,16 @@ async function restoreBackgrounds(
   }
 }
 
+/** Merges the backup's saved scenes in by id, each replacing the scene of its id and no other. */
+async function restoreScenes(scenes: readonly SavedScene[]): Promise<void> {
+  for (const scene of scenes) await writeScene(scene)
+}
+
 /**
  * Reads one backup back over everything this install holds: settings, grab bags and saves are
  * replaced by the backup's — the settings keeping this install's keys and switches — the
- * player's own characters and backgrounds are merged in by id and name, and the shipped cast is
- * left as the build ships it.
+ * player's own characters, backgrounds and saved scenes are merged in by id and name, and the
+ * shipped cast is left as the build ships it.
  */
 export async function importBackup(archivePath: string): Promise<void> {
   const scratch = scratchDir('backup')
@@ -476,12 +533,15 @@ export async function importBackup(archivePath: string): Promise<void> {
     // the dev switches and the ComfyUI build stay, being this install's own.
     const settings = settingsFromBackup(await getSettings(), record.settings, BACKUP_READ.malformed)
     const backgrounds = backgroundsFromBackup(record)
+    const scenes = scenesFromBackup(record)
+    const replays = replaysFromBackup(record)
 
     await replaceSettings(settings)
     await setGrabBags(record.grabbags)
-    await restoreSaves(scratch, record)
+    await restoreSaves(scratch, record, replays)
     await restoreCharacters(scratch, record)
     await restoreBackgrounds(scratch, backgrounds)
+    await restoreScenes(scenes)
   } finally {
     await discard(scratch)
   }

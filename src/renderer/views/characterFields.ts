@@ -1,7 +1,8 @@
+import { CG_SFXS, CG_VOICES } from '@shared/customCgs'
 import { STAT_KEYS, STAT_LABELS } from '@shared/playerStats'
 import { GIFT_CATEGORIES } from '@shared/shop'
 import { CHARACTER_TRAITS } from '@shared/traits'
-import type { CharacterBehavior, OutfitSet, SetTarget } from '@shared/types'
+import type { CgSfx, CgVoice, CharacterBehavior, OutfitSet, SetTarget } from '@shared/types'
 
 /**
  * What a character panel shows, and in what order — shared by the editor and the read-only
@@ -47,6 +48,46 @@ export const WARDROBES: ReadonlyArray<{ target: SetTarget; set: OutfitSet | null
     { target: 'swim', set: 'swim', title: 'Swimsuit' },
     { target: 'nude', set: 'nude', title: 'Nude Outfit' }
   ]
+
+/** The line under a custom outfit's Name field. */
+export const OUTFIT_NAME_HINT = 'Custom outfit names must be lowercase with no spaces.'
+
+/** The line under a custom outfit's Instructions field, wherever it is written, naming the outfit. */
+export function outfitInstructionsHint(outfit: string): string {
+  return `Include an optional instruction to the LLM on when to use this outfit, completing this sentence: Use the ${outfit} outfit when...`
+}
+
+/** The line under a custom CG's Name field. */
+export const CG_NAME_HINT = 'Custom CG names must be lowercase with no spaces.'
+
+/** The line under a custom CG's Instructions field, wherever it is written. */
+export const CG_INSTRUCTIONS_HINT =
+  'Include an optional instruction to the LLM on when to use this CG, starting with "she", e.g. "she is riding him".'
+
+/** What each breath a custom CG can play is called in its picker. */
+const CG_VOICE_LABELS: Record<CgVoice, string> = {
+  fast: 'Fast breathing',
+  slow: 'Slow breathing',
+  none: 'None'
+}
+
+/** The breaths as picker options (`shared/customCgs.ts`, authoritative). */
+export const CG_VOICE_OPTIONS = CG_VOICES.map((voice) => ({
+  value: voice,
+  label: CG_VOICE_LABELS[voice]
+}))
+
+/** What each act loop a custom CG can play is called in its picker. */
+const CG_SFX_LABELS: Record<CgSfx, string> = {
+  sex: 'Sex',
+  foreplay: 'Foreplay',
+  oral: 'Blowjob',
+  handjob: 'Handjob',
+  none: 'None'
+}
+
+/** The act loops as picker options (`shared/customCgs.ts`, authoritative). */
+export const CG_SFX_OPTIONS = CG_SFXS.map((sfx) => ({ value: sfx, label: CG_SFX_LABELS[sfx] }))
 
 /** The trait vocabulary as picker options (`shared/traits.ts`, authoritative). */
 export const TRAIT_OPTIONS = CHARACTER_TRAITS.map((trait) => ({

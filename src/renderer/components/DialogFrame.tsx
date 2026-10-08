@@ -13,6 +13,8 @@ export interface DialogFrameProps {
   ariaLabel: string
   /** The dimming's handlers, from the caller's own `useModalShell`. */
   overlayProps: ModalShell['overlayProps']
+  /** The same shell's hold on the panel, where Enter and Space answer with its primary. */
+  primaryProps?: ModalShell['primaryProps']
   title: string
   /** The code the failure happened under, where the panel has one. */
   code?: string
@@ -32,6 +34,7 @@ export function DialogFrame({
   role,
   ariaLabel,
   overlayProps,
+  primaryProps,
   title,
   code,
   children,
@@ -54,6 +57,7 @@ export function DialogFrame({
         aria-modal="true"
         aria-label={ariaLabel}
         variants={panelIn}
+        {...primaryProps}
       >
         <span className="vu-dialog-badge vu-arch vu-paper" aria-hidden="true">
           !

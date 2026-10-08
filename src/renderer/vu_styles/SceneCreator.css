@@ -1,0 +1,407 @@
+/* The Scene Creator's own layout, and its small panels': the milestones, the relationships, the
+   save question and the saved-scene list. Imported from the view modules, never from index.css.
+
+   The fields, pills, buttons, rows and the foot are base.css's. */
+
+.vu-scene-creator {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  height: 100%;
+  padding: 48px 80px 44px;
+  overflow: hidden;
+  background: var(--vu-ground);
+  color: var(--vu-text);
+  font-family: var(--font-body);
+}
+
+/* An archway off the bottom-right corner, behind everything and taking no pointer; translucent
+   for the same reason Manage Characters' is. */
+.vu-scene-creator-decor {
+  position: absolute;
+  right: -220px;
+  bottom: -420px;
+  width: 640px;
+  height: 920px;
+  border-radius: 999px 999px 0 0;
+  background: color-mix(in srgb, var(--vu-tint) 60%, transparent);
+  rotate: 28deg;
+  pointer-events: none;
+}
+
+.vu-scene-creator-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+/* Two columns: the scene on the left, the reader on his own on the right. */
+.vu-scene-creator-body {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 40px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.vu-scene-creator-main {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ---- the cast ------------------------------------------------------------- */
+
+.vu-scene-cast {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vu-scene-cast-item {
+  position: relative;
+}
+
+/* A girl's row is the surface shape, quiet: the faces and controls are what carry weight. Its
+   controls wrap under her name where the stage narrows, rather than shrinking past reading. */
+.vu-scene-cast-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 16px;
+  min-height: 92px;
+  padding: 12px 56px 12px 14px;
+  border-radius: 999px 0 0 999px;
+  background: var(--vu-recessed);
+}
+
+.vu-scene-cast-face {
+  flex: none;
+  width: 56px;
+  height: 67px;
+}
+
+/* Given name over surname, the caption's two rows. */
+.vu-scene-cast-name {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-self: center;
+  width: 150px;
+  min-width: 0;
+  font: 700 12px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.vu-scene-cast-first {
+  overflow: hidden;
+  color: var(--vu-text);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-scene-cast-last {
+  overflow: hidden;
+  color: var(--vu-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-scene-cast-select {
+  flex: none;
+  width: 170px;
+}
+
+.vu-scene-cast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 2px;
+}
+
+.vu-scene-cast-x {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  translate: 0 -50%;
+}
+
+/* An empty row is the gap it is: dashed, its word, and the plus that fills it. */
+.vu-scene-cast-gap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 92px;
+  padding: 0 18px 0 30px;
+  border: 3px dashed var(--vu-border);
+  border-radius: 999px 0 0 999px;
+  background: none;
+  color: var(--vu-text-muted);
+}
+
+.vu-scene-cast-gap-word {
+  font: 700 14px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.vu-scene-cast-plus {
+  width: 48px;
+  height: 48px;
+}
+
+/* ---- the day, half, sky and place ---------------------------------------- */
+
+.vu-scene-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 22px;
+}
+
+.vu-scene-setting-select {
+  width: 190px;
+}
+
+.vu-scene-date {
+  justify-content: center;
+  min-width: 170px;
+  height: 52px;
+}
+
+/* The background's slot, as Create Photo's: the add pill alone, or the picture beside its change
+   pill and ✕, held at the picture's height so neither state moves anything. */
+.vu-scene-bg {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+}
+
+.vu-scene-bg-thumb {
+  display: block;
+  flex: none;
+  width: 92px;
+  height: 52px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--vu-recessed);
+}
+
+.vu-scene-bg-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The opening: three lines of well, growing with what is typed and then scrolling, giving up
+   height before anything else on the column does. 33px is `.vu-input--multiline`'s padding and
+   border doubled. */
+.vu-scene-creator-main > .vu-field {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.vu-scene-creator-main .vu-input--multiline {
+  flex: 1 1 auto;
+  min-height: calc(3lh + 33px);
+  max-height: 100%;
+  overflow: hidden auto;
+  resize: none;
+}
+
+/* ---- the reader ----------------------------------------------------------- */
+
+.vu-scene-reader {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  padding: 26px 28px 28px;
+  border-radius: 46px;
+  background: var(--vu-recessed);
+}
+
+.vu-scene-reader-head {
+  margin: 0;
+  color: var(--vu-text);
+  font: 700 14px var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.vu-scene-reader-names {
+  display: flex;
+  gap: 12px;
+}
+
+.vu-scene-reader-names > .vu-field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* One stat a row, its label beside the tier rather than over it, so the three read as one column. */
+.vu-scene-reader-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vu-scene-reader-stats > .vu-field {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+/* His bio fills what the column has left and scrolls past it. */
+.vu-scene-reader > .vu-field:last-child {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.vu-scene-reader .vu-input--multiline {
+  flex: 1 1 auto;
+  min-height: calc(3lh + 33px);
+  overflow: hidden auto;
+  resize: none;
+}
+
+/* ---- the foot ------------------------------------------------------------- */
+
+.vu-scene-creator-foot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 22px;
+}
+
+/* ---- the small panels ----------------------------------------------------- */
+
+/* The milestones, the relationships and the save question: the notes panel's frame. No
+   `overflow`: the tab overhangs, and the panel's own shadow pseudo would go with it. */
+.vu-scene-panel {
+  --paper-offset: 12px 11px;
+  --paper-tilt: -1.2deg;
+  --paper-shadow: var(--vu-panel-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: min(720px, 100% - 60px);
+  max-height: calc(100% - 100px);
+  padding: 78px 56px 28px 100px;
+  border-radius: 120px 0 0 120px;
+  color: var(--vu-text);
+  font-family: var(--font-body);
+}
+
+.vu-scene-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vu-scene-relations {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---- the saved scenes ----------------------------------------------------- */
+
+.vu-scene-load {
+  width: min(1100px, 100% - 60px);
+}
+
+.vu-scene-load-scroll {
+  overflow: hidden auto;
+  padding: 4px 6px;
+}
+
+.vu-scene-load-scroll .vu-rows {
+  width: 100%;
+}
+
+.vu-scene-load-item {
+  position: relative;
+}
+
+.vu-scene-load-row {
+  gap: 18px;
+  min-height: 82px;
+  padding-right: 60px;
+}
+
+.vu-scene-load-faces {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  width: 150px;
+}
+
+.vu-scene-load-face {
+  width: 40px;
+  height: 48px;
+}
+
+.vu-scene-load-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.vu-scene-load-name {
+  overflow: hidden;
+  font: 700 17px var(--font-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-scene-load-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vu-scene-load-meta svg {
+  width: 16px;
+  height: 16px;
+}
+
+.vu-scene-load-note {
+  color: var(--vu-text-muted);
+  font: italic 500 13.5px var(--font-body);
+}
+
+.vu-scene-load-saved {
+  flex: none;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+}
+
+.vu-scene-load-x {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  translate: 0 -50%;
+}

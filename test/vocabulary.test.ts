@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { cgRel, isCharFileRel, setDirRel } from '@shared/characterFiles'
 import { cgAction, parseAction, showAction, spriteAction } from '@shared/sceneActions'
 import { nextSlot } from '../src/renderer/prompts/gameDate'
 import { charKeyOf } from '@shared/types'
@@ -39,6 +40,11 @@ describe('parseAction', () => {
       ref: 'happy_pe'
     })
     expect(parseAction(cgAction('nude_foreplay'))).toEqual({ kind: 'cg', position: 'nude_foreplay' })
+    expect(parseAction(cgAction('customcg2'))).toEqual({ kind: 'cg', position: 'customcg2' })
+    expect(parseAction(cgAction('customcg2_after'))).toEqual({
+      kind: 'cg',
+      position: 'customcg2_after'
+    })
   })
 
   it('rejects an unknown verb rather than guessing at one', () => {
@@ -65,6 +71,51 @@ describe('parseAction', () => {
     expect(parseAction('cg:cuddling')).toBeNull()
     expect(parseAction('cg:happy')).toBeNull()
     expect(parseAction('cg:')).toBeNull()
+  })
+})
+
+describe('isCharFileRel', () => {
+  // The gate every URL, archive entry and database key passes before it is joined onto her
+  // folder: a custom CG that slipped into the stock folder would be replaced with it by a
+  // regenerate, and one under the wrong slot would be read as another pair's picture.
+
+  it('takes a custom pair’s images under their own slot, live or staged, either extension', () => {
+    for (const rel of [
+      'customcg/customcg1/customcg1.png',
+      'customcg/customcg1/customcg1_after.webp',
+      'customcg/customcg4/customcg4_after.png',
+      'staging/customcg/customcg2/customcg2.png'
+    ]) {
+      expect(isCharFileRel(rel)).toBe(true)
+    }
+  })
+
+  it('refuses a custom image under another slot, in the stock folder or under an unknown slot', () => {
+    for (const rel of [
+      'customcg/customcg1/customcg2.png',
+      'customcg/customcg1/customcg2_after.png',
+      'cg/customcg1.png',
+      'cg/customcg1_after.png',
+      'customcg/custom1/custom1.png',
+      'customcg/customcg5/customcg5.png',
+      'customcg/customcg1.png',
+      'customcg/customcg1/sub/customcg1.png',
+      'customcg/customcg1/customcg1.base.png'
+    ]) {
+      expect(isCharFileRel(rel)).toBe(false)
+    }
+  })
+
+  it('still takes the stock CGs, and only the stock ones, in the stock folder', () => {
+    expect(isCharFileRel('cg/sex_after.png')).toBe(true)
+    expect(isCharFileRel('cg/nope.png')).toBe(false)
+  })
+
+  it('names every CG a path the gate takes', () => {
+    for (const position of ['sex', 'sex_after', 'customcg1', 'customcg3_after'] as const) {
+      expect(isCharFileRel(cgRel(position))).toBe(true)
+    }
+    expect(isCharFileRel(`${setDirRel('customcg2')}/customcg2.png`)).toBe(true)
   })
 })
 

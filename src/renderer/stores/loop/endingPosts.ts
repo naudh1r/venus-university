@@ -110,5 +110,11 @@ export function armEndingPosts(): void {
   }
   if (posters.length === 0) return
 
-  void fetchEndingPosts(posters, stamps)
+  const run = currentRun()
+  const call = fetchEndingPosts(posters, stamps)
+  loopState.endingPostsCall = call
+  // Cleared once settled, unless a later stay has taken the field over.
+  void call.finally(() => {
+    if (!runStale(run) && loopState.endingPostsCall === call) loopState.endingPostsCall = null
+  })
 }
