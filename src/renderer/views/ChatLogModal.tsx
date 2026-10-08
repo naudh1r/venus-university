@@ -42,6 +42,8 @@ export function ChatLogModal({ theme, onClose }: ChatLogModalProps): JSX.Element
   const time = useGameStore((s) => s.time)
   const graduationSeen = useGameStore((s) => s.graduationSeen)
   const sceneEnding = useGameStore((s) => s.sceneEnding)
+  // A created scene keeps no books, so an edit during its ending costs nothing worth a warning.
+  const created = useGameStore((s) => s.createdScene !== null)
   const offer = useGameStore(interjectOfferOf)
   const sceneActive = useGameStore(sceneActiveOf)
   const inScene = useGameStore(sceneOnScreenOf)
@@ -89,7 +91,7 @@ export function ChatLogModal({ theme, onClose }: ChatLogModalProps): JSX.Element
     if (!edit) return
     const changed = edit.text !== sceneLog[edit.at]?.text
     const warns = useSettingsStore.getState().settings?.warnEndingEdit !== false
-    if (changed && sceneEnding && warns) {
+    if (changed && sceneEnding && warns && !created) {
       setConfirmEdit(true)
       return
     }

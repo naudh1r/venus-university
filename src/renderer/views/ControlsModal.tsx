@@ -36,7 +36,7 @@ const EVERYWHERE: ControlSection = {
   title: 'Everywhere',
   rows: [
     { keys: ['Escape', 'Right-click'], does: 'Close a panel' },
-    { keys: ['Enter'], does: "Submit form" },
+    { keys: ['Enter', 'Space'], does: 'Okay a screen or submit a form' },
   ]
 }
 

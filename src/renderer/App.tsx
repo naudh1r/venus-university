@@ -8,6 +8,7 @@ import { ModalHost } from './components/ModalHost'
 import { ErrorModal } from './components/ErrorModal'
 import { FatalErrorScreen } from './components/FatalErrorScreen'
 import { ManageCharactersView } from './views/ManageCharactersView'
+import { SceneCreatorView } from './views/SceneCreatorView'
 import { GameView } from './views/GameView'
 import { MainMenu } from './views/MainMenu'
 import { NewGameView } from './views/NewGameView'
@@ -145,6 +146,7 @@ function App(): JSX.Element {
       )}
       {view === 'mainMenu' && <MainMenu />}
       {view === 'manageCharacters' && <ManageCharactersView />}
+      {view === 'sceneCreator' && <SceneCreatorView />}
       {/* `quickstart` and `classSelect` both render from inside `NewGameView`. */}
       {(view === 'newGame' || view === 'quickstart' || view === 'classSelect') && <NewGameView />}
       {view === 'game' && <GameView key={gameLoads} />}

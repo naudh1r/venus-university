@@ -1,4 +1,5 @@
-/* Cast: who is in the scene, who is on screen, and the wardrobe locks over each of them.
+/* Cast: who is in the scene, who is on screen, the wardrobe locks over each of them and the
+   way into her CGs.
    No mock — Load Game's chassis (both are a scroller of rows in a capped panel) with a row
    built for a person rather than a save. Imported from the view module, never from index.css.
 
@@ -56,6 +57,15 @@
   font: 700 11px var(--font-mono);
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+/* Hide and CG at the head's end, held apart by the reach of a lift: a hovered button swells
+   off its flat edge and throws its shadow toward the one after it. */
+.vu-cast-acts {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 24px;
 }
 
 /* The wardrobe locks, held under the name column rather than the face — what they are

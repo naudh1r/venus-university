@@ -111,6 +111,18 @@
   font: 400 26px var(--font-display);
 }
 
+/* A name with no face — the reader's own line in a replay. Its foot stands where the portrait's
+   would put it, and nothing is tucked under, so the round cap pads as the flat end does. */
+.vu-box-label--bare {
+  top: auto;
+  bottom: calc(100% - 48px);
+}
+
+.vu-box-label--bare .vu-box-name {
+  --tuck: 18px;
+  margin-left: 0;
+}
+
 /* ---- the line ------------------------------------------------------------- */
 
 /* The paragraph is its final size from the first character, its unsaid half hidden rather than

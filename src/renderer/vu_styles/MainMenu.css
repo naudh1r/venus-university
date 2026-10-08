@@ -93,9 +93,9 @@
   inset: -90px auto -60px 0;
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 22px;
   width: 520px;
-  padding: 130px 64px 120px 56px;
+  padding: 104px 64px 120px 56px;
   border-radius: 0 385px 0 0;
 }
 
@@ -107,15 +107,15 @@
    script toward the night surfaces after dark (tokens.css). `breathe` animates `scale`, so
    the two never contend for the same property. */
 .vu-menu-logo {
-  width: 800px;
-  margin: -32px 0 -27px -13px;
+  width: 720px;
+  margin: -29px 0 -24px -12px;
   filter: hue-rotate(var(--vu-wordmark-hue));
 }
 
 .vu-menu-actions {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 /* App admin, below the rule: quiet tags that hug their own words. */

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { isCustomOutfitSlot, outfitLabelOf } from '@shared/outfits'
 import type { Character, CustomOutfitSlot, OutfitLock } from '@shared/types'
 import { placeUnder } from '../components/popupPlace'
@@ -8,8 +8,9 @@ import { useDismissLayer, useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
 import { PORTRAIT_SLOTS, UNKNOWN_NAME, useGameStore } from '../stores/gameStore'
 import { noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
-import { displaySlotsOf } from '../stores/stageDisplay'
+import { cgKnownMissing, displaySlotsOf } from '../stores/stageDisplay'
 import { profileUrl, useCharacterStore } from '../stores/characterStore'
+import { CgPickerModal } from './CgPickerModal'
 import type { ScreenTheme } from './clockTheme'
 import { ChevronIcon } from './screenIcons'
 import { gestures, lift, panelUnderTab, press, quietPress, toggleLift, veilIn } from './motion'
@@ -35,6 +36,9 @@ export function CastModal({ theme, onClose }: CastModalProps): JSX.Element | nul
   const stageOverride = useGameStore((s) => s.stageOverride)
   const outfitLock = useGameStore((s) => s.outfitLock)
   const outfitReady = useGameStore((s) => s.outfitReady)
+  const cgReady = useGameStore((s) => s.cgReady)
+  const customCgReady = useGameStore((s) => s.customCgReady)
+  const cgLock = useGameStore((s) => s.cgLock)
   const toggleStageChar = useGameStore((s) => s.toggleStageChar)
   const setOutfitLock = useGameStore((s) => s.setOutfitLock)
   const noNsfwImages = useSettingsStore(noNsfwImagesOf)
@@ -43,6 +47,8 @@ export function CastModal({ theme, onClose }: CastModalProps): JSX.Element | nul
   // The frame the floating wardrobe lists are placed against, and the one row whose list is up.
   const [popupHost, setPopupHost] = useState<HTMLElement | null>(null)
   const [openFor, setOpenFor] = useState<string | null>(null)
+  // The character whose CG picker stands over the panel.
+  const [pickingFor, setPickingFor] = useState<string | null>(null)
 
   const { host, overlayProps } = useModalShell(onClose)
   useDismissLayer(() => setOpenFor(null), openFor !== null)
@@ -53,135 +59,176 @@ export function CastModal({ theme, onClose }: CastModalProps): JSX.Element | nul
   const here = cast.filter((charId) => !departed.includes(charId) && characters[charId])
 
   return createPortal(
-    <motion.div
-      className="vu-veil"
-      data-theme={theme}
-      variants={veilIn}
-      initial="hidden"
-      animate="shown"
-      exit="gone"
-      {...overlayProps}
-    >
+    <>
       <motion.div
-        id="cast"
-        className="vu-sheet vu-cast vu-paper"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Who is on screen"
-        variants={panelUnderTab}
+        className="vu-veil"
+        data-theme={theme}
+        variants={veilIn}
+        initial="hidden"
+        animate="shown"
+        exit="gone"
+        {...overlayProps}
       >
-        <TitleTab>Who is on screen</TitleTab>
+        <motion.div
+          id="cast"
+          className="vu-sheet vu-cast vu-paper"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Character appearance"
+          variants={panelUnderTab}
+        >
+          <TitleTab>Character appearance</TitleTab>
 
-        <div className="vu-scroll-box">
-          <div className="vu-cast-body">
-            {here.length === 0 ? (
-              <p className="vu-empty">Nobody is in this scene.</p>
-            ) : (
-              here.map((charId) => {
-                const character = characters[charId]
-                // Masked as the name box masks a speaker.
-                const name = charInfo[charId]?.nameKnown ? character.firstName : UNKNOWN_NAME
-                const shown = shownSlots.includes(charId)
-                // A full stage has no slot to put her in.
-                const dead = !shown && full
-                // Withheld, the nude pill is absent rather than dead. A lock left
-                // standing on it degrades through `displaySpriteRef`.
-                const ready = outfitReady[charId] ?? []
-                const sets = ready.filter(
-                  (set) => !isCustomOutfitSlot(set) && !(noNsfwImages && set === 'nude')
-                )
-                // Her player-authored wardrobes stand behind one pill of their own, and her
-                // main outfit is offered as long as there is any lock at all to come off.
-                const customs = ready.filter(isCustomOutfitSlot)
-                const locks: OutfitLock[] =
-                  sets.length > 0 || customs.length > 0 ? ['default', ...sets] : []
+          <div className="vu-scroll-box">
+            <div className="vu-cast-body">
+              {here.length === 0 ? (
+                <p className="vu-empty">Nobody is in this scene.</p>
+              ) : (
+                here.map((charId) => {
+                  const character = characters[charId]
+                  // Masked as the name box masks a speaker.
+                  const name = charInfo[charId]?.nameKnown ? character.firstName : UNKNOWN_NAME
+                  const shown = shownSlots.includes(charId)
+                  // A full stage has no slot to put her in.
+                  const dead = !shown && full
+                  // Withheld, the nude pill is absent rather than dead. A lock left
+                  // standing on it degrades through `displaySpriteRef`.
+                  const ready = outfitReady[charId] ?? []
+                  const sets = ready.filter(
+                    (set) => !isCustomOutfitSlot(set) && !(noNsfwImages && set === 'nude')
+                  )
+                  // Her player-authored wardrobes stand behind one pill of their own, and her
+                  // main outfit is offered as long as there is any lock at all to come off.
+                  const customs = ready.filter(isCustomOutfitSlot)
+                  const locks: OutfitLock[] =
+                    sets.length > 0 || customs.length > 0 ? ['default', ...sets] : []
+                  // Her CG over the stage, by the same rule the stage draws it by.
+                  const cgOn =
+                    cgLock?.charId === charId &&
+                    !cgKnownMissing(charId, cgLock.position, { cgReady, customCgReady })
+                  // Absent while her pictures are withheld, and while she has no CG set whole
+                  // on disk unless one of hers still stands over the stage to be taken off.
+                  const cgs =
+                    !noNsfwImages &&
+                    (cgReady[charId] === true || (customCgReady[charId]?.length ?? 0) > 0 || cgOn)
 
-                return (
-                  <div className="vu-row vu-cast-row" key={charId}>
-                    <div className="vu-cast-head">
-                      <span className="vu-arch vu-cast-face">
-                        <span className="vu-crop">
-                          <img
-                            className="vu-crop-img"
-                            src={profileUrl(charId, versions[charId] ?? 0)}
-                            alt=""
-                          />
+                  return (
+                    <div className="vu-row vu-cast-row" key={charId}>
+                      <div className="vu-cast-head">
+                        <span className="vu-arch vu-cast-face">
+                          <span className="vu-crop">
+                            <img
+                              className="vu-crop-img"
+                              src={profileUrl(charId, versions[charId] ?? 0)}
+                              alt=""
+                            />
+                          </span>
                         </span>
-                      </span>
-                      <span className="vu-cast-who">
-                        <span className="vu-cast-name">{name}</span>
-                        <span className="vu-cast-state">{shown ? 'ON SCREEN' : 'OFF SCREEN'}</span>
-                      </span>
-                      <motion.button
-                        id={`cast-toggle-${charId}`}
-                        className="vu-btn vu-btn--outline vu-btn--panel vu-paper"
-                        type="button"
-                        disabled={dead}
-                        {...gestures(dead, lift, press)}
-                        onClick={() => toggleStageChar(charId)}
-                      >
-                        {shown ? 'Hide' : 'Show'}
-                      </motion.button>
-                    </div>
-
-                    {/* Absent for a character with no wardrobe rendered on disk. */}
-                    {locks.length > 0 && (
-                      <div className="vu-cast-outfits">
-                        {locks.map((lock) => {
-                          const active = outfitLock[charId] === lock
-                          return (
+                        <span className="vu-cast-who">
+                          <span className="vu-cast-name">{name}</span>
+                          <span className="vu-cast-state">
+                            {shown ? 'ON SCREEN' : 'OFF SCREEN'}
+                          </span>
+                        </span>
+                        <span className="vu-cast-acts">
+                          <motion.button
+                            id={`cast-toggle-${charId}`}
+                            className="vu-btn vu-btn--outline vu-btn--panel vu-paper"
+                            type="button"
+                            disabled={dead}
+                            {...gestures(dead, lift, press)}
+                            onClick={() => toggleStageChar(charId)}
+                          >
+                            {shown ? 'Hide' : 'Show'}
+                          </motion.button>
+                          {/* The way into her CG picker, filled while her CG stands. */}
+                          {cgs && (
                             <motion.button
-                              key={lock}
-                              className={`vu-pill${active ? ' vu-pill--on' : ''}`}
+                              id={`cast-cg-${charId}`}
+                              className={`vu-btn ${cgOn ? 'vu-btn--primary' : 'vu-btn--outline'} vu-btn--panel vu-paper`}
                               type="button"
-                              aria-pressed={active}
-                              {...gestures(false, toggleLift, quietPress)}
-                              onClick={() => setOutfitLock(charId, active ? null : lock)}
+                              aria-pressed={cgOn ? true : undefined}
+                              {...gestures(false, lift, press)}
+                              onClick={() => setPickingFor(charId)}
                             >
-                              {lock === 'default' ? 'Default' : outfitLabelOf(character, lock)}
+                              CG
                             </motion.button>
-                          )
-                        })}
-                        {customs.length > 0 && (
-                          <CustomOutfitPill
-                            charId={charId}
-                            character={character}
-                            slots={customs}
-                            lock={outfitLock[charId]}
-                            setLock={(lock) => setOutfitLock(charId, lock)}
-                            open={openFor === charId}
-                            setOpenFor={setOpenFor}
-                            popupHost={popupHost}
-                          />
-                        )}
+                          )}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                )
-              })
-            )}
+
+                      {/* Absent for a character with no wardrobe rendered on disk. */}
+                      {locks.length > 0 && (
+                        <div className="vu-cast-outfits">
+                          {locks.map((lock) => {
+                            const active = outfitLock[charId] === lock
+                            return (
+                              <motion.button
+                                key={lock}
+                                className={`vu-pill${active ? ' vu-pill--on' : ''}`}
+                                type="button"
+                                aria-pressed={active}
+                                {...gestures(false, toggleLift, quietPress)}
+                                onClick={() => setOutfitLock(charId, active ? null : lock)}
+                              >
+                                {lock === 'default' ? 'Default' : outfitLabelOf(character, lock)}
+                              </motion.button>
+                            )
+                          })}
+                          {customs.length > 0 && (
+                            <CustomOutfitPill
+                              charId={charId}
+                              character={character}
+                              slots={customs}
+                              lock={outfitLock[charId]}
+                              setLock={(lock) => setOutfitLock(charId, lock)}
+                              open={openFor === charId}
+                              setOpenFor={setOpenFor}
+                              popupHost={popupHost}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+            <div className="vu-scroll-fade" />
           </div>
-          <div className="vu-scroll-fade" />
-        </div>
 
-        {/* A panel with nothing to spend has one answer: nothing here costs anything. */}
-        <div className="vu-foot">
-          <motion.button
-            id="cast-close"
-            className="vu-btn vu-btn--primary vu-paper vu-btn--panel"
-            type="button"
-            {...gestures(false, lift, press)}
-            onClick={onClose}
-          >
-            Close
-          </motion.button>
-        </div>
+          {/* A panel with nothing to spend has one answer: nothing here costs anything. */}
+          <div className="vu-foot">
+            <motion.button
+              id="cast-close"
+              className="vu-btn vu-btn--primary vu-paper vu-btn--panel"
+              type="button"
+              {...gestures(false, lift, press)}
+              onClick={onClose}
+            >
+              Close
+            </motion.button>
+          </div>
 
-        {/* The frame a wardrobe list is placed against, over the rows and taking no pointer
-            of its own. */}
-        <div className="vu-popups" ref={setPopupHost} />
+          {/* The frame a wardrobe list is placed against, over the rows and taking no pointer
+              of its own. */}
+          <div className="vu-popups" ref={setPopupHost} />
+        </motion.div>
       </motion.div>
-    </motion.div>,
+
+      {/* A sibling of the veil, not its child: a click inside it does not reach the veil's
+          own handler through the React tree. */}
+      <AnimatePresence propagate>
+        {pickingFor && (
+          <CgPickerModal
+            key="cg-picker"
+            theme={theme}
+            charId={pickingFor}
+            onClose={() => setPickingFor(null)}
+          />
+        )}
+      </AnimatePresence>
+    </>,
     host
   )
 }

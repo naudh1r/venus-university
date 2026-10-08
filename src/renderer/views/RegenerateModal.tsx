@@ -1,10 +1,13 @@
 import { useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
+import { DEFAULT_CG_SFX, DEFAULT_CG_VOICE, isCgSfx, isCgVoice } from '@shared/customCgs'
 import type { PromptEdit } from '@shared/imagePrompt'
 import { PROMPT_GROUPS, type PromptGroup } from '@shared/regenTags'
+import type { CgSfx, CgVoice } from '@shared/types'
 import { CheckField } from '../components/CheckField'
 import { ChipListInput } from '../components/ChipListInput'
+import { SelectField } from '../components/SelectField'
 import { TextField } from '../components/TextField'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
@@ -18,6 +21,7 @@ import {
   quietPress,
   veilIn
 } from './motion'
+import { CG_SFX_OPTIONS, CG_VOICE_OPTIONS } from './characterFields'
 import '../vu_styles/Regenerate.css'
 
 /** What each group is called over its own well. */
@@ -90,6 +94,12 @@ export interface SeedPrefill {
   random: boolean
 }
 
+/** The breath and the act loop a custom CG's main image plays. */
+export interface CgSounds {
+  voice: CgVoice
+  sfx: CgSfx
+}
+
 export interface RegenerateModalProps {
   id: string
   theme: 'day' | 'night'
@@ -101,14 +111,29 @@ export interface RegenerateModalProps {
   defaults: PromptEdit
   seed: SeedPrefill
   /** Asks for a name as well, for a set that is being made rather than replaced. */
-  name?: { value: string; placeholder: string; maxLength: number }
+  name?: { value: string; placeholder: string; maxLength: number; hint?: string }
+  /**
+   * Asks under the name when the writer should use the set, where the set is being made; the
+   * hint may be worded for the name as it is typed.
+   */
+  instructions?: { value: string; maxLength: number; hint: (name: string) => string }
+  /** Asks under the instructions which loops a CG being made plays, opening on these. */
+  sounds?: CgSounds
   /** A group the render cannot be sent without: the submit is dead while its well is empty. */
   requireGroup?: PromptGroup
   /** The primary's words, where the render is not a replacement. */
   submitLabel?: string
-  /** The groups as the player left them, the seed — `null` asks for a new random one — and the
-   *  trimmed name, `undefined` where the box is absent or blank. */
-  onConfirm: (edit: PromptEdit, seed: number | null, name?: string) => void
+  /** The groups as the player left them, the seed — `null` asks for a new random one — the
+   *  trimmed name, `undefined` where the box is absent or blank, the trimmed instructions,
+   *  `undefined` only where the box is absent, and the loops, `undefined` where they are not
+   *  asked for. */
+  onConfirm: (
+    edit: PromptEdit,
+    seed: number | null,
+    name?: string,
+    instructions?: string,
+    sounds?: CgSounds
+  ) => void
   onCancel: () => void
 }
 
@@ -121,6 +146,8 @@ export function RegenerateModal({
   defaults,
   seed,
   name,
+  instructions,
+  sounds,
   requireGroup,
   submitLabel = 'Regenerate',
   onConfirm,
@@ -136,6 +163,9 @@ export function RegenerateModal({
   const [seedText, setSeedText] = useState(() => String(seed.seed))
   const [random, setRandom] = useState(() => seed.random)
   const [nameText, setNameText] = useState(() => name?.value ?? '')
+  const [instructionsText, setInstructionsText] = useState(() => instructions?.value ?? '')
+  const [voice, setVoice] = useState<CgVoice>(() => sounds?.voice ?? DEFAULT_CG_VOICE)
+  const [sfx, setSfx] = useState<CgSfx>(() => sounds?.sfx ?? DEFAULT_CG_SFX)
 
   // A typed seed the player has emptied is no seed at all, and a group the render cannot be
   // sent without is the same kind of gap. Neither box says anything about it.
@@ -155,7 +185,20 @@ export function RegenerateModal({
       return next
     })
 
-  const { host, overlayProps } = useModalShell(onCancel)
+  /** The foot's answer, dead where the button is. */
+  function submit(): void {
+    if (dead) return
+    const typed = nameText.trim()
+    onConfirm(
+      withGroups(edit, values),
+      random ? null : Number(seedText),
+      name && typed !== '' ? typed : undefined,
+      instructions ? instructionsText.trim() : undefined,
+      sounds ? { voice, sfx } : undefined
+    )
+  }
+
+  const { host, overlayProps, primaryProps } = useModalShell(onCancel, 'panel', submit)
   if (!host) return null
 
   return createPortal(
@@ -175,22 +218,18 @@ export function RegenerateModal({
         aria-modal="true"
         aria-label={title}
         variants={panelUnderTab}
-        // A form, so Enter in any well answers through the foot.
+        // A form, so Enter in any well answers through the foot; the shell gives it to Enter and
+        // Space outside the wells.
         onSubmit={(event) => {
           event.preventDefault()
-          if (dead) return
-          const typed = nameText.trim()
-          onConfirm(
-            withGroups(edit, values),
-            random ? null : Number(seedText),
-            name && typed !== '' ? typed : undefined
-          )
+          submit()
         }}
         // And nothing behind this sees that key: a screen's own Enter listener is on the
         // bubble, and one answered here is not also answered there.
         onKeyDown={(event) => {
           if (event.key === 'Enter') event.stopPropagation()
         }}
+        {...primaryProps}
       >
         <TitleTab>{title}</TitleTab>
 
@@ -254,6 +293,43 @@ export function RegenerateModal({
               onChange={setNameText}
               maxLength={name.maxLength}
               placeholder={name.placeholder}
+              hint={name.hint}
+            />
+          </div>
+        )}
+
+        {instructions && (
+          <div className="vu-regen-instructions">
+            <TextField
+              id={`${id}-instructions`}
+              label="Instructions"
+              value={instructionsText}
+              onChange={setInstructionsText}
+              maxLength={instructions.maxLength}
+              hint={instructions.hint(nameText)}
+            />
+          </div>
+        )}
+
+        {sounds && (
+          <div className="vu-regen-sounds">
+            <SelectField
+              id={`${id}-voice`}
+              label="Voice loop"
+              value={voice}
+              onChange={(value) => {
+                if (isCgVoice(value)) setVoice(value)
+              }}
+              options={CG_VOICE_OPTIONS}
+            />
+            <SelectField
+              id={`${id}-sfx`}
+              label="SFX loop"
+              value={sfx}
+              onChange={(value) => {
+                if (isCgSfx(value)) setSfx(value)
+              }}
+              options={CG_SFX_OPTIONS}
             />
           </div>
         )}

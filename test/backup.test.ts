@@ -5,6 +5,8 @@ import { unzipSync } from 'fflate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EMOTIONS } from '@shared/emotions'
 import type { BackupFile } from '@shared/backup'
+import type { SlotReplay } from '@shared/replays'
+import type { SavedScene } from '@shared/sceneCreator'
 import type { Character, SaveDraft } from '@shared/types'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { character as characterFixture, record } from './fixtures'
@@ -41,6 +43,7 @@ const {
   readCustomBackgroundImage,
   removeCustomBackground
 } = await import('../src/main/services/backgroundService')
+const { listScenes, readScene, writeScene } = await import('../src/main/services/sceneService')
 const { listPhotos, readPhoto, writePhoto } = await import('../src/main/services/photoService')
 const { createZip, extractZip, listZip } = await import('../src/main/services/archiveService')
 const {
@@ -53,10 +56,13 @@ const {
   classifyBackupEntry,
   endingArtEntry,
   photoEntry,
-  profilePictureEntry
+  profilePictureEntry,
+  replaysFromBackup
 } = await import('../src/shared/backup')
 const { cgRel, expressionRel, STAGING_DIR } = await import('../src/shared/characterFiles')
 const { validateRecord } = await import('../src/shared/jsonValidate')
+const { replayIdOf } = await import('../src/shared/replays')
+const { defaultMilestones } = await import('../src/shared/sceneCreator')
 const { checkZipListing } = await import('../src/shared/zipRules')
 const { defaultSettings } = await import('../src/shared/settingsRules')
 const {
@@ -428,6 +434,57 @@ describe('custom backgrounds in a backup', () => {
   })
 })
 
+describe('saved scenes in a backup', () => {
+  /** A minimal saved scene under `id`. */
+  function scene(id: string, name: string): SavedScene {
+    return {
+      schemaVersion: 1,
+      id,
+      name,
+      savedAt: 1000,
+      setup: {
+        reader: { firstName: 'Sam', lastName: 'Lee', tiers: { brain: 1, body: 1, heart: 1 }, bio: '' },
+        cast: [
+          {
+            charId: 'char-1',
+            outfit: 'default',
+            disposition: 'friendly',
+            milestones: defaultMilestones(),
+            notes: ''
+          }
+        ],
+        pairs: {},
+        date: 60,
+        time: 1,
+        weather: 'clear',
+        prompt: 'Hello.'
+      },
+      castNames: ['Ami Ito'],
+      transcript: [],
+      ended: true
+    }
+  }
+  const FIRST = '11111111-1111-4111-8111-111111111111'
+  const SECOND = '22222222-2222-4222-8222-222222222222'
+  const THIRD = '33333333-3333-4333-8333-333333333333'
+
+  it('is merged in by id: the backup wins a shared id, a scene kept since stays', async () => {
+    await seedSettings()
+    await writeScene(scene(FIRST, 'Original'))
+    await writeScene(scene(SECOND, 'Second'))
+    const archive = join(root, 'out.zip')
+    await exportBackup(archive)
+
+    await writeScene(scene(FIRST, 'Edited since'))
+    await writeScene(scene(THIRD, 'Third'))
+    await importBackup(archive)
+
+    expect((await readScene(FIRST)).name).toBe('Original')
+    expect((await listScenes()).map((summary) => summary.id).sort()).toEqual([FIRST, SECOND, THIRD])
+  })
+
+})
+
 describe('importBackup — the settings it carries', () => {
   it('refuses settings missing a field before anything is written', async () => {
     await seedSettings()
@@ -477,5 +534,37 @@ describe('classifyBackupEntry', () => {
     expect(classifyBackupEntry('backgrounds/__proto__/day')).toBe('reject')
     expect(classifyBackupEntry(`${backgroundEntry('rooftop', 'day')}/extra`)).toBe('reject')
     expect(classifyBackupEntry('evil.txt')).toBe('reject')
+  })
+})
+
+describe('replaysFromBackup', () => {
+  const replay: SlotReplay = {
+    schemaVersion: 1,
+    date: 8,
+    time: 0,
+    cast: ['ava'],
+    keys: { ava: 'ava' },
+    transcript: [{ speaker: 'ava', text: 'Hi.' }]
+  }
+  const entry = { playthroughId: '1700000000000', replayId: replayIdOf(replay), replay }
+  /** A record carrying `replays` and nothing else this rule reads. */
+  const carrying = (replays: unknown[]): BackupFile => ({ replays }) as unknown as BackupFile
+
+  it('reads back every entry that could have been written', () => {
+    expect(replaysFromBackup(carrying([entry]))).toEqual([entry])
+  })
+
+  it('refuses the backup over an entry it could not write back, or one carried twice', () => {
+    for (const bad of [
+      { ...entry, playthroughId: '../1' },
+      { ...entry, replayId: 'nope' },
+      { ...entry, replay: { ...replay, transcript: undefined } },
+      { ...entry, replay: { ...replay, schemaVersion: 2 } }
+    ]) {
+      expect(() => replaysFromBackup(carrying([bad]))).toThrow()
+    }
+    expect(() => replaysFromBackup(carrying([entry, entry]))).toThrow(
+      expect.objectContaining({ code: 'BACKUP_MALFORMED' })
+    )
   })
 })

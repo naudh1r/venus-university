@@ -31,6 +31,7 @@ const CHARACTER_REQUIRED: Record<
     Character,
     | 'brief'
     | 'charId'
+    | 'customCgs'
     | 'customOutfits'
     | 'negativeTags'
     | 'profileCrop'

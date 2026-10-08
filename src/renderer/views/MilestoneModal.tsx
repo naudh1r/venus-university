@@ -53,7 +53,8 @@ export function MilestoneModal({
   theme,
   onClose
 }: MilestoneModalProps): JSX.Element | null {
-  const { host, overlayProps } = useModalShell(onClose, 'none')
+  // Enter and Space are the button too, once the panel and her lines have landed.
+  const { host, overlayProps, primaryProps } = useModalShell(onClose, 'none', onClose)
   // Which rows have finished sliding in: a splash is thrown off a phrase the moment its own row
   // lands, so the dots leave the word rather than travelling with it.
   const [landed, setLanded] = useState<ReadonlySet<number>>(() => new Set())
@@ -94,6 +95,7 @@ export function MilestoneModal({
         role="dialog"
         aria-modal="true"
         aria-label="Milestone"
+        {...primaryProps}
       >
         <TitleTab>Milestone</TitleTab>
 

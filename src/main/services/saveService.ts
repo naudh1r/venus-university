@@ -1,5 +1,12 @@
 import { mkdir, readdir, rm, stat } from 'fs/promises'
-import { appError, messageOf } from '@shared/errors'
+import { appError, messageOf, toAppError } from '@shared/errors'
+import {
+  idsMissingFrom,
+  replayIdOf,
+  replayIdsOf,
+  replaysToDelete,
+  type SlotReplay
+} from '@shared/replays'
 import {
   assertManualSlot,
   assertSafePlaythroughId,
@@ -12,10 +19,12 @@ import {
   listedSaveIds,
   manualSaveId,
   mintId,
+  playthroughLabel,
   prunedSlotIds,
   RECORD_NOT_FOUND,
   RECORD_READ,
   RECORD_UNREADABLE,
+  renamedRecord,
   SAFE_NUMERIC_ID,
   SAVE_NOT_FOUND,
   SAVE_READ,
@@ -24,6 +33,7 @@ import {
   stampRecord,
   stampSave,
   summaryOf,
+  withPlaythroughName,
   type SaveIdGroups
 } from '@shared/saveRules'
 import {
@@ -51,6 +61,7 @@ import {
   getSavesPath
 } from '../paths'
 import { readValidatedJson, writeAtomicJson } from './jsonFile'
+import { deleteReplay, listReplayIds, writeReplay } from './replayService'
 
 /** Saves, playthrough records and enrollments on disk; what each one must be is a shared rule. */
 
@@ -276,9 +287,11 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
     const groups = await saveIdsOf(playthroughId)
     const saveIds = listedSaveIds(groups)
 
+    const position = summaries.length + 1
     const base = {
       playthroughId,
-      label: `Playthrough ${summaries.length + 1}`,
+      label: playthroughLabel(null, position),
+      position,
       saveCount: groups.slots.length,
       manualCount: groups.manual.length,
       hasAutosave: groups.autosave
@@ -321,6 +334,7 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
     } catch (err) {
       reason = (err as AppError).message
     }
+    const named = withPlaythroughName(base, record)
 
     let summary: PlaythroughSummary | null = null
     // Whichever file was written last stands for the playthrough, a manual save included.
@@ -328,7 +342,7 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
       try {
         const save = await loadSave(playthroughId, saveId)
         summary = {
-          ...base,
+          ...named,
           chars: record?.chars ?? [],
           date: save.date,
           time: save.time,
@@ -343,7 +357,7 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
     }
     summaries.push(
       summary ?? {
-        ...base,
+        ...named,
         chars: [],
         date: 0,
         time: 0,
@@ -492,22 +506,133 @@ export async function createPlaythrough(
   return { record, save }
 }
 
+/** Each playthrough's save writes and deletes still to settle, as the tail of one chain. */
+const turns = new Map<string, Promise<void>>()
+
+/**
+ * Runs `run` once every save write or delete queued before it on the same playthrough has
+ * settled, so no replay scan reads a folder another of them is changing.
+ */
+function inTurn<T>(playthroughId: string, run: () => Promise<T>): Promise<T> {
+  const result = (turns.get(playthroughId) ?? Promise.resolve()).then(run)
+  const settled = result.then(
+    () => undefined,
+    () => undefined
+  )
+  turns.set(playthroughId, settled)
+  void settled.then(() => {
+    if (turns.get(playthroughId) === settled) turns.delete(playthroughId)
+  })
+  return result
+}
+
+/** The replay ids one save names; a save that is gone or cannot be read names none. */
+async function replayIdsIn(playthroughId: string, saveId: string): Promise<Set<string>> {
+  try {
+    return replayIdsOf((await loadSave(playthroughId, saveId)).replays)
+  } catch {
+    return new Set()
+  }
+}
+
+/**
+ * Deletes each of `dropped` that no save left in the playthrough names and `keep` does not hold,
+ * and with them any other replay file no save names. A save that cannot be read might name any
+ * of them, so then nothing is deleted; a failure here costs a stray file, never the write before.
+ */
+async function dropReplays(
+  playthroughId: string,
+  dropped: readonly string[],
+  keep: readonly string[] = []
+): Promise<void> {
+  if (dropped.length === 0) return
+  try {
+    const files = await listReplayIds(playthroughId)
+    const onDisk = new Set(files)
+    if (!dropped.some((id) => onDisk.has(id) && !keep.includes(id))) return
+
+    const named: Set<string>[] = []
+    for (const saveId of listedSaveIds(await saveIdsOf(playthroughId))) {
+      try {
+        named.push(replayIdsOf((await loadSave(playthroughId, saveId)).replays))
+      } catch (err) {
+        const error = toAppError(err)
+        if (error.code === SAVE_NOT_FOUND.code) continue
+        console.warn(
+          `[saves] ${playthroughId}/${saveId} could not be read, so no replay is deleted:`,
+          error.message
+        )
+        return
+      }
+    }
+    for (const replayId of replaysToDelete(files, named, keep)) {
+      await deleteReplay(playthroughId, replayId)
+    }
+  } catch (err) {
+    console.warn(
+      `[saves] the replays of ${playthroughId} could not be tidied:`,
+      toAppError(err).message
+    )
+  }
+}
+
 /**
  * Writes the slot-boundary save: mints a new id and prunes the slot saves back to their window.
+ * A `replay` the draft names is written first, and a replay only the pruned saves named goes.
  * The autosave stands: it is the last decision point reached, and only the next one replaces it.
  */
-export async function writeSlotSave(playthroughId: string, draft: SaveDraft): Promise<GameSave> {
+export async function writeSlotSave(
+  playthroughId: string,
+  draft: SaveDraft,
+  replay?: SlotReplay
+): Promise<GameSave> {
   assertSafePlaythroughId(playthroughId)
-  await ensureFolder(getPlaythroughPath(playthroughId))
+  return inTurn(playthroughId, async () => {
+    await ensureFolder(getPlaythroughPath(playthroughId))
+    const named = replayIdsOf(draft.replays)
 
-  const { slots } = await saveIdsOf(playthroughId)
-  const saved = await writeSaveFile(playthroughId, mintId(new Set(slots)), draft)
+    let written: string | null = null
+    if (replay) {
+      const replayId = replayIdOf(replay)
+      if (named.has(replayId)) {
+        written = await writeReplay(playthroughId, replay)
+      } else {
+        console.warn(`[saves] a replay the save does not name was left unwritten: ${replayId}`)
+      }
+    }
 
-  // `slots` was read before this write, so the window is what the new save pushes out of it.
-  for (const stale of prunedSlotIds(slots)) {
-    await rm(getSaveFilePath(playthroughId, stale), { force: true })
-  }
+    const { slots } = await saveIdsOf(playthroughId)
+    let saved: GameSave
+    try {
+      saved = await writeSaveFile(playthroughId, mintId(new Set(slots)), draft)
+    } catch (err) {
+      if (written) await dropReplays(playthroughId, [written])
+      throw err
+    }
 
+    // `slots` was read before this write, so the window is what the new save pushes out of it.
+    const dropped: string[] = []
+    for (const stale of prunedSlotIds(slots)) {
+      dropped.push(...(await replayIdsIn(playthroughId, stale)))
+      const path = getSaveFilePath(playthroughId, stale)
+      await rm(path, { force: true })
+      forgetParsed(path)
+    }
+    await dropReplays(playthroughId, idsMissingFrom(dropped, named))
+
+    return saved
+  })
+}
+
+/** Writes one save over whatever its file held, then drops the replays only the old one named. */
+async function rewriteSave(
+  playthroughId: string,
+  saveId: string,
+  draft: SaveDraft
+): Promise<GameSave> {
+  const before = await replayIdsIn(playthroughId, saveId)
+  const saved = await writeSaveFile(playthroughId, saveId, draft)
+  await dropReplays(playthroughId, idsMissingFrom(before, replayIdsOf(saved.replays)))
   return saved
 }
 
@@ -519,18 +644,22 @@ export async function overwriteSlotSave(
 ): Promise<GameSave> {
   assertSafePlaythroughId(playthroughId)
   assertSafeSaveId(saveId)
-  const { slots } = await saveIdsOf(playthroughId)
-  if (!slots.includes(saveId)) {
-    throw appError('SAVE_NOT_FOUND', 'That save no longer exists.', `${playthroughId}/${saveId}`)
-  }
-  return writeSaveFile(playthroughId, saveId, draft)
+  return inTurn(playthroughId, async () => {
+    const { slots } = await saveIdsOf(playthroughId)
+    if (!slots.includes(saveId)) {
+      throw appError('SAVE_NOT_FOUND', 'That save no longer exists.', `${playthroughId}/${saveId}`)
+    }
+    return rewriteSave(playthroughId, saveId, draft)
+  })
 }
 
 /** Overwrites the scene-in-progress save. Never pruned, never counted against the window. */
 export async function writeAutosave(playthroughId: string, draft: SaveDraft): Promise<GameSave> {
   assertSafePlaythroughId(playthroughId)
-  await ensureFolder(getPlaythroughPath(playthroughId))
-  return writeSaveFile(playthroughId, AUTOSAVE_ID, draft)
+  return inTurn(playthroughId, async () => {
+    await ensureFolder(getPlaythroughPath(playthroughId))
+    return rewriteSave(playthroughId, AUTOSAVE_ID, draft)
+  })
 }
 
 /**
@@ -544,19 +673,46 @@ export async function writeManualSave(
 ): Promise<GameSave> {
   assertSafePlaythroughId(playthroughId)
   assertManualSlot(slot)
-  await ensureFolder(getPlaythroughPath(playthroughId))
-  return writeSaveFile(playthroughId, manualSaveId(slot), draft)
+  return inTurn(playthroughId, async () => {
+    await ensureFolder(getPlaythroughPath(playthroughId))
+    return rewriteSave(playthroughId, manualSaveId(slot), draft)
+  })
 }
 
-/** Deletes one save file. Already-gone is success, not an error. */
-export async function deleteSave(playthroughId: string, saveId: string): Promise<void> {
+/**
+ * Deletes one save file, and every replay it named that no other save names and `keep` does not
+ * hold. Already-gone is success, not an error.
+ */
+export async function deleteSave(
+  playthroughId: string,
+  saveId: string,
+  keep: readonly string[] = []
+): Promise<void> {
   assertSafePlaythroughId(playthroughId)
   assertSafeSaveId(saveId)
-  try {
-    await rm(getSaveFilePath(playthroughId, saveId), { force: true })
-  } catch (err) {
-    throw appError('SAVE_UNDELETABLE', 'Could not delete the save file.', messageOf(err))
-  }
+  return inTurn(playthroughId, async () => {
+    const before = await replayIdsIn(playthroughId, saveId)
+    const path = getSaveFilePath(playthroughId, saveId)
+    try {
+      await rm(path, { force: true })
+      forgetParsed(path)
+    } catch (err) {
+      throw appError('SAVE_UNDELETABLE', 'Could not delete the save file.', messageOf(err))
+    }
+    await dropReplays(playthroughId, [...before], keep)
+  })
+}
+
+/**
+ * Gives a playthrough the player's own name, or takes it away where the name is blank: the
+ * record is read and checked, then written back with that one field changed.
+ */
+export async function renamePlaythrough(playthroughId: string, name: string): Promise<void> {
+  const { schemaVersion: _stamped, ...draft } = renamedRecord(
+    await readPlaythroughRecord(playthroughId),
+    name
+  )
+  await writePlaythroughRecord(playthroughId, draft)
 }
 
 /** Deletes a whole playthrough folder and every save in it. */

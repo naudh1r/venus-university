@@ -1,6 +1,7 @@
 import { toAppError } from '@shared/errors'
 import { gameOverReasonOf, type GameOverReason } from '@shared/gameOver'
 import { isGameOver, spentOf } from '@shared/money'
+import { replayIdOf, type SlotReplay } from '@shared/replays'
 import {
   READER_SPEAKER,
   type AppError,
@@ -89,18 +90,32 @@ export function writeAutosave(scene: SceneState | null): Promise<void> {
   })
 }
 
-/** Mints the slot-boundary save; the autosave beside it stands. */
-export function writeSlotSave(): Promise<void> {
+/**
+ * Mints the slot-boundary save; the autosave beside it stands. A `replay` is named on the save
+ * and kept beside it in the same write, and named only once the write's turn has come, so no
+ * write queued ahead of it names a replay not yet kept; a failed write forgets it again.
+ */
+export function writeSlotSave(replay?: SlotReplay): Promise<void> {
   return queueWrite(async () => {
+    const run = currentRun()
     const game = useGameStore.getState()
     const playthroughId = game.playthroughId
     if (!playthroughId) return
-    const draft = game.toGameSave()
+    const before = replay ? game.replays[replay.date]?.[replay.time] : undefined
+    if (replay) game.setReplay(replay.date, replay.time, replayIdOf(replay))
+    const draft = useGameStore.getState().toGameSave()
 
     // Unknown until this write answers: a failed one leaves nothing for the opening to fold into.
     loopState.slotSaveId = null
-    const result = await window.api.saves.slot(playthroughId, draft)
-    if (!result.ok) reportWriteFailure(result.error)
+    const result = await window.api.saves.slot(playthroughId, draft, replay)
+    if (!result.ok) {
+      reportWriteFailure(result.error)
+      // The slot names what it named before, which is what is on disk.
+      if (replay && !runStale(run)) {
+        if (before) useGameStore.getState().setReplay(replay.date, replay.time, before)
+        else useGameStore.getState().dropReplay(replay.date, replay.time)
+      }
+    }
     // The file the opening narration is folded back into once it arrives.
     else loopState.slotSaveId = result.data.saveId
   })
@@ -313,6 +328,16 @@ export function manualSaveOffer(): ManualSaveOffer {
     textingUnsettled() ||
     manualWriting
   return unsettled ? 'waiting' : 'open'
+}
+
+/**
+ * What the calendar's Replay offers, given the Save Game offer and whether a call is still out
+ * that the replay's round trip would cancel and the game's return would send again: Replay
+ * waits for that call as it waits for whatever Save Game waits for.
+ */
+export function replayOfferOf(saveOffer: ManualSaveOffer, callsOut: boolean): ManualSaveOffer {
+  if (saveOffer !== 'open') return saveOffer
+  return callsOut ? 'waiting' : 'open'
 }
 
 /**

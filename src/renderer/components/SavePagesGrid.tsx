@@ -1,27 +1,15 @@
-import { useRef, useState, type JSX, type WheelEvent as ReactWheelEvent } from 'react'
+import { useState, type JSX } from 'react'
 import { motion } from 'motion/react'
 import { DeleteX } from './DeleteX'
-import {
-  cardSwell,
-  dealt,
-  gestures,
-  quietLift,
-  quietPress,
-  rowLift,
-  rowPress,
-  slideInQuick
-} from '../views/motion'
-import { ChevronIcon } from '../views/screenIcons'
-import { accumulateNotch, wheelNotches, type WheelTravel } from '../views/wheel'
+import { PageArrows } from './PageArrows'
+import { cardSwell, dealt, gestures, rowLift, rowPress, slideInQuick } from '../views/motion'
 import '../vu_styles/SavePages.css'
+
+/** The ring the save pages turn on, for the panels that turn them by key. */
+export { wrapPage } from './PageArrows'
 
 /** How many cells one page of saves holds: two columns of five. */
 export const SAVE_PAGE_CELLS = 10
-
-/** A page index on the ring of pages: one past the last is the first, one before the first the last. */
-export function wrapPage(to: number, pageCount: number): number {
-  return ((to % pageCount) + pageCount) % pageCount
-}
 
 /** One cell of a page: a save on disk, or the gap where one could be written. */
 export type SaveGridEntry =
@@ -72,9 +60,9 @@ export interface SavePagesGridProps {
 const PAGE_DEAL = dealt(0, 0.02)
 
 /**
- * A page of saves in two columns, with the arrows either side that turn it and a dot per page
- * under it. The wheel over any of it turns the page a notch at a time. The pages are a ring:
- * turning past either end lands on the other.
+ * A page of saves in two columns, between the arrows that turn it and over a dot per page. The
+ * wheel over any of it turns the page a notch at a time, and turning past either end lands on
+ * the other.
  */
 export function SavePagesGrid({
   id,
@@ -89,89 +77,36 @@ export function SavePagesGrid({
   busy = false,
   held = false
 }: SavePagesGridProps): JSX.Element {
-  const travel = useRef<WheelTravel>({ sum: 0, at: 0 })
-
-  /** Turns to a page, round the ring: past the last page is the first, before the first the last. */
-  const turn = (to: number): void => {
-    const next = wrapPage(to, pageCount)
-    if (next !== page) onPage(next)
-  }
-
-  /**
-   * A notch down turns forward and a notch up turns back, once the notches add up to one, and
-   * never more than a page an event, however many notches arrive in it.
-   */
-  const onWheel = (event: ReactWheelEvent<HTMLDivElement>): void => {
-    if (busy) return
-    const step = accumulateNotch(travel.current, wheelNotches(event.nativeEvent))
-    if (step !== 0) turn(page + Math.sign(step))
-  }
-
   return (
-    <div id={id} className="vu-pages" onWheel={onWheel}>
-      <div className="vu-pages-row">
-        <motion.button
-          id="save-page-prev"
-          className="vu-pages-arrow"
-          type="button"
-          aria-label="Previous page"
-          {...gestures(false, rowLift, rowPress)}
-          onClick={() => turn(page - 1)}
-        >
-          <ChevronIcon back />
-        </motion.button>
-
-        <motion.ul
-          key={page}
-          className="vu-pages-grid"
-          variants={PAGE_DEAL}
-          initial="hidden"
-          animate={held ? 'hidden' : 'shown'}
-        >
-          {entries.map((entry, index) => (
-            <SaveCell
-              // A cell is a place on the page, whatever it holds.
-              key={index}
-              entry={entry}
-              mode={mode}
-              busy={busy}
-              onPick={onPick}
-              onPickEmpty={onPickEmpty}
-              onDelete={onDelete}
-            />
-          ))}
-        </motion.ul>
-
-        <motion.button
-          id="save-page-next"
-          className="vu-pages-arrow"
-          type="button"
-          aria-label="Next page"
-          {...gestures(false, rowLift, rowPress)}
-          onClick={() => turn(page + 1)}
-        >
-          <ChevronIcon />
-        </motion.button>
-      </div>
-
-      <div id="save-page-dots" className="vu-pages-dots">
-        {Array.from({ length: pageCount }, (_, index) =>
-          index === page ? (
-            <span key={index} className="vu-pages-dot vu-pages-dot--on" aria-current="true" />
-          ) : (
-            <motion.button
-              key={index}
-              id={`save-page-dot-${index}`}
-              className="vu-pages-dot"
-              type="button"
-              aria-label={`Page ${index + 1}`}
-              {...gestures(false, quietLift, quietPress)}
-              onClick={() => turn(index)}
-            />
-          )
-        )}
-      </div>
-    </div>
+    <PageArrows
+      id={id}
+      idPrefix="save-page"
+      page={page}
+      pageCount={pageCount}
+      onPage={onPage}
+      busy={busy}
+    >
+      <motion.ul
+        key={page}
+        className="vu-pages-grid"
+        variants={PAGE_DEAL}
+        initial="hidden"
+        animate={held ? 'hidden' : 'shown'}
+      >
+        {entries.map((entry, index) => (
+          <SaveCell
+            // A cell is a place on the page, whatever it holds.
+            key={index}
+            entry={entry}
+            mode={mode}
+            busy={busy}
+            onPick={onPick}
+            onPickEmpty={onPickEmpty}
+            onDelete={onDelete}
+          />
+        ))}
+      </motion.ul>
+    </PageArrows>
   )
 }
 

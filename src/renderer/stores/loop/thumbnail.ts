@@ -1,7 +1,6 @@
 import { cgRel, roomRel, spriteRel } from '@shared/characterFiles'
 import type { BgVariant } from '@shared/customBackgrounds'
 import { messageOf } from '@shared/errors'
-import { isPosition } from '@shared/positions'
 import type { RoomVariant } from '@shared/room'
 import {
   stageCgPlacement,
@@ -20,7 +19,8 @@ import { isEpilogueNight } from '../../prompts/graduation'
 import { bgThumbUrl, customBackgroundOf, roomOwnerOf, SLOT_BG } from '../../views/bgAssets'
 import { useAssetStore } from '../assetStore'
 import { stageContextOf, useGameStore } from '../gameStore'
-import { displaySlotsOf, displaySpriteRef } from '../stageDisplay'
+import { noNsfwImagesOf, useSettingsStore } from '../settingsStore'
+import { displayedCgOf, displaySlotsOf, displaySpriteRef } from '../stageDisplay'
 import { stageOnLoad } from '../stageStep'
 import { blobToBase64, canvasToBlob } from './encode'
 import { currentRun, runStale } from './state'
@@ -199,13 +199,23 @@ export async function composeStageThumbnail(scene: SceneState): Promise<string |
     ? 'night'
     : slotHalf(game.time)
 
-  // Nobody on the stage — the landing, an exam, a scene everyone has left — is drawn by no
-  // picture: the card shows the background's own thumbnail instead, which is the same picture.
+  // A CG stands in for the whole row, as it does on the stage, and a locked one is drawn over an
+  // empty row as well.
   const shown = displaySlotsOf(stage.slots, stage.stageOverride)
   const row = shown.filter(
     (charId): charId is string => charId !== null && Boolean(game.characters[charId])
   )
-  if (row.length === 0) return null
+  const cg = displayedCgOf({
+    shown,
+    emotions: stage.emotions,
+    lock: scene.cgLock,
+    hasCharacter: (charId) => Boolean(game.characters[charId]),
+    ready: { cgReady: game.cgReady, customCgReady: game.customCgReady },
+    noNsfwImages: noNsfwImagesOf(useSettingsStore.getState())
+  })
+  // Nobody on the stage and no CG — the landing, an exam, a scene everyone has left — is drawn
+  // by no picture: the card shows the background's own thumbnail instead, which is the same one.
+  if (row.length === 0 && !cg) return null
 
   try {
     const bitmap = await backgroundLayer(bgOverride ?? stage.bg ?? SLOT_BG, half)
@@ -216,12 +226,10 @@ export async function composeStageThumbnail(scene: SceneState): Promise<string |
     leftOut('its background', err)
   }
 
-  // A CG stands in for the whole row, as it does on the stage.
-  const cgCharId = row.find((charId) => isPosition(stage.emotions[charId] ?? ''))
-  if (cgCharId) {
+  if (cg) {
     try {
-      const rel = cgRel(stage.emotions[cgCharId])
-      const bitmap = await characterLayer(cgCharId, rel, stageCgPlacement(1).height)
+      const height = stageCgPlacement(1).height
+      const bitmap = await characterLayer(cg.charId, cgRel(cg.position), height)
       if (runStale(run)) return null
       if (bitmap) {
         drawPlaced(ctx, bitmap, stageCgPlacement(bitmap.width / bitmap.height), false)
@@ -237,7 +245,8 @@ export async function composeStageThumbnail(scene: SceneState): Promise<string |
         const ref = displaySpriteRef(
           stage.emotions[charId] ?? 'neutral',
           scene.outfitLock?.[charId],
-          game.outfitReady[charId]
+          game.outfitReady[charId],
+          game.customCgReady[charId]
         )
         // A portrait's height is her scale's alone; only its width waits on the decoded image.
         const height = stagePortraitPlacement(index, row.length, scale, 1).height

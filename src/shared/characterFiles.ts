@@ -1,7 +1,7 @@
 import { isEmotion } from './emotions'
 import { appError } from './errors'
 import { FIX_IMAGE, isOutfitSet, parseSpriteRef } from './outfits'
-import { isPosition } from './positions'
+import { customCgSlotOf, isCustomCgSlot, isPosition, isStockPosition } from './positions'
 import { roomStem, roomVariantOfStem, ROOM_VARIANTS, type RoomVariant } from './room'
 import type { OutfitSet, SetTarget, SpriteRef, WardrobeLayer, WardrobeTarget } from './types'
 
@@ -60,8 +60,14 @@ const EXPRESSIONS_DIR = 'expressions'
 /** The alternate wardrobes' folder, one subfolder per set. */
 export const OUTFITS_DIR = 'outfits'
 
-/** The CGs' folder. */
+/** The stock CGs' folder. */
 const CGS_DIR = 'cg'
+
+/**
+ * The custom CG pairs' folder, one subfolder per slot — never inside the stock CGs' folder,
+ * which a stock regenerate replaces whole.
+ */
+export const CUSTOM_CGS_DIR = 'customcg'
 
 /** Where a regenerate's images land until they are committed over the live set. */
 export const STAGING_DIR = 'staging'
@@ -99,9 +105,12 @@ export function outfitRel(set: string, emotion: string): string {
   return `${OUTFITS_DIR}/${set}/${emotion}${IMAGE_EXTENSION}`
 }
 
-/** `cg/{position}.png` — one CG. */
+/** `cg/{position}.png` — one stock CG; `customcg/{slot}/{position}.png` — a custom pair's image. */
 export function cgRel(position: string): string {
-  return `${CGS_DIR}/${position}${IMAGE_EXTENSION}`
+  const slot = customCgSlotOf(position)
+  return slot
+    ? `${CUSTOM_CGS_DIR}/${slot}/${position}${IMAGE_EXTENSION}`
+    : `${CGS_DIR}/${position}${IMAGE_EXTENSION}`
 }
 
 /** `room_{day|night}.png` — one room background, which sits loose in her folder. */
@@ -142,6 +151,7 @@ export function setDirRel(target: SetTarget): string {
   if (target === 'room') return ''
   if (target === 'default') return EXPRESSIONS_DIR
   if (target === 'cgs') return CGS_DIR
+  if (isCustomCgSlot(target)) return `${CUSTOM_CGS_DIR}/${target}`
   // Vocabulary check before `target` lands in a path.
   if (!isOutfitSet(target)) {
     throw appError('OUTFIT_SET_UNKNOWN', `"${String(target)}" is not an outfit set.`)
@@ -204,7 +214,10 @@ export function isCharFileRel(rel: string): boolean {
   const name = namedRel(segments[segments.length - 1])
   if (segments.length === 1) return roomVariantOfStem(stemOf(name)) !== null
   if (segments.length === 2 && segments[0] === EXPRESSIONS_DIR) return isExpressionFile(name)
-  if (segments.length === 2 && segments[0] === CGS_DIR) return isPosition(stemOf(name))
+  if (segments.length === 2 && segments[0] === CGS_DIR) return isStockPosition(stemOf(name))
+  if (segments.length === 3 && segments[0] === CUSTOM_CGS_DIR) {
+    return isCustomCgSlot(segments[1]) && customCgSlotOf(stemOf(name)) === segments[1]
+  }
   if (segments.length === 3 && segments[0] === OUTFITS_DIR) {
     return isOutfitSet(segments[1]) && (isEditorFile(name) || isEmotion(stemOf(name)))
   }

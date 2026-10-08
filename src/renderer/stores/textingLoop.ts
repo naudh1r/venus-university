@@ -53,6 +53,7 @@ import {
   type HangoutVerdict
 } from '../prompts/hangoutClassifierPrompt'
 import { buildTextingPrompt } from '../prompts/textingPrompt'
+import { upcomingPlanLines } from '../prompts/upcomingPlans'
 import {
   charKeyOf,
   READER_SPEAKER,
@@ -480,6 +481,12 @@ export async function sendMessage(charId: string, text: string): Promise<void> {
         charHaunt: charStandingHauntNow(charId),
         // The one absence a thread survives, so her block has to say it.
         springBreakAway: game.springBreakAway,
+        // From this slot on: texting comes before the slot's scene, so its own plan is still ahead.
+        upcomingPlans: upcomingPlanLines(
+          game.events,
+          game.characters,
+          globalSlotOf(game.date, game.time)
+        ),
         memoryBudget: memoryBudgetsOf(useSettingsStore.getState().settings ?? {}).one
       },
       // The same reader block a scene gets, grades and all.

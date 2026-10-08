@@ -10,6 +10,7 @@ import {
   type GameSave,
   type PlaythroughDraft,
   type PlaythroughRecord,
+  type PlaythroughSummary,
   type SaveDraft,
   type SaveSummary,
   type SceneLine,
@@ -48,6 +49,7 @@ const SAVE_REQUIRED: Record<
     | 'bio'
     | 'tallies'
     | 'thumbnail'
+    | 'replays'
   >,
   true
 > = {
@@ -94,8 +96,11 @@ const SAVE_REQUIRED: Record<
   scene: true
 }
 
-/** What a playthrough record must carry; where it is kept names the playthrough. */
-const RECORD_REQUIRED: Record<keyof Omit<PlaythroughRecord, 'mods'>, true> = {
+/**
+ * What a playthrough record must carry; where it is kept names the playthrough, and the name
+ * the player gives it is optional on the type and omitted here.
+ */
+const RECORD_REQUIRED: Record<keyof Omit<PlaythroughRecord, 'name' | 'mods'>, true> = {
   schemaVersion: true,
   chars: true,
   playerFirstName: true,
@@ -365,6 +370,45 @@ export function atLocation(save: GameSave, playthroughId: string, saveId: string
 /** One playthrough record with this build's version stamped on it. */
 export function stampRecord(draft: PlaythroughDraft): PlaythroughRecord {
   return { ...draft, schemaVersion: RECORD_SCHEMA_VERSION }
+}
+
+/** The longest name the player may give a playthrough. */
+export const PLAYTHROUGH_NAME_MAX = 32
+
+/**
+ * A playthrough name as it is kept: one line, its spaces collapsed and trimmed, cut to
+ * {@link PLAYTHROUGH_NAME_MAX} characters. Null for a blank one and for anything not a string.
+ */
+export function playthroughNameOf(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const name = Array.from(
+    raw.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()
+  )
+    .slice(0, PLAYTHROUGH_NAME_MAX)
+    .join('')
+    .trim()
+  return name === '' ? null : name
+}
+
+/** What Load Game calls a playthrough: the player's name for it, or its place in creation order. */
+export function playthroughLabel(name: string | null | undefined, position: number): string {
+  return name ?? `Playthrough ${position}`
+}
+
+/** A listing's fields with the player's name for the playthrough, where its record gives one. */
+export function withPlaythroughName<T extends Pick<PlaythroughSummary, 'label' | 'position'>>(
+  fields: T,
+  record: PlaythroughRecord | null
+): T & Pick<PlaythroughSummary, 'name'> {
+  const name = playthroughNameOf(record?.name)
+  return name === null ? fields : { ...fields, name, label: playthroughLabel(name, fields.position) }
+}
+
+/** The record with the player's name for it set, or dropped where the name is blank. */
+export function renamedRecord(record: PlaythroughRecord, raw: string): PlaythroughRecord {
+  const { name: _previous, ...rest } = record
+  const name = playthroughNameOf(raw)
+  return name === null ? rest : { ...rest, name }
 }
 
 /** One enrollment with its version and the moment it was set aside stamped on it. */

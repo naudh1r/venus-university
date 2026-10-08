@@ -110,13 +110,18 @@
    tier it has, and all three pills stand half again as large at the same moment; this size is
    what still leaves the two on the bottom row a gap between them when they do, on a 1440 stage,
    with both of them reading `Below Average` — the widest word on the ladder, and the one a pill
-   holds all the way through the swap, its cell being as wide as the wider of the two readings. */
+   holds all the way through the swap, its cell being as wide as the wider of the two readings,
+   over a figure that swaps `-1/0` for `0/15`. */
 .vu-rank-radar .vu-radar-tier {
   font-size: 22px;
 }
 
 .vu-rank-radar .vu-radar-points {
   font-size: 15px;
+}
+
+.vu-rank-radar .vu-radar-next {
+  font-size: 11px;
 }
 
 /* What the pill said, written down. It mirrors the answer on the sheet's other shoulder — the

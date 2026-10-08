@@ -51,7 +51,16 @@ export function EditMemoryModal({
     else onClose()
   }
 
-  const { host, overlayProps } = useModalShell(requestClose)
+  /** Save: a blank line saves nothing. */
+  function save(): void {
+    if (blank) return
+    useGameStore
+      .getState()
+      .replaceMemory(charId, memory, { date: memory.date, type, desc: storedMemoryDesc(desc) })
+    onClose()
+  }
+
+  const { host, overlayProps, primaryProps } = useModalShell(requestClose, 'panel', save)
 
   if (!host) return null
 
@@ -73,19 +82,17 @@ export function EditMemoryModal({
           aria-modal="true"
           aria-label="Edit memory"
           variants={panelUnderTab}
-          // A form, so Enter in the field is Save; a blank line saves nothing.
+          // A form, so Enter in the field is Save; the shell gives it to Enter and Space outside
+          // the fields.
           onSubmit={(event) => {
             event.preventDefault()
-            if (blank) return
-            useGameStore
-              .getState()
-              .replaceMemory(charId, memory, { date: memory.date, type, desc: storedMemoryDesc(desc) })
-            onClose()
+            save()
           }}
           // The key stops here, so no listener behind the panel answers it as well.
           onKeyDown={(event) => {
             if (event.key === 'Enter') event.stopPropagation()
           }}
+          {...primaryProps}
         >
           <TitleTab>Edit memory</TitleTab>
 

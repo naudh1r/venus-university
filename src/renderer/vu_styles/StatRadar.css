@@ -107,10 +107,21 @@
   font: 700 19px/1 var(--font-body);
 }
 
-.vu-radar-points {
+/* The figure and, smaller still on its baseline, the threshold that buys the next tier. */
+.vu-radar-figure {
+  display: flex;
   align-self: center;
+  align-items: baseline;
+}
+
+.vu-radar-points {
   color: var(--vu-text-muted);
   font: 700 13px var(--font-mono);
+}
+
+.vu-radar-next {
+  color: var(--vu-text-muted);
+  font: 700 10px var(--font-mono);
 }
 
 /* The two readings a badge carries where its stat just crossed a tier: stacked in **one grid
@@ -123,4 +134,9 @@
 
 .vu-radar-swap > * {
   grid-area: 1 / 1;
+}
+
+/* The figure is the one reading set right, against the threshold that follows it. */
+.vu-radar-points.vu-radar-swap {
+  justify-items: end;
 }

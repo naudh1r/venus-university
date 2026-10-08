@@ -45,6 +45,12 @@
   overflow: hidden auto;
 }
 
+/* The replay's box under the rows, held to its own words so only they toggle it. */
+.vu-memedit-replay {
+  display: flex;
+  flex: none;
+}
+
 /* ---- the row -------------------------------------------------------------- */
 
 /* One memory across one line: face, name, how, `that`, what. The row stands on the field's

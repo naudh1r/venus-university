@@ -51,8 +51,8 @@ export interface RankUpModalProps {
 
 /**
  * Three layers and what is printed on the near one. **Escape and a click on the dimming are the
- * button**: there is one answer here and nothing to lose by giving it, so the shell's own rule
- * needs no exception.
+ * button**, as Enter and Space are once it has landed: there is one answer here and nothing to
+ * lose by giving it, so the shell's own rule needs no exception.
  */
 export function RankUpModal({
   ups,
@@ -61,7 +61,7 @@ export function RankUpModal({
   theme,
   onClose
 }: RankUpModalProps): JSX.Element | null {
-  const { host, overlayProps } = useModalShell(onClose, 'none')
+  const { host, overlayProps, primaryProps } = useModalShell(onClose, 'none', onClose)
   if (!host) return null
 
   return createPortal(
@@ -119,7 +119,7 @@ export function RankUpModal({
       {/* The answer, in the stage's own corner rather than the sheet's: the sheet's bottom-right
           is below the stage, and this is the screen asking. It arrives on the sheet's own clock,
           so it lands as the surface it is read against does. */}
-      <motion.div className="vu-foot vu-rank-foot" variants={rankFoot}>
+      <motion.div className="vu-foot vu-rank-foot" variants={rankFoot} {...primaryProps}>
         <motion.button
           id="rank-up-ok"
           type="button"

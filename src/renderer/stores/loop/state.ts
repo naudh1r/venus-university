@@ -2,6 +2,7 @@ import type {
   BankedOpening,
   Character,
   LedgerResponse,
+  PlaythroughRecord,
   SaveDraft,
   SceneLine,
   SceneState
@@ -37,6 +38,8 @@ export interface TurnSnapshot {
   preset?: Verdict
   /** The plan whose landing button this turn is, so a retry casts its attendees again. */
   planId?: string
+  /** This turn is a Scene Creator scene's opening, so a retry sends it again. */
+  created?: boolean
 }
 
 /**
@@ -62,6 +65,9 @@ export interface ProjectWork {
 export const loopState = {
   /** One stay inside a playthrough; continuations bail when it goes stale. */
   runToken: {} as object,
+
+  /** The playthrough record the game being played was entered with, held for a replay's return. */
+  record: null as PlaythroughRecord | null,
 
   /** The next slot's opening, paid for and waiting for the boundary. */
   bankedOpening: null as BankedOpening | null,
@@ -94,8 +100,11 @@ export const loopState = {
   /** What an ending call's failure modal is waiting on, while the player answers it. */
   endingGate: null as ((answer: EndingAnswer) => void) | null,
 
-  /** What the boundary's memory question is waiting on, while the player answers it. */
-  memoryGate: null as ((answers: readonly MemoryAnswer[]) => void) | null,
+  /**
+   * What the boundary's memory question is waiting on, while the player answers it: the rows as
+   * left, and whether the scene is kept for the calendar to replay.
+   */
+  memoryGate: null as ((answers: readonly MemoryAnswer[], keepReplay: boolean) => void) | null,
 
   /** Serializes the ending's failure modals — two calls, one screen. */
   modalQueue: Promise.resolve() as Promise<void>,
@@ -118,8 +127,11 @@ export const loopState = {
    */
   endingArt: null as Promise<void> | null,
 
-  /** The epilogue's status-update call has been made this stay; nothing waits on it. */
+  /** The epilogue's status-update call has been made this stay. */
   endingPosts: false,
+
+  /** That call while it is still out, so the calendar's replay can wait for it to settle. */
+  endingPostsCall: null as Promise<void> | null,
 
   /**
    * The ending in progress; re-minted to drop it, so each of its continuations bails at its next
@@ -293,5 +305,8 @@ export function resetLoopState(): void {
   loopState.endingArt = null
   // The next stay asks again, and `endingPostsDelivered` is what stops it filing twice.
   loopState.endingPosts = false
+  loopState.endingPostsCall = null
   loopState.examOpening = null
+  // The next game names its own.
+  loopState.record = null
 }

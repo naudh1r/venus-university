@@ -1,7 +1,7 @@
 import { useRef, useState, type JSX, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
-import { POSITIONS } from '@shared/positions'
+import { STOCK_CG_DISPLAY_ORDER } from '@shared/positions'
 import { ROOM_VARIANTS, type RoomVariant } from '@shared/room'
 import { ROOM_PICTURE_TYPES } from '@shared/roomPicture'
 import { useModalShell } from '../components/useModalShell'
@@ -21,6 +21,8 @@ import {
   lift,
   panelUnderTab,
   press,
+  quietLift,
+  quietPress,
   revealed,
   rowPress,
   spin,
@@ -48,7 +50,7 @@ const KINDS: Record<
 > = {
   cgs: {
     title: 'NSFW CG',
-    keys: POSITIONS,
+    keys: STOCK_CG_DISPLAY_ORDER,
     pair: false,
     urlOf: (charId, key, version, staged) => spriteUrl(charId, key as Position, version, staged),
     labelOf: (key) => key.replaceAll('_', ' ')
@@ -156,12 +158,14 @@ export interface ImageGalleryModalProps {
   onRegenerate?: (position: Position) => void
   /** Whether a room background may be replaced by a picture the player picks, by clicking it. */
   uploadEnabled?: boolean
+  /** Opens the player's own CGs; absent where none of them are the player's to make. */
+  onCustomCgs?: () => void
   onClose: () => void
 }
 
 /**
- * A character's landscape images at full size — all eight CGs four across, or the two
- * room backgrounds side by side, each captioned at rest.
+ * A character's landscape images at full size — the eight stock CGs four across, each act's
+ * `_after` under it, or the two room backgrounds side by side, each captioned at rest.
  */
 export function ImageGalleryModal({
   charId,
@@ -170,6 +174,7 @@ export function ImageGalleryModal({
   regenEnabled,
   onRegenerate,
   uploadEnabled,
+  onCustomCgs,
   onClose
 }: ImageGalleryModalProps): JSX.Element | null {
   const spec = KINDS[kind]
@@ -312,6 +317,17 @@ export function ImageGalleryModal({
         )}
 
         <div className="vu-foot">
+          {kind === 'cgs' && onCustomCgs && (
+            <motion.button
+              id="cgs-gallery-custom"
+              className="vu-btn vu-btn--quiet"
+              type="button"
+              {...gestures(false, quietLift, quietPress)}
+              onClick={onCustomCgs}
+            >
+              Custom CG
+            </motion.button>
+          )}
           <motion.button
             id={`${kind}-gallery-close`}
             className="vu-btn vu-btn--primary vu-paper vu-btn--panel"

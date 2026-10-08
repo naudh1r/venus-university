@@ -1,4 +1,4 @@
-import { useRef, useState, type JSX } from 'react'
+import { useState, type JSX } from 'react'
 import { motion } from 'motion/react'
 import { EMOTIONS } from '@shared/emotions'
 import { spriteRef } from '@shared/outfits'
@@ -15,8 +15,8 @@ import {
 } from '../views/motion'
 import { EyeOffIcon, PlusIcon } from '../views/screenIcons'
 import { DeadNote } from './DeadNote'
+import { RenameBox } from './RenameBox'
 import { SetControl, type SetControlProps } from './SetControl'
-import { useDismissLayer } from './useModalShell'
 
 export interface WardrobeColumnProps {
   charId: string
@@ -61,6 +61,8 @@ export interface WardrobeColumnProps {
   addDisabled?: boolean
   /** Makes the title a control that renames the set, with the cap and the name it opens on. */
   rename?: { value: string; placeholder: string; max: number; onCommit: (name: string) => void }
+  /** Opens what the writer is told about when to use the set; absent where it is not offered. */
+  onInstructions?: () => void
   /** Throws the whole set away; absent where the column does not offer that. */
   onDelete?: () => void
   deleteDisabled?: boolean
@@ -98,6 +100,7 @@ export function WardrobeColumn({
   onAdd,
   addDisabled = false,
   rename,
+  onInstructions,
   onDelete,
   deleteDisabled = false
 }: WardrobeColumnProps): JSX.Element {
@@ -107,17 +110,8 @@ export function WardrobeColumn({
   // Whether the sprite is under the cursor, which is what raises the pill over it.
   const [over, setOver] = useState(false)
   const [index, setIndex] = useState(0)
-  // The title while it is being typed over; the committed name comes back down as `title`.
+  // Whether the title is being typed over; the committed name comes back down as `title`.
   const [renaming, setRenaming] = useState(false)
-  const [nameText, setNameText] = useState('')
-  // Set by Escape or a right-click, so the blur that follows the box leaving commits nothing.
-  const renameDropped = useRef(false)
-  /* Escape or a right-click off the box puts the old name back, and it is answered here ahead
-     of the modal behind the box, which would otherwise close on the same press. */
-  useDismissLayer(() => {
-    renameDropped.current = true
-    setRenaming(false)
-  }, renaming)
   const emotion = EMOTIONS[index]
   const step = (by: number): void => setIndex((i) => (i + by + EMOTIONS.length) % EMOTIONS.length)
 
@@ -163,30 +157,13 @@ export function WardrobeColumn({
     <section className="vu-wardrobe">
       <div className="vu-wardrobe-head">
         {rename && renaming ? (
-          <input
+          <RenameBox
             className="vu-input vu-wardrobe-rename"
-            type="text"
-            maxLength={rename.max}
+            value={rename.value}
             placeholder={rename.placeholder}
-            value={nameText}
-            autoFocus
-            onChange={(event) => setNameText(event.target.value)}
-            onBlur={() => {
-              setRenaming(false)
-              if (renameDropped.current) {
-                renameDropped.current = false
-                return
-              }
-              rename.onCommit(nameText.trim())
-            }}
-            // Enter commits through the blur rather than through a form, and reaches nothing
-            // behind the box.
-            onKeyDown={(event) => {
-              if (event.key !== 'Enter') return
-              event.preventDefault()
-              event.stopPropagation()
-              event.currentTarget.blur()
-            }}
+            max={rename.max}
+            onCommit={rename.onCommit}
+            onDone={() => setRenaming(false)}
           />
         ) : rename ? (
           <motion.button
@@ -194,11 +171,7 @@ export function WardrobeColumn({
             type="button"
             aria-label="Rename outfit"
             {...gestures(false, quietLift, quietPress)}
-            onClick={() => {
-              renameDropped.current = false
-              setNameText(rename.value)
-              setRenaming(true)
-            }}
+            onClick={() => setRenaming(true)}
           >
             {title}
           </motion.button>
@@ -327,8 +300,8 @@ export function WardrobeColumn({
       {/* Inline actions, so they stay underlined at rest. The transparency repair says nothing
           about its own gate — the count above, the control below and `NOT GENERATED` in the
           archway have already said it — while the hand fix is a render too, and a missing
-          install is raised over it. */}
-      {(onFixTransparency || onFixFingers) && (
+          install is raised over it. A custom set's instructions are words, live whatever runs. */}
+      {(onFixTransparency || onFixFingers || onInstructions) && (
         <div className="vu-wardrobe-links">
           {onFixTransparency && (
             <motion.button
@@ -353,6 +326,16 @@ export function WardrobeColumn({
                 Fix fingers
               </motion.button>
             </DeadNote>
+          )}
+          {onInstructions && (
+            <motion.button
+              className="vu-wardrobe-fix"
+              type="button"
+              {...gestures(false, linkLift, rowPress)}
+              onClick={onInstructions}
+            >
+              Instructions
+            </motion.button>
           )}
         </div>
       )}

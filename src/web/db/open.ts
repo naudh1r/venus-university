@@ -4,6 +4,8 @@ import type { BackupPlaythrough } from '@shared/backup'
 import type { BgVariant, CustomBackground } from '@shared/customBackgrounds'
 import { appError, messageOf } from '@shared/errors'
 import type { PhotoMeta } from '@shared/photos'
+import type { SlotReplay } from '@shared/replays'
+import type { SavedScene } from '@shared/sceneCreator'
 import type { Character, GameSave, GrabBags, Settings } from '@shared/types'
 
 /**
@@ -54,6 +56,8 @@ export interface VenusUniversityDb extends DBSchema {
   charFiles: { key: [string, string]; value: CharFile }
   log: { key: 'log'; value: string }
   backgrounds: { key: string; value: StoredBackground }
+  scenes: { key: string; value: SavedScene }
+  replays: { key: [string, string]; value: SlotReplay }
 }
 
 /**
@@ -72,10 +76,12 @@ const STORES = [
   'log',
   'profilePictures',
   'photos',
-  'backgrounds'
+  'backgrounds',
+  'scenes',
+  'replays'
 ] as const
 
-const DB_VERSION = 5
+const DB_VERSION = 7
 
 let opened: Promise<IDBPDatabase<VenusUniversityDb>> | null = null
 

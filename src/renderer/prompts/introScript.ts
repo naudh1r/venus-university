@@ -126,6 +126,16 @@ export const EPILOGUE_REVEAL: ReadonlySet<RevealKey> = new Set<RevealKey>([
   'chatlog'
 ])
 
+/**
+ * A replay from the calendar's set: the menu, the eye and the log, and nothing that would act on
+ * a scene already played or reach the game held behind it.
+ */
+export const REPLAY_REVEAL: ReadonlySet<RevealKey> = new Set<RevealKey>([
+  'settings',
+  'hideui',
+  'chatlog'
+])
+
 /** Every key — what a slot the player holds the turn on shows, which is every slot but the first. */
 export const ALL_REVEALED: ReadonlySet<RevealKey> = new Set<RevealKey>([
   'settings',

@@ -33,13 +33,22 @@ You will need externally kept data for testing:
 ### Manage Characters
 - [ ] Open manage characters and import a character. Click it and open Edit Character. Click through all expressions on each outfit. Open NSFW CG and room BG.
 - [ ] Regenerate an expression, then an outfit, then the Room BG, then an NSFW CG. Change a tag for each one and verify that on the next regenerate, the tag is still there.
-- [ ] Change the pose and generate a Custom outfit: jumpsuit.
+- [ ] Change the pose and generate a custom outfit called `tuesday` with the tag `jumpsuit`. Set the instruction to `it's Tuesday`.
+- [ ] Create a custom NSFW CG with a proper instruction.
 - [ ] Test Fix Holes.
 - [ ] Test Fix Fingers.
 - [ ] Change every field on the right side and verify that Save changes works.
 - [ ] Export the character and reimport it. Delete the duplicate.
 - [ ] Generate a blank character. Scroll through the boxes and check that nothing is prefilled. Upload a custom BG. Clean it up with unfinished characters.
 - [ ] Generate a character, checking every box
+
+### Scene Creator
+- [ ] Open the scene creator and add three characters. Set disposition, milestones, and notes for all.
+- [ ] Choose a time of day and a BG.
+- [ ] Add something to the player bio.
+- [ ] Start the scene.
+- [ ] Finish the scene. 
+- [ ] Load the scene and replay it.
 
 ### Game
 - [ ] Create a quick start save and play to the first decision point. Return to main menu and continue.
@@ -53,16 +62,17 @@ You will need externally kept data for testing:
 - [ ] Click Report a bug. Check that Download log works.
 - [ ] Save the game on the second line, play to the end, then load the manual save. Load the autosave.
 - [ ] Interrupt an ending screen. Click the "Don't warn". Check that it's on the set-up screen. Keep playing, then interrupt the ending again later.
-- [ ] Play to the end. Edit the memory. 
+- [ ] Play to the end. Edit the memory. Save the scene.
 - [ ] Open Bunnyboard. Check Chats. Check Friends and request the girl met as a friend. Check updates and like some posts. Check profile and verify that girls met and tokens generated updated. Verify that Bio is there. Upload a profile picture.
 - [ ] Open Calendar and click through to the end. Check some occasions.
-- [ ] Play another scene. Edit the output so you end up sleeping with a girl. Check that she sends a friend request after. 
+- [ ] Play another scene. Edit the output so you end up sleeping with a girl. Save the scene. Check that she sends a friend request after. 
 - [ ] Play until the requested girl's friend request comes back, and check her edited memory.
 - [ ] Go to class. Load a game from inside that scene. Load back and attend the class. Create a scheduled date with a girl via editing.
 - [ ] Apply for a part time job.
 - [ ] Attend the scheduled date.
 - [ ] Go to the job shift.
 - [ ] Do a solo scene.
+- [ ] Replay a saved scene.
 
 ### Second Week
 - [ ] Attend class and verify that a fact is learned. 

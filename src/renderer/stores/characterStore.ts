@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { bytesToBase64 } from '@shared/base64'
 import { profileRel, roomRel, spriteRel } from '@shared/characterFiles'
 import { blankSheet, isWritten } from '@shared/characterRules'
+import { customCgAfterEdit, withCustomCg, withoutCustomCg } from '@shared/customCgs'
 import { EMOTIONS } from '@shared/emotions'
 import { appError, isAppError, messageOf, toAppError } from '@shared/errors'
 import { cardFileName, spritePackFileName } from '@shared/sillyTavern'
@@ -18,13 +19,23 @@ import {
   withCustomOutfit,
   withoutCustomOutfit
 } from '@shared/outfits'
-import { isPosition, POSITIONS } from '@shared/positions'
+import {
+  afterOf,
+  CUSTOM_CG_SLOTS,
+  customCgSlotOf,
+  isCustomCgSlot,
+  isPosition,
+  isStockPosition,
+  STOCK_POSITIONS
+} from '@shared/positions'
 import { withRegenEdit } from '@shared/regenTags'
 import type {
   AppError,
   Character,
   CharacterBrief,
   CgTarget,
+  CustomCg,
+  CustomCgSlot,
   CustomOutfit,
   CustomOutfitSlot,
   Emotion,
@@ -42,6 +53,7 @@ import type {
   SeededSet,
   SetTarget,
   SpriteRef,
+  StockPosition,
   WardrobeFixImage,
   WardrobeLayer
 } from '@shared/types'
@@ -91,7 +103,7 @@ export function isInFlight(progress?: CharacterProgress): boolean {
 }
 
 /** A kind of image work a run can do; each kind is its own progress bucket on the card. */
-type RenderTaskKind = 'expressions' | 'cgs' | 'cg' | 'outfit' | 'room' | 'expression'
+type RenderTaskKind = 'expressions' | 'cgs' | 'cg' | 'outfit' | 'room' | 'expression' | 'customCg'
 
 /** One bucket of a run, counted from THIS run's completions — never from disk. */
 export interface RenderTask {
@@ -100,6 +112,8 @@ export interface RenderTask {
   set?: OutfitSet
   /** Which CG a `cg` bucket is re-rolling; absent for the other kinds. */
   position?: Position
+  /** Which pair a `customCg` bucket is rendering; absent for the other kinds. */
+  cgSlot?: CustomCgSlot
   /** Which sprite an `expression` bucket is re-rolling; absent for the other kinds. */
   emotion?: Emotion
   done: number
@@ -131,6 +145,11 @@ type ExportOutcome = 'exported' | 'cancelled' | 'failed'
 /** The {@link CgTarget} naming one position — the spelling every id here answers to. */
 export function cgTargetFor(position: Position): CgTarget {
   return `cg:${position}`
+}
+
+/** The two images one custom CG slot holds: its main, then its after. */
+function pairOf(slot: CustomCgSlot): Position[] {
+  return [slot, afterOf(slot)]
 }
 
 /** True for the one-CG form. */
@@ -200,9 +219,12 @@ export function liveTaskFor(
   return task && !task.cancelled && !task.finished ? task : undefined
 }
 
-/** Which CGs are being re-rolled on their own right now. */
-export function liveCgTasks(progress: CharacterProgress | undefined): Position[] {
-  return POSITIONS.filter((position) => liveTaskFor(progress, cgTargetFor(position)))
+/** Which of `positions` are being re-rolled on their own right now; the stock set's by default. */
+export function liveCgTasks(
+  progress: CharacterProgress | undefined,
+  positions: readonly Position[] = STOCK_POSITIONS
+): Position[] {
+  return positions.filter((position) => liveTaskFor(progress, cgTargetFor(position)))
 }
 
 /** Which of one wardrobe's sprites are being re-rolled on their own right now. */
@@ -286,11 +308,14 @@ interface CharacterStoreState {
   cancelSet: (charId: string, target: RenderTarget) => Promise<void>
   /** Persists edits made in the EditCharacterModal. */
   save: (character: Character) => Promise<boolean>
-  /** Writes one player-authored wardrobe's tags and name onto her record. */
+  /**
+   * Merges a write into one player-authored wardrobe on her record as it stands at its turn;
+   * a field the patch leaves out keeps what the slot holds.
+   */
   writeCustomOutfit: (
     charId: string,
     slot: CustomOutfitSlot,
-    entry: CustomOutfit
+    patch: Partial<CustomOutfit>
   ) => Promise<boolean>
   /** Keeps every group one regenerate button sent on her record, for the modal to reopen on. */
   writeRegenTags: (charId: string, target: RegenTarget, edit: PromptEdit) => Promise<boolean>
@@ -299,6 +324,16 @@ interface CharacterStoreState {
    * while anything of that set is still rendering.
    */
   deleteCustomOutfit: (charId: string, slot: CustomOutfitSlot) => Promise<boolean>
+  /**
+   * Merges a write into one player-authored CG pair on her record as it stands at its turn;
+   * a field the patch leaves out keeps what the slot holds.
+   */
+  writeCustomCg: (charId: string, slot: CustomCgSlot, patch: Partial<CustomCg>) => Promise<boolean>
+  /**
+   * Deletes one player-authored CG pair, both its images and its record entry; refused outright
+   * while the pair or either of its images is still rendering.
+   */
+  deleteCustomCg: (charId: string, slot: CustomCgSlot) => Promise<boolean>
   /** Writes one character out as a zip through the native save dialog. */
   exportCharacter: (charId: string) => Promise<ExportOutcome>
   /** Composes a SillyTavern card for one character and saves it where the player picks. */
@@ -648,14 +683,20 @@ export const useCharacterStore = create<CharacterStoreState>((set, get) => ({
     patchCharacter(
       character.charId,
       (current) => {
-        // The run owns the seeds, the custom wardrobes and what each regenerate last sent, so a
-        // Save landing mid-render keeps what a bucket or a modal has just written.
-        const { customOutfits: _stale, regenTags: _kept, ...edited } = character
+        // The run owns the seeds, the custom wardrobes and CG pairs and what each regenerate last
+        // sent, so a Save landing mid-render keeps what a bucket or a modal has just written.
+        const {
+          customOutfits: _stale,
+          customCgs: _staleCgs,
+          regenTags: _kept,
+          ...edited
+        } = character
         return {
           ...edited,
           setSeeds: current.setSeeds,
           seedFollowsMain: current.seedFollowsMain,
           ...(current.customOutfits ? { customOutfits: current.customOutfits } : {}),
+          ...(current.customCgs ? { customCgs: current.customCgs } : {}),
           ...(current.regenTags ? { regenTags: current.regenTags } : {})
         }
       },
@@ -663,8 +704,8 @@ export const useCharacterStore = create<CharacterStoreState>((set, get) => ({
       get
     ),
 
-  writeCustomOutfit: (charId, slot, entry) =>
-    patchCharacter(charId, (current) => withCustomOutfit(current, slot, entry), set, get),
+  writeCustomOutfit: (charId, slot, patch) =>
+    patchCharacter(charId, (current) => withCustomOutfit(current, slot, patch), set, get),
 
   writeRegenTags: (charId, target, edit) => {
     // An entry the record already holds word for word is not written again: a repeated roll
@@ -697,6 +738,35 @@ export const useCharacterStore = create<CharacterStoreState>((set, get) => ({
     const outfits = await window.api.chars.outfits(charId)
     set((state) => ({
       ...(outfits.ok ? { outfits: { ...state.outfits, [charId]: outfits.data } } : {}),
+      ...bumpSpriteVersion(state, charId)
+    }))
+    return written
+  },
+
+  writeCustomCg: (charId, slot, patch) =>
+    patchCharacter(charId, (current) => withCustomCg(current, slot, patch), set, get),
+
+  deleteCustomCg: async (charId, slot) => {
+    // Its folder is being written into: there is nothing to say to that but no.
+    const progress = get().progress[charId]
+    if (liveTaskFor(progress, slot) || liveCgTasks(progress, pairOf(slot)).length > 0) return false
+
+    const removed = await window.api.chars.deleteSet(charId, slot)
+    if (!removed.ok) {
+      useUiStore.getState().showError(removed.error)
+      return false
+    }
+
+    const written = await patchCharacter(
+      charId,
+      (current) => withoutCustomCg(current, slot),
+      set,
+      get
+    )
+
+    const cgs = await window.api.chars.cgs(charId)
+    set((state) => ({
+      ...(cgs.ok ? { cgs: { ...state.cgs, [charId]: cgs.data } } : {}),
       ...bumpSpriteVersion(state, charId)
     }))
     return written
@@ -1010,13 +1080,14 @@ async function adoptCharacter(character: Character, set: SetState): Promise<void
  */
 type RenderTaskSpec =
   | ({ kind: 'expressions'; emotions: Emotion[] } & Staging & Edited)
-  | ({ kind: 'cgs'; positions: Position[] } & SetPlan & Staging & Edited)
+  | ({ kind: 'cgs'; positions: StockPosition[] } & SetPlan & Staging & Edited)
   // No SetPlan: a CG re-roll's seed is never recorded.
   | ({ kind: 'cg'; position: Position; seed: number } & Staging & Edited)
   // No SetPlan: one sprite's seed is never recorded either.
   | ({ kind: 'expression'; set: OutfitSet | null; emotion: Emotion; seed: number } & Staging &
       Edited)
   | ({ kind: 'outfit'; set: OutfitSet; emotions: Emotion[] } & SetPlan & Staging & Edited)
+  | ({ kind: 'customCg'; slot: CustomCgSlot; positions: Position[] } & SetPlan & Staging & Edited)
   // No SetPlan: the room is a cloud render with no seed to record.
   | ({ kind: 'room'; variants: RoomVariant[] } & Staging)
 
@@ -1123,7 +1194,9 @@ export function seedPrefillFor(
     return { seed: setSeedOf(character, sprite?.set ?? null), random: true }
   }
   if (isCgTarget(target)) {
-    return { seed: character.setSeeds.cg ?? character.generationSeed, random: true }
+    // The seed of the set it belongs to: its own pair's for a custom CG, the stock set's otherwise.
+    const key: SeededSet = customCgSlotOf(target.slice('cg:'.length)) ?? 'cg'
+    return { seed: character.setSeeds[key] ?? character.generationSeed, random: true }
   }
   if (target === 'default') return { seed: character.generationSeed, random: true }
 
@@ -1164,7 +1237,7 @@ function optionalSpecs(
   if (options.swim) specs.push(outfit('swim'))
   if (options.nude && !sfwWithholds('nude', noNsfwImages)) specs.push(outfit('nude'))
   if (options.cgs && !sfwWithholds('cgs', noNsfwImages)) {
-    specs.push({ kind: 'cgs', positions: [...POSITIONS], staged: true, ...plan('cgs') })
+    specs.push({ kind: 'cgs', positions: [...STOCK_POSITIONS], staged: true, ...plan('cgs') })
   }
   if (options.room) specs.push({ kind: 'room', variants: [...ROOM_VARIANTS], staged: true })
   return specs
@@ -1241,6 +1314,7 @@ function bucketIdOfTask(task: RenderTask): string {
   }
   if (task.kind === 'outfit') return `outfit:${task.set}`
   if (task.kind === 'cg') return `cg:${task.position}`
+  if (task.kind === 'customCg') return `customcg:${task.cgSlot}`
   return task.kind
 }
 
@@ -1253,6 +1327,7 @@ function bucketIdFor(target: RenderTarget): string {
   if (target === 'room') return 'room'
   // A single CG is its own bucket, and its id is the job key it occupies.
   if (isCgTarget(target)) return target
+  if (isCustomCgSlot(target)) return `customcg:${target}`
   return `outfit:${target}`
 }
 
@@ -1263,13 +1338,17 @@ function targetOfSpec(spec: RenderTaskSpec): RenderTarget {
   if (spec.kind === 'cgs') return 'cgs'
   if (spec.kind === 'cg') return cgTargetFor(spec.position)
   if (spec.kind === 'room') return 'room'
+  if (spec.kind === 'customCg') return spec.slot
   return spec.set
 }
 
-/** The identifying half of a task — `kind` plus whatever of `set`/`position`/`emotion` names it. */
+/**
+ * The identifying half of a task — `kind` plus whatever of `set`/`position`/`emotion`/`cgSlot`
+ * names it.
+ */
 export function taskShapeOf(
   target: RenderTarget
-): Pick<RenderTask, 'kind' | 'set' | 'position' | 'emotion'> {
+): Pick<RenderTask, 'kind' | 'set' | 'position' | 'emotion' | 'cgSlot'> {
   if (isExpressionTarget(target)) {
     const sprite = spriteOfTarget(target)
     return { kind: 'expression', set: sprite?.set ?? undefined, emotion: sprite?.emotion }
@@ -1278,6 +1357,7 @@ export function taskShapeOf(
   if (target === 'default') return { kind: 'expressions' }
   if (target === 'cgs') return { kind: 'cgs' }
   if (target === 'room') return { kind: 'room' }
+  if (isCustomCgSlot(target)) return { kind: 'customCg', cgSlot: target }
   return { kind: 'outfit', set: target }
 }
 
@@ -1285,7 +1365,7 @@ export function taskShapeOf(
 function specKeys(spec: RenderTaskSpec): readonly string[] {
   if (spec.kind === 'expression') return [spec.emotion]
   if (spec.kind === 'cg') return [spec.position]
-  if (spec.kind === 'cgs') return spec.positions
+  if (spec.kind === 'cgs' || spec.kind === 'customCg') return spec.positions
   if (spec.kind === 'room') return spec.variants
   return spec.emotions
 }
@@ -1300,11 +1380,19 @@ function plannedTotal(
   // One image whichever mode asked: a re-roll replaces exactly the clicked sprite or CG.
   if (isExpressionTarget(target)) return 1
   if (isCgTarget(target)) return 1
-  if (mode === 'regenerate') {
-    return target === 'cgs' ? POSITIONS.length : target === 'room' ? ROOM_VARIANTS.length : EMOTIONS.length
-  }
   const state = get()
-  if (target === 'cgs') return POSITIONS.filter((p) => !state.cgs[charId]?.[p]).length
+  if (isCustomCgSlot(target)) {
+    const pair = pairOf(target)
+    return mode === 'regenerate' ? pair.length : pair.filter((p) => !state.cgs[charId]?.[p]).length
+  }
+  if (mode === 'regenerate') {
+    return target === 'cgs'
+      ? STOCK_POSITIONS.length
+      : target === 'room'
+        ? ROOM_VARIANTS.length
+        : EMOTIONS.length
+  }
+  if (target === 'cgs') return STOCK_POSITIONS.filter((p) => !state.cgs[charId]?.[p]).length
   if (target === 'room') return ROOM_VARIANTS.filter((v) => !state.rooms[charId]?.[v]).length
   if (target === 'default') return EMOTIONS.filter((e) => !state.expressions[charId]?.[e]).length
   return EMOTIONS.filter((e) => !state.outfits[charId]?.[target]?.[e]).length
@@ -1380,7 +1468,12 @@ export function missingContentPlan(
         )
       }
       if (!sfwWithholds('cgs', gates.noNsfwImages)) {
-        consider('cgs', POSITIONS.filter((position) => !state.cgs[charId]?.[position]).length)
+        consider('cgs', STOCK_POSITIONS.filter((position) => !state.cgs[charId]?.[position]).length)
+      }
+      // The same for a CG pair: only a slot her record carries tags for.
+      for (const slot of CUSTOM_CG_SLOTS) {
+        if (!character.customCgs?.[slot] || sfwWithholds(slot, gates.noNsfwImages)) continue
+        consider(slot, pairOf(slot).filter((position) => !state.cgs[charId]?.[position]).length)
       }
     }
 
@@ -1487,9 +1580,24 @@ async function prepareSpec(
 
   if (target === 'cgs') {
     const positions = plan.replace
-      ? [...POSITIONS]
-      : POSITIONS.filter((position) => !get().cgs[charId]?.[position])
+      ? [...STOCK_POSITIONS]
+      : STOCK_POSITIONS.filter((position) => !get().cgs[charId]?.[position])
     return { kind: 'cgs', positions, staged: plan.replace, ...plan, edit: edit?.prompt }
+  }
+
+  if (isCustomCgSlot(target)) {
+    // A slot her record carries no entry for has nothing to render from.
+    if (!character.customCgs?.[target]) return null
+    const pair = pairOf(target)
+    const positions = plan.replace ? pair : pair.filter((p) => !get().cgs[charId]?.[p])
+    return {
+      kind: 'customCg',
+      slot: target,
+      positions,
+      staged: plan.replace,
+      ...plan,
+      edit: edit?.prompt
+    }
   }
 
   const emotions = plan.replace
@@ -1537,8 +1645,10 @@ function jobKeysFor(target: RenderTarget): string[] {
   }
   // For a single CG the bucket id is the job key.
   if (isCgTarget(target)) return [target]
+  // A pair occupies the keys of its two images, as each would be re-rolled on its own.
+  if (isCustomCgSlot(target)) return pairOf(target).map(cgTargetFor)
   if (target === 'default') return [...EMOTIONS]
-  if (target === 'cgs') return POSITIONS.map((position) => `cg:${position}`)
+  if (target === 'cgs') return STOCK_POSITIONS.map((position) => `cg:${position}`)
   if (target === 'room') return ROOM_VARIANTS.map((variant) => `room:${variant}`)
   return EMOTIONS.map((emotion) => `outfit:${target}:${emotion}`)
 }
@@ -1714,7 +1824,7 @@ async function runWritePipeline(
 function taskTotal(spec: RenderTaskSpec): number {
   if (spec.kind === 'expression') return 1
   if (spec.kind === 'cg') return 1
-  if (spec.kind === 'cgs') return spec.positions.length
+  if (spec.kind === 'cgs' || spec.kind === 'customCg') return spec.positions.length
   if (spec.kind === 'room') return spec.variants.length
   return spec.emotions.length
 }
@@ -2069,6 +2179,9 @@ async function runBuckets(
   let expressionsAsked = false
   let expressionsDone = true
   let cgsDone = true
+  // The custom pairs and their single re-rolls, kept from `cgsDone`, which the stock set's own
+  // verdict overwrites.
+  let customCgsDone = true
   let roomDone = true
   /** Sets this run asked for and did not finish; named in the terminal error. */
   const outfitsFailed: OutfitSet[] = []
@@ -2205,7 +2318,34 @@ async function runBuckets(
         // A re-roll's seed is nobody's record.
         recordSeed: null,
         settle: (complete) => {
-          if (!complete) cgsDone = false
+          if (complete) return
+          if (isStockPosition(position)) cgsDone = false
+          else customCgsDone = false
+        }
+      })
+    } else if (spec.kind === 'customCg') {
+      const slot = spec.slot
+      const pair = pairOf(slot)
+      plan = bucketPlan({
+        all: pair,
+        keys: spec.positions,
+        // The after renders from the same groups with the after tag added and her happy face in
+        // place of the main's; a fill's draft does the same.
+        generate: (position) =>
+          window.api.comfy.generateCg(
+            current,
+            position,
+            spec.seed,
+            spec.staged,
+            position === afterOf(slot) && spec.edit
+              ? customCgAfterEdit(spec.edit, current)
+              : spec.edit
+          ),
+        ...flatMap('cgs', () => window.api.chars.cgs(charId), pair),
+        recordSeed: () => recordSetSeed(charId, slot, spec.seed, set, get),
+        settle: (complete) => {
+          if (!complete) customCgsDone = false
+          else if (spec.spendArming) consumed.push(slot)
         }
       })
     } else if (spec.kind === 'expression') {
@@ -2285,11 +2425,11 @@ async function runBuckets(
       }
     } else {
       plan = bucketPlan({
-        all: POSITIONS,
+        all: STOCK_POSITIONS,
         keys: spec.positions,
         generate: (position) =>
           window.api.comfy.generateCg(current, position, spec.seed, spec.staged, spec.edit),
-        ...flatMap('cgs', () => window.api.chars.cgs(charId), POSITIONS),
+        ...flatMap('cgs', () => window.api.chars.cgs(charId), STOCK_POSITIONS),
         recordSeed: () => recordSetSeed(charId, 'cg', spec.seed, set, get),
         settle: (complete) => {
           cgsDone = complete
@@ -2320,7 +2460,7 @@ async function runBuckets(
         code: 'EXPRESSIONS_INCOMPLETE',
         message: 'Some expressions could not be generated. Open the character to generate them again.'
       }
-    : !cgsDone
+    : !cgsDone || !customCgsDone
       ? {
           code: 'CGS_INCOMPLETE',
           message: 'Some NSFW scenes could not be generated. Generate them again.'
@@ -2439,6 +2579,16 @@ export function readyOutfitSets(
   status: Record<OutfitSet, Record<Emotion, boolean>> | undefined
 ): OutfitSet[] {
   return OUTFIT_SETS.filter((set) => outfitSetReady(status, set))
+}
+
+/**
+ * Which of a character's custom CG pairs have both images on disk — a partial pair is none;
+ * what the scene prompt and the Cast modal's CG picker offer.
+ */
+export function readyCustomCgs(
+  status: Partial<Record<Position, boolean>> | undefined
+): CustomCgSlot[] {
+  return CUSTOM_CG_SLOTS.filter((slot) => pairOf(slot).every((position) => status?.[position]))
 }
 
 /** URL for a character image, with a cache-buster for regenerations. */

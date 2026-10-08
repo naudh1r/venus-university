@@ -45,9 +45,20 @@
   flex: none;
 }
 
-/* And so does the name, where the render is making a set rather than replacing one. */
-.vu-regen-name {
+/* And so do the name and the instructions under it, where the render is making a set rather
+   than replacing one. */
+.vu-regen-name,
+.vu-regen-instructions {
   flex: none;
+}
+
+/* A CG being made also asks for its two loops, the pickers side by side under the
+   instructions. */
+.vu-regen-sounds {
+  display: grid;
+  flex: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
 }
 
 .vu-regen-seed-row {

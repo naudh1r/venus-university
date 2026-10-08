@@ -1,0 +1,18 @@
+/* When the writer should use one custom outfit, asked for on a form panel of its own: one field
+   and the foot. Imported from the view module, never from index.css.
+
+   The veil, the field, the buttons and the foot are base.css's. The head clears the tab hung
+   over its corner, which is as wide as its title. */
+.vu-outfit-instructions {
+  --paper-offset: 12px 11px;
+  --paper-tilt: -1.2deg;
+  --paper-shadow: var(--vu-panel-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: min(820px, 100% - 60px);
+  padding: 78px 56px 28px 100px;
+  border-radius: 120px 0 0 120px;
+  color: var(--vu-text);
+  font-family: var(--font-body);
+}

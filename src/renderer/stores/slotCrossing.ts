@@ -198,6 +198,15 @@ export function sceneCoverClosing(): Promise<void> | null {
 }
 
 /**
+ * Makes the crossing already covering the stage the scene opening's own, for a game entered
+ * straight into its first scene call: its lines wait on it, and the stage's first picture takes
+ * it off. A no-op with no crossing running.
+ */
+export function adoptSceneOpening(): void {
+  if (useCrossingStore.getState().phase !== 'idle') openingCover = true
+}
+
+/**
  * Says the scene is on screen and opens the curtain: once the stage has drawn the first line's
  * picture, or on any turn-ending path that skips one (`Change it`, a refusal, an exam taking the
  * turn over). **A no-op outside an opening's own cover**, like `endCrossing` outside a crossing.

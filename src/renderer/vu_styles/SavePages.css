@@ -1,37 +1,8 @@
-/* A page of saves: two columns of quiet cards between the two arrows that turn it, and a dot
-   per page under them. One object with two callers, the Load Game and Save Game panels.
-   Imported from the component, never from index.css.
+/* A page of saves: two columns of quiet cards. One object with two callers, the Load Game and
+   Save Game panels. Imported from the component, never from index.css.
 
-   The sticker, the ✕ and the crop's picture are base.css's. */
-
-/* The page over its dots. */
-.vu-pages {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-/* The arrows either side of the grid, standing its full height. */
-.vu-pages-row {
-  display: flex;
-  align-items: stretch;
-  gap: 16px;
-}
-
-/* The arrow that turns the page: a tall recessed column, large on purpose so it is easy to hit,
-   and flat like a square beside a value, since it adjusts the list rather than answering. */
-.vu-pages-arrow {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 80px;
-  padding: 0;
-  border: 0;
-  border-radius: 28px;
-  background: var(--vu-recessed);
-  color: var(--vu-accent);
-}
+   The arrows and dots either side of it are PageArrows.css's; the sticker, the ✕ and the
+   crop's picture are base.css's. */
 
 /* Two columns of five cells at a fixed height, filled down the first column and then the second,
    so the slots read 1 4 / 2 5 / 3 6 and every page is the same size whatever it holds. */
@@ -154,26 +125,4 @@
   top: 50%;
   right: 14px;
   translate: 0 -50%;
-}
-
-/* One dot per page, in a row under the grid. */
-.vu-pages-dots {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-}
-
-/* A page's dot: a small pill the click turns to. */
-.vu-pages-dot {
-  width: 10px;
-  height: 10px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: var(--vu-border);
-}
-
-/* The page on screen. */
-.vu-pages-dot--on {
-  background: var(--vu-accent);
 }

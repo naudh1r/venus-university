@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { AFTER_TAG, customCgAfterEdit } from '@shared/customCgs'
 import { EMOTIONS } from '@shared/emotions'
 import {
   buildBasePrompt,
@@ -32,7 +33,8 @@ const c = character({
   peOutfit: ['navy_buruma', 'buruma'],
   swimOutfit: ['red_bikini', 'bikini'],
   expressionTags,
-  negativeTags: ['extra_fingers', 'watermark']
+  negativeTags: ['extra_fingers', 'watermark'],
+  customCgs: { customcg1: { tags: ['doggystyle', 'from_behind'] } }
 })
 
 const poseTags = ['arms_at_sides', 'looking_ahead']
@@ -75,5 +77,23 @@ describe("the draft is the builder's default", () => {
     expect(buildCgPrompt(c, 'sex', poseTags, spriteDraft(c, poseTags, null))).toEqual(
       buildCgPrompt(c, 'sex', poseTags)
     )
+  })
+})
+
+describe('a custom CG pair', () => {
+  it('draws its after from its main with the after tag added once', () => {
+    expect(cgDraft(c, 'customcg1').position).toEqual(['doggystyle', 'from_behind'])
+    expect(cgDraft(c, 'customcg1_after')).toEqual(customCgAfterEdit(cgDraft(c, 'customcg1'), c))
+
+    const tagged = character({ customCgs: { customcg1: { tags: ['doggystyle', AFTER_TAG] } } })
+    expect(cgDraft(tagged, 'customcg1_after').position).toEqual(['doggystyle', AFTER_TAG])
+  })
+
+  it('carries the after tag to the face detailer, aroused in the main and happy after', () => {
+    expect(buildCgPrompt(c, 'customcg1_after', poseTags).detailerPositive).toContain(AFTER_TAG)
+    expect(buildCgPrompt(c, 'customcg1', poseTags).detailerPositive).not.toContain(AFTER_TAG)
+    expect(cgDraft(c, 'customcg1').expression).toEqual(expressionTags.aroused)
+    expect(cgDraft(c, 'customcg1_after').expression).toEqual(expressionTags.happy)
+    expect(cgDraft(c, 'sex_after').expression).toEqual(expressionTags.happy)
   })
 })

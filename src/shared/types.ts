@@ -11,6 +11,7 @@ import type { PromptKind } from './promptKinds'
 import type { RumorPassOutcome } from './rumors'
 import type { DormId } from './dorms'
 import type { AudioGroup } from './audio'
+import type { GameReplays } from './replays'
 import type { ComfyGpu } from './setupManifest'
 import type { Weather } from './weather'
 import type { ReaderTallies } from './tallies'
@@ -88,11 +89,8 @@ export type Emotion =
   | 'embarrassed'
   | 'aroused'
 
-/**
- * The eight sexual positions a character can have a CG rendered in. One travels as a
- * {@link SpriteRef} in place of an emotion, and showing one swaps the stage for her CG.
- */
-export type Position =
+/** The eight stock positions every character can have a CG rendered in. */
+export type StockPosition =
   | 'nude_foreplay'
   | 'nude_foreplay_after'
   | 'sex'
@@ -101,6 +99,22 @@ export type Position =
   | 'handjob_after'
   | 'fellatio'
   | 'fellatio_after'
+
+/** The four slots a player-authored CG pair can occupy, each a main CG and its `_after`. */
+export type CustomCgSlot = 'customcg1' | 'customcg2' | 'customcg3' | 'customcg4'
+
+/**
+ * Every CG a character can have rendered: the stock positions, and the two images of each
+ * custom slot. One travels as a {@link SpriteRef} in place of an emotion, and showing one
+ * swaps the stage for her CG.
+ */
+export type Position = StockPosition | CustomCgSlot | `${CustomCgSlot}_after`
+
+/** The breath a custom CG's main image plays. */
+export type CgVoice = 'fast' | 'slow' | 'none'
+
+/** The act loop a custom CG's main image plays. */
+export type CgSfx = 'sex' | 'foreplay' | 'oral' | 'handjob' | 'none'
 
 /** The three alternate wardrobes every character renders from her own record's tags. */
 export type StockOutfitSet = 'pe' | 'swim' | 'nude'
@@ -120,19 +134,35 @@ export interface CustomOutfit {
   name?: string
   /** Booru-style outfit tags, as the stock wardrobes hold them. */
   tags: string[]
+  /** When the writer should put her in it, completing "Use the <name> outfit when"; omitted where blank. */
+  instructions?: string
+}
+
+/** One player-authored CG pair: the booru tags both images render from, under the name he gave it. */
+export interface CustomCg {
+  /** What the player called it; omitted where he left the field blank. */
+  name?: string
+  /** Booru-style position tags, the group both images render from. */
+  tags: string[]
+  /** When the writer should use it, as a clause from "she" ("she is riding him"); omitted where blank. */
+  instructions?: string
+  /** The breath its main image plays; omitted means `fast`. */
+  voice?: CgVoice
+  /** The act loop its main image plays; omitted means `sex`. */
+  sfx?: CgSfx
 }
 
 /**
- * The optional image sets that carry a seed-provenance flag: every wardrobe plus
- * the CG set, which renders with the nude wardrobe and rerolls with it.
+ * The optional image sets that carry a seed-provenance flag: every wardrobe, the stock CG
+ * set, which renders with the nude wardrobe and rerolls with it, and each custom CG pair.
  */
-export type SeededSet = OutfitSet | 'cg'
+export type SeededSet = OutfitSet | 'cg' | CustomCgSlot
 
 /**
  * One set of a character's images, as the Edit modal's controls address them: the default
- * wardrobe, one of the alternates, the CGs, or the room backgrounds.
+ * wardrobe, one of the alternates, the stock CGs, the room backgrounds, or one custom CG pair.
  */
-export type SetTarget = 'default' | OutfitSet | 'cgs' | 'room'
+export type SetTarget = 'default' | OutfitSet | 'cgs' | 'room' | CustomCgSlot
 
 /** One CG addressed on its own, as the gallery's per-image control asks for it. */
 export type CgTarget = `cg:${Position}`
@@ -200,6 +230,15 @@ export interface ProfileCropInfo {
  * the stage *renders* and nothing else; the model is never told about it.
  */
 export type OutfitLock = 'default' | OutfitSet
+
+/**
+ * A CG the player put on the stage by hand from the Cast modal, drawn over every sprite until
+ * he takes it off; the model is never told about it.
+ */
+export interface CgLock {
+  charId: string
+  position: Position
+}
 
 /**
  * Everything a `sprite:`/`cg:` action and the stage's sticky map may hold: a bare emotion, an
@@ -317,6 +356,8 @@ export interface Character {
   swimOutfit: string[]
   /** The wardrobes the player wrote himself; omitted entirely where he wrote none. */
   customOutfits?: Partial<Record<CustomOutfitSlot, CustomOutfit>>
+  /** The CG pairs the player wrote himself; omitted entirely where he wrote none. */
+  customCgs?: Partial<Record<CustomCgSlot, CustomCg>>
   /** String arrays of booru-style expression tags keyed by emotion. */
   expressionTags: Record<Emotion, string[]>
   /**
@@ -1014,6 +1055,8 @@ export interface SceneState {
   bgOverride?: string
   /** Per-character wardrobe locks, on the same terms again. */
   outfitLock?: Record<string, OutfitLock>
+  /** The CG he put on the stage by hand, on the same terms again. */
+  cgLock?: CgLock
   /**
    * Every line the player has read this scene, untrimmed — what the Chat Log Modal shows.
    * Never folded away, unlike `transcript`.
@@ -1220,6 +1263,11 @@ export interface GameSave {
   playerSchedule: Record<number, string>
   /** The playthrough log — the summary each finished scene left behind, by day and slot. */
   history: GameHistory
+  /**
+   * The calendar's replays this save can play, by day and half; absent in saves from before
+   * them.
+   */
+  replays?: GameReplays
   /** The Bunnyboard app: conversations, friend requests and badges. */
   bunnyboard: BunnyboardState
   /** Plans the reader has made, oldest first. */
@@ -1434,8 +1482,12 @@ export const FIRST_SLOT: { date: number; time: TimeSlot } = { date: 0, time: 0 }
  */
 export interface PlaythroughSummary {
   playthroughId: string
-  /** `Playthrough N`, N being this playthrough's position in creation order. */
+  /** What Load Game calls it: the player's {@link name}, or `Playthrough N` at its {@link position}. */
   label: string
+  /** This playthrough's place in creation order, from 1. */
+  position: number
+  /** The player's own name for it, off the record; absent when it has none. */
+  name?: string
   /** charIds, off the playthrough record; `[]` when it was refused. */
   chars: string[]
   /** In-game position of the newest save. */
@@ -1496,7 +1548,8 @@ export interface SaveReadResult {
 
 /**
  * On-disk playthrough record — `/data/saves/{playthroughId}/playthrough.json`: everything
- * New Game settled and no save afterwards rewrites, written once beside the saves that read it.
+ * New Game settled and no save afterwards rewrites, written once beside the saves that read it
+ * and again only when the player renames the playthrough.
  * The folder names the playthrough, so no id is carried here.
  */
 export interface PlaythroughRecord {
@@ -1525,6 +1578,11 @@ export interface PlaythroughRecord {
   weather: Weather[]
   /** The settled half of every character's entry, keyed by charId. */
   profiles: Record<string, CharProfile>
+  /**
+   * The player's own name for the playthrough, given from Load Game � the one field written
+   * after New Game. Absent, the playthrough goes by its place in creation order.
+   */
+  name?: string
 }
 
 /** The record as New Game hands it over; `saveService` stamps the version. */
