@@ -1,3 +1,4 @@
+import { slotSettled } from '../mods/hooks'
 import { GAME_OVER_SCENES, gameOverReasonOf } from '@shared/gameOver'
 import { earnLine, spendLine, spentOf } from '@shared/money'
 import {
@@ -2625,6 +2626,7 @@ async function crossSlotBoundary(): Promise<void> {
 
   // Before the clock moves, so each text is stamped with the slot the scene ran in, and before
   // the boundary save, which records them.
+  slotSettled({ before: game, ledger, closingCast: loopState.closingCast ?? [] })
   for (const send of owedTexts) send()
 
   // The scene as delivered, for the calendar to replay: read before the clock moves and the scene
