@@ -153,6 +153,13 @@ imports at boot.
 | `fileFeedPost` | `loop/feed.ts` | Change a slot post before it is filed, or file it later itself (`held`) |
 | `postLikes` | `loop/feed.ts`, `NewGameView.tsx` | Decide likes on ending, stranger and winter posts |
 | `postVisible` | `feedView.ts`, `loop/feed.ts`, `ContactPage.tsx` | Keep a post off the feed for now |
+| `endingChoice` | `GameView.tsx` | Offer a way on from the ending, beside "Return to the main menu" |
+| `saveChoice` | `LoadGameModal.tsx` | Offer something for a picked save, beside "Load" |
+
+The two ways on (`endingChoice`, `saveChoice`) share one shape, `WayOn`. Its `prepare` runs
+while nothing has been torn down, does whatever may fail and reports it, and returns `enter`,
+which the game calls once any running game is gone: it stages what the mod needs and names the
+screen to show. The first mod that answers is offered; the game's own choice always stays.
 
 A hook point is added where mods actually meet, not ahead of need. Once mods use one, it stays
 as it is: renaming it or changing what it passes breaks them. A change that is needed goes in

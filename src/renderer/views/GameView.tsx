@@ -170,6 +170,7 @@ import { ClassScheduleModal } from './ClassScheduleModal'
 import { EditPromptModal } from './EditPromptModal'
 import { FeedbackModal } from './FeedbackModal'
 import { GameMenuModal } from './GameMenuModal'
+import { endingChoice, type WayOn } from '../mods/hooks'
 import { ModsModal } from './ModsModal'
 import { LoadGameModal } from './LoadGameModal'
 import { MilestoneModal } from './MilestoneModal'
@@ -763,6 +764,34 @@ export function GameView(): JSX.Element {
    * the three ways in, keeping the hour at both ends — no polarity turn — so the menu is handed
    * that hour rather than reading the clock, and a night scene closes to a night menu.
    */
+  /** What a mod offers from the ending in place of the menu, asked while the ending is up. */
+  const endingOffer =
+    activeGameOver && !useGameStore.getState().createdScene && !useGameStore.getState().replaying
+      ? endingChoice({ reason: activeGameOver, playthroughId: useGameStore.getState().playthroughId })
+      : undefined
+
+  /**
+   * A mod's way on from the ending: prepared first, so one that fails leaves the ending where it
+   * is, then the same crossing out as {@link toMenu}, landing where the mod says.
+   */
+  function toModChoice(choice: WayOn): void {
+    const leftIn = half
+    void (async () => {
+      const enter = await choice.prepare()
+      if (!enter) return
+      cancelCrossing()
+      beginCrossing(undefined, menuCrossing(leftIn))
+      coverSwap(() => {
+        void (async () => {
+          await leaveToMenu({ keepCrossing: true })
+          setMenuTheme(leftIn)
+          setView(enter())
+          endCrossing()
+        })()
+      })
+    })()
+  }
+
   function toMenu(): void {
     // A created scene's way out is the creator it came from, by its save question.
     if (useGameStore.getState().createdScene) {
@@ -2515,8 +2544,11 @@ export function GameView(): JSX.Element {
               setSavingArt(true)
               void exportEndingArt().finally(() => setSavingArt(false))
             }}
-            confirmText="Return to the main menu"
-            onConfirm={() => toMenu()}
+            // A mod's way on, where one offers it, comes first, and the menu stays beside it.
+            confirmText={endingOffer ? endingOffer.label : 'Return to the main menu'}
+            onConfirm={() => (endingOffer ? toModChoice(endingOffer) : toMenu())}
+            cancelText={endingOffer ? 'Return to the main menu' : undefined}
+            onCancel={endingOffer ? () => toMenu() : undefined}
           />
         )}
       </AnimatePresence>
