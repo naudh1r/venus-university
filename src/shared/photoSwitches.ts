@@ -135,7 +135,7 @@ export const PHOTO_FEATURE_MOD = {
     {
       id: 'body',
       label: 'Body details',
-      hint: "Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable in their character editor, and drawn in their sprites, CGs and photos. The default characters can't be edited, so clone one first to give her body details. Off, what they have is kept but not used.",
+      hint: "Gives characters a build and body shape for their pictures. Clone a default character first to edit hers.",
       default: false
     },
     {
