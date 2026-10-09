@@ -450,6 +450,9 @@ export function buildPhotoPrompt(
   const dressed = describesClothing(scene)
 
   const pose = photoPose(scene, bare)
+  // An everyday photo is seen by everyone: a hoodie slipping off a shoulder there is how she
+  // wears it, not her undressing, and the tags pulled the picture towards it.
+  if (tier === 'everyday') pose.tags = pose.tags.filter((tag) => !EVERYDAY_DROPS.has(tag))
   // Her body as far as the shot reaches: a selfie from the waist up names no hips.
   const body = bodyTagsFor(character.body, scene, bare, framingInTags(pose.tags))
 
@@ -510,6 +513,9 @@ const DISPLACEMENTS: readonly { garments: readonly string[]; tag: string }[] = [
   { garments: ['shirt', 'top', 'blouse', 'sweater', 'hoodie', 'tank top', 'crop top'], tag: 'shirt_lift' },
   { garments: ['bra', 'bikini top'], tag: 'bra_lift' }
 ]
+
+/** Pose tags an everyday photo never carries. */
+const EVERYDAY_DROPS: ReadonlySet<string> = new Set(['undressing', 'clothes_pull'])
 
 const MOVED =
   '(?:pulled (?:to the side|aside|down|up|off)|bunched|hiked up|hitched up|lifted|pushed (?:up|aside|down)|moved aside|tugged (?:aside|down))'
