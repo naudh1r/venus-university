@@ -27,7 +27,7 @@ Everything is in **Mods → Photo Feature**.
 | Photo Feature | on | Off, nobody sends a new photo and posts get no new comments. Photos, galleries and comments already made are hidden, not deleted, and come back when it is on again. |
 | Photo generation | on | Off, no new photos are made and the girls are not told they can send one. Photos already sent stay visible. |
 | Explicit photos | on | Off, nobody sends an undressed photo and ones already sent stay covered. The game's own "No NSFW images" turns them off too. |
-| Body details | off | Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable in their character editor, and drawn in their sprites, CGs and photos. Off, what they have is kept but not used. |
+| Body details | off | Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable in their character editor, and drawn in their sprites, CGs and photos. The default characters can't be edited, so clone one first to give her body details. Off, what they have is kept but not used. |
 | Save photos as WebP | on | New photos are saved as WebP at 85% quality, much smaller than PNG. Off, they are saved as PNG. Photos already saved stay as they are. |
 | Loading animation | Bunny hop | What a photo shows while it is being drawn: Bunny hop, Dot shimmer or Typing dots. |
 

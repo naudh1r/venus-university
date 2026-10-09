@@ -124,7 +124,8 @@ options:
 - **Explicit photos**: off, nobody sends an undressed photo and ones already sent stay covered.
   The game's own "No NSFW images" turns them off too.
 - **Body details**: off by default. Characters get a build, chest, hips, backside and hair from
-  fixed tag lists, used in their sprites, CGs and photos.
+  fixed tag lists, used in their sprites, CGs and photos. The default characters can't be edited,
+  so one has to be cloned first for the fields to show.
 - **Save photos as WebP**: on by default. New photos are saved as WebP at 85% quality instead
   of PNG. Off, they are saved as PNG. Photos already saved stay as they are.
 - **Loading animation**: a group of three, Bunny hop, Dot shimmer and Typing dots.
