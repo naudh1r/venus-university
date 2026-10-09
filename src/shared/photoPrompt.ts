@@ -2,6 +2,7 @@ import type { PhotoTier } from './photoGate'
 import { DORM_IDS, dormLabel } from './dorms'
 import { bodyAppearance, bodyNegative } from './characterBody'
 import { bodyTagsFor, describesNothingOn } from './photoBody'
+import { framingInTags } from './photoFraming'
 import { photoPose, withoutCameraHold } from './photoPose'
 import { LOCATIONS, NARRATIVE_LOCATIONS } from './locations'
 import type { Character } from './types'
@@ -193,8 +194,9 @@ export function buildPhotoPrompt(
   const bare = tier === 'explicit'
   const dressed = describesClothing(scene)
 
-  const body = bodyTagsFor(character.body, scene, bare)
   const pose = photoPose(scene, bare)
+  // Her body as far as the shot reaches: a selfie from the waist up names no hips.
+  const body = bodyTagsFor(character.body, scene, bare, framingInTags(pose.tags))
 
   const wardrobe = bare
     ? // Undressed by what she moved aside, where the caption still dresses her; nude otherwise.

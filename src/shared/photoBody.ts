@@ -1,4 +1,5 @@
 import type { CharacterBody } from './characterBody'
+import type { Framing } from './photoFraming'
 import { says, saysAny } from './photoWords'
 
 /**
@@ -91,15 +92,26 @@ const SPREAD_CUES = [
 /** Anything about her behind puts it in shot the same way. */
 const REAR_CUES = ['spreading her ass', 'spreading her cheeks', 'holding her cheeks apart']
 
-/** The parts of her this picture contains. */
-function seenIn(caption: string): Set<Region> {
+/** What a shot from the waist up, or of her face, leaves in it. */
+const FRAMED_SEEN: Partial<Record<Framing, readonly Region[]>> = {
+  face: [],
+  waist: ['bust', 'nipples']
+}
+
+/**
+ * The parts of her this picture contains. `framing` is the shot the pose settled on, a selfie's
+ * included: a close one is all the caption's own words get to say about what is in it.
+ */
+function seenIn(caption: string, framing: Framing | null): Set<Region> {
   const text = caption.toLowerCase()
-  const framing = FRAMING.find((rule) => saysAny(text, rule.cues))
-  const seen = new Set<Region>(framing?.seen ?? SEEN_BY_DEFAULT)
+  const close = framing ? FRAMED_SEEN[framing] : undefined
+  const row = FRAMING.find((rule) => saysAny(text, rule.cues))
+  const seen = new Set<Region>(close ?? row?.seen ?? SEEN_BY_DEFAULT)
 
   if (saysAny(text, SPREAD_CUES)) seen.add('pubic')
   if (saysAny(text, REAR_CUES)) seen.add('buttocks')
-  for (const field of ALWAYS_SEEN) seen.add(field)
+  // A face alone has nothing of her body in it, not even the middle of her.
+  if (framing !== 'face') for (const field of ALWAYS_SEEN) seen.add(field)
   return seen
 }
 
@@ -265,9 +277,10 @@ function ownTag(body: CharacterBody, region: Region, bare: boolean): string | un
 export function bodyTagsFor(
   body: CharacterBody | undefined,
   caption: string,
-  bare: boolean
+  bare: boolean,
+  framing: Framing | null = null
 ): string[] {
-  const seen = seenIn(caption)
+  const seen = seenIn(caption, framing)
   const coverage = coverageIn(caption, bare)
 
   const tags: string[] = []

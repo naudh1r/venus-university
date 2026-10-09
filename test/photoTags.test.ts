@@ -221,6 +221,7 @@ function emittedTags(): string[] {
   const body = source('src/shared/photoBody.ts')
   const prompt = source('src/shared/photoPrompt.ts')
   const character = source('src/shared/characterBody.ts')
+  const framing = source('src/shared/photoFraming.ts')
   return [
     // Every pool, and the petite negatives: `BUILD_TAGS = [...]` and the rest.
     ...quoted(character, /_TAGS\s*=\s*\[([^\]]*)\]/g).map(unweighted),
@@ -235,6 +236,7 @@ function emittedTags(): string[] {
     ...quoted(pose, /\? \[\] : \[('camera')\]/g),
     ...quoted(pose, /'from_above'\],\s*\[([^\]]*)\]/g),
     ...quoted(pose, /negative: \[\.\.\.negative, ('on_back')\]/g),
+    ...quoted(framing, /tags:\s*\[([^\]]*)\]/g).map(unweighted),
     ...quoted(pose, /BARE_POSITION_DEFAULT[^=]*=\s*\[([^\]]*)\]/g),
     ...quoted(pose, /PLACEMENT_TAGS[^=]*=\s*new Set\(\[([^\]]*)\]/g),
     ...quoted(body, /THROUGH_CLOTH[^=]*=\s*\{([^}]*)\}/g),

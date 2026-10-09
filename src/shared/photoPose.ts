@@ -1,3 +1,4 @@
+import { FRAMING_TAGS, framingOf, framingTags, FULL_BODY_CUES } from './photoFraming'
 import { says, saysAny } from './photoWords'
 
 /**
@@ -422,10 +423,6 @@ const CAMERA_CUES = ['holding a camera', 'her camera', 'a camera in', 'film came
 /** The `selfie` tag adds a peace sign on its own; kept only where the caption asks for one. */
 const PEACE_CUES = ['peace sign', 'v sign', 'v-sign', 'flashing a v']
 
-const FULL_BODY_CUES = ['full body', 'full-body', 'head to toe', 'whole body', 'whole outfit']
-
-/** Framing a selfie replaces: the arm decides how far the camera is. */
-const FRAMING = new Set(['close-up', 'portrait', 'upper_body', 'cowboy_shot', 'full_body'])
 
 /**
  * A selfie, as tested on the checkpoint (same seed, one change at a time). Her own arm holds the
@@ -443,12 +440,12 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
   const has = (tag: string): boolean => tags.includes(tag)
   const peace = saysAny(text, PEACE_CUES)
   if (says(text, 'mirror')) {
-    const kept = tags.filter((tag) => !FRAMING.has(tag))
+    const kept = tags.filter((tag) => !FRAMING_TAGS.has(tag))
     const add = ['mirror', 'reflection', 'holding_phone', 'full_body']
     return { tags: [...new Set([...kept, ...add])], negative: [] }
   }
   // The arm holding the phone is not also on her hip.
-  const kept = tags.filter((tag) => !FRAMING.has(tag) && !PLACEMENT_TAGS.has(tag))
+  const kept = tags.filter((tag) => !FRAMING_TAGS.has(tag) && !PLACEMENT_TAGS.has(tag))
   const camera = saysAny(text, CAMERA_CUES) ? [] : ['camera']
   const negative = [...PHONE_NEGATIVE, ...camera, ...(peace ? [] : ['v'])]
   const shot = (add: string[], extra: string[] = []): PhotoPose => ({
@@ -508,10 +505,22 @@ function closeLying(text: string, tags: readonly string[]): string[] | null {
   const lying = LYING_CUES.find(([, cues]) => saysAny(text, cues))?.[0]
   if (!lying) return null
   const kept = tags.filter(
-    (tag) => !FRAMING.has(tag) && tag !== 'hand_up' && !LYING_CUES.some(([pose]) => pose === tag)
+    (tag) =>
+      !FRAMING_TAGS.has(tag) && tag !== 'hand_up' && !LYING_CUES.some(([pose]) => pose === tag)
   )
   const frame = lying === 'on_stomach' ? 'upper_body' : '(upper_body:1.3)'
   return [...new Set(['lying', lying, frame, ...kept])]
+}
+
+/**
+ * The framing the caption names, in place of the one her position came with: "standing" alone
+ * is shot from the thighs up, "standing, full body" is not.
+ */
+function withFraming(text: string, tags: readonly string[]): string[] {
+  const framing = framingOf(text)
+  if (!framing) return [...tags]
+  const kept = tags.filter((tag) => !FRAMING_TAGS.has(tag))
+  return [...new Set([...kept, ...framingTags(framing)])]
 }
 
 /** How she is lying, kept from turning into one of the other two. */
@@ -575,7 +584,8 @@ export function photoPose(caption: string, bare: boolean): PhotoPose {
   if (saysAny(text, CROSSED_CUES)) {
     tags = [...new Set([...tags.filter((tag) => tag !== 'spread_legs'), 'crossed_legs'])]
   }
-  tags = closeLying(text, tags) ?? tags
+  const lying = closeLying(text, tags)
+  tags = lying ?? withFraming(text, tags)
   if (saysAny(text, BUSY_HAND_CUES)) tags = tags.filter((tag) => !PLACEMENT_TAGS.has(tag))
   return selfieShot(text, tags) ?? { tags, negative: lyingNegative(tags) }
 }
