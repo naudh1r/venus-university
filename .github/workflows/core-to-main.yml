@@ -1,9 +1,9 @@
-# Carries every change that lands on `core` into `main`.
+# Opens a pull request from `core` into `main` whenever `core` moves and `main` is missing some
+# of it, so nobody has to remember to. `main` only takes reviewed changes, so a person approves
+# and merges it, as for any other pull request; the workflow cannot, by design.
 #
-# `core` is the mod system alone; `main` is core plus the mods. A change to core was already
-# reviewed by its pull request into core, so it goes on into main without a second review.
-# If the merge conflicts with a mod already in main, or the push is refused, a pull request
-# from core into main is opened instead, for someone to finish by hand.
+# Needs one repository setting: Settings → Actions → General → "Allow GitHub Actions to create
+# and approve pull requests".
 name: core to main
 
 on:
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 concurrency:
@@ -20,49 +20,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  merge:
+  open:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
 
-      - name: Merge core into main
-        id: merge
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin core
-          if git merge-base --is-ancestor origin/core HEAD; then
-            echo "main already has everything on core."
-            echo "result=current" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if git merge --no-ff origin/core -m "Merge core into main"; then
-            if git push origin HEAD:main; then
-              echo "result=pushed" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            echo "result=refused" >> "$GITHUB_OUTPUT"
-          else
-            git merge --abort
-            echo "result=conflict" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Open a pull request to finish by hand
-        if: steps.merge.outputs.result == 'conflict' || steps.merge.outputs.result == 'refused'
+      - name: Open a pull request from core into main
         env:
           GH_TOKEN: ${{ github.token }}
-          RESULT: ${{ steps.merge.outputs.result }}
         run: |
-          if [ -n "$(gh pr list --base main --head core --state open --json number --jq '.[].number')" ]; then
-            echo "A pull request from core into main is already open."
+          git fetch origin core main
+          if git merge-base --is-ancestor origin/core origin/main; then
+            echo "main already has everything on core."
             exit 0
           fi
-          if [ "$RESULT" = conflict ]; then
-            why="core no longer merges cleanly into main: a change on core conflicts with a mod already in main. Merge core into main by hand, keeping both sides, then merge this."
-          else
-            why="The automatic merge was refused when pushing to main, likely by the branch rules. Review and merge this as usual."
+          if [ -n "$(gh pr list --base main --head core --state open --json number --jq '.[].number')" ]; then
+            echo "A pull request from core into main is already open; it shows the new commits."
+            exit 0
           fi
-          gh pr create --base main --head core --title "Merge core into main" --body "$why"
+          if git merge-tree --write-tree origin/main origin/core >/dev/null 2>&1; then
+            note="Merges cleanly."
+          else
+            note="This does not merge cleanly: a change on core conflicts with a mod in main. Resolve it on an integrate branch (main + core) and merge that instead."
+          fi
+          gh pr create --base main --head core --title "Merge core into main" \
+            --body "core has changes main does not have yet. $note Regular merge, not squash."
