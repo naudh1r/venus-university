@@ -131,7 +131,7 @@ function captioning(character: Character): string[] {
     `Write "photoPrompt" as what the picture shows, the way ${name} would caption it to herself. One sentence, and a full one: where she is, what she is wearing, how she is sitting or lying or standing, what her hands are doing, how close the shot is, and where she is looking.`,
     // The three kinds of picture the renderer draws, named together so no one of them is the
     // default: with "a selfie" as the only example, every picture came back a selfie.
-    'It can be a selfie, a mirror selfie, or a photo a friend took of her, whichever fits the moment.',
+    'It can be a selfie, a mirror selfie, a photo somebody took of her, or a candid one where she is not posing for it, whichever fits the moment.',
     'What is not written is not drawn. A caption that says only "a photo of me" gets a picture of nobody in particular.',
     wardrobeLine(character),
     'Then set "photoTier" to what that picture is, which is a separate question from whether she would send it: "everyday" for one with nothing on show, "suggestive" for underwear, swimwear or a towel, "explicit" for one where any part of her usually covered is not. Judge the picture you described, not the words you described it in — a caption that never says a word for it can still be a picture of one. "none" where there is no picture.'
@@ -179,7 +179,7 @@ export function postPhotoLines(canRenderImages: boolean): string[] {
   if (!canRenderImages) return ['Leave "image" empty on every post: nobody posts a picture today.']
   return [
     'A post may carry a picture of her. Describe it in "image" — what the photograph shows, the way she would caption it to herself: where she is, what she is wearing, how she is standing or sitting, how close the shot is. One sentence, and a full one. Leave "image" empty on a post that is just words, which most of them are.',
-    'It can be a selfie, a mirror selfie, or a photo a friend took of her, whichever fits the moment.',
+    'It can be a selfie, a mirror selfie, a photo somebody took of her, or a candid one where she is not posing for it, whichever fits the moment.',
     'What is not written is not drawn: "a photo of me" gets a picture of nobody in particular.',
     'Her whole year sees this, so it is an ordinary picture or a flirty one at most — what she is wearing, a day out, a swimsuit. Never anything undressed, whatever she might send one person in a message.',
     'Name nobody and nowhere: a picture cannot show a name. "her room", "the quad", "a cafe" — what it looks like, never what it is called.',

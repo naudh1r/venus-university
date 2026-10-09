@@ -404,12 +404,12 @@ const SPILL_NEGATIVE: readonly (readonly [string, RegExp])[] = [
 
 /**
  * The sentence without who took the picture: a friend named in it is a second person the model
- * can draw, whatever the negative says. Her brief offers "a photo a friend took of her" as one
+ * can draw, whatever the negative says. Her brief offers "a photo somebody took of her" as one
  * kind of picture; what is left is the picture itself.
  */
 export function withoutWhoTookIt(scene: string): string {
-  const taker =
-    '(?:a|her|my|his|the)\\s+(?:friend|roommate|bestie|best friend|boyfriend|sister|mom)'
+  const person = '(?:friend|roommate|bestie|best friend|boyfriend|sister|mom)'
+  const taker = `(?:(?:a|her|my|his|the)\\s+${person}|somebody|someone)`
   const takenBy = new RegExp(`\\s*,?\\s*(?:taken|shot|snapped)\\s+by\\s+${taker}\\b`, 'gi')
   const tookOf = new RegExp(
     `\\b(?:that\\s+)?${taker}\\s+(?:took|snapped|shot)(?:\\s+of\\s+(?:her|me))?\\s*`,

@@ -624,6 +624,20 @@ export function withoutHeldObject(scene: string): string {
     .trim()
 }
 
+/** A picture she is not posing for, so she is not looking into it. */
+const CANDID_CUES = [
+  'candid',
+  'not looking',
+  "isn't looking",
+  'is not looking',
+  'looking away',
+  'unaware',
+  "doesn't notice",
+  'does not notice',
+  'not posing',
+  "isn't posing"
+]
+
 /** Sitting cross-legged: `indian_style`, which crossed her legs on two seeds of three. */
 const CROSS_LEGGED_CUES = ['cross-legged', 'cross legged', 'criss-cross', 'legs folded under']
 
@@ -651,6 +665,10 @@ export function posePhotoTags(caption: string, bare: boolean): string[] {
 export function photoPose(caption: string, bare: boolean): PhotoPose {
   const text = caption.toLowerCase()
   let tags = poseTagsOf(caption, bare)
+  // Caught unawares: "not looking at the camera" says "at the camera" too, which is the wrong way.
+  if (saysAny(text, CANDID_CUES)) {
+    tags = [...new Set([...tags.filter((tag) => tag !== 'looking_at_viewer'), 'looking_away'])]
+  }
   // Sitting with her legs folded under her, which `sitting` alone drew with her legs out in front.
   if (saysAny(text, CROSS_LEGGED_CUES)) tags = [...new Set([...tags, 'indian_style'])]
   // A position's default spread, or one her hands imply, never overrules legs she has crossed.

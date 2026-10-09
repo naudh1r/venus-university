@@ -156,6 +156,8 @@ const VERIFIED = new Set([
   'nude',
   'pantyshot',
   'pussy',
+  // Caught unawares, her eyes off the camera.
+  'looking_away',
   // Sitting cross-legged, from the same photo's check.
   'indian_style',
   // Hands, from the same mirror selfie's check.
@@ -298,6 +300,7 @@ function emittedTags(): string[] {
     ...quoted(prompt, /short \? \[('bare_legs')\]/g),
     ...quoted(pose, /,\s*('crossed_legs')\]/g),
     ...quoted(pose, /\.\.\.tags, ('indian_style')\]/g),
+    ...quoted(pose, /'looking_at_viewer'\), ('looking_away')\]/g),
     ...quoted(body, /BARE_TAGS[^=]*=\s*\{([^}]*)\}/g),
     ...['PHOTO_QUALITY', 'PHOTO_BASE', 'PHOTO_NEGATIVE', 'BARE_POSITIVE', 'BARE_NEGATIVE'].flatMap(
       (name) => constantTags(prompt, name)

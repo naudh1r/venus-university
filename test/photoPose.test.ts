@@ -284,3 +284,12 @@ describe('a mirror selfie, her other hand empty', () => {
     expect(withoutHeldObject(plain)).toBe(plain)
   })
 })
+
+describe('a candid picture', () => {
+  it('has her looking away, even where the caption says the camera', () => {
+    const tags = posePhotoTags('a candid shot of her reading, not looking at the camera', false)
+    expect(tags).toContain('looking_away')
+    expect(tags).not.toContain('looking_at_viewer')
+    expect(posePhotoTags('smiling at the camera', false)).toContain('looking_at_viewer')
+  })
+})

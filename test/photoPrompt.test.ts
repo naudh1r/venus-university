@@ -348,6 +348,7 @@ describe('a photo a friend took', () => {
     expect(withoutWhoTookIt('full body in a sundress at the beach, taken by a friend')).toBe(
       'full body in a sundress at the beach'
     )
+    expect(withoutWhoTookIt('a photo somebody took of her at the park')).toBe('a photo at the park')
     const { positive } = buildPhotoPrompt(character(), 'everyday', 'a photo my friend took of me')
     expect(positive).not.toMatch(/friend/)
   })
