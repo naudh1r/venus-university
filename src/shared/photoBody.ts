@@ -128,7 +128,24 @@ const HIDES: Readonly<Record<string, readonly Region[]>> = {
   pants: ['hipsThighs', 'buttocks', 'pubic'],
   shorts: ['buttocks', 'pubic'],
   skirt: ['buttocks', 'pubic'],
-  towel: ['bust', 'nipples', 'stomach', 'pubic', 'buttocks']
+  towel: ['bust', 'nipples', 'stomach', 'pubic', 'buttocks'],
+  // Dressed, without saying in what: her top half is covered, and what is under her waist is
+  // left to the garments the caption does name.
+  clothes: ['bust', 'nipples', 'stomach'],
+  outfit: ['bust', 'nipples', 'stomach']
+}
+
+/** What a garment can be doing that leaves what it would cover in shot. */
+const DISPLACED =
+  '(?:pulled (?:to the side|aside|down|up|off)|bunched|hiked up|hitched up|lifted|pushed (?:up|aside|down)|moved aside|tugged (?:aside|down)|around her (?:ankles|knees))'
+
+/**
+ * Whether the caption has this garment on her but out of the way: "her thong pulled aside",
+ * "her skirt hiked up". At most two words between them, so "her clothes with her skirt bunched"
+ * moves the skirt and not the clothes.
+ */
+function displaced(text: string, word: string): boolean {
+  return new RegExp(`\\b${word}\\b(?:\\s+[a-z'-]+){0,2}?\\s+${DISPLACED}`).test(text)
 }
 
 /** Clothing that keeps the shape and gives away the rest: what suggestive is made of. */
@@ -204,12 +221,12 @@ function coverageIn(caption: string, bare: boolean): Record<Region, Coverage> {
   if (stripped) return coverage
 
   for (const [word, fields] of Object.entries(SHAPES)) {
-    if (!says(text, word)) continue
+    if (!says(text, word) || displaced(text, word)) continue
     for (const field of fields) coverage[field] = 'shape'
   }
   // Second, so a shirt over a bra still hides what the bra only shaped.
   for (const [word, fields] of Object.entries(HIDES)) {
-    if (!says(text, word)) continue
+    if (!says(text, word) || displaced(text, word)) continue
     for (const field of fields) coverage[field] = 'hidden'
   }
   return coverage
@@ -287,4 +304,17 @@ const BARE_TAGS: Partial<Record<Region, string>> = {
   nipples: 'nipples',
   stomach: 'navel',
   pubic: 'pussy'
+}
+
+/** Whether the caption has nothing left on her at all, rather than something moved aside. */
+export function describesNothingOn(caption: string): boolean {
+  return saysAny(caption.toLowerCase(), [
+    'naked',
+    'nude',
+    'no clothes',
+    'undressed',
+    'without clothes',
+    'wearing nothing',
+    'nothing on'
+  ])
 }

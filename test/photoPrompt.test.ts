@@ -146,3 +146,39 @@ describe('buildPhotoPrompt', () => {
     expect(onTop).toContain('pink cardigan')
   })
 })
+
+describe('an explicit picture she is still partly dressed in', () => {
+  /** The caption a playtest drew wrong: dressed, a thong pulled aside, legs crossed, shot low. */
+  const caption =
+    'Sitting in a corner booth in her everyday clothes with her pleated skirt bunched at her hip, sheer white thighhighs on, her pink lacy thong pulled to the side as two fingers rest on her bare pussy, legs crossed tight, shot low from under the table close on her lap, eyes glancing down at her own hand.'
+  const positive = buildPhotoPrompt(celest, 'explicit', caption).positive
+
+  it('is partly undressed by what she moved aside, not completely nude', () => {
+    expect(positive).not.toContain('completely_nude')
+    expect(positive).toContain('partially_undressed')
+    expect(positive).toContain('panties_aside')
+    expect(positive).toContain('skirt_lift')
+  })
+
+  it('keeps her top on: her clothes still cover her chest', () => {
+    expect(positive).not.toMatch(/\bnipples\b/)
+  })
+
+  it('keeps her legs crossed and the camera low', () => {
+    expect(positive).not.toContain('spread_legs')
+    expect(positive).toContain('crossed_legs')
+    expect(positive).toContain('from_below')
+  })
+
+  it('says 1girl once, and leaves no full stop in front of the tags', () => {
+    expect(positive.match(/\b1girl\b/g)).toHaveLength(1)
+    expect(positive).not.toContain('.,')
+  })
+
+  it('is still completely nude where the caption says so', () => {
+    expect(buildPhotoPrompt(celest, 'explicit', 'naked, lying on her back').positive).toContain(
+      'completely_nude'
+    )
+  })
+})
+

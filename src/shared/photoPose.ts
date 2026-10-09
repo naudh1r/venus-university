@@ -285,7 +285,16 @@ const MODIFIERS: readonly Rule[] = [
     cues: ['at the camera', 'at the phone', 'looking at viewer', 'eye contact', 'staring at'],
     tags: ['looking_at_viewer']
   },
-  { cues: ['mirror'], tags: ['mirror', 'reflection'] }
+  { cues: ['mirror'], tags: ['mirror', 'reflection'] },
+  // Where the camera is: a caption that says how low or high it was asks for the angle.
+  {
+    cues: ['from below', 'low angle', 'from under', 'shot low', 'shot from low', 'looking up at her'],
+    tags: ['from_below']
+  },
+  {
+    cues: ['from above', 'high angle', 'overhead shot', 'shot from above', 'looking down at her'],
+    tags: ['from_above']
+  }
 ]
 
 /**
@@ -293,6 +302,8 @@ const MODIFIERS: readonly Rule[] = [
  * the shot, and clothes coming off are all things a photo with clothes in it can show.
  */
 const DRESSED_MODIFIERS: ReadonlySet<string> = new Set([
+  'from_below',
+  'from_above',
   'undressing',
   'seductive_smile',
   'arched_back',
@@ -301,12 +312,8 @@ const DRESSED_MODIFIERS: ReadonlySet<string> = new Set([
   'mirror'
 ])
 
-/**
- * Turns one caption into composition tags. `bare` opens the second half of the vocabulary —
- * the positions and actions that only make sense with nothing on — and is decided by the gate,
- * never by anything read here.
- */
-export function posePhotoTags(caption: string, bare: boolean): string[] {
+/** The tags {@link posePhotoTags} gives, before what her legs are doing is settled. */
+function poseTagsOf(caption: string, bare: boolean): string[] {
   const text = caption.toLowerCase()
   const tags: string[] = []
 
@@ -350,4 +357,27 @@ export function posePhotoTags(caption: string, bare: boolean): string[] {
   if (fires(text, VAGUE_TOUCH.cues)) tags.push(...VAGUE_TOUCH.tags)
 
   return [...new Set(tags)]
+}
+
+/** Legs held together, which no position may open: the caption's word over the position's. */
+const CROSSED_CUES = [
+  'legs crossed',
+  'crossed legs',
+  'crosses her legs',
+  'crossing her legs',
+  'legs tightly crossed',
+  'thighs pressed together',
+  'knees together'
+]
+
+/**
+ * Turns one caption into composition tags. `bare` opens the second half of the vocabulary —
+ * the positions and actions that only make sense with nothing on — and is decided by the gate,
+ * never by anything read here.
+ */
+export function posePhotoTags(caption: string, bare: boolean): string[] {
+  const tags = poseTagsOf(caption, bare)
+  // A position's default spread, or one her hands imply, never overrules legs she has crossed.
+  if (!saysAny(caption.toLowerCase(), CROSSED_CUES)) return tags
+  return [...new Set([...tags.filter((tag) => tag !== 'spread_legs'), 'crossed_legs'])]
 }

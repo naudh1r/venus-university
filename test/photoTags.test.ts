@@ -139,7 +139,16 @@ const VERIFIED = new Set([
   'watermark',
   'wet',
   'white_background',
-  'wide_hips'
+  'wide_hips',
+  // Drawn in a same-seed ComfyUI check against a baseline and a made-up tag.
+  'bra_lift',
+  'crossed_legs',
+  'from_above',
+  'from_below',
+  'panties_aside',
+  'partially_undressed',
+  'shirt_lift',
+  'skirt_lift'
 ])
 
 /** The checkpoint's own quality vocabulary, which is not Danbooru's and is not checked. */
@@ -197,6 +206,9 @@ function emittedTags(): string[] {
     ...quoted(pose, /BARE_POSITION_DEFAULT[^=]*=\s*\[([^\]]*)\]/g),
     ...quoted(pose, /PLACEMENT_TAGS[^=]*=\s*new Set\(\[([^\]]*)\]/g),
     ...quoted(body, /THROUGH_CLOTH[^=]*=\s*\{([^}]*)\}/g),
+    ...quoted(prompt, /tag:\s*('[^']*')/g),
+    ...quoted(prompt, /\[('partially_undressed')/g),
+    ...quoted(pose, /,\s*('crossed_legs')\]/g),
     ...quoted(body, /BARE_TAGS[^=]*=\s*\{([^}]*)\}/g),
     ...['PHOTO_QUALITY', 'PHOTO_BASE', 'PHOTO_NEGATIVE', 'BARE_POSITIVE', 'BARE_NEGATIVE'].flatMap(
       (name) => constantTags(prompt, name)

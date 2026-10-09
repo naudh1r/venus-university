@@ -1,7 +1,7 @@
 import type { PhotoTier } from './photoGate'
 import { DORM_IDS, dormLabel } from './dorms'
 import { bodyAppearance, bodyNegative } from './characterBody'
-import { bodyTagsFor } from './photoBody'
+import { bodyTagsFor, describesNothingOn } from './photoBody'
 import { posePhotoTags } from './photoPose'
 import { LOCATIONS, NARRATIVE_LOCATIONS } from './locations'
 import type { Character } from './types'
@@ -197,18 +197,26 @@ export function buildPhotoPrompt(
   const pose = posePhotoTags(scene, bare)
 
   const wardrobe = bare
-    ? `nude, completely_nude, ${BARE_POSITIVE}`
+    ? // Undressed by what she moved aside, where the caption still dresses her; nude otherwise.
+      dressed && !describesNothingOn(scene)
+      ? ['partially_undressed', ...displacedTags(scene), BARE_POSITIVE].join(', ')
+      : `nude, completely_nude, ${BARE_POSITIVE}`
     : // One of her own sets, or nothing where the picture she described dressed her in
       // something none of them is.
       (photoWardrobe(character, scene, dressed, tier !== 'everyday') ?? []).join(', ')
 
+  // Her appearance, with her build and her chest in it while the body switch is on. It opens on
+  // the subject tag where she has one, so the base does not say it a second time.
+  const appearance = bodyAppearance(character, 'photo')
+  const base = appearance.includes('1girl') ? PHOTO_BASE.replace('1girl, ', '') : PHOTO_BASE
+
   const positive = [
-    `${PHOTO_QUALITY}, ${PHOTO_BASE}`,
-    // Her appearance, with her build and her chest in it while the body switch is on.
-    bodyAppearance(character, 'photo').join(', '),
+    `${PHOTO_QUALITY}, ${base}`,
+    appearance.join(', '),
     body.join(', '),
     wardrobe,
-    [scene, pose.join(', ')].filter((part) => part.length > 0).join(', ')
+    // The sentence's own full stop would sit in front of the tags that follow it.
+    [scene.replace(/[.!?]+$/, ''), pose.join(', ')].filter((part) => part.length > 0).join(', ')
   ]
     .filter((group) => group.length > 0)
     .join(',\n\n')
@@ -220,4 +228,26 @@ export function buildPhotoPrompt(
     ...(character.negativeTags ?? [])
   ].join(', ')
   return { positive, negative }
+}
+
+/** What she has moved out of the way, as the checkpoint's own words for it. */
+const DISPLACEMENTS: readonly { garments: readonly string[]; tag: string }[] = [
+  { garments: ['thong', 'panties', 'g-string', 'underwear', 'bikini bottom'], tag: 'panties_aside' },
+  { garments: ['skirt', 'dress'], tag: 'skirt_lift' },
+  { garments: ['shirt', 'top', 'blouse', 'sweater', 'hoodie', 'tank top', 'crop top'], tag: 'shirt_lift' },
+  { garments: ['bra', 'bikini top'], tag: 'bra_lift' }
+]
+
+const MOVED =
+  '(?:pulled (?:to the side|aside|down|up|off)|bunched|hiked up|hitched up|lifted|pushed (?:up|aside|down)|moved aside|tugged (?:aside|down))'
+
+/** The garments a caption has her wearing but out of the way, as tags. */
+function displacedTags(scene: string): string[] {
+  const text = scene.toLowerCase()
+  const tags = DISPLACEMENTS.filter(({ garments }) =>
+    garments.some((garment) => new RegExp(`\\b${garment}\\b(?:\\s+[a-z'-]+){0,2}?\\s+${MOVED}`).test(text))
+  ).map(({ tag }) => tag)
+  // Something moved and named in no row: the general word for clothes pulled out of the way.
+  if (tags.length === 0 && new RegExp(`\\b${MOVED}`).test(text)) tags.push('clothes_pull')
+  return tags
 }
