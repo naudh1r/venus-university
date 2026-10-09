@@ -71,11 +71,6 @@ const HOOKS: readonly {
     why: 'a teaser with a picture shows before the picture exists'
   },
   {
-    file: 'src/renderer/views/UpdateModal.tsx',
-    needs: ['${PHOTO_MOD_UPDATE_NOTE}'],
-    why: 'the update offer never says that updating removes the mod'
-  },
-  {
     file: 'src/main/ipc.ts',
     needs: ['await exportLocalPhotos(filePath)', 'await importLocalPhotos(filePaths[0])'],
     why: 'a backup leaves her DM and feed photos behind, and a restore never puts them back'

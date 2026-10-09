@@ -1,7 +1,6 @@
 import type { JSX } from 'react'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { useUpdateStore } from '../stores/updateStore'
-import { PHOTO_MOD_UPDATE_NOTE } from './photoUpdateNote'
 
 /**
  * The one question an update asks, put over the boot cover before any screen is drawn, or over
@@ -23,7 +22,7 @@ export function UpdateModal({
       id="update-offer"
       theme={theme}
       title="Update available"
-      message={`Upgrade to version ${version}? Your saves, characters, and settings will be maintained.${PHOTO_MOD_UPDATE_NOTE}`}
+      message={`Upgrade to version ${version}? Your saves, characters, and settings will be maintained.`}
       confirmText="Update"
       cancelText="Not now"
       onConfirm={() => answer('update')}
