@@ -2,7 +2,7 @@ import type { PhotoTier } from './photoGate'
 import { DORM_IDS, dormLabel } from './dorms'
 import { bodyAppearance, bodyNegative } from './characterBody'
 import { bodyTagsFor, describesNothingOn } from './photoBody'
-import { photoPose } from './photoPose'
+import { photoPose, withoutCameraHold } from './photoPose'
 import { LOCATIONS, NARRATIVE_LOCATIONS } from './locations'
 import type { Character } from './types'
 // Carries the `Character.body` augmentation into whatever program imports this module. The
@@ -216,7 +216,7 @@ export function buildPhotoPrompt(
     body.join(', '),
     wardrobe,
     // The sentence's own full stop would sit in front of the tags that follow it.
-    [scene.replace(/[.!?]+$/, ''), pose.tags.join(', ')]
+    [withoutCameraHold(scene).replace(/[.!?]+$/, ''), pose.tags.join(', ')]
       .filter((part) => part.length > 0)
       .join(', ')
   ]

@@ -312,11 +312,31 @@ const MODIFIERS: readonly Rule[] = [
   { cues: ['mirror'], tags: ['mirror', 'reflection'] },
   // Where the camera is: a caption that says how low or high it was asks for the angle.
   {
-    cues: ['from below', 'low angle', 'from under', 'shot low', 'shot from low', 'looking up at her'],
+    cues: [
+      'from below',
+      'low angle',
+      'from under',
+      'shot low',
+      'shot from low',
+      'looking up at her',
+      'angled up',
+      'camera low',
+      'phone low'
+    ],
     tags: ['from_below']
   },
   {
-    cues: ['from above', 'high angle', 'overhead shot', 'shot from above', 'looking down at her'],
+    cues: [
+      'from above',
+      'high angle',
+      'overhead shot',
+      'shot from above',
+      'looking down at her',
+      'angled down',
+      'camera high',
+      'phone high',
+      'held up high'
+    ],
     tags: ['from_above']
   }
 ]
@@ -500,6 +520,31 @@ function lyingNegative(tags: readonly string[]): string[] {
   if (tags.includes('on_side')) return ['on_back', 'on_stomach']
   if (tags.includes('on_back')) return ['on_stomach']
   return []
+}
+
+/** A part of the sentence about the phone or camera taking the picture. */
+const HOLDS_CAMERA = /\b(?:camera|phone|cellphone|smartphone)\b/
+const HOLDING_IT =
+  /\b(?:hold\w*|rais\w*|angl\w*|aim\w*|lift\w*|tilt\w*|grip\w*|clutch\w*|extend\w*)\b/
+
+/**
+ * Her selfie's sentence without how she holds the phone. The model reads "holding the camera
+ * low" as a camera to draw in her hand, and the sentence outweighs any negative; the angle in
+ * those words has already been read off into `from_below` or `from_above` by then. Only an
+ * ordinary selfie: a mirror selfie shows the phone, and a caption that gives her a camera of
+ * her own keeps it.
+ */
+export function withoutCameraHold(scene: string): string {
+  const text = scene.toLowerCase()
+  if (!says(text, 'selfie') || says(text, 'mirror') || saysAny(text, CAMERA_CUES)) return scene
+  return scene
+    .split(/,|;|\s+while\s+|\s+as\s+/)
+    .map((part) => part.trim())
+    .filter((part) => {
+      const lower = part.toLowerCase()
+      return part.length > 0 && !(HOLDS_CAMERA.test(lower) && HOLDING_IT.test(lower))
+    })
+    .join(', ')
 }
 
 /** Legs held together, which no position may open: the caption's word over the position's. */

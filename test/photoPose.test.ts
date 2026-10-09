@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { photoPose, posePhotoTags } from '../src/shared/photoPose'
+import { photoPose, posePhotoTags, withoutCameraHold } from '../src/shared/photoPose'
 
 describe('posePhotoTags', () => {
   it('reads the framing off an ordinary caption', () => {
@@ -175,5 +175,30 @@ describe('a selfie', () => {
     expect(side.tags).not.toContain('selfie')
     expect(side.negative).toEqual(['on_back', 'on_stomach'])
     expect(photoPose('in a cafe, smiling', false).negative).toEqual([])
+  })
+})
+
+describe('a selfie caption that says how she holds the phone', () => {
+  /** The first in-game selfie's caption, which drew a camera into her free hand. */
+  const caption =
+    'A close, slightly blurry stockroom selfie of crouched among stacked boxes, cream ' +
+    'off-shoulder sweater and jeans, one hand holding the camera low and angled up while ' +
+    'she looks into the lens with a teasing smirk'
+
+  it('drops the holding, keeps the rest, and reads the angle from it first', () => {
+    const scene = withoutCameraHold(caption)
+    expect(scene).not.toMatch(/camera/)
+    expect(scene).toContain('she looks into the lens with a teasing smirk')
+    expect(scene).toContain('cream off-shoulder sweater and jeans')
+    expect(posePhotoTags(caption, false)).toContain('from_below')
+  })
+
+  it('leaves a mirror selfie, a camera of her own, and any other picture alone', () => {
+    const mirror = 'a mirror selfie, holding her phone up'
+    expect(withoutCameraHold(mirror)).toBe(mirror)
+    const film = 'a selfie, holding her film camera up to her eye'
+    expect(withoutCameraHold(film)).toBe(film)
+    const other = 'holding the camera low, she smiles'
+    expect(withoutCameraHold(other)).toBe(other)
   })
 })
