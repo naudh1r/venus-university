@@ -249,3 +249,12 @@ describe('her hands, one placement at a time', () => {
     expect(pose.tags).toContain('fingering')
   })
 })
+
+describe('sitting cross-legged', () => {
+  it('folds her legs under her', () => {
+    expect(posePhotoTags('sitting cross-legged on her bed', false)).toEqual(
+      expect.arrayContaining(['sitting', 'indian_style'])
+    )
+    expect(posePhotoTags('sitting on her bed', false)).not.toContain('indian_style')
+  })
+})

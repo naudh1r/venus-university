@@ -156,6 +156,8 @@ const VERIFIED = new Set([
   'nude',
   'pantyshot',
   'pussy',
+  // Sitting cross-legged, from the same photo's check.
+  'indian_style',
   // Spills, from an in-game photo with a pink drink splashed over her.
   'paint_splatter',
   'splashing',
@@ -291,6 +293,7 @@ function emittedTags(): string[] {
     ...quoted(prompt, /negative\.push\(([^)]*)\)/g),
     ...quoted(prompt, /short \? \[('bare_legs')\]/g),
     ...quoted(pose, /,\s*('crossed_legs')\]/g),
+    ...quoted(pose, /\.\.\.tags, ('indian_style')\]/g),
     ...quoted(body, /BARE_TAGS[^=]*=\s*\{([^}]*)\}/g),
     ...['PHOTO_QUALITY', 'PHOTO_BASE', 'PHOTO_NEGATIVE', 'BARE_POSITIVE', 'BARE_NEGATIVE'].flatMap(
       (name) => constantTags(prompt, name)

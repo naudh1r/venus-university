@@ -599,6 +599,9 @@ function onePlacement(tags: readonly string[]): string[] {
   return tags.filter((tag) => !PLACEMENT_TAGS.has(tag) || tag === first)
 }
 
+/** Sitting cross-legged: `indian_style`, which crossed her legs on two seeds of three. */
+const CROSS_LEGGED_CUES = ['cross-legged', 'cross legged', 'criss-cross', 'legs folded under']
+
 /** Legs held together, which no position may open: the caption's word over the position's. */
 const CROSSED_CUES = [
   'legs crossed',
@@ -623,6 +626,8 @@ export function posePhotoTags(caption: string, bare: boolean): string[] {
 export function photoPose(caption: string, bare: boolean): PhotoPose {
   const text = caption.toLowerCase()
   let tags = poseTagsOf(caption, bare)
+  // Sitting with her legs folded under her, which `sitting` alone drew with her legs out in front.
+  if (saysAny(text, CROSS_LEGGED_CUES)) tags = [...new Set([...tags, 'indian_style'])]
   // A position's default spread, or one her hands imply, never overrules legs she has crossed.
   if (saysAny(text, CROSSED_CUES)) {
     tags = [...new Set([...tags.filter((tag) => tag !== 'spread_legs'), 'crossed_legs'])]
