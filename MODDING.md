@@ -10,10 +10,13 @@ top as a worked example.
 
 ## The three things a mod does
 
-**1. Register** in `MODS`, in `src/shared/mods.ts`:
+**1. Register** by adding one file, `src/shared/modEntries/<id>.ts`, named for the mod's id,
+whose default export is its entry:
 
 ```ts
-{
+import type { ModDef } from '../mods'
+
+const mod: ModDef = {
   id: 'city-life-locations',        // written to disk: never changes once shipped
   name: 'City Life locations',
   author: 'Maestro Leeds',
@@ -24,9 +27,13 @@ top as a worked example.
   requires: [],                     // ids of mods this one cannot act without
   options: [{ id: 'some-option', label: '…', hint: '…', default: true }]
 }
+export default mod
 ```
 
-That is all the Mods screen, the main menu's count and the log need.
+That is all the Mods screen, the main menu's count and the log need. Nothing else names the mod:
+`MODS` in `src/shared/mods.ts` is built from whatever files that folder holds, sorted by id, so
+two mods added side by side never edit the same line. A test holds each file's name to its id.
+The entry may import the mod's own modules for what they set up (a `registerTermCarry`, say).
 
 Options that are one choice among several share a `group`, and the mod names the group in
 `optionGroups`. One option of a group is on at a time: turning one on turns the others off, and
@@ -86,11 +93,13 @@ switch is left as the player set it.
 | File | What it is |
 | --- | --- |
 | `src/shared/mods.ts` | The list, the switches' shape and every rule above. |
+| `src/shared/modEntries/` | One file per mod, named for its id: its entry. |
 | `src/main/services/modsService.ts` | Reads and writes `data/mods.json`. |
 | `src/renderer/stores/modsStore.ts` | The switches in the renderer, and the hooks. |
 | `src/renderer/views/ModsModal.tsx` | The Mods screen. |
 | `src/renderer/mods/hooks.ts` | The hook points (below). |
-| `src/renderer/mods/index.ts` | Registers every mod's hooks at boot. |
+| `src/renderer/modEntries/` | One file per mod with hooks, named for its id: its `registerHooks`. |
+| `src/renderer/mods/index.ts` | Loads every file in `modEntries/` at boot. |
 | `test/mods.test.ts` | The rules, tested against a list with every shape of mod. |
 | `src/renderer/mods/hooks.ts` | The hook points (prototype, below). |
 | `src/renderer/mods/index.ts` | Registers every mod's hooks at boot. |
@@ -194,15 +203,16 @@ registerHooks(PHOTO_FEATURE, {
 })
 ```
 
-and one line in `src/renderer/mods/index.ts` (`import './photoFeature'`), which `App.tsx`
-imports at boot.
+in a file of its own, `src/renderer/modEntries/photo-feature.ts`, named for the mod's id.
+`src/renderer/mods/index.ts`, which `App.tsx` imports, loads every file there at boot; nothing
+else names it.
 
 ### The rules
 
 - **Only mods that are on are asked.** The mods store hands the hooks its switches
   (`setHookRules`), so a mod that is off is never called and the game runs as it would without
   it. A mod rarely needs to check its own switch at a hook.
-- **Mods are asked in the order `MODS` lists them**, whatever order they registered in.
+- **Mods are asked in the order `MODS` lists them**, by id, whatever order they registered in.
 - **Adding to the game, not replacing it.** Lines, fields and events from every mod are all
   used. Where only one answer can win (likes), the first mod that answers decides and the game's
   own roll is the fallback.
@@ -238,7 +248,8 @@ as a new hook beside the old one.
 
 ### Photo Feature on hooks
 
-All of Photo Feature's prompt, event and feed additions are in `src/renderer/mods/photoFeature.ts`.
+All of Photo Feature's prompt, event and feed additions are in `src/renderer/modEntries/photo-feature.ts`, and its entry in
+`src/shared/modEntries/photo-feature.ts`.
 In the ten game files involved, lines naming Photo Feature went from 67 to 4: two for its gallery
 on `ContactPage.tsx` (screens have no hook points yet) and two that are Continuing Semesters'
 own photo carry-over in `NewGameView.tsx`.
@@ -305,4 +316,4 @@ These hooks add to the existing API; existing hooks and their arguments are unch
 
 ### Optional semester carryover
 
-A mod may augment `ModCarryFields` and register its own pure adapter with `registerTermCarry` in `shared/modCarry.ts`, imported by its `shared/mods.ts` entry. A semester extension calls `carryModFields` with the outgoing semester, native date offset, and roster, and `carriedModFields` when creating the opening save. These adapters retain saved data even with a switch off; they must not trigger generation. The registry itself requires neither Continuing Semesters nor any feature mod.
+A mod may augment `ModCarryFields` and register its own pure adapter with `registerTermCarry` in `shared/modCarry.ts`, imported by its entry in `shared/modEntries/`. A semester extension calls `carryModFields` with the outgoing semester, native date offset, and roster, and `carriedModFields` when creating the opening save. These adapters retain saved data even with a switch off; they must not trigger generation. The registry itself requires neither Continuing Semesters nor any feature mod.

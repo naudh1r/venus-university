@@ -24,7 +24,7 @@ import { holdPostPhoto, preparePostPhoto, startHeldPostPhoto } from '../stores/p
 import { settlePendingPhotos } from '../stores/photoRecovery'
 import { sendPhoto } from '../stores/photoTurn'
 import { useGameStore } from '../stores/gameStore'
-import { registerHooks } from './hooks'
+import { registerHooks } from '../mods/hooks'
 
 /**
  * Photo Feature, plugged into the game through its hooks. Everything it adds to the game's own

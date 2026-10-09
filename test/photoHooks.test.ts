@@ -241,7 +241,7 @@ const HOOKS: readonly {
   },
   {
     file: 'src/renderer/mods/index.ts',
-    needs: ["import './photoFeature'"],
+    needs: ["import.meta.glob('../modEntries/*.ts'"],
     why: 'the mod is never registered, so the game asks it nothing'
   },
   {
