@@ -150,6 +150,11 @@ const VERIFIED = new Set([
   'shirt_lift',
   'skirt_lift',
   // Selfies, drawn in the same same-seed checks.
+  'from_behind',
+  'from_side',
+  'looking_back',
+  'looking_down',
+  'profile',
   'camera',
   'cellphone',
   'foreshortening',
@@ -232,6 +237,8 @@ function emittedTags(): string[] {
     ).map(unweighted),
     ...quoted(pose, /frame = [^?]+\?\s*('[^']*')\s*:\s*('[^']*')/g).map(unweighted),
     ...quoted(pose, /frame = [^:]+:\s*('[^']*')/g).map(unweighted),
+    ...quoted(pose, /const low = [^?]+\? \[('looking_down')\]/g),
+    ...quoted(pose, /const turned = new Set\(\[([^\]]*)\]/g),
     // The side selfie's own negatives, the array after its tags.
     ...quoted(pose, /\? \[\] : \[('camera')\]/g),
     ...quoted(pose, /'from_above'\],\s*\[([^\]]*)\]/g),

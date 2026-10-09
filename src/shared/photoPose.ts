@@ -66,6 +66,11 @@ const FACING: readonly Rule[] = [
   {
     cues: ['from behind', 'back view', 'rear view', 'back turned'],
     tags: ['from_behind', 'hand_on_own_hip']
+  },
+  // `from_side` alone was drawn facing three-quarters on; `profile` is what turns her.
+  {
+    cues: ['from the side', 'side view', 'in profile', 'side profile', 'profile shot'],
+    tags: ['from_side', 'profile']
   }
 ]
 
@@ -440,7 +445,10 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
   const has = (tag: string): boolean => tags.includes(tag)
   const peace = saysAny(text, PEACE_CUES)
   if (says(text, 'mirror')) {
-    const kept = tags.filter((tag) => !FRAMING_TAGS.has(tag))
+    // Her back to a mirror drew her twice, the reflection facing the other way: the mirror
+    // shows her front, whichever way the caption turned her.
+    const turned = new Set(['from_behind', 'looking_back', 'from_side', 'profile'])
+    const kept = tags.filter((tag) => !FRAMING_TAGS.has(tag) && !turned.has(tag))
     const add = ['mirror', 'reflection', 'holding_phone', 'full_body']
     return { tags: [...new Set([...kept, ...add])], negative: [] }
   }
@@ -448,8 +456,11 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
   const kept = tags.filter((tag) => !FRAMING_TAGS.has(tag) && !PLACEMENT_TAGS.has(tag))
   const camera = saysAny(text, CAMERA_CUES) ? [] : ['camera']
   const negative = [...PHONE_NEGATIVE, ...camera, ...(peace ? [] : ['v'])]
+  // `from_below` alone left a selfie at eye level; her looking down into the phone held low
+  // is what moved the camera under her.
+  const low = has('from_below') ? ['looking_down'] : []
   const shot = (add: string[], extra: string[] = []): PhotoPose => ({
-    tags: [...new Set([...kept, ...add, ...(peace ? ['v'] : [])])],
+    tags: [...new Set([...kept, ...add, ...low, ...(peace ? ['v'] : [])])],
     negative: [...negative, ...extra]
   })
   const whole = saysAny(text, FULL_BODY_CUES)
@@ -584,6 +595,8 @@ export function photoPose(caption: string, bare: boolean): PhotoPose {
   if (saysAny(text, CROSSED_CUES)) {
     tags = [...new Set([...tags.filter((tag) => tag !== 'spread_legs'), 'crossed_legs'])]
   }
+  // Turned to face the camera, she is not side on any more: the profile goes.
+  if (tags.includes('looking_at_viewer')) tags = tags.filter((tag) => tag !== 'profile')
   const lying = closeLying(text, tags)
   tags = lying ?? withFraming(text, tags)
   if (saysAny(text, BUSY_HAND_CUES)) tags = tags.filter((tag) => !PLACEMENT_TAGS.has(tag))

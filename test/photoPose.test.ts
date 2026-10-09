@@ -202,3 +202,27 @@ describe('a selfie caption that says how she holds the phone', () => {
     expect(withoutCameraHold(other)).toBe(other)
   })
 })
+
+describe('which way the camera sees her', () => {
+  it('turns her side on for a profile, unless she looks into the camera', () => {
+    expect(posePhotoTags('standing by the window, in profile', false)).toEqual(
+      expect.arrayContaining(['from_side', 'profile'])
+    )
+    expect(
+      posePhotoTags('standing by the window, side view, looking at the camera', false)
+    ).not.toContain('profile')
+  })
+
+  it('has her look down into a selfie taken from below', () => {
+    const pose = photoPose('a selfie from below in her room', false)
+    expect(pose.tags).toEqual(expect.arrayContaining(['from_below', 'looking_down']))
+    expect(photoPose('a selfie in her room', false).tags).not.toContain('looking_down')
+  })
+
+  it('shows her front in a mirror, however the caption turned her', () => {
+    const pose = photoPose('a mirror selfie from behind, looking back over her shoulder', false)
+    expect(pose.tags).toContain('mirror')
+    expect(pose.tags).not.toContain('from_behind')
+    expect(pose.tags).not.toContain('looking_back')
+  })
+})
