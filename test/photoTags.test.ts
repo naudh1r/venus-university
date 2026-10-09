@@ -149,6 +149,22 @@ const VERIFIED = new Set([
   'partially_undressed',
   'shirt_lift',
   'skirt_lift',
+  // Legwear, from the colour-bleed checks.
+  'bare_legs',
+  'colored_legwear',
+  'latex',
+  'leggings',
+  'pantyhose',
+  'blue_legwear',
+  'brown_legwear',
+  'green_legwear',
+  'grey_legwear',
+  'orange_legwear',
+  'pink_legwear',
+  'purple_legwear',
+  'red_legwear',
+  'yellow_legwear',
+  'thighhighs',
   // Selfies, drawn in the same same-seed checks.
   'from_behind',
   'from_side',
@@ -249,6 +265,13 @@ function emittedTags(): string[] {
     ...quoted(body, /THROUGH_CLOTH[^=]*=\s*\{([^}]*)\}/g),
     ...quoted(prompt, /tag:\s*('[^']*')/g),
     ...quoted(prompt, /\[('partially_undressed')/g),
+    ...quoted(prompt, /LEGWEAR_NEGATIVE[^=]*=\s*\[([^=]*?)\n\]/g).filter((tag) =>
+      /^[a-z_]+$/.test(tag)
+    ),
+    // Each colour's own legwear tag, `pink_legwear` and the rest.
+    ...quoted(prompt, /LEG_COLOURS = \[([^\]]*)\]/g).map((colour) => `${colour}_legwear`),
+    ...quoted(prompt, /negative\.push\(([^)]*)\)/g),
+    ...quoted(prompt, /short \? \[('bare_legs')\]/g),
     ...quoted(pose, /,\s*('crossed_legs')\]/g),
     ...quoted(body, /BARE_TAGS[^=]*=\s*\{([^}]*)\}/g),
     ...['PHOTO_QUALITY', 'PHOTO_BASE', 'PHOTO_NEGATIVE', 'BARE_POSITIVE', 'BARE_NEGATIVE'].flatMap(

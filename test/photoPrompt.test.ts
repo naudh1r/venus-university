@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildPhotoPrompt } from '../src/shared/photoPrompt'
 import type { Character } from '../src/shared/types'
+import { character } from './fixtures'
 
 /** Enough of a character to prompt from; the rest of her is not read here. */
 const celest = {
@@ -182,3 +183,54 @@ describe('an explicit picture she is still partly dressed in', () => {
   })
 })
 
+
+describe('legwear she was never given', () => {
+  /** The in-game caption that drew pink latex leggings under white thighhighs. */
+  const scene =
+    'Sitting at a small wooden cafe table in her everyday clothes, leaning forward with one ' +
+    'elbow propped up and her cheek resting on her hand while she bites softly on a pastel ' +
+    'boba straw, looking directly into the camera'
+
+  it('refuses the legwear she has not got, and keeps the thighhighs she has', () => {
+    const her = character({ baseAppearance: ['1girl', 'pink_eyeshadow'] })
+    const { negative } = buildPhotoPrompt(
+      her,
+      'everyday',
+      `${scene}, in a white pleated skirt and sheer white thighhigh socks`
+    )
+    expect(negative).toEqual(expect.stringContaining('leggings'))
+    expect(negative).toEqual(expect.stringContaining('latex'))
+    expect(negative).toEqual(expect.stringContaining('colored_legwear'))
+    // The pink of her eyeshadow is refused on her legs; a colour the prompt never names is not.
+    expect(negative).toContain('pink_legwear')
+    expect(negative).not.toContain('green_legwear')
+    expect(negative).not.toContain('thighhighs')
+  })
+
+  it('bares her legs under a skirt with nothing named on them', () => {
+    const { positive, negative } = buildPhotoPrompt(
+      character(),
+      'everyday',
+      'sitting in the cafe in a short pleated skirt, smiling'
+    )
+    expect(positive).toContain('bare_legs')
+    expect(negative).toContain('thighhighs')
+  })
+
+  it('leaves the coloured legwear she asked for', () => {
+    const { negative } = buildPhotoPrompt(
+      character(),
+      'everyday',
+      'standing by the window in a red skirt and pink thighhigh stockings'
+    )
+    expect(negative).not.toContain('colored_legwear')
+    expect(negative).not.toContain('pink_legwear')
+    expect(negative).toContain('red_legwear')
+    expect(negative).not.toContain('thighhighs')
+  })
+
+  it('takes her hands off her lap when her cheek is resting on one', () => {
+    const { positive } = buildPhotoPrompt(character(), 'everyday', scene)
+    expect(positive).not.toContain('hands_on_lap')
+  })
+})

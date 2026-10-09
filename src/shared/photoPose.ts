@@ -170,6 +170,13 @@ const BUSY_HAND_CUES = [
   'hugging',
   'cradling',
   'playing with her hair',
+  'resting on her hand',
+  'cheek on her hand',
+  'chin on her hand',
+  'chin in her hand',
+  'propped',
+  'biting',
+  'bites',
   'tucking her hair',
   'fixing her hair'
 ]
