@@ -24,6 +24,8 @@ export interface PhotoSwitches {
   explicit: boolean
   /** What a DM photo still being drawn waits behind. */
   loader: PhotoLoader
+  /** New photos are stored as WebP rather than PNG. */
+  webp: boolean
 }
 
 /** Before the Mods screen's switches are read: the mod on, nothing forbidden, the bunny. */
@@ -31,7 +33,8 @@ export const DEFAULT_PHOTO_SWITCHES: PhotoSwitches = {
   on: true,
   photos: true,
   explicit: true,
-  loader: 'bunny'
+  loader: 'bunny',
+  webp: true
 }
 
 let current: PhotoSwitches = DEFAULT_PHOTO_SWITCHES
@@ -44,7 +47,8 @@ export function setPhotoSwitches(next: Partial<PhotoSwitches>): void {
     merged.on === current.on &&
     merged.photos === current.photos &&
     merged.explicit === current.explicit &&
-    merged.loader === current.loader
+    merged.loader === current.loader &&
+    merged.webp === current.webp
   ) {
     return
   }
@@ -122,6 +126,12 @@ export const PHOTO_FEATURE_MOD = {
       id: 'explicit',
       label: 'Explicit photos',
       hint: 'Off, nobody sends an undressed photo, and ones already sent stay covered. Settings → No NSFW images turns them off too.',
+      default: true
+    },
+    {
+      id: 'webp',
+      label: 'Save photos as WebP',
+      hint: 'New photos are saved as WebP at 85% quality, which takes much less space than PNG. Off, they are saved as PNG. Photos already saved stay as they are.',
       default: true
     },
     // One of these is on at a time: the store turns the others off.

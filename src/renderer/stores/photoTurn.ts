@@ -6,6 +6,7 @@ import { useGameStore } from './gameStore'
 import { RENDER_PATIENCE_MS } from './photoPost'
 import { canSendPhotos, noExplicitPhotos, photoNamesInSave, savePhotoState, setMessagePhoto } from './localPhotoStore'
 import { tellAboutDmPhotos } from './photoTipDelivery'
+import { renderPhoto } from './photoWebp'
 
 /**
  * The picture attached to one reply: settled against the save, hung on her last text as a
@@ -123,8 +124,7 @@ function drawMessagePhoto(charId: string, messageId: string): void {
     }
   }, RENDER_PATIENCE_MS)
 
-  void window.api.photo
-    .generate(playthroughId, character, tier, scene, file)
+  void renderPhoto(playthroughId, character, tier, scene, file)
     .catch((error: unknown) => ({
       ok: false as const,
       error: { code: 'PHOTO_THREW', message: String(error) }

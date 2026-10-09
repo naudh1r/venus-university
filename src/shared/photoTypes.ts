@@ -125,6 +125,15 @@ declare module '../preload/api' {
        * render can finish after the save that was waiting for it was written.
        */
       landed: (playthroughId: string, charId: string, file: string) => Promise<Result<boolean>>
+      /** The bytes of a picture on disk, whichever of PNG or WebP it is under. */
+      read: (playthroughId: string, charId: string, file: string) => Promise<Result<Uint8Array>>
+      /** Keeps the WebP encoded from a picture that landed as PNG, and drops the PNG. */
+      storeWebp: (
+        playthroughId: string,
+        charId: string,
+        file: string,
+        bytes: Uint8Array
+      ) => Promise<Result<void>>
       /**
        * Copies the pictures `charIds` sent in one playthrough into another, for a semester
        * continued from the one before: its carried threads and feeds point at them.

@@ -134,7 +134,8 @@ describe("Photo Feature's switches", () => {
       on: true,
       photos: true,
       explicit: true,
-      loader: 'bunny'
+      loader: 'bunny',
+      webp: true
     })
   })
 
@@ -142,11 +143,13 @@ describe("Photo Feature's switches", () => {
     let switches = withMod(NO_SWITCHES, PHOTO_FEATURE, false)
     switches = withOption(switches, PHOTO_FEATURE, 'photos', false)
     switches = withOption(switches, PHOTO_FEATURE, 'loader-dots', true)
+    switches = withOption(switches, PHOTO_FEATURE, 'webp', false)
     expect(photoSwitchesOf(switches)).toEqual({
       on: false,
       photos: false,
       explicit: true,
-      loader: 'dots'
+      loader: 'dots',
+      webp: false
     })
   })
 

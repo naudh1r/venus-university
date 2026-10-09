@@ -93,6 +93,7 @@ describe('photo switches', () => {
     expect(defaults).toEqual({
       photos: DEFAULT_PHOTO_SWITCHES.photos,
       explicit: DEFAULT_PHOTO_SWITCHES.explicit,
+      webp: DEFAULT_PHOTO_SWITCHES.webp,
       'loader-bunny': true,
       'loader-shimmer': false,
       'loader-dots': false

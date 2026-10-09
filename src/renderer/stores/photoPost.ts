@@ -9,6 +9,7 @@ import {
   setFeedPostPhoto
 } from './localPhotoStore'
 import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
+import { renderPhoto } from './photoWebp'
 
 /**
  * The picture on a post on her feed.
@@ -195,8 +196,7 @@ async function drawPostPhoto(charId: string, postId: string): Promise<void> {
   }
 
   drawing.add(key)
-  const render = window.api.photo
-    .generate(playthroughId, character, tier, scene, file)
+  const render = renderPhoto(playthroughId, character, tier, scene, file)
     .catch((error: unknown) => ({
       ok: false as const,
       error: { code: 'PHOTO_THREW', message: String(error) }

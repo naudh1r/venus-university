@@ -1,12 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import {
   isPhotoFile,
+  isWebpPhoto,
   nextPhotoIndex,
   photoFileName,
   photoIndexOf,
   photoSlug,
-  photoUrl
+  photoUrl,
+  pngPhotoOf
 } from '../src/shared/photoFiles'
+
+describe('a picture saved as WebP', () => {
+  it('is named, read and counted like a PNG', () => {
+    const name = photoFileName('risa', 'chat', 3, 'webp')
+    expect(name).toBe('risa_chat_003.webp')
+    expect(isPhotoFile(name)).toBe(true)
+    expect(isWebpPhoto(name)).toBe(true)
+    expect(photoIndexOf(name, 'risa', 'chat')).toBe(3)
+    expect(nextPhotoIndex(['risa_chat_001.png', name], 'risa', 'chat')).toBe(4)
+  })
+
+  it('is rendered under its PNG name first', () => {
+    expect(pngPhotoOf('risa_chat_003.webp')).toBe('risa_chat_003.png')
+    expect(isWebpPhoto('risa_chat_003.png')).toBe(false)
+    expect(isPhotoFile('risa_chat_003.gif')).toBe(false)
+  })
+})
 
 describe('photoFileName', () => {
   it('names a picture after the girl, the thread and which one it is', () => {

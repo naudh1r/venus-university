@@ -277,6 +277,7 @@ export function photoSwitchesOf(switches: ModSwitches): PhotoSwitches {
     on: modOn(switches, PHOTO_FEATURE),
     photos: optionOn(switches, PHOTO_FEATURE, 'photos'),
     explicit: optionOn(switches, PHOTO_FEATURE, 'explicit'),
+    webp: optionOn(switches, PHOTO_FEATURE, 'webp'),
     loader
   }
 }

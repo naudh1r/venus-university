@@ -6,7 +6,9 @@ import {
   carryPhotos,
   generatePhoto,
   photoLanded,
-  reservePhotoName
+  readPhotoBytes,
+  reservePhotoName,
+  storeWebpPhoto
 } from './services/localPhotoService'
 
 /**
@@ -68,6 +70,18 @@ export function registerPhotoIpc(handle: Handle): void {
   // a render that finished after the save that was waiting for it was written.
   handle('comfy:photoLanded', (_event, playthroughId: string, charId: string, file: string) =>
     photoLanded(playthroughId, charId, file)
+  )
+
+  // A picture that just landed as PNG, read back for the renderer to encode as WebP.
+  handle('comfy:readPhoto', (_event, playthroughId: string, charId: string, file: string) =>
+    readPhotoBytes(playthroughId, charId, file)
+  )
+
+  // The WebP the renderer encoded from a picture that just landed as PNG.
+  handle(
+    'comfy:storeWebpPhoto',
+    (_event, playthroughId: string, charId: string, file: string, bytes: Uint8Array) =>
+      storeWebpPhoto(playthroughId, charId, file, bytes)
   )
 
   // One picture she texted, rendered after her words have already landed on the thread.

@@ -5,6 +5,7 @@ import { SAFE_CHAR_ID } from '@shared/characterRules'
 import { isPhotoFile } from '@shared/photoFiles'
 import { SAFE_NUMERIC_ID } from '@shared/saveRules'
 import { getPlaythroughPath } from './paths'
+import { imagePath } from './services/imageFiles'
 
 /**
  * Disk-backed URLs for the pictures a character has texted the reader: the host is a constant
@@ -60,7 +61,8 @@ export function handlePhotoProtocol(): void {
       return new Response('Not found', { status: 404 })
     }
 
-    const path = getPhotoPath(playthroughId, charId, file)
+    // A WebP the renderer has not encoded yet, or never did, is served from its PNG.
+    const path = await imagePath(getPhotoPath(playthroughId, charId, file))
     try {
       return await net.fetch(pathToFileURL(path).toString())
     } catch (err) {
