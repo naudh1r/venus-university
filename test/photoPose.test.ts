@@ -227,3 +227,24 @@ describe('which way the camera sees her', () => {
     expect(pose.tags).not.toContain('looking_back')
   })
 })
+
+describe('her hands, one placement at a time', () => {
+  it('keeps a hand on her hip a placement, not a touch on her chest too', () => {
+    const tags = posePhotoTags('a naked mirror selfie in the bathroom, one hand on her hip', true)
+    expect(tags).toContain('hand_on_own_hip')
+    expect(tags).not.toContain('hand_on_own_chest')
+  })
+
+  it('does not add a hand on her hip to hands already on her knees', () => {
+    const tags = posePhotoTags('naked, bent over the bed from behind, looking back', true)
+    expect(tags).toContain('hands_on_own_knees')
+    expect(tags).not.toContain('hand_on_own_hip')
+  })
+
+  it('keeps a lying selfie from below from also being from above', () => {
+    const pose = photoPose('a selfie from below, naked on the bed, fingering herself', true)
+    expect(pose.tags).toContain('from_below')
+    expect(pose.tags).not.toContain('from_above')
+    expect(pose.tags).toContain('fingering')
+  })
+})

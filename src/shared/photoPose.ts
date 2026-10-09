@@ -385,7 +385,7 @@ function poseTagsOf(caption: string, bare: boolean): string[] {
         tags.push(...modifier.tags)
       }
     }
-    return [...new Set(tags)]
+    return onePlacement([...new Set(tags)])
   }
 
   const position = firstMatch(text, BARE_POSITIONS)
@@ -411,9 +411,12 @@ function poseTagsOf(caption: string, bare: boolean): string[] {
     const kept = tags.filter((tag) => !PLACEMENT_TAGS.has(tag))
     return [...new Set([...kept, ...hands.flatMap((action) => action.tags)])]
   }
-  if (fires(text, VAGUE_TOUCH.cues)) tags.push(...VAGUE_TOUCH.tags)
+  // Only where nothing has placed her hands yet: "a hand on her hip" is a placement, not a touch.
+  if (!tags.some((tag) => PLACEMENT_TAGS.has(tag)) && fires(text, VAGUE_TOUCH.cues)) {
+    tags.push(...VAGUE_TOUCH.tags)
+  }
 
-  return [...new Set(tags)]
+  return onePlacement([...new Set(tags)])
 }
 
 /** The photo's tags, and what its negative has to keep out of it. */
@@ -496,13 +499,9 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
     return shot(['selfie', 'from_above', 'outstretched_arm', 'upper_body'], ['on_stomach'])
   }
   if (whole || has('lying') || has('sitting')) {
-    return shot([
-      'full_body',
-      'from_above',
-      '(outstretched_arm:1.2)',
-      'foreshortening',
-      'looking_up'
-    ])
+    // From above, as tested; a caption that asked for it from below keeps that instead.
+    const angle = has('from_below') ? [] : ['from_above', 'looking_up']
+    return shot(['full_body', ...angle, '(outstretched_arm:1.2)', 'foreshortening'])
   }
   return shot(['selfie', 'upper_body', 'outstretched_arm', 'foreshortening'])
 }
@@ -576,6 +575,15 @@ export function withoutCameraHold(scene: string): string {
       return part.length > 0 && !(HOLDS_CAMERA.test(lower) && HOLDING_IT.test(lower))
     })
     .join(', ')
+}
+
+/**
+ * One hand placement at most: her position's own, the first one in. Turned away, from behind,
+ * adds a hand on her hip of its own, and bent over with her hands on her knees that made two.
+ */
+function onePlacement(tags: readonly string[]): string[] {
+  const first = tags.find((tag) => PLACEMENT_TAGS.has(tag))
+  return tags.filter((tag) => !PLACEMENT_TAGS.has(tag) || tag === first)
 }
 
 /** Legs held together, which no position may open: the caption's word over the position's. */
