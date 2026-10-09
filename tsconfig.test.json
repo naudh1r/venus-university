@@ -3,7 +3,15 @@
   // Only the tests are listed: TypeScript pulls in whatever they import, so this
   // checks the suite against the real source without a third copy of the app's
   // include lists. `api.d.ts` is what declares `window.api` for the stores.
-  "include": ["test/**/*", "vitest.config.ts", "src/preload/api.d.ts"],
+  // The mod entries too: they are loaded by `import.meta.glob`, which TypeScript does not
+  // follow, and what they declare (a carried save field, say) is part of the program.
+  "include": [
+    "test/**/*",
+    "vitest.config.ts",
+    "src/preload/api.d.ts",
+    "src/shared/modEntries/*",
+    "src/renderer/modEntries/*"
+  ],
   "compilerOptions": {
     "types": ["node", "vite/client"],
     // The @electron-toolkit base turns this off despite `strict`; on.
