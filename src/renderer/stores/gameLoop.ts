@@ -454,6 +454,8 @@ async function beginSlot(): Promise<void> {
   // The status updates the same call wrote, filed before the fold on the same terms. Awaited,
   // since a mod may need a moment with a post before the fold writes it down.
   await deliverSlotPosts(opening.posts)
+  // A game left while a mod filed one is not this opening's to fold into.
+  if (runStale(run)) return
 
   // Folded into the slot-save minted before the call went out, which is the start-of-slot
   // decision point.
