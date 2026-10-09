@@ -33,6 +33,23 @@ export type BodyField = (typeof BODY_FIELDS)[number]
  */
 const BUILD_TAGS = ['petite', 'curvy', 'toned', 'muscular_female', 'tall_female']
 
+/**
+ * How hard a sprite leans on her frame. The pose skeleton fixes her proportions, so at 1.0
+ * petite barely shows; picked by eye from a grid of 1.0 / 1.2 / 1.4 over two seeds. Tall is left
+ * plain: the game scales her height itself. A CG or photo has no skeleton (the CG's only feeds its
+ * face detailer) and keeps the plain tags.
+ */
+const BUILD_WEIGHTS: Readonly<Record<string, number>> = {
+  petite: 1.4,
+  curvy: 1.1
+}
+
+function weightedBuild(build: string | undefined, scope: BodyScope): string | undefined {
+  const weight =
+    build && (scope === 'sprite' || scope === 'nude') ? BUILD_WEIGHTS[build] : undefined
+  return weight ? `(${build}:${weight})` : build
+}
+
 /** Her chest. Nothing past `large_breasts`: the next size up is a different kind of picture. */
 const BREAST_TAGS = ['flat_chest', 'small_breasts', 'medium_breasts', 'large_breasts']
 
@@ -259,7 +276,7 @@ export function bodyAppearance(character: Character, scope: BodyScope): string[]
   if (!body) return [...character.baseAppearance]
   const kept = character.baseAppearance.filter((tag) => !ANY_BREAST_TAG.test(tag))
   const breasts = body.breasts ?? appearanceBreasts(character.baseAppearance)
-  const tags = [breasts, body.build]
+  const tags = [breasts, weightedBuild(body.build, scope)]
   if (scope !== 'photo') tags.push(body.hipsThighs)
   if (scope === 'cg') tags.push(body.buttocks)
   if (scope === 'nude' || scope === 'cg') tags.push(body.pubicHair)
@@ -281,6 +298,7 @@ export function bodyNegative(character: Character): string[] {
 /** Every tag that is hers only while the switch is on: every pool but her chest's. */
 const BODY_ONLY_TAGS: ReadonlySet<string> = new Set([
   ...BUILD_TAGS,
+  ...BUILD_TAGS.map((tag) => weightedBuild(tag, 'sprite') as string),
   ...HIPS_TAGS,
   ...BUTTOCKS_TAGS,
   ...PUBIC_TAGS

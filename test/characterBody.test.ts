@@ -233,7 +233,7 @@ describe('bodyAppearance', () => {
 
   it('leaves her backside off a sprite, and her hair off anything dressed', () => {
     const sprite = bodyAppearance(her(body), 'sprite')
-    expect(sprite).toEqual(expect.arrayContaining(['curvy', 'wide_hips']))
+    expect(sprite).toEqual(expect.arrayContaining(['(curvy:1.1)', 'wide_hips']))
     expect(sprite).not.toContain('huge_ass')
     expect(sprite).not.toContain('female_pubic_hair')
   })
@@ -245,6 +245,14 @@ describe('bodyAppearance', () => {
     expect(bodyAppearance(her(body), 'cg')).toEqual(
       expect.arrayContaining(['curvy', 'wide_hips', 'huge_ass', 'female_pubic_hair'])
     )
+  })
+
+  it('leans on a petite frame where a skeleton holds her, and not in a CG or photo', () => {
+    expect(bodyAppearance(her({ build: 'petite' }), 'sprite')).toContain('(petite:1.4)')
+    expect(bodyAppearance(her({ build: 'petite' }), 'nude')).toContain('(petite:1.4)')
+    expect(bodyAppearance(her({ build: 'petite' }), 'cg')).toContain('petite')
+    expect(bodyAppearance(her({ build: 'petite' }), 'photo')).toContain('petite')
+    expect(bodyAppearance(her({ build: 'tall_female' }), 'sprite')).toContain('tall_female')
   })
 
   it("reaches the dev's sprite and CG prompts through their own builders", () => {
@@ -290,7 +298,7 @@ describe('withBodyTags', () => {
   it('puts her body into tags remembered from before she had one', () => {
     const merged = withBodyTags(remembered, draft, true)
     expect(merged.kind === 'sprite' && merged.appearance).toEqual(
-      expect.arrayContaining(['curvy', 'large_breasts', 'wide_hips', 'female_pubic_hair'])
+      expect.arrayContaining(['(curvy:1.1)', 'large_breasts', 'wide_hips', 'female_pubic_hair'])
     )
   })
 
@@ -303,11 +311,13 @@ describe('withBodyTags', () => {
   })
 
   it('replaces a body she has since rerolled', () => {
-    const before = { ...draft, appearance: [...draft.appearance, 'petite'], negative: ['loli'] }
+    const appearance = [...draft.appearance, 'petite', '(petite:1.4)']
+    const before = { ...draft, appearance, negative: ['loli'] }
     const merged = withBodyTags(before, draft, true)
     if (merged.kind !== 'sprite') throw new Error('kind')
-    expect(merged.appearance.filter((tag) => tag === 'curvy')).toHaveLength(1)
+    expect(merged.appearance.filter((tag) => tag === '(curvy:1.1)')).toHaveLength(1)
     expect(merged.appearance).not.toContain('petite')
+    expect(merged.appearance).not.toContain('(petite:1.4)')
     expect(merged.negative).not.toContain('loli')
   })
 
