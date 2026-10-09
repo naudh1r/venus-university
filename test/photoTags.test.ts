@@ -224,7 +224,10 @@ function emittedTags(): string[] {
     // Every pool, and the petite negatives: `BUILD_TAGS = [...]` and the rest.
     ...quoted(character, /_TAGS\s*=\s*\[([^\]]*)\]/g).map(unweighted),
     ...quoted(pose, /(?:tags|implies):\s*\[([^\]]*)\]/g).map(unweighted),
-    ...quoted(pose, /(?:const add =|shot\(|PHONE_NEGATIVE =)\s*\[([^\]]*)\]/g).map(unweighted),
+    ...quoted(
+      pose,
+      /(?:const add =|shot\(|PHONE_NEGATIVE =|legs = whole \?)\s*\[([^\]]*)\]/g
+    ).map(unweighted),
     // The side selfie's own negatives, the array after its tags.
     ...quoted(pose, /'from_above'\],\s*\[([^\]]*)\]/g),
     ...quoted(pose, /negative: \[\.\.\.negative, ('on_back')\]/g),

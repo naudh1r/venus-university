@@ -384,7 +384,8 @@ const FRAMING = new Set(['close-up', 'portrait', 'upper_body', 'cowboy_shot', 'f
  * - on her side `outstretched_arm` draws an open palm at the lens, where `selfie` from above
  *   draws the arm going out of frame;
  * - a whole-body shot loses the `selfie` tag, which pulls the camera in close.
- * A mirror selfie is the one picture with the phone in it.
+ * Lying down, she is drawn from the waist up unless the caption asks for all of her: the arm
+ * only reaches that far. A mirror selfie is the one picture with the phone in it.
  */
 function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
   if (!says(text, 'selfie')) return null
@@ -402,15 +403,17 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
     tags: [...new Set([...kept, ...add, ...(peace ? ['v'] : [])])],
     negative: [...negative, ...extra]
   })
+  const whole = saysAny(text, FULL_BODY_CUES)
   if (has('on_stomach')) {
     const rest = kept.filter((tag) => tag !== 'on_stomach' && tag !== 'from_above')
+    const legs = whole ? ['(legs_up:1.1)'] : ['upper_body']
     return {
-      tags: [...new Set(['(on_stomach:1.2)', '(legs_up:1.1)', ...rest, 'outstretched_arm'])],
+      tags: [...new Set(['(on_stomach:1.2)', ...legs, ...rest, 'outstretched_arm'])],
       negative: [...negative, 'on_back']
     }
   }
   if (has('on_side')) {
-    return shot(['selfie', 'from_above'], [
+    return shot(['selfie', 'from_above', ...(whole ? [] : ['upper_body'])], [
       'on_back',
       'on_stomach',
       'open_hand',
@@ -418,7 +421,10 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
       'reaching_towards_viewer'
     ])
   }
-  if (saysAny(text, FULL_BODY_CUES) || has('lying') || has('sitting')) {
+  if (has('on_back') && !whole) {
+    return shot(['selfie', 'from_above', 'outstretched_arm', 'upper_body'], ['on_stomach'])
+  }
+  if (whole || has('lying') || has('sitting')) {
     return shot([
       'full_body',
       'from_above',
@@ -428,6 +434,14 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
     ])
   }
   return shot(['selfie', 'upper_body', 'outstretched_arm', 'foreshortening'])
+}
+
+/** How she is lying, kept from turning into one of the other two. */
+function lyingNegative(tags: readonly string[]): string[] {
+  if (tags.includes('on_stomach')) return ['on_back']
+  if (tags.includes('on_side')) return ['on_back', 'on_stomach']
+  if (tags.includes('on_back')) return ['on_stomach']
+  return []
 }
 
 /** Legs held together, which no position may open: the caption's word over the position's. */
@@ -458,5 +472,5 @@ export function photoPose(caption: string, bare: boolean): PhotoPose {
   if (saysAny(text, CROSSED_CUES)) {
     tags = [...new Set([...tags.filter((tag) => tag !== 'spread_legs'), 'crossed_legs'])]
   }
-  return selfieShot(text, tags) ?? { tags, negative: [] }
+  return selfieShot(text, tags) ?? { tags, negative: lyingNegative(tags) }
 }
