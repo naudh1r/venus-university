@@ -10,7 +10,11 @@ import type {
   SocialPost,
   TextingResponse
 } from '@shared/types'
+import type { GameOverReason } from '@shared/gameOver'
+import type { PlaythroughRecord } from '@shared/types'
 import type { TextingPromptState } from '../prompts/textingPrompt'
+import type { ResolvedSave } from '../stores/saveStore'
+import type { ViewName } from '../stores/uiStore'
 
 /**
  * The places in the game a mod adds to, without editing the game's code there.
@@ -71,6 +75,32 @@ export interface LikesAsk {
   friends: number
 }
 
+/**
+ * A way on that a mod offers in place of the game's own, on a screen that otherwise has one.
+ * `prepare` runs first, while nothing has been torn down: it does whatever may fail (reading a
+ * save, say), reports its own failure and returns null, and the player stays where he was. On
+ * success it returns `enter`, which the game calls once the running game, if any, is gone, and
+ * which stages what the mod needs and names the screen to show.
+ */
+export interface WayOn {
+  prepare: () => Promise<(() => ViewName) | null>
+}
+
+/** The ending's way on, offered beside "Return to the main menu", which stays. */
+export interface EndingChoice extends WayOn {
+  /** The button's words. */
+  label: string
+}
+
+/** What a mod offers for a save picked in Load Game, beside loading it. */
+export interface SaveChoice extends WayOn {
+  title: string
+  /** The question. The game adds its own line about progress a running game would lose. */
+  message: string
+  /** The button that takes the mod's way, beside Load. */
+  label: string
+}
+
 export interface RequestSpots {
   scene: PromptSpots['scene']
   dm: PromptSpots['dm'] & { newMessage: string }
@@ -122,6 +152,16 @@ export interface ModHooks {
   postLikes?: (ask: LikesAsk) => number | undefined
   /** Whether a post is on her feed yet; every mod has to agree. */
   postVisible?: (post: SocialPost) => boolean
+  /** A way on from the ending, beside the menu; the first mod that answers is offered. */
+  endingChoice?: (ctx: {
+    reason: GameOverReason
+    playthroughId: string | null
+  }) => EndingChoice | undefined
+  /** An offer for a save picked in Load Game, beside loading it; the first mod that answers. */
+  saveChoice?: (ctx: {
+    playthroughId: string
+    save: ResolvedSave & { record: PlaythroughRecord }
+  }) => SaveChoice | undefined
 }
 
 interface Registered {
@@ -228,6 +268,37 @@ export function postLikes(ask: LikesAsk, own: () => number): number {
 
 export function postVisible(post: SocialPost): boolean {
   return active().every((hooks) => hooks.postVisible?.(post) ?? true)
+}
+
+/**
+ * Prepares a way on for the screen that offered it. Null where the mod declined, and null too
+ * where that screen is gone or its game left by the time the mod is ready (`stillHere` false):
+ * a late answer opens nothing.
+ */
+export async function prepareWayOn(
+  choice: WayOn,
+  stillHere: () => boolean
+): Promise<(() => ViewName) | null> {
+  const enter = await choice.prepare()
+  return enter && stillHere() ? enter : null
+}
+
+/** The ending's way on from the first mod that offers one, or none. */
+export function endingChoice(ctx: Parameters<NonNullable<ModHooks['endingChoice']>>[0]): EndingChoice | undefined {
+  for (const hooks of active()) {
+    const choice = hooks.endingChoice?.(ctx)
+    if (choice) return choice
+  }
+  return undefined
+}
+
+/** The offer for a picked save from the first mod that makes one, or none. */
+export function saveChoice(ctx: Parameters<NonNullable<ModHooks['saveChoice']>>[0]): SaveChoice | undefined {
+  for (const hooks of active()) {
+    const choice = hooks.saveChoice?.(ctx)
+    if (choice) return choice
+  }
+  return undefined
 }
 
 /** Compose request additions in mod-list order, including regenerated DMs. */

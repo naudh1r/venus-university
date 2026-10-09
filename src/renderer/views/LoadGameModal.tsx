@@ -45,6 +45,7 @@ import {
   type ResolvedSave
 } from '../stores/saveStore'
 import { usePhotoStore } from '../stores/photoStore'
+import { prepareWayOn, saveChoice, type SaveChoice, type WayOn } from '../mods/hooks'
 import { entryCrossing, menuCrossing } from '../stores/slotCrossing'
 import { useUiStore } from '../stores/uiStore'
 import { saveThumbUrl } from './bgAssets'
@@ -204,6 +205,20 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
   const [confirmingResume, setConfirmingResume] = useState<PlaythroughSummary | null>(null)
   // The open playthrough's name being asked for.
   const [renaming, setRenaming] = useState<PlaythroughSummary | null>(null)
+  // A save a mod has something to offer for, and its offer, waiting on the player's choice.
+  const [choosing, setChoosing] = useState<{ entry: ResolvedSave; choice: SaveChoice } | null>(
+    null
+  )
+  // A mod's way on being prepared: the question stays up, every answer locked, until it is.
+  const [preparing, setPreparing] = useState(false)
+  // Whether this panel is still up, for a mod's answer that comes back after it closed.
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   // Captured with the promise so the hand-off uses the roster on screen at the click.
   const [entering, setEntering] = useState<Entering | null>(null)
   // Which row is under the cursor: the ✕ is revealed from React rather than by CSS.
@@ -306,6 +321,47 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
   const close = (): void => (onClose ? onClose() : closeModal('loadGame'))
 
   /**
+   * A mod's way on from a picked save: prepared first, so one that fails changes nothing, then
+   * from the Game menu the running game is torn down under one curtain, as loading does, and
+   * from the Main Menu a plain cut.
+   */
+  async function takeModChoice(choice: WayOn): Promise<void> {
+    setPreparing(true)
+    let enter: Awaited<ReturnType<typeof prepareWayOn>> = null
+    try {
+      // An answer that lands after the panel closed opens nothing.
+      enter = await prepareWayOn(choice, () => mounted.current)
+    } finally {
+      if (mounted.current) setPreparing(false)
+    }
+    if (!mounted.current) return
+    setChoosing(null)
+    if (!enter) return
+    if (onClose) {
+      if (!beginCrossing(undefined, menuCrossing(theme))) return
+      coverSwap(() => {
+        void (async () => {
+          await leaveToMenu({ keepCrossing: true })
+          setMenuTheme(theme)
+          setView(enter())
+          onClose()
+          endCrossing()
+        })()
+      })
+      return
+    }
+    const cut = beginCrossing(
+      () => {
+        const view = enter()
+        close()
+        setView(view)
+      },
+      { from: theme }
+    )
+    if (cut) endCrossing()
+  }
+
+  /**
    * Reopens the registrar on a playthrough that never got a timetable. From the Main Menu it's a
    * plain cut; from the Game menu the running game says its last word and is torn down first,
    * under the one curtain, handing on the hour it was left in exactly as leaving to the menu does.
@@ -397,7 +453,7 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
 
   /** Whether a question stands over the panel, which then answers no key of its own. */
   const asking = Boolean(
-    deletingSave || deletingPlaythrough || confirmingLoad || confirmingResume || renaming
+    deletingSave || deletingPlaythrough || confirmingLoad || confirmingResume || renaming || choosing
   )
 
   // A name is written onto the record, so a playthrough whose record was refused takes none.
@@ -499,8 +555,16 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
                   const entry = saves.find((candidate) => candidate.saveId === card.saveId)
                   // Neither half loads without the other.
                   if (!entry?.summary || !entry.record) return
-                  // Loading over a running game asks first; from the Main Menu the click loads.
-                  if (onClose) setConfirmingLoad(entry)
+                  // A mod with something to offer for this save asks which; otherwise loading over
+                  // a running game asks first, and from the Main Menu the click loads.
+                  const choice = entry.unloadable
+                    ? undefined
+                    : saveChoice({
+                        playthroughId: selected.playthroughId,
+                        save: { ...entry, record: entry.record }
+                      })
+                  if (choice) setChoosing({ entry, choice })
+                  else if (onClose) setConfirmingLoad(entry)
                   else void load(selected.playthroughId, entry)
                 }}
                 onDelete={(card) => {
@@ -669,6 +733,32 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
             onConfirm={() => {
               const entry = confirmingLoad
               setConfirmingLoad(null)
+              if (selected) void load(selected.playthroughId, entry)
+            }}
+          />
+        )}
+
+        {choosing && (
+          <ConfirmModal
+            key="save-choice"
+            id="save-choice"
+            theme={theme}
+            title={choosing.choice.title}
+            message={`${choosing.choice.message}${
+              onClose
+                ? hasDecisionPoint()
+                  ? ' Either way, progress since the last action in the game you are in will be lost.'
+                  : ' Either way, progress since the last autosave in the game you are in will be lost.'
+                : ''
+            }`}
+            confirmText="Load"
+            extraText={choosing.choice.label}
+            busy={preparing}
+            onExtra={() => void takeModChoice(choosing.choice)}
+            onCancel={() => setChoosing(null)}
+            onConfirm={() => {
+              const { entry } = choosing
+              setChoosing(null)
               if (selected) void load(selected.playthroughId, entry)
             }}
           />

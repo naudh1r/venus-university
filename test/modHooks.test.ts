@@ -67,3 +67,72 @@ describe('mod hooks', () => {
     expect(after).not.toHaveBeenCalled()
   })
 })
+
+describe('ways on', () => {
+  it('offers the first answer from a mod that is on, and none from a mod that is off', async () => {
+    const hooks = await fresh({ off: false }, ['off', 'quiet', 'semesters', 'later'])
+    const prepare = async (): Promise<null> => null
+    hooks.registerHooks('later', { endingChoice: () => ({ label: 'later', prepare }) })
+    hooks.registerHooks('semesters', {
+      endingChoice: (ctx) =>
+        ctx.reason === 'gameComplete' ? { label: 'next semester', prepare } : undefined
+    })
+    hooks.registerHooks('quiet', { endingChoice: () => undefined })
+    hooks.registerHooks('off', { endingChoice: () => ({ label: 'off', prepare }) })
+
+    expect(hooks.endingChoice({ reason: 'gameComplete', playthroughId: 'p' })?.label).toBe(
+      'next semester'
+    )
+    expect(hooks.endingChoice({ reason: 'expulsion', playthroughId: 'p' })?.label).toBe('later')
+  })
+
+  it('offers nothing for a save where no mod answers', async () => {
+    const hooks = await fresh({}, ['a'])
+    hooks.registerHooks('a', { saveChoice: () => undefined })
+    const save = {} as Parameters<typeof hooks.saveChoice>[0]['save']
+    expect(hooks.saveChoice({ playthroughId: 'p', save })).toBeUndefined()
+  })
+})
+
+
+describe('preparing a way on', () => {
+  /** A prepare the test answers by hand, so the screen can be closed while it waits. */
+  function deferred(): {
+    choice: { prepare: () => Promise<(() => 'mainMenu') | null> }
+    answer: (enter: (() => 'mainMenu') | null) => void
+  } {
+    let answer!: (enter: (() => 'mainMenu') | null) => void
+    const pending = new Promise<(() => 'mainMenu') | null>((resolve) => (answer = resolve))
+    return { choice: { prepare: () => pending }, answer }
+  }
+
+  it('hands back where to go when the mod is ready and the screen is still up', async () => {
+    const hooks = await fresh({}, [])
+    const { choice, answer } = deferred()
+    const enter = vi.fn((): 'mainMenu' => 'mainMenu')
+    const ready = hooks.prepareWayOn(choice, () => true)
+    answer(enter)
+    expect(await ready).toBe(enter)
+    expect(enter).not.toHaveBeenCalled()
+  })
+
+  it('opens nothing when the screen closed before the mod was ready', async () => {
+    const hooks = await fresh({}, [])
+    const { choice, answer } = deferred()
+    let open = true
+    const enter = vi.fn((): 'mainMenu' => 'mainMenu')
+    const ready = hooks.prepareWayOn(choice, () => open)
+    open = false
+    answer(enter)
+    expect(await ready).toBeNull()
+    expect(enter).not.toHaveBeenCalled()
+  })
+
+  it('opens nothing when the mod declines', async () => {
+    const hooks = await fresh({}, [])
+    const { choice, answer } = deferred()
+    const ready = hooks.prepareWayOn(choice, () => true)
+    answer(null)
+    expect(await ready).toBeNull()
+  })
+})
