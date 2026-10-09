@@ -123,14 +123,48 @@ options:
   one. Photos already sent stay visible.
 - **Explicit photos**: off, nobody sends an undressed photo and ones already sent stay covered.
   The game's own "No NSFW images" turns them off too.
+- **Save photos as WebP**: on by default. New photos are saved as WebP at 85% quality instead
+  of PNG. Off, they are saved as PNG. Photos already saved stay as they are.
 - **Loading animation**: a group of three, Bunny hop, Dot shimmer and Typing dots.
 
 These used to be in the game's Settings. `modsService.ts` carries a player's old choice over
 (`withPhotoSettingsCarried`) until the Mods screen stores its own.
 
-Option ids are written to disk, so they never change: `photos`, `explicit`, `loader-bunny`,
-`loader-shimmer`, `loader-dots`. `test/photoHooks.test.ts` fails if the handover in `modsStore.ts`
+Option ids are written to disk, so they never change: `photos`, `explicit`, `webp`,
+`loader-bunny`, `loader-shimmer`, `loader-dots`. `test/photoHooks.test.ts` fails if the handover in `modsStore.ts`
 or `modsService.ts` goes missing.
+
+### WebP photos
+
+ComfyUI only saves PNG, and main has no image encoder. So a photo whose name is reserved as
+`.webp` is rendered to the `.png` beside it; the renderer then gets the PNG's bytes over IPC,
+encodes them with Chromium at 85%, and main keeps the WebP and deletes the PNG
+(`src/renderer/stores/photoWebp.ts`, `storeWebpPhoto` in `localPhotoService.ts`).
+
+Every reader takes whichever of the two is on disk: the `playimg://` protocol, the check for a
+photo that landed after its save, backups. So an encode that fails, or a render that finished
+after the game closed, still shows as PNG.
+
+### How a photo prompt is built
+
+The character's AI writes one sentence describing the photo. `src/shared/photoPrompt.ts` keeps
+that sentence and adds tags read off it:
+
+- **Pose, framing, angle, selfie** (`photoPose.ts`, `photoFraming.ts`): "on her side", "waist
+  up", "from below", "a selfie", "mirror" and so on become the tags that held on the photo
+  checkpoint. Some need a weight or a special combination; the comment beside each rule says
+  what was tried.
+- **Her body** (`photoBody.ts`): only the parts in shot, as far as her clothes allow, following
+  the same framing.
+- **Clean-up of the sentence**: names are taken out, a selfie loses how she holds the phone
+  (the model draws "holding the camera" as a camera), and colours named after food are said
+  plainly ("cream shirt" was drawn as cream).
+- **Negatives**: legwear she was not given, in every colour the prompt names (a colour
+  anywhere in the prompt bleeds onto her legs); a selfie's phone and camera.
+
+Every tag these files can write has to be in the verified list in `test/photoTags.test.ts`,
+which fails on any other. A tag goes on that list once a same-seed ComfyUI check shows the
+checkpoint draws it.
 
 ## Hook points
 
