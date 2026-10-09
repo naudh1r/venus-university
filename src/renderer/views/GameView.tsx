@@ -170,6 +170,8 @@ import { ClassScheduleModal } from './ClassScheduleModal'
 import { EditPromptModal } from './EditPromptModal'
 import { FeedbackModal } from './FeedbackModal'
 import { GameMenuModal } from './GameMenuModal'
+import { endingChoice, prepareWayOn, type WayOn } from '../mods/hooks'
+import { currentRun, runStale } from '../stores/loop/state'
 import { ModsModal } from './ModsModal'
 import { LoadGameModal } from './LoadGameModal'
 import { MilestoneModal } from './MilestoneModal'
@@ -757,6 +759,52 @@ export function GameView(): JSX.Element {
 
   /** The playthrough ended badly, and which way (`shared/gameOver.ts`). */
   const gameOver = activeGameOver ? GAME_OVER_SCENES[activeGameOver] : null
+
+  // A mod's way on from the ending being prepared: the ending's buttons are locked until it is.
+  const [preparingWayOn, setPreparingWayOn] = useState(false)
+  const viewMounted = useRef(true)
+  useEffect(() => {
+    viewMounted.current = true
+    return () => {
+      viewMounted.current = false
+    }
+  }, [])
+
+  /** What a mod offers from the ending in place of the menu, asked while the ending is up. */
+  const endingOffer =
+    activeGameOver && !useGameStore.getState().createdScene && !useGameStore.getState().replaying
+      ? endingChoice({ reason: activeGameOver, playthroughId: useGameStore.getState().playthroughId })
+      : undefined
+
+  /**
+   * A mod's way on from the ending: prepared first, so one that fails leaves the ending where it
+   * is, then the same crossing out as {@link toMenu}, landing where the mod says.
+   */
+  function toModChoice(choice: WayOn): void {
+    const leftIn = half
+    const run = currentRun()
+    setPreparingWayOn(true)
+    void (async () => {
+      let enter: Awaited<ReturnType<typeof prepareWayOn>> = null
+      try {
+        // An answer that lands after the game was left, or the view unmounted, opens nothing.
+        enter = await prepareWayOn(choice, () => viewMounted.current && !runStale(run))
+      } finally {
+        if (viewMounted.current) setPreparingWayOn(false)
+      }
+      if (!enter) return
+      cancelCrossing()
+      beginCrossing(undefined, menuCrossing(leftIn))
+      coverSwap(() => {
+        void (async () => {
+          await leaveToMenu({ keepCrossing: true })
+          setMenuTheme(leftIn)
+          setView(enter())
+          endCrossing()
+        })()
+      })
+    })()
+  }
 
   /**
    * Writes the last decision point back and leaves, under a cover. The way out is a crossing like
@@ -2507,6 +2555,7 @@ export function GameView(): JSX.Element {
             id="game-over"
             theme={modalTheme}
             lockOut
+            busy={preparingWayOn}
             title={gameOver.title}
             message={gameOver.message}
             extraText={activeGameOver === 'gameComplete' ? 'Download ending CG' : undefined}
@@ -2515,8 +2564,11 @@ export function GameView(): JSX.Element {
               setSavingArt(true)
               void exportEndingArt().finally(() => setSavingArt(false))
             }}
-            confirmText="Return to the main menu"
-            onConfirm={() => toMenu()}
+            // A mod's way on, where one offers it, comes first, and the menu stays beside it.
+            confirmText={endingOffer ? endingOffer.label : 'Return to the main menu'}
+            onConfirm={() => (endingOffer ? toModChoice(endingOffer) : toMenu())}
+            cancelText={endingOffer ? 'Return to the main menu' : undefined}
+            onCancel={endingOffer ? () => toMenu() : undefined}
           />
         )}
       </AnimatePresence>

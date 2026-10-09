@@ -222,6 +222,15 @@ imports at boot.
 | `fileFeedPost` | `loop/feed.ts` | Change a slot post before it is filed, or file it later itself (`held`) |
 | `postLikes` | `loop/feed.ts`, `NewGameView.tsx` | Decide likes on ending, stranger and winter posts |
 | `postVisible` | `feedView.ts`, `loop/feed.ts`, `ContactPage.tsx` | Keep a post off the feed for now |
+| `endingChoice` | `GameView.tsx` | Offer a way on from the ending, beside "Return to the main menu" |
+| `saveChoice` | `LoadGameModal.tsx` | Offer something for a picked save, beside "Load" |
+
+The two ways on (`endingChoice`, `saveChoice`) share one shape, `WayOn`. Its `prepare` runs
+while nothing has been torn down, does whatever may fail and reports it, and returns `enter`,
+which the game calls once any running game is gone: it stages what the mod needs and names the
+screen to show. The first mod that answers is offered; the game's own choice always stays.
+While `prepare` runs, the screen that offered the choice keeps every button locked; an answer
+that comes back after that screen closed, or after its game was left, opens nothing.
 
 A hook point is added where mods actually meet, not ahead of need. Once mods use one, it stays
 as it is: renaming it or changing what it passes breaks them. A change that is needed goes in
@@ -283,4 +292,17 @@ Where a branch goes:
 - The build's name and version (`BUILD` in `mods.ts`).
 - Whether `data/mods.json` goes into the game's own backup; it does not today.
 - How a mod that patches the built code, rather than the source, reads its switch.
-- Whether hook points go into the framework, and which ones.
+
+## Scene and memory hooks
+
+- `prompts.scene` adds context to cast and solo scenes, including continuations and closing requests.
+- `requests.scene`, `requests.dm`, `requests.ledger` and `requests['slot-intro']` extend a completed request in mod-list order. Preserve the request and schema fields received from earlier mods. DM hooks run for normal and regenerated replies because both use the same builder.
+- `slotSettled` receives the scene's starting state, the completed ledger and closing cast after bookkeeping, before clock advancement and the boundary save. It is synchronous so mod state is included in that save.
+
+These hooks add to the existing API; existing hooks and their arguments are unchanged. Screens, IPC and save fields still use direct integration as documented above.
+
+- `bunnyboardPage` registers an independently gated tab with `id`, `word`, `Mark` and `Page`. Disabling its mod unmounts the page and returns the phone to Chats. Native tab IDs cannot be replaced. Other screen integration remains direct.
+
+### Optional semester carryover
+
+A mod may augment `ModCarryFields` and register its own pure adapter with `registerTermCarry` in `shared/modCarry.ts`, imported by its `shared/mods.ts` entry. A semester extension calls `carryModFields` with the outgoing semester, native date offset, and roster, and `carriedModFields` when creating the opening save. These adapters retain saved data even with a switch off; they must not trigger generation. The registry itself requires neither Continuing Semesters nor any feature mod.

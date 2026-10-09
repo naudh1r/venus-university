@@ -1,3 +1,5 @@
+import { bunnyboardPages } from '../mods/hooks'
+import { useModsStore } from '../stores/modsStore'
 import {
   Fragment,
   memo,
@@ -272,7 +274,11 @@ export function BunnyboardModal({
   onChangeSchedule,
   onOpenJobs
 }: BunnyboardModalProps): JSX.Element | null {
-  const tab = useBunnyboardStore((s) => s.tab)
+  const storedTab = useBunnyboardStore((s) => s.tab)
+  useModsStore(s => s.switches)
+  const pages = bunnyboardPages()
+  const tabs = [...TABS, ...pages]
+  const tab = tabs.some(entry => entry.id === storedTab) ? storedTab : 'chats'
   const viewingCharId = useBunnyboardStore((s) => s.viewingCharId)
   const pageCharId = useBunnyboardStore((s) => s.pageCharId)
   const setTab = useBunnyboardStore((s) => s.setTab)
@@ -281,6 +287,8 @@ export function BunnyboardModal({
   const profilePicture = useGameStore((s) => s.profilePicture)
   const hiddenOf = useHiddenThreads()
   const backToList = useBunnyboardStore((s) => s.backToList)
+
+  useEffect(() => { if (storedTab !== tab) setTab(tab) }, [storedTab, tab, setTab])
 
   // A hidden thread's unread stays off the badge.
   const chatsBadge = Object.values(bunnyboard.conversations).reduce(
@@ -324,7 +332,7 @@ export function BunnyboardModal({
       ) : (
         <div className="vu-bb" role="dialog" aria-modal="true" aria-label="Bunnyboard">
           <LettersFilter id="vu-bb-letters" inkClassName="vu-bb-letters-ink" />
-          <motion.div className="vu-bb-rail" variants={RAIL_DEAL}>
+          <motion.div className={`vu-bb-rail${tabs.length > 5 ? ' vu-bb-rail--expanded' : ''}`} variants={RAIL_DEAL}>
             <motion.button
               className="vu-circle"
               type="button"
@@ -337,13 +345,14 @@ export function BunnyboardModal({
               <BackIcon />
             </motion.button>
 
-            {TABS.map((entry) => {
+            {tabs.map((entry, index) => {
               const on = entry.id === tab
               const badge =
                 entry.id === 'chats' ? chatsBadge : entry.id === 'friends' ? friendsBadge : 0
               return (
                 <motion.button
                   key={entry.id}
+                  style={tabs.length > 5 ? { marginLeft: (tabs.length - index - 1) * 7 } : undefined}
                   id={`bb-tab-${entry.id}`}
                   className={`vu-tile vu-bb-tile vu-paper${on ? ' vu-bb-tile--on' : ''}`}
                   type="button"
@@ -405,6 +414,7 @@ export function BunnyboardModal({
                 {tab === 'updates' && <UpdatesFeed />}
                 {tab === 'profile' && <ProfilePage />}
                 {tab === 'photos' && <PhotosPage theme={theme} />}
+                {pages.map(({ id, Page }) => tab === id ? <Page key={id} /> : null)}
               </div>
             </div>
           </motion.div>
