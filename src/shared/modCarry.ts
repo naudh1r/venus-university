@@ -37,3 +37,36 @@ export function carriedModFields(carry: Partial<ModCarryFields>): Partial<ModCar
     Object.hasOwn(source, key) && source[key] !== undefined
   ).map(key => [key, source[key]]))
 }
+
+/** The playthroughs a semester is carried between, by id. */
+export interface TermFilesContext {
+  /** The finished playthrough. */
+  from: string
+  /** The new one, written but not yet entered. */
+  to: string
+}
+type FileCarrier = (context: TermFilesContext) => Promise<void>
+const fileCarriers = new Map<string, FileCarrier>()
+
+/**
+ * A mod's files kept per playthrough outside the save (pictures, say), copied into the new
+ * playthrough's folder by the mod itself. Like the fields, independent of switches: a feature
+ * off when the semester turns keeps its files for when it is turned back on.
+ */
+export function registerTermFiles(modId: string, carrier: FileCarrier): void {
+  fileCarriers.set(modId, carrier)
+}
+
+/**
+ * Called by a semester extension once the new playthrough is written, before it is entered.
+ * Each carrier is awaited in turn; one that fails costs only its own files and stops no other.
+ */
+export async function carryModFiles(context: TermFilesContext): Promise<void> {
+  for (const [modId, carrier] of fileCarriers) {
+    try {
+      await carrier(context)
+    } catch (error) {
+      console.warn(`[mods] ${modId} could not carry its files into the new playthrough`, error)
+    }
+  }
+}

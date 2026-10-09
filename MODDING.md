@@ -236,3 +236,5 @@ These hooks add to the existing API; existing hooks and their arguments are unch
 ### Optional semester carryover
 
 A mod may augment `ModCarryFields` and register its own pure adapter with `registerTermCarry` in `shared/modCarry.ts`, imported by its entry in `shared/modEntries/`. A semester extension calls `carryModFields` with the outgoing semester, native date offset, and roster, and `carriedModFields` when creating the opening save. These adapters retain saved data even with a switch off; they must not trigger generation. The registry itself requires neither Continuing Semesters nor any feature mod.
+
+Files a mod keeps per playthrough outside the save (pictures, say) are carried the same way: `registerTermFiles(modId, async ({ from, to }) => …)` copies them from the finished playthrough's folder to the new one's, and the semester extension calls `carryModFiles({ from, to })` once the new playthrough is written, before it is entered. A copier runs with its mod's switch off too, and one that fails costs only its own files.
