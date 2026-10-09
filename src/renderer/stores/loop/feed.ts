@@ -18,6 +18,7 @@ import { useGrabBagStore } from '../grabBagStore'
 import { pickFeedFill, pickSuggestions, pickTeaser, type TeaserCandidate } from '../feedRolls'
 import { contactFeedPosts, visibleFriendships } from '../feedView'
 import { deliverBunnybotNow } from '../textingLoop'
+import { currentRun, runStale } from './state'
 
 /** The social feed where it meets the store. */
 
@@ -26,6 +27,8 @@ import { deliverBunnybotNow } from '../textingLoop'
  * feed surfaces for the slot, and fills a feed too thin to read with more of them.
  */
 export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promise<void> {
+  // A mod's filing may be awaited; a game left meanwhile gets none of this slot's posts.
+  const run = currentRun()
   const fresh: TeaserCandidate[] = []
   // Strangers' posts a mod marked as worth showing first: the teaser is drawn from these first.
   const featured: TeaserCandidate[] = []
@@ -54,6 +57,7 @@ export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promi
       },
       { nudge: nudgeFirstContactPost }
     )
+    if (runStale(run)) return
     // A stranger's post is a teaser candidate; blocked counts as contact, since the flag is
     // masked rather than cleared.
     const flags = game.charInfo[charId]?.flags
