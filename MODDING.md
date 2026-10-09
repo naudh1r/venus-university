@@ -35,20 +35,6 @@ That is all the Mods screen, the main menu's count and the log need. Nothing els
 two mods added side by side never edit the same line. A test holds each file's name to its id.
 The entry may import the mod's own modules for what they set up (a `registerTermCarry`, say).
 
-Options that are one choice among several share a `group`, and the mod names the group in
-`optionGroups`. One option of a group is on at a time: turning one on turns the others off, and
-the one that is on stays on until another is picked. The Mods screen shows a group as one box,
-with the group's label and hint once and a row for each choice. They are still plain on/off
-values in `data/mods.json`.
-
-```ts
-options: [
-  { id: 'loader-bunny', label: 'Bunny hop', hint: '', default: true, group: 'loader' },
-  { id: 'loader-dots', label: 'Typing dots', hint: '', default: false, group: 'loader' }
-],
-optionGroups: [{ id: 'loader', label: 'Loading animation', hint: 'The animation shown while…' }]
-```
-
 **2. Ask before acting**, wherever the mod would do something:
 
 ```ts
@@ -88,11 +74,28 @@ switch is left as the player set it.
   build does not know are kept.
 - `playthrough.json`: `mods`, the `playthrough` mods that playthrough started with.
 
+
+## Options that are one choice
+
+Options that are one choice among several share a `group`, and the mod names the group in
+`optionGroups`. One option of a group is on at a time: turning one on turns the others off, and
+the one that is on stays on until another is picked. The Mods screen shows a group as one box,
+with the group's label and hint once and a row for each choice. They are still plain on/off
+values in `data/mods.json`.
+
+```ts
+options: [
+  { id: 'loader-bunny', label: 'Bunny hop', hint: '', default: true, group: 'loader' },
+  { id: 'loader-dots', label: 'Typing dots', hint: '', default: false, group: 'loader' }
+],
+optionGroups: [{ id: 'loader', label: 'Loading animation', hint: 'The animation shown while…' }]
+```
+
 ## Where the code is
 
 | File | What it is |
 | --- | --- |
-| `src/shared/mods.ts` | The list, the switches' shape and every rule above. |
+| `src/shared/mods.ts` | The list, the switches' shape and every rule above. No dependencies. |
 | `src/shared/modEntries/` | One file per mod, named for its id: its entry. |
 | `src/main/services/modsService.ts` | Reads and writes `data/mods.json`. |
 | `src/renderer/stores/modsStore.ts` | The switches in the renderer, and the hooks. |
@@ -101,84 +104,12 @@ switch is left as the player set it.
 | `src/renderer/modEntries/` | One file per mod with hooks, named for its id: its `registerHooks`. |
 | `src/renderer/mods/index.ts` | Loads every file in `modEntries/` at boot. |
 | `test/mods.test.ts` | The rules, tested against a list with every shape of mod. |
-| `src/renderer/mods/hooks.ts` | The hook points (prototype, below). |
-| `src/renderer/mods/index.ts` | Registers every mod's hooks at boot. |
 
 ## A rule in shared code
 
 Shared code holds no switches. Where a rule there has to follow one, give the rule a flag with
 a setter, and set it from `modsStore.ts` at boot and whenever a switch moves
 (`useModsStore.subscribe`). Continuing Semesters does this for its seniors option.
-
-## How Photo Feature uses it
-
-It is `anytime`, and it checks its own switch: the mod keeps its switches in
-`src/shared/photoSwitches.ts` and asks there wherever it acts, so the build only hands them
-over. That is three places:
-
-- `photoSwitchesOf(switches)` in `mods.ts` turns the Mods screen's switches into the mod's own.
-- `modsStore.ts` passes them to `setPhotoSwitches` at boot and whenever a switch moves.
-- `modsService.ts` does the same in main, when the switches are read or written. Main keeps its
-  own copy because body details are drawn there.
-
-Its entry in `MODS` is `PHOTO_FEATURE_MOD` from `photoSwitches.ts`, with the version added, so
-its name, text and options come from the mod.
-
-Off, nobody sends a new photo, posts get no new comments, body details are not used and likes
-are the game's own. Photos, galleries and comments already made are hidden, not deleted. Its
-options:
-
-- **Photo generation**: off, no new photos are made and characters are not told they can send
-  one. Photos already sent stay visible.
-- **Explicit photos**: off, nobody sends an undressed photo and ones already sent stay covered.
-  The game's own "No NSFW images" turns them off too.
-- **Body details**: off by default. Characters get a build, chest, hips, backside and hair from
-  fixed tag lists, used in their sprites, CGs and photos. The default characters can't be edited,
-  so one has to be cloned first for the fields to show.
-- **Save photos as WebP**: on by default. New photos are saved as WebP at 85% quality instead
-  of PNG. Off, they are saved as PNG. Photos already saved stay as they are.
-- **Loading animation**: a group of three, Bunny hop, Dot shimmer and Typing dots.
-
-These used to be in the game's Settings, and the body switch in the game's `settings.json`.
-`modsService.ts` reads a player's old choice straight off that file once
-(`withPhotoSettingsCarried`) and keeps it in `mods.json`. Photo Feature reads nothing else of the
-game's settings but "No NSFW images", which it obeys and never changes.
-
-Option ids are written to disk, so they never change: `photos`, `explicit`, `body`, `webp`,
-`loader-bunny`, `loader-shimmer`, `loader-dots`. `test/photoHooks.test.ts` fails if the handover in `modsStore.ts`
-or `modsService.ts` goes missing.
-
-### WebP photos
-
-ComfyUI only saves PNG, and main has no image encoder. So a photo whose name is reserved as
-`.webp` is rendered to the `.png` beside it; the renderer then gets the PNG's bytes over IPC,
-encodes them with Chromium at 85%, and main keeps the WebP and deletes the PNG
-(`src/renderer/stores/photoWebp.ts`, `storeWebpPhoto` in `localPhotoService.ts`).
-
-Every reader takes whichever of the two is on disk: the `playimg://` protocol, the check for a
-photo that landed after its save, backups. So an encode that fails, or a render that finished
-after the game closed, still shows as PNG.
-
-### How a photo prompt is built
-
-The character's AI writes one sentence describing the photo. `src/shared/photoPrompt.ts` keeps
-that sentence and adds tags read off it:
-
-- **Pose, framing, angle, selfie** (`photoPose.ts`, `photoFraming.ts`): "on her side", "waist
-  up", "from below", "a selfie", "mirror" and so on become the tags that held on the photo
-  checkpoint. Some need a weight or a special combination; the comment beside each rule says
-  what was tried.
-- **Her body** (`photoBody.ts`): only the parts in shot, as far as her clothes allow, following
-  the same framing.
-- **Clean-up of the sentence**: names are taken out, a selfie loses how she holds the phone
-  (the model draws "holding the camera" as a camera), and colours named after food are said
-  plainly ("cream shirt" was drawn as cream).
-- **Negatives**: legwear she was not given, in every colour the prompt names (a colour
-  anywhere in the prompt bleeds onto her legs); a selfie's phone and camera.
-
-Every tag these files can write has to be in the verified list in `test/photoTags.test.ts`,
-which fails on any other. A tag goes on that list once a same-seed ComfyUI check shows the
-checkpoint draws it.
 
 ## Hook points
 
@@ -246,19 +177,6 @@ A hook point is added where mods actually meet, not ahead of need. Once mods use
 as it is: renaming it or changing what it passes breaks them. A change that is needed goes in
 as a new hook beside the old one.
 
-### Photo Feature on hooks
-
-All of Photo Feature's prompt, event and feed additions are in `src/renderer/modEntries/photo-feature.ts`, and its entry in
-`src/shared/modEntries/photo-feature.ts`.
-In the ten game files involved, lines naming Photo Feature went from 67 to 4: two for its gallery
-on `ContactPage.tsx` (screens have no hook points yet) and two that are Continuing Semesters'
-own photo carry-over in `NewGameView.tsx`.
-
-Off, three things differ from before hooks, all because a mod that is off is not asked: the
-photo fields leave the reply's schema rather than being asked for empty; old DMs lose their
-"[attached a photo]" note in the history the prompt quotes; and a render left unfinished from
-an earlier session is settled only once the mod is on again.
-
 ### Not covered yet
 
 - Screens: a mod's own panels, menu entries and editor fields.
@@ -269,10 +187,11 @@ Both are still direct edits, as before.
 
 ### Tests
 
-- `test/modHooks.test.ts`: only mods that are on are asked, in list order; likes fall back to
-  the game's own; a post a mod holds is not passed on.
-- `test/photoHooks.test.ts`: every hook line is still in the game's files after a merge, and
-  Photo Feature is still registered.
+`test/modHooks.test.ts`: only mods that are on are asked, in list order; likes fall back to the
+game's own; a post a mod holds is not passed on.
+
+The hook points are naudh1r's design, lifted from his Photo Feature branch, which is the first
+mod on them.
 
 ## Opening a pull request
 
