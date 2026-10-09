@@ -264,3 +264,23 @@ describe('a colour named after food', () => {
     expect(positive).not.toMatch(/cream/)
   })
 })
+
+describe('a dressed picture', () => {
+  it('keeps her covered where the caption does not undress her', () => {
+    const { negative } = buildPhotoPrompt(character(), 'everyday', 'lying on her bed in a sweater')
+    for (const tag of ['nude', 'nipples', 'areolae', 'pussy', 'pantyshot']) {
+      expect(negative).toContain(tag)
+    }
+  })
+
+  it('leaves what the caption names, and an explicit picture alone', () => {
+    const { negative } = buildPhotoPrompt(
+      character(),
+      'suggestive',
+      'sitting on the bed in her lace panties and a loose shirt'
+    )
+    expect(negative).not.toContain('pantyshot')
+    const bare = buildPhotoPrompt(character(), 'explicit', 'naked on the bed').negative
+    expect(bare).not.toContain('nipples')
+  })
+})

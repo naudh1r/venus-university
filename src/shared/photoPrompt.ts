@@ -76,6 +76,25 @@ const LEG_ITEMS = [
   'fishnets?'
 ].join('|')
 
+/**
+ * What a picture with her dressed keeps out: the checkpoint can undress a pose it was not asked
+ * to (a sweater slipping, a skirt riding up), and a feed photo is seen by the whole campus. A
+ * same-seed check showed these change nothing in a picture that was not slipping. The wider set
+ * (cleavage, bra straps, underwear) toned down what the caption had asked for, so it is not here.
+ * Each is dropped where the caption names it.
+ */
+const DRESSED_NEGATIVE: readonly (readonly [string, RegExp])[] = [
+  ['nude', /\b(?:nude|naked)\b/],
+  ['nipples', /\bnipples?\b/],
+  ['areolae', /\bareola/],
+  ['pussy', /\bpussy\b/],
+  ['pantyshot', /\b(?:pantyshot|panties|underwear|knickers)\b/]
+]
+
+function dressedNegative(text: string): string[] {
+  return DRESSED_NEGATIVE.filter(([, said]) => !said.test(text)).map(([tag]) => tag)
+}
+
 /** Anything on her legs the picture names. */
 const LEGWEAR = new RegExp(`\\b(?:${LEG_ITEMS})\\b`)
 
@@ -397,6 +416,7 @@ export function buildPhotoPrompt(
   const negative = [
     PHOTO_NEGATIVE,
     ...(bare ? [BARE_NEGATIVE] : []),
+    ...(bare ? [] : dressedNegative(worn.toLowerCase())),
     ...legs.negative,
     ...pose.negative,
     ...bodyNegative(character),

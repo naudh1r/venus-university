@@ -149,6 +149,12 @@ const VERIFIED = new Set([
   'partially_undressed',
   'shirt_lift',
   'skirt_lift',
+  // Kept out of a dressed picture, from the suggestive check.
+  'areolae',
+  'nipples',
+  'nude',
+  'pantyshot',
+  'pussy',
   // Legwear, from the colour-bleed checks.
   'bare_legs',
   'colored_legwear',
@@ -266,6 +272,9 @@ function emittedTags(): string[] {
     ...quoted(prompt, /tag:\s*('[^']*')/g),
     ...quoted(prompt, /\[('partially_undressed')/g),
     ...quoted(prompt, /LEGWEAR_NEGATIVE[^=]*=\s*\[([^=]*?)\n\]/g).filter((tag) =>
+      /^[a-z_]+$/.test(tag)
+    ),
+    ...quoted(prompt, /DRESSED_NEGATIVE[^=]*=\s*\[([^=]*?)\n\]/g).filter((tag) =>
       /^[a-z_]+$/.test(tag)
     ),
     // Each colour's own legwear tag, `pink_legwear` and the rest.
