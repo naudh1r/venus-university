@@ -436,6 +436,32 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
   return shot(['selfie', 'upper_body', 'outstretched_arm', 'foreshortening'])
 }
 
+/** A caption asking for her from the waist up, or closer. */
+const CLOSE_CUES = ['close-up', 'close up', 'upper body', 'waist up', 'face shot', 'just her face']
+
+/** How she is lying, read off the caption whichever row framed it. */
+const LYING_CUES: readonly (readonly [string, readonly string[]])[] = [
+  ['on_stomach', ['on her stomach', 'face down', 'prone']],
+  ['on_side', ['on her side', 'side lying']],
+  ['on_back', ['on her back', 'lying back']]
+]
+
+/**
+ * Her lying down, drawn close. The close-up row used to win and drop how she was lying; and on
+ * her back or side the checkpoint keeps her whole body in shot through `upper_body`, `portrait`
+ * and every framing tried but `(upper_body:1.3)`. On her stomach the plain tag already holds.
+ */
+function closeLying(text: string, tags: readonly string[]): string[] | null {
+  if (!saysAny(text, CLOSE_CUES)) return null
+  const lying = LYING_CUES.find(([, cues]) => saysAny(text, cues))?.[0]
+  if (!lying) return null
+  const kept = tags.filter(
+    (tag) => !FRAMING.has(tag) && tag !== 'hand_up' && !LYING_CUES.some(([pose]) => pose === tag)
+  )
+  const frame = lying === 'on_stomach' ? 'upper_body' : '(upper_body:1.3)'
+  return [...new Set(['lying', lying, frame, ...kept])]
+}
+
 /** How she is lying, kept from turning into one of the other two. */
 function lyingNegative(tags: readonly string[]): string[] {
   if (tags.includes('on_stomach')) return ['on_back']
@@ -472,5 +498,6 @@ export function photoPose(caption: string, bare: boolean): PhotoPose {
   if (saysAny(text, CROSSED_CUES)) {
     tags = [...new Set([...tags.filter((tag) => tag !== 'spread_legs'), 'crossed_legs'])]
   }
+  tags = closeLying(text, tags) ?? tags
   return selfieShot(text, tags) ?? { tags, negative: lyingNegative(tags) }
 }
