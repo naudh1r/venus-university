@@ -156,6 +156,10 @@ const VERIFIED = new Set([
   'nude',
   'pantyshot',
   'pussy',
+  // Spills, from an in-game photo with a pink drink splashed over her.
+  'paint_splatter',
+  'splashing',
+  'stain',
   // Legwear, from the colour-bleed checks.
   'bare_legs',
   'colored_legwear',
@@ -279,6 +283,9 @@ function emittedTags(): string[] {
       /^[a-z_]+$/.test(tag)
     ),
     ...quoted(prompt, /\[\.\.\.kept, ('cleavage', 'downblouse')\]/g),
+    ...quoted(prompt, /SPILL_NEGATIVE[^=]*=\s*\[([^=]*?)\n\]/g).filter((tag) =>
+      /^[a-z_]+$/.test(tag)
+    ),
     // Each colour's own legwear tag, `pink_legwear` and the rest.
     ...quoted(prompt, /LEG_COLOURS = \[([^\]]*)\]/g).map((colour) => `${colour}_legwear`),
     ...quoted(prompt, /negative\.push\(([^)]*)\)/g),

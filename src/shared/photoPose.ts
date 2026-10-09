@@ -177,6 +177,12 @@ const BUSY_HAND_CUES = [
   'propped',
   'biting',
   'bites',
+  'in hand',
+  'in her hand',
+  'in one hand',
+  'glass of',
+  'cup of',
+  'mug of',
   'tucking her hair',
   'fixing her hair'
 ]
@@ -462,7 +468,14 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
     // shows her front, whichever way the caption turned her.
     const turned = new Set(['from_behind', 'looking_back', 'from_side', 'profile'])
     const kept = tags.filter((tag) => !FRAMING_TAGS.has(tag) && !turned.has(tag))
-    const add = ['mirror', 'reflection', 'holding_phone', 'full_body']
+    // Her whole body in the glass, unless the caption framed it closer: "a close mirror selfie".
+    const framing = framingOf(text)
+    const frame = framing
+      ? [...framingTags(framing)]
+      : says(text, 'close') || says(text, 'close-up')
+        ? []
+        : ['full_body']
+    const add = ['mirror', 'reflection', 'holding_phone', ...frame]
     return { tags: [...new Set([...kept, ...add])], negative: [] }
   }
   // The arm holding the phone is not also on her hip.

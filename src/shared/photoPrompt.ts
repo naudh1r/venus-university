@@ -382,6 +382,24 @@ export function lookingAtViewer(scene: string): string {
   )
 }
 
+/**
+ * A drink said as a liquid is drawn as one, spilt: "a glass of pink liquid in hand" splashed pink
+ * across her chest and the bed. Said as a drink, it stays in the glass.
+ */
+export function drinkNotLiquid(scene: string): string {
+  return scene.replace(/\bliquid\b/gi, (word) => (word[0] === 'L' ? 'Drink' : 'drink'))
+}
+
+/**
+ * Splashes and stains nobody asked for, in every photo: a coloured drink in the caption, or a
+ * colour anywhere in it, came back as paint spattered over her and the sheets.
+ */
+const SPILL_NEGATIVE: readonly (readonly [string, RegExp])[] = [
+  ['paint_splatter', /\b(?:paint|splatter)/],
+  ['splashing', /\bsplash/],
+  ['stain', /\bstain/]
+]
+
 /** The two strings one photo render needs. */
 export interface PhotoPrompts {
   positive: string
@@ -403,7 +421,7 @@ export function buildPhotoPrompt(
   tier: PhotoTier,
   photoPrompt: string
 ): PhotoPrompts {
-  const scene = plainColours(withoutNames(character, photoPrompt.trim()))
+  const scene = drinkNotLiquid(plainColours(withoutNames(character, photoPrompt.trim())))
   // The one question the rest is answered from, and the gate alone decides it.
   const bare = tier === 'explicit'
   const dressed = describesClothing(scene)
@@ -448,6 +466,7 @@ export function buildPhotoPrompt(
     ...(bare ? [BARE_NEGATIVE] : []),
     ...(bare ? [] : dressedNegative(worn.toLowerCase().replace(/_/g, ' '), tier === 'everyday')),
     ...legs.negative,
+    ...SPILL_NEGATIVE.filter(([, said]) => !said.test(scene.toLowerCase())).map(([tag]) => tag),
     ...pose.negative,
     ...bodyNegative(character),
     ...(character.negativeTags ?? [])

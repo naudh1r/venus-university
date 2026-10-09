@@ -311,3 +311,24 @@ describe('where she looks', () => {
     expect(lookingAtViewer(scene)).toBe(scene)
   })
 })
+
+describe('the in-game mirror selfie that splashed pink everywhere', () => {
+  const caption =
+    'A close mirror selfie of a girl with bright pink hair wearing an off-the-shoulder cropped ' +
+    'knit sweater that slips down one bare shoulder, sitting cross-legged on an unmade dorm bed ' +
+    'with a glass of pink liquid in hand'
+
+  it('says the drink as a drink, and keeps splashes and stains out', () => {
+    const { positive, negative } = buildPhotoPrompt(character(), 'suggestive', caption)
+    expect(positive).toContain('a glass of pink drink in hand')
+    expect(positive).not.toMatch(/liquid/)
+    for (const tag of ['paint_splatter', 'splashing', 'stain']) expect(negative).toContain(tag)
+  })
+
+  it('keeps her hands off her lap, and the close shot close', () => {
+    const { positive } = buildPhotoPrompt(character(), 'suggestive', caption)
+    expect(positive).not.toContain('hands_on_lap')
+    expect(positive).not.toContain('full_body')
+    expect(positive).toContain('mirror')
+  })
+})
