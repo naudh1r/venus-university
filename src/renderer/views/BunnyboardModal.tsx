@@ -12,6 +12,10 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
+import type { ChatPhoto } from '@shared/photoTypes'
+import type { PostComment } from '@shared/postComments'
+import { PostComments } from '../components/PostComments'
+import { MessagePhotoBubble, PhotoLightboxHost, PostPhoto } from '../components/PhotoBubble'
 import {
   fullNameOf,
   type Character,
@@ -314,6 +318,7 @@ export function BunnyboardModal({
       exit="gone"
       {...overlayProps}
     >
+      <PhotoLightboxHost />
       {contact ? (
         <ContactPage key={contact} charId={contact} theme={theme} />
       ) : (
@@ -1228,10 +1233,16 @@ function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
       </div>
     )
   }
+  // A picture is its own message, the way a phone sends one: her words in one bubble and the
+  // photograph in the next, rather than a snapshot pasted under a sentence.
+  const side = message.sender === 'player' ? 'mine' : 'theirs'
   return (
-    <div className={`vu-bb-bubble vu-bb-bubble--${message.sender === 'player' ? 'mine' : 'theirs'}`}>
-      {message.text}
-    </div>
+    <>
+      {message.text && <div className={`vu-bb-bubble vu-bb-bubble--${side}`}>{message.text}</div>}
+      {message.photo && (
+        <MessagePhotoBubble photo={message.photo} sender={message.sender} messageId={message.id} />
+      )}
+    </>
   )
 }
 
@@ -1667,7 +1678,18 @@ const FeedPost = memo(function FeedPost({
   emoji?: string
   name: string
   handle?: string
-  post: { id?: string; text: string; date: number; time: TimeSlot; likes: number; liked?: boolean }
+  post: {
+    id?: string
+    text: string
+    date: number
+    time: TimeSlot
+    likes: number
+    liked?: boolean
+    /** The picture she attached. Declared here because this shape is the row's own, not `SocialPost`. */
+    photo?: ChatPhoto
+    /** What the crowd said under it, for the same reason. */
+    comments?: PostComment[]
+  }
   /** Somebody he has no contact info for — the one route by which one reaches his feed. */
   stranger?: boolean
   /** She already has his request, so the control that sent it is spent. */
@@ -1726,6 +1748,12 @@ const FeedPost = memo(function FeedPost({
         )}
       </div>
       <p className="vu-bb-post-text">{post.text}</p>
+      {post.photo && charId && post.id && (
+        <div className="vu-bb-post-shot">
+          <PostPhoto charId={charId} postId={post.id} photo={post.photo} />
+        </div>
+      )}
+      {post.comments && <PostComments comments={post.comments} />}
       <motion.button
         className={`vu-bb-like${post.liked ? ' vu-bb-like--on' : ''}`}
         type="button"

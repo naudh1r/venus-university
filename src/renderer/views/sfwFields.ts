@@ -1,4 +1,5 @@
 import type { Settings } from '@shared/types'
+import { NO_NSFW_IMAGES_NOTE } from './photoSettingsNotes'
 
 /** Which `Settings` booleans the content toggles write. */
 export type SfwKey = 'noNsfwImages' | 'lessNsfwText'
@@ -24,7 +25,7 @@ export const SFW_FIELDS: readonly SfwField[] = [
     key: 'noNsfwImages',
     id: 'settings-no-nsfw-images',
     label: 'No NSFW images',
-    note: ''
+    note: NO_NSFW_IMAGES_NOTE
   },
   {
     key: 'lessNsfwText',

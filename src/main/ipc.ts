@@ -107,6 +107,7 @@ import {
   saveExportFile
 } from './services/characterTransferService'
 import { exportBackup, importBackup } from './services/backupService'
+import { exportLocalPhotos, importLocalPhotos } from './localPhotoBackup'
 import {
   addCustomBackground,
   listCustomBackgrounds,
@@ -147,6 +148,7 @@ import {
   runAbortable,
   setProgressSink
 } from '@shared/jobQueue'
+import { registerPhotoIpc } from './photoIpc'
 import { copyEndingArtTo, generateEndingArt, readEndingArt } from './services/endingArtService'
 import {
   deleteProfilePicture,
@@ -243,6 +245,8 @@ async function enqueueComfyJob<T>(
 
 /** Registers every IPC channel; keep this, preload and the d.ts in sync. */
 export function registerIpcHandlers(): void {
+  // The photo feature's three channels, which keep their own module and their own queue.
+  registerPhotoIpc(handle)
   // The key the cloud calls need never leaves main; the transport reads it through this port.
   useSettingsSource(getSettings)
   // Fixed channel: jobs can outlive their original `invoke`, so broadcast progress.
@@ -747,6 +751,7 @@ export function registerIpcHandlers(): void {
     if (canceled || filePath === undefined || filePath === '') return null
 
     await exportBackup(filePath)
+    await exportLocalPhotos(filePath)
     return filePath
   })
   // A backup read back over everything here; a dismissed dialog resolves `false`.
@@ -759,6 +764,7 @@ export function registerIpcHandlers(): void {
     if (canceled || filePaths.length === 0) return false
 
     await importBackup(filePaths[0])
+    await importLocalPhotos(filePaths[0])
     return true
   })
 

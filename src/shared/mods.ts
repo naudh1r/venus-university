@@ -1,3 +1,5 @@
+import { PHOTO_LOADERS, photoLoaderOf } from './photoLoader'
+import { loaderOptionId, PHOTO_FEATURE_MOD, type PhotoSwitches } from './photoSwitches'
 import type { PlaythroughRecord } from './types'
 
 /**
@@ -63,11 +65,19 @@ export interface ModDef {
   optionGroups?: readonly ModOptionGroup[]
 }
 
+export const PHOTO_FEATURE = 'photo-feature'
+
 /**
- * Every mod in this build, in the order the Mods screen lists them. None yet: this is the
- * frame alone, on the game as Venus Dev released it. A mod adds itself here (see MODDING.md).
+ * Every mod in this build, in the order the Mods screen lists them. A mod adds itself here (see
+ * MODDING.md).
  */
-export const MODS: readonly ModDef[] = []
+export const MODS: readonly ModDef[] = [
+  {
+    ...PHOTO_FEATURE_MOD,
+    id: PHOTO_FEATURE,
+    version: '1.1.3'
+  }
+]
 
 /**
  * What the player has set, as `data/mods.json` holds it. A mod or an option that is not in
@@ -252,4 +262,46 @@ declare module './types' {
      */
     mods?: string[]
   }
+}
+
+/**
+ * Photo Feature's switches as this build's Mods screen has them: the mod's own module reads
+ * these wherever it acts, so the build only has to hand them over (`setPhotoSwitches`), in main
+ * when the switches are read or written and in the renderer whenever one moves.
+ */
+export function photoSwitchesOf(switches: ModSwitches): PhotoSwitches {
+  const loader =
+    PHOTO_LOADERS.find((l) => optionOn(switches, PHOTO_FEATURE, loaderOptionId(l.value)))?.value ??
+    'bunny'
+  return {
+    on: modOn(switches, PHOTO_FEATURE),
+    photos: optionOn(switches, PHOTO_FEATURE, 'photos'),
+    explicit: optionOn(switches, PHOTO_FEATURE, 'explicit'),
+    loader
+  }
+}
+
+/**
+ * Photo Feature's options for a player who set them in Settings, where they lived before this
+ * build: "No DM and feed photos" and "Loading animation". Read only where the Mods screen has
+ * never stored them, so what he picked there carries over until he moves them here.
+ */
+export function withPhotoSettingsCarried(
+  switches: ModSwitches,
+  settings: { photos?: boolean; photoLoader?: string }
+): ModSwitches {
+  let carried = switches
+  if (settings.photos === false && !(optionKey(PHOTO_FEATURE, 'photos') in switches.options)) {
+    carried = withOption(carried, PHOTO_FEATURE, 'photos', false)
+  }
+  const loaderKeys = PHOTO_LOADERS.map((l) => optionKey(PHOTO_FEATURE, loaderOptionId(l.value)))
+  if (settings.photoLoader && !loaderKeys.some((key) => key in switches.options)) {
+    carried = withOption(
+      carried,
+      PHOTO_FEATURE,
+      loaderOptionId(photoLoaderOf(settings.photoLoader)),
+      true
+    )
+  }
+  return carried
 }

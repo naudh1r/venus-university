@@ -50,6 +50,7 @@ import {
 } from '@shared/types'
 import { truncate } from '@shared/errors'
 import type { VenusUniversityApi } from '../preload/api'
+import { photoBridge } from './photoBridge'
 import { imageBlob } from './blob'
 import { DESKTOP_ONLY_NOTE } from '../renderer/platform'
 import { exportBackup, importBackup } from './backup'
@@ -132,6 +133,7 @@ async function generateEndingArt(
 export function buildApi(): VenusUniversityApi {
   return {
     platform: 'web',
+    ...photoBridge,
     assets: {
       getPoseManifest: () => result('read the poses', getPoseManifest),
       getQuickstart: () => result('read the quickstart', getQuickstart),

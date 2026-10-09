@@ -169,6 +169,12 @@ export function patchOf(settings: RendererSettings): SettingsPatch {
     warnEndingEdit: settings.warnEndingEdit,
     noNsfwImages: settings.noNsfwImages,
     lessNsfwText: settings.lessNsfwText,
+    // Carried, or a save made from anywhere else would turn photographs back on.
+    photos: settings.photos,
+    // Carried, or a save made from anywhere else would turn body details back off.
+    bodyDetails: settings.bodyDetails,
+    // Carried, or a save made from anywhere else would put the bunny back.
+    photoLoader: settings.photoLoader,
     sfwAsked: settings.sfwAsked,
     // Carried, or a save made from anywhere else would drop a browser's key on the next visit.
     rememberKey: settings.rememberKey,

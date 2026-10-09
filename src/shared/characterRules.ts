@@ -29,6 +29,8 @@ export const SUBJECT_TAGS: readonly string[] = ['1girl', 'mature_female']
 const CHARACTER_REQUIRED: Record<
   keyof Omit<
     Character,
+    // `body` — the photo feature's, and optional: a character written before it arrived has none.
+    | 'body'
     | 'brief'
     | 'charId'
     | 'customCgs'

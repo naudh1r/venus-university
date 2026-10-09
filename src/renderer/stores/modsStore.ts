@@ -1,13 +1,15 @@
 import { create } from 'zustand'
 import {
-  modOn,
   MODS,
+  modOn,
   NO_SWITCHES,
   optionOn,
+  photoSwitchesOf,
   withMod,
   withOption,
   type ModSwitches
 } from '@shared/mods'
+import { setPhotoSwitches } from '@shared/photoSwitches'
 import type { PlaythroughRecord } from '@shared/types'
 import { setHookRules } from '../mods/hooks'
 import { loopState } from './loop/state'
@@ -64,6 +66,16 @@ export const useModsStore = create<ModsStoreState>((set, get) => {
   }
 })
 
+/**
+ * Rules that live in shared code, which holds no switches of its own, are told theirs here:
+ * at once, and again whenever a switch moves.
+ */
+function tellSharedRules(switches: ModSwitches): void {
+  // Photo Feature reads its own switches; this hands them over.
+  setPhotoSwitches(photoSwitchesOf(switches))
+}
+tellSharedRules(useModsStore.getState().switches)
+
 // The game's hooks ask only the mods that are on, in the order the list names them. Inside a
 // game, a mod scoped to the playthrough is on as the game's record says, not as the switch now
 // stands; on the menus, with no game entered, the switches decide.
@@ -71,6 +83,7 @@ setHookRules({
   isOn: (modId) => modOn(useModsStore.getState().switches, modId, loopState.record),
   order: (modId) => MODS.findIndex((mod) => mod.id === modId)
 })
+useModsStore.subscribe((state) => tellSharedRules(state.switches))
 
 /** Whether a mod is on, for code outside a component; see `modOn` for what a record changes. */
 export function modIsOn(id: string, record?: Pick<PlaythroughRecord, 'mods'> | null): boolean {

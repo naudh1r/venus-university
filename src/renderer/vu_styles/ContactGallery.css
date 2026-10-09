@@ -1,0 +1,133 @@
+/* ---- her gallery, and the tabs it arrives with ---------------------------- */
+
+/* The photo feature's own rules, in its own file rather than appended to `ContactPage.css`. The
+   grid itself is the app's (`base.css`: `vu-gallery-grid`, `-item`, `-cell`, `-img`, `-empty`);
+   what is here is only the tab strip the gallery brings with it and what a photograph adds to a
+   cell, which is the covering. */
+
+
+/* ---- the two readings ----------------------------------------------------- */
+
+/* The tab row sits where a card's own label would, right-aligned under her tag: the page
+   names what it is showing in the same voice everywhere, so these are two `.vu-contact-label`s
+   with a divider between rather than a control of their own. */
+.vu-contact-tabs {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: -8px;
+}
+
+.vu-contact-tab {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vu-text-muted);
+  font: 700 13px var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* The one being read. A colour, not a fill: this row is type on the page's own ground, and a
+   pill here would be the fourth surface on a screen that holds three. */
+.vu-contact-tab--on {
+  color: var(--vu-accent);
+}
+
+.vu-contact-tabs-slash {
+  color: var(--vu-border);
+  font: 700 13px var(--font-mono);
+}
+
+/* ---- her gallery ---------------------------------------------------------- */
+
+/* The whole grid area as one card, laid out like the profile card it replaces — the same
+   overhang, so it runs on behind her and its scroller gives the width back. */
+.vu-contact-card--gallery {
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+  margin-left: -420px;
+}
+
+.vu-contact-card--gallery .vu-contact-scroll {
+  padding-left: 440px;
+}
+
+/* Portrait, because a phone holds a phone that way; the CG grid's own cells are landscape. */
+/* Written with the base class as well, so it wins on specificity rather than on load order.
+   These sit in the feature's own stylesheet, which the bundler happens to place *before* the
+   build's — so at one class each the build's rule would win and the override would do nothing.
+   Two classes settles it wherever either file lands. */
+.vu-gallery-grid.vu-contact-shots {
+  margin-top: 4px;
+}
+
+.vu-gallery-cell.vu-contact-shot {
+  aspect-ratio: 2 / 3;
+  cursor: pointer;
+}
+
+/* Covered until asked for, the same rule her bubble follows and the same look: the picture
+   blurred past reading rather than a blank, scaled up so the blur does not pale the cell's
+   rounded edge. A grid is more exposed than a thread, not less. */
+.vu-gallery-img.vu-contact-shot-img--veiled {
+  filter: blur(26px);
+  transform: scale(1.08);
+}
+
+/* Where a picture came from, in the cell's corner: the page's own small mono voice on a chip, so
+   it reads over a photograph and over a covered cell alike. */
+.vu-gallery-cell.vu-contact-shot {
+  position: relative;
+}
+
+.vu-contact-shot-from {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--vu-recessed);
+  color: var(--vu-text-muted);
+  font: 700 10px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* The post's picture on her profile's feed list: the like pill's shape, with a small frame drawn
+   in front of the word. */
+.vu-contact-like.vu-contact-photo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.vu-contact-photo svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* All, DM or Feed, over the grid: the page's tab row, left-aligned under the card's label. */
+.vu-contact-tabs.vu-contact-shot-filter {
+  justify-content: flex-start;
+  margin: 0 0 12px;
+}
+
+/* The eye over an explicit picture sits in the cell's other top corner and behaves as it does
+   on the thread: always on show while the picture is covered, and under the pointer only once
+   it is not. */
+.vu-gallery-item.vu-contact-shot-item {
+  position: relative;
+}
+
+.vu-contact-shot-item:hover .vu-bb-photo-eye.vu-contact-shot-eye {
+  opacity: 1;
+}
