@@ -43,13 +43,21 @@ Everything is in **Mods → Photo Feature**.
    reads off it:
    - **Pose and framing**: standing, sitting, lying on her back, side or stomach; close-up,
      waist up, knees up, full body; from above, from below, from behind, side view.
+   - **Style**: a selfie, a mirror selfie, or a photo somebody took of her; on the feed also a
+     candid one where she is not posing.
    - **Selfies**: her arm reaches out of the picture and no phone is drawn. A mirror selfie
-     shows the phone. Lying-down selfies are framed from the waist up.
+     shows the phone and nothing else in her hands. Lying-down selfies are framed from the
+     waist up.
+   - **Hands**: one thing for her hands per photo, so nobody grows a third hand.
    - **Her body**: only the parts in the shot, as far as her clothes allow.
-   - **Cleanup**: names are taken out, a selfie loses how she holds the phone, and colours named
-     after food are said plainly (a "cream shirt" was drawn as cream).
+   - **Cleanup**: names are taken out, a selfie loses how she holds the phone, "the camera"
+     becomes the viewer, whoever took the photo is left out (they were drawn in), colours named
+     after food are said plainly (a "cream shirt" was drawn as cream), a "liquid" becomes a
+     drink (it was splashed everywhere), and a bubble tea shop becomes a tea shop (it put a cup
+     in her hand).
    - **Things kept out**: legwear she was not given (colours in the prompt bleed onto her legs),
-     a phone or camera in a selfie, anyone else in the picture.
+     a phone or camera, anyone else in the picture, splashes and stains, and on everyday photos
+     cleavage and undressing (a top slipping off a shoulder stays how she wears it).
 5. ComfyUI draws it, and it lands in the bubble or the post.
 
 Every tag the mod adds has been checked in ComfyUI on the photo checkpoint, side by side with the
@@ -78,14 +86,26 @@ For Venus University 0.4.0, on the shared mod build, with a lot of photo tuning.
   description now says it is separate from the game's own Photos tab.
 - **Selfies**: no phone or camera in her hand, her arm goes out of frame. Mirror selfies show the
   phone. Selfies lying down, from below and from above work. A peace sign is fine unless she is
-  holding something.
+  holding something. Mirror selfies keep her hands to the phone; anything else she held was
+  drawn wrong.
+- **Styles**: she picks a selfie, a mirror selfie or a photo somebody took, whichever fits, so
+  not every photo is a selfie. Feed posts can also be candid shots.
 - **Photos**: framing follows what she describes. From above, from below, side view and from
   behind work. Holding a drink, book or food no longer grows an extra hand. Lying poses stay in
-  close-ups. Explicit photos where she is still partly dressed no longer go fully nude.
-- **Colours**: legwear she was not given stays off her legs, in any colour. Colours named after
-  food are drawn as colours.
+  close-ups. Explicit photos where she is still partly dressed no longer go fully nude. One hand placement
+  per photo. Sitting cross-legged is drawn cross-legged. Everyday photos no longer show undressing,
+  or cleavage unless her outfit shows it.
+- **Colours and words**: legwear she was not given stays off her legs, in any colour. Colours
+  named after food are drawn as colours. A drink is no longer splashed over her, a bubble tea
+  shop no longer hands her a cup, and no camera turns up in her hands.
 - **Sprites**: petite and curvy builds show up more on character sprites.
 - **Fixes**: the eye icon on hidden photos was dark in the day theme.
+
+## Known limits
+
+- A colour from her outfit can still bleed onto her legs on some seeds.
+- Nude photos on her side or stomach can drift onto her back.
+- A bikini can take its colour from her own swimsuit set instead of her sentence.
 
 ## For modders
 
