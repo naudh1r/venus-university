@@ -144,6 +144,30 @@ const PLACEMENT_TAGS: ReadonlySet<string> = new Set([
   'crossed_arms'
 ])
 
+/**
+ * Her hands already busy with something the sentence names: a cup, a book, a wave. The
+ * checkpoint draws these from the sentence alone, and an object tag beside it only adds a
+ * second cup; what does get in the way is a position's own hand, `hand_on_own_hip` beside the
+ * cup she is holding. So nothing is added here, and the placements are struck out.
+ */
+const BUSY_HAND_CUES = [
+  'holding',
+  'holds',
+  'clutching',
+  'carrying',
+  'sipping',
+  'drinking',
+  'eating',
+  'taking a bite',
+  'reading',
+  'waving',
+  'hugging',
+  'cradling',
+  'playing with her hair',
+  'tucking her hair',
+  'fixing her hair'
+]
+
 /** What her hands are doing. Up to two fire — she has two of them. */
 const HAND_ACTIONS: readonly ActionRule[] = [
   {
@@ -499,5 +523,6 @@ export function photoPose(caption: string, bare: boolean): PhotoPose {
     tags = [...new Set([...tags.filter((tag) => tag !== 'spread_legs'), 'crossed_legs'])]
   }
   tags = closeLying(text, tags) ?? tags
+  if (saysAny(text, BUSY_HAND_CUES)) tags = tags.filter((tag) => !PLACEMENT_TAGS.has(tag))
   return selfieShot(text, tags) ?? { tags, negative: lyingNegative(tags) }
 }

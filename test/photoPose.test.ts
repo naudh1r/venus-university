@@ -89,6 +89,22 @@ describe('posePhotoTags', () => {
   })
 })
 
+describe('her hands already busy', () => {
+  it('leaves her hands to the sentence, without a position of their own', () => {
+    const tags = posePhotoTags('standing at the counter holding a coffee', false)
+    expect(tags).toContain('standing')
+    expect(tags).not.toContain('hand_on_own_hip')
+    expect(posePhotoTags('sitting in the library, reading a book', false)).not.toContain(
+      'hands_on_lap'
+    )
+  })
+
+  it('keeps an explicit act her hands are doing', () => {
+    const tags = posePhotoTags('naked on the bed, fingering herself, holding a pillow', true)
+    expect(tags).toContain('fingering')
+  })
+})
+
 describe('a selfie', () => {
   it('keeps the phone out, her arm reaching out of the picture', () => {
     const pose = photoPose('a selfie in the cafe, smiling', false)
