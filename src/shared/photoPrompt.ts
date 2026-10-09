@@ -369,6 +369,19 @@ export function plainColours(scene: string): string {
   })
 }
 
+/**
+ * Where she looks, said without the thing that took the picture: "looking at the camera" put a
+ * camera on her pillow whatever the negative said. The pose already reads the same words as
+ * `looking_at_viewer`; a caption about her own camera is left as it is.
+ */
+export function lookingAtViewer(scene: string): string {
+  if (/\b(?:her|a|film)\s+camera\b|\bpolaroid\b/i.test(scene)) return scene
+  return scene.replace(
+    /\b(at|into|toward|towards|to)\s+the\s+(?:camera|lens|phone)\b/gi,
+    (_whole, word: string) => `${word} the viewer`
+  )
+}
+
 /** The two strings one photo render needs. */
 export interface PhotoPrompts {
   positive: string
@@ -423,7 +436,7 @@ export function buildPhotoPrompt(
     body.join(', '),
     [wardrobe, ...legs.positive].filter((part) => part.length > 0).join(', '),
     // The sentence's own full stop would sit in front of the tags that follow it.
-    [withoutCameraHold(scene).replace(/[.!?]+$/, ''), pose.tags.join(', ')]
+    [lookingAtViewer(withoutCameraHold(scene)).replace(/[.!?]+$/, ''), pose.tags.join(', ')]
       .filter((part) => part.length > 0)
       .join(', ')
   ]

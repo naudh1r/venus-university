@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPhotoPrompt, plainColours } from '../src/shared/photoPrompt'
+import { buildPhotoPrompt, lookingAtViewer, plainColours } from '../src/shared/photoPrompt'
 import type { Character } from '../src/shared/types'
 import { character } from './fixtures'
 
@@ -292,5 +292,22 @@ describe('a dressed picture', () => {
     expect(negative).not.toContain('pantyshot')
     const bare = buildPhotoPrompt(character(), 'explicit', 'naked on the bed').negative
     expect(bare).not.toContain('nipples')
+  })
+})
+
+describe('where she looks', () => {
+  it('says the viewer, not the camera, so no camera is drawn', () => {
+    expect(lookingAtViewer('lying on her side, looking at the camera')).toBe(
+      'lying on her side, looking at the viewer'
+    )
+    expect(lookingAtViewer('she smirks into the lens')).toBe('she smirks into the viewer')
+    const { positive } = buildPhotoPrompt(character(), 'everyday', 'smiling at the camera')
+    expect(positive).not.toMatch(/camera/)
+    expect(positive).toContain('looking_at_viewer')
+  })
+
+  it('leaves a camera of her own', () => {
+    const scene = 'holding her film camera, looking at the camera'
+    expect(lookingAtViewer(scene)).toBe(scene)
   })
 })
