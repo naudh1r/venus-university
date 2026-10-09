@@ -11,7 +11,9 @@ import {
 import { appError } from './errors'
 import type { ValidateRecordOptions } from './jsonValidate'
 import type { PhotoMeta } from './photos'
+import { REPLAY_ID, replayIdsOf, validateReplay, type SlotReplay } from './replays'
 import { SAFE_NUMERIC_ID } from './saveRules'
+import { validateSavedScene, type SavedScene } from './sceneCreator'
 import type {
   Character,
   Enrollment,
@@ -51,6 +53,13 @@ export interface BackupPhoto {
   meta?: PhotoMeta
 }
 
+/** One calendar replay, carried whole inside the record, with where it belongs written beside it. */
+export interface BackupReplay {
+  playthroughId: string
+  replayId: string
+  replay: SlotReplay
+}
+
 /** One playthrough: the record it settled on, or the enrollment still waiting for one. */
 export interface BackupPlaythrough {
   record: PlaythroughRecord | null
@@ -74,6 +83,10 @@ export interface BackupFile {
   photos?: BackupPhoto[]
   /** The player's own backgrounds, their pictures in the zip; absent in backups from before them. */
   backgrounds?: CustomBackground[]
+  /** Every scene the player saved from the Scene Creator; absent in backups from before them. */
+  scenes?: SavedScene[]
+  /** Every replay a carried save names; absent in backups from before them. */
+  replays?: BackupReplay[]
   characters: Character[]
 }
 
@@ -200,5 +213,73 @@ export function backgroundsFromBackup(record: BackupFile): CustomBackground[] {
     }
     seen.add(background.name)
     return background
+  })
+}
+
+/**
+ * The saved scenes a backup carries, each checked as a scene's own file is and no id twice;
+ * refuses the backup before anything is written. A restore writes each over the scene of its id.
+ */
+export function scenesFromBackup(record: BackupFile): SavedScene[] {
+  const carried: unknown = record.scenes ?? []
+  if (!Array.isArray(carried)) {
+    throw appError(BACKUP_READ.malformed.code, BACKUP_READ.malformed.message, 'scenes')
+  }
+  const seen = new Set<string>()
+  return carried.map((entry: unknown, index) => {
+    const scene = validateSavedScene(entry, `scenes[${String(index)}]`)
+    if (seen.has(scene.id)) {
+      throw appError(BACKUP_READ.malformed.code, BACKUP_READ.malformed.message, scene.id)
+    }
+    seen.add(scene.id)
+    return scene
+  })
+}
+
+/** Every replay a backup's saves name, once each, by playthrough: what an export carries. */
+export function namedReplays(
+  saves: readonly BackupSave[]
+): Array<{ playthroughId: string; replayId: string }> {
+  const seen = new Set<string>()
+  const named: Array<{ playthroughId: string; replayId: string }> = []
+  for (const { playthroughId, save } of saves) {
+    for (const replayId of replayIdsOf(save.replays)) {
+      const key = `${playthroughId}/${replayId}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      named.push({ playthroughId, replayId })
+    }
+  }
+  return named
+}
+
+/**
+ * The replays a backup carries, each checked as a replay's own file is, under a playthrough id
+ * and a replay id that can name a path, and no pair twice; refuses the backup before anything
+ * is written.
+ */
+export function replaysFromBackup(record: BackupFile): BackupReplay[] {
+  const carried: unknown = record.replays ?? []
+  if (!Array.isArray(carried)) {
+    throw appError(BACKUP_READ.malformed.code, BACKUP_READ.malformed.message, 'replays')
+  }
+  const seen = new Set<string>()
+  return carried.map((entry: unknown, index) => {
+    const where = `replays[${String(index)}]`
+    const { playthroughId, replayId, replay } = (entry ?? {}) as Partial<BackupReplay>
+    if (
+      typeof playthroughId !== 'string' ||
+      !SAFE_NUMERIC_ID.test(playthroughId) ||
+      typeof replayId !== 'string' ||
+      !REPLAY_ID.test(replayId)
+    ) {
+      throw appError(BACKUP_READ.malformed.code, BACKUP_READ.malformed.message, where)
+    }
+    const key = `${playthroughId}/${replayId}`
+    if (seen.has(key)) {
+      throw appError(BACKUP_READ.malformed.code, BACKUP_READ.malformed.message, key)
+    }
+    seen.add(key)
+    return { playthroughId, replayId, replay: validateReplay(replay, where) }
   })
 }

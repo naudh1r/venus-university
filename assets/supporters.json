@@ -3,22 +3,28 @@
     "ElPapaDon",
     "thatmaestroguy",
     "Seviy",
-    "Evigan",
     "Stridley",
+    "Evigan",
     "Supahslm",
+    "Elitetaco",
     "sav",
     "0hrichi",
     "NihilBaxter",
     "SenpaiDaddy890"
   ],
   "playtesters": [
-    "Evigan",
     "Maboy",
-    "newlife1999"
+    "newlife1999",
+    "Evigan",
+    "Stridley"
   ],
   "handles": [
     {
       "name": "0hrichi",
+      "marbles": 4
+    },
+    {
+      "name": "Elitetaco",
       "marbles": 4
     },
     {
@@ -55,7 +61,7 @@
     },
     {
       "name": "Stridley",
-      "marbles": 4
+      "marbles": 5
     },
     {
       "name": "Supahslm",

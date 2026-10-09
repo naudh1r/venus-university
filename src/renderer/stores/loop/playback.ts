@@ -30,6 +30,8 @@ export interface PlaybackSlice {
   time: TimeSlot
   sceneSummary: string | null
   reread: number
+  /** A replay from the calendar is being read: nothing in it can be interrupted. */
+  replaying: { over?: true } | null
 }
 
 /** Whether a line is the reader's own action. */
@@ -54,7 +56,8 @@ export function replyReach(s: PlaybackSlice): number {
 
 /**
  * Whether either control may be offered at all: a cast scene has spoken on screen, and no exam,
- * status sequence, game over or orientation opening owns the stage.
+ * status sequence, game over or orientation opening owns the stage. A replay that has spoken is
+ * offered them whatever its cast and whichever slot it replays.
  */
 export function playbackOffered(s: PlaybackSlice): boolean {
   return (
@@ -63,18 +66,22 @@ export function playbackOffered(s: PlaybackSlice): boolean {
     s.statusModal === null &&
     s.sceneQuiz === null &&
     s.activeGameOver === null &&
-    s.cast.length > 0 &&
-    !(isOrientationSlot(s.date, s.time) && !s.currentSceneTranscript.some(isReaderLine))
+    (s.replaying !== null ||
+      (s.cast.length > 0 &&
+        !(isOrientationSlot(s.date, s.time) && !s.currentSceneTranscript.some(isReaderLine))))
   )
 }
 
 /**
  * Whether stepping back a line is open: a line of the reply on screen has been reached, and the
  * scene has an earlier line that says something. Closed while a turn is in flight before its
- * reply's first line shows, and at a decision point after a reply with no lines.
+ * reply's first line shows, and at a decision point after a reply with no lines. A replay shows
+ * the reader's lines too, so there it is open wherever an earlier line says something.
  */
 export function rewindOpenOf(s: PlaybackSlice): boolean {
-  return playbackOffered(s) && replyReach(s) >= 1 && rewindTargetOf(s.sceneLog) !== -1
+  if (!playbackOffered(s)) return false
+  if (s.replaying) return rewindTargetOf(s.sceneLog, true) !== -1
+  return replyReach(s) >= 1 && rewindTargetOf(s.sceneLog) !== -1
 }
 
 /** Whether reading forward again is open: a rewind has left beats ahead that were already read. */
@@ -95,11 +102,11 @@ function lockOf(s: PlaybackSlice): 'locked' | 'open' {
 }
 
 /**
- * The interjection on offer: none unless there is something to interrupt — lines unread, a reply
- * still arriving, or an ending under way — and otherwise as the scene's lock has it.
+ * The interjection on offer: none in a replay, or unless there is something to interrupt — lines
+ * unread, a reply still arriving, or an ending under way — and otherwise as the scene's lock has it.
  */
 export function interjectOfferOf(s: PlaybackSlice): InterjectOffer {
-  if (!playbackOffered(s)) return 'none'
+  if (!playbackOffered(s) || s.replaying) return 'none'
   const tail = s.currentSceneTranscript[s.currentSceneTranscript.length - 1]
   const interruptible =
     s.pendingLines.length > 0 ||
@@ -112,9 +119,10 @@ export function interjectOfferOf(s: PlaybackSlice): InterjectOffer {
 /**
  * The row's offer while a reply is on screen: the interjection's, extended over a resolved
  * reply's last line until that line is turned — so the row stands over the whole reply and hands
- * over to the turn's own well only on the click past it.
+ * over to the turn's own well only on the click past it. None in a replay.
  */
 export function replyRowOfferOf(s: PlaybackSlice): InterjectOffer {
+  if (s.replaying) return 'none'
   const offer = interjectOfferOf(s)
   if (offer !== 'none') return offer
   const lastLineUnturned =

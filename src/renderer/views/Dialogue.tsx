@@ -139,7 +139,8 @@ export function DialogueBox(props: DialogueBoxProps): JSX.Element {
   /**
    * What the box is wearing. Changing `dress` respawns the box — it exits and re-enters rather
    * than swapping contents — for a new speaker, a narration block, or a reply. `reply` increments
-   * on each reply so the same speaker answering again still changes `dress` and respawns.
+   * on each reply so the same speaker answering again still changes `dress` and respawns. A
+   * speaker with no character is told apart by name, so the reader's own line is not narration.
    */
   const full = Boolean(text) || boxWaiting || sending
   const [wasSending, setWasSending] = useState(sending)
@@ -148,14 +149,17 @@ export function DialogueBox(props: DialogueBoxProps): JSX.Element {
     setWasSending(sending)
     if (!sending) setReply((n) => n + 1)
   }
-  const dress = full ? `${reply}:${speakerCharId ?? ''}` : EMPTY
+  const dress = full ? `${reply}:${speakerCharId ?? speakerName}` : EMPTY
 
   const [shownDress, setShownDress] = useState(dress)
   const [arrival, setArrival] = useState<Arrival>('held')
 
-  /** Where the chain goes once the box is free to arrive: her name first, or straight to it. */
+  /**
+   * Where the chain goes once the box is free to arrive: her face and name first, a name alone
+   * where the speaker has no face, or straight to the box.
+   */
   const opensAt = (worn: string): Arrival =>
-    worn === EMPTY ? 'empty' : speakerCharId ? 'speaker' : 'box'
+    worn === EMPTY ? 'empty' : speakerCharId ? 'speaker' : speakerName ? 'name' : 'box'
 
   /**
    * Whether the face has finished wiping in. **The arrival alone does not answer that**: a skip
@@ -313,28 +317,35 @@ export function DialogueBox(props: DialogueBoxProps): JSX.Element {
       {/* The face and this are siblings, so their keys have to differ as well as change: two
           siblings sharing one key left React holding both nodes, and the stale face — still
           wearing the end of its own exit — was the one `querySelector` found. */}
-      {worn.current.charId && (
-        <div className="vu-box-label" key={`label:${shownDress}:${cutMount}`} {...answers}>
-          <motion.div
-            className="vu-box-portrait vu-arch vu-paper"
-            variants={speakerFace}
-            initial={layerStart}
-            animate={leaving ? 'gone' : faced ? 'shown' : 'hidden'}
-            onAnimationComplete={(label) => {
-              if (label === 'shown' && arrival === 'speaker') setArrival('name')
-            }}
-          >
-            <span className="vu-crop">
-              <img
-                className="vu-crop-img"
-                src={profileUrl(worn.current.charId, speakerVersion)}
-                alt=""
-                /* A cut puts the face up at once with nothing under it, so it is decoded in step
-                   rather than painted blank until a deferred decode lands. */
-                decoding={cutIn ? 'sync' : 'async'}
-              />
-            </span>
-          </motion.div>
+      {/* A speaker with no face — the reader's own line — wears the name alone. */}
+      {(worn.current.charId || worn.current.name) && (
+        <div
+          className={`vu-box-label${worn.current.charId ? '' : ' vu-box-label--bare'}`}
+          key={`label:${shownDress}:${cutMount}`}
+          {...answers}
+        >
+          {worn.current.charId && (
+            <motion.div
+              className="vu-box-portrait vu-arch vu-paper"
+              variants={speakerFace}
+              initial={layerStart}
+              animate={leaving ? 'gone' : faced ? 'shown' : 'hidden'}
+              onAnimationComplete={(label) => {
+                if (label === 'shown' && arrival === 'speaker') setArrival('name')
+              }}
+            >
+              <span className="vu-crop">
+                <img
+                  className="vu-crop-img"
+                  src={profileUrl(worn.current.charId, speakerVersion)}
+                  alt=""
+                  /* A cut puts the face up at once with nothing under it, so it is decoded in
+                     step rather than painted blank until a deferred decode lands. */
+                  decoding={cutIn ? 'sync' : 'async'}
+                />
+              </span>
+            </motion.div>
+          )}
           {/* Her name, arriving on the face's own landing, and the surface under it anchored
               to both ends of the word: the wipe front is the pill's own flat edge, so no number
               here knows how long a name is. */}

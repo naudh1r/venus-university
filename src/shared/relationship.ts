@@ -293,6 +293,21 @@ export function dispositionOf(affection: number): Disposition {
   return 'hostile'
 }
 
+/** One affection score inside each tier, for a disposition set by hand rather than earned. */
+const DISPOSITION_AFFECTION: Record<Disposition, number> = {
+  devoted: 60,
+  trusted: 40,
+  friendly: 22,
+  neutral: 0,
+  annoyed: -22,
+  hostile: -40
+}
+
+/** The affection a hand-set disposition is played at; `dispositionOf` reads it back as that tier. */
+export function affectionOfDisposition(disposition: Disposition): number {
+  return DISPOSITION_AFFECTION[disposition]
+}
+
 /** Completes `"<FirstName> ___ the reader."` for prompt injection. */
 export const DISPOSITION_PHRASE: Record<Disposition, string> = {
   devoted: 'is devoted to',

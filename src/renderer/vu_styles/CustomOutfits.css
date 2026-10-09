@@ -16,6 +16,13 @@
   gap: 16px;
 }
 
+/* A custom outfit's name is written lowercase and shown exactly as written, the box that
+   renames it included. */
+.vu-customs .vu-wardrobe-title,
+.vu-customs .vu-wardrobe-rename {
+  text-transform: none;
+}
+
 /* Five columns, a hint and a foot on one 1080 stage: the archway gives up its own cap so the
    panel stands inside the stage rather than the sprites standing at full height. */
 .vu-customs .vu-wardrobe-arch {

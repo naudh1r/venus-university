@@ -12,13 +12,16 @@ import type {
   PhotoModelChoice,
   PhotoRequest
 } from '@shared/photos'
+import type { SlotReplay } from '@shared/replays'
 import type { RoomVariant } from '@shared/room'
+import type { SavedScene, SavedSceneSummary } from '@shared/sceneCreator'
 import type { ExportKind } from '@shared/sillyTavern'
 import type {
   Character,
   CharacterBrief,
   ComfyStatus,
   CreatedEnrollment,
+  CustomCgSlot,
   CustomOutfitSlot,
   Emotion,
   EndingPostsResponse,
@@ -220,7 +223,7 @@ export interface VenusUniversityApi {
      * Deletes one custom set's images, live and staged; the record is the renderer's
      * to rewrite.
      */
-    deleteSet: (charId: string, slot: CustomOutfitSlot) => Promise<Result<void>>
+    deleteSet: (charId: string, slot: CustomOutfitSlot | CustomCgSlot) => Promise<Result<void>>
     /**
      * The bytes of one wardrobe image — a sprite by emotion, or `'fix'` for the set's saved
      * transparency-repair layer — or `null` if it is not on disk. The hand repair keeps
@@ -326,8 +329,15 @@ export interface VenusUniversityApi {
       draft: SaveDraft,
       playthroughId?: string
     ) => Promise<Result<CreatedPlaythrough>>
-    /** Mints a slot-boundary save and prunes the window; the autosave stands. */
-    slot: (playthroughId: string, draft: SaveDraft) => Promise<Result<GameSave>>
+    /**
+     * Mints a slot-boundary save and prunes the window; the autosave stands. A `replay` the draft
+     * names is kept beside it in the same write, and a replay no save names any more is deleted.
+     */
+    slot: (
+      playthroughId: string,
+      draft: SaveDraft,
+      replay?: SlotReplay
+    ) => Promise<Result<GameSave>>
     /** Rewrites an existing slot-save in place — mints nothing, prunes nothing. */
     overwrite: (
       playthroughId: string,
@@ -341,8 +351,17 @@ export interface VenusUniversityApi {
      * whatever it held — mints nothing, prunes nothing, leaves the autosave alone.
      */
     manual: (playthroughId: string, slot: number, draft: SaveDraft) => Promise<Result<GameSave>>
-    delete: (playthroughId: string, saveId: string) => Promise<Result<void>>
+    /**
+     * Deletes one save, and every replay it named that no other save names and `keep` — the
+     * replays the game being played will write next — does not hold.
+     */
+    delete: (playthroughId: string, saveId: string, keep?: string[]) => Promise<Result<void>>
     deletePlaythrough: (playthroughId: string) => Promise<Result<void>>
+    /**
+     * Gives a playthrough the player's own name, written onto its record; a blank name takes it
+     * away, and the playthrough goes by its place in creation order again.
+     */
+    rename: (playthroughId: string, name: string) => Promise<Result<void>>
     /**
      * Draws the graduation picture from the renderer's reference sheet, writes it into the
      * playthrough folder and answers with the same bytes.
@@ -527,6 +546,26 @@ export interface VenusUniversityApi {
       name: string,
       variant: BgVariant
     ) => Promise<Result<Uint8Array<ArrayBuffer> | null>>
+  }
+  /** The scenes the player saved from the Scene Creator, kept for every playthrough. */
+  scenes: {
+    /** Every readable one as its summary, newest first; a damaged one is left out. */
+    list: () => Promise<Result<SavedSceneSummary[]>>
+    /** One whole; an id nothing is kept under is refused with `SCENE_NOT_FOUND`. */
+    read: (id: string) => Promise<Result<SavedScene>>
+    /** Keeps a scene under its own id, replacing one already there. */
+    write: (scene: SavedScene) => Promise<Result<void>>
+    /** Removes one; an id nothing is kept under is success. */
+    delete: (id: string) => Promise<Result<void>>
+  }
+  /** The calendar's replays, kept beside each playthrough's saves. */
+  replays: {
+    /** The ids of every replay one playthrough keeps. */
+    list: (playthroughId: string) => Promise<Result<string[]>>
+    /** One whole; an id nothing is kept under is refused with `REPLAY_NOT_FOUND`. */
+    read: (playthroughId: string, replayId: string) => Promise<Result<SlotReplay>>
+    /** Removes one, whatever saves still name it; an id nothing is kept under is success. */
+    delete: (playthroughId: string, replayId: string) => Promise<Result<void>>
   }
 }
 

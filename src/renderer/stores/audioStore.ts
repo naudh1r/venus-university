@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import {
   AUDIO_FILES,
+  cgLoopsOf,
   ONE_SHOT_KEYS,
   pitchSemitonesOf,
   VOICE_PITCH_DEFAULT,
@@ -10,8 +11,7 @@ import {
   volumesOf
 } from '@shared/audio'
 import type { AudioKey, DayHalf, Volumes } from '@shared/audio'
-import { isPosition } from '@shared/positions'
-import type { Conversation, Position, RendererSettings } from '@shared/types'
+import type { Conversation, RendererSettings } from '@shared/types'
 import { slotHalf, weekendSaturdayOf } from '../prompts/gameDate'
 import { isEpilogueNight } from '../prompts/graduation'
 import { slotWeather } from '../prompts/weather'
@@ -21,9 +21,9 @@ import * as engine from './audioEngine'
 import { AUDIO_CHANNELS } from './audioEngine'
 import { useCrossingStore } from './crossingStore'
 import { useGameStore } from './gameStore'
-import { useSettingsStore } from './settingsStore'
+import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
 import { soundscapeOf, stingsOf, type SoundFacts } from './soundscape'
-import { displaySlotsOf } from './stageDisplay'
+import { displayedCgOf, displaySlotsOf } from './stageDisplay'
 import { useUiStore, type ViewName } from './uiStore'
 
 /**
@@ -209,12 +209,15 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
 
   const inScene = game.currentSceneTranscript.length > 0 || game.sceneSummary !== null
   const base = game.bg ?? SLOT_BG
-  const shown = displaySlotsOf(game.slots, game.stageOverride)
-  const cgCharId = shown.find(
-    (charId): charId is string =>
-      Boolean(charId && game.characters[charId] && isPosition(game.emotions[charId] ?? ''))
-  )
-  const character = cgCharId ? game.characters[cgCharId] : null
+  const cg = displayedCgOf({
+    shown: displaySlotsOf(game.slots, game.stageOverride),
+    emotions: game.emotions,
+    lock: game.cgLock,
+    hasCharacter: (charId) => Boolean(game.characters[charId]),
+    ready: { cgReady: game.cgReady, customCgReady: game.customCgReady },
+    noNsfwImages: noNsfwImagesOf(useSettingsStore.getState())
+  })
+  const character = cg ? game.characters[cg.charId] : null
   const epilogue = isEpilogueNight(game.date, game.time, game.graduationSeen)
 
   return {
@@ -231,10 +234,11 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
     weather: slotWeather(game.weather, game.date, game.time, game.graduationSeen),
     epilogue,
     cg:
-      cgCharId && character
+      cg && character
         ? {
-            position: game.emotions[cgCharId] as Position,
-            voicePitch: character.voicePitch ?? VOICE_PITCH_DEFAULT
+            position: cg.position,
+            voicePitch: character.voicePitch ?? VOICE_PITCH_DEFAULT,
+            ...cgLoopsOf(cg.position, character)
           }
         : null,
     loads: game.loads,

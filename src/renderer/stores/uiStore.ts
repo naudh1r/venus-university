@@ -12,6 +12,8 @@ export type ViewName =
   | 'firstRun'
   | 'mainMenu'
   | 'manageCharacters'
+  /** One scene set up by hand and played outside any playthrough. */
+  | 'sceneCreator'
   | 'newGame'
   /** The canned start, rendered by `NewGameView` for `classSelect`'s reason. */
   | 'quickstart'

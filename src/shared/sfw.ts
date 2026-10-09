@@ -1,4 +1,4 @@
-import { isPosition } from './positions'
+import { isAfterPosition, isCustomCgSlot, isPosition } from './positions'
 import { parseSpriteRef, spriteRef } from './outfits'
 import type { OutfitSet, Position, SetTarget, SpriteRef } from './types'
 
@@ -7,9 +7,9 @@ import type { OutfitSet, Position, SetTarget, SpriteRef } from './types'
  * render targets that setting withholds outright.
  */
 
-/** Whether `noNsfwImages` withholds a render target: the nude wardrobe and the CGs. */
+/** Whether `noNsfwImages` withholds a render target: the nude wardrobe and every CG set. */
 export function sfwWithholds(target: SetTarget, noNsfwImages: boolean): boolean {
-  return noNsfwImages && (target === 'nude' || target === 'cgs')
+  return noNsfwImages && (target === 'nude' || target === 'cgs' || isCustomCgSlot(target))
 }
 
 /** The wardrobe a substitution keeps her in: whatever her sticky reference is already wearing. */
@@ -34,5 +34,5 @@ export function sfwSpriteRefOf(ref: SpriteRef, current: SpriteRef | undefined): 
  * What stands in for a CG: the same girl in the same clothes, wearing the mood the CG was for.
  */
 export function sfwCgRefOf(position: Position, current: SpriteRef | undefined): SpriteRef {
-  return spriteRef(position.endsWith('_after') ? 'happy' : 'aroused', keptSetOf(current))
+  return spriteRef(isAfterPosition(position) ? 'happy' : 'aroused', keptSetOf(current))
 }

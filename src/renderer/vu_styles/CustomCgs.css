@@ -1,0 +1,85 @@
+/* The player's own CG pairs, opened out of the NSFW CG gallery on the gallery's own chassis,
+   and the form that edits one. Imported from the view modules after `ImageGallery.css`, never
+   from index.css.
+
+   The veil, the panel, the grid, the cells, the pill, the ✕ and the foot are base.css's and
+   ImageGallery.css's. */
+
+/* A custom CG's name is written lowercase and shown exactly as written, the box that renames
+   it included; a name runs to the cell's width before it wraps. */
+.vu-customcgs .vu-gallery-caption {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
+/* A caption and the pencil beside it, kept at the box's height so the row does not jump as
+   the one is swapped for the other. */
+.vu-customcg-caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+}
+
+/* The pencil that renames a CG, at the caption's size rather than a field's. */
+.vu-customcg-pencil {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--vu-text-muted);
+}
+
+.vu-customcg-pencil svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* The box that takes the caption's place, at the caption's own size and a name's width. */
+.vu-customcg-rename {
+  width: min(100%, 240px);
+  padding: 3px 12px;
+  border-width: 2px;
+  font: 700 12px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+/* The plus in an empty slot fills the dashed cell it stands in. */
+.vu-customcg-add {
+  width: 100%;
+  color: var(--vu-text-muted);
+}
+
+/* The pills a card raises when it offers more than one control: a stack centred on the
+   picture that takes the pointer only through its pills. */
+.vu-customcg-pills {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+/* Each wears the picture's pill, standing in the stack rather than over the cell. */
+.vu-customcg-pills > .vu-pic-action {
+  position: static;
+  border: 0;
+}
+
+/* The edit form's two loops, side by side under its instructions. */
+.vu-customcg-sounds {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}

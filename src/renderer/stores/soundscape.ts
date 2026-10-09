@@ -1,8 +1,6 @@
 import {
-  ACT_LOOP_BY_POSITION,
   AUDIO_FILES,
   ambienceFor,
-  breathFor,
   climaxed,
   indoorWetAmbience,
   outdoorAmbience,
@@ -79,7 +77,13 @@ export interface SoundFacts {
     weather: Weather
     /** The graduation epilogue, which has a theme of its own. */
     epilogue: boolean
-    cg: { position: Position; voicePitch: number } | null
+    /** The CG on screen, with her voice and the two loops it plays, or null. */
+    cg: {
+      position: Position
+      voicePitch: number
+      act: AudioKey | null
+      breath: AudioKey | null
+    } | null
     /** How many saves this session has loaded: a step across two values of it is not progress. */
     loads: number
     /** The status modal on screen; its identity is the fact, since a new modal is a new object. */
@@ -101,6 +105,7 @@ export interface SoundFacts {
 const MENU_VIEWS: readonly ViewName[] = [
   'mainMenu',
   'manageCharacters',
+  'sceneCreator',
   'newGame',
   'quickstart',
   'classSelect',
@@ -252,24 +257,24 @@ function gameMix(facts: SoundFacts): Soundscape {
   return { music: 'keep', ambience: { key: null, fade: SCENE }, ...cg }
 }
 
-/** The act and the breath a CG on stage calls for, or both fading out where there is none. */
-function cgMix(cg: { position: Position; voicePitch: number } | null): Pick<
-  Soundscape,
-  'act' | 'breath'
-> {
+/**
+ * The act and the breath a CG on stage calls for, the breath pitched to her voice; either one
+ * the CG plays none of, or both where there is no CG, fading out.
+ */
+function cgMix(cg: NonNullable<SoundFacts['game']>['cg']): Pick<Soundscape, 'act' | 'breath'> {
   if (!cg) return noCg()
 
-  const act = ACT_LOOP_BY_POSITION[cg.position]
-  const breath = breathFor(cg.position)
-  const range = pitchRangeOf(breath)
+  const range = cg.breath ? pitchRangeOf(cg.breath) : null
 
   return {
-    act: act ? { key: act, fade: CG_IN } : { key: null, fade: CG_OUT },
-    breath: {
-      key: breath,
-      fade: CG_IN,
-      semitones: range ? pitchSemitonesOf(cg.voicePitch, range) : 0
-    }
+    act: cg.act ? { key: cg.act, fade: CG_IN } : { key: null, fade: CG_OUT },
+    breath: cg.breath
+      ? {
+          key: cg.breath,
+          fade: CG_IN,
+          semitones: range ? pitchSemitonesOf(cg.voicePitch, range) : 0
+        }
+      : { key: null, fade: CG_OUT }
   }
 }
 

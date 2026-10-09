@@ -2,7 +2,7 @@ import { useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import { EMOTIONS } from '@shared/emotions'
-import { POSITIONS } from '@shared/positions'
+import { STOCK_POSITIONS } from '@shared/positions'
 import { ROOM_VARIANTS } from '@shared/room'
 import { sfwWithholds } from '@shared/sfw'
 import type { GenerateOptions, ReferenceImage } from '@shared/types'
@@ -49,7 +49,7 @@ const REFERENCE_MAX_BYTES = 4 * 1024 * 1024
 
 /** What each opt-in costs, counted from the sets themselves so a price cannot drift. */
 const SPRITES = `+${EMOTIONS.length} sprites`
-const CGS = `+${POSITIONS.length} images`
+const CGS = `+${STOCK_POSITIONS.length} images`
 const ROOM = ROOM_VARIANTS.join(' + ')
 
 /**

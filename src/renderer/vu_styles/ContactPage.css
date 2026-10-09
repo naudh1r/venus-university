@@ -72,7 +72,11 @@
    **Sized across rather than down**, which is the one thing on this screen that had to be: the
    stage is 1080 tall in every band and 1440–1920 wide, so a height in pixels would keep her the
    same size while the room beside her shrank by a quarter. A share of the box narrows her with
-   the stage, and the band below closes whatever crop that leaves. */
+   the stage, and the band below closes whatever crop that leaves.
+
+   Her last tenth is cut away at the line where the cards' words begin, past where any ordinary
+   sprite or its shadow reaches, so only an unusually wide one is stopped short of the reading.
+   The clip comes after the filter, so the shadow is cut on the same line. */
 .vu-contact-sprite {
   position: absolute;
   top: -40px;
@@ -80,6 +84,7 @@
   width: 140%;
   height: auto;
   filter: drop-shadow(20px 16px 0 var(--vu-panel-shadow));
+  clip-path: inset(0 10% 0 0);
 }
 
 /* The diagonal that closes her leg crop, fills the corner and seats the switcher — one shape

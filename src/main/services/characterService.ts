@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, rename, rm, unlink, writeFile } from 'fs/prom
 import { dirname, join } from 'path'
 import {
   baseRel,
+  CUSTOM_CGS_DIR,
   isCharFileRel,
   layerRel,
   looseNamesOf,
@@ -26,12 +27,13 @@ import { appError, messageOf } from '@shared/errors'
 import { EMOTIONS } from '@shared/emotions'
 import { assertPng, imageTypeOf } from '@shared/imageBytes'
 import { isCustomOutfitSlot, OUTFIT_SETS } from '@shared/outfits'
-import { POSITIONS } from '@shared/positions'
+import { afterOf, CUSTOM_CG_SLOTS, isCustomCgSlot, STOCK_POSITIONS } from '@shared/positions'
 import { ROOM_VARIANTS, roomStem, type RoomVariant } from '@shared/room'
 import type {
   AppError,
   Character,
   CharacterBrief,
+  CustomCgSlot,
   CustomOutfitSlot,
   Emotion,
   OutfitSet,
@@ -282,7 +284,7 @@ export async function getExpressionStatus(charId: string): Promise<Record<Emotio
  */
 export async function hasBaseImage(charId: string, target: SetTarget): Promise<boolean> {
   assertSafeCharId(charId)
-  if (target === 'cgs' || target === 'room') return true
+  if (target === 'cgs' || target === 'room' || isCustomCgSlot(target)) return true
 
   const base = getCharacterImagePath(charId, baseRel(target === 'default' ? null : target))
   return (await findImage(base)) !== null
@@ -295,10 +297,16 @@ export async function getRoomStatus(charId: string): Promise<Record<RoomVariant,
   return { day: present[roomStem('day')], night: present[roomStem('night')] }
 }
 
-/** Reports which of the eight CG files exist on disk — the files are the record. */
+/** Reports which CG files exist on disk, stock and custom — the files are the record. */
 export async function getCgStatus(charId: string): Promise<Record<Position, boolean>> {
   assertSafeCharId(charId)
-  return scanPresent(getCharacterCgsPath(charId), POSITIONS)
+  const status = {} as Record<Position, boolean>
+  Object.assign(status, await scanPresent(getCharacterCgsPath(charId), STOCK_POSITIONS))
+  for (const slot of CUSTOM_CG_SLOTS) {
+    const dir = getCharacterImagePath(charId, setDirRel(slot))
+    Object.assign(status, await scanPresent(dir, [slot, afterOf(slot)]))
+  }
+  return status
 }
 
 /** Reports which alternate-outfit sprites exist on disk, per set and emotion. */
@@ -333,11 +341,12 @@ function setLocation(
 /** Removes the staging tree once nothing is left in it — it is scratch, not state. */
 async function pruneStaging(charId: string): Promise<void> {
   const root = getCharacterStagingPath(charId)
-  try {
-    const outfits = getStagedOutfitsPath(charId)
-    if ((await readdir(outfits)).length === 0) await rm(outfits, { recursive: true, force: true })
-  } catch {
-    // No outfits subtree to prune; the root check below is the one that matters.
+  for (const subtree of [getStagedOutfitsPath(charId), getStagedPath(charId, CUSTOM_CGS_DIR)]) {
+    try {
+      if ((await readdir(subtree)).length === 0) await rm(subtree, { recursive: true, force: true })
+    } catch {
+      // No such subtree to prune; the root check below is the one that matters.
+    }
   }
   try {
     if ((await readdir(root)).length === 0) await rm(root, { recursive: true, force: true })
@@ -425,13 +434,17 @@ export async function discardStaged(charId: string, target?: SetTarget): Promise
 }
 
 /**
- * Deletes one player-authored wardrobe's images, live and staged. The record is the
- * renderer's to rewrite.
+ * Deletes one player-authored set's images — a wardrobe's or a CG pair's — live and staged.
+ * The record is the renderer's to rewrite.
  */
-export async function deleteCustomSet(charId: string, slot: CustomOutfitSlot): Promise<void> {
+export async function deleteCustomSet(
+  charId: string,
+  slot: CustomOutfitSlot | CustomCgSlot
+): Promise<void> {
   await assertEditableChar(charId)
-  if (!isCustomOutfitSlot(slot)) {
-    throw appError('OUTFIT_SET_UNKNOWN', `"${String(slot)}" is not a custom outfit.`)
+  const isCg = isCustomCgSlot(slot)
+  if (!isCg && !isCustomOutfitSlot(slot)) {
+    throw appError('OUTFIT_SET_UNKNOWN', `"${String(slot)}" is not a custom set.`)
   }
 
   const { live, staged } = setLocation(charId, slot)
@@ -439,7 +452,9 @@ export async function deleteCustomSet(charId: string, slot: CustomOutfitSlot): P
     await rm(live, { recursive: true, force: true })
     await rm(staged, { recursive: true, force: true })
   } catch (err) {
-    throw appError('OUTFIT_UNDELETABLE', 'Could not delete the outfit.', messageOf(err))
+    throw isCg
+      ? appError('CG_UNDELETABLE', 'Could not delete the CG.', messageOf(err))
+      : appError('OUTFIT_UNDELETABLE', 'Could not delete the outfit.', messageOf(err))
   }
   await pruneStaging(charId)
 }

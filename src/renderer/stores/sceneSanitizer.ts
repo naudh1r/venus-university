@@ -1,5 +1,12 @@
+import { offeredCustomCgs, storedCgOf, type OfferedCg } from '@shared/customCgs'
 import { settleDating, type DatingPassInput, type DatingPassOutcome } from '@shared/dating'
-import { isCustomOutfitSlot, parseSpriteRef } from '@shared/outfits'
+import {
+  isCustomOutfitSlot,
+  offeredCustomOutfits,
+  parseSpriteRef,
+  storedRefOf,
+  type OfferedOutfit
+} from '@shared/outfits'
 import type { PlayerStats } from '@shared/playerStats'
 import {
   affectionOf,
@@ -14,7 +21,8 @@ import {
   overTextDesc
 } from '@shared/relationship'
 import { storedMemoryDesc } from '@shared/readerVoice'
-import { parseAction, showAction, spriteAction } from '@shared/sceneActions'
+import { customCgSlotOf } from '@shared/positions'
+import { cgAction, parseAction, showAction, spriteAction } from '@shared/sceneActions'
 import { splitSentences } from '@shared/sentences'
 import { giftStatusMarkedLine } from '@shared/shop'
 import {
@@ -139,11 +147,37 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
   // creation: playback mutates the stage under the stream.
   const onScreen = new Set<string>(options.stage ?? stageAsWritten().onStage)
 
-  // Who this scene may put on stage — the cast, not the whole roster in `knownKeys`.
+  // Who this scene may put on stage — the cast, not the whole roster in `knownKeys` — and the
+  // custom wardrobes and CGs each was offered under, read off the same records the prompt was.
   const castKeys = new Set<string>()
+  const offeredByKey = new Map<string, OfferedOutfit[]>()
+  const cgOfferedByKey = new Map<string, OfferedCg[]>()
   for (const charId of game.cast) {
     const character = game.characters[charId]
-    if (character) castKeys.add(charKeyOf(character.firstName, character.lastName))
+    if (!character) continue
+    const key = charKeyOf(character.firstName, character.lastName)
+    castKeys.add(key)
+    offeredByKey.set(key, offeredCustomOutfits(character, outfitReady[charId]))
+    cgOfferedByKey.set(key, offeredCustomCgs(character, game.customCgReady[charId]))
+  }
+
+  /**
+   * A `sprite:` written under an offered wardrobe's suffix, or a `cg:` under the name the girl
+   * standing alone was offered it by, put back under its slot.
+   */
+  const storedAction = (raw: string): string => {
+    const cg = /^cg:(.*)$/.exec(raw)
+    if (cg) {
+      if (onScreen.size !== 1) return raw
+      const [only] = [...onScreen]
+      const stored = storedCgOf(cg[1].trim(), cgOfferedByKey.get(only) ?? [])
+      return stored ? cgAction(stored) : raw
+    }
+    const parsed = /^sprite:([^,]*),(.*)$/.exec(raw)
+    if (!parsed) return raw
+    const charKey = parsed[1].trim()
+    const stored = storedRefOf(parsed[2].trim(), offeredByKey.get(charKey) ?? [])
+    return stored ? spriteAction(charKey, stored) : raw
   }
   // Anyone the reply has already staged, so a walked-off character is not dragged back on.
   const everOnScreen = new Set<string>(onScreen)
@@ -188,7 +222,9 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
           kept.push(showAction('show', line.speaker))
         }
       }
-      for (const rawAction of raw?.actions ?? []) {
+      for (const written of raw?.actions ?? []) {
+        // Kept from here on in the stored form, so a save only ever holds slot ids.
+        const rawAction = typeof written === 'string' ? storedAction(written) : written
         const parsed = typeof rawAction === 'string' ? parseAction(rawAction) : null
         if (!parsed) {
           console.warn(`[scene] unparseable action "${String(rawAction)}" — dropping it.`)
@@ -226,12 +262,15 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
             continue
           }
           // A set not fully rendered for her degrades to the bare emotion, as does a custom
-          // wardrobe: the model is never told about one, so it cannot have meant it.
+          // wardrobe she was not offered: the model was never told about it.
           const outfit = parseSpriteRef(parsed.ref)
           const charId = charKeyToId[parsed.charKey]
+          const set = outfit?.set
           if (
-            outfit?.set &&
-            (isCustomOutfitSlot(outfit.set) || !outfitReady[charId]?.includes(outfit.set))
+            set &&
+            (!outfitReady[charId]?.includes(set) ||
+              (isCustomOutfitSlot(set) &&
+                !offeredByKey.get(parsed.charKey)?.some((offer) => offer.slot === set)))
           ) {
             console.warn(
               `[scene] "${parsed.ref}" is not rendered for "${parsed.charKey}" — showing her default outfit.`
@@ -240,15 +279,25 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
           } else {
             kept.push(rawAction)
           }
-        } else {
-          // A CG needs the stage down to exactly one girl, with her CG set on disk.
+        } else if (parsed.kind === 'cg') {
+          // A CG needs the stage down to exactly one girl: a stock one with her stock set on
+          // disk, one of her own only where she was offered it.
           const [only] = [...onScreen]
           const charId = only ? charKeyToId[only] : undefined
-          if (onScreen.size === 1 && charId && cgReady[charId]) {
+          const slot = customCgSlotOf(parsed.position)
+          const hers =
+            onScreen.size === 1 &&
+            charId !== undefined &&
+            (slot
+              ? (cgOfferedByKey.get(only) ?? []).some((offer) => offer.slot === slot)
+              : Boolean(cgReady[charId]))
+          if (hers) {
             kept.push(rawAction)
           } else {
             console.warn(
-              `[scene] ${rawAction} needs exactly one character on screen with CGs — dropping it.`
+              slot
+                ? `[scene] ${rawAction} needs exactly one character on screen who was offered it — dropping it.`
+                : `[scene] ${rawAction} needs exactly one character on screen with CGs — dropping it.`
             )
           }
         }

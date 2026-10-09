@@ -1,5 +1,14 @@
+import type { IDBPTransaction } from 'idb'
 import { appError } from '@shared/errors'
 import { validateRecord } from '@shared/jsonValidate'
+import {
+  idsMissingFrom,
+  replayIdOf,
+  replayIdsOf,
+  replaysToDelete,
+  validateReplay,
+  type SlotReplay
+} from '@shared/replays'
 import {
   assertManualSlot,
   assertSafePlaythroughId,
@@ -13,15 +22,18 @@ import {
   listedSaveIds,
   manualSaveId,
   mintId,
+  playthroughLabel,
   prunedSlotIds,
   RECORD_NOT_FOUND,
   RECORD_READ,
+  renamedRecord,
   SAVE_NOT_FOUND,
   SAVE_READ,
   stampEnrollment,
   stampRecord,
   stampSave,
   summaryOf,
+  withPlaythroughName,
   type SaveIdGroups
 } from '@shared/saveRules'
 import {
@@ -41,7 +53,13 @@ import {
   type SaveEntry,
   type SaveReadResult
 } from '@shared/types'
-import { database, partRange, storage, type PlaythroughRow } from './open'
+import {
+  database,
+  partRange,
+  storage,
+  type PlaythroughRow,
+  type VenusUniversityDb
+} from './open'
 
 /**
  * Saves, playthrough records and enrollments in the browser's storage. One row per playthrough
@@ -160,9 +178,11 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
     const groups = await saveIdsOf(playthroughId)
     const saveIds = listedSaveIds(groups)
 
+    const position = summaries.length + 1
     const base = {
       playthroughId,
-      label: `Playthrough ${summaries.length + 1}`,
+      label: playthroughLabel(null, position),
+      position,
       saveCount: groups.slots.length,
       manualCount: groups.manual.length,
       hasAutosave: groups.autosave
@@ -206,12 +226,14 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
       reason = (err as AppError).message
     }
 
+    const named = withPlaythroughName(base, record)
+
     const newest = await newestSave(playthroughId, saveIds)
     if (!reason) reason = newest.reason
     summaries.push(
       newest.save
         ? {
-            ...base,
+            ...named,
             chars: record?.chars ?? [],
             date: newest.save.date,
             time: newest.save.time,
@@ -220,7 +242,7 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
             unloadable: record ? null : reason
           }
         : {
-            ...base,
+            ...named,
             chars: [],
             date: 0,
             time: 0,
@@ -329,25 +351,98 @@ export async function createPlaythrough(
   return { record, save }
 }
 
+/** A save write's transaction: the saves and, beside them, the replays they name. */
+type SaveTx = IDBPTransaction<VenusUniversityDb, ['saves', 'replays'], 'readwrite'>
+
+/** Opens one save write's transaction over the saves and the replays. */
+async function saveTransaction(): Promise<SaveTx> {
+  return (await database()).transaction(['saves', 'replays'], 'readwrite')
+}
+
+/**
+ * Inside a save write's transaction, after its own puts and deletes: deletes each of `dropped`
+ * that no save left in the playthrough names and `keep` does not hold, and with them any other
+ * replay no save names. A save row that does not read as one might name any of them, so then
+ * nothing is deleted.
+ */
+async function dropReplaysIn(
+  tx: SaveTx,
+  playthroughId: string,
+  dropped: readonly string[],
+  keep: readonly string[] = []
+): Promise<void> {
+  if (dropped.length === 0) return
+  const replays = tx.objectStore('replays')
+  const kept = (await replays.getAllKeys(partRange(playthroughId))).map(([, replayId]) => replayId)
+  const present = new Set(kept)
+  if (!dropped.some((replayId) => present.has(replayId) && !keep.includes(replayId))) return
+
+  // Requests run in order, so these reads see the write this transaction has already queued.
+  const store = tx.objectStore('saves')
+  const keys = await store.getAllKeys(partRange(playthroughId))
+  const rows = await store.getAll(partRange(playthroughId))
+  const named: Set<string>[] = []
+  for (const [index, [, saveId]] of keys.entries()) {
+    if (classifySaveId(saveId) === null) continue
+    const where = `${playthroughId}/${saveId}`
+    try {
+      named.push(replayIdsOf(validateRecord<GameSave>(rows[index], where, SAVE_READ).replays))
+    } catch (err) {
+      console.warn(`[saves] ${where} could not be read, so no replay is deleted:`, err)
+      return
+    }
+  }
+  for (const replayId of replaysToDelete(kept, named, keep)) {
+    void replays.delete([playthroughId, replayId])
+  }
+}
+
+/** The replay a slot write keeps beside its save, or `null` where the draft names none. */
+function replayToKeep(
+  draft: SaveDraft,
+  replay: SlotReplay | undefined
+): { replayId: string; replay: SlotReplay } | null {
+  if (!replay) return null
+  const checked = validateReplay(replay, 'replay')
+  const replayId = replayIdOf(checked)
+  if (replayIdsOf(draft.replays).has(replayId)) return { replayId, replay: checked }
+  console.warn(`[saves] a replay the save does not name was left unwritten: ${replayId}`)
+  return null
+}
+
 /**
  * Writes the slot-boundary save: mints a new id and prunes the slot saves back to their window,
- * all in one transaction. The autosave stands: only the next decision point replaces it.
+ * all in one transaction, with a `replay` the draft names and the removal of any replay only the
+ * pruned saves named. The autosave stands: only the next decision point replaces it.
  */
-export async function writeSlotSave(playthroughId: string, draft: SaveDraft): Promise<GameSave> {
+export async function writeSlotSave(
+  playthroughId: string,
+  draft: SaveDraft,
+  replay?: SlotReplay
+): Promise<GameSave> {
   assertSafePlaythroughId(playthroughId)
+  const kept = replayToKeep(draft, replay)
+  const named = replayIdsOf(draft.replays)
+  const now = Date.now()
 
   return storage('write the save', async () => {
-    const tx = (await database()).transaction('saves', 'readwrite')
-    const store = tx.store
+    const tx = await saveTransaction()
+    const store = tx.objectStore('saves')
     // Read and writes are all database requests, so the transaction lives to the end of them.
     const keys = await store.getAllKeys(partRange(playthroughId))
     // Boundary saves alone: the window never counts, and so never prunes, a manual save.
     const slots = keys.map(([, saveId]) => saveId).filter(isSlotSaveId)
 
-    const saved = stampSave(draft, playthroughId, mintId(new Set(slots)), Date.now())
+    const saved = stampSave(draft, playthroughId, mintId(new Set(slots)), now)
+    if (kept) void tx.objectStore('replays').put(kept.replay, [playthroughId, kept.replayId])
     void store.put(saved, [playthroughId, saved.saveId])
     // `slots` was read before this write, so the window is what the new save pushes out of it.
-    for (const stale of prunedSlotIds(slots)) void store.delete([playthroughId, stale])
+    const dropped: string[] = []
+    for (const stale of prunedSlotIds(slots)) {
+      dropped.push(...replayIdsOf((await store.get([playthroughId, stale]))?.replays))
+      void store.delete([playthroughId, stale])
+    }
+    await dropReplaysIn(tx, playthroughId, idsMissingFrom(dropped, named))
 
     await tx.done
     return saved
@@ -390,43 +485,85 @@ export async function writeManualSave(
   return writeSave(playthroughId, manualSaveId(slot), draft)
 }
 
-/** Writes one save row, stamping the fields this module owns. */
+/**
+ * Writes one save row over whatever it held, stamping the fields this module owns, and drops
+ * the replays only the old row named, in one transaction.
+ */
 async function writeSave(
   playthroughId: string,
   saveId: string,
   draft: SaveDraft
 ): Promise<GameSave> {
   const next = stampSave(draft, playthroughId, saveId, Date.now())
-  await storage('write the save', async () =>
-    (await database()).put('saves', next, [playthroughId, saveId])
-  )
+  const named = replayIdsOf(next.replays)
+  await storage('write the save', async () => {
+    const tx = await saveTransaction()
+    const store = tx.objectStore('saves')
+    const before = await store.get([playthroughId, saveId])
+    void store.put(next, [playthroughId, saveId])
+    await dropReplaysIn(tx, playthroughId, idsMissingFrom(replayIdsOf(before?.replays), named))
+    await tx.done
+  })
   return next
 }
 
-/** Deletes one save. Already-gone is success, not an error. */
-export async function deleteSave(playthroughId: string, saveId: string): Promise<void> {
+/**
+ * Deletes one save, and every replay it named that no other save names and `keep` does not hold,
+ * in one transaction. Already-gone is success, not an error.
+ */
+export async function deleteSave(
+  playthroughId: string,
+  saveId: string,
+  keep: readonly string[] = []
+): Promise<void> {
   assertSafePlaythroughId(playthroughId)
   assertSafeSaveId(saveId)
-  await storage('delete the save', async () =>
-    (await database()).delete('saves', [playthroughId, saveId])
-  )
+  await storage('delete the save', async () => {
+    const tx = await saveTransaction()
+    const store = tx.objectStore('saves')
+    const before = await store.get([playthroughId, saveId])
+    void store.delete([playthroughId, saveId])
+    await dropReplaysIn(tx, playthroughId, [...replayIdsOf(before?.replays)], keep)
+    await tx.done
+  })
 }
 
-/** Deletes a whole playthrough: its row, every save in it and both of its pictures. */
+/**
+ * Gives a playthrough the player's own name, or takes it away where the name is blank: the
+ * record is read and checked, then put back with that one field changed.
+ */
+export async function renamePlaythrough(playthroughId: string, name: string): Promise<void> {
+  const renamed = renamedRecord(await readPlaythroughRecord(playthroughId), name)
+
+  const kept = await storage('rename the playthrough', async () => {
+    const tx = (await database()).transaction('playthroughs', 'readwrite')
+    // The read and the write are both database requests, so the transaction spans the two.
+    const row = await tx.store.get(playthroughId)
+    if (!row?.record) return false
+    await tx.store.put({ ...row, record: renamed }, playthroughId)
+    await tx.done
+    return true
+  })
+  // Deleted between the read and the write: nothing is put back in its place.
+  if (!kept) throw appError(RECORD_NOT_FOUND.code, RECORD_NOT_FOUND.message, playthroughId)
+}
+
+/** Deletes a whole playthrough: its row, every save and replay in it and both of its pictures. */
 export async function deletePlaythrough(playthroughId: string): Promise<void> {
   assertSafePlaythroughId(playthroughId)
 
   await storage('delete the playthrough', async () => {
     const tx = (await database()).transaction(
-      ['playthroughs', 'saves', 'endingArt', 'profilePictures', 'photos'],
+      ['playthroughs', 'saves', 'endingArt', 'profilePictures', 'photos', 'replays'],
       'readwrite'
     )
-    // Five deletes, all database requests, so the transaction sees all of them.
+    // Six deletes, all database requests, so the transaction sees all of them.
     void tx.objectStore('playthroughs').delete(playthroughId)
     void tx.objectStore('saves').delete(partRange(playthroughId))
     void tx.objectStore('endingArt').delete(playthroughId)
     void tx.objectStore('profilePictures').delete(playthroughId)
     void tx.objectStore('photos').delete(partRange(playthroughId))
+    void tx.objectStore('replays').delete(partRange(playthroughId))
     await tx.done
   })
 }

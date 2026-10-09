@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { cgLoopsOf } from '@shared/audio'
+import type { Position } from '@shared/types'
 import type { Weather } from '@shared/weather'
 import { soundscapeOf, stingsOf, type SoundFacts } from '../src/renderer/stores/soundscape'
 
@@ -380,25 +382,24 @@ describe('a wet sky', () => {
   })
 })
 
+/** A stock CG on stage as the facts carry it, its loops read off its position. */
+function onCg(position: Position, voicePitch: number): NonNullable<SoundFacts['game']>['cg'] {
+  return { position, voicePitch, ...cgLoopsOf(position, undefined) }
+}
+
 describe('a CG', () => {
   it('lays its act and its breath under the scene, pitched to her voice', () => {
-    const handjob = soundscapeOf(
-      inGame({ landing: false, inScene: true, cg: { position: 'handjob', voicePitch: 0.5 } })
-    )
+    const handjob = soundscapeOf(inGame({ landing: false, inScene: true, cg: onCg('handjob', 0.5) }))
     expect(handjob.act).toEqual({ key: 'cg_handjob', fade: 0.5 })
     expect(handjob.breath).toEqual({ key: 'cg_breath', fade: 0.5, semitones: 0.5 })
 
-    const sex = soundscapeOf(
-      inGame({ landing: false, inScene: true, cg: { position: 'sex', voicePitch: -1 } })
-    )
+    const sex = soundscapeOf(inGame({ landing: false, inScene: true, cg: onCg('sex', -1) }))
     expect(sex.act).toEqual({ key: 'cg_sex', fade: 0.5 })
     expect(sex.breath).toEqual({ key: 'cg_breath_fast', fade: 0.5, semitones: -3 })
   })
 
   it('drops the act but not the breath in an afterglow', () => {
-    const after = soundscapeOf(
-      inGame({ landing: false, inScene: true, cg: { position: 'sex_after', voicePitch: 0 } })
-    )
+    const after = soundscapeOf(inGame({ landing: false, inScene: true, cg: onCg('sex_after', 0) }))
     expect(after.act).toEqual({ key: null, fade: 0.8 })
     expect(after.breath).toEqual({ key: 'cg_breath', fade: 0.5, semitones: 0 })
   })
@@ -408,13 +409,25 @@ describe('a CG', () => {
     expect(gone.act).toEqual({ key: null, fade: 0.8 })
     expect(gone.breath).toEqual({ key: null, fade: 0.8 })
   })
+
+  it('fades the breath out under a CG that plays none', () => {
+    const silent = soundscapeOf(
+      inGame({
+        landing: false,
+        inScene: true,
+        cg: { position: 'customcg1', voicePitch: 0, act: 'cg_sex', breath: null }
+      })
+    )
+    expect(silent.act).toEqual({ key: 'cg_sex', fade: 0.5 })
+    expect(silent.breath).toEqual({ key: null, fade: 0.8 })
+  })
 })
 
 describe('a sting', () => {
   it('fires a climax when the act moves into its afterglow, and not on a CG drawn already in one', () => {
     const scene = { landing: false, inScene: true } as const
-    const sex = inGame({ ...scene, cg: { position: 'sex', voicePitch: 0 } })
-    const after = inGame({ ...scene, cg: { position: 'sex_after', voicePitch: 0 } })
+    const sex = inGame({ ...scene, cg: onCg('sex', 0) })
+    const after = inGame({ ...scene, cg: onCg('sex_after', 0) })
     expect(stingsOf(sex, after)).toEqual(['climax'])
 
     // A CG that arrives already in its afterglow — a save restored there — has climaxed nowhere.

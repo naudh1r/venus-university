@@ -18,6 +18,7 @@ import {
   MAX_TIER,
   MIN_TIER,
   STAT_LABELS,
+  nextTierPoints,
   pointsForTier,
   tierName,
   type PlayerStats,
@@ -234,7 +235,10 @@ export function StatRadar({ stats, from, raised, arrival, className }: StatRadar
   )
 }
 
-/** One stat beside its own point of the chart: its mark, its name, its tier, and its figure. */
+/**
+ * One stat beside its own point of the chart: its mark, its name, its tier, and its figure over
+ * the next tier's threshold.
+ */
 function StatBadge({
   stat,
   points,
@@ -271,12 +275,20 @@ function StatBadge({
           crossfade={crossfade}
         />
       </span>
-      <Reading
-        className="vu-radar-points"
-        was={was === undefined ? undefined : String(was)}
-        is={String(points)}
-        crossfade={crossfade}
-      />
+      <span className="vu-radar-figure">
+        <Reading
+          className="vu-radar-points"
+          was={was === undefined ? undefined : String(was)}
+          is={String(points)}
+          crossfade={crossfade}
+        />
+        <Reading
+          className="vu-radar-next"
+          was={was === undefined ? undefined : `/${nextTierPoints(was)}`}
+          is={`/${nextTierPoints(points)}`}
+          crossfade={crossfade}
+        />
+      </span>
     </motion.div>
     </motion.div>
   )

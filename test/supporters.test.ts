@@ -61,22 +61,24 @@ describe('deriveSupporters', () => {
       { name: 'zoe', dollars: 5 },
       { name: 'Banana', dollars: 10 },
       { name: 'zoe', dollars: 10 },
-      { name: 'apple', dollars: 15 }
+      { name: 'apple', dollars: 15 },
+      { name: 'kiwi', dollars: 2 }
     ],
-    playtesters: ['Quinn', 'apple']
+    playtesters: ['Quinn', 'kiwi', 'apple']
   })
 
-  it('lists donors largest gift first and playtesters by name', () => {
-    expect(derived.donors).toEqual(['apple', 'zoe', 'Banana'])
-    expect(derived.playtesters).toEqual(['apple', 'Quinn'])
+  it('lists donors largest gift first and playtesters as added', () => {
+    expect(derived.donors).toEqual(['apple', 'zoe', 'Banana', 'kiwi'])
+    expect(derived.playtesters).toEqual(['Quinn', 'kiwi', 'apple'])
   })
 
-  it('sums a repeat donor and counts a playtester as one dollar more', () => {
+  it('sums a repeat donor and gives a playtester who never gave the base', () => {
     const marbles = Object.fromEntries(derived.handles.map((one) => [one.name, one.marbles]))
     expect(marbles).toEqual({
-      apple: marblesFor(16),
+      apple: marblesFor(15),
       Banana: marblesFor(10),
-      Quinn: marblesFor(1),
+      kiwi: marblesFor(2),
+      Quinn: marblesFor(0),
       zoe: marblesFor(15)
     })
   })

@@ -106,6 +106,7 @@ describe('the PLANS half of the ledger request', () => {
       emotions: {},
       onStage: [],
       cgReady: {},
+      customCgReady: {},
       outfitReady: {},
       lessNsfwText: false,
       memoryBudgets: DEFAULT_MEMORY_BUDGETS,

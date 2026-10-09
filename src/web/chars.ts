@@ -25,13 +25,14 @@ import { assertPng, imageTypeOf } from '@shared/imageBytes'
 import { enqueue } from '@shared/jobQueue'
 import { generateImage } from '@shared/llm/cloudImage'
 import { OUTFIT_SETS } from '@shared/outfits'
-import { POSITIONS } from '@shared/positions'
+import { isCustomCgSlot, POSITIONS } from '@shared/positions'
 import { dayRoomPrompt, isRoomVariant, NIGHT_ROOM_PROMPT, ROOM_VARIANTS } from '@shared/room'
 import type { RoomVariant } from '@shared/room'
 import { assertRoomPicture } from '@shared/roomPicture'
 import type {
   Character,
   CharacterBrief,
+  CustomCgSlot,
   CustomOutfitSlot,
   Emotion,
   OutfitSet,
@@ -175,7 +176,7 @@ export async function getExpressionStatus(charId: string): Promise<Record<Emotio
   return scanPresent(await imageRels(charId), EMOTIONS, expressionRel)
 }
 
-/** Reports which of the eight CG files exist. */
+/** Reports which CG files exist, stock and custom. */
 export async function getCgStatus(charId: string): Promise<Record<Position, boolean>> {
   assertSafeCharId(charId)
   return scanPresent(await imageRels(charId), POSITIONS, cgRel)
@@ -204,7 +205,7 @@ export async function getRoomStatus(charId: string): Promise<Record<RoomVariant,
 /** Whether one set's base frame — what its other six expressions are face-passed from — exists. */
 export async function hasBaseImage(charId: string, target: SetTarget): Promise<boolean> {
   assertSafeCharId(charId)
-  if (target === 'cgs' || target === 'room') return true
+  if (target === 'cgs' || target === 'room' || isCustomCgSlot(target)) return true
   return (await imageRels(charId)).has(baseRel(target === 'default' ? null : target))
 }
 
@@ -225,9 +226,13 @@ export async function discardStaged(charId: string, target?: SetTarget): Promise
 }
 
 /**
- * Deletes one custom set's images, live and staged; the record is the renderer's to rewrite.
+ * Deletes one custom set's images, a wardrobe's or a CG pair's, live and staged; the record is
+ * the renderer's to rewrite.
  */
-export async function deleteCustomSet(charId: string, slot: CustomOutfitSlot): Promise<void> {
+export async function deleteCustomSet(
+  charId: string,
+  slot: CustomOutfitSlot | CustomCgSlot
+): Promise<void> {
   await db.deleteSet(charId, slot)
   forgetImages(charId)
 }

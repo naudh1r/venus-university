@@ -5,19 +5,24 @@ import {
   FALLBACK_DORM,
   type DormId
 } from '@shared/dorms'
+import { seededRand } from '@shared/hash'
 import { jobDefOf, shiftSlotOf } from '@shared/jobs'
 import {
   ELYSIUM_LOCATION,
   LOCATIONS,
   LOWRISE_LOCATION,
   NARRATIVE_LOCATIONS,
+  isLocationOpen,
   ROOM_LOCATION,
   locationDefOf,
   locationLabel
 } from '@shared/locations'
+import { shuffle } from '@shared/shuffle'
 import type { TimeSlot } from '@shared/types'
 import { shiftWeekdayOf } from '../prompts/gameDate'
+import { placeClosedOn } from '../prompts/occasions'
 import { useGameStore } from './gameStore'
+import { localsAtLocation, workersAtLocation } from './loop/casting'
 import {
   charAwayNow,
   charClassNow,
@@ -73,7 +78,7 @@ export interface Whereabouts {
 }
 
 /** What a section carries besides its people — the five fields a heading is. */
-type Section = Pick<
+export type Section = Pick<
   Whereabouts,
   'placeKey' | 'placeLabel' | 'placeIcon' | 'placeBlurb' | 'onCampus'
 >
@@ -241,4 +246,36 @@ export function knownWhereabouts(date?: number, time?: TimeSlot): Whereabouts[] 
     return rank < 0 ? PLACE_ORDER.length : rank
   }
   return rows.sort((a, b) => rankOf(a.placeKey) - rankOf(b.placeKey))
+}
+
+/**
+ * Up to `count` places to stand on the map beside the ones in `shownKeys`, for a map with too few
+ * bubbles to look like a city. Only a place open this slot is offered; one the casting would find
+ * somebody at comes before an empty one, each kind in an order fixed for the slot, so a map
+ * opened twice in one hour offers the same places. Read on the clock, as the casting is.
+ */
+export function mapFillers(shownKeys: readonly string[], count: number): Section[] {
+  if (count <= 0) return []
+  const game = useGameStore.getState()
+  const on = game.date
+  const half = game.time
+  const slot = shiftSlotOf(shiftWeekdayOf(on), half)
+
+  const open = [...LOCATIONS, ...NARRATIVE_LOCATIONS]
+    .map((def) => def.id)
+    .filter((id) => isLocationOpen(id, slot) && !placeClosedOn(id, on, game.occasions))
+    .map(placeSection)
+    .filter((section) => !shownKeys.includes(section.placeKey))
+
+  // The casting's own answer to who is standing there, so a filler with somebody at it is one a
+  // Go would actually find her at.
+  const occupied = (section: Section): boolean => {
+    const id = placeDestination(section.placeKey) ?? section.placeKey
+    return localsAtLocation(id).length > 0 || workersAtLocation(id).length > 0
+  }
+  const rand = seededRand(`map:${on}:${half}`)
+  return [
+    ...shuffle(open.filter(occupied), rand),
+    ...shuffle(open.filter((section) => !occupied(section)), rand)
+  ].slice(0, count)
 }

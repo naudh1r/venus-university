@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { VOICE_PITCH_DEFAULT, VOICE_TIER_LABELS, voiceTierOf } from '@shared/audio'
 import { EMOTIONS } from '@shared/emotions'
 import { STAT_ATTRACTIONS } from '@shared/playerStats'
-import { POSITIONS } from '@shared/positions'
+import { STOCK_POSITIONS } from '@shared/positions'
 import { ROOM_VARIANTS } from '@shared/room'
 import { fullNameOf, type Character } from '@shared/types'
 import { LandscapeTile } from '../components/LandscapeTile'
@@ -144,7 +144,7 @@ export function CharacterModal({
     const status = set === null ? expressions : outfits?.[set]
     return EMOTIONS.filter((emotion) => status?.[emotion]).length
   }
-  const cgsOnDisk = POSITIONS.filter((position) => cgs?.[position]).length
+  const cgsOnDisk = STOCK_POSITIONS.filter((position) => cgs?.[position]).length
   const roomOnDisk = ROOM_VARIANTS.filter((variant) => rooms?.[variant]).length
 
   const rendering = isInFlight(progress)
@@ -212,7 +212,7 @@ export function CharacterModal({
                 title="NSFW CG"
                 what="the CGs"
                 shownDone={cgsOnDisk}
-                total={POSITIONS.length}
+                total={STOCK_POSITIONS.length}
                 onShow={() => setGallery(true)}
                 showLocked={noNsfwImages}
                 showLockedReason="Hidden by SFW setting"

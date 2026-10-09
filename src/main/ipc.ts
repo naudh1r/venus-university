@@ -17,6 +17,7 @@ import type {
   Character,
   CharacterBrief,
   ComfyStatus,
+  CustomCgSlot,
   CustomOutfitSlot,
   Emotion,
   EndingPostsResponse,
@@ -48,7 +49,9 @@ import type {
 import { MAX_LOG_RECORD_CHARS } from '@shared/types'
 import type { ClassifierPromptRequest } from '@shared/classifier'
 import type { PromptEdit } from '@shared/imagePrompt'
+import { keptReplayIds, type SlotReplay } from '@shared/replays'
 import type { RoomVariant } from '@shared/room'
+import type { SavedScene } from '@shared/sceneCreator'
 import { appError, toAppError, truncate } from '@shared/errors'
 import {
   getAvailablePoses,
@@ -64,6 +67,7 @@ import {
   overwriteSlotSave,
   readEnrollment,
   readSave,
+  renamePlaythrough,
   writeAutosave,
   writeEnrollment,
   writeManualSave,
@@ -161,6 +165,8 @@ import { generateRoomImage, writeRoomUpload } from './services/roomService'
 import { applySettingsPatch, getRendererSettings, getSettings } from './services/settingsService'
 import { getGrabBags, setGrabBags } from './services/grabBagService'
 import { getModSwitches, setModSwitches } from './services/modsService'
+import { deleteReplay, listReplayIds, readReplay } from './services/replayService'
+import { deleteScene, listScenes, readScene, writeScene } from './services/sceneService'
 import {
   getModelFolder,
   getSetupStatus,
@@ -371,8 +377,8 @@ export function registerIpcHandlers(): void {
     (_event, playthrough: PlaythroughDraft, draft: SaveDraft, playthroughId?: string) =>
       createPlaythrough(playthrough, draft, playthroughId)
   )
-  handle('saves:slot', (_event, playthroughId: string, draft: SaveDraft) =>
-    writeSlotSave(playthroughId, draft)
+  handle('saves:slot', (_event, playthroughId: string, draft: SaveDraft, replay?: SlotReplay) =>
+    writeSlotSave(playthroughId, draft, replay)
   )
   handle('saves:overwrite', (_event, playthroughId: string, saveId: string, draft: SaveDraft) =>
     overwriteSlotSave(playthroughId, saveId, draft)
@@ -386,8 +392,8 @@ export function registerIpcHandlers(): void {
   handle('saves:read', (_event, playthroughId: string, saveId: string) =>
     readSave(playthroughId, saveId)
   )
-  handle('saves:delete', (_event, playthroughId: string, saveId: string) =>
-    deleteSave(playthroughId, saveId)
+  handle('saves:delete', (_event, playthroughId: string, saveId: string, keep?: unknown) =>
+    deleteSave(playthroughId, saveId, keptReplayIds(keep))
   )
   // The graduation picture.
   handle(
@@ -422,6 +428,19 @@ export function registerIpcHandlers(): void {
 
   handle('saves:deletePlaythrough', (_event, playthroughId: string) =>
     deletePlaythrough(playthroughId)
+  )
+
+  handle('saves:rename', (_event, playthroughId: string, name: string) =>
+    renamePlaythrough(playthroughId, name)
+  )
+
+  // The calendar's replays, kept beside each playthrough's saves.
+  handle('replays:list', (_event, playthroughId: string) => listReplayIds(playthroughId))
+  handle('replays:read', (_event, playthroughId: string, replayId: string) =>
+    readReplay(playthroughId, replayId)
+  )
+  handle('replays:delete', (_event, playthroughId: string, replayId: string) =>
+    deleteReplay(playthroughId, replayId)
   )
 
   // The Bunnyboard's photos.
@@ -638,8 +657,8 @@ export function registerIpcHandlers(): void {
   handle('chars:discardStaged', (_event, charId: string, target?: SetTarget) =>
     discardStaged(charId, target)
   )
-  // One custom wardrobe's images, live and staged; the renderer rewrites the record itself.
-  handle('chars:deleteSet', (_event, charId: string, slot: CustomOutfitSlot) =>
+  // One custom wardrobe's or CG pair's images, live and staged; the renderer rewrites the record.
+  handle('chars:deleteSet', (_event, charId: string, slot: CustomOutfitSlot | CustomCgSlot) =>
     deleteCustomSet(charId, slot)
   )
   // Bytes for the repair editors; a view that only shows an image uses `charimg://`.
@@ -752,6 +771,12 @@ export function registerIpcHandlers(): void {
   handle('backgrounds:readImage', (_event, name: unknown, variant: unknown) =>
     readCustomBackgroundImage(name, variant)
   )
+
+  // The scenes the player saved from the Scene Creator: kept install-wide in `data/scenes`.
+  handle('scenes:list', () => listScenes())
+  handle('scenes:read', (_event, id: string) => readScene(id))
+  handle('scenes:write', (_event, scene: SavedScene) => writeScene(scene))
+  handle('scenes:delete', (_event, id: string) => deleteScene(id))
 
   // The shipped cast and which of them the player has taken off the roster.
   handle('chars:defaults', () => getDefaultsStatus())

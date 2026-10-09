@@ -1,9 +1,11 @@
 import { useState, type JSX, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { isWritten } from '@shared/characterRules'
+import { cgLabelOf, customCgLabelOf } from '@shared/customCgs'
 import { EMOTIONS } from '@shared/emotions'
-import { outfitLabelOf } from '@shared/outfits'
-import type { Character } from '@shared/types'
+import { isCustomOutfitSlot, outfitLabelOf } from '@shared/outfits'
+import { isStockPosition } from '@shared/positions'
+import type { Character, OutfitSet } from '@shared/types'
 import {
   currentTask,
   isInFlight,
@@ -40,17 +42,31 @@ type CardState =
   | 'unwritten'
   | 'unfinished'
 
-/** Names the counter's denominator, so `4/7` says which seven it is counting. */
+/** A set's name on the strip: a stock one in its capitals, a custom one exactly as written. */
+function setName(set: OutfitSet, character: Character): string {
+  const label = outfitLabelOf(character, set)
+  return isCustomOutfitSlot(set) ? label : label.toUpperCase()
+}
+
+/**
+ * Names the counter's denominator, so `4/7` says which seven it is counting; a custom CG is
+ * named exactly as written, as a custom wardrobe is.
+ */
 function taskName(task: RenderTask, character: Character): string {
   if (task.kind === 'cgs') return 'CGS'
-  if (task.kind === 'cg') return 'CG'
+  if (task.kind === 'cg') {
+    return task.position && !isStockPosition(task.position)
+      ? cgLabelOf(character, task.position)
+      : 'CG'
+  }
+  if (task.kind === 'customCg' && task.cgSlot) return customCgLabelOf(character, task.cgSlot)
   if (task.kind === 'room') return 'ROOM'
   if (task.kind === 'expression' && task.emotion) {
     return task.set
-      ? `${task.emotion} ${outfitLabelOf(character, task.set)}`.toUpperCase()
+      ? `${task.emotion.toUpperCase()} ${setName(task.set, character)}`
       : task.emotion.toUpperCase()
   }
-  if (task.kind === 'outfit' && task.set) return outfitLabelOf(character, task.set).toUpperCase()
+  if (task.kind === 'outfit' && task.set) return setName(task.set, character)
   return 'EXPRESSIONS'
 }
 

@@ -38,6 +38,8 @@ import {
   type StructuredRequest,
   type TimeSlot
 } from '@shared/types'
+import type { SavedScene, SceneSetup } from '@shared/sceneCreator'
+import type { SlotReplay } from '@shared/replays'
 import { formatSlotOpening, nextSlot, ordinal, shiftWeekdayOf } from '../prompts/gameDate'
 import {
   introScrollLines,
@@ -116,6 +118,7 @@ import { retrySilently as silentRetry } from './silentRetry'
 import { boxFits } from '../views/boxRows'
 import { answerCrossing, cancelCrossing, endCrossing, markCrossingWait } from './crossingStore'
 import {
+  adoptSceneOpening,
   coverGoodbyesCrossing,
   coverSceneOpening,
   coverSlotCrossing,
@@ -148,6 +151,7 @@ import {
   FRIENDS_INTRO_SLOT
 } from '../prompts/bunnybot'
 import { castCharactersOf, nameOf, presentCastOf, speakerNameOf } from './loop/cast'
+import { createdSceneFields, sceneCharactersOf } from './loop/createdScene'
 import {
   castForClass,
   classifierGate,
@@ -201,6 +205,7 @@ import {
   endingSave,
   foldOpeningIntoSlotSave,
   markDecisionPoint,
+  openingScene,
   queuedScene,
   writeAutosave,
   writeEpilogueSave,
@@ -208,6 +213,14 @@ import {
   writesSettled
 } from './loop/saves'
 import { registerSpriteVersions } from './loop/thumbnail'
+import {
+  holdGame,
+  replayLinesOf,
+  replayOffer,
+  replayStayOf,
+  slotReplayOf,
+  takeHeldGame
+} from './loop/replay'
 import { armEpilogue, dropEndingArt } from './loop/endingArt'
 import { dropProfilePicture, loadProfilePicture } from './loop/profilePicture'
 import { farewellDisposition, seniorNames } from './loop/farewells'
@@ -440,6 +453,8 @@ async function beginSlot(): Promise<void> {
   // The status updates the same call wrote, filed before the fold on the same terms. Awaited,
   // since a mod may need a moment with a post before the fold writes it down.
   await deliverSlotPosts(opening.posts)
+  // A game left while a mod filed one is not this opening's to fold into.
+  if (runStale(run)) return
 
   // Folded into the slot-save minted before the call went out, which is the start-of-slot
   // decision point.
@@ -491,6 +506,104 @@ async function startOrientationScene(): Promise<void> {
     cast,
     castCharacters,
     solo
+  )
+}
+
+/**
+ * Enters a Scene Creator scene: the store holds what the setup projects, with no playthrough to
+ * write to. A fresh one sends its opening under the curtain the creator raised; a replay queues
+ * every line the saved scene holds, to be read again from its first.
+ */
+export function enterCreatedScene(
+  setup: SceneSetup,
+  characters: Record<string, Character>,
+  replay?: SavedScene
+): void {
+  resetLoop()
+  const picked = sceneCharactersOf(setup, characters)
+  const fields = createdSceneFields(setup, picked)
+  // A replay's gift is already given: it comes back to the bag only if a cut hands it back.
+  const given = new Set((replay?.gifts ?? []).map((gift) => gift.itemId))
+  useGameStore.getState().loadCreatedScene(
+    {
+      setup,
+      ...(replay ? { replay: { id: replay.id, transcript: replay.transcript } } : {})
+    },
+    { ...fields, inventory: fields.inventory.filter((item) => !given.has(item.itemId)) },
+    picked
+  )
+
+  if (!replay) {
+    void startCreatedOpening()
+    return
+  }
+
+  const cast = setup.cast.map((entry) => entry.charId)
+  const live = useGameStore.getState()
+  live.restoreScene({
+    ...openingScene(replay.transcript.map((line) => ({ ...line }))),
+    cast,
+    transcript: replay.transcript.map((line) => ({ ...line })),
+    ...(replay.gifts ? { gifts: replay.gifts } : {})
+  })
+  // A scene that ran to its goodbye ends there again; one left part-way drains into its turn.
+  live.setSceneEnding(replay.ended)
+  live.setAwaitingInput(false)
+  void stageCast(cast)
+  advance()
+  endCrossing()
+}
+
+/**
+ * A Scene Creator scene's first turn: its PROMPT sent as a landing's action would be, to a cast
+ * the setup already settled, under the curtain the creator raised.
+ */
+async function startCreatedOpening(): Promise<void> {
+  const run = currentRun()
+  const game = useGameStore.getState()
+  const scene = game.createdScene
+  if (!scene) return
+  const { setup } = scene
+  const cast = setup.cast.map((entry) => entry.charId)
+  const action = setup.prompt.trim()
+
+  // The picked background stands on the stage before anything is captured, so NOW names it.
+  if (setup.bg) game.seedStageBg(setup.bg)
+  const snapshot: TurnSnapshot = { scene: game.captureScene(), action, created: true }
+  loopState.lastTurn = snapshot
+
+  game.setInputDraft('')
+  game.setAwaitingInput(false)
+  game.setBusy(true)
+  loopState.turnStartedAt = performance.now()
+  game.setStreaming(true)
+  game.setWaitingForLine(true)
+  // The creator's own curtain is still down on entry; a retry raises one of its own.
+  coverSceneOpening()
+  adoptSceneOpening()
+
+  // The staging half alone: a created scene has no phone to settle.
+  await stageCast(cast)
+  if (runStale(run)) return
+
+  console.log(`[cast] created scene → cast: ${cast.map(nameOf).join(', ')}`)
+
+  useGameStore.getState().logPlayerAction(action, false)
+  const castCharacters = castCharactersOf(cast)
+  const openingOutfits = Object.fromEntries(setup.cast.map((entry) => [entry.charId, entry.outfit]))
+  const request = buildScenePrompt(
+    castCharacters,
+    action,
+    { ...scenePromptState(), openingOutfits },
+    SETTING,
+    reader()
+  )
+  await runSceneTurn(
+    streamScene(request, undefined, { forceShowSpeakers: true }),
+    snapshot,
+    cast,
+    castCharacters,
+    false
   )
 }
 
@@ -939,7 +1052,8 @@ function settlePlans(
 
 /** Re-runs a rewound turn down the path it came from. */
 function dispatchTurn(snapshot: TurnSnapshot): void {
-  if (snapshot.intro) void startOrientationScene()
+  if (snapshot.created) void startCreatedOpening()
+  else if (snapshot.intro) void startOrientationScene()
   else if (snapshot.farewell) void startFarewellScene(snapshot.farewell)
   else if (snapshot.charId)
     void startHangoutScene(snapshot.charId, snapshot.action, snapshot.preset)
@@ -1050,6 +1164,15 @@ export async function submitAction(
 
   const game = useGameStore.getState()
   if (game.busy || !game.awaitingInput) return
+
+  // A created scene's opening, typed again after its first send was refused or abandoned: it
+  // goes the way its first send went, to the cast the setup settled, never to the classifier.
+  if (game.createdScene && game.currentSceneTranscript.length === 0 && !gift) {
+    if (!raw) return
+    game.setCreatedPrompt(raw)
+    void startCreatedOpening()
+    return
+  }
 
   // Taken before anything is mutated; the *raw* text is what a rewind hands back.
   loopState.lastTurn = {
@@ -1472,8 +1595,9 @@ async function runEnding(solo: boolean): Promise<void> {
   const dropped = (): boolean => loopState.endingToken !== ending
   const game = useGameStore.getState()
 
-  // A goodbye runs the goodbye and nothing else; its one status line is `advance()`'s.
-  if (isGraduationSlot(game.date, game.time)) {
+  // A goodbye runs the goodbye and nothing else; its one status line is `advance()`'s. So does a
+  // created scene, whose screen after the goodbye is the save question.
+  if (isGraduationSlot(game.date, game.time) || game.createdScene) {
     const closed = await runClosing(dropped)
     if (runStale(run) || dropped()) return
     useGameStore.getState().setBusy(false)
@@ -1976,6 +2100,12 @@ export function advance(): void {
     return
   }
 
+  // A replay keeps no books: its last line turned, the game it was opened from comes back.
+  if (game.replaying) {
+    game.markReplayOver()
+    return
+  }
+
   // A goodbye ends on one line about how she took it, then hands the screen back to the
   // menu.
   const farewell = game.sceneFarewell
@@ -1994,6 +2124,12 @@ export function advance(): void {
       return
     }
     finishFarewell(farewell)
+    return
+  }
+
+  // A created scene keeps no books: the screen after its goodbye is the save question's.
+  if (ending && game.createdScene) {
+    game.markCreatedSceneOver()
     return
   }
 
@@ -2315,10 +2451,15 @@ function sceneMemoryRows(ledger: LedgerResponse | null): MemoryEditRow[] {
   return memoryEditRows(here, ledger ? ledgerMemories(ledger, false) : [], date)
 }
 
-/** Puts the memory question on screen and resolves with the rows as the player leaves them. */
-function askMemoryEdits(rows: readonly MemoryEditRow[]): Promise<readonly MemoryAnswer[]> {
+/**
+ * Puts the memory question on screen and resolves with the rows as the player leaves them, and
+ * whether the scene is kept for the calendar to replay.
+ */
+function askMemoryEdits(
+  rows: readonly MemoryEditRow[]
+): Promise<{ answers: readonly MemoryAnswer[]; keepReplay: boolean }> {
   return new Promise((resolve) => {
-    loopState.memoryGate = resolve
+    loopState.memoryGate = (answers, keepReplay) => resolve({ answers, keepReplay })
     useGameStore.getState().setMemoryEdit(rows)
   })
 }
@@ -2332,13 +2473,16 @@ function fileMemoryEdits(rows: readonly MemoryEditRow[], answers: readonly Memor
   }
 }
 
-/** The memory question's one answer: Save, Escape and a click on the dimming alike. */
-export function saveMemoryEdits(answers: readonly MemoryAnswer[]): void {
+/**
+ * The memory question's one answer: Save, Escape and a click on the dimming alike, with whether
+ * the scene is kept for the calendar to replay.
+ */
+export function saveMemoryEdits(answers: readonly MemoryAnswer[], keepReplay: boolean): void {
   const gate = loopState.memoryGate
   if (!gate) return
   loopState.memoryGate = null
   useGameStore.getState().setMemoryEdit(null)
-  gate(answers)
+  gate(answers, keepReplay)
 }
 
 /**
@@ -2459,6 +2603,9 @@ async function crossSlotBoundary(): Promise<void> {
 
   // Everything below is on screen while it happens, so the cover goes up first.
   const over = gameOverReasonOf(useGameStore.getState())
+  // Kept only where the memory question asked and its box was left on; a boundary that asks
+  // nothing, a solo scene's or an exam's, keeps none.
+  let keepReplay = false
   if (!over) {
     // What the curtain holds for once it is down: one row per memory the ledger filed for
     // somebody in the scene, and a blank one for each girl it gave nothing.
@@ -2469,9 +2616,10 @@ async function crossSlotBoundary(): Promise<void> {
     // The player left while it closed; `cancelCrossing` has already taken the cover down.
     if (runStale(run)) return
     if (rows.length > 0) {
-      const answers = await askMemoryEdits(rows)
+      const answered = await askMemoryEdits(rows)
       if (runStale(run)) return
-      fileMemoryEdits(rows, answers)
+      fileMemoryEdits(rows, answered.answers)
+      keepReplay = answered.keepReplay
       // Only now does the curtain say its piece.
       answerCrossing()
     }
@@ -2480,6 +2628,12 @@ async function crossSlotBoundary(): Promise<void> {
   // Before the clock moves, so each text is stamped with the slot the scene ran in, and before
   // the boundary save, which records them.
   for (const send of owedTexts) send()
+
+  // The scene as delivered, for the calendar to replay: read before the clock moves and the scene
+  // is cleared below, and named on the boundary save by its own write. A game lost here asks
+  // nothing and so keeps none.
+  const replay = !over && keepReplay ? slotReplayOf(game.date, game.time) : null
+  if (!over && !keepReplay) useGameStore.getState().dropReplay(game.date, game.time)
 
   useGameStore.getState().advanceSlot()
   // The whole scene is cleared before the write, so the boundary save records `scene: null`;
@@ -2498,7 +2652,7 @@ async function crossSlotBoundary(): Promise<void> {
     void beginSlot()
     return
   }
-  void writeSlotSave().then(() => beginSlot())
+  void writeSlotSave(replay ?? undefined).then(() => beginSlot())
 }
 
 /** Resets loop-local state. Paired with `gameStore.reset()` on leaving a game. */
@@ -2521,9 +2675,16 @@ export function resetLoop(): void {
 export function enterGame(
   save: GameSave,
   record: PlaythroughRecord,
-  characters: Record<string, Character>
+  characters: Record<string, Character>,
+  /** An exam's calls already settled before a replay held the game, claimed rather than sent. */
+  examCalls?: {
+    textLedger: Promise<LedgerResponse | null>
+    opening: Promise<BankedOpening | null>
+  }
 ): void {
   resetLoop()
+  // Held for a replay's return, which enters the same game again.
+  loopState.record = record
   const game = useGameStore.getState()
   game.loadSave(save, record, characters)
   // A read nothing on screen is waiting on: the profile is not open yet.
@@ -2593,7 +2754,10 @@ export function enterGame(
   // is claimed from there instead of being sent again.
   if (!ending) {
     const resumed = useGameStore.getState()
-    if (resumed.sceneQuiz) {
+    if (resumed.sceneQuiz && examCalls) {
+      loopState.examTextLedger = examCalls.textLedger
+      loopState.examOpening = examCalls.opening
+    } else if (resumed.sceneQuiz) {
       const textCall = claimTextLedger(resumed.date, resumed.time)
       loopState.examTextLedger = textCall
       loopState.examOpening = textCall.then((l) => (l === null ? null : fetchEndingOpening(l)))
@@ -2645,6 +2809,71 @@ export async function quitToDesktop(): Promise<void> {
   await useGrabBagStore.getState().flush()
   const result = await window.api.app.quit()
   if (!result.ok) console.warn('[loop] quit failed:', result.error)
+}
+
+/**
+ * Leaves a Scene Creator scene for the creator, under the caller's curtain: nothing is written
+ * but what the save question chose to keep.
+ */
+export async function leaveCreatedScene(): Promise<void> {
+  leaveGame(true)
+  await writesSettled()
+}
+
+/**
+ * Enters a replay from the calendar under the curtain the caller raised: the game being played is
+ * held in memory as a load of it would find it and torn down with nothing written, and the stay
+ * queues every line the scene delivered, the reader's own among them, to be read from its first.
+ * Where the game cannot be held now, the curtain lifts back onto it.
+ */
+export async function enterReplay(replay: SlotReplay, inputDraft: string): Promise<void> {
+  const run = currentRun()
+  // What the game already queued lands first: the teardown below would drop it.
+  await writesSettled()
+  if (runStale(run)) return
+  const held = replayOffer() === 'open' ? holdGame(inputDraft) : null
+  if (!held) {
+    endCrossing()
+    return
+  }
+  leaveGame(true)
+
+  const live = useGameStore.getState()
+  live.loadReplay(replayStayOf(held, replay), held.characters)
+  const cast = [...replay.cast]
+  live.restoreScene({
+    ...openingScene(replayLinesOf(replay.transcript)),
+    cast,
+    transcript: replay.transcript.map((line) => ({ ...line }))
+  })
+  // The turn is never handed back: the drain past the last line ends the replay.
+  live.setSceneEnding(true)
+  live.setAwaitingInput(false)
+  // Under the curtain, so every wardrobe and CG is known before the first line is drawn.
+  const stay = currentRun()
+  await stageCast(cast)
+  if (runStale(stay)) return
+  advance()
+  endCrossing()
+}
+
+/**
+ * Ends the replay being read under the caller's curtain: the stay is torn down and the held game
+ * entered again, with what the loop held for it put back. Nothing is written, and once the game
+ * has been taken back a second call does nothing.
+ */
+export function endReplay(): void {
+  const held = takeHeldGame()
+  if (!held) return
+  leaveGame(true)
+  const examCalls =
+    held.examTextLedger && held.examOpening
+      ? { textLedger: held.examTextLedger, opening: held.examOpening }
+      : undefined
+  enterGame(held.save, held.record, held.characters, examCalls)
+  loopState.decisionSave = held.decisionSave
+  loopState.slotSaveId = held.slotSaveId
+  useGameStore.getState().setInputDraft(held.inputDraft)
 }
 
 /** Whether leaving now would rewind anything — the leave modal's two messages. */

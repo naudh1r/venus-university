@@ -10,11 +10,15 @@ import {
   charFileOf,
   classifyBackupEntry,
   endingArtEntry,
+  namedReplays,
   photoEntry,
   profilePictureEntry,
+  replaysFromBackup,
+  scenesFromBackup,
   type BackupFile,
   type BackupPhoto,
   type BackupPlaythrough,
+  type BackupReplay,
   type BackupSave
 } from '@shared/backup'
 import { namedRel } from '@shared/characterFiles'
@@ -29,6 +33,8 @@ import {
 import { imageTypeOf } from '@shared/imageBytes'
 import { validateRecord } from '@shared/jsonValidate'
 import { assertSafePhotoId } from '@shared/photos'
+import { validateReplay } from '@shared/replays'
+import { validateSavedScene, type SavedScene } from '@shared/sceneCreator'
 import { SAFE_NUMERIC_ID } from '@shared/saveRules'
 import { settingsFromBackup } from '@shared/settingsRules'
 import { checkArchiveContent } from '@shared/zipRules'
@@ -64,6 +70,19 @@ export async function exportBackup(): Promise<string> {
     for (const key of await db.getAllKeys('saves')) {
       const save = await db.get('saves', key)
       if (save) saves.push({ playthroughId: key[0], saveId: key[1], save })
+    }
+
+    // Only a replay some carried save names travels; one a restore would refuse costs only itself.
+    const replays: BackupReplay[] = []
+    for (const { playthroughId, replayId } of namedReplays(saves)) {
+      const row = await db.get('replays', [playthroughId, replayId])
+      if (row === undefined) continue
+      try {
+        const replay = validateReplay(row, `${playthroughId}/${replayId}`)
+        replays.push({ playthroughId, replayId, replay })
+      } catch (err) {
+        console.warn(`[backup] leaving out replay ${playthroughId}/${replayId}:`, err)
+      }
     }
 
     const playthroughs: Record<string, BackupPlaythrough> = {}
@@ -144,6 +163,16 @@ export async function exportBackup(): Promise<string> {
       backgrounds.push(background)
     }
 
+    // A scene a restore would refuse would cost the whole backup, so it costs only itself.
+    const scenes: SavedScene[] = []
+    for (const key of await db.getAllKeys('scenes')) {
+      try {
+        scenes.push(validateSavedScene(await db.get('scenes', key), key))
+      } catch (err) {
+        console.warn(`[backup] leaving out scene ${key}:`, err)
+      }
+    }
+
     const backup: BackupFile = {
       schemaVersion: BACKUP_SCHEMA_VERSION,
       settings: await rendererSettings(),
@@ -154,6 +183,8 @@ export async function exportBackup(): Promise<string> {
       profilePictures,
       photos,
       backgrounds,
+      scenes,
+      replays,
       characters: (await db.getAll('characters')).filter(
         (character) => !isShipped(character.charId)
       )
@@ -166,9 +197,10 @@ export async function exportBackup(): Promise<string> {
 }
 
 /**
- * Puts a backup back: settings, grab bags, playthroughs and saves replace what is there, the
- * player's own characters and backgrounds are merged in by id and name, and the shipped cast is
- * left as the build ships it. One transaction, with every blob built before it opens.
+ * Puts a backup back: settings, grab bags, playthroughs, saves and replays replace what is
+ * there, the player's own characters, backgrounds and saved scenes are merged in by id and name,
+ * and the shipped cast is left as the build ships it. One transaction, with every blob built
+ * before it opens.
  */
 export async function importBackup(): Promise<boolean> {
   const file = await pickFile(`.zip,${ZIP_TYPE}`)
@@ -200,6 +232,8 @@ export async function importBackup(): Promise<boolean> {
     }
     return [{ record: background, images }]
   })
+  const scenes = scenesFromBackup(record)
+  const replays = replaysFromBackup(record)
   // Nothing the backup does not name is written: an entry naming a path of its own choosing
   // would put a file where this build never looks for one.
   const updatedAt = Date.now()
@@ -217,7 +251,9 @@ export async function importBackup(): Promise<boolean> {
         'photos',
         'characters',
         'charFiles',
-        'backgrounds'
+        'backgrounds',
+        'scenes',
+        'replays'
       ],
       'readwrite'
     )
@@ -236,6 +272,14 @@ export async function importBackup(): Promise<boolean> {
     void saves.clear()
     for (const entry of record.saves) {
       void saves.put(entry.save, [entry.playthroughId, entry.saveId])
+    }
+
+    const keptReplays = tx.objectStore('replays')
+    void keptReplays.clear()
+    for (const entry of replays) {
+      // A replay goes back only beside a playthrough the backup restores.
+      if (!Object.hasOwn(record.playthroughs, entry.playthroughId)) continue
+      void keptReplays.put(entry.replay, [entry.playthroughId, entry.replayId])
     }
 
     const art = tx.objectStore('endingArt')
@@ -284,6 +328,10 @@ export async function importBackup(): Promise<boolean> {
     // Merged by name, as the characters are by id: one brought in since the backup is still kept.
     const kept = tx.objectStore('backgrounds')
     for (const row of backgrounds) void kept.put(row, row.record.name)
+
+    // Merged by id the same way: a scene saved since the backup is still kept.
+    const keptScenes = tx.objectStore('scenes')
+    for (const scene of scenes) void keptScenes.put(scene, scene.id)
 
     const charFiles = tx.objectStore('charFiles')
     for (const [name, bytes] of Object.entries(entries)) {

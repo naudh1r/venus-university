@@ -36,7 +36,12 @@ export function GiftMessageModal({
   onClose
 }: GiftMessageModalProps): JSX.Element | null {
   const [message, setMessage] = useState('')
-  const { host, overlayProps } = useModalShell(onClose)
+
+  function send(): void {
+    onSend(message.trim() || DEFAULT_GIFT_MESSAGE)
+  }
+
+  const { host, overlayProps, primaryProps } = useModalShell(onClose, 'panel', send)
 
   if (!host) return null
 
@@ -57,16 +62,18 @@ export function GiftMessageModal({
         aria-modal="true"
         aria-label="Send a message with your gift?"
         variants={panelUnderTab}
-        // A form, so Enter in the field is the answer the foot gives.
+        // A form, so Enter in the field is the answer the foot gives; the shell gives it to
+        // Enter and Space outside the field.
         onSubmit={(event) => {
           event.preventDefault()
-          onSend(message.trim() || DEFAULT_GIFT_MESSAGE)
+          send()
         }}
         // And the scene behind this never sees that key: the window-level Enter advances a
         // line, and one answered here is not also answered there.
         onKeyDown={(event) => {
           if (event.key === 'Enter') event.stopPropagation()
         }}
+        {...primaryProps}
       >
         <TitleTab>Send a message with your gift?</TitleTab>
         

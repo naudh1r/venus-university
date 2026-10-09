@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type JSX,
   type MouseEvent as ReactMouseEvent,
@@ -13,17 +14,17 @@ import { AnimatePresence, motion } from 'motion/react'
 import { AUDIO_FILES, pitchSemitonesOf, VOICE_PITCH_DEFAULT } from '@shared/audio'
 import { isPermanent } from '@shared/errors'
 import { GAME_OVER_SCENES } from '@shared/gameOver'
-import { isPosition } from '@shared/positions'
 import { hashString } from '@shared/hash'
 import { isGameOver } from '@shared/money'
 import { quizAnswers, type QuizAnswer } from '@shared/academics'
 import {
   allBackgrounds,
   fullNameOf,
+  READER_SPEAKER,
   roomBgIdOf,
   type AppError,
-  type Position,
-  type SpriteRef
+  type SpriteRef,
+  type TimeSlot
 } from '@shared/types'
 import { isWet } from '@shared/weather'
 import type { GiftReaction } from '@shared/shop'
@@ -40,6 +41,7 @@ import {
   BASE_REVEAL,
   EPILOGUE_REVEAL,
   isOrientationSlot,
+  REPLAY_REVEAL,
   type RevealKey
 } from '../prompts/introScript'
 import {
@@ -84,6 +86,8 @@ import {
   abandonTurn,
   advance,
   dismissStatusModal,
+  endReplay,
+  enterReplay,
   hasDecisionPoint,
   interject,
   lastLedgerPromptText,
@@ -91,6 +95,7 @@ import {
   lastIntroPromptText,
   lastScenePromptText,
   lastTurnAuthored,
+  leaveCreatedScene,
   leaveToMenu,
   manualSaveOffer,
   quitToDesktop,
@@ -123,18 +128,37 @@ import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { giftGivenOf, useGameStore } from '../stores/gameStore'
 import { forwardOpenOf, replyRowOfferOf, rewindOpenOf } from '../stores/loop/playback'
 import { firstPhotoFailure, usePhotoStore } from '../stores/photoStore'
-import { displaySlotsOf, displaySpriteRef, wardrobeChanged } from '../stores/stageDisplay'
 import {
+  displayedCgOf,
+  displaySlotsOf,
+  displaySpriteRef,
+  wardrobeChanged
+} from '../stores/stageDisplay'
+import {
+  answerCrossing,
   beginCrossing,
   cancelCrossing,
   coverSwap,
   endCrossing,
   useCrossingStore
 } from '../stores/crossingStore'
-import { menuCrossing, revealSceneOpening } from '../stores/slotCrossing'
+import {
+  createdSceneDefaultName,
+  createdSceneSavable,
+  writeCreatedScene
+} from '../stores/loop/createdScene'
+import {
+  deleteReplay,
+  heldGame,
+  readReplay,
+  replayOffer,
+  replaySettleCount,
+  subscribeReplaySettles
+} from '../stores/loop/replay'
+import { menuCrossing, revealSceneOpening, slotStampOf } from '../stores/slotCrossing'
 import { goToText, goToVerdict, slotActionsNow } from '../stores/slotActions'
 import { isWebBuild } from '../platform'
-import { useSettingsStore } from '../stores/settingsStore'
+import { noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
 import { useUiStore } from '../stores/uiStore'
 import { BunnyboardModal } from './BunnyboardModal'
 import { CastModal } from './CastModal'
@@ -152,6 +176,7 @@ import { MilestoneModal } from './MilestoneModal'
 import { RankUpModal } from './RankUpModal'
 import { SaveGameModal } from './SaveGameModal'
 import { SceneMemoriesModal } from './SceneMemoriesModal'
+import { SaveSceneModal } from './SaveSceneModal'
 import { JobsModal } from './JobsModal'
 import { GiftMessageModal } from './GiftMessageModal'
 import { GiftTargetModal } from './GiftTargetModal'
@@ -162,7 +187,7 @@ import { BgModal } from './BgModal'
 import mapUrl from '../../../assets/vu_map.png'
 import mapNightUrl from '../../../assets/vu_map_night.png'
 import { bgThumbUrl, bgUrl, roomOwnerOf, SLOT_BG } from './bgAssets'
-import { screenTheme } from './clockTheme'
+import { screenTheme, type ScreenTheme } from './clockTheme'
 import { useWarmedImages } from './imagePreload'
 import { accumulateNotch, wheelNotches, type WheelTravel } from './wheel'
 import '../vu_styles/GameStage.css'
@@ -233,6 +258,12 @@ type OpenPanel =
   | { kind: 'leaving' }
   | { kind: 'quitting' }
   | { kind: 'interruptEnding'; turn: Interjection }
+  /**
+   * A created scene's save question: over the curtain on its way back to the creator once it is
+   * over (`leftIn` the half it was left in), or in front of a leave or a quit while it runs.
+   */
+  | { kind: 'saveScene'; then: 'leave' | 'quit' }
+  | { kind: 'saveScene'; then: 'end'; leftIn: ScreenTheme }
 
 /** What an interjection sends: the reader's words, or a present handed over with his line. */
 type Interjection =
@@ -524,6 +555,10 @@ export function GameView(): JSX.Element {
   const bgOverride = useGameStore((s) => s.bgOverride)
   const outfitLock = useGameStore((s) => s.outfitLock)
   const outfitReady = useGameStore((s) => s.outfitReady)
+  const cgLock = useGameStore((s) => s.cgLock)
+  const cgReady = useGameStore((s) => s.cgReady)
+  const customCgReady = useGameStore((s) => s.customCgReady)
+  const noNsfwImages = useSettingsStore(noNsfwImagesOf)
   const charKeyToId = useGameStore((s) => s.charKeyToId)
   const characters = useGameStore((s) => s.characters)
   const currentLine = useGameStore((s) => s.currentLine)
@@ -545,6 +580,12 @@ export function GameView(): JSX.Element {
   const statusModal = useGameStore((s) => s.statusModal)
   /** The boundary's memory question over the curtain, while it stands. */
   const memoryEdit = useGameStore((s) => s.memoryEdit)
+  /** A Scene Creator scene, played with no playthrough; and whether its last line has turned. */
+  const created = useGameStore((s) => s.createdScene !== null)
+  const createdOver = useGameStore((s) => s.createdScene?.over === true)
+  /** A replay from the calendar, read with the game held behind it; and whether it has ended. */
+  const replaying = useGameStore((s) => s.replaying !== null)
+  const replayOver = useGameStore((s) => s.replaying?.over === true)
   const inputDraft = useGameStore((s) => s.inputDraft)
   /** The exam being sat, if any — what swaps the text box for four buttons. */
   const quiz = useGameStore((s) => s.sceneQuiz)
@@ -680,6 +721,8 @@ export function GameView(): JSX.Element {
   useBunnyboardStore((s) => s.busyCharIds.length)
   useBunnyboardStore((s) => s.typingCharIds.length)
   useBunnyboardStore((s) => s.failedCharIds.length)
+  // And what the calendar's Replay waits on besides: the calls a replay's round trip would cancel.
+  useSyncExternalStore(subscribeReplaySettles, replaySettleCount)
   const bunnyboardBadge =
     Object.values(bunnyboard.conversations).reduce(
       (total, c) =>
@@ -721,6 +764,16 @@ export function GameView(): JSX.Element {
    * that hour rather than reading the clock, and a night scene closes to a night menu.
    */
   function toMenu(): void {
+    // A created scene's way out is the creator it came from, by its save question.
+    if (useGameStore.getState().createdScene) {
+      leaveCreated('leave')
+      return
+    }
+    // A replay's way out is the game it was opened from.
+    if (useGameStore.getState().replaying) {
+      leaveReplay()
+      return
+    }
     const leftIn = half
     // Whatever curtain is up is a boundary's, holding swaps written for a game that is about to
     // stop existing and announcing a slot nobody will open. A no-op where none is.
@@ -738,6 +791,109 @@ export function GameView(): JSX.Element {
       })()
     })
   }
+
+  /**
+   * Leaves a created scene for the Scene Creator under a cover keeping the hour at both ends, as
+   * the way to the menu does; nothing is written on the way.
+   */
+  function toCreator(): void {
+    const leftIn = half
+    cancelCrossing()
+    beginCrossing(undefined, menuCrossing(leftIn))
+    coverSwap(() => void arriveAtCreator(leftIn))
+  }
+
+  /** The teardown under a cover already down, and the creator revealed in the hour left in. */
+  async function arriveAtCreator(leftIn: ScreenTheme): Promise<void> {
+    await leaveCreatedScene()
+    setMenuTheme(leftIn)
+    setView('sceneCreator')
+    endCrossing()
+  }
+
+  /**
+   * A created scene whose last line has turned: the curtain comes down and, where there is
+   * anything to keep, holds on the save question before the creator is revealed.
+   */
+  function finishCreated(): void {
+    const leftIn = half
+    const ask = createdSceneSavable()
+    cancelCrossing()
+    beginCrossing(undefined, { ...menuCrossing(leftIn), ask })
+    coverSwap(() => {
+      if (ask) setPanel({ kind: 'saveScene', then: 'end', leftIn })
+      else void arriveAtCreator(leftIn)
+    })
+  }
+
+  /** The Game menu's way out of a created scene: the save question first, where it has one. */
+  function leaveCreated(then: 'leave' | 'quit'): void {
+    if (createdSceneSavable()) {
+      setPanel({ kind: 'saveScene', then })
+      return
+    }
+    closePanel()
+    if (then === 'leave') toCreator()
+    else {
+      setQuitting(true)
+      void quitToDesktop()
+    }
+  }
+
+  /** The save question answered: kept or not, the way out it stood in front of goes on. */
+  function afterSaveQuestion(panelNow: Extract<OpenPanel, { kind: 'saveScene' }>): void {
+    closePanel()
+    if (panelNow.then === 'end') {
+      answerCrossing()
+      void arriveAtCreator(panelNow.leftIn)
+    } else if (panelNow.then === 'leave') toCreator()
+    else {
+      setQuitting(true)
+      void quitToDesktop()
+    }
+  }
+
+  // The created scene's last line has turned: the way back to the creator, by its question.
+  useEffect(() => {
+    if (createdOver) finishCreated()
+  }, [createdOver])
+
+  /**
+   * Plays one past half's replay: read first, so a replay that cannot be read changes nothing,
+   * then the game is left for it under a curtain announcing the slot being replayed. The well's
+   * words are held with the game.
+   */
+  function startReplay(date: number, time: TimeSlot): void {
+    closePanel()
+    const words = action
+    void (async () => {
+      const replay = await readReplay(date, time)
+      if (!replay) return
+      const splash = slotStampOf(date, time, occasions, slotWeather(weather, date, time, false))
+      if (!beginCrossing(undefined, { from: half, to: slotHalf(time), splash })) return
+      coverSwap(() => void enterReplay(replay, words))
+    })()
+  }
+
+  /**
+   * Leaves the replay for the game held behind it, under a cover crossing into that game's own
+   * hour; nothing is written either way, and once the game is back there is nothing to leave.
+   */
+  function leaveReplay(): void {
+    const held = heldGame()
+    if (!held) return
+    const { date: heldDate, time: heldTime, graduationSeen: seen } = held.save
+    const back = isEpilogueNight(heldDate, heldTime, seen) ? 'night' : slotHalf(heldTime)
+    closePanel()
+    cancelCrossing()
+    beginCrossing(undefined, { from: half, to: back })
+    coverSwap(endReplay)
+  }
+
+  // The replay's last line has turned: the way back to the game it was opened from.
+  useEffect(() => {
+    if (replayOver) leaveReplay()
+  }, [replayOver])
 
   /** The ending modals' way out. */
   function onAbandonScene(): void {
@@ -769,12 +925,15 @@ export function GameView(): JSX.Element {
   // The stage the player is looking at, with any hand he has taken to it.
   const shownSlots = useMemo(() => displaySlotsOf(slots, stageOverride), [slots, stageOverride])
 
-  // The on-screen character whose sticky emotion is a position, if any — never more than one.
-  const cgCharId = shownSlots.find(
-    (charId): charId is string =>
-      Boolean(charId && characters[charId] && isPosition(emotions[charId] ?? ''))
-  )
-  const cg = cgCharId ? { charId: cgCharId, position: emotions[cgCharId] as Position } : null
+  // The CG covering the stage, if any: the player's lock, or the lone girl's own.
+  const cg = displayedCgOf({
+    shown: shownSlots,
+    emotions,
+    lock: cgLock,
+    hasCharacter: (charId) => Boolean(characters[charId]),
+    ready: { cgReady, customCgReady },
+    noNsfwImages
+  })
 
   // Room bg id → owner, derived from each character's current name; a save naming a
   // since-renamed character misses and falls back to `SLOT_BG` below.
@@ -983,11 +1142,14 @@ export function GameView(): JSX.Element {
   cgSeen.current = true
 
   const text = currentLine?.text ?? ''
-  const speaker = speakerNameOf(currentLine)
 
   // Who the stage lights are on, if anyone: a narrator line (`''`) and the reader's
   // (`READER_SPEAKER`) both resolve to nobody, and nothing dims.
   const speakingCharId = currentLine?.speaker ? charKeyToId[currentLine.speaker] : undefined
+  // The name the box wears: hers, or the reader's own on his line, which only a replay shows; a
+  // key that resolves to nobody wears none, as narration does.
+  const speaker =
+    speakingCharId || currentLine?.speaker === READER_SPEAKER ? speakerNameOf(currentLine) : ''
 
   // Typewriter reveal, keyed on the line's identity so two identical lines in a row both reveal.
   const [revealed, setRevealed] = useState(0)
@@ -1190,7 +1352,10 @@ export function GameView(): JSX.Element {
    * A photo failure is said only at a moment that cannot trip the game up: the turn is held,
    * and nothing above has already claimed the screen.
    */
-  const photoFailure = usePhotoStore((s) => firstPhotoFailure(s.failures, playthroughId))
+  // A created scene or a replay has no playthrough of its own, so no photo of any is said there.
+  const photoFailure = usePhotoStore((s) =>
+    created || replaying ? null : firstPhotoFailure(s.failures, playthroughId)
+  )
   const photoJobsRunning = usePhotoStore((s) => s.jobs.length > 0)
   const photoShown =
     Boolean(photoFailure) &&
@@ -1214,10 +1379,16 @@ export function GameView(): JSX.Element {
   const authored = cinematic || epilogue || Boolean(gameOver)
   /**
    * Which chrome controls are revealed: `ALL_REVEALED` normally, `BASE_REVEAL` on an authored
-   * screen, and `EPILOGUE_REVEAL` — `BASE_REVEAL` minus two more — on the epilogue's own menu.
+   * screen, `EPILOGUE_REVEAL` — `BASE_REVEAL` minus two more — on the epilogue's own menu, and
+   * `REPLAY_REVEAL` in a replay, whichever slot it replays.
    */
-  const shown: ReadonlySet<RevealKey> =
-    epilogue && !sceneActive ? EPILOGUE_REVEAL : authored ? BASE_REVEAL : ALL_REVEALED
+  const shown: ReadonlySet<RevealKey> = replaying
+    ? REPLAY_REVEAL
+    : epilogue && !sceneActive
+      ? EPILOGUE_REVEAL
+      : authored || created
+        ? BASE_REVEAL
+        : ALL_REVEALED
 
   /**
    * The landing's screen: the hour between two scenes and the epilogue's goodbye menu, the same
@@ -1275,17 +1446,14 @@ export function GameView(): JSX.Element {
     unpinning.current = false
   }, [interjecting])
 
-  // A press off a well holding the caret clears it. The test is the caret rather than the row:
-  // a failure modal holds the focus while it is up, so its own button leaves the words
-  // `inputDraft` seeded standing, and the landing's well, under the same id, is covered too.
-  // Registered for the view's lifetime, on the capture phase so it reads the focus before the
-  // blur that press causes.
+  // Marks a press off a well holding the caret mid-reply, which only puts the well down; the words
+  // in it stay. Registered for the view's lifetime, on the capture phase so it reads the focus
+  // before the blur that press causes.
   useEffect(() => {
     const onPress = (event: PointerEvent): void => {
       const target = event.target instanceof Element ? event.target : null
       const inWell = document.activeElement?.id === 'game-action'
       const off = inWell && !target?.closest('#game-action, #game-submit')
-      if (off) setAction('')
       unpinning.current = off && interjectingRef.current
     }
     document.addEventListener('pointerdown', onPress, true)
@@ -1325,6 +1493,8 @@ export function GameView(): JSX.Element {
       setRevealed(text.length)
       return
     }
+    // A line turning takes the well's words with it.
+    setAction('')
     // The ending's last line turns to what follows it — the picture when the game is won, the
     // modal when it is lost — never to `advance()`, which past the end of an ending would hand
     // the turn back on a screen with nothing left to say.
@@ -1362,7 +1532,7 @@ export function GameView(): JSX.Element {
     const typed = sentenceOf(action)
     if (!typed) return
     const warns = useSettingsStore.getState().settings?.warnEndingInterrupt !== false
-    if (useGameStore.getState().sceneEnding && warns) {
+    if (useGameStore.getState().sceneEnding && warns && !created) {
       setPanel({ kind: 'interruptEnding', turn: { kind: 'words', action: typed } })
       return
     }
@@ -1396,15 +1566,20 @@ export function GameView(): JSX.Element {
     if (glyph) setGiftBurst({ charId, glyph, key: Date.now(), filed: gifts.length, waiting: true })
   }
 
-  /** The back mark: a line stepped back to, with the sound a line turned forward makes. */
+  /**
+   * The back mark: a line stepped back to, with the sound a line turned forward makes. The well's
+   * words go with the line, as they do on an advance.
+   */
   function onRewind(): void {
     useAudioStore.getState().play('advance')
+    setAction('')
     rewind()
   }
 
-  /** The forward step over a line read before, with the same sound. */
+  /** The forward step over a line read before, with the same sound, emptying the well the same. */
   function onForward(): void {
     useAudioStore.getState().play('advance')
+    setAction('')
     forward()
   }
 
@@ -1427,7 +1602,8 @@ export function GameView(): JSX.Element {
    * they move only at the boundary, with `date` and `time`.
    */
   const slotActions = useMemo(
-    () => slotActionsNow(),
+    // A created scene and a replay have no slot, and their landing is never drawn.
+    () => (created || replaying ? [] : slotActionsNow()),
     [date, time, events, classes, job, playerSchedule, classRecords, occasions]
   )
 
@@ -1703,7 +1879,8 @@ export function GameView(): JSX.Element {
             const pose = displaySpriteRef(
               emotions[charId] ?? 'neutral',
               outfitLock[charId],
-              outfitReady[charId]
+              outfitReady[charId],
+              customCgReady[charId]
             )
             return (
               <PortraitSlot
@@ -1789,7 +1966,7 @@ export function GameView(): JSX.Element {
 
       {/* One chrome at a time over the shared stage — the scene, the landing (with the epilogue's
           goodbye menu), or the three game overs — each wearing the slot's own half of the day. */}
-      {sceneMode || cinematic ? (
+      {sceneMode || cinematic || created || replaying ? (
         <SceneChrome
           theme={half}
           date={date}
@@ -1834,7 +2011,7 @@ export function GameView(): JSX.Element {
           inputDead={interjectRow ? interjectRow !== 'open' : !awaitingInput}
           /* Mid-reply the well takes the caret only on a click. */
           inputFocus={!blocked && !interjectRow}
-          giftShown={!cinematic && !epilogue}
+          giftShown={!cinematic && !epilogue && !replaying}
           giftUnlocked={bunnyshopUnlocked}
           giftDead={inventory.length === 0 || !bunnyshopUnlocked || giftNote !== null}
           giftNote={giftNote}
@@ -1953,7 +2130,14 @@ export function GameView(): JSX.Element {
           in the design, and its mount site keeps it alive for its leaving. */}
       <AnimatePresence>
         {panel?.kind === 'calendar' && (
-          <CalendarModal key="calendar" theme={half} onClose={closePanel} />
+          <CalendarModal
+            key="calendar"
+            theme={half}
+            replayOffer={replayOffer()}
+            onReplay={startReplay}
+            onDeleteReplay={deleteReplay}
+            onClose={closePanel}
+          />
         )}
       </AnimatePresence>
       {/* Go is offered on `shopReady` outside the epilogue: the goodbye menu is a landing too, but
@@ -2055,7 +2239,7 @@ export function GameView(): JSX.Element {
               closePanel()
               // Over an ending under way, a gift asks first as words do.
               const warns = useSettingsStore.getState().settings?.warnEndingInterrupt !== false
-              if (useGameStore.getState().sceneEnding && warns) {
+              if (useGameStore.getState().sceneEnding && warns && !created) {
                 setPanel({
                   kind: 'interruptEnding',
                   turn: { kind: 'gift', charId, itemId, message }
@@ -2371,15 +2555,49 @@ export function GameView(): JSX.Element {
             onClose={closePanel}
             onSaveGame={() => setPanel({ kind: 'saveGame' })}
             saveOffer={manualSaveOffer()}
-            onLoadGame={() => setPanel({ kind: 'loadGame' })}
+            // A created scene or a replay has no playthrough to load another save of.
+            {...(created || replaying
+              ? {}
+              : { onLoadGame: () => setPanel({ kind: 'loadGame' }) })}
             onFeedback={() => setPanel({ kind: 'feedback' })}
             onSettings={() => setPanel({ kind: 'appSettings' })}
             onMods={() => setPanel({ kind: 'mods' })}
             modsWaiting={busy}
             onControls={() => setPanel({ kind: 'controls' })}
-            onLeave={() => setPanel({ kind: 'leaving' })}
-            // The browser has no window of its own to close, so it is offered no way out.
-            onQuit={isWebBuild() ? undefined : () => setPanel({ kind: 'quitting' })}
+            leaveLabel={
+              created ? 'Return to Scene Creator' : replaying ? 'End replay' : undefined
+            }
+            onLeave={() =>
+              created
+                ? leaveCreated('leave')
+                : replaying
+                  ? leaveReplay()
+                  : setPanel({ kind: 'leaving' })
+            }
+            // The browser has no window of its own to close, so it is offered no way out; a
+            // replay is left by its own way back, to the game held behind it.
+            onQuit={
+              isWebBuild() || replaying
+                ? undefined
+                : () => (created ? leaveCreated('quit') : setPanel({ kind: 'quitting' }))
+            }
+          />
+        )}
+
+        {panel?.kind === 'saveScene' && (
+          <SaveSceneModal
+            key="save-scene"
+            theme={half}
+            defaultName={createdSceneDefaultName()}
+            onSave={async (name) => {
+              const game = useGameStore.getState()
+              const ended = game.sceneEnding && !game.endingInFlight
+              const saved = await writeCreatedScene(name, ended)
+              if (saved) afterSaveQuestion(panel)
+              return saved
+            }}
+            onDiscard={() => afterSaveQuestion(panel)}
+            {...(panel.then === 'end' ? {} : { onDismiss: closePanel })}
           />
         )}
 

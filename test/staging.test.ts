@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setDirRel } from '@shared/characterFiles'
 import { EMOTIONS } from '@shared/emotions'
 
 /**
@@ -18,12 +19,14 @@ const characterService = await import('../src/main/services/characterService')
 const {
   getCharacterCgsPath,
   getCharacterExpressionsPath,
+  getCharacterImagePath,
   getCharacterOutfitSetPath,
   getCharacterPath,
   getCharacterStagingPath,
   getStagedCgsPath,
   getStagedExpressionsPath,
-  getStagedOutfitSetPath
+  getStagedOutfitSetPath,
+  getStagedPath
 } = await import('../src/main/paths')
 
 const CHAR = 'char-1'
@@ -107,6 +110,34 @@ describe('commitStagedSet', () => {
       EMOTIONS.map((e) => `new:${e}`).sort()
     )
     await expect(readdir(getCharacterStagingPath(CHAR))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('commits a custom CG pair beside the stock CGs, neither replacing the other', async () => {
+    // The pair lands one folder below her root with nothing making `customcg/` first, and the
+    // stock `cg/` folder is replaced whole by its own regenerate, so the pair may never sit in it.
+    const pair = getCharacterImagePath(CHAR, setDirRel('customcg1'))
+    await seed(getCharacterCgsPath(CHAR), ['sex'], 'stock')
+    await seed(getStagedPath(CHAR, setDirRel('customcg1')), ['customcg1', 'customcg1_after'], 'new')
+
+    await expect(characterService.commitStagedSet(CHAR, 'customcg1')).resolves.toBe('committed')
+
+    expect(await bodiesIn(pair)).toEqual(['new:customcg1', 'new:customcg1_after'])
+    expect(await bodiesIn(getCharacterCgsPath(CHAR))).toEqual(['stock:sex'])
+    await expect(readdir(getCharacterStagingPath(CHAR))).rejects.toMatchObject({ code: 'ENOENT' })
+
+    await seed(getStagedCgsPath(CHAR), ['sex', 'sex_after'], 'regen')
+    await characterService.commitStagedSet(CHAR, 'cgs')
+
+    expect(await bodiesIn(pair)).toEqual(['new:customcg1', 'new:customcg1_after'])
+    const status = await characterService.getCgStatus(CHAR)
+    expect(status).toMatchObject({
+      sex: true,
+      sex_after: true,
+      customcg1: true,
+      customcg1_after: true,
+      customcg2: false,
+      customcg2_after: false
+    })
   })
 
   it('moves only the room variants that were staged', async () => {

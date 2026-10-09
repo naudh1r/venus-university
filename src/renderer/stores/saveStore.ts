@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { playthroughLabel, playthroughNameOf, renamedRecord } from '@shared/saveRules'
 import {
   charKeyOf,
   fullNameOf,
@@ -83,11 +84,20 @@ interface SaveStoreState {
   listSavesOf: (playthroughId: string) => Promise<ResolvedSave[]>
   /** Reads one save whole, roster resolved and gate applied; null when the read was refused. */
   readSave: (playthroughId: string, saveId: string) => Promise<LoadedSave | null>
-  /** Deletes one save of any playthrough; false when the delete was refused, which reports itself. */
-  removeSaveOf: (playthroughId: string, saveId: string) => Promise<boolean>
-  /** Deletes one save of the open playthrough and drops it from the list. */
-  removeSave: (saveId: string) => Promise<void>
+  /**
+   * Deletes one save of any playthrough; false when the delete was refused, which reports itself.
+   * `keep` names the replays the game being played will write next, which the delete never takes.
+   */
+  removeSaveOf: (playthroughId: string, saveId: string, keep?: string[]) => Promise<boolean>
+  /** Deletes one save of the open playthrough and drops it from the list, as `removeSaveOf` does. */
+  removeSave: (saveId: string, keep?: string[]) => Promise<void>
   removePlaythrough: (playthroughId: string) => Promise<void>
+  /**
+   * Gives a playthrough the player's own name, or its place in creation order back where the
+   * name is blank, and relabels it where it is listed; false when the write was refused, which
+   * reports itself.
+   */
+  renamePlaythrough: (playthroughId: string, name: string) => Promise<boolean>
   /**
    * Reads one playthrough's enrollment, with the roster resolved and the same load gate a
    * save gets. Null when the file was refused, which reports itself.
@@ -257,8 +267,8 @@ export const useSaveStore = create<SaveStoreState>((set, get) => ({
     }
   },
 
-  removeSaveOf: async (playthroughId, saveId) => {
-    const result = await window.api.saves.delete(playthroughId, saveId)
+  removeSaveOf: async (playthroughId, saveId, keep) => {
+    const result = await window.api.saves.delete(playthroughId, saveId, keep)
     if (!result.ok) {
       useUiStore.getState().showError(result.error)
       return false
@@ -266,11 +276,11 @@ export const useSaveStore = create<SaveStoreState>((set, get) => ({
     return true
   },
 
-  removeSave: async (saveId) => {
+  removeSave: async (saveId, keep) => {
     const selected = get().selected
     if (!selected) return
 
-    if (!(await get().removeSaveOf(selected.playthroughId, saveId))) return
+    if (!(await get().removeSaveOf(selected.playthroughId, saveId, keep))) return
     set({ saves: get().saves.filter((entry) => entry.saveId !== saveId) })
   },
 
@@ -282,6 +292,36 @@ export const useSaveStore = create<SaveStoreState>((set, get) => ({
     }
     // Labels are positional, so the surviving playthroughs have to renumber.
     void get().loadPlaythroughs()
+  },
+
+  renamePlaythrough: async (playthroughId, name) => {
+    const result = await window.api.saves.rename(playthroughId, name)
+    if (!result.ok) {
+      useUiStore.getState().showError(result.error)
+      return false
+    }
+
+    // Relabelled in place rather than listed again, which would close the playthrough on screen.
+    const kept = playthroughNameOf(name)
+    const relabel = (playthrough: PlaythroughSummary): PlaythroughSummary => {
+      if (playthrough.playthroughId !== playthroughId) return playthrough
+      const { name: _previous, ...rest } = playthrough
+      const label = playthroughLabel(kept, playthrough.position)
+      return kept === null ? { ...rest, label } : { ...rest, label, name: kept }
+    }
+    const { playthroughs, selected, saves } = get()
+    const opened = selected?.playthroughId === playthroughId
+    set({
+      playthroughs: playthroughs.map(relabel),
+      selected: selected && relabel(selected),
+      // The open playthrough's saves carry the record the write just changed.
+      saves: opened
+        ? saves.map((entry) =>
+            entry.record ? { ...entry, record: renamedRecord(entry.record, name) } : entry
+          )
+        : saves
+    })
+    return true
   },
 
   resolveEnrollment: async (playthrough) => {

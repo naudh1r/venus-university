@@ -1151,8 +1151,8 @@ export async function generateSprite(
 }
 
 /**
- * Renders one landscape CG into the character's `cg/` folder, then removes ComfyUI's own
- * output copy.
+ * Renders one landscape CG into the character's folder — `cg/`, or a custom pair's own — then
+ * removes ComfyUI's own output copy.
  */
 export async function generateCg(
   character: Character,

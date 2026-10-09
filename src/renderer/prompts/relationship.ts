@@ -133,7 +133,8 @@ export function readerStandingLine(
 
 /**
  * Third-person prose, ready to inject verbatim under the personality. `mood`, when given,
- * lets a Promiscuous girl's attraction line give way to a DTF one on her lustful days.
+ * lets a Promiscuous girl's attraction line give way to a DTF one on her lustful days;
+ * `attractionGate` false drops the line saying his stats are under her bar.
  */
 export function relationshipLines(
   character: Character,
@@ -142,7 +143,8 @@ export function relationshipLines(
   affection: number,
   stats: PlayerStats = DEFAULT_PLAYER_STATS,
   medium: RelationshipMedium = IN_PERSON,
-  mood?: { date: number; offset: number }
+  mood?: { date: number; offset: number },
+  attractionGate = true
 ): string[] {
   const name = character.firstName
   const lines: string[] = []
@@ -183,7 +185,7 @@ export function relationshipLines(
           ? `${name} isn't usually attracted to the reader, but she's down to fuck today.`
           : `${name} is down to fuck today.`
       )
-    } else if (missingStat) {
+    } else if (missingStat && attractionGate) {
       lines.push(
         `${name} doesn't feel any attraction towards the reader ${flags.brokenUp > 0 ? 'anymore' : 'yet'}. He needs to be ${STAT_REQUIREMENT_PHRASES[missingStat]} first. ${name} won't make or accept romantic advances.`
       )

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent, type MouseEventHandler } from 'react'
-import { useIsPresent } from 'motion/react'
+import { useIsPresent, type AnimationDefinition } from 'motion/react'
 
 import { useAudioStore } from '../stores/audioStore'
 import { useCrossingStore } from '../stores/crossingStore'
@@ -15,6 +15,14 @@ export interface ModalShell {
     /** The whole veil, while it is leaving: no clicks, no focus, no keys. */
     inert: boolean
   }
+  /**
+   * Spread on the motion element that carries the primary button, where a modal hands the shell
+   * a `primary`: its landing arms Enter and Space, and the controls inside it are the modal's own.
+   */
+  primaryProps: {
+    ref: (node: HTMLElement | null) => void
+    onAnimationComplete: (definition: AnimationDefinition) => void
+  }
 }
 
 /**
@@ -28,17 +36,21 @@ const openShells: object[] = []
 /**
  * Takes the top of that stack for as long as the caller holds the teardown, and hands Escape
  * and a right-click to `answer` only while nothing has been pushed over it. A right-click in a
- * field keeps its own menu; anywhere else the native one never opens. Captured, so a screen's
- * own listener on the bubble does not also fire; whether the event is stopped is `answer`'s to
- * say.
+ * field keeps its own menu; anywhere else the native one never opens. Enter and Space go to
+ * `primary`, where there is one, on the same terms. Captured, so a screen's own listener on the
+ * bubble does not also fire; whether the event is stopped is the answer's to say.
  */
-function topmostDismiss(answer: (event: Event) => void): () => void {
+function topmostDismiss(
+  answer: (event: Event) => void,
+  primary?: (event: KeyboardEvent) => void
+): () => void {
   const token = {}
   openShells.push(token)
   const onTop = (): boolean => openShells[openShells.length - 1] === token
   const onKeyDown = (event: KeyboardEvent): void => {
-    if (event.key !== 'Escape' || !onTop()) return
-    answer(event)
+    if (!onTop()) return
+    if (event.key === 'Escape') answer(event)
+    else if (primary && (event.key === 'Enter' || event.key === ' ')) primary(event)
   }
   const onContextMenu = (event: Event): void => {
     if (!onTop() || typingIn(event)) return
@@ -82,20 +94,30 @@ export function useDismissLayer(onDismiss: () => void, active: boolean): void {
   }, [active])
 }
 
+/** A control that a focused Enter or Space presses on its own. */
+const PRESSABLE = 'button, a[href], [role="button"]'
+
 /**
  * The portal host, the outside-click rule, Escape and a right-click, and the sounds a panel
  * arrives and leaves on; styling stays in `vu_styles`. `sound` is the pair it plays — `'phone'`
  * for the Bunnyboard, and `'none'` for a screen whose own sting is the sound of its arrival.
+ * `primary` is what Enter and Space answer with, for a modal that takes them.
  */
 export function useModalShell(
   onClose: () => void,
-  sound: 'panel' | 'phone' | 'none' = 'panel'
+  sound: 'panel' | 'phone' | 'none' = 'panel',
+  primary?: () => void
 ): ModalShell {
   const [host, setHost] = useState<HTMLElement | null>(null)
   const pressedOverlay = useRef(false)
   // Read at the event rather than closed over, so the listener is registered once.
   const close = useRef(onClose)
   close.current = onClose
+  const answer = useRef(primary)
+  answer.current = primary
+  // The element carrying the primary, and whether it has landed.
+  const primaryHolder = useRef<HTMLElement | null>(null)
+  const armed = useRef(false)
 
   /**
    * **A modal that is leaving answers nothing**. Its exit keeps it mounted for the length
@@ -144,16 +166,40 @@ export function useModalShell(
 
   /**
    * Escape and a right-click run the same handler as an outside click, so a modal that ignores
-   * one ignores all three. Captured and stopped, so the Game View's own listeners do not also
-   * fire.
+   * one ignores all three; Enter and Space run `primary`, where the modal gave one. Captured and
+   * stopped, so the Game View's own listeners do not also fire.
    */
   useEffect(
     () =>
-      topmostDismiss((event) => {
-        if (leaving.current) return
-        event.stopPropagation()
-        close.current()
-      }),
+      topmostDismiss(
+        (event) => {
+          if (leaving.current) return
+          event.stopPropagation()
+          close.current()
+        },
+        (event) => {
+          if (!answer.current || leaving.current) return
+          if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return
+          if (event.isComposing) return
+          // The modal's own field keeps both keys, and its own button presses itself — stopped
+          // only so the screen behind cannot cancel that press.
+          const target = event.target
+          if (target instanceof Element && primaryHolder.current?.contains(target)) {
+            if (typingIn(event)) return
+            if (target.closest(PRESSABLE)) {
+              event.stopPropagation()
+              return
+            }
+          }
+          // Anywhere else — the paper, the stage's well behind the veil — the key is the
+          // modal's. A held key and one pressed while the primary is still arriving are
+          // swallowed, so a key mashed through the lines before never answers a screen unseen.
+          event.preventDefault()
+          event.stopPropagation()
+          if (event.repeat || !armed.current) return
+          answer.current()
+        }
+      ),
     []
   )
 
@@ -179,6 +225,14 @@ export function useModalShell(
       onMouseDown: handleOverlayMouseDown,
       onClick: handleOverlayClick,
       inert: !present
+    },
+    primaryProps: {
+      ref: (node) => {
+        primaryHolder.current = node
+      },
+      onAnimationComplete: (definition) => {
+        if (definition === 'shown') armed.current = true
+      }
     }
   }
 }

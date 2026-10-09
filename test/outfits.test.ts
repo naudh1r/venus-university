@@ -3,13 +3,17 @@ import { EMOTIONS } from '@shared/emotions'
 import type { PromptEdit } from '@shared/imagePrompt'
 import {
   CUSTOM_OUTFIT_NAME_MAX,
+  CUSTOM_OUTFIT_SLOTS,
   followsMain,
+  offeredCustomOutfits,
   OUTFIT_SETS,
   outfitTagsFor,
   parseSpriteRef,
   spriteRef,
+  storedRefOf,
   withCustomOutfit,
-  withoutCustomOutfit
+  withoutCustomOutfit,
+  writtenRefOf
 } from '@shared/outfits'
 import type { CustomOutfit } from '@shared/types'
 import { character } from './fixtures'
@@ -56,15 +60,80 @@ describe('followsMain', () => {
 })
 
 describe('withCustomOutfit', () => {
-  it('trims the name, drops a blank one and cuts a long one to the cap', () => {
+  it('lowercases the name and takes its spaces out, drops a blank one and cuts a long one', () => {
     const blank = withCustomOutfit(character(), 'custom1', { name: '   ', tags: ['maid'] })
     expect(blank.customOutfits?.custom1).toEqual({ tags: ['maid'] })
 
-    const trimmed = withCustomOutfit(character(), 'custom1', { name: '  Maid  ', tags: [] })
-    expect(trimmed.customOutfits?.custom1?.name).toBe('Maid')
+    const squished = withCustomOutfit(character(), 'custom1', { name: ' Bunny Girl ', tags: [] })
+    expect(squished.customOutfits?.custom1?.name).toBe('bunnygirl')
 
     const long = withCustomOutfit(character(), 'custom1', { name: 'x'.repeat(40), tags: [] })
     expect(long.customOutfits?.custom1?.name).toBe('x'.repeat(CUSTOM_OUTFIT_NAME_MAX))
+  })
+
+  it('keeps what a write leaves out, and clears what it blanks', () => {
+    // A rename landing after the instructions were written must not take them away.
+    const held = character({
+      customOutfits: { custom1: { name: 'maid', tags: ['maid'], instructions: 'she works' } }
+    })
+    const renamed = withCustomOutfit(held, 'custom1', { name: 'Cafe Maid' })
+    expect(renamed.customOutfits?.custom1).toEqual({
+      name: 'cafemaid',
+      tags: ['maid'],
+      instructions: 'she works'
+    })
+
+    const cleared = withCustomOutfit(held, 'custom1', { instructions: '  ' })
+    expect(cleared.customOutfits?.custom1).toEqual({ name: 'maid', tags: ['maid'] })
+  })
+})
+
+describe('offeredCustomOutfits', () => {
+  it('offers a rendered slot with instructions, under a suffix no other set answers to', () => {
+    const wardrobe = (name: string | undefined): CustomOutfit => ({
+      ...(name !== undefined ? { name } : {}),
+      tags: ['x'],
+      instructions: 'always'
+    })
+    const dressed = character({
+      customOutfits: {
+        custom1: wardrobe('maid'),
+        custom2: wardrobe('maid'),
+        custom3: wardrobe('pe'),
+        custom4: wardrobe('custom1'),
+        custom5: { name: 'nurse', tags: ['x'] }
+      }
+    })
+    const offered = offeredCustomOutfits(dressed, [...CUSTOM_OUTFIT_SLOTS])
+    expect(offered.map((outfit) => [outfit.slot, outfit.suffix])).toEqual([
+      ['custom1', 'maid'],
+      ['custom2', 'custom2'],
+      ['custom3', 'custom3'],
+      ['custom4', 'custom4']
+    ])
+    // Not whole on disk, nothing offered.
+    expect(offeredCustomOutfits(dressed, ['custom2', 'pe']).map((outfit) => outfit.slot)).toEqual([
+      'custom2'
+    ])
+  })
+
+  it('reads every written reference back to the slot it was offered under', () => {
+    // A written suffix is what reaches `scene.emotions` once translated; a miss is the wrong
+    // wardrobe saved, or the sprite dropped.
+    const dressed = character({
+      customOutfits: {
+        custom1: { name: 'bunny_girl', tags: ['x'], instructions: 'always' },
+        custom3: { tags: ['x'], instructions: 'always' }
+      }
+    })
+    const offered = offeredCustomOutfits(dressed, ['custom1', 'custom3'])
+    for (const emotion of EMOTIONS) {
+      for (const outfit of offered) {
+        const stored = spriteRef(emotion, outfit.slot)
+        expect(storedRefOf(writtenRefOf(stored, offered), offered)).toBe(stored)
+      }
+    }
+    expect(storedRefOf('happy_nobody', offered)).toBeNull()
   })
 })
 

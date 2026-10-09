@@ -310,7 +310,9 @@ export function UploadBackgroundModal({
     else onClose()
   }
 
-  const { host, overlayProps } = useModalShell(requestClose)
+  const { host, overlayProps, primaryProps } = useModalShell(requestClose, 'panel', () => {
+    void handleSave()
+  })
   if (!host) return null
 
   return createPortal(
@@ -334,9 +336,11 @@ export function UploadBackgroundModal({
           onKeyDown={(event) => {
             if (event.key !== 'Enter') return
             event.stopPropagation()
-            // The name is the form's one typed field, so Enter in it is the foot's Save.
+            // The name is the form's one typed field, so Enter in it is the foot's Save; the
+            // shell gives Save to Enter and Space outside the fields.
             if (event.target instanceof HTMLInputElement) void handleSave()
           }}
+          {...primaryProps}
         >
           <TitleTab>Upload custom BG</TitleTab>
 

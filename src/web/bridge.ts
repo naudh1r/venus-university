@@ -29,8 +29,10 @@ import {
   type PhotoMeta,
   type PhotoRequest
 } from '@shared/photos'
+import { isCustomCgSlot } from '@shared/positions'
 import { validateRecord } from '@shared/jsonValidate'
 import { ENDING_IMAGE_MODEL_ID } from '@shared/providers'
+import { keptReplayIds } from '@shared/replays'
 import { assertProfilePicture } from '@shared/profilePicture'
 import { assertSafePlaythroughId } from '@shared/saveRules'
 import { storedEndpointKeyFor } from '@shared/settingsRules'
@@ -59,7 +61,9 @@ import {
 } from './backgrounds'
 import * as chars from './chars'
 import * as photos from './db/photos'
+import * as replays from './db/replays'
 import * as saves from './db/saves'
+import * as scenes from './db/scenes'
 import { readGrabBags, writeGrabBags } from './db/grabbags'
 import { readModSwitches, writeModSwitches } from './mods'
 import { getPoseManifest, getQuickstart, readAudio } from './assets'
@@ -264,7 +268,9 @@ export function buildApi(): VenusUniversityApi {
       discardStaged: (charId, target) =>
         result('discard the staged images', () => chars.discardStaged(charId, target)),
       deleteSet: (charId, slot) =>
-        result('delete the outfit', () => chars.deleteCustomSet(charId, slot)),
+        result(isCustomCgSlot(slot) ? 'delete the CG' : 'delete the outfit', () =>
+          chars.deleteCustomSet(charId, slot)
+        ),
       readWardrobeImage: (charId, target, image) =>
         result('read the image', async () => {
           const bytes = await chars.readWardrobeImage(charId, target, image)
@@ -315,18 +321,22 @@ export function buildApi(): VenusUniversityApi {
         result('start the playthrough', () =>
           saves.createPlaythrough(playthrough, draft, playthroughId)
         ),
-      slot: (playthroughId, draft) =>
-        result('write the save', () => saves.writeSlotSave(playthroughId, draft)),
+      slot: (playthroughId, draft, replay) =>
+        result('write the save', () => saves.writeSlotSave(playthroughId, draft, replay)),
       overwrite: (playthroughId, saveId, draft) =>
         result('write the save', () => saves.overwriteSlotSave(playthroughId, saveId, draft)),
       autosave: (playthroughId, draft) =>
         result('write the save', () => saves.writeAutosave(playthroughId, draft)),
       manual: (playthroughId, slot, draft) =>
         result('write the save', () => saves.writeManualSave(playthroughId, slot, draft)),
-      delete: (playthroughId, saveId) =>
-        result('delete the save', () => saves.deleteSave(playthroughId, saveId)),
+      delete: (playthroughId, saveId, keep) =>
+        result('delete the save', () =>
+          saves.deleteSave(playthroughId, saveId, keptReplayIds(keep))
+        ),
       deletePlaythrough: (playthroughId) =>
         result('delete the playthrough', () => saves.deletePlaythrough(playthroughId)),
+      rename: (playthroughId, name) =>
+        result('rename the playthrough', () => saves.renamePlaythrough(playthroughId, name)),
       generateEndingArt: (playthroughId, sheet, friendCount, group) =>
         result('draw the graduation picture', () =>
           runAbortable(group, (signal) =>
@@ -475,6 +485,20 @@ export function buildApi(): VenusUniversityApi {
       remove: (name) => result('remove the background', () => removeBackground(name)),
       readImage: (name, variant) =>
         result('read the background', () => readBackgroundImage(name, variant))
+    },
+    scenes: {
+      list: () => result('list the saved scenes', scenes.listScenes),
+      read: (id) => result('read the saved scene', () => scenes.readScene(id)),
+      write: (scene) => result('save the scene', () => scenes.writeScene(scene)),
+      delete: (id) => result('delete the saved scene', () => scenes.deleteScene(id))
+    },
+    replays: {
+      list: (playthroughId) =>
+        result('read the replays', () => replays.listReplayIds(playthroughId)),
+      read: (playthroughId, replayId) =>
+        result('read the replay', () => replays.readReplay(playthroughId, replayId)),
+      delete: (playthroughId, replayId) =>
+        result('delete the replay', () => replays.deleteReplay(playthroughId, replayId))
     }
   }
 }

@@ -21,6 +21,12 @@ import {
   VOICE_PITCH_MIN,
   volumesOf
 } from '@shared/audio'
+import {
+  customCgLabelOf,
+  customCgSfxOf,
+  customCgSlotNumber,
+  customCgVoiceOf
+} from '@shared/customCgs'
 import { EMOTIONS } from '@shared/emotions'
 import {
   cgDraft,
@@ -30,14 +36,23 @@ import {
   type PromptEdit
 } from '@shared/imagePrompt'
 import {
+  CUSTOM_OUTFIT_INSTRUCTIONS_MAX,
   CUSTOM_OUTFIT_NAME_MAX,
   CUSTOM_OUTFIT_SLOTS,
+  customOutfitInstructions,
+  customOutfitName,
   customSlotNumber,
   isCustomOutfitSlot,
   outfitLabelOf
 } from '@shared/outfits'
 import { isStatKey, type StatKey } from '@shared/playerStats'
-import { POSITIONS } from '@shared/positions'
+import {
+  afterOf,
+  CUSTOM_CG_SLOTS,
+  customCgSlotOf,
+  isCustomCgSlot,
+  STOCK_POSITIONS
+} from '@shared/positions'
 import { ROOM_PROMPT_LEAD, ROOM_VARIANTS } from '@shared/room'
 import { withRegenTags, type PromptGroup } from '@shared/regenTags'
 import { pictureKeySet } from '@shared/settingsRules'
@@ -50,6 +65,7 @@ import { fullNameOf } from '@shared/types'
 import type {
   Character,
   CharacterBehavior,
+  CustomCgSlot,
   CustomOutfitSlot,
   Emotion,
   OutfitSet,
@@ -82,8 +98,12 @@ import { noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
 import { useSetupStore } from '../stores/setupStore'
 import {
   BEHAVIOR_FIELDS,
+  CG_INSTRUCTIONS_HINT,
+  CG_NAME_HINT,
   GIFT_CATEGORY_OPTIONS,
   listText,
+  outfitInstructionsHint,
+  OUTFIT_NAME_HINT,
   PREFERRED_STAT_OPTIONS,
   sheetPlaceholders,
   TAG_FIELDS,
@@ -92,10 +112,13 @@ import {
   WARDROBES
 } from './characterFields'
 import { CardIcon, DuplicateIcon, FolderIcon, SpritesIcon } from './characterIcons'
+import { CustomCgEditModal } from './CustomCgEditModal'
+import { CustomCgsModal } from './CustomCgsModal'
 import { CustomOutfitsModal } from './CustomOutfitsModal'
 import { ImageGalleryModal } from './ImageGalleryModal'
+import { OutfitInstructionsModal } from './OutfitInstructionsModal'
 import { ProfilePictureModal } from './ProfilePictureModal'
-import { RegenerateModal, type SeedPrefill } from './RegenerateModal'
+import { RegenerateModal, type CgSounds, type SeedPrefill } from './RegenerateModal'
 import { SetHeightModal } from './SetHeightModal'
 import { FingerFixModal } from './FingerFixModal'
 import { TransparencyFixModal } from './TransparencyFixModal'
@@ -157,7 +180,11 @@ interface RegenerateRequest {
   defaults: PromptEdit
   seed: SeedPrefill
   /** Asks for a name too, where the set is being made rather than replaced. */
-  name?: { value: string; placeholder: string; maxLength: number }
+  name?: { value: string; placeholder: string; maxLength: number; hint: string }
+  /** And for when the writer should use it, on the same terms. */
+  instructions?: { value: string; maxLength: number; hint: (name: string) => string }
+  /** And for the loops a CG plays, on the same terms. */
+  sounds?: CgSounds
   /** A group the render cannot be sent without. */
   requireGroup?: PromptGroup
   /** The primary's words, where the render is not a replacement. */
@@ -170,6 +197,11 @@ type RegenerateOpening = Omit<RegenerateRequest, 'defaults' | 'edit'> & { draft:
 /** True for a whole-set target: the single-image forms name what they are in front of the key. */
 function isSetTarget(target: RenderTarget): target is SetTarget {
   return !target.startsWith('cg:') && !target.startsWith('expression:')
+}
+
+/** The custom CG pair a render belongs to — the pair itself, or either of its images alone. */
+function customCgOfTarget(target: RenderTarget): CustomCgSlot | null {
+  return customCgSlotOf(target.startsWith('cg:') ? target.slice('cg:'.length) : target)
 }
 
 /**
@@ -257,6 +289,13 @@ export function EditCharacterModal({
   const [customs, setCustoms] = useState(false)
   // Which player-authored wardrobe the delete confirm is standing in front of.
   const [deleting, setDeleting] = useState<CustomOutfitSlot | null>(null)
+  // Which player-authored wardrobe's instructions are being written.
+  const [instructing, setInstructing] = useState<CustomOutfitSlot | null>(null)
+  const [customCgs, setCustomCgs] = useState(false)
+  // Which player-authored CG pair the delete confirm is standing in front of.
+  const [deletingCg, setDeletingCg] = useState<CustomCgSlot | null>(null)
+  // Which player-authored CG pair's instructions and loops are being written.
+  const [editingCg, setEditingCg] = useState<CustomCgSlot | null>(null)
   const [fixing, setFixing] = useState<{
     set: OutfitSet | null
     title: string
@@ -315,6 +354,8 @@ export function EditCharacterModal({
   const writeCustomOutfit = useCharacterStore((s) => s.writeCustomOutfit)
   const writeRegenTags = useCharacterStore((s) => s.writeRegenTags)
   const deleteCustomOutfit = useCharacterStore((s) => s.deleteCustomOutfit)
+  const writeCustomCg = useCharacterStore((s) => s.writeCustomCg)
+  const deleteCustomCg = useCharacterStore((s) => s.deleteCustomCg)
   const exportCharacter = useCharacterStore((s) => s.exportCharacter)
   const exportCard = useCharacterStore((s) => s.exportCard)
   const exportSpritePack = useCharacterStore((s) => s.exportSpritePack)
@@ -535,7 +576,18 @@ export function EditCharacterModal({
     })
   }
 
-  /** CGs being re-rolled one at a time right now. */
+  /** Throws one player-authored CG pair away, both its images and its record entry alike. */
+  const runDeleteCg = (): void => {
+    const slot = deletingCg
+    if (slot === null) return
+    setWorking(true)
+    void deleteCustomCg(charId, slot).finally(() => {
+      setWorking(false)
+      setDeletingCg(null)
+    })
+  }
+
+  /** Stock CGs being re-rolled one at a time right now. */
   const singleCgs = liveCgTasks(progress)
 
   /** The four sprite wardrobes by target, for the two things that address one by name. */
@@ -544,17 +596,24 @@ export function EditCharacterModal({
 
   /** Which wardrobe a target addresses; the default one and the landscape sets have none. */
   const setOfTarget = (target: SetTarget): OutfitSet | null =>
-    target === 'default' || target === 'cgs' || target === 'room' ? null : target
+    target === 'default' || target === 'cgs' || target === 'room' || isCustomCgSlot(target)
+      ? null
+      : target
 
   /** What a confirm calls the set it is about to replace. */
   const setLabel = (target: SetTarget): string =>
     isCustomOutfitSlot(target)
       ? outfitLabelOf(character, target)
-      : (wardrobeOf(target)?.title ?? (target === 'cgs' ? 'NSFW CG' : 'Room BG'))
+      : isCustomCgSlot(target)
+        ? customCgLabelOf(character, target)
+        : (wardrobeOf(target)?.title ?? (target === 'cgs' ? 'NSFW CG' : 'Room BG'))
 
   /** Every image inside one set that is being re-rolled on its own right now. */
   const liveSinglesOf = (target: SetTarget): RenderTarget[] => {
     if (target === 'cgs') return singleCgs.map(cgTargetFor)
+    if (isCustomCgSlot(target)) {
+      return liveCgTasks(progress, [target, afterOf(target)]).map(cgTargetFor)
+    }
     if (target === 'room') return []
     const set = setOfTarget(target)
     return singleExpressions(set).map((emotion) => expressionTargetFor(emotion, set))
@@ -581,19 +640,25 @@ export function EditCharacterModal({
     const poseTags = useAssetStore.getState().poses[current.pose]?.tags ?? []
     const { draft, ...request } = build(current, poseTags)
     const kept = withRegenTags(draft, current.regenTags?.[request.target])
-    // A custom slot's Outfit group is her record, whatever its button last sent.
+    // A custom slot's Outfit group, and a custom CG pair's Position group for either of its
+    // images, are her record, whatever the button last sent.
     const edit =
       isCustomOutfitSlot(request.target) && kept.kind === 'sprite' && draft.kind === 'sprite'
         ? { ...kept, outfit: draft.outfit }
-        : kept
+        : customCgOfTarget(request.target) && kept.kind === 'cg' && draft.kind === 'cg'
+          ? { ...kept, position: draft.position }
+          : kept
     setRegen({ ...request, defaults: draft, edit })
   }
 
   /** What a set's control runs: a fill goes straight out, a regenerate opens on its tags first. */
   const runSet = (target: SetTarget, mode: RenderMode): void => {
-    /* A player-authored wardrobe with nothing in it is written before it is rendered: there
-       are no stored tags for a fill to dress her in, so its first run opens the modal too. */
-    const fresh = isCustomOutfitSlot(target) && wardrobeDone(target) === 0
+    /* A player-authored wardrobe or CG pair with nothing in it is written before it is
+       rendered: there are no stored tags for a fill to draw from, so its first run opens the
+       modal too. */
+    const fresh =
+      (isCustomOutfitSlot(target) && wardrobeDone(target) === 0) ||
+      (isCustomCgSlot(target) && !cgs?.[target] && !cgs?.[afterOf(target)])
     // A fill replaces nothing, and the room's prompt is prose rather than booru tags, so
     // neither has a set of groups for the modal to open on.
     if (!fresh && (mode === 'fill' || target === 'room')) {
@@ -613,10 +678,46 @@ export function EditCharacterModal({
         ...(fresh
           ? {
               name: {
-                value: current.customOutfits?.[slot]?.name ?? '',
+                value: customOutfitName(current.customOutfits?.[slot]?.name),
                 placeholder: `Custom outfit ${customSlotNumber(slot)}`,
-                maxLength: CUSTOM_OUTFIT_NAME_MAX
+                maxLength: CUSTOM_OUTFIT_NAME_MAX,
+                hint: OUTFIT_NAME_HINT
               },
+              instructions: {
+                value: customOutfitInstructions(current.customOutfits?.[slot]?.instructions),
+                maxLength: CUSTOM_OUTFIT_INSTRUCTIONS_MAX,
+                // Named as the writer will read it: a blank name is offered under the slot id.
+                hint: (typed: string) => outfitInstructionsHint(customOutfitName(typed) || slot)
+              },
+              submitLabel: 'Generate'
+            }
+          : {})
+      }))
+      return
+    }
+    if (isCustomCgSlot(target)) {
+      const slot = target
+      openRegenerate((current) => ({
+        target: slot,
+        title: fresh ? 'Generate custom CG' : `Regenerate ${customCgLabelOf(current, slot)}`,
+        draft: cgDraft(current, slot),
+        seed: seedPrefillFor(current, slot),
+        // A CG with no position in it is the one render the tags are the whole point of.
+        requireGroup: 'position',
+        ...(fresh
+          ? {
+              name: {
+                value: customOutfitName(current.customCgs?.[slot]?.name),
+                placeholder: `Custom CG ${customCgSlotNumber(slot)}`,
+                maxLength: CUSTOM_OUTFIT_NAME_MAX,
+                hint: CG_NAME_HINT
+              },
+              instructions: {
+                value: customOutfitInstructions(current.customCgs?.[slot]?.instructions),
+                maxLength: CUSTOM_OUTFIT_INSTRUCTIONS_MAX,
+                hint: () => CG_INSTRUCTIONS_HINT
+              },
+              sounds: { voice: customCgVoiceOf(current, slot), sfx: customCgSfxOf(current, slot) },
               submitLabel: 'Generate'
             }
           : {})
@@ -643,6 +744,15 @@ export function EditCharacterModal({
     }))
   }
 
+  /** Starts a set's render, behind the confirm where it would cancel single re-rolls inside it. */
+  const startSet = (target: SetTarget, mode: RenderMode): void => {
+    if (liveSinglesOf(target).length > 0) {
+      setConfirmSet({ target, mode })
+      return
+    }
+    runSet(target, mode)
+  }
+
   const control = (target: SetTarget, onDisk: number, total: number): SetControlProps => {
     const blocked = setBlocked(target)
     const complete = onDisk === total
@@ -658,37 +768,41 @@ export function EditCharacterModal({
       // Generate fills the gaps, Regenerate replaces the set. Behind the
       // dirty gate, with the confirm over the single re-rolls inside it.
       onGenerate: () =>
-        guardDirty(complete ? 'regenerate' : 'generate', () => {
-          const mode: RenderMode = complete ? 'regenerate' : 'fill'
-          if (liveSinglesOf(target).length > 0) {
-            setConfirmSet({ target, mode })
-            return
-          }
-          runSet(target, mode)
-        }),
+        guardDirty(complete ? 'regenerate' : 'generate', () =>
+          startSet(target, complete ? 'regenerate' : 'fill')
+        ),
       // Cancelling consumes nothing the player has written, so it skips the dirty gate.
       onCancel: () => void cancelSet(charId, target)
     }
   }
 
   /**
-   * Sends one render the tag modal answered. A player-authored wardrobe's Outfit group is
-   * written onto her record first, so a later fill dresses her in the clothes it holds; a
-   * write that does not land queues nothing. What the modal answered is kept as that button's
-   * tags either way.
+   * Sends one render the tag modal answered. A player-authored wardrobe's Outfit group, or a CG
+   * pair's Position group, is written onto her record first, so a later fill draws from what
+   * it holds; a write that does not land queues nothing. What the modal answered is kept as
+   * that button's tags either way.
    */
   const sendRender = async (
     request: RegenerateRequest,
     edit: PromptEdit,
     seed: number | null,
-    name?: string
+    name?: string,
+    instructions?: string,
+    sounds?: CgSounds
   ): Promise<void> => {
     const target = request.target
     if (isCustomOutfitSlot(target) && edit.kind === 'sprite') {
-      const entry = useCharacterStore.getState().characters[charId]?.customOutfits?.[target]
-      const ok = await writeCustomOutfit(charId, target, {
-        tags: edit.outfit,
-        name: name ?? entry?.name
+      // A box left out or a name left blank keeps what the slot already holds.
+      const ok = await writeCustomOutfit(charId, target, { tags: edit.outfit, name, instructions })
+      if (!ok) return
+    }
+    if (isCustomCgSlot(target) && edit.kind === 'cg') {
+      // The same, the loops included.
+      const ok = await writeCustomCg(charId, target, {
+        tags: edit.position,
+        name,
+        instructions,
+        ...(sounds ?? {})
       })
       if (!ok) return
     }
@@ -750,11 +864,12 @@ export function EditCharacterModal({
       }
       if (entry) {
         authored.rename = {
-          value: entry.name ?? '',
+          value: customOutfitName(entry.name),
           placeholder: `Custom outfit ${customSlotNumber(slot)}`,
           max: CUSTOM_OUTFIT_NAME_MAX,
-          onCommit: (name) => void writeCustomOutfit(charId, slot, { ...entry, name })
+          onCommit: (name) => void writeCustomOutfit(charId, slot, { name })
         }
+        authored.onInstructions = () => setInstructing(slot)
         authored.onDelete = () => setDeleting(slot)
         authored.deleteDisabled = Boolean(taskOf(slot)) || singleExpressions(slot).length > 0
       }
@@ -777,7 +892,7 @@ export function EditCharacterModal({
     }
   }
 
-  const cgsOnDisk = POSITIONS.filter((position) => cgs?.[position]).length
+  const cgsOnDisk = STOCK_POSITIONS.filter((position) => cgs?.[position]).length
 
   // The CGs' control is withheld on the wardrobe's terms: gone under the setting, kept while
   // a render of them is still going.
@@ -789,6 +904,12 @@ export function EditCharacterModal({
   const customsOnDisk = CUSTOM_OUTFIT_SLOTS.filter(
     (slot) => wardrobeDone(slot) === EMOTIONS.length
   ).length
+
+  // Whether a custom CG pair can be rendered now: the set gate and the setting, which every
+  // slot answers to alike.
+  const cgPairsRenderable = CUSTOM_CG_SLOTS.every(
+    (slot) => !setBlocked(slot) && !sfwWithholds(slot, noNsfwImages)
+  )
 
   const { host, overlayProps } = useModalShell(requestClose)
   if (!host) return null
@@ -853,8 +974,10 @@ export function EditCharacterModal({
                 title="NSFW CG"
                 what="the CGs"
                 shownDone={shownDone('cgs', cgsOnDisk)}
-                total={POSITIONS.length}
-                control={cgsWithheld ? undefined : control('cgs', cgsOnDisk, POSITIONS.length)}
+                total={STOCK_POSITIONS.length}
+                control={
+                  cgsWithheld ? undefined : control('cgs', cgsOnDisk, STOCK_POSITIONS.length)
+                }
                 onShow={() => setGallery(true)}
                 showLocked={noNsfwImages}
                 showLockedReason="Hidden by SFW setting"
@@ -1367,6 +1490,7 @@ export function EditCharacterModal({
                 }))
               )
             }
+            onCustomCgs={() => setCustomCgs(true)}
             onClose={() => setGallery(false)}
           />
         )}
@@ -1389,6 +1513,33 @@ export function EditCharacterModal({
               column: columnFor(slot, slot, outfitLabelOf(character, slot))
             }))}
             onClose={() => setCustoms(false)}
+          />
+        )}
+        {/* Every render it starts goes through the dirty gate as a set's does. */}
+        {customCgs && (
+          <CustomCgsModal
+            key="custom-cgs"
+            charId={charId}
+            theme={theme}
+            renderable={cgPairsRenderable}
+            onCreate={(slot) => guardDirty('generate', () => startSet(slot, 'fill'))}
+            onFill={(slot) => guardDirty('generate', () => startSet(slot, 'fill'))}
+            onRegeneratePair={(slot) =>
+              guardDirty('regenerate', () => startSet(slot, 'regenerate'))
+            }
+            onRegenerateAfter={(slot) =>
+              guardDirty('regenerate', () =>
+                openRegenerate((current) => ({
+                  target: cgTargetFor(afterOf(slot)),
+                  title: 'Regenerate CG',
+                  draft: cgDraft(current, afterOf(slot)),
+                  seed: seedPrefillFor(current, cgTargetFor(afterOf(slot)))
+                }))
+              )
+            }
+            onEdit={setEditingCg}
+            onDelete={setDeletingCg}
+            onClose={() => setCustomCgs(false)}
           />
         )}
         {framing && (
@@ -1449,6 +1600,40 @@ export function EditCharacterModal({
           />
         )}
 
+        {instructing !== null && (
+          <OutfitInstructionsModal
+            key="outfit-instructions"
+            theme={theme}
+            charId={charId}
+            slot={instructing}
+            onClose={() => setInstructing(null)}
+          />
+        )}
+
+        {deletingCg !== null && (
+          <ConfirmModal
+            key="delete-cg"
+            id="delete-cg"
+            theme={theme}
+            title={`Delete ${customCgLabelOf(character, deletingCg)}?`}
+            message="Both of its CGs will be deleted."
+            confirmText="Delete"
+            busy={working}
+            onConfirm={runDeleteCg}
+            onCancel={() => setDeletingCg(null)}
+          />
+        )}
+
+        {editingCg !== null && (
+          <CustomCgEditModal
+            key="custom-cg-edit"
+            theme={theme}
+            charId={charId}
+            slot={editingCg}
+            onClose={() => setEditingCg(null)}
+          />
+        )}
+
         {closing && (
           <ConfirmModal
             key="discard"
@@ -1501,13 +1686,15 @@ export function EditCharacterModal({
             defaults={regen.defaults}
             seed={regen.seed}
             name={regen.name}
+            instructions={regen.instructions}
+            sounds={regen.sounds}
             requireGroup={regen.requireGroup}
             submitLabel={regen.submitLabel}
-            onConfirm={(edit, seed, name) => {
+            onConfirm={(edit, seed, name, instructions, sounds) => {
               const request = regen
               setRegen(null)
               if (request === null) return
-              void sendRender(request, edit, seed, name)
+              void sendRender(request, edit, seed, name, instructions, sounds)
             }}
             onCancel={() => setRegen(null)}
           />

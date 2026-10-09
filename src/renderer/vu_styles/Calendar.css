@@ -409,6 +409,22 @@
   font-style: italic;
 }
 
+/* A past half's replay under its summary: the two pills side by side, wrapping onto a second
+   line rather than squeezing where the pane is too narrow for both. The padding is the room a
+   pill's hover swell grows into. */
+.vu-cal-replay {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+}
+
+/* Delete takes the danger ink, as removing a thing does wherever it is offered. */
+.vu-cal-replay-delete {
+  color: var(--vu-danger);
+}
+
 .vu-cal-card-title {
   display: flex;
   align-items: center;

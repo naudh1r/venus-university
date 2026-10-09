@@ -147,6 +147,11 @@ export function tierName(points: number): string {
   return tierNameOf(tierOf(points))
 }
 
+/** The fewest points that buy the tier above the one `points` buys; the ceiling's own at the top. */
+export function nextTierPoints(points: number): number {
+  return pointsForTier(Math.min(tierOf(points) + 1, MAX_TIER) as StatTier)
+}
+
 /**
  * The `READER` block's description of the player, weakest stat to strongest. `but` separates
  * the stats at or under `Unremarkable` from the rest; a reader bad at nothing or at everything
