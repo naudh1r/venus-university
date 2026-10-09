@@ -425,7 +425,10 @@ const PHONE_NEGATIVE = ['phone', 'cellphone', 'smartphone', 'holding_phone']
  */
 const CAMERA_CUES = ['holding a camera', 'her camera', 'a camera in', 'film camera', 'polaroid']
 
-/** The `selfie` tag adds a peace sign on its own; kept only where the caption asks for one. */
+/**
+ * The `selfie` tag adds a peace sign on its own, which is a selfie's own gesture: kept, unless
+ * her free hand is holding something, where it would be a third hand. Asked for, always kept.
+ */
 const PEACE_CUES = ['peace sign', 'v sign', 'v-sign', 'flashing a v']
 
 
@@ -455,7 +458,8 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
   // The arm holding the phone is not also on her hip.
   const kept = tags.filter((tag) => !FRAMING_TAGS.has(tag) && !PLACEMENT_TAGS.has(tag))
   const camera = saysAny(text, CAMERA_CUES) ? [] : ['camera']
-  const negative = [...PHONE_NEGATIVE, ...camera, ...(peace ? [] : ['v'])]
+  const busy = !peace && saysAny(text, BUSY_HAND_CUES)
+  const negative = [...PHONE_NEGATIVE, ...camera, ...(busy ? ['v'] : [])]
   // `from_below` alone left a selfie at eye level; her looking down into the phone held low
   // is what moved the camera under her.
   const low = has('from_below') ? ['looking_down'] : []

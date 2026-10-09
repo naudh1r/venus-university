@@ -111,9 +111,10 @@ describe('a selfie', () => {
     expect(pose.tags).toEqual(
       expect.arrayContaining(['selfie', 'upper_body', 'outstretched_arm', 'foreshortening'])
     )
-    expect(pose.negative).toEqual(
-      expect.arrayContaining(['phone', 'holding_phone', 'camera', 'v'])
-    )
+    expect(pose.negative).toEqual(expect.arrayContaining(['phone', 'holding_phone', 'camera']))
+    expect(pose.negative).not.toContain('v')
+    const holding = photoPose('a selfie holding an iced coffee', false)
+    expect(holding.negative).toContain('v')
     expect(photoPose('a selfie holding her film camera', false).negative).not.toContain('camera')
   })
 
