@@ -158,6 +158,10 @@ const VERIFIED = new Set([
   'pussy',
   // Sitting cross-legged, from the same photo's check.
   'indian_style',
+  // Hands, from the same mirror selfie's check.
+  'bad_hands',
+  'extra_digits',
+  'fewer_digits',
   // Spills, from an in-game photo with a pink drink splashed over her.
   'paint_splatter',
   'splashing',

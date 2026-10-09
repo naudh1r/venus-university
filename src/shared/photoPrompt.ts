@@ -48,7 +48,9 @@ const PHOTO_NEGATIVE =
   '1boy, multiple_boys, multiple_girls, 2girls, hetero, penis, sex, ' +
   // `photo_(medium)` holds the illustration against photographic realism the checkpoint drifts
   // toward; the rest are what it adds to a body unasked.
-  'gold, photo_(medium), cum'
+  'gold, photo_(medium), cum, ' +
+  // Her fingers, cleaner on a phone and a glass in a same-seed check of a mirror selfie.
+  'bad_hands, extra_digits, fewer_digits'
 
 /**
  * What an uncovered picture has to say, and what it has to refuse.
