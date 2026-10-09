@@ -392,6 +392,13 @@ export interface PhotoPose {
 /** A phone held at arm's length is never in its own picture; a mirror is where it shows. */
 const PHONE_NEGATIVE = ['phone', 'cellphone', 'smartphone', 'holding_phone']
 
+/**
+ * Kept out of a selfie too: without it the checkpoint puts a camera in her free hand, which
+ * the same-seed tests never showed only because they all had it in the negative. Allowed where
+ * the caption gives her one.
+ */
+const CAMERA_CUES = ['holding a camera', 'her camera', 'a camera in', 'film camera', 'polaroid']
+
 /** The `selfie` tag adds a peace sign on its own; kept only where the caption asks for one. */
 const PEACE_CUES = ['peace sign', 'v sign', 'v-sign', 'flashing a v']
 
@@ -422,7 +429,8 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
   }
   // The arm holding the phone is not also on her hip.
   const kept = tags.filter((tag) => !FRAMING.has(tag) && !PLACEMENT_TAGS.has(tag))
-  const negative = [...PHONE_NEGATIVE, ...(peace ? [] : ['v'])]
+  const camera = saysAny(text, CAMERA_CUES) ? [] : ['camera']
+  const negative = [...PHONE_NEGATIVE, ...camera, ...(peace ? [] : ['v'])]
   const shot = (add: string[], extra: string[] = []): PhotoPose => ({
     tags: [...new Set([...kept, ...add, ...(peace ? ['v'] : [])])],
     negative: [...negative, ...extra]
