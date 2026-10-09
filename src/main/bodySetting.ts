@@ -1,7 +1,6 @@
 import { gateBody } from '@shared/characterBody'
-import { photoFeatureOn } from '@shared/photoSwitches'
+import { photoFeatureOn, photoSwitches } from '@shared/photoSwitches'
 import type { Character } from '@shared/types'
-import { getSettings } from './services/settingsService'
 
 /**
  * The character a render draws, as the body switch has her. Read once per render, as it starts:
@@ -9,5 +8,5 @@ import { getSettings } from './services/settingsService'
  * file holds, whether or not it is to be used.
  */
 export async function withBodySetting(character: Character): Promise<Character> {
-  return gateBody(character, photoFeatureOn() && (await getSettings()).bodyDetails === true)
+  return gateBody(character, photoFeatureOn() && photoSwitches().body)
 }

@@ -26,6 +26,8 @@ export interface PhotoSwitches {
   loader: PhotoLoader
   /** New photos are stored as WebP rather than PNG. */
   webp: boolean
+  /** Her build, chest, hips, backside and hair are asked for, edited and drawn. */
+  body: boolean
 }
 
 /** Before the Mods screen's switches are read: the mod on, nothing forbidden, the bunny. */
@@ -34,7 +36,8 @@ export const DEFAULT_PHOTO_SWITCHES: PhotoSwitches = {
   photos: true,
   explicit: true,
   loader: 'bunny',
-  webp: true
+  webp: true,
+  body: false
 }
 
 let current: PhotoSwitches = DEFAULT_PHOTO_SWITCHES
@@ -48,7 +51,8 @@ export function setPhotoSwitches(next: Partial<PhotoSwitches>): void {
     merged.photos === current.photos &&
     merged.explicit === current.explicit &&
     merged.loader === current.loader &&
-    merged.webp === current.webp
+    merged.webp === current.webp &&
+    merged.body === current.body
   ) {
     return
   }
@@ -127,6 +131,12 @@ export const PHOTO_FEATURE_MOD = {
       label: 'Explicit photos',
       hint: 'Off, nobody sends an undressed photo, and ones already sent stay covered. Settings → No NSFW images turns them off too.',
       default: true
+    },
+    {
+      id: 'body',
+      label: 'Body details',
+      hint: "Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable in their character editor, and drawn in their sprites, CGs and photos. Off, what they have is kept but not used.",
+      default: false
     },
     {
       id: 'webp',

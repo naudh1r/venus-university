@@ -135,7 +135,8 @@ describe("Photo Feature's switches", () => {
       photos: true,
       explicit: true,
       loader: 'bunny',
-      webp: true
+      webp: true,
+      body: false
     })
   })
 
@@ -149,8 +150,17 @@ describe("Photo Feature's switches", () => {
       photos: false,
       explicit: true,
       loader: 'dots',
-      webp: false
+      webp: false,
+      body: false
     })
+  })
+
+  it('carry the body switch over from the game settings once, and never switch it off', () => {
+    const carried = withPhotoSettingsCarried(NO_SWITCHES, { bodyDetails: true })
+    expect(photoSwitchesOf(carried).body).toBe(true)
+    const moved = withOption(NO_SWITCHES, PHOTO_FEATURE, 'body', false)
+    expect(withPhotoSettingsCarried(moved, { bodyDetails: true })).toBe(moved)
+    expect(withPhotoSettingsCarried(NO_SWITCHES, { bodyDetails: false })).toBe(NO_SWITCHES)
   })
 
   it('carry over what Settings had, until the Mods screen has its own', () => {

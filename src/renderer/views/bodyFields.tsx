@@ -1,4 +1,4 @@
-import { useState, type JSX } from 'react'
+import type { JSX } from 'react'
 import { motion } from 'motion/react'
 import {
   allowedBeside,
@@ -12,39 +12,8 @@ import {
   type CharacterBody
 } from '@shared/characterBody'
 import { usePhotoSwitches } from '../stores/photoSwitchHooks'
-import { useSettingsStore } from '../stores/settingsStore'
 import { gestures, quietLift, quietPress } from './motion'
 import '../vu_styles/BodyFields.css'
-
-/**
- * The body switch, in Character Manage beside the other roster actions: it decides what she is
- * asked at creation, what her editor shows and what her sprites, CGs and photos are drawn with,
- * all of which are made here.
- */
-export function BodyDetailsToggle(): JSX.Element | null {
-  const on = useSettingsStore((s) => s.settings?.bodyDetails === true)
-  const update = useSettingsStore((s) => s.update)
-  const [saving, setSaving] = useState(false)
-  // With the mod off there is no body to switch on; the setting is kept for when it is back.
-  const modOn = usePhotoSwitches().on
-  if (!modOn) return null
-  return (
-    <motion.button
-      id="manage-body-details"
-      className="vu-pill"
-      aria-pressed={on}
-      title="Asks for, edits and draws her build, chest, hips, backside and hair from fixed tag lists."
-      {...gestures(saving, quietLift, quietPress)}
-      disabled={saving}
-      onClick={() => {
-        setSaving(true)
-        void update({ bodyDetails: !on }).finally(() => setSaving(false))
-      }}
-    >
-      {on ? 'Body details: on' : 'Body details: off'}
-    </motion.button>
-  )
-}
 
 /**
  * Her body in the character editor: her build, picked from the pool, and the rest drawn to fit it
@@ -85,8 +54,7 @@ export function BodyFieldsSection({
   baseAppearance: readonly string[]
   onChange: (body: CharacterBody) => void
 }): JSX.Element | null {
-  const switchedOn = useSettingsStore((s) => s.settings?.bodyDetails === true)
-  const modOn = usePhotoSwitches().on
+  const { on: modOn, body: switchedOn } = usePhotoSwitches()
   const on = switchedOn && modOn
   // Off, the section is not there; what she has is kept, and written back as it was.
   if (!on) return null

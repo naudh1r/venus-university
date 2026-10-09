@@ -78,24 +78,6 @@ declare module './types' {
     photoTier?: string
   }
 
-  interface Settings {
-    /**
-     * Whether a character may send the reader a photograph of herself at all — in a DM, and on
-     * the feed. Off leaves every thread as it was before the feature existed.
-     */
-    photos?: boolean
-    /**
-     * Whether a character's body is asked for, edited and drawn: her build, chest, hips,
-     * backside and hair, one pooled tag each, in her sprites, CGs and photographs. Off, and
-     * absent, leaves every picture as the build draws it.
-     */
-    bodyDetails?: boolean
-    /**
-     * How a picture still being drawn waits in a DM: one of `PHOTO_LOADERS`. Absent, or a value
-     * this build does not know, is the bunny.
-     */
-    photoLoader?: string
-  }
 }
 
 /**

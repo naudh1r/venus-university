@@ -26,8 +26,9 @@ async function load() {
   const { bodyDetailsOn } = await import('../src/renderer/prompts/bodyBrief')
   const comments = await import('../src/renderer/stores/photoComments')
   useSettingsStore.setState({
-    settings: { photos: true, bodyDetails: true, noNsfwImages: false } as never
+    settings: { noNsfwImages: false } as never
   })
+  switches.setPhotoSwitches({ on: true, photos: true, body: true })
   useSetupStore.setState({ status: { comfyReady: true } as never })
   return { switches, useSettingsStore, useGameStore, photos, bodyDetailsOn, comments }
 }

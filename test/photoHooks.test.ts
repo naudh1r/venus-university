@@ -106,23 +106,6 @@ const HOOKS: readonly {
     why: 'her body is optional on the record, so the guard must not require it'
   },
   {
-    file: 'src/shared/settingsRules.ts',
-    needs: ["| 'photos'", "| 'bodyDetails'", "| 'photoLoader'"],
-    why: 'the switches are optional, so the guard must not require them'
-  },
-  {
-    file: 'src/shared/settingsRules.ts',
-    within: 'export function mergePatch(',
-    needs: ['bodyDetails: patch.bodyDetails', 'photoLoader: patch.photoLoader'],
-    why: 'the body switch writes nothing and springs back off'
-  },
-  {
-    file: 'src/renderer/stores/settingsStore.ts',
-    within: 'export function patchOf(',
-    needs: ['bodyDetails: settings.bodyDetails', 'photoLoader: settings.photoLoader'],
-    why: 'a save made from any other control turns the body switch back off'
-  },
-  {
     file: 'src/shared/imagePrompt.ts',
     within: 'export function spriteDraft(',
     needs: ["bodyAppearance(character, set === 'nude' ? 'nude' : 'sprite')", 'bodyNegative(character)'],
@@ -151,11 +134,6 @@ const HOOKS: readonly {
     within: 'export async function fixHands(',
     needs: ['character = await withBodySetting(character)'],
     why: 'a hand fix redraws her frame with a body the base was drawn without'
-  },
-  {
-    file: 'src/renderer/views/ManageCharactersView.tsx',
-    needs: ['<BodyDetailsToggle />'],
-    why: 'the body switch cannot be turned on'
   },
   {
     file: 'src/renderer/stores/textingLoop.ts',
@@ -258,8 +236,8 @@ const HOOKS: readonly {
   },
   {
     file: 'src/main/services/modsService.ts',
-    needs: ['withPhotoSettingsCarried(cleanSwitches(file), await settingsToCarry())'],
-    why: 'what the player set in Settings before the Mods screen is lost'
+    needs: ['withPhotoSettingsCarried(stored, await settingsToCarry())'],
+    why: 'what the player set in the game settings under 1.1.3 is lost'
   },
   {
     file: 'src/renderer/mods/index.ts',

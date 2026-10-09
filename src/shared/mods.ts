@@ -278,31 +278,39 @@ export function photoSwitchesOf(switches: ModSwitches): PhotoSwitches {
     photos: optionOn(switches, PHOTO_FEATURE, 'photos'),
     explicit: optionOn(switches, PHOTO_FEATURE, 'explicit'),
     webp: optionOn(switches, PHOTO_FEATURE, 'webp'),
+    body: optionOn(switches, PHOTO_FEATURE, 'body'),
     loader
   }
 }
 
 /**
- * Photo Feature's options for a player who set them in Settings, where they lived before this
- * build: "No DM and feed photos" and "Loading animation". Read only where the Mods screen has
- * never stored them, so what he picked there carries over until he moves them here.
+ * Photo Feature's options for a player who set them in the game's settings, where 1.1.3 kept
+ * them: "No DM and feed photos", "Loading animation" and the body switch. Read only where the
+ * Mods screen has never stored them, so what he picked there carries over once; the mods
+ * service then writes them to `mods.json`, and the game's settings are never read for them again.
  */
 export function withPhotoSettingsCarried(
   switches: ModSwitches,
-  settings: { photos?: boolean; photoLoader?: string }
+  settings: { photos?: unknown; photoLoader?: unknown; bodyDetails?: unknown }
 ): ModSwitches {
   let carried = switches
   if (settings.photos === false && !(optionKey(PHOTO_FEATURE, 'photos') in switches.options)) {
     carried = withOption(carried, PHOTO_FEATURE, 'photos', false)
   }
   const loaderKeys = PHOTO_LOADERS.map((l) => optionKey(PHOTO_FEATURE, loaderOptionId(l.value)))
-  if (settings.photoLoader && !loaderKeys.some((key) => key in switches.options)) {
+  if (
+    typeof settings.photoLoader === 'string' &&
+    !loaderKeys.some((key) => key in switches.options)
+  ) {
     carried = withOption(
       carried,
       PHOTO_FEATURE,
       loaderOptionId(photoLoaderOf(settings.photoLoader)),
       true
     )
+  }
+  if (settings.bodyDetails === true && !(optionKey(PHOTO_FEATURE, 'body') in switches.options)) {
+    carried = withOption(carried, PHOTO_FEATURE, 'body', true)
   }
   return carried
 }

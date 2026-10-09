@@ -123,14 +123,18 @@ options:
   one. Photos already sent stay visible.
 - **Explicit photos**: off, nobody sends an undressed photo and ones already sent stay covered.
   The game's own "No NSFW images" turns them off too.
+- **Body details**: off by default. Characters get a build, chest, hips, backside and hair from
+  fixed tag lists, used in their sprites, CGs and photos.
 - **Save photos as WebP**: on by default. New photos are saved as WebP at 85% quality instead
   of PNG. Off, they are saved as PNG. Photos already saved stay as they are.
 - **Loading animation**: a group of three, Bunny hop, Dot shimmer and Typing dots.
 
-These used to be in the game's Settings. `modsService.ts` carries a player's old choice over
-(`withPhotoSettingsCarried`) until the Mods screen stores its own.
+These used to be in the game's Settings, and the body switch in the game's `settings.json`.
+`modsService.ts` reads a player's old choice straight off that file once
+(`withPhotoSettingsCarried`) and keeps it in `mods.json`. Photo Feature reads nothing else of the
+game's settings but "No NSFW images", which it obeys and never changes.
 
-Option ids are written to disk, so they never change: `photos`, `explicit`, `webp`,
+Option ids are written to disk, so they never change: `photos`, `explicit`, `body`, `webp`,
 `loader-bunny`, `loader-shimmer`, `loader-dots`. `test/photoHooks.test.ts` fails if the handover in `modsStore.ts`
 or `modsService.ts` goes missing.
 

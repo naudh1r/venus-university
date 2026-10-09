@@ -1,6 +1,5 @@
-import { photoFeatureOn } from '@shared/photoSwitches'
+import { photoFeatureOn, photoSwitches } from '@shared/photoSwitches'
 import { BODY_POOLS, drawBody, type CharacterBody } from '@shared/characterBody'
-import { useSettingsStore } from '../stores/settingsStore'
 
 /**
  * What the character call is asked about her body, and what is made of the answer.
@@ -13,9 +12,9 @@ import { useSettingsStore } from '../stores/settingsStore'
  * All of it only while the body switch is on. Off, the call is asked what the build asks.
  */
 
-/** The body switch, as the settings store holds it. */
+/** The body switch: Photo Feature's "Body details" option, while the mod is on. */
 export function bodyDetailsOn(): boolean {
-  return photoFeatureOn() && useSettingsStore.getState().settings?.bodyDetails === true
+  return photoFeatureOn() && photoSwitches().body
 }
 
 /** The BODY section of the character call, in the shape APPEARANCE asks its picks in. */

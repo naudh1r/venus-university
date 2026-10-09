@@ -1,4 +1,4 @@
-import { mkdir } from 'fs/promises'
+import { mkdir, readFile } from 'fs/promises'
 import {
   cleanSwitches,
   NO_SWITCHES,
@@ -7,9 +7,8 @@ import {
   type ModSwitches
 } from '@shared/mods'
 import { setPhotoSwitches } from '@shared/photoSwitches'
-import { getDataPath, getModsPath } from '../paths'
+import { getDataPath, getModsPath, getSettingsPath } from '../paths'
 import { readValidatedJson, writeAtomicJson } from './jsonFile'
-import { getSettings } from './settingsService'
 
 /** Schema version this build reads and writes. */
 const SCHEMA_VERSION = 1
@@ -36,7 +35,10 @@ export async function getModSwitches(): Promise<ModSwitches> {
     required: { schemaVersion: true },
     onMissing: () => ({ schemaVersion: SCHEMA_VERSION, ...NO_SWITCHES })
   })
-  const switches = withPhotoSettingsCarried(cleanSwitches(file), await settingsToCarry())
+  const stored = cleanSwitches(file)
+  const switches = withPhotoSettingsCarried(stored, await settingsToCarry())
+  // Carried once and kept here: the game's next settings save drops what it does not know.
+  if (switches !== stored) await setModSwitches(switches)
   // Main's own copy of Photo Feature's switches, for the renders it draws (body details).
   setPhotoSwitches(photoSwitchesOf(switches))
   return switches
@@ -53,11 +55,16 @@ export async function setModSwitches(switches: ModSwitches): Promise<void> {
   setPhotoSwitches(photoSwitchesOf(switches))
 }
 
-/** Settings Photo Feature's options carry over from; none where they cannot be read. */
-async function settingsToCarry(): Promise<{ photos?: boolean; photoLoader?: string }> {
+/**
+ * What 1.1.3 left in the game's `settings.json` for Photo Feature, read straight off the file:
+ * the game's settings no longer know these keys. None where the file cannot be read.
+ */
+async function settingsToCarry(): Promise<Record<string, unknown>> {
   try {
-    const { photos, photoLoader } = await getSettings()
-    return { photos, photoLoader }
+    const raw: unknown = JSON.parse(await readFile(getSettingsPath(), 'utf-8'))
+    if (!raw || typeof raw !== 'object') return {}
+    const { photos, photoLoader, bodyDetails } = raw as Record<string, unknown>
+    return { photos, photoLoader, bodyDetails }
   } catch {
     return {}
   }

@@ -94,6 +94,7 @@ describe('photo switches', () => {
       photos: DEFAULT_PHOTO_SWITCHES.photos,
       explicit: DEFAULT_PHOTO_SWITCHES.explicit,
       webp: DEFAULT_PHOTO_SWITCHES.webp,
+      body: DEFAULT_PHOTO_SWITCHES.body,
       'loader-bunny': true,
       'loader-shimmer': false,
       'loader-dots': false
