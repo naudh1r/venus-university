@@ -75,7 +75,7 @@ export const MODS: readonly ModDef[] = [
   {
     ...PHOTO_FEATURE_MOD,
     id: PHOTO_FEATURE,
-    version: '1.1.3'
+    version: '1.2.0'
   }
 ]
 
