@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildPhotoPrompt, lookingAtViewer, plainColours } from '../src/shared/photoPrompt'
+import {
+  buildPhotoPrompt,
+  lookingAtViewer,
+  plainColours,
+  withoutWhoTookIt
+} from '../src/shared/photoPrompt'
 import type { Character } from '../src/shared/types'
 import { character } from './fixtures'
 
@@ -332,5 +337,18 @@ describe('the in-game mirror selfie that splashed pink everywhere', () => {
     expect(positive).not.toContain('hands_on_lap')
     expect(positive).not.toContain('full_body')
     expect(positive).toContain('mirror')
+  })
+})
+
+describe('a photo a friend took', () => {
+  it('leaves the friend out of the sentence, so she is drawn alone', () => {
+    expect(withoutWhoTookIt('a photo a friend took of her on the couch, smiling')).toBe(
+      'a photo on the couch, smiling'
+    )
+    expect(withoutWhoTookIt('full body in a sundress at the beach, taken by a friend')).toBe(
+      'full body in a sundress at the beach'
+    )
+    const { positive } = buildPhotoPrompt(character(), 'everyday', 'a photo my friend took of me')
+    expect(positive).not.toMatch(/friend/)
   })
 })
