@@ -45,7 +45,7 @@ import {
   type ResolvedSave
 } from '../stores/saveStore'
 import { usePhotoStore } from '../stores/photoStore'
-import { saveChoice, type SaveChoice, type WayOn } from '../mods/hooks'
+import { prepareWayOn, saveChoice, type SaveChoice, type WayOn } from '../mods/hooks'
 import { entryCrossing, menuCrossing } from '../stores/slotCrossing'
 import { useUiStore } from '../stores/uiStore'
 import { saveThumbUrl } from './bgAssets'
@@ -209,6 +209,16 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
   const [choosing, setChoosing] = useState<{ entry: ResolvedSave; choice: SaveChoice } | null>(
     null
   )
+  // A mod's way on being prepared: the question stays up, every answer locked, until it is.
+  const [preparing, setPreparing] = useState(false)
+  // Whether this panel is still up, for a mod's answer that comes back after it closed.
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   // Captured with the promise so the hand-off uses the roster on screen at the click.
   const [entering, setEntering] = useState<Entering | null>(null)
   // Which row is under the cursor: the ✕ is revealed from React rather than by CSS.
@@ -316,7 +326,16 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
    * from the Main Menu a plain cut.
    */
   async function takeModChoice(choice: WayOn): Promise<void> {
-    const enter = await choice.prepare()
+    setPreparing(true)
+    let enter: Awaited<ReturnType<typeof prepareWayOn>> = null
+    try {
+      // An answer that lands after the panel closed opens nothing.
+      enter = await prepareWayOn(choice, () => mounted.current)
+    } finally {
+      if (mounted.current) setPreparing(false)
+    }
+    if (!mounted.current) return
+    setChoosing(null)
     if (!enter) return
     if (onClose) {
       if (!beginCrossing(undefined, menuCrossing(theme))) return
@@ -734,11 +753,8 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
             }`}
             confirmText="Load"
             extraText={choosing.choice.label}
-            onExtra={() => {
-              const { choice } = choosing
-              setChoosing(null)
-              void takeModChoice(choice)
-            }}
+            busy={preparing}
+            onExtra={() => void takeModChoice(choosing.choice)}
             onCancel={() => setChoosing(null)}
             onConfirm={() => {
               const { entry } = choosing

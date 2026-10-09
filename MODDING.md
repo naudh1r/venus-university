@@ -160,6 +160,8 @@ The two ways on (`endingChoice`, `saveChoice`) share one shape, `WayOn`. Its `pr
 while nothing has been torn down, does whatever may fail and reports it, and returns `enter`,
 which the game calls once any running game is gone: it stages what the mod needs and names the
 screen to show. The first mod that answers is offered; the game's own choice always stays.
+While `prepare` runs, the screen that offered the choice keeps every button locked; an answer
+that comes back after that screen closed, or after its game was left, opens nothing.
 
 A hook point is added where mods actually meet, not ahead of need. Once mods use one, it stays
 as it is: renaming it or changing what it passes breaks them. A change that is needed goes in

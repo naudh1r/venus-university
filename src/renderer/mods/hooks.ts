@@ -270,6 +270,19 @@ export function postVisible(post: SocialPost): boolean {
   return active().every((hooks) => hooks.postVisible?.(post) ?? true)
 }
 
+/**
+ * Prepares a way on for the screen that offered it. Null where the mod declined, and null too
+ * where that screen is gone or its game left by the time the mod is ready (`stillHere` false):
+ * a late answer opens nothing.
+ */
+export async function prepareWayOn(
+  choice: WayOn,
+  stillHere: () => boolean
+): Promise<(() => ViewName) | null> {
+  const enter = await choice.prepare()
+  return enter && stillHere() ? enter : null
+}
+
 /** The ending's way on from the first mod that offers one, or none. */
 export function endingChoice(ctx: Parameters<NonNullable<ModHooks['endingChoice']>>[0]): EndingChoice | undefined {
   for (const hooks of active()) {
