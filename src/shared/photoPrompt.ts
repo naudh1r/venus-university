@@ -228,6 +228,111 @@ function withoutNames(character: Character, scene: string): string {
     .trim()
 }
 
+/**
+ * Colours named after something you can eat or pour, and the plain colour each one means.
+ * The checkpoint reads the noun: "an unbuttoned cream silk shirt" came back with cream poured
+ * on her chest, in a photo posted to her feed.
+ */
+const FOOD_COLOURS: Readonly<Record<string, string>> = {
+  cream: 'ivory',
+  milk: 'white',
+  vanilla: 'off-white',
+  latte: 'beige',
+  butter: 'pale yellow',
+  honey: 'amber',
+  caramel: 'light brown',
+  cinnamon: 'brown',
+  coffee: 'brown',
+  mocha: 'brown',
+  chocolate: 'dark brown',
+  wine: 'burgundy',
+  cherry: 'red',
+  strawberry: 'pink',
+  peach: 'light orange',
+  lemon: 'yellow',
+  mint: 'light green'
+}
+
+/** What a colour word in a caption is the colour of: what she wears, her hair, her room. */
+const COLOURED_THINGS = [
+  'shirt',
+  'blouse',
+  'top',
+  'sweater',
+  'cardigan',
+  'hoodie',
+  'jacket',
+  'coat',
+  'dress',
+  'sundress',
+  'skirt',
+  'shorts',
+  'jeans',
+  'trousers',
+  'pants',
+  'socks',
+  'stockings',
+  'thighhighs',
+  'tights',
+  'bra',
+  'panties',
+  'lingerie',
+  'underwear',
+  'bikini',
+  'swimsuit',
+  'towel',
+  'robe',
+  'pajamas',
+  'pyjamas',
+  'nightie',
+  'sheets',
+  'blanket',
+  'pillow',
+  'scarf',
+  'hat',
+  'beanie',
+  'ribbon',
+  'bow',
+  'nails',
+  'lipstick',
+  'hair',
+  'heels',
+  'shoes',
+  'sneakers',
+  'boots',
+  'loafers',
+  'bag',
+  'knit',
+  'wall',
+  'walls'
+].join('|')
+
+const FOOD_COLOUR = new RegExp(
+  `\\b(${Object.keys(FOOD_COLOURS).join('|')})(?:[- ]colou?red)?\\b` +
+    `(?=(?:[\\s-]+[a-z]+){0,2}?[\\s-]+(?:${COLOURED_THINGS})s?\\b)`,
+  'gi'
+)
+
+const SHADE_OF = new RegExp(
+  `\\b(?:${Object.keys(FOOD_COLOURS).join('|')})[\\s-]+` +
+    '(red|pink|blonde|brown|white|black|yellow|orange|green|blue|purple|beige|gold|silver)\\b',
+  'gi'
+)
+
+/**
+ * The caption with every colour named after a food or a drink said plainly: "a cream silk
+ * shirt" is "an ivory silk shirt". Only where the word colours something she wears or lies
+ * on; "ice cream" and "a coffee in her hand" are what they say.
+ */
+export function plainColours(scene: string): string {
+  // "cherry red", "honey blonde": the colour is already said after it, so the food just goes.
+  const shaded = scene.replace(SHADE_OF, '$1')
+  return shaded.replace(FOOD_COLOUR, (word: string, food: string) => {
+    const plain = FOOD_COLOURS[food.toLowerCase()]
+    return word[0] === word[0].toUpperCase() ? plain[0].toUpperCase() + plain.slice(1) : plain
+  })
+}
+
 /** The two strings one photo render needs. */
 export interface PhotoPrompts {
   positive: string
@@ -249,7 +354,7 @@ export function buildPhotoPrompt(
   tier: PhotoTier,
   photoPrompt: string
 ): PhotoPrompts {
-  const scene = withoutNames(character, photoPrompt.trim())
+  const scene = plainColours(withoutNames(character, photoPrompt.trim()))
   // The one question the rest is answered from, and the gate alone decides it.
   const bare = tier === 'explicit'
   const dressed = describesClothing(scene)
@@ -265,7 +370,7 @@ export function buildPhotoPrompt(
       : `nude, completely_nude, ${BARE_POSITIVE}`
     : // One of her own sets, or nothing where the picture she described dressed her in
       // something none of them is.
-      (photoWardrobe(character, scene, dressed, tier !== 'everyday') ?? []).join(', ')
+      plainColours((photoWardrobe(character, scene, dressed, tier !== 'everyday') ?? []).join(', '))
 
   // Her appearance, with her build and her chest in it while the body switch is on. It opens on
   // the subject tag where she has one, so the base does not say it a second time.

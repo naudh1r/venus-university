@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPhotoPrompt } from '../src/shared/photoPrompt'
+import { buildPhotoPrompt, plainColours } from '../src/shared/photoPrompt'
 import type { Character } from '../src/shared/types'
 import { character } from './fixtures'
 
@@ -232,5 +232,35 @@ describe('legwear she was never given', () => {
   it('takes her hands off her lap when her cheek is resting on one', () => {
     const { positive } = buildPhotoPrompt(character(), 'everyday', scene)
     expect(positive).not.toContain('hands_on_lap')
+  })
+})
+
+describe('a colour named after food', () => {
+  it('is said plainly where it colours what she wears', () => {
+    // The in-game caption that drew cream poured on her chest.
+    expect(
+      plainColours('lounging across dark sheets in an unbuttoned cream silk shirt')
+    ).toBe('lounging across dark sheets in an unbuttoned ivory silk shirt')
+    expect(plainColours('honey blonde hair and a cherry red dress')).toBe(
+      'blonde hair and a red dress'
+    )
+    expect(plainColours('a cream-colored cardigan')).toBe('a ivory cardigan')
+  })
+
+  it('is left as food where it is food', () => {
+    for (const scene of [
+      'licking an ice cream cone',
+      'a bite of strawberry cake with cream',
+      'holding a coffee in her hand',
+      'a glass of wine on the table'
+    ]) {
+      expect(plainColours(scene)).toBe(scene)
+    }
+  })
+
+  it('reaches the prompt', () => {
+    const { positive } = buildPhotoPrompt(character(), 'everyday', 'in a cream silk shirt')
+    expect(positive).toContain('ivory silk shirt')
+    expect(positive).not.toMatch(/cream/)
   })
 })
