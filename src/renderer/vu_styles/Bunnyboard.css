@@ -1144,3 +1144,7 @@
   height: 36px;
   overflow: hidden;
 }
+
+/* Extra mod pages share a compact rail with the native destinations. */
+.vu-bb-rail--expanded { gap: 10px; }
+.vu-bb-rail--expanded .vu-bb-tile { min-height: 0; padding-block: 12px; }
