@@ -276,6 +276,7 @@ describe('a dressed picture', () => {
   it('keeps her chest covered in an everyday photo unless what she wears shows it', () => {
     const plain = buildPhotoPrompt(character(), 'everyday', 'lying on her bed in a sweater')
     expect(plain.negative).toContain('cleavage')
+    expect(plain.negative).toContain('downblouse')
     const low = buildPhotoPrompt(character(), 'everyday', 'in an off-shoulder sweater at the cafe')
     expect(low.negative).not.toContain('cleavage')
     const flirty = buildPhotoPrompt(character(), 'suggestive', 'lying on her bed in a sweater')

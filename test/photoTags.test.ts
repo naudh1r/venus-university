@@ -59,6 +59,7 @@ const VERIFIED = new Set([
   'blush',
   'censored',
   'cleavage',
+  'downblouse',
   'clitoris',
   'close-up',
   'clothes_pull',
@@ -277,7 +278,7 @@ function emittedTags(): string[] {
     ...quoted(prompt, /DRESSED_NEGATIVE[^=]*=\s*\[([^=]*?)\n\]/g).filter((tag) =>
       /^[a-z_]+$/.test(tag)
     ),
-    ...quoted(prompt, /\[\.\.\.kept, ('cleavage')\]/g),
+    ...quoted(prompt, /\[\.\.\.kept, ('cleavage', 'downblouse')\]/g),
     // Each colour's own legwear tag, `pink_legwear` and the rest.
     ...quoted(prompt, /LEG_COLOURS = \[([^\]]*)\]/g).map((colour) => `${colour}_legwear`),
     ...quoted(prompt, /negative\.push\(([^)]*)\)/g),

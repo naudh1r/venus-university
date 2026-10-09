@@ -102,12 +102,14 @@ const SHOWS_CLEAVAGE = new RegExp(
 
 /**
  * In an everyday photo the sweater fell open onto her chest on some seeds, and the set above
- * did not stop it; `cleavage` did, where nothing she wears shows it. A suggestive photo keeps
- * it allowed: there it is often what was asked for.
+ * did not stop it. `cleavage` with `downblouse` (her top hanging open toward the camera) closed
+ * three seeds of four and narrowed the fourth; weighting either made it worse, a bra showing.
+ * Only where nothing she wears shows it. A suggestive photo keeps it allowed: there it is often
+ * what was asked for.
  */
 function dressedNegative(text: string, everyday: boolean): string[] {
   const kept = DRESSED_NEGATIVE.filter(([, said]) => !said.test(text)).map(([tag]) => tag)
-  return everyday && !SHOWS_CLEAVAGE.test(text) ? [...kept, 'cleavage'] : kept
+  return everyday && !SHOWS_CLEAVAGE.test(text) ? [...kept, 'cleavage', 'downblouse'] : kept
 }
 
 /** Anything on her legs the picture names. */
