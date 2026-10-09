@@ -619,5 +619,7 @@ export function photoPose(caption: string, bare: boolean): PhotoPose {
   const lying = closeLying(text, tags)
   tags = lying ?? withFraming(text, tags)
   if (saysAny(text, BUSY_HAND_CUES)) tags = tags.filter((tag) => !PLACEMENT_TAGS.has(tag))
-  return selfieShot(text, tags) ?? { tags, negative: lyingNegative(tags) }
+  // A camera lying about in the picture turned up beside a photo nobody took as a selfie too.
+  const noCamera = saysAny(text, CAMERA_CUES) ? [] : ['camera']
+  return selfieShot(text, tags) ?? { tags, negative: [...lyingNegative(tags), ...noCamera] }
 }

@@ -166,7 +166,7 @@ describe('a selfie', () => {
     const side = photoPose('a close-up of her lying on her side in bed', false)
     expect(side.tags).toEqual(expect.arrayContaining(['lying', 'on_side', '(upper_body:1.3)']))
     expect(side.tags).not.toContain('close-up')
-    expect(side.negative).toEqual(['on_back', 'on_stomach'])
+    expect(side.negative).toEqual(['on_back', 'on_stomach', 'camera'])
     const stomach = photoPose('close up, on her stomach on the bed', false)
     expect(stomach.tags).toEqual(expect.arrayContaining(['on_stomach', 'upper_body']))
   })
@@ -174,8 +174,9 @@ describe('a selfie', () => {
   it('keeps a picture somebody else took from flipping her over', () => {
     const side = photoPose('lying on her side in bed', false)
     expect(side.tags).not.toContain('selfie')
-    expect(side.negative).toEqual(['on_back', 'on_stomach'])
-    expect(photoPose('in a cafe, smiling', false).negative).toEqual([])
+    expect(side.negative).toEqual(['on_back', 'on_stomach', 'camera'])
+    expect(photoPose('in a cafe, smiling', false).negative).toEqual(['camera'])
+    expect(photoPose('holding her film camera in the park', false).negative).toEqual([])
   })
 })
 
