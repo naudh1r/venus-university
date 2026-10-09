@@ -122,42 +122,9 @@
   min-height: 0;
 }
 
-/* Where the column scrolls, 430px of settings and the gap that keeps the scrollbar off them. */
-.vu-settings-content:has(> .vu-scroll-box) {
-  width: 442px;
-}
-
-/* The scroller takes the column's whole height, so the settings scroll inside the panel's cap
-   rather than pushing the foot under both columns down past it. */
-.vu-settings-content > .vu-scroll-box {
-  flex: 1 1 auto;
-}
-
-/* The content column's own scroller, so the switches, the sliders and the data copies can
-   outgrow the screen the way the generation column's fields already do. The padding is the
-   scroll box's negative margin given back, as on the other column. */
-.vu-settings-content-fields {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 18px;
-  min-width: 0;
-  /* The right side is wider than the left: room between the settings and the scrollbar. */
-  padding: 4px 18px 34px 6px;
-  /* The line that makes it a scroller rather than a column that grows under the foot, as on
-     the generation side. Without it the box takes the height of its contents and the last
-     setting is drawn over Save. */
-  overflow: hidden auto;
-}
-
 /* The full panel's column holds three headings of toggles over the sound and the data, and
    fits under the panel's cap only a little tighter than the first-run question's. */
 .vu-settings--split .vu-settings-content {
-  gap: 15px;
-}
-
-/* The same tighter rhythm, inside the scroller the photo switches put the column in. */
-.vu-settings--split .vu-settings-content-fields {
   gap: 15px;
 }
 

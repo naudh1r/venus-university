@@ -257,11 +257,6 @@ const HOOKS: readonly {
     why: "a post's picture cannot be opened from her profile's feed list"
   },
   {
-    file: 'src/renderer/views/sfwFields.ts',
-    needs: ['note: NO_NSFW_IMAGES_NOTE'],
-    why: 'the NSFW switch does not say it covers photos too'
-  },
-  {
     file: 'src/renderer/stores/modsStore.ts',
     needs: ['setPhotoSwitches(photoSwitchesOf(switches))'],
     why: 'the Mods screen cannot turn photographs off or pick how a photo waits'

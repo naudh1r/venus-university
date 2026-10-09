@@ -762,115 +762,108 @@ export function AppSettingsModal({ theme, onClose }: AppSettingsModalProps): JSX
             </div>
 
             <div className="vu-settings-content">
-              {/* Scrolls as the left column does: the photo switches make it taller than the
-                  panel's cap. */}
-              <div className="vu-scroll-box">
-                <div className="vu-settings-content-fields">
-                  <span className="vu-settings-heading">Gameplay</span>
+              <span className="vu-settings-heading">Gameplay</span>
 
-                  {/* Only the desktop has a window of its own to put fullscreen. */}
-                  {!webBuild && (
-                    <CheckField
-                      id="settings-fullscreen"
-                      label="Fullscreen"
-                      checked={fullscreen}
-                      onChange={handleFullscreenChange}
+              {/* Only the desktop has a window of its own to put fullscreen. */}
+              {!webBuild && (
+                <CheckField
+                  id="settings-fullscreen"
+                  label="Fullscreen"
+                  checked={fullscreen}
+                  onChange={handleFullscreenChange}
+                />
+              )}
+
+              <CheckField
+                id="settings-warn-ending-edit"
+                label="Warn when editing an ending scene"
+                checked={warnEndingEdit}
+                onChange={handleWarnEndingEditChange}
+              />
+
+              <CheckField
+                id="settings-warn-ending-interrupt"
+                label="Warn when interrupting an ending scene"
+                checked={warnEndingInterrupt}
+                onChange={handleWarnEndingInterruptChange}
+              />
+
+              <span className="vu-settings-heading">Content</span>
+
+              {/* Each toggle carries what turning it on costs; the note is the whole of what the
+                  app promises about either setting. */}
+              <SfwCheckList fields={SFW_FIELDS} sfw={sfw} onChange={handleSfwChange} />
+
+              <span className="vu-settings-heading vu-settings-sound-heading">Sound</span>
+
+              {/* Each slider is heard as it moves and written once it stops. */}
+              <div className="vu-settings-sound">
+                {VOLUME_FIELDS.map((field) => (
+                  <div className="vu-range-row" key={field.key}>
+                    <span className="vu-range-label">{field.label}</span>
+                    <input
+                      id={field.id}
+                      className="vu-range"
+                      type="range"
+                      min={VOLUME_MIN}
+                      max={VOLUME_MAX}
+                      step={1}
+                      value={volumes[field.key]}
+                      aria-label={field.label}
+                      aria-valuetext={`${volumes[field.key]} percent`}
+                      style={{ '--range-fill': `${volumes[field.key]}%` } as CSSProperties}
+                      onChange={(e) => handleVolumeChange(field.key, Number(e.target.value))}
                     />
-                  )}
-
-                  <CheckField
-                    id="settings-warn-ending-edit"
-                    label="Warn when editing an ending scene"
-                    checked={warnEndingEdit}
-                    onChange={handleWarnEndingEditChange}
-                  />
-
-                  <CheckField
-                    id="settings-warn-ending-interrupt"
-                    label="Warn when interrupting an ending scene"
-                    checked={warnEndingInterrupt}
-                    onChange={handleWarnEndingInterruptChange}
-                  />
-
-                  <span className="vu-settings-heading">Content</span>
-
-                  {/* Each toggle carries what turning it on costs; the note is the whole of what the
-                      app promises about either setting. */}
-                  <SfwCheckList fields={SFW_FIELDS} sfw={sfw} onChange={handleSfwChange} />
-
-                  <span className="vu-settings-heading vu-settings-sound-heading">Sound</span>
-
-                  {/* Each slider is heard as it moves and written once it stops. */}
-                  <div className="vu-settings-sound">
-                    {VOLUME_FIELDS.map((field) => (
-                      <div className="vu-range-row" key={field.key}>
-                        <span className="vu-range-label">{field.label}</span>
-                        <input
-                          id={field.id}
-                          className="vu-range"
-                          type="range"
-                          min={VOLUME_MIN}
-                          max={VOLUME_MAX}
-                          step={1}
-                          value={volumes[field.key]}
-                          aria-label={field.label}
-                          aria-valuetext={`${volumes[field.key]} percent`}
-                          style={{ '--range-fill': `${volumes[field.key]}%` } as CSSProperties}
-                          onChange={(e) => handleVolumeChange(field.key, Number(e.target.value))}
-                        />
-                        <span className="vu-range-reading">{volumes[field.key]}%</span>
-                      </div>
-                    ))}
+                    <span className="vu-range-reading">{volumes[field.key]}%</span>
                   </div>
-
-                  {/* One zip of everything this build keeps, and one read back over it. Both builds
-                      write the same format, so a semester started in one goes on in the other. */}
-                  <span className="vu-settings-heading vu-settings-data-heading">Game data</span>
-                  <div className="vu-settings-data">
-                    <div className="vu-settings-data-actions">
-                      <motion.button
-                        id="settings-backup-export"
-                        className="vu-pill"
-                        type="button"
-                        disabled={backingUp || restoring}
-                        {...gestures(backingUp || restoring, quietLift, quietPress)}
-                        onClick={() => {
-                          setBackingUp(true)
-                          void exportBackup().finally(() => setBackingUp(false))
-                        }}
-                      >
-                        {backingUp ? 'Backing up…' : 'Back up game data'}
-                      </motion.button>
-                      <motion.button
-                        id="settings-backup-import"
-                        className="vu-pill"
-                        type="button"
-                        disabled={backingUp || restoring}
-                        {...gestures(backingUp || restoring, quietLift, quietPress)}
-                        onClick={() => setConfirmRestore(true)}
-                      >
-                        {restoring ? 'Restoring…' : 'Restore from backup'}
-                      </motion.button>
-                    </div>
-                    <span className="vu-check-note">
-                      {webBuild
-                        ? "Web saves live in browser storage and can be accidentally wiped. It's highly recommended to regularly back up your saves."
-                        : 'Saves are stored on disk in the data folder. "Back up game data" exports them as a portable zip file for transfer.'}
-                    </span>
-                  </div>
-
-                  {/* Only the desktop has a build of itself to replace, and only it asks. */}
-                  {!webBuild && (
-                    <CheckField
-                      id="settings-check-updates"
-                      label="Ask to update on launch"
-                      checked={checkUpdates}
-                      onChange={handleCheckUpdatesChange}
-                    />
-                  )}
-                </div>
-                <div className="vu-scroll-fade" />
+                ))}
               </div>
+
+              {/* One zip of everything this build keeps, and one read back over it. Both builds
+                  write the same format, so a semester started in one goes on in the other. */}
+              <span className="vu-settings-heading vu-settings-data-heading">Game data</span>
+              <div className="vu-settings-data">
+                <div className="vu-settings-data-actions">
+                  <motion.button
+                    id="settings-backup-export"
+                    className="vu-pill"
+                    type="button"
+                    disabled={backingUp || restoring}
+                    {...gestures(backingUp || restoring, quietLift, quietPress)}
+                    onClick={() => {
+                      setBackingUp(true)
+                      void exportBackup().finally(() => setBackingUp(false))
+                    }}
+                  >
+                    {backingUp ? 'Backing up…' : 'Back up game data'}
+                  </motion.button>
+                  <motion.button
+                    id="settings-backup-import"
+                    className="vu-pill"
+                    type="button"
+                    disabled={backingUp || restoring}
+                    {...gestures(backingUp || restoring, quietLift, quietPress)}
+                    onClick={() => setConfirmRestore(true)}
+                  >
+                    {restoring ? 'Restoring…' : 'Restore from backup'}
+                  </motion.button>
+                </div>
+                <span className="vu-check-note">
+                  {webBuild
+                    ? "Web saves live in browser storage and can be accidentally wiped. It's highly recommended to regularly back up your saves."
+                    : 'Saves are stored on disk in the data folder. "Back up game data" exports them as a portable zip file for transfer.'}
+                </span>
+              </div>
+
+              {/* Only the desktop has a build of itself to replace, and only it asks. */}
+              {!webBuild && (
+                <CheckField
+                  id="settings-check-updates"
+                  label="Ask to update on launch"
+                  checked={checkUpdates}
+                  onChange={handleCheckUpdatesChange}
+                />
+              )}
             </div>
           </div>
 
