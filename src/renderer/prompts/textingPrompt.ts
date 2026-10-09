@@ -38,7 +38,7 @@ import {
   whereaboutsLine,
   type NpcCompanions
 } from './npcRelationship'
-import { dmHistoryNotes, promptFields, promptLines, promptRequired } from '../mods/hooks'
+import { modRequest, dmHistoryNotes, promptFields, promptLines, promptRequired } from '../mods/hooks'
 import { relationshipLines } from './relationship'
 import { weatherLines } from './weather'
 
@@ -409,14 +409,14 @@ export function buildTextingPrompt(
     `Write it in third person, refer to the MC as "the reader", and keep anything ${name} should still remember later. Don't include concrete dates, and leave out old or unimportant information.`
   ].join('\n')
 
-  return {
+  return modRequest('dm', { character, info, state, newMessage }, {
     system: TEXTING_PERSONA,
     user,
     schema: textingSchema(),
     // Constant, like the ledger's: nothing above the seam varies by save.
     cacheKey: 'texting',
     kind: 'texting'
-  }
+  })
 }
 
 /**

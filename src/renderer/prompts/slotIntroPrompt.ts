@@ -1,4 +1,4 @@
-import { promptFields, promptLines, promptRequired } from '../mods/hooks'
+import { modRequest, promptFields, promptLines, promptRequired } from '../mods/hooks'
 import { affectionFor, dedupedMemoriesFor, emptyFlags } from '@shared/relationship'
 import { DEFAULT_PLAYER_STATS, type PlayerStats } from '@shared/playerStats'
 import {
@@ -479,7 +479,7 @@ export function buildSlotIntroPrompt(
         ])
   ].join('\n')
 
-  return {
+  return modRequest('slot-intro', { input }, {
     system: [
       personaFor(input.lessNsfwText),
       '',
@@ -493,5 +493,5 @@ export function buildSlotIntroPrompt(
     schema: slotIntroSchema(),
     cacheKey: input.playthroughId,
     kind: 'slotIntro'
-  }
+  })
 }

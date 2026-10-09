@@ -1,3 +1,8 @@
+import type { ComponentType } from 'react'
+import type { StructuredRequest, LedgerResponse } from '@shared/types'
+import type { PromptState } from '../prompts/scenePrompt'
+import type { SlotIntroInput } from '../prompts/slotIntroPrompt'
+import type { useGameStore } from '../stores/gameStore'
 import type {
   Character,
   CharInfo,
@@ -25,6 +30,8 @@ import type { ViewName } from '../stores/uiStore'
 
 /** What each prompt hands the mods adding to it. */
 export interface PromptSpots {
+  scene: { cast: readonly Character[]; state: PromptState; query: string }
+
   /** Her reply in a DM thread. */
   dm: { character: Character; info: CharInfo | undefined; state: TextingPromptState }
   /** The status updates the slot's opening writes, one entry per post. */
@@ -94,7 +101,34 @@ export interface SaveChoice extends WayOn {
   label: string
 }
 
+export interface RequestSpots {
+  scene: PromptSpots['scene']
+  dm: PromptSpots['dm'] & { newMessage: string }
+  ledger: { state: PromptState; charKeys: readonly string[] }
+  'slot-intro': { input: SlotIntroInput }
+}
+
+export interface SlotSettled {
+  before: ReturnType<typeof useGameStore.getState>
+  ledger: LedgerResponse | null
+  closingCast: readonly Character[]
+}
+
+export interface BunnyboardPage {
+  id: string
+  word: string
+  Mark: ComponentType
+  Page: ComponentType
+}
+
 export interface ModHooks {
+  bunnyboardPage?: BunnyboardPage
+
+  /** Extend a completed request, preserving other mods' additions. */
+  requests?: { [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest }
+  /** After bookkeeping settles, before the clock advances and the boundary save is written. */
+  slotSettled?: (ctx: SlotSettled) => void
+
   prompts?: { [S in PromptSpot]?: PromptAddition<PromptSpots[S]> }
   /** Added to a DM in the history a prompt quotes, after its text. */
   dmHistoryNote?: (message: ChatMessage) => string
@@ -252,4 +286,29 @@ export function saveChoice(ctx: Parameters<NonNullable<ModHooks['saveChoice']>>[
     if (choice) return choice
   }
   return undefined
+}
+
+/** Compose request additions in mod-list order, including regenerated DMs. */
+export function modRequest<S extends keyof RequestSpots>(spot: S, ctx: RequestSpots[S], request: StructuredRequest): StructuredRequest {
+  let next = request
+  for (const hooks of active()) {
+    const extend = hooks.requests?.[spot] as ((request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest) | undefined
+    if (extend) next = extend(next, ctx)
+  }
+  return next
+}
+
+export function slotSettled(ctx: SlotSettled): void {
+  for (const hooks of active()) hooks.slotSettled?.(ctx)
+}
+
+/** Enabled pages follow native tabs; the first registration of an id wins. */
+export function bunnyboardPages(): BunnyboardPage[] {
+  const seen = new Set(['chats', 'friends', 'updates', 'profile', 'photos'])
+  return active().flatMap(hooks => {
+    const page = hooks.bunnyboardPage
+    if (!page || seen.has(page.id)) return []
+    seen.add(page.id)
+    return [page]
+  })
 }
