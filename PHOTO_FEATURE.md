@@ -1,6 +1,6 @@
 # Photo Feature
 
-An unofficial mod for Venus University by **naudh1r**. Version **1.2.0**.
+An unofficial mod for Venus University by **naudh1r**. Version **1.2.0**, for the game's 0.4.0.
 
 The girls send you photos in their DMs and post them on their feeds, with comments from the rest
 of campus. Each contact gets a gallery, and characters can get optional body details. Photos are
@@ -67,7 +67,7 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
 
 ## 1.2.0
 
-Ported to the shared build (core 0.3.1), and a lot of photo tuning.
+For Venus University 0.4.0, on the shared mod build, with a lot of photo tuning.
 
 - **New**: "Save photos as WebP" option. All Photo Feature settings are in the Mods menu.
 - **Selfies**: no phone or camera in her hand, her arm goes out of frame. Mirror selfies show the
