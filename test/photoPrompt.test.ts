@@ -3,6 +3,7 @@ import {
   buildPhotoPrompt,
   lookingAtViewer,
   plainColours,
+  shopNotDrink,
   withoutWhoTookIt
 } from '../src/shared/photoPrompt'
 import type { Character } from '../src/shared/types'
@@ -267,6 +268,25 @@ describe('a colour named after food', () => {
     const { positive } = buildPhotoPrompt(character(), 'everyday', 'in a cream silk shirt')
     expect(positive).toContain('ivory silk shirt')
     expect(positive).not.toMatch(/cream/)
+  })
+})
+
+describe('a shop named after its drink', () => {
+  it('becomes a tea shop where her hands are free', () => {
+    // The in-game caption that put a cup at her lips on every seed.
+    expect(shopNotDrink('A close-up selfie in a brightly lit pastel bubble tea shop')).toBe(
+      'A close-up selfie in a brightly lit pastel tea shop'
+    )
+    expect(shopNotDrink('waving from a boba cafe')).toBe('waving from a tea cafe')
+  })
+
+  it('stays as it is where she has the drink', () => {
+    for (const scene of [
+      'sipping a taro milk tea in a bubble tea shop',
+      'holding a cup of boba outside a bubble tea shop'
+    ]) {
+      expect(shopNotDrink(scene)).toBe(scene)
+    }
   })
 })
 

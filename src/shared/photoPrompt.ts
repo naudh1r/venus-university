@@ -393,6 +393,16 @@ export function drinkNotLiquid(scene: string): string {
 }
 
 /**
+ * A shop named after its drink puts that drink in her hand: "a bubble tea shop" drew a cup at her
+ * lips on every seed, and no negative (cup, drinking_straw, bubble_tea, holding_cup) moved it.
+ * "Tea shop" keeps the room and leaves her hands free. A drink she does hold is left alone.
+ */
+export function shopNotDrink(scene: string): string {
+  if (/\b(?:holding|holds|sipping|drinking|cup of|glass of|mug of)\b/i.test(scene)) return scene
+  return scene.replace(/\b(?:bubble tea|boba)\s+(shop|caf[eé]|bar|place|store)\b/gi, 'tea $1')
+}
+
+/**
  * Splashes and stains nobody asked for, in every photo: a coloured drink in the caption, or a
  * colour anywhere in it, came back as paint spattered over her and the sheets.
  */
@@ -444,7 +454,7 @@ export function buildPhotoPrompt(
   tier: PhotoTier,
   photoPrompt: string
 ): PhotoPrompts {
-  const scene = drinkNotLiquid(plainColours(withoutNames(character, photoPrompt.trim())))
+  const scene = shopNotDrink(drinkNotLiquid(plainColours(withoutNames(character, photoPrompt.trim()))))
   // The one question the rest is answered from, and the gate alone decides it.
   const bare = tier === 'explicit'
   const dressed = describesClothing(scene)
