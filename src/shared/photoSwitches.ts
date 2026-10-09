@@ -112,7 +112,7 @@ export const PHOTO_FEATURE_MOD = {
   scope: 'anytime' as const,
   defaultOn: true,
   blurb:
-    'The girls send photos in their DMs and post them on their feeds, with comments from the rest of campus. Adds a gallery to each contact and optional body details for characters. Needs local image generation.',
+    "The girls send photos in their DMs and post them on their feeds, with comments from the rest of campus. Adds a gallery to each contact and optional body details for characters. Separate from the game's own Photos tab, where you make pictures yourself. Needs local image generation.",
   offNote:
     'Off, nobody takes a new photo, posts get no new comments and body details are not used. Photos, galleries and comments already made are hidden. Nothing is deleted: everything comes back when it is on again.',
   options: [

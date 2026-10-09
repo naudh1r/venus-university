@@ -6,6 +6,9 @@ The girls send you photos in their DMs and post them on their feeds, with commen
 of campus. Each contact gets a gallery, and characters can get optional body details. Photos are
 drawn on your own machine by the game's local ComfyUI.
 
+It is separate from the game's own **Photos** tab in the Bunnyboard, where you make pictures
+yourself. This mod is about the photos *she* sends and posts.
+
 This is not made or supported by Venus Dev. Please do not report problems with it to them.
 
 ## What you need
@@ -69,7 +72,8 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
 
 For Venus University 0.4.0, on the shared mod build, with a lot of photo tuning.
 
-- **New**: "Save photos as WebP" option. All Photo Feature settings are in the Mods menu.
+- **New**: "Save photos as WebP" option. All Photo Feature settings are in the Mods menu. Its
+  description now says it is separate from the game's own Photos tab.
 - **Selfies**: no phone or camera in her hand, her arm goes out of frame. Mirror selfies show the
   phone. Selfies lying down, from below and from above work. A peace sign is fine unless she is
   holding something.
