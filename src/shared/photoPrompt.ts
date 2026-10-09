@@ -3,7 +3,7 @@ import { DORM_IDS, dormLabel } from './dorms'
 import { bodyAppearance, bodyNegative } from './characterBody'
 import { bodyTagsFor, describesNothingOn } from './photoBody'
 import { framingInTags } from './photoFraming'
-import { photoPose, withoutCameraHold } from './photoPose'
+import { photoPose, withoutCameraHold, withoutHeldObject } from './photoPose'
 import { LOCATIONS, NARRATIVE_LOCATIONS } from './locations'
 import type { Character } from './types'
 // Carries the `Character.body` augmentation into whatever program imports this module. The
@@ -456,7 +456,10 @@ export function buildPhotoPrompt(
     body.join(', '),
     [wardrobe, ...legs.positive].filter((part) => part.length > 0).join(', '),
     // The sentence's own full stop would sit in front of the tags that follow it.
-    [lookingAtViewer(withoutCameraHold(scene)).replace(/[.!?]+$/, ''), pose.tags.join(', ')]
+    [
+      lookingAtViewer(withoutHeldObject(withoutCameraHold(scene))).replace(/[.!?]+$/, ''),
+      pose.tags.join(', ')
+    ]
       .filter((part) => part.length > 0)
       .join(', ')
   ]

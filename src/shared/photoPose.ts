@@ -599,6 +599,31 @@ function onePlacement(tags: readonly string[]): string[] {
   return tags.filter((tag) => !PLACEMENT_TAGS.has(tag) || tag === first)
 }
 
+/**
+ * A mirror selfie's sentence without what her other hand holds. One hand is on the phone, and
+ * the checkpoint never put anything in the other: "a glass in hand", "holding a glass in her
+ * free hand" and `holding_cup` all left the glass on the bed or in her lap. A gesture with that
+ * hand (on her hip, a peace sign) holds nothing and stays; so does the phone she holds.
+ */
+export function withoutHeldObject(scene: string): string {
+  if (!says(scene.toLowerCase(), 'mirror')) return scene
+  const verb = '(?:holding|clutching|carrying|cradling|sipping|drinking)'
+  const hand = 'in\\s+(?:her\\s+|one\\s+|her\\s+free\\s+|her\\s+other\\s+)?hand'
+  // "with a glass of pink drink in hand", "holding a coffee in her other hand"
+  const held = new RegExp(
+    `\\s*,?\\s*\\b(?:with|${verb})\\s+(?:a|an|her|the|some|one)?\\s*[^,.;]*?\\b${hand}\\b`,
+    'gi'
+  )
+  // "holding an iced coffee", up to the next comma
+  const holding = new RegExp(`\\s*,?\\s*\\b${verb}\\s+[^,.;]*`, 'gi')
+  return scene
+    .replace(held, (part) => (/\b(?:phone|camera)\b/i.test(part) ? part : ''))
+    .replace(holding, (part) => (/\b(?:phone|camera)\b/i.test(part) ? part : ''))
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;])/g, '$1')
+    .trim()
+}
+
 /** Sitting cross-legged: `indian_style`, which crossed her legs on two seeds of three. */
 const CROSS_LEGGED_CUES = ['cross-legged', 'cross legged', 'criss-cross', 'legs folded under']
 

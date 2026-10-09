@@ -320,8 +320,10 @@ describe('the in-game mirror selfie that splashed pink everywhere', () => {
 
   it('says the drink as a drink, and keeps splashes and stains out', () => {
     const { positive, negative } = buildPhotoPrompt(character(), 'suggestive', caption)
-    expect(positive).toContain('a glass of pink drink in hand')
-    expect(positive).not.toMatch(/liquid/)
+    // A mirror selfie's other hand holds nothing, so the glass leaves her sentence entirely.
+    expect(positive).not.toMatch(/liquid|glass/)
+    const sat = buildPhotoPrompt(character(), 'everyday', 'on her bed with a glass of pink liquid')
+    expect(sat.positive).toContain('a glass of pink drink')
     for (const tag of ['paint_splatter', 'splashing', 'stain']) expect(negative).toContain(tag)
   })
 

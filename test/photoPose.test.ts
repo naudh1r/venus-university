@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { photoPose, posePhotoTags, withoutCameraHold } from '../src/shared/photoPose'
+import {
+  photoPose,
+  posePhotoTags,
+  withoutCameraHold,
+  withoutHeldObject
+} from '../src/shared/photoPose'
 
 describe('posePhotoTags', () => {
   it('reads the framing off an ordinary caption', () => {
@@ -256,5 +261,26 @@ describe('sitting cross-legged', () => {
       expect.arrayContaining(['sitting', 'indian_style'])
     )
     expect(posePhotoTags('sitting on her bed', false)).not.toContain('indian_style')
+  })
+})
+
+describe('a mirror selfie, her other hand empty', () => {
+  it('drops what she holds, keeping the rest', () => {
+    expect(
+      withoutHeldObject(
+        'a close mirror selfie, sitting cross-legged on the bed with a glass of pink drink in hand'
+      )
+    ).toBe('a close mirror selfie, sitting cross-legged on the bed')
+    const coffee = 'a mirror selfie in the hallway, holding an iced coffee, smiling'
+    expect(withoutHeldObject(coffee)).toBe('a mirror selfie in the hallway, smiling')
+  })
+
+  it('keeps a gesture, the phone, and any picture that is not in a mirror', () => {
+    const gesture = 'a mirror selfie, one hand on her hip, flashing a peace sign'
+    expect(withoutHeldObject(gesture)).toBe(gesture)
+    const phone = 'a mirror selfie, holding her phone up'
+    expect(withoutHeldObject(phone)).toBe(phone)
+    const plain = 'a selfie in the cafe, holding an iced coffee'
+    expect(withoutHeldObject(plain)).toBe(plain)
   })
 })
