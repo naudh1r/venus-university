@@ -277,6 +277,7 @@ function emittedTags(): string[] {
     ...quoted(prompt, /DRESSED_NEGATIVE[^=]*=\s*\[([^=]*?)\n\]/g).filter((tag) =>
       /^[a-z_]+$/.test(tag)
     ),
+    ...quoted(prompt, /\[\.\.\.kept, ('cleavage')\]/g),
     // Each colour's own legwear tag, `pink_legwear` and the rest.
     ...quoted(prompt, /LEG_COLOURS = \[([^\]]*)\]/g).map((colour) => `${colour}_legwear`),
     ...quoted(prompt, /negative\.push\(([^)]*)\)/g),

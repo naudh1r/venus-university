@@ -91,8 +91,23 @@ const DRESSED_NEGATIVE: readonly (readonly [string, RegExp])[] = [
   ['pantyshot', /\b(?:pantyshot|panties|underwear|knickers)\b/]
 ]
 
-function dressedNegative(text: string): string[] {
-  return DRESSED_NEGATIVE.filter(([, said]) => !said.test(text)).map(([tag]) => tag)
+/**
+ * What shows her chest: in the caption, or in the outfit and body tags the prompt already holds
+ * (her coverage writes `cleavage` for a top that shows it).
+ */
+const SHOWS_CLEAVAGE = new RegExp(
+  '\\b(?:cleavage|unbuttoned|open[- ]shirt|low[- ]cut|plunging|off[- ]shoulder|strapless|' +
+    'tube top|bikini|swimsuit|bra|lingerie|towel|deep v)\\b'
+)
+
+/**
+ * In an everyday photo the sweater fell open onto her chest on some seeds, and the set above
+ * did not stop it; `cleavage` did, where nothing she wears shows it. A suggestive photo keeps
+ * it allowed: there it is often what was asked for.
+ */
+function dressedNegative(text: string, everyday: boolean): string[] {
+  const kept = DRESSED_NEGATIVE.filter(([, said]) => !said.test(text)).map(([tag]) => tag)
+  return everyday && !SHOWS_CLEAVAGE.test(text) ? [...kept, 'cleavage'] : kept
 }
 
 /** Anything on her legs the picture names. */
@@ -416,7 +431,7 @@ export function buildPhotoPrompt(
   const negative = [
     PHOTO_NEGATIVE,
     ...(bare ? [BARE_NEGATIVE] : []),
-    ...(bare ? [] : dressedNegative(worn.toLowerCase())),
+    ...(bare ? [] : dressedNegative(worn.toLowerCase().replace(/_/g, ' '), tier === 'everyday')),
     ...legs.negative,
     ...pose.negative,
     ...bodyNegative(character),
