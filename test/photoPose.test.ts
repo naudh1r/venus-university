@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { posePhotoTags } from '../src/shared/photoPose'
+import { photoPose, posePhotoTags } from '../src/shared/photoPose'
 
 describe('posePhotoTags', () => {
   it('reads the framing off an ordinary caption', () => {
-    expect(posePhotoTags('a mirror selfie in her new coat', false)).toEqual(
-      expect.arrayContaining(['close-up', 'upper_body', 'mirror'])
+    expect(posePhotoTags('a close-up in her new coat', false)).toEqual(
+      expect.arrayContaining(['close-up', 'upper_body'])
     )
   })
 
@@ -86,5 +86,54 @@ describe('posePhotoTags', () => {
     expect(posePhotoTags('masturbating in the bath', true)).toEqual(
       expect.arrayContaining(['lying', 'on_back'])
     )
+  })
+})
+
+describe('a selfie', () => {
+  it('keeps the phone out, her arm reaching out of the picture', () => {
+    const pose = photoPose('a selfie in the cafe, smiling', false)
+    expect(pose.tags).toEqual(
+      expect.arrayContaining(['selfie', 'upper_body', 'outstretched_arm', 'foreshortening'])
+    )
+    expect(pose.negative).toEqual(expect.arrayContaining(['phone', 'holding_phone', 'v']))
+  })
+
+  it('keeps the peace sign she asked for', () => {
+    const pose = photoPose('a selfie flashing a peace sign', false)
+    expect(pose.tags).toContain('v')
+    expect(pose.negative).not.toContain('v')
+  })
+
+  it('shows the phone in a mirror selfie', () => {
+    const pose = photoPose('a mirror selfie in her new coat', false)
+    expect(pose.tags).toEqual(expect.arrayContaining(['mirror', 'reflection', 'holding_phone']))
+    expect(pose.negative).toEqual([])
+  })
+
+  it('takes a whole-body shot from above without the selfie tag', () => {
+    const pose = photoPose('a full body selfie of her outfit, standing', false)
+    expect(pose.tags).toEqual(
+      expect.arrayContaining(['full_body', 'from_above', '(outstretched_arm:1.2)'])
+    )
+    expect(pose.tags).not.toContain('selfie')
+    expect(pose.tags).not.toContain('cowboy_shot')
+  })
+
+  it('holds her on her stomach, with the camera in front of her face', () => {
+    const pose = photoPose('a selfie lying on her stomach on the bed', false)
+    expect(pose.tags).toEqual(expect.arrayContaining(['(on_stomach:1.2)', 'outstretched_arm']))
+    expect(pose.tags).not.toContain('from_above')
+    expect(pose.negative).toContain('on_back')
+  })
+
+  it('draws the arm out of frame, not a palm at the lens, on her side', () => {
+    const pose = photoPose('a selfie lying on her side in bed', false)
+    expect(pose.tags).toEqual(expect.arrayContaining(['on_side', 'selfie', 'from_above']))
+    expect(pose.tags).not.toContain('outstretched_arm')
+    expect(pose.negative).toEqual(expect.arrayContaining(['open_hand', 'on_stomach']))
+  })
+
+  it('leaves a picture that is not a selfie as it was', () => {
+    expect(photoPose('lying on her side in bed', false).negative).toEqual([])
   })
 })

@@ -2,7 +2,7 @@ import type { PhotoTier } from './photoGate'
 import { DORM_IDS, dormLabel } from './dorms'
 import { bodyAppearance, bodyNegative } from './characterBody'
 import { bodyTagsFor, describesNothingOn } from './photoBody'
-import { posePhotoTags } from './photoPose'
+import { photoPose } from './photoPose'
 import { LOCATIONS, NARRATIVE_LOCATIONS } from './locations'
 import type { Character } from './types'
 // Carries the `Character.body` augmentation into whatever program imports this module. The
@@ -194,7 +194,7 @@ export function buildPhotoPrompt(
   const dressed = describesClothing(scene)
 
   const body = bodyTagsFor(character.body, scene, bare)
-  const pose = posePhotoTags(scene, bare)
+  const pose = photoPose(scene, bare)
 
   const wardrobe = bare
     ? // Undressed by what she moved aside, where the caption still dresses her; nude otherwise.
@@ -216,7 +216,9 @@ export function buildPhotoPrompt(
     body.join(', '),
     wardrobe,
     // The sentence's own full stop would sit in front of the tags that follow it.
-    [scene.replace(/[.!?]+$/, ''), pose.join(', ')].filter((part) => part.length > 0).join(', ')
+    [scene.replace(/[.!?]+$/, ''), pose.tags.join(', ')]
+      .filter((part) => part.length > 0)
+      .join(', ')
   ]
     .filter((group) => group.length > 0)
     .join(',\n\n')
@@ -224,6 +226,7 @@ export function buildPhotoPrompt(
   const negative = [
     PHOTO_NEGATIVE,
     ...(bare ? [BARE_NEGATIVE] : []),
+    ...pose.negative,
     ...bodyNegative(character),
     ...(character.negativeTags ?? [])
   ].join(', ')

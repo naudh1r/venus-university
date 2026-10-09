@@ -148,7 +148,26 @@ const VERIFIED = new Set([
   'panties_aside',
   'partially_undressed',
   'shirt_lift',
-  'skirt_lift'
+  'skirt_lift',
+  // Selfies, drawn in the same same-seed checks.
+  'cellphone',
+  'foreshortening',
+  'full_body',
+  'holding_phone',
+  'legs_up',
+  'looking_up',
+  'on_back',
+  'on_side',
+  'on_stomach',
+  'open_hand',
+  'outstretched_arm',
+  'phone',
+  'reaching_towards_viewer',
+  'reflection',
+  'selfie',
+  'smartphone',
+  'spread_fingers',
+  'v'
 ])
 
 /** The checkpoint's own quality vocabulary, which is not Danbooru's and is not checked. */
@@ -191,6 +210,11 @@ function constantTags(text: string, name: string): string[] {
     .filter(Boolean)
 }
 
+/** A weighted tag, `(huge_ass:0.6)`, is its tag at another weight: the tag is what is checked. */
+function unweighted(tag: string): string {
+  return tag.replace(/^\((.+):[\d.]+\)$/, '$1')
+}
+
 function emittedTags(): string[] {
   const pose = source('src/shared/photoPose.ts')
   const body = source('src/shared/photoBody.ts')
@@ -198,11 +222,12 @@ function emittedTags(): string[] {
   const character = source('src/shared/characterBody.ts')
   return [
     // Every pool, and the petite negatives: `BUILD_TAGS = [...]` and the rest.
-    // A weighted pick, `(huge_ass:0.6)`, is its tag at a lighter weight: the tag is what is checked.
-    ...quoted(character, /_TAGS\s*=\s*\[([^\]]*)\]/g).map((tag) =>
-      tag.replace(/^\((.+):[\d.]+\)$/, '$1')
-    ),
-    ...quoted(pose, /(?:tags|implies):\s*\[([^\]]*)\]/g),
+    ...quoted(character, /_TAGS\s*=\s*\[([^\]]*)\]/g).map(unweighted),
+    ...quoted(pose, /(?:tags|implies):\s*\[([^\]]*)\]/g).map(unweighted),
+    ...quoted(pose, /(?:const add =|shot\(|PHONE_NEGATIVE =)\s*\[([^\]]*)\]/g).map(unweighted),
+    // The side selfie's own negatives, the array after its tags.
+    ...quoted(pose, /'from_above'\],\s*\[([^\]]*)\]/g),
+    ...quoted(pose, /negative: \[\.\.\.negative, ('on_back')\]/g),
     ...quoted(pose, /BARE_POSITION_DEFAULT[^=]*=\s*\[([^\]]*)\]/g),
     ...quoted(pose, /PLACEMENT_TAGS[^=]*=\s*new Set\(\[([^\]]*)\]/g),
     ...quoted(body, /THROUGH_CLOTH[^=]*=\s*\{([^}]*)\}/g),

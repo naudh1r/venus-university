@@ -36,11 +36,11 @@ function firstMatch(text: string, table: readonly Rule[]): Rule | null {
 
 /** How she is framed and standing with her clothes on. */
 const DRESSED_POSITIONS: readonly Rule[] = [
-  {
-    cues: ['selfie', 'close-up', 'close up', 'mirror'],
-    tags: ['close-up', 'upper_body', 'hand_up']
-  },
+  { cues: ['close-up', 'close up'], tags: ['close-up', 'upper_body', 'hand_up'] },
   { cues: ['face shot', 'face only', 'just her face'], tags: ['close-up', 'portrait'] },
+  { cues: ['on her stomach', 'face down', 'prone'], tags: ['lying', 'on_stomach'] },
+  { cues: ['on her side', 'side lying'], tags: ['lying', 'on_side'] },
+  { cues: ['on her back', 'lying back'], tags: ['lying', 'on_back'] },
   {
     cues: ['lying', 'laying', 'on the bed', 'on bed', 'on the floor', 'on the grass'],
     tags: ['lying', 'arms_at_sides']
@@ -359,6 +359,77 @@ function poseTagsOf(caption: string, bare: boolean): string[] {
   return [...new Set(tags)]
 }
 
+/** The photo's tags, and what its negative has to keep out of it. */
+export interface PhotoPose {
+  tags: string[]
+  negative: string[]
+}
+
+/** A phone held at arm's length is never in its own picture; a mirror is where it shows. */
+const PHONE_NEGATIVE = ['phone', 'cellphone', 'smartphone', 'holding_phone']
+
+/** The `selfie` tag adds a peace sign on its own; kept only where the caption asks for one. */
+const PEACE_CUES = ['peace sign', 'v sign', 'v-sign', 'flashing a v']
+
+const FULL_BODY_CUES = ['full body', 'full-body', 'head to toe', 'whole body', 'whole outfit']
+
+/** Framing a selfie replaces: the arm decides how far the camera is. */
+const FRAMING = new Set(['close-up', 'portrait', 'upper_body', 'cowboy_shot', 'full_body'])
+
+/**
+ * A selfie, as tested on the checkpoint (same seed, one change at a time). Her own arm holds the
+ * camera, so it reaches out of the picture and the phone stays out of it; how she is lying
+ * decides which tags carry that, since the plain ones fail in some poses:
+ * - on her stomach the camera stays in front of her face, and `from_above` is ignored;
+ * - on her side `outstretched_arm` draws an open palm at the lens, where `selfie` from above
+ *   draws the arm going out of frame;
+ * - a whole-body shot loses the `selfie` tag, which pulls the camera in close.
+ * A mirror selfie is the one picture with the phone in it.
+ */
+function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
+  if (!says(text, 'selfie')) return null
+  const has = (tag: string): boolean => tags.includes(tag)
+  const peace = saysAny(text, PEACE_CUES)
+  if (says(text, 'mirror')) {
+    const kept = tags.filter((tag) => !FRAMING.has(tag))
+    const add = ['mirror', 'reflection', 'holding_phone', 'full_body']
+    return { tags: [...new Set([...kept, ...add])], negative: [] }
+  }
+  // The arm holding the phone is not also on her hip.
+  const kept = tags.filter((tag) => !FRAMING.has(tag) && !PLACEMENT_TAGS.has(tag))
+  const negative = [...PHONE_NEGATIVE, ...(peace ? [] : ['v'])]
+  const shot = (add: string[], extra: string[] = []): PhotoPose => ({
+    tags: [...new Set([...kept, ...add, ...(peace ? ['v'] : [])])],
+    negative: [...negative, ...extra]
+  })
+  if (has('on_stomach')) {
+    const rest = kept.filter((tag) => tag !== 'on_stomach' && tag !== 'from_above')
+    return {
+      tags: [...new Set(['(on_stomach:1.2)', '(legs_up:1.1)', ...rest, 'outstretched_arm'])],
+      negative: [...negative, 'on_back']
+    }
+  }
+  if (has('on_side')) {
+    return shot(['selfie', 'from_above'], [
+      'on_back',
+      'on_stomach',
+      'open_hand',
+      'spread_fingers',
+      'reaching_towards_viewer'
+    ])
+  }
+  if (saysAny(text, FULL_BODY_CUES) || has('lying') || has('sitting')) {
+    return shot([
+      'full_body',
+      'from_above',
+      '(outstretched_arm:1.2)',
+      'foreshortening',
+      'looking_up'
+    ])
+  }
+  return shot(['selfie', 'upper_body', 'outstretched_arm', 'foreshortening'])
+}
+
 /** Legs held together, which no position may open: the caption's word over the position's. */
 const CROSSED_CUES = [
   'legs crossed',
@@ -376,8 +447,16 @@ const CROSSED_CUES = [
  * never by anything read here.
  */
 export function posePhotoTags(caption: string, bare: boolean): string[] {
-  const tags = poseTagsOf(caption, bare)
+  return photoPose(caption, bare).tags
+}
+
+/** {@link posePhotoTags}, with the negative tags the shot needs beside them. */
+export function photoPose(caption: string, bare: boolean): PhotoPose {
+  const text = caption.toLowerCase()
+  let tags = poseTagsOf(caption, bare)
   // A position's default spread, or one her hands imply, never overrules legs she has crossed.
-  if (!saysAny(caption.toLowerCase(), CROSSED_CUES)) return tags
-  return [...new Set([...tags.filter((tag) => tag !== 'spread_legs'), 'crossed_legs'])]
+  if (saysAny(text, CROSSED_CUES)) {
+    tags = [...new Set([...tags.filter((tag) => tag !== 'spread_legs'), 'crossed_legs'])]
+  }
+  return selfieShot(text, tags) ?? { tags, negative: [] }
 }
