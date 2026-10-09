@@ -1,0 +1,49 @@
+# Opens a pull request from `core` into `main` whenever `core` moves and `main` is missing some
+# of it, so nobody has to remember to. `main` only takes reviewed changes, so a person approves
+# and merges it, as for any other pull request; the workflow cannot, by design.
+#
+# Needs one repository setting: Settings → Actions → General → "Allow GitHub Actions to create
+# and approve pull requests".
+name: core to main
+
+on:
+  push:
+    branches: [core]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: core-to-main
+  cancel-in-progress: false
+
+jobs:
+  open:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Open a pull request from core into main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin core main
+          if git merge-base --is-ancestor origin/core origin/main; then
+            echo "main already has everything on core."
+            exit 0
+          fi
+          if [ -n "$(gh pr list --base main --head core --state open --json number --jq '.[].number')" ]; then
+            echo "A pull request from core into main is already open; it shows the new commits."
+            exit 0
+          fi
+          if git merge-tree --write-tree origin/main origin/core >/dev/null 2>&1; then
+            note="Merges cleanly."
+          else
+            note="This does not merge cleanly: a change on core conflicts with a mod in main. Resolve it on an integrate branch (main + core) and merge that instead."
+          fi
+          gh pr create --base main --head core --title "Merge core into main" \
+            --body "core has changes main does not have yet. $note Regular merge, not squash."
