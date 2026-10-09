@@ -29,7 +29,7 @@ export const photoApi = {
       ipcRenderer.invoke('comfy:readPhoto', playthroughId, charId, file),
     storeWebp: (playthroughId: string, charId: string, file: string, bytes: Uint8Array) =>
       ipcRenderer.invoke('comfy:storeWebpPhoto', playthroughId, charId, file, bytes),
-    carry: (fromPlaythroughId: string, toPlaythroughId: string, charIds: string[]) =>
+    carry: (fromPlaythroughId: string, toPlaythroughId: string, charIds?: string[]) =>
       ipcRenderer.invoke('comfy:carryPhotos', fromPlaythroughId, toPlaythroughId, charIds),
     generate: (
       playthroughId: string,

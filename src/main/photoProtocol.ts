@@ -22,7 +22,12 @@ const SCHEME = 'playimg'
 
 /** `/data/saves/{playthroughId}/photos/{charId}` — the pictures she has sent in this save. */
 export function getPhotosPath(playthroughId: string, charId: string): string {
-  return join(getPlaythroughPath(playthroughId), 'photos', charId)
+  return join(getPhotosRoot(playthroughId), charId)
+}
+
+/** The playthrough's photo folder, one folder in it per girl who sent any. */
+export function getPhotosRoot(playthroughId: string): string {
+  return join(getPlaythroughPath(playthroughId), 'photos')
 }
 
 /** One picture on a thread; `file` is the name the message carries. */

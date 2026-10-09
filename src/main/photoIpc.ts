@@ -62,7 +62,7 @@ export function registerPhotoIpc(handle: Handle): void {
   // The pictures a continued semester's carried threads and feeds point at, copied across.
   handle(
     'comfy:carryPhotos',
-    (_event, fromPlaythroughId: string, toPlaythroughId: string, charIds: string[]) =>
+    (_event, fromPlaythroughId: string, toPlaythroughId: string, charIds?: string[]) =>
       carryPhotos(fromPlaythroughId, toPlaythroughId, charIds)
   )
 

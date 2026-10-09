@@ -1,6 +1,7 @@
 import { constants } from 'fs'
 import { copyFile, mkdir, readdir, readFile } from 'fs/promises'
 import { join } from 'path'
+import { SAFE_CHAR_ID } from '@shared/characterRules'
 import { appError } from '@shared/errors'
 import { imageTypeOf } from '@shared/imageBytes'
 import {
@@ -17,7 +18,7 @@ import { photoSwitches } from '@shared/photoSwitches'
 import { isPhotoTier, type PhotoTier } from '@shared/photoGate'
 import { buildPhotoPrompt } from '@shared/photoPrompt'
 import type { Character } from '@shared/types'
-import { getPhotoPath, getPhotosPath } from '../photoProtocol'
+import { getPhotoPath, getPhotosPath, getPhotosRoot } from '../photoProtocol'
 import { withBodySetting } from '../bodySetting'
 import { runGenerationJob } from './comfyService'
 import { assertSafeCharId } from './characterService'
@@ -175,16 +176,21 @@ export async function storeWebpPhoto(
  * Copies the pictures each of `charIds` sent in one playthrough into another: a semester
  * continued from the one before carries its threads and feeds over, and the pictures on them
  * are files in the old playthrough's folder. A girl who sent none has nothing to copy, and a
- * picture already there is left as it is.
+ * picture already there is left as it is. With no `charIds`, every girl with a folder there.
  */
 export async function carryPhotos(
   fromPlaythroughId: string,
   toPlaythroughId: string,
-  charIds: readonly string[]
+  charIds?: readonly string[]
 ): Promise<void> {
   assertSafePlaythroughId(fromPlaythroughId)
   assertSafePlaythroughId(toPlaythroughId)
-  for (const charId of charIds) {
+  const who =
+    charIds ??
+    (await readdir(getPhotosRoot(fromPlaythroughId)).catch(() => [] as string[])).filter(
+      (name) => SAFE_CHAR_ID.test(name)
+    )
+  for (const charId of who) {
     assertSafeCharId(charId)
     const source = getPhotosPath(fromPlaythroughId, charId)
     let files: string[]

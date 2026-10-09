@@ -24,6 +24,7 @@ import { holdPostPhoto, preparePostPhoto, startHeldPostPhoto } from '../stores/p
 import { settlePendingPhotos } from '../stores/photoRecovery'
 import { sendPhoto } from '../stores/photoTurn'
 import { useGameStore } from '../stores/gameStore'
+import { registerTermFiles } from '@shared/modCarry'
 import { registerHooks } from '../mods/hooks'
 
 /**
@@ -102,4 +103,12 @@ registerHooks(PHOTO_FEATURE, {
   },
 
   postVisible: postIsOut
+})
+
+// A continued semester carries her threads and feed into a new playthrough; the pictures on them
+// are files in the old one's folder, copied across as they are, PNG or WebP. Like the carried
+// fields this runs with the mod off too, so switching it off at the wrong time loses nothing.
+registerTermFiles(PHOTO_FEATURE, async ({ from, to }) => {
+  const result = await window.api.photo.carry(from, to)
+  if (!result.ok) throw Error(result.error.message)
 })

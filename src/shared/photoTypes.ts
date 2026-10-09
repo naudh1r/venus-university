@@ -118,12 +118,13 @@ declare module '../preload/api' {
       ) => Promise<Result<void>>
       /**
        * Copies the pictures `charIds` sent in one playthrough into another, for a semester
-       * continued from the one before: its carried threads and feeds point at them.
+       * continued from the one before: its carried threads and feeds point at them. With no
+       * `charIds`, every girl who sent any.
        */
       carry: (
         fromPlaythroughId: string,
         toPlaythroughId: string,
-        charIds: string[]
+        charIds?: string[]
       ) => Promise<Result<void>>
       /**
        * Resolves with the file name when the queued render finishes. `tier` has already been

@@ -14,7 +14,7 @@ vi.mock('electron', () => ({
   app: { isPackaged: false, getAppPath: () => root, getPath: () => root }
 }))
 
-const { photoLanded, reservePhotoName, storeWebpPhoto } = await import(
+const { carryPhotos, photoLanded, reservePhotoName, storeWebpPhoto } = await import(
   '../src/main/services/localPhotoService'
 )
 const { setPhotoSwitches } = await import('../src/shared/photoSwitches')
@@ -108,5 +108,39 @@ describe('photos saved as WebP', () => {
     await expect(storeWebpPhoto('400', 'april-1', 'april_chat_001.png', WEBP)).rejects.toThrow()
     expect(await exists(join(folder(), 'april_chat_001.png'))).toBe(true)
     expect(await exists(join(folder(), 'april_chat_001.webp'))).toBe(false)
+  })
+})
+
+describe('carryPhotos', () => {
+  const folderOf = (playthroughId: string, charId: string): string =>
+    join(root, 'data', 'saves', playthroughId, 'photos', charId)
+
+  it('copies every girl it finds into the next semester, PNG and WebP as they are', async () => {
+    await mkdir(folderOf('300', 'april-1'), { recursive: true })
+    await mkdir(folderOf('300', 'risa-2'), { recursive: true })
+    await writeFile(join(folderOf('300', 'april-1'), 'april_chat_001.png'), 'a')
+    await writeFile(join(folderOf('300', 'risa-2'), 'risa_bunnyboard_001.webp'), 'r')
+
+    await carryPhotos('300', '301')
+
+    expect(await readFile(join(folderOf('301', 'april-1'), 'april_chat_001.png'), 'utf8')).toBe('a')
+    expect(await readFile(join(folderOf('301', 'risa-2'), 'risa_bunnyboard_001.webp'), 'utf8')).toBe(
+      'r'
+    )
+  })
+
+  it('leaves a picture already in the new semester as it is', async () => {
+    await mkdir(folderOf('400', 'april-1'), { recursive: true })
+    await mkdir(folderOf('401', 'april-1'), { recursive: true })
+    await writeFile(join(folderOf('400', 'april-1'), 'april_chat_001.png'), 'old')
+    await writeFile(join(folderOf('401', 'april-1'), 'april_chat_001.png'), 'kept')
+
+    await carryPhotos('400', '401')
+
+    expect(await readFile(join(folderOf('401', 'april-1'), 'april_chat_001.png'), 'utf8')).toBe('kept')
+  })
+
+  it('has nothing to do for a semester with no photos', async () => {
+    await expect(carryPhotos('500', '501')).resolves.toBeUndefined()
   })
 })
