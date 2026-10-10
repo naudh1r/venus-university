@@ -1,4 +1,7 @@
 import type { StructuredRequest } from '@shared/types'
+import { globalSlotOf } from '@shared/jobs'
+import type { RequestSpots } from '../hooks'
+import { invitationCoolingDown } from './hangoutPolicy'
 
 type Schema = Record<string, unknown>
 
@@ -111,9 +114,15 @@ export function strictSceneRequest(request: StructuredRequest): StructuredReques
 }
 
 /** Leave the thread, summaries, photo instructions, and schema assembled by other mods intact. */
-export function strictDmRequest(request: StructuredRequest): StructuredRequest {
+export function strictDmRequest(request: StructuredRequest, ctx?: RequestSpots['dm']): StructuredRequest {
+  const cooldown = ctx && invitationCoolingDown(ctx.conversation, globalSlotOf(ctx.state.date, ctx.state.time))
   return withRules(request, [
-    'One short message is normal. Send more when the moment calls for it: she is upset, excited, or has a lot to say. Keep her own texting voice.',
+    'Normally send 1 to 3 text bubbles, about 10 to 25 words each, aiming for at most 60 words total. A short acknowledgement can be much shorter. Keep her own texting voice.',
+    'Respond to the latest reader message and focus on one topic. Do not add unrelated updates, repeat yourself, or fill space just because she is upset or excited.',
+    'Ask a question or offer an invitation only once, then stop and let the reader respond.',
+    'A longer reply is appropriate only when the reader asks for an explanation or the current topic genuinely needs one. Do not turn an ordinary text into a monologue.',
+    'Respect a refusal or deferral in the latest reader message. Acknowledge it without asking again, pressuring him, or treating it as acceptance.',
+    ...(cooldown ? ['The reader recently declined a hangout and her invitation cooldown is active. Do not initiate another invitation. He may change his mind and propose meeting himself; respond to that new proposal normally.'] : []),
     'Where she is and what she is doing are background: bring them up only when they matter.',
     'Do not repeat the reader\'s message back to him.',
     'Friends, places, and past events come from the supplied context. Do not invent people or shared history. Opinions, moods, and small details of the moment are fine.',

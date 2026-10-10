@@ -88,6 +88,13 @@ export function lastInviteSlotOf(conversation: Conversation | undefined): number
   return null
 }
 
+/** A personal backoff also counts from a later explicit refusal, without extending roster quiet. */
+export function lastInvitationResponseSlotOf(conversation: Conversation | undefined): number | null {
+  const invited = lastInviteSlotOf(conversation)
+  const declined = conversation?.declinedAt
+  return declined === undefined ? invited : Math.max(invited ?? declined, declined)
+}
+
 /** How long she waits before asking again, doubling for every invitation he let stand. */
 export function declineCooldownSlots(declined: number): number {
   if (declined <= 0) return ASK_COOLDOWN_SLOTS

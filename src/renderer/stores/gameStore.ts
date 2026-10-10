@@ -828,7 +828,7 @@ interface GameStoreState {
    */
   markInvitation: (charId: string) => void
   /** One more invitation of hers he did not take up. */
-  bumpDeclined: (charId: string) => void
+  bumpDeclined: (charId: string, at?: number) => void
   /** He came, so the streak and the memory it owed are gone. */
   resetDeclined: (charId: string) => void
   /** A lover turned down by text, still owed her memory of it. */
@@ -2299,17 +2299,22 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       })
     ),
 
-  bumpDeclined: (charId) =>
+  bumpDeclined: (charId, at) =>
     set((state) =>
-      patchConversation(state, charId, (chat) => ({ ...chat, declined: (chat.declined ?? 0) + 1 }))
+      patchConversation(state, charId, (chat) => ({
+        ...chat,
+        declined: (chat.declined ?? 0) + 1,
+        ...(at === undefined ? {} : { declinedAt: at })
+      }))
     ),
 
   resetDeclined: (charId) =>
     set((state) =>
       patchConversation(state, charId, (chat) => {
-        if (chat.declined === undefined && chat.turnedDown === undefined) return null
+        if (chat.declined === undefined && chat.turnedDown === undefined && chat.declinedAt === undefined) return null
         const next: Conversation = { ...chat }
         delete next.declined
+        delete next.declinedAt
         delete next.turnedDown
         return next
       })

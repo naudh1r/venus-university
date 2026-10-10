@@ -241,6 +241,24 @@ Where a branch goes:
 
 These hooks add to the existing API; existing hooks and their arguments are unchanged. Screens, IPC and save fields still use direct integration as documented above.
 
+### Invitation hooks
+
+- `requests['hangout-classifier']` extends the current texting exchange's classification request.
+  Context includes the character, earlier conversation, latest player message, latest reply bubbles,
+  and the invitation being answered. The request and captured result handlers persist across retries.
+- `hangoutResult` composes a `{ verdict, settled }` decision with the raw reply and exchange context.
+  Set `settled` when the handler has recorded the answer so the base decline pass does not duplicate it.
+  An abandoned exchange never applies its classifier handlers.
+- `hangoutAnswer` may handle a Yes/No button answer; the first enabled handler returning true owns it.
+- `hangoutOfferAllowed` lets any enabled mod veto an unsolicited slot invitation. Reminders for
+  already agreed calendar plans bypass this gate.
+- `requests.dm` also receives the earlier conversation, allowing instructions to reflect saved
+  invitation state without reading the live store in a prompt builder.
+
+The optional native conversation `declinedAt` field anchors cooldowns to explicit answers.
+`bumpDeclined(charId, at)` records it; existing calls without `at` retain their behavior, and
+`resetDeclined` clears both the count and timestamp. No save schema migration is required.
+
 - `bunnyboardPage` registers an independently gated tab with `id`, `word`, `Mark` and `Page`. Disabling its mod unmounts the page and returns the phone to Chats. Native tab IDs cannot be replaced. Other screen integration remains direct.
 
 ### Optional semester carryover

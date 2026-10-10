@@ -860,6 +860,8 @@ export interface Conversation {
   pendingHangout?: { description: string; dismissed?: boolean; occasionId?: string }
   /** Invitations of hers he has not accepted in a row; absent at none. */
   declined?: number
+  /** Optional clock anchor for an explicit refusal, in global slots. */
+  declinedAt?: number
   /** A lover he turned down by text, whose memory of it is still owed. */
   turnedDown?: true
 }

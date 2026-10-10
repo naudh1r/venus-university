@@ -67,7 +67,7 @@ import {
 } from '@shared/types'
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
-import { afterDmReply } from '../mods/hooks'
+import { afterDmReply, captureHangoutResult, hangoutAnswer, hangoutOfferAllowed, modRequest, type HangoutResolution } from '../mods/hooks'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
 import { createRetryGate } from './retryGate'
 import { createTextExtractor } from './textingStream'
@@ -91,6 +91,7 @@ import {
   declineCooldownSlots,
   drawOccasionAsker,
   lastInviteSlotOf,
+  lastInvitationResponseSlotOf,
   rollSlotAskers,
   slotAskMultiplier,
   ASK_QUIET_SLOTS,
@@ -594,8 +595,11 @@ async function runReply(
   // A scene already owns the screen: the verdict could only be discarded.
   if (sceneActiveOf(useGameStore.getState())) return
 
-  handleHangout(charId, await classifyHangout(character, conversation, sent, messages))
-  if (invited) settleAnsweredInvitation(charId, invited.occasionId)
+  const stillCurrent = (): boolean => !entry.abandoned && !sceneActiveOf(useGameStore.getState())
+  const decision = await classifyHangout(character, conversation, sent, messages, invited, stillCurrent)
+  if (!stillCurrent()) return
+  handleHangout(charId, decision.verdict)
+  if (invited && !decision.settled) settleAnsweredInvitation(charId, invited.occasionId)
 }
 
 /**
@@ -678,34 +682,41 @@ async function classifyHangout(
   character: Character,
   conversation: Conversation | undefined,
   sent: ChatMessage,
-  replies: readonly string[]
-): Promise<HangoutVerdict | null> {
-  if (replies.length === 0) return null
+  replies: readonly string[],
+  invited: Conversation['pendingHangout'] | null,
+  stillCurrent: () => boolean
+): Promise<HangoutResolution> {
+  if (replies.length === 0) return { verdict: null, settled: false }
 
   const game = useGameStore.getState()
   // Built once, outside the loop: a retry re-sends the identical request.
-  const request = buildHangoutClassifierPrompt(
+  const replyMessages = replies.map((text) => chatMessage('contact', text))
+  const ctx = { character, conversation, sent, replies: replyMessages, invited }
+  const finish = captureHangoutResult(ctx)
+  const request = modRequest('hangout-classifier', ctx, buildHangoutClassifierPrompt(
     character.firstName,
     conversation?.messages ?? [],
     sent,
-    replies.map((text) => chatMessage('contact', text)),
+    replyMessages,
     { date: game.date, time: game.time, weather: game.weather }
-  )
+  ))
 
   for (;;) {
     const result = await window.api.llm.classifyHangout(request)
+    if (!stillCurrent()) return { verdict: null, settled: true }
     if (result.ok) {
-      const verdict = normalizeHangout(result.data)
+      const decision = finish(result.data, { verdict: normalizeHangout(result.data), settled: false })
+      const verdict = decision.verdict
       console.log(
         `[hangout] = ${verdict ? `${verdict.initiatedBy}: ${verdict.description}` : 'no hangout'}`
       )
-      return verdict
+      return decision
     }
     // The reply was abandoned by a scene starting; there is nothing to judge.
-    if (result.error.code === 'CANCELLED') return null
+    if (result.error.code === 'CANCELLED') return { verdict: null, settled: false }
 
     console.warn('[texting] hangout classifier failed, waiting on the player:', result.error)
-    if (!(await hangoutGate.ask(result.error))) return null
+    if (!(await hangoutGate.ask(result.error))) return { verdict: null, settled: false }
   }
 }
 
@@ -723,6 +734,7 @@ function handleHangout(charId: string, hangout: HangoutVerdict | null): void {
   }
 
   if (hangout.initiatedBy === 'contact') {
+    if (!hangoutOfferAllowed(charId)) return
     game.setPendingHangout(charId, { description: hangout.description })
     // Her texts have all drained by now, so the newest in the thread is the ask itself.
     game.markInvitation(charId)
@@ -784,6 +796,7 @@ export function answerHangout(charId: string, yes: boolean): void {
   const game = useGameStore.getState()
   const pending = game.bunnyboard.conversations[charId]?.pendingHangout
   if (!pending) return
+  if (hangoutAnswer({ charId, yes, pending })) return
 
   if (yes) {
     game.setPendingHangout(charId, null)
@@ -1112,7 +1125,7 @@ export function pickOccasionAsker(
     // Her own backoff still counts; the roster's spell of quiet does not.
     const declined = conversations[charId]?.declined ?? 0
     const gap = declineCooldownSlots(declined)
-    if (declined > 0 && !askCooldownOver(lastInviteSlotOf(conversations[charId]), target, gap)) {
+    if (declined > 0 && !askCooldownOver(lastInvitationResponseSlotOf(conversations[charId]), target, gap)) {
       continue
     }
     candidates.push({
@@ -1214,7 +1227,7 @@ export function pickSlotAskers(
     if (charUnavailableNow(charId, day, half)) continue
     // She does not ask twice in a row, and waits longer each time he does not come.
     const gap = declineCooldownSlots(conversations[charId]?.declined ?? 0)
-    if (!askCooldownOver(lastInviteSlotOf(conversations[charId]), target, gap)) continue
+    if (!askCooldownOver(lastInvitationResponseSlotOf(conversations[charId]), target, gap)) continue
     const chance = askChanceFor(charId, day, view, modulation)
     if (chance > 0) candidates.push({ charId, chance })
   }
@@ -1274,11 +1287,13 @@ export function deliverSlotHangouts(
     // Nor somebody who is not in the city this week.
     if (charAwayNow(charId)) continue
 
+    const reminder = plannedWith(charId, game.date, game.time) !== null
+    if (!reminder && !hangoutOfferAllowed(charId)) continue
+
     // Two people who agreed to meet up have exchanged numbers.
     addContact(charId)
     deliver(charId, chatMessage('contact', text))
     // A reminder about a plan already on the calendar is not an invitation and starts no cooldown.
-    const reminder = plannedWith(charId, game.date, game.time) !== null
     if (!reminder) useGameStore.getState().markInvitation(charId)
     useGameStore.getState().setPendingHangout(charId, {
       description,

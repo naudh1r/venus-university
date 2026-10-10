@@ -107,9 +107,9 @@ it('uses the existing hook gate and keeps fields added by earlier request hooks'
   vi.resetModules()
   const hooks = await import('../src/renderer/mods/hooks')
   let enabled = false
-  hooks.setHookRules({ isOn: id => id !== 'strict-schema' || enabled, order: id => id === 'strict-schema' ? 1 : 0 })
   hooks.registerHooks('memory', { requests: { scene: original => ({ ...original, user: original.user + '\nrecalled facts' }) } })
   await import('../src/renderer/modEntries/strict-schema')
+  hooks.setHookRules({ isOn: id => id !== 'strict-schema' || enabled, order: id => id === 'strict-schema' ? 1 : 0 })
   const original = request()
   original.minThinking = 'high'
   const ctx = {} as Parameters<typeof hooks.modRequest<'scene'>>[1]

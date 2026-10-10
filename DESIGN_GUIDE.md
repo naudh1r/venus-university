@@ -172,6 +172,13 @@ Where a thing goes:
 - **Ask for events, not flags; for a boolean, not a magnitude.** The app holds every flag and applies every transition. The model is never shown the balance, never told the departure grace period, and never given a character's haunts.
 - **The ledgers are asked for memories in the reader's voice** — "the reader", never "you" — and every desc is put through the same rewrite again as it is injected, so an older save's second-person memory reaches the model the same way.
 - **The classifier decides nothing.** It names, the app enforces, and every refusal is local; a transport failure parks the turn rather than degrading to a guess.
+- **Strict Schema makes hangout refusals explicit.** No writes a refusal into the thread and clears
+  its invitation. A saved optional refusal slot anchors the existing increasing cooldown, also
+  applied to typed refusals and deferrals. Classifier outcomes need exact latest-exchange evidence;
+  repeated offers are blocked in both DM decisions and unsolicited slot deliveries, while reminders
+  for agreed plans and new player-initiated agreements remain possible. Accepting clears the decline
+  count and timestamp. Ordinary DM replies are instructed to stay within three short bubbles and
+  roughly sixty words; delivered messages are never silently truncated.
 - **Every scene-kind fact is decided where the verdict is cast**, held on the store, persisted on the scene, and injected on every turn of it.
 - **The lorebook is keyword-triggered** on the turn's own words and on the place the classifier named; entries never cascade. An uncast character who is named gets a paragraph that says she is absent, what she looks like, where she stands with the cast and the reader, and the plans she has with him still ahead.
 - **Authored text never meets the LLM or the sanitizer**: the first day, the bots, the game-over endings, the graduation scroll and every status line are the app's own writing.

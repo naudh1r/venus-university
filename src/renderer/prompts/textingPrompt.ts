@@ -409,7 +409,7 @@ export function buildTextingPrompt(
     `Write it in third person, refer to the MC as "the reader", and keep anything ${name} should still remember later. Don't include concrete dates, and leave out old or unimportant information.`
   ].join('\n')
 
-  return modRequest('dm', { character, info, state, newMessage }, {
+  return modRequest('dm', { character, info, state, newMessage, conversation }, {
     system: TEXTING_PERSONA,
     user,
     schema: textingSchema(),

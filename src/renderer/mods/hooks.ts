@@ -7,6 +7,7 @@ import type {
   Character,
   CharInfo,
   ChatMessage,
+  Conversation,
   SceneLine,
   SocialPost,
   TextingResponse
@@ -16,6 +17,7 @@ import type { PlaythroughRecord } from '@shared/types'
 import type { TextingPromptState } from '../prompts/textingPrompt'
 import type { ResolvedSave } from '../stores/saveStore'
 import type { ViewName } from '../stores/uiStore'
+import type { HangoutVerdict } from '../prompts/hangoutClassifierPrompt'
 
 /**
  * The places in the game a mod adds to, without editing the game's code there.
@@ -104,7 +106,8 @@ export interface SaveChoice extends WayOn {
 
 export interface RequestSpots {
   scene: PromptSpots['scene']
-  dm: PromptSpots['dm'] & { newMessage: string }
+  dm: PromptSpots['dm'] & { newMessage: string; conversation?: Conversation }
+  'hangout-classifier': HangoutContext
   ledger: { state: PromptState; charKeys: readonly string[] }
   'slot-intro': { input: SlotIntroInput }
 }
@@ -113,6 +116,20 @@ export interface SlotSettled {
   before: ReturnType<typeof useGameStore.getState>
   ledger: LedgerResponse | null
   closingCast: readonly Character[]
+}
+
+export interface HangoutContext {
+  character: Character
+  conversation?: Conversation
+  sent: ChatMessage
+  replies: readonly ChatMessage[]
+  invited: Conversation['pendingHangout'] | null
+}
+
+export interface HangoutResolution {
+  verdict: HangoutVerdict | null
+  /** A handler already settled this invitation; skip the base unanswered-invitation pass. */
+  settled: boolean
 }
 
 /** The completed scene after the base sanitizer has validated its lines. */
@@ -158,6 +175,11 @@ export interface ModHooks {
   ) => Partial<Character>
   /** After her reply in a DM has landed. */
   afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void
+  hangoutResult?: (result: HangoutResolution, ctx: HangoutContext & { reply: unknown }) => HangoutResolution
+  /** Return true when the button answer has been handled. */
+  hangoutAnswer?: (ctx: { charId: string; yes: boolean; pending: NonNullable<Conversation['pendingHangout']> }) => boolean
+  /** Every enabled handler must allow an unsolicited invitation to be filed. */
+  hangoutOfferAllowed?: (charId: string) => boolean
   /** As the reader commits to something: an action sent, or a hangout begun. */
   playerActs?: () => void
   /** As a game is entered, new or loaded. */
@@ -258,6 +280,19 @@ export function afterDmReply(ctx: {
 
 export function playerActs(): void {
   for (const hooks of active()) hooks.playerActs?.()
+}
+
+export function captureHangoutResult(ctx: HangoutContext): (reply: unknown, result: HangoutResolution) => HangoutResolution {
+  const handlers = active().flatMap(hooks => hooks.hangoutResult ? [hooks.hangoutResult] : [])
+  return (reply, result) => handlers.reduce((next, handler) => handler(next, { ...ctx, reply }), result)
+}
+
+export function hangoutAnswer(ctx: Parameters<NonNullable<ModHooks['hangoutAnswer']>>[0]): boolean {
+  return active().some(hooks => hooks.hangoutAnswer?.(ctx) === true)
+}
+
+export function hangoutOfferAllowed(charId: string): boolean {
+  return active().every(hooks => hooks.hangoutOfferAllowed?.(charId) ?? true)
 }
 
 export function gameEntered(): void {
