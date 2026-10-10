@@ -103,7 +103,10 @@ For Venus University 0.4.0, on the shared mod build, with a lot of photo tuning.
 
 ## Known limits
 
-- A colour from her outfit can still bleed onto her legs on some seeds.
+- A colour from the picture can still bleed onto her legs on some seeds: from her outfit, her
+  hair or the lighting (neon pink, for example). It can show as one coloured leg fading down to
+  the sock. Blocking legwear in every colour the prompt names, and asking for bare legs, made it
+  rarer but did not stop it, and no negative tag tried so far does. A reroll usually clears it.
 - Nude photos on her side or stomach can drift onto her back.
 - A bikini can take its colour from her own swimsuit set instead of her sentence.
 
