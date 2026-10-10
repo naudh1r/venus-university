@@ -1,0 +1,59 @@
+/* ---- what the crowd said under a post ------------------------------------- */
+
+/* The photo feature's own file, like the rest of what it added: the component imports this, so a
+   sync that replaces `Bunnyboard.css` carries nothing of it away. */
+
+
+/* ---- what strangers said under a post ------------------------------------- */
+
+/* Quieter than the post and inset from it, the way a thread reads under the thing it answers.
+   No surface of its own: these are lines on the card, not cards on a card. */
+.vu-bb-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One reply, read the way a feed's are: a face, then the name and what they said running on in
+   one line. The text carries the card's own colour — a whole reply greyed out reads as a note
+   about the post rather than as somebody talking under it. */
+.vu-bb-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--vu-text);
+  font: 500 13.5px/1.45 var(--font-body);
+}
+
+/* The four thousand have no faces, so their emoji stands in for one — in a disc, which is what
+   makes it read as somebody rather than as a bullet. The tint is theirs: taken from the handle,
+   so one stranger keeps the same face wherever she turns up. */
+.vu-bb-comment-face {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: oklch(0.72 0.07 var(--vu-face-hue, 0) / 0.35);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.vu-bb-comment-said {
+  min-width: 0;
+  padding-top: 5px;
+  overflow-wrap: anywhere;
+}
+
+/* The name leads the line and the reply runs straight on from it. In the mono the rest of the
+   app gives a handle, and a shade off the words, so the two are told apart at a glance rather
+   than by weight alone — at this size, bold against not-bold is almost nothing. */
+.vu-bb-comment-who {
+  margin-right: 3px;
+  color: color-mix(in oklab, var(--vu-text) 72%, var(--vu-accent));
+  font: 700 12px var(--font-mono);
+}

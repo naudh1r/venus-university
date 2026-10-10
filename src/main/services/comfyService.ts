@@ -45,6 +45,7 @@ import {
   getWorkflowPath,
   getWorkflowsPath
 } from '../paths'
+import { withBodySetting } from '../bodySetting'
 import { getPoseTags } from './assetService'
 import { assertSafeCharId } from './characterService'
 import { dropImageTwins, findImage } from './imageFiles'
@@ -822,8 +823,12 @@ function logJob(spec: GenerationSpec): void {
 /**
  * The submit-wait-save pipeline every render shares; callers stage their own input
  * files first.
+ *
+ * Exported for `localPhotoService`, which renders a texted photograph on the same pipeline but keeps
+ * its own graph, node map and folder. That is the whole of what the photo feature asks of this
+ * file: one keyword, so a sync that overwrites it costs one keyword to put back.
  */
-async function runGenerationJob(
+export async function runGenerationJob(
   spec: GenerationSpec,
   options: { signal?: AbortSignal; onProgress?: (step: string) => void }
 ): Promise<string> {
@@ -1058,6 +1063,8 @@ export async function generateSprite(
   assertVocab(emotion, isEmotion, 'EMOTION_UNKNOWN', 'an expression')
   throwIfCancelled(options.signal)
   options.onProgress?.('Preparing')
+  // As the body switch has her: her file's body is drawn only while it is on.
+  character = await withBodySetting(character)
 
   const { charId } = character
   const seed = seedOverride ?? character.generationSeed
@@ -1166,6 +1173,8 @@ export async function generateCg(
   assertVocab(position, isPosition, 'POSITION_UNKNOWN', 'a CG position')
   throwIfCancelled(options.signal)
   options.onProgress?.('Preparing')
+  // As the body switch has her: her file's body is drawn only while it is on.
+  character = await withBodySetting(character)
 
   const seed = seedOverride ?? character.generationSeed
   const { poseTags, skeletonName } = await stagePose(character)
@@ -1211,6 +1220,8 @@ export async function fixHands(
   if (set !== null) assertVocab(set, isOutfitSet, 'OUTFIT_SET_UNKNOWN', 'an outfit set')
   throwIfCancelled(options.signal)
   options.onProgress?.('Preparing')
+  // As the body switch has her: her file's body is drawn only while it is on.
+  character = await withBodySetting(character)
 
   const { charId } = character
   const scope = set ?? 'default'

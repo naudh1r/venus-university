@@ -10,10 +10,13 @@ import {
   modsOn,
   NO_SWITCHES,
   optionOn,
+  PHOTO_FEATURE,
+  photoSwitchesOf,
   playthroughMods,
   switchedOn,
   withMod,
   withOption,
+  withPhotoSettingsCarried,
   type ModDef
 } from '@shared/mods'
 
@@ -58,6 +61,11 @@ describe('the shipped list', () => {
     for (const mod of MODS) {
       for (const needed of mod.requires ?? []) expect(MODS.some((m) => m.id === needed)).toBe(true)
     }
+  })
+
+  it('has the Photo Feature on until it is switched off', () => {
+    expect(modOn(NO_SWITCHES, 'photo-feature')).toBe(true)
+    expect(modOn(withMod(NO_SWITCHES, 'photo-feature', false), 'photo-feature')).toBe(false)
   })
 })
 
@@ -110,6 +118,58 @@ describe('options', () => {
     expect(optionOn(withOption(NO_SWITCHES, 'work', 'raises', false), 'work', 'raises', LIST)).toBe(false)
     expect(optionOn(NO_SWITCHES, 'work', 'nothing', LIST)).toBe(false)
   })
+
+  it('keeps one of a group on: picking one turns the others off', () => {
+    const blue = withOption(NO_SWITCHES, 'look', 'blue', true, LIST)
+    expect(optionOn(blue, 'look', 'blue', LIST)).toBe(true)
+    expect(optionOn(blue, 'look', 'red', LIST)).toBe(false)
+    expect(optionOn(blue, 'look', 'big', LIST)).toBe(false)
+    expect(withOption(blue, 'look', 'blue', false, LIST)).toBe(blue)
+  })
+})
+
+describe("Photo Feature's switches", () => {
+  it('are on, generating, and the bunny until touched', () => {
+    expect(photoSwitchesOf(NO_SWITCHES)).toEqual({
+      on: true,
+      photos: true,
+      explicit: true,
+      loader: 'bunny',
+      webp: true,
+      body: false
+    })
+  })
+
+  it('follow the Mods screen', () => {
+    let switches = withMod(NO_SWITCHES, PHOTO_FEATURE, false)
+    switches = withOption(switches, PHOTO_FEATURE, 'photos', false)
+    switches = withOption(switches, PHOTO_FEATURE, 'loader-dots', true)
+    switches = withOption(switches, PHOTO_FEATURE, 'webp', false)
+    expect(photoSwitchesOf(switches)).toEqual({
+      on: false,
+      photos: false,
+      explicit: true,
+      loader: 'dots',
+      webp: false,
+      body: false
+    })
+  })
+
+  it('carry the body switch over from the game settings once, and never switch it off', () => {
+    const carried = withPhotoSettingsCarried(NO_SWITCHES, { bodyDetails: true })
+    expect(photoSwitchesOf(carried).body).toBe(true)
+    const moved = withOption(NO_SWITCHES, PHOTO_FEATURE, 'body', false)
+    expect(withPhotoSettingsCarried(moved, { bodyDetails: true })).toBe(moved)
+    expect(withPhotoSettingsCarried(NO_SWITCHES, { bodyDetails: false })).toBe(NO_SWITCHES)
+  })
+
+  it('carry over what Settings had, until the Mods screen has its own', () => {
+    const carried = withPhotoSettingsCarried(NO_SWITCHES, { photos: false, photoLoader: 'shimmer' })
+    expect(photoSwitchesOf(carried)).toMatchObject({ photos: false, loader: 'shimmer' })
+    const moved = withOption(withOption(NO_SWITCHES, PHOTO_FEATURE, 'photos', true), PHOTO_FEATURE, 'loader-dots', true)
+    expect(withPhotoSettingsCarried(moved, { photos: false, photoLoader: 'shimmer' })).toBe(moved)
+    expect(withPhotoSettingsCarried(NO_SWITCHES, {})).toBe(NO_SWITCHES)
+  })
 })
 
 describe('a new playthrough', () => {
@@ -146,15 +206,5 @@ describe('cleanSwitches', () => {
     for (const value of [null, undefined, 3, 'on', [], { on: [true] }]) {
       expect(cleanSwitches(value)).toEqual({ on: {}, options: {} })
     }
-  })
-})
-
-describe('a group of options', () => {
-  it('keeps one of a group on: picking one turns the others off', () => {
-    const blue = withOption(NO_SWITCHES, 'look', 'blue', true, LIST)
-    expect(optionOn(blue, 'look', 'blue', LIST)).toBe(true)
-    expect(optionOn(blue, 'look', 'red', LIST)).toBe(false)
-    expect(optionOn(blue, 'look', 'big', LIST)).toBe(false)
-    expect(withOption(blue, 'look', 'blue', false, LIST)).toBe(blue)
   })
 })

@@ -2,6 +2,7 @@ import { Fragment, useState, type JSX, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { slotPartsOf, yearLabel } from '@shared/classes'
 import { dormLabel } from '@shared/dorms'
+import { postVisible } from '../mods/hooks'
 import { jobDefOf, WEEK_DAY_HEADERS } from '@shared/jobs'
 import { OUTFIT_SET_LABELS, spriteRef, STOCK_OUTFIT_SETS } from '@shared/outfits'
 import { npcEnemiesOf, npcFriendsOf } from '@shared/npcRelationships'
@@ -22,8 +23,8 @@ import { fullNameOf, type CharMemory, type StockOutfitSet } from '@shared/types'
 import { formatShortGameDate } from '../prompts/gameDate'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { profileUrl, spriteUrl, useSpriteVersion } from '../stores/characterStore'
-import { postVisible } from '../mods/hooks'
 import { newestFirst } from '../stores/feedRolls'
+import { PostPhotoLink, useContactGallery } from './ContactGallery'
 import { useGameStore } from '../stores/gameStore'
 import { noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
 import { sendFriendRequest } from '../stores/textingLoop'
@@ -100,6 +101,8 @@ export function ContactPage({
   // The tag goes through `affectionFor`, never a sum of the memories: feed likes count too.
   const flags = info?.flags ?? emptyFlags()
   const isContact = Boolean(flags.gaveContactInfo)
+  // Her gallery, and the tab strip it brings with it.
+  const gallery = useContactGallery({ charId, isContact })
   const handle = info?.handle
   const feed = (info?.feed ?? []).filter(postVisible).sort(newestFirst)
   // The days she made a friend, among what she posted. The other girl has to be one the
@@ -189,9 +192,16 @@ export function ContactPage({
           )}
         </div>
 
+        {gallery.tabs}
+
         {/* Undiscovered is drawn rather than hidden (D4), and a stranger's page is that rule
             carried to the whole screen: every card stands with the one thing that would open it
             named, so nothing she has none of can be read out of an absence. */}
+        {gallery.showing ? (
+          <motion.div className="vu-contact-cards" variants={CARDS_DEAL}>
+            {gallery.panel}
+          </motion.div>
+        ) : (
         <motion.div className="vu-contact-cards" variants={CARDS_DEAL}>
           <Card className="vu-contact-card--profile" label="Profile">
             {isContact ? (
@@ -334,6 +344,8 @@ export function ContactPage({
                         {formatShortGameDate(entry.post.date)} · ♥{' '}
                         {entry.post.likes + (entry.post.liked ? 1 : 0)}
                       </motion.button>
+                      {' '}
+                      <PostPhotoLink charId={charId} photo={entry.post.photo} />
                     </li>
                   )
                 )}
@@ -369,6 +381,7 @@ export function ContactPage({
             )}
           </Card>
         </motion.div>
+        )}
 
         {/* The foot's own order — the quiet leave first, the primary rightmost — sized to
             their own words: neither grows to a full-width slab, a page not being a form to
@@ -500,7 +513,7 @@ export function ContactPage({
  * One of the three cards: a surface half-pill flat right that scrolls on its own, so no one
  * section can outgrow the page. It carries the real scrollbar (`base.css`), never a drawn one.
  */
-function Card({
+export function Card({
   label,
   className,
   children
@@ -601,7 +614,7 @@ function Chips({
 }
 
 /** Something she has not told him yet, drawn as the gap it is with its own condition named. */
-function Locked({ children }: { children: ReactNode }): JSX.Element {
+export function Locked({ children }: { children: ReactNode }): JSX.Element {
   return <p className="vu-contact-locked">{children}</p>
 }
 
