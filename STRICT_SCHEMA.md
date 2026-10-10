@@ -11,6 +11,10 @@ scene and invitation result hooks. It adds no IPC channels or settings fields. A
 remain readable without it.
 It has no dependency on Photo Feature.
 
+Each call receives one concise set of mod instructions for its role. Shared dialogue guidance is
+defined once and reused by scene and DM requests. The base prompts and other mods' additions stay
+intact; schema requirements, evidence checks, cooldowns, and departure enforcement are unchanged.
+
 ## Behavior
 
 - Cast-scene lines require `speaker`, `bg`, `actions`, and `text`. Solo lines do not acquire an

@@ -19,15 +19,11 @@ export function strictHangoutRequest(request: StructuredRequest): StructuredRequ
   return {
     ...result,
     system: [request.system, '', 'LATEST EXCHANGE DECISION',
-      'The outcome field is authoritative. Read THE MESSAGE and THE REPLY, using BACKGROUND only to resolve references.',
-      'outcome: accepted when the reader proposes or accepts meeting in the current slot and she clearly agrees; declined when the reader refuses; deferred when THE MESSAGE says not now, maybe later, or proposes a future slot; new_offer only for her new immediate invitation without a reader refusal; otherwise none.',
-      'If she refuses the reader\'s proposal, use none. declined always means the reader refused, not her.',
-      'A refusal or deferral in THE MESSAGE takes precedence over her asking again in THE REPLY. Never classify it as accepted or new_offer.',
-      'An old refusal does not override a new explicit agreement in THE MESSAGE. The reader may change his mind.',
-      'playerQuote must copy the entire text of THE MESSAGE exactly for accepted, declined, and deferred. replyQuote must copy one complete text bubble from THE REPLY exactly for accepted and new_offer. Use empty strings when no evidence is needed.',
-      'Set playerAsked true only for accepted, characterOffered true only for new_offer. Both are false for all other outcomes. Keep description empty unless accepted or new_offer.',
-      'A reference to an old invitation, acknowledgement of a refusal, or vague future possibility is not a new offer.',
-      'Return only the JSON object matching the supplied schema.'
+      'Classify THE MESSAGE and THE REPLY; BACKGROUND only resolves references. outcome is authoritative:',
+      'accepted: the reader proposes or accepts meeting this slot and she clearly agrees. declined: the reader refuses. deferred: his message says not now, maybe later, or proposes a future slot. new_offer: her reply newly invites him now, without his refusal. none: otherwise, including her refusal.',
+      'A current reader refusal or deferral overrides her renewed offer. An old refusal does not override new consent. References to old plans and vague future possibilities are not new offers.',
+      'Evidence: playerQuote copies the entire latest reader message for accepted/declined/deferred; replyQuote copies one complete latest reply bubble for accepted/new_offer. Copy exactly; use empty strings when unnecessary.',
+      'Set playerAsked true only for accepted and characterOffered true only for new_offer; otherwise false. description is the base-format plan only for accepted/new_offer, otherwise empty. Preserve other schema fields and return only JSON.'
     ].join('\n'),
     schema: { ...request.schema, schema: {
       ...request.schema.schema,
