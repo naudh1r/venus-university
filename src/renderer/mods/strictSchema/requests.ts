@@ -123,9 +123,54 @@ export function strictDmRequest(request: StructuredRequest, ctx?: RequestSpots['
 }
 
 /** Posts share a request with slot narration, invitations, and breakups. */
-export function strictFeedRequest(request: StructuredRequest): StructuredRequest {
-  return withRules(request, [
+export function strictFeedRequest(request: StructuredRequest, ctx?: RequestSpots['slot-intro']): StructuredRequest {
+  const original = request.schema.schema
+  const properties = object(original.properties)
+  const posts = object(properties?.posts)
+  const items = object(posts?.items)
+  const fields = object(items?.properties)
+  const char = object(fields?.char)
+  const comments = object(fields?.comments)
+  const keys = ctx ? [...new Set(ctx.input.posters.map(poster => poster.charKey))] : undefined
+  const photo = hasActiveHooks('photo-feature') && fields && Object.hasOwn(fields, 'image') && Object.hasOwn(fields, 'comments')
+  let schema = original
+  if (properties && posts && items && fields && (keys || photo)) {
+    schema = {
+      ...original,
+      ...(keys?.length ? { required: [...new Set([...strings(original.required), 'posts'])] } : {}),
+      properties: {
+        ...properties,
+        posts: {
+          ...posts,
+          ...(keys ? { minItems: keys.length, maxItems: keys.length } : {}),
+          items: {
+            ...items,
+            properties: {
+              ...fields,
+              ...(keys?.length && char ? { char: { ...char, enum: keys } } : {}),
+              ...(photo && comments?.type === 'array' ? { comments: {
+                ...comments, maxItems: Math.min(typeof comments.maxItems === 'number' ? comments.maxItems : 5, 5)
+              } } : {})
+            }
+          }
+        }
+      }
+    }
+  }
+  return withRules(schema === original ? request : { ...request, schema: { ...request.schema, schema } }, [
     'Write "posts" in each author\'s voice with an exact supplied poster key and status text in "text". Preserve image and comment instructions; keep posts separate from narration, invitations, and breakups.',
-    'Ground people, past events, and relationships in supplied context; do not invent shared history.'
+    'Ground people, past events, and relationships in supplied context; do not invent shared history.',
+    ...(keys?.length ? [`Produce exactly one post per selected key, with no duplicates: ${JSON.stringify(keys)}.`] : []),
+    ...(photo ? [
+      'Each post has "image" as a string and "comments" as an array of at most five strings. "image" is only a visual description, never a filename, URL, JSON object, or image-generation tags. The engine adds character appearance and renders it. For text-only posts or disabled photos use "image": ""; for no comments use "comments": [].',
+      'When a photo is permitted, describe one coherent shot in one complete sentence: generic setting, clothes, pose or activity, and framing. Follow Photo Feature\'s public-photo and solo-person rules. Keep the post text and anonymous comments consistent with that specific post and picture; do not add usernames, handles, or comment objects.',
+      ...(keys?.length ? [
+        'Format example for a permitted photo (illustrative only; do not copy its content): ' + JSON.stringify({
+          char: keys[0], text: 'finally taking a break',
+          image: 'A young woman wearing a cream sweater sits alone beside a cafe window, holding a coffee cup in a waist-up shot.',
+          comments: ['that coffee looks good']
+        })
+      ] : [])
+    ] : [])
   ])
 }

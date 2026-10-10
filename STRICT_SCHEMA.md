@@ -44,6 +44,14 @@ normal base DM instructions. Scene narration continues using its existing prompt
   explanations are allowed when requested or needed. These are generation instructions, not
   post-delivery truncation. Photo and other mod fields remain intact. Feed instructions keep
   posts separate from the slot's other output.
+- Slot-opening feed schemas constrain post keys to the selected posters and the array length
+  to their count, requiring `posts` when anyone was selected. Instructions ask for one per key;
+  equal counts and allowed keys do not themselves enforce one occurrence of each key.
+  With Photo Feature enabled, comment arrays are capped at five (or an existing tighter limit).
+  Concise photo-field guidance and an illustrative post clarify that `image` is only a visual
+  description; the engine supplies character appearance and renders the picture. Original photo
+  permissions, instructions, and extension fields remain intact. These constraints guide the
+  provider and model; custom endpoints still receive `strict: false`.
 - Scene and DM dialogue follows the reader's current subject, avoiding paraphrased repetition of
   old grievances, apologies, questions, or reassurance. Memories may shape her tone without
   becoming recurring talking points. Active discussions can continue; topic changes are not
