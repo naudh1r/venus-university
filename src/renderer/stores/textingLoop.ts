@@ -582,7 +582,7 @@ async function runReply(
     ? prepareHangoutClassification(character, conversation, sent, messages, invited, stillCurrent)
     : null
 
-  // The verdict can arm a hangout and force the thread open, so it waits for her last text.
+  // Deliver every text before mods attach any final reply bubbles.
   await pacer.drain()
   if (entry.abandoned) return
 
@@ -597,7 +597,8 @@ async function runReply(
     return
   }
 
-  afterDmReply({ charId, character, reply: data })
+  // Photo hooks resolve once their bubble is attached; image rendering continues separately.
+  await afterDmReply({ charId, character, reply: data })
 
   // A scene already owns the screen: the verdict could only be discarded.
   if (!stillCurrent() || !classification) return

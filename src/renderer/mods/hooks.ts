@@ -189,7 +189,7 @@ export interface ModHooks {
     ctx: { baseAppearance: readonly string[] }
   ) => Partial<Character>
   /** After her reply in a DM has landed. */
-  afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void
+  afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void | Promise<void>
   hangoutResult?: (result: HangoutResolution, ctx: HangoutContext & { reply: unknown }) => HangoutResolution
   /** Return true when the button answer has been handled. */
   hangoutAnswer?: (ctx: { charId: string; yes: boolean; pending: NonNullable<Conversation['pendingHangout']> }) => boolean
@@ -297,12 +297,18 @@ export function characterFromDraft(
   return Object.assign({}, ...active().map((hooks) => hooks.characterFromDraft?.(draft, ctx) ?? {}))
 }
 
-export function afterDmReply(ctx: {
+export async function afterDmReply(ctx: {
   charId: string
   character: Character
   reply: TextingResponse
-}): void {
-  for (const hooks of active()) hooks.afterDmReply?.(ctx)
+}): Promise<void> {
+  for (const hooks of active()) {
+    try {
+      await hooks.afterDmReply?.(ctx)
+    } catch (error) {
+      console.warn('DM reply hook failed:', error)
+    }
+  }
 }
 
 export function playerActs(): void {
