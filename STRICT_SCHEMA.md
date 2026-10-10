@@ -35,6 +35,11 @@ It has no dependency on Photo Feature.
   explanations are allowed when requested or needed. These are generation instructions, not
   post-delivery truncation. Photo and other mod fields remain intact. Feed instructions keep
   posts separate from the slot's other output.
+- Scene and DM dialogue follows the reader's current subject, avoiding paraphrased repetition of
+  old grievances, apologies, questions, or reassurance. Memories may shape her tone without
+  becoming recurring talking points. Active discussions can continue; topic changes are not
+  forced. DMs do not reannounce unchanged whereabouts already given. These are model instructions,
+  not a filter that deletes delivered dialogue.
 - The hangout classifier distinguishes accepted, declined, deferred, new offers, and unrelated
   exchanges. Accepted plans need the entire latest player message and one complete latest reply
   bubble as exact evidence. New offers need a latest reply bubble. Invalid or missing evidence
