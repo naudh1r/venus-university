@@ -491,6 +491,30 @@ describe('sanitizeLine — CGs', () => {
 })
 
 describe('sanitizeScene', () => {
+  it('transforms whole validated lines before splitting and discards recaps of omitted events', () => {
+    const text = 'She says goodbye. She closes the door.'
+    let closed = false
+    const result = sanitizeScene({
+      lines: [
+        { speaker: '', text, actions: ['hide:sarah_rose'] },
+        { speaker: '', text: 'A later phone conversation.' }
+      ],
+      summary: 'A recap including the later phone conversation.'
+    }, { stage: ['sarah_rose'], fits: text => text.length <= 20 }, line => {
+      if (closed) return []
+      closed = Boolean(line.actions?.includes('hide:sarah_rose'))
+      return [line]
+    })
+    expect(result.lines.map(line => line.text)).toEqual(['She says goodbye.', 'She closes the door.'])
+    expect(result.lines[0].actions).toEqual(['hide:sarah_rose'])
+    expect(result.summary).toBeNull()
+  })
+
+  it('keeps the model recap when the transform delivers all lines', () => {
+    const result = sanitizeScene({ lines: [{ speaker: '', text: 'She smiles.' }], summary: 'They talked.' }, {}, line => [line])
+    expect(result.summary).toBe('They talked.')
+  })
+
   it('nulls a blank summary so it cannot erase the running one', () => {
     // `summary` replaces everything older in the transcript. A blank
     // string read as a summary throws the whole scene's memory away.

@@ -143,6 +143,8 @@ export interface ModHooks {
   requests?: { [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest }
   /** Adjust a sanitized scene result; enabled handlers are captured when the call starts. */
   sceneResult?: (result: SceneResult, ctx: SceneResultContext) => SceneResult
+  /** Create a per-pass line transform; streaming and final sanitization get separate instances. */
+  sceneLines?: (ctx: SceneResultContext) => (line: SceneLine) => SceneLine[]
   /** After bookkeeping settles, before the clock advances and the boundary save is written. */
   slotSettled?: (ctx: SlotSettled) => void
 
@@ -333,6 +335,13 @@ export function captureSceneResult(ctx: SceneResultContext): (result: SceneResul
   const handlers = active().flatMap(hooks => hooks.sceneResult ? [hooks.sceneResult] : [])
   const captured = { ...ctx, stage: [...ctx.stage] }
   return result => handlers.reduce((next, handle) => handle(next, captured), result)
+}
+
+/** Each pass starts from the same stage and enabled transforms before any lines play. */
+export function captureSceneLines(ctx: SceneResultContext): (line: SceneLine) => SceneLine[] {
+  const captured = { ...ctx, stage: [...ctx.stage] }
+  const transforms = active().flatMap(hooks => hooks.sceneLines ? [hooks.sceneLines(captured)] : [])
+  return line => transforms.reduce((lines, transform) => lines.flatMap(transform), [line])
 }
 
 export function slotSettled(ctx: SlotSettled): void {

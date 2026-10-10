@@ -234,6 +234,10 @@ Where a branch goes:
   switch changes during generation. Keep the lines unchanged because previews may already have
   played. Preserve summary and ending metadata received from earlier handlers unless deliberately
   adjusting them.
+- `sceneLines` creates a stateful line transform for a call's starting context. Separate instances
+  are captured before generation for streaming and the final reply. Both run after base line
+  validation and before dialogue-box splitting. If a final transform omits a line, the model's
+  summary is discarded because it may include events that were never delivered.
 
 These hooks add to the existing API; existing hooks and their arguments are unchanged. Screens, IPC and save fields still use direct integration as documented above.
 
