@@ -51,6 +51,10 @@ It has no dependency on Photo Feature.
 - The scene ledger uses the player's original thinking/reasoning setting instead of forcing high.
   The base provider resolver reads the current settings at call time and handles supported levels;
   the mod stores no separate thinking setting. With the mod off, the base ledger's high floor remains.
+- Scene-ledger memory descriptions contain only the past-tense event clause completing
+  "Name liked/disliked/hated that ...". Instructions prohibit duplicated names and "remembers that"
+  introductions, keep descriptions concise, and require the reaction type to be supported by the
+  transcript. These instructions guide new output; existing saved memories are not rewritten.
 
 The schema transformation copies the assembled request and changes only scene-line requirements
 and the background enum, plus the continuation's ending requirement. Existing fields, required

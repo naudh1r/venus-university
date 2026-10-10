@@ -5,11 +5,19 @@ import { invitationCoolingDown } from './hangoutPolicy'
 
 type Schema = Record<string, unknown>
 
-/** Let the provider resolver use the player's current settings without a ledger effort floor. */
+/** Keep ledger memories as event clauses and leave effort to the player's settings. */
 export function strictLedgerRequest(request: StructuredRequest): StructuredRequest {
   const result = { ...request }
   delete result.minThinking
-  return result
+  return withRules(result, [
+    'Every memory "desc" is only the event clause that completes "<Name> <type> that ...". The game supplies the character name, reaction, and "that"; do not repeat that introduction.',
+    'Write the event in the past tense. When the reader is the subject, begin with "the reader" and use "the reader" or "the reader\'s" throughout, never "you", "your", "he", or "his" for the reader.',
+    'Do not begin a memory with "<Name> remembers that", "she remembers that", "I remember", "<Name> liked that", "<Name> hated that", or another memory/reporting preface. Do not add a leading "that".',
+    'Correct desc: "the reader interrupted her explanation". Incorrect desc: "Gwen remembers that you interrupted her explanation" or "Gwen hated that the reader interrupted her explanation".',
+    'Keep each desc to one concise event clause, with a short reason only when needed to explain her reaction. Do not retell the whole scene.',
+    'Choose the memory type from the character\'s reaction established in the supplied transcript. An ordinary answer, conversation, or walk is not automatically something she hated. Do not invent resentment or affection to justify a type; omit a memory when no meaningful reaction is supported.',
+    'These rules apply only to memory descriptions. Keep every other ledger field and instruction, including stats, events, and plans, intact.'
+  ])
 }
 
 function object(value: unknown): Schema | null {
