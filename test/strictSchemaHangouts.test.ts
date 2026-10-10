@@ -88,6 +88,46 @@ it('classifies the complete reply during typing but arms the hangout only after 
   expect(prefetch).toHaveBeenCalledOnce()
 })
 
+it('holds a ready hangout decision until asynchronous reply bubbles are attached', async () => {
+  let attach!: () => void
+  let bubbleAttached = false
+  hooks.registerHooks('delayed-photo', { afterDmReply: async () => {
+    await new Promise<void>(resolve => { attach = resolve })
+    bubbleAttached = true
+  } })
+  hooks.setHookRules({ isOn: id => id === 'strict-schema' || id === 'delayed-photo', order: () => 0 })
+  const classify = vi.fn(async () => ({ ok: true as const, data: response('accepted', 'Come over?', 'Yes, come over.') }))
+  stubApi({ llm: {
+    onTextingDelta: () => () => {},
+    completeTexting: async () => ({ ok: true, data: { messages: ['Yes, come over.'] } }),
+    classifyHangout: classify
+  } })
+  const pending = texting.sendMessage('a', 'Come over?')
+  await vi.advanceTimersByTimeAsync(60_000)
+  expect(classify).toHaveBeenCalledOnce()
+  expect(game.getState().bunnyboard.conversations.a!.messages.at(-1)?.text).toBe('Yes, come over.')
+  expect(bubbleAttached).toBe(false)
+  expect(phone.getState().armedHangout).toBeNull()
+  expect(prefetch).not.toHaveBeenCalled()
+  attach()
+  await pending
+  expect(bubbleAttached).toBe(true)
+  expect(phone.getState().armedHangout?.charId).toBe('a')
+})
+
+it('still applies the hangout decision if an asynchronous reply hook fails', async () => {
+  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  hooks.registerHooks('failed-photo', { afterDmReply: async () => { throw new Error('Photo unavailable') } })
+  hooks.setHookRules({ isOn: id => id === 'strict-schema' || id === 'failed-photo', order: () => 0 })
+  try {
+    await exchange('Come over?', 'Yes, come over.', response('accepted', 'Come over?', 'Yes, come over.'))
+    expect(phone.getState().armedHangout?.charId).toBe('a')
+    expect(warning).toHaveBeenCalled()
+  } finally {
+    warning.mockRestore()
+  }
+})
+
 it('waits for the complete response rather than classifying a streamed first bubble alone', async () => {
   let emit: ((group: string, delta: string) => void) | undefined
   let finish!: (reply: { ok: true; data: { messages: string[] } }) => void
