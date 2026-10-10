@@ -57,6 +57,82 @@ async function exchange(text: string, reply: string, classified: HangoutClassifi
   await pending
 }
 
+it('classifies the complete reply during typing but arms the hangout only after the final bubble', async () => {
+  const sent = 'Can I come over now?'
+  const replies = [
+    'Yes, I would like that. I am just finishing up here and putting my books away.',
+    'Come over to my room now. I will leave the door open and we can have coffee together.'
+  ]
+  const classify = vi.fn(async (_request: StructuredRequest) => ({ ok: true as const, data: response('accepted', sent, replies[1]) }))
+  stubApi({ llm: {
+    onTextingDelta: () => () => {},
+    completeTexting: async () => ({ ok: true, data: { messages: replies } }),
+    classifyHangout: classify
+  } })
+  const before = game.getState().bunnyboard.conversations.a!.messages.length
+  const pending = texting.sendMessage('a', sent)
+  await vi.advanceTimersByTimeAsync(0)
+  expect(classify).toHaveBeenCalledOnce()
+  const request = classify.mock.calls[0][0]
+  // Both bubbles, including the agreement in the second, are available before either lands.
+  expect(request.user).toContain(replies[1])
+  expect(game.getState().bunnyboard.conversations.a!.messages).toHaveLength(before + 1)
+  expect(phone.getState().armedHangout).toBeNull()
+  expect(prefetch).not.toHaveBeenCalled()
+  await vi.advanceTimersByTimeAsync(6000)
+  expect(game.getState().bunnyboard.conversations.a!.messages).toHaveLength(before + 2)
+  expect(phone.getState().armedHangout).toBeNull()
+  await vi.advanceTimersByTimeAsync(3000)
+  await pending
+  expect(phone.getState().armedHangout?.charId).toBe('a')
+  expect(prefetch).toHaveBeenCalledOnce()
+})
+
+it('waits for the complete response rather than classifying a streamed first bubble alone', async () => {
+  let emit: ((group: string, delta: string) => void) | undefined
+  let finish!: (reply: { ok: true; data: { messages: string[] } }) => void
+  const classify = vi.fn(async () => ({ ok: true as const, data: response('none', '', '') }))
+  stubApi({ llm: {
+    onTextingDelta: listener => { emit = listener; return () => {} },
+    completeTexting: () => new Promise(resolve => { finish = resolve }),
+    classifyHangout: classify
+  } })
+  const pending = texting.sendMessage('a', 'Coffee now?')
+  await vi.advanceTimersByTimeAsync(0)
+  emit!('texting:a', '{"messages":["I would like to.",')
+  await vi.advanceTimersByTimeAsync(6000)
+  expect(classify).not.toHaveBeenCalled()
+  finish({ ok: true, data: { messages: ['I would like to.', 'But I cannot meet you now.'] } })
+  await vi.advanceTimersByTimeAsync(0)
+  expect(classify).toHaveBeenCalledOnce()
+  await vi.advanceTimersByTimeAsync(6000)
+  await pending
+  expect(phone.getState().armedHangout).toBeNull()
+})
+
+it('defers classifier errors until typing ends and retries the identical request', async () => {
+  const reply = 'I am still considering what you said, but I need to finish this thought first.'
+  const classify = vi.fn()
+    .mockRejectedValueOnce(new Error('transport unavailable'))
+    .mockResolvedValueOnce({ ok: true, data: response('none', '', '') })
+  stubApi({ llm: {
+    onTextingDelta: () => () => {},
+    completeTexting: async () => ({ ok: true, data: { messages: [reply] } }),
+    classifyHangout: classify
+  } })
+  const pending = texting.sendMessage('a', 'How are you?')
+  await vi.advanceTimersByTimeAsync(0)
+  expect(classify).toHaveBeenCalledOnce()
+  expect(game.getState().classifierError).toBeNull()
+  await vi.advanceTimersByTimeAsync(6000)
+  expect(game.getState().classifierError?.message).toBe('transport unavailable')
+  texting.retryHangoutClassify()
+  await vi.advanceTimersByTimeAsync(0)
+  await pending
+  expect(classify).toHaveBeenCalledTimes(2)
+  expect(classify.mock.calls[1][0]).toBe(classify.mock.calls[0][0])
+})
+
 it('records No once, survives actual save hydration, blocks repeated offers, and allows a later player agreement', async () => {
   texting.answerHangout('a', false)
   texting.answerHangout('a', false)

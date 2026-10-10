@@ -61,6 +61,12 @@ normal base DM instructions. Scene narration continues using its existing prompt
   exchanges. Accepted plans need the entire latest player message and one complete latest reply
   bubble as exact evidence. New offers need a latest reply bubble. Invalid or missing evidence
   never arms a scene. Obvious short refusals and deferrals override contradictory classifier output.
+- The texting loop starts hangout classification as soon as the complete DM reply arrives,
+  overlapping the remaining bubble typing animation. A streamed first bubble alone is insufficient:
+  later bubbles may accept or refuse. Result hooks, hangout state changes, and classifier failure
+  dialogs wait until the final bubble lands. Abandoned turns discard their verdict, and retries
+  reuse the same request. This scheduling improvement also applies with Strict Schema disabled;
+  the mod's evidence rules and the player's thinking setting are unchanged.
 - Clicking No writes a refusal into the thread, clears the invitation, and starts the existing
   increasing decline cooldown (4 slots initially, doubling up to 28). Text refusals and deferrals
   also start it. DM guidance discourages repeated asking; game rules block renewed DM invitations

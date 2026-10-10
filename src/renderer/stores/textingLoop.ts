@@ -69,6 +69,7 @@ import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
 import { afterDmReply, captureHangoutResult, hangoutAnswer, hangoutOfferAllowed, modRequest, type HangoutResolution } from '../mods/hooks'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
+import { toAppError } from '@shared/errors'
 import { createRetryGate } from './retryGate'
 import { createTextExtractor } from './textingStream'
 import { BOT_REPLY_MS, createTypingPacer, typingDelayFor, type TypingPacer } from './textingPace'
@@ -575,6 +576,12 @@ async function runReply(
 
   const blocked = data.blocked === true
 
+  const stillCurrent = (): boolean => !entry.abandoned && !sceneActiveOf(useGameStore.getState())
+  // Classify the complete reply while its bubbles are still being delivered; apply nothing yet.
+  const classification = !blocked && stillCurrent()
+    ? prepareHangoutClassification(character, conversation, sent, messages, invited, stillCurrent)
+    : null
+
   // The verdict can arm a hangout and force the thread open, so it waits for her last text.
   await pacer.drain()
   if (entry.abandoned) return
@@ -593,10 +600,9 @@ async function runReply(
   afterDmReply({ charId, character, reply: data })
 
   // A scene already owns the screen: the verdict could only be discarded.
-  if (sceneActiveOf(useGameStore.getState())) return
+  if (!stillCurrent() || !classification) return
 
-  const stillCurrent = (): boolean => !entry.abandoned && !sceneActiveOf(useGameStore.getState())
-  const decision = await classifyHangout(character, conversation, sent, messages, invited, stillCurrent)
+  const decision = await classification()
   if (!stillCurrent()) return
   handleHangout(charId, decision.verdict)
   if (invited && !decision.settled) settleAnsweredInvitation(charId, invited.occasionId)
@@ -678,15 +684,15 @@ export function abandonHangoutClassify(): void {
  * Asks the hangout classifier whether the exchange that just happened was somebody proposing to
  * meet up right now.
  */
-async function classifyHangout(
+function prepareHangoutClassification(
   character: Character,
   conversation: Conversation | undefined,
   sent: ChatMessage,
   replies: readonly string[],
   invited: Conversation['pendingHangout'] | null,
   stillCurrent: () => boolean
-): Promise<HangoutResolution> {
-  if (replies.length === 0) return { verdict: null, settled: false }
+): () => Promise<HangoutResolution> {
+  if (replies.length === 0) return async () => ({ verdict: null, settled: false })
 
   const game = useGameStore.getState()
   // Built once, outside the loop: a retry re-sends the identical request.
@@ -701,22 +707,34 @@ async function classifyHangout(
     { date: game.date, time: game.time, weather: game.weather }
   ))
 
-  for (;;) {
-    const result = await window.api.llm.classifyHangout(request)
-    if (!stillCurrent()) return { verdict: null, settled: true }
-    if (result.ok) {
-      const decision = finish(result.data, { verdict: normalizeHangout(result.data), settled: false })
-      const verdict = decision.verdict
-      console.log(
-        `[hangout] = ${verdict ? `${verdict.initiatedBy}: ${verdict.description}` : 'no hangout'}`
-      )
-      return decision
+  const call = async () => {
+    try {
+      return await window.api.llm.classifyHangout(request)
+    } catch (error) {
+      return { ok: false as const, error: toAppError(error) }
     }
-    // The reply was abandoned by a scene starting; there is nothing to judge.
-    if (result.error.code === 'CANCELLED') return { verdict: null, settled: false }
+  }
+  // Catch transport failures immediately; the result and retry modal wait for the final bubble.
+  let pending = call()
+  return async () => {
+    for (;;) {
+      const result = await pending
+      if (!stillCurrent()) return { verdict: null, settled: true }
+      if (result.ok) {
+        const decision = finish(result.data, { verdict: normalizeHangout(result.data), settled: false })
+        const verdict = decision.verdict
+        console.log(
+          `[hangout] = ${verdict ? `${verdict.initiatedBy}: ${verdict.description}` : 'no hangout'}`
+        )
+        return decision
+      }
+      // The reply was abandoned by a scene starting; there is nothing to judge.
+      if (result.error.code === 'CANCELLED') return { verdict: null, settled: false }
 
-    console.warn('[texting] hangout classifier failed, waiting on the player:', result.error)
-    if (!(await hangoutGate.ask(result.error))) return { verdict: null, settled: false }
+      console.warn('[texting] hangout classifier failed, waiting on the player:', result.error)
+      if (!(await hangoutGate.ask(result.error))) return { verdict: null, settled: false }
+      pending = call()
+    }
   }
 }
 
