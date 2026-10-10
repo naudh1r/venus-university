@@ -15,6 +15,7 @@ import type {
 import type { GameOverReason } from '@shared/gameOver'
 import type { PlaythroughRecord } from '@shared/types'
 import type { TextingPromptState } from '../prompts/textingPrompt'
+import type { SchedulePromptInput } from '../prompts/schedulePrompt'
 import type { ResolvedSave } from '../stores/saveStore'
 import type { ViewName } from '../stores/uiStore'
 import type { HangoutVerdict } from '../prompts/hangoutClassifierPrompt'
@@ -109,6 +110,7 @@ export interface RequestSpots {
   dm: PromptSpots['dm'] & { newMessage: string; conversation?: Conversation }
   'hangout-classifier': HangoutContext
   ledger: { state: PromptState; charKeys: readonly string[] }
+  'text-ledger': { schedule: SchedulePromptInput; charInfo: Record<string, CharInfo> }
   'slot-intro': { input: SlotIntroInput }
 }
 

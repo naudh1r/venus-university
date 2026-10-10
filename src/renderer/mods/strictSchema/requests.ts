@@ -8,6 +8,13 @@ type Schema = Record<string, unknown>
 
 const CONVERSATION_RULE = 'Follow the reader\'s current subject in her own voice; continue active discussions and follow subject changes naturally. Memories shape her tone without repeatedly reopening old grievances or paraphrasing earlier dialogue. Respect established resolutions without inventing forgiveness. Repeat a detail only when asked or newly relevant; do not invent people or shared history.'
 
+const PLAN_RULES = [
+  'Calendar "plans" are only agreed in-person activities involving the reader and at least one other person, at an established physical location and a specific future day/night slot from SLOTS. A room, cafe, or landmark counts; do not invent a destination or agreement to complete a vague suggestion.',
+  'Exclude promises to text, message, call, video-call, send a photo, or chat online, even with a specific future time. Existing duplicate, cancelled, refused, timetable-only, and past/current-slot plans remain excluded. Use "plans": [] when nothing qualifies.',
+  'Write each "title" as a concise action the reader will take: the game submits this title as the reader\'s action. Preserve who hosts and who travels. Guests coming to the reader: "Host April and Livvie in your room". Reader going to her: "Visit April in her room". Meeting elsewhere: "Meet April and Livvie at the cafe". These are format examples, not new people or plans.',
+  'The one-sentence "description" preserves all agreed attendees, the physical destination and its owner, the activity, and the agreed time. Never reverse who visits whom. "chars" lists every agreed attendee except the reader using supplied keys; "slot" is the matching supplied future slot. Do not turn an already agreed plan into a fresh invitation.'
+] as const
+
 /** Keep ledger memories as event clauses and leave effort to the player's settings. */
 export function strictLedgerRequest(request: StructuredRequest): StructuredRequest {
   const result = { ...request }
@@ -15,7 +22,8 @@ export function strictLedgerRequest(request: StructuredRequest): StructuredReque
   return withRules(result, [
     'Memory "desc" is one concise past-tense event clause completing "<Name> <type> that ...". Omit the supplied name/reaction prefix, a leading "that", and "remembers that" introductions. Use "the reader" and "the reader\'s", never second-person or he/his pronouns for the reader.',
     'Correct desc: "the reader interrupted her explanation". Incorrect: "Gwen remembers that you interrupted her explanation".',
-    'Ground each event and reaction type in the transcript; omit memories without a meaningful supported reaction. Add a short reason if needed, without retelling the scene or inventing resentment or affection. Preserve the other ledger instructions for stats, events, and plans.'
+    'Ground each event and reaction type in the supplied scene or messages; omit memories without a meaningful supported reaction. Add a short reason if needed, without retelling the scene or inventing resentment or affection. Preserve the other ledger instructions for stats and events.',
+    ...(object(object(result.schema.schema.properties)?.plans) ? PLAN_RULES : [])
   ])
 }
 
@@ -86,6 +94,7 @@ export function strictSceneRequest(request: StructuredRequest): StructuredReques
     'Each line has "speaker", "bg", and nonempty "text". Separate narration (speaker "") from dialogue (an exact allowed character key).',
     'Set line "bg" to an allowed background at the opening or an actual location change; otherwise use "unchanged". Mentioning a place is not moving there. Never put "bg" beside "lines".',
     'Start from NOW, use STORY SO FAR as background, and continue after SCENE SO FAR without replaying it.',
+    'For scheduled visits, preserve the agreed host, destination, and who travels. If guests are coming to the reader\'s room and he is already there, he stays there to receive them; do not narrate him visiting his own room or travelling to theirs. A planned attendee\'s class or shift can be before or after this meeting as the supplied commitment notes allow; it does not itself cancel the agreement.',
     CONVERSATION_RULE
   ]
   rules.push(
