@@ -62,9 +62,8 @@ registerHooks(PHOTO_FEATURE, {
     body: bodyOfDraft(draft.body as DraftBody | undefined, baseAppearance)
   }),
 
-  // Her picture, if she offered one and the save will have it. Left to finish on its own: a
-  // render is half a minute, and her words have already landed.
-  afterDmReply: ({ charId, character, reply }) => void sendPhoto(charId, character, reply),
+  // Attach her photo bubble before the hangout offer; its render finishes in the background.
+  afterDmReply: ({ charId, character, reply }) => sendPhoto(charId, character, reply),
 
   // The slot's held feed pictures, now that he is busy with something: they draw under the scene
   // and the posts are waiting on the feed when he is free again.
