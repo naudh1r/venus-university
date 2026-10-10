@@ -38,7 +38,7 @@ import {
   whereaboutsLine,
   type NpcCompanions
 } from './npcRelationship'
-import { modRequest, dmHistoryNotes, promptFields, promptLines, promptRequired } from '../mods/hooks'
+import { modRequest, dmBasePrompt, dmHistoryNotes, promptFields, promptLines, promptRequired } from '../mods/hooks'
 import { relationshipLines } from './relationship'
 import { weatherLines } from './weather'
 
@@ -361,6 +361,32 @@ export function buildTextingPrompt(
     ...notesLines(name, info?.notes)
   ]
 
+  const ctx = { character, info, state, newMessage, conversation }
+  const instructions = dmBasePrompt(ctx, {
+    system: TEXTING_PERSONA,
+    turn: [
+      'YOUR TURN',
+      `${name} is texting the reader back in a private DM.`,
+      `Write ${name}'s reply to the reader's newest message, the last line of RECENT MESSAGES, as the "messages" array: each entry is one text bubble she sends.`,
+      'Stay in her voice and keep it text-length: this is a phone thread, not prose.',
+      ...meetUpLines(name, state.charLocation, state.charHaunt, state.time, away),
+      ''
+    ],
+    result: [
+      'BLOCKING',
+      `Set "blocked" to true only if these texts have pushed ${name} to cut the reader off completely. She is done, and blocks him on Bunnyboard as her last text lands.`,
+      'Her final messages should read like somebody who is about to do that.',
+      'Being annoyed, hurt, bored or angry is not enough on its own: people stay in threads they are angry in. Reserve it for wanting him gone.',
+      'Otherwise set it to false.',
+      '',
+      'SUMMARY',
+      summary
+        ? 'Then, for the "summary" field, fold the TEXTING SO FAR and the RECENT MESSAGES (plus your reply) into one merged recap.'
+        : 'Then, for the "summary" field, condense the RECENT MESSAGES (plus your reply) into a single recap.',
+      `Write it in third person, refer to the MC as "the reader", and keep anything ${name} should still remember later. Don't include concrete dates, and leave out old or unimportant information.`
+    ]
+  })
+
   const user = [
     'READER',
     reader,
@@ -389,28 +415,13 @@ export function buildTextingPrompt(
     ...history,
     "'''",
     '',
-    'YOUR TURN',
-    `${name} is texting the reader back in a private DM.`,
-    `Write ${name}'s reply to the reader's newest message, the last line of RECENT MESSAGES, as the "messages" array: each entry is one text bubble she sends.`,
-    'Stay in her voice and keep it text-length: this is a phone thread, not prose.',
-    ...meetUpLines(name, state.charLocation, state.charHaunt, state.time, away),
-    '',
+    ...instructions.turn,
     ...promptLines('dm', { character, info, state }),
-    'BLOCKING',
-    `Set "blocked" to true only if these texts have pushed ${name} to cut the reader off completely. She is done, and blocks him on Bunnyboard as her last text lands.`,
-    'Her final messages should read like somebody who is about to do that.',
-    'Being annoyed, hurt, bored or angry is not enough on its own: people stay in threads they are angry in. Reserve it for wanting him gone.',
-    'Otherwise set it to false.',
-    '',
-    'SUMMARY',
-    summary
-      ? 'Then, for the "summary" field, fold the TEXTING SO FAR and the RECENT MESSAGES (plus your reply) into one merged recap.'
-      : 'Then, for the "summary" field, condense the RECENT MESSAGES (plus your reply) into a single recap.',
-    `Write it in third person, refer to the MC as "the reader", and keep anything ${name} should still remember later. Don't include concrete dates, and leave out old or unimportant information.`
+    ...instructions.result
   ].join('\n')
 
-  return modRequest('dm', { character, info, state, newMessage, conversation }, {
-    system: TEXTING_PERSONA,
+  return modRequest('dm', ctx, {
+    system: instructions.system,
     user,
     schema: textingSchema(),
     // Constant, like the ledger's: nothing above the seam varies by save.

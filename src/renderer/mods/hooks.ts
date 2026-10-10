@@ -112,6 +112,13 @@ export interface RequestSpots {
   'slot-intro': { input: SlotIntroInput }
 }
 
+/** Built-in DM instructions, separate from conversation data and mod additions. */
+export interface DmBasePrompt {
+  system: string
+  turn: readonly string[]
+  result: readonly string[]
+}
+
 export interface SlotSettled {
   before: ReturnType<typeof useGameStore.getState>
   ledger: LedgerResponse | null
@@ -155,6 +162,9 @@ export interface BunnyboardPage {
 
 export interface ModHooks {
   bunnyboardPage?: BunnyboardPage
+
+  /** The first enabled replacement owns only the built-in DM instructions. */
+  dmBasePrompt?: (ctx: RequestSpots['dm']) => DmBasePrompt | undefined
 
   /** Extend a completed request, preserving other mods' additions. */
   requests?: { [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest }
@@ -233,6 +243,18 @@ function active(): ModHooks[] {
     .filter((entry) => rules.isOn(entry.modId))
     .sort((a, b) => rules.order(a.modId) - rules.order(b.modId))
     .map((entry) => entry.hooks)
+}
+
+export function hasActiveHooks(modId: string): boolean {
+  return registered.some(entry => entry.modId === modId) && rules.isOn(modId)
+}
+
+export function dmBasePrompt(ctx: RequestSpots['dm'], base: DmBasePrompt): DmBasePrompt {
+  for (const hooks of active()) {
+    const replacement = hooks.dmBasePrompt?.(ctx)
+    if (replacement) return replacement
+  }
+  return base
 }
 
 /** Every mod's lines for one prompt. */

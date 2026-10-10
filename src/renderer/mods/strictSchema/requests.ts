@@ -1,6 +1,7 @@
 import type { StructuredRequest } from '@shared/types'
 import { globalSlotOf } from '@shared/jobs'
 import type { RequestSpots } from '../hooks'
+import { hasActiveHooks } from '../hooks'
 import { invitationCoolingDown } from './hangoutPolicy'
 
 type Schema = Record<string, unknown>
@@ -108,13 +109,16 @@ export function strictSceneRequest(request: StructuredRequest): StructuredReques
 /** Leave the thread, summaries, photo instructions, and schema assembled by other mods intact. */
 export function strictDmRequest(request: StructuredRequest, ctx?: RequestSpots['dm']): StructuredRequest {
   const cooldown = ctx && invitationCoolingDown(ctx.conversation, globalSlotOf(ctx.state.date, ctx.state.time))
+  const fields = object(request.schema.schema.properties)
+  const photo = hasActiveHooks('photo-feature') && ['sendPhoto', 'photoPrompt', 'photoTier'].every(key => fields && Object.hasOwn(fields, key))
   return withRules(request, [
     'Normally reply in 1–3 bubbles of about 10–25 words each, aiming for at most 60 words total; acknowledgements may be shorter. Expand when an explanation is requested or needed. Focus on the latest message without echoing it, adding unrelated updates, or filling space.',
     CONVERSATION_RULE,
     'Treat whereabouts, companions, and activities as background; do not reannounce unchanged details already given. Small current details are fine. Her knowledge of the reader\'s work and timetable comes from shared classes or what he told her, not every supplied schedule entry.',
     'Ask or invite once, then wait. Respect refusals and deferrals without pressure or assuming acceptance. Plans to come over are not arrivals.',
     ...(cooldown ? ['Invitation cooldown is active: do not initiate another hangout. If the reader changes his mind and proposes meeting, respond normally.'] : []),
-    'Write "messages" as an array of strings, one per bubble: no narration, stage actions, or nested objects. Preserve supplied photo instructions and fields.'
+    'Write "messages" as an array of strings, one per bubble: no narration, stage actions, or nested objects. Preserve supplied photo instructions and fields.',
+    ...(photo ? ['Photo fields: use a boolean "sendPhoto", a string "photoPrompt", and an allowed "photoTier". Without an attachment use false, "", and "none". Attach only when the supplied photo instructions allow it; then use true, a nonempty one-sentence picture brief, and a permitted tier. The text bubbles must fit the attachment without narrating its contents.'] : [])
   ])
 }
 

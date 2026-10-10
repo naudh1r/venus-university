@@ -122,6 +122,7 @@ Where a thing goes:
 
 - Anything both processes read, every vocabulary, and every rule the desktop and the browser must both keep goes in `src/shared`; the disk edge and the database edge each call it. Every word the app says about a figure lives beside that figure's arithmetic, so retuning one reaches every reader.
 - A prompt builder is pure and lives in `prompts/`; what sends it lives in `main`.
+- DM base writing instructions have a separate replacement hook; conversation data and other mods' prompt/schema additions remain outside that replacement. Strict Schema uses it only while Photo Feature is also installed and enabled.
 - A screen is one file in `views/` with one stylesheet in `vu_styles/`; a control is promoted to `components/` on its second caller; a mark a second screen needs moves into a `views/*Icons.tsx` file.
 - Loop logic goes in `stores/loop/` beside the concern it belongs to, the pure half in its own file with `rand` injectable and the impure edge beside it.
 - Runtime data lives only under the folder `paths.ts` roots; nothing else hardcodes a location.

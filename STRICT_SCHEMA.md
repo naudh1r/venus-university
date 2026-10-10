@@ -12,8 +12,13 @@ remain readable without it.
 It has no dependency on Photo Feature.
 
 Each call receives one concise set of mod instructions for its role. Shared dialogue guidance is
-defined once and reused by scene and DM requests. The base prompts and other mods' additions stay
-intact; schema requirements, evidence checks, cooldowns, and departure enforcement are unchanged.
+defined once and reused by scene and DM requests. Other mods' additions stay intact.
+With **Strict Schema and Photo Feature both enabled**, DMs replace the base writing persona and
+turn/output instructions with concise Strict Schema instructions. Character details, memories,
+game state, summaries, recent messages, photo history, and other mods' additions remain available.
+Photo Feature retains its original permission, tier, picture-brief, and caption rules and required
+fields; Strict Schema adds explicit photo-field formatting. Turning either mod off restores the
+normal base DM instructions. Scene narration continues using its existing prompt path.
 
 ## Behavior
 
