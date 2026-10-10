@@ -2,6 +2,13 @@ import type { StructuredRequest } from '@shared/types'
 
 type Schema = Record<string, unknown>
 
+/** Let the provider resolver use the player's current settings without a ledger effort floor. */
+export function strictLedgerRequest(request: StructuredRequest): StructuredRequest {
+  const result = { ...request }
+  delete result.minThinking
+  return result
+}
+
 function object(value: unknown): Schema | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     ? value as Schema

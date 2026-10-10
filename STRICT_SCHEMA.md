@@ -5,7 +5,7 @@ Enable **Strict Schema** in the Mods screen. It defaults off and can be switched
 existing playthrough; the next request uses the new setting. Requests already built, including
 retries, retain their original rules.
 
-The mod uses the existing scene, DM, and slot-intro request hooks, plus a small generic
+The mod uses the existing scene, DM, ledger, and slot-intro request hooks, plus a small generic
 scene-result and scene-line hooks after sanitization. It adds no IPC channels, settings fields, or save fields.
 It has no dependency on Photo Feature.
 
@@ -31,10 +31,14 @@ It has no dependency on Photo Feature.
   These content instructions guide the model; the departure boundary is enforced in code.
 - DM instructions encourage short, grounded text bubbles. Feed instructions keep posts separate
   from the slot's other output.
+- The scene ledger uses the player's original thinking/reasoning setting instead of forcing high.
+  The base provider resolver reads the current settings at call time and handles supported levels;
+  the mod stores no separate thinking setting. With the mod off, the base ledger's high floor remains.
 
 The schema transformation copies the assembled request and changes only scene-line requirements
 and the background enum, plus the continuation's ending requirement. Existing fields, required
-fields, speaker/action vocabularies, and request metadata are retained. Photo, memory,
+fields, speaker/action vocabularies, and request metadata are retained, except for the ledger's
+minimum thinking override. Photo, memory,
 relationship, and narrative additions continue
 through the existing hook chain.
 

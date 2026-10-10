@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { StructuredRequest } from '@shared/types'
+import type { Settings, StructuredRequest } from '@shared/types'
+import { reasoningToSend } from '@shared/providers'
 import { strictDmRequest, strictFeedRequest, strictSceneRequest } from '../src/renderer/mods/strictSchema/requests'
 
 /** A request carrying extension fields that must survive stricter scene requirements. */
@@ -110,13 +111,27 @@ it('uses the existing hook gate and keeps fields added by earlier request hooks'
   hooks.registerHooks('memory', { requests: { scene: original => ({ ...original, user: original.user + '\nrecalled facts' }) } })
   await import('../src/renderer/modEntries/strict-schema')
   const original = request()
+  original.minThinking = 'high'
   const ctx = {} as Parameters<typeof hooks.modRequest<'scene'>>[1]
   const off = hooks.modRequest('scene', ctx, original)
   expect(off.schema).toBe(original.schema)
+  const ledgerCtx = {} as Parameters<typeof hooks.modRequest<'ledger'>>[1]
+  const settings = { apiProvider: 'openai', reasoningEffort: 'low' } as Settings
+  const offLedger = hooks.modRequest('ledger', ledgerCtx, original)
+  expect(reasoningToSend(settings, 'deepseek-test', offLedger.minThinking)).toBe('high')
   enabled = true
   const on = hooks.modRequest('scene', ctx, original)
   expect(on.user).toBe(off.user)
   expect(lineSchema(on).required).toContain('bg')
+  const onLedger = hooks.modRequest('ledger', ledgerCtx, original)
+  expect(onLedger).not.toHaveProperty('minThinking')
+  expect(onLedger.schema).toBe(original.schema)
+  expect(onLedger.user).toBe(original.user)
+  expect(reasoningToSend(settings, 'deepseek-test', onLedger.minThinking)).toBe('low')
+  settings.reasoningEffort = 'medium'
+  expect(reasoningToSend(settings, 'deepseek-test', onLedger.minThinking)).toBe('medium')
+  expect(original.minThinking).toBe('high')
   enabled = false
   expect(hooks.modRequest('scene', ctx, original)).toEqual(off)
+  expect(hooks.modRequest('ledger', ledgerCtx, original)).toEqual(offLedger)
 })
