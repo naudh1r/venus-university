@@ -5,7 +5,7 @@ Enable **Strict Schema** in the Mods screen. It defaults off and can be switched
 existing playthrough; the next request uses the new setting. Requests already built, including
 retries, retain their original rules.
 
-The mod uses scene, DM, scene/texting ledger, slot-intro, and hangout-classifier request hooks, plus generic
+The mod uses scene, DM, scene/texting ledger, quiz, slot-intro, and hangout-classifier request hooks, plus generic
 scene and invitation result hooks. It adds no IPC channels or settings fields. An optional
 `declinedAt` timestamp in each saved conversation anchors explicit refusal cooldowns; older saves
 remain readable without it.
@@ -86,9 +86,19 @@ normal base DM instructions. Scene narration continues using its existing prompt
   guests. Classes and shifts may precede or follow an agreed meeting, matching the existing
   commitment notes. These are generation rules, not semantic validation or rewriting of saved
   plans; malformed existing titles remain unchanged.
+- Exam requests require exactly one question per selected lecture fact, nonempty question/option
+  strings, and the existing A–D answer-key enum. Guidance asks for distinct options, exactly one
+  fact-supported answer, and no unsupported claims. A captured result hook rejects the entire
+  paper if its count is wrong, a field is blank or has the wrong type, the answer key is invalid,
+  answer options repeat after case/whitespace normalization, or questions repeat. Failure opens
+  the existing retry flow before quiz state or grades are saved; no guessed answer or shortened
+  paper is substituted. The game still shuffles options and calculates grades normally.
+  Factual correctness and semantically overlapping answers remain the model's responsibility;
+  these checks validate structure and obvious duplicates, not subject-matter truth. Existing saved
+  quizzes are unchanged, and disabling the mod restores native question normalization.
 
-The schema transformation copies the assembled request and changes only scene-line requirements
-and the background enum, plus the continuation's ending requirement. Existing fields, required
+Schema transformations copy the assembled request to strengthen scene staging, feed poster/count
+constraints, photo comment limits, and quiz count/nonempty-field requirements. Existing fields, required
 fields, speaker/action vocabularies, and request metadata are retained, except for the ledger's
 minimum thinking override. Photo, memory,
 relationship, and narrative additions continue

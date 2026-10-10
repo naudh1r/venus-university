@@ -2,6 +2,7 @@ import { QUIZ_LETTERS } from '@shared/academics'
 import type { QuizQuestion, StructuredRequest } from '@shared/types'
 import { shuffle } from '@shared/shuffle'
 import { objectSchema } from './schema'
+import { modRequest } from '../mods/hooks'
 
 /** The exam-question call; pure, no IO. */
 
@@ -45,7 +46,7 @@ export function buildQuizPrompt(className: string, facts: readonly string[]): St
   ].join('\n')
 
   const option = { type: 'string' }
-  return {
+  return modRequest('quiz', { className, facts }, {
     system,
     user,
     schema: objectSchema('exam_quiz', ['questions'], {
@@ -69,7 +70,7 @@ export function buildQuizPrompt(className: string, facts: readonly string[]): St
     }),
     cacheKey: 'quiz',
     kind: 'examQuiz'
-  }
+  })
 }
 
 /** Hardens a reply into questions the player can be shown. */

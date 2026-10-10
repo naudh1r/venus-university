@@ -111,6 +111,7 @@ export interface RequestSpots {
   'hangout-classifier': HangoutContext
   ledger: { state: PromptState; charKeys: readonly string[] }
   'text-ledger': { schedule: SchedulePromptInput; charInfo: Record<string, CharInfo> }
+  quiz: { className: string; facts: readonly string[] }
   'slot-intro': { input: SlotIntroInput }
 }
 
@@ -170,6 +171,8 @@ export interface ModHooks {
 
   /** Extend a completed request, preserving other mods' additions. */
   requests?: { [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest }
+  /** Validate or transform the raw exam paper before answers are shuffled or saved. */
+  quizResult?: (draft: unknown, ctx: RequestSpots['quiz']) => unknown
   /** Adjust a sanitized scene result; enabled handlers are captured when the call starts. */
   sceneResult?: (result: SceneResult, ctx: SceneResultContext) => SceneResult
   /** Create a per-pass line transform; streaming and final sanitization get separate instances. */
@@ -394,6 +397,13 @@ export function captureSceneResult(ctx: SceneResultContext): (result: SceneResul
   const handlers = active().flatMap(hooks => hooks.sceneResult ? [hooks.sceneResult] : [])
   const captured = { ...ctx, stage: [...ctx.stage] }
   return result => handlers.reduce((next, handle) => handle(next, captured), result)
+}
+
+/** A paper keeps the enabled handlers and selected facts from when its call began. */
+export function captureQuizResult(ctx: RequestSpots['quiz']): (draft: unknown) => unknown {
+  const handlers = active().flatMap(hooks => hooks.quizResult ? [hooks.quizResult] : [])
+  const captured = { ...ctx, facts: [...ctx.facts] }
+  return draft => handlers.reduce((next, handle) => handle(next, captured), draft)
 }
 
 /** Each pass starts from the same stage and enabled transforms before any lines play. */

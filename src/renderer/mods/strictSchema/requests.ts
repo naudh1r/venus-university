@@ -183,3 +183,38 @@ export function strictFeedRequest(request: StructuredRequest, ctx?: RequestSpots
     ] : [])
   ])
 }
+
+/** Tighten the existing paper schema without changing selected facts or other mod fields. */
+export function strictQuizRequest(request: StructuredRequest, ctx: RequestSpots['quiz']): StructuredRequest {
+  const original = request.schema.schema
+  const properties = object(original.properties)
+  const questions = object(properties?.questions)
+  const items = object(questions?.items)
+  const fields = object(items?.properties)
+  let schema = original
+  if (properties && questions && items && fields) {
+    const strengthened = { ...fields }
+    for (const key of ['question', 'a', 'b', 'c', 'd']) {
+      const field = object(fields[key])
+      if (field?.type === 'string') strengthened[key] = {
+        ...field, minLength: Math.max(typeof field.minLength === 'number' ? field.minLength : 1, 1)
+      }
+    }
+    schema = {
+      ...original,
+      required: [...new Set([...strings(original.required), 'questions'])],
+      properties: { ...properties, questions: {
+        ...questions, minItems: ctx.facts.length, maxItems: ctx.facts.length,
+        items: { ...items,
+          required: [...new Set([...strings(items.required), ...['question', 'a', 'b', 'c', 'd', 'correct'].filter(key => Object.hasOwn(fields, key))])],
+          properties: strengthened
+        }
+      } }
+    }
+  }
+  return withRules(schema === original ? request : { ...request, schema: { ...request.schema, schema } }, [
+    `Return exactly ${ctx.facts.length} questions, one per supplied fact in FACTS order. Test only that fact, without adding unsupported claims or facts from other questions.`,
+    'Each question has nonempty string fields "question", "a", "b", "c", "d", and "correct". Make the four answer texts distinct; exactly one is supported by the fact. Distractors must be plausible but clearly wrong for that question. Avoid ambiguous questions, overlapping answers, and "all/none of the above".',
+    '"correct" is exactly "A", "B", "C", or "D" and points to the supported option before the engine shuffles it. Check the answer against the supplied fact. Return no explanation, answer commentary, letter prefixes inside options, or additional questions.'
+  ])
+}
