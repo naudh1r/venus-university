@@ -10,6 +10,7 @@ import {
 } from '../sceneSanitizer'
 import { createLineExtractor } from '../sceneStream'
 import { boxFits } from '../../views/boxRows'
+import { captureSceneResult } from '../../mods/hooks'
 import { owedFloor } from '../replyFloor'
 import { sceneCoverClosing } from '../slotCrossing'
 import { advance } from './hooks'
@@ -147,6 +148,7 @@ export async function streamScene(
     stage: options.stage ?? stageAsWritten().onStage,
     fits: options.fits ?? boxFits
   }
+  const finishScene = captureSceneResult({ request, stage: options.stage ?? [] })
 
   // One sanitizer for every preview chunk; for a prefetch that is before Begin, onto a
   // stage the hangout gate guarantees empty.
@@ -232,7 +234,7 @@ export async function streamScene(
   if (!result.ok) return result
 
   // The same options the preview ran under, or the two passes disagree.
-  const { lines, summary, end } = sanitizeScene(result.data, options)
+  const { lines, summary, end } = finishScene(sanitizeScene(result.data, options))
 
   // A prefetch still holding its lines has nothing to reconcile; Begin appends the reply whole.
   if (sink && !sink.live) return { ok: true, data: { lines, summary, end, applied: false, at } }

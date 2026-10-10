@@ -228,6 +228,12 @@ Where a branch goes:
 - `prompts.scene` adds context to cast and solo scenes, including continuations and closing requests.
 - `requests.scene`, `requests.dm`, `requests.ledger` and `requests['slot-intro']` extend a completed request in mod-list order. Preserve the request and schema fields received from earlier mods. DM hooks run for normal and regenerated replies because both use the same builder.
 - `slotSettled` receives the scene's starting state, the completed ledger and closing cast after bookkeeping, before clock advancement and the boundary save. It is synchronous so mod state is included in that save.
+- `sceneResult` transforms the completed, sanitized scene result before its ending decision is
+  consumed. Its context contains the request and the character keys on the starting stage.
+  Enabled handlers are captured before streaming begins and run in mod-list order even if a
+  switch changes during generation. Keep the lines unchanged because previews may already have
+  played. Preserve summary and ending metadata received from earlier handlers unless deliberately
+  adjusting them.
 
 These hooks add to the existing API; existing hooks and their arguments are unchanged. Screens, IPC and save fields still use direct integration as documented above.
 

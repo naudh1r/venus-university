@@ -7,6 +7,7 @@ import type {
   Character,
   CharInfo,
   ChatMessage,
+  SceneLine,
   SocialPost,
   TextingResponse
 } from '@shared/types'
@@ -114,6 +115,20 @@ export interface SlotSettled {
   closingCast: readonly Character[]
 }
 
+/** The completed scene after the base sanitizer has validated its lines. */
+export interface SceneResult {
+  /** Keep these unchanged: previews may already have played before the result arrives. */
+  lines: SceneLine[]
+  summary: string | null
+  end: boolean
+}
+
+export interface SceneResultContext {
+  request: StructuredRequest
+  /** Character keys on stage before this request's lines begin playing. */
+  stage: readonly string[]
+}
+
 export interface BunnyboardPage {
   id: string
   word: string
@@ -126,6 +141,8 @@ export interface ModHooks {
 
   /** Extend a completed request, preserving other mods' additions. */
   requests?: { [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest }
+  /** Adjust a sanitized scene result; enabled handlers are captured when the call starts. */
+  sceneResult?: (result: SceneResult, ctx: SceneResultContext) => SceneResult
   /** After bookkeeping settles, before the clock advances and the boundary save is written. */
   slotSettled?: (ctx: SlotSettled) => void
 
@@ -309,6 +326,13 @@ export function modRequest<S extends keyof RequestSpots>(spot: S, ctx: RequestSp
     if (extend) next = extend(next, ctx)
   }
   return next
+}
+
+/** A call keeps the same enabled result handlers even if a switch moves while it streams. */
+export function captureSceneResult(ctx: SceneResultContext): (result: SceneResult) => SceneResult {
+  const handlers = active().flatMap(hooks => hooks.sceneResult ? [hooks.sceneResult] : [])
+  const captured = { ...ctx, stage: [...ctx.stage] }
+  return result => handlers.reduce((next, handle) => handle(next, captured), result)
 }
 
 export function slotSettled(ctx: SlotSettled): void {

@@ -73,13 +73,16 @@ describe('strict scene request composition', () => {
     expect(result.schema.schema.properties).not.toHaveProperty('end_scene')
   })
 
-  it('preserves the optional ending contract when it is offered', () => {
+  it('requires the ending decision on continuations while preserving the opening contract', () => {
     const original = request()
     const properties = original.schema.schema.properties as Record<string, unknown>
     properties.end_scene = { type: 'boolean' }
     const result = strictSceneRequest(original)
     expect(result.schema.schema.properties).toHaveProperty('end_scene', { type: 'boolean' })
-    expect(result.schema.schema.required).not.toContain('end_scene')
+    expect(result.schema.schema.required).toContain('end_scene')
+    delete properties.summary
+    original.schema.schema.required = ['lines', 'memory']
+    expect(strictSceneRequest(original).schema.schema.required).not.toContain('end_scene')
   })
 })
 

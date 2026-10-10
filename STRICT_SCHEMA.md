@@ -5,8 +5,9 @@ Enable **Strict Schema** in the Mods screen. It defaults off and can be switched
 existing playthrough; the next request uses the new setting. Requests already built, including
 retries, retain their original rules.
 
-The mod uses the existing scene, DM, and slot-intro request hooks. It adds no IPC channels,
-settings fields, save fields, or edits to base-game files. It has no dependency on Photo Feature.
+The mod uses the existing scene, DM, and slot-intro request hooks, plus a small generic
+scene-result hook after sanitization. It adds no IPC channels, settings fields, or save fields.
+It has no dependency on Photo Feature.
 
 ## Behavior
 
@@ -15,21 +16,27 @@ settings fields, save fields, or edits to base-game files. It has no dependency 
 - `bg` accepts the existing backgrounds, character rooms, and `unchanged`. The base sanitizer
   discards `unchanged`, retaining the current background; it currently logs an unknown-background
   warning for that sentinel. Real background IDs still pass through normal validation.
-- Scene instructions explicitly require entrances, exits, expression changes, and a top-level
-  ending signal on continuations. Opening and closing schemas keep their original contracts.
+- Scene instructions explicitly require entrances, exits, and expression changes. Continuation
+  replies require a top-level `end_scene` boolean. Opening and closing schemas keep their
+  original contracts.
+- If validated show/hide actions leave the stage empty after a character departs, the mod
+  supplies a missing or false ending decision. It does not infer departures from prose, end
+  empty solo scenes, or end a scene where a character returns before the reply finishes.
+  Enabled result handlers and the starting stage are captured before streaming begins.
 - DM instructions encourage short, grounded text bubbles. Feed instructions keep posts separate
   from the slot's other output.
 
 The schema transformation copies the assembled request and changes only scene-line requirements
-and the background enum. Existing fields, required fields, speaker/action vocabularies, and
-request metadata are retained. Photo, memory, relationship, and narrative additions continue
+and the background enum, plus the continuation's ending requirement. Existing fields, required
+fields, speaker/action vocabularies, and request metadata are retained. Photo, memory,
+relationship, and narrative additions continue
 through the existing hook chain.
 
 ## Scope
 
-This first version ports prompt/schema guidance only. It does not port the weak-model branch's
-response repairs, classifier quote validation or reasoning caps, invitation cooldown logic, or
-DM timetable filtering. Those need additional integration points. Provider-native strict JSON
+This version ports prompt/schema guidance and an empty-stage ending guard. It does not port the
+weak-model branch's other response repairs, classifier quote validation or reasoning caps,
+invitation cooldown logic, or DM timetable filtering. Those need additional integration points. Provider-native strict JSON
 mode is unchanged: this mod strengthens the supplied schema and instructions, rather than
 enabling an API's `strict: true` switch.
 

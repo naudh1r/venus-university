@@ -56,12 +56,16 @@ function sceneFormat(schema: Schema): Schema {
 
 /** The same hook receives openings, continuations, closings, and solo scenes. */
 export function strictSceneRequest(request: StructuredRequest): StructuredRequest {
-  const schema = sceneFormat(request.schema.schema)
+  let schema = sceneFormat(request.schema.schema)
   const properties = object(schema.properties)
   const fields = object(object(object(properties?.lines)?.items)?.properties)
   const hasActions = Boolean(fields && Object.hasOwn(fields, 'actions'))
   const hasEnd = Boolean(properties && Object.hasOwn(properties, 'end_scene'))
   const hasSummary = Boolean(properties && Object.hasOwn(properties, 'summary'))
+  if (hasEnd && hasSummary) schema = {
+    ...schema,
+    required: [...new Set([...strings(schema.required), 'end_scene'])]
+  }
   const rules = [
     'Every line carries "speaker", "bg", and "text". Use an empty speaker ("") for narration; otherwise copy an allowed character key exactly.',
     'Keep narration and dialogue on separate lines, and never leave "text" empty.',
@@ -79,6 +83,7 @@ export function strictSceneRequest(request: StructuredRequest): StructuredReques
     'Describing an entrance, exit, expression, or location change in text alone does not update the screen.'
   )
   if (hasEnd && hasSummary) rules.push(
+    'Every continuation reply carries the top-level boolean "end_scene": false while the scene continues, true when it ends.',
     'If the scene is drawing to a close, give the characters a reason to part ways and set the top-level "end_scene" field to true.',
     'If the last character present leaves, set "end_scene" to true on that reply. Leave the full goodbye for the separate closing request.',
     'Never write end_scene as the text of a line or put it inside a line.'
