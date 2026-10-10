@@ -5,7 +5,7 @@ Enable **Strict Schema** in the Mods screen. It defaults off and can be switched
 existing playthrough; the next request uses the new setting. Requests already built, including
 retries, retain their original rules.
 
-The mod uses scene, DM, ledger, slot-intro, and hangout-classifier request hooks, plus generic
+The mod uses scene, DM, scene/texting ledger, slot-intro, and hangout-classifier request hooks, plus generic
 scene and invitation result hooks. It adds no IPC channels or settings fields. An optional
 `declinedAt` timestamp in each saved conversation anchors explicit refusal cooldowns; older saves
 remain readable without it.
@@ -70,13 +70,22 @@ normal base DM instructions. Scene narration continues using its existing prompt
 - A new player-initiated agreement can bypass the invitation cooldown and clears the decline
   state when the hangout is armed. Unrelated messages do not reset it, and old refusals cannot
   override a new agreement. With the mod disabled, button and classifier behavior remain native.
-- The scene ledger uses the player's original thinking/reasoning setting instead of forcing high.
+- Both scene and texting ledgers use the player's original thinking/reasoning setting instead of forcing high.
   The base provider resolver reads the current settings at call time and handles supported levels;
   the mod stores no separate thinking setting. With the mod off, the base ledger's high floor remains.
 - Scene-ledger memory descriptions contain only the past-tense event clause completing
   "Name liked/disliked/hated that ...". Instructions prohibit duplicated names and "remembers that"
   introductions, keep descriptions concise, and require the reaction type to be supported by the
   transcript. These instructions guide new output; existing saved memories are not rewritten.
+- Both ledgers are instructed to log only agreed in-person activities at an established physical
+  location and a specific future day/night slot. Texts, calls, video calls, online chats, and photo
+  promises are excluded. Titles describe the reader's action, distinguishing hosting guests in
+  his room from visiting another person's room; descriptions preserve who travels, who hosts,
+  all attendees, destination, and time. The planner must not invent a location or agreement.
+  Scene instructions preserve those roles and keep a reader already at home there to receive
+  guests. Classes and shifts may precede or follow an agreed meeting, matching the existing
+  commitment notes. These are generation rules, not semantic validation or rewriting of saved
+  plans; malformed existing titles remain unchanged.
 
 The schema transformation copies the assembled request and changes only scene-line requirements
 and the background enum, plus the continuation's ending requirement. Existing fields, required

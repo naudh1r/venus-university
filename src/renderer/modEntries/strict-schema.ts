@@ -15,6 +15,7 @@ registerHooks('strict-schema', {
   requests: {
     scene: strictSceneRequest,
     ledger: strictLedgerRequest,
+    'text-ledger': strictLedgerRequest,
     'hangout-classifier': strictHangoutRequest,
     dm: strictDmRequest,
     'slot-intro': strictFeedRequest

@@ -6,6 +6,7 @@ import {
   type StructuredRequest
 } from '@shared/types'
 import { objectSchema } from './schema'
+import { modRequest } from '../mods/hooks'
 import { LEDGER_PERSONA, milestoneCastLines } from './scenePrompt'
 import {
   messagesBlock,
@@ -124,7 +125,7 @@ export function buildTextLedgerPrompt(
     ''
   ].join('\n')
 
-  return {
+  return modRequest('text-ledger', { schedule, charInfo }, {
     system: LEDGER_PERSONA,
     user: `${preamble}\n${rest}`,
     schema: textLedgerSchema(textedKeys, rosterKeys),
@@ -133,7 +134,7 @@ export function buildTextLedgerPrompt(
     logFrom: preamble.length + 1,
     // The bookkeeping is judged better at high, whatever the setting says.
     minThinking: 'high'
-  }
+  })
 }
 
 /**
