@@ -117,10 +117,12 @@ async function send(request: StructuredRequest, run: object): Promise<FeedThread
   }
 }
 
-/** How long after his last comment the call goes out, so a burst of comments is one call. */
-const COMMENT_SETTLE_MS = 5000
-
-let settleTimer: ReturnType<typeof setTimeout> | null = null
+// Closing the phone ends a visit: everything he commented during it goes out as one call.
+useBunnyboardStore.subscribe((state, before) => {
+  if (!before.open || state.open || !loopState.feedCommentPending) return
+  loopState.feedCommentPending = false
+  void armFeedThreads('next')
+})
 
 /** A comment arrived while a call was out; asked again once it lands. */
 let askAgain = false
@@ -316,7 +318,7 @@ function strangerHandle(): string {
   return one?.handle ?? FEED_HANDLE_POOL[0].handle
 }
 
-/** Leaves a comment of the reader's under one of her posts; the answer is written shortly after. */
+/** Leaves a comment of the reader's under one of her posts; closing the phone asks for the answer. */
 export function leavePlayerComment(
   charId: string,
   postId: string,
@@ -339,9 +341,5 @@ export function leavePlayerComment(
       at: globalSlotOf(game.date, game.time)
     }
   ])
-  if (settleTimer) clearTimeout(settleTimer)
-  settleTimer = setTimeout(() => {
-    settleTimer = null
-    void armFeedThreads('next')
-  }, COMMENT_SETTLE_MS)
+  loopState.feedCommentPending = true
 }

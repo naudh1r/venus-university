@@ -119,6 +119,9 @@ export const loopState = {
   /** The epilogue's status-update call has been made this stay; nothing waits on it. */
   endingPosts: false,
 
+  /** He commented on the feed during this phone visit; closing the phone sends the answers. */
+  feedCommentPending: false,
+
   /**
    * The ending in progress; re-minted to drop it, so each of its continuations bails at its next
    * check while the run carries on.
@@ -291,5 +294,7 @@ export function resetLoopState(): void {
   loopState.endingArt = null
   // The next stay asks again, and `endingPostsDelivered` is what stops it filing twice.
   loopState.endingPosts = false
+  // Whatever he wrote in a game being left goes unanswered with it.
+  loopState.feedCommentPending = false
   loopState.examOpening = null
 }
