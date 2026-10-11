@@ -258,7 +258,7 @@ function PostView(props: CommentViewProps & { charId: string; postId: string }):
 
 /**
  * The whole thread in the post view. Replies sit folded under each comment until opened, his own
- * comments' open from the start; Reply opens a well under that comment's replies.
+ * comments' open from the start; Reply, his own comments' included, opens a well under its replies.
  */
 function Thread({
   comments,
@@ -286,7 +286,7 @@ function Thread({
           <li className="vu-bb-comment-group" key={root.id}>
             <CommentRow
               comment={root}
-              onReply={canComment && !root.player ? () => setReplying(root) : undefined}
+              onReply={canComment ? () => setReplying(root) : undefined}
             />
             {replies.length > 0 && !open && (
               <motion.button
@@ -495,7 +495,7 @@ function CommentField({
     <div className="vu-bb-comment-compose">
       {replyTo && (
         <div className="vu-bb-comment-replying">
-          <span>Replying to @{replyTo.handle}</span>
+          <span>{replyTo.player ? 'Adding to your thread' : `Replying to @${replyTo.handle}`}</span>
           {onCancel && (
             <motion.button
               type="button"
