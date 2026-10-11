@@ -1,6 +1,7 @@
 import type { CSSProperties, JSX } from 'react'
 import { hashString } from '@shared/hash'
 import { shownComments, type PostComment } from '@shared/postComments'
+import { commentHandoff, type CommentViewProps } from '../stores/commentHandoff'
 import { useGameStore } from '../stores/gameStore'
 import { usePhotosVisible } from '../stores/photoSwitchHooks'
 import '../vu_styles/PostComments.css'
@@ -15,7 +16,14 @@ import '../vu_styles/PostComments.css'
  * The face is the handle's own: a hue hashed off the name, so one stranger is the same colour
  * every time she comments without anything being stored about her.
  */
-export function PostComments({ comments }: { comments: readonly PostComment[] }): JSX.Element | null {
+export function PostComments(props: CommentViewProps): JSX.Element | null {
+  // A mod that has taken over the replies draws them its own way.
+  const handoff = commentHandoff()
+  return handoff ? <handoff.View {...props} /> : <PlainComments comments={props.comments} />
+}
+
+/** Photo Feature's own replies: strangers' lines, as many as have arrived. */
+function PlainComments({ comments }: { comments: readonly PostComment[] }): JSX.Element | null {
   const date = useGameStore((s) => s.date)
   const time = useGameStore((s) => s.time)
   const visible = usePhotosVisible()

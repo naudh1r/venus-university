@@ -2,6 +2,7 @@ import { prepareStoryRequest, inspectStoryMemory } from './storyMemory'
 import type { WhisperDraft, WhisperReply } from '@shared/venusWhisper'
 import type { MeanwhileResponse } from '@shared/meanwhile'
 import type { ClassifierPromptRequest, ClassifierVerdict } from '@shared/classifier'
+import type { FeedThreadsResponse } from '@shared/feedComments'
 import { base64ToBytes } from '@shared/base64'
 import { appError, toAppError } from '@shared/errors'
 import {
@@ -261,6 +262,10 @@ export function buildApi(): VenusUniversityApi {
       completeMeanwhile: (request, group) =>
         result('write the Meanwhile conversation', () =>
           runAbortable(group, signal => completeStructured<MeanwhileResponse>(request, signal))
+        ),
+      completeFeedThreads: (request, group) =>
+        result('answer the feed', () =>
+          runAbortable(group, (signal) => completeStructured<FeedThreadsResponse>(request, signal))
         ),
       // Several texting calls can stream at once, so every delta carries its `group`.
       completeWhisper: (request, group) => result('write the newsletter', () =>

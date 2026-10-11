@@ -132,6 +132,7 @@ import {
 import { classifyCloud } from '@shared/llm/cloudClassifier'
 import { generatePhoto } from '@shared/llm/cloudImage'
 import { completeStructured as completeCloudStructured, type StructuredRequest } from '@shared/llm/cloudLlm'
+import type { FeedThreadsResponse } from '@shared/feedComments'
 import {
   listImageModels,
   listModels,
@@ -386,6 +387,11 @@ export function registerIpcHandlers(): void {
 
   handle('llm:completeMeanwhile', (_event, request: StructuredRequest, group: string) =>
     runAbortable(group, signal => completeStructured<MeanwhileResponse>(request, signal))
+  )
+
+  // Feed Comments' thread call: answers what the reader wrote under her posts.
+  handle('llm:completeFeedThreads', (_event, request: StructuredRequest, group: string) =>
+    runAbortable(group, (signal) => completeStructured<FeedThreadsResponse>(request, signal))
   )
 
   // A Bunnyboard texting turn, streamed. Several can stream at once, so every

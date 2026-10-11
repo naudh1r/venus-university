@@ -1,0 +1,108 @@
+/* Feed Comments' own file, beside Photo Feature's `PostComments.css`, whose comment rows it draws
+   on: roster faces, threads, the reader's well and the @ list. */
+
+/* A roster girl has a face of her own: her profile picture fills the disc, cropped to her head. */
+.vu-bb-comment-face--roster {
+  overflow: hidden;
+  background: var(--vu-surface);
+}
+
+.vu-bb-comment-face--roster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+/* ---- threads and the reader's own word ------------------------------------ */
+
+/* The comments and the well under them, one column under the post. */
+.vu-bb-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vu-bb-comment-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Replies sit inset under the comment they answer, past its face, so a chain reads as one. */
+.vu-bb-comments--replies {
+  margin: 0;
+  padding-left: 40px;
+  gap: 10px;
+}
+
+/* The reader has no picture on the feed, so his disc carries the word instead, in the accent. */
+.vu-bb-comment-face--player {
+  background: color-mix(in oklab, var(--vu-accent) 30%, transparent);
+  color: var(--vu-text);
+  font: 700 10px var(--font-mono);
+  text-transform: lowercase;
+}
+
+/* The poster's own answers say so beside her name, the way a feed marks its author. */
+.vu-bb-comment-tag {
+  margin-right: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--vu-accent) 22%, transparent);
+  color: var(--vu-text);
+  font: 700 10px var(--font-mono);
+  vertical-align: 1px;
+}
+
+/* Reply and Cancel are words, not buttons: quiet mono after the line, like a feed's own. */
+.vu-bb-comment-reply {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vu-text-muted);
+  font: 700 11px var(--font-mono);
+}
+
+.vu-bb-comment-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Who the well is answering, over it, with the way out beside it. */
+.vu-bb-comment-replying {
+  display: flex;
+  align-items: baseline;
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-body);
+}
+
+/* A pill well, smaller than the chat's: a comment is one line under somebody else's post. */
+.vu-bb-comment-input {
+  width: 100%;
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 13.5px;
+}
+
+/* A tag in a comment reads in the accent, the way a feed marks a name it links. */
+.vu-bb-comment-mention {
+  color: color-mix(in oklab, var(--vu-text) 55%, var(--vu-accent));
+  font-weight: 700;
+}
+
+/* The contacts @ lists: the shared floating list, standing in the column under the well rather
+   than floating, so the feed's own scroller can never clip it. */
+.vu-bb-mention-pop {
+  position: static;
+}
+
+/* One contact: her face, her name, then her handle in the comment's own mono. */
+.vu-bb-mention {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+}

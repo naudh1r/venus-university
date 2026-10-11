@@ -18,6 +18,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import type { ChatPhoto } from '@shared/photoTypes'
 import type { PostComment } from '@shared/postComments'
 import { PostComments } from '../components/PostComments'
+import { commentHandoff } from '../stores/commentHandoff'
 import { MessagePhotoBubble, PhotoLightboxHost, PostPhoto } from '../components/PhotoBubble'
 import {
   fullNameOf,
@@ -1765,7 +1766,14 @@ const FeedPost = memo(function FeedPost({
           <PostPhoto charId={charId} postId={post.id} photo={post.photo} />
         </div>
       )}
-      {post.comments && <PostComments comments={post.comments} />}
+      {(post.comments || commentHandoff()) && (
+        <PostComments
+          comments={post.comments ?? []}
+          charId={charId}
+          postId={post.id}
+          stranger={stranger || random}
+        />
+      )}
       <motion.button
         className={`vu-bb-like${post.liked ? ' vu-bb-like--on' : ''}`}
         type="button"
