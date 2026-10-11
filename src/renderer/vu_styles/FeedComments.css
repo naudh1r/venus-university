@@ -109,16 +109,30 @@
 
 /* ---- the post view --------------------------------------------------------- */
 
-/* One post and its whole thread, laid over the phone's whole panel and clipped to its shape. */
-.vu-bb-postview {
+/* Over the whole screen, as a photo opens: the veil's own wash, and anywhere outside the post is
+   the way back. Definite tracks, for the reason `.vu-lightbox` gives. */
+.vu-bb-postveil {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  /* Under the photo lightbox, so a picture opened from the post shows over it. */
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  padding: 40px;
+  background: color-mix(in srgb, var(--vu-accent-shadow) 78%, transparent);
+}
+
+/* The post itself: a rounded sheet, as tall as it needs and no taller than the screen. */
+.vu-bb-postview {
   display: flex;
   flex-direction: column;
-  border-radius: inherit;
+  width: min(760px, 100%);
+  max-height: 100%;
+  border-radius: 32px;
   overflow: hidden;
-  background: var(--paper-face, var(--vu-surface));
+  background: var(--vu-surface);
 }
 
 /* Its name in the middle and the way out at the right, over a rule. */
@@ -151,7 +165,7 @@
   flex-direction: column;
   gap: 14px;
   min-height: 0;
-  padding: 22px 56px 22px 96px;
+  padding: 22px 36px;
   overflow: hidden auto;
 }
 
@@ -179,7 +193,7 @@
 
 .vu-bb-postview-foot {
   flex: none;
-  padding: 14px 56px 24px 96px;
+  padding: 14px 36px 24px;
   border-top: 2.5px solid var(--vu-border);
 }
 

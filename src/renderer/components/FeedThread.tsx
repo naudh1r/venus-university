@@ -11,7 +11,7 @@ import { useGameStore } from '../stores/gameStore'
 import { leavePlayerComment } from '../stores/feedThreads'
 import { epilogueOf } from '../stores/textingLoop'
 import type { CommentViewProps } from '../stores/commentHandoff'
-import { gestures, quietLift, quietPress } from '../views/motion'
+import { fadeIn, gestures, quietLift, quietPress } from '../views/motion'
 import { CloseIcon, HeartIcon } from '../views/screenIcons'
 import { formatShortGameDate, slotHalf } from '../prompts/gameDate'
 import { PostPhoto } from './PhotoBubble'
@@ -146,7 +146,7 @@ function BubbleIcon(): JSX.Element {
 }
 
 /**
- * One post and its whole thread, over the phone's whole panel. Closing it ends the visit as
+ * One post and its whole thread, popped up over the whole screen as a photo is. Closing it ends the visit as
  * closing the phone does: whatever he wrote while it was open is sent to be answered.
  */
 function PostView(props: CommentViewProps & { charId: string; postId: string }): JSX.Element | null {
@@ -156,8 +156,9 @@ function PostView(props: CommentViewProps & { charId: string; postId: string }):
   const handle = useGameStore((s) => s.charInfo[charId]?.handle)
   const post = useGameStore((s) => s.charInfo[charId]?.feed?.find((one) => one.id === postId))
   const canComment = useCanComment(props)
-  const panel = document.querySelector('.vu-bb-panel')
-  if (!panel || !character || !post) return null
+  // Over the whole screen, as a photo opens: the phone's veil is the layer it lies on.
+  const veil = document.querySelector('.vu-bb')?.parentElement
+  if (!veil || !character || !post) return null
 
   const close = (): void => {
     show(null)
@@ -165,10 +166,18 @@ function PostView(props: CommentViewProps & { charId: string; postId: string }):
   }
 
   return createPortal(
+    <motion.div
+      className="vu-bb-postveil"
+      variants={fadeIn(0, 0.18)}
+      initial="hidden"
+      animate="shown"
+      onClick={close}
+    >
     <div
       className="vu-bb-postview"
       role="dialog"
       aria-label={`${character.firstName}'s post`}
+      onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         if (e.key !== 'Escape') return
         // The view goes, not the phone behind it.
@@ -228,8 +237,9 @@ function PostView(props: CommentViewProps & { charId: string; postId: string }):
           />
         </div>
       )}
-    </div>,
-    panel
+    </div>
+    </motion.div>,
+    veil
   )
 }
 
