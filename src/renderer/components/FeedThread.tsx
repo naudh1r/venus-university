@@ -163,6 +163,8 @@ function PostView(props: CommentViewProps & { charId: string; postId: string }):
   const veil = document.querySelector('.vu-bb')?.parentElement
   if (!veil || !character || !post) return null
 
+  const commented = (post.comments ?? []).some((one) => one.player && !one.replyTo)
+
   const close = (): void => {
     show(null)
     if (takeCommented()) void armFeedThreads('next')
@@ -243,11 +245,21 @@ function PostView(props: CommentViewProps & { charId: string; postId: string }):
       )}
       {canComment && (
         <div className="vu-bb-postview-foot">
-          <CommentField
-            posterId={charId}
-            replyTo={null}
-            onSend={(text, tags) => leavePlayerComment(charId, postId, text, undefined, tags)}
-          />
+          {/* One comment on the post itself; the conversation carries on in its thread. */}
+          {commented ? (
+            <input
+              className="vu-input vu-bb-comment-input"
+              disabled
+              aria-label="Comment"
+              placeholder="You've commented on this post. Reply in its thread to keep going."
+            />
+          ) : (
+            <CommentField
+              posterId={charId}
+              replyTo={null}
+              onSend={(text, tags) => leavePlayerComment(charId, postId, text, undefined, tags)}
+            />
+          )}
         </div>
       )}
     </div>
