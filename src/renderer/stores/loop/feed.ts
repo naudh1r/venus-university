@@ -1,4 +1,4 @@
-import { postLikes, rollComments, strangerLikes } from '../photoComments'
+import { postLikes, rollComments, strangerLikes, type WrittenComment } from '../photoComments'
 import { postIsOut } from '@shared/heldPosts'
 import { holdPostPhoto, preparePostPhoto } from '../photoPost'
 import { npcFriendsOf } from '@shared/npcRelationships'
@@ -23,6 +23,23 @@ import { deliverBunnybotNow } from '../textingLoop'
 /** The social feed where it meets the store. */
 
 /**
+ * The replies a post came back with, each signed by the roster girl its "from" names. A key
+ * nobody holds, or the poster's own, leaves the reply to a stranger.
+ */
+function writtenComments(raw: unknown[] | undefined, posterId: string): WrittenComment[] {
+  const game = useGameStore.getState()
+  return (raw ?? []).flatMap((one): WrittenComment[] => {
+    if (typeof one === 'string') return [{ text: one }]
+    if (!one || typeof one !== 'object') return []
+    const { from, text } = one as { from?: unknown; text?: unknown }
+    if (typeof text !== 'string') return []
+    const charId = typeof from === 'string' && from ? game.charKeyToId[from.trim()] : undefined
+    if (from && !charId) console.warn(`[feed] reply from unknown key "${String(from)}"`)
+    return [charId && charId !== posterId ? { charId, text } : { text }]
+  })
+}
+
+/**
  * Files the status updates the slot's opening came back with, picks the one stranger's post the
  * feed surfaces for the slot, and fills a feed too thin to read with more of them.
  */
@@ -38,11 +55,11 @@ export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promi
     const id = crypto.randomUUID()
     // Read off the reply rather than the type, which declares the post's fields inline where
     // nothing can be added to them from outside.
-    const extra = post as { image?: string; comments?: string[] }
+    const extra = post as { image?: string; comments?: unknown[] }
     // Awaited before anything is filed: the picture's name has to be in the post the slot save
     // is about to write down.
     const shot = await preparePostPhoto(charId, extra.image)
-    const comments = rollComments(charId, extra.comments, shot?.shot.tier)
+    const comments = rollComments(charId, writtenComments(extra.comments, charId), shot?.shot.tier)
     const written = {
       id,
       text,

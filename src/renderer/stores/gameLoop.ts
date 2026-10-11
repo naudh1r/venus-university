@@ -18,7 +18,7 @@ import {
 } from '@shared/playerStats'
 import { factoidLine, kindOf, projectProgress, projectProgressLine } from '@shared/academics'
 import { giftActionLine, itemDefOf } from '@shared/shop'
-import type { NpcSlotOverlay } from '@shared/npcRelationships'
+import { npcEnemiesOf, npcFriendsOf, type NpcSlotOverlay } from '@shared/npcRelationships'
 import { isSilentLine, isSlotSaveId } from '@shared/saveRules'
 import {
   charKeyOf,
@@ -701,10 +701,16 @@ async function fetchSlotIntro(
     const info = view.charInfo[charId]
     if (!character || !info) continue
     const whereabouts = npcWhereaboutsFor(charId, date, time, npcOverlay, view.charInfo)
+    const firstNames = (ids: string[]): string[] =>
+      ids.flatMap((id) => (game.characters[id] ? [game.characters[id].firstName] : []))
     posters.push({
       charKey,
       character,
       info,
+      ties: {
+        friends: firstNames(npcFriendsOf(view.npcRelationships, charId, game.chars)),
+        enemies: firstNames(npcEnemiesOf(view.npcRelationships, charId, game.chars))
+      },
       texted: hasTexted(game.bunnyboard.conversations[charId]),
       ...(whereabouts
         ? {
@@ -766,6 +772,12 @@ async function fetchSlotIntro(
       askers,
       breakups,
       posters,
+      repliers: game.chars.flatMap((charId) => {
+        const character = game.characters[charId]
+        return character
+          ? [{ character, charKey: charKeyOf(character.firstName, character.lastName) }]
+          : []
+      }),
       occasions,
       occasionLeadUps: occasionLeadUpLines(date, time, game.occasions),
       weather: game.weather,

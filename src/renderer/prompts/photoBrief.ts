@@ -183,13 +183,18 @@ export function postPhotoLines(canRenderImages: boolean): string[] {
 
 /**
  * The replies under a post, which the model writes because a canned line cannot answer what she
- * actually posted. How many are kept is rolled against how many girls she is close to; this only
- * has to supply enough of them, and the right kind.
+ * actually posted. Each is signed by a girl from `REPLIERS` or left unsigned for a stranger; how
+ * many are kept is rolled afterwards, so this only has to supply enough of them.
  */
-export function postCommentLines(): string[] {
+export function postCommentLines(hasRepliers: boolean): string[] {
   return [
     'Each post also carries "comments": what other students replied underneath it, in their own voices — up to five, and an empty array on the posts nobody answers, which is most of them. A post with a picture draws more than one without.',
-    'They are strangers from the four thousand this campus holds, not the characters above: they do not know her, they are not the reader, and none of them may be named. No handles and no @s — just what each one said.',
+    ...(hasRepliers
+      ? [
+          'A reply is either one of the girls under REPLIERS or a stranger. For one of those girls, "from" is her key exactly as written there, and she writes the way she talks, as somebody who knows the poster as well as REPLIERS says — a friend teases or hypes, an enemy is catty, a girl who barely knows her keeps it short. She never replies under her own post. Most replies are still strangers: one or two of the girls on a post at most, and none on many.'
+        ]
+      : []),
+    'A stranger is one of the four thousand this campus holds: "from" is an empty string, she does not know the poster, and she is not the reader. No reply is the reader. No handles and no @s in "text" — just what each one said.',
     'They answer the post they are under. A reply to a picture is a reply to that picture; one under a picture with skin in it reads like a public feed at its least charming, which is strangers being obvious at somebody who did not ask.'
   ]
 }
@@ -197,7 +202,15 @@ export function postCommentLines(): string[] {
 /** The fields a post's picture and its replies need, spread into the slot-intro schema. */
 export const POST_PHOTO_SCHEMA_FIELD: Record<string, unknown> = {
   image: { type: 'string' },
-  comments: { type: 'array', items: { type: 'string' } }
+  comments: {
+    type: 'array',
+    items: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['from', 'text'],
+      properties: { from: { type: 'string' }, text: { type: 'string' } }
+    }
+  }
 }
 
 /**

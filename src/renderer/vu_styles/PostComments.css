@@ -4,7 +4,7 @@
    sync that replaces `Bunnyboard.css` carries nothing of it away. */
 
 
-/* ---- what strangers said under a post ------------------------------------- */
+/* ---- what other students said under a post ------------------------------------- */
 
 /* Quieter than the post and inset from it, the way a thread reads under the thing it answers.
    No surface of its own: these are lines on the card, not cards on a card. */
@@ -28,7 +28,7 @@
   font: 500 13.5px/1.45 var(--font-body);
 }
 
-/* The four thousand have no faces, so their emoji stands in for one — in a disc, which is what
+/* A stranger has no face, so her emoji stands in for one — in a disc, which is what
    makes it read as somebody rather than as a bullet. The tint is theirs: taken from the handle,
    so one stranger keeps the same face wherever she turns up. */
 .vu-bb-comment-face {
@@ -41,6 +41,19 @@
   background: oklch(0.72 0.07 var(--vu-face-hue, 0) / 0.35);
   font-size: 15px;
   line-height: 1;
+}
+
+/* A roster girl has a face of her own: her profile picture fills the disc, cropped to her head. */
+.vu-bb-comment-face--roster {
+  overflow: hidden;
+  background: var(--vu-surface);
+}
+
+.vu-bb-comment-face--roster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
 }
 
 .vu-bb-comment-said {

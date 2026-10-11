@@ -13,6 +13,8 @@ import type { TimeSlot } from './types'
 export interface PostComment {
   /** crypto.randomUUID(); the list key. */
   id: string
+  /** The roster girl who wrote it; absent for a stranger. */
+  charId?: string
   handle: string
   emoji: string
   text: string

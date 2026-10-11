@@ -583,7 +583,7 @@ describe('what the crowd said', () => {
     const { rollComments } = await import('../src/renderer/stores/photoComments')
     useGameStore.setState({ npcRelationships: {}, chars: [] } as never)
     expect(rollComments('c1', undefined)).toEqual([])
-    expect(rollComments('c1', ['  ', ''])).toEqual([])
+    expect(rollComments('c1', [{ text: '  ' }, { text: '' }])).toEqual([])
   })
 
   it('never keeps more replies than the model actually wrote', async () => {
@@ -597,7 +597,7 @@ describe('what the crowd said', () => {
       date: 0,
       time: 0
     } as never)
-    const said = rollComments('c1', ['first', 'second'])
+    const said = rollComments('c1', [{ text: 'first' }, { text: 'second' }])
     expect(said.length).toBeLessThanOrEqual(2)
     for (const one of said) {
       expect(one.handle).toBeTruthy()

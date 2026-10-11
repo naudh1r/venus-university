@@ -55,6 +55,12 @@ export interface IntroAsker {
   whereabouts?: { location: string; companions: NpcCompanions; haunt?: Haunt }
 }
 
+/** A roster girl who may reply under somebody else's post. */
+export interface IntroReplier {
+  character: Character
+  charKey: string
+}
+
 /** A lover the reader left this slot for somebody else, who is texting him to end it. */
 export interface IntroBreakup {
   character: Character
@@ -80,6 +86,8 @@ export interface IntroPoster {
   texted: boolean
   /** Where she is, who with, and what she is there for, when the slot places her anywhere. */
   whereabouts?: { location: string; companions: NpcCompanions; haunt?: Haunt }
+  /** The first names of the roster girls she is friends and enemies with, for `REPLIERS`. */
+  ties?: { friends: readonly string[]; enemies: readonly string[] }
 }
 
 /** Everything the builder reads; assembled by the loop, which owns the store. */
@@ -113,6 +121,8 @@ export interface SlotIntroInput {
    * under {@link askers} included.
    */
   posters: readonly IntroPoster[]
+  /** The whole roster, as the girls a post's replies may be signed by. */
+  repliers?: readonly IntroReplier[]
   /**
    * What is going on in the world in **this slot alone**, fixed calendar already merged
    * in by the loop.
@@ -306,6 +316,36 @@ function posterBlock(input: SlotIntroInput): string[] {
   ]
 }
 
+/** The roster girls a reply may come from, and how each poster stands with them. */
+function replierBlock(input: SlotIntroInput): string[] {
+  const repliers = input.repliers ?? []
+  if (input.posters.length === 0 || repliers.length === 0) return []
+
+  return [
+    'REPLIERS',
+    "Girls on campus who may reply under somebody else's post, each with the first thing to know about how she comes across.",
+    ...repliers.map(
+      ({ character, charKey }) =>
+        `- ${fullNameOf(character)} — "from": "${charKey}": ${firstSentenceOf(character.personality)}`
+    ),
+    ...input.posters.flatMap(({ character, ties }) => {
+      if (!ties) return []
+      const parts = [
+        ...(ties.friends.length > 0 ? [`friends with ${ties.friends.join(', ')}`] : []),
+        ...(ties.enemies.length > 0 ? [`enemies with ${ties.enemies.join(', ')}`] : [])
+      ]
+      return parts.length > 0 ? [`${character.firstName} is ${parts.join('; ')}.`] : []
+    }),
+    'Anyone not named as a friend or an enemy of the poster barely knows her.'
+  ]
+}
+
+/** The opening sentence of a description, capped so a long one stays a single line. */
+function firstSentenceOf(text: string): string {
+  const sentence = text.trim().split(/(?<=[.!?])\s/)[0] ?? ''
+  return sentence.length > 160 ? `${sentence.slice(0, 157)}...` : sentence
+}
+
 /** Everybody the three blocks above name, described once each. */
 function characterBlock(input: SlotIntroInput): string[] {
   const entries: string[][] = []
@@ -390,9 +430,10 @@ export function buildSlotIntroPrompt(
     ...spaced(askerBlock(input)),
     ...spaced(breakupBlock(input)),
     ...spaced(posterBlock(input)),
+    ...spaced(replierBlock(input)),
     ...spaced(rumor),
     'YOUR TURN',
-    'Hey RITA, a new part of the reader\'s day is starting. Set the mood for them before they decide what to do with it.',
+    "Hey RITA, a new part of the reader's day is starting. Set the mood for them before they decide what to do with it.",
     'Continue where the OPENING LINE left off with three to five short lines of narration. Don\'t include the OPENING LINE in your response. Each line is one entry in "lines".',
     // The three beats, named: without them the call writes a to-do list.
     waking
@@ -403,7 +444,9 @@ export function buildSlotIntroPrompt(
       ? 'Also keep in mind what happened recently and how it is making the reader feel right now.'
       : '',
     ...(rumor.length > 0
-      ? ['End by inventing something spicy about SOMEWHERE TO GO. A rumor, a limited-time thing, etc that encourages the reader to go there.']
+      ? [
+          'End by inventing something spicy about SOMEWHERE TO GO. A rumor, a limited-time thing, etc that encourages the reader to go there.'
+        ]
       : []),
     'Second person, present tense, no dialogue and nobody else on screen. Do NOT restate the date or prompt the player with "What would you like to do?" as something else does that already.',
     ...(input.askers.length > 0
@@ -447,7 +490,7 @@ export function buildSlotIntroPrompt(
           'Then fill "posts", one entry per character under STATUS UPDATES. "char" is her key exactly as written there. "text" is the post itself: one or two short lines in her own voice, the way she would actually type it — lowercase, slang and emoji are fine if that is how she writes. It is a post to nobody in particular, about her hour: what she is doing, where she is, what kind of mood she is in, something small she noticed. She is NOT writing to the reader and must not address him, mention him, or refer to meeting anyone. No narration and no stage directions.',
           'The narration in "lines" must not mention these posts — the reader has not opened his phone yet.',
           ...postPhotoLines(canSendPhotos()),
-          ...postCommentLines()
+          ...postCommentLines((input.repliers ?? []).length > 0)
         ]
       : [
           // Refused out loud for "hangouts"'s reason.
