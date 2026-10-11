@@ -201,3 +201,15 @@
 .vu-bb-postview .vu-bb-like {
   background: var(--vu-recessed);
 }
+
+/* In the post view a comment's Reply waits for the pointer, so the thread reads as talk rather
+   than as a column of buttons. Out of the flow while hidden, so a long line keeps no empty row for
+   it. */
+.vu-bb-postview .vu-bb-comment .vu-bb-comment-reply {
+  display: none;
+}
+
+.vu-bb-postview .vu-bb-comment:hover .vu-bb-comment-reply,
+.vu-bb-postview .vu-bb-comment .vu-bb-comment-reply:focus-visible {
+  display: inline;
+}

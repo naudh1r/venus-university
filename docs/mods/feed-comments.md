@@ -12,8 +12,9 @@ it takes over Photo Feature's post comments and photo posts get the same threads
 - The pill or **View all** opens the post in a popup over the whole screen, like a photo: the post, its photo,
   every comment with replies folded behind **View N replies** (yours open), and a box at the foot
   for commenting on the post. You comment on a post once; after that you carry on through Reply,
-  as often as you like. **Reply** on any comment on the post, your own included, opens a box
-  under its thread, so a conversation can carry on there. ✕, Escape or a click outside closes it.
+  as often as you like. **Reply** shows when you hover a comment, any comment in the thread;
+  it opens a box under that thread addressed to its author (`@handle`, tagged if she is a contact),
+  so a conversation can carry on there. ✕, Escape or a click outside closes it.
 - Type `@` to tag one of your contacts. A list of them opens under the box and narrows as you type;
   arrows and Enter or Tab pick one. A tag counts only while its `@handle` is still in what you send.
 - What you write shows at once. Closing the post view, or the phone, sends everything you wrote

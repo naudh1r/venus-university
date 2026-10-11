@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type CSSProperties, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { create } from 'zustand'
 import { motion } from 'motion/react'
@@ -284,7 +284,8 @@ function Thread({
   canComment: boolean
 }): JSX.Element | null {
   const said = useShown(comments)
-  const [replying, setReplying] = useState<PostComment | null>(null)
+  // The thread a reply goes under, and the comment whose author it opens addressed to.
+  const [replying, setReplying] = useState<{ root: PostComment; to: PostComment } | null>(null)
   const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set())
   if (said.length === 0) return null
   const { roots, repliesTo } = grouped(said)
@@ -293,12 +294,13 @@ function Thread({
     <ul className="vu-bb-comments">
       {roots.map((root) => {
         const replies = repliesTo.get(root.id) ?? []
-        const open = root.player || unfolded.has(root.id) || replying === root
+        const answering = replying?.root === root
+        const open = root.player || unfolded.has(root.id) || answering
         return (
           <li className="vu-bb-comment-group" key={root.id}>
             <CommentRow
               comment={root}
-              onReply={canComment ? () => setReplying(root) : undefined}
+              onReply={canComment ? () => setReplying({ root, to: root }) : undefined}
             />
             {replies.length > 0 && !open && (
               <motion.button
@@ -310,18 +312,26 @@ function Thread({
                 ⌄ View {replies.length === 1 ? '1 reply' : `${replies.length} replies`}
               </motion.button>
             )}
-            {open && (replies.length > 0 || replying === root) && (
+            {open && (replies.length > 0 || answering) && (
               <ul className="vu-bb-comments vu-bb-comments--replies">
                 {replies.map((one) => (
                   <li key={one.id}>
-                    <CommentRow comment={one} />
+                    <CommentRow
+                      comment={one}
+                      onReply={
+                        canComment && !one.player
+                          ? () => setReplying({ root, to: one })
+                          : undefined
+                      }
+                    />
                   </li>
                 ))}
-                {replying === root && (
+                {replying && answering && (
                   <li>
                     <CommentField
+                      key={replying.to.id}
                       posterId={posterId}
-                      replyTo={root}
+                      replyTo={replying.to}
                       onCancel={() => setReplying(null)}
                       onSend={(text, tags) => {
                         leavePlayerComment(posterId, postId, text, root.id, tags)
@@ -444,12 +454,18 @@ function CommentField({
   onCancel?: () => void
   onSend: (text: string, tags: string[]) => void
 }): JSX.Element {
-  const [draft, setDraft] = useState('')
-  const [caret, setCaret] = useState(0)
+  // A reply to somebody else opens addressed to her, the way a feed's Reply does.
+  const opening = replyTo && !replyTo.player ? `@${replyTo.handle} ` : ''
+  const [draft, setDraft] = useState(opening)
+  const [caret, setCaret] = useState(opening.length)
   const [active, setActive] = useState(0)
   const [picked, setPicked] = useState<Taggable[]>([])
   const [dismissed, setDismissed] = useState(false)
   const input = useRef<HTMLInputElement>(null)
+  // The caret starts after the handle a reply opened with, so he types straight on.
+  useEffect(() => {
+    input.current?.setSelectionRange(opening.length, opening.length)
+  }, [opening])
   const chars = useGameStore((s) => s.chars)
   const characters = useGameStore((s) => s.characters)
   const charInfo = useGameStore((s) => s.charInfo)
@@ -494,8 +510,11 @@ function CommentField({
 
   const send = (): void => {
     if (!draft.trim()) return
+    // The contact a reply opened addressed to counts as tagged, as one picked from the list does.
+    const opened = taggable.find((one) => one.charId === replyTo?.charId)
+    const chosen = opened && !picked.includes(opened) ? [...picked, opened] : picked
     // A tag counts only while its handle is still in the words being sent.
-    const tags = picked
+    const tags = chosen
       .filter((one) => new RegExp(`(^|\\s)@${one.handle.replace(/\./g, '\\.')}(?![\\w.])`).test(draft))
       .map((one) => one.charId)
     onSend(draft, tags)
