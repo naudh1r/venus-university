@@ -51,6 +51,14 @@ it takes over Photo Feature's post comments and photo posts get the same threads
 - Off, no call is made, and posts go back to Photo Feature's plain stranger comments, or none if
   Photo Feature is off too.
 
+## Known issues
+
+- If you talk about one of her posts or your comment on it in her DMs, the end-of-slot texting
+  memory can file it as something said over text ("…cute over text"), beside the right
+  "…, on Bunnyboard" memory. The texting bookkeeping reads only the messages and has no hook a
+  mod can add a line to. A `requests['text-ledger']` hook in core would let Feed Comments tell
+  it that comments happen on the feed.
+
 ## For modders
 
 ### Source map
