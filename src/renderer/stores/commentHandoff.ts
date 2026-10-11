@@ -31,6 +31,11 @@ export interface CommentHandoff {
   View: ComponentType<CommentViewProps>
   /** Drawn beside the post's like, where it has something to put there. */
   Action?: ComponentType<CommentViewProps>
+  /**
+   * A comment only this mod could have written. Asked whether or not it is acting, so Photo
+   * Feature's own view leaves such comments out while the mod is off, and they come back with it.
+   */
+  claims?: (comment: PostComment) => boolean
 }
 
 let taken: CommentHandoff | null = null
@@ -38,6 +43,12 @@ let taken: CommentHandoff | null = null
 /** Registers the mod taking over; called once, from its own files, at boot. */
 export function handOffComments(handoff: CommentHandoff): void {
   taken = handoff
+}
+
+/** The comments Photo Feature's own view draws: every one no registered mod claims. */
+export function plainComments(comments: readonly PostComment[]): PostComment[] {
+  const claims = taken?.claims
+  return claims ? comments.filter((comment) => !claims(comment)) : [...comments]
 }
 
 /** The mod that has taken over the replies, while it is acting; null leaves them to Photo Feature. */

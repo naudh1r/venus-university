@@ -1,7 +1,7 @@
 import type { CSSProperties, JSX } from 'react'
 import { hashString } from '@shared/hash'
 import { shownComments, type PostComment } from '@shared/postComments'
-import { commentHandoff, type CommentViewProps } from '../stores/commentHandoff'
+import { commentHandoff, plainComments, type CommentViewProps } from '../stores/commentHandoff'
 import { useGameStore } from '../stores/gameStore'
 import { usePhotosVisible } from '../stores/photoSwitchHooks'
 import '../vu_styles/PostComments.css'
@@ -19,7 +19,11 @@ import '../vu_styles/PostComments.css'
 export function PostComments(props: CommentViewProps): JSX.Element | null {
   // A mod that has taken over the replies draws them its own way.
   const handoff = commentHandoff()
-  return handoff ? <handoff.View {...props} /> : <PlainComments comments={props.comments} />
+  return handoff ? (
+    <handoff.View {...props} />
+  ) : (
+    <PlainComments comments={plainComments(props.comments)} />
+  )
 }
 
 /** What a mod that has taken over the replies puts beside the post's like; nothing otherwise. */

@@ -38,7 +38,9 @@ handOffComments({
   dress: (charId, written, photoTier) =>
     rollFeedComments(charId, writtenComments(written, charId), photoTier),
   View: FeedPreviewView,
-  Action: CommentPillView
+  Action: CommentPillView,
+  // His own, a roster girl's, and every reply: none of them a comment Photo Feature makes.
+  claims: (comment) => Boolean(comment.player || comment.charId || comment.replyTo)
 })
 
 /** The thread call, loaded the first time it is needed. */

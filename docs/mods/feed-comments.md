@@ -43,7 +43,7 @@ takes over. Works with photos off.
 - The slot opening describes up to three possible repliers per post it writes, a few lines each.
 - If a call fails, or you reload before it was saved, the slot's settling asks again for whatever
   is still unanswered.
-- Off, no call is made, and posts go back to Photo Feature's plain comments.
+- Off, no call is made, and posts go back to Photo Feature's plain stranger comments.
 
 ## For modders
 
@@ -79,4 +79,5 @@ All optional, so a save without the mod loads as before, and switching it off ke
 on her record.
 
 Comments keep Photo Feature's `comments` field. A comment written by Photo Feature alone reads as
-a stranger's.
+a stranger's. While Feed Comments is off, Photo Feature's own view leaves out the comments only
+Feed Comments writes (yours, roster girls', replies); they stay saved and come back with it.
