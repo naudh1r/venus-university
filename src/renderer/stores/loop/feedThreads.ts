@@ -1,0 +1,284 @@
+import { messageOf } from '@shared/errors'
+import { globalSlotOf } from '@shared/jobs'
+import { threadWork, type PostComment, type ThreadWork } from '@shared/postComments'
+import {
+  charKeyOf,
+  type FeedThreadsResponse,
+  type MemoryType,
+  type SocialPost,
+  type StructuredRequest
+} from '@shared/types'
+import {
+  buildFeedThreadsPrompt,
+  type FeedThread,
+  type ThreadLine
+} from '../../prompts/feedThreadsPrompt'
+import {
+  FEED_EMOJI,
+  FEED_EMOJI_BAG,
+  FEED_HANDLE_BAG,
+  FEED_HANDLE_POOL
+} from '../../prompts/feedRandoms'
+import { SETTING } from '../../prompts/setting'
+import { hasTexted } from '../../prompts/textingPrompt'
+import { useBunnyboardStore } from '../bunnyboardStore'
+import { useGameStore } from '../gameStore'
+import { useGrabBagStore } from '../grabBagStore'
+import { retrySilently } from '../silentRetry'
+import { repliersFor } from './feed'
+import { lessNsfwTextNow, reader } from './promptState'
+import { currentRun, loopState, runStale, LOOP_LLM_GROUP } from './state'
+
+/**
+ * The feed's comment threads: once a slot, one call answers whatever was said under her posts
+ * since the last round — the reader's comments always, other people's within her reply cap.
+ */
+
+/** The most posts one call answers; the rest wait a slot, the reader's first in line. */
+const MAX_THREADS = 8
+
+const MEMORY_TYPES: readonly MemoryType[] = ['loved', 'liked', 'disliked', 'hated']
+
+/** The reader's own name on a comment he left. */
+export const PLAYER_HANDLE = 'you'
+
+/** One post owed an answer, with where it lives. */
+interface Owed {
+  charId: string
+  post: SocialPost
+  work: ThreadWork
+}
+
+/** Every post the thread call owes something to as of global slot `now`, the reader's first. */
+function owedThreads(now: number): Owed[] {
+  const game = useGameStore.getState()
+  const owed: Owed[] = []
+  for (const charId of game.chars) {
+    for (const post of game.charInfo[charId]?.feed ?? []) {
+      const work = threadWork(post.comments, charId, post.threadedThrough, now)
+      if (work) owed.push({ charId, post, work })
+    }
+  }
+  return owed
+    .sort((a, b) => b.work.player.length - a.work.player.length)
+    .slice(0, MAX_THREADS)
+}
+
+/** Who said a comment, worded for the thread block. */
+function whoSaid(comment: PostComment, posterId: string): string {
+  const game = useGameStore.getState()
+  if (comment.player) return 'the reader'
+  const character = comment.charId ? game.characters[comment.charId] : undefined
+  if (!character) return `@${comment.handle} (a stranger)`
+  const key = charKeyOf(character.firstName, character.lastName)
+  return comment.charId === posterId
+    ? `${character.firstName} (the poster)`
+    : `${character.firstName} ("${key}")`
+}
+
+/** Sends the prompt, re-sending itself quietly for as long as its budget lasts. */
+async function send(request: StructuredRequest, run: object): Promise<FeedThreadsResponse | null> {
+  for (let spent = 0; ; spent++) {
+    const result = await window.api.llm.completeFeedThreads(request, LOOP_LLM_GROUP)
+    if (runStale(run)) return null
+    if (result.ok) return result.data
+    const again = await retrySilently('feed threads', result.error, spent, {
+      onSleep: (cancel) => loopState.parkedWaiters.push(cancel)
+    })
+    if (runStale(run)) return null
+    if (!again) {
+      console.warn('[feed] no thread replies:', result.error.message)
+      return null
+    }
+  }
+}
+
+/**
+ * Asks for this slot's thread replies, unless a call is already out or nothing is owed. What
+ * lands is filed under each post and the post marked answered through this slot; a call that
+ * never lands leaves every post owed, so the next slot asks again.
+ */
+export async function armFeedThreads(): Promise<void> {
+  const board = useBunnyboardStore.getState()
+  if (board.feedRepliesOut) return
+  const game = useGameStore.getState()
+  const now = globalSlotOf(game.date, game.time)
+  const owed = owedThreads(now)
+  if (owed.length === 0) return
+
+  // Short refs the reply names comments by, unique across the whole call.
+  const byRef = new Map<string, { owed: Owed; comment: PostComment }>()
+  const refOf = new Map<string, string>()
+  const threads: FeedThread[] = []
+  for (const entry of owed) {
+    const { charId, post, work } = entry
+    const character = game.characters[charId]
+    const info = game.charInfo[charId]
+    if (!character || !info) continue
+    const shown = (post.comments ?? []).filter((one) => one.at <= now)
+    for (const comment of shown) {
+      const ref = `c${byRef.size + 1}`
+      byRef.set(ref, { owed: entry, comment })
+      refOf.set(comment.id, ref)
+    }
+    const lines: ThreadLine[] = shown.map((comment) => ({
+      ref: refOf.get(comment.id) ?? '',
+      who: whoSaid(comment, charId),
+      text: comment.text,
+      ...(comment.replyTo && refOf.has(comment.replyTo)
+        ? { replyTo: refOf.get(comment.replyTo) }
+        : {})
+    }))
+    threads.push({
+      character,
+      info,
+      charKey: charKeyOf(character.firstName, character.lastName),
+      texted: hasTexted(game.bunnyboard.conversations[charId]),
+      post: {
+        text: post.text,
+        date: post.date,
+        time: post.time,
+        ...(post.photo?.scene ? { picture: post.photo.scene } : {})
+      },
+      lines,
+      mustAnswer: work.player.map((one) => refOf.get(one.id) ?? ''),
+      mayAnswer: work.others.map((one) => refOf.get(one.id) ?? ''),
+      mayAnswerCount: work.othersLeft,
+      repliers: work.player.length > 0 ? repliersFor(charId, game.npcRelationships) : []
+    })
+  }
+  if (threads.length === 0) return
+
+  const request = buildFeedThreadsPrompt(
+    {
+      playthroughId: game.playthroughId ?? 'unsaved',
+      stats: game.stats,
+      lessNsfwText: lessNsfwTextNow(),
+      date: game.date,
+      threads
+    },
+    SETTING,
+    reader()
+  )
+
+  const run = currentRun()
+  board.setFeedRepliesOut(true)
+  try {
+    const reply = await send(request, run)
+    if (runStale(run) || !reply) return
+    fileReplies(reply, owed, byRef, now)
+  } catch (err) {
+    console.warn('[feed] no thread replies:', messageOf(err))
+  } finally {
+    if (!runStale(run)) useBunnyboardStore.getState().setFeedRepliesOut(false)
+  }
+}
+
+/**
+ * Files what the call wrote: the poster answers only what her post owed and no more of other
+ * people's than her cap allows; anybody else only answers the reader.
+ */
+function fileReplies(
+  reply: FeedThreadsResponse,
+  owed: readonly Owed[],
+  byRef: ReadonlyMap<string, { owed: Owed; comment: PostComment }>,
+  now: number
+): void {
+  const game = useGameStore.getState()
+  const filed = new Map<string, PostComment[]>()
+  const capLeft = new Map<string, number>(owed.map(({ post, work }) => [post.id, work.othersLeft]))
+  const owedIds = new Set(
+    owed.flatMap(({ work }) => [...work.player, ...work.others].map((one) => one.id))
+  )
+
+  for (const one of reply.replies ?? []) {
+    const target = byRef.get(one.to?.trim() ?? '')
+    const text = one.text?.trim()
+    if (!target || !text) continue
+    const { owed: entry, comment } = target
+    const posterId = entry.charId
+    const fromId = one.from?.trim() ? game.charKeyToId[one.from.trim()] : undefined
+    if (one.from?.trim() && !fromId) console.warn(`[feed] thread reply from unknown key "${one.from}"`)
+
+    if (fromId === posterId) {
+      if (!owedIds.has(comment.id)) continue
+      if (!comment.player) {
+        const left = capLeft.get(entry.post.id) ?? 0
+        if (left <= 0) continue
+        capLeft.set(entry.post.id, left - 1)
+      }
+    } else if (!comment.player) {
+      continue
+    }
+
+    const list = filed.get(entry.post.id) ?? []
+    list.push(
+      fromId
+        ? {
+            id: crypto.randomUUID(),
+            charId: fromId,
+            handle: game.charInfo[fromId]?.handle ?? strangerHandle(),
+            emoji: '',
+            text,
+            replyTo: comment.id,
+            at: now
+          }
+        : {
+            id: crypto.randomUUID(),
+            handle: strangerHandle(),
+            emoji: useGrabBagStore.getState().drawMany(FEED_EMOJI_BAG, FEED_EMOJI, 1)[0] ?? FEED_EMOJI[0],
+            text,
+            replyTo: comment.id,
+            at: now
+          }
+    )
+    filed.set(entry.post.id, list)
+  }
+
+  const store = useGameStore.getState()
+  for (const { charId, post } of owed) {
+    const comments = filed.get(post.id)
+    if (comments) store.addPostComments(charId, post.id, comments)
+    store.markPostThreaded(charId, post.id, now)
+  }
+
+  const commentedOn = new Set(owed.filter(({ work }) => work.player.length > 0).map((o) => o.charId))
+  for (const memory of reply.memories ?? []) {
+    const charId = game.charKeyToId[memory.char?.trim() ?? '']
+    const type = MEMORY_TYPES.find((one) => one === memory.type)
+    const desc = memory.desc?.trim()
+    if (!charId || !commentedOn.has(charId) || !type || !desc) continue
+    store.setFeedMemory(charId, { date: game.date, type, desc })
+  }
+}
+
+/** A stranger's handle off the shared bag, so the four thousand do not repeat too soon. */
+function strangerHandle(): string {
+  const [one] = useGrabBagStore
+    .getState()
+    .drawMany(FEED_HANDLE_BAG, FEED_HANDLE_POOL, 1, (entry) => entry.key)
+  return one?.handle ?? FEED_HANDLE_POOL[0].handle
+}
+
+/** Leaves a comment of the reader's under one of her posts, answered at the next round. */
+export function leavePlayerComment(
+  charId: string,
+  postId: string,
+  text: string,
+  replyTo?: string
+): void {
+  const trimmed = text.trim()
+  if (!trimmed) return
+  const game = useGameStore.getState()
+  game.addPostComments(charId, postId, [
+    {
+      id: crypto.randomUUID(),
+      player: true,
+      handle: PLAYER_HANDLE,
+      emoji: '',
+      text: trimmed,
+      ...(replyTo ? { replyTo } : {}),
+      at: globalSlotOf(game.date, game.time)
+    }
+  ])
+}

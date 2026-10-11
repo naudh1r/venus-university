@@ -48,6 +48,8 @@ interface BunnyboardUiState {
   typingCharIds: string[]
   /** charIds whose last turn failed and is parked on the thread's Retry. */
   failedCharIds: string[]
+  /** The feed's comment-thread call is out. */
+  feedRepliesOut: boolean
 
   openApp: () => void
   closeApp: () => void
@@ -65,6 +67,7 @@ interface BunnyboardUiState {
   setTextBusy: (charId: string, busy: boolean) => void
   setTyping: (charId: string, typing: boolean) => void
   setTextFailed: (charId: string, failed: boolean) => void
+  setFeedRepliesOut: (out: boolean) => void
   /** Back to the blank closed app — the leave-game teardown. */
   reset: () => void
 }
@@ -76,6 +79,7 @@ export const useBunnyboardStore = create<BunnyboardUiState>((set) => ({
   pageCharId: null,
   locked: false,
   armedHangout: null,
+  feedRepliesOut: false,
   busyCharIds: [],
   typingCharIds: [],
   failedCharIds: [],
@@ -91,6 +95,7 @@ export const useBunnyboardStore = create<BunnyboardUiState>((set) => ({
   closePage: () => set({ pageCharId: null }),
   setLocked: (locked) => set({ locked }),
   setArmedHangout: (armedHangout) => set({ armedHangout }),
+  setFeedRepliesOut: (feedRepliesOut) => set({ feedRepliesOut }),
   // Same-array return when nothing changes, so a selector on it cannot churn.
   setTextBusy: (charId, busy) =>
     set((state) => {
@@ -132,6 +137,7 @@ export const useBunnyboardStore = create<BunnyboardUiState>((set) => ({
       pageCharId: null,
       locked: false,
       armedHangout: null,
+      feedRepliesOut: false,
       busyCharIds: [],
       typingCharIds: [],
       failedCharIds: []

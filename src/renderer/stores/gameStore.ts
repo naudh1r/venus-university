@@ -1,3 +1,4 @@
+import type { PostComment } from '@shared/postComments'
 import { create } from 'zustand'
 import {
   affectionFor,
@@ -690,6 +691,8 @@ interface GameStoreState {
   replaceMemory: (charId: string, match: CharMemory, next: CharMemory | null) => void
   /** Files what this slot's texting left her with, **replacing** the last slot's. */
   setTextMemory: (charId: string, entry: CharMemory) => void
+  /** Files what the reader's comments on her posts left her with, **replacing** the last. */
+  setFeedMemory: (charId: string, entry: CharMemory) => void
   /** Remembers what the scene-end status lines just told him about her standards. */
   setCrushHint: (charId: string, hint: CrushHint | undefined) => void
   /**
@@ -881,6 +884,10 @@ interface GameStoreState {
   toggleFeedLike: (charId: string, postId: string) => void
   /** Toggles the player's like on the day's random-student post. */
   toggleRandomPostLike: () => void
+  /** Adds comments under one of her posts. Inert for a post that is not there. */
+  addPostComments: (charId: string, postId: string, comments: readonly PostComment[]) => void
+  /** Marks one of her posts answered by the thread call through global slot `through`. */
+  markPostThreaded: (charId: string, postId: string, through: number) => void
   /** Files the day's transient feed items, stamped with the day they belong to. */
   setFeedExtras: (extras: FeedExtras | null) => void
   /** Files the people the Friends tab offers this slot. */
@@ -1967,6 +1974,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       )
     ),
 
+  setFeedMemory: (charId, entry) =>
+    set((state) =>
+      patchCharInfo(state, charId, (info = blankCharInfo()) => ({ ...info, feedMemory: entry }))
+    ),
+
   setTextMemory: (charId, entry) =>
     set((state) =>
       patchCharInfo(state, charId, (info = blankCharInfo()) => ({ ...info, textMemory: entry }))
@@ -2178,6 +2190,34 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             }
             return { ...post, liked: true, likedOn: state.date }
           })
+        }
+      })
+    ),
+
+  addPostComments: (charId, postId, comments) =>
+    set((state) =>
+      patchCharInfo(state, charId, (info) => {
+        if (!info?.feed?.some((post) => post.id === postId)) return null
+        return {
+          ...info,
+          feed: info.feed.map((post) =>
+            post.id === postId
+              ? { ...post, comments: [...(post.comments ?? []), ...comments] }
+              : post
+          )
+        }
+      })
+    ),
+
+  markPostThreaded: (charId, postId, through) =>
+    set((state) =>
+      patchCharInfo(state, charId, (info) => {
+        if (!info?.feed?.some((post) => post.id === postId)) return null
+        return {
+          ...info,
+          feed: info.feed.map((post) =>
+            post.id === postId ? { ...post, threadedThrough: through } : post
+          )
         }
       })
     ),

@@ -1,7 +1,10 @@
 import { postLikes, rollComments, strangerLikes, type WrittenComment } from '../photoComments'
 import { postIsOut } from '@shared/heldPosts'
 import { holdPostPhoto, preparePostPhoto } from '../photoPost'
-import { npcFriendsOf } from '@shared/npcRelationships'
+import { npcFriendsOf, type NpcRelationshipMap } from '@shared/npcRelationships'
+import { shuffle } from '@shared/shuffle'
+import { charKeyOf } from '@shared/types'
+import type { IntroReplier } from '../../prompts/slotIntroPrompt'
 import type { EndingPostsResponse, FeedExtras, SlotIntroResponse, TimeSlot } from '@shared/types'
 import { bunnybotFirstPostTexts, FRIENDS_INTRO_SLOT } from '../../prompts/bunnybot'
 import {
@@ -21,6 +24,35 @@ import { contactFeedPosts, visibleFriendships } from '../feedView'
 import { deliverBunnybotNow } from '../textingLoop'
 
 /** The social feed where it meets the store. */
+
+/** How many of her friends may reply under a post, and how many randoms stand in for none. */
+const MAX_FRIEND_REPLIERS = 3
+const MAX_RANDOM_REPLIERS = 2
+
+/**
+ * The roster girls who may reply under one girl's post: a few of her friends, or a random few
+ * of the roster where she has none.
+ */
+export function repliersFor(posterId: string, relationships: NpcRelationshipMap): IntroReplier[] {
+  const game = useGameStore.getState()
+  const friends = npcFriendsOf(relationships, posterId, game.chars)
+  const picked =
+    friends.length > 0
+      ? shuffle(friends).slice(0, MAX_FRIEND_REPLIERS)
+      : shuffle(game.chars.filter((id) => id !== posterId)).slice(0, MAX_RANDOM_REPLIERS)
+  return picked.flatMap((charId) => {
+    const character = game.characters[charId]
+    return character
+      ? [
+          {
+            character,
+            charKey: charKeyOf(character.firstName, character.lastName),
+            friend: friends.length > 0
+          }
+        ]
+      : []
+  })
+}
 
 /**
  * The replies a post came back with, each signed by the roster girl its "from" names. A key

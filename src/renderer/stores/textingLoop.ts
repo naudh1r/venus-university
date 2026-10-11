@@ -261,8 +261,14 @@ export async function replyFromBoss(jobId: string, kind: JobMessageKind): Promis
  * Retry. Read off the Bunnyboard store, so a view subscribed to it re-renders as one settles.
  */
 export function textingUnsettled(): boolean {
-  const { busyCharIds, typingCharIds, failedCharIds } = useBunnyboardStore.getState()
-  return busyCharIds.length > 0 || typingCharIds.length > 0 || failedCharIds.length > 0
+  const { busyCharIds, typingCharIds, failedCharIds, feedRepliesOut } =
+    useBunnyboardStore.getState()
+  return (
+    busyCharIds.length > 0 ||
+    typingCharIds.length > 0 ||
+    failedCharIds.length > 0 ||
+    feedRepliesOut
+  )
 }
 
 /** One timer, awaited. */

@@ -64,6 +64,8 @@ declare module './types' {
      * kept back until each one's slot arrives (`shownComments`).
      */
     comments?: PostComment[]
+    /** The last global slot whose comments the thread call answered (`threadWork`). */
+    threadedThrough?: number
   }
 
   interface TextingResponse {

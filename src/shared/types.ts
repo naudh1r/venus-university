@@ -691,6 +691,11 @@ export interface CharState {
    * most one, and the newest wins.
    */
   textMemory?: CharMemory
+  /**
+   * What she took away from the reader's comments on her posts, from the feed-thread call. At
+   * most one, the newest wins, and it weighs nothing in her affection.
+   */
+  feedMemory?: CharMemory
   /** What she suspects about the reader and another girl, one record per subject. */
   suspicions?: Suspicion[]
   /** The game date they last became lovers; kept after a breakup for the exes line. */
@@ -1978,6 +1983,16 @@ export interface SlotIntroResponse {
  */
 export interface EndingPostsResponse {
   posts?: Array<{ char: string; text: string }>
+}
+
+/**
+ * The feed-thread call's reply: new comments under posts already on the feed, each naming the
+ * comment it answers by the short ref the prompt gave it, and what each poster made of the
+ * reader's own comments. `from` is a roster key, or empty for a stranger.
+ */
+export interface FeedThreadsResponse {
+  replies?: Array<{ to: string; from: string; text: string }>
+  memories?: Array<{ char: string; type: string; desc: string }>
 }
 
 /** One pose manifest entry — `/assets/pose.json`. */

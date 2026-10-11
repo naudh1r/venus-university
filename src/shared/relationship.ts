@@ -165,10 +165,15 @@ export function dedupedMemories(memories: readonly CharMemory[]): readonly CharM
 /** {@link dedupedMemories} over {@link memoriesFor} — the folded list every reader reads. */
 export function dedupedMemoriesFor(
   info:
-    | Pick<CharInfo, 'memories' | 'textMemory' | 'jealousyMemories' | 'giftMemories'>
+    | Pick<
+        CharInfo,
+        'memories' | 'textMemory' | 'jealousyMemories' | 'giftMemories' | 'feedMemory'
+      >
     | undefined
 ): readonly CharMemory[] {
-  return dedupedMemories(memoriesFor(info))
+  const merged = memoriesFor(info)
+  // Read by every prompt but never scored, so it is spliced in here rather than in `memoriesFor`.
+  return dedupedMemories(info?.feedMemory ? spliceByDate(merged, info.feedMemory) : merged)
 }
 
 /**

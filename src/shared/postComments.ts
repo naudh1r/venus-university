@@ -13,8 +13,12 @@ import type { TimeSlot } from './types'
 export interface PostComment {
   /** crypto.randomUUID(); the list key. */
   id: string
-  /** The roster girl who wrote it; absent for a stranger. */
+  /** The roster girl who wrote it, the poster's own replies included; absent for a stranger. */
   charId?: string
+  /** The reader wrote it. */
+  player?: true
+  /** The comment it answers; absent for one left on the post itself. */
+  replyTo?: string
   handle: string
   emoji: string
   text: string
@@ -39,4 +43,49 @@ export function shownComments(
   if (!comments) return []
   const now = globalSlotOf(date, time)
   return comments.filter((comment) => comment.at <= now)
+}
+
+/** How many comments by other people the poster herself answers under one post. */
+export const MAX_POSTER_REPLIES = 3
+
+/** What one post's thread still owes: the comments that need an answer this round. */
+export interface ThreadWork {
+  /** The reader's comments nobody has answered yet; each one gets an answer from the poster. */
+  player: PostComment[]
+  /** Other people's comments she may still answer, within what her reply cap has left. */
+  others: PostComment[]
+  /** How many of `others` she may answer. */
+  othersLeft: number
+}
+
+/**
+ * What a post's thread owes as of global slot `now`: every comment of the reader's she has not
+ * answered yet, and everybody else's that arrived since the last round. Null when nothing is
+ * owed, which is most posts.
+ */
+export function threadWork(
+  comments: readonly PostComment[] | undefined,
+  posterId: string,
+  threadedThrough: number | undefined,
+  now: number
+): ThreadWork | null {
+  if (!comments || comments.length === 0) return null
+  const since = threadedThrough ?? Number.NEGATIVE_INFINITY
+  const fresh = comments.filter((one) => one.at > since && one.at <= now)
+  // Owed until she answers it, whenever in the slot he wrote it.
+  const player = comments.filter(
+    (one) =>
+      one.player &&
+      one.at <= now &&
+      !comments.some((reply) => reply.replyTo === one.id && reply.charId === posterId)
+  )
+  const answeredOthers = comments.filter((one) => {
+    if (one.charId !== posterId || !one.replyTo) return false
+    return !comments.find((target) => target.id === one.replyTo)?.player
+  }).length
+  const othersLeft = Math.max(0, MAX_POSTER_REPLIES - answeredOthers)
+  const others =
+    othersLeft > 0 ? fresh.filter((one) => !one.player && one.charId !== posterId) : []
+  if (player.length === 0 && others.length === 0) return null
+  return { player, others, othersLeft }
 }

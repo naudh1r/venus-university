@@ -18,12 +18,7 @@ import {
 } from '@shared/playerStats'
 import { factoidLine, kindOf, projectProgress, projectProgressLine } from '@shared/academics'
 import { giftActionLine, itemDefOf } from '@shared/shop'
-import {
-  npcFriendsOf,
-  type NpcRelationshipMap,
-  type NpcSlotOverlay
-} from '@shared/npcRelationships'
-import { shuffle } from '@shared/shuffle'
+import type { NpcSlotOverlay } from '@shared/npcRelationships'
 import { isSilentLine, isSlotSaveId } from '@shared/saveRules'
 import {
   charKeyOf,
@@ -65,8 +60,7 @@ import {
   introLines,
   type IntroAsker,
   type IntroBreakup,
-  type IntroPoster,
-  type IntroReplier
+  type IntroPoster
 } from '../prompts/slotIntroPrompt'
 import {
   ambientLoreCharacters,
@@ -77,7 +71,8 @@ import {
   rumorSentenceFor
 } from '../prompts/lorebook'
 import { pickSlotPosters } from './feedRolls'
-import { deliverSlotPosts, rollFeedExtrasIfNewSlot, rollSuggestions } from './loop/feed'
+import { deliverSlotPosts, repliersFor, rollFeedExtrasIfNewSlot, rollSuggestions } from './loop/feed'
+import { armFeedThreads } from './loop/feedThreads'
 import {
   filterEventsByAttendance,
   normalizeSchedule,
@@ -452,6 +447,9 @@ async function beginSlot(): Promise<void> {
   // Folded into the slot-save minted before the call went out, which is the start-of-slot
   // decision point.
   await foldOpeningIntoSlotSave(lines)
+
+  // After the fold, so what it answers is already on disk and a reload asks it again.
+  void armFeedThreads()
 }
 
 /** The playthrough's first scene, cast and sent without a classifier. */
@@ -616,35 +614,6 @@ export function goHome(): void {
  */
 export function endInDebt(): void {
   endEpilogue('endingDebt')
-}
-
-/** How many of her friends may reply under a post, and how many randoms stand in for none. */
-const MAX_FRIEND_REPLIERS = 3
-const MAX_RANDOM_REPLIERS = 2
-
-/**
- * The roster girls who may reply under one girl's post: a few of her friends, or a random few
- * of the roster where she has none.
- */
-function repliersFor(posterId: string, relationships: NpcRelationshipMap): IntroReplier[] {
-  const game = useGameStore.getState()
-  const friends = npcFriendsOf(relationships, posterId, game.chars)
-  const picked =
-    friends.length > 0
-      ? shuffle(friends).slice(0, MAX_FRIEND_REPLIERS)
-      : shuffle(game.chars.filter((id) => id !== posterId)).slice(0, MAX_RANDOM_REPLIERS)
-  return picked.flatMap((charId) => {
-    const character = game.characters[charId]
-    return character
-      ? [
-          {
-            character,
-            charKey: charKeyOf(character.firstName, character.lastName),
-            friend: friends.length > 0
-          }
-        ]
-      : []
-  })
 }
 
 /**

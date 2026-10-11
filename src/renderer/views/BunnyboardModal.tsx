@@ -1688,6 +1688,9 @@ const FeedPost = memo(function FeedPost({
   // Her page, her like and the request for her number, each addressed to the store from here
   // rather than handed down, so nothing but the post itself changes under the row.
   const open = charId ? () => useBunnyboardStore.getState().openPage(charId) : undefined
+  // Only under a contact's own post, and absent while the epilogue has closed the phone's talk.
+  const epilogue = useGameStore(epilogueOf)
+  const canComment = Boolean(charId && post.id && !stranger && !random && !epilogue)
   const add = stranger && charId ? () => sendFriendRequest(charId) : undefined
   const like = (): void => {
     if (random) useGameStore.getState().toggleRandomPostLike()
@@ -1741,7 +1744,14 @@ const FeedPost = memo(function FeedPost({
           <PostPhoto charId={charId} postId={post.id} photo={post.photo} />
         </div>
       )}
-      {post.comments && <PostComments comments={post.comments} />}
+      {(post.comments || canComment) && (
+        <PostComments
+          comments={post.comments ?? []}
+          posterId={charId}
+          postId={post.id}
+          canComment={canComment}
+        />
+      )}
       <motion.button
         className={`vu-bb-like${post.liked ? ' vu-bb-like--on' : ''}`}
         type="button"

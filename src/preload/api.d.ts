@@ -9,6 +9,7 @@ import type {
   CustomOutfitSlot,
   Emotion,
   EndingPostsResponse,
+  FeedThreadsResponse,
   Enrollment,
   EnrollmentDraft,
   GrabBags,
@@ -136,6 +137,11 @@ export interface VenusUniversityApi {
       request: StructuredRequest,
       group: string
     ) => Promise<Result<EndingPostsResponse>>
+    /** Sends the feed's comment-thread prompt. Never streams. */
+    completeFeedThreads: (
+      request: StructuredRequest,
+      group: string
+    ) => Promise<Result<FeedThreadsResponse>>
     /** Sends a Bunnyboard texting turn; `group` enables cancellation. */
     completeTexting: (
       request: StructuredRequest,
