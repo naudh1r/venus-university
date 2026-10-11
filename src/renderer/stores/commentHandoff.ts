@@ -29,6 +29,8 @@ export interface CommentHandoff {
   /** The replies as filed, from what the reply wrote and how far her picture goes. */
   dress: (charId: string, written: unknown, photoTier: PhotoTier) => PostComment[]
   View: ComponentType<CommentViewProps>
+  /** Drawn beside the post's like, where it has something to put there. */
+  Action?: ComponentType<CommentViewProps>
 }
 
 let taken: CommentHandoff | null = null

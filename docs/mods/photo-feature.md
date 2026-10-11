@@ -195,8 +195,8 @@ checkpoint draws it.
 
 `src/renderer/stores/commentHandoff.ts` lets one other mod take over a post's replies while its
 own switch is on: the slot opening's lines about them, the schema of each post's `comments`
-field, how they are dressed when the post is filed (with the picture's tier already known), and
-the component that draws them. Photo Feature never names that mod; with nothing registered, or
+field, how they are dressed when the post is filed (with the picture's tier already known),
+the component that draws them, and optionally a control beside the post's like. Photo Feature never names that mod; with nothing registered, or
 the mod off, its own plain comments are used.
 
 ### Hooks

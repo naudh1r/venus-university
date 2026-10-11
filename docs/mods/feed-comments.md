@@ -7,12 +7,16 @@ takes over. Works with photos off.
 
 - Turn on **Feed Comments** in Mods. It needs **Photo Feature** on too; with Photo Feature off,
   Feed Comments is off and comes back when Photo Feature does.
-- Under a contact's post there is a comment box. Every comment left on the post itself has a
-  **Reply** link; replies under it do not.
+- In the feed a post shows one comment (yours if you left one, otherwise the newest), its reply
+  count, **View all N comments**, and a speech-bubble pill with the count beside the heart.
+- The pill or **View all** opens the post's own view over the whole phone: the post, its photo,
+  every comment with replies folded behind **View N replies** (yours open), and a box at the foot
+  for commenting on the post. **Reply** on somebody else's comment opens a box under it; your own
+  comments take no Reply. ✕ or Escape closes the view.
 - Type `@` to tag one of your contacts. A list of them opens under the box and narrows as you type;
   arrows and Enter or Tab pick one. A tag counts only while its `@handle` is still in what you send.
-- What you write shows at once. Closing the phone sends everything you wrote during that visit as
-  one call, in the background. The answers are stamped for the next slot, so they are waiting when
+- What you write shows at once. Closing the post view, or the phone, sends everything you wrote
+  since as one call, in the background. The answers are stamped for the next slot, so they are waiting when
   it opens.
 - The poster always answers your comments. Anybody you tagged answers too. Her friends and other
   students may react, one or two at most.
@@ -48,7 +52,7 @@ takes over. Works with photos off.
 | `src/renderer/prompts/feedCommentsPrompt.ts` | The slot opening's reply lines, the replier block and the thread call's prompt. |
 | `src/renderer/stores/feedComments.ts` | Who may reply under a post, and how the slot opening's replies are filed. |
 | `src/renderer/stores/feedThreads.ts` | The thread call: what is owed, sending on phone close, filing the answers. |
-| `src/renderer/components/FeedThread.tsx`, `vu_styles/FeedComments.css` | The thread, the comment box and the @ list. |
+| `src/renderer/components/FeedThread.tsx`, `vu_styles/FeedComments.css` | The feed preview, the comment pill, the post view with its thread, the comment box and the @ list. |
 | `src/main/ipc.ts`, `src/preload/*`, `src/web/bridge.ts` | The `llm:completeFeedThreads` channel. |
 | `test/feedComments.test.ts` | `threadWork`. |
 
@@ -57,7 +61,7 @@ takes over. Works with photos off.
 - **Photo Feature's comment hand-off** (`stores/commentHandoff.ts`, Photo Feature 1.3.0): while
   Feed Comments is on, the slot opening asks for replies in its words and its schema (each reply
   names who wrote it), a filed post's replies are dressed by it with the picture's tier already
-  known, and `PostComments` draws them with `FeedThread`.
+  known, `PostComments` draws its preview, and `CommentAction` puts its comment pill beside the like.
 - `requests['slot-intro']` adds the replier block. `prompts.scene` and `prompts.dm` add her feed
   memory. `slotSettled` sends whatever is still owed. `gameEntered` drops a visit not yet sent.
 - The thread call is not blocked by a save: a save taken while it is out simply leaves those

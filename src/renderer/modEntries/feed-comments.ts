@@ -16,19 +16,20 @@ import { modIsOn } from '../stores/modsStore'
 import type { CommentViewProps } from '../stores/commentHandoff'
 
 // Loaded on first draw, so registering the mod pulls in no screen code.
-const LazyThread = lazy(() =>
-  import('../components/FeedThread').then((module) => ({ default: module.FeedThread }))
-)
+const screens = (): Promise<typeof import('../components/FeedThread')> =>
+  import('../components/FeedThread')
+const LazyPreview = lazy(() => screens().then((module) => ({ default: module.FeedPreview })))
+const LazyPill = lazy(() => screens().then((module) => ({ default: module.CommentPill })))
 
-/** The thread under a post, drawn once its code has loaded. */
-function FeedThreadView(props: CommentViewProps): ReturnType<typeof createElement> {
-  return createElement(Suspense, { fallback: null }, createElement(LazyThread, props))
+/** The thread's preview under a post, drawn once its code has loaded. */
+function FeedPreviewView(props: CommentViewProps): ReturnType<typeof createElement> {
+  return createElement(Suspense, { fallback: null }, createElement(LazyPreview, props))
 }
 
-/**
- * Feed Comments, plugged in. Photo Feature's replies are taken over through its comment hand-off;
- * everything else goes through the game's hooks.
- */
+/** The comment count beside the post's like, drawn once its code has loaded. */
+function CommentPillView(props: CommentViewProps): ReturnType<typeof createElement> {
+  return createElement(Suspense, { fallback: null }, createElement(LazyPill, props))
+}
 
 handOffComments({
   active: () => modIsOn(FEED_COMMENTS),
@@ -36,7 +37,8 @@ handOffComments({
   field: slotCommentsField,
   dress: (charId, written, photoTier) =>
     rollFeedComments(charId, writtenComments(written, charId), photoTier),
-  View: FeedThreadView
+  View: FeedPreviewView,
+  Action: CommentPillView
 })
 
 /** The thread call, loaded the first time it is needed. */

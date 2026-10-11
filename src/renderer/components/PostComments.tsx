@@ -22,6 +22,12 @@ export function PostComments(props: CommentViewProps): JSX.Element | null {
   return handoff ? <handoff.View {...props} /> : <PlainComments comments={props.comments} />
 }
 
+/** What a mod that has taken over the replies puts beside the post's like; nothing otherwise. */
+export function CommentAction(props: CommentViewProps): JSX.Element | null {
+  const Action = commentHandoff()?.Action
+  return Action ? <Action {...props} /> : null
+}
+
 /** Photo Feature's own replies: strangers' lines, as many as have arrived. */
 function PlainComments({ comments }: { comments: readonly PostComment[] }): JSX.Element | null {
   const date = useGameStore((s) => s.date)

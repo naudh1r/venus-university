@@ -44,17 +44,6 @@
   text-transform: lowercase;
 }
 
-/* The poster's own answers say so beside her name, the way a feed marks its author. */
-.vu-bb-comment-tag {
-  margin-right: 4px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--vu-accent) 22%, transparent);
-  color: var(--vu-text);
-  font: 700 10px var(--font-mono);
-  vertical-align: 1px;
-}
-
 /* Reply and Cancel are words, not buttons: quiet mono after the line, like a feed's own. */
 .vu-bb-comment-reply {
   margin-left: 8px;
@@ -107,8 +96,94 @@
   padding: 6px 12px;
 }
 
-/* The way into a comment on the post itself: the same quiet word as Reply, on its own line. */
-.vu-bb-comment-open {
+/* The quiet words that open the post view or a comment's folded replies, on a line of their own. */
+.vu-bb-comment-open,
+.vu-bb-comment-more {
   align-self: flex-start;
   margin-left: 0;
+}
+
+.vu-bb-comment-more {
+  margin-left: 40px;
+}
+
+/* ---- the post view --------------------------------------------------------- */
+
+/* One post and its whole thread, laid over the phone's whole panel and clipped to its shape. */
+.vu-bb-postview {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  border-radius: inherit;
+  overflow: hidden;
+  background: var(--paper-face, var(--vu-surface));
+}
+
+/* Its name in the middle and the way out at the right, over a rule. */
+.vu-bb-postview-head {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 22px 32px 18px;
+  border-bottom: 2.5px solid var(--vu-border);
+}
+
+.vu-bb-postview-title {
+  color: var(--vu-text);
+  font: 700 19px var(--font-body);
+}
+
+.vu-bb-postview-close {
+  position: absolute;
+  right: 28px;
+  width: 40px;
+  height: 40px;
+}
+
+/* The post and the thread scroll together; the well stays put below them. */
+.vu-bb-postview-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 22px 56px 22px 96px;
+  overflow: hidden auto;
+}
+
+.vu-bb-postview-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vu-bb-postview-who .vu-bb-comment-face {
+  width: 44px;
+  height: 44px;
+}
+
+.vu-bb-postview-name {
+  color: var(--vu-text);
+  font: 700 16px var(--font-body);
+}
+
+.vu-bb-postview-meta {
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.vu-bb-postview-foot {
+  flex: none;
+  padding: 14px 56px 24px 96px;
+  border-top: 2.5px solid var(--vu-border);
+}
+
+/* On the view's own face the pills take the post's recessed fill, or they would vanish into it. */
+.vu-bb-postview .vu-bb-like {
+  background: var(--vu-recessed);
 }

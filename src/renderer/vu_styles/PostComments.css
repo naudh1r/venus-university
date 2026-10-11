@@ -57,3 +57,10 @@
   color: color-mix(in oklab, var(--vu-text) 72%, var(--vu-accent));
   font: 700 12px var(--font-mono);
 }
+
+/* The post's foot: its like, and beside it whatever a mod that has taken over the replies adds. */
+.vu-bb-post-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

@@ -17,7 +17,7 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import type { ChatPhoto } from '@shared/photoTypes'
 import type { PostComment } from '@shared/postComments'
-import { PostComments } from '../components/PostComments'
+import { CommentAction, PostComments } from '../components/PostComments'
 import { commentHandoff } from '../stores/commentHandoff'
 import { MessagePhotoBubble, PhotoLightboxHost, PostPhoto } from '../components/PhotoBubble'
 import {
@@ -1774,16 +1774,24 @@ const FeedPost = memo(function FeedPost({
           stranger={stranger || random}
         />
       )}
-      <motion.button
-        className={`vu-bb-like${post.liked ? ' vu-bb-like--on' : ''}`}
-        type="button"
-        aria-pressed={Boolean(post.liked)}
-        {...gestures(false, quietLift, quietPress)}
-        onClick={like}
-      >
-        <HeartIcon />
-        {post.likes + (post.liked ? 1 : 0)}
-      </motion.button>
+      <div className="vu-bb-post-actions">
+        <motion.button
+          className={`vu-bb-like${post.liked ? ' vu-bb-like--on' : ''}`}
+          type="button"
+          aria-pressed={Boolean(post.liked)}
+          {...gestures(false, quietLift, quietPress)}
+          onClick={like}
+        >
+          <HeartIcon />
+          {post.likes + (post.liked ? 1 : 0)}
+        </motion.button>
+        <CommentAction
+          comments={post.comments ?? []}
+          charId={charId}
+          postId={post.id}
+          stranger={stranger || random}
+        />
+      </div>
     </motion.div>
   )
 })
