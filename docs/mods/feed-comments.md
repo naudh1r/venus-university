@@ -32,6 +32,9 @@ it takes over Photo Feature's post comments and photo posts get the same threads
   texting memory does. It shows in her Memories ("…, on Bunnyboard"), can be edited there, counts
   in her affection like any memory, and every scene, text and slot opening can bring it up. It
   does not appear in the scene-end status lines.
+- A roster girl who has met you and answers you under somebody else's post keeps the same kind of
+  memory, saying whose post it was under, so she can bring it up in her own texts and scenes.
+  It comes out of the same call and replaces her last feed memory, whether she posted or commented.
 - In her texts and in scenes with her, she sees her two newest posts, with what you commented
   under them and what she answered, so she knows what she posted and what you said there.
 - When she answers you she knows her profile, how she stands with you, her latest memories of

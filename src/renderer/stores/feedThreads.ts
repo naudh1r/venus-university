@@ -245,6 +245,8 @@ function fileReplies(
 ): void {
   const game = useGameStore.getState()
   const filed = new Map<string, PostComment[]>()
+  // Girls who know him, other than the poster, who answered him here; each keeps a memory too.
+  const answeredHim = new Set<string>()
   const capLeft = new Map<string, number>(owed.map(({ post, work }) => [post.id, work.othersLeft]))
   const owedIds = new Set(
     owed.flatMap(({ work }) => [...work.player, ...work.others].map((one) => one.id))
@@ -292,6 +294,10 @@ function fileReplies(
           }
     )
     filed.set(entry.post.id, list)
+    const known = fromId ? game.charInfo[fromId] : undefined
+    if (fromId && fromId !== posterId && known && (known.nameKnown || known.memories.length > 0)) {
+      answeredHim.add(fromId)
+    }
   }
 
   for (const { charId, post } of owed) {
@@ -300,14 +306,17 @@ function fileReplies(
     patchPost(charId, post.id, (one) => ({ ...one, threadedThrough: now }))
   }
 
-  const commentedOn = new Set(owed.filter(({ work }) => work.player.length > 0).map((o) => o.charId))
+  const commentedOn = new Set([
+    ...owed.filter(({ work }) => work.player.length > 0).map((o) => o.charId),
+    ...answeredHim
+  ])
   const remembered: string[] = []
   for (const memory of reply.memories ?? []) {
     const charId = game.charKeyToId[memory.char?.trim() ?? '']
     const type = MEMORY_TYPES.find((one) => one === memory.type)
     const desc = memory.desc?.trim()
     if (!charId || !commentedOn.has(charId) || !type || !desc) continue
-    // One a call: a girl he answered under two posts keeps what the first of them left her.
+    // One a call: a girl met under two posts keeps what the first of them left her.
     commentedOn.delete(charId)
     fileFeedMemory(charId, { date: game.date, type, desc })
     remembered.push(game.characters[charId]?.firstName ?? charId)
