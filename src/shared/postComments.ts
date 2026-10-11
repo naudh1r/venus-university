@@ -1,6 +1,18 @@
 import { globalSlotOf } from './jobs'
 import type { TimeSlot } from './types'
 
+declare module './types' {
+  interface SocialPost {
+    /**
+     * What other students replied underneath it, the reader included. Kept back until each
+     * one's slot arrives (`shownComments`).
+     */
+    comments?: PostComment[]
+    /** The last global slot whose comments the thread call answered (`threadWork`). */
+    threadedThrough?: number
+  }
+}
+
 /**
  * The replies under a post on the feed.
  *

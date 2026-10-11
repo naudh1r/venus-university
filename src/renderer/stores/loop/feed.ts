@@ -1,4 +1,5 @@
-import { postLikes, rollComments, strangerLikes, type WrittenComment } from '../photoComments'
+import { rollComments, type WrittenComment } from '../feedComments'
+import { postLikes, strangerLikes } from '../photoComments'
 import { postIsOut } from '@shared/heldPosts'
 import { holdPostPhoto, preparePostPhoto } from '../photoPost'
 import { npcFriendsOf, type NpcRelationshipMap } from '@shared/npcRelationships'

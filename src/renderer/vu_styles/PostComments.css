@@ -1,8 +1,5 @@
-/* ---- what the crowd said under a post ------------------------------------- */
-
-/* The photo feature's own file, like the rest of what it added: the component imports this, so a
-   sync that replaces `Bunnyboard.css` carries nothing of it away. */
-
+/* Feed comments' own file: the component imports this, so a sync that replaces `Bunnyboard.css`
+   carries nothing of it away. */
 
 /* ---- what other students said under a post ------------------------------------- */
 

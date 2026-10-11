@@ -42,7 +42,7 @@ const MAX_THREADS = 8
 const MEMORY_TYPES: readonly MemoryType[] = ['loved', 'liked', 'disliked', 'hated']
 
 /** The reader's own name on a comment he left. */
-export const PLAYER_HANDLE = 'you'
+const PLAYER_HANDLE = 'you'
 
 /** One post owed an answer, with where it lives. */
 interface Owed {

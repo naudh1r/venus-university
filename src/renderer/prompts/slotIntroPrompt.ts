@@ -1,9 +1,9 @@
 import {
   postCommentLines,
-  postPhotoLines,
-  POST_PHOTO_SCHEMA_FIELD,
-  POST_PHOTO_SCHEMA_REQUIRED
-} from './photoBrief'
+  POST_COMMENTS_SCHEMA_FIELD,
+  POST_COMMENTS_SCHEMA_REQUIRED
+} from './feedComments'
+import { postPhotoLines, POST_PHOTO_SCHEMA_FIELD, POST_PHOTO_SCHEMA_REQUIRED } from './photoBrief'
 import { canSendPhotos } from '../stores/photoStore'
 import { affectionFor, dedupedMemoriesFor, emptyFlags } from '@shared/relationship'
 import { DEFAULT_PLAYER_STATS, type PlayerStats } from '@shared/playerStats'
@@ -205,11 +205,12 @@ const SCHEMA = objectSchema('slot_intro', ['lines'], {
     items: {
       type: 'object',
       additionalProperties: false,
-      required: ['char', 'text', ...POST_PHOTO_SCHEMA_REQUIRED],
+      required: ['char', 'text', ...POST_PHOTO_SCHEMA_REQUIRED, ...POST_COMMENTS_SCHEMA_REQUIRED],
       properties: {
         char: { type: 'string' },
         text: { type: 'string' },
-        ...POST_PHOTO_SCHEMA_FIELD
+        ...POST_PHOTO_SCHEMA_FIELD,
+        ...POST_COMMENTS_SCHEMA_FIELD
       }
     }
   }
