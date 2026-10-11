@@ -18,7 +18,12 @@ import {
 } from '@shared/playerStats'
 import { factoidLine, kindOf, projectProgress, projectProgressLine } from '@shared/academics'
 import { giftActionLine, itemDefOf } from '@shared/shop'
-import { npcEnemiesOf, npcFriendsOf, type NpcSlotOverlay } from '@shared/npcRelationships'
+import {
+  npcFriendsOf,
+  type NpcRelationshipMap,
+  type NpcSlotOverlay
+} from '@shared/npcRelationships'
+import { shuffle } from '@shared/shuffle'
 import { isSilentLine, isSlotSaveId } from '@shared/saveRules'
 import {
   charKeyOf,
@@ -60,7 +65,8 @@ import {
   introLines,
   type IntroAsker,
   type IntroBreakup,
-  type IntroPoster
+  type IntroPoster,
+  type IntroReplier
 } from '../prompts/slotIntroPrompt'
 import {
   ambientLoreCharacters,
@@ -612,6 +618,35 @@ export function endInDebt(): void {
   endEpilogue('endingDebt')
 }
 
+/** How many of her friends may reply under a post, and how many randoms stand in for none. */
+const MAX_FRIEND_REPLIERS = 3
+const MAX_RANDOM_REPLIERS = 2
+
+/**
+ * The roster girls who may reply under one girl's post: a few of her friends, or a random few
+ * of the roster where she has none.
+ */
+function repliersFor(posterId: string, relationships: NpcRelationshipMap): IntroReplier[] {
+  const game = useGameStore.getState()
+  const friends = npcFriendsOf(relationships, posterId, game.chars)
+  const picked =
+    friends.length > 0
+      ? shuffle(friends).slice(0, MAX_FRIEND_REPLIERS)
+      : shuffle(game.chars.filter((id) => id !== posterId)).slice(0, MAX_RANDOM_REPLIERS)
+  return picked.flatMap((charId) => {
+    const character = game.characters[charId]
+    return character
+      ? [
+          {
+            character,
+            charKey: charKeyOf(character.firstName, character.lastName),
+            friend: friends.length > 0
+          }
+        ]
+      : []
+  })
+}
+
 /**
  * The slot opening as playback lines, plus the invitations the call rolled and the
  * plans the ledger found. `call` names the cancel group it is sent under and what else, beside
@@ -701,16 +736,11 @@ async function fetchSlotIntro(
     const info = view.charInfo[charId]
     if (!character || !info) continue
     const whereabouts = npcWhereaboutsFor(charId, date, time, npcOverlay, view.charInfo)
-    const firstNames = (ids: string[]): string[] =>
-      ids.flatMap((id) => (game.characters[id] ? [game.characters[id].firstName] : []))
     posters.push({
       charKey,
       character,
       info,
-      ties: {
-        friends: firstNames(npcFriendsOf(view.npcRelationships, charId, game.chars)),
-        enemies: firstNames(npcEnemiesOf(view.npcRelationships, charId, game.chars))
-      },
+      repliers: repliersFor(charId, view.npcRelationships),
       texted: hasTexted(game.bunnyboard.conversations[charId]),
       ...(whereabouts
         ? {
@@ -772,12 +802,6 @@ async function fetchSlotIntro(
       askers,
       breakups,
       posters,
-      repliers: game.chars.flatMap((charId) => {
-        const character = game.characters[charId]
-        return character
-          ? [{ character, charKey: charKeyOf(character.firstName, character.lastName) }]
-          : []
-      }),
       occasions,
       occasionLeadUps: occasionLeadUpLines(date, time, game.occasions),
       weather: game.weather,

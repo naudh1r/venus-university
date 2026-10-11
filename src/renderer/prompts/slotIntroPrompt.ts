@@ -55,10 +55,11 @@ export interface IntroAsker {
   whereabouts?: { location: string; companions: NpcCompanions; haunt?: Haunt }
 }
 
-/** A roster girl who may reply under somebody else's post. */
+/** A roster girl who may reply under one poster's post, and whether the two are friends. */
 export interface IntroReplier {
   character: Character
   charKey: string
+  friend: boolean
 }
 
 /** A lover the reader left this slot for somebody else, who is texting him to end it. */
@@ -86,8 +87,8 @@ export interface IntroPoster {
   texted: boolean
   /** Where she is, who with, and what she is there for, when the slot places her anywhere. */
   whereabouts?: { location: string; companions: NpcCompanions; haunt?: Haunt }
-  /** The first names of the roster girls she is friends and enemies with, for `REPLIERS`. */
-  ties?: { friends: readonly string[]; enemies: readonly string[] }
+  /** The roster girls who may reply under her post: her friends first, else a random few. */
+  repliers?: readonly IntroReplier[]
 }
 
 /** Everything the builder reads; assembled by the loop, which owns the store. */
@@ -121,8 +122,6 @@ export interface SlotIntroInput {
    * under {@link askers} included.
    */
   posters: readonly IntroPoster[]
-  /** The whole roster, as the girls a post's replies may be signed by. */
-  repliers?: readonly IntroReplier[]
   /**
    * What is going on in the world in **this slot alone**, fixed calendar already merged
    * in by the loop.
@@ -316,34 +315,46 @@ function posterBlock(input: SlotIntroInput): string[] {
   ]
 }
 
-/** The roster girls a reply may come from, and how each poster stands with them. */
+/**
+ * The roster girls who may reply under each post, every one described once in enough of her own
+ * voice to write as her. A girl `LOREBOOK` already describes is only named here.
+ */
 function replierBlock(input: SlotIntroInput): string[] {
-  const repliers = input.repliers ?? []
-  if (input.posters.length === 0 || repliers.length === 0) return []
+  const posting = new Set(input.posters.map(({ charKey }) => charKey))
+  const described = new Set<string>()
+  const voices: string[] = []
+  const under: string[] = []
+
+  for (const { character, charKey, repliers } of input.posters) {
+    if (!repliers || repliers.length === 0) continue
+    const names = repliers.map(
+      ({ character: other, charKey: key, friend }) =>
+        `${other.firstName} ("${key}", ${friend ? 'her friend' : 'barely knows her'})`
+    )
+    under.push(`- Under ${character.firstName}'s post ("${charKey}"): ${names.join(', ')}`)
+    for (const { character: other, charKey: key } of repliers) {
+      if (described.has(key)) continue
+      described.add(key)
+      // Both, since one girl can be a friend under one post and a near-stranger under another.
+      const { withFriends, withStrangers } = other.behavior
+      voices.push(
+        posting.has(key)
+          ? `${fullNameOf(other)} — "from": "${key}": described under LOREBOOK.`
+          : `${fullNameOf(other)} — "from": "${key}": ${other.personality}`,
+        ...(withFriends ? [`  With friends: ${withFriends}`] : []),
+        ...(withStrangers ? [`  With people she barely knows: ${withStrangers}`] : [])
+      )
+    }
+  }
+  if (under.length === 0) return []
 
   return [
     'REPLIERS',
-    "Girls on campus who may reply under somebody else's post, each with the first thing to know about how she comes across.",
-    ...repliers.map(
-      ({ character, charKey }) =>
-        `- ${fullNameOf(character)} — "from": "${charKey}": ${firstSentenceOf(character.personality)}`
-    ),
-    ...input.posters.flatMap(({ character, ties }) => {
-      if (!ties) return []
-      const parts = [
-        ...(ties.friends.length > 0 ? [`friends with ${ties.friends.join(', ')}`] : []),
-        ...(ties.enemies.length > 0 ? [`enemies with ${ties.enemies.join(', ')}`] : [])
-      ]
-      return parts.length > 0 ? [`${character.firstName} is ${parts.join('; ')}.`] : []
-    }),
-    'Anyone not named as a friend or an enemy of the poster barely knows her.'
+    'Besides strangers, only the girls named under a post may reply to it, each in her own voice and as somebody who knows the poster as well as it says.',
+    ...under,
+    '',
+    ...voices
   ]
-}
-
-/** The opening sentence of a description, capped so a long one stays a single line. */
-function firstSentenceOf(text: string): string {
-  const sentence = text.trim().split(/(?<=[.!?])\s/)[0] ?? ''
-  return sentence.length > 160 ? `${sentence.slice(0, 157)}...` : sentence
 }
 
 /** Everybody the three blocks above name, described once each. */
@@ -490,7 +501,7 @@ export function buildSlotIntroPrompt(
           'Then fill "posts", one entry per character under STATUS UPDATES. "char" is her key exactly as written there. "text" is the post itself: one or two short lines in her own voice, the way she would actually type it — lowercase, slang and emoji are fine if that is how she writes. It is a post to nobody in particular, about her hour: what she is doing, where she is, what kind of mood she is in, something small she noticed. She is NOT writing to the reader and must not address him, mention him, or refer to meeting anyone. No narration and no stage directions.',
           'The narration in "lines" must not mention these posts — the reader has not opened his phone yet.',
           ...postPhotoLines(canSendPhotos()),
-          ...postCommentLines((input.repliers ?? []).length > 0)
+          ...postCommentLines(input.posters.some(({ repliers }) => (repliers?.length ?? 0) > 0))
         ]
       : [
           // Refused out loud for "hangouts"'s reason.

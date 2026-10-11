@@ -191,7 +191,7 @@ export function postCommentLines(hasRepliers: boolean): string[] {
     'Each post also carries "comments": what other students replied underneath it, in their own voices — up to five, and an empty array on the posts nobody answers, which is most of them. A post with a picture draws more than one without.',
     ...(hasRepliers
       ? [
-          'A reply is either one of the girls under REPLIERS or a stranger. For one of those girls, "from" is her key exactly as written there, and she writes the way she talks, as somebody who knows the poster as well as REPLIERS says — a friend teases or hypes, an enemy is catty, a girl who barely knows her keeps it short. She never replies under her own post. Most replies are still strangers: one or two of the girls on a post at most, and none on many.'
+          'A reply is either one of the girls REPLIERS names under that post or a stranger. For one of those girls, "from" is her key exactly as written there, and she types the way she would actually type — her own words, slang and emoji, not a generic commenter\'s — as a friend or as somebody who barely knows the poster, whichever REPLIERS says. Most replies are still strangers: one or two of the girls on a post at most, and none on many.'
         ]
       : []),
     'A stranger is one of the four thousand this campus holds: "from" is an empty string, she does not know the poster, and she is not the reader. No reply is the reader. No handles and no @s in "text" — just what each one said.',
