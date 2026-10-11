@@ -117,14 +117,27 @@ async function send(request: StructuredRequest, run: object): Promise<FeedThread
   }
 }
 
+/** How long after his last comment the call goes out, so a burst of comments is one call. */
+const COMMENT_SETTLE_MS = 5000
+
+let settleTimer: ReturnType<typeof setTimeout> | null = null
+
+/** A comment arrived while a call was out; asked again once it lands. */
+let askAgain = false
+
 /**
- * Asks for this slot's thread replies, unless a call is already out or nothing is owed. What
- * lands is filed under each post and the post marked answered through this slot; a call that
- * never lands leaves every post owed, so the next slot asks again.
+ * Asks for the thread replies owed right now, unless nothing is owed. `next` stamps what lands
+ * for the slot after this one, so an answer to a comment he just left is waiting when the slot
+ * turns; the slot opening's catch-up shows its answers at once. What lands is filed under each
+ * post and the post marked answered through this slot; a call that never lands leaves every
+ * post owed, so the next slot asks again.
  */
-export async function armFeedThreads(): Promise<void> {
+export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<void> {
   const board = useBunnyboardStore.getState()
-  if (board.feedRepliesOut) return
+  if (board.feedRepliesOut) {
+    askAgain = true
+    return
+  }
   const game = useGameStore.getState()
   const now = globalSlotOf(game.date, game.time)
   const owed = owedThreads(now)
@@ -202,11 +215,17 @@ export async function armFeedThreads(): Promise<void> {
   try {
     const reply = await send(request, run)
     if (runStale(run) || !reply) return
-    fileReplies(reply, owed, byRef, now)
+    fileReplies(reply, owed, byRef, now, showAt === 'next' ? now + 1 : now)
   } catch (err) {
     console.warn('[feed] no thread replies:', messageOf(err))
   } finally {
-    if (!runStale(run)) useBunnyboardStore.getState().setFeedRepliesOut(false)
+    if (!runStale(run)) {
+      useBunnyboardStore.getState().setFeedRepliesOut(false)
+      if (askAgain) {
+        askAgain = false
+        void armFeedThreads('next')
+      }
+    }
   }
 }
 
@@ -218,7 +237,8 @@ function fileReplies(
   reply: FeedThreadsResponse,
   owed: readonly Owed[],
   byRef: ReadonlyMap<string, { owed: Owed; comment: PostComment }>,
-  now: number
+  now: number,
+  shownAt: number
 ): void {
   const game = useGameStore.getState()
   const filed = new Map<string, PostComment[]>()
@@ -257,7 +277,7 @@ function fileReplies(
             emoji: '',
             text,
             replyTo: comment.id,
-            at: now
+            at: shownAt
           }
         : {
             id: crypto.randomUUID(),
@@ -265,7 +285,7 @@ function fileReplies(
             emoji: useGrabBagStore.getState().drawMany(FEED_EMOJI_BAG, FEED_EMOJI, 1)[0] ?? FEED_EMOJI[0],
             text,
             replyTo: comment.id,
-            at: now
+            at: shownAt
           }
     )
     filed.set(entry.post.id, list)
@@ -296,7 +316,7 @@ function strangerHandle(): string {
   return one?.handle ?? FEED_HANDLE_POOL[0].handle
 }
 
-/** Leaves a comment of the reader's under one of her posts, answered at the next round. */
+/** Leaves a comment of the reader's under one of her posts; the answer is written shortly after. */
 export function leavePlayerComment(
   charId: string,
   postId: string,
@@ -319,4 +339,9 @@ export function leavePlayerComment(
       at: globalSlotOf(game.date, game.time)
     }
   ])
+  if (settleTimer) clearTimeout(settleTimer)
+  settleTimer = setTimeout(() => {
+    settleTimer = null
+    void armFeedThreads('next')
+  }, COMMENT_SETTLE_MS)
 }
