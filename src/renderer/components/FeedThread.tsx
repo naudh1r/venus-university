@@ -340,9 +340,7 @@ function CommentRow({
       {comment.charId ? (
         <RosterFace charId={comment.charId} />
       ) : comment.player ? (
-        <span className="vu-bb-comment-face vu-bb-comment-face--player" aria-hidden>
-          you
-        </span>
+        <PlayerFace />
       ) : (
         <span
           className="vu-bb-comment-face"
@@ -378,6 +376,20 @@ function CommentRow({
         )}
       </span>
     </div>
+  )
+}
+
+/** The reader's own picture from his Profile tab, or the word "you" while he has none. */
+function PlayerFace(): JSX.Element {
+  const picture = useGameStore((s) => s.profilePicture)
+  return picture ? (
+    <span className="vu-bb-comment-face vu-bb-comment-face--roster" aria-hidden>
+      <img src={picture} alt="" />
+    </span>
+  ) : (
+    <span className="vu-bb-comment-face vu-bb-comment-face--player" aria-hidden>
+      you
+    </span>
   )
 }
 
