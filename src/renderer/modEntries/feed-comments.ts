@@ -1,4 +1,5 @@
 import { FEED_COMMENTS } from '@shared/feedComments'
+import { PHOTO_FEATURE } from '@shared/mods'
 import { charKeyOf, type Character } from '@shared/types'
 import { createElement, lazy, Suspense } from 'react'
 import { registerHooks } from '../mods/hooks'
@@ -65,8 +66,20 @@ function feedMemoryLines(characters: readonly Character[]): string[] {
   })
 }
 
+/** Photo Feature is acting, so it asks for and files the replies itself, through the hand-off. */
+function photoFeatureActing(): boolean {
+  return modIsOn(PHOTO_FEATURE)
+}
+
 registerHooks(FEED_COMMENTS, {
   prompts: {
+    // Alone, the mod asks for the replies itself; with Photo Feature on they come through it.
+    'slot-posts': {
+      lines: () => (photoFeatureActing() ? [] : slotCommentLines()),
+      fields: (): Record<string, unknown> =>
+        photoFeatureActing() ? {} : { comments: slotCommentsField() },
+      required: () => (photoFeatureActing() ? [] : ['comments'])
+    },
     scene: { lines: ({ cast }) => feedMemoryLines(cast) },
     dm: { lines: ({ character }) => feedMemoryLines([character]) }
   },
@@ -95,6 +108,18 @@ registerHooks(FEED_COMMENTS, {
 
   // Whatever the phone-close call never answered is asked for once the slot's books are settled.
   slotSettled: () => void threads().then((module) => module.armFeedThreads('next')),
+
+  // Alone, it files the replies too; a post with no picture coming draws the plain post's crowd.
+  fileFeedPost: (filing) => {
+    if (photoFeatureActing()) return
+    const reply = filing.reply as { comments?: unknown }
+    const comments = rollFeedComments(
+      filing.charId,
+      writtenComments(reply.comments, filing.charId),
+      'none'
+    )
+    if (comments.length > 0) filing.post = { ...filing.post, comments }
+  },
 
   gameEntered: () => {
     takeCommented()

@@ -1,12 +1,12 @@
 # Feed Comments
 
-Comment on your contacts' posts, and they answer you. Needs Photo Feature, whose post comments it
-takes over. Works with photos off.
+Comment on your contacts' posts, and they answer you. Works on its own; with Photo Feature on too,
+it takes over Photo Feature's post comments and photo posts get the same threads.
 
 ## Playing
 
-- Turn on **Feed Comments** in Mods. It needs **Photo Feature** on too; with Photo Feature off,
-  Feed Comments is off and comes back when Photo Feature does.
+- Turn on **Feed Comments** in Mods. Photo Feature can be on or off, and either can be switched
+  at any time: threads carry on whichever is on.
 - In the feed a post shows one comment (yours if you left one, otherwise the newest), its reply
   count, **View all N comments**, and a speech-bubble pill with the count beside the heart.
 - The pill or **View all** opens the post in a popup over the whole screen, like a photo: the post, its photo,
@@ -43,7 +43,8 @@ takes over. Works with photos off.
 - The slot opening describes up to three possible repliers per post it writes, a few lines each.
 - If a call fails, or you reload before it was saved, the slot's settling asks again for whatever
   is still unanswered.
-- Off, no call is made, and posts go back to Photo Feature's plain stranger comments.
+- Off, no call is made, and posts go back to Photo Feature's plain stranger comments, or none if
+  Photo Feature is off too.
 
 ## For modders
 
@@ -51,7 +52,7 @@ takes over. Works with photos off.
 
 | File | What it is |
 | --- | --- |
-| `src/shared/modEntries/feed-comments.ts` | The entry: anytime, off by default, requires `photo-feature`. |
+| `src/shared/modEntries/feed-comments.ts` | The entry: anytime, off by default, no requirements. |
 | `src/shared/feedComments.ts` | The optional fields it adds to comments, posts and her record, and `threadWork`, what a thread still owes. |
 | `src/renderer/modEntries/feed-comments.ts` | Registers the comment hand-off and the hooks. |
 | `src/renderer/prompts/feedCommentsPrompt.ts` | The slot opening's reply lines, the replier block and the thread call's prompt. |
@@ -62,6 +63,10 @@ takes over. Works with photos off.
 | `test/feedComments.test.ts` | `threadWork`. |
 
 ### How it plugs in
+
+- **Alone**, it asks the slot opening for each post's replies (`prompts['slot-posts']`) and files
+  them (`fileFeedPost`). Both step aside while Photo Feature is on, which asks and files through
+  the hand-off instead, so replies are never asked for twice.
 
 - **Photo Feature's comment hand-off** (`stores/commentHandoff.ts`, Photo Feature 1.3.0): while
   Feed Comments is on, the slot opening asks for replies in its words and its schema (each reply
