@@ -10,8 +10,8 @@ import '../vu_styles/PostComments.css'
 
 /**
  * What people said under one post, as much of it as has arrived, each reply nested under the
- * comment it answers. On a contact's post the reader can comment on the post or answer any
- * comment, and she answers him at the next slot.
+ * comment it answers. On a contact's post the reader can comment on the post or answer a comment
+ * left on it, and she answers him at the next slot.
  *
  * A roster girl wears her own profile picture; a stranger's face is her emoji on a hue hashed
  * off the handle, so she is the same colour every time she comments.
@@ -51,12 +51,13 @@ export function PostComments({
     repliesTo.set(root, [...(repliesTo.get(root) ?? []), one])
   }
 
-  const row = (comment: PostComment): JSX.Element => (
+  // Only a comment on the post itself takes a reply; the replies under it do not.
+  const row = (comment: PostComment, root: boolean): JSX.Element => (
     <CommentRow
       key={comment.id}
       comment={comment}
       poster={Boolean(posterId) && comment.charId === posterId}
-      onReply={canComment ? () => setReplyTo(comment) : undefined}
+      onReply={canComment && root ? () => setReplyTo(comment) : undefined}
     />
   )
 
@@ -66,10 +67,10 @@ export function PostComments({
         <ul className="vu-bb-comments">
           {roots.map((root) => (
             <li className="vu-bb-comment-group" key={root.id}>
-              {row(root)}
+              {row(root, true)}
               {repliesTo.has(root.id) && (
                 <ul className="vu-bb-comments vu-bb-comments--replies">
-                  {repliesTo.get(root.id)?.map((one) => <li key={one.id}>{row(one)}</li>)}
+                  {repliesTo.get(root.id)?.map((one) => <li key={one.id}>{row(one, false)}</li>)}
                 </ul>
               )}
             </li>
