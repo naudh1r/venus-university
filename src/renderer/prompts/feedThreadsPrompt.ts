@@ -40,6 +40,8 @@ export interface FeedThread {
   mayAnswerCount: number
   /** The roster girls who may react under this post besides her. */
   repliers: readonly IntroReplier[]
+  /** Girls the reader tagged, each with the ref of the comment she answers. */
+  tagged?: readonly { ref: string; name: string }[]
 }
 
 /** Everything the builder reads; assembled by the loop, which owns the store. */
@@ -169,6 +171,9 @@ function threadLines(thread: FeedThread): string[] {
           `${name} may answer up to ${thread.mayAnswerCount} of: ${thread.mayAnswer.join(', ')}. Answering none is fine.`
         ]
       : []),
+    ...(thread.tagged ?? []).map(
+      ({ ref, name: tagged }) => `The reader tagged ${tagged} in ${ref}, so she answers it too.`
+    ),
     ...(thread.mustAnswer.length > 0
       ? [
           repliers.length > 0

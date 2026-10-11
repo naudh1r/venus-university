@@ -174,7 +174,7 @@
 - A field standing inside a sentence carries no label of its own and names itself with `aria-label`; a select there keeps its caret on the box around it.
 - `.vu-field-hint` is the one line of body text under a label saying what shape the field wants, in the placeholder's muted italic.
 - A field with suggestions is `ComboField`: the same `.vu-input`, wearing the select's caret only while it is empty and has something to offer. It empties when entered, takes its old value back when left empty, and hangs a floating rounded list under itself on the panel's `.vu-popups` frame — quiet, capped and scrolling, the one row in force tinted by state rather than motion. It stays free text whether or not the list arrived.
-- That floating list is one object (`PopList.css`, `.vu-pop`) with two callers, the combo field and the Cast modal's custom-outfits pill, placed by one helper; a layer inside a modal that opens one takes Escape and a right-click ahead of the shell under it, through the shell's own stack, and closes on a press outside itself.
+- That floating list is one object (`PopList.css`, `.vu-pop`) with three callers, the combo field, the Cast modal's custom-outfits pill and the feed comment well's @ list of contacts, the first two placed by one helper; the @ list stands in the column under its well rather than floating, so the feed's scroller cannot clip it; a layer inside a modal that opens one takes Escape and a right-click ahead of the shell under it, through the shell's own stack, and closes on a press outside itself.
 
 ## 10. Lists and scrollers
 

@@ -25,6 +25,8 @@ import { useBunnyboardStore } from '../bunnyboardStore'
 import { useGameStore } from '../gameStore'
 import { useGrabBagStore } from '../grabBagStore'
 import { retrySilently } from '../silentRetry'
+import { areNpcFriends } from '@shared/npcRelationships'
+import type { IntroReplier } from '../../prompts/slotIntroPrompt'
 import { repliersFor } from './feed'
 import { lessNsfwTextNow, reader } from './promptState'
 import { currentRun, loopState, runStale, LOOP_LLM_GROUP } from './state'
@@ -62,6 +64,28 @@ function owedThreads(now: number): Owed[] {
   return owed
     .sort((a, b) => b.work.player.length - a.work.player.length)
     .slice(0, MAX_THREADS)
+}
+
+/** A post's repliers with every girl the reader tagged under it added, once each. */
+function withTagged(
+  repliers: IntroReplier[],
+  comments: readonly PostComment[],
+  posterId: string
+): IntroReplier[] {
+  const game = useGameStore.getState()
+  const listed = new Set(repliers.map(({ character }) => character.charId))
+  const added: IntroReplier[] = []
+  for (const tagged of comments.flatMap((one) => one.tags ?? [])) {
+    const character = game.characters[tagged]
+    if (!character || tagged === posterId || listed.has(tagged)) continue
+    listed.add(tagged)
+    added.push({
+      character,
+      charKey: charKeyOf(character.firstName, character.lastName),
+      friend: areNpcFriends(game.npcRelationships, posterId, tagged)
+    })
+  }
+  return [...repliers, ...added]
 }
 
 /** Who said a comment, worded for the thread block. */
@@ -144,7 +168,19 @@ export async function armFeedThreads(): Promise<void> {
       mustAnswer: work.player.map((one) => refOf.get(one.id) ?? ''),
       mayAnswer: work.others.map((one) => refOf.get(one.id) ?? ''),
       mayAnswerCount: work.othersLeft,
-      repliers: work.player.length > 0 ? repliersFor(charId, game.npcRelationships) : []
+      repliers: withTagged(
+        work.player.length > 0 ? repliersFor(charId, game.npcRelationships) : [],
+        work.player,
+        charId
+      ),
+      tagged: work.player.flatMap((one) =>
+        (one.tags ?? []).flatMap((tagged) => {
+          const girl = game.characters[tagged]
+          return girl && tagged !== charId
+            ? [{ ref: refOf.get(one.id) ?? '', name: girl.firstName }]
+            : []
+        })
+      )
     })
   }
   if (threads.length === 0) return
@@ -265,7 +301,8 @@ export function leavePlayerComment(
   charId: string,
   postId: string,
   text: string,
-  replyTo?: string
+  replyTo?: string,
+  tags: readonly string[] = []
 ): void {
   const trimmed = text.trim()
   if (!trimmed) return
@@ -278,6 +315,7 @@ export function leavePlayerComment(
       emoji: '',
       text: trimmed,
       ...(replyTo ? { replyTo } : {}),
+      ...(tags.length > 0 ? { tags: [...tags] } : {}),
       at: globalSlotOf(game.date, game.time)
     }
   ])

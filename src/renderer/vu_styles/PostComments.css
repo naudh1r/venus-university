@@ -143,3 +143,23 @@
   border-radius: 999px;
   font-size: 13.5px;
 }
+
+/* A tag in a comment reads in the accent, the way a feed marks a name it links. */
+.vu-bb-comment-mention {
+  color: color-mix(in oklab, var(--vu-text) 55%, var(--vu-accent));
+  font-weight: 700;
+}
+
+/* The contacts @ lists: the shared floating list, standing in the column under the well rather
+   than floating, so the feed's own scroller can never clip it. */
+.vu-bb-mention-pop {
+  position: static;
+}
+
+/* One contact: her face, her name, then her handle in the comment's own mono. */
+.vu-bb-mention {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+}

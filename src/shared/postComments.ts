@@ -19,6 +19,8 @@ export interface PostComment {
   player?: true
   /** The comment it answers; absent for one left on the post itself. */
   replyTo?: string
+  /** The contacts the reader tagged in it, each of whom answers it. */
+  tags?: string[]
   handle: string
   emoji: string
   text: string
