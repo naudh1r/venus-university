@@ -318,7 +318,6 @@ const _CHAR_FIELDS: Record<keyof CharState, 'carried' | 'left'> = {
   ignoredInvitation: 'left',
   gifts: 'carried',
   textMemory: 'carried',
-  feedMemory: 'carried',
   suspicions: 'left',
   datingSince: 'carried',
   brokeUpOn: 'carried',
