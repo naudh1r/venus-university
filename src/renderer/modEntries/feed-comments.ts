@@ -1,8 +1,10 @@
 import { FEED_COMMENTS } from '@shared/feedComments'
 import { PHOTO_FEATURE } from '@shared/mods'
-import { charKeyOf } from '@shared/types'
+import { shownComments } from '@shared/postComments'
+import { charKeyOf, type Character } from '@shared/types'
+import { formatShortGameDate } from '../prompts/gameDate'
 import { createElement, lazy, Suspense } from 'react'
-import { registerHooks } from '../mods/hooks'
+import { postVisible, registerHooks } from '../mods/hooks'
 import {
   replierBlock,
   slotCommentLines,
@@ -44,6 +46,40 @@ handOffComments({
   claims: (comment) => Boolean(comment.player || comment.charId || comment.replyTo)
 })
 
+/** How many of her newest posts a prompt with her in it is shown. */
+const RECENT_POSTS = 2
+
+/**
+ * Her newest posts as the feed shows them, and under each what the reader said there and what
+ * she answered: so a girl he talks to knows what she posted and what he wrote under it.
+ */
+function recentPostLines(characters: readonly Character[]): string[] {
+  const { charInfo, date, time } = useGameStore.getState()
+  return characters.flatMap((character) => {
+    const posts = (charInfo[character.charId]?.feed ?? [])
+      .filter(postVisible)
+      .slice(-RECENT_POSTS)
+    if (posts.length === 0) return []
+    const name = character.firstName
+    return [
+      `${name}'s latest Bunnyboard posts, which everyone can see:`,
+      ...posts.flatMap((post) => {
+        const said = shownComments(post.comments, date, time)
+        const his = said.filter((one) => one.player)
+        const hisIds = new Set(his.map((one) => one.id))
+        const hers = said.filter(
+          (one) => one.charId === character.charId && one.replyTo && hisIds.has(one.replyTo)
+        )
+        return [
+          `- ${formatShortGameDate(post.date)}: "${post.text}"`,
+          ...his.map((one) => `  The reader commented: "${one.text}"`),
+          ...hers.map((one) => `  ${name} answered him: "${one.text}"`)
+        ]
+      })
+    ]
+  })
+}
+
 /** The thread call, loaded the first time it is needed. */
 function threads(): Promise<typeof import('../stores/feedThreads')> {
   return import('../stores/feedThreads')
@@ -62,6 +98,8 @@ function photoFeatureActing(): boolean {
 
 registerHooks(FEED_COMMENTS, {
   prompts: {
+    scene: { lines: ({ cast }) => recentPostLines(cast) },
+    dm: { lines: ({ character }) => recentPostLines([character]) },
     // Alone, the mod asks for the replies itself; with Photo Feature on they come through it.
     'slot-posts': {
       lines: () => (photoFeatureActing() ? [] : slotCommentLines()),

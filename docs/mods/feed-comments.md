@@ -31,6 +31,8 @@ it takes over Photo Feature's post comments and photo posts get the same threads
   texting memory does. It shows in her Memories ("…, on Bunnyboard"), can be edited there, counts
   in her affection like any memory, and every scene, text and slot opening can bring it up. It
   does not appear in the scene-end status lines.
+- In her texts and in scenes with her, she sees her two newest posts, with what you commented
+  under them and what she answered, so she knows what she posted and what you said there.
 - When she answers you she knows her profile, how she stands with you, her latest memories of
   you and what she made of your last comments. A friend or tagged contact who has met you also
   knows how she stands with you and the last thing she remembers of you.
@@ -75,7 +77,8 @@ it takes over Photo Feature's post comments and photo posts get the same threads
   Feed Comments is on, the slot opening asks for replies in its words and its schema (each reply
   names who wrote it), a filed post's replies are dressed by it with the picture's tier already
   known, `PostComments` draws its preview, and `CommentAction` puts its comment pill beside the like.
-- `requests['slot-intro']` adds the replier block. `slotSettled` sends whatever is still owed. `gameEntered` drops a visit not yet sent.
+- `requests['slot-intro']` adds the replier block. `prompts.dm` and `prompts.scene` add her two
+  newest posts with his comments and her answers. `slotSettled` sends whatever is still owed. `gameEntered` drops a visit not yet sent.
 - The thread call is not blocked by a save: a save taken while it is out simply leaves those
   comments owed, and the next settling asks again.
 
