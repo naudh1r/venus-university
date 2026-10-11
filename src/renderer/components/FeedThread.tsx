@@ -9,7 +9,7 @@ import { isFeedContact } from '../stores/feedView'
 import { profileUrl, useSpriteVersion } from '../stores/characterStore'
 import { useGameStore } from '../stores/gameStore'
 import { leavePlayerComment } from '../stores/feedThreads'
-import { epilogueOf } from '../stores/textingLoop'
+import { epilogueOf, sceneActiveOf } from '../stores/textingLoop'
 import type { CommentViewProps } from '../stores/commentHandoff'
 import { fadeIn, gestures, quietLift, quietPress } from '../views/motion'
 import { CloseIcon, HeartIcon } from '../views/screenIcons'
@@ -63,10 +63,12 @@ function useShown(comments: readonly PostComment[]): PostComment[] {
   return shownComments(comments, date, time)
 }
 
-/** Whether he may write under this post: a contact's own, outside the epilogue. */
+/** Whether he may write under this post: a contact's own, outside the epilogue and any scene. */
 function useCanComment({ charId, postId, stranger }: CommentViewProps): boolean {
   const epilogue = useGameStore(epilogueOf)
-  return Boolean(charId && postId && !stranger && !epilogue)
+  // Closed exactly when texting is, so the phone answers the same everywhere.
+  const sceneActive = useGameStore(sceneActiveOf)
+  return Boolean(charId && postId && !stranger && !epilogue && !sceneActive)
 }
 
 /**
@@ -156,6 +158,7 @@ function PostView(props: CommentViewProps & { charId: string; postId: string }):
   const handle = useGameStore((s) => s.charInfo[charId]?.handle)
   const post = useGameStore((s) => s.charInfo[charId]?.feed?.find((one) => one.id === postId))
   const canComment = useCanComment(props)
+  const sceneActive = useGameStore(sceneActiveOf)
   // Over the whole screen, as a photo opens: the phone's veil is the layer it lies on.
   const veil = document.querySelector('.vu-bb')?.parentElement
   if (!veil || !character || !post) return null
@@ -228,6 +231,16 @@ function PostView(props: CommentViewProps & { charId: string; postId: string }):
         </div>
         <Thread comments={post.comments ?? []} posterId={charId} postId={postId} canComment={canComment} />
       </div>
+      {!canComment && sceneActive && !props.stranger && (
+        <div className="vu-bb-postview-foot">
+          <input
+            className="vu-input vu-bb-comment-input"
+            disabled
+            aria-label="Comment"
+            placeholder="You should probably focus on what's in front of you."
+          />
+        </div>
+      )}
       {canComment && (
         <div className="vu-bb-postview-foot">
           <CommentField

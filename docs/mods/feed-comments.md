@@ -23,6 +23,8 @@ takes over. Works with photos off.
 - She also answers up to three other people's comments under a post you are active on.
 - Posts arrive with replies from strangers and from a few roster girls in their own voices: the
   poster's friends, or two random girls when she has none.
+- Commenting is closed during a scene, exactly when texting is: the post view's box says so, and
+  Reply is hidden. Reading stays open.
 - Strangers' posts, and the slot's random student post, take no comments.
 - She keeps one memory of your comments, the newest replacing the last. Scenes and texts can
   bring it up. It does not change her affection.
