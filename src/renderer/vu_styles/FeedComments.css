@@ -106,3 +106,9 @@
   gap: 10px;
   padding: 6px 12px;
 }
+
+/* The way into a comment on the post itself: the same quiet word as Reply, on its own line. */
+.vu-bb-comment-open {
+  align-self: flex-start;
+  margin-left: 0;
+}

@@ -33,7 +33,8 @@ export function FeedThread({
   const canComment = Boolean(posterId && postId && !stranger && !epilogue)
   const date = useGameStore((s) => s.date)
   const time = useGameStore((s) => s.time)
-  const [replyTo, setReplyTo] = useState<PostComment | null>(null)
+  // Where the well is open: under the post, under one comment's thread, or nowhere.
+  const [open, setOpen] = useState<'post' | PostComment | null>(null)
   const said = shownComments(comments, date, time)
   if (said.length === 0 && !canComment) return null
 
@@ -54,15 +55,28 @@ export function FeedThread({
     repliesTo.set(root, [...(repliesTo.get(root) ?? []), one])
   }
 
-  // Only a comment on the post itself takes a reply; the replies under it do not.
+  // Only somebody else's comment on the post itself takes a reply; the replies under it do not.
   const row = (comment: PostComment, root: boolean): JSX.Element => (
     <CommentRow
       key={comment.id}
       comment={comment}
       poster={Boolean(posterId) && comment.charId === posterId}
-      onReply={canComment && root ? () => setReplyTo(comment) : undefined}
+      onReply={canComment && root && !comment.player ? () => setOpen(comment) : undefined}
     />
   )
+
+  const field = (replyTo: PostComment | null): JSX.Element | null =>
+    canComment && posterId && postId ? (
+      <CommentField
+        posterId={posterId}
+        replyTo={replyTo}
+        onCancel={() => setOpen(null)}
+        onSend={(text, tags) => {
+          leavePlayerComment(posterId, postId, text, replyTo?.id, tags)
+          setOpen(null)
+        }}
+      />
+    ) : null
 
   return (
     <div className="vu-bb-thread">
@@ -71,26 +85,28 @@ export function FeedThread({
           {roots.map((root) => (
             <li className="vu-bb-comment-group" key={root.id}>
               {row(root, true)}
-              {repliesTo.has(root.id) && (
+              {(repliesTo.has(root.id) || open === root) && (
                 <ul className="vu-bb-comments vu-bb-comments--replies">
                   {repliesTo.get(root.id)?.map((one) => <li key={one.id}>{row(one, false)}</li>)}
+                  {open === root && <li>{field(root)}</li>}
                 </ul>
               )}
             </li>
           ))}
         </ul>
       )}
-      {canComment && posterId && postId && (
-        <CommentField
-          posterId={posterId}
-          replyTo={replyTo}
-          onCancelReply={() => setReplyTo(null)}
-          onSend={(text, tags) => {
-            leavePlayerComment(posterId, postId, text, replyTo?.id, tags)
-            setReplyTo(null)
-          }}
-        />
-      )}
+      {open === 'post'
+        ? field(null)
+        : canComment && (
+            <motion.button
+              type="button"
+              className="vu-bb-comment-reply vu-bb-comment-open"
+              {...gestures(false, quietLift, quietPress)}
+              onClick={() => setOpen('post')}
+            >
+              Comment
+            </motion.button>
+          )}
     </div>
   )
 }
@@ -181,12 +197,12 @@ function mentionAt(text: string, caret: number): { start: number; query: string 
 function CommentField({
   posterId,
   replyTo,
-  onCancelReply,
+  onCancel,
   onSend
 }: {
   posterId: string
   replyTo: PostComment | null
-  onCancelReply: () => void
+  onCancel: () => void
   onSend: (text: string, tags: string[]) => void
 }): JSX.Element {
   const [draft, setDraft] = useState('')
@@ -250,21 +266,20 @@ function CommentField({
 
   return (
     <div className="vu-bb-comment-compose">
-      {replyTo && (
-        <div className="vu-bb-comment-replying">
-          <span>Replying to {replyTo.player ? 'yourself' : `@${replyTo.handle}`}</span>
-          <motion.button
-            type="button"
-            className="vu-bb-comment-reply"
-            {...gestures(false, quietLift, quietPress)}
-            onClick={onCancelReply}
-          >
-            Cancel
-          </motion.button>
-        </div>
-      )}
+      <div className="vu-bb-comment-replying">
+        <span>{replyTo ? `Replying to @${replyTo.handle}` : 'Commenting on the post'}</span>
+        <motion.button
+          type="button"
+          className="vu-bb-comment-reply"
+          {...gestures(false, quietLift, quietPress)}
+          onClick={onCancel}
+        >
+          Cancel
+        </motion.button>
+      </div>
       <input
         ref={input}
+        autoFocus
         className="vu-input vu-bb-comment-input"
         value={draft}
         autoComplete="off"
@@ -287,10 +302,11 @@ function CommentField({
             setActive((at) => (at + step) % rows.length)
             return
           }
-          if (listing && e.key === 'Escape') {
-            // Closes the list rather than the phone behind it.
+          if (e.key === 'Escape') {
+            // Closes the list, or the well once no list is open, rather than the phone behind it.
             e.stopPropagation()
-            setDismissed(true)
+            if (listing) setDismissed(true)
+            else onCancel()
             return
           }
           if (e.key !== 'Enter' && !(listing && e.key === 'Tab')) return
