@@ -5,7 +5,7 @@ import type { PhotoTier } from '@shared/photoGate'
 import { reachOf, rollCrowdCount } from '@shared/postAudience'
 import type { PostComment } from '@shared/postComments'
 import { shuffle } from '@shared/shuffle'
-import { charKeyOf, type Character } from '@shared/types'
+import { charKeyOf, type Character, type CharInfo } from '@shared/types'
 import {
   FEED_EMOJI,
   FEED_EMOJI_BAG,
@@ -22,6 +22,8 @@ export interface Replier {
   character: Character
   charKey: string
   friend: boolean
+  /** What the game knows of her, for how she stands with the reader. */
+  info?: CharInfo
 }
 
 /** How many of her friends may reply under a post, and how many randoms stand in for none. */
@@ -46,7 +48,8 @@ export function repliersFor(posterId: string, relationships: NpcRelationshipMap 
           {
             character,
             charKey: charKeyOf(character.firstName, character.lastName),
-            friend: friends.length > 0
+            friend: friends.length > 0,
+            info: game.charInfo[charId]
           }
         ]
       : []

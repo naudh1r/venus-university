@@ -26,6 +26,9 @@ takes over. Works with photos off.
 - Strangers' posts, and the slot's random student post, take no comments.
 - She keeps one memory of your comments, the newest replacing the last. Scenes and texts can
   bring it up. It does not change her affection.
+- When she answers you she knows her profile, how she stands with you, her latest memories of
+  you and what she made of your last comments. A friend or tagged contact who has met you also
+  knows how she stands with you and the last thing she remembers of you.
 - Comments are public. Nobody agrees to meet, to a date, a time or a place in them; a girl who is
   keen keeps it open or tells you to message her. Nothing private or explicit is said there.
 

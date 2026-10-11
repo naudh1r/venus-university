@@ -82,7 +82,8 @@ function withTagged(
     added.push({
       character,
       charKey: charKeyOf(character.firstName, character.lastName),
-      friend: areNpcFriends(game.npcRelationships, posterId, tagged)
+      friend: areNpcFriends(game.npcRelationships, posterId, tagged),
+      info: game.charInfo[tagged]
     })
   }
   return [...repliers, ...added]

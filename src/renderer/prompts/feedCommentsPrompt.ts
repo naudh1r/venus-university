@@ -1,4 +1,5 @@
-import { affectionFor, dedupedMemoriesFor, emptyFlags } from '@shared/relationship'
+import { affectionFor, dedupedMemoriesFor, emptyFlags, relationshipTagOf } from '@shared/relationship'
+import { readerize } from '@shared/readerVoice'
 import { DEFAULT_PLAYER_STATS, type PlayerStats } from '@shared/playerStats'
 import {
   fullNameOf,
@@ -193,12 +194,17 @@ function characterBlock(input: FeedThreadsInput): string[] {
         { texting: true, texted },
         { date: input.date, offset: info.moodCycleOffset ?? 0 }
       ),
-      ...memoryLines(character, dedupedMemoriesFor(info).slice(-3), info.textMemory)
+      ...memoryLines(character, dedupedMemoriesFor(info).slice(-3), info.textMemory),
+      ...(info.feedMemory
+        ? [
+            `Last time he commented on her posts, ${character.firstName} ${info.feedMemory.type} that ${readerize(info.feedMemory.desc)}.`
+          ]
+        : [])
     ])
   }
 
   for (const thread of input.threads) {
-    for (const { character, charKey } of thread.repliers) {
+    for (const { character, charKey, info } of thread.repliers) {
       if (named.has(charKey)) continue
       named.add(charKey)
       const { withFriends, withStrangers } = character.behavior
@@ -206,7 +212,8 @@ function characterBlock(input: FeedThreadsInput): string[] {
         `${fullNameOf(character)} — "from": "${charKey}"`,
         character.personality,
         ...(withFriends ? [`With friends: ${withFriends}`] : []),
-        ...(withStrangers ? [`With people she barely knows: ${withStrangers}`] : [])
+        ...(withStrangers ? [`With people she barely knows: ${withStrangers}`] : []),
+        ...readerTieLines(character, info, input.date)
       ])
     }
   }
@@ -216,6 +223,24 @@ function characterBlock(input: FeedThreadsInput): string[] {
     'LOREBOOK',
     '',
     ...entries.flatMap((entry, index) => (index === 0 ? entry : ['', ...entry]))
+  ]
+}
+
+/**
+ * For a girl reacting to the reader, how she stands with him and the last thing she remembers
+ * of him: two lines, and none at all for a girl who has never met him.
+ */
+function readerTieLines(character: Character, info: CharInfo | undefined, date: number): string[] {
+  if (!info) return []
+  const memories = dedupedMemoriesFor(info)
+  if (!info.nameKnown && memories.length === 0) return []
+  const flags = info.flags ?? emptyFlags()
+  const latest = memories[memories.length - 1]
+  return [
+    `Her and the reader: ${relationshipTagOf(flags, affectionFor(info, date, character))}.`,
+    ...(latest
+      ? [`What she last remembers of him: ${character.firstName} ${latest.type} that ${readerize(latest.desc)}.`]
+      : [])
   ]
 }
 
