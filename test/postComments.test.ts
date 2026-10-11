@@ -39,6 +39,10 @@ describe('threadWork', () => {
     ...extra
   })
 
+  it('owes nothing on a thread the reader has not written in', () => {
+    expect(threadWork([comment('s1', 1)], 'her', undefined, 2)).toBeNull()
+  })
+
   it('owes the reader an answer until she gives one, whatever round already ran', () => {
     const mine = comment('p1', 5, { player: true })
     // The round for slot 5 already ran before he wrote it.
@@ -52,6 +56,9 @@ describe('threadWork', () => {
     const replies = others.map((one, i) =>
       comment(`r${i}`, 2, { charId: 'her', replyTo: one.id })
     )
-    expect(threadWork([...others, ...replies, comment('late', 3)], 'her', 2, 3)).toBeNull()
+    const mine = comment('p1', 3, { player: true })
+    const owed = threadWork([...others, ...replies, comment('late', 3), mine], 'her', 2, 3)
+    expect(owed?.others).toEqual([])
+    expect(owed?.player).toEqual([mine])
   })
 })

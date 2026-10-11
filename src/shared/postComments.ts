@@ -62,8 +62,8 @@ export interface ThreadWork {
 
 /**
  * What a post's thread owes as of global slot `now`: every comment of the reader's she has not
- * answered yet, and everybody else's that arrived since the last round. Null when nothing is
- * owed, which is most posts.
+ * answered yet, and with them everybody else's that arrived since the last round. Null unless he
+ * has a comment waiting, which is most posts.
  */
 export function threadWork(
   comments: readonly PostComment[] | undefined,
@@ -88,6 +88,7 @@ export function threadWork(
   const othersLeft = Math.max(0, MAX_POSTER_REPLIES - answeredOthers)
   const others =
     othersLeft > 0 ? fresh.filter((one) => !one.player && one.charId !== posterId) : []
-  if (player.length === 0 && others.length === 0) return null
+  // A thread he has not written in costs nothing: other people's comments ride on his.
+  if (player.length === 0) return null
   return { player, others, othersLeft }
 }
