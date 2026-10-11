@@ -1,6 +1,6 @@
 import { FEED_COMMENTS } from '@shared/feedComments'
 import { PHOTO_FEATURE } from '@shared/mods'
-import { charKeyOf, type Character } from '@shared/types'
+import { charKeyOf } from '@shared/types'
 import { createElement, lazy, Suspense } from 'react'
 import { registerHooks } from '../mods/hooks'
 import {
@@ -55,17 +55,6 @@ useBunnyboardStore.subscribe((state, before) => {
   void threads().then((module) => module.armFeedThreads('next'))
 })
 
-/** What his comments on her posts left her with, for a prompt that has her in it. */
-function feedMemoryLines(characters: readonly Character[]): string[] {
-  const { charInfo } = useGameStore.getState()
-  return characters.flatMap((character) => {
-    const memory = charInfo[character.charId]?.feedMemory
-    return memory
-      ? [`On Bunnyboard, ${character.firstName} ${memory.type} that ${memory.desc}.`]
-      : []
-  })
-}
-
 /** Photo Feature is acting, so it asks for and files the replies itself, through the hand-off. */
 function photoFeatureActing(): boolean {
   return modIsOn(PHOTO_FEATURE)
@@ -80,8 +69,6 @@ registerHooks(FEED_COMMENTS, {
         photoFeatureActing() ? {} : { comments: slotCommentsField() },
       required: () => (photoFeatureActing() ? [] : ['comments'])
     },
-    scene: { lines: ({ cast }) => feedMemoryLines(cast) },
-    dm: { lines: ({ character }) => feedMemoryLines([character]) }
   },
 
   // The roster girls who may reply under each of the slot's posts, described in their own voices.

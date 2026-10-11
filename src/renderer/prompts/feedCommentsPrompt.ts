@@ -194,12 +194,7 @@ function characterBlock(input: FeedThreadsInput): string[] {
         { texting: true, texted },
         { date: input.date, offset: info.moodCycleOffset ?? 0 }
       ),
-      ...memoryLines(character, dedupedMemoriesFor(info).slice(-3), info.textMemory),
-      ...(info.feedMemory
-        ? [
-            `Last time he commented on her posts, ${character.firstName} ${info.feedMemory.type} that ${readerize(info.feedMemory.desc)}.`
-          ]
-        : [])
+      ...memoryLines(character, dedupedMemoriesFor(info).slice(-3), info.textMemory)
     ])
   }
 
@@ -301,7 +296,7 @@ export function buildFeedThreadsPrompt(
     'Other girls and strangers only react to the reader\'s comments, one or two at most per post, and only where it is natural. A reaction answers what he said or how the poster answered him, never the post on its own. Nobody else speaks for the reader, and nobody @s anybody or writes a handle in "text".',
     'The crowd is not there to mock him. Most of the time it agrees, hypes, adds to the joke with him or says nothing at all; teasing him is the exception, and a pile-on happens only when the poster herself has just brushed him off. Never more than one reaction poking fun at him under a post.',
     'All of this happens in front of the whole campus, and everybody types like it. Nobody settles anything here: no meeting up, no date, no time or place agreed, whoever suggests it. A girl who likes the idea can say so in a way that keeps it open, or tell him to message her; one who does not can laugh it off. Nothing she would only say to him alone goes in a comment: feelings she has not shown in public, what passed between them in private, anything explicit. Strangers know nothing about the reader beyond the comment in front of them.',
-    'Fill "memories" with one entry per poster the reader commented under, saying what she made of what he said: "char" is her key, "type" how she felt about it, and "desc" what happened, in a few words, starting with "the reader".'
+    'Fill "memories" with one entry per poster the reader commented under, saying what she made of what he said: "char" is her key, "type" how she felt about it, and "desc" what happened, in a few words, starting with "the reader". Do not say where it happened; the game adds that.'
   ].join('\n')
 
   return {

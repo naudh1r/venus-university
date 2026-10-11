@@ -301,13 +301,23 @@ function fileReplies(
   }
 
   const commentedOn = new Set(owed.filter(({ work }) => work.player.length > 0).map((o) => o.charId))
+  const remembered: string[] = []
   for (const memory of reply.memories ?? []) {
     const charId = game.charKeyToId[memory.char?.trim() ?? '']
     const type = MEMORY_TYPES.find((one) => one === memory.type)
     const desc = memory.desc?.trim()
     if (!charId || !commentedOn.has(charId) || !type || !desc) continue
-    setFeedMemory(charId, { date: game.date, type, desc })
+    // One a call: a girl he answered under two posts keeps what the first of them left her.
+    commentedOn.delete(charId)
+    fileFeedMemory(charId, { date: game.date, type, desc })
+    remembered.push(game.characters[charId]?.firstName ?? charId)
   }
+
+  const replies = [...filed.values()].reduce((total, list) => total + list.length, 0)
+  console.log(
+    `[feed comments] answered ${owed.length} post(s): ${replies} repl${replies === 1 ? 'y' : 'ies'}, ` +
+      (remembered.length > 0 ? `memory for ${remembered.join(', ')}` : 'no memory')
+  )
 }
 
 /** A stranger's handle off the shared bag, so the four thousand do not repeat too soon. */
@@ -359,10 +369,18 @@ function addComments(charId: string, postId: string, comments: readonly PostComm
   patchPost(charId, postId, (post) => ({ ...post, comments: [...(post.comments ?? []), ...comments] }))
 }
 
-/** Files what his comments left her with, replacing the last. */
-function setFeedMemory(charId: string, entry: CharMemory): void {
-  useGameStore.setState((state) => {
-    const info = state.charInfo[charId]
-    return info ? { charInfo: { ...state.charInfo, [charId]: { ...info, feedMemory: entry } } } : {}
-  })
+/** How a memory from the feed says where it happened, and how the last one is found again. */
+const FEED_MEMORY_TAG = ', on Bunnyboard'
+
+/**
+ * Files what his comments left her with as one of her own memories, replacing the last one the
+ * feed left her: one at a time, the newest winning, as her texting memory does.
+ */
+function fileFeedMemory(charId: string, entry: CharMemory): void {
+  const store = useGameStore.getState()
+  const previous = store.charInfo[charId]?.memories.find((one) =>
+    one.desc.endsWith(FEED_MEMORY_TAG)
+  )
+  if (previous) store.replaceMemory(charId, previous, null)
+  store.recordMemory(charId, { ...entry, desc: `${entry.desc}${FEED_MEMORY_TAG}` })
 }

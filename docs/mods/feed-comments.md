@@ -26,8 +26,10 @@ it takes over Photo Feature's post comments and photo posts get the same threads
 - Commenting is closed during a scene, exactly when texting is: the post view's box says so, and
   Reply is hidden. Reading stays open.
 - Strangers' posts, and the slot's random student post, take no comments.
-- She keeps one memory of your comments, the newest replacing the last. Scenes and texts can
-  bring it up. It does not change her affection.
+- She keeps one memory of your comments among her own, the newest replacing the last, as her
+  texting memory does. It shows in her Memories ("…, on Bunnyboard"), can be edited there, counts
+  in her affection like any memory, and every scene, text and slot opening can bring it up. It
+  does not appear in the scene-end status lines.
 - When she answers you she knows her profile, how she stands with you, her latest memories of
   you and what she made of your last comments. A friend or tagged contact who has met you also
   knows how she stands with you and the last thing she remembers of you.
@@ -72,16 +74,16 @@ it takes over Photo Feature's post comments and photo posts get the same threads
   Feed Comments is on, the slot opening asks for replies in its words and its schema (each reply
   names who wrote it), a filed post's replies are dressed by it with the picture's tier already
   known, `PostComments` draws its preview, and `CommentAction` puts its comment pill beside the like.
-- `requests['slot-intro']` adds the replier block. `prompts.scene` and `prompts.dm` add her feed
-  memory. `slotSettled` sends whatever is still owed. `gameEntered` drops a visit not yet sent.
+- `requests['slot-intro']` adds the replier block. `slotSettled` sends whatever is still owed. `gameEntered` drops a visit not yet sent.
 - The thread call is not blocked by a save: a save taken while it is out simply leaves those
   comments owed, and the next settling asks again.
 
 ### Save fields
 
 All optional, so a save without the mod loads as before, and switching it off keeps them:
-`charId`, `player`, `replyTo` and `tags` on a comment; `threadedThrough` on a post; `feedMemory`
-on her record.
+`charId`, `player`, `replyTo` and `tags` on a comment; `threadedThrough` on a post. What she made
+of his comments is one of her ordinary memories, ending ", on Bunnyboard", which is how the next
+one finds and replaces it.
 
 Comments keep Photo Feature's `comments` field. A comment written by Photo Feature alone reads as
 a stranger's. While Feed Comments is off, Photo Feature's own view leaves out the comments only

@@ -25,14 +25,6 @@ declare module './types' {
     /** The last global slot whose comments the thread call answered (`threadWork`). */
     threadedThrough?: number
   }
-
-  interface CharState {
-    /**
-     * What she took away from the reader's comments on her posts. At most one, the newest wins,
-     * and it weighs nothing in her affection.
-     */
-    feedMemory?: CharMemory
-  }
 }
 
 /**
