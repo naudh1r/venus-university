@@ -75,3 +75,19 @@ already where an added one goes set aside and put back, and code changed by some
 the install left alone, backup and all.
 
 Then install, play and uninstall on a clean copy of the official game before publishing.
+
+## Test add-ons
+
+`addon/` builds a no-exe zip that installs one mod's test build **on top of** an installed
+Extracurriculars release, so players can try a mod before it is in a build. Its install checks the
+installed build's version and code, backs that code up and swaps in the test's changed code files;
+its uninstall puts the build's code back. Extracurriculars' own backup is never touched, and its
+Uninstall refuses while a test is installed, so the test comes out first.
+
+1. The release's `out`, taken from a game with it installed:
+   `npx @electron/asar extract "<game>/resources/app.asar" ex`, then use `ex/out`.
+2. The test build's `out`: `npx electron-vite build` on the branch being tested.
+3. In this folder: `node addon/build.mjs --base <ex out> --build <test out> --base-version 0.1.0
+   --name "Feed Comments test" --version 1`. The zip lands in `addon/dist/`.
+
+Only code may differ between the two; a test add-on brings no art.
