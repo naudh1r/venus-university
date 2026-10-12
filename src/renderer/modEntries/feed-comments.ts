@@ -7,6 +7,7 @@ import { createElement, lazy, Suspense } from 'react'
 import { postVisible, registerHooks } from '../mods/hooks'
 import {
   replierBlock,
+  TEXT_LEDGER_FEED_LINES,
   slotCommentLines,
   slotCommentsField
 } from '../prompts/feedCommentsPrompt'
@@ -109,8 +110,19 @@ registerHooks(FEED_COMMENTS, {
     },
   },
 
-  // The roster girls who may reply under each of the slot's posts, described in their own voices.
   requests: {
+    // The texting bookkeeping, told the feed is not the texts when a girl he texted has his comments.
+    'text-ledger': (request, { charKeys }) => {
+      const { charKeyToId, charInfo } = useGameStore.getState()
+      const commented = charKeys.some((key) =>
+        (charInfo[charKeyToId[key] ?? '']?.feed ?? []).some((post) =>
+          (post.comments ?? []).some((one) => one.player)
+        )
+      )
+      if (!commented) return request
+      return { ...request, user: `${request.user}\n${TEXT_LEDGER_FEED_LINES.join('\n')}\n` }
+    },
+    // The roster girls who may reply under each of the slot's posts, described in their own voices.
     'slot-intro': (request, { input }) => {
       const { npcRelationships } = useGameStore.getState()
       const block = replierBlock(

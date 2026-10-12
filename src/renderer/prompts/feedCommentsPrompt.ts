@@ -309,3 +309,12 @@ export function buildFeedThreadsPrompt(
     kind: 'texting'
   }
 }
+
+/**
+ * Told to the texting bookkeeping when a girl he texted has his comments under her posts: what
+ * was said on the feed is filed by the feed, so texts about it are not taken for the comments.
+ */
+export const TEXT_LEDGER_FEED_LINES = [
+  'THE FEED',
+  'The reader also comments under these girls\' Bunnyboard posts, in public, and those comments are noted elsewhere. A message that brings up one of her posts or a comment on it is texting about the feed: note only what was said in these messages, never the comments themselves, and never call something "over text" that happened on the feed.'
+]
