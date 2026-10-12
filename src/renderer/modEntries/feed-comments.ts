@@ -1,4 +1,5 @@
 import { FEED_COMMENTS } from '@shared/feedComments'
+import { globalSlotOf } from '@shared/jobs'
 import { PHOTO_FEATURE } from '@shared/mods'
 import { shownComments } from '@shared/postComments'
 import { charKeyOf, type Character } from '@shared/types'
@@ -14,6 +15,7 @@ import {
 import { handOffComments } from '../stores/commentHandoff'
 import { repliersFor, rollFeedComments, writtenComments } from '../stores/feedComments'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
+import { fileDueFeedMemories } from '../stores/feedMemory'
 import { takeCommented } from '../stores/feedVisit'
 import { useGameStore } from '../stores/gameStore'
 import { modIsOn } from '../stores/modsStore'
@@ -143,8 +145,13 @@ registerHooks(FEED_COMMENTS, {
     }
   },
 
-  // Whatever the phone-close call never answered is asked for once the slot's books are settled.
-  slotSettled: () => void threads().then((module) => module.armFeedThreads('next')),
+  // Held memories whose answers show next slot are filed now, so the boundary save carries them;
+  // then whatever the phone-close call never answered is asked for.
+  slotSettled: () => {
+    const { date, time } = useGameStore.getState()
+    fileDueFeedMemories(globalSlotOf(date, time) + 1)
+    void threads().then((module) => module.armFeedThreads('next'))
+  },
 
   // Alone, it files the replies too; a post with no picture coming draws the plain post's crowd.
   fileFeedPost: (filing) => {

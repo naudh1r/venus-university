@@ -28,7 +28,7 @@ it takes over Photo Feature's post comments and photo posts get the same threads
 - Commenting is closed during a scene, exactly when texting is: the post view's box says so, and
   Reply is hidden. Reading stays open.
 - Strangers' posts, and the slot's random student post, take no comments.
-- She keeps one memory of your comments among her own, the newest replacing the last, as her
+- She keeps one memory of your comments among her own, arriving with her answers, the newest replacing the last, as her
   texting memory does. It shows in her Memories ("…, on the feed"), can be edited there, counts
   in her affection like any memory, and every scene, text and slot opening can bring it up. It
   does not appear in the scene-end status lines.
@@ -91,7 +91,9 @@ it takes over Photo Feature's post comments and photo posts get the same threads
 ### Save fields
 
 All optional, so a save without the mod loads as before, and switching it off keeps them:
-`charId`, `player`, `replyTo` and `tags` on a comment; `threadedThrough` on a post. What she made
+`charId`, `player`, `replyTo` and `tags` on a comment; `threadedThrough` and `heldMemories` on a post.
+A memory the thread call writes waits in `heldMemories` until the slot its answers show, and is
+filed into her memories as the slot before it settles, so it arrives with the answers. What she made
 of his comments is one of her ordinary memories, ending ", on the feed", which is how the next
 one finds and replaces it.
 
