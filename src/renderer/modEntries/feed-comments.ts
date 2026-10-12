@@ -63,7 +63,7 @@ function recentPostLines(characters: readonly Character[]): string[] {
     if (posts.length === 0) return []
     const name = character.firstName
     return [
-      `${name}'s latest Bunnyboard posts, which everyone can see:`,
+      `${name}'s latest feed posts, which everyone can see:`,
       ...posts.flatMap((post) => {
         const said = shownComments(post.comments, date, time)
         const his = said.filter((one) => one.player)

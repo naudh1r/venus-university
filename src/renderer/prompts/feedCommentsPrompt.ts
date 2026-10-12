@@ -316,5 +316,5 @@ export function buildFeedThreadsPrompt(
  */
 export const TEXT_LEDGER_FEED_LINES = [
   'THE FEED',
-  'The reader also comments under these girls\' Bunnyboard posts, in public, and those comments are noted elsewhere. A message that brings up one of her posts or a comment on it is texting about the feed: note only what was said in these messages, never the comments themselves, and never call something "over text" that happened on the feed.'
+  'The reader also comments under these girls\' feed posts, in public, and those comments are noted elsewhere. A message that brings up one of her posts or a comment on it is texting about the feed: note only what was said in these messages, never the comments themselves, and never call something "over text" that happened on the feed.'
 ]
