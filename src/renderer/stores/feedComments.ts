@@ -15,7 +15,7 @@ import {
 import { useGameStore } from './gameStore'
 import { useGrabBagStore } from './grabBagStore'
 
-/** Feed Comments' side of a post's replies: who may write them, and how they are filed. */
+/** Bunnyfeeds' side of a post's replies: who may write them, and how they are filed. */
 
 /** A roster girl who may reply under one poster's post, and whether the two are friends. */
 export interface Replier {
@@ -69,7 +69,7 @@ export function writtenComments(raw: unknown, posterId: string): WrittenComment[
     const { from, text } = one as { from?: unknown; text?: unknown }
     if (typeof text !== 'string') return []
     const charId = typeof from === 'string' && from ? game.charKeyToId[from.trim()] : undefined
-    if (from && !charId) console.warn(`[feed comments] reply from unknown key "${String(from)}"`)
+    if (from && !charId) console.warn(`[bunnyfeeds] reply from unknown key "${String(from)}"`)
     return [charId && charId !== posterId ? { charId, text } : { text }]
   })
 }

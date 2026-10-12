@@ -358,7 +358,7 @@ export function registerIpcHandlers(): void {
     runAbortable(group, (signal) => completeStructured<EndingPostsResponse>(request, signal))
   )
 
-  // Feed Comments' thread call: answers what the reader wrote under her posts.
+  // Bunnyfeeds' thread call: answers what the reader wrote under her posts.
   handle('llm:completeFeedThreads', (_event, request: StructuredRequest, group: string) =>
     runAbortable(group, (signal) => completeStructured<FeedThreadsResponse>(request, signal))
   )

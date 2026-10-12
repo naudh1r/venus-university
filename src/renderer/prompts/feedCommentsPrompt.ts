@@ -14,7 +14,7 @@ import { objectSchema } from './schema'
 import { memoryLines, profileLines, spaced } from './scenePrompt'
 import type { Replier } from '../stores/feedComments'
 
-/** Feed Comments' prompts: the replies a post arrives with, and the call that answers the reader. */
+/** Bunnyfeeds' prompts: the replies a post arrives with, and the call that answers the reader. */
 
 /** The slot opening's lines about the replies each post arrives with. */
 export function slotCommentLines(): string[] {

@@ -335,7 +335,7 @@ function fileReplies(
 
   const replies = [...filed.values()].reduce((total, list) => total + list.length, 0)
   console.log(
-    `[feed comments] answered ${owed.length} post(s): ${replies} repl${replies === 1 ? 'y' : 'ies'}, ` +
+    `[bunnyfeeds] answered ${owed.length} post(s): ${replies} repl${replies === 1 ? 'y' : 'ies'}, ` +
       (remembered.length > 0 ? `memory for ${remembered.join(', ')}` : 'no memory')
   )
 }

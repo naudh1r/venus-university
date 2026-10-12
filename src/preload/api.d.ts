@@ -168,7 +168,7 @@ export interface VenusUniversityApi {
       request: StructuredRequest,
       group: string
     ) => Promise<Result<EndingPostsResponse>>
-    /** Sends Feed Comments' thread prompt. Never streams. */
+    /** Sends Bunnyfeeds' thread prompt. Never streams. */
     completeFeedThreads: (
       request: StructuredRequest,
       group: string

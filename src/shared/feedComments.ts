@@ -2,11 +2,11 @@ import type { PostComment } from './postComments'
 import type { MemoryType } from './types'
 
 /**
- * Feed Comments' saved shape and its one rule: what a post's thread still owes the reader. The
+ * Bunnyfeeds' saved shape and its one rule: what a post's thread still owes the reader. The
  * fields it adds are all optional, so a save written without the mod loads as it always did.
  */
 
-export const FEED_COMMENTS = 'feed-comments'
+export const BUNNYFEEDS = 'bunnyfeeds'
 
 declare module './postComments' {
   interface PostComment {

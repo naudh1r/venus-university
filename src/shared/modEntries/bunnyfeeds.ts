@@ -1,9 +1,9 @@
 import type { ModDef } from '../mods'
-import { FEED_COMMENTS } from '../feedComments'
+import { BUNNYFEEDS } from '../feedComments'
 
 const mod: ModDef = {
-  id: FEED_COMMENTS,
-  name: 'Feed Comments',
+  id: BUNNYFEEDS,
+  name: 'Bunnyfeeds',
   author: 'naudh1r',
   version: '1.0.0',
   scope: 'anytime',

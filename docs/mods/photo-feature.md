@@ -80,7 +80,7 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
 ## 1.3.0
 
 - **Comments can be taken over**: another mod can write and draw the replies under posts in place
-  of Photo Feature's own stranger comments (Feed Comments does). With nothing taking them over,
+  of Photo Feature's own stranger comments (Bunnyfeeds does). With nothing taking them over,
   comments work exactly as in 1.2.0.
 
 ## 1.2.0

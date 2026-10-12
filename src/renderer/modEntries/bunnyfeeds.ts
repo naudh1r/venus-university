@@ -1,4 +1,4 @@
-import { FEED_COMMENTS } from '@shared/feedComments'
+import { BUNNYFEEDS } from '@shared/feedComments'
 import { globalSlotOf } from '@shared/jobs'
 import { PHOTO_FEATURE } from '@shared/mods'
 import { shownComments } from '@shared/postComments'
@@ -38,7 +38,7 @@ function CommentPillView(props: CommentViewProps): ReturnType<typeof createEleme
 }
 
 handOffComments({
-  active: () => modIsOn(FEED_COMMENTS),
+  active: () => modIsOn(BUNNYFEEDS),
   lines: slotCommentLines,
   field: slotCommentsField,
   dress: (charId, written, photoTier) =>
@@ -99,7 +99,7 @@ function photoFeatureActing(): boolean {
   return modIsOn(PHOTO_FEATURE)
 }
 
-registerHooks(FEED_COMMENTS, {
+registerHooks(BUNNYFEEDS, {
   prompts: {
     scene: { lines: ({ cast }) => recentPostLines(cast) },
     dm: { lines: ({ character }) => recentPostLines([character]) },
