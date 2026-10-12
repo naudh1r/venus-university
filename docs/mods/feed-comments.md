@@ -55,14 +55,6 @@ it takes over Photo Feature's post comments and photo posts get the same threads
 - Off, no call is made, and posts go back to Photo Feature's plain stranger comments, or none if
   Photo Feature is off too.
 
-## Known issues
-
-- If you talk about one of her posts or your comment on it in her DMs, the end-of-slot texting
-  memory can file it as something said over text ("…cute over text"), beside the right
-  "…, on Bunnyboard" memory. The texting bookkeeping reads only the messages and has no hook a
-  mod can add a line to. A `requests['text-ledger']` hook in core would let Feed Comments tell
-  it that comments happen on the feed.
-
 ## For modders
 
 ### Source map
@@ -89,7 +81,9 @@ it takes over Photo Feature's post comments and photo posts get the same threads
   Feed Comments is on, the slot opening asks for replies in its words and its schema (each reply
   names who wrote it), a filed post's replies are dressed by it with the picture's tier already
   known, `PostComments` draws its preview, and `CommentAction` puts its comment pill beside the like.
-- `requests['slot-intro']` adds the replier block. `prompts.dm` and `prompts.scene` add her two
+- `requests['slot-intro']` adds the replier block. `requests['text-ledger']` tells the end-of-slot texting
+  bookkeeping, when a girl he texted has his comments under her posts, that the feed is not the texts,
+  so talk about a post in her DMs is not filed as something said over text. `prompts.dm` and `prompts.scene` add her two
   newest posts with his comments and her answers. `slotSettled` sends whatever is still owed. `gameEntered` drops a visit not yet sent.
 - The thread call is not blocked by a save: a save taken while it is out simply leaves those
   comments owed, and the next settling asks again.
