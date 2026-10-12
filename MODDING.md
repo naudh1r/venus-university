@@ -228,7 +228,7 @@ Where a branch goes:
 ## Scene and memory hooks
 
 - `prompts.scene` adds context to cast and solo scenes, including continuations and closing requests.
-- `requests.scene`, `requests.dm`, `requests.ledger` and `requests['slot-intro']` extend a completed request in mod-list order. Preserve the request and schema fields received from earlier mods. DM hooks run for normal and regenerated replies because both use the same builder.
+- `requests.scene`, `requests.dm`, `requests.ledger`, `requests['text-ledger']` and `requests['slot-intro']` extend a completed request in mod-list order. Preserve the request and schema fields received from earlier mods. DM hooks run for normal and regenerated replies because both use the same builder. `requests['text-ledger']` extends the end-of-slot texting bookkeeping and receives the slot's schedule input, the save's `charInfo` and the keys of the girls texted; add only below the request's cached preamble.
 - `slotSettled` receives the scene's starting state, the completed ledger and closing cast after bookkeeping, before clock advancement and the boundary save. It is synchronous so mod state is included in that save.
 
 These hooks add to the existing API; existing hooks and their arguments are unchanged. Screens, IPC and save fields still use direct integration as documented above.
