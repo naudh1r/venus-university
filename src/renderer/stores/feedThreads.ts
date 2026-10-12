@@ -1,6 +1,11 @@
-import type { CharInfo, CharMemory } from '@shared/types'
+import type { CharInfo } from '@shared/types'
 import { messageOf } from '@shared/errors'
-import { threadWork, type FeedThreadsResponse, type ThreadWork } from '@shared/feedComments'
+import {
+  threadWork,
+  type FeedThreadsResponse,
+  type HeldFeedMemory,
+  type ThreadWork
+} from '@shared/feedComments'
 import { globalSlotOf } from '@shared/jobs'
 import { areNpcFriends } from '@shared/npcRelationships'
 import type { PostComment } from '@shared/postComments'
@@ -25,6 +30,7 @@ import { SETTING } from '../prompts/setting'
 import { hasTexted } from '../prompts/textingPrompt'
 import { markCommented } from './feedVisit'
 import { repliersFor, type Replier } from './feedComments'
+import { fileDueFeedMemories, holdFeedMemories } from './feedMemory'
 import { useGameStore } from './gameStore'
 import { useGrabBagStore } from './grabBagStore'
 import { lessNsfwTextNow, reader } from './loop/promptState'
@@ -311,6 +317,7 @@ function fileReplies(
     ...answeredHim
   ])
   const remembered: string[] = []
+  const held: HeldFeedMemory[] = []
   for (const memory of reply.memories ?? []) {
     const charId = game.charKeyToId[memory.char?.trim() ?? '']
     const type = MEMORY_TYPES.find((one) => one === memory.type)
@@ -318,9 +325,13 @@ function fileReplies(
     if (!charId || !commentedOn.has(charId) || !type || !desc) continue
     // One a call: a girl met under two posts keeps what the first of them left her.
     commentedOn.delete(charId)
-    fileFeedMemory(charId, { date: game.date, type, desc })
+    held.push({ charId, at: shownAt, type, desc })
     remembered.push(game.characters[charId]?.firstName ?? charId)
   }
+
+  // Held with the answers: the slot they show in files them, so she remembers what is on the feed.
+  if (owed[0]) holdFeedMemories(owed[0].charId, owed[0].post.id, held)
+  if (shownAt <= now) fileDueFeedMemories(now)
 
   const replies = [...filed.values()].reduce((total, list) => total + list.length, 0)
   console.log(
@@ -376,22 +387,4 @@ function patchPost(charId: string, postId: string, next: (post: SocialPost) => S
 /** Adds comments under one of her posts. */
 function addComments(charId: string, postId: string, comments: readonly PostComment[]): void {
   patchPost(charId, postId, (post) => ({ ...post, comments: [...(post.comments ?? []), ...comments] }))
-}
-
-/** How a memory from the feed says where it happened, and how the last one is found again. */
-const FEED_MEMORY_TAG = ', on the feed'
-/** The tag earlier test builds wrote, still found so their memory is replaced, not kept beside. */
-const OLD_FEED_MEMORY_TAG = ', on Bunnyboard'
-
-/**
- * Files what his comments left her with as one of her own memories, replacing the last one the
- * feed left her: one at a time, the newest winning, as her texting memory does.
- */
-function fileFeedMemory(charId: string, entry: CharMemory): void {
-  const store = useGameStore.getState()
-  const previous = store.charInfo[charId]?.memories.find((one) =>
-    one.desc.endsWith(FEED_MEMORY_TAG) || one.desc.endsWith(OLD_FEED_MEMORY_TAG)
-  )
-  if (previous) store.replaceMemory(charId, previous, null)
-  store.recordMemory(charId, { ...entry, desc: `${entry.desc}${FEED_MEMORY_TAG}` })
 }

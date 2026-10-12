@@ -1,4 +1,5 @@
 import type { PostComment } from './postComments'
+import type { MemoryType } from './types'
 
 /**
  * Feed Comments' saved shape and its one rule: what a post's thread still owes the reader. The
@@ -24,7 +25,20 @@ declare module './types' {
   interface SocialPost {
     /** The last global slot whose comments the thread call answered (`threadWork`). */
     threadedThrough?: number
+    /**
+     * Memories the thread call left, kept here until its answers show (`at`, a global slot), so
+     * nobody remembers an exchange before it is on the feed.
+     */
+    heldMemories?: HeldFeedMemory[]
   }
+}
+
+/** One girl's memory of a thread, waiting for the slot its answers show. */
+export interface HeldFeedMemory {
+  charId: string
+  at: number
+  type: MemoryType
+  desc: string
 }
 
 /**
