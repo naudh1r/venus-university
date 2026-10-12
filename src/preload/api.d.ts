@@ -179,7 +179,7 @@ export interface VenusUniversityApi {
     ) => Promise<Result<EndingPostsResponse>>
     /** Writes a bounded, noncanonical spectator conversation; never streams. */
     completeMeanwhile: (request: StructuredRequest, group: string) => Promise<Result<MeanwhileResponse>>
-    /** Sends Feed Comments' thread prompt. Never streams. */
+    /** Sends Bunnyfeeds' thread prompt. Never streams. */
     completeFeedThreads: (
       request: StructuredRequest,
       group: string
