@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
 import type { StructuredRequest, LedgerResponse } from '@shared/types'
 import type { PromptState } from '../prompts/scenePrompt'
+import type { SchedulePromptInput } from '../prompts/schedulePrompt'
 import type { SlotIntroInput } from '../prompts/slotIntroPrompt'
 import type { useGameStore } from '../stores/gameStore'
 import type {
@@ -105,6 +106,7 @@ export interface RequestSpots {
   scene: PromptSpots['scene']
   dm: PromptSpots['dm'] & { newMessage: string }
   ledger: { state: PromptState; charKeys: readonly string[] }
+  'text-ledger': { schedule: SchedulePromptInput; charInfo: Record<string, CharInfo>; charKeys: readonly string[] }
   'slot-intro': { input: SlotIntroInput }
 }
 
