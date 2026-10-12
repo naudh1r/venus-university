@@ -29,7 +29,7 @@ it takes over Photo Feature's post comments and photo posts get the same threads
   Reply is hidden. Reading stays open.
 - Strangers' posts, and the slot's random student post, take no comments.
 - She keeps one memory of your comments among her own, the newest replacing the last, as her
-  texting memory does. It shows in her Memories ("…, on Bunnyboard"), can be edited there, counts
+  texting memory does. It shows in her Memories ("…, on the feed"), can be edited there, counts
   in her affection like any memory, and every scene, text and slot opening can bring it up. It
   does not appear in the scene-end status lines.
 - A roster girl who has met you and answers you under somebody else's post keeps the same kind of
@@ -55,6 +55,17 @@ it takes over Photo Feature's post comments and photo posts get the same threads
 - Off, no call is made, and posts go back to Photo Feature's plain stranger comments, or none if
   Photo Feature is off too.
 
+<<<<<<< HEAD
+=======
+## Known issues
+
+- If you talk about one of her posts or your comment on it in her DMs, the end-of-slot texting
+  memory can file it as something said over text ("…cute over text"), beside the right
+  "…, on the feed" memory. The texting bookkeeping reads only the messages and has no hook a
+  mod can add a line to. A `requests['text-ledger']` hook in core would let Feed Comments tell
+  it that comments happen on the feed.
+
+>>>>>>> mod/feed-comments
 ## For modders
 
 ### Source map
@@ -92,7 +103,7 @@ it takes over Photo Feature's post comments and photo posts get the same threads
 
 All optional, so a save without the mod loads as before, and switching it off keeps them:
 `charId`, `player`, `replyTo` and `tags` on a comment; `threadedThrough` on a post. What she made
-of his comments is one of her ordinary memories, ending ", on Bunnyboard", which is how the next
+of his comments is one of her ordinary memories, ending ", on the feed", which is how the next
 one finds and replaces it.
 
 Comments keep Photo Feature's `comments` field. A comment written by Photo Feature alone reads as

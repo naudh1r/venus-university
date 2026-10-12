@@ -379,7 +379,9 @@ function addComments(charId: string, postId: string, comments: readonly PostComm
 }
 
 /** How a memory from the feed says where it happened, and how the last one is found again. */
-const FEED_MEMORY_TAG = ', on Bunnyboard'
+const FEED_MEMORY_TAG = ', on the feed'
+/** The tag earlier test builds wrote, still found so their memory is replaced, not kept beside. */
+const OLD_FEED_MEMORY_TAG = ', on Bunnyboard'
 
 /**
  * Files what his comments left her with as one of her own memories, replacing the last one the
@@ -388,7 +390,7 @@ const FEED_MEMORY_TAG = ', on Bunnyboard'
 function fileFeedMemory(charId: string, entry: CharMemory): void {
   const store = useGameStore.getState()
   const previous = store.charInfo[charId]?.memories.find((one) =>
-    one.desc.endsWith(FEED_MEMORY_TAG)
+    one.desc.endsWith(FEED_MEMORY_TAG) || one.desc.endsWith(OLD_FEED_MEMORY_TAG)
   )
   if (previous) store.replaceMemory(charId, previous, null)
   store.recordMemory(charId, { ...entry, desc: `${entry.desc}${FEED_MEMORY_TAG}` })
