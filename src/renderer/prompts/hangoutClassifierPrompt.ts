@@ -41,7 +41,7 @@ export interface HangoutClassifierState {
 export function buildHangoutClassifierPrompt(
   firstName: string,
   recent: readonly ChatMessage[],
-  playerMessage: ChatMessage,
+  playerMessage: ChatMessage | null,
   replyMessages: readonly ChatMessage[],
   state: HangoutClassifierState
 ): StructuredRequest {
@@ -64,7 +64,7 @@ export function buildHangoutClassifierPrompt(
     '',
     'THE MESSAGE — what the reader just sent.',
     "'''",
-    ...stampedStubs([playerMessage], firstName),
+    ...(playerMessage ? stampedStubs([playerMessage], firstName) : ['(none — the reader sent no message; playerAsked must be false)']),
     "'''",
     '',
     `THE REPLY — what ${firstName} is about to send back.`,

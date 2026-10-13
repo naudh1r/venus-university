@@ -104,3 +104,22 @@ it('strips local payloads before generation and skips malformed optional data sa
   expect(malformed).not.toHaveProperty('storyMemory')
   expect(warning.mock.calls.flat().join(' ')).not.toContain('private')
 })
+it('honors the live Light toggle on desktop, browser and fallback without changing its snapshot', async () => {
+  const before = JSON.stringify(p)
+  const standard = (await inspectStoryMemory(p)).text
+  env.switches.options['story-memory:light-memory'] = true
+  const light = await inspectStoryMemory(p)
+  expect(light.text).toBe(formatStoryRecall({ ...p, mode: 'light' }).text)
+  expect(light.text).toBe(webRecall(p).text)
+  expect(light.text).not.toBe(standard)
+  writeFileSync(join(env.root, '123', 'story-memory.sqlite'), 'corrupt test data')
+  expect((await inspectStoryMemory(p)).text).toBe(light.text)
+  env.switches.options['story-memory:light-memory'] = false
+  expect((await inspectStoryMemory({ ...p, mode: 'light' })).text).toBe(standard)
+  expect(webRecall({ ...p, mode: 'light' }).text).toBe(standard)
+  expect(JSON.stringify(p)).toBe(before)
+  env.switches.options['story-memory:light-memory'] = true
+  env.switches.on['story-memory'] = false
+  expect((await inspectStoryMemory(p)).text).toBe('')
+  expect(webRecall(p).text).toBe('')
+})

@@ -219,7 +219,8 @@ export function whisperSources(game: WhisperContext, days = 7, visible: (post: i
   for (const o of game.exVenusWhisper.observations ?? []) {
     // A completed Wednesday day-slot did not happen before Wednesday morning's edition.
     if (o.author !== game.exVenusWhisper.author?.id || o.term !== whisperTerm(game) ||
-        o.day * 2 + o.time >= game.date * 2 + game.time || o.day < game.date - days + 1 || !o.subjects.every(id => known.has(id))) continue
+        o.day * 2 + o.time >= game.date * 2 + game.time || o.day < game.date - days + 1 ||
+        !o.subjects.every(id => game.characters[id] && game.charInfo[id])) continue
     sources.push({ id: o.id, subjects: o.subjects, basis: 'witnessed', perspective: o.perspective,
       text: `On day ${o.day + 1} ${o.time ? 'at night' : 'during the day'}, ${o.subjects.map(id => fullNameOf(game.characters[id])).join(' and ')} ${o.positive ? 'got along' : 'had a tense interaction'} at ${o.where}. The columnist was present. No dialogue, motives, or further details are established.` })
   }
@@ -248,7 +249,8 @@ export function observeWhisperSlot(game: WhisperContext, before: NpcRelationship
     for (const [pair, { encounter: e }] of Object.entries(game.npcRelationships)) {
       const subjects = pair.split('|').sort()
       if (!e || e.date !== game.date || e.ref === 'room' || subjects.length !== 2 ||
-          subjects.some(id => excluded.includes(id) || !game.characters[id] || !game.charInfo[id]?.nameKnown) ||
+          // The player's introductions do not limit what the columnist personally witnessed.
+          subjects.some(id => excluded.includes(id) || !game.characters[id] || !game.charInfo[id]) ||
           JSON.stringify(e) === JSON.stringify(before[pair]?.encounter)) continue
       let perspective: WhisperObservation['perspective'] | undefined
       if (e.kind === 'class' && presence.classCode === e.ref) perspective = 'classmate'

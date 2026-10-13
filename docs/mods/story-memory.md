@@ -104,6 +104,41 @@ additional manual fact at capacity; existing facts remain editable.
 
 ## Retrieval and prompt cost
 
+### Optional Light memory
+
+In **Mods → Story Memory → Options**, **Light memory** is off by default. Standard mode
+keeps the existing selection and formatting. Turning Light memory on changes future requests;
+an already prepared/in-flight request may finish with its previous context. The preference
+is stored in `mods.json` as `story-memory:light-memory`, not in the save's fact collection.
+
+Light recall has a 6,000-character total budget, including instructions, with a 3,600-character
+fact allowance and at most two encounter excerpts. Facts prioritize relevant player corrections,
+present characters, matching topics, and key reader facts. An unrelated fact no longer qualifies
+solely because the reader knows it. Recaps favor topic matches with one per present character
+first. Selected sentences are verbatim and marked as partial narrator references; long manual
+recap corrections are kept whole if they fit, or omitted. No cloud summarization is added.
+
+The compact fact reference retains who knows a fact, claim/event distinctions, the claimant,
+public/private status, dates, original semester, timeline and correction status. Evidence and
+internal IDs remain in the save; they are omitted from scene recall. Exact duplicate reference
+rows can be omitted without merging different knowledge scopes. Shorter context can miss older
+or less relevant detail: switch Light memory off when fuller recall is desired.
+
+Light ledger extraction keeps the same schema, evidence validation and eight-development limit.
+It sends up to 2,500 characters of prior facts ranked against the scene and its cast, instead of
+up to 6,500 characters from the first 80 saved facts. The full fact collection and encounter
+history remain available for editing, searching, future recall and semester carryover.
+
+Desktop and browser services read the current switch before preparing recall. Native SQLite
+and the fallback share selection/formatting. Disabling Story Memory still disables extra recall
+and extraction regardless of this option. Echo is not required; this change can be ported into
+the shared source as an independent Story Memory update.
+
+Tests: `test/storyMemoryLight.test.ts` covers bounded context, relevance, claims, knowledge,
+corrections, prior semesters, duplicate scopes, ledger selection and SQLite parity;
+`test/storyMemoryService.test.ts` covers live options, persistence at the platform boundary,
+fallback and disabled behavior. These checks do not establish live-model narrative quality.
+
 `storySnapshot` builds records from the active save's history and fact collection. Character
 IDs are the stable on-disk IDs, never display names or filenames derived from user text. Cast
 membership recorded at completed boundaries is used for relevance. Older recaps fall back to

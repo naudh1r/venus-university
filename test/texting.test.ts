@@ -30,6 +30,9 @@ import {
   sceneActiveOf,
   sceneOnScreenOf,
   sendMessage,
+  sendIncomingMessage,
+  retryFailedMessage,
+  dismissFailedMessage,
   textingUnsettled,
   unblockContact
 } from '../src/renderer/stores/textingLoop'
@@ -38,6 +41,9 @@ import { BUNNYBOT_CHAT_ID, FRIENDS_INTRO_SLOT } from '../src/renderer/prompts/bu
 import { registerHangoutEntry } from '../src/renderer/stores/loop/hooks'
 import { applyLedger } from '../src/renderer/stores/sceneSanitizer'
 import { useGameStore } from '../src/renderer/stores/gameStore'
+import { useModsStore } from '../src/renderer/stores/modsStore'
+import { NO_SWITCHES, withMod } from '@shared/mods'
+import { INCOMING_TEXTS } from '@shared/modEntries/incoming-texts'
 import { character, charactersById, charInfo, restoreApi, stubApi } from './fixtures'
 
 function conversation(over: Partial<Conversation> = {}): Conversation {
@@ -982,6 +988,114 @@ describe('the blocked gates', () => {
 
     expect(useGameStore.getState().bunnyboard.conversations.a?.messages).toHaveLength(0)
     expect(useGameStore.getState().bunnyboard.conversations.a?.pendingHangout).toBeUndefined()
+  })
+})
+
+describe('incoming text turns', () => {
+  afterEach(() => {
+    dismissFailedMessage('a')
+    vi.useRealTimers()
+    restoreApi()
+    useModsStore.setState({ switches: NO_SWITCHES })
+  })
+
+  function setup() {
+    vi.useFakeTimers()
+    seed({ nameKnown: true })
+    useBunnyboardStore.setState({ armedHangout: null, busyCharIds: [], failedCharIds: [], typingCharIds: [] })
+    useModsStore.setState({ switches: NO_SWITCHES })
+    const complete = vi.fn<NonNullable<typeof window.api.llm.completeTexting>>()
+      .mockResolvedValue({ ok: true, data: { messages: ['Sorry about yesterday.'], summary: 'She apologized.' } })
+    const classify = vi.fn<NonNullable<typeof window.api.llm.classifyHangout>>()
+      .mockResolvedValue({ ok: true, data: { playerAsked: true, characterOffered: false, description: 'Coffee with Sarah.' } })
+    stubApi({ llm: { onTextingDelta: () => () => {}, completeTexting: complete, classifyHangout: classify } })
+    return { complete, classify }
+  }
+
+  it('files only her messages and cannot autoaccept a classifier verdict', async () => {
+    const { complete, classify } = setup()
+    const direction = 'Sarah apologizes for yesterday'
+    const turn = sendIncomingMessage('a', direction)
+    await vi.advanceTimersByTimeAsync(60_000)
+    await turn
+    const saved = useGameStore.getState().bunnyboard.conversations.a
+    expect(saved.messages.map(m => [m.sender, m.text])).toEqual([['contact', 'Sorry about yesterday.']])
+    expect(JSON.stringify(saved)).not.toContain(direction)
+    expect(saved.summary).toBe('She apologized.')
+    expect(complete).toHaveBeenCalledTimes(1)
+    expect(classify).toHaveBeenCalledTimes(1)
+    expect(classify.mock.calls[0][0].user).not.toContain(direction)
+    expect(useBunnyboardStore.getState().armedHangout).toBeNull()
+    expect(saved.pendingHangout).toBeFalsy()
+  })
+
+  it('preserves a standing invitation and its ignored state', async () => {
+    const { classify } = setup()
+    useGameStore.getState().setPendingHangout('a', { description: 'coffee', dismissed: true })
+    useGameStore.getState().setIgnoredInvitation('a', true)
+    const before = useGameStore.getState().charInfo.a
+    const turn = sendIncomingMessage('a', 'Sarah says hello')
+    await vi.advanceTimersByTimeAsync(60_000)
+    await turn
+    expect(useGameStore.getState().bunnyboard.conversations.a.pendingHangout).toEqual({ description: 'coffee', dismissed: true })
+    expect(useGameStore.getState().charInfo.a).toEqual(before)
+    expect(classify).not.toHaveBeenCalled()
+  })
+
+  it('presents her new invitation for a decision instead of accepting it', async () => {
+    const { classify } = setup()
+    classify.mockResolvedValue({ ok: true, data: { playerAsked: true, characterOffered: true, description: 'Coffee with Sarah.' } })
+    const turn = sendIncomingMessage('a', 'Sarah invites me for coffee')
+    await vi.advanceTimersByTimeAsync(60_000)
+    await turn
+    expect(useGameStore.getState().bunnyboard.conversations.a.pendingHangout?.description).toBe('Coffee with Sarah.')
+    expect(useBunnyboardStore.getState().armedHangout).toBeNull()
+  })
+
+  it('does not save a direction or leave a failed turn after cancellation', async () => {
+    const { complete } = setup()
+    complete.mockResolvedValue({ ok: false, error: { code: 'CANCELLED', message: 'cancelled' } })
+    await sendIncomingMessage('a', 'Sarah says hello')
+    expect(useGameStore.getState().bunnyboard.conversations.a.messages).toEqual([])
+    expect(useBunnyboardStore.getState().failedCharIds).not.toContain('a')
+    expect(useBunnyboardStore.getState().busyCharIds).not.toContain('a')
+  })
+
+  it('retries the identical incoming request without creating a player message', async () => {
+    const { complete } = setup()
+    complete.mockResolvedValueOnce({ ok: false, error: { code: 'NETWORK', message: 'offline' } })
+    await sendIncomingMessage('a', 'Sarah says hello')
+    expect(useBunnyboardStore.getState().failedCharIds).toContain('a')
+    const retry = retryFailedMessage('a')
+    await vi.advanceTimersByTimeAsync(60_000)
+    await retry
+    expect(complete.mock.calls[1][0]).toEqual(complete.mock.calls[0][0])
+    expect(useGameStore.getState().bunnyboard.conversations.a.messages.every(m => m.sender === 'contact')).toBe(true)
+    expect(useBunnyboardStore.getState().failedCharIds).not.toContain('a')
+  })
+
+  it('does nothing when disabled, blocked, or in a scene', async () => {
+    const { complete } = setup()
+    useModsStore.setState({ switches: withMod(NO_SWITCHES, INCOMING_TEXTS, false) })
+    await sendIncomingMessage('a', 'hello')
+    useModsStore.setState({ switches: NO_SWITCHES })
+    useGameStore.getState().setBlocked('a', true)
+    await sendIncomingMessage('a', 'hello')
+    useGameStore.getState().setBlocked('a', false)
+    useGameStore.setState({ busy: true })
+    await sendIncomingMessage('a', 'hello')
+    expect(complete).not.toHaveBeenCalled()
+    expect(useGameStore.getState().bunnyboard.conversations.a.messages).toEqual([])
+  })
+
+  it('still records ordinary outgoing messages with the mod disabled', async () => {
+    const { classify } = setup()
+    classify.mockResolvedValue({ ok: true, data: { playerAsked: false, characterOffered: false, description: '' } })
+    useModsStore.setState({ switches: withMod(NO_SWITCHES, INCOMING_TEXTS, false) })
+    const turn = sendMessage('a', 'hello')
+    await vi.advanceTimersByTimeAsync(60_000)
+    await turn
+    expect(useGameStore.getState().bunnyboard.conversations.a.messages.map(m => m.sender)).toEqual(['player', 'contact'])
   })
 })
 

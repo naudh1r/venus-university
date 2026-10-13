@@ -118,6 +118,11 @@ qualify only when the encounter actually includes her. Characters involved in th
 scene are excluded; no private scene is mined for gossip. This mod never rolls extra meetings
 or changes anyone's schedule.
 
+The player's `nameKnown` flags do not restrict firsthand sightings: the columnist can
+report a public encounter she participated in or witnessed before the reader meets her
+or the other participants. This does not introduce anyone to the reader, unlock contacts,
+or reveal who writes the column. Unfamiliar characters' public feeds remain excluded.
+
 Sightings keep their original semester, day, time, public venue and broad outcome. The native
 encounter only establishes getting along or a tense interaction, not exact dialogue, motives,
 or a romance. A later timetable change cannot retroactively manufacture an eyewitness. A
@@ -170,7 +175,7 @@ to what the reader subsequently does in a scene.
 | `src/renderer/views/BunnyboardModal.tsx`, `VenusWhisperModal.tsx` | Optional rail tab and embedded newsletter page, independent of character profiles and Updates. |
 | `test/venusWhisper.test.ts` | Identity persistence, repeated term rollover, bounded imports, privacy boundaries, duplicate prevention, failed writes and stale requests. |
 | `test/whisperDelivery.test.ts` | Wednesday scheduling with the phone closed, catch-up, upgrades, read status, save failure, cancellation and safe delayed delivery. |
-| `test/whisperObservations.test.ts` | Timetable/presence filtering, private and unknown encounters, slot/term cutoffs, bounded save/load/carry data, redacted writer input and concurrent sighting retention. |
+| `test/whisperObservations.test.ts` | Timetable/presence filtering, unfamiliar firsthand participants, private and missing-character exclusions, slot/term cutoffs, bounded save/load/carry data, redacted writer input and concurrent sighting retention. |
 
 ## Bunnyboard navigation
 

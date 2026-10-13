@@ -80,7 +80,7 @@ describe('firsthand Whisper evidence', () => {
     expect(game().exVenusWhisper.observations).toEqual([])
   })
 
-  it('requires new settled evidence, excludes rooms/unknown subjects, and cannot witness a different location', () => {
+  it('requires new settled evidence, excludes rooms/missing subjects, and cannot witness a different location', () => {
     const cases: [NpcEncounter, WhisperPresence | null, string[], number][] = [
       [encounter(), { location: 'cutetea' }, [], 0],
       [encounter(), null, [], 0],
@@ -95,9 +95,36 @@ describe('firsthand Whisper evidence', () => {
       expect(observeWhisperSlot(snapshot, {}, presence, excluded).observations).toHaveLength(expected)
       expect(observeWhisperSlot(snapshot, snapshot.npcRelationships, presence).observations).toEqual([])
     }
-    useGameStore.setState(s => ({ charInfo: { ...s.charInfo, c: { ...s.charInfo.c, nameKnown: false } } }))
+    useGameStore.setState(s => ({ characters: { a: s.characters.a, b: s.characters.b } }))
     settle()
     expect(game().exVenusWhisper.observations).toEqual([])
+  })
+
+  it('collects and publishes firsthand events even when the player knows neither participant', () => {
+    useGameStore.setState(s => ({ charInfo: Object.fromEntries(Object.entries(s.charInfo)
+      .map(([id, info]) => [id, { ...info, nameKnown: false }])) }))
+    useGameStore.setState(s => ({ exVenusWhisper: { ...s.exVenusWhisper,
+      author: { ...s.exVenusWhisper.author!, known: false } } }))
+    settle(encounter(), 'a|b')
+    expect(game().exVenusWhisper.observations).toHaveLength(1)
+    useGameStore.setState({ date: 9 })
+    const sources = whisperSources(game())
+    expect(sources).toHaveLength(1)
+    expect(sources[0]).toMatchObject({ basis: 'witnessed', subjects: ['a', 'b'] })
+    expect(sources[0].text).toContain('Mina')
+    expect(sources[0]).not.toHaveProperty('author')
+    expect(game().charInfo.a.nameKnown).toBe(false)
+    expect(game().charInfo.b.nameKnown).toBe(false)
+    expect(game().exVenusWhisper.author?.known).toBeFalsy()
+  })
+
+  it('can report on unfamiliar bystanders but still excludes their unobserved public feeds', () => {
+    useGameStore.setState(s => ({ charInfo: { ...s.charInfo,
+      b: { ...s.charInfo.b, nameKnown: false, feed: [{ id: 'unknown-post', date: 7, time: 0, text: 'Not a witnessed event', likes: 0 }] },
+      c: { ...s.charInfo.c, nameKnown: false } } }))
+    settle()
+    useGameStore.setState({ date: 9 })
+    expect(whisperSources(game()).map(source => source.basis)).toEqual(['witnessed'])
   })
 
   it('preserves a real public run-in involving the author without granting access to unrelated dorm conversations', () => {
@@ -114,8 +141,9 @@ describe('firsthand Whisper evidence', () => {
       charInfo: { ...s.charInfo, d: charInfo({ nameKnown: false }) },
       npcRelationships: { ...relationships(), ...relationships(encounter({ ref: 'cutetea' }), 'a|d') } }))
     recordWhisperObservations({ before, ledger: null, closingCast: [] })
-    // Neither the park nor the unknown companion supplies printable witnessed evidence.
-    expect(game().exVenusWhisper.observations).toEqual([])
+    // The real run-in is printable; the unrelated park encounter is not witnessed.
+    expect(game().exVenusWhisper.observations).toHaveLength(1)
+    expect(game().exVenusWhisper.observations?.[0].subjects).toEqual(['a', 'd'])
   })
 
   it('survives save/load and rescheduling, without treating old, future or previous-term encounters as current evidence', () => {

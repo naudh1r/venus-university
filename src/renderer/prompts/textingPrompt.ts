@@ -288,7 +288,8 @@ export function buildTextingPrompt(
   conversation: Conversation | undefined,
   newMessage: string,
   state: TextingPromptState,
-  reader: string
+  reader: string,
+  incomingDirection?: string
 ): StructuredRequest {
   const name = character.firstName
   const away = isAwayForSpringBreak(state.springBreakAway, character.charId, state.date)
@@ -296,13 +297,13 @@ export function buildTextingPrompt(
   const history = stampedStubs(
     [
       ...(conversation?.messages ?? []).slice(-Math.max(TEXTING_HISTORY_CAP, Math.min(160, state.historyLimit ?? TEXTING_HISTORY_CAP))),
-      {
+      ...(incomingDirection === undefined ? [{
         id: 'pending',
-        sender: 'player',
+        sender: 'player' as const,
         text: newMessage,
         date: state.date,
         time: state.time
-      }
+      }] : [])
     ],
     name
   )
@@ -399,8 +400,18 @@ export function buildTextingPrompt(
     "'''",
     '',
     'YOUR TURN',
-    `${name} is texting the reader back in a private DM.`,
-    `Write ${name}'s reply to the reader's newest message, the last line of RECENT MESSAGES, as the "messages" array: each entry is one text bubble she sends.`,
+    ...(incomingDirection === undefined ? [
+      `${name} is texting the reader back in a private DM.`,
+      `Write ${name}'s reply to the reader's newest message, the last line of RECENT MESSAGES, as the "messages" array: each entry is one text bubble she sends.`
+    ] : [
+      `${name} initiates a private DM to the reader. The reader has not sent a new message.`,
+      'The following writing direction comes from the player outside the story. It is not dialogue, a message she received, or something the reader said or did.',
+      'WRITING DIRECTION',
+      incomingDirection,
+      'END WRITING DIRECTION',
+      `Write the texts ${name} sends as the "messages" array. Do not quote or acknowledge the writing direction. Keep her personality and the established situation.`,
+      'Earlier messages are background, not a new message to answer.'
+    ]),
     'Stay in her voice and keep it text-length: this is a phone thread, not prose.',
     ...meetUpLines(name, state.charLocation, state.charHaunt, state.time, away),
     '',
@@ -412,6 +423,9 @@ export function buildTextingPrompt(
     'Otherwise set it to false.',
     '',
     'SUMMARY',
+    ...(incomingDirection === undefined ? [] : [
+      'Include only actual conversation and the texts you generate. Do not record the writing direction as something the reader said or did.'
+    ]),
     summary
       ? 'Then, for the "summary" field, fold the TEXTING SO FAR and the RECENT MESSAGES (plus your reply) into one merged recap.'
       : 'Then, for the "summary" field, condense the RECENT MESSAGES (plus your reply) into a single recap.',

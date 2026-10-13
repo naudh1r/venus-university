@@ -667,6 +667,10 @@
   transform-origin: center;
 }
 
+.vu-bb-incoming {
+  padding: 0 12px 10px;
+}
+
 /* ---- Friends (D2) and Updates --------------------------------------------- */
 
 /* A tab that is one column rather than two: the whole panel, with the same clearance off the

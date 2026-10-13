@@ -74,6 +74,7 @@ import {
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
 import { afterDmReply } from '../mods/hooks'
+import { INCOMING_TEXTS } from '@shared/modEntries/incoming-texts'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
 import { createRetryGate } from './retryGate'
 import { createTextExtractor } from './textingStream'
@@ -132,7 +133,7 @@ const failedTurns = new Map<
   string,
   {
     request: Parameters<typeof window.api.llm.completeTexting>[0]
-    sent: ChatMessage
+    sent: ChatMessage | null
     conversation: Conversation | undefined
     released: number
     invited: Conversation['pendingHangout'] | null
@@ -431,6 +432,23 @@ function deliverBunnybotInvitationTip(): void {
 
 /** Sends one player text and requests the character's reply. */
 export async function sendMessage(charId: string, text: string): Promise<void> {
+  return sendText(charId, text, false)
+}
+
+/** A writing direction requests her texts without adding a player message. */
+export async function sendIncomingMessage(charId: string, direction: string): Promise<void> {
+  const game = useGameStore.getState()
+  const ui = useBunnyboardStore.getState()
+  if (
+    !modIsOn(INCOMING_TEXTS) || sceneActiveOf(game) || epilogueOf(game) ||
+    charBusyNow(charId) || game.charInfo[charId]?.flags.blocked ||
+    !game.bunnyboard.conversations[charId] || ui.armedHangout ||
+    ui.busyCharIds.includes(charId) || failedTurns.has(charId)
+  ) return
+  return sendText(charId, direction, true)
+}
+
+async function sendText(charId: string, text: string, incoming: boolean): Promise<void> {
   const trimmed = text.trim()
   if (!trimmed || inFlight.has(charId)) return
   // No bot can be written for: their composers are buttons or nothing at all.
@@ -438,8 +456,10 @@ export async function sendMessage(charId: string, text: string): Promise<void> {
 
   const game = useGameStore.getState()
   // Texting her anything settles an ignored invitation and answers one put away with No.
-  game.setIgnoredInvitation(charId, false)
-  game.setPendingHangout(charId, null)
+  if (!incoming) {
+    game.setIgnoredInvitation(charId, false)
+    game.setPendingHangout(charId, null)
+  }
 
   // The thread as it stood *before* this message; the new one rides separately in the prompt.
   const conversation = game.bunnyboard.conversations[charId]
@@ -449,8 +469,8 @@ export async function sendMessage(charId: string, text: string): Promise<void> {
   const character = game.characters[charId]
   if (!character) return
 
-  const sent = chatMessage('player', trimmed)
-  game.appendChatMessage(charId, sent, 0)
+  const sent = incoming ? null : chatMessage('player', trimmed)
+  if (sent) game.appendChatMessage(charId, sent, 0)
 
   // The composer stays locked from here until the hangout verdict is in.
   useBunnyboardStore.getState().setTextBusy(charId, true)
@@ -466,7 +486,7 @@ export async function sendMessage(charId: string, text: string): Promise<void> {
       character,
       game.charInfo[charId],
       conversation,
-      trimmed,
+      incoming ? '' : trimmed,
       {
         date: game.date,
         time: game.time,
@@ -499,7 +519,8 @@ export async function sendMessage(charId: string, text: string): Promise<void> {
         memoryBudget: memoryBudgetsOf(useSettingsStore.getState().settings ?? {}).one
       },
       // The same reader block a scene gets, grades and all.
-      readerBlockOf(game)
+      readerBlockOf(game),
+      incoming ? trimmed : undefined
     )
 
     await runReply(charId, character, conversation, sent, request, 0, invited)
@@ -517,12 +538,12 @@ async function runReply(
   charId: string,
   character: Character,
   conversation: Conversation | undefined,
-  sent: ChatMessage,
+  sent: ChatMessage | null,
   request: Parameters<typeof window.api.llm.completeTexting>[0],
   skip: number,
   invited: Conversation['pendingHangout'] | null
 ): Promise<void> {
-  if (skip === 0 && modIsOn(TEXT_REGENERATION_MOD)) {
+  if (sent && skip === 0 && modIsOn(TEXT_REGENERATION_MOD)) {
     useGameStore.setState(s => ({ bunnyboard: { ...s.bunnyboard, conversations: {
       ...s.bunnyboard.conversations,
       [charId]: { ...s.bunnyboard.conversations[charId], exTextBase: {
@@ -536,7 +557,9 @@ async function runReply(
   const pacer = createTypingPacer(charId, (text) => {
     released += 1
     const message = chatMessage('contact', text)
-    if (modIsOn(TEXT_REGENERATION_MOD)) message.exReplyTo = sent.id
+    // Keep this boundary even with regeneration off: it may be enabled after a reload.
+    if (!sent) message.exReplyTo = 'incoming-texts:incoming'
+    else if (modIsOn(TEXT_REGENERATION_MOD)) message.exReplyTo = sent.id
     deliver(charId, message)
   })
   const entry = { abandoned: false, pacer }
@@ -613,8 +636,10 @@ async function runReply(
   // A scene already owns the screen: the verdict could only be discarded.
   if (sceneActiveOf(useGameStore.getState())) return
 
+  // An unsolicited text is not an answer to a standing invitation.
+  if (!sent && invited) return
   handleHangout(charId, await classifyHangout(character, conversation, sent, messages))
-  if (invited) settleAnsweredInvitation(charId, invited.occasionId)
+  if (sent && invited) settleAnsweredInvitation(charId, invited.occasionId)
 }
 
 /** The same availability rule is used by the button and the command. */
@@ -764,7 +789,7 @@ export function abandonHangoutClassify(): void {
 async function classifyHangout(
   character: Character,
   conversation: Conversation | undefined,
-  sent: ChatMessage,
+  sent: ChatMessage | null,
   replies: readonly string[]
 ): Promise<HangoutVerdict | null> {
   if (replies.length === 0) return null
@@ -782,7 +807,7 @@ async function classifyHangout(
   for (;;) {
     const result = await window.api.llm.classifyHangout(request)
     if (result.ok) {
-      const verdict = normalizeHangout(result.data)
+      const verdict = normalizeHangout(sent ? result.data : { ...result.data, playerAsked: false })
       console.log(
         `[hangout] = ${verdict ? `${verdict.initiatedBy}: ${verdict.description}` : 'no hangout'}`
       )

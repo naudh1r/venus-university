@@ -1,8 +1,9 @@
-import { modOn } from '@shared/mods'
+import { modOn, optionOn } from '@shared/mods'
 import {
   assertStoryRecall,
   formatStoryRecall,
   withStoryRecall,
+  STORY_MEMORY_LIGHT_OPTION,
   type StoryRecall,
   type StoryRecallRequest
 } from '@shared/storyMemory'
@@ -12,8 +13,9 @@ import { readModSwitches } from './mods'
 /** Browser saves already live in IndexedDB; the native SQLite cache is desktop-only. */
 export function inspectStoryMemory(payload: StoryRecallRequest): StoryRecall {
   assertStoryRecall(payload)
-  return modOn(readModSwitches(), 'story-memory')
-    ? formatStoryRecall(payload)
+  const switches = readModSwitches()
+  return modOn(switches, 'story-memory')
+    ? formatStoryRecall({ ...payload, mode: optionOn(switches, 'story-memory', STORY_MEMORY_LIGHT_OPTION) ? 'light' : 'standard' })
     : {
         text: '',
         included: [],

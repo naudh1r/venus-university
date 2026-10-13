@@ -1,18 +1,24 @@
-import { STORY_CATEGORIES, type StorySnapshot } from '@shared/storyMemory'
+import { STORY_CATEGORIES, lightStoryFacts, type StorySnapshot, type StoryMemoryMode } from '@shared/storyMemory'
 import type { StructuredRequest } from '@shared/types'
 
 /** Extends the existing ledger call, so extraction makes no additional model request. */
 export function withStoryExtraction(
   request: StructuredRequest,
   snapshot: StorySnapshot | undefined,
-  keys: readonly string[]
+  keys: readonly string[],
+  options: { mode?: StoryMemoryMode; cast?: readonly string[] } = {}
 ): StructuredRequest {
   if (!snapshot) return request
   const who = { type: 'string', enum: ['reader', ...keys] },
     text = { type: 'string' }
   const schema = request.schema.schema
+  const light = options.mode === 'light'
+  const sceneAt = request.user.lastIndexOf('SCENE SO FAR')
+  // Match the actual scene, never the static ledger instructions or unrelated roster blocks.
+  const scene = sceneAt >= 0 ? request.user.slice(sceneAt) : ''
+  const candidates = light ? lightStoryFacts(snapshot.records, options.cast ?? [], scene) : snapshot.records
   let referenceSize = 2 // The JSON array delimiters.
-  const facts = snapshot.records
+  const facts = candidates
     .filter((r) => r.kind === 'fact')
     .slice(0, 80)
     .map(({ id, subject, category, timeline, certainty, text, manual }) => ({
@@ -27,7 +33,7 @@ export function withStoryExtraction(
     }))
     .filter((fact) => {
       const size = JSON.stringify(fact).length + 1
-      if (referenceSize + size > 6500) return false
+      if (referenceSize + size > (light ? 2500 : 6500)) return false
       referenceSize += size
       return true
     })
