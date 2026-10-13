@@ -74,6 +74,7 @@ describe('Incoming Texts in the combined package', () => {
   })
 
   it('passes incoming replies through the real photo registration and preserves its schema', async () => {
+    useModsStore.setState({ switches: withMod(NO_SWITCHES, 'photo-feature', true) })
     const complete = api()
     await import('../src/renderer/modEntries/photo-feature')
     const { sendPhoto } = await import('../src/renderer/stores/photoTurn')
