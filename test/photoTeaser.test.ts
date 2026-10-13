@@ -6,6 +6,9 @@ import { character, charactersById, charInfo, stubApi } from './fixtures'
 // Discovered UI entries can load stores that subscribe to the desktop bridge at boot.
 stubApi({ jobs: { onProgress: () => () => {} } })
 await import('../src/renderer/mods')
+// Switched on as a player would, now that the mod starts off.
+const { useModsStore } = await import('../src/renderer/stores/modsStore')
+useModsStore.setState({ switches: { on: { 'photo-feature': true }, options: {} } })
 
 /**
  * The slot's teaser, when the stranger's post came with a picture: it is the post the feed
