@@ -20,7 +20,7 @@ This is not made or supported by Venus Dev. Please do not report problems with i
 
 ## Settings
 
-Everything is in **Mods → Photo Feature**.
+Everything is in **Mods → Photo Feature**. The mod is off until you turn it on there.
 
 | Option | Default | What it does |
 |---|---|---|
@@ -82,6 +82,8 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
 - **Comments can be taken over**: another mod can write and draw the replies under posts in place
   of Photo Feature's own stranger comments (Bunnyfeeds does). With nothing taking them over,
   comments work exactly as in 1.2.0.
+- **Off by default**: like every mod on the build, it starts off. Turn it on in **Mods**; nothing
+  it made is lost while it is off.
 
 ## 1.2.0
 
