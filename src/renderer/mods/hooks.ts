@@ -107,7 +107,7 @@ export interface SaveChoice extends WayOn {
 
 export interface RequestSpots {
   scene: PromptSpots['scene']
-  dm: PromptSpots['dm'] & { newMessage: string; conversation?: Conversation }
+  dm: PromptSpots['dm'] & { newMessage: string; conversation?: Conversation; incomingDirection?: string }
   'hangout-classifier': HangoutContext
   ledger: { state: PromptState; charKeys: readonly string[] }
   'text-ledger': { schedule: SchedulePromptInput; charInfo: Record<string, CharInfo> }
@@ -131,7 +131,7 @@ export interface SlotSettled {
 export interface HangoutContext {
   character: Character
   conversation?: Conversation
-  sent: ChatMessage
+  sent: ChatMessage | null
   replies: readonly ChatMessage[]
   invited: Conversation['pendingHangout'] | null
 }

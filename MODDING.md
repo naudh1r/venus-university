@@ -255,7 +255,7 @@ These hooks add to the existing API; existing one-argument DM replacement handle
   without deleting saved mod state.
 
 - `requests['hangout-classifier']` extends the current texting exchange's classification request.
-  Context includes the character, earlier conversation, latest player message, latest reply bubbles,
+  Context includes the character, earlier conversation, latest player message (null for incoming texts), latest reply bubbles,
   and the invitation being answered. The request and captured result handlers persist across retries.
 - `hangoutResult` composes a `{ verdict, settled }` decision with the raw reply and exchange context.
   Set `settled` when the handler has recorded the answer so the base decline pass does not duplicate it.
@@ -264,7 +264,9 @@ These hooks add to the existing API; existing one-argument DM replacement handle
 - `hangoutOfferAllowed` lets any enabled mod veto an unsolicited slot invitation. Reminders for
   already agreed calendar plans bypass this gate.
 - `requests.dm` also receives the earlier conversation, allowing instructions to reflect saved
-  invitation state without reading the live store in a prompt builder.
+  invitation state without reading the live store in a prompt builder. On incoming turns it also
+  receives `incomingDirection`, an out-of-story writing direction that must not be treated as
+  a new reader message or recorded in conversation history.
 
 The optional native conversation `declinedAt` field anchors cooldowns to explicit answers.
 `bumpDeclined(charId, at)` records it; existing calls without `at` retain their behavior, and

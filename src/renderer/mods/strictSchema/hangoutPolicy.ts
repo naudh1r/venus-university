@@ -37,6 +37,7 @@ type Decision = { kind: 'accepted' | 'declined' | 'deferred' | 'new_offer' | 'no
 
 /** Narrow, obvious refusals are protected even if the classifier contradicts its own evidence. */
 function obviousRefusal(ctx: HangoutContext): 'declined' | 'deferred' | null {
+  if (!ctx.sent) return null
   const text = ctx.sent.text.trim().toLowerCase().replaceAll('’', "'")
   const aboutMeeting = Boolean(ctx.invited) || /\b(?:hang\s*out|meet|come over|go out|coffee)\b/.test(text)
   const brief = /^(?:no(?:pe)?(?: thanks| thank you)?|not now|not today|maybe later|another time)[.!]*$/.test(text)
@@ -50,7 +51,7 @@ export function readHangoutDecision(reply: unknown, ctx: HangoutContext): Decisi
   const refused = obviousRefusal(ctx)
   if (refused) return { kind: refused, description: '' }
   const value = reply && typeof reply === 'object' ? reply as Record<string, unknown> : {}
-  const playerEvidence = typeof value.playerQuote === 'string' && value.playerQuote.trim() === ctx.sent.text.trim()
+  const playerEvidence = ctx.sent !== null && typeof value.playerQuote === 'string' && value.playerQuote.trim() === ctx.sent.text.trim()
   const replyEvidence = typeof value.replyQuote === 'string' && value.replyQuote.trim().length > 0 &&
     ctx.replies.some(message => message.text.trim() === (value.replyQuote as string).trim())
   if ((value.outcome === 'declined' || value.outcome === 'deferred') && playerEvidence)

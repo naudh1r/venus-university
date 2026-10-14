@@ -76,6 +76,24 @@ function sceneFormat(schema: Schema): Schema {
   }
 }
 
+/** Describe CG transitions using only the actions already offered by the base request. */
+function sceneCgRules(fields: Schema): string[] {
+  const items = object(object(fields.actions)?.items)
+  if (!Array.isArray(items?.enum)) return []
+  const offered = strings(items.enum).filter(action => action.startsWith('cg:'))
+  if (offered.length === 0) return ['No CG actions are offered in this request. Do not invent a CG action or name.']
+  const act = offered.find(action => !action.endsWith('_after'))
+  const after = act && offered.includes(`${act}_after`) ? `${act}_after` : undefined
+  return [
+    'CG staging: when an act is actually happening on screen and matches an offered CG, put its exact "cg:<name>" action in the line where the act begins or changes. Prose alone does not switch the image. Mentioning, remembering, or proposing an act does not trigger a CG. Follow the base act descriptions and custom CG instructions; use only names in the actions enum, without adding a character key.',
+    'A CG belongs to the one character currently shown and needs her available assets. Never hide companions merely to make a CG possible. When more than one character is on screen, keep normal staging; showing another character ends the CG.',
+    'Keep an active CG through dialogue and expression changes: use [] when nothing changes, not "sprite:". On climax use that act\'s offered "_after" CG; a new act uses its matching offered CG. Do not invent an unavailable aftermath. Restore an allowed sprite for her current clothing only when the act is over. If entrance actions and a CG share a line, order them show, sprite, then CG; a sprite after CG would overwrite it.',
+    ...(act ? [after
+      ? `Action-format example only, when those events occur: act begins with ${JSON.stringify([act])}; unchanged image uses []; climax uses ${JSON.stringify([after])}. Never trigger the example act merely because it is listed.`
+      : `Action-format example only, when its matching act occurs: ${JSON.stringify([act])}. Keep the image with [] on unchanged lines; never trigger the example act merely because it is listed.`] : [])
+  ]
+}
+
 /** The same hook receives openings, continuations, closings, and solo scenes. */
 export function strictSceneRequest(request: StructuredRequest): StructuredRequest {
   let schema = sceneFormat(request.schema.schema)
@@ -99,10 +117,11 @@ export function strictSceneRequest(request: StructuredRequest): StructuredReques
     'Write only the current scene. TEXTING HISTORY is established context, not a live chat to replay. New DMs and phone conversations belong to the separate phone flow; stop at the reader\'s decision to use it. Do not choose his messages or accept invitations or future plans for him.',
     'Follow the base summary coverage rules, using only established events; do not invent off-screen conversations or agreements.'
   )
-  if (hasActions) rules.push(
+  if (hasActions && fields) rules.push(
     'Each line has an "actions" array in application order; use [] for no change. Entrances need "show:<charKey>" plus an allowed "sprite:<charKey>,<sprite>" in the same array. Departures need "hide:<charKey>", including when the reader leaves her behind; companions stay shown.',
-    'Use sprite actions for expression changes, retaining the outfit suffix until clothes change and following the existing CG rules. Prose alone never updates the stage; a character stays visible until hidden.',
-    'Stop after the final character departs; do not add a journey home, the rest of a shift, sleep, or another conversation. A cast handoff within the current scene may hide one character then show another on a later line; that temporary empty stage is not an ending.'
+    'Use sprite actions for expression changes outside an active CG, retaining the outfit suffix until clothes change and following the existing CG rules. Prose alone never updates the stage; a character stays visible until hidden.',
+    'Stop after the final character departs; do not add a journey home, the rest of a shift, sleep, or another conversation. A cast handoff within the current scene may hide one character then show another on a later line; that temporary empty stage is not an ending.',
+    ...sceneCgRules(fields)
   )
   if (hasEnd && hasSummary) rules.push(
     'Continuation replies require top-level "end_scene": false while continuing, true when ending or the final character leaves. Give parting a reason and leave the full goodbye to the closing request; never put "end_scene" inside a line.'
@@ -119,7 +138,10 @@ export function strictDmRequest(request: StructuredRequest, ctx?: RequestSpots['
   const fields = object(request.schema.schema.properties)
   const photo = hasActiveHooks('photo-feature') && ['sendPhoto', 'photoPrompt', 'photoTier'].every(key => fields && Object.hasOwn(fields, key))
   return withRules(request, [
-    'Normally reply in 1–3 bubbles of about 10–25 words each, aiming for at most 60 words total; acknowledgements may be shorter. Expand when an explanation is requested or needed. Focus on the latest message without echoing it, adding unrelated updates, or filling space.',
+    'Normally reply in 1–3 bubbles of about 10–25 words each, aiming for at most 60 words total; acknowledgements may be shorter. Expand when an explanation is requested or needed.',
+    ctx?.incomingDirection === undefined
+      ? 'Focus on the latest message without echoing it, adding unrelated updates, or filling space.'
+      : 'Initiate the texts as directed by WRITING DIRECTION; it is not a message from the reader or an event to remember. Earlier conversation is background, not a new message to answer.',
     CONVERSATION_RULE,
     'Treat whereabouts, companions, and activities as background; do not reannounce unchanged details already given. Small current details are fine. Her knowledge of the reader\'s work and timetable comes from shared classes or what he told her, not every supplied schedule entry.',
     'Ask or invite once, then wait. Respect refusals and deferrals without pressure or assuming acceptance. Plans to come over are not arrivals.',
@@ -138,6 +160,9 @@ export function strictFeedRequest(request: StructuredRequest, ctx?: RequestSpots
   const fields = object(items?.properties)
   const char = object(fields?.char)
   const comments = object(fields?.comments)
+  const commentItem = object(comments?.items)
+  const commentFields = object(commentItem?.properties)
+  const namedComments = commentItem?.type === 'object' && Boolean(commentFields?.from && commentFields?.text)
   const keys = ctx ? [...new Set(ctx.input.posters.map(poster => poster.charKey))] : undefined
   const photo = hasActiveHooks('photo-feature') && fields && Object.hasOwn(fields, 'image') && Object.hasOwn(fields, 'comments')
   let schema = original
@@ -169,13 +194,16 @@ export function strictFeedRequest(request: StructuredRequest, ctx?: RequestSpots
     'Ground people, past events, and relationships in supplied context; do not invent shared history.',
     ...(keys?.length ? [`Produce exactly one post per selected key, with no duplicates: ${JSON.stringify(keys)}.`] : []),
     ...(photo ? [
-      'Each post has "image" as a string and "comments" as an array of at most five strings. "image" is only a visual description, never a filename, URL, JSON object, or image-generation tags. The engine adds character appearance and renders it. For text-only posts or disabled photos use "image": ""; for no comments use "comments": [].',
-      'When a photo is permitted, describe one coherent shot in one complete sentence: generic setting, clothes, pose or activity, and framing. Follow Photo Feature\'s public-photo and solo-person rules. Keep the post text and anonymous comments consistent with that specific post and picture; do not add usernames, handles, or comment objects.',
+      'Each post has "image" as a string and "comments" as an array of at most five items in the supplied schema. "image" is only a visual description, never a filename, URL, JSON object, or image-generation tags. The engine adds character appearance and renders it. For text-only posts or disabled photos use "image": ""; for no comments use "comments": [].',
+      ...(namedComments ? ['Each comment is an object with "from" and "text", following the supplied author rules. Do not substitute strings for comment objects.']
+        : commentItem?.type === 'string' ? ['Each comment is a string; do not substitute comment objects.'] : []),
+      'When a photo is permitted, describe one coherent shot in one complete sentence: generic setting, clothes, pose or activity, and framing. Follow Photo Feature\'s public-photo and solo-person rules. Keep the post text and comments consistent with that specific post and picture; do not add usernames or handles.',
       ...(keys?.length ? [
         'Format example for a permitted photo (illustrative only; do not copy its content): ' + JSON.stringify({
           char: keys[0], text: 'finally taking a break',
           image: 'A young woman wearing a cream sweater sits alone beside a cafe window, holding a coffee cup in a waist-up shot.',
-          comments: ['that coffee looks good']
+          comments: namedComments ? [{ from: '', text: 'that coffee looks good' }]
+            : commentItem?.type === 'string' ? ['that coffee looks good'] : []
         })
       ] : [])
     ] : [])

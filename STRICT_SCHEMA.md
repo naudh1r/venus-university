@@ -31,6 +31,14 @@ normal base DM instructions. Scene narration continues using its existing prompt
 - Scene instructions explicitly require entrances, exits, and expression changes. Continuation
   replies require a top-level `end_scene` boolean. Opening and closing schemas keep their
   original contracts.
+- CG instructions use only the actions already offered by the base schema, including custom
+  names and their available aftermath variants. A matching on-screen act must carry its CG
+  action, climax uses its offered `_after`, and unchanged dialogue keeps the image with `[]`.
+  Sprite expression changes must not overwrite an active CG; a sprite restores her current
+  clothing once the act ends. Examples use only offered actions, never invent new names, and
+  never request an act merely to show a picture. Companions must not be hidden to unlock a CG.
+  Native asset checks, one-character staging, NSFW settings, and CG validation remain unchanged.
+  These instructions guide the writer; the engine does not infer missing CGs from prose.
 - If validated show/hide actions leave the stage empty after a character departs, the mod
   supplies a missing or false ending decision. It does not infer departures from prose, end
   empty solo scenes, or end a scene where someone remains present at the end of the departure line.
@@ -51,6 +59,8 @@ normal base DM instructions. Scene narration continues using its existing prompt
   to their count, requiring `posts` when anyone was selected. Instructions ask for one per key;
   equal counts and allowed keys do not themselves enforce one occurrence of each key.
   With Photo Feature enabled, comment arrays are capped at five (or an existing tighter limit).
+  Comment items retain the supplied schema: Photo Feature alone uses strings; Bunnyfeeds uses
+  objects with `from` and `text`. Photo examples follow whichever shape is active.
   Concise photo-field guidance and an illustrative post clarify that `image` is only a visual
   description; the engine supplies character appearance and renders the picture. Original photo
   permissions, instructions, and extension fields remain intact. These constraints guide the
@@ -132,3 +142,18 @@ enabling an API's `strict: true` switch.
 
 The standalone branch is based on `venus-extracurriculars/build`'s `core`. Its own files can be
 merged into the combined `main` build without replacing another mod's prompt builders.
+
+## Bunnyfeeds integration
+
+`integrate/bunnyfeeds-strict-schema` uses `integrate/bunnyfeeds` commit `23105b5` as its
+baseline and merges the standalone Strict Schema branch. Bunnyfeeds' existing feed-thread
+prompt, persona, reply routing, memories, and public/private rules remain native. Its separate
+`feed_threads` call does not receive new Strict Schema behavior rules.
+
+Incoming texts preserve the baseline's out-of-story writing direction and do not invent a new
+reader message. They cannot produce a player-accepted hangout; a new contact offer still needs
+valid reply evidence, and an incoming turn leaves any standing invitation unanswered.
+Regenerated replies use the classifier request hooks for consistent formatting and thinking
+settings, but retain the baseline's transactional plan check and do not apply classifier result
+hooks to live invitation state. Photo hooks resolve after bubble attachment and keep rendering
+in the background.

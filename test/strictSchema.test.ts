@@ -26,7 +26,9 @@ function request(actions = true): StructuredRequest {
               required: ['speaker', 'text', 'extension'],
               properties: {
                 speaker: { type: 'string', enum: ['', 'sarah_rose'] },
-                ...(actions ? { actions: { type: 'array', items: { type: 'string', enum: ['show:sarah_rose', 'sprite:sarah_rose,happy_custom'] } } } : {}),
+                ...(actions ? { actions: { type: 'array', items: { type: 'string', enum: [
+                  'show:sarah_rose', 'sprite:sarah_rose,happy_custom', 'cg:sex', 'cg:sex_after', 'cg:custom_scene', 'cg:custom_scene_after'
+                ] } } } : {}),
                 bg: { type: 'string', enum: ['quad', 'sarah_room', 'custom_cafe'] },
                 text: { type: 'string' },
                 extension: { type: 'string' }

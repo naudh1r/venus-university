@@ -3,8 +3,10 @@ import { hasActiveHooks } from '../hooks'
 import { isAwayForSpringBreak } from '../../prompts/springBreak'
 
 /** Replace only built-in writing instructions when Photo Feature is installed and enabled. */
-export function strictPhotoDmBase({ character, state }: RequestSpots['dm'], base: DmBasePrompt): DmBasePrompt | undefined {
+export function strictPhotoDmBase({ character, state, incomingDirection }: RequestSpots['dm'], base: DmBasePrompt): DmBasePrompt | undefined {
   if (!hasActiveHooks('photo-feature')) return undefined
+  // Incoming texts carry an out-of-story writing direction rather than a reader message.
+  if (incomingDirection !== undefined) return undefined
   const away = isAwayForSpringBreak(state.springBreakAway, character.charId, state.date)
   return {
     system: base.system,

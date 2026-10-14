@@ -265,7 +265,7 @@ it.each(['No thanks', 'Not now', 'Maybe later'])('protects %s even if the model 
 })
 
 it('rejects forged or old quotes while accepting a new agreement despite an old refusal', () => {
-  const ctx: HangoutContext = { character: character(), sent: message('player', "Actually, let's meet now."),
+  const ctx: HangoutContext & { sent: ChatMessage } = { character: character(), sent: message('player', "Actually, let's meet now."),
     replies: [message('contact', 'Yes, see you there.')], invited: null,
     conversation: { charId: 'a', messages: [message('player', 'No thanks')], unread: 0, summary: null }
   }
@@ -274,6 +274,15 @@ it('rejects forged or old quotes while accepting a new agreement despite an old 
   expect(readHangoutDecision(response('declined', 'No thanks', ''), ctx).kind).toBe('none')
   expect(readHangoutDecision({ ...response('accepted', ctx.sent.text, 'Yes, see you there.'), playerAsked: false }, ctx).kind).toBe('none')
   expect(readHangoutDecision(response('accepted', ctx.sent.text, 'Yes, see you there.'), ctx).kind).toBe('accepted')
+})
+
+it('requires a real reader message for acceptance or refusal while allowing incoming contact offers', () => {
+  const ctx: HangoutContext = { character: character(), sent: null,
+    replies: [message('contact', 'Coffee now?')], invited: null }
+  expect(readHangoutDecision(response('accepted', '', 'Coffee now?'), ctx).kind).toBe('none')
+  expect(readHangoutDecision(response('declined', '', ''), ctx).kind).toBe('none')
+  expect(readHangoutDecision(response('deferred', '', ''), ctx).kind).toBe('none')
+  expect(readHangoutDecision(response('new_offer', '', 'Coffee now?'), ctx).kind).toBe('new_offer')
 })
 
 it('honors an evidenced future deferral without arming a hangout', async () => {
