@@ -31,6 +31,14 @@ normal base DM instructions. Scene narration continues using its existing prompt
 - Scene instructions explicitly require entrances, exits, and expression changes. Continuation
   replies require a top-level `end_scene` boolean. Opening and closing schemas keep their
   original contracts.
+- CG instructions use only the actions already offered by the base schema, including custom
+  names and their available aftermath variants. A matching on-screen act must carry its CG
+  action, climax uses its offered `_after`, and unchanged dialogue keeps the image with `[]`.
+  Sprite expression changes must not overwrite an active CG; a sprite restores her current
+  clothing once the act ends. Examples use only offered actions, never invent new names, and
+  never request an act merely to show a picture. Companions must not be hidden to unlock a CG.
+  Native asset checks, one-character staging, NSFW settings, and CG validation remain unchanged.
+  These instructions guide the writer; the engine does not infer missing CGs from prose.
 - If validated show/hide actions leave the stage empty after a character departs, the mod
   supplies a missing or false ending decision. It does not infer departures from prose, end
   empty solo scenes, or end a scene where someone remains present at the end of the departure line.
