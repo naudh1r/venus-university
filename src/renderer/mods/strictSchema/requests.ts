@@ -15,15 +15,13 @@ const PLAN_RULES = [
   'The one-sentence "description" preserves all agreed attendees, the physical destination and its owner, the activity, and the agreed time. Never reverse who visits whom. "chars" lists every agreed attendee except the reader using supplied keys; "slot" is the matching supplied future slot. Do not turn an already agreed plan into a fresh invitation.'
 ] as const
 
-/** Keep ledger memories as event clauses and leave effort to the player's settings. */
+/** Keep ledger memories as event clauses and preserve the base ledger's thinking floor. */
 export function strictLedgerRequest(request: StructuredRequest): StructuredRequest {
-  const result = { ...request }
-  delete result.minThinking
-  return withRules(result, [
+  return withRules(request, [
     'Memory "desc" is one concise past-tense event clause completing "<Name> <type> that ...". Omit the supplied name/reaction prefix, a leading "that", and "remembers that" introductions. Use "the reader" and "the reader\'s", never second-person or he/his pronouns for the reader.',
     'Correct desc: "the reader interrupted her explanation". Incorrect: "Gwen remembers that you interrupted her explanation".',
     'Ground each event and reaction type in the supplied scene or messages; omit memories without a meaningful supported reaction. Add a short reason if needed, without retelling the scene or inventing resentment or affection. Preserve the other ledger instructions for stats and events.',
-    ...(object(object(result.schema.schema.properties)?.plans) ? PLAN_RULES : [])
+    ...(object(object(request.schema.schema.properties)?.plans) ? PLAN_RULES : [])
   ])
 }
 

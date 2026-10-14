@@ -34,7 +34,7 @@ it('routes the actual texting ledger through gated request hooks while preservin
   enabled.add('strict-schema')
   const strict = buildTextLedgerPrompt(schedule, info)
   expect(strict).toEqual(strictLedgerRequest(extended))
-  expect(strict).not.toHaveProperty('minThinking')
+  expect(strict.minThinking).toBe('high')
   expect(strict.schema).toEqual(extended.schema)
   expect(strict.user).toBe(extended.user)
   expect(strict.cacheKey).toBe(base.cacheKey)

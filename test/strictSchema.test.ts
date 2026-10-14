@@ -124,12 +124,12 @@ it('uses the existing hook gate and keeps fields added by earlier request hooks'
   expect(on.user).toBe(off.user)
   expect(lineSchema(on).required).toContain('bg')
   const onLedger = hooks.modRequest('ledger', ledgerCtx, original)
-  expect(onLedger).not.toHaveProperty('minThinking')
+  expect(onLedger.minThinking).toBe('high')
   expect(onLedger.schema).toBe(original.schema)
   expect(onLedger.user).toBe(original.user)
-  expect(reasoningToSend(settings, 'deepseek-test', onLedger.minThinking)).toBe('low')
+  expect(reasoningToSend(settings, 'deepseek-test', onLedger.minThinking)).toBe('high')
   settings.reasoningEffort = 'medium'
-  expect(reasoningToSend(settings, 'deepseek-test', onLedger.minThinking)).toBe('medium')
+  expect(reasoningToSend(settings, 'deepseek-test', onLedger.minThinking)).toBe('high')
   expect(original.minThinking).toBe('high')
   enabled = false
   expect(hooks.modRequest('scene', ctx, original)).toEqual(off)
