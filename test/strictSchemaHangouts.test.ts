@@ -276,6 +276,15 @@ it('rejects forged or old quotes while accepting a new agreement despite an old 
   expect(readHangoutDecision(response('accepted', ctx.sent.text, 'Yes, see you there.'), ctx).kind).toBe('accepted')
 })
 
+it('requires a real reader message for acceptance or refusal while allowing incoming contact offers', () => {
+  const ctx: HangoutContext = { character: character(), sent: null,
+    replies: [message('contact', 'Coffee now?')], invited: null }
+  expect(readHangoutDecision(response('accepted', '', 'Coffee now?'), ctx).kind).toBe('none')
+  expect(readHangoutDecision(response('declined', '', ''), ctx).kind).toBe('none')
+  expect(readHangoutDecision(response('deferred', '', ''), ctx).kind).toBe('none')
+  expect(readHangoutDecision(response('new_offer', '', 'Coffee now?'), ctx).kind).toBe('new_offer')
+})
+
 it('honors an evidenced future deferral without arming a hangout', async () => {
   await exchange("Let's meet tomorrow instead.", 'Okay, tomorrow.', response('deferred', "Let's meet tomorrow instead.", ''))
   expect(phone.getState().armedHangout).toBeNull()
