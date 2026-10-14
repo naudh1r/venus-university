@@ -173,12 +173,22 @@ async function clearLeftovers(game, p, marker) {
 async function install(game, force) {
   const p = paths(game)
   if (!existsSync(p.asar)) fail('resources/app.asar is missing; this does not look like the game.')
+  /** The version an update took out first, so a failure after it says the game is now official. */
+  let replaced = null
   if (existsSync(p.marker)) {
     const { state, marker } = await installState(p)
-    if (state === 'installed') fail(`${NAME} is already installed. Uninstall it first.`)
-    if (state === 'unknown') refuseUnknown(p)
-    console.log("  The game's code was replaced after an earlier install; clearing what that left behind...")
-    await clearLeftovers(game, p, marker)
+    if (state === 'installed') {
+      if (marker.buildVersion === expected.buildVersion) fail(`${NAME} is already installed. Uninstall it first.`)
+      // An older (or newer) build: taken out as Uninstall would, then this one goes in.
+      if (!existsSync(p.backup)) fail('The backup of the game code is missing, so the installed build cannot be taken out.')
+      console.log(`  ${NAME} ${marker.buildVersion} is installed; taking it out before installing ${expected.buildVersion}...`)
+      await restore(game, p, marker)
+      replaced = marker.buildVersion
+    } else {
+      if (state === 'unknown') refuseUnknown(p)
+      console.log("  The game's code was replaced after an earlier install; clearing what that left behind...")
+      await clearLeftovers(game, p, marker)
+    }
   }
   await checkBase(p, force)
 
@@ -239,7 +249,11 @@ async function install(game, force) {
     await rm(p.marker, { force: true }).catch(() => {})
     await rm(p.backup, { force: true })
     await rm(p.backupUnpacked, { recursive: true, force: true })
-    fail(`Install failed and the game was put back as it was: ${error.message}`)
+    fail(
+      replaced
+        ? `Install failed. ${NAME} ${replaced} was already taken out, so the game is back to the official version: ${error.message}`
+        : `Install failed and the game was put back as it was: ${error.message}`
+    )
   } finally {
     await rm(work, { recursive: true, force: true })
   }
@@ -265,6 +279,12 @@ async function uninstall(game) {
   }
   if (!existsSync(p.backup)) fail('The backup of the game code is missing, so it cannot be restored.')
 
+  await restore(game, p, marker)
+  console.log(`\n  Done. Venus University is back to the official version in:\n  ${game}\n`)
+}
+
+/** Puts the official code back from the install's backup and takes out what it added. */
+async function restore(game, p, marker) {
   console.log('  Restoring the original game code...')
   await rm(p.asar, { force: true })
   await rename(p.backup, p.asar)
@@ -274,7 +294,6 @@ async function uninstall(game) {
   }
   await removeExternal(game, marker.external ?? [])
   await rm(p.marker, { force: true })
-  console.log(`\n  Done. Venus University is back to the official version in:\n  ${game}\n`)
 }
 
 const [command, ...rest] = process.argv.slice(2)

@@ -112,6 +112,37 @@ test('install puts the build and its added file in; uninstall restores the game 
   await rm(root, { recursive: true, force: true })
 })
 
+/** A second build of the same game, as a later version with its own code, and its patch. */
+async function laterBuild(root, res, version) {
+  await put(join(root, 'later/out/main/index.js'), "console.log('modded later')\n")
+  await put(join(root, 'later/out/renderer/picture.png'), 'not really a picture')
+  const out = join(root, 'dist-later')
+  execFileSync(process.execPath, [
+    join(INSTALLER, 'build.mjs'), '--base', join(root, 'base/out'), '--build', join(root, 'later/out'),
+    '--game-version', GAME_VERSION, '--manifest', join(res, 'build-manifest.json'),
+    '--assets', join(root, 'assets'), '--out', out, '--build-version', version
+  ], { stdio: 'pipe' })
+  return join(out, (await readdir(out)).find((name) => name.startsWith('venus-extracurriculars-')), 'patch.mjs')
+}
+
+test('installing over another version updates it in place; uninstall still restores the game', async () => {
+  const { root, game, res, patch } = await fixture()
+  const before = await snapshot(game)
+  assert.equal(run(patch, 'install', game).status, 0)
+  const later = await laterBuild(root, res, '9.0.0-later')
+  const update = run(later, 'install', game)
+  assert.equal(update.status, 0, update.text)
+  assert.match(update.text, /taking it out before installing 9\.0\.0-later/)
+  const installed = join(root, 'installed')
+  asar.extractAll(join(res, 'app.asar'), installed)
+  assert.equal(await readFile(join(installed, 'out/main/index.js'), 'utf8'), "console.log('modded later')\n")
+  const marker = JSON.parse(await readFile(join(res, 'venus-extracurriculars.json'), 'utf8'))
+  assert.equal(marker.buildVersion, '9.0.0-later')
+  assert.equal(run(later, 'uninstall', game).status, 0)
+  assert.deepEqual(await snapshot(game), before)
+  await rm(root, { recursive: true, force: true })
+})
+
 test('a file already where an added one goes is set aside and put back', async () => {
   const { root, game, patch } = await fixture()
   await put(join(game, WORKFLOW), 'left by a mod installed on its own')

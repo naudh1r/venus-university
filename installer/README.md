@@ -18,6 +18,9 @@ Adapted from the setup of naudh1r's Photo Feature mod
   for: the version in `resources/build-manifest.json`, and the hash of every file it replaces or
   removes. A game that still has Continuing Semesters or Photo Feature installed on its own is
   told to uninstall it first; both are in the build.
+- Installing over another version of the build updates it in place: the installed build is taken
+  out as Uninstall would, from its own backup, and this one goes in. The same version is refused.
+  The wizard's Install button reads Update then.
 - If the game's code changes underneath (an official update), the install is already gone: its
   backup is deleted rather than restored over the new code.
 - `Setup.cs` is the wizard, plain C# for the .NET Framework that comes with Windows. It carries

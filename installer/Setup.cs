@@ -315,12 +315,15 @@ class SetupForm : Form
         else
         {
             status.ForeColor = Color.DarkOrange;
-            status.Text = Program.BuildName + " " + installed + " is installed. Uninstall it first, then install " + Program.BuildVersion + ".";
+            status.Text = Program.BuildName + " " + installed + " is installed. Update replaces it with " + Program.BuildVersion + ".";
         }
 
         browse.Enabled = !busy;
         folder.Enabled = !busy;
-        install.Enabled = !busy && isGame && installed == null;
+        // An older build is taken out and this one put in, in one go.
+        bool updating = installed != null && installed != Program.BuildVersion;
+        install.Text = updating ? "Update" : "Install";
+        install.Enabled = !busy && isGame && (installed == null || updating);
         uninstall.Enabled = !busy && isGame && installed != null;
         close.Enabled = !busy;
     }
