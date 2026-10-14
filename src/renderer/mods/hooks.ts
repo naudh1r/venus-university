@@ -167,7 +167,10 @@ export interface ModHooks {
   bunnyboardPage?: BunnyboardPage
 
   /** The first enabled replacement owns only the built-in DM instructions. */
-  dmBasePrompt?: (ctx: RequestSpots['dm']) => DmBasePrompt | undefined
+  dmBasePrompt?: (ctx: RequestSpots['dm'], base: DmBasePrompt) => DmBasePrompt | undefined
+
+  /** Timing changes belong to enabled mods; absent flags keep the native DM sequence. */
+  dmReplyTiming?: { classifyDuringTyping?: boolean; awaitReplyHooks?: boolean }
 
   /** Extend a completed request, preserving other mods' additions. */
   requests?: { [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest }
@@ -195,6 +198,8 @@ export interface ModHooks {
   hangoutAnswer?: (ctx: { charId: string; yes: boolean; pending: NonNullable<Conversation['pendingHangout']> }) => boolean
   /** Every enabled handler must allow an unsolicited invitation to be filed. */
   hangoutOfferAllowed?: (charId: string) => boolean
+  /** Override the invitation cooldown anchor without changing native behavior while disabled. */
+  invitationResponseSlot?: (conversation: Conversation | undefined, base: number | null) => number | null
   /** As the reader commits to something: an action sent, or a hangout begun. */
   playerActs?: () => void
   /** As a game is entered, new or loaded. */
@@ -256,10 +261,15 @@ export function hasActiveHooks(modId: string): boolean {
 
 export function dmBasePrompt(ctx: RequestSpots['dm'], base: DmBasePrompt): DmBasePrompt {
   for (const hooks of active()) {
-    const replacement = hooks.dmBasePrompt?.(ctx)
+    const replacement = hooks.dmBasePrompt?.(ctx, base)
     if (replacement) return replacement
   }
   return base
+}
+
+export function dmReplyTiming(): { classifyDuringTyping: boolean; awaitReplyHooks: boolean } {
+  return Object.assign({ classifyDuringTyping: false, awaitReplyHooks: false },
+    ...active().map(hooks => hooks.dmReplyTiming ?? {}))
 }
 
 /** Every mod's lines for one prompt. */
@@ -297,18 +307,22 @@ export function characterFromDraft(
   return Object.assign({}, ...active().map((hooks) => hooks.characterFromDraft?.(draft, ctx) ?? {}))
 }
 
-export async function afterDmReply(ctx: {
+export function afterDmReply(ctx: {
   charId: string
   character: Character
   reply: TextingResponse
 }): Promise<void> {
+  const pending: Promise<void>[] = []
+  const failed = (error: unknown): void => { console.warn('DM reply hook failed:', error) }
   for (const hooks of active()) {
     try {
-      await hooks.afterDmReply?.(ctx)
+      const result = hooks.afterDmReply?.(ctx)
+      if (result) pending.push(Promise.resolve(result).catch(failed))
     } catch (error) {
-      console.warn('DM reply hook failed:', error)
+      failed(error)
     }
   }
+  return Promise.all(pending).then(() => {})
 }
 
 export function playerActs(): void {
@@ -326,6 +340,11 @@ export function hangoutAnswer(ctx: Parameters<NonNullable<ModHooks['hangoutAnswe
 
 export function hangoutOfferAllowed(charId: string): boolean {
   return active().every(hooks => hooks.hangoutOfferAllowed?.(charId) ?? true)
+}
+
+export function invitationResponseSlot(conversation: Conversation | undefined, base: number | null): number | null {
+  return active().reduce((slot, hooks) => hooks.invitationResponseSlot
+    ? hooks.invitationResponseSlot(conversation, slot) : slot, base)
 }
 
 export function gameEntered(): void {

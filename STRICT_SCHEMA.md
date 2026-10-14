@@ -13,8 +13,9 @@ It has no dependency on Photo Feature.
 
 Each call receives one concise set of mod instructions for its role. Shared dialogue guidance is
 defined once and reused by scene and DM requests. Other mods' additions stay intact.
-With **Strict Schema and Photo Feature both enabled**, DMs replace the base writing persona and
-turn/output instructions with concise Strict Schema instructions. Character details, memories,
+With **Strict Schema and Photo Feature both enabled**, DMs preserve the base writing persona,
+including its slow-burn pacing, and replace only turn/output instructions with concise Strict Schema
+instructions. Character details, memories,
 game state, summaries, recent messages, photo history, and other mods' additions remain available.
 Photo Feature retains its original permission, tier, picture-brief, and caption rules and required
 fields; Strict Schema adds explicit photo-field formatting. Turning either mod off restores the
@@ -34,7 +35,9 @@ normal base DM instructions. Scene narration continues using its existing prompt
   supplies a missing or false ending decision. It does not infer departures from prose, end
   empty solo scenes, or end a scene where someone remains present at the end of the departure line.
   Enabled result handlers and the starting stage are captured before streaming begins.
-- Streaming and final output stop after the line where the final character departs. A continuation
+- Streaming and final output hold lines after an empty-stage departure. A later entrance in
+  the same reply releases those lines in order, preserving a cast handoff and its recap;
+  without an entrance, the held tail is discarded. A continuation
   of an already empty cast scene is ended without adding new events. If lines are omitted, the
   model's recap is discarded; the closing call summarizes only the delivered transcript.
 - The scene writer is told to keep new DMs in the phone flow, and not to invent messages or
@@ -60,13 +63,17 @@ normal base DM instructions. Scene narration continues using its existing prompt
 - The hangout classifier distinguishes accepted, declined, deferred, new offers, and unrelated
   exchanges. Accepted plans need the entire latest player message and one complete latest reply
   bubble as exact evidence. New offers need a latest reply bubble. Invalid or missing evidence
-  never arms a scene. Obvious short refusals and deferrals override contradictory classifier output.
+  never arms a scene. Obvious short refusals and meeting-specific refusals or deferrals override
+  contradictory classifier output.
+  An inability to do something unrelated, such as finish homework, is not a meeting refusal.
 - The texting loop starts hangout classification as soon as the complete DM reply arrives,
   overlapping the remaining bubble typing animation. A streamed first bubble alone is insufficient:
   later bubbles may accept or refuse. Result hooks, hangout state changes, and classifier failure
-  dialogs wait until the final bubble lands. Abandoned turns discard their verdict, and retries
-  reuse the same request. This scheduling improvement also applies with Strict Schema disabled;
-  the mod's evidence rules and the player's thinking setting are unchanged.
+  dialogs wait until all text bubbles land and reply hooks attach any final photo bubble. Abandoned
+  turns discard their verdict, and retries reuse the same request. These timing changes are enabled
+  only by Strict Schema. With the mod disabled,
+  classification starts after text delivery and does not wait for photo hooks. Image rendering
+  remains in the background in either mode.
 - Clicking No writes a refusal into the thread, clears the invitation, and starts the existing
   increasing decline cooldown (4 slots initially, doubling up to 28). Text refusals and deferrals
   also start it. DM guidance discourages repeated asking; game rules block renewed DM invitations
@@ -76,9 +83,12 @@ normal base DM instructions. Scene narration continues using its existing prompt
 - A new player-initiated agreement can bypass the invitation cooldown and clears the decline
   state when the hangout is armed. Unrelated messages do not reset it, and old refusals cannot
   override a new agreement. With the mod disabled, button and classifier behavior remain native.
-- Both scene and texting ledgers use the player's original thinking/reasoning setting instead of forcing high.
-  The base provider resolver reads the current settings at call time and handles supported levels;
-  the mod stores no separate thinking setting. With the mod off, the base ledger's high floor remains.
+  Slot-invitation selection uses the native invitation timestamp; the optional refusal timestamp is retained in the save
+  but affects cooldown selection only while Strict Schema is enabled.
+- Both scene and texting ledgers preserve the base minimum high thinking, whether the mod
+  is enabled or disabled. The provider resolver handles supported levels. The hangout classifier
+  continues using the player's current thinking setting while Strict Schema is enabled; there
+  is no separate mod thinking setting.
 - Scene-ledger memory descriptions contain only the past-tense event clause completing
   "Name liked/disliked/hated that ...". Instructions prohibit duplicated names and "remembers that"
   introductions, keep descriptions concise, and require the reaction type to be supported by the
@@ -105,8 +115,7 @@ normal base DM instructions. Scene narration continues using its existing prompt
 
 Schema transformations copy the assembled request to strengthen scene staging, feed poster/count
 constraints, photo comment limits, and quiz count/nonempty-field requirements. Existing fields, required
-fields, speaker/action vocabularies, and request metadata are retained, except for the ledger's
-minimum thinking override. Photo, memory,
+fields, speaker/action vocabularies, and request metadata, including ledger thinking floors, are retained. Photo, memory,
 relationship, and narrative additions continue
 through the existing hook chain.
 

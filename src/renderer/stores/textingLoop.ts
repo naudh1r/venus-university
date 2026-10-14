@@ -67,7 +67,7 @@ import {
 } from '@shared/types'
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
-import { afterDmReply, captureHangoutResult, hangoutAnswer, hangoutOfferAllowed, modRequest, type HangoutResolution } from '../mods/hooks'
+import { afterDmReply, captureHangoutResult, dmReplyTiming, hangoutAnswer, hangoutOfferAllowed, invitationResponseSlot, modRequest, type HangoutResolution } from '../mods/hooks'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
 import { toAppError } from '@shared/errors'
 import { createRetryGate } from './retryGate'
@@ -92,7 +92,6 @@ import {
   declineCooldownSlots,
   drawOccasionAsker,
   lastInviteSlotOf,
-  lastInvitationResponseSlotOf,
   rollSlotAskers,
   slotAskMultiplier,
   ASK_QUIET_SLOTS,
@@ -577,8 +576,9 @@ async function runReply(
   const blocked = data.blocked === true
 
   const stillCurrent = (): boolean => !entry.abandoned && !sceneActiveOf(useGameStore.getState())
+  const timing = dmReplyTiming()
   // Classify the complete reply while its bubbles are still being delivered; apply nothing yet.
-  const classification = !blocked && stillCurrent()
+  let classification = timing.classifyDuringTyping && !blocked && stillCurrent()
     ? prepareHangoutClassification(character, conversation, sent, messages, invited, stillCurrent)
     : null
 
@@ -598,7 +598,11 @@ async function runReply(
   }
 
   // Photo hooks resolve once their bubble is attached; image rendering continues separately.
-  await afterDmReply({ charId, character, reply: data })
+  const replyHooks = afterDmReply({ charId, character, reply: data })
+  if (timing.awaitReplyHooks) await replyHooks
+
+  if (!timing.classifyDuringTyping && stillCurrent())
+    classification = prepareHangoutClassification(character, conversation, sent, messages, invited, stillCurrent)
 
   // A scene already owns the screen: the verdict could only be discarded.
   if (!stillCurrent() || !classification) return
@@ -1144,7 +1148,7 @@ export function pickOccasionAsker(
     // Her own backoff still counts; the roster's spell of quiet does not.
     const declined = conversations[charId]?.declined ?? 0
     const gap = declineCooldownSlots(declined)
-    if (declined > 0 && !askCooldownOver(lastInvitationResponseSlotOf(conversations[charId]), target, gap)) {
+    if (declined > 0 && !askCooldownOver(invitationResponseSlot(conversations[charId], lastInviteSlotOf(conversations[charId])), target, gap)) {
       continue
     }
     candidates.push({
@@ -1246,7 +1250,7 @@ export function pickSlotAskers(
     if (charUnavailableNow(charId, day, half)) continue
     // She does not ask twice in a row, and waits longer each time he does not come.
     const gap = declineCooldownSlots(conversations[charId]?.declined ?? 0)
-    if (!askCooldownOver(lastInvitationResponseSlotOf(conversations[charId]), target, gap)) continue
+    if (!askCooldownOver(invitationResponseSlot(conversations[charId], lastInviteSlotOf(conversations[charId])), target, gap)) continue
     const chance = askChanceFor(charId, day, view, modulation)
     if (chance > 0) candidates.push({ charId, chance })
   }

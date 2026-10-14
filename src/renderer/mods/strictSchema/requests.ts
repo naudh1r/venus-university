@@ -102,7 +102,7 @@ export function strictSceneRequest(request: StructuredRequest): StructuredReques
   if (hasActions) rules.push(
     'Each line has an "actions" array in application order; use [] for no change. Entrances need "show:<charKey>" plus an allowed "sprite:<charKey>,<sprite>" in the same array. Departures need "hide:<charKey>", including when the reader leaves her behind; companions stay shown.',
     'Use sprite actions for expression changes, retaining the outfit suffix until clothes change and following the existing CG rules. Prose alone never updates the stage; a character stays visible until hidden.',
-    'Stop after the final character departs; do not add a journey home, the rest of a shift, sleep, or another conversation.'
+    'Stop after the final character departs; do not add a journey home, the rest of a shift, sleep, or another conversation. A cast handoff within the current scene may hide one character then show another on a later line; that temporary empty stage is not an ending.'
   )
   if (hasEnd && hasSummary) rules.push(
     'Continuation replies require top-level "end_scene": false while continuing, true when ending or the final character leaves. Give parting a reason and leave the full goodbye to the closing request; never put "end_scene" inside a line.'

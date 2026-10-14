@@ -42,7 +42,7 @@ function obviousRefusal(ctx: HangoutContext): 'declined' | 'deferred' | null {
   const brief = /^(?:no(?:pe)?(?: thanks| thank you)?|not now|not today|maybe later|another time)[.!]*$/.test(text)
   if (!aboutMeeting && !brief) return null
   if (/^(?:not now|not today|maybe later|another time)\b/.test(text)) return 'deferred'
-  if (/^(?:no(?:pe)?(?: thanks| thank you)?[.!]*$|no thanks[, ]+not this time|no[, ]+i (?:have work|have class|can't|cannot)|i (?:can't|cannot)\b|can't\b|cannot\b|i(?:'m| am) busy[.!]*$)/.test(text)) return 'declined'
+  if (/^(?:no(?:pe)?(?: thanks| thank you)?[.!]*$|no thanks[, ]+not this time|no[, ]+i (?:have work|have class)|(?:no[, ]+)?(?:i )?(?:can't|cannot) (?:meet|hang out|come over|go out|join you)\b|i(?:'m| am) busy[.!]*$)/.test(text)) return 'declined'
   return null
 }
 

@@ -10,21 +10,31 @@ function contract(ctx: SceneResultContext): { canEnd: boolean; continuation: boo
   }
 }
 
-/** Keep the departure itself, but do not let the writer start another scene after it. */
+/** Hold empty-stage narration until an entrance proves this reply is a cast handoff. */
 export function sceneBoundary(ctx: SceneResultContext): (line: SceneLine) => SceneLine[] {
   const { canEnd, continuation } = contract(ctx)
   if (!canEnd) return line => [line]
   const present = new Set(ctx.stage)
-  let closed = continuation && present.size === 0
+  const stale = continuation && present.size === 0
+  let waiting = false
+  let held: SceneLine[] = []
   return line => {
-    if (closed) return []
+    if (stale) return []
     let departed = false
     for (const written of line.actions ?? []) {
       const action = parseAction(written)
       if (action?.kind === 'show') present.add(action.charKey)
       else if (action?.kind === 'hide' && present.delete(action.charKey)) departed = true
     }
-    if (departed && present.size === 0) closed = true
+    if (waiting) {
+      held.push(line)
+      if (present.size === 0) return []
+      waiting = false
+      const resumed = held
+      held = []
+      return resumed
+    }
+    if (departed && present.size === 0) waiting = true
     return [line]
   }
 }
