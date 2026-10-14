@@ -128,6 +128,55 @@ it('still applies the hangout decision if an asynchronous reply hook fails', asy
   }
 })
 
+it('keeps native classification timing and does not wait for photo hooks when Strict Schema is off', async () => {
+  enabled = false
+  hooks.registerHooks('pending-photo', { afterDmReply: () => new Promise<void>(() => {}) })
+  hooks.setHookRules({ isOn: id => id === 'pending-photo' || (id === 'strict-schema' && enabled), order: () => 0 })
+  const classify = vi.fn(async () => ({ ok: true as const, data: {
+    playerAsked: true, characterOffered: false, description: 'Coffee with Sarah.'
+  } }))
+  stubApi({ llm: {
+    onTextingDelta: () => () => {},
+    completeTexting: async () => ({ ok: true, data: { messages: ['Yes, come over.'] } }),
+    classifyHangout: classify
+  } })
+  const pending = texting.sendMessage('a', 'Come over?')
+  await vi.advanceTimersByTimeAsync(0)
+  expect(classify).not.toHaveBeenCalled()
+  await vi.advanceTimersByTimeAsync(6000)
+  await pending
+  expect(classify).toHaveBeenCalledOnce()
+  expect(phone.getState().armedHangout?.charId).toBe('a')
+})
+
+it.each(["I can't finish my homework.", "I cannot find my keys.", "Can't remember her name.", "No, I can't finish my homework."])(
+  'does not interpret an unrelated inability as a hangout refusal: %s', async text => {
+    await exchange(text, 'Oh okay.', response('none', '', '', ''))
+    expect(game.getState().bunnyboard.conversations.a?.declined).toBeUndefined()
+    expect(game.getState().bunnyboard.conversations.a?.pendingHangout?.description).toBe('Coffee with Sarah.')
+  }
+)
+
+it.each(["I can't meet tonight.", 'I cannot come over.', "Can't hang out now."])(
+  'protects an explicit meeting refusal from a contradictory renewed offer: %s', async text => {
+    await exchange(text, 'Come over anyway.', response('new_offer', '', 'Come over anyway.'))
+    expect(game.getState().bunnyboard.conversations.a?.declined).toBe(1)
+    expect(game.getState().bunnyboard.conversations.a?.pendingHangout).toBeFalsy()
+  }
+)
+
+it('uses native invitation age when disabled even if a save contains a strict refusal timestamp', async () => {
+  const { globalSlotOf } = await import('../src/shared/jobs')
+  const { lastInviteSlotOf } = await import('../src/renderer/stores/slotAskers')
+  game.getState().bumpDeclined('a', globalSlotOf(7, 0))
+  const conversation = game.getState().bunnyboard.conversations.a
+  const base = lastInviteSlotOf(conversation)
+  expect(hooks.invitationResponseSlot(conversation, base)).toBe(globalSlotOf(7, 0))
+  enabled = false
+  expect(hooks.invitationResponseSlot(conversation, base)).toBe(base)
+  expect(game.getState().bunnyboard.conversations.a?.declinedAt).toBe(globalSlotOf(7, 0))
+})
+
 it('waits for the complete response rather than classifying a streamed first bubble alone', async () => {
   let emit: ((group: string, delta: string) => void) | undefined
   let finish!: (reply: { ok: true; data: { messages: string[] } }) => void

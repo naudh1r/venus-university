@@ -349,13 +349,11 @@ export function sanitizeScene(
   const sanitizer = createSceneSanitizer(options)
   // A blank or missing summary is not a summary: the previous one stands.
   const summary = typeof response.summary === 'string' ? response.summary.trim() : ''
-  let omitted = false
-  const lines = (response.lines ?? []).flatMap(raw => {
-    const line = sanitizer.sanitizeLine(raw)
-    const transformed = transformLine ? transformLine(line) : [line]
-    if (!transformed.includes(line)) omitted = true
-    return transformed.flatMap(next => splitOverflow(next, options.fits))
-  })
+  const sanitized = (response.lines ?? []).map(raw => sanitizer.sanitizeLine(raw))
+  const transformed = sanitized.flatMap(line => transformLine ? transformLine(line) : [line])
+  const retained = new Set(transformed)
+  const omitted = sanitized.some(line => !retained.has(line))
+  const lines = transformed.flatMap(line => splitOverflow(line, options.fits))
   return {
     lines,
     // A recap of omitted events must not become saved history or reach the next ledger.

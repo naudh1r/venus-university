@@ -80,6 +80,23 @@ describe('scene departure boundary', () => {
     expect(handoff(both)).toEqual([both])
     expect(handoff(later)).toEqual([later])
   })
+
+  it('resumes a later-line handoff with its held narration and original recap', async () => {
+    const { sanitizeScene } = await import('../src/renderer/stores/sceneSanitizer')
+    const ctx = context(['sarah_rose'], true, true)
+    const departure = reply('hide:sarah_rose').lines[0]
+    const pause = { speaker: '', text: 'Footsteps approach the doorway.' }
+    const arrival = { speaker: '', text: 'Mina arrives.', actions: ['show:mina_okafor'] }
+    const transform = sceneBoundary(ctx)
+    expect(transform(departure)).toEqual([departure])
+    expect(transform(pause)).toEqual([])
+    expect(transform(arrival)).toEqual([pause, arrival])
+    const result = sanitizeScene({ lines: [departure, pause, arrival], summary: 'Sarah left and Mina arrived.' },
+      { stage: ctx.stage }, sceneBoundary(ctx))
+    expect(result.lines.map(line => line.text)).toEqual([departure.text, pause.text, arrival.text])
+    expect(result.summary).toBe('Sarah left and Mina arrived.')
+    expect(endEmptyScene(result, ctx).end).toBe(false)
+  })
 })
 
 it('captures enabled handlers and starting stage once for an in-flight call', async () => {

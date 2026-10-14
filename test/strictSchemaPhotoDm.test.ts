@@ -21,7 +21,7 @@ it('replaces only built-in DM instructions while retaining context and enabled m
   // A switch for an uninstalled mod cannot activate the replacement.
   enabled.add('photo-feature')
   enabled.add('strict-schema')
-  expect(strictPhotoDmBase(ctx)).toBeUndefined()
+  expect(strictPhotoDmBase(ctx, { system: base.system, turn: [], result: [] })).toBeUndefined()
   const strictOnly = build()
   expect(strictOnly.user).toBe(base.user)
   expect(strictOnly.system.startsWith(base.system)).toBe(true)
@@ -38,9 +38,9 @@ it('replaces only built-in DM instructions while retaining context and enabled m
     requests: { dm: request => ({ ...request, user: request.user + '\nOther request context' }) } })
   enabled.add('strict-schema')
   const both = build()
-  const replacement = strictPhotoDmBase(ctx)!
+  const replacement = strictPhotoDmBase(ctx, { system: base.system, turn: [], result: [] })!
   expect(both.system.startsWith(replacement.system)).toBe(true)
-  expect(both.system).not.toContain(base.system)
+  expect(both.system.startsWith(base.system)).toBe(true)
   expect(both.schema).toEqual(photoOnly.schema)
   // Context before the built-in turn is retained byte-for-byte, including history notes.
   const turnStart = photoOnly.user.lastIndexOf('\nYOUR TURN\n')

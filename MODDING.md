@@ -227,7 +227,7 @@ Where a branch goes:
 
 - `prompts.scene` adds context to cast and solo scenes, including continuations and closing requests.
 - `requests.scene`, `requests.dm`, `requests.ledger`, `requests['text-ledger']` and `requests['slot-intro']` extend a completed request in mod-list order. Preserve the request and schema fields received from earlier mods. DM hooks run for normal and regenerated replies because both use the same builder. Texting-ledger hooks receive the schedule input and character info, and run before the request is prefetched or banked; retries reuse the assembled request.
-- `dmBasePrompt` optionally replaces only the built-in DM system persona, turn instructions, and output instructions. The first enabled hook returning a replacement wins. Conversation data, `prompts.dm` additions, history notes, schemas, and completed-request hooks remain separate. `hasActiveHooks(id)` checks that a mod is both installed and enabled; Strict Schema uses it for its Photo Feature combination.
+- `dmBasePrompt` optionally replaces only the built-in DM system persona, turn instructions, and output instructions. It receives the original base instructions as a second argument, allowing a mod to retain the persona while replacing turn/output wording. The first enabled hook returning a replacement wins. Conversation data, `prompts.dm` additions, history notes, schemas, and completed-request hooks remain separate. `hasActiveHooks(id)` checks that a mod is both installed and enabled; Strict Schema uses it for its Photo Feature combination.
 - `requests.quiz` extends the exam-question request and receives the class name and selected facts. `quizResult` validates or transforms the raw paper before normalization and answer shuffling. Enabled handlers and a copy of the facts are captured before the call; throwing an application error uses the turn's failure/retry flow before any exam or grade is recorded. Preserve other mods' fields when returning a paper.
 - `slotSettled` receives the scene's starting state, the completed ledger and closing cast after bookkeeping, before clock advancement and the boundary save. It is synchronous so mod state is included in that save.
 - `sceneResult` transforms the completed, sanitized scene result before its ending decision is
@@ -238,12 +238,21 @@ Where a branch goes:
   adjusting them.
 - `sceneLines` creates a stateful line transform for a call's starting context. Separate instances
   are captured before generation for streaming and the final reply. Both run after base line
-  validation and before dialogue-box splitting. If a final transform omits a line, the model's
+  validation and before dialogue-box splitting. A transform may hold lines and release them with
+  a later line; summary invalidation is determined from the lines retained over the entire pass. If a final transform omits a line, the model's
   summary is discarded because it may include events that were never delivered.
 
-These hooks add to the existing API; existing hooks and their arguments are unchanged. Screens, IPC and save fields still use direct integration as documented above.
+These hooks add to the existing API; existing one-argument DM replacement handlers remain compatible. Screens, IPC and save fields still use direct integration as documented above.
 
 ### Invitation hooks
+
+- `dmReplyTiming` opts enabled mods into `classifyDuringTyping` and/or `awaitReplyHooks`.
+  Both default false. `afterDmReply` hooks may return a promise resolving once their bubbles
+  are attached; image rendering can continue independently. Hooks are invoked in mod order,
+  and asynchronous completions are joined only when the timing policy requests it.
+- `invitationResponseSlot` optionally adjusts the native cooldown anchor. Strict Schema uses
+  its saved refusal timestamp only while enabled; switching it off restores native selection
+  without deleting saved mod state.
 
 - `requests['hangout-classifier']` extends the current texting exchange's classification request.
   Context includes the character, earlier conversation, latest player message, latest reply bubbles,
