@@ -339,7 +339,8 @@ export function splitOverflow(line: SceneLine, fits?: (text: string) => boolean)
 /** Hardens a whole `SceneResponse` — the authoritative pass, run on the resolved reply. */
 export function sanitizeScene(
   response: SceneResponse,
-  options: SanitizerOptions = {}
+  options: SanitizerOptions = {},
+  transformLine?: (line: SceneLine) => SceneLine[]
 ): {
   lines: SceneLine[]
   summary: string | null
@@ -348,11 +349,15 @@ export function sanitizeScene(
   const sanitizer = createSceneSanitizer(options)
   // A blank or missing summary is not a summary: the previous one stands.
   const summary = typeof response.summary === 'string' ? response.summary.trim() : ''
+  const sanitized = (response.lines ?? []).map(raw => sanitizer.sanitizeLine(raw))
+  const transformed = sanitized.flatMap(line => transformLine ? transformLine(line) : [line])
+  const retained = new Set(transformed)
+  const omitted = sanitized.some(line => !retained.has(line))
+  const lines = transformed.flatMap(line => splitOverflow(line, options.fits))
   return {
-    lines: (response.lines ?? []).flatMap((raw) =>
-      splitOverflow(sanitizer.sanitizeLine(raw), options.fits)
-    ),
-    summary: summary || null,
+    lines,
+    // A recap of omitted events must not become saved history or reach the next ledger.
+    summary: omitted ? null : summary || null,
     end: response.end_scene === true
   }
 }

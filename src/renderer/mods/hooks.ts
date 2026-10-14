@@ -7,14 +7,18 @@ import type {
   Character,
   CharInfo,
   ChatMessage,
+  Conversation,
+  SceneLine,
   SocialPost,
   TextingResponse
 } from '@shared/types'
 import type { GameOverReason } from '@shared/gameOver'
 import type { PlaythroughRecord } from '@shared/types'
 import type { TextingPromptState } from '../prompts/textingPrompt'
+import type { SchedulePromptInput } from '../prompts/schedulePrompt'
 import type { ResolvedSave } from '../stores/saveStore'
 import type { ViewName } from '../stores/uiStore'
+import type { HangoutVerdict } from '../prompts/hangoutClassifierPrompt'
 
 /**
  * The places in the game a mod adds to, without editing the game's code there.
@@ -103,15 +107,53 @@ export interface SaveChoice extends WayOn {
 
 export interface RequestSpots {
   scene: PromptSpots['scene']
-  dm: PromptSpots['dm'] & { newMessage: string }
+  dm: PromptSpots['dm'] & { newMessage: string; conversation?: Conversation; incomingDirection?: string }
+  'hangout-classifier': HangoutContext
   ledger: { state: PromptState; charKeys: readonly string[] }
+  'text-ledger': { schedule: SchedulePromptInput; charInfo: Record<string, CharInfo> }
+  quiz: { className: string; facts: readonly string[] }
   'slot-intro': { input: SlotIntroInput }
+}
+
+/** Built-in DM instructions, separate from conversation data and mod additions. */
+export interface DmBasePrompt {
+  system: string
+  turn: readonly string[]
+  result: readonly string[]
 }
 
 export interface SlotSettled {
   before: ReturnType<typeof useGameStore.getState>
   ledger: LedgerResponse | null
   closingCast: readonly Character[]
+}
+
+export interface HangoutContext {
+  character: Character
+  conversation?: Conversation
+  sent: ChatMessage | null
+  replies: readonly ChatMessage[]
+  invited: Conversation['pendingHangout'] | null
+}
+
+export interface HangoutResolution {
+  verdict: HangoutVerdict | null
+  /** A handler already settled this invitation; skip the base unanswered-invitation pass. */
+  settled: boolean
+}
+
+/** The completed scene after the base sanitizer has validated its lines. */
+export interface SceneResult {
+  /** Keep these unchanged: previews may already have played before the result arrives. */
+  lines: SceneLine[]
+  summary: string | null
+  end: boolean
+}
+
+export interface SceneResultContext {
+  request: StructuredRequest
+  /** Character keys on stage before this request's lines begin playing. */
+  stage: readonly string[]
 }
 
 export interface BunnyboardPage {
@@ -124,8 +166,20 @@ export interface BunnyboardPage {
 export interface ModHooks {
   bunnyboardPage?: BunnyboardPage
 
+  /** The first enabled replacement owns only the built-in DM instructions. */
+  dmBasePrompt?: (ctx: RequestSpots['dm'], base: DmBasePrompt) => DmBasePrompt | undefined
+
+  /** Timing changes belong to enabled mods; absent flags keep the native DM sequence. */
+  dmReplyTiming?: { classifyDuringTyping?: boolean; awaitReplyHooks?: boolean }
+
   /** Extend a completed request, preserving other mods' additions. */
   requests?: { [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest }
+  /** Validate or transform the raw exam paper before answers are shuffled or saved. */
+  quizResult?: (draft: unknown, ctx: RequestSpots['quiz']) => unknown
+  /** Adjust a sanitized scene result; enabled handlers are captured when the call starts. */
+  sceneResult?: (result: SceneResult, ctx: SceneResultContext) => SceneResult
+  /** Create a per-pass line transform; streaming and final sanitization get separate instances. */
+  sceneLines?: (ctx: SceneResultContext) => (line: SceneLine) => SceneLine[]
   /** After bookkeeping settles, before the clock advances and the boundary save is written. */
   slotSettled?: (ctx: SlotSettled) => void
 
@@ -138,7 +192,14 @@ export interface ModHooks {
     ctx: { baseAppearance: readonly string[] }
   ) => Partial<Character>
   /** After her reply in a DM has landed. */
-  afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void
+  afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void | Promise<void>
+  hangoutResult?: (result: HangoutResolution, ctx: HangoutContext & { reply: unknown }) => HangoutResolution
+  /** Return true when the button answer has been handled. */
+  hangoutAnswer?: (ctx: { charId: string; yes: boolean; pending: NonNullable<Conversation['pendingHangout']> }) => boolean
+  /** Every enabled handler must allow an unsolicited invitation to be filed. */
+  hangoutOfferAllowed?: (charId: string) => boolean
+  /** Override the invitation cooldown anchor without changing native behavior while disabled. */
+  invitationResponseSlot?: (conversation: Conversation | undefined, base: number | null) => number | null
   /** As the reader commits to something: an action sent, or a hangout begun. */
   playerActs?: () => void
   /** As a game is entered, new or loaded. */
@@ -194,6 +255,23 @@ function active(): ModHooks[] {
     .map((entry) => entry.hooks)
 }
 
+export function hasActiveHooks(modId: string): boolean {
+  return registered.some(entry => entry.modId === modId) && rules.isOn(modId)
+}
+
+export function dmBasePrompt(ctx: RequestSpots['dm'], base: DmBasePrompt): DmBasePrompt {
+  for (const hooks of active()) {
+    const replacement = hooks.dmBasePrompt?.(ctx, base)
+    if (replacement) return replacement
+  }
+  return base
+}
+
+export function dmReplyTiming(): { classifyDuringTyping: boolean; awaitReplyHooks: boolean } {
+  return Object.assign({ classifyDuringTyping: false, awaitReplyHooks: false },
+    ...active().map(hooks => hooks.dmReplyTiming ?? {}))
+}
+
 /** Every mod's lines for one prompt. */
 export function promptLines<S extends PromptSpot>(spot: S, ctx: PromptSpots[S]): string[] {
   return active().flatMap((hooks) => [...(promptOf(hooks, spot)?.lines?.(ctx) ?? [])])
@@ -233,12 +311,40 @@ export function afterDmReply(ctx: {
   charId: string
   character: Character
   reply: TextingResponse
-}): void {
-  for (const hooks of active()) hooks.afterDmReply?.(ctx)
+}): Promise<void> {
+  const pending: Promise<void>[] = []
+  const failed = (error: unknown): void => { console.warn('DM reply hook failed:', error) }
+  for (const hooks of active()) {
+    try {
+      const result = hooks.afterDmReply?.(ctx)
+      if (result) pending.push(Promise.resolve(result).catch(failed))
+    } catch (error) {
+      failed(error)
+    }
+  }
+  return Promise.all(pending).then(() => {})
 }
 
 export function playerActs(): void {
   for (const hooks of active()) hooks.playerActs?.()
+}
+
+export function captureHangoutResult(ctx: HangoutContext): (reply: unknown, result: HangoutResolution) => HangoutResolution {
+  const handlers = active().flatMap(hooks => hooks.hangoutResult ? [hooks.hangoutResult] : [])
+  return (reply, result) => handlers.reduce((next, handler) => handler(next, { ...ctx, reply }), result)
+}
+
+export function hangoutAnswer(ctx: Parameters<NonNullable<ModHooks['hangoutAnswer']>>[0]): boolean {
+  return active().some(hooks => hooks.hangoutAnswer?.(ctx) === true)
+}
+
+export function hangoutOfferAllowed(charId: string): boolean {
+  return active().every(hooks => hooks.hangoutOfferAllowed?.(charId) ?? true)
+}
+
+export function invitationResponseSlot(conversation: Conversation | undefined, base: number | null): number | null {
+  return active().reduce((slot, hooks) => hooks.invitationResponseSlot
+    ? hooks.invitationResponseSlot(conversation, slot) : slot, base)
 }
 
 export function gameEntered(): void {
@@ -309,6 +415,27 @@ export function modRequest<S extends keyof RequestSpots>(spot: S, ctx: RequestSp
     if (extend) next = extend(next, ctx)
   }
   return next
+}
+
+/** A call keeps the same enabled result handlers even if a switch moves while it streams. */
+export function captureSceneResult(ctx: SceneResultContext): (result: SceneResult) => SceneResult {
+  const handlers = active().flatMap(hooks => hooks.sceneResult ? [hooks.sceneResult] : [])
+  const captured = { ...ctx, stage: [...ctx.stage] }
+  return result => handlers.reduce((next, handle) => handle(next, captured), result)
+}
+
+/** A paper keeps the enabled handlers and selected facts from when its call began. */
+export function captureQuizResult(ctx: RequestSpots['quiz']): (draft: unknown) => unknown {
+  const handlers = active().flatMap(hooks => hooks.quizResult ? [hooks.quizResult] : [])
+  const captured = { ...ctx, facts: [...ctx.facts] }
+  return draft => handlers.reduce((next, handle) => handle(next, captured), draft)
+}
+
+/** Each pass starts from the same stage and enabled transforms before any lines play. */
+export function captureSceneLines(ctx: SceneResultContext): (line: SceneLine) => SceneLine[] {
+  const captured = { ...ctx, stage: [...ctx.stage] }
+  const transforms = active().flatMap(hooks => hooks.sceneLines ? [hooks.sceneLines(captured)] : [])
+  return line => transforms.reduce((lines, transform) => lines.flatMap(transform), [line])
 }
 
 export function slotSettled(ctx: SlotSettled): void {

@@ -228,10 +228,51 @@ Where a branch goes:
 ## Scene and memory hooks
 
 - `prompts.scene` adds context to cast and solo scenes, including continuations and closing requests.
-- `requests.scene`, `requests.dm`, `requests.ledger` and `requests['slot-intro']` extend a completed request in mod-list order. Preserve the request and schema fields received from earlier mods. DM hooks run for normal and regenerated replies because both use the same builder.
+- `requests.scene`, `requests.dm`, `requests.ledger`, `requests['text-ledger']` and `requests['slot-intro']` extend a completed request in mod-list order. Preserve the request and schema fields received from earlier mods. DM hooks run for normal and regenerated replies because both use the same builder. Texting-ledger hooks receive the schedule input and character info, and run before the request is prefetched or banked; retries reuse the assembled request.
+- `dmBasePrompt` optionally replaces only the built-in DM system persona, turn instructions, and output instructions. It receives the original base instructions as a second argument, allowing a mod to retain the persona while replacing turn/output wording. The first enabled hook returning a replacement wins. Conversation data, `prompts.dm` additions, history notes, schemas, and completed-request hooks remain separate. `hasActiveHooks(id)` checks that a mod is both installed and enabled; Strict Schema uses it for its Photo Feature combination.
+- `requests.quiz` extends the exam-question request and receives the class name and selected facts. `quizResult` validates or transforms the raw paper before normalization and answer shuffling. Enabled handlers and a copy of the facts are captured before the call; throwing an application error uses the turn's failure/retry flow before any exam or grade is recorded. Preserve other mods' fields when returning a paper.
 - `slotSettled` receives the scene's starting state, the completed ledger and closing cast after bookkeeping, before clock advancement and the boundary save. It is synchronous so mod state is included in that save.
+- `sceneResult` transforms the completed, sanitized scene result before its ending decision is
+  consumed. Its context contains the request and the character keys on the starting stage.
+  Enabled handlers are captured before streaming begins and run in mod-list order even if a
+  switch changes during generation. Keep the lines unchanged because previews may already have
+  played. Preserve summary and ending metadata received from earlier handlers unless deliberately
+  adjusting them.
+- `sceneLines` creates a stateful line transform for a call's starting context. Separate instances
+  are captured before generation for streaming and the final reply. Both run after base line
+  validation and before dialogue-box splitting. A transform may hold lines and release them with
+  a later line; summary invalidation is determined from the lines retained over the entire pass. If a final transform omits a line, the model's
+  summary is discarded because it may include events that were never delivered.
 
-These hooks add to the existing API; existing hooks and their arguments are unchanged. Screens, IPC and save fields still use direct integration as documented above.
+These hooks add to the existing API; existing one-argument DM replacement handlers remain compatible. Screens, IPC and save fields still use direct integration as documented above.
+
+### Invitation hooks
+
+- `dmReplyTiming` opts enabled mods into `classifyDuringTyping` and/or `awaitReplyHooks`.
+  Both default false. `afterDmReply` hooks may return a promise resolving once their bubbles
+  are attached; image rendering can continue independently. Hooks are invoked in mod order,
+  and asynchronous completions are joined only when the timing policy requests it.
+- `invitationResponseSlot` optionally adjusts the native cooldown anchor. Strict Schema uses
+  its saved refusal timestamp only while enabled; switching it off restores native selection
+  without deleting saved mod state.
+
+- `requests['hangout-classifier']` extends the current texting exchange's classification request.
+  Context includes the character, earlier conversation, latest player message (null for incoming texts), latest reply bubbles,
+  and the invitation being answered. The request and captured result handlers persist across retries.
+- `hangoutResult` composes a `{ verdict, settled }` decision with the raw reply and exchange context.
+  Set `settled` when the handler has recorded the answer so the base decline pass does not duplicate it.
+  An abandoned exchange never applies its classifier handlers.
+- `hangoutAnswer` may handle a Yes/No button answer; the first enabled handler returning true owns it.
+- `hangoutOfferAllowed` lets any enabled mod veto an unsolicited slot invitation. Reminders for
+  already agreed calendar plans bypass this gate.
+- `requests.dm` also receives the earlier conversation, allowing instructions to reflect saved
+  invitation state without reading the live store in a prompt builder. On incoming turns it also
+  receives `incomingDirection`, an out-of-story writing direction that must not be treated as
+  a new reader message or recorded in conversation history.
+
+The optional native conversation `declinedAt` field anchors cooldowns to explicit answers.
+`bumpDeclined(charId, at)` records it; existing calls without `at` retain their behavior, and
+`resetDeclined` clears both the count and timestamp. No save schema migration is required.
 
 - `bunnyboardPage` registers an independently gated tab with `id`, `word`, `Mark` and `Page`. Disabling its mod unmounts the page and returns the phone to Chats. Native tab IDs cannot be replaced. Other screen integration remains direct.
 

@@ -12,7 +12,9 @@ vi.mock('../src/renderer/stores/photoTurn', () => ({ sendPhoto: vi.fn() }))
 
 const thread = () => useGameStore.getState().bunnyboard.conversations.a
 
-beforeEach(() => {
+beforeEach(async () => {
+  stubApi({ jobs: { onProgress: () => () => {} } })
+  await import('../src/renderer/mods')
   vi.useFakeTimers()
   resetTextingLoop()
   useGameStore.getState().reset()
@@ -35,7 +37,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-function api() {
+function api(classify: typeof window.api.llm.classifyHangout = async () => ({ ok: true, data: { playerAsked: false, characterOffered: false, description: '' } })) {
   const complete = vi.fn<typeof window.api.llm.completeTexting>().mockResolvedValue({
     ok: true, data: { messages: ['Hello!'], summary: 'She said hello.', sendPhoto: true,
       photoPrompt: 'A selfie at the campus cafe', photoTier: 'everyday' }
@@ -43,7 +45,7 @@ function api() {
   stubApi({
     jobs: { onProgress: () => () => {} },
     llm: { onTextingDelta: () => () => {}, completeTexting: complete,
-      classifyHangout: async () => ({ ok: true, data: { playerAsked: false, characterOffered: false, description: '' } }) }
+      classifyHangout: classify }
   })
   return complete
 }
@@ -54,6 +56,43 @@ async function finish(turn: Promise<void>) {
 }
 
 describe('Incoming Texts in the combined package', () => {
+  it('does not invent a player acceptance for an incoming reply with Strict Schema enabled', async () => {
+    useModsStore.setState({ switches: withMod(withMod(NO_SWITCHES, 'photo-feature', true), 'strict-schema', true) })
+    const complete = api(async () => ({ ok: true, data: {
+      playerAsked: true, characterOffered: false, description: 'Coffee now.', outcome: 'accepted',
+      playerQuote: '', replyQuote: 'Hello!'
+    } }))
+    await finish(sendIncomingMessage('a', 'She starts a new conversation'))
+    expect(complete).toHaveBeenCalledOnce()
+    expect(thread().messages.every(m => m.sender === 'contact')).toBe(true)
+    expect(thread().pendingHangout).toBeUndefined()
+    expect(useBunnyboardStore.getState().armedHangout).toBeNull()
+    expect(JSON.stringify(useGameStore.getState().toGameSave())).not.toContain('She starts a new conversation')
+  })
+
+  it('keeps an existing invitation pending when a strict incoming turn is unsolicited', async () => {
+    useModsStore.setState({ switches: withMod(NO_SWITCHES, 'strict-schema', true) })
+    const classify = vi.fn<typeof window.api.llm.classifyHangout>()
+    api(classify)
+    useGameStore.getState().setPendingHangout('a', { description: 'Coffee at the cafe.' })
+    await finish(sendIncomingMessage('a', 'She sends a greeting'))
+    expect(classify).not.toHaveBeenCalled()
+    expect(thread().pendingHangout?.description).toBe('Coffee at the cafe.')
+    expect(thread().declined).toBeUndefined()
+  })
+
+  it('allows an evidenced new offer in a strict incoming turn without a player message', async () => {
+    useModsStore.setState({ switches: withMod(NO_SWITCHES, 'strict-schema', true) })
+    api(async () => ({ ok: true, data: {
+      playerAsked: false, characterOffered: true, description: 'Coffee at the cafe.', outcome: 'new_offer',
+      playerQuote: '', replyQuote: 'Hello!'
+    } }))
+    await finish(sendIncomingMessage('a', 'She offers coffee'))
+    expect(thread().pendingHangout?.description).toBe('Coffee at the cafe.')
+    expect(useBunnyboardStore.getState().armedHangout).toBeNull()
+    expect(thread().messages.some(m => m.sender === 'player')).toBe(false)
+  })
+
   it.each([true, false])('keeps incoming turns out of regeneration across save/load (regeneration initially %s)', async (on) => {
     api()
     useModsStore.setState({ switches: withMod(NO_SWITCHES, TEXT_REGENERATION_MOD, on) })

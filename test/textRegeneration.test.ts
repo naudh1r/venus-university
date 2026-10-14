@@ -72,12 +72,24 @@ describe('whole reply rules', () => {
 })
 
 function api(complete = vi.fn(async (_request: StructuredRequest): Promise<Result<TextingResponse>> => ({ ok: true, data: answer }))) {
-  const classify = vi.fn(async () => ({ ok: true as const, data: { playerAsked: false, characterOffered: false, description: '' } }))
+  const classify = vi.fn(async (_request: StructuredRequest) => ({ ok: true as const, data: { playerAsked: false, characterOffered: false, description: '' } }))
   const save = vi.fn(async () => ({ ok: true as const, data: useGameStore.getState().toGameSave() as GameSave }))
   stubApi({ llm: { completeTexting: complete, classifyHangout: classify }, saves: { autosave: save } })
   return { complete, classify, save }
 }
 describe('regeneration transaction', () => {
+  it('uses strict classifier request hooks without applying invitation side effects to a replacement', async () => {
+    await import('../src/renderer/modEntries/strict-schema')
+    useModsStore.setState({ switches: { on: { [TEXT_REGENERATION_MOD]: true, 'strict-schema': true }, options: {} } })
+    const { classify } = api()
+    await expect(regenerateTextReply('a', persistRegeneratedConversation)).resolves.toEqual({ replaced: 5, created: 2 })
+    expect(classify.mock.calls[0][0].schema.schema.properties).toHaveProperty('outcome')
+    expect(classify.mock.calls[0][0].minThinking).toBeUndefined()
+    expect(read().pendingHangout).toBeUndefined()
+    expect(read().declined).toBeUndefined()
+    expect(useBunnyboardStore.getState().armedHangout).toBeNull()
+  })
+
   it('saves the entire replacement before making it visible; read receipts do not cancel it', async () => {
     const { complete, save } = api()
     let finish!: (value: Result<TextingResponse>) => void

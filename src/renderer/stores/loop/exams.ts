@@ -20,6 +20,8 @@ import { endingGameOver, writeAutosave } from './saves'
 import { currentRun, loopState, runStale, type TurnSnapshot } from './state'
 import { queueLines, unpark } from './stream'
 import { failTurn } from './turn'
+import { captureQuizResult } from '../../mods/hooks'
+import { toAppError } from '@shared/errors'
 
 /** The exam. */
 
@@ -55,6 +57,7 @@ export async function startExam(
 
   let questions: QuizQuestion[] = []
   if (picked.length > 0) {
+    const finish = captureQuizResult({ className: entry.name, facts: picked })
     const result = await window.api.llm.generateQuiz<QuizDraft>(
       buildQuizPrompt(entry.name, picked)
     )
@@ -65,7 +68,12 @@ export async function startExam(
       failTurn(result.error, snapshot)
       return
     }
-    questions = normalizeQuiz(result.data, picked.length)
+    try {
+      questions = normalizeQuiz(finish(result.data) as QuizDraft, picked.length)
+    } catch (error) {
+      failTurn(toAppError(error, 'LLM_MALFORMED'), snapshot)
+      return
+    }
   }
 
   // The exam counts as attending the class: what `classOutcomeNow` reads, and what the score's

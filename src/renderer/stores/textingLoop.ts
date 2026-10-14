@@ -73,9 +73,10 @@ import {
 } from '@shared/types'
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
-import { afterDmReply } from '../mods/hooks'
+import { afterDmReply, captureHangoutResult, dmReplyTiming, hangoutAnswer, hangoutOfferAllowed, invitationResponseSlot, modRequest, type HangoutResolution } from '../mods/hooks'
 import { INCOMING_TEXTS } from '@shared/modEntries/incoming-texts'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
+import { toAppError } from '@shared/errors'
 import { createRetryGate } from './retryGate'
 import { createTextExtractor } from './textingStream'
 import { BOT_REPLY_MS, createTypingPacer, typingDelayFor, type TypingPacer } from './textingPace'
@@ -616,7 +617,16 @@ async function runReply(
 
   const blocked = data.blocked === true
 
-  // The verdict can arm a hangout and force the thread open, so it waits for her last text.
+  const stillCurrent = (): boolean => !entry.abandoned && !sceneActiveOf(useGameStore.getState())
+  const timing = dmReplyTiming()
+  // An unsolicited text does not answer or replace a standing invitation.
+  const canClassify = sent !== null || !invited
+  // Classify the complete reply while its bubbles are still being delivered; apply nothing yet.
+  let classification = timing.classifyDuringTyping && canClassify && !blocked && stillCurrent()
+    ? prepareHangoutClassification(character, conversation, sent, messages, invited, stillCurrent)
+    : null
+
+  // Deliver every text before mods attach any final reply bubbles.
   await pacer.drain()
   if (entry.abandoned) return
 
@@ -631,15 +641,20 @@ async function runReply(
     return
   }
 
-  afterDmReply({ charId, character, reply: data })
+  // Photo hooks resolve once their bubble is attached; image rendering continues separately.
+  const replyHooks = afterDmReply({ charId, character, reply: data })
+  if (timing.awaitReplyHooks) await replyHooks
+
+  if (!timing.classifyDuringTyping && canClassify && stillCurrent())
+    classification = prepareHangoutClassification(character, conversation, sent, messages, invited, stillCurrent)
 
   // A scene already owns the screen: the verdict could only be discarded.
-  if (sceneActiveOf(useGameStore.getState())) return
+  if (!stillCurrent() || !classification) return
 
-  // An unsolicited text is not an answer to a standing invitation.
-  if (!sent && invited) return
-  handleHangout(charId, await classifyHangout(character, conversation, sent, messages))
-  if (sent && invited) settleAnsweredInvitation(charId, invited.occasionId)
+  const decision = await classification()
+  if (!stillCurrent()) return
+  handleHangout(charId, decision.verdict)
+  if (sent && invited && !decision.settled) settleAnsweredInvitation(charId, invited.occasionId)
 }
 
 /** The same availability rule is used by the button and the command. */
@@ -690,11 +705,16 @@ export async function regenerateTextReply(charId: string, commit: (
     check()
     if (!result.ok) throw Error(result.error.message)
     const replacement = checkedTextReplacement(result.data)
-    const verdict = await window.api.llm.classifyHangout(buildHangoutClassifierPrompt(
+    const replyMessages = replacement.messages.map(text => chatMessage('contact', text))
+    const classificationRequest = modRequest('hangout-classifier', {
+      character, conversation: prior, sent: target.sent, replies: replyMessages, invited: prior.pendingHangout ?? null
+    }, buildHangoutClassifierPrompt(
       character.firstName, prior.messages, target.sent,
-      replacement.messages.map(text => chatMessage('contact', text)),
+      replyMessages,
       { date: game.date, time: game.time, weather: game.weather }
     ))
+    // Regeneration only checks for a changed plan; result hooks must not mutate live invitations.
+    const verdict = await window.api.llm.classifyHangout(classificationRequest)
     check()
     if (!verdict.ok) throw Error('The plan check failed. Your original reply was kept.')
     if (verdict.data.playerAsked !== false || verdict.data.characterOffered !== false) throw Error('The replacement would make a new hangout, or its plan check was unclear. Your original reply was kept; send a new message to make plans.')
@@ -786,38 +806,57 @@ export function abandonHangoutClassify(): void {
  * Asks the hangout classifier whether the exchange that just happened was somebody proposing to
  * meet up right now.
  */
-async function classifyHangout(
+function prepareHangoutClassification(
   character: Character,
   conversation: Conversation | undefined,
   sent: ChatMessage | null,
-  replies: readonly string[]
-): Promise<HangoutVerdict | null> {
-  if (replies.length === 0) return null
+  replies: readonly string[],
+  invited: Conversation['pendingHangout'] | null,
+  stillCurrent: () => boolean
+): () => Promise<HangoutResolution> {
+  if (replies.length === 0) return async () => ({ verdict: null, settled: false })
 
   const game = useGameStore.getState()
   // Built once, outside the loop: a retry re-sends the identical request.
-  const request = buildHangoutClassifierPrompt(
+  const replyMessages = replies.map((text) => chatMessage('contact', text))
+  const ctx = { character, conversation, sent, replies: replyMessages, invited }
+  const finish = captureHangoutResult(ctx)
+  const request = modRequest('hangout-classifier', ctx, buildHangoutClassifierPrompt(
     character.firstName,
     conversation?.messages ?? [],
     sent,
-    replies.map((text) => chatMessage('contact', text)),
+    replyMessages,
     { date: game.date, time: game.time, weather: game.weather }
-  )
+  ))
 
-  for (;;) {
-    const result = await window.api.llm.classifyHangout(request)
-    if (result.ok) {
-      const verdict = normalizeHangout(sent ? result.data : { ...result.data, playerAsked: false })
-      console.log(
-        `[hangout] = ${verdict ? `${verdict.initiatedBy}: ${verdict.description}` : 'no hangout'}`
-      )
-      return verdict
+  const call = async () => {
+    try {
+      return await window.api.llm.classifyHangout(request)
+    } catch (error) {
+      return { ok: false as const, error: toAppError(error) }
     }
-    // The reply was abandoned by a scene starting; there is nothing to judge.
-    if (result.error.code === 'CANCELLED') return null
+  }
+  // Catch transport failures immediately; the result and retry modal wait for the final bubble.
+  let pending = call()
+  return async () => {
+    for (;;) {
+      const result = await pending
+      if (!stillCurrent()) return { verdict: null, settled: true }
+      if (result.ok) {
+        const decision = finish(result.data, { verdict: normalizeHangout(sent ? result.data : { ...result.data, playerAsked: false }), settled: false })
+        const verdict = decision.verdict
+        console.log(
+          `[hangout] = ${verdict ? `${verdict.initiatedBy}: ${verdict.description}` : 'no hangout'}`
+        )
+        return decision
+      }
+      // The reply was abandoned by a scene starting; there is nothing to judge.
+      if (result.error.code === 'CANCELLED') return { verdict: null, settled: false }
 
-    console.warn('[texting] hangout classifier failed, waiting on the player:', result.error)
-    if (!(await hangoutGate.ask(result.error))) return null
+      console.warn('[texting] hangout classifier failed, waiting on the player:', result.error)
+      if (!(await hangoutGate.ask(result.error))) return { verdict: null, settled: false }
+      pending = call()
+    }
   }
 }
 
@@ -835,6 +874,7 @@ function handleHangout(charId: string, hangout: HangoutVerdict | null): void {
   }
 
   if (hangout.initiatedBy === 'contact') {
+    if (!hangoutOfferAllowed(charId)) return
     game.setPendingHangout(charId, { description: hangout.description })
     // Her texts have all drained by now, so the newest in the thread is the ask itself.
     game.markInvitation(charId)
@@ -896,6 +936,7 @@ export function answerHangout(charId: string, yes: boolean): void {
   const game = useGameStore.getState()
   const pending = game.bunnyboard.conversations[charId]?.pendingHangout
   if (!pending) return
+  if (hangoutAnswer({ charId, yes, pending })) return
 
   if (yes) {
     game.setPendingHangout(charId, null)
@@ -1224,7 +1265,7 @@ export function pickOccasionAsker(
     // Her own backoff still counts; the roster's spell of quiet does not.
     const declined = conversations[charId]?.declined ?? 0
     const gap = declineCooldownSlots(declined)
-    if (declined > 0 && !askCooldownOver(lastInviteSlotOf(conversations[charId]), target, gap)) {
+    if (declined > 0 && !askCooldownOver(invitationResponseSlot(conversations[charId], lastInviteSlotOf(conversations[charId])), target, gap)) {
       continue
     }
     candidates.push({
@@ -1326,7 +1367,7 @@ export function pickSlotAskers(
     if (charUnavailableNow(charId, day, half)) continue
     // She does not ask twice in a row, and waits longer each time he does not come.
     const gap = declineCooldownSlots(conversations[charId]?.declined ?? 0)
-    if (!askCooldownOver(lastInviteSlotOf(conversations[charId]), target, gap)) continue
+    if (!askCooldownOver(invitationResponseSlot(conversations[charId], lastInviteSlotOf(conversations[charId])), target, gap)) continue
     const chance = askChanceFor(charId, day, view, modulation)
     if (chance > 0) candidates.push({ charId, chance })
   }
@@ -1386,11 +1427,13 @@ export function deliverSlotHangouts(
     // Nor somebody who is not in the city this week.
     if (charAwayNow(charId)) continue
 
+    const reminder = plannedWith(charId, game.date, game.time) !== null
+    if (!reminder && !hangoutOfferAllowed(charId)) continue
+
     // Two people who agreed to meet up have exchanged numbers.
     addContact(charId)
     deliver(charId, chatMessage('contact', text))
     // A reminder about a plan already on the calendar is not an invitation and starts no cooldown.
-    const reminder = plannedWith(charId, game.date, game.time) !== null
     if (!reminder) useGameStore.getState().markInvitation(charId)
     useGameStore.getState().setPendingHangout(charId, {
       description,
