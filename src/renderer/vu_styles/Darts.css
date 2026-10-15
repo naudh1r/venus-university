@@ -1,0 +1,146 @@
+/* Double or Nothing: the dartboard on a canvas beside the score, whose throw it is and the last
+   visit told. Drawn on the mini-game board. */
+
+.vu-darts {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 34px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* The board: the canvas it is painted on, with the surface that takes the pointer laid over it. */
+.vu-darts-board {
+  position: relative;
+  flex: none;
+  width: 440px;
+  height: 440px;
+}
+
+.vu-darts-canvas,
+.vu-darts-hit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.vu-darts-hit {
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* Her darts or one in the air: the board is not the reader's to aim at. */
+.vu-darts-hit[data-waiting] {
+  cursor: default;
+}
+
+.vu-darts-side {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+/* The score: a plate for each side, whoever is up in full ink with an accent bar. */
+.vu-darts-scores {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+}
+
+.vu-darts-scores > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 8px;
+  border-radius: 14px;
+  background: var(--vu-recessed);
+  box-shadow: inset 0 3px 0 transparent;
+}
+
+.vu-darts-scores > div[data-up] {
+  background: var(--vu-tint);
+  box-shadow: inset 0 3px 0 var(--vu-accent);
+}
+
+.vu-darts-scores dt {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--vu-text-muted);
+  font: 400 19px var(--font-display);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-darts-scores > div[data-up] dt {
+  color: var(--vu-text);
+}
+
+.vu-darts-scores dd {
+  margin: 0;
+  color: var(--vu-text);
+  font: 700 44px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.vu-darts-round {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 700 13px var(--font-mono);
+}
+
+/* Whose throw it is, and the three darts of the visit: filled once thrown. */
+.vu-darts-up {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.vu-darts-prompt {
+  color: var(--vu-text);
+  font: 600 16px var(--font-body);
+}
+
+.vu-darts-marks {
+  display: flex;
+  gap: 6px;
+}
+
+.vu-darts-mark {
+  width: 42px;
+  height: 14px;
+  object-fit: contain;
+}
+
+.vu-darts-mark[data-thrown] {
+  opacity: 0.25;
+}
+
+.vu-darts-up[data-waiting] {
+  opacity: 0.45;
+}
+
+.vu-darts-told {
+  max-width: 100%;
+  min-height: 3em;
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-body);
+  text-align: center;
+}
+
+/* The last visit, or the result, in full ink: it stays until the next. */
+.vu-darts-told[data-told] {
+  color: var(--vu-text);
+  font-size: 14px;
+  font-weight: 600;
+}
