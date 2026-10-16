@@ -121,10 +121,13 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
       for (const item of plan) if (spoken.has(item.throwId)) { fields[`dart${item.throwId}Line`] = 'text'; fields[`dart${item.throwId}Expression`] = EXPRESSIONS }
       if (chat === 'lots' && !plan.at(-1)?.outcome) { fields.outro = 'text'; fields.outroExpression = EXPRESSIONS }
       const got = await latest.current.play.round({ fields, brief: [
-        `Write one cached reaction script for ${partner.name}, the reader's cooperative darts teammate. The engine already decided every landing below. Never choose, alter, or reveal a future landing early.`,
+        `Write one cached, natural in-character reaction script for ${partner.name}, the reader's cooperative darts teammate. Continue the relationship and mood of the current scene: this is companion banter, not sports commentary. The engine already decided every landing below. Never choose, alter, or reveal a future landing early.`,
         `The reader just scored ${lastTurn(next)?.points ?? 0}; currentScore ${summary(next).total}, remainingBefore ${summary(next).balance}.`,
         ...plan.map(i => `Dart ${i.throwId}: ${i.hit.label}, ${i.hit.points} raw points, remainingBefore ${i.balanceBefore}, remainingAfter ${i.balanceAfter}, bust ${i.bust}, outcome ${i.outcome ?? 'unfinished'}.`),
-        'intro: before her visit, acknowledge the reader’s score and how much remains. Each dartNLine reacts AFTER that exact dart lands, without knowledge of any later dart. outro: pass back and mention the final remaining balance. No match-ending reaction; the scene handles it.',
+        'Use the score facts to understand the moment, but do not mechanically report numbers, hit labels, or the remaining score already visible on screen. Mention a number only when it sounds natural and adds something.',
+        'Vary the beats across the script. Depending on her personality, relationship and the current scene, she may tease, encourage, flirt, boast, joke, show nerves, recover confidence, talk light strategy, or react physically/emotionally. Do not force every kind of banter and do not invent shared history.',
+        'intro happens before her visit: respond naturally to the reader’s performance and take the handover. Each dartNLine reacts AFTER that exact dart lands, without knowledge of any later dart. outro passes the turn back naturally; mentioning the final balance is optional. No match-ending reaction; the scene handles it.',
+        'Avoid announcer language, repeated sentence structures, and generic lines that could belong to any character. Keep continuity with the supplied character sheet, relationship, recent dialogue and scene tone.',
         'Each spoken line: at most 25 words and 200 characters. Each Expression field describes the same line. Only use aroused if the actual scene independently warrants it; scoring well is not a reason.'
       ].join('\n') })
       if (!alive.current || token !== generation.current) return
