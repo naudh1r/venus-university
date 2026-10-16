@@ -42,6 +42,8 @@ export interface Opponent {
   skill: 1 | 2 | 3 | 4 | 5
   /** How she plays, in a few words; empty where nothing was judged. */
   style: string
+  /** Optional game-specific signed tendencies, from -2 to 2. */
+  biases?: Readonly<Record<string, number>>
 }
 
 export interface GamePlay {

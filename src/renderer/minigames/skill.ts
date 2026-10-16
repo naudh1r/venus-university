@@ -14,12 +14,19 @@ export interface Skill {
   level: SkillLevel
   /** How she plays, in a few words. */
   style: string
+  /** Game-specific signed tendencies, judged with the same call. */
+  biases: Record<string, number>
 }
 
 /** What she plays at when nothing could be judged. */
-const MIDDLING: Skill = { level: 3, style: '' }
+const MIDDLING: Skill = { level: 3, style: '', biases: {} }
 
 function request(character: Character, game: MiniGameDef): StructuredRequest {
+  const axes = game.skillAxes ?? []
+  const biasFields = Object.fromEntries(axes.map((axis) => [
+    `bias_${axis.id}`,
+    { type: 'string', enum: ['-2', '-1', '0', '1', '2'] }
+  ]))
   return {
     system: [
       'You judge how good a fictional character would be at a game, from who she is.',
@@ -36,27 +43,33 @@ function request(character: Character, game: MiniGameDef): StructuredRequest {
       game.skillBrief,
       '',
       '"skill": how well she plays, from "1" (hopeless) to "5" (hard to beat). Most people are a "2" or a "3"; give a "5" only where who she is really earns it.',
-      '"style": how she plays, in under ten words, as a note on her at the table.'
+      '"style": how she plays, in under ten words, as a note on her at the table.',
+      ...axes.map((axis) => `"bias_${axis.id}": ${axis.label}, from "-2" (clear weakness) through "0" (ordinary for her overall skill) to "2" (clear strength). ${axis.brief}`)
     ].join('\n'),
-    schema: objectSchema('minigame_skill', ['skill', 'style'], {
+    schema: objectSchema('minigame_skill', ['skill', 'style', ...Object.keys(biasFields)], {
       skill: { type: 'string', enum: ['1', '2', '3', '4', '5'] },
-      style: { type: 'string' }
+      style: { type: 'string' },
+      ...biasFields
     })
   }
 }
 
-function keyOf(charId: string, gameId: string): string {
+function keyOf(charId: string, game: MiniGameDef): string {
   const playthrough = useGameStore.getState().playthroughId ?? 'none'
-  return `vu-minigames:skill:${playthrough}:${charId}:${gameId}`
+  const axes = game.skillAxes?.map((axis) => axis.id).join('-')
+  return `vu-minigames:skill:${playthrough}:${charId}:${game.id}${axes ? `:axes-v1-${axes}` : ''}`
 }
 
-function stored(key: string): Skill | null {
+function stored(key: string, axes: readonly string[]): Skill | null {
   try {
     const raw = localStorage.getItem(key)
     if (!raw) return null
-    const { level, style } = JSON.parse(raw) as Partial<Skill>
+    const parsed = JSON.parse(raw) as Partial<Skill>
+    const { level, style } = parsed
     if (typeof level !== 'number' || level < 1 || level > 5) return null
-    return { level: Math.round(level) as SkillLevel, style: typeof style === 'string' ? style : '' }
+    const biases = Object.fromEntries(axes.map((id) => [id, Math.max(-2, Math.min(2, Math.round(Number(parsed.biases?.[id]))))]))
+    if (Object.values(biases).some((bias) => !Number.isFinite(bias))) return null
+    return { level: Math.round(level) as SkillLevel, style: typeof style === 'string' ? style : '', biases }
   } catch {
     return null
   }
@@ -70,8 +83,9 @@ const judging = new Map<string, Promise<Skill>>()
  * an answer that is not one, leaves her middling for this game and is asked again the next time.
  */
 export function skillOf(character: Character, game: MiniGameDef): Promise<Skill> {
-  const key = keyOf(character.charId, game.id)
-  const kept = stored(key)
+  const axes = game.skillAxes?.map((axis) => axis.id) ?? []
+  const key = keyOf(character.charId, game)
+  const kept = stored(key, axes)
   if (kept) return Promise.resolve(kept)
   const running = judging.get(key)
   if (running) return running
@@ -86,9 +100,12 @@ export function skillOf(character: Character, game: MiniGameDef): Promise<Skill>
       const { skill, style } = result.data as { skill?: unknown; style?: unknown }
       const level = Number(skill)
       if (!Number.isInteger(level) || level < 1 || level > 5) return MIDDLING
+      const biases = Object.fromEntries(axes.map((id) => [id, Number((result.data as Record<string, unknown>)[`bias_${id}`])]))
+      if (Object.values(biases).some((bias) => !Number.isInteger(bias) || bias < -2 || bias > 2)) return MIDDLING
       const found: Skill = {
         level: level as SkillLevel,
-        style: typeof style === 'string' ? style.trim() : ''
+        style: typeof style === 'string' ? style.trim() : '',
+        biases
       }
       try {
         localStorage.setItem(key, JSON.stringify(found))

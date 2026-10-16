@@ -1,45 +1,55 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { motion } from 'motion/react'
-import { gestures, lift, press, useAway, useReducedMotion, useEffectsGain, type GamePlay, type TableExpression } from '../kit'
-import { newMatch, summary, throwDart, planPartnerTurn, applyPlannedThrow, scoreHit, aimEllipse, movingDot, traitsFor, lastTurn, type Match, type Point, type Ellipse, type Flight, type Impact, type PlannedThrow } from '@shared/minigameRules/darts'
+import { gestures, lift, press, useAway, useReducedMotion, useEffectsGain, type GamePlay, type Opponent, type TableExpression } from '../kit'
+import { aimEllipse, movingDot, scoreHit, traitsFor, type Ellipse, type Flight, type Impact, type Point } from '@shared/minigameRules/darts'
+import { applySessionPlan, newSession, planNpcVisit, sessionSummary, sessionThrow, type DartsMode, type DartsSession, type SessionPlanItem } from '@shared/minigameRules/dartsSession'
 import { Board } from './dartsBoard'
 import { DartsAudio } from './dartsAudio'
 import '../../vu_styles/Darts.css'
 
-type Phase = 'player' | 'preparing' | 'handover' | 'partner' | 'my-turn' | 'finished'
+type Phase = 'player' | 'preparing' | 'handover' | 'partners' | 'my-turn' | 'finished'
 type Line = { text: string; expression: TableExpression }
-type Script = { intro: Line; outro: Line; reactions: Record<number, Line> }
+type VisitScript = { seat: Opponent; intro: Line; outro: Line; reactions: Record<number, Line>; spoken: Set<number>; plan: SessionPlanItem[] }
 const EXPRESSIONS: readonly TableExpression[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'embarrassed', 'aroused']
 const dartIcon = new URL('../../../assets/darts/dart-hud-side.png', import.meta.url).href
 
-/** Facts carried to the narrator on completion or on walking away. */
-function accountOf(match: Match, name: string): string[] {
-  const s = summary(match)
+function pointsOf(session: DartsSession, seatId: string): number {
+  return sessionSummary(session).visits.filter((visit) => visit.seatId === seatId).reduce((sum, visit) => sum + visit.points, 0)
+}
+
+function accountOf(session: DartsSession): string[] {
+  const state = sessionSummary(session)
   return [
-    `The reader and ${name} are teammates against the house. Starting countdown ${match.target}, five alternating visits.`,
-    ...(s.visits ?? []).map(v => `${v.actor === 'you' ? 'The reader' : name}, visit ${v.turn + 1}: ${v.darts.map(d => scoreHit(d.x, d.y).label).join(', ')}; ${v.points} credited${v.bust ? ', bust restored the visit opening score' : ''}; ${v.balance} remaining.`),
-    `Credited ${s.total}: reader ${s.you}, partner ${s.partner}. Remaining ${s.balance}. ${!s.done ? 'Unfinished: nobody has won.' : s.outcome === 'win' ? 'Both beat the house by reaching exactly zero.' : 'Both lost to the house after five visits with points remaining.'}`
+    `${session.mode === 'house' ? 'Cooperative Beat the House' : '301 Rival Match'} with ${session.seats.map((seat) => seat.name).join(', ')}.`,
+    ...state.visits.map((visit) => `${session.seats.find((seat) => seat.id === visit.seatId)?.name}, visit ${visit.index + 1}: ${visit.darts.map((dart) => scoreHit(dart.x, dart.y).label).join(', ')}; ${visit.points} credited${visit.bust ? ', bust restored the visit opening score' : ''}; ${visit.balance} remaining.`),
+    session.mode === 'house'
+      ? `${state.teamBalance} remains from ${session.target}; ${state.outcome === 'won' ? 'the team beat the house' : state.done ? 'the house won' : 'the match is unfinished'}.`
+      : `${session.seats.map((seat) => `${seat.name}: ${state.balances[seat.id]} remaining`).join('; ')}. ${state.done ? state.winnerIds.length === 1 ? `${session.seats.find((seat) => seat.id === state.winnerIds[0])?.name} won.` : 'The match ended in a draw.' : 'The match is unfinished.'}`
   ]
 }
 
-/** The fallback reacts to the same fixed results the model is given. */
-function fallbackScript(match: Match, plan: PlannedThrow[]): Script {
+function fallback(session: DartsSession, seat: Opponent, plan: SessionPlanItem[]): VisitScript {
   return {
-    intro: { text: `You got ${lastTurn(match)?.points ?? 0}. We've got ${summary(match).balance} left. My turn.`, expression: 'neutral' },
-    reactions: Object.fromEntries(plan.map(item => [item.throwId, {
-      text: item.bust ? 'Too much. That visit is gone.' : item.hit.kind === 'miss' ? 'Missed it. Come on, focus.' : item.hit.points >= 40 ? 'There we go!' : 'Every point helps.',
+    seat, plan, spoken: new Set(),
+    intro: { text: 'All right. Let me take this one.', expression: 'neutral' },
+    reactions: Object.fromEntries(plan.map((item) => [item.throwId, {
+      text: item.bust ? 'Too much. That visit is gone.' : item.hit.kind === 'miss' ? 'That got away from me.' : item.hit.points >= 40 ? 'There we go!' : 'I can work with that.',
       expression: item.bust || item.hit.kind === 'miss' ? 'sad' : item.hit.points >= 40 ? 'happy' : 'neutral'
     }])),
-    outro: { text: `${plan.at(-1)?.balanceAfter ?? summary(match).balance} left. Back to you.`, expression: 'neutral' }
+    outro: { text: session.mode === 'house' ? `${plan.at(-1)?.balanceAfter ?? session.target} left. Keep us steady.` : 'Your turn. Show me what you have.', expression: 'neutral' }
   }
 }
 
-/** A full-stage board using the framework's NPCs, native dialogue, AI bridge and result flow. */
 export function Darts({ play }: { play: GamePlay }): JSX.Element {
-  const partner = play.opponents[0]
-  const [match, setMatch] = useState<Match>(() => ({
-    ...newMatch({ id: crypto.randomUUID(), seed: crypto.getRandomValues(new Uint32Array(1))[0], mode: [301, 501, 701][(play.options['darts-start'] ?? 2) - 1] }),
-    partnerTraits: traitsFor(partner?.skill ?? 3, partner?.charId ?? 'partner')
+  const opponents = play.opponents.slice(0, 2)
+  const mode: DartsMode = play.options['darts-mode'] === 2 ? 'rival' : 'house'
+  const target = mode === 'rival' ? 301 : [301, 501, 701][(play.options['darts-start'] ?? 2) - 1]
+  const [session, setSession] = useState<DartsSession>(() => newSession({
+    id: crypto.randomUUID(), seed: crypto.getRandomValues(new Uint32Array(1))[0], mode, target,
+    seats: [
+      { id: 'reader', name: 'You', kind: 'reader' },
+      ...opponents.map((girl) => ({ id: girl.charId, name: girl.name, kind: 'npc' as const, traits: traitsFor(girl.skill, girl.charId, girl.biases) }))
+    ]
   }))
   const [phase, setPhase] = useState<Phase>('player')
   const [busy, setBusy] = useState(false)
@@ -48,126 +58,136 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
   const [guide, setGuide] = useState(false)
   const [muted, setMuted] = useState(false)
   const [status, setStatus] = useState('Your turn')
-  const [displayedScore, setDisplayedScore] = useState(match.target)
+  const [displayedScore, setDisplayedScore] = useState(target)
   const canvas = useRef<HTMLCanvasElement>(null), board = useRef<Board | null>(null), guideCanvas = useRef<HTMLCanvasElement>(null)
   const aim = useRef<Point>({ x: 0, y: -.6 })
   const hold = useRef<{ ellipse: Ellipse; time: number; pointer: number | null } | null>(null)
-  const pending = useRef<{ plan: PlannedThrow[]; script: Script; spoken: Set<number> } | null>(null)
+  const pending = useRef<VisitScript[] | null>(null)
   const alive = useRef(true), generation = useRef(0), locked = useRef(false), finished = useRef(false)
   const timers = useRef(new Map<ReturnType<typeof setTimeout>, () => void>())
   const sound = useRef<DartsAudio | null>(null)
   const away = useAway(), reduced = useReducedMotion() ?? false, effectsGain = useEffectsGain()
-  const latest = useRef({ play, match, phase, flight, impact, guide, away, reduced })
-  latest.current = { play, match, phase, flight, impact, guide, away, reduced }
+  const latest = useRef({ play, session, phase, flight, impact, guide, away, reduced })
+  latest.current = { play, session, phase, flight, impact, guide, away, reduced }
 
-  /** Publish the ledger before any animation or request can yield. */
-  function publish(next: Match): void {
-    latest.current.match = next
-    setMatch(next)
-    const s = summary(next), p = latest.current.play
-    p.situation(`Cooperative darts: the reader and ${partner.name} are teammates. ${s.balance} of ${next.target} left, visit ${Math.min(5, s.turn! + 1)} of five; ${s.actor === 'you' ? 'the reader' : partner.name} throws. Partner traits: accuracy ${next.partnerTraits.accuracy}, consistency ${next.partnerTraits.consistency}, composure ${next.partnerTraits.composure}.`)
-    p.progress(accountOf(next, partner.name))
+  const seatName = (from: DartsSession, id: string): string => from.seats.find((seat) => seat.id === id)?.name ?? id
+
+  function publish(next: DartsSession): void {
+    latest.current.session = next; setSession(next)
+    const state = sessionSummary(next)
+    const scores = next.mode === 'house' ? `${state.teamBalance} of ${next.target} left` : next.seats.map((seat) => `${seat.name} ${state.balances[seat.id]}`).join(', ')
+    latest.current.play.situation(`${next.mode === 'house' ? 'Cooperative Beat the House' : '301 Rival Match'} darts. ${scores}. ${state.done ? 'The match is complete.' : `${seatName(next, state.currentSeatId)} throws next.`}`)
+    latest.current.play.progress(accountOf(next))
   }
 
-  /** A pause resolves false when the sitting is closed. */
   function pause(ms: number, token: number): Promise<boolean> {
     if (!alive.current || token !== generation.current) return Promise.resolve(false)
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const timer = setTimeout(() => { timers.current.delete(timer); resolve(alive.current && token === generation.current) }, ms)
       timers.current.set(timer, () => resolve(false))
     })
   }
 
-  /** Automatic throws wait while the player is looking elsewhere. */
   async function present(token: number): Promise<boolean> {
     while (latest.current.away) if (!(await pause(150, token))) return false
     return alive.current && token === generation.current
   }
 
-  /** Cached words and their expression use the native scene's pacing, including overflow. */
-  async function speak(line: Line, token: number): Promise<boolean> {
+  async function speak(seat: Opponent, line: Line, token: number): Promise<boolean> {
     if (!alive.current || token !== generation.current || !line.text) return false
-    await latest.current.play.speak(partner.charId, line.text, line.expression)
+    await latest.current.play.speak(seat.charId, line.text, line.expression)
     if (!alive.current || token !== generation.current) return false
     await latest.current.play.read()
     return alive.current && token === generation.current
   }
 
-  /** The final character reaction belongs to the framework's result continuation. */
-  async function finish(next: Match, token: number): Promise<void> {
+  async function finish(next: DartsSession, token: number): Promise<void> {
     if (finished.current || !alive.current || token !== generation.current) return
-    finished.current = true
-    setPhase('finished')
-    const s = summary(next), won = s.outcome === 'win'
-    setStatus(won ? 'House beaten. Together.' : `${s.balance} left. The house wins.`)
-    sound.current?.play(won ? 'win' : 'loss')
+    finished.current = true; setPhase('finished')
+    const state = sessionSummary(next), winner = state.winnerIds.length === 1 ? seatName(next, state.winnerIds[0]) : null
+    const won = state.outcome === 'won'
+    setStatus(next.mode === 'house' ? won ? 'House beaten. Together.' : `${state.teamBalance} left. The house wins.` : winner ? `${winner} wins.` : 'Match drawn.')
+    sound.current?.play(won ? 'win' : state.outcome === 'draw' ? 'impact' : 'loss')
     if (!(await pause(reduced ? 200 : 700, token))) return
-    latest.current.play.finish({ outcome: won ? 'won' : 'lost',
-      summary: won ? `You and ${partner.name} beat the house at darts, checking out ${next.target} together in ${s.completedTurns} visits.` : `You and ${partner.name} lose to the house at darts, leaving ${s.balance} from a ${next.target} start after five visits.`,
-      account: accountOf(next, partner.name) })
+    latest.current.play.finish({
+      outcome: state.outcome ?? 'draw',
+      summary: next.mode === 'house'
+        ? won ? `You and ${opponents.map((girl) => girl.name).join(' and ')} beat the house at darts.` : `Your team lost to the house with ${state.teamBalance} remaining.`
+        : winner ? `${winner} won the 301 Rival Match against ${next.seats.filter((seat) => seat.name !== winner).map((seat) => seat.name).join(' and ')}.` : 'The 301 Rival Match ended in a draw.',
+      account: accountOf(next)
+    })
   }
 
-  /** Plan the NPC visit once, then ask only for dialogue and expressions keyed to those hits. */
-  async function prepare(next: Match, token: number): Promise<void> {
-    const plan = planPartnerTurn(next), script = fallbackScript(next, plan)
-    publish({ ...next, partnerPlan: { start: next.throws.length, seed: next.seed, strategy: next.strategy, items: plan } })
-    const chat = latest.current.play.chattiness
-    const noteworthy = plan.find(i => !i.outcome && (i.bust || i.hit.kind === 'miss' || i.hit.points >= 40)) ?? plan.find(i => !i.outcome)
-    const spoken = new Set(chat === 'lots' ? plan.filter(i => !i.outcome).map(i => i.throwId) : chat === 'some' && noteworthy ? [noteworthy.throwId] : [])
-    pending.current = { plan, script, spoken }
-    setPhase('preparing'); setStatus(chat === 'quiet' ? 'Partner ready' : `${partner.name} is thinking…`)
-    if (chat !== 'quiet') {
-      const fields: Record<string, 'text' | readonly string[]> = { intro: 'text', introExpression: EXPRESSIONS }
-      for (const item of plan) if (spoken.has(item.throwId)) { fields[`dart${item.throwId}Line`] = 'text'; fields[`dart${item.throwId}Expression`] = EXPRESSIONS }
-      if (chat === 'lots' && !plan.at(-1)?.outcome) { fields.outro = 'text'; fields.outroExpression = EXPRESSIONS }
+  async function prepare(next: DartsSession, token: number): Promise<void> {
+    let preview = next
+    const scripts: VisitScript[] = []
+    while (!sessionSummary(preview).done && sessionSummary(preview).currentSeatId !== 'reader') {
+      const seatId = sessionSummary(preview).currentSeatId
+      const seat = opponents.find((girl) => girl.charId === seatId)
+      if (!seat) throw Error('Darts speaker is missing')
+      const plan = planNpcVisit(preview, seatId), script = fallback(preview, seat, plan)
+      const noteworthy = plan.find((item) => !item.outcome && (item.bust || item.hit.kind === 'miss' || item.hit.points >= 40)) ?? plan.find((item) => !item.outcome)
+      script.spoken = new Set(play.chattiness === 'lots' ? plan.filter((item) => !item.outcome).map((item) => item.throwId) : play.chattiness === 'some' && noteworthy ? [noteworthy.throwId] : [])
+      scripts.push(script)
+      for (const item of plan) preview = applySessionPlan(preview, item)
+    }
+    pending.current = scripts
+    setPhase('preparing'); setStatus(play.chattiness === 'quiet' ? 'Partners ready' : `${scripts.map((script) => script.seat.name).join(' and ')} are thinking…`)
+    if (play.chattiness !== 'quiet' && scripts.length) {
+      const fields: Record<string, 'text' | readonly string[]> = {}, facts: string[] = []
+      for (let index = 0; index < scripts.length; index++) {
+        const script = scripts[index], prefix = `p${index + 1}`
+        fields[`${prefix}Intro`] = 'text'; fields[`${prefix}IntroExpression`] = EXPRESSIONS
+        for (const item of script.plan) if (script.spoken.has(item.throwId)) { fields[`${prefix}Dart${item.throwId}Line`] = 'text'; fields[`${prefix}Dart${item.throwId}Expression`] = EXPRESSIONS }
+        if (play.chattiness === 'lots' && !script.plan.at(-1)?.outcome) { fields[`${prefix}Outro`] = 'text'; fields[`${prefix}OutroExpression`] = EXPRESSIONS }
+        facts.push(`${prefix} speaker is ${script.seat.name} (${script.seat.charId}).`, ...script.plan.map((item) => `${prefix} dart ${item.throwId}: ${item.hit.label}, ${item.hit.points} points, remaining ${item.balanceBefore} to ${item.balanceAfter}, bust ${item.bust}, outcome ${item.outcome ?? 'unfinished'}.`))
+      }
+      const before = sessionSummary(next)
       const got = await latest.current.play.round({ fields, brief: [
-        `Write one cached, natural in-character reaction script for ${partner.name}, the reader's cooperative darts teammate. Continue the relationship and mood of the current scene: this is companion banter, not sports commentary. The engine already decided every landing below. Never choose, alter, or reveal a future landing early.`,
-        `The reader just scored ${lastTurn(next)?.points ?? 0}; currentScore ${summary(next).total}, remainingBefore ${summary(next).balance}.`,
-        ...plan.map(i => `Dart ${i.throwId}: ${i.hit.label}, ${i.hit.points} raw points, remainingBefore ${i.balanceBefore}, remainingAfter ${i.balanceAfter}, bust ${i.bust}, outcome ${i.outcome ?? 'unfinished'}.`),
-        'Use the score facts to understand the moment, but do not mechanically report numbers, hit labels, or the remaining score already visible on screen. Mention a number only when it sounds natural and adds something.',
-        'Vary the beats across the script. Depending on her personality, relationship and the current scene, she may tease, encourage, flirt, boast, joke, show nerves, recover confidence, talk light strategy, or react physically/emotionally. Do not force every kind of banter and do not invent shared history.',
-        'intro happens before her visit: respond naturally to the reader’s performance and take the handover. Each dartNLine reacts AFTER that exact dart lands, without knowledge of any later dart. outro passes the turn back naturally; mentioning the final balance is optional. No match-ending reaction; the scene handles it.',
-        'Avoid announcer language, repeated sentence structures, and generic lines that could belong to any character. Keep continuity with the supplied character sheet, relationship, recent dialogue and scene tone.',
-        'Each spoken line: at most 25 words and 200 characters. Each Expression field describes the same line. Only use aroused if the actual scene independently warrants it; scoring well is not a reason.'
+        `Write one chronological, cached companion script for ${scripts.map((script) => script.seat.name).join(' and ')} playing darts with the reader. This is character banter, not sports commentary.`,
+        `Mode ${next.mode}; reader's last visit scored ${before.visits.at(-1)?.points ?? 0}. Engine results below are final. Never alter a landing or reveal a later result early.`,
+        ...facts,
+        'Each pNIntro occurs immediately before that named speaker begins. Each Dart line occurs only after its exact landing. Each Outro passes naturally to the next person.',
+        'Use scores only to understand the moment. Do not mechanically repeat numbers or hit labels already on screen. Vary teasing, encouragement, rivalry, flirting, jokes, nerves, confidence or light strategy according to personality, relationships and current scene. Do not force a beat or invent shared history.',
+        'Keep each speaker distinct and never put one character’s words or expression on another. At most 25 words and 200 characters per line. Only use aroused when the surrounding scene independently warrants it.'
       ].join('\n') })
       if (!alive.current || token !== generation.current) return
-      if (got) {
-        const read = (key: string, fallback: Line): Line => {
+      if (got) for (let index = 0; index < scripts.length; index++) {
+        const script = scripts[index], prefix = `p${index + 1}`
+        const read = (key: string, fallbackLine: Line): Line => {
           const text = got[key]?.trim(), expression = got[`${key.replace(/Line$/, '')}Expression`] as TableExpression
-          return text && text.length <= 200 && EXPRESSIONS.includes(expression) ? { text, expression } : fallback
+          return text && text.length <= 200 && EXPRESSIONS.includes(expression) ? { text, expression } : fallbackLine
         }
-        script.intro = read('intro', script.intro); script.outro = read('outro', script.outro)
-        for (const item of plan) if (spoken.has(item.throwId)) script.reactions[item.throwId] = read(`dart${item.throwId}Line`, script.reactions[item.throwId])
+        script.intro = read(`${prefix}Intro`, script.intro); script.outro = read(`${prefix}Outro`, script.outro)
+        for (const item of script.plan) if (script.spoken.has(item.throwId)) script.reactions[item.throwId] = read(`${prefix}Dart${item.throwId}Line`, script.reactions[item.throwId])
       }
-      if (!(await speak(script.intro, token))) return
+      if (!(await speak(scripts[0].seat, scripts[0].intro, token))) return
     }
     if (!alive.current || token !== generation.current) return
-    setStatus(`${partner.name} is ready`); setPhase('handover')
+    setStatus(`${scripts[0]?.seat.name ?? 'Partners'} ready`); setPhase('handover')
   }
 
-  /** Flight, immediate score/LED impact, then a short delay before any dialogue. */
-  async function land(target: Point, token: number, item?: PlannedThrow): Promise<Match | null> {
+  async function land(targetPoint: Point, token: number, item?: SessionPlanItem): Promise<DartsSession | null> {
     if (!(await present(token))) return null
-    const next = item ? applyPlannedThrow(latest.current.match, item) : throwDart(latest.current.match, target, 0)
+    const next = item ? applySessionPlan(latest.current.session, item) : sessionThrow(latest.current.session, targetPoint, 0)
     const dart = next.throws.at(-1)!
     publish(next)
-    const duration = latest.current.reduced ? 100 : 430, f = { dart, duration, time: performance.now() }
-    latest.current.flight = f; setFlight(f); sound.current?.play('throw')
+    const duration = latest.current.reduced ? 100 : 430, currentFlight: Flight = { dart, duration, time: performance.now() }
+    latest.current.flight = currentFlight; setFlight(currentFlight); sound.current?.play('throw')
     if (!(await pause(duration, token))) return null
-    const hit = { dart, time: performance.now() }, scored = scoreHit(dart.x, dart.y)
-    latest.current.flight = null; latest.current.impact = hit; setFlight(null); setImpact(hit)
-    setStatus(`${scored.label} · ${scored.points}${lastTurn(next)?.bust ? ' · BUST' : ''}`); sound.current?.play(scored.kind)
+    const currentImpact: Impact = { dart, time: performance.now() }, scored = scoreHit(dart.x, dart.y)
+    latest.current.flight = null; latest.current.impact = currentImpact; setFlight(null); setImpact(currentImpact)
+    setStatus(`${scored.label} · ${scored.points}${sessionSummary(next).visits.at(-1)?.bust ? ' · BUST' : ''}`); sound.current?.play(scored.kind)
     if (!(await pause(dart.actor === 'partner' ? 350 : reduced ? 180 : 650, token))) return null
-    if (summary(next).done) { await finish(next, token); return next }
+    if (sessionSummary(next).done) { await finish(next, token); return next }
     if (latest.current.play.playByPlay) {
-      await latest.current.play.narrate(`${dart.actor === 'you' ? 'You hit' : `${partner.name} hits`} ${scored.label}: ${scored.points}.${lastTurn(next)?.bust ? ' Bust: the visit is cancelled.' : ''} ${summary(next).balance} remaining.`)
+      await latest.current.play.narrate(`${seatName(next, dart.seatId)} hits ${scored.label}: ${scored.points}.${sessionSummary(next).visits.at(-1)?.bust ? ' Bust: the visit is cancelled.' : ''}`)
       if (!alive.current || token !== generation.current) return null
       await latest.current.play.read()
     }
     return alive.current && token === generation.current ? next : null
   }
 
-  /** Serialize releases and visits; an uncertain ledger is never rerolled after a failure. */
   async function run(work: (token: number) => Promise<void>): Promise<void> {
     if (locked.current || finished.current || !alive.current) return
     locked.current = true; setBusy(true)
@@ -177,40 +197,47 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
     finally { if (alive.current && token === generation.current) { locked.current = false; setBusy(false) } }
   }
 
-  /** Release exactly at the moving dot, using board-normalized coordinates. */
   function release(): void {
     const held = hold.current; hold.current = null
     const state = latest.current
     if (!held || locked.current || state.phase !== 'player' || state.away || state.guide) return
-    const target = movingDot(held.ellipse, state.match.seed, state.match.throws.length, (performance.now() - held.time) / 1000)
+    const targetPoint = movingDot(held.ellipse, state.session.seed, state.session.throws.length, (performance.now() - held.time) / 1000)
     state.play.moved(); state.play.started()
-    void run(async token => { const next = await land(target, token); if (next && !summary(next).done && summary(next).actor === 'partner') await prepare(next, token) })
+    void run(async (token) => {
+      const next = await land(targetPoint, token)
+      if (next && !sessionSummary(next).done && sessionSummary(next).currentSeatId !== 'reader') await prepare(next, token)
+    })
   }
 
-  /** The ellipse exists only while the player's throw control is held. */
   function begin(pointer: number | null): void {
-    const s = latest.current
-    if (locked.current || s.phase !== 'player' || hold.current || s.away || s.guide) return
-    hold.current = { ellipse: aimEllipse(aim.current, s.match.level), time: performance.now(), pointer }
+    const state = latest.current
+    if (locked.current || state.phase !== 'player' || hold.current || state.away || state.guide) return
+    hold.current = { ellipse: aimEllipse(aim.current, 'club'), time: performance.now(), pointer }
     void sound.current?.unlock()
   }
 
-  /** Every NPC throw comes from the cached visit, and waits for its own dialogue before the next. */
-  function partnerTurn(): void {
+  function partnersTurn(): void {
     if (phase !== 'handover' || !pending.current) return
     latest.current.play.moved()
-    void run(async token => {
-      setPhase('partner')
-      const { plan, script, spoken } = pending.current!
-      for (const item of plan) {
-        if (!(await present(token)) || !(await pause(reduced ? 150 : 550, token))) return
-        const next = await land(item.target, token, item)
-        if (!next || summary(next).done) return
-        if (spoken.has(item.throwId) && !(await speak(script.reactions[item.throwId], token))) return
+    void run(async (token) => {
+      setPhase('partners')
+      const scripts = pending.current!
+      for (let index = 0; index < scripts.length; index++) {
+        const script = scripts[index]
+        if (index > 0) {
+          if (!(await pause(reduced ? 180 : 700, token))) return
+          if (latest.current.play.chattiness !== 'quiet' && !(await speak(script.seat, script.intro, token))) return
+        }
+        for (const item of script.plan) {
+          if (!(await present(token)) || !(await pause(reduced ? 150 : 550, token))) return
+          const next = await land(item.target, token, item)
+          if (!next || sessionSummary(next).done) return
+          if (script.spoken.has(item.throwId) && !(await speak(script.seat, script.reactions[item.throwId], token))) return
+        }
+        if (latest.current.play.chattiness === 'lots' && !(await speak(script.seat, script.outro, token))) return
       }
-      if (latest.current.play.chattiness === 'lots' && !(await speak(script.outro, token))) return
       if (!alive.current || token !== generation.current) return
-      setStatus(`${summary(latest.current.match).balance} left · your turn next`); setPhase('my-turn')
+      setStatus('Your turn next'); setPhase('my-turn')
     })
   }
 
@@ -228,21 +255,23 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
   }, [])
   useEffect(() => { sound.current?.setVolume(muted ? 0 : .55 * effectsGain) }, [muted, effectsGain])
   useEffect(() => {
-    const b = new Board(canvas.current!); board.current = b
+    const dartboard = new Board(canvas.current!); board.current = dartboard
     let frame = 0
     const paint = (time: number): void => {
-      const s = latest.current, active = s.phase === 'player' && !locked.current && !s.guide && !s.away && !finished.current
+      const state = latest.current, active = state.phase === 'player' && !locked.current && !state.guide && !state.away && !finished.current
       if (!active) hold.current = null
       const held = hold.current
-      b.draw({ darts: s.flight ? s.match.throws.slice(0, -1) : s.match.throws, aim: active ? held?.ellipse ?? aim.current : null, ellipse: active ? held?.ellipse : null, dot: active && held ? movingDot(held.ellipse, s.match.seed, s.match.throws.length, (time - held.time) / 1000) : null, flight: s.flight, impact: s.impact, reduced: s.reduced }, time)
+      dartboard.draw({ darts: state.flight ? state.session.throws.slice(0, -1) : state.session.throws, aim: active ? held?.ellipse ?? aim.current : null, ellipse: active ? held?.ellipse : null, dot: active && held ? movingDot(held.ellipse, state.session.seed, state.session.throws.length, (time - held.time) / 1000) : null, flight: state.flight, impact: state.impact, reduced: state.reduced }, time)
       frame = requestAnimationFrame(paint)
     }
     frame = requestAnimationFrame(paint)
-    return () => { cancelAnimationFrame(frame); b.dispose(); board.current = null }
+    return () => { cancelAnimationFrame(frame); dartboard.dispose(); board.current = null }
   }, [])
-  const visible = flight ? { ...match, throws: match.throws.slice(0, -1) } : match
-  const visibleScore = summary(visible).balance ?? match.target
-  const shownVisit = summary(visible).visits?.at(-1)
+
+  const visible = flight ? { ...session, throws: session.throws.slice(0, -1) } : session
+  const state = sessionSummary(visible)
+  const visibleScore = visible.mode === 'house' ? state.teamBalance : state.balances[state.currentSeatId]
+  const shownVisit = state.visits.at(-1)
   useEffect(() => {
     const from = displayedScore, began = performance.now()
     let frame = 0
@@ -257,36 +286,36 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
     context.clearRect(0, 0, 1400, 1400); context.save(); context.scale(2, 2); board.current?.paintScoreGuide(context); context.restore()
   }, [guide])
 
-  if (!partner) return <p className="vu-empty">Darts needs one teammate in the scene.</p>
-  const s = summary(match)
+  if (!opponents.length) return <p className="vu-empty">Darts needs at least one teammate or rival in the scene.</p>
+  const live = sessionSummary(session), activeName = live.done ? '' : seatName(session, live.currentSeatId)
   return <div className="vu-darts" data-guide={guide || undefined} data-finished={phase === 'finished' || undefined}>
     <div className="vu-darts-stage">
       <canvas ref={canvas} width={1000} height={1000} tabIndex={0} role="application" aria-label="Dartboard. Move to aim, hold left click or Space, release at the moving dot. Arrow keys move aim."
-        onPointerMove={e => { if (!hold.current && !locked.current) aim.current = board.current!.point(e) }}
-        onPointerDown={e => { if (e.button !== 0) return; e.preventDefault(); e.currentTarget.focus(); aim.current = board.current!.point(e); begin(e.pointerId); if (hold.current) e.currentTarget.setPointerCapture(e.pointerId) }}
-        onPointerUp={e => { if (hold.current?.pointer === e.pointerId) release() }} onBlur={() => { hold.current = null }} onPointerCancel={() => { hold.current = null }} onLostPointerCapture={() => { hold.current = null }}
-        onKeyDown={e => {
-          if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) begin(null); return }
+        onPointerMove={(event) => { if (!hold.current && !locked.current) aim.current = board.current!.point(event) }}
+        onPointerDown={(event) => { if (event.button !== 0) return; event.preventDefault(); event.currentTarget.focus(); aim.current = board.current!.point(event); begin(event.pointerId); if (hold.current) event.currentTarget.setPointerCapture(event.pointerId) }}
+        onPointerUp={(event) => { if (hold.current?.pointer === event.pointerId) release() }} onBlur={() => { hold.current = null }} onPointerCancel={() => { hold.current = null }} onLostPointerCapture={() => { hold.current = null }}
+        onKeyDown={(event) => {
+          if (event.code === 'Space') { event.preventDefault(); if (!event.repeat) begin(null); return }
           const delta: Record<string, Point> = { ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 }, ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 } }
-          const d = delta[e.key]; if (!d) return; e.preventDefault()
-          if (latest.current.phase === 'player' && !hold.current && !locked.current) aim.current = { x: Math.max(-1.3, Math.min(1.3, aim.current.x + d.x * (e.shiftKey ? .008 : .025))), y: Math.max(-1.3, Math.min(1.3, aim.current.y + d.y * (e.shiftKey ? .008 : .025))) }
-        }} onKeyUp={e => { if (e.code === 'Space' && hold.current?.pointer === null) { e.preventDefault(); release() } }} />
-      {guide && <div className="vu-darts-guide" onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setGuide(false) } }}><canvas ref={guideCanvas} width={1400} height={1400} aria-label="Single, double, triple; outer bull 25, inner bull 50." /><motion.button autoFocus type="button" className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(false, lift, press)} onClick={() => setGuide(false)}>Back to the board</motion.button></div>}
-      {phase === 'finished' && s.outcome === 'win' && <motion.div className="vu-darts-celebration" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><span>HOUSE BEATEN</span><strong>Together.</strong></motion.div>}
+          const move = delta[event.key]; if (!move) return; event.preventDefault()
+          if (latest.current.phase === 'player' && !hold.current && !locked.current) aim.current = { x: Math.max(-1.3, Math.min(1.3, aim.current.x + move.x * (event.shiftKey ? .008 : .025))), y: Math.max(-1.3, Math.min(1.3, aim.current.y + move.y * (event.shiftKey ? .008 : .025))) }
+        }} onKeyUp={(event) => { if (event.code === 'Space' && hold.current?.pointer === null) { event.preventDefault(); release() } }} />
+      {guide && <div className="vu-darts-guide" onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setGuide(false) } }}><canvas ref={guideCanvas} width={1400} height={1400} aria-label="Single, double, triple; outer bull 25, inner bull 50." /><motion.button autoFocus type="button" className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(false, lift, press)} onClick={() => setGuide(false)}>Back to the board</motion.button></div>}
+      {phase === 'finished' && live.outcome === 'won' && <motion.div className="vu-darts-celebration" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><span>{session.mode === 'house' ? 'HOUSE BEATEN' : 'MATCH WON'}</span><strong>{session.mode === 'house' ? 'Together.' : 'Bullseye.'}</strong></motion.div>}
     </div>
     <aside className="vu-darts-score" aria-label="Match score">
-      <div className="vu-darts-scorehead">{phase === 'finished' ? 'MATCH COMPLETE' : ['preparing', 'handover', 'partner'].includes(phase) ? `${partner.name.toUpperCase()}’S TURN` : 'YOUR TURN'}</div>
-      <span className="vu-darts-label">REMAINING</span><strong className="vu-darts-balance" aria-live="polite">{displayedScore}</strong>
-      <div className="vu-darts-start">START {match.target}<span>VISIT {Math.min(5, (s.turn ?? 0) + 1)} / 5</span></div>
-      <ol className="vu-darts-results" aria-label="Darts in the current visit">{[0, 1, 2].map(index => { const dart = shownVisit?.darts[index], hit = dart && scoreHit(dart.x, dart.y); return <li key={index}><span>{index + 1}</span>{hit ? <><span>{hit.label}</span><strong>{hit.points}</strong></> : <img src={dartIcon} alt="Dart remaining" />}</li> })}</ol>
-      <div className="vu-darts-contributions"><span>YOU <strong>{summary(visible).you}</strong></span><span>{partner.name} <strong>{summary(visible).partner}</strong></span></div>
+      <div className="vu-darts-scorehead">{phase === 'finished' ? 'MATCH COMPLETE' : `${activeName.toUpperCase()}’S TURN`}</div>
+      <span className="vu-darts-label">{session.mode === 'house' ? 'TEAM REMAINING' : 'ACTIVE REMAINING'}</span><strong className="vu-darts-balance" aria-live="polite">{displayedScore}</strong>
+      <div className="vu-darts-start">{session.mode === 'house' ? 'BEAT THE HOUSE' : '301 RIVAL MATCH'}<span>ROUND {Math.min(3, Math.floor(live.visit / session.seats.length) + 1)}</span></div>
+      <ol className="vu-darts-results" aria-label="Darts in the current visit">{[0, 1, 2].map((index) => { const dart = shownVisit?.darts[index], hit = dart && scoreHit(dart.x, dart.y); return <li key={index}><span>{index + 1}</span>{hit ? <><span>{hit.label}</span><strong>{hit.points}</strong></> : <img src={dartIcon} alt="Dart remaining" />}</li> })}</ol>
+      <div className="vu-darts-contributions">{session.seats.map((seat) => <span key={seat.id}>{seat.name.toUpperCase()} <strong>{session.mode === 'house' ? pointsOf(visible, seat.id) : state.balances[seat.id]}</strong></span>)}</div>
       <p className="vu-darts-status" aria-live="polite">{status}</p>
       <div className="vu-darts-controls">
-        {['handover', 'my-turn'].includes(phase) && <motion.button type="button" disabled={busy} className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { if (busy) return; if (phase === 'handover') partnerTurn(); else { latest.current.play.moved(); setPhase('player'); setStatus('Your turn'); pending.current = null } }}>{phase === 'handover' ? 'Change turn' : 'My turn'}</motion.button>}
-        <motion.button type="button" disabled={busy} className="vu-btn vu-btn--outline vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => setGuide(value => !value)}>Score guide</motion.button>
+        {['handover', 'my-turn'].includes(phase) && <motion.button type="button" disabled={busy} className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { if (busy) return; if (phase === 'handover') partnersTurn(); else { latest.current.play.moved(); setPhase('player'); setStatus('Your turn'); pending.current = null } }}>{phase === 'handover' ? 'Change turn' : 'My turn'}</motion.button>}
+        <motion.button type="button" disabled={busy} className="vu-btn vu-btn--outline vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => setGuide((value) => !value)}>Score guide</motion.button>
         <motion.button type="button" className="vu-pill" {...gestures(false, lift, press)} onClick={() => setMuted(!muted)}>{muted ? 'Sound off' : 'Sound on'}</motion.button>
       </div>
-      {phase === 'finished' && <p className="vu-darts-ending">{s.done ? s.outcome === 'win' ? 'House beaten. Together.' : 'Next time, together.' : 'The game was interrupted. Use Walk away to return to the scene.'}</p>}
+      {phase === 'finished' && <p className="vu-darts-ending">{live.outcome === 'won' ? 'You won.' : live.outcome === 'draw' ? 'A hard-fought draw.' : 'Next time.'}</p>}
     </aside>
   </div>
 }

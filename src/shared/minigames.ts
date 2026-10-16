@@ -138,6 +138,8 @@ export interface MiniGameDef {
   controls?: string
   /** What makes someone good at it, in a sentence, for judging how well a girl plays. */
   skillBrief: string
+  /** Optional game-specific ability axes judged with the same one-off skill call. */
+  skillAxes?: readonly { id: string; label: string; brief: string }[]
 }
 
 /**

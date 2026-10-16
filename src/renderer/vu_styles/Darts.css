@@ -19,7 +19,7 @@
 .vu-darts-results li > :first-child { color: var(--vu-text-muted); }
 .vu-darts-results strong { margin-left: auto; font-size: 20px; }
 .vu-darts-results img { width: 114px; height: 30px; object-fit: contain; }
-.vu-darts-contributions { display: flex; justify-content: space-between; gap: 12px; font: 500 12px var(--font-mono); }
+.vu-darts-contributions { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px 12px; font: 500 12px var(--font-mono); }
 .vu-darts-contributions strong { margin-left: 5px; }
 .vu-darts-status { min-height: 30px; margin: 8px 0; color: var(--vu-text-body); font: 500 14px/1.4 var(--font-body); }
 .vu-darts-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; }

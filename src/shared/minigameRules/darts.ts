@@ -872,14 +872,16 @@ export function panelLights(dart: Point, elapsed: number, reduced = false): Pane
   return [...cells.values()];
 }
 /** Fixed, independent traits derived from the framework's cached skill and character identity. */
-export function traitsFor(skill: number, charId: string): Traits {
+export function traitsFor(skill: number, charId: string, biases: Partial<Record<'accuracy' | 'consistency' | 'composure', number>> = {}): Traits {
   let seed = 2166136261;
   for (const letter of charId) seed = Math.imul(seed ^ letter.charCodeAt(0), 16777619) >>> 0;
   const level = Math.max(1, Math.min(5, Math.round(skill)));
-  const values = [25 + (level - 1) * 15, 30 + (level - 1) * 15, 35 + (level - 1) * 10].map(base => {
+  const axes = ['accuracy', 'consistency', 'composure'] as const;
+  const values = [25 + (level - 1) * 15, 30 + (level - 1) * 15, 35 + (level - 1) * 10].map((base, index) => {
     let draw: number;
     [draw, seed] = random(seed);
-    return Math.max(0, Math.min(100, base + Math.floor(draw * 15) - 7));
+    const bias = Math.max(-2, Math.min(2, Math.round(biases[axes[index]] ?? 0)));
+    return Math.max(0, Math.min(100, base + bias * 6 + Math.floor(draw * 5) - 2));
   });
   return { version: 1, accuracy: values[0], consistency: values[1], composure: values[2] };
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { newMatch, summary, throwDart, targetRegion, scoreHit, validateMatch, traitsFor, planPartnerTurn, applyPlannedThrow, NUMBERS, type Match } from '../src/shared/minigameRules/darts'
+import { applySessionPlan, newSession, planNpcVisit, sessionSummary, sessionThrow, type DartsSession } from '../src/shared/minigameRules/dartsSession'
 
 /** A released dart uses a scoring region's normalized centre. */
 const hit = (m: Match, n: number, kind: 'single' | 'double' | 'triple' = 'single'): Match => throwDart(m, targetRegion(n, kind), 0)
@@ -63,5 +64,79 @@ describe('cooperative darts ledger', () => {
       expect(() => applyPlannedThrow(m, item)).toThrow()
     }
     expect(summary(m).actor).toBe('you')
+  })
+})
+
+const seats = (two = true) => [
+  { id: 'reader', name: 'You', kind: 'reader' as const },
+  { id: 'ana', name: 'Ana', kind: 'npc' as const, traits: traitsFor(3, 'ana', { accuracy: 2, consistency: 1, composure: -2 }) },
+  ...(two ? [{ id: 'bea', name: 'Bea', kind: 'npc' as const, traits: traitsFor(2, 'bea', { accuracy: -1, consistency: 2, composure: 1 }) }] : [])
+]
+const session = (mode: 'house' | 'rival' = 'house', two = true): DartsSession => newSession({ id: 'multi', seed: 42, mode, target: mode === 'house' ? 501 : 301, seats: seats(two) })
+const sessionMiss = (game: DartsSession): DartsSession => sessionThrow(game, { x: 1.2, y: 0 })
+
+describe('multiplayer darts session', () => {
+  it('uses the exact same normalized scoring geometry as the rendered board', () => {
+    for (let index = 0; index < 500; index++) {
+      const x = ((index * 73) % 261) / 100 - 1.3
+      const y = ((index * 137) % 261) / 100 - 1.3
+      const game = sessionThrow(newSession({ id: `geometry-${index}`, seed: index, mode: 'house', target: 701, seats: seats(false) }), { x, y })
+      expect(701 - sessionSummary(game).teamBalance).toBe(scoreHit(x, y).points)
+    }
+  })
+
+  it('rotates reader, first girl and second girl without sharing speakers', () => {
+    let game = session()
+    for (let i = 0; i < 3; i++) game = sessionMiss(game)
+    expect(sessionSummary(game).currentSeatId).toBe('ana')
+    const ana = planNpcVisit(game, 'ana')
+    expect(ana).toHaveLength(3)
+    expect(ana.every((item) => item.seatId === 'ana')).toBe(true)
+    for (const item of ana) game = applySessionPlan(game, item)
+    expect(sessionSummary(game).currentSeatId).toBe('bea')
+    const bea = planNpcVisit(game, 'bea')
+    expect(bea.every((item) => item.seatId === 'bea')).toBe(true)
+    for (const item of bea) game = applySessionPlan(game, item)
+    expect(sessionSummary(game).currentSeatId).toBe('reader')
+  })
+
+  it('gives a two-girl house team seven visits and restores a bust', () => {
+    let game = newSession({ id: 'bust', seed: 7, mode: 'house', target: 301, seats: seats() })
+    game = sessionThrow(game, targetRegion(20, 'triple'))
+    game = sessionThrow(game, targetRegion(20, 'triple'))
+    game = sessionThrow(game, targetRegion(20, 'triple'))
+    const before = sessionSummary(game).teamBalance
+    for (let i = 0; i < 3; i++) game = sessionThrow(game, targetRegion(20, 'triple'))
+    expect(sessionSummary(game).teamBalance).toBe(before)
+    expect(sessionSummary(game).visits.at(-1)?.bust).toBe(true)
+    while (!sessionSummary(game).done) game = sessionMiss(game)
+    expect(sessionSummary(game)).toMatchObject({ completedVisits: 7, outcome: 'lost' })
+  })
+
+  it('ends immediately on a checkout and never schedules the next girl', () => {
+    let game = newSession({ id: 'checkout', seed: 9, mode: 'house', target: 301, seats: seats() })
+    for (let i = 0; i < 4; i++) game = sessionThrow(game, targetRegion(20, 'triple'))
+    game = sessionThrow(game, targetRegion(1))
+    game = sessionThrow(game, targetRegion(20, 'triple'))
+    expect(sessionSummary(game)).toMatchObject({ done: true, outcome: 'won', teamBalance: 0 })
+    expect(planNpcVisit(game, 'bea')).toEqual([])
+  })
+
+  it('keeps separate rival balances and chooses the lowest after three rounds', () => {
+    let game = session('rival', false)
+    for (let visit = 0; visit < 6; visit++) {
+      for (let dart = 0; dart < 3; dart++) game = sessionThrow(game, visit % 2 === 0 ? targetRegion(20) : { x: 1.2, y: 0 })
+    }
+    expect(sessionSummary(game)).toMatchObject({ done: true, outcome: 'won', winnerIds: ['reader'] })
+    expect(sessionSummary(game).balances).toEqual({ reader: 121, ana: 301 })
+  })
+
+  it('uses personality biases without making the three traits a split of 100', () => {
+    const strong = traitsFor(3, 'same', { accuracy: 2, consistency: 2, composure: 2 })
+    const weak = traitsFor(3, 'same', { accuracy: -2, consistency: -2, composure: -2 })
+    expect(strong.accuracy - weak.accuracy).toBe(24)
+    expect(strong.consistency - weak.consistency).toBe(24)
+    expect(strong.composure - weak.composure).toBe(24)
+    expect(strong.accuracy + strong.consistency + strong.composure).not.toBe(100)
   })
 })

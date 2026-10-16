@@ -181,7 +181,8 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
           charId: character.charId,
           name: nameOf(character.charId),
           skill: skill.level,
-          style: skill.style
+          style: skill.style,
+          biases: skill.biases
         }
       })
     ).then((opponents) => {
