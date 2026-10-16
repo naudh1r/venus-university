@@ -1,0 +1,265 @@
+/* Poker: the girls' seats over the board and the pot, the reader's seat under them, and his
+   moves. Drawn on the mini-game board; the buttons are base.css's. */
+
+.vu-poker {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+/* The girls' seats side by side, in the order they sit. */
+.vu-poker-girls {
+  display: flex;
+  justify-content: center;
+  gap: 56px;
+}
+
+/* A seat: who it is, her two cards, her chips and what she last did. One width, so nothing
+   said under a seat moves the seat beside it. */
+.vu-poker-seat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 190px;
+}
+
+/* The reader's seat lies on its side: his cards, then his name, chips and hand beside them. */
+.vu-poker-seat--mine {
+  flex-direction: row;
+  justify-content: center;
+  gap: 18px;
+  width: auto;
+}
+
+.vu-poker-mine {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+}
+
+/* Whose seat it is, with its place in the deal beside it: the button, a blind. */
+.vu-poker-who {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 700 13px var(--font-mono);
+}
+
+.vu-poker-place {
+  color: var(--vu-text-body);
+  font-size: 11px;
+}
+
+/* Whose move it is: the name over that seat is said in the accent. */
+.vu-poker-seat[data-turn] .vu-poker-who {
+  color: var(--vu-accent);
+}
+
+/* Two cards in a row, tall enough to stand empty without the board jumping. */
+.vu-poker-hole {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  min-height: 78px;
+}
+
+.vu-poker-slot {
+  display: flex;
+}
+
+/* A card is a container: a rounded rectangle on the surface, its rank over its suit. */
+.vu-poker-card,
+.vu-poker-back,
+.vu-poker-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 56px;
+  height: 78px;
+  border: 3px solid var(--vu-border);
+  border-radius: 10px;
+}
+
+.vu-poker-card {
+  background: var(--vu-surface);
+  color: var(--vu-text);
+}
+
+.vu-poker-card--red {
+  color: var(--vu-accent);
+}
+
+.vu-poker-rank {
+  font: 400 28px var(--font-display);
+  line-height: 1;
+}
+
+.vu-poker-suit {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* A card face down: the card's own box, filled in the accent. */
+.vu-poker-back {
+  background: var(--vu-accent);
+  color: var(--vu-accent-ink);
+  box-shadow: 3px 3px 0 var(--vu-accent-shadow);
+}
+
+.vu-poker-back svg {
+  width: 24px;
+  height: 24px;
+  opacity: 0.85;
+}
+
+/* Where a card will lie: the card's box, in outline only. */
+.vu-poker-empty {
+  border-style: dashed;
+  opacity: 0.35;
+}
+
+/* A hand that is folded, or a seat that is out, stands back. */
+.vu-poker-seat[data-gone] .vu-poker-hole {
+  opacity: 0.3;
+}
+
+/* The seat that took the pot: its cards stand on the accent's shadow. */
+.vu-poker-seat[data-won] .vu-poker-card {
+  border-color: var(--vu-accent);
+  box-shadow: 3px 3px 0 var(--vu-accent-shadow);
+}
+
+/* A seat's chips, with what it has in on this street beside them in the quieter voice. */
+.vu-poker-chips {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  min-height: 20px;
+  margin: 0;
+  color: var(--vu-text);
+  font: 700 16px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.vu-poker-bet {
+  color: var(--vu-accent);
+  font-size: 12px;
+}
+
+/* What the seat last did, or the hand it holds; it keeps its line when there is nothing to say. */
+.vu-poker-state {
+  min-height: 16px;
+  margin: 0;
+  color: var(--vu-text-body);
+  font: 500 12.5px var(--font-body);
+  line-height: 16px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.vu-poker-seat--mine .vu-poker-state {
+  text-align: left;
+}
+
+/* The middle of the table: the five cards of the board over the pot. */
+.vu-poker-middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.vu-poker-board {
+  display: flex;
+  gap: 10px;
+}
+
+/* The board's cards are the table's own, a size up from the ones in hand. */
+.vu-poker-board :is(.vu-poker-card, .vu-poker-empty) {
+  width: 66px;
+  height: 92px;
+  border-radius: 12px;
+}
+
+.vu-poker-board .vu-poker-rank {
+  font-size: 34px;
+}
+
+.vu-poker-board .vu-poker-suit {
+  font-size: 22px;
+}
+
+/* The pot, with which hand it is beside it in the quieter voice. */
+.vu-poker-pot {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  margin: 0;
+  color: var(--vu-text);
+  font: 700 16px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.vu-poker-round {
+  color: var(--vu-text-muted);
+  font-size: 12px;
+}
+
+/* A hand over: who took the pot and who is out, and at the end who won, said a shade louder. */
+.vu-poker-round[data-called] {
+  color: var(--vu-text-body);
+}
+
+/* The reader's moves in a row: fold, check or call, and the three sizes of bet. */
+.vu-poker-moves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 20px;
+  padding: 0 12px 8px 0;
+}
+
+/* A move swells about its own centre, as an answer in a foot does. */
+.vu-poker-moves button {
+  padding: 11px 24px 11px 20px;
+  font-size: 17px;
+  transform-origin: center;
+}
+
+/* Somebody else's move, or the hand over: the moves stand back. */
+.vu-poker-moves[data-waiting] {
+  opacity: 0.35;
+}
+
+/* The three sizes, behind the word for what they are: a bet, or a raise. */
+.vu-poker-sizes {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-left: 12px;
+}
+
+.vu-poker-sizing {
+  width: 64px;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+  text-align: right;
+}
+
+/* What a size comes to in chips, on the button in the bookkeeping voice. */
+.vu-poker-amount {
+  min-width: 34px;
+  font: 700 14px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

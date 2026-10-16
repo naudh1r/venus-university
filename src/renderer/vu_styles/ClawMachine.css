@@ -1,0 +1,325 @@
+/* Claw Machine: the cabinet from the front beside a small view of it from above, how the game
+   stands, the countdown and the two buttons the claw is run with. Drawn on the mini-game board;
+   the buttons are base.css's. */
+
+.vu-claw {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 30px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* The cabinet: a back wall, the floor rising away from the glass, the lip and the chute. */
+.vu-claw-cabinet {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 580px;
+  aspect-ratio: 100 / 72;
+}
+
+.vu-claw-back {
+  fill: var(--vu-recessed);
+}
+
+.vu-claw-floor {
+  fill: var(--vu-tint);
+}
+
+.vu-claw-lip {
+  fill: var(--vu-border);
+}
+
+.vu-claw-chute {
+  fill: var(--vu-text);
+  opacity: 0.55;
+}
+
+.vu-claw-glass {
+  fill: none;
+  stroke: var(--vu-border);
+  stroke-width: 1;
+}
+
+.vu-claw-track,
+.vu-claw-rail {
+  fill: none;
+  stroke: var(--vu-text-muted);
+  stroke-width: 0.9;
+  stroke-linecap: round;
+}
+
+.vu-claw-cable {
+  stroke: var(--vu-text-muted);
+  stroke-width: 0.5;
+}
+
+/* Where the claw will come down: its shadow on the floor. */
+.vu-claw-shadow {
+  fill: var(--vu-text);
+  opacity: 0.28;
+}
+
+.vu-claw-hub {
+  fill: var(--vu-accent);
+  stroke: var(--vu-accent-shadow);
+  stroke-width: 0.4;
+}
+
+.vu-claw-prong {
+  fill: none;
+  stroke: var(--vu-accent);
+  stroke-width: 1;
+  stroke-linecap: round;
+  transition: transform 0.2s ease;
+}
+
+.vu-claw-claw[data-closed] .vu-claw-prong--left {
+  transform: rotate(-16deg);
+}
+
+.vu-claw-claw[data-closed] .vu-claw-prong--right {
+  transform: rotate(16deg);
+}
+
+/* A plush toy: told from the others by its shape, in the theme's own inks. */
+.vu-claw-toy * {
+  vector-effect: non-scaling-stroke;
+}
+
+.vu-claw-fur {
+  fill: var(--vu-surface);
+  stroke: var(--vu-text);
+  stroke-width: 1.5px;
+  stroke-linejoin: round;
+}
+
+.vu-claw-trim {
+  fill: var(--vu-accent);
+  stroke: var(--vu-text);
+  stroke-width: 1.5px;
+  stroke-linejoin: round;
+}
+
+.vu-claw-dark {
+  fill: var(--vu-text);
+  stroke: var(--vu-text);
+  stroke-width: 1.5px;
+}
+
+.vu-claw-spot {
+  fill: var(--vu-tint);
+  stroke: var(--vu-text);
+  stroke-width: 1px;
+}
+
+.vu-claw-dot {
+  fill: var(--vu-text);
+}
+
+.vu-claw-line {
+  fill: none;
+  stroke: var(--vu-text);
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+}
+
+/* The toy held down by another: fainter and drawn in a broken line until it is free. */
+.vu-claw-toy--pinned {
+  opacity: 0.6;
+}
+
+.vu-claw-toy--pinned .vu-claw-fur,
+.vu-claw-toy--pinned .vu-claw-trim {
+  stroke-dasharray: 3 3;
+}
+
+/* The word on the plan over a toy held down, readable over whatever it lies by. */
+.vu-claw-under {
+  fill: var(--vu-text);
+  stroke: var(--vu-tint);
+  stroke-width: 1.2px;
+  paint-order: stroke;
+  font: 700 4.4px var(--font-body);
+}
+
+/* How the last go came out, written on the machine's front under the glass. */
+.vu-claw-told {
+  fill: var(--vu-text);
+  font: 700 3.2px var(--font-body);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* How well a toy holds: three dots easy, two fair, one hard. */
+.vu-claw-pips circle {
+  fill: var(--vu-text);
+  stroke: var(--vu-surface);
+  stroke-width: 0.3;
+}
+
+/* The one she wants: ringed, with a heart over it. */
+.vu-claw-want {
+  fill: none;
+  stroke: var(--vu-accent);
+  stroke-width: 2px;
+  stroke-dasharray: 5 4;
+}
+
+.vu-claw-heart {
+  fill: var(--vu-accent);
+}
+
+.vu-claw-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 380px;
+  min-width: 0;
+}
+
+.vu-claw-plan {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+}
+
+.vu-claw-above {
+  width: 260px;
+  height: 156px;
+}
+
+.vu-claw-plan figcaption {
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-body);
+}
+
+/* What the dots mean, in words. */
+.vu-claw-legend {
+  margin: -6px 0 0;
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-body);
+  text-align: center;
+}
+
+.vu-claw-legend span {
+  color: var(--vu-text);
+  letter-spacing: 1px;
+}
+
+/* The claw on the plan: a ring and a cross. */
+.vu-claw-sight {
+  fill: none;
+  stroke: var(--vu-accent);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.vu-claw-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.vu-claw-go {
+  color: var(--vu-text);
+  font: 400 22px var(--font-display);
+}
+
+.vu-claw-wish {
+  color: var(--vu-accent);
+  font: 700 14px var(--font-body);
+}
+
+.vu-claw-won {
+  color: var(--vu-text-body);
+  font: 500 14px var(--font-body);
+}
+
+.vu-claw-clock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  opacity: 0.4;
+}
+
+/* The go is under way and the countdown is running. */
+.vu-claw-clock[data-live] {
+  opacity: 1;
+}
+
+.vu-claw-clocklabel {
+  flex: none;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+}
+
+.vu-claw-clocktrack {
+  position: relative;
+  flex: 1;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--vu-recessed);
+}
+
+.vu-claw-clockfill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--vu-accent);
+}
+
+.vu-claw-stick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 6px 0;
+}
+
+.vu-claw-prompt {
+  color: var(--vu-text);
+  font: 700 15px var(--font-body);
+}
+
+.vu-claw-buttons {
+  display: flex;
+  gap: 18px;
+}
+
+/* A button held, not clicked: no text picked up and no page dragged under the finger. */
+.vu-claw-key {
+  transform-origin: center;
+  touch-action: none;
+  user-select: none;
+}
+
+/* Not this way's turn: the button stands back. */
+.vu-claw-key[data-waiting] {
+  opacity: 0.35;
+}
+
+.vu-claw-hint {
+  max-width: 340px;
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-body);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vu-claw-prong {
+    transition: none;
+  }
+}

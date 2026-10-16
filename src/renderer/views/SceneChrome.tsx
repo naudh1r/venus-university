@@ -12,6 +12,7 @@ import type { Weather } from '@shared/weather'
 import { formatNumericGameDate, formatWeekday } from '../prompts/gameDate'
 import { weekOf } from '../prompts/occasions'
 import type { RevealKey } from '../prompts/introScript'
+import { scenePlays, type RailSeatProps } from '../mods/hooks'
 import type { ScreenTheme } from './clockTheme'
 import {
   BunnyIcon,
@@ -127,6 +128,8 @@ export interface SceneChromeProps {
   /** Absent when Echo is disabled or this screen has no ordinary playthrough. */
   onEchoes?: () => void
   onSettings: () => void
+  /** Opens the panel of the mod whose seat on the rail was pressed. */
+  onModPanel: (modId: string) => void
   onHideUi: () => void
   onBackground: () => void
   onCast: () => void
@@ -376,6 +379,16 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
             <EchoIcon />
           </RailSeat>
         )}
+        {/* The mods' own seats, each deciding for itself whether it stands. They arrive on the
+            rail with the Calendar, the last of the game's own gated seats, hence its reveal. */}
+        {scenePlays().map(({ modId, play }) => (
+          <play.Seat
+            key={modId}
+            Seat={RailSeat}
+            visible={!dark && shown.has('calendar')}
+            open={() => props.onModPanel(modId)}
+          />
+        ))}
         {/* Never gated: the way out must be reachable from wherever the reader is stuck. */}
         <RailSeat
           label="Settings"
@@ -542,19 +555,7 @@ function seatState(visible: boolean, dead: boolean): 'shown' | 'dim' | 'gone' {
 }
 
 /** One control on the rail: icon only, its count riding the corner. */
-function RailSeat({
-  label,
-  badge,
-  state,
-  onClick,
-  children
-}: {
-  label: string
-  badge?: number
-  state: 'shown' | 'dim' | 'gone'
-  onClick: () => void
-  children: ReactNode
-}): JSX.Element {
+function RailSeat({ label, badge, state, onClick, children }: RailSeatProps): JSX.Element {
   const dead = state !== 'shown'
   return (
     <motion.button

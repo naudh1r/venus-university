@@ -1,0 +1,129 @@
+/* High-Low: the deck, the card face up on the pile, the count and the two calls. Drawn on the
+   mini-game table; the buttons are base.css's. */
+
+.vu-highlow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.vu-highlow-table {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+
+/* A card is a container: a rounded rectangle on the surface, its rank over its suit. */
+.vu-highlow-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 124px;
+  height: 172px;
+  border: 3.5px solid var(--vu-border);
+  border-radius: 16px;
+  background: var(--vu-surface);
+  color: var(--vu-text);
+}
+
+.vu-highlow-card--red {
+  color: var(--vu-accent);
+}
+
+.vu-highlow-rank {
+  font: 400 64px var(--font-display);
+  line-height: 1;
+}
+
+.vu-highlow-suit {
+  font-size: 40px;
+  line-height: 1;
+}
+
+/* The deck face down: the card's own box, filled in the accent. */
+.vu-highlow-deck {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vu-accent-ink);
+  width: 124px;
+  height: 172px;
+  border: 3.5px solid var(--vu-border);
+  border-radius: 16px;
+  background: var(--vu-accent);
+  box-shadow: 6px 6px 0 var(--vu-accent-shadow);
+}
+
+/* The count, with which call it is beside it in the quieter voice. */
+.vu-highlow-count {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  margin: 0;
+  color: var(--vu-text);
+  font: 700 15px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.vu-highlow-round {
+  color: var(--vu-text-muted);
+  font-size: 12px;
+}
+
+.vu-highlow-calls {
+  display: flex;
+  gap: 26px;
+  padding: 0 12px 10px 0;
+}
+
+/* A call swells about its own centre, as an answer in a foot does. */
+.vu-highlow-calls > button {
+  transform-origin: center;
+}
+
+/* Her turn, or the game over: the calls stand back. */
+.vu-highlow-calls[data-waiting] {
+  opacity: 0.35;
+}
+
+/* The card showing and the deck carry their call-outs on their lower edge. */
+.vu-highlow-shown,
+.vu-highlow-deck {
+  position: relative;
+}
+
+/* The mark keeps the deck's middle, whatever is tagged on its edge. */
+.vu-highlow-deck > span:first-child {
+  display: flex;
+}
+
+/* The call the card showing answered, or the deck shuffled anew: a tag on the card's lower edge
+   that stays until the next card is turned. */
+.vu-highlow-said {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 10px;
+  border: 2px solid var(--vu-border);
+  border-radius: 999px;
+  background: var(--vu-surface);
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+  white-space: nowrap;
+}
+
+/* A call that came good is said in the accent. */
+.vu-highlow-said[data-right] {
+  color: var(--vu-accent);
+}
+
+/* The mark on the card back: a third of the card's width, quiet against the accent. */
+.vu-highlow-deck svg {
+  width: 52px;
+  height: 52px;
+  opacity: 0.85;
+}

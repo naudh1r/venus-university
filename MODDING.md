@@ -158,6 +158,8 @@ else names it.
 | `dmHistoryNote` | `textingPrompt.ts` | Add a note after a DM in the history the prompt quotes |
 | `characterFromDraft` | `characterPrompt.ts` | Fill fields of a generated character from the reply |
 | `afterDmReply` | `textingLoop.ts` | Act after her reply in a DM has landed |
+| `afterSceneReply` | `loop/turn.ts` | Read a landed scene reply as the model wrote it, fields a mod asked for included. A turn's reply only: a scene's closing reply is not handed over |
+| `scenePlay` | `SceneChrome.tsx`, `GameView.tsx` | Stand a seat on the scene's rail, and open a panel of its own over the scene |
 | `playerActs` | `gameLoop.ts` (`submitAction`), `loop/hangouts.ts` | Act when the reader commits to something |
 | `gameEntered` | `gameLoop.ts` (`enterGame`) | Act when a game is entered, new or loaded |
 | `fileFeedPost` | `loop/feed.ts` | Change a slot post before it is filed, or file it later itself (`held`) |
@@ -165,6 +167,7 @@ else names it.
 | `postVisible` | `feedView.ts`, `loop/feed.ts`, `ContactPage.tsx` | Keep a post off the feed for now |
 | `endingChoice` | `GameView.tsx` | Offer a way on from the ending, beside "Return to the main menu" |
 | `saveChoice` | `LoadGameModal.tsx` | Offer something for a picked save, beside "Load" |
+| `modDetail` | `ModsModal.tsx` | Draw a page of its own for the mod picked on the Mods screen, its own or one built on it, in place of the list of that mod's options |
 
 The two ways on (`endingChoice`, `saveChoice`) share one shape, `WayOn`. Its `prepare` runs
 while nothing has been torn down, does whatever may fail and reports it, and returns `enter`,
@@ -173,13 +176,21 @@ screen to show. The first mod that answers is offered; the game's own choice alw
 While `prepare` runs, the screen that offered the choice keeps every button locked; an answer
 that comes back after that screen closed, or after its game was left, opens nothing.
 
+A place on the scene screen (`scenePlay`) is two components. `Seat` is mounted on the rail for
+as long as the scene's chrome is; the game hands it the rail's own seat to draw with, whether
+the rail is up, and `open`. It decides for itself when it has something to offer, and stands
+down (`state: 'gone'`) otherwise. `Panel` is mounted while open, as one of the scene's own
+panels: the scene behind it takes no key, click or turn until it closes. A field a mod adds to
+the scene's reply (`requests.scene`) comes back whole in `afterSceneReply`, once the reply's
+lines are on the transcript.
+
 A hook point is added where mods actually meet, not ahead of need. Once mods use one, it stays
 as it is: renaming it or changing what it passes breaks them. A change that is needed goes in
 as a new hook beside the old one.
 
 ### Not covered yet
 
-- Screens: a mod's own panels, menu entries and editor fields.
+- Screens: a mod's menu entries and editor fields, and its panels anywhere but over a scene.
 - Main process: IPC, protocols, services, settings and character rules.
 - Saves: a mod's own fields in a save, and what carries into the next semester.
 
@@ -188,7 +199,8 @@ Both are still direct edits, as before.
 ### Tests
 
 `test/modHooks.test.ts`: only mods that are on are asked, in list order; likes fall back to the
-game's own; a post a mod holds is not passed on.
+game's own; a post a mod holds is not passed on; scene places and landed scene replies go to
+the mods that are on.
 
 The hook points are naudh1r's design, lifted from his Photo Feature branch, which is the first
 mod on them.

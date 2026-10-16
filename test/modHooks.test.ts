@@ -136,3 +136,64 @@ describe('preparing a way on', () => {
     expect(await ready).toBeNull()
   })
 })
+
+describe('the scene hooks', () => {
+  const Nothing = (): null => null
+
+  it('offers the scene places of the mods that are on, in list order, under their ids', async () => {
+    const hooks = await fresh({ off: false }, ['first', 'second', 'off'])
+    const play = { Seat: Nothing, Panel: Nothing }
+    hooks.registerHooks('second', { scenePlay: play })
+    hooks.registerHooks('off', { scenePlay: play })
+    hooks.registerHooks('first', { scenePlay: play })
+    hooks.registerHooks('first', { playerActs: () => undefined })
+    expect(hooks.scenePlays().map((entry) => entry.modId)).toEqual(['first', 'second'])
+  })
+
+  it('hands a landed scene reply to the mods that are on', async () => {
+    const hooks = await fresh({ off: false }, ['first', 'off'])
+    const seen = vi.fn()
+    hooks.registerHooks('first', { afterSceneReply: (ctx) => seen(ctx.reply.extra) })
+    hooks.registerHooks('off', { afterSceneReply: () => seen('off') })
+    hooks.afterSceneReply({ reply: { lines: [], extra: 'kept' }, cast: [], solo: false, ending: false })
+    expect(seen.mock.calls).toEqual([['kept']])
+  })
+})
+
+describe('a mod that throws reading a scene reply', () => {
+  it('costs the scene nothing, and the mods after it still read the reply', async () => {
+    const hooks = await fresh({}, ['throws', 'reads'])
+    const seen: string[] = []
+    hooks.registerHooks('throws', {
+      afterSceneReply: () => {
+        throw new Error('broken mod')
+      }
+    })
+    hooks.registerHooks('reads', { afterSceneReply: () => void seen.push('read') })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(() =>
+      hooks.afterSceneReply({ reply: { lines: [] }, cast: [], solo: false, ending: false })
+    ).not.toThrow()
+    warn.mockRestore()
+    expect(seen).toEqual(['read'])
+  })
+})
+
+describe("a mod's own page on the Mods screen", () => {
+  it('comes from the first mod that is on and has one for the mod picked', async () => {
+    const hooks = await fresh({ off: false }, ['off', 'frame', 'other'])
+    const Page = (): null => null
+    const Unseen = (): null => null
+    const mod = (id: string) => ({ id }) as import('../src/shared/mods').ModDef
+    hooks.registerHooks('off', { modDetail: () => Unseen })
+    hooks.registerHooks('frame', { modDetail: (picked) => (picked.id === 'pack' ? Page : undefined) })
+    hooks.registerHooks('other', { modDetail: () => Unseen })
+    expect(hooks.modDetail(mod('pack'))).toBe(Page)
+    expect(hooks.modDetail(mod('else'))).toBe(Unseen)
+  })
+
+  it('is none where no mod has one', async () => {
+    const hooks = await fresh({}, [])
+    expect(hooks.modDetail({ id: 'pack' } as import('../src/shared/mods').ModDef)).toBeUndefined()
+  })
+})

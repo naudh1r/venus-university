@@ -427,6 +427,19 @@
 - The phone's presence sets `presenceAffectsLayout` false: nothing under it animates layout, and the default remakes the presence context on every render of the screen, which redraws every row the feed holds.
 - The main menu's footer notices are underlined accent words rather than button shapes: each is a remark about the build beside its version line rather than an entry in the menu, and neither is a `.vu-link`, since neither leaves the app.
 
+### Darts surface
+
+Darts uses the mini-games `screen` surface: full stage with its paper frame removed only
+under `data-game="darts"`. The scene remains visible, the large canvas sits left, the score
+panel right, and the native dialogue and remark field keep their scene positions. The pack
+adds no floating speech box or separate HUD seat. Scope every pack rule under `vu-darts` or
+the darts data attribute. Surrounding UI uses theme roles and bundled fonts. The physical
+board colours and impact LEDs retain fixed identity hues. Existing raster darts and HUD
+silhouettes are retained. Three silhouettes become scores at impact; the numeric total
+animates separately from flight. Ellipse only while holding; NPC turns have no aim marks.
+The guide blurs the board under its transparent theme layer. A win wears an accent banner
+and sound. Reduced motion shortens decorative flight and LED flourishes.
+
 ## 21. What belongs in this guide
 
 **Add:**

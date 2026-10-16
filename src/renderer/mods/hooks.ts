@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import type { StructuredRequest, LedgerResponse } from '@shared/types'
 import type { PromptState } from '../prompts/scenePrompt'
 import type { SlotIntroInput } from '../prompts/slotIntroPrompt'
@@ -15,6 +15,8 @@ import type { PlaythroughRecord } from '@shared/types'
 import type { TextingPromptState } from '../prompts/textingPrompt'
 import type { ResolvedSave } from '../stores/saveStore'
 import type { ViewName } from '../stores/uiStore'
+import type { ScreenTheme } from '../views/clockTheme'
+import type { ModDef } from '@shared/mods'
 
 /**
  * The places in the game a mod adds to, without editing the game's code there.
@@ -92,6 +94,24 @@ export interface EndingChoice extends WayOn {
   label: string
 }
 
+/** What the Mods screen hands a mod's own page ({@link ModHooks.modDetail}). */
+export interface ModDetailProps {
+  /** The mod picked in the list. */
+  mod: ModDef
+  /** The screen's own switch, so a page's switches are the screen's. */
+  Switch: ComponentType<{
+    id: string
+    label: string
+    on: boolean
+    disabled?: boolean
+    onChange: (on: boolean) => void
+  }>
+  /** Whether one of the picked mod's options is on. */
+  optionOn: (optionId: string) => boolean
+  /** Moves one, by the screen's own way of making a change: asked first where it costs something. */
+  setOption: (optionId: string, on: boolean) => void
+}
+
 /** What a mod offers for a save picked in Load Game, beside loading it. */
 export interface SaveChoice extends WayOn {
   title: string
@@ -121,6 +141,55 @@ export interface BunnyboardPage {
   Page: ComponentType
 }
 
+/** One control on a scene's rail, as the game draws its own: icon only, a count on its corner. */
+export interface RailSeatProps {
+  label: string
+  badge?: number
+  /** Standing and answering, standing but dead, or off the rail altogether. */
+  state: 'shown' | 'dim' | 'gone'
+  onClick: () => void
+  children: ReactNode
+}
+
+/** What the game hands a mod's seat on a scene's rail. */
+export interface SceneSeatProps {
+  /** The rail's own seat, so a mod's control is drawn as the game's are. */
+  Seat: ComponentType<RailSeatProps>
+  /** The rail is up: false behind a curtain, with the chrome hidden, or before the rail is. */
+  visible: boolean
+  /** Opens this mod's {@link ScenePlay.Panel} over the scene. */
+  open: () => void
+}
+
+/** What the game hands a mod's panel over a scene. */
+export interface ScenePanelProps {
+  /** The half of the day the stage is in, which every modal over it wears. */
+  theme: ScreenTheme
+  onClose: () => void
+}
+
+/**
+ * A mod's place on the scene screen. `Seat` is mounted on the rail for as long as a scene's
+ * chrome is, and decides for itself when it has something to offer (`state: 'gone'` otherwise).
+ * `Panel` is mounted while open, and while it is the scene behind it takes no key, click or turn,
+ * exactly as behind the game's own panels.
+ */
+export interface ScenePlay {
+  Seat: ComponentType<SceneSeatProps>
+  Panel: ComponentType<ScenePanelProps>
+}
+
+/** A scene reply that has landed, as the model wrote it. */
+export interface SceneReplied {
+  /** The whole reply, including the fields mods asked for. */
+  reply: Readonly<Record<string, unknown>>
+  /** Who is still in the scene. */
+  cast: readonly Character[]
+  solo: boolean
+  /** The reply ends the scene: its closing is next, and no turn is handed back. */
+  ending: boolean
+}
+
 export interface ModHooks {
   bunnyboardPage?: BunnyboardPage
 
@@ -139,6 +208,10 @@ export interface ModHooks {
   ) => Partial<Character>
   /** After her reply in a DM has landed. */
   afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void
+  /** After a scene reply has landed and its lines are on the transcript. */
+  afterSceneReply?: (ctx: SceneReplied) => void
+  /** A seat on the scene's rail, and the panel it opens over the scene. */
+  scenePlay?: ScenePlay
   /** As the reader commits to something: an action sent, or a hangout begun. */
   playerActs?: () => void
   /** As a game is entered, new or loaded. */
@@ -157,6 +230,12 @@ export interface ModHooks {
     reason: GameOverReason
     playthroughId: string | null
   }) => EndingChoice | undefined
+  /**
+   * A page of its own on the Mods screen for the mod picked there, its own or one that builds on
+   * it, drawn where that mod's options would be listed. The same component every time it is
+   * asked for the same mod; undefined for a mod it has nothing to say about.
+   */
+  modDetail?: (mod: ModDef) => ComponentType<ModDetailProps> | undefined
   /** An offer for a save picked in Load Game, beside loading it; the first mod that answers. */
   saveChoice?: (ctx: {
     playthroughId: string
@@ -237,6 +316,26 @@ export function afterDmReply(ctx: {
   for (const hooks of active()) hooks.afterDmReply?.(ctx)
 }
 
+export function afterSceneReply(ctx: SceneReplied): void {
+  // Called in the middle of a turn, with the autosave and the turn's release still to come: a
+  // mod that throws here costs its own reading of the reply and nothing of the scene's.
+  for (const hooks of active()) {
+    try {
+      hooks.afterSceneReply?.(ctx)
+    } catch (error) {
+      console.warn('[mods] afterSceneReply failed', error)
+    }
+  }
+}
+
+/** Every mod's place on the scene screen, each under its mod's id. */
+export function scenePlays(): { modId: string; play: ScenePlay }[] {
+  return registered
+    .filter((entry) => rules.isOn(entry.modId) && entry.hooks.scenePlay)
+    .sort((a, b) => rules.order(a.modId) - rules.order(b.modId))
+    .map((entry) => ({ modId: entry.modId, play: entry.hooks.scenePlay as ScenePlay }))
+}
+
 export function playerActs(): void {
   for (const hooks of active()) hooks.playerActs?.()
 }
@@ -288,6 +387,15 @@ export function endingChoice(ctx: Parameters<NonNullable<ModHooks['endingChoice'
   for (const hooks of active()) {
     const choice = hooks.endingChoice?.(ctx)
     if (choice) return choice
+  }
+  return undefined
+}
+
+/** A mod's own page on the Mods screen, in place of the list of its options, from the first mod that has one. */
+export function modDetail(mod: ModDef): ComponentType<ModDetailProps> | undefined {
+  for (const hooks of active()) {
+    const Detail = hooks.modDetail?.(mod)
+    if (Detail) return Detail
   }
   return undefined
 }

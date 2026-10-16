@@ -204,6 +204,23 @@ Where a thing goes:
 - **Nothing is redistributed**: weights, runtime and nodes are fetched from their own projects at install. `CreditsModal` is the authoritative credit list, headed by the donors and playtesters read off `assets/supporters.json`, which `npm run supporters` derives from the ledger in `private/`; a new manifest entry or shipped sound is not done until it has a line there, and a new supporter is not done until the script has run and the derived file is committed.
 - **Public mirror.** `scripts/syncPublic.mjs`, driven by `.github/workflows/sync-public.yml`, publishes a snapshot of this repository's `main` to https://github.com/venus-uni-dev/venus-university on every push, one squashed commit per push. `isPublic` in that script is the only rule deciding what goes public; a new folder under `assets/` is private until it is added to its allowlist there. `assets/characters` reaches the mirror as one stored zip per character, built from HEAD's blobs with a fixed entry date so an unchanged cast produces no commit, and the sync fails on a zip of 100 MiB or more, GitHub's file cap. `.github/`, `build/itch-page/`, `private/` and the two music folders `assets/sound/music` and `assets/sound/ambient_music` never ship; `assets/sound/README.md` lists where each excluded track comes from. The runner fetches the mirror with a blob filter, so the public art is never downloaded. A commit that touches the ledger is titled without a figure, since the mirror's squashed commit carries every private subject. The mirror is never merged from. The mirror is now live.
 
+### Mini-games and cooperative darts
+
+The mini-games framework registers scene rail seats and panels through mod hooks. Packs are
+found from `shared/minigameEntries` and registered through the renderer kit. The framework
+owns scene agreements, NPC skill, native dialogue, walking away and result continuation.
+Venus Darts is the `naudh1r-darts` pack: one teammate and a shared 301/501/701 countdown over
+five alternating visits. Exact zero wins; a bust restores the visit opening balance.
+The pure rules and deterministic NPC plans are `shared/minigameRules/darts.ts`. Fixed
+independent traits derive from character identity and the framework's cached skill. The
+engine fixes every landing before one AI dialogue batch per NPC visit; quiet mode makes
+none. A final match reaction is left to the narrator. Active matches are transient, matching
+the framework; standalone saves are separate.
+
+The renderer kit's `speak` accepts an optional native expression. It travels as a normal
+sprite action with the queued line, preserving the current outfit. `useEffectsGain()`
+provides the saved SFX slider's squared gain for synthesized pack audio.
+
 ## 9. Keeping this guide
 
 **Add**, in the same change:

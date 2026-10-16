@@ -1,0 +1,351 @@
+/* Rink Race: the roller rink from above. On the left the oval, the skaters on it under their
+   names and the disco lights on the infield; on the right the order, the clock and speed, the
+   stride tempo's pulse and the three pads. Drawn on the mini-game board surface; the start
+   button is base.css's. The frame loop places the skaters and hands the root `--since` (the
+   time since the last push, in beats) and `--speed` (a share of top speed). */
+
+.vu-rink {
+  --since: 1;
+  --speed: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 28px;
+  width: 100%;
+}
+
+.vu-rink-floor {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.vu-rink-track {
+  display: block;
+  /* A name under a skater on the boards may hang past the drawing's edge. */
+  overflow: visible;
+  width: 100%;
+  height: auto;
+}
+
+/* The boards round the floor, the floor itself, and the racing line painted on it. */
+.vu-rink-boards {
+  fill: none;
+  stroke: var(--vu-border);
+}
+
+.vu-rink-boardwalk {
+  fill: none;
+  stroke: var(--vu-recessed);
+}
+
+.vu-rink-line {
+  fill: none;
+  stroke: var(--vu-text-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 9;
+  opacity: 0.6;
+}
+
+.vu-rink-finish {
+  stroke: var(--vu-text);
+  stroke-width: 5;
+  stroke-dasharray: 5 5;
+}
+
+/* The disco lights on the infield: pools of colour that come and go. An opacity, so they keep
+   turning for a player who has asked for less motion. */
+.vu-rink-light {
+  fill: var(--vu-text-muted);
+  opacity: 0.12;
+  animation: vu-rink-disco 2.8s ease-in-out infinite alternate;
+}
+
+.vu-rink-light[data-tone='accent'] {
+  fill: var(--vu-accent);
+}
+
+@keyframes vu-rink-disco {
+  from {
+    opacity: 0.08;
+  }
+  to {
+    opacity: 0.42;
+  }
+}
+
+/* A skater: a disc under her name. The reader's is the accent; the girls' are told apart by
+   their names and by ring. */
+.vu-rink-skater circle {
+  fill: var(--vu-surface);
+  stroke: var(--vu-text);
+  stroke-width: 3.5;
+}
+
+.vu-rink-skater[data-seat='2'] circle {
+  fill: var(--vu-text-muted);
+}
+
+.vu-rink-skater[data-seat='3'] circle {
+  fill: var(--vu-text);
+  stroke: var(--vu-surface);
+}
+
+.vu-rink-skater[data-me] circle {
+  fill: var(--vu-accent);
+  stroke: var(--vu-border);
+}
+
+.vu-rink-skater text {
+  fill: var(--vu-text);
+  font: 700 12px var(--font-mono);
+  paint-order: stroke;
+  stroke: var(--vu-surface);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+}
+
+/* Down on the floor: the disc flattens and dims until she is up. */
+.vu-rink-skater[data-down] circle {
+  opacity: 0.45;
+  stroke-dasharray: 3 3;
+}
+
+/* What is laid over the rink: how to play before the start, the count-in, the pause. */
+.vu-rink-over {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 0 90px 10px;
+  text-align: center;
+}
+
+.vu-rink-over:not(.vu-rink-over--clear) {
+  background: color-mix(in srgb, var(--vu-surface) 86%, transparent);
+}
+
+.vu-rink-how {
+  margin: 0;
+  max-width: 460px;
+  color: var(--vu-text-body);
+  font: 400 16px/1.45 var(--font-body);
+}
+
+.vu-rink-paused,
+.vu-rink-count {
+  margin: 0;
+  color: var(--vu-text);
+  font: 400 40px var(--font-display);
+}
+
+.vu-rink-count {
+  color: var(--vu-accent);
+  font-size: 96px;
+  line-height: 1;
+  animation: vu-rink-count 0.8s ease-out both;
+}
+
+@keyframes vu-rink-count {
+  from {
+    opacity: 0.2;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The board beside the rink. */
+.vu-rink-side {
+  display: flex;
+  flex: 0 0 300px;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 14px;
+  color: var(--vu-text);
+}
+
+.vu-rink-order {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vu-rink-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto 52px;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 10px;
+  border: 2.5px solid var(--vu-border);
+  border-radius: 10px;
+  background: var(--vu-surface);
+  font: 700 14px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.vu-rink-row[data-me] {
+  border-color: var(--vu-accent);
+}
+
+.vu-rink-place {
+  font: 400 20px var(--font-display);
+}
+
+.vu-rink-name {
+  overflow: hidden;
+  font: 400 18px var(--font-display);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-rink-where {
+  color: var(--vu-text-body);
+}
+
+.vu-rink-gap {
+  color: var(--vu-text-muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.vu-rink-dash {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vu-rink-clock {
+  flex: 0 0 86px;
+  font: 700 18px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Speed: a recessed rail filled in the accent from the left. */
+.vu-rink-speed {
+  flex: 1 1 0;
+  height: 14px;
+  overflow: hidden;
+  border: 2.5px solid var(--vu-border);
+  border-radius: 999px;
+  background: var(--vu-recessed);
+}
+
+.vu-rink-speed-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--vu-accent);
+  transform: scaleX(var(--speed));
+  transform-origin: left center;
+}
+
+/* The tempo: a dot runs along the rail from the last push, and the next push is due as it
+   crosses the marked zone. The rail is 1.6 beats long, so the zone sits five eighths along. */
+.vu-rink-tempo {
+  position: relative;
+  height: 26px;
+  border: 2.5px solid var(--vu-border);
+  border-radius: 999px;
+  background: var(--vu-recessed);
+}
+
+.vu-rink-tempo-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 54%;
+  width: 17%;
+  background: var(--vu-accent);
+  opacity: 0.45;
+}
+
+.vu-rink-tempo-dot {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--since) / 1.6 * 100%);
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2.5px solid var(--vu-border);
+  border-radius: 50%;
+  background: var(--vu-text);
+}
+
+.vu-rink-judged {
+  min-height: 30px;
+  color: var(--vu-text);
+  font: 400 24px var(--font-display);
+  line-height: 30px;
+  text-align: center;
+}
+
+.vu-rink-judged[data-stride='perfect'] {
+  color: var(--vu-accent);
+}
+
+.vu-rink-judged[data-stride='off'],
+.vu-rink-judged[data-stride='same'] {
+  color: var(--vu-text-muted);
+}
+
+/* The call for the lean, under the stride's judgement: into it in a bend, out of it on a straight. */
+.vu-rink-call {
+  min-height: 22px;
+  color: var(--vu-accent);
+  font: 400 17px var(--font-display);
+  line-height: 22px;
+  text-align: center;
+}
+
+.vu-rink-call[data-call='free'] {
+  color: var(--vu-text-muted);
+}
+
+/* The three pads: a foot each side, the lean between them. */
+.vu-rink-pads {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+/* Before the whistle and after the line the pads stand back. */
+.vu-rink-pads[data-waiting] {
+  opacity: 0.35;
+}
+
+.vu-rink-pad {
+  padding: 14px 0;
+  border: 3px solid var(--vu-border);
+  border-radius: 12px;
+  background: var(--vu-surface);
+  color: var(--vu-text);
+  font: 700 14px var(--font-mono);
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.vu-rink-pad:active {
+  background: var(--vu-recessed);
+}
+
+/* The foot that is due, the lean a bend is asking for, and the lean held. */
+.vu-rink-pad[data-next],
+.vu-rink-pad[data-wanted] {
+  border-color: var(--vu-accent);
+  box-shadow: 3px 3px 0 var(--vu-accent-shadow);
+}
+
+.vu-rink-pad[aria-pressed='true'] {
+  background: var(--vu-accent);
+  color: var(--vu-accent-ink);
+}

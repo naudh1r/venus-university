@@ -1,5 +1,7 @@
 # Venus Extracurriculars
 
+This feature branch adds the [mini-games framework by morrowkiln](https://github.com/morrowkiln/venus-extracurriculars-minigames) and **Venus Darts**, a full-stage cooperative darts pack by naudh1r. It is based on Extracurricular main at `1fe5998` (0.2.0). See [Darts integration](docs/darts-integration.md) for controls, setup and validation.
+
 An unofficial, fan-made community build of [Venus University](https://venus-dev.itch.io/venus-university),
 Venus Dev's single-player AI-driven dating sim. It brings several community mods into one game,
 and each one can be switched on or off from **Mods** on the main menu.

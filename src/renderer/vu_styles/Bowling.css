@@ -1,0 +1,252 @@
+/* Bowling: the lane from above beside the scoresheet, the two meters and the one button a throw
+   is made with. Drawn on the mini-game board; the button is base.css's. */
+
+.vu-bowling {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 34px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* The lane: gutters either side of the boards, the pins at the far end, a short run to them. */
+.vu-bowling-lane {
+  flex: none;
+  width: 150px;
+  height: 400px;
+  cursor: pointer;
+}
+
+.vu-bowling-gutter {
+  fill: var(--vu-border);
+}
+
+.vu-bowling-boards {
+  fill: var(--vu-recessed);
+}
+
+.vu-bowling-foul {
+  stroke: var(--vu-text-muted);
+  stroke-width: 0.7;
+}
+
+.vu-bowling-arrow {
+  fill: var(--vu-text-muted);
+  opacity: 0.6;
+}
+
+/* A pin is a container seen from above: the surface, ringed. */
+.vu-bowling-pin {
+  fill: var(--vu-surface);
+  stroke: var(--vu-text);
+  stroke-width: 0.8;
+}
+
+/* A pin knocked down lies where it stood until the rack is cleared. */
+.vu-bowling-pin--down {
+  fill: var(--vu-text-muted);
+  stroke: none;
+  opacity: 0.3;
+}
+
+.vu-bowling-ball {
+  fill: var(--vu-accent);
+  stroke: var(--vu-accent-shadow);
+  stroke-width: 0.8;
+  will-change: cx, cy;
+}
+
+.vu-bowling-side {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  min-width: 0;
+}
+
+/* The sheet: a column a frame, the balls' marks over the running total. */
+.vu-bowling-sheet {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 4px;
+  table-layout: fixed;
+  color: var(--vu-text);
+  font: 700 14px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.vu-bowling-sheet thead th {
+  color: var(--vu-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.vu-bowling-sheet th:first-child {
+  width: 92px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-bowling-sheet tbody th {
+  color: var(--vu-text-muted);
+  font: 400 19px var(--font-display);
+}
+
+/* Whoever is up is named in full ink on a tinted plate, an accent bar at its leading edge. */
+.vu-bowling-sheet tbody th {
+  padding: 0 6px;
+  border-radius: 10px;
+  box-shadow: inset 3px 0 0 transparent;
+}
+
+.vu-bowling-sheet tr[data-up] th {
+  background: var(--vu-tint);
+  box-shadow: inset 3px 0 0 var(--vu-accent);
+  color: var(--vu-text);
+}
+
+.vu-bowling-sheet td {
+  padding: 5px 2px;
+  border-radius: 10px;
+  background: var(--vu-recessed);
+  text-align: center;
+}
+
+/* Three bowlers or four: shorter rows, so the sheet stands no taller than the lane beside it. */
+.vu-bowling-sheet[data-tight] {
+  border-spacing: 4px 3px;
+}
+
+.vu-bowling-sheet[data-tight] tbody th {
+  font-size: 16px;
+}
+
+.vu-bowling-sheet[data-tight] td {
+  padding: 2px;
+}
+
+.vu-bowling-sheet[data-tight] .vu-bowling-marks,
+.vu-bowling-sheet[data-tight] .vu-bowling-total {
+  line-height: 1.25;
+}
+
+/* The frame being bowled. */
+.vu-bowling-sheet td[data-now] {
+  background: var(--vu-tint);
+}
+
+.vu-bowling-marks,
+.vu-bowling-total {
+  display: block;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.vu-bowling-marks {
+  color: var(--vu-accent);
+  font-size: 13px;
+}
+
+.vu-bowling-meters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(420px, 100%);
+}
+
+.vu-bowling-meter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  opacity: 0.55;
+}
+
+/* The meter under the hand. */
+.vu-bowling-meter[data-live] {
+  opacity: 1;
+}
+
+.vu-bowling-meterlabel {
+  flex: none;
+  width: 52px;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+  text-align: right;
+}
+
+.vu-bowling-track {
+  position: relative;
+  flex: 1;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--vu-recessed);
+}
+
+/* Where the power carries the pins best. */
+.vu-bowling-sweet {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 65%;
+  width: 25%;
+  border-radius: 999px;
+  background: var(--vu-good-tint);
+}
+
+/* No hook at all: the middle of its track. */
+.vu-bowling-centre {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: calc(50% - 1px);
+  width: 2px;
+  background: var(--vu-text-muted);
+}
+
+.vu-bowling-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 0;
+  width: 8px;
+  margin-left: -4px;
+  border-radius: 4px;
+  background: var(--vu-accent);
+}
+
+.vu-bowling-throw {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 6px 0;
+}
+
+.vu-bowling-throw > button {
+  min-width: 200px;
+  transform-origin: center;
+}
+
+.vu-bowling-hint {
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-body);
+}
+
+/* The last ball, or the result, in full ink: it stays until the next. */
+.vu-bowling-hint[data-told] {
+  max-width: 100%;
+  color: var(--vu-text);
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Her turn, a ball on its way, or the game over: the throw stands back, but not the line told under it. */
+.vu-bowling-meters[data-waiting],
+.vu-bowling-throw[data-waiting] > button,
+.vu-bowling-throw[data-waiting] > .vu-bowling-hint:not([data-told]) {
+  opacity: 0.35;
+}

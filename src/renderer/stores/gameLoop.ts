@@ -2481,7 +2481,7 @@ export function interject(action: string): boolean {
  * reply's last line, that line taken as turned; at a decision point already, nothing to do. False
  * when none of these applies.
  */
-function takeTurnFromReply(): boolean {
+export function takeTurnFromReply(): boolean {
   const game = useGameStore.getState()
   const offer = interjectOfferOf(game)
 

@@ -1,0 +1,276 @@
+/* Beer Pong: the table from above beside the two sides, how much each has drunk, the arc meter
+   and the buttons a throw is made with. Drawn on the mini-game board; the buttons are base.css's. */
+
+.vu-beerpong {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 34px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* The table: a long top, a rack of cups at each end, the reader's end at the bottom. */
+.vu-beerpong-table {
+  flex: none;
+  width: 196px;
+  height: 420px;
+  cursor: pointer;
+}
+
+.vu-beerpong-top {
+  fill: var(--vu-recessed);
+  stroke: var(--vu-border);
+  stroke-width: 0.14;
+}
+
+.vu-beerpong-mid {
+  stroke: var(--vu-text-muted);
+  stroke-width: 0.05;
+  stroke-dasharray: 0.3 0.3;
+  opacity: 0.6;
+}
+
+/* A cup is a container seen from above: the surface, ringed, with the drink in it. */
+.vu-beerpong-cup circle {
+  fill: var(--vu-surface);
+  stroke: var(--vu-text);
+  stroke-width: 0.09;
+}
+
+.vu-beerpong-cup .vu-beerpong-beer {
+  fill: var(--vu-accent);
+  stroke: none;
+  opacity: 0.55;
+}
+
+/* A cup just hit fades where it stood until the throw is counted. */
+.vu-beerpong-cup--gone {
+  opacity: 0.25;
+  transition: opacity 0.25s;
+}
+
+/* The reader's marks, shown only while his throw is being made. */
+.vu-beerpong-aim,
+.vu-beerpong-arc {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.vu-beerpong-aim[data-live],
+.vu-beerpong-arc[data-live] {
+  visibility: visible;
+}
+
+.vu-beerpong-aim {
+  stroke: var(--vu-accent);
+  stroke-width: 0.1;
+  opacity: 0.8;
+  will-change: x1, x2;
+}
+
+.vu-beerpong-arc {
+  fill: none;
+  stroke: var(--vu-text);
+  stroke-width: 0.1;
+  will-change: cx, cy;
+}
+
+.vu-beerpong-ball {
+  visibility: hidden;
+  fill: var(--vu-surface);
+  stroke: var(--vu-accent-shadow);
+  stroke-width: 0.08;
+  pointer-events: none;
+  will-change: cx, cy, r;
+}
+
+.vu-beerpong-ball[data-live] {
+  visibility: visible;
+}
+
+.vu-beerpong-side {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* The two sides, the far one over the reader's as on the table. */
+.vu-beerpong-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.vu-beerpong-team {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 16px;
+  align-items: baseline;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: var(--vu-recessed);
+  box-shadow: inset 3px 0 0 transparent;
+}
+
+/* The side throwing: a tinted plate, an accent bar at its leading edge. */
+.vu-beerpong-team[data-up] {
+  background: var(--vu-tint);
+  box-shadow: inset 3px 0 0 var(--vu-accent);
+}
+
+.vu-beerpong-teamname {
+  overflow: hidden;
+  color: var(--vu-text);
+  font: 400 21px var(--font-display);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-beerpong-left {
+  color: var(--vu-text);
+  font: 700 14px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Who has drunk what, the one throwing in full ink. */
+.vu-beerpong-drinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-mono);
+}
+
+.vu-beerpong-drinks [data-up] {
+  color: var(--vu-text);
+  font-weight: 700;
+}
+
+.vu-beerpong-tipsy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vu-beerpong-tipsylabel {
+  color: var(--vu-text-muted);
+  font: 700 11px var(--font-mono);
+}
+
+.vu-beerpong-tipsytrack {
+  width: 110px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--vu-surface);
+}
+
+.vu-beerpong-tipsyfill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--vu-accent);
+  transition: width 0.4s;
+}
+
+.vu-beerpong-meter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(420px, 100%);
+  opacity: 0.55;
+}
+
+/* The meter under the hand. */
+.vu-beerpong-meter[data-live] {
+  opacity: 1;
+}
+
+.vu-beerpong-meterlabel {
+  flex: none;
+  width: 32px;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+  text-align: right;
+}
+
+.vu-beerpong-track {
+  position: relative;
+  flex: 1;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--vu-recessed);
+}
+
+/* The stretch of arc that comes down among the cups still standing. */
+.vu-beerpong-reach {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: var(--vu-good-tint);
+}
+
+.vu-beerpong-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 0;
+  width: 8px;
+  margin-left: -4px;
+  border-radius: 4px;
+  background: var(--vu-accent);
+}
+
+.vu-beerpong-throw {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 6px 0;
+}
+
+.vu-beerpong-buttons {
+  display: flex;
+  gap: 22px;
+}
+
+.vu-beerpong-buttons > button {
+  transform-origin: center;
+}
+
+.vu-beerpong-buttons > button:first-child {
+  min-width: 200px;
+}
+
+.vu-beerpong-hint {
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-body);
+}
+
+/* The last throw or re-rack, in full ink: it stays until the next. */
+.vu-beerpong-hint[data-told] {
+  max-width: 100%;
+  color: var(--vu-text);
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Her turn, a ball in the air, no re-rack to call, or the game over: it stands back. */
+.vu-beerpong-meter[data-waiting],
+.vu-beerpong-buttons > button[data-waiting] {
+  opacity: 0.35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vu-beerpong-cup--gone,
+  .vu-beerpong-tipsyfill {
+    transition: none;
+  }
+}

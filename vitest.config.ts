@@ -12,6 +12,8 @@ export default defineConfig({
       '@shared': resolve(__dirname, 'src/shared')
     }
   },
+  // Components a test reaches through a mod's entry are compiled as the app compiles them.
+  esbuild: { jsx: 'automatic' },
   test: {
     environment: 'node',
     include: ['test/**/*.test.ts']

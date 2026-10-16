@@ -77,7 +77,7 @@ describe('a failed turn hands back only words the reader owns', () => {
   })
   it('clears only the matching Reckoning aftermath after a successful scene continuation',async()=>{
     useGameStore.setState({exReckoning:{version:1,active:null,aftermath:{id:'won',charId:'a',date:7,time:0}}})
-    const result:SceneCall=Promise.resolve({ok:true,data:{lines:sceneLines('She smiles, feeling lighter.'),summary:null,end:false,applied:false,at:0}})
+    const result:SceneCall=Promise.resolve({ok:true,data:{lines:sceneLines('She smiles, feeling lighter.'),summary:null,end:false,applied:false,at:0,reply:{lines:sceneLines('She smiles, feeling lighter.'),end_scene:false}}})
     await runSceneTurn(result,{scene:null,action:'',reckoning:'won'},[],[],false)
     expect(useGameStore.getState().exReckoning.aftermath).toBeUndefined()
     expect(useGameStore.getState().currentSceneTranscript.some(l=>l.text.includes('feeling lighter'))).toBe(true)

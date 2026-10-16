@@ -114,7 +114,7 @@ describe('actual outcomes and independent continuity',()=>{
     const snapshot:TurnSnapshot={action:intent.direction,scene:game().captureScene(),breakthrough:intent}
     const saved=vi.fn(async(_id:string,draft:ReturnType<GameSaveDraft>)=>({ok:true as const,data:{...draft,playthroughId:'p',saveId:'auto',saveDate:0}}))
     stubApi({saves:{autosave:saved}})
-    await runSceneTurn(Promise.resolve({ok:true,data:{lines,summary:null,end:false,applied:false,at:1}}),snapshot,['a'],[a],false)
+    await runSceneTurn(Promise.resolve({ok:true,data:{lines,summary:null,end:false,applied:false,at:1,reply:{lines}}}),snapshot,['a'],[a],false)
     expect(game().exBreakthrough.meters.a).toBe(0)
     expect(game().exBreakthrough.pending).toBeNull()
     const moment=game().exBreakthrough.moments.a[0]
@@ -130,7 +130,7 @@ describe('actual outcomes and independent continuity',()=>{
     const pending=runSceneTurn(new Promise(r=>{resolve=r}),snapshot,['a'],[a],false)
     loopState.sceneCall={}
     finishBreakthrough(intent.id,true)
-    resolve({ok:true,data:{lines:sceneLines('Discard me'),summary:null,end:false,applied:false,at:1}})
+    resolve({ok:true,data:{lines:sceneLines('Discard me'),summary:null,end:false,applied:false,at:1,reply:{lines:sceneLines('Discard me')}}})
     await pending
     expect(game().exBreakthrough.moments).toEqual({})
     activateBreakthrough('a','Hope',()=>true)

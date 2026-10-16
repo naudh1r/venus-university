@@ -3,6 +3,7 @@ import { finishReckoningAftermath, settleUnspokenVoice } from '../reckoning'
 import { isPermanent } from '@shared/errors'
 import type { AppError, Character } from '@shared/types'
 import { shortenSceneSoFar } from '../../prompts/scenePrompt'
+import { afterSceneReply } from '../../mods/hooks'
 import { useGameStore } from '../gameStore'
 import { retrySilently } from '../silentRetry'
 import { castCharactersOf } from './cast'
@@ -187,6 +188,10 @@ export async function runSceneTurn(
   if(!snapshot.reckoning)settleUnspokenVoice()
   const ending = solo || result.data.end
   useGameStore.getState().setSceneEnding(ending)
+
+  // The lines are on the transcript and the scene knows whether it is over: what a mod reads off
+  // the reply is read against both.
+  afterSceneReply({ reply: { ...result.data.reply }, cast: castCharacters, solo, ending })
 
   if (!ending) {
     // Written before playback is handed back: `unpark()` can run to the next decision point,
