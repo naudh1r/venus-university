@@ -51,6 +51,12 @@ planned NPC hit with its remainingBefore/remainingAfter, bust and outcome. The m
 returns only lines and native expression ids keyed to throw ids; it cannot change hits.
 A bust or checkout can shorten a visit to fewer than three darts.
 
+Those score facts establish the moment; they are not a script for an announcer. The
+request asks the model to continue the NPC's personality, relationship, recent dialogue
+and scene mood through varied teammate banter. It may tease, encourage, flirt, joke,
+show nerves or talk light strategy. Scores and hit labels are mentioned only when they
+sound natural because the board already shows them.
+
 - Quiet: no unsolicited reaction calls or speech.
 - Some: one batch per NPC visit; intro plus one noteworthy impact reaction.
 - Lots: one batch per NPC visit; intro, each non-final impact and a non-final closing.
