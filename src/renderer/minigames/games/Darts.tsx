@@ -274,7 +274,8 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
       const held = hold.current
       const landed = state.flight ? state.session.throws.slice(0, -1) : state.session.throws
       const currentDarts = landed.filter((dart) => dart.visit === state.boardVisit)
-      dartboard.draw({ darts: currentDarts.slice(-1), silhouettes: currentDarts.slice(0, -1), aim: active ? held?.ellipse ?? aim.current : null, ellipse: active ? held?.ellipse : null, dot: active && held ? movingDot(held.ellipse, state.session.seed, state.session.throws.length, (time - held.time) / 1000) : null, flight: state.flight, impact: state.impact, reduced: state.reduced }, time)
+      const aimingOrFlying = !!held || !!state.flight
+      dartboard.draw({ darts: aimingOrFlying ? [] : currentDarts.slice(-1), silhouettes: aimingOrFlying ? currentDarts : currentDarts.slice(0, -1), aim: active ? held?.ellipse ?? aim.current : null, ellipse: active ? held?.ellipse : null, dot: active && held ? movingDot(held.ellipse, state.session.seed, state.session.throws.length, (time - held.time) / 1000) : null, flight: state.flight, impact: state.impact, reduced: state.reduced }, time)
       frame = requestAnimationFrame(paint)
     }
     frame = requestAnimationFrame(paint)
