@@ -25,9 +25,8 @@ import { useModsStore } from '../stores/modsStore'
 
 /** The games a girl in this scene could be played at, each with a component to play it with. */
 function gamesWith(cast: readonly Character[], location: string | null): MiniGameDef[] {
-  if (cast.length === 0) return []
   return gamesOffered({ location, girls: cast.length }, gameIsOn)
-    .filter((game) => game.players.max >= 1 && Boolean(gameComponent(game.id)))
+    .filter((game) => (cast.length > 0 ? game.players.max >= 1 : game.soloScene && game.players.min === 0) && Boolean(gameComponent(game.id)))
     .map(tunedGame)
 }
 

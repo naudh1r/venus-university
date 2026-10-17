@@ -145,6 +145,9 @@ export function withOffer(
             'Fill it first. Leave "play" and "with" as "" unless, by the end of your lines, the reader and one girl have BOTH agreed in words to play one of these games right now. It takes his word as well as hers: either his action this turn says yes to a game she suggested, or his action asks her to play and she says yes in your lines. A suggestion nobody has answered yet is not an agreement, and neither is talk of playing later.',
             'When they have agreed: "play" is the game\'s id and "with" is her.'
           ]),
+      ...(games.some((game) => game.soloScene && game.players.min === 0) ? [
+        `SOLO EXCEPTION: For ${games.filter((game) => game.soloScene && game.players.min === 0).map((game) => game.name).join(', ')}, if the reader explicitly asks to play alone right now, set "play" to that game's id and ${several ? 'every girl in "with" to "out"' : '"with" to ""'}. No NPC agreement is needed. Do not recruit a passerby or turn this into a team game. If he has not explicitly chosen to play alone now, the agreement rules above still apply.`
+      ] : []),
       '"stake" is what they have settled is riding on it, in one sentence written the way your narration is, with the reader as "you", or "" if nothing is. An option keeps its standard value unless a different one was named out loud, by him in his action or by her in your lines; never change one on your own.',
       'Then write them getting set up and stop there, without playing. Do not send end_scene on that turn.',
       'That is the whole of what the table can do: nothing either of them says changes a game\'s rules. If the reader asks for a way of playing a game does not cover, she steers it back to what the game does, in character, or says no.'
@@ -193,7 +196,9 @@ export function agreedOf(
       return said ? said[key] === 'in' : key === who
     })
     .slice(0, game.players.max)
-  if (characters.length < fewestWith(game)) return null
+  const solo = game.soloScene && game.players.min === 0 && characters.length === 0 &&
+    (who === '' || Boolean(said && cast.length > 1 && cast.every((c) => said[charKeyOf(c.firstName, c.lastName)] === 'out')))
+  if (!solo && characters.length < fewestWith(game)) return null
   return {
     game,
     characters,

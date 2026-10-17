@@ -110,12 +110,13 @@ const RIVAL_ROUNDS = 3
 export function newSession(input: Omit<DartsSession, 'version' | 'throws'>): DartsSession {
   if (!input.id || !Number.isInteger(input.seed) || input.seed < 0 || input.seed > 0xffffffff) throw Error('Invalid darts session')
   if (!['house', 'rival'].includes(input.mode) || ![301, 501, 701].includes(input.target)) throw Error('Invalid darts rules')
-  if (input.seats.length < 2 || input.seats.length > 3 || input.seats[0]?.kind !== 'reader' || input.seats.slice(1).some((seat) => seat.kind !== 'npc')) throw Error('Invalid darts seats')
+  if (input.seats.length < 1 || input.seats.length > 3 || input.seats[0]?.kind !== 'reader' || input.seats.slice(1).some((seat) => seat.kind !== 'npc') || input.mode === 'rival' && input.seats.length < 2) throw Error('Invalid darts seats')
   if (new Set(input.seats.map((seat) => seat.id)).size !== input.seats.length) throw Error('Duplicate darts seat')
   return { ...input, version: 1, throws: [], seats: input.seats.map((seat) => ({ ...seat, traits: seat.traits && { ...seat.traits } })) }
 }
 
 function maxVisits(session: DartsSession): number {
+  if (session.seats.length === 1) return 5
   return session.mode === 'house' ? 3 + (session.seats.length - 1) * 2 : session.seats.length * RIVAL_ROUNDS
 }
 

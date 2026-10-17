@@ -10,6 +10,7 @@ import {
   type MiniGameDef
 } from '../src/shared/minigames'
 import { modOn, NO_SWITCHES, withMod, type ModDef } from '../src/shared/mods'
+import DARTS from '../src/shared/minigameEntries/darts'
 
 /** Which games a scene offers: the mod's switch, the place, and who is there to play. */
 
@@ -35,9 +36,14 @@ const on = (): boolean => true
 const ids = (games: MiniGameDef[]): string[] => games.map((g) => g.id)
 
 describe('gamesOffered', () => {
+  it('offers the actual Darts pack at Pino-Cola with or without a partner', () => {
+    for (const location of ['pino cola', 'pinocola_lounge', 'Pino-Cola Lounge']) {
+      for (const girls of [0, 1, 2]) expect(gamesOffered({ location, girls }, on, [DARTS])).toEqual([DARTS])
+    }
+  })
   it('offers location-bound games for classifier place names as well as stored ids', () => {
     const loungeDarts = game('darts', { locations: ['pino_cola_lounge'], players: { min: 1, max: 2 } })
-    for (const location of ['pino_cola_lounge', 'pinocola_lounge', 'Pino-Cola Lounge', 'pino cola lounge', 'the Pino-Cola Lounge']) {
+    for (const location of ['pino_cola_lounge', 'pinocola_lounge', 'Pino-Cola Lounge', 'pino cola lounge', 'the Pino-Cola Lounge', 'pino cola', 'Pino-Cola', 'pinocola', 'the pino cola']) {
       expect(ids(gamesOffered({ location, girls: 1 }, on, [cards, loungeDarts])), location).toEqual(['cards', 'darts'])
     }
     expect(ids(gamesOffered({ location: 'the Agora', girls: 1 }, on, [cards, loungeDarts]))).toEqual(['cards'])

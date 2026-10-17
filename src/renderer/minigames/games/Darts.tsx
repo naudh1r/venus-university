@@ -20,10 +20,10 @@ function pointsOf(session: DartsSession, seatId: string): number {
 function accountOf(session: DartsSession): string[] {
   const state = sessionSummary(session)
   return [
-    `${session.mode === 'house' ? 'Cooperative Beat the House' : '301 Rival Match'} with ${session.seats.map((seat) => seat.name).join(', ')}.`,
+    `${session.mode === 'house' ? session.seats.length === 1 ? 'Solo Beat the House' : 'Cooperative Beat the House' : '301 Rival Match'} with ${session.seats.map((seat) => seat.name).join(', ')}.`,
     ...state.visits.map((visit) => `${session.seats.find((seat) => seat.id === visit.seatId)?.name}, visit ${visit.index + 1}: ${visit.darts.map((dart) => scoreHit(dart.x, dart.y).label).join(', ')}; ${visit.points} credited${visit.bust ? ', bust restored the visit opening score' : ''}; ${visit.balance} remaining.`),
     session.mode === 'house'
-      ? `${state.teamBalance} remains from ${session.target}; ${state.outcome === 'won' ? 'the team beat the house' : state.done ? 'the house won' : 'the match is unfinished'}.`
+      ? `${state.teamBalance} remains from ${session.target}; ${state.outcome === 'won' ? session.seats.length === 1 ? 'you beat the house' : 'the team beat the house' : state.done ? 'the house won' : 'the match is unfinished'}.`
       : `${session.seats.map((seat) => `${seat.name}: ${state.balances[seat.id]} remaining`).join('; ')}. ${state.done ? state.winnerIds.length === 1 ? `${session.seats.find((seat) => seat.id === state.winnerIds[0])?.name} won.` : 'The match ended in a draw.' : 'The match is unfinished.'}`
   ]
 }
@@ -42,7 +42,7 @@ function fallback(session: DartsSession, seat: Opponent, plan: SessionPlanItem[]
 
 export function Darts({ play }: { play: GamePlay }): JSX.Element {
   const opponents = play.opponents.slice(0, 2)
-  const mode: DartsMode = play.options['darts-mode'] === 2 ? 'rival' : 'house'
+  const mode: DartsMode = opponents.length && play.options['darts-mode'] === 2 ? 'rival' : 'house'
   const target = mode === 'rival' ? 301 : [301, 501, 701][(play.options['darts-start'] ?? 2) - 1]
   const [session, setSession] = useState<DartsSession>(() => newSession({
     id: crypto.randomUUID(), seed: crypto.getRandomValues(new Uint32Array(1))[0], mode, target,
@@ -85,7 +85,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
     latest.current.session = next; setSession(next)
     const state = sessionSummary(next)
     const scores = next.mode === 'house' ? `${state.teamBalance} of ${next.target} left` : next.seats.map((seat) => `${seat.name} ${state.balances[seat.id]}`).join(', ')
-    latest.current.play.situation(`${next.mode === 'house' ? 'Cooperative Beat the House' : '301 Rival Match'} darts. ${scores}. ${state.done ? 'The match is complete.' : `${seatName(next, state.currentSeatId)} throws next.`}`)
+    latest.current.play.situation(`${next.mode === 'house' ? opponents.length ? 'Cooperative Beat the House' : 'Solo Beat the House' : '301 Rival Match'} darts. ${scores}. ${state.done ? 'The match is complete.' : `${seatName(next, state.currentSeatId)} throws next.`}`)
     latest.current.play.progress(accountOf(next))
   }
 
@@ -115,13 +115,15 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
     finished.current = true; setPhase('finished')
     const state = sessionSummary(next), winner = state.winnerIds.length === 1 ? seatName(next, state.winnerIds[0]) : null
     const won = state.outcome === 'won'
-    setStatus(next.mode === 'house' ? won ? 'House beaten. Together.' : `${state.teamBalance} left. The house wins.` : winner ? `${winner} wins.` : 'Match drawn.')
+    setStatus(next.mode === 'house' ? won ? opponents.length ? 'House beaten. Together.' : 'House beaten.' : `${state.teamBalance} left. The house wins.` : winner ? `${winner} wins.` : 'Match drawn.')
     sound.current?.play(won ? 'win' : state.outcome === 'draw' ? 'impact' : 'loss')
     if (!(await pause(reduced ? 200 : 700, token))) return
     latest.current.play.finish({
       outcome: state.outcome ?? 'draw',
       summary: next.mode === 'house'
-        ? won ? `You and ${opponents.map((girl) => girl.name).join(' and ')} beat the house at darts.` : `Your team lost to the house with ${state.teamBalance} remaining.`
+        ? opponents.length
+          ? won ? `You and ${opponents.map((girl) => girl.name).join(' and ')} beat the house at darts.` : `Your team lost to the house with ${state.teamBalance} remaining.`
+          : won ? 'You beat the house at darts on your own.' : `You lost to the house at darts with ${state.teamBalance} remaining.`
         : winner ? `${winner} won the 301 Rival Match against ${next.seats.filter((seat) => seat.name !== winner).map((seat) => seat.name).join(' and ')}.` : 'The 301 Rival Match ended in a draw.',
       account: accountOf(next)
     })
@@ -214,7 +216,14 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
     state.play.moved(); state.play.started()
     void run(async (token) => {
       const next = await land(targetPoint, token)
-      if (next && !sessionSummary(next).done && sessionSummary(next).currentSeatId !== 'reader') await prepare(next, token)
+      if (next && !sessionSummary(next).done) {
+        const after = sessionSummary(next)
+        if (after.currentSeatId !== 'reader') await prepare(next, token)
+        else if (after.visit !== latest.current.boardVisit) {
+          setStatus('Visit complete. Take your next three darts.')
+          setPhase('my-turn')
+        }
+      }
     })
   }
 
@@ -300,7 +309,6 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
     context.clearRect(0, 0, 1400, 1400); context.save(); context.scale(2, 2); board.current?.paintScoreGuide(context); context.restore()
   }, [guide])
 
-  if (!opponents.length) return <p className="vu-empty">Darts needs at least one teammate or rival in the scene.</p>
   const live = sessionSummary(session), activeName = live.done ? '' : seatName(session, live.currentSeatId)
   return <div className="vu-darts" data-guide={guide || undefined} data-finished={phase === 'finished' || undefined}>
     <div className="vu-darts-stage">
@@ -315,12 +323,12 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
           if (latest.current.phase === 'player' && !hold.current && !locked.current) aim.current = { x: Math.max(-1.3, Math.min(1.3, aim.current.x + move.x * (event.shiftKey ? .008 : .025))), y: Math.max(-1.3, Math.min(1.3, aim.current.y + move.y * (event.shiftKey ? .008 : .025))) }
         }} onKeyUp={(event) => { if (event.code === 'Space' && hold.current?.pointer === null) { event.preventDefault(); release() } }} />
       {guide && <div className="vu-darts-guide" onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setGuide(false) } }}><canvas ref={guideCanvas} width={1400} height={1400} aria-label="Single, double, triple; outer bull 25, inner bull 50." /><motion.button autoFocus type="button" className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(false, lift, press)} onClick={() => setGuide(false)}>Back to the board</motion.button></div>}
-      {phase === 'finished' && live.outcome === 'won' && <motion.div className="vu-darts-celebration" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><span>{session.mode === 'house' ? 'HOUSE BEATEN' : 'MATCH WON'}</span><strong>{session.mode === 'house' ? 'Together.' : 'Bullseye.'}</strong></motion.div>}
+      {phase === 'finished' && live.outcome === 'won' && <motion.div className="vu-darts-celebration" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><span>{session.mode === 'house' ? 'HOUSE BEATEN' : 'MATCH WON'}</span><strong>{session.mode === 'house' && opponents.length ? 'Together.' : 'Bullseye.'}</strong></motion.div>}
     </div>
     <aside className="vu-darts-score" aria-label="Match score">
       <div className="vu-darts-scorehead">{phase === 'finished' ? 'MATCH COMPLETE' : `${activeName.toUpperCase()}’S TURN`}</div>
-      <span className="vu-darts-label">{session.mode === 'house' ? 'TEAM REMAINING' : 'ACTIVE REMAINING'}</span><strong className="vu-darts-balance" aria-live="polite">{displayedScore}</strong>
-      <div className="vu-darts-start">{session.mode === 'house' ? 'BEAT THE HOUSE' : '301 RIVAL MATCH'}<span>ROUND {Math.min(3, Math.floor(live.visit / session.seats.length) + 1)}</span></div>
+      <span className="vu-darts-label">{session.mode === 'house' ? opponents.length ? 'TEAM REMAINING' : 'REMAINING' : 'ACTIVE REMAINING'}</span><strong className="vu-darts-balance" aria-live="polite">{displayedScore}</strong>
+      <div className="vu-darts-start">{session.mode === 'house' ? 'BEAT THE HOUSE' : '301 RIVAL MATCH'}<span>ROUND {Math.min(opponents.length ? 3 : 5, Math.floor(live.visit / session.seats.length) + 1)}</span></div>
       <ol className="vu-darts-results" aria-label="Darts in the current visit">{[0, 1, 2].map((index) => { const dart = shownVisit?.darts[index], hit = dart && scoreHit(dart.x, dart.y); return <li key={index}><span>{index + 1}</span>{hit ? <><span>{hit.label}</span><strong>{hit.points}</strong></> : <img src={dartIcon} alt="Dart remaining" />}</li> })}</ol>
       <div className="vu-darts-contributions">{session.seats.map((seat) => <span key={seat.id}>{seat.name.toUpperCase()} <strong>{session.mode === 'house' ? pointsOf(visible, seat.id) : state.balances[seat.id]}</strong></span>)}</div>
       <p className="vu-darts-status" aria-live="polite">{status}</p>

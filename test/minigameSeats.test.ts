@@ -3,6 +3,7 @@ import { groupsFor, listed, type MiniGameDef } from '../src/shared/minigames'
 import type { Character, StructuredRequest } from '../src/shared/types'
 import { agreedOf, withOffer } from '../src/renderer/minigames/offer'
 import { answerOf, withProposal, type Asked } from '../src/renderer/minigames/proposal'
+import DARTS from '../src/shared/minigameEntries/darts'
 
 function game(min: number, max: number): MiniGameDef {
   return {
@@ -90,6 +91,20 @@ describe('a proposal to several girls', () => {
 })
 
 describe('the standing offer with several girls here', () => {
+  it('opens explicit solo Darts with zero, one or several bystanders without seating them', () => {
+    for (const cast of [[], CAST.slice(0, 1), CAST]) {
+      const who = cast.length > 1 ? Object.fromEntries(cast.map((c) => [`${c.firstName.toLowerCase()}_seo`, 'out'])) : ''
+      const reply = { minigame: { play: 'darts', with: who, stake: '' } }
+      expect(agreedOf(reply, [DARTS], cast)?.characters).toEqual([])
+      const prompt = withOffer(REQUEST, [DARTS], cast, 'pino cola', false, false)
+      expect(prompt.user).toContain('SOLO EXCEPTION: For Darts')
+      expect(prompt.user).toContain('No NPC agreement is needed.')
+      expect(prompt.user).toContain('without playing')
+    }
+    expect(agreedOf({ minigame: { play: 'darts', with: 'unknown_npc' } }, [DARTS], CAST)).toBeNull()
+    expect(agreedOf({ minigame: { play: 'darts' } }, [DARTS], CAST)).toBeNull()
+    expect(agreedOf({ minigame: { play: 'cards', with: '' } }, [game(0, 1)], CAST)).toBeNull()
+  })
   it('names one girl, and says in or out of several', () => {
     const one = shapeOf(withOffer(REQUEST, [game(1, 3)], CAST.slice(0, 1), null, false, false))
     expect((one.properties.minigame.properties.with as { type: string }).type).toBe('string')

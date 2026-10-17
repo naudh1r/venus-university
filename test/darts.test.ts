@@ -76,6 +76,30 @@ const session = (mode: 'house' | 'rival' = 'house', two = true): DartsSession =>
 const sessionMiss = (game: DartsSession): DartsSession => sessionThrow(game, { x: 1.2, y: 0 })
 
 describe('multiplayer darts session', () => {
+  const solo = (): DartsSession => newSession({ id: 'solo', seed: 42, mode: 'house', target: 301, seats: seats().slice(0, 1) })
+
+  it('gives a solo reader five visits and ends after fifteen misses', () => {
+    let game = solo()
+    for (let i = 0; i < 15; i++) {
+      expect(sessionSummary(game)).toMatchObject({ done: false, currentSeatId: 'reader' })
+      game = sessionMiss(game)
+    }
+    expect(sessionSummary(game)).toMatchObject({ done: true, completedVisits: 5, outcome: 'lost', teamBalance: 301 })
+    expect(() => sessionMiss(game)).toThrow()
+    expect(() => newSession({ ...solo(), mode: 'rival' })).toThrow('Invalid darts seats')
+  })
+
+  it('restores a solo bust and lets the reader check out on the next visit', () => {
+    let game = solo()
+    for (let i = 0; i < 5; i++) game = sessionThrow(game, targetRegion(20, 'triple'))
+    game = sessionThrow(game, targetRegion(2))
+    expect(sessionSummary(game)).toMatchObject({ teamBalance: 121, currentSeatId: 'reader', completedVisits: 2 })
+    expect(sessionSummary(game).visits.at(-1)).toMatchObject({ bust: true, points: 0 })
+    game = sessionThrow(game, targetRegion(20, 'triple'))
+    game = sessionThrow(game, targetRegion(20, 'triple'))
+    game = sessionThrow(game, targetRegion(1))
+    expect(sessionSummary(game)).toMatchObject({ done: true, outcome: 'won', teamBalance: 0 })
+  })
   it('uses the exact same normalized scoring geometry as the rendered board', () => {
     for (let index = 0; index < 500; index++) {
       const x = ((index * 73) % 261) / 100 - 1.3

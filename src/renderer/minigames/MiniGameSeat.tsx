@@ -33,7 +33,8 @@ export function MiniGameSeat({ Seat, visible, open }: SceneSeatProps): JSX.Eleme
       (charId) => scene.cast.includes(charId) && !scene.departed.includes(charId)
     )
     const game = gameById(due.gameId)
-    if (!game || here.length < fewestWith(game)) {
+    const solo = game?.soloScene && game.players.min === 0 && due.charIds.length === 0
+    if (!game || !solo && here.length < fewestWith(game)) {
       useTableStore.getState().setAgreed(null)
       return
     }

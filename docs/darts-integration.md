@@ -12,7 +12,10 @@ required by the framework's after-reply hook.
 Run `npm ci`, then `npm run dev` for Electron or `npm run dev:web` for the browser build.
 Enable **Mini-games** and **[Nd] Arcade & Bar Games** in Mods, with **Darts** enabled inside the pack. Start a scene with one or two girls at BTB Arcade,
 Stalestein Bar or Pino Cola Lounge. Use the existing mini-games HUD button and ask her to
-play Darts, or agree to play through ordinary scene dialogue.
+play Darts, or agree to play through ordinary scene dialogue. Darts also offers **Play alone**,
+even when a girl is present. An explicit solo Darts request in narration can open the game
+without seating that bystander or requiring her agreement. Short venue names such as
+"pino cola" resolve to the same location as "Pino-Cola Lounge".
 
 Move the pointer or arrow keys to aim. Hold left click or Space to lock the ellipse;
 release to throw exactly where the moving dot is. Shift makes keyboard adjustment finer.
@@ -22,7 +25,10 @@ The ellipse is drawn only while holding. No reticle or ellipse appears on partne
 girl and second girl where present. The reader gets three visits and each girl two, so
 a one-girl table has five visits and a two-girl table seven. Reaching exactly zero on
 any region wins for the team. Overshooting cancels that entire visit, restores its
-opening balance and immediately hands over.
+opening balance and immediately hands over. Solo Beat the House gives the reader five visits
+(up to fifteen darts), with **My turn** collecting the board between visits. Solo always uses
+Beat the House, even if Rival Match was saved as the preferred mode; there are no NPC skill
+or reaction calls during solo play.
 
 **301 Rival Match** gives the reader and every girl a separate 301 balance for three
 rounds. A checkout wins immediately; otherwise the lowest remaining balance wins and
@@ -85,6 +91,11 @@ audio and timers. Automatic throws pause while the window is away.
 
 ## Small framework extensions
 
+`MiniGameDef.soloScene` opts a solo-capable game into scene-driven solo launches. Only
+Darts opts in here. A blank participant selection can then open the real game after an
+explicit solo request, including scenes with no NPCs. Missing or unknown participants are
+still rejected; a departed teammate does not silently convert an agreed team game to solo.
+
 `GamePlay.speak(charId, text, expression?)` accepts an optional native `TableExpression`.
 It appears with the queued line as a normal sprite action, preserving the current outfit,
 normal playback and rewind. Older two-argument callers keep their behavior. Darts uses
@@ -96,6 +107,10 @@ gain. The local mute switch multiplies that gain, so it cannot bypass global SFX
 
 ## Verification
 
+- Solo/location fix: 50 focused tests, all three TypeScript checks, and browser checks for
+  the actual HUD solo choice, fifteen throws across five visits, board clearing, zero NPC
+  calls and one result. Scene-hook checks cover zero, one and two bystanders; multiplayer
+  browser checks retain batched reactions and paced throws with two NPCs. Replies are mocked.
 - All TypeScript checks and production web build pass.
 - The legacy pure engine still matches 8,050 standalone ledger states. Multiplayer tests
   cover speaker rotation, fixed NPC plans, seven-visit co-op, bust restoration, checkout
