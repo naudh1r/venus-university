@@ -51,6 +51,14 @@ text box and sprite, pacing, walking away and reporting the result to the narrat
 No separate darts HUD launcher, portrait, floating speech card or provider-key field
 is added. The pack uses the Venus model and credential settings through `play.round`.
 
+The framework's optional table chat uses the scene's hover-to-show divider. Focus holds it
+open while typing; sending a remark puts it away. A new dialogue line closes a hover-only
+peek while leaving a focused draft open. Games
+with `typed` input (such as Truth or Dare), and any active `play.ask`, keep the input visible.
+The native dialogue box follows the actual input height and the same raised/reading states
+as normal scenes, so multiline answers do not overlap it. This layout is transient and is
+cleared when the table closes; it adds no model calls or changes to game sequencing.
+
 Skill is judged and cached by the framework, 1–5 per NPC/game/playthrough. The same
 one-off model call now judges three signed Darts tendencies from personality, traits,
 likes and backstory: accuracy, consistency and composure. Darts combines overall skill,
@@ -120,6 +128,10 @@ gain. The local mute switch multiplies that gain, so it cannot bypass global SFX
 
 ## Verification
 
+- Input UI: browser checks cover optional Darts chat hover/focus, sending, draft preservation,
+  new dialogue, four-line input geometry, and cleanup. Truth or Dare stays visible, accepts
+  real typing with Shift+Enter, submits normally, and clears the dialogue at 1080p and 720p.
+  All three TypeScript checks and the 82 focused tests pass; model replies are mocked.
 - Reached-location patch: 82 focused tests, all TypeScript checks, real HUD/prompt transition
   checks and the two-NPC Darts browser regression pass. No additional model calls are used
   to resolve location; browser replies are mocked.

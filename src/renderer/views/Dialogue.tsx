@@ -1,7 +1,8 @@
 /**
  * The dialogue box and the turn under it, shared by a scene and the decision landing: the same
  * respawn, typewriter hold and way out on both screens, with only what surrounds it differing.
- * Neither reads a store; both are handed everything, exactly as `SceneChrome` is.
+ * Scene content is handed in as props. A transient table-input layout keeps this same box
+ * clear of a mini-game's input while that table owns it.
  */
 import {
   useEffect,
@@ -42,6 +43,7 @@ import {
   turnWell
 } from './motion'
 import '../vu_styles/Dialogue.css'
+import { useTableInputLayout } from '../minigames/inputLayout'
 
 /** The box wearing nothing: a stage direction alone, or the gap between two scenes. */
 const EMPTY = ''
@@ -112,6 +114,7 @@ export interface DialogueBoxProps {
 }
 
 export function DialogueBox(props: DialogueBoxProps): JSX.Element {
+  const tableInput = useTableInputLayout((state) => state.layout)
   const {
     ready,
     covered,
@@ -290,9 +293,10 @@ export function DialogueBox(props: DialogueBoxProps): JSX.Element {
   return (
     <motion.div
       className="vu-box"
+      style={tableInput ? { bottom: tableInput.height + 56 } : undefined}
       variants={sceneBox}
       initial={false}
-      animate={sceneBoxState(sending, rowShown, cg, wellAway)}
+      animate={sceneBoxState(sending, tableInput ? true : rowShown, cg, tableInput ? !tableInput.open : wellAway)}
     >
       {/* The face and its shadow, keyed on what the box is wearing: two labels are enough
           because the remount between them is what puts the collapsed box back on its round

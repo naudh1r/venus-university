@@ -72,7 +72,7 @@
 .vu-minigame-veil {
   place-items: end center;
   padding-top: 16px;
-  padding-bottom: calc(126px + 232px + 40px + 14px);
+  padding-bottom: calc(var(--minigame-turn-h, 70px) + 56px + 232px + 40px + 14px);
   background: none;
 }
 
@@ -91,7 +91,7 @@
 
 /* The scene's own hint that the action box can be hovered open is put away while a game is
    played: the box is the table's until it clears. */
-body:has(.vu-minigame-veil) .vu-scene-divider {
+body:has(.vu-minigame-veil) .vu-scene-divider:not(.vu-minigame-divider) {
   visibility: hidden;
 }
 

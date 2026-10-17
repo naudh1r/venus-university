@@ -1,5 +1,5 @@
 import { gameById } from './prefs'
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import {
@@ -18,6 +18,8 @@ import { useModalShell } from '../components/useModalShell'
 import type { ScenePanelProps } from '../mods/hooks'
 import { useGameStore } from '../stores/gameStore'
 import { TurnField } from '../views/Dialogue'
+import { SceneDivider } from '../views/SceneChrome'
+import { useTableInputLayout } from './inputLayout'
 import { useModOption } from '../stores/modsStore'
 import {
   gestures,
@@ -239,6 +241,46 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
   }
   // What the game has asked the reader to type, while it waits for it.
   const [asked, setAsked] = useState<{ placeholder: string } | null>(null)
+  const inputRow = useRef<HTMLDivElement>(null)
+  const [inputHover, setInputHover] = useState(false)
+  const [inputPinned, setInputPinned] = useState(false)
+  const [inputHeight, setInputHeight] = useState(70)
+  const requiredInput = Boolean(seated?.game.typed || asked)
+  const hasInput = Boolean(host && seated && Game && (seated.opponents?.length || asked))
+  const inputOpen = requiredInput || inputHover || inputPinned
+  const currentLine = useGameStore((state) => state.currentLine)
+
+  function putChatAway(): void {
+    setInputHover(false)
+    setInputPinned(false)
+    const field = inputRow.current?.querySelector('textarea, input')
+    if (field instanceof HTMLElement && document.activeElement === field) field.blur()
+  }
+
+  // Release the old answer's focus when the game gives the field back to optional chat.
+  useLayoutEffect(() => {
+    if (!requiredInput) putChatAway()
+  }, [requiredInput])
+
+  // New dialogue ends a hover-only peek, but never interrupts a draft with the caret in it.
+  useLayoutEffect(() => {
+    if (!requiredInput && !inputPinned) setInputHover(false)
+  }, [currentLine])
+
+  useLayoutEffect(() => {
+    const row = inputRow.current
+    if (!hasInput || !row) return
+    const measure = (): void => setInputHeight(row.offsetHeight)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(row)
+    return () => observer.disconnect()
+  }, [hasInput])
+
+  useLayoutEffect(() => {
+    useTableInputLayout.getState().setLayout(hasInput ? { open: inputOpen, height: inputHeight } : null)
+  }, [hasInput, inputOpen, inputHeight])
+  useLayoutEffect(() => () => useTableInputLayout.getState().setLayout(null), [])
   const answerTo = useRef<((text: string | null) => void) | null>(null)
   /** Ends whatever is being asked, unanswered. */
   function endAsking(): void {
@@ -299,6 +341,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
     begin()
     const words = remark
     setRemark('')
+    putChatAway()
     setAnswering(her.name)
     void readerSaysAtTable(her.charId, situationFor(her.charId), words).finally(() =>
       setAnswering(null)
@@ -442,6 +485,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
         data-game={seated.game.id}
         className={`vu-veil vu-minigame-veil${aside ? ' vu-minigame-veil--aside' : ''}`}
         data-theme={theme}
+        style={{ '--minigame-turn-h': `${hasInput ? inputHeight : 70}px` } as CSSProperties}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -558,8 +602,10 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
             own listener being shut out while a table is up. */}
         {(against || asked) && (
           <div
-            className="vu-turn vu-scene-row"
-            data-well="out"
+            ref={inputRow}
+            className="vu-turn vu-scene-row vu-minigame-input"
+            data-well={inputOpen ? 'out' : 'away'}
+            data-required={requiredInput ? 'true' : 'false'}
             onKeyDown={(event) => {
               if (event.key !== 'Enter' || event.shiftKey) return
               event.stopPropagation()
@@ -571,6 +617,8 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
                 where the scene's does. */}
             <span className="vu-scene-help vu-minigame-room" aria-hidden="true" />
             <TurnField
+              // A requested answer starts with a fresh enabled editor after the idle field.
+              key={asked ? 'answer' : 'chat'}
               action={remark}
               onAction={setRemark}
               onSubmit={speak}
@@ -581,7 +629,12 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
                   : answering !== null || !remark.trim() || result !== null || Boolean(seated.game.typed)
               }
               inputDead={result !== null || (Boolean(seated.game.typed) && !asked)}
-              focus={asked ? true : !seated.game.keys && !seated.game.typed}
+              focus={Boolean(asked)}
+              revealed={inputOpen}
+              overlay={<SceneDivider state={inputOpen ? 'hidden' : 'shown'} word="hover" className="vu-minigame-divider" />}
+              onHover={setInputHover}
+              onFocus={() => setInputPinned(true)}
+              onBlur={() => setInputPinned(false)}
               placeholder={
                 asked
                   ? asked.placeholder

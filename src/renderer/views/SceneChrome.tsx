@@ -658,16 +658,18 @@ const DIVIDER_WORDS: Record<DividerWord, string> = {
  * the well is away (`Scene.css`), and the well's box it sits in hears the move that swaps the two
  * as the strip's events bubble up to it.
  */
-function SceneDivider({
+export function SceneDivider({
   state,
-  word
+  word,
+  className = ''
 }: {
   state: 'shown' | 'dim' | 'hidden'
   word: DividerWord
+  className?: string
 }): JSX.Element {
   return (
     <motion.div
-      className="vu-scene-divider"
+      className={`vu-scene-divider ${className}`}
       variants={sceneDivider}
       initial={false}
       animate={state}
