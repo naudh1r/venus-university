@@ -197,6 +197,11 @@ export async function runSceneTurn(
     ending = false
     useGameStore.getState().setSceneEnding(false)
   }
+  const finishSolo = replyContext.finishSolo === true && castCharacters.length === 0
+  if (finishSolo) {
+    ending = true
+    useGameStore.getState().setSceneEnding(true)
+  }
 
   if (!ending) {
     // Written before playback is handed back: `unpark()` can run to the next decision point,
@@ -221,5 +226,5 @@ export async function runSceneTurn(
   useGameStore.getState().setEndingInFlight(true)
   loopState.endingAbandoned = false
 
-  await runEnding(solo)
+  await runEnding(solo || finishSolo)
 }

@@ -32,6 +32,12 @@ opening balance and immediately hands over. Solo Beat the House gives the reader
 Beat the House, even if Rival Match was saved as the preferred mode; there are no NPC skill
 or reaction calls during solo play.
 
+Completing solo Darts immediately sends the real result and ledger to the narrator, without
+waiting for another player action. With no NPC present, the model writes a short aftermath
+and closing, then the normal scene/stat bookkeeping runs once without a second goodbye call.
+With a bystander present, the model may react and continue the scene normally. The final
+dart and result animation are not replayed in narration. Other games keep their solo behavior.
+
 **301 Rival Match** gives the reader and every girl a separate 301 balance for three
 rounds. A checkout wins immediately; otherwise the lowest remaining balance wins and
 equal lowest balances draw. Both modes are straight-out rather than double-out.
@@ -112,7 +118,7 @@ gain. The local mute switch multiplies that gain, so it cannot bypass global SFX
 
 ## Verification
 
-- Solo/location fixes: 76 focused tests, all three TypeScript checks, and browser checks for
+- Solo/location fixes and aftermath: 80 focused tests, all three TypeScript checks, and browser checks for
   the actual HUD solo choice, fifteen throws across five visits, board clearing, zero NPC
   calls and one result. Scene-hook checks cover zero, one and two bystanders, including the
   real turn runner's forced solo ending; ordinary solo scenes still close. Multiplayer

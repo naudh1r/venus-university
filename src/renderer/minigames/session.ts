@@ -35,6 +35,8 @@ export interface Played {
   brief: readonly string[]
   /** A game played alone: the brief rides with the next turn, whatever its words. */
   next?: boolean
+  /** The result turn supplies the ending of a solo scene held open for the game. */
+  finishSolo?: boolean
 }
 
 interface TableState {

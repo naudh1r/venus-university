@@ -89,6 +89,11 @@ registerHooks(MINI_GAMES, {
 
   requests: {
     scene: (request, ctx) => {
+      const { played } = useTableStore.getState()
+      if (played && played.finishSolo !== undefined && ctx.query.includes(played.text)) {
+        // A result is an aftermath, never a new invitation. Keep this after the usual tail.
+        return { ...request, user: [request.user, '', ...played.brief.slice(-2)].join('\n') }
+      }
       // The turn that carries the reader's own proposal asks for her answer to it and nothing
       // else: its words are in what the request was built from, so a turn retried or rewound
       // never picks up a stale one.
@@ -117,9 +122,15 @@ registerHooks(MINI_GAMES, {
   afterSceneReply: (ctx) => {
     const { reply, cast, ending, solo } = ctx
     const table = useTableStore.getState()
+    const aftermath = table.played?.finishSolo !== undefined
+    const finishSolo = table.played?.finishSolo && cast.length === 0
     table.setPlayed(null)
     const { proposal } = table
     table.setProposal(null)
+    if (aftermath) {
+      if (finishSolo) ctx.finishSolo = true
+      return
+    }
 
     if (proposal) {
       const game = gameById(proposal.gameId)
