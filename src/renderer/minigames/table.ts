@@ -422,7 +422,12 @@ export function fileResult(result: PlayResult, played: PlayedWith, tries = 0): v
                     : `Riding on it, as they agreed: ${played.stake} Nobody won outright, so what becomes of it is theirs to settle.`
                 ]
               : []),
-            `Open on the result, then let ${who} react to it in character: how the game went, anything in it worth a remark, and the stake if there was one.`
+            ...(played.game.id === 'darts'
+              ? [
+                  'AFTER DARTS: The final dart has already landed, the score has already settled, and the player has already watched the result animation. Begin AFTER that moment. Do not describe a dart flying or landing, points being counted down, or a victory animation or fanfare starting again.',
+                  `For this result turn, your FIRST line opens in the aftermath: let ${who} react to the settled outcome, their shared experience or rivalry, and any agreed stake. This takes precedence over the usual instruction to reword the reader’s action in the opening line. Past-tense references to a memorable hit are fine; do not stage it happening again.`
+                ]
+              : [`Open on the result, then let ${who} react to it in character: how the game went, anything in it worth a remark, and the stake if there was one.`])
           ]
     })
     void submitAction(result.summary)
