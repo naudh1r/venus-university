@@ -114,7 +114,8 @@ registerHooks(MINI_GAMES, {
     }
   },
 
-  afterSceneReply: ({ reply, cast, ending }) => {
+  afterSceneReply: (ctx) => {
+    const { reply, cast, ending, solo } = ctx
     const table = useTableStore.getState()
     table.setPlayed(null)
     const { proposal } = table
@@ -135,10 +136,14 @@ registerHooks(MINI_GAMES, {
     }
 
     // No proposal of his own was out: the two of them may still have agreed in the scene.
-    if (ending) return
+    // Solo scenes otherwise close after one response, before the table can open.
+    if (ending && !solo) return
     // The reply can only name a game its request offered: the field allows no other.
     const agreed = agreedOf(reply, gamesWith(cast, useGameStore.getState().sceneLocation), cast)
-    if (agreed) agree(agreed.game, agreed.characters, agreed.stake, agreed.options)
+    if (agreed) {
+      agree(agreed.game, agreed.characters, agreed.stake, agreed.options)
+      if (solo && agreed.game.soloScene && agreed.characters.length === 0) ctx.keepOpen = true
+    }
   },
 
   // A turn the reader takes instead lets an agreed game go; his own proposal is not that turn.

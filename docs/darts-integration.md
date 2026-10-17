@@ -14,7 +14,9 @@ Enable **Mini-games** and **[Nd] Arcade & Bar Games** in Mods, with **Darts** en
 Stalestein Bar or Pino Cola Lounge. Use the existing mini-games HUD button and ask her to
 play Darts, or agree to play through ordinary scene dialogue. Darts also offers **Play alone**,
 even when a girl is present. An explicit solo Darts request in narration can open the game
-without seating that bystander or requiring her agreement. Short venue names such as
+without seating that bystander or requiring her agreement. A request to play now without
+inviting a partner also starts solo if nobody has agreed to join; typing "alone" is optional.
+Short venue names such as
 "pino cola" resolve to the same location as "Pino-Cola Lounge".
 
 Move the pointer or arrow keys to aim. Hold left click or Space to lock the ellipse;
@@ -95,6 +97,9 @@ audio and timers. Automatic throws pause while the window is away.
 Darts opts in here. A blank participant selection can then open the real game after an
 explicit solo request, including scenes with no NPCs. Missing or unknown participants are
 still rejected; a departed teammate does not silently convert an agreed team game to solo.
+The reply hook's `keepOpen` signal defers a solo scene's automatic one-turn ending while
+the real game opens. Ordinary solo scenes still finish as before. This is needed even when
+the model sends no `end_scene`, since solo scenes otherwise close in engine code.
 
 `GamePlay.speak(charId, text, expression?)` accepts an optional native `TableExpression`.
 It appears with the queued line as a normal sprite action, preserving the current outfit,
@@ -107,9 +112,10 @@ gain. The local mute switch multiplies that gain, so it cannot bypass global SFX
 
 ## Verification
 
-- Solo/location fix: 50 focused tests, all three TypeScript checks, and browser checks for
+- Solo/location fixes: 76 focused tests, all three TypeScript checks, and browser checks for
   the actual HUD solo choice, fifteen throws across five visits, board clearing, zero NPC
-  calls and one result. Scene-hook checks cover zero, one and two bystanders; multiplayer
+  calls and one result. Scene-hook checks cover zero, one and two bystanders, including the
+  real turn runner's forced solo ending; ordinary solo scenes still close. Multiplayer
   browser checks retain batched reactions and paced throws with two NPCs. Replies are mocked.
 - All TypeScript checks and production web build pass.
 - The legacy pure engine still matches 8,050 standalone ledger states. Multiplayer tests

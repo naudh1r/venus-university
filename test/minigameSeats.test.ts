@@ -99,6 +99,8 @@ describe('the standing offer with several girls here', () => {
       const prompt = withOffer(REQUEST, [DARTS], cast, 'pino cola', false, false)
       expect(prompt.user).toContain('SOLO EXCEPTION: For Darts')
       expect(prompt.user).toContain('No NPC agreement is needed.')
+      expect(prompt.user).toContain('The word "alone" is not required.')
+      expect(prompt.user).toContain('overrides instructions to write a solo scene start to finish')
       expect(prompt.user).toContain('without playing')
     }
     expect(agreedOf({ minigame: { play: 'darts', with: 'unknown_npc' } }, [DARTS], CAST)).toBeNull()
