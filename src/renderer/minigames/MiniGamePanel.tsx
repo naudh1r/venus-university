@@ -34,6 +34,7 @@ import { gameComponent, type GamePlay, type Opponent, type PlayResult } from './
 import { useTableStore, type Agreed } from './session'
 import { tableRound } from './round'
 import { skillOf } from './skill'
+import { useGameLocation } from './location'
 import {
   closeTable,
   compactTable,
@@ -119,7 +120,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
   const quiet = useModOption(MINI_GAMES, CHAT_OPTIONS.quiet)
   const lots = useModOption(MINI_GAMES, CHAT_OPTIONS.lots)
   const chattiness: Chattiness = quiet ? 'quiet' : lots ? 'lots' : 'some'
-  const location = useGameStore((s) => s.sceneLocation ?? null)
+  const location = useGameLocation()
   // Who is standing where on the stage: left, middle, right.
   const slots = useGameStore((s) => s.slots)
   // The game she agreed to, taken off the table's own state as the panel opens on it.

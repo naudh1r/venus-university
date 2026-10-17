@@ -14,6 +14,7 @@ import { gameComponent, type PlayResult } from './play'
 import { tunedGame, usePrefsStore } from './prefs'
 import { useTableStore } from './session'
 import { tableLine } from './talk'
+import { useGameLocation } from './location'
 
 /** Where the framework meets the scene: what is on offer in it, and how a result goes into it. */
 
@@ -26,7 +27,7 @@ export function gameIsOn(modId: string, game: MiniGameDef): boolean {
 
 /** The games on offer in the scene on screen, each with a component to play it with. */
 export function useGamesOffered(): MiniGameDef[] {
-  const location = useGameStore((s) => s.sceneLocation)
+  const location = useGameLocation()
   const girls = useGameStore((s) => s.cast.filter((id) => !s.departed.includes(id)).length)
   // Read so a switch moved mid-scene is answered at once.
   useModsStore((s) => s.switches)

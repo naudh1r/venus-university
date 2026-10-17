@@ -102,6 +102,13 @@ Narrator invitations, scene reply hooks and the turn runner use their pre-solo b
 Location-name normalization remains, including the short name "pino cola". No automatic
 venue selection has been added.
 
+Mini-game availability now follows the last reached scene background, with the classifier
+location used only before a scene background has been reached. The HUD, narrator offers,
+agreement validation and game location use the same resolver. This does not mutate the
+base scene location or read cosmetic overrides or unread queued backgrounds. See
+[the location-transition bug report](bugs/minigame-location-transition.md) for reproduction,
+scope and limitations.
+
 `GamePlay.speak(charId, text, expression?)` accepts an optional native `TableExpression`.
 It appears with the queued line as a normal sprite action, preserving the current outfit,
 normal playback and rewind. Older two-argument callers keep their behavior. Darts uses
@@ -113,6 +120,9 @@ gain. The local mute switch multiplies that gain, so it cannot bypass global SFX
 
 ## Verification
 
+- Reached-location patch: 82 focused tests, all TypeScript checks, real HUD/prompt transition
+  checks and the two-NPC Darts browser regression pass. No additional model calls are used
+  to resolve location; browser replies are mocked.
 - Framework-flow restoration: 75 focused tests and all three TypeScript checks pass.
   Narrator offers require NPC agreement; browser checks cover ordinary no-NPC scene
   closure, HUD solo with five visits and the normal result handoff. The scene turn runner,

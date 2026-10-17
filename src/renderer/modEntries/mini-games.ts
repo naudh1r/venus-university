@@ -17,6 +17,7 @@ import { agreedOf, withOffer } from '../minigames/offer'
 import { gameComponent } from '../minigames/play'
 import { answerOf, withProposal, type Asked } from '../minigames/proposal'
 import { useTableStore } from '../minigames/session'
+import { currentGameLocation } from '../minigames/location'
 import { skillOf } from '../minigames/skill'
 import { gameIsOn, nameOf } from '../minigames/table'
 import { registerHooks } from '../mods/hooks'
@@ -104,7 +105,7 @@ registerHooks(MINI_GAMES, {
       if (!request.user.includes("Reader's action:")) return request
       // Only the games a girl may bring up here are on it, and any his action names: the rest
       // are his to ask for from the table.
-      const location = ctx.state.sceneLocation ?? null
+      const location = currentGameLocation()
       const { busy, keen } = sceneTerms()
       const here = gamesWith(ctx.cast, location)
       const suggested = gamesSuggested(here, location, busy, keen)
@@ -138,7 +139,7 @@ registerHooks(MINI_GAMES, {
     // No proposal of his own was out: the two of them may still have agreed in the scene.
     if (ending) return
     // The reply can only name a game its request offered: the field allows no other.
-    const agreed = agreedOf(reply, gamesWith(cast, useGameStore.getState().sceneLocation), cast)
+    const agreed = agreedOf(reply, gamesWith(cast, currentGameLocation()), cast)
     if (agreed) agree(agreed.game, agreed.characters, agreed.stake, agreed.options)
   },
 

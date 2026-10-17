@@ -227,6 +227,34 @@ export function minigameLocation(location: string | null): string | null {
   return found?.id ?? location
 }
 
+/** Canonical scene art keys, not arbitrary images or text mentions of a place. */
+const GAME_BACKGROUND_LOCATIONS: Readonly<Record<string, string>> = {
+  pinocola_lounge: 'pino_cola_lounge', arcade: 'btb_arcade', bar: 'stalestein_bar',
+  club: 'apogee_club', dorm_lounge: 'lowrise_dorms', lowrise_dorm_room: 'room', cute_tea: 'cutetea',
+  bowling_alley: 'bowling_alley', roller_rink: 'roller_rink', cat_cafe: 'cat_cafe',
+  stadium: 'palaestra_stadium', quad: 'venus_quad', park: 'green_hill_park',
+  beach: 'selkie_beach', theme_park: 'pier_44'
+}
+
+/**
+ * Before any scene background is reached, use the classifier's location. Thereafter the
+ * last reached background wins, including an unknown background clearing a stale venue.
+ * Callers pass the playback log, never queued lines, bgOverride or a projected stage.
+ */
+export function minigameSceneLocation(
+  location: string | null,
+  reached: readonly { bg?: string }[]
+): string | null {
+  for (let i = reached.length - 1; i >= 0; i--) {
+    const bg = reached[i].bg
+    if (bg === undefined) continue
+    if (Object.hasOwn(GAME_BACKGROUND_LOCATIONS, bg)) return GAME_BACKGROUND_LOCATIONS[bg]
+    // Also accept catalog IDs used directly as scene art keys.
+    return [...LOCATIONS, ...NARRATIVE_LOCATIONS].find((place) => place.id === bg)?.id ?? null
+  }
+  return minigameLocation(location)
+}
+
 export function gamesOffered(
   spot: PlaySpot,
   isOn: (modId: string, game: MiniGameDef) => boolean,
