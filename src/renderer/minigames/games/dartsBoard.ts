@@ -17,6 +17,7 @@ interface SpriteView {
 }
 export interface BoardFrame {
   darts?: Dart[];
+  silhouettes?: Dart[];
   aim?: Point | null;
   ellipse?: Ellipse | null;
   dot?: Point | null;
@@ -492,6 +493,7 @@ export class Board {
   }
   draw({
     darts = [],
+    silhouettes = [],
     aim,
     ellipse,
     dot,
@@ -504,6 +506,13 @@ export class Board {
     c.clearRect(0, 0, 700, 700);
     c.drawImage(this.base, 0, 0, 700, 700);
     if (impact) this.paintLED(c, impact.dart, now - impact.time, reduced);
+    // Keep the approved dart shape/perspective, with no old-hit wobble or effects.
+    c.save();
+    c.filter = 'brightness(0) opacity(0.24)';
+    for (const d of silhouettes) {
+      this.dart(c, C + d.x * R, C + d.y * R, d.actor === 'you' ? COLOR.coral : COLOR.teal, 1, 0, null, d);
+    }
+    c.restore();
     for (const d of darts) {
       const age = impact && d === impact.dart ? now - impact.time : 10000;
       const wobble = reduced ? 0 : Math.sin(age / 25) * 0.18 * Math.exp(-age / 130);
