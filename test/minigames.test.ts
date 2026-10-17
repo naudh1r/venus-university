@@ -35,6 +35,14 @@ const on = (): boolean => true
 const ids = (games: MiniGameDef[]): string[] => games.map((g) => g.id)
 
 describe('gamesOffered', () => {
+  it('offers location-bound games for classifier place names as well as stored ids', () => {
+    const loungeDarts = game('darts', { locations: ['pino_cola_lounge'], players: { min: 1, max: 2 } })
+    for (const location of ['pino_cola_lounge', 'pinocola_lounge', 'Pino-Cola Lounge', 'pino cola lounge', 'the Pino-Cola Lounge']) {
+      expect(ids(gamesOffered({ location, girls: 1 }, on, [cards, loungeDarts])), location).toEqual(['cards', 'darts'])
+    }
+    expect(ids(gamesOffered({ location: 'the Agora', girls: 1 }, on, [cards, loungeDarts]))).toEqual(['cards'])
+  })
+
   it('offers a game only at its own places, and a game with none anywhere', () => {
     expect(ids(gamesOffered({ location: 'pub', girls: 1 }, on, all))).toEqual(['cards', 'darts'])
     expect(ids(gamesOffered({ location: 'arcade', girls: 0 }, on, all))).toEqual(['cards', 'cabinet'])
