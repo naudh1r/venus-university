@@ -93,8 +93,6 @@ export interface MiniGameDef {
    * one nobody joins.
    */
   players: { min: number; max: number }
-  /** Allow an explicit solo request in narration to open the game without NPC agreement. */
-  soloScene?: boolean
   /**
    * How a game of it goes, in a sentence, as the table actually runs it: what the model is told
    * she can agree to, and nothing else.

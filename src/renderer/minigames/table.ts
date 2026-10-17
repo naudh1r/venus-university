@@ -370,8 +370,7 @@ export interface PlayedWith {
 /**
  * Puts a finished game into the scene, over whatever of the reply was still unread.
  *
- * Completed solo Darts immediately requests an aftermath; without NPCs that reply closes
- * the scene. Other games played alone are a line of narration: on the transcript, where the next reply, the
+ * A game played alone is a line of narration: on the transcript, where the next reply, the
  * scene's summary and its bookkeeping all read it, and on the box, where the reader does; reading
  * past it is his turn again.
  *
@@ -430,28 +429,6 @@ export function fileResult(result: PlayResult, played: PlayedWith, tries = 0): v
                 ]
               : [`Open on the result, then let ${who} react to it in character: how the game went, anything in it worth a remark, and the stake if there was one.`])
           ]
-    })
-    void submitAction(result.summary)
-    return
-  }
-
-  // Darts returns immediately to the narrator, including a scene held open for solo play.
-  if (played.game.id === 'darts' && ['won', 'lost', 'draw', 'played'].includes(result.outcome)) {
-    const game = useGameStore.getState()
-    const finishSolo = game.cast.filter((id) => !game.departed.includes(id)).length === 0
-    useTableStore.getState().setPlayed({
-      text: result.summary,
-      finishSolo,
-      brief: [
-        'MINI-GAME RESULT',
-        'The reader has just played Darts alone, for real, in this scene. The game is over and its result is settled.',
-        `RESULT: ${result.summary}`,
-        ...(result.account ?? []),
-        'AFTER DARTS: The final dart has already landed, the score has settled, and the player has watched the result animation. Your FIRST line begins afterwards. Do not replay a throw, landing, countdown or celebration animation; do not restage the result as the reader taking another shot. This overrides the usual instruction to reword the reader’s action.',
-        ...(finishSolo
-          ? ['This is the closing narration of the solo scene that paused for the real game. Write a short aftermath and natural ending, with no new decision point, invitation or game. No other characters arrive. Include the finished game in the scene summary. The engine handles the end-of-scene bookkeeping after your lines.']
-          : ['Anyone already present watched the solo game and may react naturally. Continue normal narration from the settled result, without starting another game.'])
-      ]
     })
     void submitAction(result.summary)
     return

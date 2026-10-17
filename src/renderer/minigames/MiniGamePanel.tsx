@@ -96,7 +96,7 @@ const NO_ONE: Opponent[] = []
 /** The sitting a game she agreed to opens on, her skill still to come. */
 function sittingOf(agreed: Agreed | null): Sitting | null {
   const game = agreed && gameById(agreed.gameId)
-  return game ? { game, opponents: agreed.charIds.length === 0 ? NO_ONE : null, stake: agreed.stake, options: agreed.options } : null
+  return game ? { game, opponents: null, stake: agreed.stake, options: agreed.options } : null
 }
 
 /**

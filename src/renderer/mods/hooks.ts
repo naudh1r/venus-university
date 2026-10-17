@@ -188,10 +188,6 @@ export interface SceneReplied {
   solo: boolean
   /** The reply ends the scene: its closing is next, and no turn is handed back. */
   ending: boolean
-  /** A real interactive activity is queued: keep this scene open through its handoff. */
-  keepOpen?: boolean
-  /** This reply already supplies a solo activity's closing narration; run its bookkeeping. */
-  finishSolo?: boolean
 }
 
 export interface ModHooks {

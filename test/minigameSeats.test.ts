@@ -91,21 +91,15 @@ describe('a proposal to several girls', () => {
 })
 
 describe('the standing offer with several girls here', () => {
-  it('opens explicit solo Darts with zero, one or several bystanders without seating them', () => {
+  it('requires an NPC agreement for narrator-launched Darts even though the HUD allows solo', () => {
+    expect(DARTS.players.min).toBe(0)
     for (const cast of [[], CAST.slice(0, 1), CAST]) {
-      const who = cast.length > 1 ? Object.fromEntries(cast.map((c) => [`${c.firstName.toLowerCase()}_seo`, 'out'])) : ''
-      const reply = { minigame: { play: 'darts', with: who, stake: '' } }
-      expect(agreedOf(reply, [DARTS], cast)?.characters).toEqual([])
-      const prompt = withOffer(REQUEST, [DARTS], cast, 'pino cola', false, false)
-      expect(prompt.user).toContain('SOLO EXCEPTION: For Darts')
-      expect(prompt.user).toContain('No NPC agreement is needed.')
-      expect(prompt.user).toContain('The word "alone" is not required.')
-      expect(prompt.user).toContain('overrides instructions to write a solo scene start to finish')
-      expect(prompt.user).toContain('without playing')
+      const who = cast.length > 1 ? { ana_seo: 'out', bea_seo: 'out', cy_seo: 'out' } : ''
+      expect(agreedOf({ minigame: { play: 'darts', with: who } }, [DARTS], cast)).toBeNull()
     }
-    expect(agreedOf({ minigame: { play: 'darts', with: 'unknown_npc' } }, [DARTS], CAST)).toBeNull()
-    expect(agreedOf({ minigame: { play: 'darts' } }, [DARTS], CAST)).toBeNull()
-    expect(agreedOf({ minigame: { play: 'cards', with: '' } }, [game(0, 1)], CAST)).toBeNull()
+    expect(agreedOf({ minigame: { play: 'darts', with: 'ana_seo' } }, [DARTS], CAST.slice(0, 1))?.characters.map((c) => c.charId)).toEqual(['a'])
+    expect(withOffer(REQUEST, [DARTS], CAST.slice(0, 1), 'pino cola', false, false).user).toContain('BOTH agreed')
+    expect(withOffer(REQUEST, [DARTS], CAST.slice(0, 1), 'pino cola', false, false).user).not.toContain('SOLO EXCEPTION')
   })
   it('names one girl, and says in or out of several', () => {
     const one = shapeOf(withOffer(REQUEST, [game(1, 3)], CAST.slice(0, 1), null, false, false))

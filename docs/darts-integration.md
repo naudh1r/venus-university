@@ -12,10 +12,10 @@ required by the framework's after-reply hook.
 Run `npm ci`, then `npm run dev` for Electron or `npm run dev:web` for the browser build.
 Enable **Mini-games** and **[Nd] Arcade & Bar Games** in Mods, with **Darts** enabled inside the pack. Start a scene with one or two girls at BTB Arcade,
 Stalestein Bar or Pino Cola Lounge. Use the existing mini-games HUD button and ask her to
-play Darts, or agree to play through ordinary scene dialogue. Darts also offers **Play alone**,
-even when a girl is present. An explicit solo Darts request in narration can open the game
-without seating that bystander or requiring her agreement. A request to play now without
-inviting a partner also starts solo if nobody has agreed to join; typing "alone" is optional.
+play Darts, or agree to play through ordinary scene dialogue. Narrator-launched games require
+NPC agreement, following the framework. Choose **Play alone** from the HUD to play solo
+while an NPC is present in the scene; the NPC is not seated as a teammate. Scenes without
+NPCs keep the base game's normal one-turn ending. No scene is held open for solo Darts.
 Short venue names such as
 "pino cola" resolve to the same location as "Pino-Cola Lounge".
 
@@ -32,11 +32,9 @@ opening balance and immediately hands over. Solo Beat the House gives the reader
 Beat the House, even if Rival Match was saved as the preferred mode; there are no NPC skill
 or reaction calls during solo play.
 
-Completing solo Darts immediately sends the real result and ledger to the narrator, without
-waiting for another player action. With no NPC present, the model writes a short aftermath
-and closing, then the normal scene/stat bookkeeping runs once without a second goodbye call.
-With a bystander present, the model may react and continue the scene normally. The final
-dart and result animation are not replayed in narration. Other games keep their solo behavior.
+Solo results follow the framework: the result is shown in the scene, and its account rides
+with the next player turn. There is no Darts-specific automatic closing call or override of
+scene endings. Games played with NPCs keep the framework's immediate result reaction.
 
 **301 Rival Match** gives the reader and every girl a separate 301 balance for three
 rounds. A checkout wins immediately; otherwise the lowest remaining balance wins and
@@ -99,13 +97,10 @@ audio and timers. Automatic throws pause while the window is away.
 
 ## Small framework extensions
 
-`MiniGameDef.soloScene` opts a solo-capable game into scene-driven solo launches. Only
-Darts opts in here. A blank participant selection can then open the real game after an
-explicit solo request, including scenes with no NPCs. Missing or unknown participants are
-still rejected; a departed teammate does not silently convert an agreed team game to solo.
-The reply hook's `keepOpen` signal defers a solo scene's automatic one-turn ending while
-the real game opens. Ordinary solo scenes still finish as before. This is needed even when
-the model sends no `end_scene`, since solo scenes otherwise close in engine code.
+The temporary `soloScene`, `keepOpen` and `finishSolo` extensions have been removed.
+Narrator invitations, scene reply hooks and the turn runner use their pre-solo behavior.
+Location-name normalization remains, including the short name "pino cola". No automatic
+venue selection has been added.
 
 `GamePlay.speak(charId, text, expression?)` accepts an optional native `TableExpression`.
 It appears with the queued line as a normal sprite action, preserving the current outfit,
@@ -118,11 +113,10 @@ gain. The local mute switch multiplies that gain, so it cannot bypass global SFX
 
 ## Verification
 
-- Solo/location fixes and aftermath: 80 focused tests, all three TypeScript checks, and browser checks for
-  the actual HUD solo choice, fifteen throws across five visits, board clearing, zero NPC
-  calls and one result. Scene-hook checks cover zero, one and two bystanders, including the
-  real turn runner's forced solo ending; ordinary solo scenes still close. Multiplayer
-  browser checks retain batched reactions and paced throws with two NPCs. Replies are mocked.
+- Framework-flow restoration: 75 focused tests and all three TypeScript checks pass.
+  Narrator offers require NPC agreement; browser checks cover ordinary no-NPC scene
+  closure, HUD solo with five visits and the normal result handoff. The scene turn runner,
+  reply hooks, invitation parser and result handler match the pre-solo-exception version.
 - All TypeScript checks and production web build pass.
 - The legacy pure engine still matches 8,050 standalone ledger states. Multiplayer tests
   cover speaker rotation, fixed NPC plans, seven-visit co-op, bust restoration, checkout

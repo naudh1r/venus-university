@@ -6,7 +6,6 @@ const DARTS: MiniGameDef = {
   blurb: 'full-screen darts alone against the house, with one or two teammates, or as 301 rivals',
   format: 'The reader can play Beat the House alone, or with one or two girls. Alone, he has five visits against a 301, 501 or 701 countdown. A team shares that countdown and rotates reader then each girl; the reader gets three visits and each girl two. Rival Match requires at least one girl and gives every player a separate 301 balance for three rounds. Each visit has up to three darts. Exactly zero checks out on any scoring region. Going below zero busts that visit and restores its opening balance. In Rival Match, the lowest balance wins if nobody checks out.',
   players: { min: 0, max: 2 }, locations: ['btb_arcade', 'stalestein_bar', 'pino_cola_lounge'],
-  soloScene: true,
   suggest: 'sometimes', suggestAt: { btb_arcade: 'often' }, surface: 'screen', keys: true,
   stepped: false,
   controls: 'Pointer or arrow keys to aim. Hold left click or Space to lock the ellipse, release at the moving dot. Change turn hands over to the girls; My turn takes the darts back.',
