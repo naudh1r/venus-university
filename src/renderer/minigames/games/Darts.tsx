@@ -55,6 +55,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
   const [busy, setBusy] = useState(false)
   const [flight, setFlight] = useState<Flight | null>(null)
   const [impact, setImpact] = useState<Impact | null>(null)
+  const [boardVisit, setBoardVisit] = useState(0)
   const [guide, setGuide] = useState(false)
   const [muted, setMuted] = useState(false)
   const [status, setStatus] = useState('Your turn')
@@ -67,8 +68,16 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
   const timers = useRef(new Map<ReturnType<typeof setTimeout>, () => void>())
   const sound = useRef<DartsAudio | null>(null)
   const away = useAway(), reduced = useReducedMotion() ?? false, effectsGain = useEffectsGain()
-  const latest = useRef({ play, session, phase, flight, impact, guide, away, reduced })
-  latest.current = { play, session, phase, flight, impact, guide, away, reduced }
+  const latest = useRef({ play, session, phase, flight, impact, guide, away, reduced, boardVisit })
+  latest.current = { play, session, phase, flight, impact, guide, away, reduced, boardVisit }
+
+  /** Collect the previous visit's darts only when the next player takes the board. */
+  function collectDarts(visit: number): void {
+    latest.current.boardVisit = visit
+    latest.current.impact = null
+    setBoardVisit(visit)
+    setImpact(null)
+  }
 
   const seatName = (from: DartsSession, id: string): string => from.seats.find((seat) => seat.id === id)?.name ?? id
 
@@ -220,12 +229,14 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
     if (phase !== 'handover' || !pending.current) return
     latest.current.play.moved()
     void run(async (token) => {
+      collectDarts(sessionSummary(latest.current.session).visit)
       setPhase('partners')
       const scripts = pending.current!
       for (let index = 0; index < scripts.length; index++) {
         const script = scripts[index]
         if (index > 0) {
           if (!(await pause(reduced ? 180 : 700, token))) return
+          collectDarts(script.plan[0].dart.visit)
           if (latest.current.play.chattiness !== 'quiet' && !(await speak(script.seat, script.intro, token))) return
         }
         for (const item of script.plan) {
@@ -261,7 +272,8 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
       const state = latest.current, active = state.phase === 'player' && !locked.current && !state.guide && !state.away && !finished.current
       if (!active) hold.current = null
       const held = hold.current
-      dartboard.draw({ darts: state.flight ? state.session.throws.slice(0, -1) : state.session.throws, aim: active ? held?.ellipse ?? aim.current : null, ellipse: active ? held?.ellipse : null, dot: active && held ? movingDot(held.ellipse, state.session.seed, state.session.throws.length, (time - held.time) / 1000) : null, flight: state.flight, impact: state.impact, reduced: state.reduced }, time)
+      const landed = state.flight ? state.session.throws.slice(0, -1) : state.session.throws
+      dartboard.draw({ darts: landed.filter((dart) => dart.visit === state.boardVisit), aim: active ? held?.ellipse ?? aim.current : null, ellipse: active ? held?.ellipse : null, dot: active && held ? movingDot(held.ellipse, state.session.seed, state.session.throws.length, (time - held.time) / 1000) : null, flight: state.flight, impact: state.impact, reduced: state.reduced }, time)
       frame = requestAnimationFrame(paint)
     }
     frame = requestAnimationFrame(paint)
@@ -271,7 +283,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
   const visible = flight ? { ...session, throws: session.throws.slice(0, -1) } : session
   const state = sessionSummary(visible)
   const visibleScore = visible.mode === 'house' ? state.teamBalance : state.balances[state.currentSeatId]
-  const shownVisit = state.visits.at(-1)
+  const shownVisit = state.visits.find((visit) => visit.index === boardVisit)
   useEffect(() => {
     const from = displayedScore, began = performance.now()
     let frame = 0
@@ -311,7 +323,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
       <div className="vu-darts-contributions">{session.seats.map((seat) => <span key={seat.id}>{seat.name.toUpperCase()} <strong>{session.mode === 'house' ? pointsOf(visible, seat.id) : state.balances[seat.id]}</strong></span>)}</div>
       <p className="vu-darts-status" aria-live="polite">{status}</p>
       <div className="vu-darts-controls">
-        {['handover', 'my-turn'].includes(phase) && <motion.button type="button" disabled={busy} className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { if (busy) return; if (phase === 'handover') partnersTurn(); else { latest.current.play.moved(); setPhase('player'); setStatus('Your turn'); pending.current = null } }}>{phase === 'handover' ? 'Change turn' : 'My turn'}</motion.button>}
+        {['handover', 'my-turn'].includes(phase) && <motion.button type="button" disabled={busy} className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { if (busy) return; if (phase === 'handover') partnersTurn(); else { latest.current.play.moved(); collectDarts(sessionSummary(latest.current.session).visit); setPhase('player'); setStatus('Your turn'); pending.current = null } }}>{phase === 'handover' ? 'Change turn' : 'My turn'}</motion.button>}
         <motion.button type="button" disabled={busy} className="vu-btn vu-btn--outline vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => setGuide((value) => !value)}>Score guide</motion.button>
         <motion.button type="button" className="vu-pill" {...gestures(false, lift, press)} onClick={() => setMuted(!muted)}>{muted ? 'Sound off' : 'Sound on'}</motion.button>
       </div>
