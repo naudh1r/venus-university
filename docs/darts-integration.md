@@ -10,7 +10,7 @@ required by the framework's after-reply hook.
 ## Play
 
 Run `npm ci`, then `npm run dev` for Electron or `npm run dev:web` for the browser build.
-Enable **Mini-games** and **Venus Darts** in Mods. Start a scene with one or two girls at BTB Arcade,
+Enable **Mini-games** and **[Nd] Arcade & Bar Games** in Mods, with **Darts** enabled inside the pack. Start a scene with one or two girls at BTB Arcade,
 Stalestein Bar or Pino Cola Lounge. Use the existing mini-games HUD button and ask her to
 play Darts, or agree to play through ordinary scene dialogue.
 
