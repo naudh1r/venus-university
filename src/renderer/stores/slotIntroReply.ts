@@ -113,12 +113,17 @@ export function sanitizeSlotIntro(data: unknown, asked: SlotIntroAsked): SlotInt
       return text && description ? { char, text, description } : null
     }),
     breakups: entriesOf(reply.breakups, 'breakups', asked.breakups, runOf),
+    // A post and a reach-out keep whatever else their entry carries: the fields mods ask for
+    // there (`prompts['slot-posts']`, `prompts['slot-reach-outs']`) are theirs to read.
     posts: entriesOf(reply.posts, 'posts', asked.posters, (entry, char) => {
       const text = textOf(entry.text)
-      return text ? { char, text } : null
+      return text ? { ...entry, char, text } : null
     }),
     springBreakTexts: entriesOf(reply.springBreakTexts, 'springBreakTexts', asked.leavers, runOf),
-    reachOuts: entriesOf(reply.reachOuts, 'reachOuts', asked.reachOuts, runOf),
+    reachOuts: entriesOf(reply.reachOuts, 'reachOuts', asked.reachOuts, (entry, char) => {
+      const run = runOf(entry, char)
+      return run ? { ...entry, ...run } : null
+    }),
     homecomingTexts: entriesOf(reply.homecomingTexts, 'homecomingTexts', asked.visitors, runOf)
   }
 }

@@ -132,4 +132,20 @@ describe('sanitizeSlotIntro', () => {
     })
     expect(sanitizeSlotIntro({ lines: 'Morning.' }, asked).lines).toEqual([])
   })
+
+  it('keeps the fields a mod asked for on a post and a reach-out', () => {
+    const reply = sanitizeSlotIntro(
+      {
+        posts: [{ char: 'eve_lang', text: 'tired', image: 'a selfie in bed', comments: ['same'] }],
+        reachOuts: [{ char: 'joy_lee', texts: ['hey'], sendPhoto: true, photoPrompt: 'a mirror pic' }]
+      },
+      asked
+    )
+    expect(reply.posts).toEqual([
+      { char: 'eve_lang', text: 'tired', image: 'a selfie in bed', comments: ['same'] }
+    ])
+    expect(reply.reachOuts).toEqual([
+      { char: 'joy_lee', texts: ['hey'], sendPhoto: true, photoPrompt: 'a mirror pic' }
+    ])
+  })
 })
