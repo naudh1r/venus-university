@@ -11,7 +11,7 @@ import { useGameStore } from '../stores/gameStore'
 import { leavePlayerComment } from '../stores/bunnyfeedsThreads'
 import { epilogueOf, sceneActiveOf } from '../stores/textingLoop'
 import type { PostCommentsProps } from '../mods/hooks'
-import { fadeIn, gestures, quietLift, quietPress } from '../views/motion'
+import { fadeIn, gestures, lift, press, quietLift, quietPress } from '../views/motion'
 import { CloseIcon, HeartIcon } from '../views/screenIcons'
 import { formatShortGameDate, slotHalf } from '../prompts/gameDate'
 import { PostPicture } from './PostSpots'
@@ -554,47 +554,59 @@ function CommentField({
           )}
         </div>
       )}
-      <input
-        ref={input}
-        autoFocus={Boolean(replyTo)}
-        className="vu-input vu-bf-comment-input"
-        value={draft}
-        autoComplete="off"
-        role="combobox"
-        aria-expanded={listing}
-        aria-autocomplete="list"
-        aria-label={replyTo ? 'Reply' : 'Comment'}
-        placeholder={replyTo ? 'Write a reply…' : 'Write a comment… @ to tag a friend'}
-        onChange={(e) => {
-          setDraft(e.target.value)
-          setCaret(e.target.selectionStart ?? e.target.value.length)
-          setActive(0)
-          setDismissed(false)
-        }}
-        onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
-        onKeyDown={(e) => {
-          if (listing && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-            e.preventDefault()
-            const step = e.key === 'ArrowDown' ? 1 : rows.length - 1
-            setActive((at) => (at + step) % rows.length)
-            return
-          }
-          if (e.key === 'Escape') {
-            // Closes the list, then a reply's well; past those it is the post view's to close.
-            if (listing) setDismissed(true)
-            else if (onCancel) onCancel()
-            else return
+      <div className="vu-bf-comment-row">
+        <input
+          ref={input}
+          autoFocus={Boolean(replyTo)}
+          className="vu-input vu-bf-comment-input"
+          value={draft}
+          autoComplete="off"
+          role="combobox"
+          aria-expanded={listing}
+          aria-autocomplete="list"
+          aria-label={replyTo ? 'Reply' : 'Comment'}
+          placeholder={replyTo ? 'Write a reply…' : 'Write a comment… @ to tag a friend'}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            setCaret(e.target.selectionStart ?? e.target.value.length)
+            setActive(0)
+            setDismissed(false)
+          }}
+          onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
+          onKeyDown={(e) => {
+            if (listing && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+              e.preventDefault()
+              const step = e.key === 'ArrowDown' ? 1 : rows.length - 1
+              setActive((at) => (at + step) % rows.length)
+              return
+            }
+            if (e.key === 'Escape') {
+              // Closes the list, then a reply's well; past those it is the post view's to close.
+              if (listing) setDismissed(true)
+              else if (onCancel) onCancel()
+              else return
+              e.stopPropagation()
+              return
+            }
+            if (e.key !== 'Enter' && !(listing && e.key === 'Tab')) return
+            // Keep the window-level Enter handler from advancing the scene under the phone.
             e.stopPropagation()
-            return
-          }
-          if (e.key !== 'Enter' && !(listing && e.key === 'Tab')) return
-          // Keep the window-level Enter handler from advancing the scene under the phone.
-          e.stopPropagation()
-          e.preventDefault()
-          if (listing) pick(rows[Math.min(active, rows.length - 1)])
-          else send()
-        }}
-      />
+            e.preventDefault()
+            if (listing) pick(rows[Math.min(active, rows.length - 1)])
+            else send()
+          }}
+        />
+        {/* Enter sends too; this is the way for whoever reaches for the mouse. */}
+        <motion.button
+          type="button"
+          className="vu-btn vu-btn--primary vu-btn--panel vu-paper vu-bf-comment-send"
+          disabled={!draft.trim()}
+          {...gestures(!draft.trim(), lift, press)}
+          onClick={send}
+        >
+          Send
+        </motion.button>
+      </div>
       {listing && (
         <div className="vu-pop vu-bb-mention-pop" onMouseDown={(e) => e.preventDefault()}>
           <div className="vu-pop-list" role="listbox">

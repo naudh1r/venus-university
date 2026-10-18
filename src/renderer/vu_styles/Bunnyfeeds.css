@@ -131,7 +131,20 @@
 }
 
 /* A pill well, smaller than the chat's: a comment is one line under somebody else's post. */
+/* The well and its Send, side by side; the field takes what the button leaves. */
+.vu-bf-comment-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vu-bf-comment-send {
+  flex: none;
+}
+
 .vu-bf-comment-input {
+  flex: 1;
+  min-width: 0;
   width: 100%;
   padding: 9px 18px;
   border-radius: 999px;
