@@ -1,0 +1,277 @@
+/* Bunnyfeeds' own file: the comment rows under a post, roster faces, threads, the reader's well
+   and the @ list. Its classes are its own, so no other mod's stylesheet reaches them. */
+
+/* ---- a post's comments ------------------------------------------------------ */
+
+/* Quieter than the post and inset from it, the way a thread reads under the thing it answers.
+   No surface of its own: these are lines on the card, not cards on a card. */
+.vu-bf-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One reply, read the way a feed's are: a face, then the name and what they said running on in
+   one line. The text carries the card's own colour — a whole reply greyed out reads as a note
+   about the post rather than as somebody talking under it. */
+.vu-bf-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--vu-text);
+  font: 500 13.5px/1.45 var(--font-body);
+}
+
+/* The four thousand have no faces, so their emoji stands in for one — in a disc, which is what
+   makes it read as somebody rather than as a bullet. The tint is theirs: taken from the handle,
+   so one stranger keeps the same face wherever she turns up. */
+.vu-bf-comment-face {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: oklch(0.72 0.07 var(--vu-face-hue, 0) / 0.35);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.vu-bf-comment-said {
+  min-width: 0;
+  padding-top: 5px;
+  overflow-wrap: anywhere;
+}
+
+/* The name leads the line and the reply runs straight on from it. In the mono the rest of the
+   app gives a handle, and a shade off the words, so the two are told apart at a glance rather
+   than by weight alone — at this size, bold against not-bold is almost nothing. */
+.vu-bf-comment-who {
+  margin-right: 3px;
+  color: color-mix(in oklab, var(--vu-text) 72%, var(--vu-accent));
+  font: 700 12px var(--font-mono);
+}
+
+
+/* A roster girl has a face of her own: her profile picture fills the disc, cropped to her head. */
+.vu-bf-comment-face--roster {
+  overflow: hidden;
+  background: var(--vu-surface);
+}
+
+.vu-bf-comment-face--roster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+/* ---- threads and the reader's own word ------------------------------------ */
+
+/* The comments and the well under them, one column under the post. */
+.vu-bb-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vu-bf-comment-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Replies sit inset under the comment they answer, past its face, so a chain reads as one. */
+.vu-bf-comments--replies {
+  margin: 0;
+  padding-left: 40px;
+  gap: 10px;
+}
+
+/* The name sits on its own line over the words, as the big feeds do, so a long thread reads by
+   who is talking; a reply's words open on whom it answers. */
+.vu-bf-comment-who--over {
+  display: block;
+  margin: 0 0 2px;
+}
+
+/* The reader has no picture on the feed, so his disc carries the word instead, in the accent. */
+.vu-bf-comment-face--player {
+  background: color-mix(in oklab, var(--vu-accent) 30%, transparent);
+  color: var(--vu-text);
+  font: 700 10px var(--font-mono);
+  text-transform: lowercase;
+}
+
+/* Reply and Cancel are words, not buttons: quiet mono after the line, like a feed's own. */
+.vu-bf-comment-reply {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vu-text-muted);
+  font: 700 11px var(--font-mono);
+}
+
+.vu-bf-comment-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Who the well is answering, over it, with the way out beside it. */
+.vu-bf-comment-replying {
+  display: flex;
+  align-items: baseline;
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-body);
+}
+
+/* A pill well, smaller than the chat's: a comment is one line under somebody else's post. */
+.vu-bf-comment-input {
+  width: 100%;
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 13.5px;
+}
+
+/* A tag in a comment is drawn exactly like the handle over it, so a handle reads the same anywhere. */
+.vu-bf-comment-mention {
+  color: color-mix(in oklab, var(--vu-text) 72%, var(--vu-accent));
+  font: 700 12px var(--font-mono);
+}
+
+/* The contacts @ lists: the shared floating list, standing in the column under the well rather
+   than floating, so the feed's own scroller can never clip it. */
+.vu-bb-mention-pop {
+  position: static;
+}
+
+/* One contact: her face, her name, then her handle in the comment's own mono. */
+.vu-bb-mention {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+}
+
+/* The quiet words that open the post view or a comment's folded replies, on a line of their own. */
+.vu-bf-comment-open,
+.vu-bf-comment-more {
+  align-self: flex-start;
+  margin-left: 0;
+}
+
+.vu-bf-comment-more {
+  margin-left: 40px;
+}
+
+/* ---- the post view --------------------------------------------------------- */
+
+/* Over the whole screen, as a photo opens: the veil's own wash, and anywhere outside the post is
+   the way back. Definite tracks, for the reason `.vu-lightbox` gives. */
+.vu-bb-postveil {
+  position: absolute;
+  inset: 0;
+  /* Under the photo lightbox, so a picture opened from the post shows over it. */
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  padding: 40px;
+  background: color-mix(in srgb, var(--vu-accent-shadow) 78%, transparent);
+}
+
+/* The post itself: a rounded sheet, as tall as it needs and no taller than the screen. */
+.vu-bb-postview {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  max-height: 100%;
+  border-radius: 32px;
+  overflow: hidden;
+  background: var(--vu-surface);
+}
+
+/* Its name in the middle and the way out at the right, over a rule. */
+.vu-bb-postview-head {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 22px 32px 18px;
+  border-bottom: 2.5px solid var(--vu-border);
+}
+
+.vu-bb-postview-title {
+  color: var(--vu-text);
+  font: 700 19px var(--font-body);
+}
+
+.vu-bb-postview-close {
+  position: absolute;
+  right: 28px;
+  width: 40px;
+  height: 40px;
+}
+
+/* The post and the thread scroll together; the well stays put below them. */
+.vu-bb-postview-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 22px 36px;
+  overflow: hidden auto;
+}
+
+.vu-bb-postview-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vu-bb-postview-who .vu-bf-comment-face {
+  width: 44px;
+  height: 44px;
+}
+
+.vu-bb-postview-name {
+  color: var(--vu-text);
+  font: 700 16px var(--font-body);
+}
+
+.vu-bb-postview-meta {
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.vu-bb-postview-foot {
+  flex: none;
+  padding: 14px 36px 24px;
+  border-top: 2.5px solid var(--vu-border);
+}
+
+/* On the view's own face the pills take the post's recessed fill, or they would vanish into it. */
+.vu-bb-postview .vu-bb-like {
+  background: var(--vu-recessed);
+}
+
+/* In the post view a comment's Reply waits for the pointer, so the thread reads as talk rather
+   than as a column of buttons. Out of the flow while hidden, so a long line keeps no empty row for
+   it. */
+.vu-bb-postview .vu-bf-comment .vu-bf-comment-reply {
+  display: none;
+}
+
+.vu-bb-postview .vu-bf-comment:hover .vu-bf-comment-reply,
+.vu-bb-postview .vu-bf-comment .vu-bf-comment-reply:focus-visible {
+  display: inline;
+}

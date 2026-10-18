@@ -1,4 +1,5 @@
 import type { ClassifierPromptRequest, ClassifierVerdict } from '@shared/classifier'
+import type { FeedThreadsResponse } from '@shared/bunnyfeeds'
 import { base64ToBytes } from '@shared/base64'
 import { appError, toAppError } from '@shared/errors'
 import {
@@ -262,6 +263,10 @@ export function buildApi(): VenusUniversityApi {
       completeEndingPosts: (request, group) =>
         result('write the status updates', () =>
           runAbortable(group, (signal) => completeStructured<EndingPostsResponse>(request, signal))
+        ),
+      completeFeedThreads: (request, group) =>
+        result('answer the feed', () =>
+          runAbortable(group, (signal) => completeStructured<FeedThreadsResponse>(request, signal))
         ),
       // Several texting calls can stream at once, so every delta carries its `group`.
       completeTexting: (request, group) =>

@@ -5,6 +5,7 @@ import type {
   CustomBackgroundDraft,
   CustomBackgroundListing
 } from '@shared/customBackgrounds'
+import type { FeedThreadsResponse } from '@shared/bunnyfeeds'
 import type { PromptEdit } from '@shared/imagePrompt'
 import type { ModSwitches } from '@shared/mods'
 import type {
@@ -179,6 +180,11 @@ export interface VenusUniversityApi {
       request: StructuredRequest,
       group: string
     ) => Promise<Result<EndingPostsResponse>>
+    /** Sends Bunnyfeeds' thread prompt. Never streams. */
+    completeFeedThreads: (
+      request: StructuredRequest,
+      group: string
+    ) => Promise<Result<FeedThreadsResponse>>
     /** Sends a Bunnyboard texting turn; `group` enables cancellation. */
     completeTexting: (
       request: StructuredRequest,
