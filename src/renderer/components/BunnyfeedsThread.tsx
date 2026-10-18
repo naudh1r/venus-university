@@ -159,6 +159,8 @@ function PostView(props: PostCommentsProps & { charId: string; postId: string })
   const season = useGameStore((s) => s.calendar.season)
   const canComment = useCanComment(props)
   const sceneActive = useGameStore(sceneActiveOf)
+  // A reply open in the thread: the post's own box steps aside so one box is open at a time.
+  const [replyOpen, setReplyOpen] = useState(false)
   // Over the whole screen, as a photo opens: the phone's veil is the layer it lies on.
   const veil = document.querySelector('.vu-bb')?.parentElement
   if (!veil || !character || !post) return null
@@ -227,7 +229,13 @@ function PostView(props: PostCommentsProps & { charId: string; postId: string })
             {post.likes + (post.liked ? 1 : 0)}
           </motion.button>
         </div>
-        <Thread comments={post.comments ?? []} posterId={charId} postId={postId} canComment={canComment} />
+        <Thread
+          comments={post.comments ?? []}
+          posterId={charId}
+          postId={postId}
+          canComment={canComment}
+          onReplying={setReplyOpen}
+        />
       </div>
       {!canComment && sceneActive && !props.stranger && (
         <div className="vu-bb-postview-foot">
@@ -239,7 +247,7 @@ function PostView(props: PostCommentsProps & { charId: string; postId: string })
           />
         </div>
       )}
-      {canComment && (
+      {canComment && !replyOpen && (
         <div className="vu-bb-postview-foot">
           {/* One comment on the post itself; the conversation carries on in its thread. */}
           {commented ? (
@@ -272,21 +280,28 @@ function Thread({
   comments,
   posterId,
   postId,
-  canComment
+  canComment,
+  onReplying
 }: {
   comments: readonly PostComment[]
   posterId: string
   postId: string
   canComment: boolean
+  /** Told whenever a reply's box opens or closes. */
+  onReplying?: (open: boolean) => void
 }): JSX.Element | null {
   const said = useShown(comments)
   // The thread a reply goes under, and the comment whose author it opens addressed to.
   const [replying, setReplying] = useState<{ root: PostComment; to: PostComment } | null>(null)
   const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set())
+  const reader = useReaderHandle()
+  const replyBoxOpen = replying !== null
+  useEffect(() => {
+    onReplying?.(replyBoxOpen)
+  }, [replyBoxOpen, onReplying])
   if (said.length === 0) return null
   const { roots, repliesTo } = grouped(said)
   const byId = new Map(said.map((one) => [one.id, one]))
-  const reader = useReaderHandle()
   // Whom a reply answers, named by the game off its target: his own carry the @ he typed.
   const toOf = (one: PostComment): string | undefined => {
     const target = one.player || !one.replyTo ? undefined : byId.get(one.replyTo)
