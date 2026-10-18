@@ -190,7 +190,7 @@ export interface ModHooks {
     character: Character
     reply: Readonly<Record<string, unknown>>
   }) => void
-  /** As the reader commits to something: an action sent, or a hangout begun. */
+  /** As the reader commits to something: an action sent, a hangout begun, or Relax. */
   playerActs?: () => void
   /** As a game is entered, new or loaded. */
   gameEntered?: () => void

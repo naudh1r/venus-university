@@ -1,4 +1,5 @@
 import type { TimeSlot } from '@shared/types'
+import { playerActs } from '../../mods/hooks'
 import { isGraduationSlot } from '../../prompts/graduation'
 import { useGameStore } from '../gameStore'
 import { runQuietEnding } from './exams'
@@ -37,6 +38,9 @@ export async function relax(): Promise<void> {
   game.setBusy(true)
   // Raised before the first await, so the landing reports the wait and no second click lands.
   game.setWaitingForLine(true)
+  // Spending the hour is committing to it, as an action is; Relax never passes through
+  // `submitAction`, so it tells the mods itself.
+  playerActs()
   loopState.jobShift = null
   loopState.projectWork = null
 
