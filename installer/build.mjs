@@ -113,10 +113,14 @@ async function compare(baseDir, buildDir) {
 
 const { put, added, remove, base } = await compare(BASE, BUILD_OUT)
 
-/** Text the release was built from on Windows: its line endings are the only difference allowed. */
+/**
+ * The same text either way round: a checkout on Windows may have CRLF where the official game
+ * ships LF (0.5.0 does), or the reverse. Line endings are the only difference allowed.
+ */
 function sameText(ours, theirs) {
-  const crlf = Buffer.from(ours.toString('latin1').replace(/\r?\n/g, '\r\n'), 'latin1')
-  return sha256(ours) === theirs || sha256(crlf) === theirs
+  const lf = ours.toString('latin1').replace(/\r\n/g, '\n')
+  const crlf = lf.replace(/\n/g, '\r\n')
+  return [ours, Buffer.from(lf, 'latin1'), Buffer.from(crlf, 'latin1')].some((text) => sha256(text) === theirs)
 }
 
 /**
