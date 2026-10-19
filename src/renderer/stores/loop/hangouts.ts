@@ -1,4 +1,5 @@
 import type { Character } from '@shared/types'
+import { isTutorialSlot } from '../../prompts/introScript'
 import { buildScenePrompt } from '../../prompts/scenePrompt'
 import { SETTING } from '../../prompts/setting'
 import { useGameStore } from '../gameStore'
@@ -6,16 +7,7 @@ import { playerActs } from '../../mods/hooks'
 import { coverSceneOpening } from '../slotCrossing'
 import { plannedWith } from '../textingLoop'
 import { castCharactersOf, nameOf } from './cast'
-import {
-  admitLocals,
-  commitmentNotes,
-  injectPasserby,
-  planAttendees,
-  resolveAttendance,
-  resolveLocationId,
-  runIntoNote,
-  workersAtLocation
-} from './casting'
+import { planAttendees } from './casting'
 import {
   buildClassifyAttempt,
   classifyAction,
@@ -24,7 +16,10 @@ import {
   type Verdict
 } from './classify'
 import { registerHangoutEntry } from './hooks'
-import { applyCast, reader, scenePromptState } from './promptState'
+import { armSceneRecords } from './jobs'
+import { composeMeeting, kindLabel, meetingKindOf } from './meetings'
+import { applyCast, reader, promptState } from './promptState'
+import { sceneEventsFor } from './sceneEvents'
 import { currentRun, loopState, runStale, type TurnSnapshot } from './state'
 import { deliverSceneLines, streamScene, type PreviewSink, type SceneCall } from './stream'
 import { runSceneTurn } from './turn'
@@ -78,12 +73,12 @@ async function prefetchHangoutScene(charId: string, description: string): Promis
   // than classifying again; the cast is re-decided on that retry.
   token.snapshot.preset = result.verdict
 
-  const { cast, action } = await castHangout(charId, description, result.verdict)
+  const { cast, action } = await castHangout(charId, description, result.verdict, token.snapshot)
   if (loopState.hangoutPrefetch !== token) return
   const castCharacters = castCharactersOf(cast)
   // Not `logPlayerAction`: the reader's line in the transcript would take the Bunnyboard's
   // composer away mid-read. Begin logs it.
-  const request = buildScenePrompt(castCharacters, action, scenePromptState(), SETTING, reader())
+  const request = buildScenePrompt(castCharacters, action, promptState(), SETTING, reader())
   const sink: PreviewSink = { live: false, settled: false, held: [] }
   token.scene = {
     cast,
@@ -102,7 +97,8 @@ async function prefetchHangoutScene(charId: string, description: string): Promis
 export async function startHangoutScene(
   charId: string,
   description: string,
-  preset?: Verdict
+  preset?: Verdict,
+  sceneEvents?: TurnSnapshot['sceneEvents']
 ): Promise<void> {
   const run = currentRun()
   const game = useGameStore.getState()
@@ -120,11 +116,15 @@ export async function startHangoutScene(
     scene: game.captureScene(),
     action: description,
     charId,
-    // A retry arrives with the verdict its failed attempt settled; a first Begin
-    // with none, and classifies below.
-    ...(preset ? { preset } : {})
+    // A retry arrives with the verdict its failed attempt settled and what it rolled; a first
+    // Begin with neither, and classifies below.
+    ...(preset ? { preset } : {}),
+    ...(sceneEvents ? { sceneEvents } : {})
   }
   loopState.lastTurn = snapshot
+  // A hangout casts afresh, as a typed opening does; the records come off the scene it casts.
+  loopState.jobShift = null
+  loopState.projectWork = null
 
   game.setInputDraft('')
   game.setAwaitingInput(false)
@@ -138,6 +138,8 @@ export async function startHangoutScene(
 
   if (ready?.scene) {
     const scene = ready.scene
+    // Armed here and never by the prefetch, off the scene kind it already put on the store.
+    armSceneRecords()
     // First, so the reader's own line precedes the scene's in the log. An opening, not a
     // continuation: the hangout scene starts here.
     useGameStore.getState().logPlayerAction(scene.action, false)
@@ -166,15 +168,16 @@ export async function startHangoutScene(
   // Settled once, so a scene failure after this point retries without re-asking.
   if (!snapshot.preset) snapshot.preset = verdict
 
-  const cast = await castHangout(charId, description, verdict)
+  const cast = await castHangout(charId, description, verdict, snapshot)
   if (runStale(run)) return
+  armSceneRecords()
   // An opening, not a continuation: the hangout scene starts here.
   useGameStore.getState().logPlayerAction(cast.action, false)
   const castCharacters = castCharactersOf(cast.cast)
   const request = buildScenePrompt(
     castCharacters,
     cast.action,
-    scenePromptState(),
+    promptState(),
     SETTING,
     reader()
   )
@@ -189,14 +192,16 @@ export async function startHangoutScene(
 
 /**
  * Casts an agreed hangout and settles the phone for the slot it is spending — the
- * one path the prefetch and the serial fallback share.
+ * one path the prefetch and the serial fallback share. Whatever kind of scene its words are,
+ * it is that too, with her in it; words the slot cannot hold play as the meeting alone.
  */
 async function castHangout(
   charId: string,
   description: string,
-  verdict: Verdict
+  verdict: Verdict,
+  snapshot: TurnSnapshot
 ): Promise<{ cast: string[]; action: string }> {
-  const { mentioned, inPublic, sceneLocation } = verdict
+  const { mentioned, actionType, inPublic, sceneLocation } = verdict
   const game = useGameStore.getState()
 
   // The plan she has with him this slot, if any: every attendee comes, named or not, and her
@@ -204,39 +209,41 @@ async function castHangout(
   const event = plannedWith(charId, game.date, game.time)
   const attendees = event ? planAttendees(event) : []
 
-  // A girl at work where they are meeting is available rather than busy.
-  const workers = workersAtLocation(sceneLocation).map((worker) => worker.charId)
-  const attendance = resolveAttendance([...attendees, ...mentioned], charId, [
-    ...workers,
-    ...attendees
-  ])
-  const notes = [...attendance.notes, ...commitmentNotes(attendance.cast, attendees, workers)]
-  let cast = attendance.cast
+  // A hangout rolls like a named typed action: the pinned character is the naming. Named, so a
+  // haunt is the crash-the-party roll, except for whoever she is out with this slot.
+  const meeting = meetingKindOf(actionType)
+  const composed = composeMeeting(
+    { called: [...attendees, ...mentioned], required: charId, attendees, inPublic, sceneLocation },
+    meeting
+  )
+  const { cast, passerby } = composed
+  const action = [description, ...composed.notes].join('\n')
 
-  // A hangout rolls like a named typed action: the pinned character is the naming.
-  const passerby = injectPasserby(cast, inPublic, resolveLocationId(sceneLocation))
-  if (passerby) {
-    cast = [...cast, passerby]
-    notes.push(runIntoNote([passerby]))
-  }
-
-  // Last, after the pinned character has her slot; named, so a haunt is the crash-the-party
-  // roll, except for whoever she is out with this slot.
-  const atWork = admitLocals(cast, sceneLocation, { named: true, inPublic })
-  cast = atWork.cast
-  const action = [description, ...notes, ...atWork.notes].join('\n')
-
+  const kind = kindLabel(composed.scene)
   console.log(
     `[cast] hangout: ${mentioned.map(nameOf).join(', ') || 'nobody'}` +
-      `${inPublic ? ' [public]' : ' [private]'}` +
+      `${actionType ? ` (${actionType})` : ''}` +
+      `${meeting.kind === 'none' && meeting.reason ? ` — met as company: ${meeting.reason}` : ''}` +
+      `${kind ? ` | ${kind}` : ''}${inPublic ? ' [public]' : ' [private]'}` +
       ` → cast: ${cast.map(nameOf).join(', ')}` +
       `${passerby ? ` (ran into ${nameOf(passerby)})` : ''}`
   )
 
+  // The curveball and the present, read off what her invitation asked him to.
+  const events = isTutorialSlot(game.date, game.time, game.semesterIndex)
+    ? {}
+    : sceneEventsFor(
+        snapshot,
+        cast,
+        { ...composed.scene, location: sceneLocation || null, inPublic },
+        charId
+      )
+
   // She is never her own snub: answering her cleared her `pendingHangout`, and the cast
   // `applyCast` expires against covers the whole room.
   await applyCast(cast, {
-    ...(atWork.jobId ? { visitJobId: atWork.jobId } : {}),
+    ...composed.scene,
+    ...events,
     // The texts that arranged this are not a plan he still owes her; her thread alone,
     // since only one attendee ever texts about a plan.
     textLedgerSkip: charId,

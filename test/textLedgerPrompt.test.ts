@@ -35,7 +35,7 @@ function schedule(
   threads: SchedulePromptInput['threads'],
   characters = roster
 ): SchedulePromptInput {
-  return { date: 0, time: 0 as TimeSlot, threads, characters, planned: [] }
+  return { date: 0, time: 0 as TimeSlot, season: 'spring', threads, characters, graduates: [], planned: [], timetable: {} }
 }
 
 describe('textLedgerCharKeys', () => {

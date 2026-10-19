@@ -7,10 +7,12 @@ import {
   replaysToDelete,
   type SlotReplay
 } from '@shared/replays'
+import { hasSemester, recordReplayIds, SEMESTER_NOT_FOUND, semesterOf } from '@shared/semesters'
 import {
   assertManualSlot,
   assertSafePlaythroughId,
   assertSafeSaveId,
+  assertSemesters,
   atLocation,
   ENROLLMENT_NOT_FOUND,
   ENROLLMENT_READ,
@@ -34,6 +36,7 @@ import {
   stampSave,
   summaryOf,
   withPlaythroughName,
+  withRegistration,
   type SaveIdGroups
 } from '@shared/saveRules'
 import {
@@ -51,7 +54,8 @@ import {
   type PlaythroughSummary,
   type SaveDraft,
   type SaveEntry,
-  type SaveReadResult
+  type SaveReadResult,
+  type SemesterRecord
 } from '@shared/types'
 import {
   getEnrollmentPath,
@@ -302,12 +306,16 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
     if (saveIds.length === 0) {
       try {
         const enrollment = await readEnrollment(playthroughId)
+        const semesterIndex = enrollment.continued?.index ?? 0
         summaries.push({
           ...base,
           enrolling: true,
           chars: enrollment.chars,
           date: FIRST_SLOT.date,
           time: FIRST_SLOT.time,
+          ...(semesterIndex > 0
+            ? { semesterIndex, registration: { savedAt: enrollment.savedAt, semesterIndex } }
+            : {}),
           savedAt: enrollment.savedAt,
           unloadable: null
         })
@@ -341,11 +349,14 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
     for (const saveId of await newestWrittenFirst(playthroughId, saveIds)) {
       try {
         const save = await loadSave(playthroughId, saveId)
+        // The roster and the semester the save is in; one the record does not hold is unreadable.
+        const semester = record ? semesterOf(record, save.semester) : null
         summary = {
           ...named,
-          chars: record?.chars ?? [],
+          chars: semester?.chars ?? [],
           date: save.date,
           time: save.time,
+          ...(semester && semester.index > 0 ? { semesterIndex: semester.index } : {}),
           savedAt: save.saveDate,
           // A refused record outranks a readable save: without it nothing resolves.
           unloadable: record ? null : reason
@@ -356,19 +367,39 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
       }
     }
     summaries.push(
-      summary ?? {
-        ...named,
-        chars: [],
-        date: 0,
-        time: 0,
-        savedAt: await mtimeOf(getPlaythroughPath(playthroughId)),
-        unloadable: reason
-      }
+      withRegistration(
+        summary ?? {
+          ...named,
+          chars: [],
+          date: 0,
+          time: 0,
+          savedAt: await mtimeOf(getPlaythroughPath(playthroughId)),
+          unloadable: reason
+        },
+        await registrationBeside(playthroughId)
+      )
     )
   }
 
   return summaries
 }
+
+/**
+ * The next semester waiting at the registrar beside a playthrough's saves, or null; one that
+ * cannot be read is passed over, the saves beside it still standing for the playthrough.
+ */
+async function registrationBeside(playthroughId: string): Promise<Enrollment | null> {
+  try {
+    return await readEnrollment(playthroughId)
+  } catch (err) {
+    const error = toAppError(err)
+    if (error.code !== ENROLLMENT_NOT_FOUND.code) {
+      console.warn(`[saves] ${playthroughId}'s class registration is unreadable:`, error.message)
+    }
+    return null
+  }
+}
+
 
 /**
  * Lists one playthrough's saves — the autosave, the boundary saves newest-first, then the
@@ -391,6 +422,9 @@ export async function listSaves(playthroughId: string): Promise<PlaythroughListi
   for (const saveId of saveIds) {
     try {
       const save = await loadSave(playthroughId, saveId)
+      if (record && !hasSemester(record, save.semester)) {
+        throw appError(SEMESTER_NOT_FOUND.code, SEMESTER_NOT_FOUND.message, `${playthroughId}/${saveId}`)
+      }
       saves.push({ saveId, savedAt: save.saveDate, summary: summaryOf(save), error: null })
     } catch (err) {
       saves.push({
@@ -409,6 +443,9 @@ export async function listSaves(playthroughId: string): Promise<PlaythroughListi
 export async function readSave(playthroughId: string, saveId: string): Promise<SaveReadResult> {
   const record = await readPlaythroughRecord(playthroughId)
   const save = await loadSave(playthroughId, saveId)
+  if (!hasSemester(record, save.semester)) {
+    throw appError(SEMESTER_NOT_FOUND.code, SEMESTER_NOT_FOUND.message, `${playthroughId}/${saveId}`)
+  }
   return { record, save }
 }
 
@@ -464,22 +501,47 @@ async function mintPlaythroughFolder(): Promise<string> {
 }
 
 /**
- * Writes a semester that has no timetable yet into a folder of its own, so the registrar
- * offering it can be left and come back to.
+ * Writes a semester that has no timetable yet, so the registrar offering it can be left and
+ * come back to: a first semester into a folder of its own, a next one beside the record of the
+ * playthrough `playthroughId` names, replacing any registration already waiting there.
  */
-export async function writeEnrollment(draft: EnrollmentDraft): Promise<CreatedEnrollment> {
-  const playthroughId = await mintPlaythroughFolder()
+export async function writeEnrollment(
+  draft: EnrollmentDraft,
+  playthroughId?: string
+): Promise<CreatedEnrollment> {
+  if (playthroughId !== undefined) {
+    assertSafePlaythroughId(playthroughId)
+    return inTurn(playthroughId, async () => {
+      // A next semester belongs to a playthrough that has begun.
+      await readPlaythroughRecord(playthroughId)
+      const enrollment = stampEnrollment(draft, Date.now())
+      await writeAtomicJson(getEnrollmentPath(playthroughId), enrollment, {
+        code: 'ENROLLMENT_UNWRITABLE',
+        message: 'Could not write the class registration.'
+      })
+      return { playthroughId, enrollment }
+    })
+  }
+  const minted = await mintPlaythroughFolder()
   const enrollment = stampEnrollment(draft, Date.now())
-  await writeAtomicJson(getEnrollmentPath(playthroughId), enrollment, {
+  await writeAtomicJson(getEnrollmentPath(minted), enrollment, {
     code: 'ENROLLMENT_UNWRITABLE',
     message: 'Could not write the class registration.'
   })
-  return { playthroughId, enrollment }
+  return { playthroughId: minted, enrollment }
+}
+
+/** Removes a folder's class registration; already gone is success. */
+async function removeEnrollment(playthroughId: string): Promise<void> {
+  await rm(getEnrollmentPath(playthroughId), { force: true }).catch((err: unknown) => {
+    console.warn('[saves] the class registration could not be removed', err)
+  })
 }
 
 /**
  * The record is written before the save: a save without a record can't be loaded, while a
- * record without a save sits in a folder the listing skips.
+ * record without a save sits in a folder the listing skips. A folder whose playthrough has
+ * already begun is refused, so a registrar reopened on it can never write over its record.
  */
 export async function createPlaythrough(
   playthrough: PlaythroughDraft,
@@ -492,18 +554,53 @@ export async function createPlaythrough(
   } else {
     assertSafePlaythroughId(playthroughId)
     folder = playthroughId
-    // Load Game may have deleted the folder while the registrar stood open.
-    await ensureFolder(getPlaythroughPath(folder))
   }
 
-  const record = await writePlaythroughRecord(folder, playthrough)
-  const save = await writeSaveFile(folder, folder, draft)
-  // The playthrough is complete either way, and the listing reads an enrollment only in a
-  // folder with no save in it.
-  await rm(getEnrollmentPath(folder), { force: true }).catch((err: unknown) => {
-    console.warn('[saves] the class registration could not be removed', err)
+  return inTurn(folder, async () => {
+    if ((await stampOf(getPlaythroughRecordPath(folder))) !== null) {
+      throw appError('PLAYTHROUGH_EXISTS', 'That playthrough has already begun.', folder)
+    }
+    // Load Game may have deleted the folder while the registrar stood open.
+    await ensureFolder(getPlaythroughPath(folder))
+    const record = await writePlaythroughRecord(folder, playthrough)
+    const save = await writeSaveFile(folder, folder, draft)
+    // The playthrough is complete either way, and its registration is spent.
+    await removeEnrollment(folder)
+    return { record, save }
   })
-  return { record, save }
+}
+
+/**
+ * Begins a next semester in a playthrough: the semester added to the record read fresh, so a
+ * rename since is kept, then its opening save written into the boundary window, then the
+ * registration it came from removed. A semester id the record already holds is refused and its
+ * registration removed with it, so a semester is never written twice under a save naming it.
+ */
+export async function continueSemester(
+  playthroughId: string,
+  semesterId: string,
+  semester: SemesterRecord,
+  draft: SaveDraft
+): Promise<CreatedPlaythrough> {
+  assertSafePlaythroughId(playthroughId)
+  if (!SAFE_NUMERIC_ID.test(semesterId)) {
+    throw appError('SEMESTER_ID_INVALID', 'That semester id is not valid.', semesterId)
+  }
+  return inTurn(playthroughId, async () => {
+    const current = await readPlaythroughRecord(playthroughId)
+    if (current.semesters?.[semesterId]) {
+      await removeEnrollment(playthroughId)
+      throw appError('SEMESTER_EXISTS', 'That semester has already begun.', semesterId)
+    }
+    const { schemaVersion: _stamped, ...rest } = current
+    const next = { ...rest, semesters: { ...current.semesters, [semesterId]: semester } }
+    // Checked as a read would check it, before anything is written.
+    assertSemesters(stampRecord(next), getPlaythroughRecordPath(playthroughId))
+    const record = await writePlaythroughRecord(playthroughId, next)
+    const save = await writeBoundarySave(playthroughId, draft)
+    await removeEnrollment(playthroughId)
+    return { record, save }
+  })
 }
 
 /** Each playthrough's save writes and deletes still to settle, as the tail of one chain. */
@@ -551,7 +648,20 @@ async function dropReplays(
     const onDisk = new Set(files)
     if (!dropped.some((id) => onDisk.has(id) && !keep.includes(id))) return
 
+    // The replays a finished semester left for the calendar stay as long as the playthrough.
     const named: Set<string>[] = []
+    try {
+      named.push(recordReplayIds(await readPlaythroughRecord(playthroughId)))
+    } catch (err) {
+      const error = toAppError(err)
+      if (error.code !== RECORD_NOT_FOUND.code) {
+        console.warn(
+          `[saves] ${playthroughId}'s record could not be read, so no replay is deleted:`,
+          error.message
+        )
+        return
+      }
+    }
     for (const saveId of listedSaveIds(await saveIdsOf(playthroughId))) {
       try {
         named.push(replayIdsOf((await loadSave(playthroughId, saveId)).replays))
@@ -587,41 +697,48 @@ export async function writeSlotSave(
   replay?: SlotReplay
 ): Promise<GameSave> {
   assertSafePlaythroughId(playthroughId)
-  return inTurn(playthroughId, async () => {
-    await ensureFolder(getPlaythroughPath(playthroughId))
-    const named = replayIdsOf(draft.replays)
+  return inTurn(playthroughId, () => writeBoundarySave(playthroughId, draft, replay))
+}
 
-    let written: string | null = null
-    if (replay) {
-      const replayId = replayIdOf(replay)
-      if (named.has(replayId)) {
-        written = await writeReplay(playthroughId, replay)
-      } else {
-        console.warn(`[saves] a replay the save does not name was left unwritten: ${replayId}`)
-      }
+/** {@link writeSlotSave}'s write, for a caller already in the playthrough's turn. */
+async function writeBoundarySave(
+  playthroughId: string,
+  draft: SaveDraft,
+  replay?: SlotReplay
+): Promise<GameSave> {
+  await ensureFolder(getPlaythroughPath(playthroughId))
+  const named = replayIdsOf(draft.replays)
+
+  let written: string | null = null
+  if (replay) {
+    const replayId = replayIdOf(replay)
+    if (named.has(replayId)) {
+      written = await writeReplay(playthroughId, replay)
+    } else {
+      console.warn(`[saves] a replay the save does not name was left unwritten: ${replayId}`)
     }
+  }
 
-    const { slots } = await saveIdsOf(playthroughId)
-    let saved: GameSave
-    try {
-      saved = await writeSaveFile(playthroughId, mintId(new Set(slots)), draft)
-    } catch (err) {
-      if (written) await dropReplays(playthroughId, [written])
-      throw err
-    }
+  const { slots } = await saveIdsOf(playthroughId)
+  let saved: GameSave
+  try {
+    saved = await writeSaveFile(playthroughId, mintId(new Set(slots)), draft)
+  } catch (err) {
+    if (written) await dropReplays(playthroughId, [written])
+    throw err
+  }
 
-    // `slots` was read before this write, so the window is what the new save pushes out of it.
-    const dropped: string[] = []
-    for (const stale of prunedSlotIds(slots)) {
-      dropped.push(...(await replayIdsIn(playthroughId, stale)))
-      const path = getSaveFilePath(playthroughId, stale)
-      await rm(path, { force: true })
-      forgetParsed(path)
-    }
-    await dropReplays(playthroughId, idsMissingFrom(dropped, named))
+  // `slots` was read before this write, so the window is what the new save pushes out of it.
+  const dropped: string[] = []
+  for (const stale of prunedSlotIds(slots)) {
+    dropped.push(...(await replayIdsIn(playthroughId, stale)))
+    const path = getSaveFilePath(playthroughId, stale)
+    await rm(path, { force: true })
+    forgetParsed(path)
+  }
+  await dropReplays(playthroughId, idsMissingFrom(dropped, named))
 
-    return saved
-  })
+  return saved
 }
 
 /** Writes one save over whatever its file held, then drops the replays only the old one named. */
@@ -708,11 +825,15 @@ export async function deleteSave(
  * record is read and checked, then written back with that one field changed.
  */
 export async function renamePlaythrough(playthroughId: string, name: string): Promise<void> {
-  const { schemaVersion: _stamped, ...draft } = renamedRecord(
-    await readPlaythroughRecord(playthroughId),
-    name
-  )
-  await writePlaythroughRecord(playthroughId, draft)
+  assertSafePlaythroughId(playthroughId)
+  // In turn, so a semester being added to the record cannot be lost to a rename read before it.
+  return inTurn(playthroughId, async () => {
+    const { schemaVersion: _stamped, ...draft } = renamedRecord(
+      await readPlaythroughRecord(playthroughId),
+      name
+    )
+    await writePlaythroughRecord(playthroughId, draft)
+  })
 }
 
 /** Deletes a whole playthrough folder and every save in it. */

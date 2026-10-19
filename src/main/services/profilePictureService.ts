@@ -1,20 +1,21 @@
-import { mkdir, readFile, rename, unlink, writeFile } from 'fs/promises'
+import { mkdir, readFile } from 'fs/promises'
 import { dirname } from 'path'
 import { appError, messageOf } from '@shared/errors'
 import { assertProfilePicture } from '@shared/profilePicture'
 import { getProfilePicturePath } from '../paths'
+import { imagePath, removeImage, writeImageFile } from './imageFiles'
 import { assertSafePlaythroughId } from './saveService'
 
 /**
- * The reader's own picture: one PNG the player picked and the renderer cut to shape, kept in
- * the playthrough folder beside the saves it belongs to.
+ * The reader's own picture: one the player picked and the renderer cut to shape as a PNG, kept
+ * as WebP in the playthrough folder beside the saves it belongs to.
  */
 
 /** The picture already on disk, or `null` where there is none. */
 export async function readProfilePicture(playthroughId: string): Promise<Buffer | null> {
   assertSafePlaythroughId(playthroughId)
   try {
-    return await readFile(getProfilePicturePath(playthroughId))
+    return await readFile(await imagePath(getProfilePicturePath(playthroughId)))
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw appError(
@@ -31,30 +32,25 @@ export async function writeProfilePicture(playthroughId: string, png: string): P
   const bytes = Buffer.from(png, 'base64')
   assertProfilePicture(bytes)
 
-  // Atomic like every other write.
   const path = getProfilePicturePath(playthroughId)
-  const temp = `${path}.tmp`
+  const unwritable = {
+    code: 'PROFILE_PICTURE_UNWRITABLE',
+    message: 'Could not save the profile picture.'
+  }
   try {
     await mkdir(dirname(path), { recursive: true })
-    await writeFile(temp, bytes)
-    await rename(temp, path)
   } catch (err) {
-    await unlink(temp).catch(() => {})
-    throw appError(
-      'PROFILE_PICTURE_UNWRITABLE',
-      'Could not save the profile picture.',
-      messageOf(err)
-    )
+    throw appError(unwritable.code, unwritable.message, messageOf(err))
   }
+  await writeImageFile(path, bytes, { error: unwritable })
 }
 
 /** Removes the picture; one that is already gone is success. */
 export async function deleteProfilePicture(playthroughId: string): Promise<void> {
   assertSafePlaythroughId(playthroughId)
   try {
-    await unlink(getProfilePicturePath(playthroughId))
+    await removeImage(getProfilePicturePath(playthroughId))
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return
     throw appError(
       'PROFILE_PICTURE_UNWRITABLE',
       'Could not remove the profile picture.',

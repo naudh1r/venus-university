@@ -7,7 +7,7 @@ import { andList } from '@shared/sentences'
 
 /** What the Create Photo modal's prompt opens on, before the player has written a word. */
 export const PHOTO_PROMPT_BRIEF = [
-  'Create a candid photo of these characters [your prompt here]',
+  'Create a candid illustration of these characters [your prompt here]',
   '',
   'Before you finalize your composition, check these things:',
   '- All characters in the provided reference images are present.',

@@ -58,8 +58,8 @@ export interface CharacterHeightModalProps {
   roster: Character[]
   theme: 'day' | 'night'
   /**
-   * Characters whose height is not the player's to change — the shipped cast. They keep
-   * their face and their label and lose the steppers entirely.
+   * Characters whose height is not this lineup's to change — the company around a focus. They
+   * keep their face and their label and lose the steppers entirely.
    */
   lockedIds?: string[]
   /** The one character this lineup is about (the Edit modal). */

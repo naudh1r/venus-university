@@ -5,8 +5,11 @@ import { EMOTIONS } from '@shared/emotions'
 import { STOCK_POSITIONS } from '@shared/positions'
 import { ROOM_VARIANTS } from '@shared/room'
 import { sfwWithholds } from '@shared/sfw'
-import type { GenerateOptions, ReferenceImage } from '@shared/types'
+import { DEFAULT_LORA_WEIGHT, loraWeightText, parseLoraWeight } from '@shared/comfyModels'
+import type { CharacterLoraBrief, GenerateOptions, ReferenceImage } from '@shared/types'
 import { CheckField } from '../components/CheckField'
+import { ChipListInput } from '../components/ChipListInput'
+import { ComfyModelRow } from '../components/ComfyModelPicker'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
 import { TextField } from '../components/TextField'
@@ -22,7 +25,9 @@ import {
   quietPress,
   veilIn
 } from './motion'
+import { APPEARANCE_COLOR_HINT, LORA_REPLACE_NOTE } from './characterFields'
 import { DiceIcon } from './screenIcons'
+import { committedWeightText, useCharacterLora, weightTextAfterPick } from './useCharacterLora'
 import '../vu_styles/GenerateCharacter.css'
 
 export interface GenerateCharacterModalProps {
@@ -32,10 +37,19 @@ export interface GenerateCharacterModalProps {
     prompt: string,
     namesAreSuggestions: boolean,
     options: GenerateOptions,
-    reference?: ReferenceImage
+    reference?: ReferenceImage,
+    lora?: CharacterLoraBrief
   ) => void
-  /** A blank character written from the names and the description alone, with no LLM call. */
-  onCreateBlank: (firstName: string, lastName: string, personality: string) => void
+  /**
+   * A blank character written from the names, the description and her LoRA's tags alone, with
+   * no LLM call.
+   */
+  onCreateBlank: (
+    firstName: string,
+    lastName: string,
+    personality: string,
+    lora?: CharacterLoraBrief
+  ) => void
   onClose: () => void
   /** Drawn by the screen that opened this — a portal inherits neither palette nor state rules. */
   theme: 'day' | 'night'
@@ -52,9 +66,15 @@ const SPRITES = `+${EMOTIONS.length} sprites`
 const CGS = `+${STOCK_POSITIONS.length} images`
 const ROOM = ROOM_VARIANTS.join(' + ')
 
+/** A trigger word as a tag: trimmed, whitespace runs closed up into underscores. */
+function triggerTag(text: string): string {
+  return text.trim().replace(/\s+/g, '_')
+}
+
 /**
  * Collects optional inputs for a new character; blanks submit the shown suggestion. Skip LLM
- * filling turns that off: nothing renders and nothing is written but the names and description.
+ * filling turns that off: nothing renders and nothing is written but the names, the description
+ * and her LoRA's tags.
  */
 export function GenerateCharacterModal({
   onSubmit,
@@ -75,6 +95,14 @@ export function GenerateCharacterModal({
   const [referenceName, setReferenceName] = useState('')
   const [referenceError, setReferenceError] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
+  // Her own LoRA, '' for None, and the tags that come with it.
+  const [loraName, setLoraName] = useState('')
+  const [loraWeight, setLoraWeight] = useState(() => loraWeightText(DEFAULT_LORA_WEIGHT))
+  const [trigger, setTrigger] = useState('')
+  const [loraAppearance, setLoraAppearance] = useState<string[]>([])
+  const [loraOutfit, setLoraOutfit] = useState<string[]>([])
+  const [replace, setReplace] = useState(true)
+  const loras = useCharacterLora(true)
   // Lazy initializer: drawn once on open, only the dice draw again.
   const [suggestions, setSuggestions] = useState(pickSuggestions)
   const noNsfwImages = useSettingsStore(noNsfwImagesOf)
@@ -123,6 +151,29 @@ export function GenerateCharacterModal({
     setReferenceError('')
   }
 
+  /** One LoRA picked, its weight put back where it goes to or comes from None. */
+  const pickLora = (value: string): void => {
+    setLoraWeight((text) => weightTextAfterPick(loraName, value, text))
+    setLoraName(value)
+  }
+
+  // Replace has nothing to stand in with until one of its boxes holds something.
+  const loraTagged =
+    triggerTag(trigger) !== '' || loraAppearance.length > 0 || loraOutfit.length > 0
+
+  /** Her LoRA as the brief carries it, or nothing under None. */
+  const loraBrief = (): CharacterLoraBrief | undefined =>
+    loraName === ''
+      ? undefined
+      : {
+          name: loraName,
+          weight: parseLoraWeight(loraWeight) ?? DEFAULT_LORA_WEIGHT,
+          trigger: triggerTag(trigger),
+          appearance: loraAppearance,
+          outfit: loraOutfit,
+          replace
+        }
+
   const { host, overlayProps } = useModalShell(onClose)
   if (!host) return null
 
@@ -146,6 +197,8 @@ export function GenerateCharacterModal({
       >
         <TitleTab>New character</TitleTab>
 
+        {/* The column that grows with her LoRA's fields scrolls inside the capped panel. */}
+        <div className="vu-scroll-box vu-generate-scroll">
         <div className="vu-generate-form">
           {/* Every field is a suggestion in ghost italic: an untouched Generate still casts
               a complete character, so nothing here is ever required. With Skip LLM filling on,
@@ -193,7 +246,7 @@ export function GenerateCharacterModal({
             </div>
           </div>
 
-          <div className="vu-generate-brief">
+          <div className={`vu-generate-brief${loraName ? ' vu-generate-brief--short' : ''}`}>
             <TextField
               id="generate-prompt"
               label="Character description"
@@ -269,6 +322,63 @@ export function GenerateCharacterModal({
               )}
             </div>
           </motion.div>
+
+          {/* Her own LoRA, drawn through every render of her. Live under Skip LLM too, where
+              its tags are her sheet's. */}
+          <ComfyModelRow
+            id="generate-lora"
+            label="Character LoRA · optional"
+            value={loraName}
+            options={loras.optionsFor(loraName)}
+            onPick={pickLora}
+            weight={{
+              text: loraWeight,
+              onText: setLoraWeight,
+              onBlur: () =>
+                setLoraWeight((text) => committedWeightText(text, DEFAULT_LORA_WEIGHT))
+            }}
+            onOpenFolder={loras.onOpenFolder}
+          />
+          {loraName !== '' && (
+            <>
+              <TextField
+                id="generate-lora-trigger"
+                label="Trigger word"
+                value={trigger}
+                onChange={setTrigger}
+                maxLength={64}
+              />
+              <label className="vu-field" htmlFor="generate-lora-appearance">
+                <span className="vu-field-label">Appearance tags</span>
+                <span className="vu-field-hint">{APPEARANCE_COLOR_HINT}</span>
+                <ChipListInput
+                  id="generate-lora-appearance"
+                  values={loraAppearance}
+                  onChange={setLoraAppearance}
+                  placeholder="Enter or comma to add a tag"
+                />
+              </label>
+              <label className="vu-field" htmlFor="generate-lora-outfit">
+                <span className="vu-field-label">Outfit tags</span>
+                <ChipListInput
+                  id="generate-lora-outfit"
+                  values={loraOutfit}
+                  onChange={setLoraOutfit}
+                  placeholder="Enter or comma to add a tag"
+                />
+              </label>
+              <CheckField
+                id="generate-lora-replace"
+                label="Replace model output"
+                note={LORA_REPLACE_NOTE}
+                checked={replace}
+                onChange={setReplace}
+                disabled={blank || !loraTagged}
+              />
+            </>
+          )}
+        </div>
+        <div className="vu-scroll-fade" />
         </div>
 
         {/* One opt-in per set the game may render; the room bg is the one cloud render. Each
@@ -352,7 +462,8 @@ export function GenerateCharacterModal({
                   ? onCreateBlank(
                       firstName.trim() || suggestions.firstName,
                       lastName.trim() || suggestions.lastName,
-                      prompt.trim()
+                      prompt.trim(),
+                      loraBrief()
                     )
                   : onSubmit(
                       firstName.trim() || suggestions.firstName,
@@ -360,7 +471,8 @@ export function GenerateCharacterModal({
                       prompt.trim() || suggestions.prompt,
                       !firstName.trim() && !lastName.trim(),
                       { pe, swim, nude, cgs, room },
-                      reference ?? undefined
+                      reference ?? undefined,
+                      loraBrief()
                     )
               }
             >

@@ -1,7 +1,8 @@
 import {
   behaviorLevelOf,
-  DISPOSITION_PHRASE,
+  DISPOSITION_PREDICATE,
   dispositionOf,
+  dispositionPredicateOf,
   isNegative,
   isPositive
 } from '@shared/relationship'
@@ -12,7 +13,7 @@ import {
   type PlayerStats
 } from '@shared/playerStats'
 import { hasTrait } from '@shared/traits'
-import type { CharFlags, Character } from '@shared/types'
+import type { CharFlags, CharInfo, Character } from '@shared/types'
 import { isMoodLustful } from './moods'
 
 /** Renders a character's relationship with the reader for the cast block. */
@@ -31,12 +32,19 @@ export interface RelationshipMedium {
 /** The default every caller but the two texting builders wants. */
 const IN_PERSON: RelationshipMedium = { texting: false, texted: false }
 
-/** Status lines, most specific first — only the first match is emitted; the chain is lossy. */
+/** How far along she is: a new crush's or relationship's scene count, and her halves. */
+export type RelationshipProgress = Pick<CharInfo, 'romanceScenes' | 'upperHalves'>
+
+/**
+ * Status lines, most specific first — only the first match is emitted; the chain is lossy.
+ * `romanceScenes` present means a crush or a relationship is still new.
+ */
 function statusLine(
   name: string,
   flags: CharFlags,
   affection: number,
-  medium: RelationshipMedium
+  medium: RelationshipMedium,
+  romanceScenes: number | undefined
 ): string | null {
   const disposition = dispositionOf(affection)
 
@@ -76,6 +84,16 @@ function statusLine(
   }
 
   if (flags.isLover) {
+    if (romanceScenes !== undefined) {
+      const together = flags.brokenUp > 0 ? 'recently got back together' : 'recently became lovers'
+      const firsts =
+        !flags.hadSex && !flags.hasKissed
+          ? " They haven't kissed yet."
+          : !flags.hadSex
+            ? " They haven't slept together yet."
+            : ''
+      return `${name} and the reader ${together}.${firsts}`
+    }
     if (!flags.hadSex && !flags.hasKissed) {
       return `${name} and the reader are lovers but haven't kissed yet.`
     }
@@ -83,7 +101,16 @@ function statusLine(
     return `${name} and the reader are lovers.`
   }
 
-  if (flags.hasKissed) return `${name} and the reader have kissed but are not lovers yet.`
+  if (flags.hasKissed) {
+    const kissed = `${name} and the reader have kissed but are not lovers yet.`
+    // A kiss has already given her crush away, so it skips the stage where she hides it.
+    if (flags.hasCrush && !flags.friendZoned && !flags.friendZonedBy) {
+      return romanceScenes === undefined
+        ? `${kissed} She has a crush on him and wants to be lovers.`
+        : `${kissed} She has a crush on him.`
+    }
+    return kissed
+  }
 
   if (flags.friendZoned) {
     return flags.hasCrush
@@ -96,7 +123,15 @@ function statusLine(
       : `${name} has friendzoned the reader.`
   }
 
-  if (flags.hasCrush) return `${name} has a crush on the reader.`
+  if (flags.hasCrush) {
+    if (romanceScenes === 0) {
+      return `${name} recently developed a crush on the reader and is trying to hide it.`
+    }
+    if (romanceScenes === undefined) {
+      return `${name} has a crush on the reader and wants to be lovers.`
+    }
+    return `${name} has a crush on the reader.`
+  }
   return null
 }
 
@@ -133,7 +168,8 @@ export function readerStandingLine(
 
 /**
  * Third-person prose, ready to inject verbatim under the personality. `mood`, when given,
- * lets a Promiscuous girl's attraction line give way to a DTF one on her lustful days;
+ * lets a Promiscuous girl's attraction line give way to a DTF one on her lustful days, unless she
+ * is in the worst of a cold (`sick`);
  * `attractionGate` false drops the line saying his stats are under her bar.
  */
 export function relationshipLines(
@@ -141,9 +177,10 @@ export function relationshipLines(
   flags: CharFlags,
   nameKnown: boolean,
   affection: number,
+  progress: RelationshipProgress | undefined,
   stats: PlayerStats = DEFAULT_PLAYER_STATS,
   medium: RelationshipMedium = IN_PERSON,
-  mood?: { date: number; offset: number },
+  mood?: { date: number; offset: number; sick?: boolean },
   attractionGate = true
 ): string[] {
   const name = character.firstName
@@ -153,11 +190,10 @@ export function relationshipLines(
   const behavior = character.behavior[behaviorLevelOf(flags, affection)]
   if (behavior) lines.push(behavior)
 
-  // A crush is the louder fact, so it takes the neutral tier's slot rather than sitting
-  // under a line saying she doesn't care.
-  const disposition = dispositionOf(affection)
-  if (!flags.hasCrush || disposition !== 'neutral') {
-    lines.push(`${name} ${DISPOSITION_PHRASE[disposition]} the reader.`)
+  // A crush is the louder fact, so it takes the slot of a line saying she doesn't care.
+  const feeling = dispositionPredicateOf(affection, progress?.upperHalves, flags.isLover)
+  if (!flags.hasCrush || feeling !== DISPOSITION_PREDICATE.neutral) {
+    lines.push(`${name} ${feeling}.`)
   }
 
   // Independent of the status line: a breakup count colors whatever they are now.
@@ -175,6 +211,7 @@ export function relationshipLines(
     const missingStat = missingCrushStatOf(character, stats)
     const lustful =
       mood !== undefined &&
+      !mood.sick &&
       hasTrait(character, 'Promiscuous') &&
       isMoodLustful(mood.date, mood.offset, hasTrait(character, 'Mood-swings'))
     // A Promiscuous girl on a lustful day is DTF whether or not he has cleared her bar; otherwise the
@@ -192,7 +229,7 @@ export function relationshipLines(
     }
   }
 
-  const status = statusLine(name, flags, affection, medium)
+  const status = statusLine(name, flags, affection, medium, progress?.romanceScenes)
   if (status) lines.push(status)
 
   // Outside the lossy status chain, so it stands beside whatever they are.

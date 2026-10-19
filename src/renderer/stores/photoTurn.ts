@@ -17,7 +17,8 @@ import { renderPhoto } from './photoWebp'
 export async function sendPhoto(
   charId: string,
   character: Character,
-  data: TextingResponse
+  // A DM reply, or the photo fields of a girl's entry when she texts first.
+  data: Pick<TextingResponse, 'sendPhoto' | 'photoPrompt' | 'photoTier'> & Partial<TextingResponse>
 ): Promise<void> {
   const game = useGameStore.getState()
   const info = game.charInfo[charId]
@@ -62,6 +63,10 @@ export async function sendPhoto(
     return
   }
   const file = named.data
+  // A replacement, load, or disabled Photo Feature can overtake the asynchronous reservation.
+  const live = useGameStore.getState()
+  const held = live.bunnyboard.conversations[charId]?.messages.find(message => message.id === last.id)
+  if (live.playthroughId !== playthroughId || live.loads !== game.loads || !held || held.photo || !canSendPhotos()) return
   setMessagePhoto(charId, last.id, { tier: verdict.tier, scene, file, pending: true })
   // Her first picture to him is the moment BunnyBot explains them.
   tellAboutDmPhotos(character.firstName)

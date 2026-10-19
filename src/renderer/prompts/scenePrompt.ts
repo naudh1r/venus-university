@@ -28,11 +28,12 @@ import {
   loveLifeBlurb,
   overTextDesc
 } from '@shared/relationship'
-import { memoryBudgetFor } from '@shared/settingsRules'
+import { DEFAULT_SECRET_BUDGET, memoryBudgetFor } from '@shared/settingsRules'
 import { OUTFIT_SKIN_EXPOSURE } from '@shared/tags'
 import { hasTrait } from '@shared/traits'
 import type { Weather } from '@shared/weather'
 import type { NpcRelationshipMap } from '@shared/npcRelationships'
+import type { SemesterCalendar } from '@shared/semesters'
 import {
   allBackgrounds,
   charKeyOf,
@@ -49,15 +50,18 @@ import {
   type ClassEntry,
   type ClassSlot,
   type CustomCgSlot,
+  type GameHistory,
   type JobState,
   MEMORY_TYPES,
   type MemoryBudgets,
-  type Occasion,
   type OutfitLock,
   type OutfitSet,
   type Position,
   type ProjectSession,
+  type ReceivedGift,
+  type SceneEvent,
   type SceneLine,
+  type Season,
   type ShiftSlot,
   type SpriteRef,
   type StockOutfitSet,
@@ -72,11 +76,14 @@ import {
   formatShortGameDate,
   ordinal
 } from './gameDate'
-import { jobDefOf, shiftSlotFullLabel } from '@shared/jobs'
+import { worstInSlot } from '@shared/colds'
+import { globalSlotOf, jobDefOf, shiftSlotFullLabel } from '@shared/jobs'
 import {
   ambientLoreCharacters,
   characterLore,
   characterLoreForIds,
+  classLore,
+  type ClassRoster,
   keyPattern,
   lorebookBlock,
   type LoreRumor,
@@ -84,10 +91,14 @@ import {
   loreTextForKey
 } from './lorebook'
 import { farewellNowLines, graduationCastLines } from './graduation'
+import { herColdLine } from './colds'
 import { moodLine } from './moods'
+import { HOMECOMING_VISIT_SENTENCE } from './homecoming'
 import { springBreakLines } from './springBreak'
 import { bestFriendLines, npcBehaviorLines, npcPairLines } from './npcRelationship'
 import { occasionLoreLines } from './occasions'
+import { recapLore } from './recaps'
+import { openingEventLines } from './sceneEvents'
 import { milestoneLine, relationshipLines } from './relationship'
 import {
   PLANS_INSTRUCTIONS,
@@ -98,7 +109,6 @@ import {
   type SchedulePromptInput
 } from './schedulePrompt'
 import { objectSchema } from './schema'
-import { seedWordBlock } from './seedWords'
 import { weatherLines } from './weather'
 
 /**
@@ -115,6 +125,8 @@ export interface ClassMeetingRecap {
   summary?: string
   /** The exam-worthy fact that meeting left behind — lecture classes only, absent on a skipped or syllabus week. */
   factoid?: string
+  /** The professor called that meeting off at the last second. */
+  cancelled?: boolean
 }
 
 /**
@@ -143,6 +155,8 @@ export interface ClassSceneContext {
   }
   /** The score being handed back today, when one is. */
   handbackScore?: number
+  /** The professor cancels today's meeting at the last second: nothing is taught. */
+  cancelled?: boolean
 }
 
 /**
@@ -180,6 +194,18 @@ export interface PromptState {
    */
   sceneLocation?: string | null
   /**
+   * The secret the scene's one girl is telling the reader in it, or null when she tells none;
+   * read **only on the turn that opens the scene**.
+   */
+  sceneSecret?: string | null
+  /**
+   * The curveball the scene opened on, read **only on the turn that opens it**: a continuation
+   * is built from the same state and passes it nowhere.
+   */
+  sceneEvent?: SceneEvent
+  /** The present a girl brings him in this scene, read on the opening turn alone as well. */
+  receivedGift?: ReceivedGift
+  /**
    * What this slot's opening said was going on somewhere, where the slot drew one: the
    * sentence rides that place's own lorebook entry, and **only on the turn that opens a scene**
    * — a continuation is built from the same state and passes it nowhere.
@@ -189,6 +215,8 @@ export interface PromptState {
   classes: Record<string, ClassEntry>
   /** The reader's own timetable, sparse slot → class code. */
   playerSchedule: Record<number, string>
+  /** Who sits in each class of the catalog, by class code. */
+  classRosters: Readonly<Record<string, ClassRoster>>
   /**
    * Classes the reader dropped that his former classmates have not been told about yet
    * — resolved by the loop and spent at the boundary of the scene that carries them.
@@ -200,10 +228,12 @@ export interface PromptState {
    */
   springBreakAway?: readonly string[] | null
   /**
-   * Set only for a goodbye in the graduation epilogue: who it is with, and whether
-   * she is graduating out of the reader's reach or merely going home for the summer.
+   * Set only for a goodbye in the graduation epilogue: who it is with, and whether one of them
+   * is graduating out of the other's reach or she is merely going home for the break.
    */
-  farewell?: { firstName: string; senior: boolean }
+  farewell?: { firstName: string; forAWhile: boolean }
+  /** Who graduates at this semester's ceremony, by charId. */
+  graduating?: readonly string[]
   /**
    * Classes he added at add/drop and has not yet walked into — every unspent add;
    * `classCode` decides which applies.
@@ -214,10 +244,10 @@ export interface PromptState {
   /** The reader's accumulated stats, used for relationship requirement guidance. */
   stats?: PlayerStats
   /**
-   * The save's generated occasions only; the fixed half of the calendar is merged
-   * in by `occasionsAt`.
+   * The semester's season and the occasions the save invented; the fixed half of the
+   * calendar is merged in by `occasionsAt`.
    */
-  occasions: readonly Occasion[]
+  calendar: SemesterCalendar
   /**
    * The whole semester's sky, one reading per slot — the NOW line walks back through it for how
    * long the weather has held. Absent means nothing is said about it.
@@ -231,6 +261,11 @@ export interface PromptState {
    * The class this scene is sitting in, by class code, or null when it is not a class scene.
    */
   classCode: string | null
+  /**
+   * The first names of the classmates the reader knows who are in bed with a cold instead of in
+   * the class this scene is sitting in; absent when there are none.
+   */
+  outSick?: string[]
   /**
    * Everything the `CLASS` block needs about where this course stands, or absent when
    * the scene is not a class scene.
@@ -310,6 +345,13 @@ export interface PromptState {
    * {@link textingSummaries}, which can exist over an empty thread.
    */
   textedWith?: readonly string[]
+  /**
+   * The cast members the reader met in an earlier semester and has not shared a scene with
+   * since the break, by charId.
+   */
+  backFromBreak?: readonly string[]
+  /** The graduate back in town for Homecoming, as a charId; absent on every other slot. */
+  homecomingVisitor?: string
   /** The cast when every one of them is off-stage and the scene is still running; absent otherwise. */
   hiddenCast?: readonly Character[]
   /** The player's `lessNsfwText` setting. */
@@ -318,6 +360,10 @@ export interface PromptState {
   scenePersona?: string
   /** How many memories per character the cast block carries, by cast size. */
   memoryBudgets: Required<MemoryBudgets>
+  /** How many of her told secrets each entry carries; absent is the default. */
+  secretBudget?: number
+  /** The playthrough log, read for the lorebook's dated recaps. */
+  history: GameHistory
   /**
    * Set only for a scene from the Scene Creator, played outside any playthrough: no mood line,
    * and no line holding romance back on the reader's stats.
@@ -327,12 +373,6 @@ export interface PromptState {
   affection?: Record<string, number>
   /** The wardrobe each girl opens a created scene in; only its opening call carries it. */
   openingOutfits?: Record<string, OutfitLock>
-}
-
-/** What a call that writes a scene reads: the state plus the inspiration word its caller drew. */
-export interface ScenePromptState extends PromptState {
-  /** The inspiration word this call carries, drawn by the caller. */
-  seedWord: string
 }
 
 /**
@@ -484,7 +524,7 @@ function jsonRules(
     'Use an empty speaker ("") for narration lines. Otherwise, match who\'s saying what to their character key.',
     'Never mix dialogue and narration on a single line. Split them into two lines instead.',
     'Also, an empty text field on a line isn\'t valid. Always write something.',
-    'The "actions" array holds stage directions, applied in the order you write them. A line may carry several.',
+    'The "actions" array holds stage directions, applied in the order you write them. A line may carry several, or none ([]).',
     'Use "show:<charKey>" when a character makes their entrance (which won\'t always be on the first line). Only use "hide:<charKey>" when a character leaves the scene and won\'t return.',
     `Use "sprite:<charKey>,<sprite>" to change what a character looks like on screen. A sprite is one of these emotions: ${EMOTIONS.join(', ')}.`,
     // Described only when the schema carries the suffixes: a tag the model cannot emit is a rejected line.
@@ -513,7 +553,7 @@ function jsonRules(
             : [])
         ]
       : []),
-    ...bgLines(backgrounds, 'Set "bg" whenever the location changes. Pick only from the backgrounds below OR a character\'s own room (listed under her character info):')
+    ...bgLines(backgrounds, 'Set "bg" whenever the location changes and leave it as "" otherwise. Pick only from the backgrounds below OR a character\'s own room (listed under her character info):')
   ]
 }
 
@@ -593,9 +633,14 @@ function wardrobeProse(tags: readonly string[]): string {
 
 /**
  * Renders a cast character's block: who she is and what she looks like, then personality
- * and relationship, then her week and what she remembers.
+ * and relationship, then her week and what she remembers. `secret` is the one her scene
+ * tells, passed by the call that opens it alone.
  */
-function castBlock(cast: readonly Character[], state: PromptState): string[] {
+function castBlock(
+  cast: readonly Character[],
+  state: PromptState,
+  secret?: string | null
+): string[] {
   const { charInfo, classes } = state
   const lines: string[] = ['CAST']
   if (cast.length === 0) {
@@ -612,6 +657,10 @@ function castBlock(cast: readonly Character[], state: PromptState): string[] {
     if (info?.major) {
       lines.push(yearMajorLine(info))
     }
+    // A graduate is only ever cast while she is back for Homecoming.
+    lines.push(
+      ...graduateLines(character.firstName, info, state.homecomingVisitor === character.charId)
+    )
 
     // Appearance and main outfit as their booru tags.
     // The subject tags are the renderer's, and say nothing to the writer.
@@ -655,6 +704,10 @@ function castBlock(cast: readonly Character[], state: PromptState): string[] {
           hasTrait(character, 'Mood-swings')
         )
     if (mood) lines.push(mood)
+    // How her cold stands, where she has one that shows; a created scene holds none.
+    const slot = globalSlotOf(state.date, state.time)
+    const cold = state.createdScene ? null : herColdLine(character.firstName, info?.cold, slot)
+    if (cold) lines.push(cold)
 
     // Where the relationship stands: the behavior stage, how she feels, and their history.
     lines.push(
@@ -663,14 +716,28 @@ function castBlock(cast: readonly Character[], state: PromptState): string[] {
         flags,
         info?.nameKnown ?? false,
         affection,
+        info,
         state.stats ?? DEFAULT_PLAYER_STATS,
         // In the room, so this only says whether they have met on the phone first.
         { texting: false, texted: state.textedWith?.includes(character.charId) ?? false },
-        // Where she is in her cycle, for a Promiscuous girl's DTF days.
-        state.createdScene ? undefined : { date: state.date, offset: info?.moodCycleOffset ?? 0 },
+        // Where she is in her cycle, for a Promiscuous girl's DTF days, which a cold calls off.
+        state.createdScene
+          ? undefined
+          : {
+              date: state.date,
+              offset: info?.moodCycleOffset ?? 0,
+              sick: worstInSlot(info?.cold, slot)
+            },
         !state.createdScene
       )
     )
+    // Outside the status chain, so it stands beside whatever they are.
+    if (state.backFromBreak?.includes(character.charId)) {
+      const away = state.calendar.season === 'fall' ? 'summer' : 'winter'
+      lines.push(
+        `${character.firstName} and the reader are meeting for the first time after ${away} break.`
+      )
+    }
 
     // How she behaves towards everybody *else* on stage.
     lines.push(
@@ -691,7 +758,8 @@ function castBlock(cast: readonly Character[], state: PromptState): string[] {
         info?.schedule ?? {},
         classes,
         info?.job,
-        state.date
+        state.date,
+        herClassmates(character.charId, state.classRosters, state.playerSchedule)
       )
     )
     // What she and the reader have planned for later.
@@ -706,8 +774,15 @@ function castBlock(cast: readonly Character[], state: PromptState): string[] {
         state.date
       )
     )
-    // Whether she has left for the summer yet.
-    lines.push(...graduationCastLines(character.firstName, state.date))
+    // Whether she graduates at the ceremony, and whether she has left for the break yet.
+    lines.push(
+      ...graduationCastLines(
+        character.firstName,
+        state.date,
+        state.calendar.season,
+        state.graduating?.includes(character.charId) ?? false
+      )
+    )
     lines.push(...newJobLine(character.firstName, info?.job, state.date))
     lines.push(
       ...droppedClassLines(character.firstName, info?.schedule, state.droppedNotices ?? [])
@@ -717,8 +792,17 @@ function castBlock(cast: readonly Character[], state: PromptState): string[] {
     const memoryBudget = memoryBudgetFor(state.memoryBudgets, cast.length)
     // Deduped before the budget is spent.
     lines.push(
-      ...memoryLines(character, dedupedMemoriesFor(info).slice(-memoryBudget), info?.textMemory)
+      ...memoryLines(
+        character,
+        dedupedMemoriesFor(info).slice(-memoryBudget),
+        info?.textMemory,
+        state.calendar.season
+      )
     )
+    // What she has told him, and, on the opening call, the secret she tells him in this scene
+    // when she is alone in it.
+    lines.push(...secretLines(info?.toldSecrets, state.secretBudget))
+    if (secret && cast.length === 1) lines.push(establishLine(secret))
 
     // What the two of them have been texting about on Bunnyboard.
     lines.push(...(state.textingSummaries?.[character.charId] ?? []))
@@ -780,9 +864,26 @@ export function spaced(lines: readonly string[]): string[] {
   return lines.length > 0 ? [...lines, ''] : []
 }
 
-/** Her year and major, with the dorm clause where she has one. */
+/** Her year and major, with the dorm clause where she has one; a graduate's year is that she graduated. */
 export function yearMajorLine(info: CharInfo): string {
+  if (info.pursuing !== undefined) return `Year: Graduated | Major: ${info.major}.`
   return `Year: ${yearLabel(info.year)} | Major: ${info.major}.${dormClause(info.dorm)}`
+}
+
+/**
+ * What a graduate is doing with her life now, and that she is nowhere he can meet her — or, while
+ * `visiting`, that she is back for Homecoming.
+ */
+export function graduateLines(
+  firstName: string,
+  info: CharInfo | undefined,
+  visiting = false
+): string[] {
+  if (info?.pursuing === undefined) return []
+  const where = visiting ? HOMECOMING_VISIT_SENTENCE : 'She is out of town.'
+  return [
+    `${firstName} graduated from Venus University, moved away from Veridan, and is now ${info.pursuing}. ${where}`
+  ]
 }
 
 /** Everything written about who a character *is*, shared by the cast block and the phone. */
@@ -805,18 +906,26 @@ export function profileLines(character: Character, flags: CharFlags, castSize = 
   return lines
 }
 
-/** One week under one heading — classes and shifts interleaved in slot order. */
+/**
+ * One week under one heading — classes and shifts interleaved in slot order, each class followed
+ * by whoever `withWhom` names in it.
+ */
 export function scheduleLines(
   heading: string,
   schedule: Record<number, string>,
   classes: Record<string, ClassEntry>,
   job?: { jobId: string; shifts: readonly ShiftSlot[]; startsOn?: number } | null,
-  date?: number
+  date?: number,
+  withWhom?: (code: string) => readonly string[]
 ): string[] {
   const rows: (readonly [number, string])[] = Object.entries(schedule)
     .map(([slot, code]) => [Number(slot) as ClassSlot, classes[code]] as const)
     .filter(([, entry]) => Boolean(entry))
-    .map(([slot, entry]) => [slot as number, `${slotFullLabel(slot)}: ${entry.name}`] as const)
+    .map(([slot, entry]) => {
+      const names = withWhom?.(entry.code) ?? []
+      const company = names.length > 0 ? ` (With ${andList(names)})` : ''
+      return [slot as number, `${slotFullLabel(slot)}: ${entry.name}${company}`] as const
+    })
 
   const employer = job && job.shifts.length > 0 ? jobDefOf(job.jobId)?.employer : undefined
   const started = !job || job.startsOn === undefined || (date !== undefined && date >= job.startsOn)
@@ -829,6 +938,36 @@ export function scheduleLines(
   if (rows.length === 0) return []
   rows.sort(([a], [b]) => a - b)
   return [heading, ...rows.map(([, line]) => line)]
+}
+
+/**
+ * Who the reader's own timetable names beside a class: the classmates he knows sit there, save
+ * in the class the scene is sitting in, whose girls are in the room.
+ */
+export function readerClassmates(
+  rosters: Readonly<Record<string, ClassRoster>>,
+  sitting?: string | null
+): (code: string) => string[] {
+  return (code) =>
+    code === sitting ? [] : (rosters[code]?.known ?? []).map((classmate) => classmate.firstName)
+}
+
+/**
+ * Who a girl's timetable names beside a class: the other roster girls in it, and only where the
+ * reader does not take it, his own timetable naming them where he does.
+ */
+export function herClassmates(
+  charId: string,
+  rosters: Readonly<Record<string, ClassRoster>>,
+  playerSchedule: Readonly<Record<number, string>>
+): (code: string) => string[] {
+  const his = new Set(Object.values(playerSchedule))
+  return (code) =>
+    his.has(code)
+      ? []
+      : (rosters[code]?.enrolled ?? [])
+          .filter((classmate) => classmate.charId !== charId)
+          .map((classmate) => classmate.firstName)
 }
 
 /**
@@ -916,16 +1055,31 @@ function addedClassLines(
 export function memoryLines(
   character: Character,
   memories: readonly CharMemory[],
-  textMemory?: CharMemory
+  textMemory: CharMemory | undefined,
+  season: Season
 ): string[] {
   if (memories.length === 0) return []
   return [
     `${character.firstName}'s Memories:`,
     ...memories.map((entry) => {
       const desc = entry === textMemory ? overTextDesc(entry.desc) : entry.desc
-      return `- ${formatShortGameDate(entry.date)}: ${character.firstName} ${entry.type} that ${readerize(desc)}`
+      return `- ${formatShortGameDate(entry.date, season)}: ${character.firstName} ${entry.type} that ${readerize(desc)}`
     })
   ]
+}
+
+/** Her newest `budget` told secrets as one line, oldest first; none, or a budget of 0, nothing. */
+export function secretLines(
+  told: readonly string[] | undefined,
+  budget = DEFAULT_SECRET_BUDGET
+): string[] {
+  const shown = budget > 0 ? (told ?? []).slice(-budget) : []
+  return shown.length > 0 ? [`Secrets: ${shown.join(' ')}`] : []
+}
+
+/** The line that has the scene establish the secret she tells in it. */
+function establishLine(secret: string): string {
+  return `Establish this fact about the character: ${secret}`
 }
 
 /** The player's own notes on her, verbatim as one element, closing her entry; none, nothing. */
@@ -1004,7 +1158,7 @@ function sceneSchema(
       ? { actions: { type: 'array', items: { type: 'string', enum: actions } } }
       : {}),
     // Cast room ids ride on the enum, never on the cached-prefix background lines.
-    bg: { type: 'string', enum: [...allBackgrounds(backgrounds), ...castRoomBgs(cast, state)] },
+    bg: { type: 'string', enum: ['', ...allBackgrounds(backgrounds), ...castRoomBgs(cast, state)] },
     text: { type: 'string' }
   }
 
@@ -1015,7 +1169,7 @@ function sceneSchema(
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['speaker', 'text'],
+        required: ['speaker', ...(actions.length > 0 ? ['actions'] : []), 'bg', 'text'],
         properties: lineProperties
       }
     }
@@ -1063,7 +1217,12 @@ function systemPrompt(
  * Who the scene is about — the `READER` and `CAST` blocks that open every prose builder's
  * user string.
  */
-function whoBlock(cast: readonly Character[], state: PromptState, reader: string): string[] {
+function whoBlock(
+  cast: readonly Character[],
+  state: PromptState,
+  reader: string,
+  secret?: string | null
+): string[] {
   return [
     'READER',
     reader,
@@ -1072,10 +1231,11 @@ function whoBlock(cast: readonly Character[], state: PromptState, reader: string
       state.playerSchedule,
       state.classes,
       state.playerJob,
-      state.date
+      state.date,
+      readerClassmates(state.classRosters, state.classCode)
     ),
     '',
-    ...castBlock(cast, state),
+    ...castBlock(cast, state, secret),
     ''
   ]
 }
@@ -1097,9 +1257,9 @@ function nowBlock(cast: readonly Character[], state: PromptState): string[] {
     'NOW',
     // A farewell replaces the date and semester lines.
     ...(state.farewell
-      ? farewellNowLines(state.farewell.firstName, state.farewell.senior)
+      ? farewellNowLines(state.farewell.firstName, state.farewell.forAWhile, state.calendar.season)
       : [
-          `It is ${formatDateBanner(state.date, state.time)}`,
+          `It is ${formatDateBanner(state.date, state.time, state.calendar.season)}`,
           formatSemesterProgress(state.date),
           ...(state.weather ? weatherLines(state.weather, state.date, state.time) : [])
         ]),
@@ -1175,6 +1335,12 @@ function openingOutfitLines(cast: readonly Character[], state: PromptState): str
   })
 }
 
+/** The line naming the classmates out sick from the class the scene sits in, or none. */
+function outSickLines(names: readonly string[] | undefined): string[] {
+  if (!names || names.length === 0) return []
+  return [`${andList([...names])} ${names.length === 1 ? 'is' : 'are'} out sick today.`]
+}
+
 /**
  * The `CLASS` block — everything about the course the scene is sitting in, or nothing at all
  * when it is not sitting in one.
@@ -1192,8 +1358,9 @@ function classBlock(state: PromptState): string[] {
   ]
   if (kind) lines.push(kind)
 
-  // A new face in the room, ahead of everything about the term.
+  // A new face in the room, ahead of everything about the term, and the faces missing from it.
   lines.push(...addedClassLines(state.classCode, state.addedNotices ?? []))
+  lines.push(...outSickLines(state.outSick))
 
   if (!context) return [...lines, '']
 
@@ -1208,6 +1375,12 @@ function classBlock(state: PromptState): string[] {
     }
   } else {
     lines.push(`This is week ${context.index} of the class.`)
+  }
+
+  if (context.cancelled) {
+    lines.push(
+      'The professor cancels today\'s class at the last second, so nobody learns anything today. Everyone in the room is suddenly free.'
+    )
   }
 
   if (context.project) {
@@ -1259,9 +1432,11 @@ function recapLines(code: string, recap: readonly ClassMeetingRecap[]): string[]
   return [
     `${code} CLASS SUMMARY:`,
     ...recap.map((meeting) =>
-      meeting.attended
-        ? `- Week ${meeting.week}: ${meeting.summary ?? 'The reader was there.'}${learnedSentence(meeting)}`
-        : `- Week ${meeting.week}: The reader skipped this class.`
+      meeting.cancelled
+        ? `- Week ${meeting.week}: The professor cancelled this class.`
+        : meeting.attended
+          ? `- Week ${meeting.week}: ${meeting.summary ?? 'The reader was there.'}${learnedSentence(meeting)}`
+          : `- Week ${meeting.week}: The reader skipped this class.`
     )
   ]
 }
@@ -1279,8 +1454,9 @@ function learnedSentence(meeting: ClassMeetingRecap): string {
 function lectureTurnLines(state: PromptState): string[] {
   const context = state.classMeeting
   if (!context || context.kind !== 'lecture') return []
-  // Syllabus week teaches nothing, and a handback meeting has its own business.
-  if (context.index <= 1 || context.isHandback) return []
+  // Syllabus week teaches nothing, a handback meeting has its own business, and a cancelled one
+  // never starts.
+  if (context.index <= 1 || context.isHandback || context.cancelled) return []
   return [
     'Since this is a lecture class, your scene should put the reader in the middle of the teaching: have the professor call on him, have a classmate put a question to him, or run a pop quiz.',
     'Whichever you pick, he must come away knowing one concrete thing about the subject that no previous week of this class has covered.'
@@ -1290,7 +1466,7 @@ function lectureTurnLines(state: PromptState): string[] {
 /** The rest of the always-on lines: whatever is going on in the world today. */
 function occasionLore(state: PromptState): string[] {
   if (state.farewell) return []
-  return occasionLoreLines(state.date, state.time, state.occasions)
+  return occasionLoreLines(state.date, state.time, state.calendar)
 }
 
 /**
@@ -1305,7 +1481,7 @@ function projectLore(state: PromptState): string[] {
     [
       `${entry.name} (${entry.code}): ${fullDescriptionOf(entry)}${kind ? ` ${kind}` : ''}`,
       ...recapLines(entry.code, state.projectRecap ?? []),
-      ...workLines(entry.code, state.projectScene)
+      ...workLines(entry.code, state.projectScene, state.calendar.season)
     ].join('\n')
   ]
 }
@@ -1314,14 +1490,18 @@ function projectLore(state: PromptState): string[] {
  * What the project already is, for the hour about to add to it: the last session's
  * own summary, stamped with the slot it was, then where that leaves the whole thing.
  */
-function workLines(code: string, context: ProjectSceneContext | undefined): string[] {
+function workLines(
+  code: string,
+  context: ProjectSceneContext | undefined,
+  season: Season
+): string[] {
   if (!context) return []
   const last = context.lastSession
   return [
     `${code} PROJECT:`,
     ...(last?.summary
       ? [
-          `The reader last worked on his project on ${formatChatDivider(last.date, last.time)}: ${last.summary}`
+          `The reader last worked on his project on ${formatChatDivider(last.date, last.time, season)}: ${last.summary}`
         ]
       : []),
     projectStandingLine(context.progress)
@@ -1378,16 +1558,31 @@ function characterLoreFor(
       state.charInfo,
       state.date,
       relations,
-      state.upcomingPlans
+      state.upcomingPlans,
+      state.homecomingVisitor
     ),
     ...characterLoreForIds(
       [...mentions, ...ambient],
       state.charInfo,
       state.date,
       relations,
-      state.upcomingPlans
+      state.upcomingPlans,
+      state.homecomingVisitor
     )
   ]
+}
+
+/**
+ * The lorebook's class entries for this turn, save the class being sat and the project being
+ * worked, which the `CLASS` block and `projectLore` already describe.
+ */
+function classLoreFor(scanned: string, state: PromptState): string[] {
+  return classLore(scanned, {
+    classes: state.classes,
+    rosters: state.classRosters,
+    playerSchedule: state.playerSchedule,
+    skip: [state.classCode, state.projectClass].filter((code): code is string => Boolean(code))
+  })
 }
 
 /**
@@ -1419,20 +1614,26 @@ function castScenePrompt(
    * The slot's own rumor, where this call is the one that opens a scene. **Passed
    * rather than read off `state`**: that is the whole of what keeps it off every later turn.
    */
-  rumor?: LoreRumor
+  rumor?: LoreRumor,
+  /** The secret the scene's one girl tells in it, on the same terms as `rumor`. */
+  secret?: string | null
 ): StructuredRequest {
   const scanned = loreScan(scan, state)
   const lore = lorebookBlock(
     scanned,
     alwaysLore(state),
-    characterLoreFor(scanned, state, cast),
+    [
+      ...classLoreFor(scanned, state),
+      ...characterLoreFor(scanned, state, cast),
+      ...recapLore(scanned, state.date, state.time, state.history, state.calendar.season)
+    ],
     rumor
   )
 
   return modRequest('scene', { cast, state, query: scan }, {
     system: systemPrompt(cast, state, setting),
     user: [
-      ...whoBlock(cast, state, reader),
+      ...whoBlock(cast, state, reader, secret),
       ...nowBlock(cast, state),
       ...classBlock(state),
       ...lore,
@@ -1512,7 +1713,7 @@ export function ledgerStoryFallback(user: string, summary: string | null): strin
 export function buildScenePrompt(
   cast: readonly Character[],
   action: string,
-  state: ScenePromptState,
+  state: PromptState,
   setting: string,
   reader: string
 ): StructuredRequest {
@@ -1527,16 +1728,34 @@ export function buildScenePrompt(
       ? 'Make sure the first line sets the bg to the Current bg in the NOW block, and DON\'t set end_scene yet.'
       : 'Make sure to set a bg on the first line and DON\'t set end_scene yet.',
     ...lectureTurnLines(state),
-    '',
-    // The seed word rides in the tail, never in `systemPrompt`.
-    ...seedWordBlock(state.seedWord),
+    // The curveball and her present ride this call alone, as the slot's rumor does.
+    ...openingEventLines(
+      state.sceneEvent,
+      state.receivedGift,
+      (charId) => {
+        const character = cast.find((member) => member.charId === charId)
+        return character ? charKeyOf(character.firstName, character.lastName) : null
+      },
+      { date: state.date, time: state.time, season: state.calendar.season }
+    ),
     '',
     `Reader's action: ${action}`
   ]
 
-  // Nothing has been written yet, so the action is the whole scan. The slot's rumor
-  // rides this call alone — the continuation and the closing pass none.
-  return castScenePrompt(cast, state, setting, reader, action, tail, false, true, state.slotRumor)
+  // Nothing has been written yet, so the action is the whole scan. The slot's rumor and the
+  // secret she tells ride this call alone — the continuation and the closing pass neither.
+  return castScenePrompt(
+    cast,
+    state,
+    setting,
+    reader,
+    action,
+    tail,
+    false,
+    true,
+    state.slotRumor,
+    state.sceneSecret
+  )
 }
 
 /** The rules a solo scene needs and no more. */
@@ -1544,14 +1763,14 @@ function soloJsonRules(backgrounds: BackgroundSets): string[] {
   return [
     'JSON RULES',
     'Every line is narration, so every "speaker" is the empty string ("").',
-    ...bgLines(backgrounds, 'Set "bg" on the first line. Only use these backgrounds:')
+    ...bgLines(backgrounds, 'Set "bg" on the first line, then leave it as "" unless the location changes. Only use these backgrounds:')
   ]
 }
 
 /** Builds a solo scene: one narration that opens and closes in a single turn. */
 export function buildSoloPrompt(
   action: string,
-  state: ScenePromptState,
+  state: PromptState,
   setting: string,
   reader: string
 ): StructuredRequest {
@@ -1561,13 +1780,18 @@ export function buildSoloPrompt(
   const lore = lorebookBlock(
     scanned,
     alwaysLore(state),
-    characterLoreForIds(
-      state.mentions ?? [],
-      state.charInfo,
-      state.date,
-      undefined,
-      state.upcomingPlans
-    ),
+    [
+      ...classLoreFor(scanned, state),
+      ...characterLoreForIds(
+        state.mentions ?? [],
+        state.charInfo,
+        state.date,
+        undefined,
+        state.upcomingPlans,
+        state.homecomingVisitor
+      ),
+      ...recapLore(scanned, state.date, state.time, state.history, state.calendar.season)
+    ],
     // A solo scene is an opening too, and the only one it has.
     state.slotRumor
   )
@@ -1583,15 +1807,13 @@ export function buildSoloPrompt(
     'YOUR TURN',
     'Solo mission, RITA! The reader is on their own for this one, so write it start to finish in one go.',
     'Open by rewording what the reader decided to do in a fun narration, then play it out to the end. No other characters will show up.',
+    ...outSickLines(state.outSick),
     'Keep it tight. This is a slice of their day, not an epic.',
     'DON\'T leave a decision point, a cliffhanger, or a question for the reader.',
     '',
     'SUMMARY',
     'Then, for the "summary" field: condense the whole scene into a recap, third-person, referring to the MC as "the reader".',
     'This version gets saved for posterity, so keep the important stuff the reader should remember. Leave out the mundane crap.',
-    '',
-    // The seed word sits below the seam.
-    ...seedWordBlock(state.seedWord),
     '',
     `Reader's action: ${action}`
   ].join('\n')
@@ -1621,7 +1843,7 @@ export function buildContinuationPrompt(
   cast: readonly Character[],
   action: string,
   transcript: readonly SceneLine[],
-  state: ScenePromptState,
+  state: PromptState,
   setting: string,
   reader: string,
   summary: string | null,
@@ -1654,11 +1876,9 @@ export function buildContinuationPrompt(
     '',
     'SUMMARY',
     summary
-      ? 'Finally, for the "summary" field, fold anything new from SCENE SO FAR into the STORY SO FAR.'
-      : 'Finally, for the "summary" field, condense the SCENE SO FAR into a single recap.',
+      ? 'Finally, for the "summary" field, fold anything new from SCENE SO FAR, and the lines you just wrote, into the STORY SO FAR.'
+      : 'Finally, for the "summary" field, condense the SCENE SO FAR and the lines you just wrote into a single recap.',
     'Write the summary in third-person and refer to the MC as "the reader".',
-    '',
-    ...seedWordBlock(state.seedWord),
     '',
     // Last: the action is not in SCENE SO FAR and varies most; the turn
     // count rides with it as the scene's only length signal.
@@ -1873,20 +2093,25 @@ export function buildLedgerPrompt(
 ): StructuredRequest {
   const charKeys = cast.map((c) => charKeyOf(c.firstName, c.lastName))
   const rosterKeys = scheduleCharKeys(schedule.characters)
-  // The reader's own lines are kept: a typed plan is half of what PLANS looks for.
+  // The reader's own lines are kept: a typed plan is half of what PLANS looks for. The cast
+  // names its own lines, a graduate back for Homecoming being in no plan's roster.
   const stubs = transcriptStubs(
     ledgerTranscriptOf(scene),
-    Object.values(schedule.characters),
+    [...Object.values(schedule.characters), ...cast],
     true
   )
   // A class scene is one that carried a `CLASS` block; only a lecture past
-  // syllabus week is asked for a factoid.
+  // syllabus week that went ahead is asked for a factoid.
+  const cancelled = state.classMeeting?.cancelled === true
   const classScene = state.classCode
-    ? { factoid: state.classMeeting?.kind === 'lecture' && state.classMeeting.index > 1 }
+    ? {
+        factoid:
+          state.classMeeting?.kind === 'lecture' && state.classMeeting.index > 1 && !cancelled
+      }
     : null
-  // Classes and shifts are scored by the app; every other hour with
-  // company is judged here, one stat's worth.
-  const castStats = cast.length > 0 && !classScene && state.jobId === null
+  // Classes and shifts are scored by the app; every other hour with company is judged here,
+  // one stat's worth, a class the professor called off among them.
+  const castStats = cast.length > 0 && (!classScene || cancelled) && state.jobId === null
   // No cast, no plans; a plan settled by phone is the texting ledger's.
   const wantPlans = cast.length > 0
 

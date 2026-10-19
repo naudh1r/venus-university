@@ -49,8 +49,10 @@ record and the seven saves, with factory settings (no key) and empty grab bags.
 
 ## Regenerating it
 
-Saves are refused after any change to `SAVE_SCHEMA_VERSION` or `RECORD_SCHEMA_VERSION` (there is
-no migration), so the folder has to be regenerated then, and `harness/README.md` says how: a mock
+A build reads saves of its own `SAVE_SCHEMA_VERSION` and of the one just before it, bringing those
+up as it reads them; anything older, and any record of another `RECORD_SCHEMA_VERSION`, is refused.
+The saves here are version 12, which version 13 reads that way, so the folder has to be regenerated
+after the next bump, and `harness/README.md` says how: a mock
 endpoint, a fresh vite on its own port, and `semester.mjs`, about an hour unattended. Then
 `makeBackup.mjs` rebuilds the zip, `validate.mjs` checks the folder and the zip against the shared
 validators and the facts above, and `restoreCheck.mjs` proves the zip restores in the browser

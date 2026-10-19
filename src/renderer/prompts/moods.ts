@@ -14,15 +14,15 @@ interface MoodDay {
 const MOOD_CYCLE: readonly MoodDay[] = [
   // MENSTRUATION
   {
-    normal: '{name} woke up with bad cramps today but is doing her best to ignore it.',
+    normal: '{name} woke up with bad cramps today but is doing a good job of hiding it.',
     moodSwings: '{name} woke up with terrible cramps today and wants to be left alone.'
   },
   {
-    normal: '{name} is a little frustrated that her cramps are still bothering her.',
+    normal: '{name} is a little frustrated that her cramps are still bothering her, but she\'s mostly acting normal.',
     moodSwings: '{name} is cramping hard and is exceptionally irritable.'
   },
   {
-    normal: '{name} woke up with less pain today but is feeling stressed about her hygiene.',
+    normal: '{name} woke up with less pain today and is monitoring her hygiene.',
     moodSwings: '{name} woke up with less pain today but feels anxious and self-conscious about her hygiene.'
   },
   {

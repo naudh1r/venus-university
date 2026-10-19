@@ -63,9 +63,9 @@ describe('the shipped list', () => {
     }
   })
 
-  it('has the Photo Feature on until it is switched off', () => {
-    expect(modOn(NO_SWITCHES, 'photo-feature')).toBe(true)
-    expect(modOn(withMod(NO_SWITCHES, 'photo-feature', false), 'photo-feature')).toBe(false)
+  it('has the Photo Feature off until it is switched on', () => {
+    expect(modOn(NO_SWITCHES, 'photo-feature')).toBe(false)
+    expect(modOn(withMod(NO_SWITCHES, 'photo-feature', true), 'photo-feature')).toBe(true)
   })
 })
 
@@ -129,9 +129,9 @@ describe('options', () => {
 })
 
 describe("Photo Feature's switches", () => {
-  it('are on, generating, and the bunny until touched', () => {
+  it('are off, generating, and the bunny until touched', () => {
     expect(photoSwitchesOf(NO_SWITCHES)).toEqual({
-      on: true,
+      on: false,
       photos: true,
       explicit: true,
       loader: 'bunny',

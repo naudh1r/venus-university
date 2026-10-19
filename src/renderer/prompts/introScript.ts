@@ -7,18 +7,21 @@ import { formatDatePart } from './gameDate'
  * orientation scene that follows it, then the four lines that welcome him home that night.
  */
 
-/** The playthrough's first slot — the arrival scroll and freshman orientation. */
-export function isOrientationSlot(date: number, time: TimeSlot): boolean {
-  return date === 0 && time === 0
+/**
+ * The playthrough's first slot — the arrival scroll and freshman orientation. A later
+ * semester's first slot is an ordinary one.
+ */
+export function isOrientationSlot(date: number, time: TimeSlot, semesterIndex: number): boolean {
+  return semesterIndex === 0 && date === 0 && time === 0
 }
 
 /**
  * The playthrough's second slot — the welcome home, in place of the slot-opening narration. It
  * is the first ordinary hour of the game: four authored lines and then the landing, which is
- * the screen every slot after it opens on.
+ * the screen every slot after it opens on. A later semester has none.
  */
-export function isTutorialSlot(date: number, time: TimeSlot): boolean {
-  return date === 0 && time === 1
+export function isTutorialSlot(date: number, time: TimeSlot, semesterIndex: number): boolean {
+  return semesterIndex === 0 && date === 0 && time === 1
 }
 
 /**
@@ -29,7 +32,7 @@ export function introScrollLines(stats: PlayerStats, date: number): SceneLine[] 
   return [
     {
       bg: 'train_stop',
-      text: `${formatDatePart(date)}. Today is move-in day and freshman orientation at Venus University.`
+      text: `${formatDatePart(date, 'spring')}. Today is move-in day and freshman orientation at Venus University.`
     },
     {
       text: `You step off the air-conditioned tram into the crisp Veridan air. A colorful map of the Loop's route greets you, the stop for VU highlighted in bright pink.`
@@ -43,7 +46,7 @@ export function introScrollLines(stats: PlayerStats, date: number): SceneLine[] 
     },
     {
       bg: 'downtown_street',
-      text: `You pass a sign that says "Welcome to Downtown Veridan." You make your way through the narrow, weathered streets, eye on the statue of Zeus in the distance that marks the VU campus gate.`
+      text: `You pass a sign that says "Welcome to Downtown Veridan." You make your way through the narrow, weathered streets, eye on the statue of Jupiter in the distance that marks the VU campus gate.`
     },
     {
       bg: 'stanchion_street',

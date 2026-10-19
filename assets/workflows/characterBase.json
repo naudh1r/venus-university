@@ -34,7 +34,7 @@
     },
     "inputs": {
       "clip": [
-        "3",
+        "100",
         1
       ],
       "text": "masterpiece, best quality, very aesthetic, 1girl, solo, aged up, full body, standing, simple background, white background,\n\nblue_eyes, brown_hair, long_hair, swept_bangs, big_breasts,\n\ndenim_shorts, white_crop_top, black_boots, bare_legs,\n\nhand_on_own_hip, arm_at_side"
@@ -47,7 +47,7 @@
     },
     "inputs": {
       "clip": [
-        "3",
+        "100",
         1
       ],
       "text": "worst quality, bad quality, lowres, backlighting"
@@ -60,7 +60,7 @@
     },
     "inputs": {
       "model": [
-        "3",
+        "100",
         0
       ],
       "positive": [
@@ -208,11 +208,11 @@
         0
       ],
       "model": [
-        "3",
+        "100",
         0
       ],
       "clip": [
-        "3",
+        "100",
         1
       ],
       "vae": [
@@ -271,7 +271,7 @@
     },
     "inputs": {
       "model": [
-        "3",
+        "100",
         0
       ],
       "positive": [
@@ -362,7 +362,7 @@
     }
   },
   "41": {
-    "class_type": "SaveImage",
+    "class_type": "PreviewImage",
     "_meta": {
       "title": "Save Base"
     },
@@ -370,8 +370,7 @@
       "images": [
         "63",
         0
-      ],
-      "filename_prefix": "venus-university/expression_base"
+      ]
     }
   },
   "62": {
@@ -400,6 +399,25 @@
         "62",
         0
       ]
+    }
+  },
+  "100": {
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Character LoRA"
+    },
+    "inputs": {
+      "model": [
+        "3",
+        0
+      ],
+      "clip": [
+        "3",
+        1
+      ],
+      "lora_name": "characterLora.safetensors",
+      "strength_model": 1,
+      "strength_clip": 1
     }
   }
 }

@@ -2,17 +2,22 @@ import { describe, expect, it } from 'vitest'
 
 import { globalSlotOf } from '@shared/jobs'
 import type { Disposition } from '@shared/relationship'
-import type { ChatMessage, Conversation } from '@shared/types'
-import { MIDTERM_WEEK } from '../src/renderer/prompts/occasions'
+import type { ChatMessage, Conversation, EverydayAsk } from '@shared/types'
+import { midtermWeekOf } from '../src/renderer/prompts/occasions'
 import {
   askChanceOf,
   askCooldownOver,
   declineCooldownSlots,
   drawOccasionAsker,
+  everydayRoundOf,
   lastInviteSlotOf,
+  reachOutChanceOf,
+  reachOutGapSlots,
+  rollHangoutInvite,
   rollSlotAskers,
   slotAskMultiplier,
-  type AskChanceInput
+  type AskChanceInput,
+  type InviteRollInput
 } from '../src/renderer/stores/slotAskers'
 import { scripted } from './fixtures'
 
@@ -132,13 +137,13 @@ describe('slotAskMultiplier', () => {
   const MONDAY = 7
 
   it('favours a free weekend over a weekday, and a weekday night over its day', () => {
-    expect(slotAskMultiplier(SATURDAY, 0)).toBeGreaterThan(slotAskMultiplier(MONDAY, 1))
-    expect(slotAskMultiplier(MONDAY, 1)).toBeGreaterThan(slotAskMultiplier(MONDAY, 0))
+    expect(slotAskMultiplier(SATURDAY, 0, 'spring')).toBeGreaterThan(slotAskMultiplier(MONDAY, 1, 'spring'))
+    expect(slotAskMultiplier(MONDAY, 1, 'spring')).toBeGreaterThan(slotAskMultiplier(MONDAY, 0, 'spring'))
   })
 
   it('quiets an exam week against the same weekday outside it', () => {
     // Both Mondays; only one of them has a paper to sit.
-    expect(slotAskMultiplier(MIDTERM_WEEK.startDate, 0)).toBeLessThan(slotAskMultiplier(MONDAY, 0))
+    expect(slotAskMultiplier(midtermWeekOf('spring').startDate, 0, 'spring')).toBeLessThan(slotAskMultiplier(MONDAY, 0, 'spring'))
   })
 })
 
@@ -149,6 +154,35 @@ describe('declineCooldownSlots', () => {
     expect(waits[1]).toBeGreaterThan(waits[0])
     // The doubling runs out: a long streak waits no longer than a capped one.
     expect(declineCooldownSlots(9)).toBe(declineCooldownSlots(40))
+  })
+})
+
+describe('reachOutChanceOf', () => {
+  it('never has an acquaintance or anybody colder reach out, and rises with what he is to her', () => {
+    for (const disposition of ['neutral', 'annoyed', 'hostile'] as Disposition[]) {
+      expect(reachOutChanceOf(false, disposition)).toBe(0)
+    }
+    const friendly = reachOutChanceOf(false, 'friendly')
+    const trusted = reachOutChanceOf(false, 'trusted')
+    const devoted = reachOutChanceOf(false, 'devoted')
+    expect(friendly).toBeGreaterThan(0)
+    expect(trusted).toBeGreaterThan(friendly)
+    expect(devoted).toBeGreaterThan(trusted)
+    expect(reachOutChanceOf(true, 'devoted')).toBeGreaterThan(devoted)
+  })
+
+  // A lover reaches out whatever the memories say this week, as she asks him out.
+  it('takes the lover band ahead of any tier', () => {
+    expect(reachOutChanceOf(true, 'hostile')).toBe(reachOutChanceOf(true, 'devoted'))
+  })
+})
+
+describe('reachOutGapSlots', () => {
+  it('lengthens her wait with every reach-out he leaves unanswered, then stops', () => {
+    const waits = [0, 1, 2, 3, 4, 9].map(reachOutGapSlots)
+    for (let i = 1; i < waits.length; i++) expect(waits[i]).toBeGreaterThanOrEqual(waits[i - 1])
+    expect(waits[1]).toBeGreaterThan(waits[0])
+    expect(reachOutGapSlots(9)).toBe(reachOutGapSlots(40))
   })
 })
 
@@ -191,5 +225,88 @@ describe('lastInviteSlotOf', () => {
       message({ id: 'm5', date: 9, time: 1 })
     ])
     expect(lastInviteSlotOf(chat)).toBe(globalSlotOf(4, 1))
+  })
+})
+
+describe('rollHangoutInvite', () => {
+  const nothing: InviteRollInput = {
+    lustful: false,
+    intimate: false,
+    friend: false,
+    exam: null,
+    outings: [],
+    round: new Set()
+  }
+
+  /** `values` handed out in order, counting how many were asked for. */
+  const counted = (values: readonly number[]): { rand: () => number; calls: () => number } => {
+    const rand = scripted(values)
+    let calls = 0
+    return {
+      rand: () => {
+        calls += 1
+        return rand()
+      },
+      calls: () => calls
+    }
+  }
+
+  // A shut gate that still spent a roll would hand every later ask the wrong value, skewing the odds.
+  it('spends no roll on an ask she cannot be rolled into, nor on one already dealt this round', () => {
+    const { rand, calls } = counted([0.05, 0.99])
+    // Every gated ask is shut and help is dealt, so exercise sees the first value.
+    expect(rollHangoutInvite({ ...nothing, round: new Set(['help']) }, rand)).toEqual({
+      kind: 'everyday',
+      ask: 'exercise'
+    })
+    expect(calls()).toBe(1)
+  })
+
+  it('takes the first ask that lands, in order, and rolls nothing after it', () => {
+    const exam = { className: 'Cell Biology', exam: 'midterm' as const, date: 44, time: 0 as const }
+    const open = { ...nothing, intimate: true, friend: true, exam, outings: ['cutetea'] }
+
+    const first = counted([0])
+    expect(rollHangoutInvite(open, first.rand)).toEqual({ kind: 'herRoom' })
+    expect(first.calls()).toBe(1)
+
+    // Her room misses, so the study ask is next and lands.
+    const second = counted([0.9, 0])
+    expect(rollHangoutInvite(open, second.rand)).toEqual({ kind: 'study', ...exam })
+    expect(second.calls()).toBe(2)
+
+    // Everything misses.
+    expect(rollHangoutInvite(open, () => 0.99)).toBeNull()
+  })
+
+  it('draws the outing among the places it is handed without running off the end', () => {
+    const outings = { ...nothing, outings: ['cutetea', 'pier_44'] }
+    expect(rollHangoutInvite(outings, scripted([0, 0]))).toEqual({
+      kind: 'outing',
+      location: 'cutetea'
+    })
+    // A `rand` that answers 1 must not run off the end of the pool.
+    expect(rollHangoutInvite(outings, scripted([0, 1]))).toEqual({
+      kind: 'outing',
+      location: 'pier_44'
+    })
+  })
+})
+
+describe('everydayRoundOf', () => {
+  const round = (...slots: EverydayAsk[][]): EverydayAsk[] => [...everydayRoundOf(slots)].sort()
+
+  it('holds each ask dealt once, and starts over once all four have been dealt', () => {
+    expect(round(['help'], ['exercise'], ['help'], ['meal'])).toEqual(['exercise', 'help', 'meal'])
+    expect(round(['help'], ['exercise'], ['meal'], ['shopping'])).toEqual([])
+    expect(round(['help'], ['exercise'], ['meal'], ['shopping'], ['meal'])).toEqual(['meal'])
+  })
+
+  // Two askers in one slot are filed in whatever order the reply listed them; the save must read
+  // back the round the rolls dealt either way.
+  it('reads one slot the same whichever order its invitations were filed in', () => {
+    const before: EverydayAsk[][] = [['help'], ['exercise'], ['meal']]
+    expect(round(...before, ['shopping', 'help'])).toEqual(['help'])
+    expect(round(...before, ['help', 'shopping'])).toEqual(['help'])
   })
 })

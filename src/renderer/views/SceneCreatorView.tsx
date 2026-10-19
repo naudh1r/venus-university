@@ -479,7 +479,7 @@ function SceneRow({
           {...gestures(false, quietLift, quietPress)}
           onClick={() => onPanel({ kind: 'date' })}
         >
-          {formatWeekday(draft.date).slice(0, 3)}, {formatGameDate(draft.date)}
+          {formatWeekday(draft.date).slice(0, 3)}, {formatGameDate(draft.date, 'spring')}
         </motion.button>
       </div>
       <div className="vu-scene-setting-select">

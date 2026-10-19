@@ -19,6 +19,8 @@ export type ViewName =
   | 'quickstart'
   /** The class selector, rendered by `NewGameView` so the roster survives it. */
   | 'classSelect'
+  /** A playthrough's next semester's roster, rendered by `NewGameView` off the ending's Continue. */
+  | 'nextSemester'
   | 'game'
 
 /** Modals that can be stacked over the current view. */

@@ -136,10 +136,12 @@ async function main() {
     meetingDatesOf,
     classMeetingIndexOf,
     examMeetingDateOf,
-    MIDTERM_WEEK,
+    midtermWeekOf,
     FINALS_WEEK,
     GRADUATION_DATE
   } = await loadTs('src/renderer/prompts/occasions.ts')
+  // The testsave is a first semester, a spring.
+  const MIDTERM_WEEK = midtermWeekOf('spring')
   const { nextSlot } = await loadTs('src/renderer/prompts/gameDate.ts')
 
   // ─── The record ──────────────────────────────────────────────────────────
@@ -151,6 +153,9 @@ async function main() {
   } catch (err) {
     checkError('playthrough.json validates against RECORD_READ', err)
   }
+
+  // The record's own calendar, held once: the occasion reads memoise on its identity.
+  const calendar = record ? { season: 'spring', generated: record.occasions } : null
 
   if (record && !structureOnly) {
     try {
@@ -178,7 +183,7 @@ async function main() {
       const raw = JSON.parse(await readFile(path, 'utf8'))
       const save = validateRecord(raw, path, SAVE_READ)
       check(true, `${saveId}.json validates against SAVE_READ`)
-      parsedSaves.push({ saveId, kind, path, save })
+      parsedSaves.push({ saveId, kind, path, save, raw })
     } catch (err) {
       checkError(`${saveId}.json validates against SAVE_READ`, err)
     }
@@ -318,7 +323,7 @@ async function main() {
           continue
         }
         const examTime = slotFromId(entry.slot).time
-        const meetingsBefore = meetingDatesOf(entry.slot, record.occasions).filter(
+        const meetingsBefore = meetingDatesOf(entry.slot, calendar).filter(
           (d) => globalSlotOf(d, examTime) < saveGlobalSlot
         )
         const meetings = save.classRecords[code]?.meetings ?? []
@@ -335,11 +340,11 @@ async function main() {
         }
 
         const lecture = isCourse(entry) && kindOf(entry) === 'lecture'
-        const midtermDate = examMeetingDateOf(entry.slot, 'midterm', record.occasions)
-        const finalDate = examMeetingDateOf(entry.slot, 'final', record.occasions)
+        const midtermDate = examMeetingDateOf(entry.slot, 'midterm', calendar)
+        const finalDate = examMeetingDateOf(entry.slot, 'final', calendar)
         let factoidRuleOk = true
         for (const m of meetings) {
-          const index = classMeetingIndexOf(entry.slot, m.date, record.occasions)
+          const index = classMeetingIndexOf(entry.slot, m.date, calendar)
           const isExamMeeting = m.date === midtermDate || m.date === finalDate
           // Only an attended meeting was ever asked for one (`recordAcademics` in
           // `stores/loop/academics.ts`): a skip writes no summary and no factoid either.
@@ -385,7 +390,7 @@ async function main() {
           const entry = record.classes[code]
           return (
             entry !== undefined &&
-            examMeetingDateOf(entry.slot, checkpoint.examDay, record.occasions) === save.date &&
+            examMeetingDateOf(entry.slot, checkpoint.examDay, calendar) === save.date &&
             slotFromId(entry.slot).time === save.time
           )
         })
@@ -466,7 +471,8 @@ async function main() {
           'backup.json playthroughs[id].record deep-equals playthrough.json'
         )
       }
-      const wantSaves = parsedSaves.map(({ saveId, save }) => ({ playthroughId, saveId, save }))
+      // The files as written, not as read: a read brings an older save up to this version.
+      const wantSaves = parsedSaves.map(({ saveId, raw }) => ({ playthroughId, saveId, save: raw }))
       check(
         isDeepStrictEqual(
           [...backup.saves].sort((a, b) => a.saveId.localeCompare(b.saveId)),

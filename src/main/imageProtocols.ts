@@ -60,15 +60,17 @@ export function handleImageProtocols(): void {
       return new Response('Not found', { status: 404 })
     }
 
-    // The URL always names the PNG; the shipped cast is the same image under `.webp`.
+    // The URL always names the PNG; the file is its `.webp` twin wherever one stands.
     const path = await imagePath(getCharacterImagePath(charId, rel))
     return net.fetch(pathToFileURL(path).toString())
   })
 
-  protocol.handle(BG_SCHEME, (request) => {
+  protocol.handle(BG_SCHEME, async (request) => {
     // The `?v=` is the background's creation time, which only the renderer's cache reads.
-    const path = backgroundFileOf(new URL(request.url))
-    if (!path) return new Response('Not found', { status: 404 })
+    const named = backgroundFileOf(new URL(request.url))
+    if (!named) return new Response('Not found', { status: 404 })
+    // Named as the PNG like a character's image, and read off its `.webp` twin the same way.
+    const path = await imagePath(named)
     return net.fetch(pathToFileURL(path).toString())
   })
 }

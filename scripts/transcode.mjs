@@ -16,12 +16,15 @@ const CACHE_DIR = join(REPO, 'build', '.asset-cache')
 const INDEX_PATH = join(CACHE_DIR, 'index.json')
 
 /**
- * One table so the two builds can diverge later; both are quality 85 today, which
- * measured ~7x on backgrounds and ~17x on sprites.
+ * One table so the two builds can diverge later; both read the profile the game
+ * itself stores images with, so shipped and stored art share one definition.
  */
+const STORED_PROFILE = JSON.parse(
+  readFileSync(join(REPO, 'src', 'shared', 'webpProfile.json'), 'utf8')
+)
 const PROFILES = {
-  web: { quality: 85, effort: 4, alphaQuality: 100 },
-  desktop: { quality: 85, effort: 4, alphaQuality: 100 }
+  web: { ...STORED_PROFILE },
+  desktop: { ...STORED_PROFILE }
 }
 
 /** Source path -> the sha256 last computed for it, keyed by its size and mtime. */

@@ -17,6 +17,25 @@ export interface HiddenScheduleInput extends HiddenScheduleAssignment {
 /** Keyed by charId, each a sparse `ShiftSlot` → the haunt she keeps in it. */
 export type HiddenScheduleResult = Record<string, Record<number, Haunt>>
 
+/**
+ * The menus a week was dealt from, read back off the week: what a returning girl's routine is
+ * dealt from again around her new timetable. Groceries are dealt to everybody and are not a menu.
+ */
+export function hauntAssignmentOf(week: Readonly<Record<number, Haunt>>): HiddenScheduleAssignment {
+  const haunts = Object.keys(week)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((slot) => week[slot])
+  const activity = haunts.find((haunt) => haunt.kind === 'activity')
+  return {
+    homeSlots: haunts.filter((haunt) => haunt.kind === 'room').length,
+    study: haunts.find((haunt) => haunt.kind === 'study')?.location ?? null,
+    fun: haunts.filter((haunt) => haunt.kind === 'fun').map((haunt) => haunt.location),
+    activity: activity ? { location: activity.location, doing: activity.doing ?? '' } : null,
+    meal: haunts.find((haunt) => haunt.kind === 'meal')?.location ?? null
+  }
+}
+
 /** One deal. `inputs` is keyed by charId; the order served is shuffled per pass. */
 export function buildHiddenSchedules(
   inputs: Record<string, HiddenScheduleInput>

@@ -19,26 +19,26 @@ const LAST_SLOT = globalSlotOf(FINAL_DATE, 1)
 
 describe('venusMessagesDue', () => {
   it('catches up in order rather than skipping what was missed', () => {
-    expect(venusMessagesDue('Sam', -1, LAST_SLOT).map((m) => m.id)).toEqual(
+    expect(venusMessagesDue('Sam', -1, LAST_SLOT, 'spring', 0).map((m) => m.id)).toEqual(
       EXPECTED_SLOTS.map(([id]) => id)
     )
   })
 
   it('delivers nothing twice for a replayed boundary', () => {
     const slot = globalSlotOf(0, 1)
-    expect(venusMessagesDue('Sam', slot, slot)).toEqual([])
+    expect(venusMessagesDue('Sam', slot, slot, 'spring', 0)).toEqual([])
   })
 
   it('is exclusive of the watermark and inclusive of the current slot', () => {
     const addDrop = globalSlotOf(ADD_DROP_DATE, 0)
     // Everything owed after the welcome, up to and including the deadline's own.
-    expect(venusMessagesDue('Sam', globalSlotOf(0, 1), addDrop).map((m) => m.id)).toEqual([
+    expect(venusMessagesDue('Sam', globalSlotOf(0, 1), addDrop, 'spring', 0).map((m) => m.id)).toEqual([
       'first-week',
       'add-drop-week',
       'add-drop-today'
     ])
     // One slot short of it, the deadline message is not owed yet.
-    expect(venusMessagesDue('Sam', globalSlotOf(0, 1), addDrop - 1).map((m) => m.id)).toEqual([
+    expect(venusMessagesDue('Sam', globalSlotOf(0, 1), addDrop - 1, 'spring', 0).map((m) => m.id)).toEqual([
       'first-week',
       'add-drop-week'
     ])

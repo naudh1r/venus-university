@@ -53,14 +53,19 @@ function rewindAuthoredTurn(snapshot: TurnSnapshot): void {
 
 /**
  * Rewinds a failed turn to its snapshot and opens the retry/reword modal.
- * Retryable errors keep input locked; permanent errors restore the player's text.
+ * Retryable errors keep input locked; permanent errors restore the player's text. `sceneCall`
+ * marks a failure of the scene call itself, the one call whose prompt the editor can resend.
  */
-export function failTurn(error: AppError, snapshot: TurnSnapshot): void {
+export function failTurn(error: AppError, snapshot: TurnSnapshot, sceneCall = false): void {
   const game = useGameStore.getState()
   const authored = authoredTurn(snapshot)
   if (authored) rewindAuthoredTurn(snapshot)
   else rewindTurn(snapshot)
   game.setBusy(false)
+  // Ahead of the modal it gates. An override no scene call spent was this attempt's, and must not
+  // stand in for a later scene's prompt.
+  loopState.turnPromptEditable = sceneCall
+  loopState.promptOverride = null
   game.setTurnError(error)
   // The attempt is over once the modal is up; the guard re-arms for whatever answers it.
   loopState.blockedRetrySpent = false
@@ -126,6 +131,16 @@ function retryBlockedTurn(error: AppError, snapshot: TurnSnapshot): boolean {
 }
 
 /**
+ * Files a reply's running summary. It is written after the reply's own lines and takes them in,
+ * so it covers the transcript once they are on it — and a cut inside the reply drops it.
+ */
+function fileSummary(summary: string | null): void {
+  if (!summary) return
+  const live = useGameStore.getState()
+  live.setSceneSummary(summary, live.currentSceneTranscript.length)
+}
+
+/**
  * The back half of every scene-opening turn — player-typed and hangout alike:
  * stream the reply, then either hand playback back or fire the wrap-up calls.
  */
@@ -154,7 +169,7 @@ export async function runSceneTurn(
     if (retryBlockedTurn(result.error, snapshot)) return
     if (await resendAuthoredTurn(result.error, snapshot, superseded)) return
     if (superseded()) return
-    failTurn(result.error, snapshot)
+    failTurn(result.error, snapshot, true)
     return
   }
 
@@ -169,13 +184,16 @@ export async function runSceneTurn(
     // that cover out exactly as a streamed line does.
     await deliverSceneLines(result.data.lines, run)
     if (superseded()) return
-    const live = useGameStore.getState()
-    if (result.data.summary) live.setSceneSummary(result.data.summary, result.data.at)
-    live.setStreaming(false)
-  } else if (result.data.summary) {
+    fileSummary(result.data.summary)
+    useGameStore.getState().setStreaming(false)
+  } else {
     // `streamScene` has already waited out its own delivery, so the lines are on the transcript.
-    useGameStore.getState().setSceneSummary(result.data.summary, result.data.at)
+    fileSummary(result.data.summary)
   }
+
+  // A present she brought is his once the reply that hands it over has landed, before either
+  // write below, so a reload of either holds it once.
+  useGameStore.getState().receiveSceneGift()
 
   // `end_scene` is stashed until playback reaches the last line; a solo scene is over
   // after its one turn.

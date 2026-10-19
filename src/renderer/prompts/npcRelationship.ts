@@ -197,7 +197,7 @@ export function whereaboutsLine(
   return `${firstName} is ${hauntClause(location, haunt, time)}${tail} right now.`
 }
 
-/** What the pair lines need, which is a slice of `ScenePromptState`. */
+/** What the pair lines need, which is a slice of `PromptState`. */
 export interface NpcPairContext {
   date: number
   npcRelationships: NpcRelationshipMap

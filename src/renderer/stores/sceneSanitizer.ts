@@ -192,7 +192,8 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
           console.warn(`[scene] unknown speaker "${raw.speaker}" — treating the line as narration.`)
       }
 
-      if (raw?.bg !== undefined) {
+      // "" is the schema's "no change".
+      if (raw?.bg) {
         if (backgrounds.has(raw.bg)) line.bg = raw.bg
         else console.warn(`[scene] unknown background "${raw.bg}" — keeping the current one.`)
       }
@@ -690,7 +691,9 @@ export function milestoneReports(projected: ProjectedLedger): MilestoneReport[] 
 /**
  * What the dating pass folds over, off the store both of its callers share. Re-run at the
  * boundary rather than banked at the ending, since nothing in between moves `isLover`, `harem`
- * or `hasCrush` — texting only writes `blocked`, `gaveContactInfo` and text memories.
+ * or `hasCrush` — texting only writes `blocked`, `gaveContactInfo` and text memories. The
+ * graduates are in it beside the roster: a girlfriend gone from Veridan still minds him dating
+ * somebody new, and so do her friends.
  */
 function datingInputOf(
   before: Readonly<Record<string, CharInfo>>,
@@ -698,13 +701,14 @@ function datingInputOf(
   date: number
 ): DatingPassInput {
   const game = useGameStore.getState()
+  const roster = [...game.chars, ...game.alumni]
   const firstNames: Record<string, string> = {}
-  for (const charId of game.chars) {
+  for (const charId of roster) {
     const character = game.characters[charId]
     if (character) firstNames[charId] = character.firstName
   }
   return {
-    roster: game.chars,
+    roster,
     before,
     after,
     firstNames,
@@ -734,9 +738,18 @@ export function applyLedger(ledger: LedgerResponse): DatingPassOutcome {
   }
 
   // Still the finished slot's date: `advanceSlot` runs later in the boundary.
-  // Replaces rather than appends — the phone holds one impression.
+  // Replaces rather than appends — the phone holds one impression. A graduate's is kept among
+  // her memories instead, saying it came by text, since texting is all she has of him now.
   for (const entry of ledgerTextMemories(ledger)) {
-    game.setTextMemory(entry.charId, { date: game.date, type: entry.type, desc: entry.desc })
+    if (game.charInfo[entry.charId]?.pursuing !== undefined) {
+      game.recordMemory(entry.charId, {
+        date: game.date,
+        type: entry.type,
+        desc: overTextDesc(entry.desc)
+      })
+    } else {
+      game.setTextMemory(entry.charId, { date: game.date, type: entry.type, desc: entry.desc })
+    }
   }
 
   for (const [charId, events] of ledgerEvents(ledger)) {
@@ -792,10 +805,17 @@ export function projectLedger(
   }
 
   for (const entry of ledgerTextMemories(ledger, false)) {
-    projected[entry.charId] = {
-      ...entryFor(entry.charId),
-      textMemory: { date, type: entry.type, desc: entry.desc }
-    }
+    const info = entryFor(entry.charId)
+    projected[entry.charId] =
+      info.pursuing !== undefined
+        ? {
+            ...info,
+            memories: [
+              ...info.memories,
+              { date, type: entry.type, desc: overTextDesc(entry.desc) }
+            ]
+          }
+        : { ...info, textMemory: { date, type: entry.type, desc: entry.desc } }
   }
 
   // Last, like the apply, so the cap evicts in the same order.

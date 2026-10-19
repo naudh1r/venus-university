@@ -25,7 +25,8 @@ import {
   getCustomBackgroundPath,
   getCustomBackgroundRecordPath
 } from '../paths'
-import { readJsonFile, writeAtomicBytes, writeAtomicJson } from './jsonFile'
+import { findImage, imagePath, writeImageFile } from './imageFiles'
+import { readJsonFile, writeAtomicJson } from './jsonFile'
 
 /**
  * The backgrounds the player brought, one folder each under `data/backgrounds`: the pictures
@@ -84,7 +85,7 @@ async function backgroundIn(name: string): Promise<CustomBackgroundListing | nul
 
   const urls: Partial<CustomBackgroundUrls> = {}
   for (const variant of BG_VARIANTS) {
-    if (await exists(getCustomBackgroundImagePath(name, variant))) {
+    if ((await findImage(getCustomBackgroundImagePath(name, variant))) !== null) {
       urls[variant] = customBgUrl(record, variant)
     }
   }
@@ -128,7 +129,9 @@ async function writeBackground(
   for (const variant of BG_VARIANTS) {
     const bytes = pictures[variant]
     if (!bytes) continue
-    await writeAtomicBytes(getCustomBackgroundImagePath(record.name, variant), bytes, UNWRITABLE)
+    await writeImageFile(getCustomBackgroundImagePath(record.name, variant), bytes, {
+      error: UNWRITABLE
+    })
   }
   await writeAtomicJson(getCustomBackgroundRecordPath(record.name), record, UNWRITABLE)
 }
@@ -198,7 +201,7 @@ export async function readCustomBackgroundImage(
     throw appError('BACKGROUND_INVALID', 'That background picture does not exist.', String(variant))
   }
   try {
-    return await readFile(getCustomBackgroundImagePath(name, variant))
+    return await readFile(await imagePath(getCustomBackgroundImagePath(name, variant)))
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw appError(UNREADABLE.code, 'Could not read the background.', messageOf(err))

@@ -278,17 +278,10 @@ export function nonReaderCount(lines: readonly SceneLine[]): number {
 /**
  * The line a rewind of `log` lands on: the nearest one before the line shown that says
  * something and is not the reader's, back to the scene's first reply, or -1 when there is none.
- * With `readerShown` the shown line is the log's last and the reader's own lines count too, as
- * far back as the log's first line.
+ * With `wholeScene` it reaches as far back as the log's first line, as a replay's does.
  */
-export function rewindTargetOf(log: readonly SceneLine[], readerShown = false): number {
-  if (readerShown) {
-    for (let at = log.length - 2; at >= 0; at--) {
-      if (log[at].text.trim() !== '') return at
-    }
-    return -1
-  }
-  const floor = firstReaderIndexOf(log)
+export function rewindTargetOf(log: readonly SceneLine[], wholeScene = false): number {
+  const floor = wholeScene ? -1 : firstReaderIndexOf(log)
   for (let at = lastNonReaderIndexOf(log) - 1; at > floor; at--) {
     if (!isReaderLine(log[at]) && log[at].text.trim() !== '') return at
   }

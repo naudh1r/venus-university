@@ -1,5 +1,6 @@
 import { useEffect, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
+import { seasonOf } from '@shared/semesters'
 import { pictureKeySet } from '@shared/settingsRules'
 import { formatShortGameDate, slotHalf } from '../prompts/gameDate'
 import { ConfirmModal } from '../components/ConfirmModal'
@@ -42,6 +43,9 @@ function PhotoCell({
   onDelete: () => void
 }): JSX.Element {
   const [hovered, setHovered] = useState(false)
+  const { meta } = photo
+  const season = seasonOf(meta?.semesterIndex ?? 0)
+  const when = meta ? `${formatShortGameDate(meta.date, season)} · ${slotHalf(meta.time)}` : ' '
   return (
     <motion.li
       className="vu-gallery-item vu-gallery-item--removable"
@@ -60,7 +64,7 @@ function PhotoCell({
       </motion.button>
       <DeleteX className="vu-x vu-gallery-x" hovered={hovered} label="Delete this photo" onDelete={onDelete} />
       <span className="vu-gallery-caption">
-        {photo.meta ? `${formatShortGameDate(photo.meta.date)} · ${slotHalf(photo.meta.time)}` : ' '}
+        {when}
       </span>
     </motion.li>
   )

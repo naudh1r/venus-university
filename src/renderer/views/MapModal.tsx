@@ -22,6 +22,7 @@ import {
   placeDestination,
   AWAY_PLACE_KEY,
   CLASS_PLACE_KEY,
+  SICK_PLACE_KEY,
   UNKNOWN_PLACE_KEY,
   type Whereabouts
 } from '../stores/whereabouts'
@@ -202,7 +203,7 @@ export function MapModal({ theme, onClose, onGo }: MapModalProps): JSX.Element |
   // Held in the order their anchors stand on the drawing, west to east: the deal below runs on
   // DOM order, so this is what starts the bubbles left to right across the city.
   const sections = useMemo(() => {
-    const footers: readonly string[] = [AWAY_PLACE_KEY, UNKNOWN_PLACE_KEY]
+    const footers: readonly string[] = [SICK_PLACE_KEY, AWAY_PLACE_KEY, UNKNOWN_PLACE_KEY]
     const known = sectionsOf(rows.filter((row) => !footers.includes(row.placeKey)))
     const fillers: Section[] = mapFillers(
       known.map((section) => section.key),
@@ -231,6 +232,7 @@ export function MapModal({ theme, onClose, onGo }: MapModalProps): JSX.Element |
     )
   }, [sections])
 
+  const sick = rows.filter((row) => row.placeKey === SICK_PLACE_KEY)
   const away = rows.filter((row) => row.placeKey === AWAY_PLACE_KEY)
   const unplaced = rows.filter((row) => row.placeKey === UNKNOWN_PLACE_KEY)
 
@@ -461,9 +463,14 @@ export function MapModal({ theme, onClose, onGo }: MapModalProps): JSX.Element |
         </div>
 
         <div className="vu-foot">
-          {/* Nobody silently vanishes: the two lines that are not places, anchored left so
+          {/* Nobody silently vanishes: the three lines that are not places, anchored left so
               the one that is there sits where the eye starts. */}
           <div className="vu-map-absent">
+            {sick.length > 0 && (
+              <p className="vu-map-line">
+                Home sick — <span className="vu-map-names">{namesOf(sick)}</span>
+              </p>
+            )}
             {away.length > 0 && (
               <p className="vu-map-line">
                 <PlaneIcon />

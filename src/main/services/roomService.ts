@@ -1,15 +1,18 @@
-import { mkdir, readFile, rename, unlink, writeFile } from 'fs/promises'
+import { mkdir, readFile } from 'fs/promises'
 import { dirname } from 'path'
 import { appError, messageOf } from '@shared/errors'
 import { imageTypeOf } from '@shared/imageBytes'
 import { generateImage } from '@shared/llm/cloudImage'
+import { LINEUP_MIME_TYPE, LINEUP_QUALITY } from '@shared/lineup'
 import { dayRoomPrompt, isRoomVariant, NIGHT_ROOM_PROMPT, type RoomVariant } from '@shared/room'
 import { assertRoomPicture } from '@shared/roomPicture'
 import type { Character } from '@shared/types'
 import { getCharacterRoomPath } from '../paths'
 import { assertSafeCharId } from './characterService'
-import { dropImageTwins, findImage } from './imageFiles'
-import { writeAtomicBytes } from './jsonFile'
+import { canEncodeWebp, findImage, openImage, writeImageFile } from './imageFiles'
+
+/** What a room background's write raises where the disk refuses it. */
+const UNWRITABLE = { code: 'ROOM_UNWRITABLE', message: 'Could not save the room background.' }
 
 /** The day image the night render re-lights: this run's staged one if any, else the live one. */
 async function readDayImage(charId: string, staged: boolean): Promise<Buffer> {
@@ -31,6 +34,30 @@ async function readDayImage(charId: string, staged: boolean): Promise<Buffer> {
 }
 
 /**
+ * The day picture as the night render is handed it: a JPEG, as every reference the app sends
+ * is, or as it is where there is no decoder. One that will not read is `ROOM_DAY_INVALID`.
+ */
+async function dayReference(day: Buffer): Promise<{ bytes: Uint8Array; mimeType: string }> {
+  const invalid = appError(
+    'ROOM_DAY_INVALID',
+    'The daytime room background could not be read as an image. Render it again.'
+  )
+  if (!(await canEncodeWebp())) {
+    const mimeType = imageTypeOf(day)
+    if (!mimeType) throw invalid
+    return { bytes: day, mimeType }
+  }
+
+  try {
+    const image = await openImage(day)
+    const bytes = await image.jpeg({ quality: Math.round(LINEUP_QUALITY * 100) }).toBuffer()
+    return { bytes, mimeType: LINEUP_MIME_TYPE }
+  } catch {
+    throw invalid
+  }
+}
+
+/**
  * Renders one of a character's two room backgrounds and writes the image into her
  * folder.
  */
@@ -48,18 +75,8 @@ export async function generateRoomImage(
 
   let bytes: Uint8Array
   if (variant === 'night') {
-    const day = await readDayImage(character.charId, staged)
-    const mimeType = imageTypeOf(day)
-    if (!mimeType) {
-      throw appError(
-        'ROOM_DAY_INVALID',
-        'The daytime room background could not be read as an image. Render it again.'
-      )
-    }
-    bytes = await generateImage(NIGHT_ROOM_PROMPT, {
-      signal,
-      sources: [{ bytes: day, mimeType }]
-    })
+    const day = await dayReference(await readDayImage(character.charId, staged))
+    bytes = await generateImage(NIGHT_ROOM_PROMPT, { signal, sources: [day] })
   } else {
     if (!character.roomPrompt.trim()) {
       throw appError(
@@ -70,18 +87,13 @@ export async function generateRoomImage(
     bytes = await generateImage(dayRoomPrompt(character.roomPrompt), { signal })
   }
 
-  // Atomic like every other write.
   const path = getCharacterRoomPath(character.charId, variant, staged)
-  const temp = `${path}.tmp`
   try {
     await mkdir(dirname(path), { recursive: true })
-    await writeFile(temp, bytes)
-    await rename(temp, path)
-    await dropImageTwins(path)
   } catch (err) {
-    await unlink(temp).catch(() => {})
-    throw appError('ROOM_UNWRITABLE', 'Could not save the room background.', messageOf(err))
+    throw appError(UNWRITABLE.code, UNWRITABLE.message, messageOf(err))
   }
+  await writeImageFile(path, bytes, { error: UNWRITABLE })
 }
 
 /**
@@ -101,10 +113,5 @@ export async function writeRoomUpload(
   const bytes = Buffer.from(png, 'base64')
   assertRoomPicture(bytes)
 
-  const path = getCharacterRoomPath(charId, variant)
-  await writeAtomicBytes(path, bytes, {
-    code: 'ROOM_UNWRITABLE',
-    message: 'Could not save the room background.'
-  })
-  await dropImageTwins(path)
+  await writeImageFile(getCharacterRoomPath(charId, variant), bytes, { error: UNWRITABLE })
 }

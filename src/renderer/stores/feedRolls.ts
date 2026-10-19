@@ -1,12 +1,10 @@
+import { POST_CHANCE } from '@shared/odds'
 import { shuffle } from '@shared/shuffle'
 import { hasTrait } from '@shared/traits'
 import type { Character, TimeSlot } from '@shared/types'
 import { GRADUATION_DATE } from '../prompts/occasions'
 
 /** Every draw the social feed makes. */
-
-/** The odds any one character posts a status update in a given slot. */
-const POST_CHANCE = 0.1
 
 /** Her own odds: the flat chance, twice over for somebody who lives on the app. */
 function postChanceOf(character: Pick<Character, 'traits'> | undefined): number {

@@ -251,7 +251,7 @@ export const FEED_MESSAGES: readonly FeedMessage[] = [
   'With this breakup, the thread of prophecy is severed. Restore a saved game to restore the weave of fate, or persist in the doomed world I have created?',
   'Out, out, brief candle! A freshman is but a walking shadow, a poor player that struts and frets his hour upon the podium and is heard no more...',
   'with this treasure i summon... eight-spice eastern buffet general tsos chicken',
-  'da da da it is good day to not be dead'
+  'da da da it is good day to be not dead',
 ]
 
 /** Faces the campus posts under — an emoji stands in for a photo. */

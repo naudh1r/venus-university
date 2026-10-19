@@ -1,7 +1,8 @@
 import { formatMoney } from './money'
 import { markedLine } from './statusMark'
 import { hasTrait } from './traits'
-import type { Character, CharMemory, SceneLine } from './types'
+import type { Disposition } from './relationship'
+import type { Character, CharMemory, OwnedItem, SceneLine } from './types'
 
 /**
  * The gift vocabulary: the shops the reader can buy from, every item in them, every
@@ -125,6 +126,15 @@ export interface ItemDef {
    * {@link giftReactionOf} weighs against her taste.
    */
   categories: [GiftCategory] | [GiftCategory, GiftCategory]
+  /** A present a girl may give the reader: nothing made for a woman alone. */
+  unisex?: true
+  /** A dose of cold medicine: taken from the inventory, or given to a girl to take. */
+  medicine?: true
+}
+
+/** Whether `itemId` is a dose of cold medicine. */
+export function isMedicine(itemId: string): boolean {
+  return itemDefOf(itemId)?.medicine === true
 }
 
 const SHOP_CATALOG: readonly ItemDef[] = [
@@ -136,7 +146,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🪙',
     price: 18,
     description: `Buy a bit of luck this semester with this solid brass wishing coin. Engraved with the VU crest on the front and the Concord Fountain on the back.`,
-    categories: ['romantic', 'novelty']
+    categories: ['romantic', 'novelty'],
+    unisex: true
   },
   {
     id: 'greenhouse_rose_bouquet',
@@ -145,7 +156,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🌹',
     price: 45,
     description: `Two dozen long-stem roses cut the same morning in the Whitman Greenhouse, wrapped in kraft paper with a packet of preservative. Color may vary based on season.`,
-    categories: ['romantic']
+    categories: ['romantic'],
+    unisex: true
   },
   {
     id: 'greenhouse_orchid',
@@ -154,7 +166,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🪴',
     price: 70,
     description: `A greenhouse-raised phalaenopsis in full bloom, potted in a ceramic planter with drainage. Weekly watering and indirect light will keep it reblooming season after season. Care card included.`,
-    categories: ['cozy']
+    categories: ['cozy'],
+    unisex: true
   },
   {
     id: 'greenhouse_honey_candles',
@@ -163,7 +176,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🕯️',
     price: 52,
     description: `Orchard honey from our Whitman hives, jarred alongside three hand-poured beeswax pillars. Clean, soot-free burn with a natural warm-honey scent, no added fragrance. Over 40 hours of burn time per candle.`,
-    categories: ['cozy', 'romantic']
+    categories: ['cozy', 'romantic'],
+    unisex: true
   },
   {
     id: 'greenhouse_pressed_wildflowers',
@@ -172,7 +186,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🌼',
     price: 38,
     description: `Pressed wildflowers from the Whitman Greenhouse meadow beds in a 5 x 7 in. floating glass frame: forget-me-nots, Queen Anne's lace, buttercups, wild violets and yarrow. Each frame arranged by hand. Ships in a padded box.`,
-    categories: ['artsy', 'romantic']
+    categories: ['artsy', 'romantic'],
+    unisex: true
   },
   {
     id: 'vu_crest_bracelet',
@@ -190,7 +205,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '📚',
     price: 90,
     description: `Solid brass bookends in the style of the Kendall Library reading room. Total weight about 6 lb. Felt-backed to protect shelves.`,
-    categories: ['nerdy', 'vintage']
+    categories: ['nerdy', 'vintage'],
+    unisex: true
   },
   {
     id: 'kendall_journal_pen',
@@ -199,7 +215,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '📓',
     price: 76,
     description: `Leather-bound journal with 240 pages of unlined cream stock, heavy enough to take fountain pen ink without bleed-through. Set includes a brass-nib fountain pen and a bottle of ink. Kendall Library crest debossed on the cover.`,
-    categories: ['artsy', 'practical']
+    categories: ['artsy', 'practical'],
+    unisex: true
   },
   {
     id: 'murder_on_the_silk_river',
@@ -208,7 +225,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '📗',
     price: 18,
     description: `A premium hardcover edition of the 1910 mystery set on Veridan's mill floors, a student favorite in LIT 101. New illustrated pages and an introduction from the English department.`,
-    categories: ['artsy']
+    categories: ['artsy'],
+    unisex: true
   },
   {
     id: 'pino_cola_soda_crate',
@@ -217,7 +235,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🥤',
     price: 32,
     description: `Twelve glass bottles of Pino-Cola's campus-exclusive seasonal flavors in a reusable wooden crate. This season: Cherry Concord and Green Apple Static.`,
-    categories: ['treats', 'nerdy']
+    categories: ['treats', 'nerdy'],
+    unisex: true
   },
   {
     id: 'carnivorous_plant_kit',
@@ -226,7 +245,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🌿',
     price: 29,
     description: `Greenhouse-grown venus flytrap in a 3 in. pot, with a bag of nutrient-free soil and a care card. Suitable for beginners.`,
-    categories: ['novelty', 'nerdy']
+    categories: ['novelty', 'nerdy'],
+    unisex: true
   },
   {
     id: 'gold_crosses_rose_pin',
@@ -235,7 +255,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '📍',
     price: 16,
     description: `Official collaboration with the hit film "Love Between Gods", shot right here on VU campus. Hard enamel on gold plating, 1.25 in., with a locking clutch back.`,
-    categories: ['nerdy', 'romantic']
+    categories: ['nerdy', 'romantic'],
+    unisex: true
   },
   {
     id: 'thorne_student_recordings',
@@ -244,7 +265,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🎼',
     price: 30,
     description: `This year's student performances from the Thorne Auditorium stage on one 180 g LP. Proceeds go directly to the VU music department.`,
-    categories: ['artsy']
+    categories: ['artsy'],
+    unisex: true
   },
   {
     id: 'palaestra_gym_towels',
@@ -253,7 +275,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🏃',
     price: 95,
     description: `Set of four ultra-soft, 100% cotton gym towels embroidered with the Palaestra logo. Quick-drying, with a snap loop for hanging on a bag or hook. Machine washable.`,
-    categories: ['practical']
+    categories: ['practical'],
+    unisex: true
   },
   {
     id: 'palaestra_drink_set',
@@ -262,7 +285,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🏋️',
     price: 36,
     description: `A pack of VU-designed performance drinks stocked at the Palaestra weight room counter. Six protein shakes (chocolate and vanilla) and six energy drinks.`,
-    categories: ['practical', 'treats']
+    categories: ['practical', 'treats'],
+    unisex: true
   },
   {
     id: 'elysium_porch_lantern',
@@ -271,7 +295,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🏮',
     price: 110,
     description: `Brass desk lantern modeled on the hurricane lanterns on Elysium Village porches. Runs from a wall outlet or USB. Warm white bulb, dimmable.`,
-    categories: ['cozy', 'artsy']
+    categories: ['cozy', 'artsy'],
+    unisex: true
   },
   {
     id: 'lowrise_cookbook',
@@ -280,7 +305,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🍲',
     price: 26,
     description: `94 recipes for feeding large groups, collected from the student volunteers who cook the Lowrise 3 Sunday dinner. Spiral-bound in durable metal and a water-resistant hardcover.`,
-    categories: ['treats', 'practical']
+    categories: ['treats', 'practical'],
+    unisex: true
   },
   {
     id: 'bunnyboard_sticker_pack',
@@ -289,7 +315,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '😂',
     price: 12,
     description: `Twelve die-cut holographic stickers of Bunnyboard\'s unique emojis. Weatherproof vinyl. Perfect for water bottles and laptop lids.`,
-    categories: ['cute', 'nerdy']
+    categories: ['cute', 'nerdy'],
+    unisex: true
   },
 
   // ─── Veridan Delivery ──────────────────────────────────────────────────────
@@ -300,7 +327,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '📦',
     price: 27,
     description: `Pay your Lotterdale tax with a mystery grab bag full of trinkets straight off the market floor. What's inside? Vinyl records, vintage toys, handmade mittens... who knows? All sales final.`,
-    categories: ['novelty', 'vintage']
+    categories: ['novelty', 'vintage'],
+    unisex: true
   },
   {
     id: 'lotterdale_vintage_locket',
@@ -318,7 +346,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '📖',
     price: 110,
     description: `Full longbox of roughly 80 bagged and boarded back issues from Freights Books & Records, mostly 1970s and 80s independents. Unsorted. Condition may vary.`,
-    categories: ['nerdy', 'vintage']
+    categories: ['nerdy', 'vintage'],
+    unisex: true
   },
   {
     id: 'lotterdale_occult_set',
@@ -327,7 +356,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🔮',
     price: 68,
     description: `Enter the otherworldly with a hand-illustrated 78-card tarot deck, brass pendulum on a chain, and three scented candles. Packaged in a velvet drawstring bag and an engraved wooden box.`,
-    categories: ['edgy']
+    categories: ['edgy'],
+    unisex: true
   },
   {
     id: 'lotterdale_biker_jacket',
@@ -336,7 +366,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🧥',
     price: 135,
     description: `1980s black leather motorcycle jacket sourced from a rediscovered warehouse. Condition like new.`,
-    categories: ['edgy', 'vintage']
+    categories: ['edgy', 'vintage'],
+    unisex: true
   },
   {
     id: 'taxidermy_squirrel_suit',
@@ -345,7 +376,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🐿️',
     price: 65,
     description: `Professionally preserved eastern gray squirrel, 9 in. tall on a finished wooden base, dressed in a fitted three-piece suit. Ethically sourced. Fur intact, no shedding, no odor.`,
-    categories: ['edgy', 'novelty']
+    categories: ['edgy', 'novelty'],
+    unisex: true
   },
   {
     id: 'hand_crank_record_player',
@@ -354,7 +386,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '📻',
     price: 180,
     description: `Hand-crank gramophone that plays 78s with no power source. All parts polished and hand-tested by a technician before sale.`,
-    categories: ['artsy', 'vintage']
+    categories: ['artsy', 'vintage'],
+    unisex: true
   },
   {
     id: 'freights_vinyl_crate',
@@ -363,7 +396,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '💿',
     price: 85,
     description: `Crate of 20 LPs pulled from the Freights back catalog, 1960s through 90s, all genres. All records guaranteed playable, but wear may vary.`,
-    categories: ['artsy', 'vintage']
+    categories: ['artsy', 'vintage'],
+    unisex: true
   },
   {
     id: 'vintage_toolbox',
@@ -372,7 +406,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🧰',
     price: 125,
     description: `Surprise the DIY-er in your life with this steel cantilever toolbox from the 60s containing anything they might need: wrenches, drivers, pliers, ball-peen hammer, etc. Tools have survived decades in great condition and have been polished like new.`,
-    categories: ['practical', 'vintage']
+    categories: ['practical', 'vintage'],
+    unisex: true
   },
   {
     id: 'ventriloquist_dummy',
@@ -381,7 +416,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🎭',
     price: 58,
     description: `Hand-carved reproduction of Enzo, the ventriloquist dummy from the Veridan Circus. Wooden head with working jaw string, cloth body, about 30 in. seated.`,
-    categories: ['novelty']
+    categories: ['novelty'],
+    unisex: true
   },
   {
     id: 'antique_hand_mirror',
@@ -399,7 +435,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🍜',
     price: 24,
     description: `Whip up a delicious dinner in under 3 minutes with a gourmet assortment of six Springmart exclusive flavors: Cajun, Teriyaki, Wasabi, Green Tea, Truffle, and Italian.`,
-    categories: ['treats', 'practical']
+    categories: ['treats', 'practical'],
+    unisex: true
   },
   {
     id: 'springmart_candy_tub',
@@ -408,7 +445,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🍬',
     price: 30,
     description: `Five pounds of SpringMart brand bulk candy in an easy-carrying plastic tub: sours, chocolates, gummies, taffy and more.`,
-    categories: ['treats']
+    categories: ['treats'],
+    unisex: true
   },
   {
     id: 'springmart_box_wine',
@@ -417,7 +455,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🍷',
     price: 14,
     description: `Four bottles of SpringMart brand red wine, 3 L box.`,
-    categories: ['treats']
+    categories: ['treats'],
+    unisex: true
   },
   {
     id: 'springmart_slippers',
@@ -426,7 +465,19 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🧦',
     price: 28,
     description: `The classic SpringMart slippers that have been a local favorite since their 1990 release. Still Sherpa-lined with grippy rubber soles, one size fits most. Machine washable.`,
-    categories: ['cozy', 'practical']
+    categories: ['cozy', 'practical'],
+    unisex: true
+  },
+  {
+    id: 'springmart_coldstop',
+    shopId: 'veridan_delivery',
+    name: 'SpringMart ColdStop Lozenges',
+    emoji: '💊',
+    price: 20,
+    description: `Kick a cold fast with SpringMart's honey-lemon zinc lozenges, a Veridan favorite every flu season. Soothes a sore throat and shortens a cold. Take two doses daily.`,
+    categories: ['practical'],
+    unisex: true,
+    medicine: true
   },
   {
     id: 'green_hill_stargazing_blanket',
@@ -435,7 +486,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🌌',
     price: 56,
     description: `Heavy wool picnic blanket with a water-resistant backing, printed with a constellation map of the night sky over Green Hill Park. 60 x 80 in. Rolls up with a carry strap.`,
-    categories: ['romantic', 'cozy']
+    categories: ['romantic', 'cozy'],
+    unisex: true
   },
   {
     id: 'bobbys_milkshake_glasses',
@@ -444,7 +496,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🥛',
     price: 42,
     description: `Set of four 16 oz fluted soda-fountain glasses in the style used at Bobby's Diner, printed with designs by local artists. Dishwasher safe.`,
-    categories: ['vintage', 'cozy']
+    categories: ['vintage', 'cozy'],
+    unisex: true
   },
   {
     id: 'reserve_bank_coffee_sampler',
@@ -453,7 +506,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '☕',
     price: 48,
     description: `Four 8 oz bags of single-origin beans roasted at Reserve Bank Cafe, including the Getaway blend. Guaranteed fresh.`,
-    categories: ['treats', 'cozy']
+    categories: ['treats', 'cozy'],
+    unisex: true
   },
   {
     id: 'reserve_bank_latte_art_kit',
@@ -462,7 +516,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🫗',
     price: 45,
     description: `Reserve Bank Cafe's home latte kit: a 12 oz steel frothing pitcher, latte art pen, six stencils and a bag of house espresso blend. Instruction cards cover hearts, rosettas and tulips.`,
-    categories: ['artsy', 'treats']
+    categories: ['artsy', 'treats'],
+    unisex: true
   },
   {
     id: 'fast_eats_sauce_box',
@@ -471,7 +526,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🍔',
     price: 19,
     description: `Eight bottled sauces from the secret menus of all five Fast Eats locations, including the Downtown flagship's Pancho Punch. 4 oz each.`,
-    categories: ['novelty', 'treats']
+    categories: ['novelty', 'treats'],
+    unisex: true
   },
   {
     id: 'pier44_carousel_horse',
@@ -480,7 +536,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🎠',
     price: 95,
     description: `Hand-painted resin paperweight from the 60s, modeled after Pier 44 carousel horses, 6 in. tall on a brass pole and wooden base. Gold leaf detailing.`,
-    categories: ['vintage']
+    categories: ['vintage'],
+    unisex: true
   },
   {
     id: 'pair_buds',
@@ -489,7 +546,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🎧',
     price: 78,
     description: `Wireless earbuds each designed to sit comfortably in either ear. A UV sanitizing cycle disinfects the buds while charging. 7 hours per charge, 28 with the case. Rose and slate.`,
-    categories: ['practical', 'romantic']
+    categories: ['practical', 'romantic'],
+    unisex: true
   },
   {
     id: 'instant_camera_bundle',
@@ -498,7 +556,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '📸',
     price: 85,
     description: `Instant camera in cream with two film packs (20 shots), a wrist strap and a 40-pocket mini album. Auto exposure, selfie mirror, self-timer.`,
-    categories: ['artsy', 'practical']
+    categories: ['artsy', 'practical'],
+    unisex: true
   },
   {
     id: 'star_projector',
@@ -507,7 +566,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🌠',
     price: 38,
     description: `Projects a star map onto the ceiling based on the sky over Green Hill Park, with settings for specific dates. Drift mode, adjustable brightness, 60-minute auto-off. USB powered.`,
-    categories: ['nerdy', 'cozy']
+    categories: ['nerdy', 'cozy'],
+    unisex: true
   },
 
   // ─── GirlTime ──────────────────────────────────────────────────────────────
@@ -518,7 +578,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🍪',
     price: 34,
     description: `Missed the drop? We got you! Get a box of those beautiful, creamy macarons in the limited-edition box. Flavors include: Rose, Lavender, Lemon, and Pistachio.`,
-    categories: ['treats', 'cute']
+    categories: ['treats', 'cute'],
+    unisex: true
   },
   {
     id: 'pastel_palace_truffles',
@@ -527,7 +588,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🍫',
     price: 58,
     description: `Twenty-four hand-rolled truffles in rose, raspberry, and salted caramel, nestled in a lacquered pink keepsake box with a ribbon on top. Small-batch, made with real cream, and almost too pretty to eat!`,
-    categories: ['treats', 'romantic']
+    categories: ['treats', 'romantic'],
+    unisex: true
   },
   {
     id: 'duchess_octopus_plush',
@@ -536,7 +598,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🐙',
     price: 38,
     description: `Meet Duchess! The Aquarium at Riverside's giant celebrity octopus as a 16 in. minky plush with eight weighted, huggable arms. Embroidered eyes, surface washable. Official Aquarium at Riverside collaboration.`,
-    categories: ['cute']
+    categories: ['cute'],
+    unisex: true
   },
   {
     id: 'jellyfish_nightlight',
@@ -545,7 +608,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🪼',
     price: 44,
     description: `Bring the Aquarium's jellyfish room home! Soft blue and violet jellyfish drift across the ceiling on a slow loop. Two brightness settings and a 30-minute sleep timer. USB powered.`,
-    categories: ['cozy', 'cute']
+    categories: ['cozy', 'cute'],
+    unisex: true
   },
   {
     id: 'cutetea_perfume_roller',
@@ -572,7 +636,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🍵',
     price: 46,
     description: `Six of CuteTea's house blends in adorable stackable tins. Steeping times printed right on the lid, so you can brew it at home exactly the way they do!`,
-    categories: ['treats', 'cozy']
+    categories: ['treats', 'cozy'],
+    unisex: true
   },
   {
     id: 'cutetea_mascot_plush',
@@ -581,7 +646,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🧸',
     price: 26,
     description: `Say hi to Pearl! CuteTea's boba-cup mascot as a 10 in. super-soft plush with an embroidered smile and a swappable felt straw. Surface washable.`,
-    categories: ['cute', 'novelty']
+    categories: ['cute', 'novelty'],
+    unisex: true
   },
   {
     id: 'cutetea_board_game',
@@ -590,7 +656,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🎲',
     price: 40,
     description: `The official CuteTea board game in a pastel edition! Original card art and pastel game pieces. 2 to 6 players, ages 8 and up.`,
-    categories: ['nerdy', 'cute']
+    categories: ['nerdy', 'cute'],
+    unisex: true
   },
   {
     id: 'cutetea_pastel_markers',
@@ -599,7 +666,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🖍️',
     price: 36,
     description: `48 dual-tip markers (brush and fine) in CuteTea's pastel palette, each color named after a menu drink. Alcohol-based and blendable. Comes in a clear stand with Pearl on the lid, swatch card included!`,
-    categories: ['artsy', 'cute']
+    categories: ['artsy', 'cute'],
+    unisex: true
   },
   {
     id: 'strawberry_lip_balm_trio',
@@ -626,7 +694,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '❄️',
     price: 36,
     description: `The Aquarium's glass tunnel in miniature: riverbed, kelp and a tiny Duchess in the corner! 4 in. globe on a weighted base. Official Aquarium at Riverside collaboration.`,
-    categories: ['novelty', 'cute']
+    categories: ['novelty', 'cute'],
+    unisex: true
   },
   {
     id: 'duchess_umbrella',
@@ -635,7 +704,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '☂️',
     price: 30,
     description: `Compact auto-open umbrella with Duchess's eight arms printed across the canopy and a little octopus on the handle. 42 in. span, windproof frame, fits in a tote. Officially licensed by the Aquarium at Riverside.`,
-    categories: ['cute', 'practical']
+    categories: ['cute', 'practical'],
+    unisex: true
   },
   {
     id: 'couple_plush_keychains',
@@ -644,7 +714,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '💕',
     price: 22,
     description: `One for you, one for them! Duchess and Pearl as 3 in. plush keychains that hold hands with a magnet when you bring them together. Aquarium at Riverside x CuteTea collab. Gift box included!`,
-    categories: ['cute', 'romantic']
+    categories: ['cute', 'romantic'],
+    unisex: true
   },
   {
     id: 'sheet_mask_sleep_set',
@@ -680,7 +751,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🎞️',
     price: 46,
     description: `Get artsy vibes in your room with official reprints from Future Cinema's romance classics rotation! Printed on matte archival stock and frame-ready at standard 18x24.`,
-    categories: ['nerdy', 'artsy']
+    categories: ['nerdy', 'artsy'],
+    unisex: true
   },
 
   // ─── LUXURYNOW ─────────────────────────────────────────────────────────────
@@ -745,7 +817,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🍷',
     price: 480,
     description: `Left-bank Bordeaux from Lumiere's 1998 vintage collection. Cassis, cedar and tobacco leaf.`,
-    categories: ['luxury', 'treats']
+    categories: ['luxury', 'treats'],
+    unisex: true
   },
   {
     id: 'promenade_champagne_magnum',
@@ -754,7 +827,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🍾',
     price: 280,
     description: `1.5 L magnum of vintage brut in a mirrored presentation case. Fine, persistent bead; brioche and citrus on the nose.`,
-    categories: ['luxury', 'treats']
+    categories: ['luxury', 'treats'],
+    unisex: true
   },
   {
     id: 'lumiere_chocolate_collection',
@@ -763,7 +837,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🍬',
     price: 265,
     description: `Thirty-six single-origin chocolates tempered by hand in Lumiere's kitchen, with a provenance card mapping each piece: Madagascar, Chuao, Tanzania. Lacquered box.`,
-    categories: ['luxury', 'treats']
+    categories: ['luxury', 'treats'],
+    unisex: true
   },
   {
     id: 'riverside_leather_handbag',
@@ -790,7 +865,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '⌚',
     price: 1200,
     description: `36 mm stainless steel case with sapphire crystal and in-house self-winding movement, 70-hour power reserve. Water resistant to 100 m. Steel bracelet with concealed clasp. Five-year international warranty.`,
-    categories: ['luxury', 'practical']
+    categories: ['luxury', 'practical'],
+    unisex: true
   },
   {
     id: 'threads_sculpture_miniature',
@@ -799,7 +875,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🗿',
     price: 370,
     description: `The Riverside Mall atrium sculpture "Threads" at 1:80 scale in brushed steel and suspended wire, 12 in. tall on a weighted marble base. Individually numbered. Licensed by Riverside Mall.`,
-    categories: ['luxury', 'artsy']
+    categories: ['luxury', 'artsy'],
+    unisex: true
   },
   {
     id: 'apogee_decanter',
@@ -808,7 +885,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🥃',
     price: 290,
     description: `Hand-cut lead crystal decanter etched with a relief of the Club Apogee interior, normally reserved for the club's VIP bottle service. 1.2 L, ground-glass stopper.`,
-    categories: ['luxury', 'edgy']
+    categories: ['luxury', 'edgy'],
+    unisex: true
   },
   {
     id: 'girl_at_window_print',
@@ -817,7 +895,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🖼️',
     price: 210,
     description: `A framed 8x12 wall print of Veridan's iconic masterpiece in a high-quality frame. Veridan museum logo lettered in gold.`,
-    categories: ['artsy']
+    categories: ['artsy'],
+    unisex: true
   },
   {
     id: 'museum_silk_scarf',
@@ -844,7 +923,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '📖',
     price: 180,
     description: `Hardcover, wide-print reference book of Veridan Museum pieces printed on non-tear, matte paper.`,
-    categories: ['artsy', 'nerdy']
+    categories: ['artsy', 'nerdy'],
+    unisex: true
   },
   {
     id: 'diamond_necklace',
@@ -873,7 +953,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '👻',
     price: 75,
     description: `BTB Arcade's top-shelf redemption prize, 4 ft tall. Still in the original packaging with the tag attached.`,
-    categories: ['nerdy', 'cute']
+    categories: ['nerdy', 'cute'],
+    unisex: true
   },
   {
     id: 'paradiso_soundtrack_cd',
@@ -882,7 +963,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '💿',
     price: 130,
     description: `PARADISO limited OST CD edition, sold out at BTB in under a day and back in stock only on MerchMogul. Sealed and in perfect condition.`,
-    categories: ['artsy', 'nerdy']
+    categories: ['artsy', 'nerdy'],
+    unisex: true
   },
   {
     id: 'btb_retro_console',
@@ -891,7 +973,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🕹️',
     price: 240,
     description: `Working 80s NON-TENDO console with 6 cartridges from BTB's storage warehouse. Includes two controllers and the original RF adapter. Light use.`,
-    categories: ['nerdy']
+    categories: ['nerdy'],
+    unisex: true
   },
   {
     id: 'btb_mechanical_keyboard',
@@ -900,7 +983,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '⌨️',
     price: 120,
     description: `Licensed BTB Arcade keyboard, 75% layout, keycaps in the cabinet colors, clicky switches rated to 50 million presses. Wired or wireless, hot-swappable.`,
-    categories: ['nerdy', 'practical']
+    categories: ['nerdy', 'practical'],
+    unisex: true
   },
   {
     id: 'paradiso_dance_pad',
@@ -909,7 +993,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🕺',
     price: 95,
     description: `Official folding dance pad for PARADISO Online. Arcade-grade pressure sensors and dimensions matching the cabinet version. USB, compatible with both console and PC versions.`,
-    categories: ['nerdy', 'practical']
+    categories: ['nerdy', 'practical'],
+    unisex: true
   },
   {
     id: 'stalestein_bootleg_tee',
@@ -918,7 +1003,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '👕',
     price: 48,
     description: `Official tee sold at the legendary, limited-entry "The Murderers" concert at Stalestein in 1989. Light fading on the graphic.`,
-    categories: ['edgy', 'artsy']
+    categories: ['edgy', 'artsy'],
+    unisex: true
   },
   {
     id: 'stalestein_pin_set',
@@ -927,7 +1013,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '📌',
     price: 29,
     description: `15 pins from beloved Stalestein comedy and indie music groups. Includes three designs exclusive to this set.`,
-    categories: ['edgy', 'artsy']
+    categories: ['edgy', 'artsy'],
+    unisex: true
   },
   {
     id: 'stalestein_pocket_knife',
@@ -936,7 +1023,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🔪',
     price: 80,
     description: `Stalestein-licensed multi-purpose knife designed by bar-regular "Shanks Dickton". Includes a can opener, a utility knife, a corkscrew, and more.`,
-    categories: ['edgy', 'practical']
+    categories: ['edgy', 'practical'],
+    unisex: true
   },
   {
     id: 'stalestein_house_lager',
@@ -945,7 +1033,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🍺',
     price: 18,
     description: `Stalestein's house lager in six 16 oz cans. Three flavors: Dark, Dry, and Twisted.`,
-    categories: ['edgy', 'treats']
+    categories: ['edgy', 'treats'],
+    unisex: true
   },
   {
     id: 'horror_posters',
@@ -954,7 +1043,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🎬',
     price: 80,
     description: `Set of four limited posters distributed at Future Cinema Edgy Classics showings: "Silence of the Cows", "The Shindig", "Oldman", "Jujumaki".`,
-    categories: ['artsy', 'edgy']
+    categories: ['artsy', 'edgy'],
+    unisex: true
   },
   {
     id: 'resold_designer_earrings',
@@ -981,7 +1071,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🛁',
     price: 68,
     description: `Heavyweight plush robe cut to be both sexy and comfortable. Embroidered logo on the chest, one size. Laundered before shipping, no stains.`,
-    categories: ['cozy', 'novelty']
+    categories: ['cozy', 'novelty'],
+    unisex: true
   },
   {
     id: 'dreams_late_checkout_set',
@@ -999,7 +1090,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '✒️',
     price: 15,
     description: `Aquarium at Riverside temp tattoos, including cute, sparkly images of Duchess, jellyfish, and more. 24 per sheet. Skin-safe, lasts about four days.`,
-    categories: ['novelty', 'cute']
+    categories: ['novelty', 'cute'],
+    unisex: true
   },
   {
     id: 'btb_controller',
@@ -1008,7 +1100,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🎮',
     price: 58,
     description: `USB controller from BTB's limited Princess peripherals line, in Candy Pink. Wired and wireless modes, compatible with both PCs and consoles.`,
-    categories: ['cute', 'nerdy']
+    categories: ['cute', 'nerdy'],
+    unisex: true
   },
   {
     id: 'pastel_collectible',
@@ -1017,7 +1110,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🪆',
     price: 28,
     description: `Limited collectible PUNKO Pop figurine depicting CuteTea's boba-tea mascot Pearl. 4 in. tall.`,
-    categories: ['cute', 'nerdy']
+    categories: ['cute', 'nerdy'],
+    unisex: true
   },
   {
     id: 'future_cinema_reel_lamp',
@@ -1026,7 +1120,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '💡',
     price: 88,
     description: `Real 35 mm film canister from Future Cinema's old projection booth, rewired as a table lamp. Standard bulb, 6 ft cord with inline switch.`,
-    categories: ['nerdy', 'practical']
+    categories: ['nerdy', 'practical'],
+    unisex: true
   },
   {
     id: 'drowning_bell_box_set',
@@ -1035,7 +1130,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🔔',
     price: 110,
     description: `All twelve volumes of Ryo Amagai's out-of-print horror manga about a mysterious river town, in the original English slipcase. Slight use, almost perfect condition.`,
-    categories: ['edgy', 'nerdy']
+    categories: ['edgy', 'nerdy'],
+    unisex: true
   },
   {
     id: 'museum_art_supply_lot',
@@ -1044,7 +1140,8 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🖌️',
     price: 72,
     description: `Official Veridan Museum art supplies: professional-grade gouache set, six brushes, and a 20-sheet cold-press pad.`,
-    categories: ['artsy']
+    categories: ['artsy'],
+    unisex: true
   },
   {
     id: 'museum_print_set',
@@ -1053,13 +1150,29 @@ const SHOP_CATALOG: readonly ItemDef[] = [
     emoji: '🗾',
     price: 48,
     description: `Eight exhibition prints from the Veridan Museum gift shop warehouse at a steeply discounted price. Archival stock, no creases, shipped flat between boards. All prints guaranteed pre-21st century, and contents vary.`,
-    categories: ['artsy', 'vintage']
+    categories: ['artsy', 'vintage'],
+    unisex: true
   }
 ]
 
 /** The {@link ItemDef} with this id, or `undefined` for a save naming one that no longer exists. */
 export function itemDefOf(itemId: string): ItemDef | undefined {
   return SHOP_CATALOG.find((item) => item.id === itemId)
+}
+
+/** The most a present she gives him may cost, below the price, by her tier; devoted is any. */
+const RECEIVED_GIFT_PRICE_CAP: Readonly<Record<Exclude<Disposition, 'devoted'>, number>> = {
+  trusted: 150,
+  friendly: 60,
+  neutral: 30,
+  annoyed: 30,
+  hostile: 30
+}
+
+/** What a girl at this tier may bring the reader: unisex items under her tier's price cap. */
+export function receivedGiftPool(disposition: Disposition): ItemDef[] {
+  const cap = disposition === 'devoted' ? Infinity : RECEIVED_GIFT_PRICE_CAP[disposition]
+  return SHOP_CATALOG.filter((item) => item.unisex === true && item.price < cap)
 }
 
 /** Everything one shop sells, in catalog order — the shopping tab's right pane. */
@@ -1139,6 +1252,35 @@ export function giftStatusMarkedLine(firstName: string, reaction: GiftReaction):
   }
 }
 
+// ─── What he carries ───────────────────────────────────────────────────────────
+
+/** One inventory line as picked: the item, and who gave it to him and when for a present. */
+export type ItemPick = Omit<OwnedItem, 'count'>
+
+/** Whether two lines are one: the same item, bought, or given by the same girl on the same day. */
+export function sameLine(a: ItemPick, b: ItemPick): boolean {
+  return a.itemId === b.itemId && a.from?.charId === b.from?.charId && a.from?.date === b.from?.date
+}
+
+/**
+ * The inventory with one more of `pick` on its own line, appended if he holds none: a present
+ * never joins a bought line or another girl's.
+ */
+export function withItem(inventory: readonly OwnedItem[], pick: ItemPick): OwnedItem[] {
+  if (!inventory.some((entry) => sameLine(entry, pick))) {
+    return [...inventory, { itemId: pick.itemId, count: 1, ...(pick.from ? { from: { ...pick.from } } : {}) }]
+  }
+  return inventory.map((entry) => (sameLine(entry, pick) ? { ...entry, count: entry.count + 1 } : entry))
+}
+
+/** The inventory with one fewer of `pick`'s line; a line that reaches zero is dropped. */
+export function withoutItem(inventory: readonly OwnedItem[], pick: ItemPick): OwnedItem[] {
+  return inventory.flatMap((entry) => {
+    if (!sameLine(entry, pick)) return [entry]
+    return entry.count > 1 ? [{ ...entry, count: entry.count - 1 }] : []
+  })
+}
+
 // ─── What she remembers being given ────────────────────────────────────────────
 
 /** How many presents a character carries a memory of; a `Materialist` keeps more. */
@@ -1173,30 +1315,44 @@ export function withGiftMemory(
 
 /**
  * The action the Gift button submits on the player's behalf. It says her name only where the
- * reader knows it (null otherwise): a turn saying a stranger's name is refused.
+ * reader knows it (null otherwise): a turn saying a stranger's name is refused. `returnedOn`, the
+ * day she gave it to him, is set only when it is her own present going back to her; `dose` when
+ * it is cold medicine she takes for the cold she has.
  */
 export function giftActionLine(
   firstName: string | null,
   item: ItemDef,
-  reaction: GiftReaction
+  reaction: GiftReaction,
+  returnedOn?: string,
+  dose = false
 ): string {
-  return `I give ${firstName ?? 'her'} the ${item.name} that I bought for ${formatMoney(item.price)} before this scene. ${giftReactionLine(firstName, reaction)}`
+  // Her own present handed back is said as what it is; a regift to anybody else reads as bought.
+  if (returnedOn) {
+    return `I give ${firstName ?? 'her'} back the ${item.name} she gave me on ${returnedOn}. ${giftReactionLine(firstName, reaction)}`
+  }
+  const taken = dose ? ` ${firstName ?? 'She'} takes a dose for her cold.` : ''
+  return `I give ${firstName ?? 'her'} the ${item.name} that I bought for ${formatMoney(item.price)} before this scene. ${giftReactionLine(firstName, reaction)}${taken}`
 }
 
 /**
  * The paragraph a given gift injects into the lorebook for the rest of the scene,
- * through the `always` channel.
+ * through the `always` channel; `returnedOn` as {@link giftActionLine} takes it.
  */
 export function giftLoreNote(
   firstName: string,
   item: ItemDef,
   repeat: boolean,
-  reaction: GiftReaction
+  reaction: GiftReaction,
+  returnedOn?: string,
+  dose = false
 ): string {
   const parts = [
-    `The reader has just given ${firstName} a gift: the ${item.name}. ${item.description}`,
+    returnedOn
+      ? `The reader has just given ${firstName} back the ${item.name} she gave him on ${returnedOn}. ${item.description}`
+      : `The reader has just given ${firstName} a gift: the ${item.name}. ${item.description}`,
     giftReactionLine(firstName, reaction)
   ]
+  if (dose) parts.push(`${firstName} takes a dose for her cold, and it will help her get over it sooner.`)
   if (repeat) parts.push(`The reader has already given ${firstName} this item before.`)
   return parts.join(' ')
 }

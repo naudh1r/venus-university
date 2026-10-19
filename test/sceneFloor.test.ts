@@ -19,7 +19,8 @@ function harness(): {
   resolve: (result: Result<SceneResponse>) => void
   unsubscribed: () => boolean
 } {
-  let listener = (_delta: string): void => {}
+  let listener = (_stream: string, _delta: string): void => {}
+  let stream = ''
   let resolve!: (result: Result<SceneResponse>) => void
   let off = false
   const call = new Promise<Result<SceneResponse>>((r) => {
@@ -27,8 +28,11 @@ function harness(): {
   })
   stubApi({
     llm: {
-      completeScene: vi.fn(() => call),
-      onSceneDelta: (fn: (delta: string) => void) => {
+      completeScene: vi.fn((_request: unknown, _group: string, id: string) => {
+        stream = id
+        return call
+      }),
+      onSceneDelta: (fn: (stream: string, delta: string) => void) => {
         listener = fn
         return () => {
           off = true
@@ -36,7 +40,7 @@ function harness(): {
       }
     }
   })
-  return { emit: (delta) => listener(delta), resolve, unsubscribed: () => off }
+  return { emit: (delta) => listener(stream, delta), resolve, unsubscribed: () => off }
 }
 
 /** What the player has actually been handed to read. */

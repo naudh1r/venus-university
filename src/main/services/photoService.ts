@@ -1,10 +1,12 @@
 import { access, copyFile, mkdir, readdir, readFile, rm } from 'fs/promises'
+import { join } from 'path'
 import { base64ToBytes } from '@shared/base64'
 import { appError, messageOf } from '@shared/errors'
 import { imageTypeOf } from '@shared/imageBytes'
 import { validateRecord } from '@shared/jsonValidate'
 import {
   assertSafePhotoId,
+  legacyPhotoThumbName,
   photoIdOfImage,
   photoMetaName,
   PHOTO_META_READ,
@@ -18,7 +20,8 @@ import {
   getPhotoThumbPath,
   getPlaythroughPath
 } from '../paths'
-import { writeAtomicBytes, writeAtomicJson } from './jsonFile'
+import { findImage, imagePath, removeImage, writeImageFile } from './imageFiles'
+import { writeAtomicJson } from './jsonFile'
 import { assertSafePlaythroughId } from './saveService'
 
 /**
@@ -39,7 +42,8 @@ export async function listPhotos(playthroughId: string): Promise<PhotoEntry[]> {
     throw appError('PHOTO_UNREADABLE', 'Could not read the photos.', messageOf(err))
   }
 
-  const ids = names.map(photoIdOfImage).filter((id): id is string => id !== null)
+  // A picture caught mid-conversion stands under both extensions.
+  const ids = [...new Set(names.map(photoIdOfImage).filter((id): id is string => id !== null))]
 
   const entries = await Promise.all(
     ids.map(async (photoId): Promise<PhotoEntry> => {
@@ -60,7 +64,7 @@ export async function listPhotos(playthroughId: string): Promise<PhotoEntry[]> {
       }
 
       try {
-        entry.thumb = await readFile(getPhotoThumbPath(playthroughId, photoId))
+        entry.thumb = await readFile(await imagePath(getPhotoThumbPath(playthroughId, photoId)))
       } catch {
         // No thumbnail yet is not worth a warning.
       }
@@ -78,7 +82,7 @@ export async function readPhoto(playthroughId: string, photoId: string): Promise
   assertSafePlaythroughId(playthroughId)
   assertSafePhotoId(photoId)
   try {
-    return await readFile(getPhotoPath(playthroughId, photoId))
+    return await readFile(await imagePath(getPhotoPath(playthroughId, photoId)))
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw appError('PHOTO_UNREADABLE', 'Could not read the photo.', messageOf(err))
@@ -92,6 +96,18 @@ async function playthroughExists(playthroughId: string): Promise<boolean> {
     return true
   } catch {
     return false
+  }
+}
+
+/** Refuses a thumbnail the renderer would not cut: WebP, or JPEG where WebP will not encode. */
+function assertThumb(bytes: Uint8Array): void {
+  const type = imageTypeOf(bytes)
+  if (type !== 'image/webp' && type !== 'image/jpeg') {
+    throw appError(
+      'PHOTO_REQUEST_INVALID',
+      'That photo could not be sent.',
+      'The thumbnail is not a WebP or JPEG.'
+    )
   }
 }
 
@@ -118,13 +134,7 @@ export async function writePhoto(
       'The picture is not an image.'
     )
   }
-  if (imageTypeOf(thumbBytes) !== 'image/jpeg') {
-    throw appError(
-      'PHOTO_REQUEST_INVALID',
-      'That photo could not be sent.',
-      'The thumbnail is not a JPEG.'
-    )
-  }
+  assertThumb(thumbBytes)
   const record = validateRecord<PhotoMeta>(meta, photoMetaName(photoId), PHOTO_META_READ)
 
   if (!(await playthroughExists(playthroughId))) {
@@ -145,8 +155,8 @@ export async function writePhoto(
 
   const failure = { code: 'PHOTO_UNWRITABLE', message: 'Could not save the photo.' }
   await writeAtomicJson(getPhotoMetaPath(playthroughId, photoId), record, failure)
-  await writeAtomicBytes(getPhotoThumbPath(playthroughId, photoId), thumbBytes, failure)
-  await writeAtomicBytes(getPhotoPath(playthroughId, photoId), imageBytes, failure)
+  await writeImageFile(getPhotoThumbPath(playthroughId, photoId), thumbBytes, { error: failure })
+  await writeImageFile(getPhotoPath(playthroughId, photoId), imageBytes, { error: failure })
 }
 
 /** Replaces one photo's thumbnail; a no-op where the photo itself is not there. */
@@ -158,24 +168,13 @@ export async function writePhotoThumb(
   assertSafePlaythroughId(playthroughId)
   assertSafePhotoId(photoId)
 
-  try {
-    await access(getPhotoPath(playthroughId, photoId))
-  } catch {
-    return
-  }
+  if ((await findImage(getPhotoPath(playthroughId, photoId))) === null) return
 
   const thumbBytes = base64ToBytes(thumb)
-  if (imageTypeOf(thumbBytes) !== 'image/jpeg') {
-    throw appError(
-      'PHOTO_REQUEST_INVALID',
-      'That photo could not be sent.',
-      'The thumbnail is not a JPEG.'
-    )
-  }
+  assertThumb(thumbBytes)
 
-  await writeAtomicBytes(getPhotoThumbPath(playthroughId, photoId), thumbBytes, {
-    code: 'PHOTO_UNWRITABLE',
-    message: 'Could not save the photo.'
+  await writeImageFile(getPhotoThumbPath(playthroughId, photoId), thumbBytes, {
+    error: { code: 'PHOTO_UNWRITABLE', message: 'Could not save the photo.' }
   })
 }
 
@@ -184,8 +183,9 @@ export async function deletePhoto(playthroughId: string, photoId: string): Promi
   assertSafePlaythroughId(playthroughId)
   assertSafePhotoId(photoId)
   try {
-    await rm(getPhotoPath(playthroughId, photoId), { force: true })
-    await rm(getPhotoThumbPath(playthroughId, photoId), { force: true })
+    await removeImage(getPhotoPath(playthroughId, photoId))
+    await removeImage(getPhotoThumbPath(playthroughId, photoId))
+    await rm(join(getPhotosPath(playthroughId), legacyPhotoThumbName(photoId)), { force: true })
     await rm(getPhotoMetaPath(playthroughId, photoId), { force: true })
   } catch (err) {
     throw appError('PHOTO_UNDELETABLE', 'Could not delete the photo.', messageOf(err))
@@ -201,7 +201,7 @@ export async function copyPhotoTo(
   assertSafePlaythroughId(playthroughId)
   assertSafePhotoId(photoId)
   try {
-    await copyFile(getPhotoPath(playthroughId, photoId), to)
+    await copyFile(await imagePath(getPhotoPath(playthroughId, photoId)), to)
   } catch (err) {
     throw appError('PHOTO_UNEXPORTABLE', 'Could not save the photo.', messageOf(err))
   }

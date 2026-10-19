@@ -36,6 +36,12 @@ export function imageTypeOf(
   return null
 }
 
+/** The extension, dot excluded, a file of these bytes is named under; a PNG's where they name none. */
+export function imageExtensionOf(bytes: Uint8Array): 'png' | 'jpg' | 'webp' {
+  const type = imageTypeOf(bytes)
+  return type === 'image/jpeg' ? 'jpg' : type === 'image/webp' ? 'webp' : 'png'
+}
+
 /** Byte 25 of a PNG is its IHDR colour type; 6 is RGBA, the type every image the app writes with alpha is under. */
 const PNG_COLOUR_TYPE_RGBA = 6
 

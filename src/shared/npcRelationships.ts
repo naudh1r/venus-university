@@ -1,3 +1,4 @@
+import { INITIAL_PAIR_SKIP_CHANCE, TRAIT_PERCENT, UP_PERCENT } from './odds'
 import type { Character, TimeSlot } from './types'
 import { hasTrait } from './traits'
 
@@ -215,7 +216,7 @@ export function rollInitialNpcRelationships(
       const a = roster[i]
       const b = roster[j]
       if (a.year === 1 || b.year === 1) continue
-      if (rand() < 0.5) continue
+      if (rand() < INITIAL_PAIR_SKIP_CHANCE) continue
       map[pairKeyOf(a.charId, b.charId)] = { affinity: rollAffinitySpread(rand, MAX_AFFINITY) }
     }
   }
@@ -231,15 +232,6 @@ function rollAffinitySpread(rand: () => number, spread: number): number {
 export function rollMeetingAffinity(rand: () => number = Math.random): number {
   return rollAffinitySpread(rand, MEETING_SPREAD)
 }
-
-/**
- * The base odds by where the pair already stands, in percentage points: making up is easier
- * than becoming close, and a friendship takes upkeep.
- */
-const UP_PERCENT = { sour: 65, warming: 60, close: 50 }
-
-/** What either of the two social traits is worth on top, in the same points. */
-const TRAIT_PERCENT = 10
 
 /**
  * The odds an encounter between these two goes *well* — where they already stand, and what

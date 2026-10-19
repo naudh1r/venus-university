@@ -129,12 +129,18 @@ export function bgThumbUrl(base: string, suffix: 'day' | 'night', wet: boolean):
   )
 }
 
+/** The type a save's base64 thumbnail is, read off its first bytes; older saves hold JPEG. */
+function thumbMimeOf(base64: string): string {
+  if (base64.startsWith('UklGR')) return 'image/webp'
+  return base64.startsWith('iVBOR') ? 'image/png' : 'image/jpeg'
+}
+
 /**
  * The picture a save's card shows: the frame it was written over where it carries one, and
  * otherwise its place's thumbnail in its half of the day, the dorm where it names none.
  */
 export function saveThumbUrl(summary: SaveSummary): string | null {
-  if (summary.thumbnail) return `data:image/jpeg;base64,${summary.thumbnail}`
+  if (summary.thumbnail) return `data:${thumbMimeOf(summary.thumbnail)};base64,${summary.thumbnail}`
   const half = summary.graduationSeen || summary.time === 1 ? 'night' : 'day'
   return bgThumbUrl(summary.bg ?? SLOT_BG, half, false) ?? bgThumbUrl(SLOT_BG, half, false)
 }

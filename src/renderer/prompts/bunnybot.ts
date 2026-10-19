@@ -16,7 +16,7 @@ export function isBunnybotChat(charId: string): boolean {
 
 /** What the thread header and the chat card resolve through. */
 export const BUNNYBOT_NAME = 'bunny_bot'
-export const BUNNYBOT_TITLE = 'Bunnyboard Assistant'
+export const BUNNYBOT_TITLE = 'Bunnyboard AI Assistant'
 export const BUNNYBOT_EMOJI = '🐰'
 
 /**

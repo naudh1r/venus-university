@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join } from 'path'
 import { unzipSync } from 'fflate'
@@ -17,16 +17,26 @@ import { character as characterFixture, record } from './fixtures'
  * only found when there is nothing left to find it with. The 7-Zip pass here is real.
  */
 let root = ''
+// A packaged build and an unpackaged run resolve to the same folders under the temp root.
+let packaged = false
 vi.mock('electron', () => ({
-  app: { isPackaged: false, getAppPath: () => root, getPath: () => root },
+  app: {
+    get isPackaged() {
+      return packaged
+    },
+    getAppPath: () => root,
+    getPath: (name: string) => (name === 'exe' ? join(root, 'game.exe') : root)
+  },
   // No keyring: the service then writes and reads the key as plain text.
   safeStorage: { isEncryptionAvailable: () => false }
 }))
 
 const { exportBackup, importBackup } = await import('../src/main/services/backupService')
-const { createCharacter, getCharacter, writeCharacter } = await import(
+const { createCharacter, getCharacter, readCharacterImage, writeCharacter } = await import(
   '../src/main/services/characterService'
 )
+const { readEndingArt } = await import('../src/main/services/endingArtService')
+const { readProfilePicture } = await import('../src/main/services/profilePictureService')
 const {
   createPlaythrough,
   listPlaythroughs,
@@ -57,7 +67,8 @@ const {
   endingArtEntry,
   photoEntry,
   profilePictureEntry,
-  replaysFromBackup
+  replaysFromBackup,
+  semesterEndingArtEntry
 } = await import('../src/shared/backup')
 const { cgRel, expressionRel, STAGING_DIR } = await import('../src/shared/characterFiles')
 const { validateRecord } = await import('../src/shared/jsonValidate')
@@ -75,7 +86,9 @@ const {
   getEndingArtPath,
   getCustomBackgroundPath,
   getGrabBagsPath,
+  getPhotosPath,
   getPregenCharactersPath,
+  getProfilePicturePath,
   getSavesPath,
   getSettingsPath,
   getStagedExpressionsPath
@@ -104,6 +117,8 @@ const SHIPPED = 'shipped-1'
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'venus-university-backup-'))
+  packaged = false
+  Object.assign(process, { resourcesPath: root })
   // The shipped listing is memoized for the run, so a fresh root needs a fresh read.
   clearPregenCache()
   vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -258,6 +273,79 @@ describe('exportBackup', () => {
 })
 
 describe('importBackup', () => {
+  // The boot's conversion leaves every picture under its WebP name alone, and a backup that read
+  // the PNG names would carry none of them.
+  it('carries a graduation picture, a reader picture and a photo kept as WebP out and back', async () => {
+    await seedSettings()
+    const { playthroughId } = await seedPlaythrough()
+    const asWebp = (path: string): string => path.replace(/.png$/, '.webp')
+    await rm(getEndingArtPath(playthroughId))
+    await writeFile(asWebp(getEndingArtPath(playthroughId)), WEBP_BYTES)
+    await writeFile(asWebp(getProfilePicturePath(playthroughId)), WEBP_BYTES)
+    const photos = getPhotosPath(playthroughId)
+    for (const name of await readdir(photos)) {
+      if (name.startsWith('42.') && !name.endsWith('.json')) await rm(join(photos, name))
+    }
+    await writeFile(join(photos, '42.webp'), WEBP_BYTES)
+    const archive = join(root, 'webp.zip')
+    await exportBackup(archive)
+
+    const entries = await entriesOf(archive)
+    expect(entries[endingArtEntry(playthroughId)]).toEqual(WEBP_BYTES)
+    expect(entries[profilePictureEntry(playthroughId)]).toEqual(WEBP_BYTES)
+    expect(entries[photoEntry(playthroughId, '42')]).toEqual(WEBP_BYTES)
+
+    await rm(getSavesPath(), { recursive: true, force: true })
+    await importBackup(archive)
+    expect(await readEndingArt(playthroughId)).toEqual(Buffer.from(WEBP_BYTES))
+    expect(await readProfilePicture(playthroughId)).toEqual(Buffer.from(WEBP_BYTES))
+    expect(await readPhoto(playthroughId, '42')).toEqual(Buffer.from(WEBP_BYTES))
+  })
+
+  // A restore merges into her folder, where the boot's conversion may since have left the same
+  // picture as WebP: the WebP is read first, so a restored PNG beside it would never be seen.
+  it("puts an older backup's PNG back over the WebP her folder holds since", async () => {
+    await seedSettings()
+    const character = await seedCharacter()
+    const archive = join(root, 'older.zip')
+    await exportBackup(archive)
+    const sprites = getCharacterExpressionsPath(character.charId)
+    await rm(join(sprites, 'neutral.png'))
+    await writeFile(join(sprites, 'neutral.webp'), WEBP_BYTES)
+
+    await importBackup(archive)
+
+    expect((await readdir(sprites)).filter((name) => name.startsWith('neutral.'))).toEqual([
+      'neutral.png'
+    ])
+    expect(await readCharacterImage(character.charId, expressionRel('neutral'))).toEqual(
+      Buffer.from(PNG_BYTES)
+    )
+  })
+
+  // A later semester's picture sits beside the first one's under its own name, and a restore that
+  // dropped it would lose the one picture its ending ever drew.
+  it("carries a later semester's graduation picture out and back", async () => {
+    await seedSettings()
+    const { playthroughId } = await seedPlaythrough()
+    const later = PNG_BYTES
+    await writeFile(getEndingArtPath(playthroughId, '1700000000999'), later)
+    const archive = join(root, 'semesters.zip')
+    await exportBackup(archive)
+
+    const entries = await entriesOf(archive)
+    const backup = JSON.parse(new TextDecoder().decode(entries[BACKUP_NAME])) as BackupFile
+    expect(backup.semesterEndingArt).toEqual([{ playthroughId, semesterId: '1700000000999' }])
+    expect(entries[semesterEndingArtEntry(playthroughId, '1700000000999')]).toEqual(later)
+
+    await rm(getSavesPath(), { recursive: true, force: true })
+    await importBackup(archive)
+    expect(await readFile(getEndingArtPath(playthroughId, '1700000000999'))).toEqual(
+      Buffer.from(later)
+    )
+    expect(await readFile(getEndingArtPath(playthroughId))).toEqual(Buffer.from(ENDING_ART))
+  })
+
   it('puts a backup back and keeps the stored key', async () => {
     const { archive, playthroughId, saveIds, character } = await seedAndExport()
 
@@ -359,6 +447,41 @@ describe('importBackup', () => {
     expect((await getCharacter(own.charId)).personality).toBe('Quietly stubborn.')
     expect((await getCharacter(SHIPPED)).personality).toBe('As shipped.')
     await expect(stat(join(getCharactersPath(), SHIPPED))).rejects.toThrow()
+  })
+})
+
+describe('an edited copy of a shipped character in a backup', () => {
+  it('travels with the backup and comes back as her copy, not the shipped folder', async () => {
+    packaged = true
+    await seedSettings()
+    const shipped = characterFixture({ charId: SHIPPED, personality: 'As shipped.' })
+    const shippedFolder = join(getPregenCharactersPath(), SHIPPED)
+    await mkdir(join(shippedFolder, 'expressions'), { recursive: true })
+    await writeFile(join(shippedFolder, 'character.json'), JSON.stringify(shipped), 'utf-8')
+    await writeFile(join(shippedFolder, expressionRel('neutral')), PNG_BYTES)
+    clearPregenCache()
+    await writeCharacter({ ...shipped, personality: 'Edited by the player.' })
+
+    const archive = join(root, 'out.zip')
+    await exportBackup(archive)
+    const entries = await entriesOf(archive)
+    const backup = JSON.parse(new TextDecoder().decode(entries[BACKUP_NAME])) as BackupFile
+    expect(backup.characters.map((entry) => entry.charId)).toEqual([SHIPPED])
+    expect(entries[charFileEntry(SHIPPED, expressionRel('neutral'))]).toBeDefined()
+
+    // A fresh install: the shipped folder as built, no copy yet.
+    await rm(getCharactersPath(), { recursive: true, force: true })
+    clearPregenCache()
+    expect((await getCharacter(SHIPPED)).personality).toBe('As shipped.')
+
+    await importBackup(archive)
+
+    expect((await getCharacter(SHIPPED)).personality).toBe('Edited by the player.')
+    expect(getCharacterPath(SHIPPED)).toBe(join(getCharactersPath(), SHIPPED))
+    expect(await readCharacterImage(SHIPPED, expressionRel('neutral'))).toBeTruthy()
+    expect(JSON.parse(await readFile(join(shippedFolder, 'character.json'), 'utf-8'))).toMatchObject(
+      { personality: 'As shipped.' }
+    )
   })
 })
 

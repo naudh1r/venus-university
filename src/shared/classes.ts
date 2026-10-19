@@ -61,8 +61,8 @@ export function scheduleComplaint(
 }
 
 /**
- * The last day of the semester, as a `date` index: day 0 is January 19, so 123 is Friday
- * May 22 in `gameDate.ts`'s anchor calendar. The clock never opens a slot past it.
+ * The last day of the semester, as a `date` index: day 0 is a spring's January 19 or a fall's
+ * August 17, so 123 is Friday May 22 or Friday December 18. The clock never opens a slot past it.
  */
 export const FINAL_DATE = 123
 

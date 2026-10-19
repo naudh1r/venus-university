@@ -38,6 +38,7 @@ const {
   getCharacterOutfitSetPath,
   getComfyOutputFilePath,
   getComfyOutputPath,
+  getComfyTempPath,
   getPhotosPath
 } = await import('../src/main/paths')
 
@@ -152,7 +153,7 @@ describe('assertNode', () => {
 })
 
 describe('getComfyOutputFilePath', () => {
-  // The path a finished job deletes, built from the two names ComfyUI's own `/history` JSON
+  // The path a finished job deletes, built from the three names ComfyUI's own `/history` JSON
   // gave it: a subfolder that climbs out, or a filename that is a path of its own, is an `rm`
   // anywhere on the disk.
   it('builds the path for a name that lands inside the output folder', () => {
@@ -160,13 +161,17 @@ describe('getComfyOutputFilePath', () => {
       join(getComfyOutputPath(), 'venus-university', 'x_00001_.png')
     )
     expect(getComfyOutputFilePath({ filename: 'x.png' })).toBe(join(getComfyOutputPath(), 'x.png'))
+    expect(getComfyOutputFilePath({ filename: 'x_temp_.png', type: 'temp' })).toBe(
+      join(getComfyTempPath(), 'x_temp_.png')
+    )
   })
 
   it('refuses every name that lands anywhere else, and refuses it permanently', () => {
     for (const image of [
       { subfolder: '../../../..', filename: 'character.json' },
       { filename: 'C:\\Windows\\System32\\drivers\\etc\\hosts' },
-      { filename: '' }
+      { filename: '' },
+      { filename: 'x.png', type: 'input' }
     ]) {
       let thrown: unknown
       try {

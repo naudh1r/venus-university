@@ -1,7 +1,9 @@
 import { formatDateBanner, formatDatePart, slotHalf } from './gameDate'
 import { isAwayForSpringBreak } from './springBreak'
+import type { ExamPeriod } from '@shared/academics'
 import { FINAL_DATE } from '@shared/classes'
 import { globalSlotOf, slotFromId } from '@shared/jobs'
+import { andList } from '@shared/sentences'
 import { charKeyOf, fullNameOf, READER_SPEAKER } from '@shared/types'
 import type {
   CalendarEvent,
@@ -10,6 +12,7 @@ import type {
   EventCancellation,
   LedgerResponse,
   SceneLine,
+  Season,
   TimeSlot
 } from '@shared/types'
 import { stampedStubs } from './textingPrompt'
@@ -23,10 +26,24 @@ import { stampedStubs } from './textingPrompt'
 export const SCHEDULE_HORIZON_DAYS = 14
 
 /** One slot the model may place a plan in, as the prompt offers it. */
-interface SlotOption {
+export interface SlotOption {
   id: number
   date: number
   time: TimeSlot
+}
+
+/** What the reader's timetable has him doing in one offered slot. */
+export interface SlotDuty {
+  /** The title of the class he takes then. */
+  className?: string
+  /** The assessment that class holds then, if any. */
+  exam?: ExamPeriod
+  /** Whether that class assesses by a showcase rather than an exam. */
+  project?: boolean
+  /** The classmates he knows in it, by first name. */
+  classmates?: readonly string[]
+  /** The employer he has a shift at then. */
+  employer?: string
 }
 
 /** Everything the `PLANS` half of the ledger request reads. */
@@ -34,23 +51,29 @@ export interface SchedulePromptInput {
   /** The slot being read — what "tonight" is measured against. */
   date: number
   time: TimeSlot
+  /** The semester's season, which names the month of every date. */
+  season: Season
   /** Every message sent this slot, grouped by character; empty groups are dropped. */
   threads: ReadonlyArray<{
     charKey: string
     firstName: string
     messages: readonly ChatMessage[]
   }>
-  /** The whole roster, keyed by charId — the keys `chars` may name. */
+  /** The on-campus roster, keyed by charId — the keys `chars` may name. */
   characters: Record<string, Character>
+  /** The graduates: gone from Veridan, so in no plan, but still texting him. */
+  graduates: readonly Character[]
   /** Plans already on the calendar inside the horizon, so none is placed twice. */
   planned: readonly CalendarEvent[]
+  /** His class or shift in each offered slot that has one, by global slot id. */
+  timetable: Readonly<Record<number, SlotDuty>>
 }
 
 /**
  * Every slot the reply may place a plan in: from the one after `date`/`time` through
  * {@link SCHEDULE_HORIZON_DAYS} days out, capped at the semester's end.
  */
-function slotOptions(date: number, time: TimeSlot): SlotOption[] {
+export function slotOptions(date: number, time: TimeSlot): SlotOption[] {
   const options: SlotOption[] = []
   // Start on the slot *after* the one being read: the slot itself is over.
   let cursor = globalSlotOf(date, time) + 1
@@ -61,10 +84,30 @@ function slotOptions(date: number, time: TimeSlot): SlotOption[] {
   return options
 }
 
-/** `"391 — Thursday, February 5, night"` — one offered slot, as the prompt lists it. */
-function slotOptionLine(option: SlotOption): string {
+/**
+ * `"391 — Thursday, February 5, night"` — one offered slot, as the prompt lists it, followed by
+ * whatever his timetable has him doing then.
+ */
+function slotOptionLine(option: SlotOption, season: Season, duty?: SlotDuty): string {
   const half = slotHalf(option.time)
-  return `${option.id} — ${formatDatePart(option.date)}, ${half}`
+  const line = `${option.id} — ${formatDatePart(option.date, season)}, ${half}`
+  const parts = duty ? dutyParts(duty) : []
+  return parts.length > 0 ? `${line} — ${parts.join('; ')}` : line
+}
+
+/** `"the reader's Cell Biology class, with Mina"`, `"the reader's shift at Pino Cola"`. */
+function dutyParts(duty: SlotDuty): string[] {
+  const parts: string[] = []
+  if (duty.className) {
+    const what = duty.exam
+      ? `${duty.exam} ${duty.project ? 'showcase' : 'exam'}`
+      : 'class'
+    const company =
+      duty.classmates && duty.classmates.length > 0 ? `, with ${andList(duty.classmates)}` : ''
+    parts.push(`the reader's ${duty.className} ${what}${company}`)
+  }
+  if (duty.employer) parts.push(`the reader's shift at ${duty.employer}`)
+  return parts
 }
 
 /**
@@ -122,16 +165,17 @@ function planRules(source: string): string[] {
     '- somebody was enthusiastic but agreed to nothing specific',
     '- the plan is already in ALREADY PLANNED',
     '- the plan was called off, moved or refused later in what you are reading',
-    '- it is a class, a shift, an exam or anything else that is simply on a timetable',
+    '- it is only the class, exam or shift a SLOTS line shows, or anything else that is simply on a timetable',
     '- the reader is not part of it — two other characters making plans with each other is not the reader\'s event',
     '- the plan was for this part of the day, which is now over',
     '',
+    'A class, exam or shift on a SLOTS line is never a plan itself, and it leaves room in that slot: something agreed for before or after it goes in the same slot.',
     'One plan is one entry, however many times it comes up.',
     'A standing arrangement — "let\'s study every Tuesday" — is the next occurrence only.',
     '',
     'An empty "plans" list is the ordinary answer and it is always allowed.',
     '',
-    'Examples, for CHARACTERS of "mina_okafor — Mina Okafor", "hazel_kim — Hazel Kim" and "colette_dubois — Colette Dubois", with SLOTS of 71 (Wednesday night), 72 (Thursday day) and 73 (Thursday night):',
+    'Examples, for CHARACTERS of "mina_okafor — Mina Okafor", "hazel_kim — Hazel Kim" and "colette_dubois — Colette Dubois", with SLOTS of 71 (Wednesday night), 72 (Thursday day — the reader\'s Cell Biology class, with Mina) and 73 (Thursday night):',
     ''
   ]
 }
@@ -155,7 +199,10 @@ export const PLANS_INSTRUCTIONS: readonly string[] = [
   '',
   // A goodbye naming a day reads like an agreement about a lecture; this example defeats that.
   'SCENE "MINA: see you thursday for class!" / "READER: see you then"',
-  '{"plans":[]}'
+  '{"plans":[]}',
+  '',
+  'SCENE "MINA: grab lunch after cell bio on thursday?" / "READER: deal"',
+  '{"plans":[{"slot":72,"title":"Lunch with Mina","description":"The reader has lunch with Mina after Cell Biology on Thursday.","chars":["mina_okafor"]}]}'
 ]
 
 /**
@@ -171,6 +218,9 @@ export const TEXT_PLANS_INSTRUCTIONS: readonly string[] = [
   '{"plans":[]}',
   '',
   'MESSAGES "HAZEL: gotta run, see you thursday" / "YOU: later"',
+  '{"plans":[]}',
+  '',
+  'MESSAGES "MINA: see you in cell bio tmrw" / "YOU: see ya" (read on Wednesday night)',
   '{"plans":[]}'
 ]
 
@@ -186,7 +236,7 @@ export function scheduleBlocks(input: SchedulePromptInput, wantPlans: boolean): 
   const now = [
     // What "tomorrow" in a transcript is measured against; the scene never says what day it is.
     'NOW',
-    `The part of the day you are reading has just ended. It was ${formatDateBanner(input.date, input.time)}`
+    `The part of the day you are reading has just ended. It was ${formatDateBanner(input.date, input.time, input.season)}`
   ]
   if (!wantPlans) return now
 
@@ -199,9 +249,11 @@ export function scheduleBlocks(input: SchedulePromptInput, wantPlans: boolean): 
     ...scheduleRosterLines(input.characters),
     "'''",
     '',
-    'SLOTS — the only times a plan may be placed in. Each line is an id, then when it is.',
+    'SLOTS — the only times a plan may be placed in. Each line is an id, then when it is, then any class, exam or shift the reader has then.',
     "'''",
-    ...slotOptions(input.date, input.time).map(slotOptionLine),
+    ...slotOptions(input.date, input.time).map((option) =>
+      slotOptionLine(option, input.season, input.timetable[option.id])
+    ),
     "'''",
     '',
     'ALREADY PLANNED — plans that are on the calendar already.',
@@ -241,7 +293,7 @@ function threadBlocks(input: SchedulePromptInput): string[] {
     if (messages.length === 0) continue
     // Blank line between blocks only; the first sits flush against the caller's header.
     if (lines.length > 0) lines.push('')
-    lines.push(`— texts with ${firstName} —`, ...stampedStubs(messages, firstName))
+    lines.push(`— texts with ${firstName} —`, ...stampedStubs(messages, firstName, input.season))
   }
   return lines
 }

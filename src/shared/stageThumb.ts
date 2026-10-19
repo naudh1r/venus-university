@@ -12,10 +12,11 @@ export const STAGE_THUMB_WIDTH = 320
 export const STAGE_THUMB_HEIGHT = 180
 
 /**
- * The thumbnail's encoding, the quality it is first encoded at, and the quality a second pass
- * takes when the first comes out over {@link STAGE_THUMB_MAX_BYTES}.
+ * The thumbnail is WebP, or this where the browser cannot encode WebP; the quality it is first
+ * encoded at, and the quality a second pass takes when the first comes out over
+ * {@link STAGE_THUMB_MAX_BYTES}.
  */
-export const STAGE_THUMB_MIME_TYPE = 'image/jpeg'
+export const STAGE_THUMB_FALLBACK_MIME_TYPE = 'image/jpeg'
 export const STAGE_THUMB_QUALITY = 0.72
 export const STAGE_THUMB_FALLBACK_QUALITY = 0.5
 

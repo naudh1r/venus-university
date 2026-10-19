@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
+import { LAST_SEMESTER } from '@shared/semesters'
 import { READER_SPEAKER } from '@shared/types'
 import { CheckField } from '../components/CheckField'
 import { ConfirmModal } from '../components/ConfirmModal'
@@ -9,7 +10,7 @@ import { TitleTab } from '../components/TitleTab'
 import { useFitToText } from '../components/useFitToText'
 import { graduationScrollLines, isEpilogueNight } from '../prompts/graduation'
 import { rewriteLine, speakerNameOf } from '../stores/gameLoop'
-import { seniorNames } from '../stores/loop/farewells'
+import { graduatingNames } from '../stores/loop/farewells'
 import { interjectOfferOf } from '../stores/loop/playback'
 import { useGameStore } from '../stores/gameStore'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -40,10 +41,13 @@ export function ChatLogModal({ theme, onClose }: ChatLogModalProps): JSX.Element
   const farewellLog = useGameStore((s) => s.farewellLog)
   const date = useGameStore((s) => s.date)
   const time = useGameStore((s) => s.time)
+  const season = useGameStore((s) => s.calendar.season)
+  const semesterIndex = useGameStore((s) => s.semesterIndex)
   const graduationSeen = useGameStore((s) => s.graduationSeen)
   const sceneEnding = useGameStore((s) => s.sceneEnding)
   // A created scene keeps no books, so an edit during its ending costs nothing worth a warning.
   const created = useGameStore((s) => s.createdScene !== null)
+  const replaying = useGameStore((s) => s.replaying !== null)
   const offer = useGameStore(interjectOfferOf)
   const sceneActive = useGameStore(sceneActiveOf)
   const inScene = useGameStore(sceneOnScreenOf)
@@ -74,8 +78,12 @@ export function ChatLogModal({ theme, onClose }: ChatLogModalProps): JSX.Element
   const visible = menu
     ? farewellLog.length > 0
       ? farewellLog
-      : graduationScrollLines(seniorNames())
+      : graduationScrollLines(graduatingNames(), season, semesterIndex === LAST_SEMESTER)
     : sceneLog.slice(start)
+  /** Each row with its own place in `sceneLog`; a replay passes the reader's own over, as it plays. */
+  const rows = visible
+    .map((line, index) => ({ line, at: start + index }))
+    .filter(({ line }) => !(replaying && line.speaker === READER_SPEAKER))
 
   /**
    * Opens on the newest line, with older ones above it. A callback ref rather than an
@@ -131,24 +139,22 @@ export function ChatLogModal({ theme, onClose }: ChatLogModalProps): JSX.Element
           <div className="vu-scroll-box">
             {/* The second well in the app that opts back into selection, after the error's. */}
             <div className="vu-chatlog-body" ref={scrollToLatest} data-cursor="text">
-              {visible.length === 0 ? (
+              {rows.length === 0 ? (
                 <p className="vu-empty vu-chatlog-empty">Nothing has happened yet.</p>
               ) : (
-                visible.map((line, index) => {
+                rows.map(({ line, at }) => {
                   const speaker = speakerNameOf(line)
                   // The player's own submissions are set apart.
                   const reader = line.speaker === READER_SPEAKER
-                  // The line's own place in `sceneLog`, which is what a rewrite is keyed on.
-                  const at = start + index
                   // During the ending, only while an interjection could still carry the rewrite.
                   const editable =
                     !menu && lineEditable(sceneLog, at) && (!sceneEnding || offer !== 'none')
                   const editing = editable && edit?.at === at
                   return (
-                    // Lines carry no id and the list is append-only, so the index is the key.
+                    // Lines carry no id and the list is append-only, so the place is the key.
                     <div
                       className={`vu-row vu-chatlog-line${reader ? ' vu-chatlog-line--reader' : ''}`}
-                      key={index}
+                      key={at}
                     >
                       <div className="vu-chatlog-line-body">
                         {speaker && <span className="vu-chatlog-speaker">{speaker}</span>}

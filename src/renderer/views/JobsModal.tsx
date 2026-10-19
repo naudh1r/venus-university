@@ -281,9 +281,11 @@ function BoardView({ onClose }: { onClose: () => void }): JSX.Element {
 
   function apply(): void {
     if (!selected) return
+    // Read before the hire, which is what makes him a returning hand rather than a new one.
+    const returning = useGameStore.getState().formerJobs[selected.id] !== undefined
     // `settledThrough` is the slot he accepted in, so no earlier shift is judged.
     useGameStore.getState().takeJob(selected.id, shifts, globalSlotOf(date, time))
-    deliverBossMessage(selected.id, 'intro')
+    deliverBossMessage(selected.id, returning ? 'welcomeBack' : 'intro')
   }
 
   // Two things hold the answer down: not qualifying, which the line above the week states in

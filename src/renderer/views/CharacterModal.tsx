@@ -11,29 +11,19 @@ import { LandscapeTile } from '../components/LandscapeTile'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
 import { WardrobeColumn } from '../components/WardrobeColumn'
-import {
-  isInFlight,
-  profileUrl,
-  roomUrl,
-  useCharacterStore,
-  useSpriteVersion
-} from '../stores/characterStore'
+import { profileUrl, roomUrl, useCharacterStore, useSpriteVersion } from '../stores/characterStore'
 import { noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
 import { BEHAVIOR_FIELDS, TAG_FIELDS, WARDROBES } from './characterFields'
-import { CardIcon, DuplicateIcon, FolderIcon, SpritesIcon } from './characterIcons'
 import { ImageGalleryModal } from './ImageGalleryModal'
 import {
   gestures,
   lift,
   panelUnderTab,
   press,
-  quietLift,
-  quietPress,
   rowLift,
   rowPress,
   veilIn
 } from './motion'
-import { DownloadIcon } from './screenIcons'
 import '../vu_styles/EditCharacter.css'
 import '../vu_styles/CharacterPanel.css'
 
@@ -42,8 +32,6 @@ export interface CharacterModalProps {
   theme: 'day' | 'night'
   /** True when another loaded character shares this one's charKey — name shows red. */
   duplicate?: boolean
-  /** The Manage-characters context, where a copy is worth making. */
-  library?: boolean
   onClose: () => void
 }
 
@@ -106,13 +94,12 @@ function Lines({ label, values }: { label: string; values: readonly string[] }):
 /**
  * Everything written about a character, with nothing offered over it. The Edit modal's own
  * panel with the controls taken out — values as prose and chips rather than disabled inputs.
- * Opened for the shipped cast, or for anybody from New Game, which `library` tells apart.
+ * Opened from New Game, to look over anybody on the roster before choosing her.
  */
 export function CharacterModal({
   character,
   theme,
   duplicate,
-  library,
   onClose
 }: CharacterModalProps): JSX.Element | null {
   const charId = character.charId
@@ -125,19 +112,9 @@ export function CharacterModal({
   const version = useSpriteVersion(charId)
   // A viewing gate: the two explicit sets are held shut here.
   const noNsfwImages = useSettingsStore(noNsfwImagesOf)
-  const progress = useCharacterStore((s) => s.progress[charId])
-  const exportCharacter = useCharacterStore((s) => s.exportCharacter)
-  const exportCard = useCharacterStore((s) => s.exportCard)
-  const exportSpritePack = useCharacterStore((s) => s.exportSpritePack)
-  const duplicateCharacter = useCharacterStore((s) => s.duplicateCharacter)
-  const openFolder = useCharacterStore((s) => s.openFolder)
 
   const [gallery, setGallery] = useState(false)
   const [roomGallery, setRoomGallery] = useState(false)
-  const [exporting, setExporting] = useState(false)
-  const [exportingCard, setExportingCard] = useState(false)
-  const [exportingSprites, setExportingSprites] = useState(false)
-  const [duplicating, setDuplicating] = useState(false)
 
   /** How many of one wardrobe's sprites are on disk; `null` is the default set. */
   const wardrobeDone = (set: (typeof WARDROBES)[number]['set']): number => {
@@ -146,8 +123,6 @@ export function CharacterModal({
   }
   const cgsOnDisk = STOCK_POSITIONS.filter((position) => cgs?.[position]).length
   const roomOnDisk = ROOM_VARIANTS.filter((variant) => rooms?.[variant]).length
-
-  const rendering = isInFlight(progress)
 
   // Nothing here is dirty, so the way out is ungated: the button, Escape and the dimming
   // are one answer.
@@ -236,85 +211,7 @@ export function CharacterModal({
                   <span className="vu-edit-surname">{character.lastName}</span>
                 )}
               </h2>
-
             </div>
-
-            {/* The Manage-characters context's row; New Game offers none of it. */}
-            {library && (
-              <div className="vu-edit-name-actions">
-                  {/* Export is disabled mid-run: a zip taken while sprites are landing catches
-                      half of one set and half of another. Nothing here is dirty, so
-                      neither it nor Duplicate asks first. */}
-                  <motion.button
-                    id="view-export"
-                    className="vu-edit-icon"
-                    type="button"
-                    aria-label="Export"
-                    disabled={exporting || rendering}
-                    {...gestures(exporting || rendering, quietLift, quietPress)}
-                    onClick={() => {
-                      setExporting(true)
-                      void exportCharacter(charId).finally(() => setExporting(false))
-                    }}
-                  >
-                    <DownloadIcon size={17} strokeWidth={2.5} />
-                  </motion.button>
-                  {/* The route from a shipped character to an editable one: a copy under a
-                      fresh id in `/data/characters`. */}
-                  <motion.button
-                    id="view-duplicate"
-                    className="vu-edit-icon"
-                    type="button"
-                    aria-label="Duplicate"
-                    disabled={duplicating || rendering}
-                    {...gestures(duplicating || rendering, quietLift, quietPress)}
-                    onClick={() => {
-                      setDuplicating(true)
-                      void duplicateCharacter(charId).finally(() => setDuplicating(false))
-                    }}
-                  >
-                    <DuplicateIcon />
-                  </motion.button>
-                  {/* Disabled mid-run for Export's reason. */}
-                  <motion.button
-                    id="view-card"
-                    className="vu-edit-icon"
-                    type="button"
-                    aria-label="Export SillyTavern card"
-                    disabled={exportingCard || rendering}
-                    {...gestures(exportingCard || rendering, quietLift, quietPress)}
-                    onClick={() => {
-                      setExportingCard(true)
-                      void exportCard(charId).finally(() => setExportingCard(false))
-                    }}
-                  >
-                    <CardIcon />
-                  </motion.button>
-                  <motion.button
-                    id="view-sprites"
-                    className="vu-edit-icon"
-                    type="button"
-                    aria-label="Export SillyTavern sprites"
-                    disabled={exportingSprites || rendering}
-                    {...gestures(exportingSprites || rendering, quietLift, quietPress)}
-                    onClick={() => {
-                      setExportingSprites(true)
-                      void exportSpritePack(charId).finally(() => setExportingSprites(false))
-                    }}
-                  >
-                    <SpritesIcon />
-                  </motion.button>
-                  <motion.button
-                    className="vu-edit-icon"
-                    type="button"
-                    aria-label="Open character folder"
-                    {...gestures(false, quietLift, quietPress)}
-                    onClick={() => void openFolder(charId)}
-                  >
-                  <FolderIcon />
-                </motion.button>
-              </div>
-            )}
 
             <div className="vu-edit-scroll">
               <div className="vu-edit-form">

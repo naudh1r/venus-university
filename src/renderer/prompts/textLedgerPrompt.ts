@@ -86,10 +86,10 @@ export function buildTextLedgerPrompt(
 ): StructuredRequest {
   const textedKeys = textLedgerCharKeys(schedule)
   const rosterKeys = scheduleCharKeys(schedule.characters)
-  // The texters as characters, in thread order.
+  // The texters as characters, graduates among them.
   const texted = new Set(textedKeys)
-  const texters = Object.values(schedule.characters).filter((character) =>
-    texted.has(charKeyOf(character.firstName, character.lastName))
+  const texters = [...Object.values(schedule.characters), ...schedule.graduates].filter(
+    (character) => texted.has(charKeyOf(character.firstName, character.lastName))
   )
 
   const preamble = [

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { roomRel } from '@shared/characterFiles'
 import { appError, toAppError } from '@shared/errors'
+import { imageTypeOf } from '@shared/imageBytes'
 import { LINEUP_MIME_TYPE, LINEUP_QUALITY } from '@shared/lineup'
 import { outfitLabelOf } from '@shared/outfits'
 import {
@@ -22,7 +23,7 @@ import { bgUrl, customBackgroundOf } from '../views/bgAssets'
 import { loadWardrobeImage, readyOutfitSets } from './characterStore'
 import { useGameStore } from './gameStore'
 import { stitchLineup, type LineupFrame } from './lineupSheet'
-import { blobToBase64, canvasToBase64, canvasToBlob } from './loop/encode'
+import { blobToBase64, canvasToBase64, canvasToWebpOr } from './loop/encode'
 import { bundledImage, characterImage, customImage, roomOwnerNow } from './loop/thumbnail'
 import { retrySilently } from './silentRetry'
 import { useUiStore } from './uiStore'
@@ -232,7 +233,10 @@ function releaseUrl(url: string | null): void {
   galleryUrls.delete(url)
 }
 
-/** The picture cut to the grid's square, centred across and from the top down, as a JPEG. */
+/**
+ * The picture cut to the grid's square, centred across and from the top down, as a WebP — a JPEG
+ * where the browser cannot encode one.
+ */
 async function cutThumb(bytes: Uint8Array<ArrayBuffer>): Promise<Blob> {
   const bitmap = await createImageBitmap(new Blob([bytes]))
   try {
@@ -254,7 +258,7 @@ async function cutThumb(bytes: Uint8Array<ArrayBuffer>): Promise<Blob> {
       PHOTO_THUMB_SIZE,
       PHOTO_THUMB_SIZE
     )
-    return await canvasToBlob(canvas, 'image/jpeg', PHOTO_THUMB_QUALITY)
+    return await canvasToWebpOr(canvas, PHOTO_THUMB_QUALITY, 'image/jpeg')
   } finally {
     bitmap.close()
   }
@@ -543,6 +547,7 @@ export const usePhotoStore = create<PhotoStoreState>((set, get) => ({
         schemaVersion: PHOTO_SCHEMA_VERSION,
         date: game.date,
         time: game.time,
+        ...(game.semesterIndex > 0 ? { semesterIndex: game.semesterIndex } : {}),
         rows: draft.rows,
         prompt: draft.prompt,
         options: draft.options,
@@ -642,7 +647,9 @@ export const usePhotoStore = create<PhotoStoreState>((set, get) => ({
         photos: listed.data.map((entry) => ({
           photoId: entry.photoId,
           ...(entry.meta ? { meta: entry.meta } : {}),
-          thumbUrl: entry.thumb ? galleryUrl(new Blob([entry.thumb], { type: 'image/jpeg' })) : null
+          thumbUrl: entry.thumb
+            ? galleryUrl(new Blob([entry.thumb], { type: imageTypeOf(entry.thumb) ?? '' }))
+            : null
         }))
       }
     })

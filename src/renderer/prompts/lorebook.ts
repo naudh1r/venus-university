@@ -1,16 +1,18 @@
 /**
  * The lorebook: world detail injected only when a turn actually mentions it. Entries are
  * authored here only — Venus University and Veridan are already always-on in `setting.ts` —
- * plus roster characters, built per call from the save's own people.
+ * plus roster characters and the class catalog, built per call from the save's own.
  */
-import { yearLabel } from '@shared/classes'
+import { fullDescriptionOf, kindSentenceOf } from '@shared/academics'
+import { slotFullLabel, yearLabel } from '@shared/classes'
 import { dormSentence } from '@shared/dorms'
 import { jobDefOf } from '@shared/jobs'
 import { npcBestFriendOf, type NpcRelationshipMap } from '@shared/npcRelationships'
 import { affectionFor } from '@shared/relationship'
-import { escapeRegExp, splitSentences } from '@shared/sentences'
-import { eyeColorOf, hairColorOf, skinToneOf } from '@shared/tags'
-import { fullNameOf, type CharInfo, type Character } from '@shared/types'
+import { andList, escapeRegExp, splitSentences } from '@shared/sentences'
+import { eyeColorOf, hairColorOf, skinTonesOf } from '@shared/tags'
+import { fullNameOf, type CharInfo, type Character, type ClassEntry } from '@shared/types'
+import { HOMECOMING_VISIT_SENTENCE } from './homecoming'
 import { npcStandingLine } from './npcRelationship'
 import { readerStandingLine } from './relationship'
 
@@ -262,7 +264,8 @@ export function characterLore(
   charInfo: Record<string, CharInfo>,
   date: number,
   relations?: LoreRelations,
-  plans?: LorePlans
+  plans?: LorePlans,
+  visitor?: string
 ): string[] {
   return characterParagraphs(
     roster.filter((character) =>
@@ -271,7 +274,8 @@ export function characterLore(
     charInfo,
     date,
     relations,
-    plans
+    plans,
+    visitor
   )
 }
 
@@ -281,9 +285,10 @@ export function characterLoreForIds(
   charInfo: Record<string, CharInfo>,
   date: number,
   relations?: LoreRelations,
-  plans?: LorePlans
+  plans?: LorePlans,
+  visitor?: string
 ): string[] {
-  return characterParagraphs(mentions, charInfo, date, relations, plans)
+  return characterParagraphs(mentions, charInfo, date, relations, plans, visitor)
 }
 
 /**
@@ -333,11 +338,11 @@ function appearanceSentence(character: Character): string {
   const tags = character.baseAppearance
   const hair = hairColorOf(tags)
   const eyes = eyeColorOf(tags)
-  const skin = skinToneOf(tags)
+  const skin = skinTonesOf(tags)
   const parts = [
     hair && `${hair} hair`,
     eyes && `${eyes} eyes`,
-    skin && `${skin} skin`
+    skin.length > 0 && `${skin.join(', ')} skin`
   ].filter((part): part is string => Boolean(part))
   if (parts.length === 0) return ''
   const list =
@@ -347,13 +352,17 @@ function appearanceSentence(character: Character): string {
   return ` She has ${list}.`
 }
 
-/** The paragraph itself, shared by both entry points so they cannot drift. */
+/**
+ * The paragraph itself, shared by both entry points so they cannot drift. `visitor` is the
+ * graduate back in town for Homecoming, if any.
+ */
 function characterParagraphs(
   characters: readonly Character[],
   charInfo: Record<string, CharInfo>,
   date: number,
   relations?: LoreRelations,
-  plans?: LorePlans
+  plans?: LorePlans,
+  visitor?: string
 ): string[] {
   const lines: string[] = []
   for (const character of characters) {
@@ -363,10 +372,16 @@ function characterParagraphs(
       info.job && (info.job.startsOn ?? 0) <= date ? jobDefOf(info.job.jobId)?.employer : undefined
     const affection = affectionFor(info, date, character)
     const reader = readerStandingLine(character.firstName, info.flags, affection)
+    // A graduate's life since, where anybody else's year, major and dorm would be.
+    const away = character.charId === visitor ? HOMECOMING_VISIT_SENTENCE : 'She is out of town.'
+    const who =
+      info.pursuing !== undefined
+        ? `${fullNameOf(character)} graduated from Venus University, where she majored in ${info.major}, moved away from Veridan, and is now ${info.pursuing}. ${away}`
+        : `${fullNameOf(character)} is a ${yearLabel(info.year).toLowerCase()} majoring in ${info.major}.`
     lines.push(
-      `${fullNameOf(character)} is a ${yearLabel(info.year).toLowerCase()} majoring in ${info.major}.` +
+      who +
         appearanceSentence(character) +
-        dormSentence(info.dorm) +
+        (info.pursuing !== undefined ? '' : dormSentence(info.dorm)) +
         `${employer ? ` She works part-time at ${employer}.` : ''}` +
         ` ${character.personality} ${absentNote(character.firstName)}` +
         standingSentences(character, relations) +
@@ -375,6 +390,145 @@ function characterParagraphs(
     )
   }
   return lines
+}
+
+/** One roster girl sitting in a class, as the prompts name her. */
+export interface Classmate {
+  charId: string
+  firstName: string
+}
+
+/**
+ * Who sits in one class, each list sorted by first name: every roster girl enrolled, and those
+ * the reader knows are there.
+ */
+export interface ClassRoster {
+  enrolled: readonly Classmate[]
+  known: readonly Classmate[]
+}
+
+/**
+ * Title words that never key a class: function words, the levels and formats any course has,
+ * and the words ordinary talk already puts in front of "class".
+ */
+const CLASS_KEY_FILLER = new Set([
+  'a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'for', 'with', 'on', 'at', 'from', 'by',
+  'into', 'through', 'about', 'as', 'vs', 'its', 'their', 'your', 'our', 'his', 'her', 'my',
+  'this', 'that', 'these', 'those', 'one', 'all', 'any', 'some', 'every', 'each', 'other',
+  'intro', 'introduction', 'introductory', 'advanced', 'basic', 'basics', 'beginning',
+  'beginner', 'beginners', 'intermediate', 'foundation', 'foundations', 'fundamental',
+  'fundamentals', 'principles', 'survey', 'studies', 'topics', 'special', 'seminar', 'workshop',
+  'class', 'classes', 'course', 'courses',
+  'day', 'night', 'morning', 'afternoon', 'evening', 'early', 'late', 'first', 'last', 'next',
+  'new', 'old', 'same', 'final', 'whole', 'big', 'small', 'favorite', 'social', 'middle',
+  'upper', 'lower', 'high', 'working', 'business', 'economy', 'world'
+])
+
+/** How many titles of one catalog may share a key before it says nothing about which is meant. */
+const CLASS_KEY_MAX_TITLES = 2
+
+/** A title's words, lowercased, with the punctuation at either edge of each taken off. */
+function titleWords(text: string): string[] {
+  return text
+    .split(/\s+/)
+    .map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').toLowerCase())
+    .filter(Boolean)
+}
+
+/**
+ * The keys a title shares with the way people talk about it: each run of it between `and`,
+ * `&` or a comma, colon or semicolon that holds two words worth keying, and `<word> class` and
+ * `<word> course` for each such word, a hyphenated one spaced out as well.
+ */
+function titleKeys(title: string): Set<string> {
+  const keys = new Set<string>()
+  const keyed = (word: string): boolean => word.length >= 3 && !CLASS_KEY_FILLER.has(word)
+  for (const piece of title.split(/\s+(?:and|&)\s+|[,:;]/i)) {
+    const words = titleWords(piece)
+    const from = words.findIndex(keyed)
+    if (from !== -1 && words.filter(keyed).length >= 2) keys.add(words.slice(from).join(' '))
+  }
+  for (const word of titleWords(title).filter(keyed)) {
+    for (const form of word.includes('-') ? [word, word.replace(/-/g, ' ')] : [word]) {
+      keys.add(`${form} class`)
+      keys.add(`${form} course`)
+    }
+  }
+  return keys
+}
+
+/**
+ * Every class's lorebook keys, by class code: its code, its title, and the {@link titleKeys}
+ * no more than {@link CLASS_KEY_MAX_TITLES} titles of the catalog share. Derived afresh from
+ * the catalog on every call.
+ */
+export function classLoreKeys(
+  classes: Readonly<Record<string, ClassEntry>>
+): Record<string, string[]> {
+  const entries = Object.values(classes)
+  const derived = new Map(entries.map((entry) => [entry.code, titleKeys(entry.name)]))
+  const titles = new Map<string, number>()
+  for (const keys of derived.values()) {
+    for (const key of keys) titles.set(key, (titles.get(key) ?? 0) + 1)
+  }
+  const byCode: Record<string, string[]> = {}
+  for (const entry of entries) {
+    const shared = [...(derived.get(entry.code) ?? [])].filter(
+      (key) => (titles.get(key) ?? 0) <= CLASS_KEY_MAX_TITLES
+    )
+    const title = entry.name.trim().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
+    byCode[entry.code] = [...new Set([entry.code.trim(), title, ...shared].filter(Boolean))]
+  }
+  return byCode
+}
+
+/** What the class lorebook reads off a prompt's state. */
+export interface ClassLoreView {
+  classes: Readonly<Record<string, ClassEntry>>
+  /** Who sits in each class, by class code. */
+  rosters: Readonly<Record<string, ClassRoster>>
+  /** The reader's own timetable, sparse slot → class code. */
+  playerSchedule: Readonly<Record<number, string>>
+  /** Classes another block of the prompt already describes in full, by class code. */
+  skip: readonly string[]
+}
+
+/** Who takes a class: the reader with the classmates he knows are there, or the girls enrolled. */
+function takersSentence(roster: ClassRoster | undefined, his: boolean): string {
+  if (his) {
+    const known = (roster?.known ?? []).map((classmate) => classmate.firstName)
+    return known.length > 0 ? ` The reader takes it with ${andList(known)}.` : ' The reader takes it.'
+  }
+  const enrolled = (roster?.enrolled ?? []).map((classmate) => classmate.firstName)
+  if (enrolled.length === 0) return ''
+  return ` ${andList(enrolled)} ${enrolled.length === 1 ? 'takes' : 'take'} it.`
+}
+
+/**
+ * One paragraph per class `scanned` mentions, by class code: when it meets, the catalog's
+ * description of it, and who takes it.
+ */
+export function classLore(scanned: string, view: ClassLoreView): string[] {
+  const keys = classLoreKeys(view.classes)
+  const his = new Set(Object.values(view.playerSchedule))
+  return Object.values(view.classes)
+    .filter((entry) => !view.skip.includes(entry.code))
+    .filter((entry) => {
+      const own = keys[entry.code] ?? []
+      return (
+        own.length > 0 &&
+        new RegExp(own.map((key) => keyPattern(key)).join('|'), 'iu').test(scanned)
+      )
+    })
+    .sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0))
+    .map((entry) => {
+      const kind = kindSentenceOf(entry)
+      return (
+        `${entry.name} (${entry.code}), ${slotFullLabel(entry.slot)}: ${fullDescriptionOf(entry)}` +
+        `${kind ? ` ${kind}` : ''}` +
+        takersSentence(view.rosters[entry.code], his.has(entry.code))
+      )
+    })
 }
 
 /** The entry authored under `key`, or null when no entry claims it. */
@@ -414,22 +568,24 @@ function rumoredText(entry: LoreEntry, rumor: LoreRumor | undefined): string {
 
 /**
  * The `LOREBOOK` block for a prompt, or `[]` when nothing matched. `rumor` reaches only the
- * matched entry — a place the turn never mentions never gets rumor text either.
+ * matched entry — a place the turn never mentions never gets rumor text either. `paragraphs`
+ * are the entries built for this call — classes, characters, then the dated recaps — printed
+ * after the authored ones.
  */
 export function lorebookBlock(
   scanned: string,
   always: readonly string[] = [],
-  characters: readonly string[] = [],
+  paragraphs: readonly string[] = [],
   rumor?: LoreRumor
 ): string[] {
   const stated = new Set(always)
   const entries = matchLore(scanned).filter((entry) => !stated.has(entry.text))
-  if (entries.length === 0 && always.length === 0 && characters.length === 0) return []
+  if (entries.length === 0 && always.length === 0 && paragraphs.length === 0) return []
   return [
     'LOREBOOK',
     '',
     ...always.flatMap((text) => [text, '']),
     ...entries.flatMap((entry) => [rumoredText(entry, rumor), '']),
-    ...characters.flatMap((text) => [text, ''])
+    ...paragraphs.flatMap((text) => [text, ''])
   ]
 }

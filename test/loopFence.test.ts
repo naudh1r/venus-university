@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { GameSave, LedgerResponse, Result, SceneResponse } from '@shared/types'
+import {
+  READER_SPEAKER,
+  type GameSave,
+  type LedgerResponse,
+  type Result,
+  type SceneResponse
+} from '@shared/types'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { registerLoopHooks, runEnding } from '../src/renderer/stores/loop/hooks'
 import {
@@ -57,7 +63,7 @@ function deferredCall(): { call: SceneCall; resolve: (result: Awaited<SceneCall>
 function replied(texts: string[], summary: string | null = 'they talked'): Awaited<SceneCall> {
   return {
     ok: true,
-    data: { lines: sceneLines(...texts), summary, end: false, applied: true, at: 0 }
+    data: { lines: sceneLines(...texts), summary, end: false, applied: true }
   }
 }
 
@@ -157,30 +163,42 @@ describe('a reply that lands after the player left', () => {
   })
 })
 
+/** A scene call resolved and fed deltas by hand, each tagged as the test says. */
+function deltaHarness(): {
+  emit: (stream: string, delta: string) => void
+  stream: () => string
+  resolve: (result: Result<SceneResponse>) => void
+} {
+  let listener = (_stream: string, _delta: string): void => {}
+  let stream = ''
+  let resolve!: (result: Result<SceneResponse>) => void
+  const call = new Promise<Result<SceneResponse>>((r) => {
+    resolve = r
+  })
+  stubApi({
+    saves: { autosave },
+    llm: {
+      completeScene: vi.fn((_request: unknown, _group: string, id: string) => {
+        stream = id
+        return call
+      }),
+      onSceneDelta: (fn: (stream: string, delta: string) => void) => {
+        listener = fn
+        return () => {}
+      }
+    }
+  })
+  return { emit: (id, delta) => listener(id, delta), stream: () => stream, resolve }
+}
+
 describe('a scene call abandoned mid-stream', () => {
   it('drops its deltas and leaves the new run’s streaming flag alone', async () => {
-    let emit = (_delta: string): void => {}
-    let resolve!: (result: Result<SceneResponse>) => void
-    const call = new Promise<Result<SceneResponse>>((r) => {
-      resolve = r
-    })
-    stubApi({
-      saves: { autosave },
-      llm: {
-        completeScene: vi.fn(() => call),
-        onSceneDelta: (listener: (delta: string) => void) => {
-          emit = listener
-          return () => {}
-        }
-      }
-    })
-
+    const { emit, stream, resolve } = deltaHarness()
     const pending = streamScene({ system: 's', user: 'u', schema: { name: 'n', schema: {} } })
 
     leaveAndLoad()
-    // The delta channel is a broadcast with no request id, so an abandoned call
-    // keeps feeding it until the invoke settles.
-    emit('{"lines":[{"speaker":"","text":"A stale line."}]}')
+    // An abandoned call keeps streaming until the invoke settles.
+    emit(stream(), '{"lines":[{"speaker":"","text":"A stale line."}]}')
     expect(useGameStore.getState().currentSceneTranscript).toEqual(sceneLines('The loaded scene.'))
 
     useGameStore.getState().setStreaming(true)
@@ -192,6 +210,48 @@ describe('a scene call abandoned mid-stream', () => {
     // Lowered by the stale call, this would clear the spinner off the scene the
     // loaded save is streaming.
     expect(useGameStore.getState().streaming).toBe(true)
+  })
+
+  it('cannot feed the call that took its place', async () => {
+    const { emit, stream, resolve } = deltaHarness()
+    const pending = streamScene({ system: 's', user: 'u', schema: { name: 'n', schema: {} } })
+
+    // The opening of a goodbye an interjection cut short, landing after the next call subscribed.
+    emit('scene-0', '{"lines":[{"speaker":"","text":"A goodbye line."}')
+    emit(stream(), '{"lines":[{"speaker":"","text":"Her reply."}]}')
+    expect(useGameStore.getState().currentSceneTranscript).toEqual(sceneLines('Her reply.'))
+
+    resolve({ ok: true, data: { lines: sceneLines('Her reply.') } })
+    expect((await pending).ok).toBe(true)
+  })
+})
+
+describe('a continuation’s running summary', () => {
+  it('covers the reply’s own lines, so a cut inside the reply drops it', async () => {
+    const store = useGameStore.getState()
+    store.appendSceneLines([{ speaker: READER_SPEAKER, text: 'wave' }, ...sceneLines('She waves.')])
+    store.setSceneSummary('They waved.', 2)
+    store.appendSceneLines([{ speaker: READER_SPEAKER, text: 'ask her name' }])
+    const snapshot = { scene: useGameStore.getState().captureScene(), action: 'ask her name' }
+    const { call, resolve } = deferredCall()
+    const turn = runSceneTurn(call, snapshot, [], [], false)
+
+    // On the transcript and the queue before the call resolves, as `streamScene` leaves a reply.
+    const reply = sceneLines('She tells you.', 'She asks yours.', 'She leaves.')
+    useGameStore.getState().appendSceneLines(reply)
+    useGameStore.getState().appendPendingLines(reply)
+    resolve(replied(['She tells you.', 'She asks yours.', 'She leaves.'], 'They traded names.'))
+    await turn
+
+    expect(useGameStore.getState().sceneSummaries).toEqual([
+      { at: 2, summary: 'They waved.' },
+      { at: 6, summary: 'They traded names.' }
+    ])
+
+    // An interjection on the reply's first line cuts the two after it, and the summary telling them.
+    useGameStore.getState().setPendingLines(reply.slice(1))
+    useGameStore.getState().truncateUnread()
+    expect(useGameStore.getState().sceneSummary).toBe('They waved.')
   })
 })
 

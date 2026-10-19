@@ -42,6 +42,8 @@ const api: VenusUniversityApi = {
       ipcRenderer.invoke('llm:generateProfiles', request, group),
     generateOccasions: (request, group) =>
       ipcRenderer.invoke('llm:generateOccasions', request, group),
+    generateSecrets: (request, group) =>
+      ipcRenderer.invoke('llm:generateSecrets', request, group),
     generateQuiz: (request) => ipcRenderer.invoke('llm:generateQuiz', request),
     listModels: (endpointUrl, apiKey) => ipcRenderer.invoke('llm:listModels', endpointUrl, apiKey),
     testWriter: (candidate) => ipcRenderer.invoke('llm:testWriter', candidate),
@@ -50,7 +52,8 @@ const api: VenusUniversityApi = {
     classify: (request, charKeys, group) =>
       ipcRenderer.invoke('llm:classify', request, charKeys, group),
     classifyHangout: (request) => ipcRenderer.invoke('llm:classifyHangout', request),
-    completeScene: (request, group) => ipcRenderer.invoke('llm:completeScene', request, group),
+    completeScene: (request, group, stream) =>
+      ipcRenderer.invoke('llm:completeScene', request, group, stream),
     completeLedger: (request, group) => ipcRenderer.invoke('llm:completeLedger', request, group),
     completeIntro: (request, group) => ipcRenderer.invoke('llm:completeIntro', request, group),
     completeEndingPosts: (request, group) =>
@@ -58,7 +61,8 @@ const api: VenusUniversityApi = {
     completeTexting: (request, group) =>
       ipcRenderer.invoke('llm:completeTexting', request, group),
     onSceneDelta: (listener) => {
-      const wrapped = (_event: unknown, delta: string): void => listener(delta)
+      const wrapped = (_event: unknown, stream: string, delta: string): void =>
+        listener(stream, delta)
       ipcRenderer.on('llm:sceneDelta', wrapped)
       return () => ipcRenderer.removeListener('llm:sceneDelta', wrapped)
     },
@@ -108,16 +112,19 @@ const api: VenusUniversityApi = {
     saveExport: (kind, name, base64) => ipcRenderer.invoke('chars:saveExport', kind, name, base64),
     defaults: () => ipcRenderer.invoke('chars:defaults'),
     restoreDefaults: () => ipcRenderer.invoke('chars:restoreDefaults'),
+    resetDefault: (charId) => ipcRenderer.invoke('chars:resetDefault', charId),
     openFolder: (charId) => ipcRenderer.invoke('chars:openFolder', charId)
   },
   saves: {
     playthroughs: () => ipcRenderer.invoke('saves:playthroughs'),
     list: (playthroughId) => ipcRenderer.invoke('saves:list', playthroughId),
     read: (playthroughId, saveId) => ipcRenderer.invoke('saves:read', playthroughId, saveId),
-    enroll: (draft) => ipcRenderer.invoke('saves:enroll', draft),
+    enroll: (draft, playthroughId) => ipcRenderer.invoke('saves:enroll', draft, playthroughId),
     enrollment: (playthroughId) => ipcRenderer.invoke('saves:enrollment', playthroughId),
     create: (playthrough, draft, playthroughId) =>
       ipcRenderer.invoke('saves:create', playthrough, draft, playthroughId),
+    continueSemester: (playthroughId, semesterId, semester, draft) =>
+      ipcRenderer.invoke('saves:continueSemester', playthroughId, semesterId, semester, draft),
     slot: (playthroughId, draft, replay) =>
       ipcRenderer.invoke('saves:slot', playthroughId, draft, replay),
     overwrite: (playthroughId, saveId, draft) =>
@@ -131,11 +138,19 @@ const api: VenusUniversityApi = {
     deletePlaythrough: (playthroughId) =>
       ipcRenderer.invoke('saves:deletePlaythrough', playthroughId),
     rename: (playthroughId, name) => ipcRenderer.invoke('saves:rename', playthroughId, name),
-    generateEndingArt: (playthroughId, sheet, friendCount, group) =>
-      ipcRenderer.invoke('saves:generateEndingArt', playthroughId, sheet, friendCount, group),
-    readEndingArt: (playthroughId) => ipcRenderer.invoke('saves:readEndingArt', playthroughId),
-    exportEndingArt: (playthroughId) =>
-      ipcRenderer.invoke('saves:exportEndingArt', playthroughId),
+    generateEndingArt: (playthroughId, sheet, friendCount, group, semesterId) =>
+      ipcRenderer.invoke(
+        'saves:generateEndingArt',
+        playthroughId,
+        sheet,
+        friendCount,
+        group,
+        semesterId
+      ),
+    readEndingArt: (playthroughId, semesterId) =>
+      ipcRenderer.invoke('saves:readEndingArt', playthroughId, semesterId),
+    exportEndingArt: (playthroughId, semesterId) =>
+      ipcRenderer.invoke('saves:exportEndingArt', playthroughId, semesterId),
     readProfilePicture: (playthroughId) =>
       ipcRenderer.invoke('saves:readProfilePicture', playthroughId),
     writeProfilePicture: (playthroughId, png) =>
@@ -158,6 +173,10 @@ const api: VenusUniversityApi = {
   comfy: {
     start: () => ipcRenderer.invoke('comfy:start'),
     stop: () => ipcRenderer.invoke('comfy:stop'),
+    listLocalModels: () => ipcRenderer.invoke('comfy:listLocalModels'),
+    probe: (url) => ipcRenderer.invoke('comfy:probe', url),
+    openModelFolder: (role, url, pick) =>
+      ipcRenderer.invoke('comfy:openModelFolder', role, url, pick),
     onState: (listener) => {
       const wrapped = (_event: unknown, status: Parameters<typeof listener>[0]): void =>
         listener(status)
@@ -203,6 +222,15 @@ const api: VenusUniversityApi = {
         listener(progress)
       ipcRenderer.on('update:progress', wrapped)
       return () => ipcRenderer.removeListener('update:progress', wrapped)
+    }
+  },
+  images: {
+    convertLegacy: () => ipcRenderer.invoke('images:convertLegacy'),
+    onProgress: (listener) => {
+      const wrapped = (_event: unknown, progress: Parameters<typeof listener>[0]): void =>
+        listener(progress)
+      ipcRenderer.on('images:progress', wrapped)
+      return () => ipcRenderer.removeListener('images:progress', wrapped)
     }
   },
   backup: {

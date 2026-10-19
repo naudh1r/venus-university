@@ -1,6 +1,6 @@
-import { SENIOR_YEAR } from '@shared/classes'
 import { messageOf } from '@shared/errors'
 import { isGameOver } from '@shared/money'
+import { LAST_SEMESTER } from '@shared/semesters'
 import {
   charKeyOf,
   type EndingPostsResponse,
@@ -16,7 +16,7 @@ import { endingPostsDelivered, isFeedContact } from '../feedView'
 import { useGameStore } from '../gameStore'
 import { retrySilently } from '../silentRetry'
 import { deliverEndingPosts } from './feed'
-import { lessNsfwTextNow, reader } from './promptState'
+import { lessNsfwTextNow, reader, secretBudgetNow } from './promptState'
 import { writeEpilogueSave } from './saves'
 import { currentRun, loopState, runStale, LOOP_LLM_GROUP } from './state'
 
@@ -59,6 +59,9 @@ async function fetchEndingPosts(
         playthroughId: game.playthroughId ?? 'unsaved',
         stats: game.stats,
         lessNsfwText: lessNsfwTextNow(),
+        secretBudget: secretBudgetNow(),
+        season: game.calendar.season,
+        readerGraduated: game.semesterIndex === LAST_SEMESTER,
         posters
       },
       SETTING,
@@ -103,7 +106,7 @@ export function armEndingPosts(): void {
       info,
       charKey,
       texted: hasTexted(game.bunnyboard.conversations[charId]),
-      senior: (info.year ?? 0) >= SENIOR_YEAR,
+      graduating: game.graduating.includes(charId),
       daysAfter: stamp.date - GRADUATION_DATE,
       time: stamp.time
     })
@@ -113,8 +116,11 @@ export function armEndingPosts(): void {
   const run = currentRun()
   const call = fetchEndingPosts(posters, stamps)
   loopState.endingPostsCall = call
+  game.setEndingPostsPending(true)
   // Cleared once settled, unless a later stay has taken the field over.
   void call.finally(() => {
-    if (!runStale(run) && loopState.endingPostsCall === call) loopState.endingPostsCall = null
+    if (runStale(run) || loopState.endingPostsCall !== call) return
+    loopState.endingPostsCall = null
+    useGameStore.getState().setEndingPostsPending(false)
   })
 }

@@ -1,7 +1,8 @@
 import { globalSlotOf } from '@shared/jobs'
 import { MIN_PLAYER_COURSES, MAX_PLAYER_CLASSES } from '@shared/classes'
+import type { Season } from '@shared/types'
 import { formatDatePart, formatGameDate } from './gameDate'
-import { ADD_DROP_DATE, FINALS_WEEK, MIDTERM_WEEK, STATIC_OCCASIONS } from './occasions'
+import { ADD_DROP_DATE, FINALS_WEEK, midtermWeekOf, staticOccasionsOf } from './occasions'
 
 /** VenusBot — the university's AI assistant, a Bunnyboard contact from the first night. */
 
@@ -28,35 +29,53 @@ export interface VenusMessage {
   texts: readonly string[]
 }
 
-/** Reading Day's date, read off the table. */
-const READING_DAY = STATIC_OCCASIONS.find((occasion) => occasion.id === 'reading-day')
-
-/** Every message Venus sends over a semester, ascending by trigger slot. */
-function venusCatalog(playerFirstName: string): readonly VenusMessage[] {
-  const addDrop = formatDatePart(ADD_DROP_DATE)
-  const midterms = `${formatGameDate(MIDTERM_WEEK.startDate)} to ${formatGameDate(MIDTERM_WEEK.endDate)}`
-  const finals = `${formatGameDate(FINALS_WEEK.startDate)} to ${formatGameDate(FINALS_WEEK.endDate)}`
+/**
+ * Every message Venus sends over a semester, ascending by trigger slot. A later semester's
+ * welcome is a welcome back, and its first week's note is the midterm dates alone.
+ */
+function venusCatalog(
+  playerFirstName: string,
+  season: Season,
+  semesterIndex: number
+): readonly VenusMessage[] {
+  const addDrop = formatDatePart(ADD_DROP_DATE, season)
+  const midtermWeek = midtermWeekOf(season)
+  const midterms = `${formatGameDate(midtermWeek.startDate, season)} to ${formatGameDate(midtermWeek.endDate, season)}`
+  const finals = `${formatGameDate(FINALS_WEEK.startDate, season)} to ${formatGameDate(FINALS_WEEK.endDate, season)}`
+  const readingDay = staticOccasionsOf(season).find((occasion) => occasion.id === 'reading-day')
+  const returning = semesterIndex > 0
+  const enrollmentRules = `Keep in mind that you need at least ${MIN_PLAYER_COURSES} regular classes plus a PE class to stay enrolled, ${MAX_PLAYER_CLASSES} classes at most, and if you drop a class you won't be able to enroll in it again this semester.`
 
   return [
     {
       id: 'welcome',
       triggerSlot: globalSlotOf(0, 1),
-      texts: [
-        `Hi ${playerFirstName}! I'm Venus, the university's assistant. I can help you change your classes and will remind you of important dates coming up during the semester.`,
-        `If you want to change classes, you have until ${addDrop} — the add/drop deadline — to change it. The button below will take you to the scheduling website.`,
-        `Keep in mind that you need at least ${MIN_PLAYER_COURSES} regular classes plus a PE class to stay enrolled, ${MAX_PLAYER_CLASSES} classes at most, and if you drop a class you won't be able to enroll in it again this semester.`,
-        `Concordia et Prosperitas. Welcome to campus!`
-      ]
+      texts: returning
+        ? [
+            `Welcome back, ${playerFirstName}! I hope you had a restful ${season === 'fall' ? 'summer' : 'winter break'}. Your classes for the semester are set, and you have until ${addDrop} — the add/drop deadline — to change them. The button below will take you to the scheduling website.`,
+            enrollmentRules,
+            `Concordia et Prosperitas. Welcome back to campus!`
+          ]
+        : [
+            `Hi ${playerFirstName}! I'm Venus, the university's assistant. I can help you change your classes and will remind you of important dates coming up during the semester.`,
+            `If you want to change classes, you have until ${addDrop} — the add/drop deadline — to change it. The button below will take you to the scheduling website.`,
+            enrollmentRules,
+            `Concordia et Prosperitas. Welcome to campus!`
+          ]
     },
     {
       id: 'first-week',
       triggerSlot: globalSlotOf(8, 0),
-      texts: [
-        `How's your first week been, ${playerFirstName}? Remember to keep up with your coursework! By the way, there are two types of classes: lecture classes and project classes.`,
-        `For lecture classes, you'll have a midterm and a final. Study hard and improve your Brains if you want a good grade. And if your professor says something will be on an exam, you should probably note it down.`,
-        `For project classes, you'll have a final showcase instead of an exam. If you work on your project every week, you'll avoid having to crunch when the deadline approaches. And it definitely helps to have high Heart so you can present your project effectively.`,
-        `Midterms run ${midterms}. Good luck! Wishing you "Concordia et Prosperitas."`
-      ]
+      texts: returning
+        ? [
+            `How's the new semester treating you, ${playerFirstName}? Midterms run ${midterms}. Good luck! Wishing you "Concordia et Prosperitas."`
+          ]
+        : [
+            `How's your first week been, ${playerFirstName}? Remember to keep up with your coursework! By the way, there are two types of classes: lecture classes and project classes.`,
+            `For lecture classes, you'll have a midterm and a final. Study hard and improve your Brains if you want a good grade. And if your professor says something will be on an exam, you should probably note it down.`,
+            `For project classes, you'll have a final showcase instead of an exam. If you work on your project every week, you'll avoid having to crunch when the deadline approaches. And it definitely helps to have high Heart so you can present your project effectively.`,
+            `Midterms run ${midterms}. Good luck! Wishing you "Concordia et Prosperitas."`
+          ]
     },
     {
       id: 'add-drop-week',
@@ -75,14 +94,14 @@ function venusCatalog(playerFirstName: string): readonly VenusMessage[] {
     },
     {
       id: 'midterms-soon',
-      triggerSlot: globalSlotOf(MIDTERM_WEEK.startDate - 7, 0),
+      triggerSlot: globalSlotOf(midtermWeek.startDate - 7, 0),
       texts: [
         `Have you been studying hard, ${playerFirstName}? Midterms start next Monday and will run from ${midterms}. If you haven't finished your projects or still have low Brains, now is the time to catch up. Good luck!`
       ]
     },
     {
       id: 'midterms-done',
-      triggerSlot: globalSlotOf(MIDTERM_WEEK.startDate + 21, 0),
+      triggerSlot: globalSlotOf(midtermWeek.startDate + 21, 0),
       texts: [
         `Hey ${playerFirstName}, midterm grades are in. How'd you do?`,
         `However you did, there's still a whole half semester to go. The next big exam week will be finals week, running from ${finals}.`,
@@ -95,9 +114,9 @@ function venusCatalog(playerFirstName: string): readonly VenusMessage[] {
       texts: [
         `Ready for finals, ${playerFirstName}? They'll be held next week, from ${finals}.`,
         // A semester without a Reading Day sends one bubble fewer.
-        ...(READING_DAY
+        ...(readingDay
           ? [
-              `Classes will be cancelled on ${formatDatePart(READING_DAY.startDate)} for Reading Day, so catch up on your studies if you need to.`
+              `Classes will be cancelled on ${formatDatePart(readingDay.startDate, season)} for Reading Day, so catch up on your studies if you need to.`
             ]
           : []),
         `Here's to another successful semester! Concordia et Prosperitas.`
@@ -110,9 +129,11 @@ function venusCatalog(playerFirstName: string): readonly VenusMessage[] {
 export function venusMessagesDue(
   playerFirstName: string,
   through: number,
-  currentSlot: number
+  currentSlot: number,
+  season: Season,
+  semesterIndex: number
 ): readonly VenusMessage[] {
-  return venusCatalog(playerFirstName).filter(
+  return venusCatalog(playerFirstName, season, semesterIndex).filter(
     (message) => message.triggerSlot > through && message.triggerSlot <= currentSlot
   )
 }
@@ -129,16 +150,31 @@ export function venusJobIntroTexts(playerFirstName: string): readonly string[] {
   ]
 }
 
+/**
+ * Venus's health notice, the first time anybody on campus shows a cold: how colds spread, what
+ * keeps them off, and what to do about one.
+ */
+export function venusColdTipTexts(playerFirstName: string): readonly string[] {
+  return [
+    `Hi ${playerFirstName}, administration has confirmed that a cold is going around campus. If someone you know is sick, please give them some space until they've recovered.`,
+    `Staying in shape helps too. The better your Body, the less likely you are to catch a cold, and the milder it'll be if you do.`,
+    `If you do catch it, you won't be able to improve your stats until you're feeling better. If you do get sick, we recommend taking SpringMart ColdStop lozenges twice a day.`,
+    `You can buy ColdStop lozenges from Veridan Delivery and take them from the "My stuff" menu.`,
+    `Stay healthy! Concordia et Prosperitas.`
+  ]
+}
+
 /** What Venus says back when the player finalizes a change. */
 export function venusScheduleConfirmation(
   dropped: readonly string[],
-  added: readonly string[]
+  added: readonly string[],
+  season: Season
 ): readonly string[] {
   const parts: string[] = ['Your schedule has been successfully updated.']
   if (dropped.length > 0) parts.push(`Dropped: ${dropped.join(', ')}.`)
   if (added.length > 0) parts.push(`Added: ${added.join(', ')}.`)
   parts.push(
-    `If you change your mind again, you can still make changes until ${formatDatePart(ADD_DROP_DATE)}.`
+    `If you change your mind again, you can still make changes until ${formatDatePart(ADD_DROP_DATE, season)}.`
   )
   return parts
 }

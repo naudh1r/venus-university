@@ -1,4 +1,4 @@
-import { useState, type JSX } from 'react'
+import { useState, type JSX, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import { useModalShell } from '../components/useModalShell'
@@ -12,6 +12,8 @@ export interface EditPromptModalProps {
   id: string
   /** Drawn by the screen that raised this — a portal inherits neither palette nor state rules. */
   theme: ScreenTheme
+  /** The advice above the field, in the words of the prompt being edited. */
+  hint: ReactNode
   /** The failed call's `user` message, as sent. */
   initialPrompt: string
   onSubmit: (prompt: string) => void
@@ -22,6 +24,7 @@ export interface EditPromptModalProps {
 export function EditPromptModal({
   id,
   theme,
+  hint,
   initialPrompt,
   onSubmit,
   onCancel
@@ -66,12 +69,7 @@ export function EditPromptModal({
       >
         <TitleTab>Edit the prompt</TitleTab>
 
-        {/* The scene has already been cut back once, so the advice starts there. */}
-        <p className="vu-editprompt-hint">
-          If the model is refusing to write due to prohibited content, try rewording "The reader's action:" first. Avoid any explicit sexual words, replacing them with vague descriptions: "make love" instead of "fuck", "use her mouth" instead of "blowjob". 
-          <br/> If rewording the action doesn't work, start rewriting or removing words from THE SCENE SO FAR or the STORY SO FAR.
-          <br/> Replacing specific sexual details with a vague "They shared an intimate encounter" usually unblocks the scene and allows you to continue.
-        </p>
+        <p className="vu-editprompt-hint">{hint}</p>
 
         <TextField
           id={`${id}-text`}

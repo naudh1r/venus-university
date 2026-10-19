@@ -1,0 +1,30 @@
+/* The ComfyUI controls Settings' ComfyUI tab and the setup's Use my own card share: a model
+   picker per slot with its folder beside it, the row New Character and Edit Character stand a
+   character's own LoRA in. Imported from the components, never from index.css. */
+
+/* The slots stand as a column at the rhythm of the fields around them. */
+.vu-comfy-models {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+}
+
+/* One slot: its select, then the folder its files go in, level with the select's own box
+   rather than with the label and hint over it. */
+.vu-comfy-model {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.vu-comfy-model > .vu-field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The LoRA's weight between its select and the folder, its box room for three characters and
+   no more, so the select keeps the row. */
+.vu-comfy-weight {
+  flex: none;
+  width: 66px;
+}

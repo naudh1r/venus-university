@@ -68,6 +68,11 @@ async function stitchFriendLineup(
   return sheet ? { data: sheet.data, count: sheet.drawn.length } : null
 }
 
+/** The semester whose picture this ending's is: undefined for the first. */
+function semesterIdNow(): string | undefined {
+  return useGameStore.getState().semesterId ?? undefined
+}
+
 /** Sends the sheet, re-sending itself quietly for as long as its budget lasts. */
 async function send(
   playthroughId: string,
@@ -79,7 +84,8 @@ async function send(
       playthroughId,
       sheet.data,
       sheet.count,
-      LOOP_LLM_GROUP
+      LOOP_LLM_GROUP,
+      semesterIdNow()
     )
     if (runStale(run)) return null
     if (result.ok) return result.data
@@ -99,7 +105,7 @@ async function fetchEndingArt(charIds: readonly string[], reuse: boolean): Promi
     if (!playthroughId) return
 
     if (reuse) {
-      const found = await window.api.saves.readEndingArt(playthroughId)
+      const found = await window.api.saves.readEndingArt(playthroughId, semesterIdNow())
       if (runStale(run)) return
       if (found.ok && found.data) {
         publish(found.data)
@@ -158,7 +164,7 @@ export async function exportEndingArt(): Promise<boolean> {
   const playthroughId = useGameStore.getState().playthroughId
   if (!playthroughId) return false
 
-  const result = await window.api.saves.exportEndingArt(playthroughId)
+  const result = await window.api.saves.exportEndingArt(playthroughId, semesterIdNow())
   if (!result.ok) {
     useUiStore.getState().showError(result.error)
     return false

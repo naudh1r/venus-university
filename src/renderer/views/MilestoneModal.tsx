@@ -33,7 +33,7 @@ export interface MilestoneModalProps {
   name: string
   /** Her sprite, resolved by the caller: this milestone's own expression in her default wardrobe. */
   sprite: string
-  /** `Character.height`, a share of the tallest she could be — the stage's own `--stage-char-scale`. */
+  /** `Character.height`, a share of full size — the stage's own `--stage-char-scale`. */
   scale: number
   /** Her milestone sentences, in `milestoneStatusLines`' own order; never empty. */
   lines: readonly string[]

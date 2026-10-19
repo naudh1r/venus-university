@@ -1,6 +1,7 @@
 import { useEffect, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
+import { seasonOf } from '@shared/semesters'
 import { formatShortGameDate, slotHalf } from '../prompts/gameDate'
 import { useWindowKeydown } from '../components/useWindowKeydown'
 import { useModalShell } from '../components/useModalShell'
@@ -41,6 +42,7 @@ export function PhotoViewerModal({
   const index = photos.findIndex((entry) => entry.photoId === current)
   const photo = index >= 0 ? photos[index] : null
   const meta = photo?.meta ?? null
+  const season = seasonOf(meta?.semesterIndex ?? 0)
 
   // Reads the picture and waits for it to decode before it is shown; the object URL it made is
   // released the moment a newer one replaces it or the viewer closes.
@@ -149,7 +151,7 @@ export function PhotoViewerModal({
 
         {meta && (
           <span className="vu-photo-viewer-caption">
-            {formatShortGameDate(meta.date)} · {slotHalf(meta.time)}
+            {formatShortGameDate(meta.date, season)} · {slotHalf(meta.time)}
           </span>
         )}
 

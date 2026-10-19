@@ -97,12 +97,13 @@
   -webkit-line-clamp: 2;
 }
 
-/* When the file was written, on one line: the time is what tells two saves of a day apart. */
+/* When the file was written, never wrapped: the time is what tells two saves of a day apart.
+   A named semester takes its own line above it. */
 .vu-pages-meta {
   color: var(--vu-text-muted);
   font: 700 12px var(--font-mono);
   letter-spacing: 0.06em;
-  white-space: nowrap;
+  white-space: pre;
 }
 
 /* Why the save cannot be opened: the file on disk, which nothing else on screen could say. */

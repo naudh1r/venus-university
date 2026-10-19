@@ -1,4 +1,5 @@
 import { likedPostBonus, likedPostWindowOf } from './feed'
+import { RELATIONSHIP_SHARE, STAT_SHARE } from './odds'
 import {
   MAX_TIER,
   pointsForTier,
@@ -11,7 +12,7 @@ import {
   type StatTier
 } from './playerStats'
 import { secondPerson } from './readerVoice'
-import { markedLine } from './statusMark'
+import { markedLine, markedRuns } from './statusMark'
 import { hasTrait } from './traits'
 import type {
   Character,
@@ -24,7 +25,8 @@ import type {
   MemoryType,
   RelationshipEvent,
   SceneLine,
-  TextMark
+  TextMark,
+  UpperHalf
 } from './types'
 
 /** Affection scoring, disposition tiers and flag transitions. */
@@ -173,11 +175,15 @@ const AFFECTION_WINDOW = 20
 
 /**
  * A character's affection off her `CharInfo`, texting memory and the likes he left on her
- * recent posts included, off only the newest {@link AFFECTION_WINDOW} of her stored memories.
+ * recent posts included, off only the newest {@link AFFECTION_WINDOW} of her stored memories,
+ * less whatever break penalty she still holds.
  */
 export function affectionFor(
   info:
-    | Pick<CharInfo, 'memories' | 'textMemory' | 'feed' | 'jealousyMemories' | 'giftMemories'>
+    | Pick<
+        CharInfo,
+        'memories' | 'textMemory' | 'feed' | 'jealousyMemories' | 'giftMemories' | 'breakPenalty'
+      >
     | undefined,
   today: number,
   character: Pick<Character, 'traits'> | undefined
@@ -188,7 +194,11 @@ export function affectionFor(
     info?.jealousyMemories,
     info?.giftMemories
   )
-  return affectionOf(windowed, today) + likedPostBonus(info?.feed, likedPostWindowOf(character))
+  return (
+    affectionOf(windowed, today) +
+    likedPostBonus(info?.feed, likedPostWindowOf(character)) -
+    breakPenaltyNow(info?.breakPenalty)
+  )
 }
 
 /**
@@ -257,13 +267,16 @@ export function loveLifeBlurb(
   return parts.join(' ')
 }
 
-/** Sum of every memory's points times its recency weight. */
+/**
+ * Sum of every memory's points times its recency weight; a memory carried across a break ages
+ * only by the days lived in a semester.
+ */
 export function affectionOf(memories: readonly CharMemory[], today: number): number {
   let total = 0
   for (const entry of memories) {
     const points = POINTS[entry.type]
     if (points === undefined) continue
-    total += points * weightFor(Math.max(0, today - entry.date))
+    total += points * weightFor(Math.max(0, today - entry.date - (entry.breakDays ?? 0)))
   }
   return total
 }
@@ -308,14 +321,88 @@ export function affectionOfDisposition(disposition: Disposition): number {
   return DISPOSITION_AFFECTION[disposition]
 }
 
-/** Completes `"<FirstName> ___ the reader."` for prompt injection. */
-export const DISPOSITION_PHRASE: Record<Disposition, string> = {
-  devoted: 'is devoted to',
-  trusted: 'trusts',
-  friendly: 'is friendly towards',
-  neutral: "doesn't particularly care about",
-  annoyed: 'is annoyed by',
-  hostile: 'hates'
+/** Completes `"<FirstName> ___."` for prompt injection, one phrase per tier. */
+export const DISPOSITION_PREDICATE: Record<Disposition, string> = {
+  devoted: 'is devoted to the reader',
+  trusted: 'trusts the reader',
+  friendly: 'is friendly towards the reader',
+  neutral: "doesn't particularly care about the reader",
+  annoyed: 'is annoyed by the reader',
+  hostile: 'hates the reader'
+}
+
+/**
+ * The three tiers that read differently in their upper half: the score it starts above, its
+ * tier's ceiling, what it says the first time she is in it and what it says once she has been
+ * out of it. Neutral's half is counted from where everybody starts.
+ */
+const UPPER_HALVES: Record<UpperHalf, { from: number; to: number; first: string; again: string }> =
+  {
+    neutral: {
+      from: FRIENDLY_FLOOR / 2,
+      to: FRIENDLY_FLOOR,
+      first: 'is warming up to the reader',
+      again: 'is on good terms with the reader'
+    },
+    friendly: {
+      from: (FRIENDLY_FLOOR + TRUSTED_FLOOR) / 2,
+      to: TRUSTED_FLOOR,
+      first: 'is friends with the reader and is confiding in him more and more',
+      again: 'is close friends with the reader and confides in him'
+    },
+    trusted: {
+      from: (TRUSTED_FLOOR + DEVOTED_FLOOR) / 2,
+      to: DEVOTED_FLOOR,
+      first: 'trusts the reader deeply and is appreciating him more and more',
+      again: 'trusts the reader deeply and appreciates him'
+    }
+  }
+
+const UPPER_HALF_KEYS = Object.keys(UPPER_HALVES) as UpperHalf[]
+
+/**
+ * Her record of upper halves after one more reading of her affection: a half she is in is kept,
+ * or begun; one she has dropped back under turns `again` once she has been in it, and one she is
+ * above turns `again` outright, passing over it counting as having been there. Same object when
+ * nothing moved.
+ */
+export function observedUpperHalves(
+  halves: CharInfo['upperHalves'],
+  affection: number
+): CharInfo['upperHalves'] {
+  let next = halves
+  for (const key of UPPER_HALF_KEYS) {
+    const { from, to } = UPPER_HALVES[key]
+    const was = halves?.[key]
+    let now: 'first' | 'again' | undefined
+    if (affection > to) now = 'again'
+    else if (affection > from) now = was ?? 'first'
+    else now = was && 'again'
+    if (now === undefined || now === was) continue
+    next = { ...next, [key]: now }
+  }
+  return next
+}
+
+/**
+ * Completes `"<FirstName> ___."` for how she feels: her tier's phrase, or its upper half's, read
+ * as rising the first time she is there and as a level once she has been out of it. A lover's
+ * neutral and friendly tiers read plain beside the status line's word on them.
+ */
+export function dispositionPredicateOf(
+  affection: number,
+  halves: CharInfo['upperHalves'],
+  isLover: boolean
+): string {
+  const disposition = dispositionOf(affection)
+  const split =
+    disposition === 'trusted' ||
+    (!isLover && (disposition === 'friendly' || disposition === 'neutral'))
+  if (split) {
+    const half = UPPER_HALVES[disposition]
+    if (affection > half.from) return halves?.[disposition] === 'again' ? half.again : half.first
+  }
+  return DISPOSITION_PREDICATE[disposition]
 }
 
 /** What the reader calls her on her contact profile, by tier. */
@@ -624,13 +711,6 @@ export function milestoneEmotionOf(before: CharFlags, after: CharFlags): Emotion
 /** The character half of the roll — what she is drawn to, and how hard she is to reach. */
 type CrushCharacter = Pick<Character, 'traits' | 'preferredStat'> | undefined
 
-/**
- * How the crush roll splits its two questions: most of it is how she already feels about
- * him, the rest is whether he is her type at all.
- */
-const RELATIONSHIP_SHARE = 0.6
-const STAT_SHARE = 0.4
-
 /** The tier what she goes for has to reach, and the tier `High Standards` asks of the other two. */
 const PREFERRED_TIER: StatTier = 3
 const OTHER_TIER: StatTier = 2
@@ -766,4 +846,126 @@ export function refreshedFlags(flags: CharFlags, affection: number): CharFlags {
   )
     return flags
   return { ...flags, hasCrush, benefits, knowsTraits, knowsBackstory, knowsLoveLife }
+}
+
+/** How many scenes shared with her a new crush and a new relationship take to settle. */
+const CRUSH_SETTLE_SCENES = 2
+const LOVER_SETTLE_SCENES = 1
+
+/** A running count one scene on, or absent once it reaches `settle`; absent stays absent. */
+function countedScene(
+  scenes: number | undefined,
+  cast: boolean,
+  settle: number
+): number | undefined {
+  if (scenes === undefined) return undefined
+  const next = cast ? scenes + 1 : scenes
+  return next >= settle ? undefined : next
+}
+
+/**
+ * Her `romanceScenes` once a boundary has run: 0 where it made her a lover or gave her a crush,
+ * the scene that did it not counting; one more for a scene she was cast in; absent once settled
+ * or while she holds neither.
+ */
+export function romanceScenesAfter(
+  before: CharFlags | undefined,
+  after: CharInfo,
+  cast: boolean
+): number | undefined {
+  const flags = after.flags ?? emptyFlags()
+  if (flags.isLover) {
+    return before?.isLover ? countedScene(after.romanceScenes, cast, LOVER_SETTLE_SCENES) : 0
+  }
+  if (flags.hasCrush) {
+    return before?.hasCrush ? countedScene(after.romanceScenes, cast, CRUSH_SETTLE_SCENES) : 0
+  }
+  return undefined
+}
+
+/**
+ * Every entry's `romanceScenes` stepped over one boundary, off the flags each crossed it with and
+ * who was cast; an entry it leaves alone keeps its identity, and so does the map when none moved.
+ */
+export function withRomanceScenes(
+  before: Readonly<Record<string, Pick<CharInfo, 'flags'> | undefined>>,
+  after: Readonly<Record<string, CharInfo>>,
+  cast: readonly string[]
+): Readonly<Record<string, CharInfo>> {
+  let next: Record<string, CharInfo> | null = null
+  for (const [charId, info] of Object.entries(after)) {
+    // A graduate is never cast again, so a romance with her is never counted toward settling.
+    if (info.pursuing !== undefined) continue
+    const scenes = romanceScenesAfter(before[charId]?.flags, info, cast.includes(charId))
+    if (scenes === info.romanceScenes) continue
+    const stepped = { ...info }
+    if (scenes === undefined) delete stepped.romanceScenes
+    else stepped.romanceScenes = scenes
+    next ??= { ...after }
+    next[charId] = stepped
+  }
+  return next ?? after
+}
+
+/** The break penalty she holds, as points off her affection: whole, then half rounded up. */
+export function breakPenaltyNow(penalty: CharInfo['breakPenalty']): number {
+  if (!penalty) return 0
+  return penalty.halved ? Math.ceil(penalty.points / 2) : penalty.points
+}
+
+/** Where the break leaves each tier it lowers: the bottom of the tier below, friendly at zero. */
+const BREAK_TARGETS: Partial<Record<Disposition, number>> = {
+  devoted: TRUSTED_FLOOR + 1,
+  trusted: FRIENDLY_FLOOR + 1,
+  friendly: 0
+}
+
+/**
+ * The penalty a later semester's start hands her off the affection she would open it on: a whole
+ * one taking her to the tier below, counted off her affection without what she already holds, or
+ * null below friendly, where she keeps that.
+ */
+export function breakPenaltyAt(
+  affection: number,
+  held: CharInfo['breakPenalty']
+): NonNullable<CharInfo['breakPenalty']> | null {
+  const target = BREAK_TARGETS[dispositionOf(affection)]
+  if (target === undefined) return null
+  return { points: affection + breakPenaltyNow(held) - target }
+}
+
+/**
+ * Every cast girl's break penalty stepped over one boundary: halved by her first scene, gone after
+ * her second. An entry it leaves alone keeps its identity, and so does the map when none moved.
+ */
+export function withBreakPenaltiesStepped(
+  after: Readonly<Record<string, CharInfo>>,
+  cast: readonly string[]
+): Readonly<Record<string, CharInfo>> {
+  let next: Record<string, CharInfo> | null = null
+  for (const charId of cast) {
+    const info = after[charId]
+    // A graduate is never cast again, and so never holds one.
+    if (!info?.breakPenalty || info.pursuing !== undefined) continue
+    const stepped = { ...info }
+    if (info.breakPenalty.halved) delete stepped.breakPenalty
+    else stepped.breakPenalty = { ...info.breakPenalty, halved: true }
+    next ??= { ...after }
+    next[charId] = stepped
+  }
+  return next ?? after
+}
+
+/** The first morning's word that the break cost something, both losses in the loss colour. */
+export function breakDecayLine(): SceneLine {
+  return markedRuns(
+    [
+      'Over the break, ',
+      'your skills got a bit rusty',
+      ' and you may have ',
+      'grown a bit distant from some of your old friends',
+      '.'
+    ],
+    'loss'
+  )
 }

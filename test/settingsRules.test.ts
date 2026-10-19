@@ -1,4 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import {
+  COMFY_MODEL_SLOTS,
+  loraWeightOf,
+  picksToStore,
+  resolveModelPick
+} from '@shared/comfyModels'
 import { endpointProblem, normalizeEndpoint } from '@shared/endpoint'
 import {
   defaultSettings,
@@ -274,6 +280,56 @@ describe('mergePatch — the sampling fields, memory budgets and scene persona',
     expect(untouched.temperature).toBeUndefined()
     expect(untouched.memoryBudgets).toBeUndefined()
     expect(untouched.scenePersona).toBeUndefined()
+  })
+})
+
+describe('mergePatch — the ComfyUI fields', () => {
+  it("carries the source, its URL and both sources' picks and weights, and leaves an absent one absent", () => {
+    const next = mergePatch(
+      settings(),
+      settingsPatch({
+        comfySource: 'external',
+        comfyUrl: 'http://127.0.0.1:8000',
+        comfyModels: { checkpoint: 'mine.safetensors' },
+        comfyExternalModels: { lora: '' },
+        comfyLoraWeight: 0.6,
+        comfyExternalLoraWeight: 0
+      })
+    )
+    expect(next.comfySource).toBe('external')
+    expect(next.comfyUrl).toBe('http://127.0.0.1:8000')
+    expect(next.comfyModels).toEqual({ checkpoint: 'mine.safetensors' })
+    expect(next.comfyExternalModels).toEqual({ lora: '' })
+    expect(next.comfyLoraWeight).toBe(0.6)
+    expect(next.comfyExternalLoraWeight).toBe(0)
+
+    const untouched = mergePatch(next, settingsPatch())
+    expect(untouched.comfySource).toBeUndefined()
+    expect(untouched.comfyExternalModels).toBeUndefined()
+    expect(untouched.comfyLoraWeight).toBeUndefined()
+  })
+})
+
+describe('the ComfyUI picks a save writes', () => {
+  const lora = COMFY_MODEL_SLOTS.find((s) => s.role === 'lora')!
+
+  it("keeps the shipped LoRA picked on the player's own ComfyUI, where unpicked is None", () => {
+    expect(picksToStore({ lora: lora.shipped }, 'external')).toEqual({ lora: lora.shipped })
+    expect(picksToStore({ lora: '' }, 'external')).toBeUndefined()
+    expect(resolveModelPick(undefined, lora, [lora.shipped], 'external')).toBe('')
+  })
+
+  it("keeps None picked on the app's own install, where unpicked is the shipped LoRA", () => {
+    expect(picksToStore({ lora: '' }, 'managed')).toEqual({ lora: '' })
+    expect(picksToStore({ lora: lora.shipped }, 'managed')).toBeUndefined()
+    expect(resolveModelPick(undefined, lora, [lora.shipped], 'managed')).toBe(lora.shipped)
+  })
+
+  it('draws a LoRA weight the loader would refuse at the default', () => {
+    expect(loraWeightOf({ comfyExternalLoraWeight: 0.6 }, 'external')).toBe(0.6)
+    expect(loraWeightOf({ comfyExternalLoraWeight: 0.6 }, 'managed')).toBe(1)
+    expect(loraWeightOf({ comfyLoraWeight: 500 }, 'managed')).toBe(1)
+    expect(loraWeightOf({ comfyLoraWeight: '0.5' as unknown as number }, 'managed')).toBe(1)
   })
 })
 
@@ -559,6 +615,23 @@ describe('settingsFromBackup', () => {
       removedDefaults: ['shipped-2']
     })
     expect(restored).not.toHaveProperty('apiKeySet')
+  })
+
+  it("keeps the install's ComfyUI, URL, picks and weights whatever the backup carries", () => {
+    const current = settings({
+      comfySource: 'external',
+      comfyUrl: 'http://127.0.0.1:8000',
+      comfyExternalModels: { checkpoint: 'mine.safetensors' },
+      comfyExternalLoraWeight: 0.6
+    })
+    const carried = redactSettings(settings({ comfyModels: { lora: '' }, comfyLoraWeight: 0.4 }))
+    const restored = settingsFromBackup(current, carried, MALFORMED)
+    expect(restored.comfySource).toBe('external')
+    expect(restored.comfyUrl).toBe('http://127.0.0.1:8000')
+    expect(restored.comfyExternalModels).toEqual({ checkpoint: 'mine.safetensors' })
+    expect(restored.comfyExternalLoraWeight).toBe(0.6)
+    expect(restored).not.toHaveProperty('comfyModels')
+    expect(restored).not.toHaveProperty('comfyLoraWeight')
   })
 
   it("lets go of the endpoint's key for a backup naming another host, and keeps Gemini's", () => {

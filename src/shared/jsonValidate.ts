@@ -17,6 +17,13 @@ export interface ValidateRecordOptions<T extends object> {
   expects: number
   /** Every field the record must carry; the first one absent is refused by name. */
   required: Partial<Record<keyof T, true>>
+  /**
+   * Brings a record from the version before {@link expects} up to it before the check; anything
+   * else comes back untouched, for the check to refuse.
+   */
+  upgrade?: (record: object) => object
+  /** A check of the record's inner shape past its required fields, run last; it throws to refuse. */
+  check?(record: T, where: string): void
 }
 
 /**
@@ -32,7 +39,9 @@ export function validateRecord<T extends object>(
     throw appError(opts.malformed.code, `${opts.label} does not contain an object.`, where)
   }
 
-  const candidate = parsed as Partial<T> & { schemaVersion?: number }
+  const candidate = (opts.upgrade ? opts.upgrade(parsed) : parsed) as Partial<T> & {
+    schemaVersion?: number
+  }
   if (candidate.schemaVersion !== opts.expects) {
     throw appError(
       opts.schemaVersion.code,
@@ -47,6 +56,7 @@ export function validateRecord<T extends object>(
     }
   }
 
+  opts.check?.(candidate as T, where)
   return candidate as T
 }
 

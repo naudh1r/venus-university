@@ -2,12 +2,14 @@ import type { ExamPeriod } from '@shared/academics'
 import { FINAL_DATE, slotOf } from '@shared/classes'
 import { jobDefOf, slotFromId } from '@shared/jobs'
 import { locationDefOf } from '@shared/locations'
-import type { ClassSlot, HauntKind, Occasion, TimeSlot } from '@shared/types'
+import type { SemesterCalendar } from '@shared/semesters'
+import type { ClassSlot, HauntKind, Occasion, Season, TimeSlot } from '@shared/types'
 import { classWeekdayOf, formatGameDate, formatWeekday } from './gameDate'
 
 /**
  * The occasion calendar: what is happening on campus and in Veridan on a given day,
- * whoever the reader knows and wherever he goes.
+ * whoever the reader knows and wherever he goes — one fixed table per season, and whatever the
+ * semester invented beside it.
  */
 
 /** How many weeks the semester runs, for the invented-occasions placement pass. */
@@ -18,13 +20,13 @@ export function weekOf(date: number): number {
   return Math.floor(date / 7)
 }
 
-/** Real-world holidays. */
-const HOLIDAYS: readonly Occasion[] = [
+/** A spring's real-world holidays. */
+const SPRING_HOLIDAYS: readonly Occasion[] = [
   {
     id: 'valentines',
     title: "Valentine's Day",
     description:
-      "On Valentine's Day, every florist and sweets counter in Veridan is picked clean by noon, the Pastel Palace has a queue out the door, and the SEB hangs paper hearts off everything on the Rose Road that will hold one.",
+      'On Valentine\'s Day, couples queue for photos where Gold crosses Rose to re-create the poster for "Love Between Gods". The CAPC hangs paper hearts with love fortunes all around campus for people to open, and Pastel Palace offers free chocolates to couples.',
     startDate: 26, // Saturday, February 14
     endDate: 26,
     time: null,
@@ -35,7 +37,7 @@ const HOLIDAYS: readonly Occasion[] = [
     id: 'mardi-gras',
     title: 'Mardi Gras',
     description:
-      'On Mardi Gras, Stanchion Street lights up with the official parade that includes the VU Marching Band and a lush CAPC floral installation on a float. Expect about a quarter of VU students to be drunk by six PM.',
+      'On Mardi Gras, Stanchion Street lights up with an official parade that includes the VU Marching Band and a lush CAPC floral installation on a float. Expect about a quarter of VU students to be drunk by six PM.',
     startDate: 29, // Tuesday, February 17
     endDate: 29,
     time: null,
@@ -46,7 +48,7 @@ const HOLIDAYS: readonly Occasion[] = [
     id: 'st-patricks',
     title: "St. Patrick's Day",
     description:
-      "On St. Patrick's Day, green is everywhere it can be got away with, drinks at Stalestein are dyed, and the VU campus comes alive with CAPC greenery and rainbow displays. The SEB organizes a scavenger hunt for limited-edition wishing coins.",
+      "On St. Patrick's Day, green decorations litter every possible surface, drinks at Stalestein are dyed, and the VU campus comes alive with CAPC greenery and rainbow displays. The SEB also organizes a scavenger hunt for limited-edition wishing coins.",
     startDate: 57, // Tuesday, March 17
     endDate: 57,
     time: null,
@@ -57,7 +59,7 @@ const HOLIDAYS: readonly Occasion[] = [
     id: 'april-fools',
     title: "April Fool's Day",
     description:
-      "On April Fool's Day, somebody has done something to the Venus statue, half the doors in the Lowrises are papered over, and nothing anyone tells you today should be believed on the first pass.",
+      "On April Fool's Day, students compete to be the first to do something funny to the Venus statue, while dining halls serve a special menu of mystery dishes.",
     startDate: 72, // Wednesday, April 1
     endDate: 72,
     time: null,
@@ -68,7 +70,7 @@ const HOLIDAYS: readonly Occasion[] = [
     id: 'easter',
     title: 'Easter Sunday',
     description:
-      'Easter Sunday is a popular time for families to visit students. The egg hunt in Green Hill Park draws large crowds and many restaurants offer a special brunch menu.',
+      'Easter Sunday is a popular time for families to visit students, and many restaurants offer a special brunch menu. The egg hunt in Green Hill Park draws large crowds of adults too, since whoever finds the single golden egg is said to be engaged within the year.',
     startDate: 76, // Sunday, April 5
     endDate: 76,
     time: null,
@@ -101,7 +103,7 @@ const HOLIDAYS: readonly Occasion[] = [
     id: 'cinco-de-mayo',
     title: 'Cinco de Mayo',
     description:
-      'On Cinco de Mayo, Lotterdale Market hosts Mexican music performances and sells traditional trinkets. Every dining hall from the Agora to the Lowrise communal kitchens has a special menu, and the SEB hosts a salsa dance night in the Quad.',
+      'On Cinco de Mayo, Lotterdale Market hosts Mexican music performances and sells traditional trinkets. Dining halls serve a special menu of authentic Mexican cuisine, and the SEB throws a salsa dance night in the Quad.',
     startDate: 106, // Tuesday, May 5
     endDate: 106,
     time: null,
@@ -112,7 +114,7 @@ const HOLIDAYS: readonly Occasion[] = [
     id: 'mothers-day',
     title: "Mother's Day",
     description:
-      "On Mother's Day, students fend off visits or calls from their family and every restaurant in town is packed to the brim.",
+      "On Mother's Day, students fend off visits or calls from their family and every restaurant in town is packed to the brim. Many restaurants offer special menus and desserts to celebrate the occasion.",
     startDate: 111, // Sunday, May 10
     endDate: 111,
     time: null,
@@ -121,13 +123,13 @@ const HOLIDAYS: readonly Occasion[] = [
   }
 ]
 
-/** Venus University's own calendar, fitted to a January 19 – May 22 term. */
-const ACADEMIC: readonly Occasion[] = [
+/** Venus University's own spring calendar, fitted to a January 19 – May 22 term. */
+const SPRING_ACADEMIC: readonly Occasion[] = [
   {
     id: 'orientation',
     title: 'Freshman Orientation',
     description:
-      'Freshman orientation. No classes meet: the entire first-year intake is being walked around campus in groups, handed lanyards and shown where the Agora is, and the SEB has a welcome mixer running in the Quad until late night.',
+      'During Freshman Orientation, no classes meet while the first-year intake is paraded around campus in groups to play games and learn about campus resources. The SEB has a welcome mixer running in the Quad until late night for freshmen to mingle with upperclassmen.',
     startDate: 0, // Monday, January 19
     endDate: 0,
     time: null,
@@ -138,7 +140,7 @@ const ACADEMIC: readonly Occasion[] = [
     id: 'add-drop',
     title: 'Add/Drop Deadline',
     description:
-      'The add/drop deadline — the last day of the semester a student can change their class schedule. Classes still meet. The registrar closes enrollment at midnight, so anybody still unsure about a course has spent the week sitting in on the alternatives, and dropping one today is final: a dropped class cannot be picked back up.',
+      'The Add/Drop deadline on February 13 is the last day of the semester a student can change their class schedule. Registration closes at midnight and dropped classes cannot be re-enrolled in.',
     startDate: 25, // Friday, February 13
     endDate: 25,
     time: null,
@@ -149,7 +151,7 @@ const ACADEMIC: readonly Occasion[] = [
     id: 'presidents-day',
     title: "Presidents' Day",
     description:
-      "Presidents' Day. Campus is closed and there are no classes, and students are everywhere in the city enjoying their long weekend.",
+      "On Presidents' Day, the campus is closed and there are no classes, and students are everywhere in the city enjoying their long weekend. Most restaurants in town offer discounted lunch and dinner specials to draw VU students in.",
     startDate: 28, // Monday, February 16
     endDate: 28,
     time: null,
@@ -160,7 +162,7 @@ const ACADEMIC: readonly Occasion[] = [
     id: 'midterm-week',
     title: 'Midterm Week',
     description:
-      'Midterm week. All classes have exams or project showcases. Kendall Library is full to the walls, the Agora study pods are impossible to get, and everybody is running on too little sleep. Spring break starts the moment it is over, which is the only thing keeping anybody upright.',
+      'All classes have exams or showcases during Midterm week. The SEB pairs students up with study buddies and the Library and the Agora are open 24 hours, with snack stations operated by local businesses. Spring break follows immediately after.',
     startDate: 42, // Monday, March 2
     endDate: 46, // Friday, March 6
     time: null,
@@ -171,7 +173,7 @@ const ACADEMIC: readonly Occasion[] = [
     id: 'spring-break',
     title: 'Spring Break',
     description:
-      'Spring break. No classes all week. Half the campus has gone home or somewhere exotic, and the half still here has the campus almost to itself.',
+      'VU campus closes for a week during Spring Break. Most students go home or somewhere exotic, while the rest enjoy a sleepy, quieter atmosphere on campus.',
     startDate: 49, // Monday, March 9
     endDate: 53, // Friday, March 13
     time: null,
@@ -182,7 +184,7 @@ const ACADEMIC: readonly Occasion[] = [
     id: 'lottery-day',
     title: 'Lottery Day',
     description:
-      "On Lottery Day, the draw that decides next year's intake is performed. Superstitious types rub the Venus statue's foot for anybody they know who entered. Numbered lots are pulled live on the Thorne Auditorium stage and put up on screens across campus, CAPC hangs the drawn numbers as banners down the Rose Road. Parties celebrating the anniversary of getting into VU continue late into the night on the quad or in townhouses.",
+      "On Lottery Day, the draw that decides next year's intake is performed. Superstitious types rub the Venus statue's foot for anybody they know who entered. Numbered lots are pulled live on the Thorne Auditorium stage and put up on screens across campus, and CAPC hangs the drawn numbers as banners on the Rose Road. Parties celebrating the anniversary of getting into VU continue late into the night, like the SEB-sponsored one on the quad.",
     startDate: 67, // Friday, March 27
     endDate: 67,
     time: null,
@@ -193,7 +195,7 @@ const ACADEMIC: readonly Occasion[] = [
     id: 'good-friday',
     title: 'Good Friday',
     description:
-      'On Good Friday, the university closes and no classes meet, a long weekend unique to VU\'s schedule.',
+      'On Good Friday, VU cancels classes and provides a long weekend unique to VU\'s schedule. The Riverside Mall traditionally hosts a massive Good Friday sale.',
     startDate: 74, // Friday, April 3
     endDate: 74,
     time: null,
@@ -204,7 +206,7 @@ const ACADEMIC: readonly Occasion[] = [
     id: 'thorne-day',
     title: 'Thorne Day',
     description:
-      'Thorne Day is an academic holiday celebrating the university’s founder, and the university is closed. Thorne personally gives a speech from the auditorium stage about the importance of social connection, and SEB hosts a full day of events in the Quad, including a student talent show and speed-dating tables.',
+      'Thorne Day is an academic holiday celebrating the university’s founder during which no classes meet. Thorne personally gives a speech from the auditorium stage about the importance of social connection, and SEB hosts a full day of events in the Quad, including a student talent show and speed-dating tables.',
     startDate: 88, // Friday, April 17
     endDate: 88,
     time: null,
@@ -216,7 +218,7 @@ const ACADEMIC: readonly Occasion[] = [
     id: 'last-day-of-classes',
     title: 'Last day of classes',
     description:
-      'The last day of classes. Every lecture hall on campus is holding its final ordinary meeting of the semester, professors are cramming a term of loose ends into fifty minutes, and people keep saying goodbye to rooms they will not sit in again.',
+      'VU\'s last day of classes is May 7. With finals looming, many students hold group study sessions, while others throw big celebration parties.',
     startDate: 108, // Thursday, May 7
     endDate: 108,
     time: null,
@@ -227,7 +229,7 @@ const ACADEMIC: readonly Occasion[] = [
     id: 'reading-day',
     title: 'Reading Day',
     description:
-      'Reading day. Classes have stopped and finals have not started: one quiet, strange Friday of nothing but studying, with every flat surface in Kendall Library already spoken for.',
+      'On Reading Day, VU cancels classes to give students a quiet Friday to study. The university partners with food trucks that park around campus to provide meals and beverages.',
     startDate: 109, // Friday, May 8
     endDate: 109,
     time: null,
@@ -239,7 +241,7 @@ const ACADEMIC: readonly Occasion[] = [
     id: 'finals-week',
     title: 'Finals Week',
     description:
-      'Finals week. Every class meets once more, as its exam. Nobody is sleeping properly, the Reserve Bank Cafe has stopped closing, and the mood on campus swings between grim and giddy by the hour.',
+      'During Finals week, final exams and showcases are held for all classes. Like Midterm week, Kendall Library and the Agora are open 24 hours. The SEB hosts spontaneous stress-relief events in the quad for passing students, including therapy dog visits and meditation sessions.',
     startDate: 112, // Monday, May 11
     endDate: 116, // Friday, May 15
     time: null,
@@ -251,7 +253,7 @@ const ACADEMIC: readonly Occasion[] = [
     id: 'summer-vacation',
     title: 'Summer Vacation',
     description:
-      'Summer vacation, which has technically already started — finals are marked and nothing meets again. Half of campus is packing, cars are double-parked outside every Lowrise, and people are leaving a few at a time. Whoever is left is waiting on the graduation ceremony on Friday, May 22, and going home after it.',
+      'Once finals are over, summer vacation starts. Most students stay on campus until the graduation ceremony on Friday, May 22, during which farewell parties are thrown and rooms are cleaned in preparation to leave for the summer. The town starts to fill up with visiting parents.',
     startDate: 117, // Saturday, May 16
     endDate: 122, // Thursday, May 21
     time: null,
@@ -262,7 +264,7 @@ const ACADEMIC: readonly Occasion[] = [
     id: 'graduation',
     title: 'Graduation Day',
     description:
-      "Graduation day, and the last day of the semester. The Quad is full of chairs and gowns and somebody's crying parents, the seniors are leaving, and everyone else is packing up a room they will not see again until autumn.",
+      "Graduation Day is the official end of the semester. Campus is chock full of the cars of visiting families, and the quad is converted into a massive ceremony space with floral arrangements and plenty of shade.",
     startDate: 123, // Friday, May 22 — FINAL_DATE
     endDate: 123,
     time: null,
@@ -271,19 +273,247 @@ const ACADEMIC: readonly Occasion[] = [
   }
 ]
 
-/** Every occasion that is the same in every playthrough, in calendar order; never written into the save. */
-export const STATIC_OCCASIONS: readonly Occasion[] = [...HOLIDAYS, ...ACADEMIC].sort(
-  (a, b) => a.startDate - b.startDate
-)
+/** A fall's real-world holidays; the Selkie weekend is the one held at a place of its own. */
+const FALL_HOLIDAYS: readonly Occasion[] = [
+  {
+    id: 'selkie-send-off',
+    title: 'Selkie Summer Send-Off',
+    description:
+      "The Selkie Summer Send-Off is a three-day Labor Day weekend party thrown by the company that owns Selkie Beach, with DJs, volleyball nets and bonfires along the shore. After a couple was caught screwing near the cliffs during the first one, daring couples attempt the 'Sex on the Beach' challenge every year now.",
+    startDate: 19, // Saturday, September 5
+    endDate: 21, // Monday, September 7
+    time: null,
+    cancelsClasses: false,
+    kind: 'holiday'
+  },
+  {
+    id: 'oktoberfest',
+    title: 'Oktoberfest',
+    description:
+      'During Oktoberfest, parades of people in traditional German dress march around the city, offering free beer to passerby. Most students ditch class to drink, so most professors know not to schedule anything important.',
+    startDate: 40, // Saturday, September 26
+    endDate: 40,
+    time: null,
+    cancelsClasses: false,
+    kind: 'holiday'
+  },
+  {
+    id: 'halloween',
+    title: 'Halloween',
+    description:
+      "On Halloween, CAPC trucks in autumn leaves to scatter down the Rose Road to set the mood despite Veridan's eternal spring. Costumed trick-or-treaters knock on Lowrise and Elysium doors, joining in on any parties they find.",
+    startDate: 75, // Saturday, October 31
+    endDate: 75,
+    time: null,
+    cancelsClasses: false,
+    kind: 'holiday'
+  },
+  {
+    id: 'dia-de-los-muertos',
+    title: 'Día de los Muertos',
+    description:
+      'On Día de los Muertos, the Veridan Museum hosts an ofrenda for the Girl at the Window and other nameless deceased. At night, CAPC lights candles along the road, while the SEB distributes sugar skulls and hot chocolate to students in the quad.',
+    startDate: 77, // Monday, November 2
+    endDate: 77,
+    time: null,
+    cancelsClasses: false,
+    kind: 'holiday'
+  },
+  {
+    id: 'friday-the-13th',
+    title: 'Friday the 13th',
+    description:
+      "On Friday the 13th, Future Cinema runs a horror marathon from dawn til dusk. The SEB randomly cuts power briefly in buildings to spook students, and students flock to CuteTea for their 'Lucky Tea` that comes in a limited edition mug.",
+    startDate: 88, // Friday, November 13
+    endDate: 88,
+    time: null,
+    cancelsClasses: false,
+    kind: 'holiday'
+  },
+  {
+    id: 'thanksgiving',
+    title: 'Thanksgiving',
+    description:
+      "On Thanksgiving, VU's Friendsgiving takes over every Lowrise kitchen and Elysium lounge, and even the most introverted are dragged to potlucks, parties, and dinners.",
+    startDate: 101, // Thursday, November 26
+    endDate: 101,
+    time: null,
+    cancelsClasses: false,
+    kind: 'holiday'
+  },
+  {
+    id: 'black-friday',
+    title: 'Black Friday',
+    description:
+      'On Black Friday, Riverside Mall opens at dawn to a line around the block, and even its upper floor become a battle ground for discounted electronics, luxury goods, and more. Locals shop the Silktown Friday sale at Lotterdale Market instead.',
+    startDate: 102, // Friday, November 27
+    endDate: 102,
+    time: null,
+    cancelsClasses: false,
+    kind: 'holiday'
+  }
+]
 
-/** The static set plus whatever this save generated, in calendar order. */
-function allOccasions(generated: readonly Occasion[] = []): Occasion[] {
-  return [...STATIC_OCCASIONS, ...generated].sort((a, b) => a.startDate - b.startDate)
+/** Venus University's own fall calendar, fitted to an August 17 – December 18 term. */
+const FALL_ACADEMIC: readonly Occasion[] = [
+  {
+    id: 'orientation',
+    title: 'Freshman Orientation',
+    description:
+      "During Freshman Orientation, no classes meet while the fall's first-year intake is paraded around campus in groups to play games and learn about campus resources. Everyone else takes the time to get settled in after summer vacation. The SEB has a welcome mixer running in the Quad late into the night for freshmen to mingle with upperclassmen.",
+    startDate: 0, // Monday, August 17
+    endDate: 0,
+    time: null,
+    cancelsClasses: true,
+    kind: 'academic'
+  },
+  {
+    id: 'labor-day',
+    title: 'Labor Day',
+    description:
+      "On Labor Day, campus is closed and there are no classes. A big picnic and barbecue is traditionally held in Green Hill Park and is packed with students, locals, and visiting families.",
+    startDate: 21, // Monday, September 7
+    endDate: 21,
+    time: null,
+    cancelsClasses: true,
+    kind: 'academic'
+  },
+  {
+    id: 'add-drop',
+    title: 'Add/Drop Deadline',
+    description:
+      'The Add/Drop deadline is the last day of the semester a student can change their class schedule. Registration closes at midnight and dropped classes cannot be re-enrolled in.',
+    startDate: 25, // Friday, September 11
+    endDate: 25,
+    time: null,
+    cancelsClasses: false,
+    kind: 'academic'
+  },
+  {
+    id: 'midterm-week',
+    title: 'Midterm Week',
+    description:
+      'All classes have exams or showcases during Midterm week. The SEB pairs students up with study buddies and the Library and the Agora are open 24 hours, with relaxation stations operated by local businesses.',
+    startDate: 49, // Monday, October 5
+    endDate: 53, // Friday, October 9
+    time: null,
+    cancelsClasses: false,
+    kind: 'academic'
+  },
+  {
+    id: 'homecoming-game',
+    title: 'Homecoming Game',
+    description:
+      'The Homecoming Game is the most important football game of the year. Palaestra stadium fills with spectators as the Cupids play a rival school. The CAPC throws a decadent halftime show with student dancers accompanied by the VU Marching Band, and the pre-game tailgate party starts right back up after the game ends. Later in the day, the Homecoming Dance is held.',
+    startDate: 61, // Saturday, October 17
+    endDate: 61,
+    time: 0,
+    cancelsClasses: false,
+    kind: 'academic'
+  },
+  {
+    id: 'homecoming-dance',
+    title: 'Homecoming Dance',
+    description:
+      "The Homecoming Dance is a semi-formal occasion held in Palaestra's biggest gymnasium. The CAPC converts the gym to a Roman-themed venue with real marble columns hung with glittery gold balloons. SEB photographers prowl the floor searching for the best-dressed couples.",
+    startDate: 61, // Saturday, October 17
+    endDate: 61,
+    time: 1,
+    cancelsClasses: false,
+    kind: 'academic'
+  },
+  {
+    id: 'thanksgiving-break',
+    title: 'Thanksgiving Break',
+    description:
+      "Classes are cancelled for the week of Thanksgiving Break, but most students stay on campus. All dining halls offer a special Thanksgiving menu that even some locals come in to enjoy.",
+    startDate: 98, // Monday, November 23
+    endDate: 102, // Friday, November 27
+    time: null,
+    cancelsClasses: true,
+    kind: 'academic'
+  },
+  {
+    // Cancels nothing: every class still meets once more as its exam.
+    id: 'last-day-of-classes',
+    title: 'Last day of classes',
+    description:
+      "VU's last day of classes is December 3. Traditionally, a winter-themed game night is held in the Pino-Cola Lounge.",
+    startDate: 108, // Thursday, December 3
+    endDate: 108,
+    time: null,
+    cancelsClasses: false,
+    kind: 'academic'
+  },
+  {
+    id: 'reading-day',
+    title: 'Reading Day',
+    description:
+      'On Reading Day, VU cancels classes to give students a quiet Friday to study. Veridan businesses pop-up on campus in booths selling snacks, stationery, and care packages for the upcoming finals week.',
+    startDate: 109, // Friday, December 4
+    endDate: 109,
+    time: null,
+    cancelsClasses: true,
+    kind: 'academic'
+  },
+  {
+    // Monday to Friday, so every one of the ten class slots meets exactly once inside it.
+    id: 'finals-week',
+    title: 'Finals Week',
+    description:
+      'During Finals week, final exams and showcases are held for all classes. The CAPC sets up winter-themed study booths along the quad to ease Agora and Library occupancy.',
+    startDate: 112, // Monday, December 7
+    endDate: 116, // Friday, December 11
+    time: null,
+    cancelsClasses: false,
+    kind: 'academic'
+  },
+  {
+    // One `cancelsClasses` entry closes the timetable, the university's employers and its haunts at once.
+    id: 'winter-vacation',
+    title: 'Winter Vacation',
+    description:
+      'Once finals are over, winter vacation starts. Most students stay on campus until the fall graduation ceremony on Friday, December 18, during which farewell parties are thrown and rooms are packed up for the holidays. CAPC lines the Rose Road with fake snow to combat Veridan\'s eternal spring, and the town starts to fill up with visiting parents.',
+    startDate: 117, // Saturday, December 12
+    endDate: 122, // Thursday, December 17
+    time: null,
+    cancelsClasses: true,
+    kind: 'academic'
+  },
+  {
+    id: 'graduation',
+    title: 'Fall Graduation',
+    description:
+      'Fall Graduation is the official end of the semester. Campus is chock full of the cars of visiting families, and the CAPC converts the quad into a heated outdoor space for the graduation ceremony, though the weather is still far from normal winter temperatures elsewhere.', 
+    startDate: 123, // Friday, December 18 — FINAL_DATE
+    endDate: 123,
+    time: null,
+    cancelsClasses: true,
+    kind: 'academic'
+  }
+]
+
+/** Every occasion that is the same in every semester of a season, in calendar order; never written into the save. */
+const STATIC_BY_SEASON: Record<Season, readonly Occasion[]> = {
+  spring: [...SPRING_HOLIDAYS, ...SPRING_ACADEMIC].sort((a, b) => a.startDate - b.startDate),
+  fall: [...FALL_HOLIDAYS, ...FALL_ACADEMIC].sort((a, b) => a.startDate - b.startDate)
+}
+
+/** The fixed occasions of a season's semester, in calendar order. */
+export function staticOccasionsOf(season: Season): readonly Occasion[] {
+  return STATIC_BY_SEASON[season]
+}
+
+/** A semester's fixed occasions plus whatever it generated, in calendar order. */
+function allOccasions(calendar: SemesterCalendar): Occasion[] {
+  return [...STATIC_BY_SEASON[calendar.season], ...calendar.generated].sort(
+    (a, b) => a.startDate - b.startDate
+  )
 }
 
 /** Everything happening on `date`, in either half of it — what the Calendar draws. */
-export function occasionsOn(date: number, generated: readonly Occasion[] = []): Occasion[] {
-  return allOccasions(generated).filter(
+export function occasionsOn(date: number, calendar: SemesterCalendar): Occasion[] {
+  return allOccasions(calendar).filter(
     (occasion) => date >= occasion.startDate && date <= occasion.endDate
   )
 }
@@ -292,9 +522,9 @@ export function occasionsOn(date: number, generated: readonly Occasion[] = []): 
 export function occasionsAt(
   date: number,
   time: TimeSlot,
-  generated: readonly Occasion[] = []
+  calendar: SemesterCalendar
 ): Occasion[] {
-  return occasionsOn(date, generated).filter(
+  return occasionsOn(date, calendar).filter(
     (occasion) => occasion.time === null || occasion.time === time
   )
 }
@@ -303,17 +533,17 @@ export function occasionsAt(
  * When an occasion that started earlier began, as the timing sentence says it:
  * `"on Thursday"` inside the last week, `"on March 3"` beyond it.
  */
-function startedWhen(startDate: number, date: number): string {
+function startedWhen(startDate: number, date: number, season: Season): string {
   return date - startDate <= 6
     ? `on ${formatWeekday(startDate)}`
-    : `on ${formatGameDate(startDate)}`
+    : `on ${formatGameDate(startDate, season)}`
 }
 
 /**
  * The sentence closing an occasion's lorebook paragraph: where in its own span the current
  * slot sits.
  */
-function timingSentence(occasion: Occasion, date: number, time: TimeSlot): string {
+function timingSentence(occasion: Occasion, date: number, time: TimeSlot, season: Season): string {
   if (occasion.time !== null) {
     return time === 0 ? "It's happening today." : "It's happening tonight."
   }
@@ -323,7 +553,7 @@ function timingSentence(occasion: Occasion, date: number, time: TimeSlot): strin
   if (date === occasion.startDate) {
     return `It started this morning and will go until ${formatWeekday(occasion.endDate)}.`
   }
-  const started = startedWhen(occasion.startDate, date)
+  const started = startedWhen(occasion.startDate, date, season)
   return date === occasion.endDate
     ? `It started ${started} and will go until the end of the night.`
     : `It started ${started} and is still going.`
@@ -331,20 +561,22 @@ function timingSentence(occasion: Occasion, date: number, time: TimeSlot): strin
 
 /**
  * The occasions nothing leads up to here: VenusBot's texts, the exam lookahead line, the
- * spring-break lines and the summer description already announce these ahead of time.
+ * spring-break lines and the end-of-term descriptions already announce these ahead of time.
  */
 const NO_LEAD_UP_IDS: ReadonlySet<string> = new Set([
   'add-drop',
   'midterm-week',
   'spring-break',
+  'thanksgiving-break',
   'finals-week',
   'summer-vacation',
+  'winter-vacation',
   'graduation'
 ])
 
 /**
- * The fixed occasions somebody can ask the reader along to. Every generated occasion is one
- * as well, by its `campus` kind.
+ * The fixed occasions somebody can ask the reader along to, of either season. Every generated
+ * occasion is one as well, by its `campus` kind.
  */
 const OUTING_OCCASION_IDS: ReadonlySet<string> = new Set([
   'mardi-gras',
@@ -354,17 +586,26 @@ const OUTING_OCCASION_IDS: ReadonlySet<string> = new Set([
   'selkie-beach-party',
   'cinco-de-mayo',
   'lottery-day',
-  'thorne-day'
+  'thorne-day',
+  'selkie-send-off',
+  'oktoberfest',
+  'homecoming-game',
+  'homecoming-dance',
+  'halloween',
+  'dia-de-los-muertos',
+  'friday-the-13th',
+  'thanksgiving',
+  'black-friday'
 ])
 
 /** The occasion in this slot that somebody could ask the reader to, or null for a slot with none. */
 export function outingOccasionAt(
   date: number,
   time: TimeSlot,
-  generated: readonly Occasion[] = []
+  calendar: SemesterCalendar
 ): Occasion | null {
   return (
-    occasionsAt(date, time, generated).find(
+    occasionsAt(date, time, calendar).find(
       (occasion) => occasion.kind === 'campus' || OUTING_OCCASION_IDS.has(occasion.id)
     ) ?? null
   )
@@ -374,7 +615,12 @@ export function outingOccasionAt(
  * The sentence naming when an occasion this slot leads up to arrives, or null when the slot
  * is outside its lead-up window.
  */
-function leadUpSentence(occasion: Occasion, date: number, time: TimeSlot): string | null {
+function leadUpSentence(
+  occasion: Occasion,
+  date: number,
+  time: TimeSlot,
+  season: Season
+): string | null {
   const { startDate, endDate } = occasion
   if (startDate === endDate && occasion.time !== null) {
     if (occasion.time === 0) {
@@ -388,7 +634,9 @@ function leadUpSentence(occasion: Occasion, date: number, time: TimeSlot): strin
   const span = endDate - startDate + 1
   if (date < startDate - span || date >= startDate) return null
   const named =
-    startDate - date > 6 ? `on ${formatGameDate(startDate)}` : `on ${formatWeekday(startDate)}`
+    startDate - date > 6
+      ? `on ${formatGameDate(startDate, season)}`
+      : `on ${formatWeekday(startDate)}`
   const day = date === startDate - 1 ? 'tomorrow' : named
   const when =
     occasion.time === 1 ? `${day} night` : occasion.time === 0 ? `${day}, during the day` : day
@@ -402,12 +650,12 @@ function leadUpSentence(occasion: Occasion, date: number, time: TimeSlot): strin
 export function occasionLeadUpLines(
   date: number,
   time: TimeSlot,
-  generated: readonly Occasion[] = []
+  calendar: SemesterCalendar
 ): string[] {
   const lines: string[] = []
-  for (const occasion of allOccasions(generated)) {
+  for (const occasion of allOccasions(calendar)) {
     if (NO_LEAD_UP_IDS.has(occasion.id)) continue
-    const sentence = leadUpSentence(occasion, date, time)
+    const sentence = leadUpSentence(occasion, date, time, calendar.season)
     if (sentence) lines.push(`${occasion.title}: ${occasion.description} ${sentence}`)
   }
   return lines
@@ -420,26 +668,26 @@ export function occasionLeadUpLines(
 export function occasionLoreLines(
   date: number,
   time: TimeSlot,
-  generated: readonly Occasion[] = []
+  calendar: SemesterCalendar
 ): string[] {
-  const lines = occasionsAt(date, time, generated).map(
+  const lines = occasionsAt(date, time, calendar).map(
     (occasion) =>
-      `${occasion.title}: ${occasion.description} ${timingSentence(occasion, date, time)}`
+      `${occasion.title}: ${occasion.description} ${timingSentence(occasion, date, time, calendar.season)}`
   )
-  lines.push(...occasionLeadUpLines(date, time, generated))
-  const lookahead = examLookaheadLine(date)
+  lines.push(...occasionLeadUpLines(date, time, calendar))
+  const lookahead = examLookaheadLine(date, calendar.season)
   if (lookahead) lines.push(lookahead)
   return lines
 }
 
 /** Whether the university is closed on `date`. */
-function classesCancelledOn(date: number, generated: readonly Occasion[] = []): boolean {
-  return occasionsOn(date, generated).some((occasion) => occasion.cancelsClasses)
+function classesCancelledOn(date: number, calendar: SemesterCalendar): boolean {
+  return occasionsOn(date, calendar).some((occasion) => occasion.cancelsClasses)
 }
 
 /** The occasion closing the university on `date`, or null. */
-export function closureOn(date: number, generated: readonly Occasion[] = []): Occasion | null {
-  return occasionsOn(date, generated).find((occasion) => occasion.cancelsClasses) ?? null
+export function closureOn(date: number, calendar: SemesterCalendar): Occasion | null {
+  return occasionsOn(date, calendar).find((occasion) => occasion.cancelsClasses) ?? null
 }
 
 /**
@@ -449,20 +697,20 @@ export function closureOn(date: number, generated: readonly Occasion[] = []): Oc
 export function jobClosedOn(
   jobId: string | null | undefined,
   date: number,
-  generated: readonly Occasion[] = []
+  calendar: SemesterCalendar
 ): boolean {
   if (!jobId || !jobDefOf(jobId)?.closesWithUniversity) return false
-  return classesCancelledOn(date, generated)
+  return classesCancelledOn(date, calendar)
 }
 
 /** Whether `location` is shut on `date` — a university place on a day an occasion closes it. */
 export function placeClosedOn(
   location: string,
   date: number,
-  generated: readonly Occasion[] = []
+  calendar: SemesterCalendar
 ): boolean {
   return (
-    locationDefOf(location)?.closesWithUniversity === true && classesCancelledOn(date, generated)
+    locationDefOf(location)?.closesWithUniversity === true && classesCancelledOn(date, calendar)
   )
 }
 
@@ -474,11 +722,13 @@ export function hauntClosedOn(
   location: string,
   kind: HauntKind,
   date: number,
-  generated: readonly Occasion[] = []
+  calendar: SemesterCalendar
 ): boolean {
-  if (placeClosedOn(location, date, generated)) return true
+  if (placeClosedOn(location, date, calendar)) return true
   if (kind !== 'study') return false
-  return BREAK_WEEKS.some((week) => date >= week.startDate && date <= week.endDate)
+  return breakWeeksOf(calendar.season).some(
+    (week) => date >= week.startDate && date <= week.endDate
+  )
 }
 
 /**
@@ -488,72 +738,98 @@ export function hauntClosedOn(
 export function classSlotOf(
   date: number,
   time: TimeSlot,
-  generated: readonly Occasion[] = []
+  calendar: SemesterCalendar
 ): ClassSlot | null {
   const weekday = classWeekdayOf(date)
   if (weekday === null) return null
-  if (classesCancelledOn(date, generated)) return null
+  if (classesCancelledOn(date, calendar)) return null
   return slotOf(weekday, time)
 }
 
-/** The exam weeks, read back off the table so the dates and the names have one home. */
-const examWeekOf = (id: string): { title: string; startDate: number; endDate: number } => {
-  const occasion = ACADEMIC.find((entry) => entry.id === id)
-  if (!occasion) throw new Error(`missing academic occasion: ${id}`)
-  return { title: occasion.title, startDate: occasion.startDate, endDate: occasion.endDate }
+/** One run of the fixed calendar, read back off its season's table so dates and names have one home. */
+export interface CalendarSpan {
+  id: string
+  title: string
+  startDate: number
+  endDate: number
 }
-export const MIDTERM_WEEK = examWeekOf('midterm-week')
-export const FINALS_WEEK = examWeekOf('finals-week')
 
-/** Spring break, read off the same table. */
-export const SPRING_BREAK = examWeekOf('spring-break')
+/** The fixed occasion `id` names in a season's table. */
+function spanOf(season: Season, id: string): CalendarSpan {
+  const occasion = STATIC_BY_SEASON[season].find((entry) => entry.id === id)
+  if (!occasion) throw new Error(`missing ${season} occasion: ${id}`)
+  return { id, title: occasion.title, startDate: occasion.startDate, endDate: occasion.endDate }
+}
 
-/** The wind-down after finals; its id is the one closure a boss answers differently. */
-export const SUMMER_VACATION_ID = 'summer-vacation'
-export const SUMMER_VACATION = examWeekOf(SUMMER_VACATION_ID)
+/** A season's midterm week. */
+export function midtermWeekOf(season: Season): CalendarSpan {
+  return spanOf(season, 'midterm-week')
+}
+
+/** A season's week off: spring break, or the fall's Thanksgiving break. */
+export function breakWeekOf(season: Season): CalendarSpan {
+  return spanOf(season, season === 'spring' ? 'spring-break' : 'thanksgiving-break')
+}
+
+/** The wind-down after finals: summer vacation in a spring, winter vacation in a fall. */
+export function endVacationOf(season: Season): CalendarSpan {
+  return spanOf(season, season === 'spring' ? 'summer-vacation' : 'winter-vacation')
+}
+
+/** Finals week, the same days in either season. */
+export const FINALS_WEEK = spanOf('spring', 'finals-week')
 
 /** The day the semester ends on, likewise — always `FINAL_DATE`. */
-export const GRADUATION_DATE = examWeekOf('graduation').startDate
+export const GRADUATION_DATE = spanOf('spring', 'graduation').startDate
+
+/**
+ * The last date the player may change their class schedule, the same in either season.
+ * Inclusive: the deadline day itself is still open.
+ */
+export const ADD_DROP_DATE = spanOf('spring', 'add-drop').startDate
+
+/** The fall's Homecoming day: the game in the day, the dance at night. */
+export const HOMECOMING_DATE = spanOf('fall', 'homecoming-game').startDate
 
 /** The two weeks nobody has anything to study for — {@link hauntClosedOn}'s second rule. */
-const BREAK_WEEKS: ReadonlyArray<{ startDate: number; endDate: number }> = [
-  SPRING_BREAK,
-  SUMMER_VACATION
-]
+function breakWeeksOf(season: Season): CalendarSpan[] {
+  return [breakWeekOf(season), endVacationOf(season)]
+}
+
+/** Whether `date` is a weekday of the term's week off or of the week after finals, when outings run every slot. */
+export function isBreakOutingWeek(date: number, season: Season): boolean {
+  const week = breakWeekOf(season)
+  // The Monday the wind-down's own week starts: the weekend before it is still a weekend.
+  const windDown = endVacationOf(season).startDate + 2
+  return (
+    (date >= week.startDate && date <= week.endDate) ||
+    (date >= windDown && date <= endVacationOf(season).endDate)
+  )
+}
 
 /** The heads-up line for the week before each exam week, or null. */
-export function examLookaheadLine(date: number): string | null {
+export function examLookaheadLine(date: number, season: Season): string | null {
   const week = weekOf(date)
-  if (week === weekOf(MIDTERM_WEEK.startDate) - 1) {
-    return 'Midterms are next week, starting March 2nd. Every class is a week out from its exam or project showcase. Spring break is the week after.'
+  const midterms = midtermWeekOf(season)
+  if (week === weekOf(midterms.startDate) - 1) {
+    const after = season === 'spring' ? ' Spring break is the week after.' : ''
+    return `Midterms are next week, starting ${formatGameDate(midterms.startDate, season)}. Every class is a week out from its exam or project showcase.${after}`
   }
   if (week === weekOf(FINALS_WEEK.startDate) - 1) {
-    return 'Finals are next week, starting May 11. Classes are meeting for the last time this week.'
+    return `Finals are next week, starting ${formatGameDate(FINALS_WEEK.startDate, season)}. Classes are meeting for the last time this week.`
   }
   return null
 }
 
-/**
- * The last date the player may change their class schedule, read off the same table.
- * Inclusive: the deadline day itself is still open.
- */
-export const ADD_DROP_DATE = examWeekOf('add-drop').startDate
-
-/** The default `generated` list, shared so the memo below sees one key for callers that omit it. */
-const NO_OCCASIONS: readonly Occasion[] = []
-
-/** Memo for {@link meetingDatesOf}, keyed on the occasion list's identity. */
-const meetingsMemo = new WeakMap<readonly Occasion[], Map<ClassSlot, readonly number[]>>()
+/** Memo for {@link meetingDatesOf}, keyed on the calendar's identity. */
+const meetingsMemo = new WeakMap<SemesterCalendar, Map<ClassSlot, readonly number[]>>()
 
 /** Every date a class in `slot` actually meets, in calendar order. */
-export function meetingDatesOf(
-  slot: ClassSlot,
-  generated: readonly Occasion[] = NO_OCCASIONS
-): readonly number[] {
-  let bySlot = meetingsMemo.get(generated)
+export function meetingDatesOf(slot: ClassSlot, calendar: SemesterCalendar): readonly number[] {
+  let bySlot = meetingsMemo.get(calendar)
   if (!bySlot) {
     bySlot = new Map()
-    meetingsMemo.set(generated, bySlot)
+    meetingsMemo.set(calendar, bySlot)
   }
   const cached = bySlot.get(slot)
   if (cached) return cached
@@ -561,7 +837,7 @@ export function meetingDatesOf(
   const { time } = slotFromId(slot)
   const dates: number[] = []
   for (let date = 0; date <= FINAL_DATE; date++) {
-    if (classSlotOf(date, time, generated) === slot) dates.push(date)
+    if (classSlotOf(date, time, calendar) === slot) dates.push(date)
   }
   bySlot.set(slot, dates)
   return dates
@@ -571,28 +847,24 @@ export function meetingDatesOf(
 export function classMeetingIndexOf(
   slot: ClassSlot,
   date: number,
-  generated: readonly Occasion[] = NO_OCCASIONS
+  calendar: SemesterCalendar
 ): number | null {
-  const index = meetingDatesOf(slot, generated).indexOf(date)
+  const index = meetingDatesOf(slot, calendar).indexOf(date)
   return index === -1 ? null : index + 1
 }
 
 /** How many meetings the class has held strictly before `date`. */
-export function meetingsBefore(
-  slot: ClassSlot,
-  date: number,
-  generated: readonly Occasion[] = NO_OCCASIONS
-): number {
-  return meetingDatesOf(slot, generated).filter((meeting) => meeting < date).length
+export function meetingsBefore(slot: ClassSlot, date: number, calendar: SemesterCalendar): number {
+  return meetingDatesOf(slot, calendar).filter((meeting) => meeting < date).length
 }
 
 /** The class's first meeting strictly after `date`, or null if it has none left. */
 export function firstMeetingAfter(
   slot: ClassSlot,
   date: number,
-  generated: readonly Occasion[] = NO_OCCASIONS
+  calendar: SemesterCalendar
 ): number | null {
-  return meetingDatesOf(slot, generated).find((meeting) => meeting > date) ?? null
+  return meetingDatesOf(slot, calendar).find((meeting) => meeting > date) ?? null
 }
 
 /**
@@ -602,10 +874,11 @@ export function firstMeetingAfter(
 export function examMeetingDateOf(
   slot: ClassSlot,
   exam: ExamPeriod,
-  generated: readonly Occasion[] = NO_OCCASIONS
+  calendar: SemesterCalendar
 ): number | null {
-  const { startDate, endDate } = exam === 'midterm' ? MIDTERM_WEEK : FINALS_WEEK
+  const { startDate, endDate } =
+    exam === 'midterm' ? midtermWeekOf(calendar.season) : FINALS_WEEK
   return (
-    meetingDatesOf(slot, generated).find((date) => date >= startDate && date <= endDate) ?? null
+    meetingDatesOf(slot, calendar).find((date) => date >= startDate && date <= endDate) ?? null
   )
 }

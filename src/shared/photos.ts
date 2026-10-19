@@ -1,5 +1,5 @@
 import { appError } from './errors'
-import { imageTypeOf } from './imageBytes'
+import { imageExtensionOf, imageTypeOf } from './imageBytes'
 import { assertSafeId, type ValidateRecordOptions } from './jsonValidate'
 import { THINKING_LEVELS, isImageSize, type ImageModelCaps, type ImageSize, type ThinkingLevel } from './providers'
 import { SAFE_NUMERIC_ID } from './saveRules'
@@ -26,7 +26,10 @@ export const PHOTO_WORDS_MAX = 6000
 /** How long one photo may take before it counts as lost, in ms. */
 export const PHOTO_TIMEOUT_MS = 5 * 60_000
 
-/** The square thumbnail the grid draws, in pixels, and the JPEG quality it is cut at. */
+/**
+ * The square thumbnail the grid draws, in pixels, and the quality it is cut at: WebP, or JPEG
+ * where the browser cannot encode WebP.
+ */
 export const PHOTO_THUMB_SIZE = 384
 export const PHOTO_THUMB_QUALITY = 0.85
 
@@ -65,6 +68,8 @@ export interface PhotoMeta {
   /** The in-game day and half it was taken on. */
   date: number
   time: TimeSlot
+  /** Which semester of the playthrough it was taken in, from 0; absent in the first. */
+  semesterIndex?: number
   rows: PhotoRow[]
   /** The player's own words. */
   prompt: string
@@ -122,13 +127,18 @@ export function assertSafePhotoId(photoId: string): void {
   assertSafeId(photoId, SAFE_NUMERIC_ID, 'PHOTO_ID_INVALID', 'That photo id is not valid.')
 }
 
-/** The picture's own file, kept under `.png` whatever the model answered, as the room is. */
+/** The picture's own file, by the PNG name every image is called by and stored as its WebP twin. */
 export function photoImageName(photoId: string): string {
   return `${photoId}.png`
 }
 
-/** The grid's square thumbnail. */
+/** The grid's square thumbnail, named and stored as the picture is. */
 export function photoThumbName(photoId: string): string {
+  return `${photoId}.thumb.png`
+}
+
+/** The thumbnail as builds before WebP kept it, a JPEG under its own name. */
+export function legacyPhotoThumbName(photoId: string): string {
   return `${photoId}.thumb.jpg`
 }
 
@@ -137,17 +147,18 @@ export function photoMetaName(photoId: string): string {
   return `${photoId}.json`
 }
 
-/** The photo id a file in the photos folder is the picture of, or null for any other file. */
+/**
+ * The photo id a file in the photos folder is the picture of, or null for any other file; the
+ * picture is kept as WebP, or as the PNG name it was given until the boot pass converts it.
+ */
 export function photoIdOfImage(fileName: string): string | null {
-  const match = /^([0-9]+)\.png$/.exec(fileName)
+  const match = /^([0-9]+)\.(png|webp)$/.exec(fileName)
   return match ? match[1] : null
 }
 
 /** What a saved copy is called, under the extension its bytes actually are. */
 export function photoExportName(photoId: string, bytes: Uint8Array): string {
-  const type = imageTypeOf(bytes)
-  const extension = type === 'image/jpeg' ? 'jpg' : type === 'image/webp' ? 'webp' : 'png'
-  return `photo-${photoId}.${extension}`
+  return `photo-${photoId}.${imageExtensionOf(bytes)}`
 }
 
 /** A ratio as both wire formats write one — `16:9`, `9:19.5` — or the word `auto`. */

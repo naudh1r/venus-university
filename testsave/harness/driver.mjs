@@ -572,7 +572,7 @@ export async function captureManual(page, playthroughId, slot, expected, { outDi
   }
   if ('thumbnail' in save) problems.push('save carries a thumbnail')
   if (finalsPending && save.finalsScoresShown !== false) problems.push('finalsScoresShown is not false')
-  if (save.schemaVersion !== 12) problems.push(`save schemaVersion ${save.schemaVersion}`)
+  if (save.schemaVersion !== 13) problems.push(`save schemaVersion ${save.schemaVersion}`)
   if (record.schemaVersion !== 3) problems.push(`record schemaVersion ${record.schemaVersion}`)
   if (problems.length > 0) throw new Error(`${saveId} at ${expected.date}:${expected.time}: ${problems.join('; ')}`)
 

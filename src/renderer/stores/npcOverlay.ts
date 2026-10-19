@@ -1,5 +1,6 @@
 import { ROOM_LOCATION } from '@shared/locations'
 import type { NpcGroup, NpcSlotOverlay } from '@shared/npcRelationships'
+import { PULL_CHANCE } from '@shared/odds'
 import { pick, shuffle } from '@shared/shuffle'
 import type { TimeSlot } from '@shared/types'
 
@@ -31,9 +32,6 @@ export interface OverlayCharInput {
  * `'break'` for one a slot, and null for a slot nobody leaves campus in.
  */
 export type OutingWindow = 'weekend' | 'break' | null
-
-/** The odds a friend says yes to being dragged along. */
-const PULL_CHANCE = 0.5
 
 /** How many friends one host can pull into her evening. */
 const MAX_PULLED = 2

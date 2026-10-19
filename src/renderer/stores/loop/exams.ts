@@ -37,7 +37,7 @@ function skippedNow(code: string): number {
   const game = useGameStore.getState()
   const entry = game.classes[code]
   if (!entry) return 0
-  return skippedFactMeetings(entry, game.date, game.classRecords[code], game.occasions)
+  return skippedFactMeetings(entry, game.date, game.classRecords[code], game.calendar)
 }
 
 /** Opens an exam in place of a scene. */
@@ -174,12 +174,15 @@ function finishExam(): void {
   loopState.endingAbandoned = false
   loopState.endBase = null
   loopState.endLines = null
-  void runExamEnding()
+  void runQuietEnding()
   advance()
 }
 
-/** The exam's ending: the texting ledger, the next slot's opening, one write. */
-async function runExamEnding(): Promise<void> {
+/**
+ * The ending of a slot with no scene ledger, an exam's or a relaxed one's: the texting ledger,
+ * the next slot's opening, one write.
+ */
+export async function runQuietEnding(): Promise<void> {
   const run = currentRun()
   const game = useGameStore.getState()
   // Both usually in flight since the questions landed; the direct calls below are the

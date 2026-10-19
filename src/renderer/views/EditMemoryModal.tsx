@@ -56,7 +56,7 @@ export function EditMemoryModal({
     if (blank) return
     useGameStore
       .getState()
-      .replaceMemory(charId, memory, { date: memory.date, type, desc: storedMemoryDesc(desc) })
+      .replaceMemory(charId, memory, { ...memory, type, desc: storedMemoryDesc(desc) })
     onClose()
   }
 

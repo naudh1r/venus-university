@@ -103,6 +103,15 @@
   font: 700 16px var(--font-mono);
 }
 
+/* Which semester a Continue opens on, read beside the title in the bookkeeping voice. */
+.vu-newgame-semester {
+  flex: none;
+  color: var(--vu-text-muted);
+  font: 700 16px var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 /* The one action that is not the screen's primary, at the far end of the row. */
 .vu-newgame-fill {
   gap: 10px;
@@ -135,6 +144,12 @@
    On the crop, which covers the face pseudo, never through `--paper-border`. */
 .vu-newgame-card--duplicate .vu-card-crop {
   border: 3px solid var(--vu-danger);
+}
+
+/* A returning girl's sticker rides the corner a removable tile keeps its ✕ in. */
+.vu-newgame-sticker {
+  top: 12px;
+  right: 6px;
 }
 
 .vu-newgame-plus {

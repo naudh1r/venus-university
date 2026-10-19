@@ -17,19 +17,19 @@ import {
 } from '@shared/npcRelationships'
 import type { CharInfo, Haunt, TimeSlot } from '@shared/types'
 import { globalSlotOf, shiftSlotOf } from '@shared/jobs'
-import { classSlotOf, hauntClosedOn } from '../../prompts/occasions'
-import { isMoodHomebound } from '../../prompts/moods'
+import { isRainedOut, weatherAt } from '@shared/weather'
+import { classSlotOf, hauntClosedOn, isBreakOutingWeek } from '../../prompts/occasions'
 import { prevSlot, shiftWeekdayOf, weekendSaturdayOf } from '../../prompts/gameDate'
-import { isSummerOutingWeek } from '../../prompts/graduation'
-import { isSpringBreakOutingWeek } from '../../prompts/springBreak'
 import { useGameStore } from '../gameStore'
 import { rollNpcOverlay, type OutingWindow, type OverlayCharInput } from '../npcOverlay'
 import { rollDormRunIns, rollLooseRunIns, type RunInCharInput } from '../npcRunIns'
 import {
   charHiddenLocationNow,
   charOverlayGroupNow,
+  charSickAtHomeNow,
   charStandingHauntAt,
-  charUnavailableNow
+  charUnavailableNow,
+  isHomebound
 } from '../timetable'
 
 /** The roster's own social life, where it meets the store. */
@@ -65,7 +65,7 @@ export function rollNpcOverlayNow(
       haunt: charStandingHauntAt(charId, date, time)?.location ?? null,
       // Off campus takes her out of all three passes at once.
       busy: charUnavailableNow(charId, date, time),
-      moodHomebound: isMoodHomebound(date, game.charInfo[charId]?.moodCycleOffset ?? 0),
+      moodHomebound: isHomebound(game.charInfo[charId], date, time),
       // Each window reads only its own record, off the arguments rather than the clock, which
       // at an ending names the slot before the one being rolled.
       wentOutRecently:
@@ -78,16 +78,17 @@ export function rollNpcOverlayNow(
     }
   }
 
-  // A spot shut this half of the day is never drawn for an outing.
-  const spots = OUTING_LOCATIONS.filter((id) =>
-    isLocationOpen(id, shiftSlotOf(shiftWeekdayOf(date), time))
+  // A spot shut this half of the day, or open-air under rain, is never drawn for an outing.
+  const sky = weatherAt(game.weather, date, time)
+  const spots = OUTING_LOCATIONS.filter(
+    (id) => isLocationOpen(id, shiftSlotOf(shiftWeekdayOf(date), time)) && !isRainedOut(id, sky)
   )
   return rollNpcOverlay(date, time, window, chars, spots)
 }
 
 /** Which fatigue window a date falls in. */
 function outingWindowOf(date: number): OutingWindow {
-  if (isSpringBreakOutingWeek(date) || isSummerOutingWeek(date)) return 'break'
+  if (isBreakOutingWeek(date, useGameStore.getState().calendar.season)) return 'break'
   return weekendSaturdayOf(date) !== null ? 'weekend' : null
 }
 
@@ -112,11 +113,14 @@ export function rollSlotEncounterGroups(): NpcEncounterGroup[] {
   const groups: NpcEncounterGroup[] = []
 
   // Who sat in a lecture together; null on a weekend or a closed day.
-  const slot = classSlotOf(game.date, game.time, game.occasions)
+  const slot = classSlotOf(game.date, game.time, game.calendar)
   if (slot !== null) {
     for (const entry of Object.values(game.classes)) {
       if (entry.slot !== slot) continue
-      const members = studentsOf(entry, game.chars, game.charInfo)
+      // A student in bed with a cold sat in nothing.
+      const members = studentsOf(entry, game.chars, game.charInfo).filter(
+        (charId) => !charSickAtHomeNow(charId)
+      )
       if (members.length >= 2) groups.push({ kind: 'class', ref: entry.code, members })
     }
   }
@@ -140,7 +144,8 @@ export function rollSlotEncounterGroups(): NpcEncounterGroup[] {
   const runIns: Record<string, RunInCharInput> = {}
   for (const charId of game.chars) {
     runIns[charId] = {
-      busy: charUnavailableNow(charId, game.date, game.time),
+      // In bed with a cold, she runs into nobody.
+      busy: charUnavailableNow(charId, game.date, game.time) || charSickAtHomeNow(charId),
       location: charHiddenLocationNow(charId, game.date, game.time),
       haunt: charStandingHauntAt(charId, game.date, game.time)?.location ?? null,
       building: dormBuildingOf(game.charInfo[charId]?.dorm),
@@ -169,16 +174,18 @@ export function rollNpcRelationshipSettle(
 }
 
 /**
- * Where a pair with no haunt between them can be run into: on campus, open today, and never the
- * Lowrises, whose label is one girl's own dorm.
+ * Where a pair with no haunt between them can be run into: on campus, open today, not open-air
+ * under rain, and never the Lowrises, whose label is one girl's own dorm.
  */
 function runInSpots(): string[] {
   const game = useGameStore.getState()
+  const sky = weatherAt(game.weather, game.date, game.time)
   return LOCATIONS.filter(
     (def) =>
       def.onCampus === true &&
       def.id !== LOWRISE_LOCATION &&
-      !hauntClosedOn(def.id, 'fun', game.date, game.occasions)
+      !hauntClosedOn(def.id, 'fun', game.date, game.calendar) &&
+      !isRainedOut(def.id, sky)
   ).map((def) => def.id)
 }
 
@@ -209,13 +216,15 @@ export function npcWhereaboutsFor(
   const game = useGameStore.getState()
   // Ahead of the homebound branch: a girl abroad on a stay-in day is not in her room.
   if (charUnavailableNow(charId, date, time)) return null
+  // A graduate back for the day keeps no room or haunt in Veridan.
+  if (game.alumni.includes(charId)) return null
 
   const stamped = overlay && overlay.date === date && overlay.time === time ? overlay : null
   const group = stamped
     ? (stamped.groups.find((g) => g.members.includes(charId)) ?? null)
     : charOverlayGroupNow(charId, date, time)
 
-  const homebound = isMoodHomebound(date, charInfo[charId]?.moodCycleOffset ?? 0)
+  const homebound = isHomebound(charInfo[charId], date, time)
   const standing = charStandingHauntAt(charId, date, time)
   const location = homebound ? ROOM_LOCATION : (group?.location ?? standing?.location)
   if (!location) return null

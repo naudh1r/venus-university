@@ -136,7 +136,7 @@ export function DayChangeSplash({
                 <motion.span variants={splashMetaItem}>{day ? 'Morning' : 'Evening'}</motion.span>
                 <motion.span variants={splashMetaItem}>Week {weekOf(stamp.date) + 1}</motion.span>
                 <motion.span className="vu-splash-figure" variants={splashMetaItem}>
-                  {formatNumericGameDate(stamp.date)}
+                  {formatNumericGameDate(stamp.date, stamp.season)}
                 </motion.span>
               </>
             )}

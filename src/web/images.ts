@@ -1,12 +1,14 @@
 import { profileRel, stagedRel } from '@shared/characterFiles'
 import { imageBlob } from './blob'
 import { readFile } from './db/chars'
-import { isShipped, packImages, shippedProfileUrl, shippedRels } from './packs'
+import { isPackRead } from './copies'
+import { packImages, shippedProfileUrl, shippedRels } from './packs'
 
 /**
  * A character's picture in the browser: a blob URL from her shipped pack, or from the browser's
- * own storage for the player's own. The renderer gets a URL at once — a not-yet-fetched image is
- * handed a blank that names it and is filled in as the bytes land.
+ * own storage for the player's own and for a shipped character who has been changed. The
+ * renderer gets a URL at once — a not-yet-fetched image is handed a blank that names it and is
+ * filled in as the bytes land.
  */
 
 /** A 1×1 transparent PNG: what an `<img>` shows while its own picture is on its way. */
@@ -111,8 +113,8 @@ export function resolveImage(
   _version: number,
   staged: boolean
 ): string {
-  // The shipped cast is read-only, so it has no staged twin of anything.
-  if (isShipped(charId)) {
+  // A character still read out of her pack has no staged twin of anything.
+  if (isPackRead(charId)) {
     // Her portrait is a file of its own, so a roster of faces opens no packs at all.
     if (rel === profileRel()) return shippedProfileUrl(charId) ?? BLANK
     const key = keyOf(charId, rel, false)

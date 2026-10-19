@@ -1,8 +1,9 @@
-/* The Settings modal: its panel and the two columns inside it. Imported from the
-   view module, never from index.css.
+/* The Settings modal: its panel, the tabs in its round end and the two columns of each tab's
+   page. The first-run content question wears the same panel. Imported from the view modules,
+   never from index.css.
 
-   The veil, the fields, the checkbox and the foot are base.css's; what is here is the panel,
-   the two columns, and the note a content toggle carries. */
+   The veil, the fields, the checkbox, the palette and the foot are base.css's; what is here is
+   the panel, the tabs' place, the columns, and the note a content toggle carries. */
 
 /* The widest of the half-pill panels, its round left end negative space on purpose: the
    content is inset past it rather than curved around it. A long panel relaxes its tilt to
@@ -22,19 +23,54 @@
   font-family: var(--font-body);
 }
 
-/* The full Settings panel stands its two columns over one foot: three answers want more room
-   than the right column has. The columns row is what shrinks under the panel's cap, so the
-   writer's fields still scroll inside it. */
+/* The full Settings panel stands each tab's two columns over one foot, at one height whichever
+   tab is on screen, so the panel never resizes under a tab change; a column too long for it
+   scrolls inside it. */
 .vu-settings--split {
   flex-direction: column;
   gap: 24px;
+  height: min(900px, 100% - 100px);
   padding-bottom: 44px;
+}
+
+/* The tabs stand as a column in the round end, centred on its height and clear of the curve. */
+.vu-settings-tabs {
+  position: absolute;
+  top: 50%;
+  left: 118px;
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
+  width: 132px;
+  transform: translateY(-50%);
+}
+
+/* The pages share the room above the foot; only the one on screen is drawn. */
+.vu-settings-pages {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 .vu-settings-columns {
   display: flex;
   flex: 1 1 auto;
   gap: 56px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.vu-settings-columns[hidden] {
+  display: none;
+}
+
+/* One column of a page: its fields scroll inside it. `min-height: 0` is what lets it shrink: a
+   flex item's own default refuses to, and the column would overflow the panel instead. */
+.vu-settings-col {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -59,22 +95,26 @@
   text-transform: uppercase;
 }
 
-/* ---- the left column: who writes ------------------------------------------ */
-
-/* The heading and, under it, the box the fields scroll inside. `min-height: 0` is what lets
-   that box shrink: a flex item's own default refuses to, and the column would overflow the
-   capped panel instead of scrolling. */
-.vu-settings-writer {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 17px;
-  min-width: 0;
-  min-height: 0;
+/* A heading that opens a group further down a column keeps the column's spacing to the group
+   above it a little wider than its own rhythm. */
+.vu-settings-group-heading {
+  margin-top: 6px;
 }
 
-/* The fields themselves, the one thing in the panel that scrolls: padding for the swell and
-   the shadow a field's own box grows into, and room at the foot for the fade. */
+/* The one paragraph a column says about itself, in the note's own muted voice. */
+.vu-settings-note {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 500 14px/1.5 var(--font-body);
+}
+
+/* A utility a column opens, hugging its words rather than spanning the column. */
+.vu-settings-pill {
+  align-self: flex-start;
+}
+
+/* The fields of a column, the thing that scrolls: padding for the swell and the shadow a
+   field's own box grows into, and room at the foot for the fade. */
 .vu-settings-fields {
   display: flex;
   flex: 1 1 auto;
@@ -111,7 +151,7 @@
   margin-top: 4px;
 }
 
-/* ---- the right column: what is shown -------------------------------------- */
+/* ---- the first-run content question's one column ------------------------- */
 
 .vu-settings-content {
   display: flex;
@@ -122,20 +162,8 @@
   min-height: 0;
 }
 
-/* The full panel's column holds three headings of toggles over the sound and the data, and
-   fits under the panel's cap only a little tighter than the first-run question's. */
-.vu-settings--split .vu-settings-content {
-  gap: 15px;
-}
-
 /* The sliders and the two data copies are each a set rather than a run of settings, so they
-   sit tighter than the column's own rhythm and the heading over each keeps the column's
-   spacing to the paragraph above. */
-.vu-settings-sound-heading,
-.vu-settings-data-heading {
-  margin-top: 6px;
-}
-
+   sit tighter than the column's own rhythm. */
 .vu-settings-sound {
   display: flex;
   flex-direction: column;

@@ -16,6 +16,8 @@
   display: flex;
   gap: 50px;
   width: min(1240px, 100% - 60px);
+  /* Gives back what the tab and the paper's overhang need. */
+  max-height: calc(100% - 100px);
   padding: 56px 70px 50px 250px;
   border-radius: 330px 0 0 330px;
   color: var(--vu-text);
@@ -24,12 +26,21 @@
 
 /* ---- the left column: who she is ------------------------------------------ */
 
+/* The scroller's holding box takes the column's share of the row. */
+.vu-generate-scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Padded for the holding box's negative margin, so the fields still line up. */
 .vu-generate-form {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+  padding: 4px 6px;
+  overflow: hidden auto;
 }
 
 .vu-generate-names {
@@ -56,6 +67,11 @@
 .vu-generate-brief .vu-input {
   min-height: 250px;
   resize: none;
+}
+
+/* Her LoRA's fields take the height back while they are open, so the panel stays on the stage. */
+.vu-generate-brief--short .vu-input {
+  min-height: 110px;
 }
 
 /* One row rather than a dropzone: the picker is optional and only one control wide, and a

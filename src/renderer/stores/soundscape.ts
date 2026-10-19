@@ -109,6 +109,7 @@ const MENU_VIEWS: readonly ViewName[] = [
   'newGame',
   'quickstart',
   'classSelect',
+  'nextSemester',
   'apiKey',
   'setup'
 ]

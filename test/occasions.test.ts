@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { FINAL_DATE } from '@shared/classes'
+import { CLASS_SLOTS, FINAL_DATE } from '@shared/classes'
+import { calendarOf } from '@shared/semesters'
 import {
+  breakWeekOf,
   classSlotOf,
-  MIDTERM_WEEK,
+  FINALS_WEEK,
+  meetingDatesOf,
+  midtermWeekOf,
   occasionLeadUpLines,
   occasionsOn,
   hauntClosedOn,
   jobClosedOn,
-  SPRING_BREAK,
-  STATIC_OCCASIONS,
+  staticOccasionsOf,
   weekOf
 } from '../src/renderer/prompts/occasions'
 import {
@@ -16,7 +19,12 @@ import {
   planOccasionSlots,
   type OccasionRequest
 } from '../src/renderer/prompts/occasionPrompt'
-import type { Occasion, TimeSlot } from '@shared/types'
+import type { Occasion, Season, TimeSlot } from '@shared/types'
+
+const SPRING = calendarOf('spring', [])
+const MIDTERM_WEEK = midtermWeekOf('spring')
+const SPRING_BREAK = breakWeekOf('spring')
+const STATIC_OCCASIONS = staticOccasionsOf('spring')
 
 function occasionById(id: string): Occasion {
   const found = STATIC_OCCASIONS.find((occasion) => occasion.id === id)
@@ -47,30 +55,30 @@ function generatedOccasion(
 describe('occasionsOn', () => {
   it('covers the first and last day of a run and neither day outside it', () => {
     const spring = occasionById('spring-break')
-    expect(occasionsOn(spring.startDate).map((o) => o.id)).toContain('spring-break')
-    expect(occasionsOn(spring.endDate).map((o) => o.id)).toContain('spring-break')
-    expect(occasionsOn(spring.startDate - 1).map((o) => o.id)).not.toContain('spring-break')
-    expect(occasionsOn(spring.endDate + 1).map((o) => o.id)).not.toContain('spring-break')
+    expect(occasionsOn(spring.startDate, SPRING).map((o) => o.id)).toContain('spring-break')
+    expect(occasionsOn(spring.endDate, SPRING).map((o) => o.id)).toContain('spring-break')
+    expect(occasionsOn(spring.startDate - 1, SPRING).map((o) => o.id)).not.toContain('spring-break')
+    expect(occasionsOn(spring.endDate + 1, SPRING).map((o) => o.id)).not.toContain('spring-break')
   })
 })
 
 describe('classSlotOf', () => {
   it('is null on a weekend', () => {
-    expect(classSlotOf(5, 0)).toBeNull()
-    expect(classSlotOf(6, 1)).toBeNull()
+    expect(classSlotOf(5, 0, SPRING)).toBeNull()
+    expect(classSlotOf(6, 1, SPRING)).toBeNull()
   })
 
   it('is null in both halves of a day an occasion cancelled', () => {
     // Presidents' Day is a Monday, which would otherwise be slot 0 and 1.
-    expect(classSlotOf(28, 0)).toBeNull()
-    expect(classSlotOf(28, 1)).toBeNull()
+    expect(classSlotOf(28, 0, SPRING)).toBeNull()
+    expect(classSlotOf(28, 1, SPRING)).toBeNull()
   })
 
   // Midterms and finals are the trap: they are academic, they are runs, and
   // classes still meet through both of them as exams.
   it('still meets through a run that does not cancel', () => {
     const finals = occasionById('finals-week')
-    expect(classSlotOf(finals.startDate, 0)).not.toBeNull()
+    expect(classSlotOf(finals.startDate, 0, SPRING)).not.toBeNull()
   })
 })
 
@@ -79,20 +87,20 @@ describe('jobClosedOn', () => {
   const OPEN = 26 // Saturday, February 14 — Valentine's Day, which shuts nothing.
 
   it('shuts a university employer on a day the university is shut', () => {
-    expect(jobClosedOn('agora_tutoring', CLOSED)).toBe(true)
-    expect(jobClosedOn('palaestra', CLOSED)).toBe(true)
-    expect(jobClosedOn('kendall_library', CLOSED)).toBe(true)
+    expect(jobClosedOn('agora_tutoring', CLOSED, SPRING)).toBe(true)
+    expect(jobClosedOn('palaestra', CLOSED, SPRING)).toBe(true)
+    expect(jobClosedOn('kendall_library', CLOSED, SPRING)).toBe(true)
   })
 
   it('leaves the city open on the same day', () => {
-    expect(jobClosedOn('fast_eats', CLOSED)).toBe(false)
-    expect(jobClosedOn('club_apogee', CLOSED)).toBe(false)
-    expect(jobClosedOn('lumiere', CLOSED)).toBe(false)
+    expect(jobClosedOn('fast_eats', CLOSED, SPRING)).toBe(false)
+    expect(jobClosedOn('club_apogee', CLOSED, SPRING)).toBe(false)
+    expect(jobClosedOn('lumiere', CLOSED, SPRING)).toBe(false)
   })
 
   it('shuts nobody on a holiday that does not close the university', () => {
-    expect(jobClosedOn('agora_tutoring', OPEN)).toBe(false)
-    expect(jobClosedOn('fast_eats', OPEN)).toBe(false)
+    expect(jobClosedOn('agora_tutoring', OPEN, SPRING)).toBe(false)
+    expect(jobClosedOn('fast_eats', OPEN, SPRING)).toBe(false)
   })
 })
 
@@ -100,41 +108,44 @@ describe('hauntClosedOn', () => {
   const GOOD_FRIDAY = occasionById('good-friday').startDate
 
   it('empties a campus haunt on a day the university is shut', () => {
-    expect(hauntClosedOn('whitman_greenhouse', 'activity', GOOD_FRIDAY)).toBe(true)
-    expect(hauntClosedOn('thorne_auditorium', 'activity', GOOD_FRIDAY)).toBe(true)
+    expect(hauntClosedOn('whitman_greenhouse', 'activity', GOOD_FRIDAY, SPRING)).toBe(true)
+    expect(hauntClosedOn('thorne_auditorium', 'activity', GOOD_FRIDAY, SPRING)).toBe(true)
   })
 
   // The cafe is the whole point of the study rule: the only place the study menu
   // offers that a closed campus does not already empty.
   it('closes the off-campus study cafe for every day of spring break', () => {
     for (let date = SPRING_BREAK.startDate; date <= SPRING_BREAK.endDate; date++) {
-      expect(hauntClosedOn('reserve_bank_cafe', 'study', date)).toBe(true)
+      expect(hauntClosedOn('reserve_bank_cafe', 'study', date, SPRING)).toBe(true)
     }
   })
 
   // A day off the books is not a week off them.
   it('leaves the cafe open on a single closed day', () => {
-    expect(hauntClosedOn('reserve_bank_cafe', 'study', GOOD_FRIDAY)).toBe(false)
+    expect(hauntClosedOn('reserve_bank_cafe', 'study', GOOD_FRIDAY, SPRING)).toBe(false)
     expect(
-      hauntClosedOn('reserve_bank_cafe', 'study', occasionById('reading-day').startDate)
+      hauntClosedOn('reserve_bank_cafe', 'study', occasionById('reading-day').startDate, SPRING)
     ).toBe(false)
   })
 
   // Fun is not study, even at the place the study menu also deals: the break shuts the
   // books, not the arcade.
   it('leaves a fun haunt standing through the break', () => {
-    expect(hauntClosedOn('btb_arcade', 'fun', SPRING_BREAK.startDate)).toBe(false)
-    expect(hauntClosedOn('cutetea', 'fun', SPRING_BREAK.endDate)).toBe(false)
-    expect(hauntClosedOn('reserve_bank_cafe', 'fun', SPRING_BREAK.startDate)).toBe(false)
+    expect(hauntClosedOn('btb_arcade', 'fun', SPRING_BREAK.startDate, SPRING)).toBe(false)
+    expect(hauntClosedOn('cutetea', 'fun', SPRING_BREAK.endDate, SPRING)).toBe(false)
+    expect(hauntClosedOn('reserve_bank_cafe', 'fun', SPRING_BREAK.startDate, SPRING)).toBe(false)
   })
 })
 
-describe('planOccasionSlots', () => {
+describe.each(['spring', 'fall'] as const)('planOccasionSlots in a %s', (season: Season) => {
+  const calendar = calendarOf(season, [])
+  const breakWeek = breakWeekOf(season)
+  const breakId = season === 'spring' ? 'spring-break' : 'thanksgiving-break'
   /** Which weeks the fixed calendar touches at all — the four named events' bar. */
   const claimed = new Set<number>()
   /** Which weeks a multi-day fixed occasion defines — the fillers' looser bar. */
   const owned = new Set<number>()
-  for (const occasion of STATIC_OCCASIONS) {
+  for (const occasion of staticOccasionsOf(season)) {
     for (let date = occasion.startDate; date <= occasion.endDate; date++) {
       claimed.add(weekOf(date))
       if (occasion.endDate > occasion.startDate) owned.add(weekOf(date))
@@ -145,7 +156,10 @@ describe('planOccasionSlots', () => {
 
   it('places every occasion legally, over sixty runs', () => {
     for (let run = 0; run < 60; run++) {
-      const requests = planOccasionSlots((n) => Array.from({ length: n }, (_, i) => `word${i}`))
+      const requests = planOccasionSlots(
+        (n) => Array.from({ length: n }, (_, i) => `word${i}`),
+        season
+      )
       const ids = requests.map((r) => r.id)
       expect(new Set(ids).size).toBe(ids.length)
 
@@ -159,18 +173,31 @@ describe('planOccasionSlots', () => {
           // A named event owns its week outright, so it needs a clear one.
           expect(claimed.has(weekOf(request.startDate))).toBe(false)
           expect(claimed.has(weekOf(request.endDate))).toBe(false)
-        } else if (request.springBreak) {
-          // The one filler that goes inside a multi-day occasion, and spring
-          // break is the only one it may share a day with.
-          expect(request.startDate).toBeGreaterThanOrEqual(SPRING_BREAK.startDate)
-          expect(request.endDate).toBeLessThanOrEqual(SPRING_BREAK.endDate)
-          expect(occasionsOn(request.startDate).map((o) => o.id)).toEqual(['spring-break'])
+        } else if (request.breakWeek) {
+          // The one filler that goes inside a multi-day occasion, and the break
+          // week is the only one it may share a day with.
+          expect(request.startDate).toBeGreaterThanOrEqual(breakWeek.startDate)
+          expect(request.endDate).toBeLessThanOrEqual(breakWeek.endDate)
+          expect(occasionsOn(request.startDate, calendar).map((o) => o.id)).toEqual([breakId])
         } else {
           // A filler shares a week with a one-day holiday but never the day, and
           // never goes in a week a multi-day run defines.
           expect(owned.has(weekOf(request.startDate))).toBe(false)
-          expect(occasionsOn(request.startDate)).toEqual([])
+          expect(occasionsOn(request.startDate, calendar)).toEqual([])
         }
+      }
+    }
+  })
+
+  // An exam is sat at the one meeting its week holds; a slot with none, or two, has nothing
+  // or too much to file the exam against.
+  it('meets every class slot exactly once in each exam week', () => {
+    for (const week of [midtermWeekOf(season), FINALS_WEEK]) {
+      for (const slot of CLASS_SLOTS) {
+        const held = meetingDatesOf(slot, calendar).filter(
+          (date) => date >= week.startDate && date <= week.endDate
+        )
+        expect(held).toHaveLength(1)
       }
     }
   })
@@ -186,7 +213,7 @@ describe('occasionLeadUpLines', () => {
   const D = 20
 
   it('leads a night occasion up in the day before it, and in no other slot', () => {
-    const gala = [generatedOccasion('gala', 'Gala', D, D, 1)]
+    const gala = calendarOf('spring', [generatedOccasion('gala', 'Gala', D, D, 1)])
     expect(announces(occasionLeadUpLines(D, 0, gala), 'Gala')).toBe(true)
     expect(announces(occasionLeadUpLines(D, 1, gala), 'Gala')).toBe(false)
     expect(announces(occasionLeadUpLines(D - 1, 1, gala), 'Gala')).toBe(false)
@@ -194,14 +221,14 @@ describe('occasionLeadUpLines', () => {
   })
 
   it('leads a day occasion up in the night before it, and in no other slot', () => {
-    const fair = [generatedOccasion('career-fair', 'Career Fair', D, D, 0)]
+    const fair = calendarOf('spring', [generatedOccasion('career-fair', 'Career Fair', D, D, 0)])
     expect(announces(occasionLeadUpLines(D - 1, 1, fair), 'Career Fair')).toBe(true)
     expect(announces(occasionLeadUpLines(D - 1, 0, fair), 'Career Fair')).toBe(false)
     expect(announces(occasionLeadUpLines(D, 0, fair), 'Career Fair')).toBe(false)
   })
 
   it('leads a whole-day occasion up in both slots of the day before', () => {
-    const dance = [generatedOccasion('dance', 'Dance', D, D, null)]
+    const dance = calendarOf('spring', [generatedOccasion('dance', 'Dance', D, D, null)])
     expect(announces(occasionLeadUpLines(D - 1, 0, dance), 'Dance')).toBe(true)
     expect(announces(occasionLeadUpLines(D - 1, 1, dance), 'Dance')).toBe(true)
     expect(announces(occasionLeadUpLines(D - 2, 0, dance), 'Dance')).toBe(false)
@@ -210,7 +237,7 @@ describe('occasionLeadUpLines', () => {
   })
 
   it('leads a three-day run up for the three days before it', () => {
-    const fest = [generatedOccasion('concert', 'Fest', D, D + 2, null)]
+    const fest = calendarOf('spring', [generatedOccasion('concert', 'Fest', D, D + 2, null)])
     for (const date of [D - 3, D - 2, D - 1]) {
       expect(announces(occasionLeadUpLines(date, 0, fest), 'Fest')).toBe(true)
       expect(announces(occasionLeadUpLines(date, 1, fest), 'Fest')).toBe(true)
@@ -221,11 +248,13 @@ describe('occasionLeadUpLines', () => {
   })
 
   it('leads up nothing that is announced elsewhere', () => {
-    const week = [generatedOccasion('midterm-week', 'Fixture Midterms', D, D + 4, null)]
+    const week = calendarOf('spring', [
+      generatedOccasion('midterm-week', 'Fixture Midterms', D, D + 4, null)
+    ])
     expect(announces(occasionLeadUpLines(D - 1, 0, week), 'Fixture Midterms')).toBe(false)
     expect(announces(occasionLeadUpLines(D - 1, 1, week), 'Fixture Midterms')).toBe(false)
     expect(
-      announces(occasionLeadUpLines(MIDTERM_WEEK.startDate - 1, 1), 'Midterm Week')
+      announces(occasionLeadUpLines(MIDTERM_WEEK.startDate - 1, 1, SPRING), 'Midterm Week')
     ).toBe(false)
   })
 })

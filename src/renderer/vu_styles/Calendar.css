@@ -56,6 +56,15 @@
   text-transform: uppercase;
 }
 
+/* The semester the month is of, a muted line under it, so the reading keeps its width as the
+   arrows cross from one semester into another. */
+.vu-cal-semester {
+  display: block;
+  color: var(--vu-text-muted);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+}
+
 /* What the four colours mean, said at rest — nothing hides information behind a hover. */
 .vu-cal-legend {
   display: flex;

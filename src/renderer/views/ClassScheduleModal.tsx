@@ -101,7 +101,9 @@ export function ClassScheduleModal({ theme, onClose }: ClassScheduleModalProps):
     const ui = useBunnyboardStore.getState()
     ui.openApp()
     ui.viewChar(VENUS_CHAT_ID)
-    replyFromVenus(venusScheduleConfirmation(dropped.map(nameOf), added.map(nameOf)))
+    replyFromVenus(
+      venusScheduleConfirmation(dropped.map(nameOf), added.map(nameOf), game.calendar.season)
+    )
   }
 
   if (!host) return null

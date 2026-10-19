@@ -120,3 +120,12 @@
   color: var(--shop-muted, var(--vu-text-muted));
   font: 700 18px var(--font-mono);
 }
+
+/* A present's giver and day in the count's seat: a meta, in the panel's own small mono caps. */
+.vu-item-from {
+  flex: none;
+  color: var(--shop-muted, var(--vu-text-muted));
+  font: 700 13px var(--font-mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}

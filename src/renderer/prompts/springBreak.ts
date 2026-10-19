@@ -1,7 +1,12 @@
+import { isPositive } from '@shared/relationship'
+import type { CharInfo } from '@shared/types'
 import { formatDatePart } from './gameDate'
-import { SPRING_BREAK } from './occasions'
+import { breakWeekOf } from './occasions'
 
-/** Who spends spring break where, and every sentence said about it. */
+/** Who spends a spring's break where, and every sentence said about it. */
+
+/** The week off a spring semester has; a fall's Thanksgiving break sends nobody away. */
+const SPRING_BREAK = breakWeekOf('spring')
 
 /** The Monday of midterms week — the pick fires and the notice starts. */
 export const SPRING_BREAK_NOTICE = SPRING_BREAK.startDate - 7
@@ -40,11 +45,12 @@ export function isAwayForSpringBreak(
 }
 
 /**
- * True on the break week itself, Monday to Friday, when the NPC-relationship outing
- * roll runs every slot.
+ * Whether a leaver texts the reader that she is going: a contact who has not blocked him and is
+ * friendly or warmer.
  */
-export function isSpringBreakOutingWeek(date: number): boolean {
-  return date >= SPRING_BREAK.startDate && date <= SPRING_BREAK.endDate
+export function sendsSpringBreakNotice(info: CharInfo | undefined, affection: number): boolean {
+  const flags = info?.flags
+  return Boolean(flags?.gaveContactInfo) && !flags?.blocked && isPositive(affection)
 }
 
 /**
@@ -79,7 +85,7 @@ export function springBreakLines(
   }
   if (date < SPRING_BREAK_RETURN) {
     return [
-      `${firstName} left campus for spring break on ${formatDatePart(SPRING_BREAK_LEAVE)}` +
+      `${firstName} left campus for spring break on ${formatDatePart(SPRING_BREAK_LEAVE, 'spring')}` +
         ` and can't hang out. What she's currently doing${tail}` +
         ' The reader is not with her: he stayed in Veridan.'
     ]

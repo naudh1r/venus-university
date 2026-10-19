@@ -3,7 +3,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { replayIdOf, type GameReplays, type SlotReplay } from '@shared/replays'
-import { AUTOSAVE_ID, MAX_SLOT_SAVES, type SaveDraft } from '@shared/types'
+import { AUTOSAVE_ID, MAX_SLOT_SAVES, type SaveDraft, type SemesterRecord } from '@shared/types'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { enrollment, record } from './fixtures'
 
@@ -19,12 +19,12 @@ vi.mock('electron', () => ({
 
 const saveService = await import('../src/main/services/saveService')
 const replayService = await import('../src/main/services/replayService')
-const { SAFE_NUMERIC_ID } = await import('../src/shared/saveRules')
+const { SAFE_NUMERIC_ID, SAVE_SCHEMA_VERSION } = await import('../src/shared/saveRules')
 const { getPlaythroughPath, getSaveFilePath, getSavesPath } = await import('../src/main/paths')
 
-const SCHEMA_VERSION = 12
+const SCHEMA_VERSION = SAVE_SCHEMA_VERSION
 const RECORD_SCHEMA_VERSION = 3
-const ENROLLMENT_SCHEMA_VERSION = 2
+const ENROLLMENT_SCHEMA_VERSION = 3
 
 /** A complete draft — every field the loader requires — as a fresh store writes one. */
 function draft(over: Partial<SaveDraft> = {}): SaveDraft {
@@ -100,15 +100,22 @@ describe('id validation', () => {
 
 describe('loadSave', () => {
   it('rejects any schemaVersion but this build’s, rather than reading it anyway', async () => {
-    // There is deliberately no migration path: a mismatch must fail loudly
-    // instead of loading fields that mean something else.
-    await seed('1', '1', { ...draft(), schemaVersion: SCHEMA_VERSION - 1 })
+    // Only the version before this one is upgraded on read: any other mismatch must fail
+    // loudly instead of loading fields that mean something else.
+    await seed('1', '1', { ...draft(), schemaVersion: SCHEMA_VERSION - 2 })
     await expect(saveService.loadSave('1', '1')).rejects.toMatchObject({
       code: 'SAVE_SCHEMA_VERSION'
     })
     await seed('1', '2', { ...draft(), schemaVersion: undefined })
     await expect(saveService.loadSave('1', '2')).rejects.toMatchObject({
       code: 'SAVE_SCHEMA_VERSION'
+    })
+  })
+
+  it('reads a save of the version before this one, brought up to this one', async () => {
+    await seed('1', '1', { ...draft(), schemaVersion: SCHEMA_VERSION - 1 })
+    await expect(saveService.loadSave('1', '1')).resolves.toMatchObject({
+      schemaVersion: SCHEMA_VERSION
     })
   })
 
@@ -662,5 +669,118 @@ describe('replays', () => {
     await saveService.writeAutosave('1', draft())
 
     expect(await replayService.listReplayIds('1')).toEqual([a])
+  })
+})
+
+describe('next semesters', () => {
+  /** A semester past the first, carrying nothing but its roster and the log it was given. */
+  function semester(over: Partial<SemesterRecord> = {}): SemesterRecord {
+    return {
+      index: 1,
+      chars: ['b'],
+      alumni: ['a'],
+      classes: {},
+      occasions: [],
+      jobClosures: {},
+      weather: [],
+      profiles: {},
+      before: { history: {}, playerSchedule: {}, events: [] },
+      ...over
+    }
+  }
+
+  it('never writes a record over a playthrough that has already begun', async () => {
+    const { save } = await saveService.createPlaythrough(record(), draft())
+    await expect(
+      saveService.createPlaythrough(record({ chars: ['x'] }), draft(), save.playthroughId)
+    ).rejects.toMatchObject({ code: 'PLAYTHROUGH_EXISTS' })
+    expect((await saveService.readPlaythroughRecord(save.playthroughId)).chars).toEqual([])
+  })
+
+  it('adds the semester to the record, writes its save into the window and spends the registration', async () => {
+    const { save } = await saveService.createPlaythrough(record({ chars: ['a', 'b'] }), draft())
+    const playthroughId = save.playthroughId
+    await saveService.renamePlaythrough(playthroughId, 'Mine')
+    await saveService.writeEnrollment(enrollment({ chars: ['b'] }), playthroughId)
+
+    const begun = await saveService.continueSemester(
+      playthroughId,
+      '200',
+      semester(),
+      draft({ semester: '200' })
+    )
+
+    expect(begun.record.name).toBe('Mine')
+    expect(begun.record.semesters?.['200'].chars).toEqual(['b'])
+    expect(begun.save.semester).toBe('200')
+    const entries = await readdir(getPlaythroughPath(playthroughId))
+    expect(entries).not.toContain('enrollment.json')
+    await expect(saveService.readSave(playthroughId, begun.save.saveId)).resolves.toMatchObject({
+      save: { semester: '200' }
+    })
+    const [summary] = await saveService.listPlaythroughs()
+    expect(summary).toMatchObject({ chars: ['b'], semesterIndex: 1, saveCount: 2 })
+    expect(summary.registration).toBeUndefined()
+  })
+
+  it('refuses a semester the record already holds, and spends its registration', async () => {
+    await seedRecord('1', { ...record(), semesters: { '200': semester() } })
+    await seedEnrollment('1', enrollment())
+    await expect(
+      saveService.continueSemester('1', '200', semester({ chars: ['z'] }), draft())
+    ).rejects.toMatchObject({ code: 'SEMESTER_EXISTS' })
+    expect((await saveService.readPlaythroughRecord('1')).semesters?.['200'].chars).toEqual(['b'])
+    expect(await readdir(getPlaythroughPath('1'))).not.toContain('enrollment.json')
+  })
+
+  it('lets a registration newer than every save stand for the playthrough, and notes an older one', async () => {
+    await seedRecord('1', record({ chars: ['a'] }))
+    await seed('1', '1000', { ...draft(), saveDate: 1_000 })
+    await seedEnrollment('1', { ...enrollment({ chars: ['b'] }), savedAt: 2_000 })
+    expect((await saveService.listPlaythroughs())[0]).toMatchObject({
+      enrolling: true,
+      chars: ['b'],
+      savedAt: 2_000,
+      registration: { savedAt: 2_000, semesterIndex: 0 }
+    })
+
+    await seed('1', '3000', { ...draft(), saveDate: 3_000 })
+    const [later] = await saveService.listPlaythroughs()
+    expect(later.enrolling).toBeUndefined()
+    expect(later).toMatchObject({ chars: ['a'], registration: { savedAt: 2_000 } })
+  })
+
+  it('refuses a save whose semester the record does not hold', async () => {
+    await seedRecord('1', record())
+    await seed('1', '1000', { ...draft({ semester: '999' }) })
+    await expect(saveService.readSave('1', '1000')).rejects.toMatchObject({
+      code: 'SEMESTER_NOT_FOUND'
+    })
+  })
+
+  it('keeps a replay a semester log names after the last save naming it is gone', async () => {
+    const kept: SlotReplay = {
+      schemaVersion: 1,
+      date: 8,
+      time: 0,
+      cast: ['ava'],
+      keys: { ava: 'ava' },
+      transcript: [{ speaker: 'ava', text: 'Kept.' }]
+    }
+    const id = replayIdOf(kept)
+    await seedRecord('1', {
+      ...record(),
+      semesters: {
+        '200': semester({
+          before: { history: {}, replays: { 8: { 0: id } }, playerSchedule: {}, events: [] }
+        })
+      }
+    })
+    await seed('1', AUTOSAVE_ID, { ...draft({ replays: { 8: { 0: id } } }), saveId: AUTOSAVE_ID })
+    await replayService.writeReplay('1', kept)
+
+    await saveService.deleteSave('1', AUTOSAVE_ID)
+
+    expect(await replayService.listReplayIds('1')).toEqual([id])
   })
 })

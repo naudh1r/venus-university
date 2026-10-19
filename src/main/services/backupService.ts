@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, rm, utimes, writeFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
 import {
   BACKUP_NAME,
+  preflightBackup,
   BACKUP_READ,
   BACKUP_SCHEMA_VERSION,
   BACKUP_ZIP_LIMITS,
@@ -16,13 +17,16 @@ import {
   profilePictureEntry,
   replaysFromBackup,
   scenesFromBackup,
+  semesterEndingArtEntry,
+  semesterPicturesFromBackup,
+  type SemesterPicture,
   type BackupFile,
   type BackupPhoto,
   type BackupPlaythrough,
   type BackupReplay,
   type BackupSave
 } from '@shared/backup'
-import { isCharFileRel, STAGING_DIR } from '@shared/characterFiles'
+import { isCharFileRel, isStaleTwinRel, STAGING_DIR, storedRel } from '@shared/characterFiles'
 import { CHARACTER_NOT_FOUND, SAFE_CHAR_ID } from '@shared/characterRules'
 import { BG_VARIANTS, type BgVariant, type CustomBackground } from '@shared/customBackgrounds'
 import { appError, messageOf } from '@shared/errors'
@@ -40,7 +44,10 @@ import {
 import { settingsFromBackup } from '@shared/settingsRules'
 import type { AppError, Character } from '@shared/types'
 import {
+  castInPlace,
+  hasShippedCopy,
   isPregenChar,
+  markCopied,
   getCharacterFilePath,
   getCharacterPath,
   getCharactersPath,
@@ -59,7 +66,7 @@ import {
 import {
   checkExtractedContent,
   copyInto,
-  createZip,
+  replaceZip,
   discard,
   extractZip,
   relPathsUnder,
@@ -71,11 +78,11 @@ import {
   restoreCustomBackground
 } from './backgroundService'
 import { getCharacter, ownCharIds } from './characterService'
-import { readEndingArt } from './endingArtService'
+import { endingArtSemesters, readEndingArt } from './endingArtService'
 import { getGrabBags, setGrabBags } from './grabBagService'
-import { sniffImageFile } from './imageFiles'
+import { dropImageTwins, sniffImageFile } from './imageFiles'
 import { readValidatedJson, writeAtomicJson } from './jsonFile'
-import { listPhotos } from './photoService'
+import { listPhotos, readPhoto } from './photoService'
 import { readProfilePicture } from './profilePictureService'
 import { readReplay } from './replayService'
 import { listScenes, readScene, writeScene } from './sceneService'
@@ -135,6 +142,23 @@ function isBackedUpFile(rel: string): boolean {
   return isCharFileRel(rel) && !rel.startsWith(`${STAGING_DIR}/`)
 }
 
+/**
+ * A character's backed-up files out of `rels`, less each PNG whose WebP twin is among them: the
+ * WebP is the picture read, and the PNG beside it is stale.
+ */
+function backedUpFiles(rels: readonly string[]): string[] {
+  const present = new Set(rels.map((rel) => rel.toLowerCase()))
+  return rels.filter((rel) => isBackedUpFile(rel) && !isStaleTwinRel(rel, present))
+}
+
+/**
+ * The name a picture out of the backup is restored under: the `.webp` twin of `named` where the
+ * bytes at `entry` are WebP, and `named` itself otherwise, for the boot's pass to convert.
+ */
+async function restoredImageName(entry: string, named: string): Promise<string> {
+  return (await sniffImageFile(entry)) === 'image/webp' ? storedRel(named) : named
+}
+
 /** Everything one playthrough folder carries, minus whatever could not be read. */
 async function backupPlaythrough(playthroughId: string): Promise<BackupPlaythrough> {
   return {
@@ -189,10 +213,16 @@ async function backupScenes(): Promise<SavedScene[]> {
   return scenes
 }
 
-/** Every replay some carried save names, whole; one that cannot be read is left out with a warning. */
-async function backupReplays(saves: readonly BackupSave[]): Promise<BackupReplay[]> {
+/**
+ * Every replay some carried save or some carried record's semester log names, whole; one that
+ * cannot be read is left out with a warning.
+ */
+async function backupReplays(
+  saves: readonly BackupSave[],
+  playthroughs: Readonly<Record<string, BackupPlaythrough>>
+): Promise<BackupReplay[]> {
   const replays: BackupReplay[] = []
-  for (const { playthroughId, replayId } of namedReplays(saves)) {
+  for (const { playthroughId, replayId } of namedReplays(saves, playthroughs)) {
     const replay = await optional(
       `replay ${playthroughId}/${replayId}`,
       REPLAY_NOT_FOUND.code,
@@ -215,6 +245,7 @@ export async function exportBackup(targetPath: string): Promise<void> {
     const playthroughs: Record<string, BackupPlaythrough> = {}
     const saves: BackupSave[] = []
     const endingArt: string[] = []
+    const semesterEndingArt: SemesterPicture[] = []
     const profilePictures: string[] = []
     const photos: BackupPhoto[] = []
 
@@ -235,6 +266,14 @@ export async function exportBackup(targetPath: string): Promise<void> {
         await writeFile(path, art)
         endingArt.push(playthroughId)
       }
+      for (const semesterId of await endingArtSemesters(playthroughId)) {
+        const later = await readEndingArt(playthroughId, semesterId)
+        if (!later) continue
+        const path = join(scratch, semesterEndingArtEntry(playthroughId, semesterId))
+        await mkdir(dirname(path), { recursive: true })
+        await writeFile(path, later)
+        semesterEndingArt.push({ playthroughId, semesterId })
+      }
 
       const picture = await readProfilePicture(playthroughId)
       if (picture) {
@@ -251,7 +290,7 @@ export async function exportBackup(targetPath: string): Promise<void> {
       }
 
       for (const entry of await listPhotos(playthroughId)) {
-        const bytes = await readFile(getPhotoPath(playthroughId, entry.photoId)).catch(() => null)
+        const bytes = await readPhoto(playthroughId, entry.photoId).catch(() => null)
         // Bytes that are not a picture's are left out rather than packed under a name that says
         // they are one: a backup a restore would refuse is no backup.
         if (!bytes || !imageTypeOf(bytes)) continue
@@ -262,11 +301,11 @@ export async function exportBackup(targetPath: string): Promise<void> {
       }
     }
 
-    // The player's own only: the shipped cast is the build's, wherever it is read from, and a
-    // folder under `/data/characters` named after one of them is already shadowed by it.
+    // The player's own, and the edited copies of the shipped cast: a shipped character who has
+    // not been edited is the build's, and an unpackaged run edits the build itself.
     const characters: Character[] = []
     for (const charId of await ownCharIds()) {
-      if (isPregenChar(charId)) continue
+      if (isPregenChar(charId) && !hasShippedCopy(charId)) continue
       const character = await optional(`character ${charId}`, CHARACTER_NOT_FOUND.code, () =>
         getCharacter(charId)
       )
@@ -275,8 +314,7 @@ export async function exportBackup(targetPath: string): Promise<void> {
       characters.push(character)
 
       const folder = getCharacterPath(charId)
-      for (const rel of await charFilesUnder(folder)) {
-        if (!isBackedUpFile(rel)) continue
+      for (const rel of backedUpFiles(await charFilesUnder(folder))) {
         // A backup a restore would refuse is no backup: a file that is not a picture is left
         // out rather than packed under a name that says it is one.
         if (!(await sniffImageFile(join(folder, rel)))) {
@@ -289,7 +327,7 @@ export async function exportBackup(targetPath: string): Promise<void> {
 
     const backgrounds = await backupBackgrounds(scratch)
     const scenes = await backupScenes()
-    const replays = await backupReplays(saves)
+    const replays = await backupReplays(saves, playthroughs)
 
     const record: BackupFile = {
       schemaVersion: BACKUP_SCHEMA_VERSION,
@@ -298,6 +336,7 @@ export async function exportBackup(targetPath: string): Promise<void> {
       playthroughs,
       saves,
       endingArt,
+      ...(semesterEndingArt.length > 0 ? { semesterEndingArt } : {}),
       profilePictures,
       photos,
       backgrounds,
@@ -310,13 +349,7 @@ export async function exportBackup(targetPath: string): Promise<void> {
       message: 'Could not write the backup record.'
     })
 
-    // 7-Zip's `a` updates an existing archive, so an old zip must go first.
-    await rm(targetPath, { force: true })
-    await createZip(scratch, targetPath)
-  } catch (err) {
-    // A half-written zip is worse than none: it opens, and it is not the player's game.
-    await rm(targetPath, { force: true }).catch(() => {})
-    throw err
+    await replaceZip(scratch, targetPath)
   } finally {
     await discard(scratch)
   }
@@ -365,7 +398,8 @@ async function swapSaves(staged: string): Promise<void> {
 async function restoreSaves(
   scratch: string,
   record: BackupFile,
-  replays: readonly BackupReplay[]
+  replays: readonly BackupReplay[],
+  semesterPictures: readonly SemesterPicture[]
 ): Promise<void> {
   const staged = scratchDir('saves')
 
@@ -403,22 +437,34 @@ async function restoreSaves(
       }
 
       if (record.endingArt.includes(playthroughId)) {
-        const picture = join(folder, basename(getEndingArtPath(playthroughId)))
+        const from = join(scratch, endingArtEntry(playthroughId))
+        const name = await restoredImageName(from, basename(getEndingArtPath(playthroughId)))
         // Named but not in the zip is one missing picture, not a failed restore.
-        await rename(join(scratch, endingArtEntry(playthroughId)), picture).catch(
-          (err: unknown) => {
-            console.warn(`[backup] no graduation picture for ${playthroughId}:`, err)
-          }
+        await rename(from, join(folder, name)).catch((err: unknown) => {
+          console.warn(`[backup] no graduation picture for ${playthroughId}:`, err)
+        })
+      }
+
+      for (const { semesterId } of semesterPictures.filter(
+        (entry) => entry.playthroughId === playthroughId
+      )) {
+        const from = join(scratch, semesterEndingArtEntry(playthroughId, semesterId))
+        const name = await restoredImageName(
+          from,
+          basename(getEndingArtPath(playthroughId, semesterId))
         )
+        // Named but not in the zip is one missing picture, not a failed restore.
+        await rename(from, join(folder, name)).catch((err: unknown) => {
+          console.warn(`[backup] no graduation picture for ${playthroughId}/${semesterId}:`, err)
+        })
       }
 
       if ((record.profilePictures ?? []).includes(playthroughId)) {
-        const picture = join(folder, basename(getProfilePicturePath(playthroughId)))
-        await rename(join(scratch, profilePictureEntry(playthroughId)), picture).catch(
-          (err: unknown) => {
-            console.warn(`[backup] no profile picture for ${playthroughId}:`, err)
-          }
-        )
+        const from = join(scratch, profilePictureEntry(playthroughId))
+        const name = await restoredImageName(from, basename(getProfilePicturePath(playthroughId)))
+        await rename(from, join(folder, name)).catch((err: unknown) => {
+          console.warn(`[backup] no profile picture for ${playthroughId}:`, err)
+        })
       }
 
       const ownPhotos = (record.photos ?? []).filter(
@@ -428,13 +474,15 @@ async function restoreSaves(
         const photosDir = join(folder, basename(getPhotosPath(playthroughId)))
         await mkdir(photosDir, { recursive: true })
         for (const entry of ownPhotos) {
-          const picture = join(photosDir, basename(getPhotoPath(playthroughId, entry.photoId)))
-          // Named but not in the zip is one missing photo, not a failed restore.
-          await rename(join(scratch, photoEntry(playthroughId, entry.photoId)), picture).catch(
-            (err: unknown) => {
-              console.warn(`[backup] no photo ${entry.photoId} for ${playthroughId}:`, err)
-            }
+          const from = join(scratch, photoEntry(playthroughId, entry.photoId))
+          const name = await restoredImageName(
+            from,
+            basename(getPhotoPath(playthroughId, entry.photoId))
           )
+          // Named but not in the zip is one missing photo, not a failed restore.
+          await rename(from, join(photosDir, name)).catch((err: unknown) => {
+            console.warn(`[backup] no photo ${entry.photoId} for ${playthroughId}:`, err)
+          })
           if (entry.meta) {
             const metaPath = join(photosDir, basename(getPhotoMetaPath(playthroughId, entry.photoId)))
             await writeAtomicJson(metaPath, entry.meta, RESTORE_FAILED)
@@ -463,31 +511,42 @@ async function restoreSaves(
 
 /**
  * Merges the player's own characters from the backup into `/data/characters`, by id, leaving
- * the rest alone; the shipped cast is left as the build ships it.
+ * the rest alone. A shipped character in the backup is an edited copy and lands there as one;
+ * an unpackaged run keeps the shipped cast as the build has it.
  */
 async function restoreCharacters(scratch: string, record: BackupFile): Promise<void> {
   for (const character of record.characters) {
     const charId = character.charId
     if (!SAFE_CHAR_ID.test(charId)) continue
-    if (isPregenChar(charId)) continue
+    const shipped = isPregenChar(charId)
+    if (shipped && castInPlace()) continue
 
     const folder = join(getCharactersPath(), charId)
-    await mkdir(folder, { recursive: true })
-    // Written here rather than through `writeCharacter`, which would stamp a fresh `updatedAt`
-    // over the backup's and reorder the grid; the shipped cast was skipped above, record and
-    // images alike.
-    const name = basename(getCharacterFilePath(charId))
-    await writeAtomicJson(join(folder, name), character, RESTORE_FAILED)
+    // A shipped character is read from her copy only once the copy is whole, so one that fails
+    // part way is taken away again rather than left to stand in for her.
+    const fresh = shipped && !hasShippedCopy(charId)
+    try {
+      await mkdir(folder, { recursive: true })
+      // Written here rather than through `writeCharacter`, which would stamp a fresh
+      // `updatedAt` over the backup's and reorder the grid.
+      const name = basename(getCharacterFilePath(charId))
+      await writeAtomicJson(join(folder, name), character, RESTORE_FAILED)
 
-    const from = join(scratch, CHARACTERS_DIR, charId)
-    for (const rel of await charFilesUnder(from)) {
-      if (!isBackedUpFile(rel)) continue
-      try {
-        await copyInto(join(from, rel), join(folder, rel))
-      } catch (err) {
-        throw appError(RESTORE_FAILED.code, RESTORE_FAILED.message, messageOf(err))
+      const from = join(scratch, CHARACTERS_DIR, charId)
+      for (const rel of backedUpFiles(await charFilesUnder(from))) {
+        try {
+          await copyInto(join(from, rel), join(folder, rel))
+          // The restored picture is the one read, not a twin the folder already held.
+          await dropImageTwins(join(folder, rel))
+        } catch (err) {
+          throw appError(RESTORE_FAILED.code, RESTORE_FAILED.message, messageOf(err))
+        }
       }
+    } catch (err) {
+      if (fresh) await rm(folder, { recursive: true, force: true }).catch(() => {})
+      throw err
     }
+    if (shipped) markCopied(charId)
   }
 }
 
@@ -518,8 +577,8 @@ async function restoreScenes(scenes: readonly SavedScene[]): Promise<void> {
 /**
  * Reads one backup back over everything this install holds: settings, grab bags and saves are
  * replaced by the backup's — the settings keeping this install's keys and switches — the
- * player's own characters, backgrounds and saved scenes are merged in by id and name, and the
- * shipped cast is left as the build ships it.
+ * player's own characters, backgrounds and saved scenes are merged in by id and name, the
+ * shipped cast's edited copies among the characters.
  */
 export async function importBackup(archivePath: string): Promise<void> {
   const scratch = scratchDir('backup')
@@ -528,6 +587,7 @@ export async function importBackup(archivePath: string): Promise<void> {
     await extractZip(archivePath, scratch, BACKUP_ZIP_LIMITS)
     await checkExtractedContent(scratch, classifyBackupEntry, 'backup')
     const record = await readBackupRecord(scratch)
+    preflightBackup(record)
 
     // Everything the record says is checked before anything here is written. The stored keys,
     // the dev switches and the ComfyUI build stay, being this install's own.
@@ -535,10 +595,11 @@ export async function importBackup(archivePath: string): Promise<void> {
     const backgrounds = backgroundsFromBackup(record)
     const scenes = scenesFromBackup(record)
     const replays = replaysFromBackup(record)
+    const semesterPictures = semesterPicturesFromBackup(record)
 
     await replaceSettings(settings)
     await setGrabBags(record.grabbags)
-    await restoreSaves(scratch, record, replays)
+    await restoreSaves(scratch, record, replays, semesterPictures)
     await restoreCharacters(scratch, record)
     await restoreBackgrounds(scratch, backgrounds)
     await restoreScenes(scenes)

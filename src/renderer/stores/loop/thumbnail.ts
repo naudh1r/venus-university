@@ -8,7 +8,7 @@ import {
   STAGE_THUMB_FALLBACK_QUALITY,
   STAGE_THUMB_HEIGHT,
   STAGE_THUMB_MAX_BYTES,
-  STAGE_THUMB_MIME_TYPE,
+  STAGE_THUMB_FALLBACK_MIME_TYPE,
   STAGE_THUMB_QUALITY,
   STAGE_THUMB_WIDTH,
   type StagePlacement
@@ -22,7 +22,7 @@ import { stageContextOf, useGameStore } from '../gameStore'
 import { noNsfwImagesOf, useSettingsStore } from '../settingsStore'
 import { displayedCgOf, displaySlotsOf, displaySpriteRef } from '../stageDisplay'
 import { stageOnLoad } from '../stageStep'
-import { blobToBase64, canvasToBlob } from './encode'
+import { blobToBase64, canvasToWebpOr } from './encode'
 import { currentRun, runStale } from './state'
 
 /**
@@ -263,10 +263,14 @@ export async function composeStageThumbnail(scene: SceneState): Promise<string |
   }
 
   try {
-    let blob = await canvasToBlob(canvas, STAGE_THUMB_MIME_TYPE, STAGE_THUMB_QUALITY)
+    let blob = await canvasToWebpOr(canvas, STAGE_THUMB_QUALITY, STAGE_THUMB_FALLBACK_MIME_TYPE)
     if (runStale(run)) return null
     if (blob.size > STAGE_THUMB_MAX_BYTES) {
-      blob = await canvasToBlob(canvas, STAGE_THUMB_MIME_TYPE, STAGE_THUMB_FALLBACK_QUALITY)
+      blob = await canvasToWebpOr(
+        canvas,
+        STAGE_THUMB_FALLBACK_QUALITY,
+        STAGE_THUMB_FALLBACK_MIME_TYPE
+      )
       if (runStale(run)) return null
     }
     if (blob.size > STAGE_THUMB_MAX_BYTES) return null

@@ -6,6 +6,7 @@ import {
   type SchedulePromptInput
 } from '../src/renderer/prompts/schedulePrompt'
 import { buildLedgerPrompt } from '../src/renderer/prompts/scenePrompt'
+import { calendarOf } from '@shared/semesters'
 import { DEFAULT_MEMORY_BUDGETS } from '@shared/settingsRules'
 import { charKeyOf, type CalendarEvent, type TimeSlot } from '@shared/types'
 import { SPRING_BREAK_LEAVE } from '../src/renderer/prompts/springBreak'
@@ -88,14 +89,14 @@ describe('the PLANS half of the ledger request', () => {
       playthroughId: 'p1',
       date: 0,
       time: 0 as TimeSlot,
-      seedWord: 'aspen',
       backgrounds: { interior: ['library'], exterior: ['quad'] },
       charInfo: {},
       npcRelationships: {},
       roster: [],
       classes: {},
       playerSchedule: {},
-      occasions: [],
+      classRosters: {},
+      calendar: calendarOf('spring', []),
       bg: null,
       classCode: null,
       projectClass: null,
@@ -110,6 +111,7 @@ describe('the PLANS half of the ledger request', () => {
       outfitReady: {},
       lessNsfwText: false,
       memoryBudgets: DEFAULT_MEMORY_BUDGETS,
+      history: {},
       roomReady: {}
     }
   }
@@ -121,9 +123,12 @@ describe('the PLANS half of the ledger request', () => {
     return buildLedgerPrompt(cast, [], promptState(), 'READER', {
       date: 0,
       time: 0 as TimeSlot,
+      season: 'spring',
       threads,
       characters: roster,
-      planned: []
+      graduates: [],
+      planned: [],
+      timetable: {}
     })
   }
 

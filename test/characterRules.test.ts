@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { blankSheet, isWritten, newCharacter, readCharacterRecord } from '@shared/characterRules'
+import {
+  blankSheet,
+  isWritten,
+  newCharacter,
+  readCharacterRecord,
+  withCharacterLora
+} from '@shared/characterRules'
 import { EMOTIONS } from '@shared/emotions'
+import { defaultSpriteScale } from '@shared/spriteScale'
+import type { CharacterLoraBrief } from '@shared/types'
+import { character } from './fixtures'
 
 /**
  * `blankSheet` is the one place a Skip-LLM character becomes a sheet the player can open and
@@ -26,6 +35,58 @@ describe('blankSheet', () => {
     for (const emotion of EMOTIONS) {
       expect(sheet.expressionTags[emotion].length).toBeGreaterThan(0)
     }
+  })
+})
+
+/**
+ * `withCharacterLora` is how the New Character modal's LoRA and its tags become her record, the
+ * appearance every render opens with included; a group merged wrong is in every picture of her.
+ */
+
+describe('withCharacterLora', () => {
+  const written = character({
+    baseAppearance: ['1girl', 'mature_female', 'pink_hair', 'blue_eyes'],
+    outfit: ['red_coat']
+  })
+
+  /** A brief for one LoRA, with only the tags the test gives it. */
+  function brief(over: Partial<CharacterLoraBrief> = {}): CharacterLoraBrief {
+    return {
+      name: 'ana.safetensors',
+      trigger: '',
+      appearance: [],
+      outfit: [],
+      replace: true,
+      ...over
+    }
+  }
+
+  it('puts the trigger after the subject tags and replaces only the groups the player filled', () => {
+    const merged = withCharacterLora(
+      written,
+      brief({ trigger: 'anav2', appearance: ['silver_hair'], weight: 0.8 })
+    )
+    expect(merged.baseAppearance).toEqual(['1girl', 'mature_female', 'anav2', 'silver_hair'])
+    expect(merged.outfit).toEqual(['red_coat'])
+    expect(merged.lora).toEqual({ name: 'ana.safetensors', weight: 0.8 })
+    expect(merged.height).toBe(defaultSpriteScale(merged.baseAppearance))
+  })
+
+  it('puts the player tags in front of what was written where it adds, without repeats', () => {
+    const merged = withCharacterLora(
+      written,
+      brief({ appearance: ['blue_eyes', 'freckles'], outfit: ['scarf'], replace: false, weight: 1 })
+    )
+    expect(merged.baseAppearance).toEqual([
+      '1girl',
+      'mature_female',
+      'blue_eyes',
+      'freckles',
+      'pink_hair'
+    ])
+    expect(merged.outfit).toEqual(['scarf', 'red_coat'])
+    // The default weight is no weight at all, so a later default reaches her.
+    expect(merged.lora).toEqual({ name: 'ana.safetensors' })
   })
 })
 

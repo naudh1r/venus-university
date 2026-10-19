@@ -1,4 +1,4 @@
-import type { Character, GameSave } from './types'
+import type { Character, GameSave, SocialPost } from './types'
 
 /** Each mod augments this interface with only its own optional save fields. */
 export interface ModCarryFields {}
@@ -69,4 +69,25 @@ export async function carryModFiles(context: TermFilesContext): Promise<void> {
       console.warn(`[mods] ${modId} could not carry its files into the new playthrough`, error)
     }
   }
+}
+
+/**
+ * A mod's own fields on a feed post that hold a time, moved back with the post when New Game+
+ * carries her feed onto the next semester's clock: the game moves the post's date, and each mod
+ * the fields it added. `days` is how far the dates move back; a global slot moves twice that.
+ * Like the fields above, independent of switches, so a mod off when the semester turns finds its
+ * fields on the right clock when it is turned back on.
+ */
+type PostCarrier = (post: SocialPost, days: number) => SocialPost
+const postCarriers = new Map<string, PostCarrier>()
+
+export function registerPostCarry(modId: string, carrier: PostCarrier): void {
+  postCarriers.set(modId, carrier)
+}
+
+/** One post's mod fields moved back `days`, every registered mod's in turn. */
+export function carryPostFields(post: SocialPost, days: number): SocialPost {
+  let carried = post
+  for (const carrier of postCarriers.values()) carried = carrier(carried, days)
+  return carried
 }

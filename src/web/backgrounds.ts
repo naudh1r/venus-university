@@ -15,7 +15,6 @@ import {
 } from '@shared/customBackgrounds'
 import { appError, toAppError } from '@shared/errors'
 import { assertRoomPicture } from '@shared/roomPicture'
-import { imageBlob } from './blob'
 import {
   allBackgroundRows,
   deleteBackgroundRow,
@@ -23,6 +22,7 @@ import {
   readBackgroundRow
 } from './db/backgrounds'
 import type { StoredBackground } from './db/open'
+import { storedBlob } from './webp'
 
 /**
  * The player's own backgrounds in the browser: rows in the database, shown through object URLs
@@ -102,7 +102,8 @@ export async function listBackgrounds(): Promise<CustomBackgroundListing[]> {
 
 /**
  * `backgrounds:add` — keeps a new background, `images` being each picture's base64 PNG bytes by
- * variant, and answers it as a listing does. A name already kept is refused.
+ * variant, and answers it as a listing does. A name already kept is refused. Every picture is
+ * checked before any is encoded, and the row is listed as it is stored.
  */
 export async function addBackground(
   draft: unknown,
@@ -113,13 +114,18 @@ export async function addBackground(
     images,
     (value): value is string => typeof value === 'string'
   )
-  const pictures: Partial<Record<BgVariant, Blob>> = {}
+  const received: Partial<Record<BgVariant, Uint8Array>> = {}
   for (const variant of BG_VARIANTS) {
     const png = encoded[variant]
     if (png === undefined) continue
     const bytes = base64ToBytes(png)
     assertRoomPicture(bytes)
-    pictures[variant] = imageBlob(bytes)
+    received[variant] = bytes
+  }
+  const pictures: Partial<Record<BgVariant, Blob>> = {}
+  for (const variant of BG_VARIANTS) {
+    const bytes = received[variant]
+    if (bytes) pictures[variant] = await storedBlob(bytes, false)
   }
 
   const row: StoredBackground = {

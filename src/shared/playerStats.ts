@@ -221,6 +221,8 @@ export interface StatContext {
   jobOutcome: { gain: ShiftGain } | null
   /** A midterm result that reached the reader this slot, in class or off his phone. */
   gradeOutcome?: { heart: number; lines: StatusText[] } | null
+  /** The reader's cold kept him from getting anything out of the hour; a grade still lands. */
+  sick?: boolean
 }
 
 /** Which stats the scene exercised, as the ledger reported them. */
@@ -247,6 +249,12 @@ export interface StatusText {
   polarity?: Polarity
 }
 
+/** The line a class he skipped leaves behind. */
+const SKIPPED_CLASS_LINE: StatusText = {
+  text: 'Skipping class is going to hurt later, though...',
+  polarity: 'negative'
+}
+
 /** Decides a scene's final stat movement and the lines the player reads about it. */
 export function resolveStatDeltas(
   ledger: LedgerStats | undefined,
@@ -254,6 +262,13 @@ export function resolveStatDeltas(
 ): { deltas: PlayerStats; lines: StatusText[] } {
   const deltas: PlayerStats = { brain: 0, body: 0, heart: 0 }
   const lines: StatusText[] = []
+
+  // A cold pays nothing for the hour — no shift, no exercise, no attendance — but a grade lands.
+  if (ctx.sick) {
+    if (ctx.classOutcome && !ctx.classOutcome.attended) lines.push(SKIPPED_CLASS_LINE)
+    lines.push({ text: 'Your cold made it hard to focus on anything...', polarity: 'negative' })
+    return withGradeOutcome(deltas, lines, ctx)
+  }
 
   // A shift pays only its rolled gain; the early return keeps the ledger's award out.
   if (ctx.jobOutcome) {
@@ -300,16 +315,23 @@ export function resolveStatDeltas(
               : `Turns out going to class pays off! ${movementLine(stat, 1)}`,
             polarity: 'positive'
           }
-        : { text: 'Skipping class is going to hurt later, though...', polarity: 'negative' }
+        : SKIPPED_CLASS_LINE
     )
   }
 
-  // Last, on its own lines: the grade's heart movement.
+  return withGradeOutcome(deltas, lines, ctx)
+}
+
+/** Last, on its own lines: the grade's heart movement, which lands sick or well. */
+function withGradeOutcome(
+  deltas: PlayerStats,
+  lines: StatusText[],
+  ctx: StatContext
+): { deltas: PlayerStats; lines: StatusText[] } {
   if (ctx.gradeOutcome) {
     deltas.heart += ctx.gradeOutcome.heart
     lines.push(...ctx.gradeOutcome.lines)
   }
-
   return { deltas, lines }
 }
 
@@ -321,6 +343,18 @@ export function resolveStatDeltas(
 export function tierUps(before: PlayerStats, deltas: PlayerStats): StatKey[] {
   const after = applyStatDeltas(before, deltas)
   return STAT_KEYS.filter((key) => tierOf(after[key]) > tierOf(before[key]))
+}
+
+/**
+ * The stats a later semester's start leaves: each above the floor tier dropped to the bottom of
+ * the tier below.
+ */
+export function breakDecayedStats(stats: PlayerStats): PlayerStats {
+  const decayed = (points: number): number => {
+    const tier = tierOf(points)
+    return tier === MIN_TIER ? points : pointsForTier((tier - 1) as StatTier)
+  }
+  return { brain: decayed(stats.brain), body: decayed(stats.body), heart: decayed(stats.heart) }
 }
 
 /** Adds `deltas` to `stats`, flooring each at the scale's floor. Never mutates its input. */

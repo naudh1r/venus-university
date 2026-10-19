@@ -25,7 +25,11 @@ describe('the slot opening schema', () => {
       askers: [],
       breakups: [],
       posters: [],
-      occasions: []
+      leavers: [],
+      visitors: [],
+      reachOuts: [],
+      occasions: [],
+      season: 'spring'
     } as unknown as Parameters<typeof buildSlotIntroPrompt>[0]
     const post = (): { required: string[]; properties: Record<string, unknown> } =>
       (buildSlotIntroPrompt(input, '', '').schema.schema as never as {

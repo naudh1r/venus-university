@@ -32,9 +32,7 @@ export async function readSettings(): Promise<StoredSettings> {
 function withoutDevSwitches(settings: StoredSettings): StoredSettings {
   const {
     freezeSeeds: _seeds,
-    editPregens: _pregens,
     forceTime: _clock,
-    serviceTier: _tier,
     streamResponses: _stream,
     comfyGpu: _gpu,
     updateAsVersion: _version,

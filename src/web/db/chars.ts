@@ -1,8 +1,16 @@
 import { appError } from '@shared/errors'
-import { looseNamesOf, setDirRel, STAGING_DIR, stagedRel } from '@shared/characterFiles'
+import {
+  isCharFileRel,
+  isLosslessRel,
+  looseNamesOf,
+  setDirRel,
+  STAGING_DIR,
+  stagedRel
+} from '@shared/characterFiles'
 import { assertSafeCharId, CHARACTER_NOT_FOUND, readCharacterRecord } from '@shared/characterRules'
 import { isCustomCgSlot } from '@shared/positions'
 import type { Character, CustomCgSlot, CustomOutfitSlot, SetTarget } from '@shared/types'
+import { storedBlob } from '../webp'
 import { database, partRange, storage } from './open'
 
 /**
@@ -92,8 +100,24 @@ export async function writeCharacter(character: Character): Promise<void> {
   )
 }
 
+/**
+ * Each image as it is kept, encoded before any transaction opens: her pictures as
+ * {@link storedBlob} keeps them, and the reference picture beside them as it came.
+ */
+async function storedFiles(files: FileWrite[]): Promise<FileWrite[]> {
+  const stored: FileWrite[] = []
+  for (const file of files) {
+    const blob = isCharFileRel(file.rel)
+      ? await storedBlob(file.blob, isLosslessRel(file.rel))
+      : file.blob
+    stored.push({ rel: file.rel, blob })
+  }
+  return stored
+}
+
 /** Writes a character and every image she arrives with, in one transaction. */
-export async function adoptCharacter(character: Character, files: FileWrite[]): Promise<void> {
+export async function adoptCharacter(character: Character, arriving: FileWrite[]): Promise<void> {
+  const files = await storedFiles(arriving)
   const updatedAt = Date.now()
 
   await storage('save the character', async () => {
@@ -134,10 +158,11 @@ export async function readFile(charId: string, rel: string): Promise<Blob | null
 /** Writes images over one character's, and removes the paths `gone` names, in one transaction. */
 export async function writeFiles(
   charId: string,
-  files: FileWrite[],
+  writes: FileWrite[],
   gone: string[] = []
 ): Promise<void> {
   assertSafeCharId(charId)
+  const files = await storedFiles(writes)
   const updatedAt = Date.now()
 
   await storage('save the images', async () => {

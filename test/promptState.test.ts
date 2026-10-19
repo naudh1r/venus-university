@@ -18,7 +18,7 @@ const { announceableAdds, announceableDrops, recentSummaries, scheduleInput } =
 
 /** How a summary is stamped, so the tests do not restate the formatter. */
 function stamped(date: number, time: 0 | 1, summary: string): string {
-  return `${formatChatDivider(date, time)} — ${summary}`
+  return `${formatChatDivider(date, time, 'spring')} — ${summary}`
 }
 
 /** History as `{date: {time: summary}}`, the shape the save holds. */
@@ -76,7 +76,7 @@ describe('recentSummaries', () => {
       6: { 0: 'He went to class.', 1: 'They had dinner.' }
     })
     const lines = recentSummaries(7, 0, 'They are still talking.')
-    expect(lines.filter((line) => line.startsWith(formatChatDivider(6, 1)))).toEqual([
+    expect(lines.filter((line) => line.startsWith(formatChatDivider(6, 1, 'spring')))).toEqual([
       stamped(6, 1, 'They are still talking.')
     ])
     expect(lines).toHaveLength(3)
@@ -264,5 +264,35 @@ describe('the threads the texting ledger reads', () => {
     // read, they become a plan for the slot after it.
     seedThreads('a')
     expect(texters()).toEqual(['Marina'])
+  })
+
+  // A girl who reached out and was left unanswered gave the ledger nothing to read.
+  it('drops a reach-out he never answered, and keeps one he did', () => {
+    seedThreads(null)
+    const reachOut = {
+      id: 'b-0',
+      sender: 'contact' as const,
+      text: 'how did the quiz go??',
+      date: 7,
+      time: 0 as const,
+      reachOut: true as const
+    }
+    const conversations = useGameStore.getState().bunnyboard.conversations
+    const marina = conversations.b
+    useGameStore.setState({
+      bunnyboard: {
+        ...useGameStore.getState().bunnyboard,
+        conversations: { ...conversations, b: { ...marina, messages: [reachOut] } }
+      }
+    })
+    expect(texters()).toEqual(['Ingrid'])
+
+    useGameStore.setState({
+      bunnyboard: {
+        ...useGameStore.getState().bunnyboard,
+        conversations: { ...conversations, b: { ...marina, messages: [reachOut, ...marina.messages] } }
+      }
+    })
+    expect(texters()).toEqual(['Ingrid', 'Marina'])
   })
 })

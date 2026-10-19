@@ -1,5 +1,6 @@
+import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
-import { dirname, join, relative, resolve } from 'node:path'
+import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { zipSync } from 'fflate'
 import { transcodeStats, webpFor } from './transcode.mjs'
@@ -15,8 +16,8 @@ const SRC_CHARS = join(REPO, 'assets', 'characters')
 const DESKTOP_OUT = join(REPO, 'build', 'desktop-assets')
 const WEB_OUT = join(REPO, 'build', 'web-assets')
 
-/** Working files the editor writes beside the sprites; neither build ships them. */
-const EDITOR_ONLY = new Set(['face.png', 'neutral.base.png', 'fix.png', 'hands.png'])
+/** Stems of the editor's working files beside the sprites, PNG or WebP; no build ships them. */
+const EDITOR_ONLY = new Set(['face', 'neutral.base', 'fix', 'hands'])
 
 /** What the marker file in every package says it is. */
 const MANIFEST_FORMAT = 'venus-university-character'
@@ -37,7 +38,10 @@ const ZIP_MTIME = new Date(2000, 0, 1, 0, 0, 0, 0)
 /** How many encodes run at once. */
 const CONCURRENCY = 4
 
-/** Every shippable PNG under one character folder, as `/`-joined relative paths. */
+/**
+ * Every shippable PNG or WebP under one character folder, as `/`-joined relative paths; a WebP
+ * wins over a PNG of the same name.
+ */
 async function shippableImages(dir) {
   const out = []
   async function walk(sub) {
@@ -48,13 +52,19 @@ async function shippableImages(dir) {
         if (entry.name !== 'staging') await walk(rel)
         continue
       }
-      if (!entry.name.endsWith('.png') || EDITOR_ONLY.has(entry.name)) continue
+      const ext = extname(entry.name)
+      if (ext !== '.png' && ext !== '.webp') continue
+      if (EDITOR_ONLY.has(basename(entry.name, ext))) continue
       out.push(rel)
     }
   }
   await walk('')
-  out.sort()
-  return out
+  const webps = new Set(out.filter((rel) => rel.endsWith('.webp')))
+  const kept = out.filter(
+    (rel) => !rel.endsWith('.png') || !webps.has(`${rel.slice(0, -'.png'.length)}.webp`)
+  )
+  kept.sort()
+  return kept
 }
 
 /** Runs `task` over `items` with at most `CONCURRENCY` in flight, keeping the order. */
@@ -86,13 +96,15 @@ async function packOne(charId) {
   const files = []
   await pooled(images, async (rel) => {
     const src = join(dir, rel)
-    const webpRel = `${rel.slice(0, -'.png'.length)}.webp`
+    const isWebp = rel.endsWith('.webp')
+    const webpRel = isWebp ? rel : `${rel.slice(0, -'.png'.length)}.webp`
 
+    // A WebP master is already the shipped form; a PNG is encoded once per build.
     const desktopFile = join(desktopDir, webpRel)
     await mkdir(dirname(desktopFile), { recursive: true })
-    await cp(await webpFor(src, 'desktop'), desktopFile)
+    await cp(isWebp ? src : await webpFor(src, 'desktop'), desktopFile)
 
-    entries[webpRel] = new Uint8Array(await readFile(await webpFor(src, 'web')))
+    entries[webpRel] = new Uint8Array(await readFile(isWebp ? src : await webpFor(src, 'web')))
     files.push(webpRel)
   })
   files.sort()
@@ -123,19 +135,29 @@ async function packOne(charId) {
   await writeFile(join(WEB_OUT, 'packs', `${charId}.zip`), zip)
 
   await mkdir(join(WEB_OUT, 'profiles'), { recursive: true })
-  await cp(
-    await webpFor(join(dir, 'expressions', 'profile.png'), 'web'),
-    join(WEB_OUT, 'profiles', `${charId}.webp`)
-  )
+  const profileWebp = join(dir, 'expressions', 'profile.webp')
+  const profile = existsSync(profileWebp)
+    ? profileWebp
+    : await webpFor(join(dir, 'expressions', 'profile.png'), 'web')
+  await cp(profile, join(WEB_OUT, 'profiles', `${charId}.webp`))
 
   return { charId, character, files, bytes: zip.length }
 }
 
-/** Copies the folders main reads out of `resources/assets` at runtime. Backgrounds are not among them. */
+/**
+ * Copies the folders and files main reads out of `resources/assets` at runtime. Backgrounds are
+ * not among them.
+ */
 async function copyDesktopExtras() {
-  for (const name of ['pose', 'workflows', 'sound']) {
+  for (const name of ['workflows', 'sound']) {
     await cp(join(REPO, 'assets', name), join(DESKTOP_OUT, name), { recursive: true })
   }
+  // Only the manifest and skeletons of the pose folder; its material PNGs are unread.
+  await mkdir(join(DESKTOP_OUT, 'pose'), { recursive: true })
+  await cp(join(REPO, 'assets', 'pose', 'pose.json'), join(DESKTOP_OUT, 'pose', 'pose.json'))
+  await cp(join(REPO, 'assets', 'pose', 'skeletons'), join(DESKTOP_OUT, 'pose', 'skeletons'), {
+    recursive: true
+  })
   await cp(join(REPO, 'assets', 'quickstart.json'), join(DESKTOP_OUT, 'quickstart.json'))
 }
 

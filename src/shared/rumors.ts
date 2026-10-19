@@ -1,4 +1,5 @@
 import { areNpcFriends, npcFriendsOf, type NpcRelationshipMap } from './npcRelationships'
+import { PASSERBY_CHANCE } from './odds'
 import { readerize } from './readerVoice'
 import { andList } from './sentences'
 import { shuffle } from './shuffle'
@@ -12,9 +13,6 @@ import type { CharInfo, CharMemory, IntimateAct, Suspicion } from './types'
 
 /** The window a suspicion lives in, in global slots — a week. */
 const SUSPICION_SLOTS = 14
-
-/** The odds one girl with nowhere to be walks past an hour nobody else was there for. */
-const PASSERBY_CHANCE = 0.25
 
 /**
  * Files a jealousy memory, refreshing rather than duplicating: one that says the same in either
@@ -58,8 +56,13 @@ export interface RumorPassInput {
   cast: readonly string[]
   /** Who walked out of the scene before it ended, and so saw nothing. */
   departed: readonly string[]
-  /** Every character in the save, which is who can hear about it. */
+  /** Every girl on campus, which is who can hear about it. */
   roster: readonly string[]
+  /**
+   * The graduates, gone from Veridan: they neither see nor hear a thing, but a friend of one
+   * still minds him cheating on her.
+   */
+  alumni: readonly string[]
   charInfo: Readonly<Record<string, Pick<CharInfo, 'flags' | 'suspicions'> | undefined>>
   npcRelationships: NpcRelationshipMap
   /** Who each girl spent the slot with. */
@@ -132,7 +135,7 @@ export function rumorPass(
         if (flagOf(w, 'isLover')) return { kind: 'lover' }
         if (flagOf(w, 'hasCrush')) return { kind: 'crush' }
       }
-      const jilted = input.roster.filter(
+      const jilted = [...input.roster, ...input.alumni].filter(
         (lover) =>
           flagOf(lover, 'isLover') &&
           !flagOf(lover, 'harem') &&

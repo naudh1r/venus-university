@@ -575,7 +575,7 @@ describe('truncateUnread', () => {
     useGameStore.setState({ inventory: [{ itemId: 'rose', count: 1 }], sceneGifts: [unstamped] })
     playTurn('I wave.', sceneLines('a1', 'a2'))
     store.setSceneSummary('first', 1)
-    store.giftItem('a', 'rose')
+    store.giftItem('a', { itemId: 'rose' })
     playTurn('I hand her a rose.', sceneLines('b1', 'b2'))
     store.setSceneSummary('second', 4)
 
@@ -604,7 +604,7 @@ describe('truncateUnread', () => {
     store.appendSceneLines(sceneLines('a1', 'a2'))
     store.appendPendingLines(sceneLines('a1', 'a2'))
     while (useGameStore.getState().advanceLine()) continue
-    store.giftItem('a', 'rose')
+    store.giftItem('a', { itemId: 'rose' })
     store.logPlayerAction('I hand her a rose.', true)
     store.appendSceneLines(sceneLines('b1'))
     store.appendPendingLines(sceneLines('b1'))
@@ -1185,14 +1185,14 @@ describe('the shop and gifting', () => {
       inventory: [{ itemId: ROSE, count: 1 }],
       charInfo: { a: charInfo({ gifts: [ROSE] }) }
     })
-    useGameStore.getState().giftItem('a', ROSE)
+    useGameStore.getState().giftItem('a', { itemId: ROSE })
     expect(useGameStore.getState().sceneGifts[0].repeat).toBe(true)
   })
 
   it('flags a repeat against the same scene, before the boundary has filed it', () => {
     useGameStore.setState({ inventory: [{ itemId: ROSE, count: 2 }] })
-    useGameStore.getState().giftItem('a', ROSE)
-    useGameStore.getState().giftItem('a', ROSE)
+    useGameStore.getState().giftItem('a', { itemId: ROSE })
+    useGameStore.getState().giftItem('a', { itemId: ROSE })
     expect(useGameStore.getState().sceneGifts.map((g) => g.repeat)).toEqual([false, true])
   })
 
@@ -1201,16 +1201,53 @@ describe('the shop and gifting', () => {
       inventory: [{ itemId: ROSE, count: 2 }],
       charInfo: { a: charInfo({ gifts: [ROSE] }) }
     })
-    useGameStore.getState().giftItem('b', ROSE)
+    useGameStore.getState().giftItem('b', { itemId: ROSE })
     expect(useGameStore.getState().sceneGifts[0].repeat).toBe(false)
+  })
+
+  // A present is its own line: merged with a bought one, the record of who gave it is lost.
+  it('keeps a present on its own line, and a taken-back gift returns to that line', () => {
+    const present = { itemId: ROSE, from: { charId: 'a', date: 3 } }
+    useGameStore.setState({ inventory: [{ itemId: ROSE, count: 1 }, { ...present, count: 1 }] })
+    useGameStore.getState().giftItem('b', present)
+    expect(useGameStore.getState().inventory).toEqual([{ itemId: ROSE, count: 1 }])
+    useGameStore.getState().ungiftItem()
+    expect(useGameStore.getState().inventory).toEqual([
+      { itemId: ROSE, count: 1 },
+      { ...present, count: 1 }
+    ])
+  })
+
+  it('lands a present given back to the girl who gave it badly, whatever her taste', () => {
+    useGameStore.setState({
+      inventory: [{ itemId: ROSE, count: 1, from: { charId: 'a', date: 3 } }],
+      characters: charactersById(
+        character({ charId: 'a', giftPreferences: { liked: ['romantic'], disliked: [] } })
+      )
+    })
+    useGameStore.getState().giftItem('a', { itemId: ROSE, from: { charId: 'a', date: 3 } })
+    expect(useGameStore.getState().sceneGifts[0]).toMatchObject({
+      reaction: 'unimpressed',
+      returned: true
+    })
+  })
+
+  // Delivered from the reply's landing and replayed by a reload: twice would be two of it.
+  it('puts the present she brought in his inventory once', () => {
+    useGameStore.setState({ date: 9, inventory: [], sceneReceivedGift: { itemId: ROSE, charId: 'a' } })
+    useGameStore.getState().receiveSceneGift()
+    useGameStore.getState().receiveSceneGift()
+    expect(useGameStore.getState().inventory).toEqual([
+      { itemId: ROSE, count: 1, from: { charId: 'a', date: 9 } }
+    ])
   })
 
   // The abandoned-turn rollback: without it the save records a gift nobody
   // in the scene was ever handed, over an action he decided not to take.
   it('puts exactly one item back when a gift turn is abandoned', () => {
     useGameStore.setState({ inventory: [{ itemId: ROSE, count: 2 }] })
-    useGameStore.getState().giftItem('a', ROSE)
-    useGameStore.getState().giftItem('a', ROSE)
+    useGameStore.getState().giftItem('a', { itemId: ROSE })
+    useGameStore.getState().giftItem('a', { itemId: ROSE })
     useGameStore.getState().ungiftItem()
     expect(useGameStore.getState().inventory).toEqual([{ itemId: ROSE, count: 1 }])
     expect(useGameStore.getState().sceneGifts).toHaveLength(1)
@@ -1238,7 +1275,7 @@ describe('the shop and gifting', () => {
         character({ charId: 'a', giftPreferences: { liked: ['romantic'], disliked: [] } })
       )
     })
-    useGameStore.getState().giftItem('a', ROSE)
+    useGameStore.getState().giftItem('a', { itemId: ROSE })
     expect(useGameStore.getState().sceneGifts[0].reaction).toBe('loved')
   })
 
@@ -1383,15 +1420,29 @@ describe('the job actions', () => {
     expect(struck.settledThrough).toBe(10)
   })
 
-  it('closes an employer permanently, whichever way the job ended', () => {
-    useGameStore.getState().endJob()
+  it('closes an employer whichever way the job ended, and remembers how it did', () => {
+    useGameStore.getState().endJob('fired')
     expect(useGameStore.getState().job).toBeNull()
     expect(useGameStore.getState().jobsClosed).toEqual(['fast_eats'])
+    expect(useGameStore.getState().formerJobs.fast_eats).toMatchObject({ left: 'fired' })
 
     // Taking and losing a second job does not disturb the first entry.
     useGameStore.getState().takeJob('cutetea', [2], 8)
-    useGameStore.getState().endJob()
+    useGameStore.getState().endJob('quit')
     expect(useGameStore.getState().jobsClosed).toEqual(['fast_eats', 'cutetea'])
+    expect(useGameStore.getState().formerJobs.cutetea).toEqual({ raises: 0, left: 'quit' })
+  })
+
+  it('takes a returning hand back on the raises he left with and a clean record', () => {
+    useGameStore.setState({ formerJobs: { cutetea: { raises: 2, left: 'term' } } })
+    useGameStore.getState().takeJob('cutetea', [2], 8)
+    expect(useGameStore.getState().job).toMatchObject({
+      jobId: 'cutetea',
+      raises: 2,
+      strikes: 0,
+      streak: 0,
+      shiftsWorked: 0
+    })
   })
 })
 

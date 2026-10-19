@@ -78,7 +78,7 @@ export function memoryEditsOf(
       if (!desc) {
         edits.push({ charId, match: applied, next: null })
       } else if (answer.type !== applied.type || desc !== applied.desc) {
-        const next: CharMemory = { date: applied.date, type: answer.type, desc }
+        const next: CharMemory = { ...applied, type: answer.type, desc }
         edits.push({ charId, match: applied, next })
       }
     } else if (desc) {

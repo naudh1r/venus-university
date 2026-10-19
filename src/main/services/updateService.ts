@@ -17,7 +17,13 @@ import {
   latestUrl,
   uploadFileUrl
 } from '@shared/updateSource'
-import { getAppLogPath, getDataPath, getInstallPath, getUpdatePath } from '../paths'
+import {
+  getAppLogPath,
+  getDataPath,
+  getInstallPath,
+  getParkedPath,
+  getUpdatePath
+} from '../paths'
 import { redactError } from '../redact'
 import { discard, extractZip, stripWrapperDir } from './archiveService'
 import { downloadFile } from './downloadService'
@@ -47,7 +53,7 @@ const HANDSHAKE_TIMEOUT_MS = 15000
 const STALL_MS = 60000
 
 /** Where a build's file manifest sits, inside the install and inside the staged tree alike. */
-const MANIFEST_REL = 'resources/build-manifest.json'
+export const MANIFEST_REL = 'resources/build-manifest.json'
 
 /** Where the helper leaves word of a swap that did not land, inside the update folder. */
 const FAILED_REL = 'failed.json'
@@ -283,7 +289,7 @@ async function wrapperDirOf(dir: string, exeName: string): Promise<string | null
 }
 
 /** A build's file manifest, or null when there is none there that this build can read. */
-async function readManifest(path: string): Promise<BuildManifest | null> {
+export async function readManifest(path: string): Promise<BuildManifest | null> {
   let parsed: unknown
   try {
     parsed = JSON.parse(await readFile(path, 'utf-8'))
@@ -487,7 +493,7 @@ export async function applyUpdate(emit: (progress: UpdateProgress) => void): Pro
         parentPid: process.pid,
         installDir,
         newDir,
-        oldDir: join(updateDir, 'old'),
+        oldDir: getParkedPath(),
         logPath: getAppLogPath(),
         exe: app.getPath('exe'),
         install: plan.install,

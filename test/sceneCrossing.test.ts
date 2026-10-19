@@ -24,21 +24,25 @@ function harness(): {
   emit: (delta: string) => void
   resolve: (result: Result<SceneResponse>) => void
 } {
-  let listener = (_delta: string): void => {}
+  let listener = (_stream: string, _delta: string): void => {}
+  let stream = ''
   let resolve!: (result: Result<SceneResponse>) => void
   const call = new Promise<Result<SceneResponse>>((r) => {
     resolve = r
   })
   stubApi({
     llm: {
-      completeScene: vi.fn(() => call),
-      onSceneDelta: (fn: (delta: string) => void) => {
+      completeScene: vi.fn((_request: unknown, _group: string, id: string) => {
+        stream = id
+        return call
+      }),
+      onSceneDelta: (fn: (stream: string, delta: string) => void) => {
         listener = fn
         return () => {}
       }
     }
   })
-  return { emit: (delta) => listener(delta), resolve }
+  return { emit: (delta) => listener(stream, delta), resolve }
 }
 
 /** What the player has actually been handed to read. */

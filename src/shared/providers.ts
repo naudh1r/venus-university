@@ -22,12 +22,19 @@ export const THINKING_LEVEL_LABELS: Record<ThinkingLevel, string> = {
   high: 'High'
 }
 
-/** Which inference queue serves a request, cheapest first. */
-const SERVICE_TIERS = ['standard', 'priority'] as const
+/** Which inference queue serves a request, in the order Settings lists them, the default first. */
+const SERVICE_TIERS = ['priority', 'standard', 'flex'] as const
 export type ServiceTier = (typeof SERVICE_TIERS)[number]
 
 function isServiceTier(value: unknown): value is ServiceTier {
   return SERVICE_TIERS.includes(value as ServiceTier)
+}
+
+/** Shown in the Settings dropdown. */
+export const SERVICE_TIER_LABELS: Record<ServiceTier, string> = {
+  priority: 'Priority (default)',
+  standard: 'Standard',
+  flex: 'Flex'
 }
 
 /** One selectable model with per-model request tuning. */
@@ -60,7 +67,7 @@ export interface ProviderConfig {
   defaultModel: string
   /** The second model a fresh file routes the routable kinds to, by id. */
   defaultSecondaryModel: string
-  /** Tiers this provider's text models accept. */
+  /** Tiers this provider's text models accept; the first is what an absent setting runs on. */
   serviceTiers: readonly ServiceTier[]
   /** Where to get a key; the custom endpoint has no one place. */
   keyUrl?: string
@@ -336,9 +343,12 @@ export function reasoningToSend(
 
 /**
  * Resolves a stored service tier against the provider that will run, the way
- * `thinkingLevelFor` resolves a level against its model.
+ * `thinkingLevelFor` resolves a level against its model: one it does not offer, or none at all,
+ * falls to the provider's first.
  */
-export function serviceTierFor(apiProvider: ProviderApi, stored: string): ServiceTier {
+export function serviceTierFor(apiProvider: ProviderApi, stored: string | undefined): ServiceTier {
   const provider = providerFor(apiProvider)
-  return isServiceTier(stored) && provider.serviceTiers.includes(stored) ? stored : 'standard'
+  return isServiceTier(stored) && provider.serviceTiers.includes(stored)
+    ? stored
+    : provider.serviceTiers[0]
 }

@@ -2,6 +2,7 @@ import { appError } from './errors'
 import { assertSafeId, type ValidateRecordOptions } from './jsonValidate'
 import {
   AUTOSAVE_ID,
+  FIRST_SLOT,
   MANUAL_SAVE_SLOTS,
   MAX_SLOT_SAVES,
   READER_SPEAKER,
@@ -14,7 +15,8 @@ import {
   type SaveDraft,
   type SaveSummary,
   type SceneLine,
-  type SceneState
+  type SceneState,
+  type SemesterRecord
 } from './types'
 
 /**
@@ -24,13 +26,24 @@ import {
  */
 
 /** Schema version this build reads and writes for a save. */
-export const SAVE_SCHEMA_VERSION = 12
+export const SAVE_SCHEMA_VERSION = 13
 
 /** The playthrough record's own version, apart from the saves'. */
 export const RECORD_SCHEMA_VERSION = 3
 
 /** The enrollment's own version, apart from both. */
-export const ENROLLMENT_SCHEMA_VERSION = 2
+export const ENROLLMENT_SCHEMA_VERSION = 3
+
+/**
+ * A record of `from` brought up to `to` with nothing else changed, for a version whose only
+ * difference is fields the older one never wrote; anything else comes back untouched.
+ */
+function versionStep(from: number, to: number): (record: object) => object {
+  return (record) =>
+    (record as { schemaVersion?: unknown }).schemaVersion === from
+      ? { ...record, schemaVersion: to }
+      : record
+}
 
 /**
  * What a save must carry; `playthroughId`/`saveId` are stamped from where it was found, and
@@ -50,6 +63,13 @@ const SAVE_REQUIRED: Record<
     | 'tallies'
     | 'thumbnail'
     | 'replays'
+    | 'semester'
+    | 'formerJobs'
+    | 'transcript'
+    | 'homecomingVisitor'
+    | 'sceneEventsFired'
+    | 'readerCold'
+    | 'readerColdsHad'
   >,
   true
 > = {
@@ -100,7 +120,7 @@ const SAVE_REQUIRED: Record<
  * What a playthrough record must carry; where it is kept names the playthrough, and the name
  * the player gives it is optional on the type and omitted here.
  */
-const RECORD_REQUIRED: Record<keyof Omit<PlaythroughRecord, 'name' | 'mods'>, true> = {
+const RECORD_REQUIRED: Record<keyof Omit<PlaythroughRecord, 'name' | 'mods' | 'semesters'>, true> = {
   schemaVersion: true,
   chars: true,
   playerFirstName: true,
@@ -116,7 +136,10 @@ const RECORD_REQUIRED: Record<keyof Omit<PlaythroughRecord, 'name' | 'mods'>, tr
  * What an enrollment must carry; where it is kept names the playthrough it will become, and
  * the fields an enrollment written before them lacks are optional on the type and omitted here.
  */
-const ENROLLMENT_REQUIRED: Record<keyof Omit<Enrollment, 'bio' | 'tokensGenerated'>, true> = {
+const ENROLLMENT_REQUIRED: Record<
+  keyof Omit<Enrollment, 'bio' | 'tokensGenerated' | 'continued' | 'secrets'>,
+  true
+> = {
   schemaVersion: true,
   savedAt: true,
   chars: true,
@@ -138,7 +161,9 @@ export const SAVE_READ: ValidateRecordOptions<GameSave> = {
   malformed: { code: 'SAVE_MALFORMED', message: 'That save file is not valid JSON.' },
   schemaVersion: { code: 'SAVE_SCHEMA_VERSION' },
   expects: SAVE_SCHEMA_VERSION,
-  required: SAVE_REQUIRED
+  required: SAVE_REQUIRED,
+  // A version-12 save is one from before semesters: it lacks only fields a save may lack.
+  upgrade: versionStep(12, SAVE_SCHEMA_VERSION)
 }
 
 /** Raised when a save is there but cannot be read. */
@@ -146,6 +171,49 @@ export const SAVE_UNREADABLE = { code: 'SAVE_UNREADABLE', message: 'Could not re
 
 /** Raised when there is no such save. */
 export const SAVE_NOT_FOUND = { code: 'SAVE_NOT_FOUND', message: 'That save no longer exists.' }
+
+/** What every semester past the first must carry: the record's own fields for it and its log. */
+const SEMESTER_REQUIRED: Record<
+  keyof Omit<SemesterRecord, 'parent' | 'fallGraduate' | 'breakDecay'>,
+  true
+> = {
+  index: true,
+  chars: true,
+  alumni: true,
+  classes: true,
+  occasions: true,
+  jobClosures: true,
+  weather: true,
+  profiles: true,
+  before: true
+}
+
+/**
+ * Refuses a record whose semesters do not hold together: an id that is not a bare number, a
+ * missing field, or a semester that is not one past the semester it continued from.
+ */
+export function assertSemesters(record: PlaythroughRecord, where: string): void {
+  const semesters = record.semesters
+  if (semesters === undefined) return
+  const malformed = (detail: string): never => {
+    throw appError(
+      'PLAYTHROUGH_MALFORMED',
+      'That playthrough record has a semester it cannot read.',
+      `${where}: ${detail}`
+    )
+  }
+  if (typeof semesters !== 'object' || semesters === null) malformed('semesters')
+  for (const [id, semester] of Object.entries(semesters)) {
+    if (!SAFE_NUMERIC_ID.test(id)) malformed(`semester id ${id}`)
+    if (typeof semester !== 'object' || semester === null) malformed(`semester ${id}`)
+    for (const key of Object.keys(SEMESTER_REQUIRED)) {
+      if (!(key in semester)) malformed(`semester ${id} is missing "${key}"`)
+    }
+    const parentIndex =
+      semester.parent === undefined ? 0 : (semesters[semester.parent]?.index ?? Number.NaN)
+    if (semester.index !== parentIndex + 1) malformed(`semester ${id} index ${semester.index}`)
+  }
+}
 
 /** How a playthrough record is checked once it has been read. */
 export const RECORD_READ: ValidateRecordOptions<PlaythroughRecord> = {
@@ -156,7 +224,8 @@ export const RECORD_READ: ValidateRecordOptions<PlaythroughRecord> = {
   },
   schemaVersion: { code: 'PLAYTHROUGH_SCHEMA_VERSION' },
   expects: RECORD_SCHEMA_VERSION,
-  required: RECORD_REQUIRED
+  required: RECORD_REQUIRED,
+  check: assertSemesters
 }
 
 /** Raised when a playthrough record is there but cannot be read. */
@@ -180,7 +249,9 @@ export const ENROLLMENT_READ: ValidateRecordOptions<Enrollment> = {
   },
   schemaVersion: { code: 'ENROLLMENT_SCHEMA_VERSION' },
   expects: ENROLLMENT_SCHEMA_VERSION,
-  required: ENROLLMENT_REQUIRED
+  required: ENROLLMENT_REQUIRED,
+  // A version-2 enrollment is a first semester's, which never carries `continued`.
+  upgrade: versionStep(2, ENROLLMENT_SCHEMA_VERSION)
 }
 
 /** Raised when an enrollment is there but cannot be read. */
@@ -329,7 +400,32 @@ export function summaryOf(save: GameSave): SaveSummary {
       null
   }
   if (save.thumbnail) summary.thumbnail = save.thumbnail
+  if (save.semester) summary.semester = save.semester
   return summary
+}
+
+/**
+ * A playthrough's summary with the registration waiting beside its saves: always noted, and
+ * standing for the playthrough unless a save was written after it — a registration is only ever
+ * written after the saves it continues from, so a tie is its.
+ */
+export function withRegistration(
+  summary: PlaythroughSummary,
+  registration: Enrollment | null
+): PlaythroughSummary {
+  if (!registration) return summary
+  const semesterIndex = registration.continued?.index ?? 0
+  const noted = { ...summary, registration: { savedAt: registration.savedAt, semesterIndex } }
+  if (registration.savedAt < summary.savedAt) return noted
+  return {
+    ...noted,
+    enrolling: true,
+    chars: registration.chars,
+    date: FIRST_SLOT.date,
+    time: FIRST_SLOT.time,
+    ...(semesterIndex > 0 ? { semesterIndex } : {}),
+    savedAt: registration.savedAt
+  }
 }
 
 /** Finds the first unused `{Date.now()+n}` id not already taken in `taken`. */

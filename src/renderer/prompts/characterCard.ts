@@ -1,6 +1,6 @@
 import { SUBJECT_TAGS } from '@shared/characterRules'
 import { loveLifeBlurb } from '@shared/relationship'
-import { OUTFIT_SKIN_EXPOSURE } from '@shared/tags'
+import { hairColorOf, OUTFIT_SKIN_EXPOSURE } from '@shared/tags'
 import { TRAIT_DESCRIPTIONS } from '@shared/traits'
 import { fullNameOf, type Character } from '@shared/types'
 import { SETTING } from './setting'
@@ -123,6 +123,18 @@ function scenarioOf(): string {
   return `${campusParagraph()} {{char}} is a student there, and {{user}} is a fellow student.`
 }
 
+/** The card's `first_mes`: the two of them meeting at orientation, before anyone else arrives. */
+function firstMessageOf(character: Character): string {
+  const hair = hairColorOf(character.baseAppearance)
+  const girl = hair ? `a girl with ${hair} hair` : 'a girl'
+  return (
+    'Today is freshman orientation at Venus University. The air here is pleasantly cool, and the ' +
+    'smell of blooming flowers is everywhere. You follow the instructions on your phone to find ' +
+    'your orientation group. When you get there, it seems no one else has arrived except for ' +
+    `${girl}. She notices you and an awkward silence sets in between the two of you.`
+  )
+}
+
 /** Builds the V2 and V3 cards a character's record fills, ready for the PNG's text chunks. */
 export function buildCharacterCard(character: Character, now: Date): { v2: CardV2; v3: CardV3 } {
   const data: CardV2Data = {
@@ -130,7 +142,7 @@ export function buildCharacterCard(character: Character, now: Date): { v2: CardV
     description: descriptionSections(character).join('\n\n'),
     personality: character.personality,
     scenario: scenarioOf(),
-    first_mes: '',
+    first_mes: firstMessageOf(character),
     mes_example: '',
     creator_notes: `Exported from Venus University on ${now.toISOString().slice(0, 10)}.`,
     system_prompt: '',

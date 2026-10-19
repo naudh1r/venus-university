@@ -20,6 +20,28 @@ export function isProhibited(code: string): boolean {
   return code === 'LLM_BLOCKED' || code === 'CLASSIFIER_REJECTED'
 }
 
+/**
+ * The codes besides the connection three that a hand-edited prompt cannot answer: a quota or an
+ * empty balance, a key or endpoint only Settings fixes, the app's own refusal of an action no
+ * prompt was sent for, and a cancelled call.
+ */
+const NOT_THE_PROMPT = new Set([
+  'LLM_RATE_LIMITED',
+  'LLM_CREDITS_DEPLETED',
+  'API_KEY_MISSING',
+  'LLM_ENDPOINT_INVALID',
+  'CLASSIFIER_REJECTED',
+  'CANCELLED'
+])
+
+/**
+ * Whether a failure under `code` offers the hand-edited prompt: every code but those known not to
+ * be the prompt, since a provider's refusal can arrive under any code the app does not recognize.
+ */
+export function promptEditable(code: string): boolean {
+  return !isConnectionError(code) && !NOT_THE_PROMPT.has(code)
+}
+
 const URL_PATTERN = /https:\/\/[^\s]+/g
 const TRAILING_PUNCTUATION = /[.,;:)]+$/
 
@@ -109,7 +131,7 @@ export interface LlmFailureModalProps {
    * `error.code` and `error.detail`.
    */
   permanentDetail?: boolean
-  /** The hand-edited prompt: offered only where `error.code` is `LLM_BLOCKED`. */
+  /** The hand-edited prompt: offered wherever {@link promptEditable} allows `error.code`. */
   extraText?: string
   onExtra?: () => void
   /**
@@ -147,8 +169,8 @@ export function LlmFailureModal({
 
   const retryable = alwaysRetryable || !isPermanent(error)
 
-  // The hand-edited prompt answers a refusal; nothing else that failed was the prompt.
-  const editable = error.code === 'LLM_BLOCKED'
+  // The hand-edited prompt answers a refusal, and an unrecognized failure may be one.
+  const editable = promptEditable(error.code)
 
   // Nothing to retry: the request itself was refused.
   if (!retryable) {

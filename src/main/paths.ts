@@ -47,6 +47,14 @@ export function getUpdatePath(): string {
   return join(getDataPath(), 'update')
 }
 
+/**
+ * `/data/update/old` — where an update parks the files it replaces or drops, each under its
+ * path in the install, until the next launch sweeps them.
+ */
+export function getParkedPath(): string {
+  return join(getUpdatePath(), 'old')
+}
+
 /** The shipped, read-only asset root — kept outside asar so ComfyUI gets real paths. */
 function getAssetsPath(): string {
   if (app.isPackaged) {
@@ -74,9 +82,60 @@ function loadedPregenIds(): Set<string> {
   return pregenIds
 }
 
-/** True for a character that ships with the game and lives under `/assets`. */
+/**
+ * True for a character that ships with the game, whether she is read from `/assets` or from an
+ * edited copy.
+ */
 export function isPregenChar(charId: string): boolean {
   return loadedPregenIds().has(charId)
+}
+
+/**
+ * True when the cast is edited where it ships: an unpackaged run writes straight into
+ * `/assets`, while a packaged build keeps its assets as they were built and copies a
+ * character out on her first edit.
+ */
+export function castInPlace(): boolean {
+  return !app.isPackaged
+}
+
+/** The shipped charIds that have a folder under `/data/characters`, read from disk once. */
+let shippedCopies: Set<string> | null = null
+
+function loadedShippedCopies(): Set<string> {
+  if (shippedCopies === null) {
+    shippedCopies = new Set()
+    if (!castInPlace()) {
+      try {
+        for (const charId of readdirSync(getCharactersPath())) {
+          if (loadedPregenIds().has(charId)) shippedCopies.add(charId)
+        }
+      } catch {
+        // No characters folder yet, so no copies.
+      }
+    }
+  }
+  return shippedCopies
+}
+
+/** True for a shipped character whose edited copy lives under `/data/characters`. */
+export function hasShippedCopy(charId: string): boolean {
+  return loadedShippedCopies().has(charId)
+}
+
+/** Records that a shipped character now has a copy under `/data/characters`. */
+export function markCopied(charId: string): void {
+  if (!castInPlace() && loadedPregenIds().has(charId)) loadedShippedCopies().add(charId)
+}
+
+/** Records that a shipped character's copy is gone, so she reads from `/assets` again. */
+export function unmarkCopied(charId: string): void {
+  loadedShippedCopies().delete(charId)
+}
+
+/** Every shipped charId that has a copy, in `readdir` order. */
+export function listShippedCopies(): string[] {
+  return [...loadedShippedCopies()]
 }
 
 /** Every shipped charId, in `readdir` order. */
@@ -87,6 +146,7 @@ export function listPregenCharIds(): string[] {
 /** Drops the memoized listing; the tests re-root the app between cases. */
 export function clearPregenCache(): void {
   pregenIds = null
+  shippedCopies = null
 }
 
 /** `/assets/quickstart.json` — the canned semester Quickstart starts from. */
@@ -124,23 +184,35 @@ export function getWorkflowPath(name: string): string {
   return join(getWorkflowsPath(), name)
 }
 
-/** `.../ComfyUI/input` — the only folder ComfyUI's `LoadImage` node reads from. */
-export function getComfyInputPath(): string {
-  return join(getComfyAppPath(), 'input')
-}
-
-/** `.../ComfyUI/output` — `SaveImage` writes here; ComfyUI never prunes it. */
+/** `.../ComfyUI/output` — what a `SaveImage` writes; ComfyUI never prunes it. */
 export function getComfyOutputPath(): string {
   return join(getComfyAppPath(), 'output')
 }
 
+/** `.../ComfyUI/temp` — what a `PreviewImage` writes; ComfyUI empties it at every boot. */
+export function getComfyTempPath(): string {
+  return join(getComfyAppPath(), 'temp')
+}
+
 /**
- * `.../ComfyUI/output/{subfolder}/{filename}` — the PNG one `SaveImage` output names. Both
- * halves are the server's own words, so a name that does not land inside the output folder is
- * refused rather than returned.
+ * `.../ComfyUI/{temp|output}/{subfolder}/{filename}` — the picture one sink names, under the
+ * folder its `type` names. All three are the server's own words, so a type outside those two,
+ * or a name that does not land inside its folder, is refused rather than returned.
  */
-export function getComfyOutputFilePath(image: { filename: string; subfolder?: string }): string {
-  const root = resolve(getComfyOutputPath())
+export function getComfyOutputFilePath(image: {
+  filename: string
+  subfolder?: string
+  type?: string
+}): string {
+  const type = image.type ?? 'output'
+  if (type !== 'temp' && type !== 'output') {
+    throw appError(
+      'COMFY_OUTPUT_PATH_INVALID',
+      'ComfyUI named an image outside its own output folder.',
+      `type ${type} for ${image.subfolder ?? ''}/${image.filename}`
+    )
+  }
+  const root = resolve(type === 'temp' ? getComfyTempPath() : getComfyOutputPath())
   const path = resolve(root, image.subfolder ?? '', image.filename)
   const prefix = root.endsWith(sep) ? root : root + sep
   if (!path.toLowerCase().startsWith(prefix.toLowerCase())) {
@@ -201,9 +273,22 @@ export function getEnrollmentPath(playthroughId: string): string {
   return join(getPlaythroughPath(playthroughId), 'enrollment.json')
 }
 
-/** `/data/saves/{playthroughId}/ending.png` — the graduation picture. */
-export function getEndingArtPath(playthroughId: string): string {
-  return join(getPlaythroughPath(playthroughId), 'ending.png')
+/**
+ * `/data/saves/{playthroughId}/ending.png` — the first semester's graduation picture — or
+ * `ending-{semesterId}.png` for a later semester's.
+ */
+export function getEndingArtPath(playthroughId: string, semesterId?: string): string {
+  const name = semesterId === undefined ? 'ending.png' : `ending-${semesterId}.png`
+  return join(getPlaythroughPath(playthroughId), name)
+}
+
+/**
+ * The semester id a later semester's graduation picture is named for, or null for any other
+ * file; the picture is its PNG name's WebP twin, or that PNG until the boot pass converts it.
+ */
+export function endingArtSemesterOf(fileName: string): string | null {
+  const match = /^ending-([0-9]+)\.(png|webp)$/.exec(fileName)
+  return match ? match[1] : null
 }
 
 /** `/data/saves/{playthroughId}/profile.png` — the reader's own picture. */
@@ -277,10 +362,13 @@ export function getCharactersPath(): string {
 }
 
 /**
- * `/data/characters/{charId}`, or `/assets/characters/{charId}` for one of the shipped cast.
+ * `/data/characters/{charId}`, or `/assets/characters/{charId}` for one of the shipped cast
+ * until she is edited: an unpackaged run edits her there, a packaged build reads her there
+ * only while she has no copy under `/data/characters`.
  */
 export function getCharacterPath(charId: string): string {
-  return join(isPregenChar(charId) ? getPregenCharactersPath() : getCharactersPath(), charId)
+  const fromAssets = isPregenChar(charId) && (castInPlace() || !hasShippedCopy(charId))
+  return join(fromAssets ? getPregenCharactersPath() : getCharactersPath(), charId)
 }
 
 /** `/data/characters/{charId}/character.json` */

@@ -1,6 +1,7 @@
 import type {
   ChatMessage,
   HangoutClassifierResponse,
+  Season,
   StructuredRequest,
   TimeSlot
 } from '@shared/types'
@@ -30,6 +31,8 @@ export interface HangoutVerdict {
 export interface HangoutClassifierState {
   date: number
   time: TimeSlot
+  /** The semester's season, which names the month. */
+  season: Season
   /**
    * The whole semester's sky, one reading per slot — the NOW line walks back through it for how
    * long the weather has held. Absent means nothing is said about it.
@@ -45,13 +48,13 @@ export function buildHangoutClassifierPrompt(
   replyMessages: readonly ChatMessage[],
   state: HangoutClassifierState
 ): StructuredRequest {
-  const background = stampedStubs(recent.slice(-HANGOUT_CONTEXT_CAP), firstName)
+  const background = stampedStubs(recent.slice(-HANGOUT_CONTEXT_CAP), firstName, state.season)
 
   const user = [
     'You read one exchange from a text thread and report three things about it.',
     '',
     'NOW',
-    `It is ${formatDateBanner(state.date, state.time)}`,
+    `It is ${formatDateBanner(state.date, state.time, state.season)}`,
     ...(state.weather ? weatherLines(state.weather, state.date, state.time) : []),
     '',
     // The instructions below point at these blocks by name.
@@ -64,12 +67,12 @@ export function buildHangoutClassifierPrompt(
     '',
     'THE MESSAGE — what the reader just sent.',
     "'''",
-    ...stampedStubs([playerMessage], firstName),
+    ...stampedStubs([playerMessage], firstName, state.season),
     "'''",
     '',
     `THE REPLY — what ${firstName} is about to send back.`,
     "'''",
-    ...stampedStubs(replyMessages, firstName),
+    ...stampedStubs(replyMessages, firstName, state.season),
     "'''",
     '',
     `Set "playerAsked" to true when THE MESSAGE asks ${firstName} to meet up in person right now — today, this ${slotHalf(state.time)}, immediately — AND THE REPLY does not turn it down.`,

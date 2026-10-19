@@ -1,14 +1,16 @@
-import { mkdir, readdir, readFile, rename, rm, unlink, writeFile } from 'fs/promises'
-import { dirname, join } from 'path'
+import { cp, mkdir, mkdtemp, readdir, readFile, rename, rm, unlink, writeFile } from 'fs/promises'
+import { basename, dirname, join } from 'path'
 import {
   baseRel,
   CUSTOM_CGS_DIR,
   isCharFileRel,
+  isLosslessRel,
   layerRel,
   looseNamesOf,
   REFERENCE_NAME,
   setDirRel,
   spriteFileRel,
+  STAGING_DIR,
   wardrobeImageRel
 } from '@shared/characterFiles'
 import {
@@ -35,6 +37,7 @@ import type {
   CharacterBrief,
   CustomCgSlot,
   CustomOutfitSlot,
+  DefaultsStatus,
   Emotion,
   OutfitSet,
   Position,
@@ -47,8 +50,13 @@ import type {
   WardrobeTarget
 } from '@shared/types'
 import {
+  castInPlace,
+  hasShippedCopy,
   isPregenChar,
   listPregenCharIds,
+  listShippedCopies,
+  markCopied,
+  unmarkCopied,
   getPregenCharactersPath,
   getCharacterCgsPath,
   getCharacterExpressionsPath,
@@ -59,16 +67,19 @@ import {
   getCharactersPath,
   getCharacterStagingPath,
   getStagedPath,
-  getStagedOutfitsPath
+  getStagedOutfitsPath,
+  getTempPath
 } from '../paths'
 import {
-  dropImageTwins,
   findImage,
   imageNamesIn,
   imagePath,
-  imageStemsIn
+  imageStemsIn,
+  removeImage,
+  retireTwins,
+  storedImage
 } from './imageFiles'
-import { readJsonFile, writeAtomicJson } from './jsonFile'
+import { readJsonFile, renameWithPatience, writeAtomicJson } from './jsonFile'
 import { cutProfile, profileCropOf, tryCutProfile } from './profileService'
 import { getSettings, setRemovedDefaults } from './settingsService'
 
@@ -76,16 +87,59 @@ import { getSettings, setRemovedDefaults } from './settingsService'
 
 export { assertSafeCharId }
 
-/** Rejects a write aimed at one of the shipped cast, unless the dev switch is on. */
-export async function assertEditableChar(charId: string): Promise<void> {
+/** True for a shipped character of a packaged build who has not been copied out yet. */
+function isUnclaimed(charId: string): boolean {
+  return isPregenChar(charId) && !castInPlace() && !hasShippedCopy(charId)
+}
+
+/** True while a shipped character is read from `/assets`: in place, or not yet copied out. */
+function readsFromAssets(charId: string): boolean {
+  return isPregenChar(charId) && (castInPlace() || !hasShippedCopy(charId))
+}
+
+/** The copies being made right now, so two writes to one character copy her once. */
+const claims = new Map<string, Promise<void>>()
+
+/** Copies a shipped character's folder into `/data/characters` through a scratch folder. */
+async function copyOut(charId: string): Promise<void> {
+  const tempRoot = getTempPath()
+  let temp: string | null = null
+  try {
+    await mkdir(tempRoot, { recursive: true })
+    await mkdir(getCharactersPath(), { recursive: true })
+    temp = await mkdtemp(join(tempRoot, 'claim-'))
+    // The staging tree and half-written files are scratch, not part of her.
+    await cp(join(getPregenCharactersPath(), charId), join(temp, charId), {
+      recursive: true,
+      filter: (path) => basename(path) !== STAGING_DIR && !path.endsWith('.tmp')
+    })
+    await renameWithPatience(join(temp, charId), join(getCharactersPath(), charId))
+    markCopied(charId)
+  } catch (err) {
+    throw appError(
+      'CHARACTER_UNWRITABLE',
+      'Could not copy the character to edit her.',
+      messageOf(err)
+    )
+  } finally {
+    if (temp !== null) await rm(temp, { recursive: true, force: true }).catch(() => {})
+  }
+}
+
+/**
+ * Readies a character for a write that would change her. A shipped character in a packaged
+ * build is first copied whole into `/data/characters`, and from then on the copy is the one
+ * every reader and writer uses; anyone else, and the cast in an unpackaged run, is ready as is.
+ */
+export async function claimCharacter(charId: string): Promise<void> {
   assertSafeCharId(charId)
-  if (!isPregenChar(charId)) return
-  if ((await getSettings()).editPregens === true) return
-  throw appError(
-    'CHARACTER_READ_ONLY',
-    'Default characters cannot be edited.',
-    `Duplicate her first; the copy is editable. (${charId})`
-  )
+  const pending = claims.get(charId)
+  if (pending) return pending
+  if (!isUnclaimed(charId)) return
+
+  const claim = copyOut(charId).finally(() => claims.delete(charId))
+  claims.set(charId, claim)
+  return claim
 }
 
 /**
@@ -122,7 +176,7 @@ export async function getCharacter(charId: string): Promise<Character> {
 
   // An older record is written back at once, so the file on disk is current after the first
   // listing and its updatedAt keeps the grid's order.
-  if (upgraded && !isPregenChar(charId)) {
+  if (upgraded && !readsFromAssets(charId)) {
     await writeAtomicJson(getCharacterFilePath(charId), character, {
       code: 'CHARACTER_UNWRITABLE',
       message: 'Could not save the character.'
@@ -141,17 +195,19 @@ async function charIdsIn(dir: string): Promise<string[]> {
   }
 }
 
-/** The player's own charIds; the shipped cast is the build's, wherever it is read from. */
+/** Every folder under `/data/characters`: the player's own charIds and the shipped cast's copies. */
 export async function ownCharIds(): Promise<string[]> {
   return charIdsIn(getCharactersPath())
 }
 
-/** Lists both roots, shipped cast first, skipping a corrupt folder with a warning. */
+/**
+ * Lists both roots, shipped cast first, skipping a corrupt folder with a warning. A shipped
+ * character's copy is listed once, in her shipped place.
+ */
 export async function listCharacters(): Promise<Character[]> {
-  const entries = [
-    ...(await charIdsIn(getPregenCharactersPath())),
-    ...(await charIdsIn(getCharactersPath()))
-  ]
+  const shipped = await charIdsIn(getPregenCharactersPath())
+  const own = (await charIdsIn(getCharactersPath())).filter((charId) => !shipped.includes(charId))
+  const entries = [...shipped, ...own]
 
   const characters: Character[] = []
   for (const charId of entries) {
@@ -164,10 +220,48 @@ export async function listCharacters(): Promise<Character[]> {
   return characters
 }
 
-/** Every shipped charId, and which of them the player has removed. */
-export async function getDefaultsStatus(): Promise<{ ids: string[]; removed: string[] }> {
+/** Every shipped charId, which of them the player has removed and which have an edited copy. */
+export async function getDefaultsStatus(): Promise<DefaultsStatus> {
   const { removedDefaults } = await getSettings()
-  return defaultsStatusOf(listPregenCharIds(), removedDefaults)
+  return defaultsStatusOf(listPregenCharIds(), removedDefaults, listShippedCopies(), castInPlace())
+}
+
+/**
+ * Puts a shipped character back as she was built: her edited copy is deleted, and she is read
+ * from the shipped folder again. An unpackaged run edits the shipped folder itself, so there
+ * is nothing to go back to.
+ */
+export async function resetDefault(charId: string): Promise<Character> {
+  assertSafeCharId(charId)
+  if (!isPregenChar(charId) || castInPlace()) {
+    throw appError(
+      'CHARACTER_NOT_SHIPPED',
+      'Only a default character can be reset.',
+      `${charId} has no shipped version to go back to.`
+    )
+  }
+  await claims.get(charId)?.catch(() => {})
+  if (hasShippedCopy(charId)) {
+    // Moved aside in one rename before it is deleted, so a file held open mid-delete cannot
+    // leave half a copy standing in for her.
+    let aside: string
+    try {
+      await mkdir(getTempPath(), { recursive: true })
+      aside = await mkdtemp(join(getTempPath(), 'reset-'))
+      await renameWithPatience(join(getCharactersPath(), charId), join(aside, charId))
+    } catch (err) {
+      throw appError(
+        'CHARACTER_UNDELETABLE',
+        'Could not reset the character folder.',
+        messageOf(err)
+      )
+    }
+    unmarkCopied(charId)
+    await rm(aside, { recursive: true, force: true }).catch((err: unknown) => {
+      console.warn(`[characters] could not clear the reset copy of "${charId}":`, err)
+    })
+  }
+  return getCharacter(charId)
 }
 
 /** Puts every removed shipped character back on the roster. */
@@ -216,7 +310,7 @@ export async function readReference(charId: string): Promise<ReferenceImage | nu
 
 /** Writes `character.json` atomically (temp file in the same folder, then rename). */
 export async function writeCharacter(character: Character): Promise<Character> {
-  await assertEditableChar(character.charId)
+  await claimCharacter(character.charId)
 
   // Stamped here rather than by any caller: every write of the file goes through this
   // function or `adoptFolder`, and the grid's order is read off it.
@@ -368,7 +462,7 @@ export async function commitStagedSet(
   charId: string,
   target: SetTarget
 ): Promise<'committed' | 'empty'> {
-  assertSafeCharId(charId)
+  await claimCharacter(charId)
   const { live, staged, loose } = setLocation(charId, target)
 
   const stagedImages = await imageNamesIn(staged)
@@ -389,12 +483,13 @@ export async function commitStagedSet(
 
   try {
     if (loose) {
-      // Loose files move one at a time; only a variant that was staged moves.
+      // Loose files move one at a time, each under the name it was staged as; only a variant
+      // that was staged moves, and it replaces the live picture whichever extension that is under.
       for (const name of loose) {
-        if (!stagedImages.includes(name)) continue
-        await rm(join(live, name), { force: true })
-        await rename(join(staged, name), join(live, name))
-        await dropImageTwins(join(live, name))
+        const stagedFile = await findImage(join(staged, name))
+        if (stagedFile === null) continue
+        await removeImage(join(live, name))
+        await rename(stagedFile, join(live, basename(stagedFile)))
       }
     } else {
       await rm(live, { recursive: true, force: true })
@@ -419,6 +514,8 @@ export async function commitStagedSet(
  */
 export async function discardStaged(charId: string, target?: SetTarget): Promise<void> {
   assertSafeCharId(charId)
+  // A packaged build never stages beside the shipped folder, and nothing it removes may land there.
+  if (isUnclaimed(charId)) return
   if (!target) {
     await rm(getCharacterStagingPath(charId), { recursive: true, force: true })
     return
@@ -426,7 +523,7 @@ export async function discardStaged(charId: string, target?: SetTarget): Promise
 
   const { staged, loose } = setLocation(charId, target)
   if (loose) {
-    for (const name of loose) await rm(join(staged, name), { force: true })
+    for (const name of loose) await removeImage(join(staged, name))
   } else {
     await rm(staged, { recursive: true, force: true })
   }
@@ -441,7 +538,7 @@ export async function deleteCustomSet(
   charId: string,
   slot: CustomOutfitSlot | CustomCgSlot
 ): Promise<void> {
-  await assertEditableChar(charId)
+  await claimCharacter(charId)
   const isCg = isCustomCgSlot(slot)
   if (!isCg && !isCustomOutfitSlot(slot)) {
     throw appError('OUTFIT_SET_UNKNOWN', `"${String(slot)}" is not a custom set.`)
@@ -483,7 +580,7 @@ export async function readWardrobeImage(
 export async function readCharacterImage(charId: string, rel: string): Promise<Uint8Array | null> {
   assertSafeCharId(charId)
   if (!isCharFileRel(rel)) return null
-  // The path names the PNG; the shipped cast is the same image under `.webp`.
+  // The path names the PNG; the picture is its `.webp` twin, or the PNG not yet converted.
   const path = await imagePath(getCharacterImagePath(charId, rel))
 
   try {
@@ -515,30 +612,34 @@ export async function applyWardrobeFix(
   paintLayer: string | null,
   kind: WardrobeLayer
 ): Promise<void> {
-  assertSafeCharId(charId)
+  await claimCharacter(charId)
   if (images.length === 0) {
     throw appError('FIX_EMPTY', 'There were no sprites to repair.')
   }
 
   const dir = getCharacterImagePath(charId, setDirRel(target))
   const writes = images.map(({ emotion, data }) => ({
-    path: getCharacterImagePath(charId, spriteFileRel(target, emotion)),
+    rel: spriteFileRel(target, emotion),
     bytes: decodePng(data, emotion)
   }))
   if (paintLayer !== null) {
-    writes.push({
-      path: getCharacterImagePath(charId, layerRel(target, kind)),
-      bytes: decodePng(paintLayer, 'the paint layer')
-    })
+    writes.push({ rel: layerRel(target, kind), bytes: decodePng(paintLayer, 'the paint layer') })
   }
 
-  const temps = writes.map((write) => `${write.path}.tmp`)
+  // Every picture is encoded before any is written: the sprites at the shared profile, the
+  // paint layer losslessly.
+  const stored = await Promise.all(
+    writes.map(({ rel, bytes }) =>
+      storedImage(getCharacterImagePath(charId, rel), bytes, isLosslessRel(rel))
+    )
+  )
+  const temps = stored.map((image) => `${image.path}.tmp`)
   try {
     await mkdir(dir, { recursive: true })
-    for (const [index, write] of writes.entries()) await writeFile(temps[index], write.bytes)
-    for (const [index, write] of writes.entries()) await rename(temps[index], write.path)
-    // A duplicate of a shipped character carries WebP into her folder; one stem is one image.
-    for (const write of writes) await dropImageTwins(write.path)
+    for (const [index, image] of stored.entries()) await writeFile(temps[index], image.bytes)
+    for (const [index, image] of stored.entries()) await rename(temps[index], image.path)
+    // The twin each picture replaced goes too, so one stem is one image.
+    for (const image of stored) await retireTwins(image)
   } catch (err) {
     await Promise.all(temps.map((temp) => unlink(temp).catch(() => {})))
     throw appError('SPRITE_UNWRITABLE', 'Could not save the repaired sprites.', messageOf(err))
@@ -562,8 +663,9 @@ export async function discardWardrobeLayer(
   kind: WardrobeLayer
 ): Promise<void> {
   assertSafeCharId(charId)
+  if (isUnclaimed(charId)) return
   try {
-    await rm(getCharacterImagePath(charId, layerRel(target, kind)), { force: true })
+    await removeImage(getCharacterImagePath(charId, layerRel(target, kind)))
   } catch (err) {
     throw appError('SPRITE_UNWRITABLE', 'Could not clear the saved paint layer.', messageOf(err))
   }
@@ -574,8 +676,7 @@ export async function discardWardrobeLayer(
  * could not be cut is not one `character.json` claims she is wearing.
  */
 export async function setProfileCrop(charId: string, crop: ProfileCrop): Promise<Character> {
-  assertSafeCharId(charId)
-  await assertEditableChar(charId)
+  await claimCharacter(charId)
 
   const character = await getCharacter(charId)
   // Stamped with the seed she renders under now, which is what a regenerate retires.
@@ -594,7 +695,11 @@ export async function getProfileCrop(charId: string): Promise<ProfileCropInfo> {
   return profileCropOf(charId, await getCharacter(charId))
 }
 
-/** Deletes every character's staging tree at startup, under either root. */
+/**
+ * Deletes every character's staging tree at startup: the folders under `/data/characters`,
+ * a shipped character's copy among them, and the shipped root's own only where the cast is
+ * edited in place.
+ */
 export async function sweepStaging(): Promise<void> {
   let own: string[]
   try {
@@ -603,8 +708,8 @@ export async function sweepStaging(): Promise<void> {
     own = []
   }
 
-  // The shipped root can hold a staging tree too, while `editPregens` is on.
-  for (const charId of [...listPregenCharIds(), ...own]) {
+  const shipped = castInPlace() ? listPregenCharIds() : []
+  for (const charId of new Set([...shipped, ...own])) {
     if (!SAFE_CHAR_ID.test(charId)) continue
     try {
       await rm(getCharacterStagingPath(charId), { recursive: true, force: true })

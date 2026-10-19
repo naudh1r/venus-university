@@ -8,9 +8,10 @@ import {
   ledgerStoryFallback,
   ledgerTranscriptOf,
   shortenSceneSoFar,
-  type ScenePromptState
+  type PromptState
 } from '../src/renderer/prompts/scenePrompt'
 import { cgAction } from '@shared/sceneActions'
+import { calendarOf } from '@shared/semesters'
 import { DEFAULT_MEMORY_BUDGETS } from '@shared/settingsRules'
 import { READER_SPEAKER, type SceneLine, type TimeSlot } from '@shared/types'
 import { character, charactersById } from './fixtures'
@@ -31,14 +32,14 @@ function promptState() {
     playthroughId: 'p1',
     date: 0,
     time: 0 as TimeSlot,
-    seedWord: 'aspen',
     backgrounds: { interior: ['library'], exterior: ['quad'] },
     charInfo: {},
     npcRelationships: {},
     roster: [],
     classes: {},
     playerSchedule: {},
-    occasions: [],
+    classRosters: {},
+    calendar: calendarOf('spring', []),
     bg: null,
     classCode: null,
     projectClass: null,
@@ -50,6 +51,7 @@ function promptState() {
     onStage: [],
     lessNsfwText: false,
     memoryBudgets: DEFAULT_MEMORY_BUDGETS,
+    history: {},
     cgReady: {},
     customCgReady: {},
     outfitReady: {},
@@ -131,13 +133,13 @@ describe('shortenSceneSoFar', () => {
 describe('buildLedgerPrompt — STATS', () => {
   const roster = charactersById(sarah, mina)
 
-  function ledgerFor(cast: (typeof sarah)[], state: Partial<ScenePromptState> = {}) {
+  function ledgerFor(cast: (typeof sarah)[], state: Partial<PromptState> = {}) {
     const { user, schema } = buildLedgerPrompt(
       cast,
       transcript(),
       { ...promptState(), ...state },
       'READER',
-      { date: 0, time: 0 as TimeSlot, threads: [], characters: roster, planned: [] }
+      { date: 0, time: 0 as TimeSlot, season: 'spring', threads: [], characters: roster, graduates: [], planned: [], timetable: {} }
     )
     return {
       user,
@@ -186,9 +188,12 @@ describe('ledgerStoryFallback', () => {
     return buildLedgerPrompt([sarah], scene, promptState(), 'READER', {
       date: 0,
       time: 0 as TimeSlot,
+      season: 'spring',
       threads: [],
       characters: roster,
-      planned: []
+      graduates: [],
+      planned: [],
+      timetable: {}
     })
   }
 
@@ -305,7 +310,16 @@ describe('ledgerTranscriptOf', () => {
       [...opening, ...transcript()],
       promptState(),
       'READER',
-      { date: 0, time: 0 as TimeSlot, threads: [], characters: charactersById(sarah), planned: [] }
+      {
+        date: 0,
+        time: 0 as TimeSlot,
+        season: 'spring',
+        threads: [],
+        characters: charactersById(sarah),
+        graduates: [],
+        planned: [],
+        timetable: {}
+      }
     )
     expect(user).not.toContain('What would you like to do?')
     expect(user).not.toContain('January 19, Monday morning.')
@@ -320,7 +334,7 @@ describe('ledgerTranscriptOf', () => {
  */
 describe('buildScenePrompt — the CG gate', () => {
   /** The stage directions the built schema offers, or none where it offers no `actions` at all. */
-  function actionsFor(cast: (typeof sarah)[], state: Partial<ScenePromptState>): string[] {
+  function actionsFor(cast: (typeof sarah)[], state: Partial<PromptState>): string[] {
     const { schema } = buildScenePrompt(
       cast,
       'find her',
@@ -391,7 +405,7 @@ describe('the slot rumor in the lorebook', () => {
   })
 
   it('is gone from the very next turn of the same scene', () => {
-    const state: ScenePromptState = { ...promptState(), slotRumor: RUMOR }
+    const state: PromptState = { ...promptState(), slotRumor: RUMOR }
     const { user } = buildContinuationPrompt(
       [sarah],
       'keep reading',

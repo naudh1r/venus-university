@@ -25,7 +25,8 @@ import { settlePendingPhotos } from '../stores/photoRecovery'
 import { sendPhoto } from '../stores/photoTurn'
 import { useGameStore } from '../stores/gameStore'
 import { registerTermFiles } from '@shared/modCarry'
-import { registerHooks } from '../mods/hooks'
+import { ownsPostComments, registerHooks } from '../mods/hooks'
+import { PhotoComments, PhotoPostPicture } from '../components/PhotoPostSpots'
 
 /**
  * Photo Feature, plugged into the game through its hooks. Everything it adds to the game's own
@@ -44,10 +45,29 @@ registerHooks(PHOTO_FEATURE, {
       fields: () => PHOTO_SCHEMA_FIELDS,
       required: () => PHOTO_SCHEMA_REQUIRED
     },
+    // A girl texting first may send a picture with it, under the same gate as her replies.
+    'slot-reach-outs': {
+      lines: ({ character, info, date }) =>
+        photoLines(
+          character,
+          info,
+          { date, canRenderImages: canSendPhotos(), noNsfwImages: noExplicitPhotos() },
+          'reachOut'
+        ),
+      fields: () => PHOTO_SCHEMA_FIELDS,
+      required: () => PHOTO_SCHEMA_REQUIRED
+    },
     'slot-posts': {
-      lines: () => [...postPhotoLines(canSendPhotos()), ...postCommentLines(true)],
-      fields: () => POST_PHOTO_SCHEMA_FIELD,
-      required: () => POST_PHOTO_SCHEMA_REQUIRED
+      // The replies are asked for only while Photo Feature is the mod drawing them.
+      lines: () => [
+        ...postPhotoLines(canSendPhotos()),
+        ...(ownsPostComments(PHOTO_FEATURE) ? postCommentLines(true) : [])
+      ],
+      fields: () =>
+        ownsPostComments(PHOTO_FEATURE)
+          ? POST_PHOTO_SCHEMA_FIELD
+          : { image: POST_PHOTO_SCHEMA_FIELD.image },
+      required: () => (ownsPostComments(PHOTO_FEATURE) ? POST_PHOTO_SCHEMA_REQUIRED : ['image'])
     },
     character: {
       lines: () => bodyBriefLines(),
@@ -66,6 +86,16 @@ registerHooks(PHOTO_FEATURE, {
   // render is half a minute, and her words have already landed.
   afterDmReply: ({ charId, character, reply }) => void sendPhoto(charId, character, reply),
 
+  // The same for a girl texting first, read off her entry in the slot's opening: a custom
+  // endpoint's JSON is not held to the schema, so each field is taken only as the type it should
+  // be.
+  afterReachOut: ({ charId, character, reply }) =>
+    void sendPhoto(charId, character, {
+      sendPhoto: reply.sendPhoto === true,
+      photoPrompt: typeof reply.photoPrompt === 'string' ? reply.photoPrompt : '',
+      ...(typeof reply.photoTier === 'string' ? { photoTier: reply.photoTier } : {})
+    }),
+
   // The slot's held feed pictures, now that he is busy with something: they draw under the scene
   // and the posts are waiting on the feed when he is free again.
   playerActs: () => startHeldPostPhoto(),
@@ -74,10 +104,13 @@ registerHooks(PHOTO_FEATURE, {
   gameEntered: () => void settlePendingPhotos(),
 
   fileFeedPost: async (filing, { nudge }) => {
-    const reply = filing.reply as { image?: string; comments?: string[] }
+    const reply = filing.reply as { image?: string; comments?: unknown }
     // Awaited: the picture's name has to be in the post the slot save is about to write down.
     const shot = await preparePostPhoto(filing.charId, reply.image)
-    const comments = rollComments(filing.charId, reply.comments, shot?.shot.tier)
+    // Another mod drawing the replies has filed its own already.
+    const comments = ownsPostComments(PHOTO_FEATURE)
+      ? rollComments(filing.charId, reply.comments as string[] | undefined, shot?.shot.tier)
+      : (filing.post.comments ?? [])
     filing.post = {
       ...filing.post,
       likes: postLikes(filing.charId, shot?.shot.tier),
@@ -102,7 +135,13 @@ registerHooks(PHOTO_FEATURE, {
     })
   },
 
-  postVisible: postIsOut
+  postVisible: postIsOut,
+
+  // Strangers' replies under a post, while no mod ahead of it in the list draws them instead.
+  postComments: { View: PhotoComments },
+
+  // Her picture under the post's text.
+  postPicture: PhotoPostPicture
 })
 
 // A continued semester carries her threads and feed into a new playthrough; the pictures on them

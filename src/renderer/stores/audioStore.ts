@@ -208,7 +208,8 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
   const game = useGameStore.getState()
 
   const inScene = game.currentSceneTranscript.length > 0 || game.sceneSummary !== null
-  const base = game.bg ?? SLOT_BG
+  // The place on stage: what the player picked wins over what the scene reports, as on the layer.
+  const base = game.bgOverride ?? game.bg ?? SLOT_BG
   const cg = displayedCgOf({
     shown: displaySlotsOf(game.slots, game.stageOverride),
     emotions: game.emotions,

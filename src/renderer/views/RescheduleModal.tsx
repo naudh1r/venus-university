@@ -62,6 +62,7 @@ export function RescheduleModal({
   onClose
 }: RescheduleModalProps): JSX.Element | null {
   const charInfo = useGameStore((s) => s.charInfo)
+  const season = useGameStore((s) => s.calendar.season)
   const spriteVersion = useCharacterStore((s) => s.spriteVersion)
   const slots = rescheduleSlotsFor(event)
   const weeks = weeksOf(slots)
@@ -126,7 +127,7 @@ export function RescheduleModal({
                   key={day[0].date}
                 >
                   <span className="vu-resched-day">{WEEK_DAY_HEADERS[weekday]}</span>
-                  <span className="vu-resched-date">{formatGameDate(day[0].date)}</span>
+                  <span className="vu-resched-date">{formatGameDate(day[0].date, season)}</span>
                 </div>
               ))}
 

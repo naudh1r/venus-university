@@ -1,6 +1,7 @@
 import { appError } from '@shared/errors'
 import { assertSafePhotoId, type PhotoEntry, type PhotoMeta } from '@shared/photos'
 import { assertSafePlaythroughId } from '@shared/saveRules'
+import { storedBlob } from '../webp'
 import { database, partRange, storage } from './open'
 
 /**
@@ -48,12 +49,15 @@ export async function readPhoto(playthroughId: string, photoId: string): Promise
 export async function writePhoto(
   playthroughId: string,
   photoId: string,
-  image: Blob,
-  thumb: Blob,
+  picture: Blob,
+  thumbnail: Blob,
   meta: PhotoMeta
 ): Promise<void> {
   assertSafePlaythroughId(playthroughId)
   assertSafePhotoId(photoId)
+  // Both encoded before the transaction opens, which an await outside the database would close.
+  const image = await storedBlob(picture, false)
+  const thumb = await storedBlob(thumbnail, false)
 
   const wrote = await storage('save the photo', async () => {
     const db = await database()
@@ -72,10 +76,11 @@ export async function writePhoto(
 export async function writePhotoThumb(
   playthroughId: string,
   photoId: string,
-  thumb: Blob
+  thumbnail: Blob
 ): Promise<void> {
   assertSafePlaythroughId(playthroughId)
   assertSafePhotoId(photoId)
+  const thumb = await storedBlob(thumbnail, false)
 
   await storage('save the photo', async () => {
     const db = await database()

@@ -18,13 +18,14 @@ describe('clampSpriteScale', () => {
     expect(clampSpriteScale(1.5)).toBe(SPRITE_SCALE_MAX)
     expect(clampSpriteScale(0.9349)).toBe(0.93)
     expect(clampSpriteScale(0.97)).toBe(0.97)
+    expect(clampSpriteScale(1.03)).toBe(1.03)
   })
 })
 
 describe('defaultSpriteScale', () => {
   it('reads the breast tag, and small wins where freehand tags carry both', () => {
     expect(defaultSpriteScale(['small_breasts'])).toBe(0.94)
-    expect(defaultSpriteScale(['big_breasts'])).toBe(SPRITE_SCALE_MAX)
+    expect(defaultSpriteScale(['big_breasts'])).toBe(1)
     expect(defaultSpriteScale([])).toBe(0.97)
     expect(defaultSpriteScale(['small_breasts', 'big_breasts'])).toBe(0.94)
   })

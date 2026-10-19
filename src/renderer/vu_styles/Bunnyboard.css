@@ -969,6 +969,13 @@
   font: 500 15px/1.5 var(--font-body);
 }
 
+/* The post's foot: its like, and beside it whatever a mod drawing its comments adds. */
+.vu-bb-post-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* Every post carries one, in both of its states. */
 .vu-bb-like {
   display: flex;

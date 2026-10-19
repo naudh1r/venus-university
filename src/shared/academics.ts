@@ -330,14 +330,14 @@ const GPA_SCORE_WEIGHT = 0.75
 const GPA_ATTENDANCE_WEIGHT = 0.25
 
 /**
- * The reader's GPA off what has already happened: every course that has met or been assessed,
- * graded on the scores it has so far against how often he was in the room, and on attendance
- * alone until the first paper is sat. A semester with nothing behind it yet stands at 4.0.
+ * The grade point every course of this semester has earned so far: every course that has met or
+ * been assessed, graded on the scores it has against how often he was in the room, and on
+ * attendance alone until the first paper is sat.
  */
-export function gpaOf(
+export function coursePointsOf(
   records: Readonly<Record<string, ClassRecord>>,
   courses: readonly CourseEntry[]
-): number {
+): number[] {
   const points: number[] = []
   for (const course of courses) {
     const record = records[course.code]
@@ -358,7 +358,19 @@ export function gpaOf(
         : (attendance ?? 0) * 100
     points.push(gradePointsOf(percent))
   }
+  return points
+}
 
+/**
+ * The reader's GPA: this semester's {@link coursePointsOf} averaged with every grade point the
+ * semesters before it left. Nothing behind him yet stands at 4.0.
+ */
+export function gpaOf(
+  records: Readonly<Record<string, ClassRecord>>,
+  courses: readonly CourseEntry[],
+  earlier: readonly number[] = []
+): number {
+  const points = [...earlier, ...coursePointsOf(records, courses)]
   if (points.length === 0) return 4
   return points.reduce((sum, point) => sum + point, 0) / points.length
 }

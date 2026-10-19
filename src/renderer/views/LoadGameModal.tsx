@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, type AnimationPlaybackControls } from 'motion/react'
 import { toAppError } from '@shared/errors'
 import { classifySaveId, manualSlotOf } from '@shared/saveRules'
+import { seasonOf, semesterName, semesterOf, type SemesterView } from '@shared/semesters'
 import {
   MANUAL_SAVE_SLOTS,
   MAX_SLOT_SAVES,
@@ -10,7 +11,8 @@ import {
   type Character,
   type GameSave,
   type PlaythroughRecord,
-  type PlaythroughSummary
+  type PlaythroughSummary,
+  type Season
 } from '@shared/types'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { DeleteX } from '../components/DeleteX'
@@ -105,14 +107,38 @@ function writtenAtShort(savedAt: number): string {
   })
 }
 
+/** Whether a playthrough has any save to list, beside whatever registration waits in it. */
+function hasSaves(playthrough: PlaythroughSummary): boolean {
+  return playthrough.saveCount + playthrough.manualCount > 0 || playthrough.hasAutosave
+}
+
 /** A count and the noun it counts, singular for one. */
 function countOf(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
-/** A save as its card draws it: where it sits in the semester, when it was written, its gate. */
+/** The semester a save is in, or null where its record cannot say. */
+function semesterOfSave(entry: ResolvedSave): SemesterView | null {
+  if (!entry.record || !entry.summary) return null
+  try {
+    return semesterOf(entry.record, entry.summary.semester)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * A save as its card draws it: where it sits in its semester, when it was written, its gate;
+ * the semester is named once the playthrough has more than one.
+ */
 function cardOf(entry: ResolvedSave, sticker: string): SaveGridCard {
   const { saveId, savedAt, summary, unloadable } = entry
+  const semester = semesterOfSave(entry)
+  const season: Season = semester?.season ?? 'spring'
+  const named =
+    semester && Object.keys(entry.record?.semesters ?? {}).length > 0
+      ? `${semesterName(semester.index)}\n`
+      : ''
   return {
     kind: 'card',
     saveId,
@@ -121,9 +147,9 @@ function cardOf(entry: ResolvedSave, sticker: string): SaveGridCard {
     headline: summary
       ? summary.graduationSeen
         ? GOODBYES_SAVE_LABEL
-        : formatDateBanner(summary.date, summary.time)
+        : formatDateBanner(summary.date, summary.time, season)
       : 'Unreadable save',
-    meta: `Saved ${writtenAtShort(savedAt)}`,
+    meta: `${named}Saved ${writtenAtShort(savedAt)}`,
     reason: unloadable ? `Cannot load — ${unloadable}` : null,
     thumbSrc: summary ? saveThumbUrl(summary) : null,
     dead: Boolean(unloadable),
@@ -319,6 +345,12 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
   }
 
   const close = (): void => (onClose ? onClose() : closeModal('loadGame'))
+
+  /** Reopens a playthrough's registrar, asking first over a running game as a load does. */
+  function resume(playthrough: PlaythroughSummary): void {
+    if (onClose) setConfirmingResume(playthrough)
+    else void beginResume(playthrough)
+  }
 
   /**
    * A mod's way on from a picked save: prepared first, so one that fails changes nothing, then
@@ -593,11 +625,11 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
                         key={playthrough.playthroughId}
                         playthrough={playthrough}
                         cast={castOf(playthrough.chars, characters)}
-                        // An enrollment has no second level to explain a roster it can no
-                        // longer be played with, so the gate a save row gets there is on this one.
+                        // A registration with no saves beside it has no second level to explain
+                        // a roster it can no longer be played with, so its gate is on this row.
                         unloadable={
                           playthrough.unloadable ??
-                          (playthrough.enrolling
+                          (playthrough.enrolling && !hasSaves(playthrough)
                             ? unloadableReason(playthrough.chars, characters)
                             : null)
                         }
@@ -605,12 +637,11 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
                         onHover={(on) => setHovered(on ? playthrough.playthroughId : null)}
                         onDelete={() => setDeletingPlaythrough(playthrough)}
                         onClick={() => {
-                          // A folder with no timetable in it yet has a registrar to reopen
-                          // rather than saves to list; over a running game that asks first,
-                          // exactly as loading a save does.
-                          if (playthrough.enrolling) {
-                            if (onClose) setConfirmingResume(playthrough)
-                            else void beginResume(playthrough)
+                          // A folder with nothing in it but a semester at the registrar has a
+                          // registrar to reopen rather than saves to list; over a running game
+                          // that asks first, exactly as loading a save does.
+                          if (playthrough.enrolling && !hasSaves(playthrough)) {
+                            resume(playthrough)
                             return
                           }
                           leave()
@@ -638,6 +669,18 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
                 }}
               >
                 Back
+              </motion.button>
+            )}
+            {/* A next semester waiting at the registrar beside the saves listed. */}
+            {selected?.registration && (
+              <motion.button
+                id="load-game-resume"
+                className="vu-btn vu-btn--quiet"
+                type="button"
+                {...gestures(false, quietLift, quietPress)}
+                onClick={() => resume(selected)}
+              >
+                Resume registration
               </motion.button>
             )}
             {selected && renamable && (
@@ -827,7 +870,7 @@ function PlaythroughRow({
   const label = `Delete ${playthrough.label} and all of its saves`
   // Reframing a portrait re-cuts the file behind its URL, so the strip reads the version.
   const versions = useCharacterStore((state) => state.spriteVersion)
-  const dead = Boolean(playthrough.enrolling && unloadable)
+  const dead = Boolean(playthrough.enrolling && !hasSaves(playthrough) && unloadable)
   // The scene autosave counts among the autosaves where there is one.
   const autosaves = playthrough.saveCount + (playthrough.hasAutosave ? 1 : 0)
 
@@ -840,7 +883,11 @@ function PlaythroughRow({
           ? 'Unreadable'
           : playthrough.enrolling
             ? 'Class registration'
-            : formatDateBanner(playthrough.date, playthrough.time)}
+            : formatDateBanner(
+              playthrough.date,
+              playthrough.time,
+              seasonOf(playthrough.semesterIndex ?? 0)
+            )}
       </span>
 
       {/* The faces stand where a list of their names would: recognised, not read. */}

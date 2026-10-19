@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { updatesFeed } from '../src/renderer/stores/feedView'
-// The mod plugs into the game's hooks as the app does at boot.
-import '../src/renderer/mods'
 import type { SocialPost } from '../src/shared/types'
-import { character, charactersById, charInfo } from './fixtures'
+import { character, charactersById, charInfo, stubApi } from './fixtures'
+
+// Discovered UI entries can load stores that subscribe to the desktop bridge at boot.
+stubApi({ jobs: { onProgress: () => () => {} } })
+await import('../src/renderer/mods')
+// Switched on as a player would, now that the mod starts off.
+const { useModsStore } = await import('../src/renderer/stores/modsStore')
+useModsStore.setState({ switches: { on: { 'photo-feature': true }, options: {} } })
 
 /**
  * The slot's teaser, when the stranger's post came with a picture: it is the post the feed

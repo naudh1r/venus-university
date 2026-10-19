@@ -6,6 +6,7 @@ import {
   isCharFileRel,
   layerRel,
   outfitRel,
+  profileRel,
   REFERENCE_NAME,
   roomRel,
   spriteFileRel,
@@ -23,6 +24,7 @@ import { EMOTIONS } from '@shared/emotions'
 import { appError, messageOf } from '@shared/errors'
 import { assertPng, imageTypeOf } from '@shared/imageBytes'
 import { enqueue } from '@shared/jobQueue'
+import { LINEUP_MIME_TYPE } from '@shared/lineup'
 import { generateImage } from '@shared/llm/cloudImage'
 import { OUTFIT_SETS } from '@shared/outfits'
 import { isCustomCgSlot, POSITIONS } from '@shared/positions'
@@ -34,6 +36,7 @@ import type {
   CharacterBrief,
   CustomCgSlot,
   CustomOutfitSlot,
+  DefaultsStatus,
   Emotion,
   OutfitSet,
   Position,
@@ -49,45 +52,115 @@ import { blobOf, imageBlob } from './blob'
 import * as db from './db/chars'
 import { imageBytes, imageRels } from './files'
 import { forgetImages } from './images'
-import { isShipped, shippedCharacter, shippedCharacters, shippedCharIds } from './packs'
+import { copiedIds, isPackRead, markCopied, unmarkCopied } from './copies'
+import {
+  isShipped,
+  packImages,
+  shippedCharacter,
+  shippedCharacters,
+  shippedCharIds,
+  shippedProfileUrl
+} from './packs'
 import { cutProfile, profileCropOf, tryCutProfile } from './profile'
 import { currentSettings, setRemovedDefaults } from './settings'
+import { jpegOf } from './webp'
 
 /**
- * Characters in the browser: the cast the game ships with, read out of its packs, and the
- * player's own, kept in the browser's storage under the same relative paths a folder uses.
+ * Characters in the browser: the cast the game ships with, read out of its packs until the
+ * player first changes one of them, and the player's own, kept in the browser's storage under the
+ * same relative paths a folder uses. A shipped character who has been changed is kept there too,
+ * under her own id.
  */
 
-/** Rejects a write aimed at one of the shipped cast; nothing makes them editable here. */
-function assertEditableChar(charId: string): void {
-  assertSafeCharId(charId)
-  if (!isShipped(charId)) return
-  throw appError(
-    'CHARACTER_READ_ONLY',
-    'Default characters cannot be edited.',
-    `Duplicate her first; the copy is editable. (${charId})`
-  )
+/** Which shipped characters are being copied into storage right now, by charId. */
+const claims = new Map<string, Promise<void>>()
+
+/**
+ * Copies one shipped character into storage: her record as shipped, every image of her pack and
+ * her portrait, in one transaction. From then on storage is what reads of her use.
+ */
+async function copyIntoStorage(charId: string): Promise<void> {
+  const arriving: db.FileWrite[] = []
+  for (const [rel, bytes] of await packImages(charId)) {
+    arriving.push({ rel, blob: imageBlob(bytes) })
+  }
+
+  // The pack carries no portrait; hers is a file of its own beside it.
+  const url = shippedProfileUrl(charId)
+  if (url) {
+    try {
+      const response = await fetch(url)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const bytes = new Uint8Array(await response.arrayBuffer())
+      arriving.push({ rel: profileRel(), blob: imageBlob(bytes) })
+    } catch (err) {
+      throw appError('PACK_UNREADABLE', 'Could not load that character.', messageOf(err))
+    }
+  }
+
+  await db.adoptCharacter(shippedCharacter(charId), arriving)
+  markCopied(charId)
+  // The pack's minted URLs go, so the next request for a picture of hers is read from storage.
+  forgetImages(charId)
 }
 
-/** Lists both roots, shipped cast first, as the desktop lists its two folders. */
+/**
+ * Makes sure a write for this character lands in storage: a shipped character still read out of
+ * her pack is copied in first, once however many writes ask at the same time.
+ */
+async function claimCharacter(charId: string): Promise<void> {
+  assertSafeCharId(charId)
+  if (!isPackRead(charId)) return
+
+  let claim = claims.get(charId)
+  if (!claim) {
+    claim = copyIntoStorage(charId).finally(() => claims.delete(charId))
+    claims.set(charId, claim)
+  }
+  await claim
+}
+
+/**
+ * Lists both roots, shipped cast first in the order the build wrote them, each in her edited
+ * form where she has one.
+ */
 export async function listCharacters(): Promise<Character[]> {
-  // A row under a shipped id is shadowed by the pack, as a folder under one is on the desktop.
+  const stored = await db.listOwn()
+  const copies = new Map(stored.map((character) => [character.charId, character]))
   return [
-    ...shippedCharacters(),
-    ...(await db.listOwn()).filter((character) => !isShipped(character.charId))
+    ...shippedCharacters().map((character) =>
+      isPackRead(character.charId) ? character : (copies.get(character.charId) ?? character)
+    ),
+    ...stored.filter((character) => !isShipped(character.charId))
   ]
 }
 
-/** One character, whichever of the two holds her. */
+/** One character, from her pack or from storage, whichever holds her now. */
 export async function getCharacter(charId: string): Promise<Character> {
   assertSafeCharId(charId)
-  return isShipped(charId) ? shippedCharacter(charId) : db.readCharacter(charId)
+  return isPackRead(charId) ? shippedCharacter(charId) : db.readCharacter(charId)
 }
 
-/** Every shipped charId, and which of them the player has removed. */
-export async function getDefaultsStatus(): Promise<{ ids: string[]; removed: string[] }> {
+/** Every shipped charId, which of them the player has removed and which have been edited. */
+export async function getDefaultsStatus(): Promise<DefaultsStatus> {
   const { removedDefaults } = await currentSettings()
-  return defaultsStatusOf(shippedCharIds(), removedDefaults)
+  return defaultsStatusOf(shippedCharIds(), removedDefaults, copiedIds(), false)
+}
+
+/** Throws away a shipped character's edited copy and answers with her as the build ships her. */
+export async function resetDefault(charId: string): Promise<Character> {
+  assertSafeCharId(charId)
+  if (!isShipped(charId)) {
+    throw appError('CHARACTER_NOT_SHIPPED', 'Only a default character can be reset.', charId)
+  }
+  // A copy still on its way in is finished first, so none is left behind.
+  await claims.get(charId)?.catch(() => undefined)
+  if (!isPackRead(charId)) {
+    await db.deleteCharacter(charId)
+    unmarkCopied(charId)
+    forgetImages(charId)
+  }
+  return shippedCharacter(charId)
 }
 
 /** Puts every removed shipped character back on the roster. */
@@ -129,7 +202,7 @@ export async function readReference(charId: string): Promise<ReferenceImage | nu
 
 /** Writes one character's record, stamping the two fields this module owns. */
 export async function writeCharacter(character: Character): Promise<Character> {
-  assertEditableChar(character.charId)
+  await claimCharacter(character.charId)
 
   // Stamped here rather than by any caller: every write of a record goes through this
   // function or the adoption in `transfer.ts`, and the grid's order is read off it.
@@ -146,7 +219,7 @@ export async function writeCharacter(character: Character): Promise<Character> {
   return next
 }
 
-/** Deletes one of the player's own; a shipped one only comes off the roster. */
+/** Deletes one of the player's own; a shipped one only comes off the roster, her copy kept. */
 export async function deleteCharacter(charId: string): Promise<void> {
   assertSafeCharId(charId)
   if (isShipped(charId)) {
@@ -214,6 +287,7 @@ export async function commitStagedSet(
   charId: string,
   target: SetTarget
 ): Promise<'committed' | 'empty'> {
+  await claimCharacter(charId)
   const committed = await db.commitStaged(charId, target)
   forgetImages(charId)
   return committed
@@ -221,6 +295,8 @@ export async function commitStagedSet(
 
 /** Throws away one staged set, or every staged set when `target` is omitted. */
 export async function discardStaged(charId: string, target?: SetTarget): Promise<void> {
+  // A character still read out of her pack has nothing staged.
+  if (isPackRead(charId)) return
   await db.discardStaged(charId, target)
   forgetImages(charId)
 }
@@ -233,6 +309,7 @@ export async function deleteCustomSet(
   charId: string,
   slot: CustomOutfitSlot | CustomCgSlot
 ): Promise<void> {
+  await claimCharacter(charId)
   await db.deleteSet(charId, slot)
   forgetImages(charId)
 }
@@ -275,7 +352,7 @@ export async function applyWardrobeFix(
   paintLayer: string | null,
   kind: WardrobeLayer
 ): Promise<void> {
-  assertSafeCharId(charId)
+  await claimCharacter(charId)
   if (images.length === 0) {
     throw appError('FIX_EMPTY', 'There were no sprites to repair.')
   }
@@ -308,6 +385,8 @@ export async function discardWardrobeLayer(
   kind: WardrobeLayer
 ): Promise<void> {
   assertSafeCharId(charId)
+  // A character still read out of her pack has no paint layer to clear.
+  if (isPackRead(charId)) return
   const rel = layerRel(target, kind)
   await db.writeFiles(charId, [], [rel])
   forgetImages(charId, rel)
@@ -324,7 +403,7 @@ export async function getProfileCrop(charId: string): Promise<ProfileCropInfo> {
  * could not be cut is not one her record claims she is wearing.
  */
 export async function setProfileCrop(charId: string, crop: ProfileCrop): Promise<Character> {
-  assertEditableChar(charId)
+  await claimCharacter(charId)
 
   const character = await getCharacter(charId)
   // Stamped with the seed she renders under now, which is what a regenerate retires.
@@ -360,15 +439,18 @@ async function generateRoomImage(
 
   let bytes: Uint8Array
   if (variant === 'night') {
-    const day = await readDayImage(character.charId, staged)
-    const mimeType = imageTypeOf(day)
-    if (!mimeType) {
+    // The day picture goes over as a JPEG, which every Images endpoint takes as a reference.
+    const day = await jpegOf(await readDayImage(character.charId, staged))
+    if (!day) {
       throw appError(
         'ROOM_DAY_INVALID',
         'The daytime room background could not be read as an image. Render it again.'
       )
     }
-    bytes = await generateImage(NIGHT_ROOM_PROMPT, { signal, sources: [{ bytes: day, mimeType }] })
+    bytes = await generateImage(NIGHT_ROOM_PROMPT, {
+      signal,
+      sources: [{ bytes: day, mimeType: LINEUP_MIME_TYPE }]
+    })
   } else {
     if (!character.roomPrompt.trim()) {
       throw appError(
@@ -381,6 +463,7 @@ async function generateRoomImage(
 
   const rel = roomRel(variant)
   try {
+    await claimCharacter(character.charId)
     const blob = imageBlob(bytes)
     await db.writeFiles(character.charId, [{ rel: staged ? stagedRel(rel) : rel, blob }])
   } catch (err) {
@@ -395,8 +478,8 @@ export async function generateRoom(
   variant: RoomVariant,
   staged = false
 ): Promise<string> {
-  // The cloud bucket's own copy of the gate in front of every write.
-  assertEditableChar(character.charId)
+  // Copied in before the job is queued, so a character that cannot be is refused up front.
+  await claimCharacter(character.charId)
   return enqueue({
     group: character.charId,
     key: `room:${variant}`,
@@ -413,7 +496,7 @@ export async function generateRoom(
  * passed the shared check. Refused for a character deleted while the picture was on its way.
  */
 export async function uploadRoom(charId: string, variant: RoomVariant, png: string): Promise<void> {
-  assertEditableChar(charId)
+  await claimCharacter(charId)
   if (!isRoomVariant(variant)) {
     throw appError('ROOM_VARIANT_UNKNOWN', `"${String(variant)}" is not a room variant.`)
   }

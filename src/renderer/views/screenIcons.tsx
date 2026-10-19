@@ -508,6 +508,41 @@ export function SlidersIcon(): JSX.Element {
   )
 }
 
+/** The game itself: a controller, the Settings tab for how it plays, sounds and keeps its data. */
+export function GamepadIcon(): JSX.Element {
+  return (
+    <svg {...APP_MARK}>
+      <path d="M6 11h4" />
+      <path d="M8 9v4" />
+      <path d="M15 12h.01" />
+      <path d="M18 10h.01" />
+      <path d="M17.3 5H6.7a4 4 0 0 0-4 3.6l-.6 6.3A2.8 2.8 0 0 0 4.9 18c1 0 1.9-.5 2.4-1.3L8.5 15h7l1.2 1.7c.5.8 1.4 1.3 2.4 1.3a2.8 2.8 0 0 0 2.8-3.1l-.6-6.3a4 4 0 0 0-4-3.6Z" />
+    </svg>
+  )
+}
+
+/** What the writer makes: a spark, the Settings tab for the cloud models. */
+export function SparklesIcon(): JSX.Element {
+  return (
+    <svg {...APP_MARK}>
+      <path d="M10 3.5 11.6 8a2 2 0 0 0 1.3 1.3L17.5 11l-4.6 1.6a2 2 0 0 0-1.3 1.3L10 18.5l-1.6-4.6a2 2 0 0 0-1.3-1.3L2.5 11l4.6-1.6A2 2 0 0 0 8.4 8Z" />
+      <path d="M19 3v4" />
+      <path d="M21 5h-4" />
+    </svg>
+  )
+}
+
+/** A picture: the Settings tab for the ComfyUI that draws the characters. */
+export function ImageIcon(): JSX.Element {
+  return (
+    <svg {...APP_MARK}>
+      <rect x="3" y="3" width="18" height="18" rx="2.5" />
+      <circle cx="9" cy="9" r="2" />
+      <path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21" />
+    </svg>
+  )
+}
+
 export function LogIcon(): JSX.Element {
   return (
     <svg {...APP_MARK}>

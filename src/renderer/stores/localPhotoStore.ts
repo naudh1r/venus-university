@@ -1,12 +1,11 @@
 import { explicitPhotosAllowed, photoGenerationOn } from '@shared/photoSwitches'
 import type { ChatPhoto } from '@shared/photoTypes'
-import { isWebBuild } from '../platform'
 import { useGameStore } from './gameStore'
 import { writeAutosave } from './loop/saves'
 import { loopState } from './loop/state'
 import { sceneInProgress } from './loop/stream'
 import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
-import { useSetupStore } from './setupStore'
+import { comfyAvailable, useSetupStore } from './setupStore'
 
 /**
  * The photo feature's writes into the game store, and the one question about whether a picture
@@ -19,13 +18,11 @@ import { useSetupStore } from './setupStore'
  */
 
 /**
- * Whether a picture can be drawn at all: the local renderer is optional, absent on the web, and
- * switched off while ComfyUI is deferred.
+ * Whether a picture can be drawn at all, as the game answers it for its own art: the player's
+ * own ComfyUI, or the app's install once verified and not deferred; never on the web.
  */
 function canRenderImages(): boolean {
-  if (isWebBuild()) return false
-  if (useSettingsStore.getState().settings?.comfyDeferred === true) return false
-  return useSetupStore.getState().status?.comfyReady === true
+  return comfyAvailable(useSettingsStore.getState().settings, useSetupStore.getState().status)
 }
 
 /**

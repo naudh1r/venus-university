@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { playthroughLabel, playthroughNameOf, renamedRecord } from '@shared/saveRules'
+import { semesterOf, type SemesterView } from '@shared/semesters'
 import {
   charKeyOf,
   fullNameOf,
@@ -14,7 +15,8 @@ import {
   type PlaythroughSummary,
   type Result,
   type SaveDraft,
-  type SaveSummary
+  type SaveSummary,
+  type SemesterRecord
 } from '@shared/types'
 import { useUiStore } from './uiStore'
 
@@ -27,7 +29,10 @@ export interface ResolvedSave {
   summary: SaveSummary | null
   /** The playthrough's record, or null when that was what was refused. */
   record: PlaythroughRecord | null
-  /** Resolved characters, in `record.chars` order. Missing ones are absent. */
+  /**
+   * Resolved characters of the save's semester, its roster in order and then its graduates.
+   * Missing ones are absent.
+   */
   characters: Character[]
   /** Why this save cannot be loaded, or null when it can. */
   unloadable: string | null
@@ -37,7 +42,10 @@ export interface ResolvedSave {
 export interface LoadedSave {
   save: GameSave
   record: PlaythroughRecord
-  /** Resolved characters, in `record.chars` order. Missing ones are absent. */
+  /**
+   * Resolved characters of the save's semester, its roster in order and then its graduates.
+   * Missing ones are absent.
+   */
   characters: Character[]
   /** Why this save cannot be loaded, or null when it can. */
   unloadable: string | null
@@ -110,10 +118,18 @@ interface SaveStoreState {
    */
   continueNewest: () => Promise<LoadedSave | ResolvedEnrollment | null>
   /**
-   * Writes the semester the registrar is about to offer, minting the playthrough folder it
-   * will belong to. The caller reads the failure, which it has a screen to put back first.
+   * Writes the semester the registrar is about to offer: a first semester into a playthrough
+   * folder it mints, a next one beside the record of `playthroughId`. The caller reads the
+   * failure, which it has a screen to put back first.
    */
-  enroll: (draft: EnrollmentDraft) => Promise<Result<CreatedEnrollment>>
+  enroll: (draft: EnrollmentDraft, playthroughId?: string) => Promise<Result<CreatedEnrollment>>
+  /** Begins a next semester: the record's new semester, then its opening save. */
+  continueSemester: (
+    playthroughId: string,
+    semesterId: string,
+    semester: SemesterRecord,
+    save: SaveDraft
+  ) => Promise<Result<CreatedPlaythrough>>
   /** Starts a new playthrough: its record, then its opening slot-save. */
   createPlaythrough: (
     record: PlaythroughDraft,
@@ -133,10 +149,14 @@ export function newestPlaythrough(
   return newest
 }
 
-/** Decides whether a save can still be loaded; failures stay per-save. */
+/**
+ * Decides whether a save can still be loaded; failures stay per-save. A missing roster
+ * character refuses it, a missing graduate does not, and a charKey two of them share does.
+ */
 export function unloadableReason(
   chars: readonly string[],
-  resolved: Map<string, Character>
+  resolved: Map<string, Character>,
+  alumni: readonly string[] = []
 ): string | null {
   const missing = chars.filter((charId) => !resolved.has(charId))
   if (missing.length > 0) {
@@ -146,7 +166,7 @@ export function unloadableReason(
   // charKey uniqueness again: renames since Start Game's charKey check can collide.
   const seen = new Map<string, string>()
   const collisions: string[] = []
-  for (const charId of chars) {
+  for (const charId of [...chars, ...alumni]) {
     const character = resolved.get(charId)
     if (!character) continue
     const key = charKeyOf(character.firstName, character.lastName)
@@ -165,6 +185,20 @@ export function unloadableReason(
   }
 
   return null
+}
+
+/**
+ * The semester a save of `record` is in, or null where the record does not hold it.
+ */
+function semesterOfSave(
+  record: PlaythroughRecord,
+  semester: string | undefined
+): SemesterView | null {
+  try {
+    return semesterOf(record, semester)
+  } catch {
+    return null
+  }
 }
 
 /** A playthrough's cast in save order, for the faces Load Game lists it by; deleted
@@ -192,18 +226,22 @@ async function resolvedSavesOf(playthroughId: string): Promise<ResolvedSave[] | 
 
   const resolved = useSaveStore.getState().characters
   const { record, error: recordError, saves } = result.data
-  return saves.map(({ saveId, savedAt, summary, error }) => ({
-    saveId,
-    savedAt,
-    summary,
-    record,
-    characters: record ? castOf(record.chars, resolved) : [],
-    unloadable: !record
-      ? (recordError?.message ?? 'unreadable')
-      : summary
-        ? unloadableReason(record.chars, resolved)
-        : (error?.message ?? 'unreadable')
-  }))
+  return saves.map(({ saveId, savedAt, summary, error }) => {
+    // Each save is read against its own semester, which saves in one folder need not share.
+    const semester = record && summary ? semesterOfSave(record, summary.semester) : null
+    return {
+      saveId,
+      savedAt,
+      summary,
+      record,
+      characters: semester ? castOf([...semester.chars, ...semester.alumni], resolved) : [],
+      unloadable: !record
+        ? (recordError?.message ?? 'unreadable')
+        : summary && semester
+          ? unloadableReason(semester.chars, resolved, semester.alumni)
+          : (error?.message ?? 'unreadable')
+    }
+  })
 }
 
 /** All `saves:*` IPC lives here, never in components. */
@@ -259,11 +297,13 @@ export const useSaveStore = create<SaveStoreState>((set, get) => ({
 
     const { record, save } = result.data
     const resolved = get().characters
+    // The service refuses a save whose semester the record does not hold.
+    const semester = semesterOf(record, save.semester)
     return {
       save,
       record,
-      characters: castOf(record.chars, resolved),
-      unloadable: unloadableReason(record.chars, resolved)
+      characters: castOf([...semester.chars, ...semester.alumni], resolved),
+      unloadable: unloadableReason(semester.chars, resolved, semester.alumni)
     }
   },
 
@@ -333,11 +373,12 @@ export const useSaveStore = create<SaveStoreState>((set, get) => ({
 
     const enrollment = result.data
     const resolved = get().characters
+    const alumni = enrollment.continued?.alumni ?? []
     return {
       playthroughId: playthrough.playthroughId,
       enrollment,
-      characters: castOf(enrollment.chars, resolved),
-      unloadable: unloadableReason(enrollment.chars, resolved)
+      characters: castOf([...enrollment.chars, ...alumni], resolved),
+      unloadable: unloadableReason(enrollment.chars, resolved, alumni)
     }
   },
 
@@ -359,7 +400,10 @@ export const useSaveStore = create<SaveStoreState>((set, get) => ({
     return get().readSave(newest.playthroughId, latest.saveId)
   },
 
-  enroll: (draft) => window.api.saves.enroll(draft),
+  enroll: (draft, playthroughId) => window.api.saves.enroll(draft, playthroughId),
+
+  continueSemester: (playthroughId, semesterId, semester, save) =>
+    window.api.saves.continueSemester(playthroughId, semesterId, semester, save),
 
   createPlaythrough: (record, save, playthroughId) =>
     window.api.saves.create(record, save, playthroughId)

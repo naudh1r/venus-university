@@ -1,6 +1,7 @@
 import { dormSpotsOf, type DormBuilding } from '@shared/dorms'
 import { ROOM_LOCATION } from '@shared/locations'
 import type { NpcEncounterGroup } from '@shared/npcRelationships'
+import { DORM_COMMON_CHANCE, LOOSE_RUN_IN_CHANCE } from '@shared/odds'
 import { pick, shuffle } from '@shared/shuffle'
 import { MAX_GROUP } from './npcOverlay'
 
@@ -9,12 +10,6 @@ import { MAX_GROUP } from './npcOverlay'
  * rooms, and pairs who bumped into each other out on campus. Pure and randomised — no store
  * access, the caller reads the store and hands both rolls what they need.
  */
-
-/** The odds somebody spending the slot in her room is out in the building's shared rooms. */
-const DORM_COMMON_CHANCE = 0.6
-
-/** The odds a character out on campus bumps into somebody. */
-const LOOSE_RUN_IN_CHANCE = 0.6
 
 /** What one character brings into the two rolls. */
 export interface RunInCharInput {

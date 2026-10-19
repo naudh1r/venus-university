@@ -101,6 +101,11 @@ const PERMANENT_CODES = new Set([
   'COMFY_PORT_TAKEN',
   // A prompt that outlived the wall-clock wait.
   'COMFY_WAIT_TIMEOUT',
+  // A model the server does not list, and an input picture it would not take.
+  'COMFY_MODEL_MISSING',
+  'COMFY_UPLOAD_FAILED',
+  // A ComfyUI address no request could be sent to.
+  'COMFY_URL_INVALID',
   'POSE_UNAVAILABLE',
   // An identifier the renderer sent that is not in its vocabulary.
   'CHARACTER_ID_INVALID',
@@ -155,6 +160,8 @@ const PERMANENT_CODES = new Set([
   'PROFILE_GEN_INVALID',
   // The generated calendar came back with nothing on it; retried from New Game.
   'OCCASION_GEN_INVALID',
+  // The generated secrets left somebody without one; retried from New Game.
+  'SECRET_GEN_INVALID',
   // The classifier refused the action itself; the player has to reword.
   'CLASSIFIER_REJECTED',
   // Browser storage

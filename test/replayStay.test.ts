@@ -65,7 +65,7 @@ afterEach(() => {
 })
 
 describe('a game held for a replay', () => {
-  it('comes back to its decision point as it was left', async () => {
+  it('is not entered from a scene, which stays as it was', async () => {
     const lines = sceneLines('Hi there.')
     const scene: SceneState = {
       ...openingScene([]),
@@ -79,13 +79,12 @@ describe('a game held for a replay', () => {
     const point = loopState.decisionSave
     expect(point).not.toBeNull()
 
-    await roundTrip()
+    await enterReplay(REPLAY, 'half a thought')
 
     const game = useGameStore.getState()
     expect(game.replaying).toBeNull()
     expect(game.toGameSave()).toEqual(before)
     expect(loopState.decisionSave).toBe(point)
-    expect(game.inputDraft).toBe('half a thought')
   })
 
   it('comes back to its landing as it was left', async () => {

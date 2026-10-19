@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyStatDeltas,
+  breakDecayedStats,
   MAX_TIER,
   MIN_TIER,
   pointsForTier,
@@ -226,5 +227,12 @@ describe('tierUps', () => {
     const floor = TIER_THRESHOLDS[1]
     expect(tierUps(playerStats(floor - 1, 0, 0), playerStats(1, 0, 0))).toEqual(['brain'])
     expect(tierUps(playerStats(floor, 0, 0), playerStats(1, 0, 0))).toEqual([])
+  })
+})
+
+describe('breakDecayedStats', () => {
+  it('drops each stat to the bottom of the tier below, and leaves the floor tier where it is', () => {
+    expect(breakDecayedStats(playerStats(200, 20, 15))).toEqual(playerStats(60, 0, 0))
+    expect(breakDecayedStats(playerStats(10, -10, 0))).toEqual(playerStats(-15, -10, -15))
   })
 })

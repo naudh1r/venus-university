@@ -79,23 +79,25 @@ export const HAIR_COLORS = [
   'white'
 ] as const
 
-/** One of the twelve; what `hairColorOf` reads back out of a character's tags. */
-export type HairColor = (typeof HAIR_COLORS)[number]
-
-/** One of the eleven; what `eyeColorOf` reads back out of a character's tags. */
-export type EyeColor = (typeof EYE_COLORS)[number]
+/** A tag with any `(tag:1.2)` weight it was written with taken off. */
+function bareTag(tag: string): string {
+  const weighted = /^\((.+):[\d.]+\)$/.exec(tag.trim())
+  return weighted ? weighted[1] : tag.trim()
+}
 
 /**
- * The bare colour off a `{shade}_{color}{suffix}` tag in `baseAppearance` — the shade
- * prefix dropped. Null where the tags name none.
+ * A colour off a character's `baseAppearance`: the first `{shade}_{color}{suffix}` tag naming a
+ * colour of the vocabulary, its shade dropped; else the first tag with the suffix that is not
+ * one of `notColors`, its stem read as words (`silver_hair` is `silver`). Null where none is.
  */
 function colorTagOf(
   baseAppearance: readonly string[],
   suffix: string,
-  colors: readonly string[]
+  colors: readonly string[],
+  notColors: readonly string[]
 ): string | null {
-  for (const tag of baseAppearance) {
-    if (!tag.endsWith(suffix)) continue
+  const tags = baseAppearance.map(bareTag).filter((tag) => tag.endsWith(suffix))
+  for (const tag of tags) {
     let stem = tag.slice(0, -suffix.length)
     for (const shade of SHADES) {
       if (stem.startsWith(`${shade}_`)) stem = stem.slice(shade.length + 1)
@@ -103,23 +105,39 @@ function colorTagOf(
     // The membership check is what tells a colour from a length, a texture or a style.
     if (colors.includes(stem)) return stem
   }
-  return null
+  const other = tags.find((tag) => !notColors.includes(tag) && tag.length > suffix.length)
+  return other ? other.slice(0, -suffix.length).replace(/_/g, ' ') : null
+}
+
+/** Eye tags that say something other than their colour. */
+const NOT_EYE_COLORS: readonly string[] = [
+  'hair_between_eyes',
+  'closed_eyes',
+  'half-closed_eyes',
+  'empty_eyes',
+  'glowing_eyes',
+  'sparkling_eyes',
+  'multicolored_eyes',
+  'gradient_eyes',
+  'bags_under_eyes',
+  'rolling_eyes'
+]
+
+/**
+ * Her hair colour off her `baseAppearance` — the shade prefix dropped, so `dark_blue_hair` and
+ * `light_blue_hair` are both `blue` — or the words of another colour she was tagged with, like
+ * `silver`. Null where the tags name none.
+ */
+export function hairColorOf(baseAppearance: readonly string[]): string | null {
+  return colorTagOf(baseAppearance, '_hair', HAIR_COLORS, NOT_HAIR_COLORS)
 }
 
 /**
- * The bare hair colour off a character's `baseAppearance` — the shade prefix dropped, so
- * `dark_blue_hair` and `light_blue_hair` are both `blue`. Null where the tags name none.
+ * Her eye colour off her `baseAppearance`, on {@link hairColorOf}'s terms. Null where the tags
+ * name none.
  */
-export function hairColorOf(baseAppearance: readonly string[]): HairColor | null {
-  return colorTagOf(baseAppearance, '_hair', HAIR_COLORS) as HairColor | null
-}
-
-/**
- * The bare eye colour off a character's `baseAppearance` — the shade prefix dropped, so
- * `dark_blue_eyes` and `light_blue_eyes` are both `blue`. Null where the tags name none.
- */
-export function eyeColorOf(baseAppearance: readonly string[]): EyeColor | null {
-  return colorTagOf(baseAppearance, '_eyes', EYE_COLORS) as EyeColor | null
+export function eyeColorOf(baseAppearance: readonly string[]): string | null {
+  return colorTagOf(baseAppearance, '_eyes', EYE_COLORS, NOT_EYE_COLORS)
 }
 
 // ----------------------------------------------------------------------- body
@@ -130,15 +148,28 @@ export const BREAST_SIZES = ['small', 'big'] as const
 /** Skin — pick 0–1. */
 export const SKIN_TAGS = ['tan', 'dark-skinned_female', 'freckles'] as const
 
-/** The skin tags read back as prose; no tag means fair skin, which is never written out. */
-export type SkinTone = 'tan' | 'dark' | 'freckled'
+/** The words each skin tag of the vocabulary is read back as; fair skin is never written out. */
+const SKIN_WORDS: Readonly<Record<(typeof SKIN_TAGS)[number], string>> = {
+  'dark-skinned_female': 'dark',
+  tan: 'tan',
+  freckles: 'freckled'
+}
 
-/** The bare skin tone off a character's `baseAppearance`, or null for fair skin. */
-export function skinToneOf(baseAppearance: readonly string[]): SkinTone | null {
-  if (baseAppearance.includes('dark-skinned_female')) return 'dark'
-  if (baseAppearance.includes('tan')) return 'tan'
-  if (baseAppearance.includes('freckles')) return 'freckled'
-  return null
+/** Skin tags that say something other than its colour. */
+const NOT_SKIN_COLORS: readonly string[] = ['shiny_skin', 'colored_skin']
+
+/**
+ * Her skin off her `baseAppearance`, as words: every skin tag of the vocabulary she carries, or
+ * else the first other `_skin` tag's colour (`blue_skin` is `blue`); empty for fair skin.
+ */
+export function skinTonesOf(baseAppearance: readonly string[]): string[] {
+  const tags = baseAppearance.map(bareTag)
+  const known = SKIN_TAGS.filter((tag) => tags.includes(tag)).map((tag) => SKIN_WORDS[tag])
+  if (known.length > 0) return known
+  const other = tags.find(
+    (tag) => tag.endsWith('_skin') && tag.length > '_skin'.length && !NOT_SKIN_COLORS.includes(tag)
+  )
+  return other ? [other.slice(0, -'_skin'.length).replace(/_/g, ' ')] : []
 }
 
 /** Makeup — pick 0–2. */
@@ -198,6 +229,24 @@ export const HAIR_BANGS = [
 
 /** Hair texture — pick 1; `draftToCharacter` suffixes the pick into `{texture}_hair`. */
 export const HAIR_TEXTURES = ['straight', 'wavy', 'curly', 'messy'] as const
+
+/** Hair tags that say something other than its colour. */
+const NOT_HAIR_COLORS: readonly string[] = [
+  ...HAIR_LENGTHS.map((length) => `${length}_hair`),
+  ...HAIR_TEXTURES.map((texture) => `${texture}_hair`),
+  'drill_hair',
+  'very_long_hair',
+  'absurdly_long_hair',
+  'multicolored_hair',
+  'two-tone_hair',
+  'streaked_hair',
+  'gradient_hair',
+  'colored_inner_hair',
+  'spiked_hair',
+  'floating_hair',
+  'wet_hair',
+  'big_hair'
+]
 
 // --------------------------------------------------------------------- outfit
 

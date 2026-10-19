@@ -3,7 +3,7 @@ import { base64ToBytes } from '@shared/base64'
 import { appError, toAppError } from '@shared/errors'
 import {
   assertEndingRequest,
-  ENDING_ART_FILE_NAME,
+  endingArtExportName,
   ENDING_PICTURE_SIZE,
   endingPicturePrompt
 } from '@shared/endingPicture'
@@ -43,6 +43,7 @@ import {
   type HangoutClassifierResponse,
   type JobProgress,
   type LedgerResponse,
+  type LegacyImageProgress,
   type Result,
   type SceneResponse,
   type SlotIntroResponse,
@@ -70,9 +71,11 @@ import { readModSwitches, writeModSwitches } from './mods'
 import { getPoseManifest, getQuickstart, readAudio } from './assets'
 import { offerDownload } from './download'
 import { emitter } from './emitter'
+import { convertLegacyImages } from './legacyImages'
 import { exportLog, writeLogLine } from './log'
 import { currentSettings, patchSettings, rendererSettings } from './settings'
 import { duplicateCharacter, exportCharacter, importCharacter, ZIP_TYPE } from './transfer'
+import { storedBlob } from './webp'
 
 /**
  * The same bridge the preload builds, against the browser's own storage, `fetch` and the
@@ -86,8 +89,22 @@ export const jobProgress = emitter<[JobProgress]>()
 export const tokensGenerated = emitter<[number]>()
 
 /** The two preview channels the streamed calls write onto. */
-const sceneDelta = emitter<[string]>()
+const sceneDelta = emitter<[string, string]>()
 const textingDelta = emitter<[string, string]>()
+
+/** The fixed channel the boot's conversion of older pictures reports its progress on. */
+const legacyImageProgress = emitter<[LegacyImageProgress]>()
+
+/** Refuses a photo's thumbnail that is neither a WebP nor the JPEG a browser with no WebP cuts. */
+function assertPhotoThumb(bytes: Uint8Array): void {
+  const type = imageTypeOf(bytes)
+  if (type === 'image/webp' || type === 'image/jpeg') return
+  throw appError(
+    'PHOTO_REQUEST_INVALID',
+    'That photo could not be sent.',
+    'The thumbnail is not a WebP or JPEG.'
+  )
+}
 
 /** Runs one call and answers a {@link Result}; `what` names it in the console on a failure. */
 async function result<T>(what: string, run: () => Promise<T> | T): Promise<Result<T>> {
@@ -105,14 +122,16 @@ function desktopOnly<T>(what: string): Promise<Result<T>> {
   return Promise.resolve({ ok: false, error: appError('DESKTOP_ONLY', DESKTOP_ONLY_NOTE, what) })
 }
 
-/** Draws the graduation picture and keeps it beside the playthrough it belongs to. */
+/** Draws a semester's graduation picture and keeps it beside the playthrough it belongs to. */
 async function generateEndingArt(
   playthroughId: string,
   sheet: string,
   friendCount: number,
-  signal: AbortSignal
+  signal: AbortSignal,
+  semesterId?: string
 ): Promise<Uint8Array<ArrayBuffer>> {
-  assertSafePlaythroughId(playthroughId)
+  // The key it will be kept under, checked before anything is drawn.
+  saves.endingArtKey(playthroughId, semesterId)
   const bytes = base64ToBytes(sheet)
   assertEndingRequest(friendCount, bytes)
 
@@ -122,10 +141,12 @@ async function generateEndingArt(
     sources: [{ bytes, mimeType: LINEUP_MIME_TYPE }],
     signal
   })
+  // Encoded first, so nothing slow stands between the last gate and the write.
+  const picture = await storedBlob(art, false)
   // Last gate before the write, which would leave a picture behind a playthrough deleted while
   // it was being drawn.
   if (signal.aborted) throw appError('CANCELLED', 'Generation was cancelled.')
-  await saves.writeEndingArt(playthroughId, imageBlob(art))
+  await saves.writeEndingArt(playthroughId, picture, semesterId)
   return new Uint8Array(art)
 }
 
@@ -180,6 +201,10 @@ export function buildApi(): VenusUniversityApi {
         result('generate the occasions', () =>
           runAbortable(group, (signal) => completeStructured<T>(request, signal))
         ),
+      generateSecrets: <T,>(request: StructuredRequest, group: string) =>
+        result('generate the secrets', () =>
+          runAbortable(group, (signal) => completeStructured<T>(request, signal))
+        ),
       generateQuiz: <T,>(request: StructuredRequest) =>
         result('generate the exam', () => completeStructured<T>(request)),
       // The model ids a custom endpoint lists, falling back to the stored key for that origin.
@@ -219,11 +244,13 @@ export function buildApi(): VenusUniversityApi {
       classifyHangout: (request) =>
         result('judge the exchange', () => completeStructured<HangoutClassifierResponse>(request)),
       // Unqueued; the streamed deltas are preview-only and the resolved reply is the
-      // authoritative one.
-      completeScene: (request, group) =>
+      // authoritative one. Every delta carries the call's `stream`.
+      completeScene: (request, group, stream) =>
         result('write the scene', () =>
           runAbortable(group, (signal) =>
-            completeStructured<SceneResponse>(request, signal, (delta) => sceneDelta.emit(delta))
+            completeStructured<SceneResponse>(request, signal, (delta) =>
+              sceneDelta.emit(stream, delta)
+            )
           )
         ),
       completeLedger: (request, group) =>
@@ -308,6 +335,8 @@ export function buildApi(): VenusUniversityApi {
         ),
       defaults: () => result('read the shipped cast', chars.getDefaultsStatus),
       restoreDefaults: () => result('restore the shipped cast', chars.restoreDefaults),
+      resetDefault: (charId) =>
+        result('reset the character', () => chars.resetDefault(charId)),
       // The browser has no folders to open.
       openFolder: () => desktopOnly('chars.openFolder')
     },
@@ -316,12 +345,17 @@ export function buildApi(): VenusUniversityApi {
       list: (playthroughId) => result('read the saves', () => saves.listSaves(playthroughId)),
       read: (playthroughId, saveId) =>
         result('read the save', () => saves.readSave(playthroughId, saveId)),
-      enroll: (draft) => result('save the class registration', () => saves.writeEnrollment(draft)),
+      enroll: (draft, playthroughId) =>
+        result('save the class registration', () => saves.writeEnrollment(draft, playthroughId)),
       enrollment: (playthroughId) =>
         result('read the class registration', () => saves.readEnrollment(playthroughId)),
       create: (playthrough, draft, playthroughId) =>
         result('start the playthrough', () =>
           saves.createPlaythrough(playthrough, draft, playthroughId)
+        ),
+      continueSemester: (playthroughId, semesterId, semester, draft) =>
+        result('begin the semester', () =>
+          saves.continueSemester(playthroughId, semesterId, semester, draft)
         ),
       slot: (playthroughId, draft, replay) =>
         result('write the save', () => saves.writeSlotSave(playthroughId, draft, replay)),
@@ -339,20 +373,20 @@ export function buildApi(): VenusUniversityApi {
         result('delete the playthrough', () => saves.deletePlaythrough(playthroughId)),
       rename: (playthroughId, name) =>
         result('rename the playthrough', () => saves.renamePlaythrough(playthroughId, name)),
-      generateEndingArt: (playthroughId, sheet, friendCount, group) =>
+      generateEndingArt: (playthroughId, sheet, friendCount, group, semesterId) =>
         result('draw the graduation picture', () =>
           runAbortable(group, (signal) =>
-            generateEndingArt(playthroughId, sheet, friendCount, signal)
+            generateEndingArt(playthroughId, sheet, friendCount, signal, semesterId)
           )
         ),
-      readEndingArt: (playthroughId) =>
+      readEndingArt: (playthroughId, semesterId) =>
         result('read the graduation picture', async () => {
-          const bytes = await saves.readEndingArt(playthroughId)
+          const bytes = await saves.readEndingArt(playthroughId, semesterId)
           return bytes === null ? null : new Uint8Array(bytes)
         }),
-      exportEndingArt: (playthroughId) =>
+      exportEndingArt: (playthroughId, semesterId) =>
         result('save the ending CG', async () => {
-          const bytes = await saves.readEndingArt(playthroughId)
+          const bytes = await saves.readEndingArt(playthroughId, semesterId)
           if (bytes === null) {
             throw appError(
               'ENDING_ART_UNEXPORTABLE',
@@ -360,7 +394,7 @@ export function buildApi(): VenusUniversityApi {
               'No picture is stored for this playthrough.'
             )
           }
-          return offerDownload(ENDING_ART_FILE_NAME, bytes, imageTypeOf(bytes) ?? 'image/png')
+          return offerDownload(endingArtExportName(bytes), bytes, imageTypeOf(bytes) ?? 'image/png')
         }),
       readProfilePicture: (playthroughId) =>
         result('read the profile picture', async () => {
@@ -402,13 +436,7 @@ export function buildApi(): VenusUniversityApi {
               'The picture is not an image.'
             )
           }
-          if (imageTypeOf(thumbBytes) !== 'image/jpeg') {
-            throw appError(
-              'PHOTO_REQUEST_INVALID',
-              'That photo could not be sent.',
-              'The thumbnail is not a JPEG.'
-            )
-          }
+          assertPhotoThumb(thumbBytes)
           const record = validateRecord<PhotoMeta>(meta, photoMetaName(photoId), PHOTO_META_READ)
           await photos.writePhoto(
             playthroughId,
@@ -423,13 +451,7 @@ export function buildApi(): VenusUniversityApi {
           assertSafePlaythroughId(playthroughId)
           assertSafePhotoId(photoId)
           const thumbBytes = base64ToBytes(thumb)
-          if (imageTypeOf(thumbBytes) !== 'image/jpeg') {
-            throw appError(
-              'PHOTO_REQUEST_INVALID',
-              'That photo could not be sent.',
-              'The thumbnail is not a JPEG.'
-            )
-          }
+          assertPhotoThumb(thumbBytes)
           await photos.writePhotoThumb(playthroughId, photoId, imageBlob(thumbBytes))
         }),
       delete: (playthroughId, photoId) =>
@@ -452,6 +474,9 @@ export function buildApi(): VenusUniversityApi {
     comfy: {
       start: () => desktopOnly('comfy.start'),
       stop: () => desktopOnly('comfy.stop'),
+      listLocalModels: () => desktopOnly('comfy.listLocalModels'),
+      probe: () => desktopOnly('comfy.probe'),
+      openModelFolder: () => desktopOnly('comfy.openModelFolder'),
       // Nothing ever reports on this channel here, so the unsubscribe has nothing to take off.
       onState: () => () => {},
       generateExpression: () => desktopOnly('comfy.generateExpression'),
@@ -480,6 +505,13 @@ export function buildApi(): VenusUniversityApi {
     backup: {
       export: () => result('save the backup', exportBackup),
       import: () => result('restore the backup', importBackup)
+    },
+    images: {
+      convertLegacy: () =>
+        result('convert the older pictures', () =>
+          convertLegacyImages((progress) => legacyImageProgress.emit(progress))
+        ),
+      onProgress: (listener) => legacyImageProgress.on(listener)
     },
     backgrounds: {
       list: () => result('list the backgrounds', listBackgrounds),

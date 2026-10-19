@@ -1,5 +1,6 @@
 import {
   BACKUP_NAME,
+  preflightBackup,
   BACKUP_READ,
   BACKUP_SCHEMA_VERSION,
   BACKUP_ZIP_LIMITS,
@@ -15,13 +16,16 @@ import {
   profilePictureEntry,
   replaysFromBackup,
   scenesFromBackup,
+  semesterEndingArtEntry,
+  semesterPicturesFromBackup,
   type BackupFile,
   type BackupPhoto,
   type BackupPlaythrough,
   type BackupReplay,
-  type BackupSave
+  type BackupSave,
+  type SemesterPicture
 } from '@shared/backup'
-import { namedRel } from '@shared/characterFiles'
+import { namedRel, storedRel } from '@shared/characterFiles'
 import { SAFE_CHAR_ID } from '@shared/characterRules'
 import {
   BG_VARIANTS,
@@ -44,7 +48,8 @@ import { forgetRels } from './db/chars'
 import { database, storage } from './db/open'
 import { offerDownload } from './download'
 import { revokeAll } from './images'
-import { buildPack, isShipped } from './packs'
+import { isPackRead, loadCopied } from './copies'
+import { buildPack } from './packs'
 import { currentSettings, forgetSettings, rendererSettings, rowFor } from './settings'
 import { encodeJson, openArchive, packagedRel, pickFile, readJsonEntry, ZIP_TYPE } from './transfer'
 
@@ -72,9 +77,16 @@ export async function exportBackup(): Promise<string> {
       if (save) saves.push({ playthroughId: key[0], saveId: key[1], save })
     }
 
-    // Only a replay some carried save names travels; one a restore would refuse costs only itself.
+    const playthroughs: Record<string, BackupPlaythrough> = {}
+    for (const key of await db.getAllKeys('playthroughs')) {
+      const row = await db.get('playthroughs', key)
+      if (row) playthroughs[key] = row
+    }
+
+    // Only a replay some carried save or record names travels; one a restore would refuse costs
+    // only itself.
     const replays: BackupReplay[] = []
-    for (const { playthroughId, replayId } of namedReplays(saves)) {
+    for (const { playthroughId, replayId } of namedReplays(saves, playthroughs)) {
       const row = await db.get('replays', [playthroughId, replayId])
       if (row === undefined) continue
       try {
@@ -85,18 +97,21 @@ export async function exportBackup(): Promise<string> {
       }
     }
 
-    const playthroughs: Record<string, BackupPlaythrough> = {}
-    for (const key of await db.getAllKeys('playthroughs')) {
-      const row = await db.get('playthroughs', key)
-      if (row) playthroughs[key] = row
-    }
-
+    // A first semester's picture is kept under its playthrough's id, a later one's under
+    // `{playthroughId}.{semesterId}`.
     const endingArt: string[] = []
+    const semesterEndingArt: SemesterPicture[] = []
     for (const key of await db.getAllKeys('endingArt')) {
       const art = await db.get('endingArt', key)
       if (!art) continue
-      endingArt.push(key)
-      files[endingArtEntry(key)] = await bytesOf(art)
+      const [playthroughId, semesterId] = String(key).split('.')
+      if (semesterId === undefined) {
+        endingArt.push(key)
+        files[endingArtEntry(key)] = await bytesOf(art)
+      } else {
+        semesterEndingArt.push({ playthroughId, semesterId })
+        files[semesterEndingArtEntry(playthroughId, semesterId)] = await bytesOf(art)
+      }
     }
 
     const profilePictures: string[] = []
@@ -124,9 +139,10 @@ export async function exportBackup(): Promise<string> {
       files[photoEntry(playthroughId, photoId)] = bytes
     }
 
-    // The shipped cast is the build's and never travels in a backup, record or image.
+    // A shipped character travels only once the player has changed her; until then she is the
+    // build's, record and images alike.
     for (const key of await db.getAllKeys('charFiles')) {
-      if (isShipped(key[0])) continue
+      if (isPackRead(key[0])) continue
       const file = await db.get('charFiles', key)
       if (!file) continue
       const bytes = await bytesOf(file.blob)
@@ -180,13 +196,14 @@ export async function exportBackup(): Promise<string> {
       playthroughs,
       saves,
       endingArt,
+      ...(semesterEndingArt.length > 0 ? { semesterEndingArt } : {}),
       profilePictures,
       photos,
       backgrounds,
       scenes,
       replays,
       characters: (await db.getAll('characters')).filter(
-        (character) => !isShipped(character.charId)
+        (character) => !isPackRead(character.charId)
       )
     }
     return backup
@@ -198,8 +215,8 @@ export async function exportBackup(): Promise<string> {
 
 /**
  * Puts a backup back: settings, grab bags, playthroughs, saves and replays replace what is
- * there, the player's own characters, backgrounds and saved scenes are merged in by id and name,
- * and the shipped cast is left as the build ships it. One transaction, with every blob built
+ * there, and the player's own characters (shipped ones they have changed included), backgrounds and
+ * saved scenes are merged in by id and name. One transaction, with every blob built
  * before it opens.
  */
 export async function importBackup(): Promise<boolean> {
@@ -213,6 +230,8 @@ export async function importBackup(): Promise<boolean> {
     BACKUP_NAME,
     BACKUP_READ
   )
+
+  preflightBackup(record)
 
   // Everything the record says is checked before anything here is written. Remembered keys
   // stay, as do the switches this build fixes and whether it remembers keys at all.
@@ -234,6 +253,7 @@ export async function importBackup(): Promise<boolean> {
   })
   const scenes = scenesFromBackup(record)
   const replays = replaysFromBackup(record)
+  const semesterPictures = semesterPicturesFromBackup(record)
   // Nothing the backup does not name is written: an entry naming a path of its own choosing
   // would put a file where this build never looks for one.
   const updatedAt = Date.now()
@@ -257,98 +277,112 @@ export async function importBackup(): Promise<boolean> {
       ],
       'readwrite'
     )
-    // Every value is in hand, so each step below is a database request and the transaction
-    // stays open across all of them.
-    void tx.objectStore('settings').put(settings, 'settings')
-    void tx.objectStore('grabbags').put(record.grabbags, 'grabbags')
+    // Observe rejection immediately; a synchronous write failure must abort too.
+    void tx.done.catch(() => {})
+    try {
+      // Every value is in hand, so each step below is a database request and the transaction
+      // stays open across all of them.
+      await tx.objectStore('settings').put(settings, 'settings')
+      await tx.objectStore('grabbags').put(record.grabbags, 'grabbags')
 
-    const playthroughs = tx.objectStore('playthroughs')
-    void playthroughs.clear()
-    for (const [playthroughId, row] of Object.entries(record.playthroughs)) {
-      if (SAFE_NUMERIC_ID.test(playthroughId)) void playthroughs.put(row, playthroughId)
-    }
-
-    const saves = tx.objectStore('saves')
-    void saves.clear()
-    for (const entry of record.saves) {
-      void saves.put(entry.save, [entry.playthroughId, entry.saveId])
-    }
-
-    const keptReplays = tx.objectStore('replays')
-    void keptReplays.clear()
-    for (const entry of replays) {
-      // A replay goes back only beside a playthrough the backup restores.
-      if (!Object.hasOwn(record.playthroughs, entry.playthroughId)) continue
-      void keptReplays.put(entry.replay, [entry.playthroughId, entry.replayId])
-    }
-
-    const art = tx.objectStore('endingArt')
-    void art.clear()
-    for (const playthroughId of record.endingArt) {
-      const bytes = entries[endingArtEntry(playthroughId)]
-      if (bytes && SAFE_NUMERIC_ID.test(playthroughId)) {
-        void art.put(imageBlob(bytes), playthroughId)
+      const playthroughs = tx.objectStore('playthroughs')
+      await playthroughs.clear()
+      for (const [playthroughId, row] of Object.entries(record.playthroughs)) {
+        if (SAFE_NUMERIC_ID.test(playthroughId)) await playthroughs.put(row, playthroughId)
       }
-    }
 
-    const pictures = tx.objectStore('profilePictures')
-    void pictures.clear()
-    for (const playthroughId of record.profilePictures ?? []) {
-      const bytes = entries[profilePictureEntry(playthroughId)]
-      if (bytes && SAFE_NUMERIC_ID.test(playthroughId)) {
-        void pictures.put(imageBlob(bytes), playthroughId)
+      const saves = tx.objectStore('saves')
+      await saves.clear()
+      for (const entry of record.saves) {
+        await saves.put(entry.save, [entry.playthroughId, entry.saveId])
       }
-    }
 
-    const photos = tx.objectStore('photos')
-    void photos.clear()
-    for (const entry of record.photos ?? []) {
-      if (!SAFE_NUMERIC_ID.test(entry.playthroughId)) continue
-      try {
-        assertSafePhotoId(entry.photoId)
-      } catch {
-        continue
+      const keptReplays = tx.objectStore('replays')
+      await keptReplays.clear()
+      for (const entry of replays) {
+        // A replay goes back only beside a playthrough the backup restores.
+        if (!Object.hasOwn(record.playthroughs, entry.playthroughId)) continue
+        await keptReplays.put(entry.replay, [entry.playthroughId, entry.replayId])
       }
-      const bytes = entries[photoEntry(entry.playthroughId, entry.photoId)]
-      if (!bytes) continue
-      void photos.put({ image: imageBlob(bytes), meta: entry.meta }, [
-        entry.playthroughId,
-        entry.photoId
-      ])
+
+      const art = tx.objectStore('endingArt')
+      await art.clear()
+      for (const playthroughId of record.endingArt) {
+        const bytes = entries[endingArtEntry(playthroughId)]
+        if (bytes && SAFE_NUMERIC_ID.test(playthroughId)) {
+          await art.put(imageBlob(bytes), playthroughId)
+        }
+      }
+      for (const { playthroughId, semesterId } of semesterPictures) {
+        const bytes = entries[semesterEndingArtEntry(playthroughId, semesterId)]
+        if (bytes) await art.put(imageBlob(bytes), `${playthroughId}.${semesterId}`)
+      }
+
+      const pictures = tx.objectStore('profilePictures')
+      await pictures.clear()
+      for (const playthroughId of record.profilePictures ?? []) {
+        const bytes = entries[profilePictureEntry(playthroughId)]
+        if (bytes && SAFE_NUMERIC_ID.test(playthroughId)) {
+          await pictures.put(imageBlob(bytes), playthroughId)
+        }
+      }
+
+      const photos = tx.objectStore('photos')
+      await photos.clear()
+      for (const entry of record.photos ?? []) {
+        if (!SAFE_NUMERIC_ID.test(entry.playthroughId)) continue
+        try {
+          assertSafePhotoId(entry.photoId)
+        } catch {
+          continue
+        }
+        const bytes = entries[photoEntry(entry.playthroughId, entry.photoId)]
+        if (!bytes) continue
+        await photos.put({ image: imageBlob(bytes), meta: entry.meta }, [
+          entry.playthroughId,
+          entry.photoId
+        ])
+      }
+
+      // Merged rather than replaced: a character made since the backup is still the player's. A
+      // shipped character comes back as a copy under her own id.
+      const characters = tx.objectStore('characters')
+      for (const character of record.characters) {
+        if (!SAFE_CHAR_ID.test(character.charId)) continue
+        await characters.put(character, character.charId)
+      }
+
+      // Merged by name, as the characters are by id: one brought in since the backup is still kept.
+      const kept = tx.objectStore('backgrounds')
+      for (const row of backgrounds) await kept.put(row, row.record.name)
+
+      // Merged by id the same way: a scene saved since the backup is still kept.
+      const keptScenes = tx.objectStore('scenes')
+      for (const scene of scenes) await keptScenes.put(scene, scene.id)
+
+      const charFiles = tx.objectStore('charFiles')
+      for (const [name, bytes] of Object.entries(entries)) {
+        const at = charFileOf(name)
+        if (!at || bytes.length === 0) continue
+        const rel = namedRel(at.rel)
+        // An archive holding both twins of one picture keeps the WebP, which a folder reads first.
+        const twin = storedRel(at.rel)
+        if (twin !== at.rel && (entries[charFileEntry(at.charId, twin)]?.length ?? 0) > 0) continue
+        await charFiles.put({ blob: imageBlob(bytes), updatedAt }, [at.charId, rel])
+      }
+      await tx.done
+    } catch (err) {
+      try { tx.abort() } catch { /* Already aborted by a failed request. */ }
+      await tx.done.catch(() => {})
+      throw err
     }
-
-    // Merged rather than replaced: a character made since the backup is still the player's. A
-    // shipped character is never written, neither her record nor any of her images.
-    const characters = tx.objectStore('characters')
-    for (const character of record.characters) {
-      if (!SAFE_CHAR_ID.test(character.charId) || isShipped(character.charId)) continue
-      void characters.put(character, character.charId)
-    }
-
-    // Merged by name, as the characters are by id: one brought in since the backup is still kept.
-    const kept = tx.objectStore('backgrounds')
-    for (const row of backgrounds) void kept.put(row, row.record.name)
-
-    // Merged by id the same way: a scene saved since the backup is still kept.
-    const keptScenes = tx.objectStore('scenes')
-    for (const scene of scenes) void keptScenes.put(scene, scene.id)
-
-    const charFiles = tx.objectStore('charFiles')
-    for (const [name, bytes] of Object.entries(entries)) {
-      const at = charFileOf(name)
-      if (!at || bytes.length === 0 || isShipped(at.charId)) continue
-      const rel = namedRel(at.rel)
-      // An archive holding both twins of one picture keeps the one already under the stored name.
-      if (rel !== at.rel && entries[charFileEntry(at.charId, rel)]) continue
-      void charFiles.put({ blob: imageBlob(bytes), updatedAt }, [at.charId, rel])
-    }
-
-    await tx.done
   })
 
   forgetSettings()
   forgetRels()
   revokeAll()
   forgetBackgroundUrls()
+  // The restore may have brought in copies of shipped characters, and left others as they were.
+  await loadCopied()
   return true
 }

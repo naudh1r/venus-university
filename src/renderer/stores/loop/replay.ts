@@ -1,4 +1,5 @@
 import { replayIdsOf, type SlotReplay } from '@shared/replays'
+import { semesterChain, type ChainedSemester } from '@shared/semesters'
 import {
   AUTOSAVE_ID,
   READER_SPEAKER,
@@ -12,13 +13,14 @@ import {
   type TimeSlot
 } from '@shared/types'
 import { useGameStore, type ReplayStayFields } from '../gameStore'
+import { sceneActiveOf } from '../textingLoop'
 import { useUiStore } from '../uiStore'
 import {
   manualSaveDraft,
   manualSaveOffer,
   openingScene,
   replayOfferOf,
-  type ManualSaveOffer
+  type ReplayOffer
 } from './saves'
 import { currentRun, loopState, runStale } from './state'
 
@@ -82,11 +84,12 @@ export function replaySettleCount(): number {
 }
 
 /**
- * What the calendar's Replay offers right now: Save Game's offer, waiting as well while a call is
- * out that leaving the game would cancel and entering it again would pay for again — the slot's
- * texting ledger not yet banked, an exam's ledger and opening, the graduation picture and posts.
+ * What the calendar's Replay offers right now: dead through a scene, and otherwise Save Game's
+ * offer, waiting as well while a call is out that leaving the game would cancel and entering it
+ * again would pay for again — the slot's texting ledger not yet banked, an exam's ledger and
+ * opening, the graduation picture and posts.
  */
-export function replayOffer(): ManualSaveOffer {
+export function replayOffer(): ReplayOffer {
   const game = useGameStore.getState()
   // Every call is watched, so whichever settles last still wakes the view.
   const calls = [
@@ -96,7 +99,7 @@ export function replayOffer(): ManualSaveOffer {
     loopState.endingPostsCall
   ].map(settledOf)
   const callsOut = calls.includes(false) || game.endingArtPending
-  return replayOfferOf(manualSaveOffer(), callsOut)
+  return replayOfferOf(manualSaveOffer(), sceneActiveOf(game), callsOut)
 }
 
 /**
@@ -123,14 +126,16 @@ export function slotReplayOf(date: number, time: TimeSlot): SlotReplay | null {
 }
 
 /**
- * A replay's lines to queue, copied, the first of them given the first background any of them
- * names, so the stage is set from the first line whichever line named it.
+ * A replay's lines to queue, copied, the first of them shown — the reader's own are passed over —
+ * given the first background any of them names, so the stage is set from the first line read
+ * whichever line named it.
  */
 export function replayLinesOf(transcript: readonly SceneLine[]): SceneLine[] {
   const lines = transcript.map((line) => ({ ...line }))
   const bg = lines.find((line) => line.bg !== undefined)?.bg
-  if (lines.length > 0 && bg !== undefined && lines[0].bg === undefined) {
-    lines[0] = { ...lines[0], bg }
+  const first = lines.findIndex((line) => line.speaker !== READER_SPEAKER)
+  if (first !== -1 && bg !== undefined && lines[first].bg === undefined) {
+    lines[first] = { ...lines[first], bg }
   }
   return lines
 }
@@ -162,7 +167,8 @@ export function holdGame(inputDraft: string): HeldGame | null {
       charInfo: game.charInfo,
       charKeyToId: game.charKeyToId,
       weather: game.weather,
-      occasions: game.occasions
+      calendar: game.calendar,
+      semesterIndex: game.semesterIndex
     }
   }
   return held
@@ -193,16 +199,48 @@ export function replayStayOf(game: HeldGame, replay: SlotReplay): ReplayStayFiel
   }
 }
 
-/** Reads the replay kept for one finished slot; null, having said why, where it cannot be read. */
-export async function readReplay(date: number, time: TimeSlot): Promise<SlotReplay | null> {
+/**
+ * The semesters before the one being played, oldest first, each with the history, replays,
+ * timetable and plans its ending left; none in a playthrough's first semester.
+ */
+export function earlierSemesters(): ChainedSemester[] {
+  const record = loopState.record
+  if (!record) return []
+  return semesterChain(record, useGameStore.getState().semesterId ?? undefined).slice(0, -1)
+}
+
+/** Refused for a replay with somebody in it whose character is gone. */
+const REPLAY_CAST_GONE = {
+  code: 'REPLAY_CAST_GONE',
+  message: "Somebody in this replay is no longer in the game, so it can't be played."
+}
+
+/**
+ * Reads the replay kept for one finished slot — of the semester being played, or of the earlier
+ * one `semesterIndex` names; null, having said why, where it cannot be read or staged.
+ */
+export async function readReplay(
+  date: number,
+  time: TimeSlot,
+  semesterIndex?: number
+): Promise<SlotReplay | null> {
   const run = currentRun()
   const game = useGameStore.getState()
-  const id = game.replays[date]?.[time]
+  const replays =
+    semesterIndex === undefined
+      ? game.replays
+      : earlierSemesters().find(({ view }) => view.index === semesterIndex)?.log?.replays
+  const id = replays?.[date]?.[time]
   if (!game.playthroughId || !id) return null
   const result = await window.api.replays.read(game.playthroughId, id)
   if (runStale(run)) return null
   if (!result.ok) {
     useUiStore.getState().showError(result.error)
+    return null
+  }
+  // A graduate whose character was deleted since is loaded no more, and has no sprite to stand.
+  if (result.data.cast.some((charId) => !game.characters[charId])) {
+    useUiStore.getState().showError(REPLAY_CAST_GONE)
     return null
   }
   return result.data

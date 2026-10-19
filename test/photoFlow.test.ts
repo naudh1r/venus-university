@@ -40,6 +40,9 @@ function pendingRender(): { reserve: ReserveName; generate: GeneratePhoto } {
   }
 }
 
+// Every test imports the stores fresh, which can outrun the default timeout on a busy machine.
+vi.setConfig({ testTimeout: 30_000 })
+
 beforeEach(() => {
   vi.resetModules()
 })
@@ -69,13 +72,16 @@ function heldPost(id = 'p1'): {
 }
 
 /**
- * Photos switched on, with a renderer that says it is ready — what `canSendPhotos` asks. `on`
+ * The mod and its photos switched on, with a renderer that says it is ready — what `canSendPhotos` asks. `on`
  * false is the mod's "Photo generation" option turned off.
  */
 async function photosSwitched(on: boolean): Promise<void> {
   const { useSettingsStore } = await import('../src/renderer/stores/settingsStore')
   const { useSetupStore } = await import('../src/renderer/stores/setupStore')
+  const { useModsStore } = await import('../src/renderer/stores/modsStore')
   const { setPhotoSwitches } = await import('../src/shared/photoSwitches')
+  // The mod itself is off until switched on; the option is what these tests move.
+  useModsStore.setState({ switches: { on: { 'photo-feature': true }, options: {} } })
   setPhotoSwitches({ photos: on })
   useSettingsStore.setState({ settings: { comfyDeferred: false } as never })
   useSetupStore.setState({ status: { comfyReady: true } as never })

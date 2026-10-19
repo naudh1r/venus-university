@@ -1,5 +1,4 @@
 import type { CharacterBody } from './characterBody'
-import type { PostComment } from './postComments'
 import type { Character, Result } from './types'
 
 /**
@@ -59,11 +58,6 @@ declare module './types' {
   interface SocialPost {
     /** The picture attached to the post. */
     photo?: ChatPhoto
-    /**
-     * What other students replied underneath it. Written by the same call that wrote the post,
-     * kept back until each one's slot arrives (`shownComments`).
-     */
-    comments?: PostComment[]
   }
 
   interface TextingResponse {

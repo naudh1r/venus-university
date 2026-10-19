@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest'
 import { carryModFields, carriedModFields, registerTermCarry } from '@shared/modCarry'
-import type { GameSave } from '@shared/types'
+import type { GameSave, SocialPost } from '@shared/types'
 
 declare module '@shared/modCarry' {
   interface ModCarryFields { testCarry?: { date: number; text: string } }
@@ -33,4 +33,17 @@ it('carries every registered mod’s files in turn, past one that fails', async 
   expect(seen).toEqual(['slow old->new', 'after'])
   expect(warn).toHaveBeenCalledOnce()
   warn.mockRestore()
+})
+
+it('moves every registered mod’s post fields back the same days, one mod after another', async () => {
+  const { carryPostFields, registerPostCarry } = await import('@shared/modCarry')
+  type Stamped = SocialPost & { seenAt?: number; tag?: string }
+  registerPostCarry('slots', (post, days) => {
+    const stamped = post as Stamped
+    return stamped.seenAt === undefined ? post : ({ ...stamped, seenAt: stamped.seenAt - days * 2 } as SocialPost)
+  })
+  registerPostCarry('tags', (post) => ({ ...post, tag: 'moved' }) as SocialPost)
+  const post = { id: 'p', text: 'hi', date: 90, time: 1, seenAt: 181 } as Stamped
+  expect(carryPostFields(post, 100)).toMatchObject({ seenAt: -19, tag: 'moved', date: 90 })
+  expect(post.seenAt).toBe(181)
 })

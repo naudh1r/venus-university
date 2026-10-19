@@ -5,7 +5,7 @@ directories:
   buildResources: build
 
 # `out` is the whole app; the renderer's own copies of React and the fonts are
-# already bundled into it, and main's only externals are 7zip-bin, node-7z and
+# already bundled into it, and main's only externals are 7zip-bin, node-7z, sharp and
 # @electron-toolkit/utils.
 files:
   - out/**/*
@@ -14,11 +14,16 @@ files:
   - '!node_modules/@fontsource/**'
   - '!node_modules/{react,react-dom,scheduler,motion,motion-dom,motion-utils,framer-motion,zustand,signalsmith-stretch}/**'
   - '!node_modules/7zip-bin/{linux,mac}/**'
+  - '!node_modules/@img/sharp-wasm32/**'
+  - '!node_modules/@emnapi/**'
 
 asar: true
-# archiveService spawns 7za off __dirname, which has to be a real path.
+# archiveService spawns 7za off __dirname, which has to be a real path; sharp loads
+# a native .node and libvips DLLs, which have to be real files too.
 asarUnpack:
   - '**/node_modules/7zip-bin/**'
+  - '**/node_modules/sharp/**'
+  - '**/node_modules/@img/**'
 
 # The WebP cast, the pose manifest, the workflows and the sound, where
 # `getAssetsPath()` looks for them when the app is packaged. No backgrounds:

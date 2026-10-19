@@ -49,7 +49,9 @@ export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promi
           text,
           date: game.date,
           time: game.time,
-          likes: rollPostLikes(npcFriendsOf(game.npcRelationships, charId, game.chars).length)
+          likes: rollPostLikes(
+            npcFriendsOf(game.npcRelationships, charId, [...game.chars, ...game.alumni]).length
+          )
         },
         reply: post,
         held: false,
@@ -79,7 +81,7 @@ export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promi
 
   // What the tab would show as it stands, and everything it could be filled out with: any post
   // by anybody he cannot text, the teaser's own excepted since it is on the feed already.
-  const listed = contactFeedPosts(game.chars, game.charInfo)
+  const listed = contactFeedPosts([...game.chars, ...game.alumni], game.charInfo)
   const candidates = game.chars.flatMap((charId) =>
     game.charInfo[charId]?.flags?.gaveContactInfo
       ? []
@@ -122,7 +124,10 @@ export function deliverEndingPosts(
     if (!stamp) continue
     const text = post.text?.trim()
     if (!text) continue
-    const friends = npcFriendsOf(game.npcRelationships, charId, game.chars).length
+    const friends = npcFriendsOf(game.npcRelationships, charId, [
+      ...game.chars,
+      ...game.alumni
+    ]).length
     game.appendFeedPost(charId, {
       id: crypto.randomUUID(),
       text,
@@ -198,9 +203,10 @@ export function rollSuggestions(): void {
   const named = open.filter((charId) => game.charInfo[charId]?.nameKnown && !sent.includes(charId))
   const met = named.filter((charId) => game.charInfo[charId]?.flags?.hasMet)
   const unmet = named.filter((charId) => !game.charInfo[charId]?.flags?.hasMet)
-  // The friends of the people he has added, minus anyone who has him blocked.
+  // The friends of the people he has added, graduates among them, minus anyone who has him
+  // blocked.
   const openSet = new Set(open)
-  const contacts = game.chars.filter((charId) => {
+  const contacts = [...game.chars, ...game.alumni].filter((charId) => {
     const flags = game.charInfo[charId]?.flags
     return flags?.gaveContactInfo && !flags.blocked
   })

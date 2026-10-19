@@ -1,14 +1,15 @@
 import { CLASS_SLOTS, FINAL_DATE } from '@shared/classes'
 import { slotFromId } from '@shared/jobs'
 import { shuffle } from '@shared/shuffle'
-import type { Occasion, StructuredRequest, TimeSlot } from '@shared/types'
+import { calendarOf } from '@shared/semesters'
+import type { Occasion, Season, StructuredRequest, TimeSlot } from '@shared/types'
 import { formatDatePart } from './gameDate'
 import { LOREBOOK } from './lorebook'
 import {
+  breakWeekOf,
   occasionsOn,
   SEMESTER_WEEKS,
-  SPRING_BREAK,
-  STATIC_OCCASIONS,
+  staticOccasionsOf,
   weekOf
 } from './occasions'
 import { objectSchema } from './schema'
@@ -30,8 +31,8 @@ export interface OccasionRequest {
   brief?: string
   /** A half-day small thing rather than one of the four named events. */
   filler?: true
-  /** This filler falls inside spring break, and the prompt says so. */
-  springBreak?: true
+  /** This filler falls inside the semester's week off, and the prompt says so. */
+  breakWeek?: true
   /** This occasion's inspiration word — the whole point of the call varying. */
   seed: string
 }
@@ -62,14 +63,14 @@ function semesterWeeks(): number[] {
 }
 
 /** The weeks with no fixed occasion anywhere in them: the pool the four named events draw from. */
-function unclaimedWeeks(): number[] {
-  const claimed = weeksTouchedBy(STATIC_OCCASIONS)
+function unclaimedWeeks(season: Season): number[] {
+  const claimed = weeksTouchedBy(staticOccasionsOf(season))
   return semesterWeeks().filter((week) => !claimed.has(week))
 }
 
 /** The weeks a filler may go in: all but those a multi-day fixed occasion owns. */
-function fillerWeeks(): number[] {
-  const blocked = weeksTouchedBy(STATIC_OCCASIONS.filter((o) => o.endDate > o.startDate))
+function fillerWeeks(season: Season): number[] {
+  const blocked = weeksTouchedBy(staticOccasionsOf(season).filter((o) => o.endDate > o.startDate))
   return semesterWeeks().filter((week) => !blocked.has(week))
 }
 
@@ -82,9 +83,12 @@ function takeWeek(pool: number[], need: number): number | null {
   return week
 }
 
-/** Places every occasion this save will invent. */
-export function planOccasionSlots(pickWords: (count: number) => string[]): OccasionRequest[] {
-  const pool = unclaimedWeeks()
+/** Places every occasion a `season` semester will invent. */
+export function planOccasionSlots(
+  pickWords: (count: number) => string[],
+  season: Season
+): OccasionRequest[] {
+  const pool = unclaimedWeeks(season)
   const requests: PlacedOccasion[] = []
 
   const gala = takeWeek(pool, 6)
@@ -143,9 +147,9 @@ export function planOccasionSlots(pickWords: (count: number) => string[]): Occas
   const spoken = weeksTouchedBy(requests)
   const rotation = shuffle(CLASS_SLOTS)
   let turn = 0
-  for (const week of fillerWeeks()) {
+  for (const week of fillerWeeks(season)) {
     if (spoken.has(week)) continue
-    const placed = fillerDate(week, rotation, turn)
+    const placed = fillerDate(week, rotation, turn, season)
     if (!placed) continue
     turn = placed.turn + 1
     requests.push({
@@ -157,19 +161,23 @@ export function planOccasionSlots(pickWords: (count: number) => string[]): Occas
     })
   }
 
-  requests.push(...breakFillers())
+  requests.push(...breakFillers(season))
 
   const words = pickWords(requests.length)
   return requests.map((request, index) => ({ ...request, seed: words[index] }))
 }
 
-/** How many half-day things spring break gets. */
+/** How many half-day things the week off gets at most. */
 const BREAK_FILLERS = 4
 
-/** The fillers inside spring break. */
-function breakFillers(): PlacedOccasion[] {
+/** The fillers inside the week off, on its days no other fixed occasion holds. */
+function breakFillers(season: Season): PlacedOccasion[] {
+  const week = breakWeekOf(season)
+  const calendar = calendarOf(season, [])
   const days: number[] = []
-  for (let date = SPRING_BREAK.startDate; date <= SPRING_BREAK.endDate; date++) days.push(date)
+  for (let date = week.startDate; date <= week.endDate; date++) {
+    if (occasionsOn(date, calendar).every((occasion) => occasion.id === week.id)) days.push(date)
+  }
 
   return shuffle(days)
     .slice(0, BREAK_FILLERS)
@@ -180,7 +188,7 @@ function breakFillers(): PlacedOccasion[] {
       endDate: date,
       time: Math.floor(Math.random() * 2) as TimeSlot,
       filler: true,
-      springBreak: true
+      breakWeek: true
     }))
 }
 
@@ -188,42 +196,58 @@ function breakFillers(): PlacedOccasion[] {
 function fillerDate(
   week: number,
   rotation: readonly number[],
-  turn: number
+  turn: number,
+  season: Season
 ): { date: number; time: TimeSlot; turn: number } | null {
+  const calendar = calendarOf(season, [])
   for (let step = 0; step < rotation.length; step++) {
     const at = turn + step
     const { date: weekday, time } = slotFromId(rotation[at % rotation.length])
     const date = week * 7 + weekday
     if (date > FINAL_DATE) continue
-    if (occasionsOn(date).length > 0) continue
+    if (occasionsOn(date, calendar).length > 0) continue
     return { date, time, turn: at }
   }
   return null
 }
 
-/** The mark on a filler line that falls inside spring break. */
-const BREAK_TAG = '[spring break]'
+/** The mark on a filler line that falls inside the week off. */
+const BREAK_TAG: Record<Season, string> = {
+  spring: '[spring break]',
+  fall: '[Thanksgiving break]'
+}
+
+/** What the week off is like, for the fillers that fall in it. */
+const BREAK_NOTE: Record<Season, string> = {
+  spring:
+    'fall in spring break: most campus facilities are closed, so these are mostly events put on by the city or remaining students.',
+  fall: "fall in Thanksgiving break: classes are off but everybody is still on campus for VU's Friendsgiving, so these are holiday-week things put on by the campus, the city or the students."
+}
 
 /** `"Friday, March 27"`, or `"Saturday, May 9 through Monday, May 11"` for a run. */
-function whenLine(span: { startDate: number; endDate: number }): string {
-  const start = formatDatePart(span.startDate)
+function whenLine(span: { startDate: number; endDate: number }, season: Season): string {
+  const start = formatDatePart(span.startDate, season)
   if (span.endDate === span.startDate) return start
-  return `${start} through ${formatDatePart(span.endDate)}`
+  return `${start} through ${formatDatePart(span.endDate, season)}`
 }
 
 /** The same span with the half of the day it occupies — how a request is briefed. */
-function requestWhenLine(request: Pick<OccasionRequest, 'startDate' | 'endDate' | 'time'>): string {
-  return `${whenLine(request)}, ${request.time === 0 ? 'during the day' : 'at night'}`
+function requestWhenLine(
+  request: Pick<OccasionRequest, 'startDate' | 'endDate' | 'time'>,
+  season: Season
+): string {
+  return `${whenLine(request, season)}, ${request.time === 0 ? 'during the day' : 'at night'}`
 }
 
 /** How a fixed occasion is listed to the model, so it cannot reinvent one. */
-function existingLine(occasion: Occasion): string {
-  return `- ${whenLine(occasion)} — ${occasion.title}`
+function existingLine(occasion: Occasion, season: Season): string {
+  return `- ${whenLine(occasion, season)} — ${occasion.title}`
 }
 
-/** Builds the invented-occasions request. */
+/** Builds the invented-occasions request for a `season` semester. */
 export function buildOccasionPrompt(
-  requests: readonly OccasionRequest[]
+  requests: readonly OccasionRequest[],
+  season: Season
 ): StructuredRequest {
   const named = requests.filter((request) => !request.filler)
   const fillers = requests.filter((request) => request.filler)
@@ -243,7 +267,7 @@ export function buildOccasionPrompt(
   const user = [
     'ALREADY ON THE CALENDAR',
     'These are fixed and are not yours to write. Never invent one of them, and never invent anything that would read as a second version of one.',
-    ...STATIC_OCCASIONS.map(existingLine),
+    ...staticOccasionsOf(season).map((occasion) => existingLine(occasion, season)),
     '',
     'EVENTS TO WRITE',
     'One entry in "events" for each id below, and nothing else. The dates are already decided — do not restate them.',
@@ -253,7 +277,7 @@ export function buildOccasionPrompt(
     'Make them different from each other. Spread them across the campus and the city rather than putting everything in the Quad.',
     '',
     ...named.flatMap((request) => [
-      `"${request.id}" — ${requestWhenLine(request)} — ${request.seed}`,
+      `"${request.id}" — ${requestWhenLine(request, season)} — ${request.seed}`,
       request.brief ?? '',
       ''
     ]),
@@ -261,12 +285,12 @@ export function buildOccasionPrompt(
       ? [
           'FILLERS',
           'Each id below is something small happening on campus or in the city for half a day — a club running a table, a market, a screening, a tournament, a protest, a food thing. Ordinary scale. Not a dance, not a gala, not a fair.',
-          `Ids marked ${BREAK_TAG} fall in spring break: most campus facilities are closed, so these are mostly events put on by the city or remaining students.`,
+          `Ids marked ${BREAK_TAG[season]} ${BREAK_NOTE[season]}`,
           '',
           ...fillers.map(
             (request) =>
-              `"${request.id}" — ${requestWhenLine(request)} — ${request.seed}${
-                request.springBreak ? ` ${BREAK_TAG}` : ''
+              `"${request.id}" — ${requestWhenLine(request, season)} — ${request.seed}${
+                request.breakWeek ? ` ${BREAK_TAG[season]}` : ''
               }`
           )
         ]

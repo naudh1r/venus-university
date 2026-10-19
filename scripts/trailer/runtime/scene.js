@@ -182,7 +182,7 @@ Object.assign(window.__tr, (() => {
   async function splash({ date, time, weather, from, to }) {
     const m = await all()
     const state = m.game.useGameStore.getState()
-    const stamp = m.slotCrossing.slotStampOf(date, time, state.occasions, weather || 'clear')
+    const stamp = m.slotCrossing.slotStampOf(date, time, state.calendar, weather || 'clear')
     m.crossing.beginCrossing(undefined, { from, to, splash: stamp })
     while (m.crossing.useCrossingStore.getState().phase === 'closing') await sleep(50)
     return stamp
@@ -198,7 +198,7 @@ Object.assign(window.__tr, (() => {
   /** The date midterm week opens on — what the splash announces. */
   async function midtermDate() {
     const m = await all()
-    return m.occasions.MIDTERM_WEEK.startDate
+    return m.occasions.midtermWeekOf(m.game.useGameStore.getState().calendar.season).startDate
   }
 
   /**

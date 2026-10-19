@@ -51,7 +51,8 @@ export function photoStub(message: ChatMessage, flatText: (text: string) => stri
 export function photoLines(
   character: Character,
   info: CharInfo | undefined,
-  state: TextingPromptState
+  state: Pick<TextingPromptState, 'date' | 'canRenderImages' | 'noNsfwImages'>,
+  occasion: PhotoOccasion = 'reply'
 ): string[] {
   // Settled from the save before she is asked anything, and read again when the reply lands.
   const tier: PhotoTier = allowedPhotoTier({
@@ -70,20 +71,27 @@ export function photoLines(
   // Two briefs, and she reads only hers: how an undressed picture is captioned, and why she would
   // send one, are said only to a girl who may.
   return tier === 'explicit'
-    ? intimateBrief(character, photoReasonOf(info?.flags, character.traits) ?? 'crush')
-    : normalBrief(character, tier)
+    ? intimateBrief(character, photoReasonOf(info?.flags, character.traits) ?? 'crush', occasion)
+    : normalBrief(character, tier, occasion)
 }
 
+/** What her picture goes with: her answer to him, or texts she sends him first. */
+export type PhotoOccasion = 'reply' | 'reachOut'
+
 /** An everyday or a suggestive picture: what she will send, and the rules every picture keeps. */
-function normalBrief(character: Character, tier: 'everyday' | 'suggestive'): string[] {
+function normalBrief(
+  character: Character,
+  tier: 'everyday' | 'suggestive',
+  occasion: PhotoOccasion
+): string[] {
   const name = character.firstName
   return [
-    ...opening(name),
+    ...opening(name, occasion),
     tier === 'suggestive'
       ? `${name} will send a flirty one — what she is wearing, a swimsuit, underwear — but nothing more than that. Nothing undressed.`
       : `${name} only sends ordinary pictures: where she is, what she is eating, her outfit, something that made her laugh. Nothing flirty, nothing undressed.`,
-    ...captioning(character),
-    ...keeping(name)
+    ...captioning(character, occasion),
+    ...keeping(name, occasion)
   ]
 }
 
@@ -92,17 +100,21 @@ function normalBrief(character: Character, tier: 'everyday' | 'suggestive'): str
  * a model told she has slept with somebody she has not writes the history in: what they have
  * done, or who she is, or that she is into him and it is her own decision.
  */
-function intimateBrief(character: Character, reason: PhotoReason): string[] {
+function intimateBrief(
+  character: Character,
+  reason: PhotoReason,
+  occasion: PhotoOccasion
+): string[] {
   const name = character.firstName
   return [
-    ...opening(name),
+    ...opening(name, occasion),
     `${name} will send anything of herself, undressed included. ${INTIMATE_REASON[reason]}`,
-    ...captioning(character),
+    ...captioning(character, occasion),
     // The gate has already allowed this; a caption that will not say it renders a picture that
     // does not show it, and the tease is read as the whole of what she sent.
     `So a picture of ${name} undressed is captioned as one, in plain words: what is bare, what she is doing, what the shot shows. Coy wording is a coy picture — "the top of a shirt" is a photograph of a shirt.`,
     `Write it as she would, not as a catalogue: she is sending this to ${reason === 'intimate' ? 'somebody she has slept with' : "somebody she's into"}, and she knows what she is doing.`,
-    ...keeping(name)
+    ...keeping(name, occasion)
   ]
 }
 
@@ -116,18 +128,22 @@ const INTIMATE_REASON: Readonly<Record<PhotoReason, string>> = {
 }
 
 /** Both briefs open the same way. */
-function opening(name: string): string[] {
+function opening(name: string, occasion: PhotoOccasion): string[] {
   return [
     'PHOTOS',
-    `${name} can attach one picture to this reply. Set "sendPhoto" and describe it in "photoPrompt".`
+    occasion === 'reply'
+      ? `${name} can attach one picture to this reply. Set "sendPhoto" and describe it in "photoPrompt".`
+      : `${name} can attach one picture to these texts. Set "sendPhoto" in her entry and describe it in "photoPrompt".`
   ]
 }
 
 /** When a picture is worth sending, how it is captioned, and what it is. Both briefs. */
-function captioning(character: Character): string[] {
+function captioning(character: Character, occasion: PhotoOccasion): string[] {
   const name = character.firstName
   return [
-    'A picture is worth sending when the texts are already about one — she offers it, or he asked and she wants to. Most replies are just words: set "sendPhoto" false and leave "photoPrompt" empty.',
+    occasion === 'reply'
+      ? 'A picture is worth sending when the texts are already about one — she offers it, or he asked and she wants to. Most replies are just words: set "sendPhoto" false and leave "photoPrompt" empty.'
+      : 'A picture is worth sending when it is part of what she is texting about, and she would rather show him than tell him. Most texts like these are just words: set "sendPhoto" false and leave "photoPrompt" empty.',
     `Write "photoPrompt" as what the picture shows, the way ${name} would caption it to herself. One sentence, and a full one: where she is, what she is wearing, how she is sitting or lying or standing, what her hands are doing, how close the shot is, and where she is looking.`,
     // The three kinds of picture the renderer draws, named together so no one of them is the
     // default: with "a selfie" as the only example, every picture came back a selfie.
@@ -139,7 +155,7 @@ function captioning(character: Character): string[] {
 }
 
 /** What every picture keeps to, whatever it shows. Both briefs close on it. */
-function keeping(name: string): string[] {
+function keeping(name: string, occasion: PhotoOccasion): string[] {
   return [
     // Not every picture is a selfie: somebody else may have taken it, or a timer, so the phone is
     // in it only where it would be.
@@ -148,7 +164,11 @@ function keeping(name: string): string[] {
     `${name} is the only person in the picture. Whoever took it stays behind the camera: nobody else is in it, touching her, or doing anything with her.`,
     'Name nobody and nowhere: not herself, not the reader, not a building, a dorm or a place on the map. A picture cannot show a name. "her room", "a lecture hall", "the cafe" — what it looks like, never what it is called.',
     'Her texts should read like somebody who just sent that picture. Do not describe it in them.',
-    'Any picture she has already sent is written into RECENT MESSAGES beside the text it came with. She knows what she sent him and would not send the same one twice.',
+    // The slot's opening sums her thread up rather than quoting it, so only a reply is told where
+    // her pictures are written.
+    occasion === 'reply'
+      ? 'Any picture she has already sent is written into RECENT MESSAGES beside the text it came with. She knows what she sent him and would not send the same one twice.'
+      : 'She knows what she has already sent him and would not send the same picture twice.',
     ''
   ]
 }

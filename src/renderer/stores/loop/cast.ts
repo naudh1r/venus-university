@@ -1,7 +1,7 @@
 import { studentsOf } from '@shared/classes'
 import { fullNameOf, READER_SPEAKER, type Character, type ClassEntry, type SceneLine } from '@shared/types'
 import { UNKNOWN_NAME, useGameStore } from '../gameStore'
-import { currentSlot } from '../timetable'
+import { charSickAtHomeNow, currentSlot } from '../timetable'
 
 /** Who is in a scene, and what they are called. */
 
@@ -44,10 +44,15 @@ export function classesNow(): ClassEntry[] {
   return Object.values(useGameStore.getState().classes).filter((entry) => entry.slot === slot)
 }
 
-/** charIds sitting in `entry` right now, read back off the characters' schedules. */
+/**
+ * charIds sitting in `entry` right now, read back off the characters' schedules: every student
+ * but one in bed with a cold.
+ */
 export function studentsHere(entry: ClassEntry): string[] {
   const game = useGameStore.getState()
-  return studentsOf(entry, game.chars, game.charInfo)
+  return studentsOf(entry, game.chars, game.charInfo).filter(
+    (charId) => !charSickAtHomeNow(charId)
+  )
 }
 
 /** Display name for a charId, for the casting log. */

@@ -76,4 +76,25 @@ describe('normalizeVerdict — the rest of the verdict', () => {
     expect(verdict.inPublic).toBe(true)
     expect(verdict.mentionedOnly).toEqual(['mia_tran'])
   })
+
+  it('reads a class code without the flag as class only when nothing else is claimed', () => {
+    // A project class meets in its own slot, so its code can arrive beside project work.
+    const codes = ['ART 110', 'BIO 210']
+    const project = normalizeVerdict(
+      reply({ classCode: 'ART 110', workingOnProject: true }),
+      ROSTER,
+      codes
+    )
+    expect(project.actionType).toBe('project:ART 110')
+    const named = normalizeVerdict(
+      reply({ classCode: 'ART 110', workingOnProject: true, projectClassCode: 'ART 120' }),
+      ROSTER,
+      codes
+    )
+    expect(named.actionType).toBe('project:ART 120')
+    const work = normalizeVerdict(reply({ classCode: 'BIO 210', goingToWork: true }), ROSTER, codes)
+    expect(work.actionType).toBe('job')
+    const forgotten = normalizeVerdict(reply({ classCode: 'BIO 210' }), ROSTER, codes)
+    expect(forgotten.actionType).toBe('goto_class:BIO 210')
+  })
 })

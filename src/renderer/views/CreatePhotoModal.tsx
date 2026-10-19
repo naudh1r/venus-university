@@ -141,6 +141,7 @@ export function CreatePhotoModal({
   const loadWardrobes = usePhotoStore((s) => s.loadWardrobes)
   const createPhoto = usePhotoStore((s) => s.create)
   const chars = useGameStore((s) => s.chars)
+  const alumni = useGameStore((s) => s.alumni)
   const charInfo = useGameStore((s) => s.charInfo)
   const characters = useGameStore((s) => s.characters)
   const weather = useGameStore((s) => s.weather)
@@ -150,7 +151,7 @@ export function CreatePhotoModal({
   const backgrounds = useAssetStore((s) => s.backgrounds)
   const noNsfw = useSettingsStore(noNsfwImagesOf)
 
-  const contactIds = chars.filter(
+  const contactIds = [...chars, ...alumni].filter(
     (charId) => charInfo[charId]?.flags?.gaveContactInfo && !charInfo[charId]?.flags?.blocked
   )
 

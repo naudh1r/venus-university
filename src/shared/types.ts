@@ -5,6 +5,8 @@ import type { ProviderApi, ServiceTier, ThinkingLevel } from './providers'
 import type { LedgerStats, PlayerStats, StatKey, StatTier } from './playerStats'
 import type { ClassDifficulty, ClassKind, ExamPeriod, Professor } from './academics'
 import type { CharacterTrait } from './traits'
+import type { ModCarryFields } from './modCarry'
+import type { PostComment } from './postComments'
 import type { GiftPreferences, GiftReaction } from './shop'
 import type { NpcFriendship, NpcRelationshipMap, NpcSlotOverlay } from './npcRelationships'
 import type { PromptKind } from './promptKinds'
@@ -13,9 +15,11 @@ import type { DormId } from './dorms'
 import type { AudioGroup } from './audio'
 import type { GameReplays } from './replays'
 import type { ComfyGpu } from './setupManifest'
+import type { ComfyModelPicks, ComfySource } from './comfyModels'
 import type { Weather } from './weather'
 import type { ReaderTallies } from './tallies'
 import type { PromptEdit } from './imagePrompt'
+import type { SceneEventId } from './sceneEvents'
 
 /** Discriminated result envelope returned by every IPC handler. */
 export type Result<T> = { ok: true; data: T } | { ok: false; error: AppError }
@@ -217,6 +221,18 @@ export interface ProfileCrop {
   height: number
 }
 
+/**
+ * The shipped cast as this build holds it: every charId, the ones the player took off the roster,
+ * the ones edited into a copy of their own, and whether edits land in the shipped folders
+ * themselves (an unpackaged desktop run), which leaves no default to reset to.
+ */
+export interface DefaultsStatus {
+  ids: string[]
+  removed: string[]
+  edited: string[]
+  inPlace: boolean
+}
+
 /** What the crop modal opens on: what is stored, what the frame would be, and the sprite. */
 export interface ProfileCropInfo {
   stored: ProfileCrop | null
@@ -276,6 +292,25 @@ export interface GenerateOptions {
   room?: boolean
 }
 
+/**
+ * Her own LoRA, drawn through every ComfyUI render of her after the style LoRA: the file as
+ * the server lists it, and the weight, absent at `DEFAULT_LORA_WEIGHT`.
+ */
+export interface CharacterLora {
+  name: string
+  weight?: number
+}
+
+/** What the New Character modal said about her LoRA, kept in her brief until her sheet lands. */
+export interface CharacterLoraBrief extends CharacterLora {
+  /** The LoRA's trigger word, put first in her appearance; empty where it has none. */
+  trigger: string
+  appearance: string[]
+  outfit: string[]
+  /** Whether a group the player filled stands in for the LLM's rather than joining it. */
+  replace: boolean
+}
+
 /** What the New Character modal was told, kept on her record until her sheet lands. */
 export interface CharacterBrief {
   prompt: string
@@ -283,6 +318,8 @@ export interface CharacterBrief {
   options: GenerateOptions
   /** True when a reference picture sits beside the record as `reference`. */
   reference: boolean
+  /** Her LoRA and the tags that came with it; omitted where none was picked. */
+  lora?: CharacterLoraBrief
 }
 
 /** On-disk character definition — `/data/characters/{charId}/character.json`. */
@@ -324,7 +361,7 @@ export interface Character {
    */
   preferredStat: StatKey
   /**
-   * How tall she stands on the stage, as a share of the maximum in [0.9, 1]
+   * How tall she stands on the stage, as a share of full size in [0.9, 1.05]
    * (`shared/spriteScale.ts`).
    */
   height: number
@@ -365,6 +402,8 @@ export interface Character {
    * character — sprites, wardrobes and CGs alike.
    */
   negativeTags?: string[]
+  /** Her own LoRA; omitted where she has none. */
+  lora?: CharacterLora
   /**
    * Every group each regenerate button last sent, whole, keyed by what it renders; the modal
    * reopens on it. Omitted where no button has sent any.
@@ -444,7 +483,19 @@ export interface CharMemory {
   date: number
   type: MemoryType
   desc: string
+  /**
+   * The days of the breaks between semesters it was carried across, which its age does not
+   * count; absent on a memory of the semester it was made in.
+   */
+  breakDays?: number
 }
+
+/**
+ * Which half of the year a semester is. A character's intake is the season she arrived in:
+ * the January intake advances a year at the end of each fall, the August intake at the end of
+ * each spring.
+ */
+export type Season = 'spring' | 'fall'
 
 /** What an intimate act was. */
 export type ActKind = 'kiss' | 'sex'
@@ -526,6 +577,8 @@ export interface ClassMeetingRecord {
   summary?: string
   /** The one thing he learned, from the ledger's `classFactoid`. Lecture classes only, week 2 onward. */
   factoid?: string
+  /** The professor called it off at the last second: attended, and nothing was taught. */
+  cancelled?: true
 }
 
 /** A sat exam: how many questions were asked and how many he got right. */
@@ -656,6 +709,21 @@ export interface CharJob {
  */
 export type CrushHint = { stat: StatKey; tier: StatTier } | { met: true }
 
+/** A disposition tier whose upper half reads differently from its lower one. */
+export type UpperHalf = 'neutral' | 'friendly' | 'trusted'
+
+/** A disposition tier a secret is told at. */
+export type SecretTier = 'friendly' | 'trusted' | 'devoted'
+
+/** A secret she has not told the reader yet, and the tier she tells it at. */
+export interface CharSecret {
+  /** One or two sentences in the third person, naming her. */
+  text: string
+  tier: SecretTier
+  /** She has stood in {@link tier} since the secret was written; never taken back. */
+  reached?: true
+}
+
 /** What a standing haunt is for: the menu it was dealt from. */
 export type HauntKind = 'fun' | 'study' | 'activity' | 'meal' | 'grocery' | 'room'
 
@@ -690,6 +758,13 @@ export interface CharProfile extends CharSchedule {
   handle?: string
   /** What she does with spring break, one short phrase. */
   springBreakPlans?: string
+  /**
+   * The season she arrived in, which decides when her year goes up; absent in the first
+   * semester, where a freshman arrived in the spring and anybody older in a fall.
+   */
+  intake?: Season
+  /** What she is doing since she graduated, one short phrase; present exactly on a graduate. */
+  pursuing?: string
 }
 
 /** The half a playthrough accumulates — what every save file carries about her. */
@@ -750,6 +825,21 @@ export interface CharState {
    */
   crushHint?: CrushHint
   /**
+   * Scenes she has shared with the reader since her crush began or they became lovers; absent
+   * once that has settled, or while she holds neither.
+   */
+  romanceScenes?: number
+  /**
+   * The upper halves of her tiers she has been in, each `again` once she has since been out of
+   * it, above or below; read off her affection at every boundary.
+   */
+  upperHalves?: Partial<Record<UpperHalf, 'first' | 'again'>>
+  /**
+   * The affection a later semester's start took off her, one tier's worth; halved by the first
+   * scene she is cast in that semester and gone after the second.
+   */
+  breakPenalty?: { points: number; halved?: true }
+  /**
    * Everything she has ever posted, oldest first: her winter-break posts, then the
    * per-slot roll's. Absent for a girl whose break was somewhere else — and on the save rather
    * than the profile, since a like rewrites a post.
@@ -766,6 +856,20 @@ export interface CharState {
    * prompt that describes her in full; absent when there are none.
    */
   notes?: string
+  /**
+   * The secrets she has yet to tell the reader, in the order they were written; absent before
+   * any were written and once every one has been told.
+   */
+  secrets?: CharSecret[]
+  /** The secrets she has told the reader, oldest first; absent until she has told one. */
+  toldSecrets?: string[]
+  /**
+   * The last cold she caught this semester, kept once it is over until another replaces it;
+   * absent before she has caught one.
+   */
+  cold?: ColdCase
+  /** Every strain she has caught this semester, by its id, ascending; absent before any. */
+  coldsHad?: number[]
 }
 
 /**
@@ -790,6 +894,8 @@ export interface SocialPost {
   liked?: boolean
   /** The game date the like was made — absent exactly when `liked` is. */
   likedOn?: number
+  /** What was said under it, written and drawn by a mod; the game draws none of its own. */
+  comments?: PostComment[]
 }
 
 /**
@@ -827,6 +933,18 @@ export type GameHistory = Record<number, Partial<Record<TimeSlot, string>>>
 /** Who a Bunnyboard chat message is from. `system` lines are app-written. */
 export type ChatSender = 'player' | 'contact' | 'system'
 
+/** The asks a slot opening may roll any girl's invitation into, each dealt once a round. */
+export const EVERYDAY_ASKS = ['help', 'exercise', 'meal', 'shopping'] as const
+
+/** One of {@link EVERYDAY_ASKS}. */
+export type EverydayAsk = (typeof EVERYDAY_ASKS)[number]
+
+/** What an invitation out of nowhere may be rolled into asking; appended, never reordered. */
+export const INVITE_KINDS = ['herRoom', 'study', 'hisRoom', 'outing', 'everyday'] as const
+
+/** One of {@link INVITE_KINDS}. */
+export type InviteKind = (typeof INVITE_KINDS)[number]
+
 /** One Bunnyboard text message. */
 export interface ChatMessage {
   /** crypto.randomUUID(); the stable list key. */
@@ -843,6 +961,12 @@ export interface ChatMessage {
   error?: boolean
   /** Her asking him out: the message every ask-out cooldown is counted off. */
   invite?: true
+  /** The first text of hers reaching out just to talk: what every reach-out wait is counted off. */
+  reachOut?: true
+  /** The everyday ask her invitation was rolled into: what the round of them is read off. */
+  everydayAsk?: EverydayAsk
+  /** What her invitation was rolled into asking: what a hangout answering it is read off. */
+  inviteKind?: InviteKind
 }
 
 /** One Bunnyboard conversation with a contact, keyed by her charId. */
@@ -991,6 +1115,14 @@ export interface OwnedItem {
   itemId: string
   /** Always at least 1 — an entry that reaches zero is removed instead. */
   count: number
+  /** A present a girl gave him: who, and the day. Never on a line with a bought item. */
+  from?: ReceivedFrom
+}
+
+/** Who gave the reader a present, and on which day of the semester he holds it in. */
+export interface ReceivedFrom {
+  charId: string
+  date: number
 }
 
 /** One gift handed over during a scene. */
@@ -1007,6 +1139,59 @@ export interface SceneGift {
    * field existed.
    */
   at?: number
+  /** The line it came off, when it was a present a girl gave him. */
+  from?: ReceivedFrom
+  /** It went back to the girl who gave it to him. */
+  returned?: true
+  /** Cold medicine she took for the cold she had when it was given, filed as a dose. */
+  dose?: true
+}
+
+/** The curveball a scene opened on, and the girl it happens to where it names one. */
+export interface SceneEvent {
+  id: SceneEventId
+  charId?: string
+}
+
+/** The present a girl brings to a scene, and whether it is in his inventory yet. */
+export interface ReceivedGift {
+  itemId: string
+  /** The girl giving it. */
+  charId: string
+  /** Put in his inventory once the scene's opening reply landed. */
+  delivered?: true
+}
+
+/** When each scene event last fired this semester, by event id: its cooldown's record. */
+export type SceneEventsFired = Record<string, number>
+
+/**
+ * One cold somebody caught: its strain, the slot it was passed on in, and what the dice and the
+ * medicine made of it. Its stage at any slot is derived from these, never stored.
+ */
+export interface ColdCase {
+  /** The global slot the strain reached campus in: its id, and what immunity is kept against. */
+  strain: number
+  /** The global slot it was passed on in; it incubates from the slot after. */
+  since: number
+  /** How many slots it incubates, unseen. */
+  incubation: number
+  /** A mild cold, which never reaches the worst of it. */
+  mild?: true
+  /** The global slots a dose was taken in, ascending: each ends the stage it falls in. */
+  doseSlots?: number[]
+  /** Caught off the reader while he was sick, so she has a fair idea where it came from. */
+  fromReader?: true
+  /** His boss has texted him about this one; the reader's own case only. */
+  bossTold?: true
+}
+
+/** What one finished slot passed on: every cold caught in it, assigned at its boundary. */
+export interface ColdPass {
+  /** Each girl who caught one, by charId. */
+  caught: Record<string, ColdCase>
+  /** The reader's, when he caught one. */
+  reader?: ColdCase
 }
 
 /** A running summary a scene reply came with, and the transcript length it covers up to. */
@@ -1120,6 +1305,15 @@ export interface SceneState {
   inPublic?: boolean
   /** The gifts handed over in this scene, in order, or absent when none were. */
   gifts?: SceneGift[]
+  /**
+   * The secret the scene's one girl tells the reader in it, or absent when she tells none; the
+   * boundary files it as told.
+   */
+  secret?: string
+  /** The curveball the scene opened on, or absent when it opened on none. */
+  event?: SceneEvent
+  /** The present a girl brings him in this scene, or absent when nobody does. */
+  receivedGift?: ReceivedGift
   /** The exam being sat, or absent when the slot is an ordinary scene. */
   quiz?: QuizState
   /** The line last shown, so resuming doesn't land on an empty dialogue box. */
@@ -1173,6 +1367,16 @@ export interface SlotOpening {
    * Absent for a slot that had none, or that he was not free to go to one on.
    */
   askOccasionId?: string
+  /**
+   * The everyday ask each asker's invitation was rolled into, by charKey, stamped onto her
+   * invitation at step 1. Absent for an opening that rolled none.
+   */
+  everydayAsks?: Record<string, EverydayAsk>
+  /**
+   * What each asker's invitation was rolled into asking, by charKey, stamped onto her invitation
+   * at step 1. Absent for an opening that rolled none.
+   */
+  inviteKinds?: Record<string, InviteKind>
   /** The plans the merged ledger found, normalized and attendance-filtered. */
   events: CalendarEvent[]
   /** Who that filtering took off an event, announced by text at step 1. */
@@ -1186,6 +1390,23 @@ export interface SlotOpening {
   slotRumor?: { placeId: string; sentence: string }
   /** The status updates the opening's posters wrote, filed to their own feeds at step 1. */
   posts?: SlotIntroResponse['posts']
+  /** The texts the girls leaving for spring break wrote to say so, delivered at step 1. */
+  springBreakTexts?: SlotIntroResponse['springBreakTexts']
+  /** The texts of the one girl the opening rolled to reach out just to talk, delivered at step 1. */
+  reachOuts?: SlotIntroResponse['reachOuts']
+  /** The texts the graduate back for Homecoming wrote to say she is in town, delivered at step 1. */
+  homecomingTexts?: SlotIntroResponse['homecomingTexts']
+  /**
+   * Who leaves campus for spring break, picked by the ending whose next slot is the first on or
+   * after the notice and assigned by the boundary. Absent on every other opening.
+   */
+  springBreakAway?: string[]
+  /**
+   * The graduate back in town for Homecoming, picked by the ending whose next slot is Homecoming
+   * morning and assigned by the boundary. Absent on every other opening, and on that one when
+   * nobody qualifies.
+   */
+  homecomingVisitor?: string
   /**
    * What campus saw of the scene that ended into this slot — rolled at the ending off
    * the ledger it just paid for, so the narration above can say what is being said.
@@ -1201,6 +1422,11 @@ export interface SlotOpening {
    * pass, so the narration above describes her as she now feels.
    */
   crushes?: string[]
+  /**
+   * The colds that same slot passed on, and a strain that reached campus in it. Absent on an
+   * opening banked before colds existed, which passes on none.
+   */
+  coldPass?: ColdPass
 }
 
 /** A {@link SlotOpening} an ending banked: the three settles it rolled are always on it. */
@@ -1222,12 +1448,17 @@ export type BunnybotHandover = 'contact' | 'haunt'
 
 /** On-disk save file — `/data/saves/{playthroughId}/{saveId}.json`. */
 export interface GameSave {
-  schemaVersion: 12
+  schemaVersion: 13
   /**
    * The playthrough this save belongs to. Derived from the containing folder
    * name on read, so the copy written into the file is never authoritative.
    */
   playthroughId: string
+  /**
+   * The id of the semester the save is in, a key of {@link PlaythroughRecord.semesters};
+   * absent in the playthrough's first semester.
+   */
+  semester?: string
   /**
    * `Date.now().toString()` for a slot-save, incremented on filename collision
    * until free; the literal `autosave` for the in-progress-scene save; `manual01` to
@@ -1251,7 +1482,7 @@ export interface GameSave {
   /** What the playthrough has counted up about him; absent in saves from before them. */
   tallies?: ReaderTallies
 
-  /** Days elapsed; day 0 = January 19. */
+  /** Days elapsed in the save's semester; day 0 is its first Monday, January 19 or August 17. */
   date: number
   time: TimeSlot
   /** The moving half of every character's entry; the settled half is the record's. */
@@ -1274,10 +1505,29 @@ export interface GameSave {
   events: CalendarEvent[]
   /** The part-time job the reader holds, or null. One at a time. */
   job: JobState | null
-  /** Job ids the reader was fired from or quit; an employer here never returns to the board. */
+  /**
+   * Job ids the reader was fired from or quit; an employer here does not return to the board
+   * this semester, and one that fired him never does.
+   */
   jobsClosed: string[]
-  /** What the reader has bought and not yet given away, one entry per distinct item. */
+  /**
+   * Every employer the reader has worked for and left, by job id; absent before he has left one
+   * in a save that knew to keep it.
+   */
+  formerJobs?: Record<string, FormerJob>
+  /** What the semesters before this one left on his record; absent in the first semester. */
+  transcript?: Transcript
+  /**
+   * What the reader has bought or been given and not yet given away: one entry per distinct item
+   * bought, and one per present a girl gave him.
+   */
   inventory: OwnedItem[]
+  /** When each scene event last fired this semester; absent before any has. */
+  sceneEventsFired?: SceneEventsFired
+  /** The reader's last cold this semester, as a girl's `cold` is kept; absent before any. */
+  readerCold?: ColdCase
+  /** Every strain the reader has caught this semester, by its id, ascending; absent before any. */
+  readerColdsHad?: number[]
   /**
    * What each of the reader's classes has accumulated — meetings, exams, projects and scores —
    * keyed by class code.
@@ -1373,6 +1623,11 @@ export interface GameSave {
   /** Who leaves campus for spring break, as charIds. */
   springBreakAway: string[] | null
   /**
+   * The graduate back in town for this fall's Homecoming, as a charId, settled on Homecoming
+   * morning; absent before then and when nobody qualified.
+   */
+  homecomingVisitor?: string
+  /**
    * The feed items that belong to today alone — the stranger's post the day surfaced and
    * the random student's — stamped with the date they were rolled for.
    */
@@ -1390,6 +1645,24 @@ export interface GameSave {
    * boundary and epilogue saves.
    */
   thumbnail?: string
+}
+
+/** One employer the reader has left: the raises he had taken, and how it ended. */
+export interface FormerJob {
+  raises: number
+  /** He quit, was let go, or the semester ended under him. */
+  left: 'quit' | 'fired' | 'term'
+}
+
+/** The reader's academic record from the semesters before this one, summed. */
+export interface Transcript {
+  /** One grade point per course he finished, oldest semester first. */
+  gradePoints: number[]
+  /** Exams he aced, handed back. */
+  aced: number
+  /** Class meetings he attended, of {@link held}. */
+  attended: number
+  held: number
 }
 
 /** One dropped class — the record that makes the drop permanent. */
@@ -1470,9 +1743,9 @@ export const MANUAL_SAVE_SLOTS = 90
 export const AUTOSAVE_ID = 'autosave'
 
 /**
- * Where every playthrough opens: the day slot of January 19. Read by the save New Game
- * writes, by the splash the crossing to it announces, and by the listing of a folder whose
- * semester has no timetable yet — so nothing can name a morning the file does not open on.
+ * Where every semester opens: the day slot of its first Monday. Read by the save New Game and
+ * Continue write, by the splash the crossing to it announces, and by the listing of a semester
+ * with no timetable yet — so nothing can name a morning the file does not open on.
  */
 export const FIRST_SLOT: { date: number; time: TimeSlot } = { date: 0, time: 0 }
 
@@ -1488,11 +1761,13 @@ export interface PlaythroughSummary {
   position: number
   /** The player's own name for it, off the record; absent when it has none. */
   name?: string
-  /** charIds, off the playthrough record; `[]` when it was refused. */
+  /** charIds of the newest file's roster; `[]` when the record was refused. */
   chars: string[]
   /** In-game position of the newest save. */
   date: number
   time: TimeSlot
+  /** Which semester of the playthrough that is, from 0; absent for the first. */
+  semesterIndex?: number
   /** Epoch ms of the newest save. */
   savedAt: number
   /** Slot-saves held, excluding the autosave; at most {@link MAX_SLOT_SAVES}. */
@@ -1505,10 +1780,15 @@ export interface PlaythroughSummary {
    */
   hasAutosave: boolean
   /**
-   * The folder holds a semester and no timetable yet: it reopens the registrar rather than
-   * a save.
+   * The newest thing in the folder is a semester with no timetable yet: it reopens the
+   * registrar rather than a save.
    */
   enrolling?: true
+  /**
+   * A next semester waiting at the registrar beside the saves, whether or not it is the
+   * newest thing in the folder; absent when none waits.
+   */
+  registration?: { savedAt: number; semesterIndex: number }
   /**
    * Why nothing in the folder can be read — a refused record, or no readable save — or null
    * when the newest readable save stands for it.
@@ -1529,6 +1809,8 @@ export interface SaveSummary {
   bg: string | null
   /** The save's {@link GameSave.thumbnail}, where it carries one. */
   thumbnail?: string
+  /** The save's {@link GameSave.semester}, where it is past the first. */
+  semester?: string
 }
 
 /** One listed save: a summary of the file as read, or the error that refused it. */
@@ -1548,13 +1830,13 @@ export interface SaveReadResult {
 
 /**
  * On-disk playthrough record — `/data/saves/{playthroughId}/playthrough.json`: everything
- * New Game settled and no save afterwards rewrites, written once beside the saves that read it
- * and again only when the player renames the playthrough.
- * The folder names the playthrough, so no id is carried here.
+ * New Game settled and no save afterwards rewrites, its top level the first semester's; written
+ * once beside the saves that read it, again with each semester Continue adds, and when the
+ * player renames the playthrough. The folder names the playthrough, so no id is carried here.
  */
 export interface PlaythroughRecord {
   schemaVersion: 3
-  /** charIds in this playthrough, in roster order. */
+  /** charIds of the first semester's roster, in roster order. */
   chars: string[]
   /**
    * The reader's own name, chosen at New Game and fixed for the playthrough; it reaches the
@@ -1579,10 +1861,96 @@ export interface PlaythroughRecord {
   /** The settled half of every character's entry, keyed by charId. */
   profiles: Record<string, CharProfile>
   /**
-   * The player's own name for the playthrough, given from Load Game � the one field written
-   * after New Game. Absent, the playthrough goes by its place in creation order.
+   * The player's own name for the playthrough, given from Load Game. Absent, the playthrough
+   * goes by its place in creation order.
    */
   name?: string
+  /**
+   * Every semester after the first, keyed by an id minted like a save id; two continued from
+   * the same ending sit side by side. Absent until the first Continue.
+   */
+  semesters?: Record<string, SemesterRecord>
+}
+
+/**
+ * One semester after the first, as the Continue that began it settled it: the record's own
+ * fields for that semester, and the semester it continued from as its ending left it.
+ */
+export interface SemesterRecord {
+  /** Which semester of the playthrough this is, from 1: one more than its parent's. */
+  index: number
+  /** The semester it continued from; absent when that was the first. */
+  parent?: string
+  /** The on-campus roster, in roster order. */
+  chars: string[]
+  /** Every girl who has graduated by this semester, oldest first. */
+  alumni: string[]
+  classes: Record<string, ClassEntry>
+  occasions: Occasion[]
+  jobClosures: Record<string, ShiftSlot[]>
+  weather: Weather[]
+  /** The roster's and the graduates' settled halves, keyed by charId. */
+  profiles: Record<string, CharProfile>
+  /** The senior picked to graduate early at this fall's ceremony; absent in a spring or with none. */
+  fallGraduate?: string
+  /**
+   * What the break cost, for the first morning's line: the stats that fell a tier and the girls
+   * handed a break penalty, in roster order; absent when it cost nothing.
+   */
+  breakDecay?: { stats: StatKey[]; girls: string[] }
+  /** The semester it continued from, as the ending that continued it left it. */
+  before: SemesterLog
+}
+
+/**
+ * What a finished semester leaves for the calendar to read back, in its own day numbers: its
+ * history, its replays, the reader's timetable and his plans.
+ */
+export interface SemesterLog {
+  history: GameHistory
+  replays?: GameReplays
+  playerSchedule: Record<number, string>
+  events: CalendarEvent[]
+}
+
+/**
+ * What one semester's ending hands the next: the reader's moving state, every girl's carried
+ * entry and the bookkeeping kept across the break, every date already on the next semester's
+ * clock.
+ */
+export type SemesterCarry = Pick<
+  GameSave,
+  | 'stats'
+  | 'money'
+  | 'bio'
+  | 'inventory'
+  | 'jobsClosed'
+  | 'formerJobs'
+  | 'transcript'
+  | 'gradesStanding'
+  | 'bunnyboard'
+  | 'bunnymapUnlocked'
+  | 'bunnyshopUnlocked'
+  | 'venusJobIntroSent'
+  | 'bunnybotContactIntroSent'
+  | 'bunnybotFirstPostNudgeSent'
+  | 'bunnybotTwoTimingTipSent'
+  | 'bunnybotSeenTipSent'
+  | 'bunnybotDeferred'
+  | 'bunnybotThrough'
+  | 'npcRelationships'
+  | 'npcFriendships'
+> & {
+  tallies: ReaderTallies
+  /** The continuing girls' and every graduate's entries, keyed by charId. */
+  charInfo: Record<string, CharState>
+  /** The semester that just ended, for the calendar. */
+  before: SemesterLog
+  /**
+   * The fields mods registered with `registerTermCarry`, as each mod's adapter carried them
+   * (`semesterModCarry.ts`); the next semester's opening save takes them back in.
+   */
+  mods?: Partial<ModCarryFields>
 }
 
 /** The record as New Game hands it over; `saveService` stamps the version. */
@@ -1637,6 +2005,7 @@ export interface HiddenScheduleAssignment {
 /** The social half of one profile — her handle and what she posted over the break. */
 export interface FeedAssignment {
   handle: string
+  /** What she posted over the break before the semester: winter's before a spring, summer's before a fall. */
   winterPosts: string[]
 }
 
@@ -1658,6 +2027,11 @@ export interface QuickstartBundle {
   springBreakPlans: Record<string, string>
   /** The occasions this semester invents; the fixed calendar is code. */
   occasions: Occasion[]
+  /**
+   * Keyed by charId: the secrets each girl starts the semester with, beside whatever she already
+   * holds. Absent on a bundle or an enrollment written before secrets were.
+   */
+  secrets?: Record<string, CharSecret[]>
 }
 
 /** A whole semester with the reader beside it, as the screen that generated it hands it over. */
@@ -1669,14 +2043,41 @@ export type EnrollmentDraft = QuickstartBundle & {
   bio?: string
   /** The output tokens New Game's own generation calls cost, carried onto the save at Finalize. */
   tokensGenerated?: number
+  /** The semester Continue is starting, where this is not the playthrough's first. */
+  continued?: ContinuedSemester
+}
+
+/**
+ * Everything a next semester's Finalize needs beyond the semester itself, so a registration
+ * reopens from the file and the characters alone.
+ */
+export interface ContinuedSemester {
+  /** The id the semester is written under, minted before the registration is. */
+  id: string
+  index: number
+  /** The semester it continues from; absent when that is the first. */
+  parent?: string
+  /** Every graduate by this semester, oldest first. */
+  alumni: string[]
+  /**
+   * The settled halves the continuing girls and the graduates bring with them, keyed by charId:
+   * the last semester's, with each year and intake already moved on.
+   */
+  priorProfiles: Record<string, CharProfile>
+  /** What each graduate is doing now, keyed by charId. */
+  pursuits: Record<string, string>
+  /** The senior picked to graduate early at the fall's ceremony. */
+  fallGraduate?: string
+  carry: SemesterCarry
 }
 
 /**
  * On-disk enrollment — `/data/saves/{playthroughId}/enrollment.json`: the semester waiting on
- * its timetable, replaced by the playthrough record at Finalize.
+ * its timetable, replaced by the playthrough record at Finalize, or folded into it as a next
+ * semester.
  */
 export interface Enrollment extends EnrollmentDraft {
-  schemaVersion: 2
+  schemaVersion: 3
   savedAt: number
 }
 
@@ -1767,22 +2168,38 @@ export interface Settings {
    */
   secondaryModelFor?: PromptKind[]
   /**
-   * Which inference queue serves text calls; resolved at call time. **Not a player
-   * setting** — hand-edited beside `forceTime`, absent meaning `priority`.
+   * Which inference queue serves Gemini's text calls, picked in Settings and resolved at call
+   * time against the provider that runs. Optional on disk, absent meaning `priority`.
    */
   serviceTier?: ServiceTier
   /**
    * Stream scene and texting replies for a live preview; off sends the same calls to the
-   * whole-reply endpoint instead. Hand-edited like {@link serviceTier}, absent meaning on.
+   * whole-reply endpoint instead. **Not a player setting** — hand-edited beside `forceTime`,
+   * absent meaning on.
    */
   streamResponses?: boolean
   /** The player skipped the optional ComfyUI install; boot stops verifying it. */
   comfyDeferred: boolean
   /**
    * Which ComfyUI portable build is installed and verified. **Not a player setting** —
-   * hand-edited like {@link serviceTier}, absent meaning the GPUs Electron reports decide.
+   * hand-edited like {@link streamResponses}, absent meaning the GPUs Electron reports decide.
    */
   comfyGpu?: ComfyGpu
+  /**
+   * Which ComfyUI draws: the app's own install, or the player's own at {@link comfyUrl}. Optional
+   * on disk, absent meaning the app's own.
+   */
+  comfySource?: ComfySource
+  /** Where the player's own ComfyUI answers. Absent is `DEFAULT_COMFY_URL`. */
+  comfyUrl?: string
+  /** The models the app's own ComfyUI draws with, a slot absent where it draws the shipped one. */
+  comfyModels?: ComfyModelPicks
+  /** The models the player's own ComfyUI draws with, kept apart from the app's own install's. */
+  comfyExternalModels?: ComfyModelPicks
+  /** The weight the app's own ComfyUI draws its LoRA at. Absent is `DEFAULT_LORA_WEIGHT`. */
+  comfyLoraWeight?: number
+  /** The weight the player's own ComfyUI draws its LoRA at, kept apart like its picks. */
+  comfyExternalLoraWeight?: number
   /**
    * Whether a newer build the launch check finds is offered before the first screen; the main
    * menu's notice offers it either way. Optional on disk, absent meaning it is.
@@ -1805,12 +2222,12 @@ export interface Settings {
   warnEndingEdit?: boolean
   /**
    * The version the update check pretends this build is. **Not a player setting** — hand-edited
-   * like {@link serviceTier}, for exercising an update against a build already on itch.io.
+   * like {@link streamResponses}, for exercising an update against a build already on itch.io.
    */
   updateAsVersion?: string
   /**
    * An https URL answering `{ latest, url }` in place of itch.io, for exercising an update
-   * against a build served locally. **Not a player setting** — hand-edited like {@link serviceTier}.
+   * against a build served locally. **Not a player setting** — hand-edited like {@link streamResponses}.
    */
   updateFeed?: string
   /**
@@ -1835,11 +2252,6 @@ export interface Settings {
    * `generationSeed` and write no seed state at all. Absent means off.
    */
   freezeSeeds?: boolean
-  /**
-   * Dev-only, hand-edited into the file: the shipped cast is editable in place —
-   * written, rendered and re-rendered like the player's own. Absent means off.
-   */
-  editPregens?: boolean
   /**
    * Dev-only, hand-edited into the file: pins the theme a screen opens in, so
    * either one can be looked at whatever the hour. Absent means the clock decides.
@@ -1869,6 +2281,8 @@ export interface Settings {
   topK?: number
   /** How many memories per character a cast scene's prompt carries, by cast size. */
   memoryBudgets?: MemoryBudgets
+  /** How many of her told secrets every prompt carrying her memories carries; absent is the default. */
+  secretBudget?: number
   /**
    * The persona cast scene calls are written under in place of the shipped one, sent verbatim
    * whatever `lessNsfwText` says. Absent is the shipped persona.
@@ -1906,10 +2320,8 @@ export type SettingsPatch = Omit<
   | 'endpointApiKey'
   | 'imageApiKey'
   | 'freezeSeeds'
-  | 'editPregens'
   | 'forceTime'
   | 'removedDefaults'
-  | 'serviceTier'
   | 'streamResponses'
   | 'comfyGpu'
   | 'updateAsVersion'
@@ -2065,6 +2477,21 @@ export interface SlotIntroResponse {
    * charKey; `text` is the post.
    */
   posts?: Array<{ char: string; text: string }>
+  /**
+   * The messages each girl leaving campus for spring break sends to tell the reader she is going:
+   * `char` is her charKey, `texts` the run of messages in the order she sends them.
+   */
+  springBreakTexts?: Array<{ char: string; texts: string[] }>
+  /**
+   * The messages the girl the slot rolled to reach out sends, just to talk: `char` is her charKey,
+   * `texts` the run of messages in the order she sends them.
+   */
+  reachOuts?: Array<{ char: string; texts: string[]; [field: string]: unknown }>
+  /**
+   * The messages the graduate back for Homecoming sends to tell the reader she is in town:
+   * `char` is her charKey, `texts` the run of messages in the order she sends them.
+   */
+  homecomingTexts?: Array<{ char: string; texts: string[] }>
 }
 
 /**
@@ -2158,6 +2585,29 @@ export interface UpdateProgress {
   percent?: number
   bytesDone?: number
   bytesTotal?: number
+}
+
+/** How far the boot's conversion of older pictures to WebP has got, on the fixed `images:progress` channel. */
+export interface LegacyImageProgress {
+  done: number
+  total: number
+}
+
+/** What the boot's conversion of older pictures to WebP did, for the log. */
+export interface LegacyImageReport {
+  /** Pictures still under a PNG or JPEG name when the pass began. */
+  total: number
+  /** Re-encoded as WebP, their old file removed. */
+  converted: number
+  /** Removed for standing beside a WebP twin, which is the picture read. */
+  dropped: number
+  /** Left as they were: unreadable as a picture, or no encoder to hand. */
+  left: number
+  /** Bytes the converted and dropped files held, and what the converted ones hold now. */
+  bytesBefore: number
+  bytesAfter: number
+  /** Whether no WebP encoder could be loaded, so nothing was converted. */
+  unavailable: boolean
 }
 
 /** One shipped file, as the build's manifest records it: a forward-slash path under the app folder. */

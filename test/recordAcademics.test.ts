@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { ClassEntry, QuizQuestion } from '@shared/types'
+import type { ClassEntry, LedgerResponse, QuizQuestion } from '@shared/types'
 import { recordAcademics } from '../src/renderer/stores/loop/academics'
 import { loopState, resetLoopState } from '../src/renderer/stores/loop/state'
 import { useGameStore } from '../src/renderer/stores/gameStore'
@@ -133,6 +133,20 @@ describe('recordAcademics — what the boundary files', () => {
     expect(record.midterm).toEqual({ asked: 3, correct: 3 })
     expect(record.meetings).toEqual([
       { date: MON_EXAM_DATE, attended: true, summary: 'The reader sat the midterm exam.' }
+    ])
+  })
+
+  // A cancelled meeting is attended and taught nothing: a factoid would become an exam question.
+  it('files a meeting the professor cancelled as attended, with no factoid', () => {
+    const entry = classEntry({ slot: MON_NIGHT })
+    enroll(entry, { date: 15, time: 1 })
+    useGameStore.setState({ sceneClass: entry.code, sceneEvent: { id: 'classCancelled' } })
+
+    const ledger: LedgerResponse = { classSummary: 'Class was called off.', classFactoid: 'A fact.' }
+    recordAcademics(ledger)
+
+    expect(useGameStore.getState().classRecords[entry.code].meetings).toEqual([
+      { date: 15, attended: true, summary: 'Class was called off.', cancelled: true }
     ])
   })
 

@@ -68,6 +68,17 @@ export interface ClassGenReply {
   classes: ClassDraft[]
 }
 
+/**
+ * What a next semester's catalog is built around: the returning students' majors, which are not
+ * asked again, and every class the playthrough has already run, which may not be run again.
+ */
+export interface ContinuedCatalog {
+  /** Each returning student's major, by charKey. */
+  majors: Record<string, string>
+  /** Every class an earlier semester of this timeline ran. */
+  taken: readonly { code: string; name: string }[]
+}
+
 /** The merged draft, before decoration. */
 export interface ClassGenDraft extends ClassGenReply {
   characters: Record<string, CharClassDraft>
@@ -117,9 +128,16 @@ export function rosterCastLines(roster: readonly Character[]): {
   return { keys, cast }
 }
 
-/** Builds the class-catalog request. */
-export function buildClassPrompt(roster: readonly Character[]): StructuredRequest {
+/**
+ * Builds the class-catalog request; `continued` builds a next semester's, around the returning
+ * students' majors and away from every class already run.
+ */
+export function buildClassPrompt(
+  roster: readonly Character[],
+  continued?: ContinuedCatalog
+): StructuredRequest {
   const { keys, cast } = rosterCastLines(roster)
+  const majors = continued?.majors ?? {}
 
   const system = [
     'You are a university registrar building a course catalog and enrolling students.',
@@ -132,6 +150,11 @@ export function buildClassPrompt(roster: readonly Character[]): StructuredReques
     '',
     'FOR EACH STUDENT',
     'major: the field she studies. Pick one that fits her personality. Collape similar majors like Business Studies and Business Science into a single major like Business Administration.',
+    ...(continued
+      ? [
+          'A returning student already has a major, written under her name: she is not asked for one, and that exact major counts as one you assigned.'
+        ]
+      : []),
     'majorClassesTaken: how many classes she takes in her major, from 1 to 3.',
     'interestClass: one course this specific student would sign up for out of pure personal interest.',
     'It should read like something only she would pick.',
@@ -145,6 +168,11 @@ export function buildClassPrompt(roster: readonly Character[]): StructuredReques
     '',
     'RULE: every "code" in the whole reply must be unique, including the interest classes.',
     'No two courses may share a code.',
+    ...(continued
+      ? [
+          'Classes listed under ALREADY TAKEN ran in earlier semesters: never reuse one of their codes, and never recreate one of them under another code.'
+        ]
+      : []),
     'Every course needs a one-sentence description written the way a real course catalog writes them.',
     '',
     'EVERY COURSE ALSO NEEDS A KIND',
@@ -158,7 +186,18 @@ export function buildClassPrompt(roster: readonly Character[]): StructuredReques
   ].join('\n')
 
   // Below the '---' divider: the roster is all that varies, and the console log starts here.
-  const rest = ['STUDENTS', ...cast].join('\n')
+  const students = roster.flatMap((_character, index) => {
+    const major = majors[keys[index]]
+    const [line, personality] = cast.slice(index * 3, index * 3 + 2)
+    return [line, ...(major ? [`Returning student, majoring in ${major}.`] : []), personality, '']
+  })
+  const rest = [
+    ...(continued && continued.taken.length > 0
+      ? ['ALREADY TAKEN', ...continued.taken.map((entry) => `${entry.code} — ${entry.name}`), '']
+      : []),
+    'STUDENTS',
+    ...students
+  ].join('\n')
 
   const charSchema = {
     type: 'object',
@@ -170,13 +209,25 @@ export function buildClassPrompt(roster: readonly Character[]): StructuredReques
       interestClass: courseSchema()
     }
   }
+  // A returning student's major is hers already, so the schema does not ask for it.
+  const returningSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['majorClassesTaken', 'interestClass'],
+    properties: {
+      majorClassesTaken: intField(1, 3),
+      interestClass: courseSchema()
+    }
+  }
 
   const schema = objectSchema('class_schedule', ['characters', 'classes'], {
     characters: {
       type: 'object',
       additionalProperties: false,
       required: keys,
-      properties: Object.fromEntries(keys.map((key) => [key, charSchema]))
+      properties: Object.fromEntries(
+        keys.map((key) => [key, majors[key] ? returningSchema : charSchema])
+      )
     },
     classes: {
       type: 'array',
@@ -223,13 +274,19 @@ export function clamp(value: number, min: number, max: number, what: string): nu
   return held
 }
 
-/** Validates a reply, renumbers a colliding course code and folds interest classes into the catalog. */
+/**
+ * Validates a reply, renumbers a colliding course code and folds interest classes into the
+ * catalog; a next semester's also keeps every returning student's major and renumbers any code
+ * an earlier semester ran.
+ */
 export function validateClassDraft(
   draft: ClassGenReply,
-  roster: readonly Character[]
+  roster: readonly Character[],
+  continued?: ContinuedCatalog
 ): ClassGenReply {
   const classes = draft.classes ?? []
   const seen = new Map<string, string>()
+  for (const entry of continued?.taken ?? []) seen.set(entry.code, 'an earlier semester')
 
   const add = <T extends CourseDraft>(entry: T, origin: string): T => {
     let code = (entry?.code ?? '').trim()
@@ -267,7 +324,7 @@ export function validateClassDraft(
     const profile = draft.characters?.[key]
     if (!profile) invalid(`${fullNameOf(character)} was left unenrolled.`)
 
-    const major = (profile.major ?? '').trim()
+    const major = (continued?.majors[key] ?? profile.major ?? '').trim()
     if (!majorsOffered.has(major)) {
       invalid(`No classes were created for ${character.firstName}'s major, "${major}".`)
     }

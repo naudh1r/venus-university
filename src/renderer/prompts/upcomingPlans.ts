@@ -1,6 +1,6 @@
 import { globalSlotOf } from '@shared/jobs'
 import { andList } from '@shared/sentences'
-import type { CalendarEvent, Character } from '@shared/types'
+import type { CalendarEvent, Character, Season } from '@shared/types'
 import { formatDatePart, slotHalf } from './gameDate'
 
 /** What the plan is for, in quotes: the detail sentence, else the chip label. */
@@ -16,7 +16,8 @@ function planText(event: CalendarEvent): string {
 export function upcomingPlanLines(
   events: readonly CalendarEvent[],
   characters: Readonly<Record<string, Character>>,
-  fromSlot: number
+  fromSlot: number,
+  season: Season
 ): Record<string, string[]> {
   const ahead = events
     .filter((event) => globalSlotOf(event.date, event.time) >= fromSlot)
@@ -28,7 +29,7 @@ export function upcomingPlanLines(
     if (!text) continue
     // An attendee who resolves to nobody is dropped.
     const going = [...new Set(event.charIds)].filter((charId) => characters[charId])
-    const when = `${formatDatePart(event.date)} (${slotHalf(event.time)})`
+    const when = `${formatDatePart(event.date, season)} (${slotHalf(event.time)})`
     for (const charId of going) {
       const names = [charId, ...going.filter((other) => other !== charId)].map(
         (id) => characters[id].firstName

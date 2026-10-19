@@ -7,6 +7,7 @@ import { handlePhotoProtocol } from './photoProtocol'
 import { registerIpcHandlers } from './ipc'
 import { installConsoleLog } from './logFile'
 import { redact } from './redact'
+import { migrateEditedCast } from './services/castMigration'
 import { sweepStaging } from './services/characterService'
 import { killStray as killStrayComfy, stop as stopComfy } from './services/comfyService'
 import { ensureAmdNodePatches } from './services/setupService'
@@ -93,6 +94,9 @@ function bindShortcuts(win: BrowserWindow): void {
   })
 }
 
+/** How long after its page loads the window may stay hidden before it is shown regardless. */
+const SHOW_FALLBACK_MS = 2000
+
 /** The two schemes a link may leave the app for: a web page and an email address. */
 const OPENABLE_SCHEMES = new Set(['https:', 'mailto:'])
 
@@ -144,6 +148,17 @@ function createWindow(fullscreen: boolean): void {
   mainWindow.on('ready-to-show', () => {
     if (!fullscreen) fillIfOversized(mainWindow)
     mainWindow.show()
+  })
+
+  // A window still hidden a moment after its page has loaded never got its first paint, or its
+  // show did not take; it is shown as it is rather than left running with nothing on screen.
+  mainWindow.webContents.once('did-finish-load', () => {
+    setTimeout(() => {
+      if (mainWindow.isDestroyed() || mainWindow.isVisible()) return
+      console.warn('[window] still hidden after the page loaded; showing it')
+      if (!fullscreen) fillIfOversized(mainWindow)
+      mainWindow.show()
+    }, SHOW_FALLBACK_MS)
   })
 
   // Main owns the zoom, at every size and from every source — including the player's Ctrl+wheel.
@@ -212,6 +227,10 @@ app
 
     // Services expect /data to exist; create it here once before they run.
     await ensureDataDir()
+
+    // Edits made to the shipped cast in place are rescued into copies before anything reads a
+    // character, and before the update sweep deletes the files the last update parked.
+    await migrateEditedCast()
 
     // Clear an orphaned managed server before this run can adopt an unowned port.
     killStrayComfy()

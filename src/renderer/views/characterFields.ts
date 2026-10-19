@@ -60,6 +60,26 @@ export function outfitInstructionsHint(outfit: string): string {
 /** The line under a custom CG's Name field. */
 export const CG_NAME_HINT = 'Custom CG names must be lowercase with no spaces.'
 
+/** What her appearance tags must carry for the colours the game reads off them. */
+export const APPEARANCE_COLOR_HINT =
+  'Gameplay expects a hair and eye color in the format of "_hair" and "_eyes". It also looks for a skin color tag like "_skin", "tan", "dark-skinned_female", or "freckles". LoRA trigger words should go here too.'
+
+/** What Replace model output does with the LoRA's tags on New Character. */
+export const LORA_REPLACE_NOTE =
+  "Throws away the LLM's appearance and outfit tags and uses yours instead. Uncheck to add yours to the LLM's. A box left empty keeps the LLM's tags."
+
+/** The confirm in front of a render whose character's LoRA ComfyUI does not list. */
+export function loraMissingCopy(
+  name: string,
+  file: string
+): { title: string; message: string; confirmText: string } {
+  return {
+    title: `Generate without ${name ? `${name}'s` : 'her'} LoRA?`,
+    message: `ComfyUI can't find ${file}. It stays picked for her, and will be used again once it's back in the LoRA folder.`,
+    confirmText: 'Generate without it'
+  }
+}
+
 /** The line under a custom CG's Instructions field, wherever it is written. */
 export const CG_INSTRUCTIONS_HINT =
   'Include an optional instruction to the LLM on when to use this CG, starting with "she", e.g. "she is riding him".'

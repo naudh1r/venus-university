@@ -1,4 +1,5 @@
 import type { ClassifierPromptRequest, ClassifierVerdict } from '@shared/classifier'
+import type { ComfyModelLists, ComfyModelRole, ComfyProbe } from '@shared/comfyModels'
 import type {
   BgVariant,
   CustomBackgroundDraft,
@@ -23,6 +24,7 @@ import type {
   CreatedEnrollment,
   CustomCgSlot,
   CustomOutfitSlot,
+  DefaultsStatus,
   Emotion,
   EndingPostsResponse,
   Enrollment,
@@ -37,6 +39,8 @@ import type {
   ImageCandidate,
   ImageEndpointCandidate,
   LedgerResponse,
+  LegacyImageProgress,
+  LegacyImageReport,
   LogLevel,
   PlaythroughSummary,
   PoseManifest,
@@ -52,6 +56,7 @@ import type {
   PlaythroughListing,
   Result,
   SaveDraft,
+  SemesterRecord,
   SaveReadResult,
   SceneResponse,
   SettingsPatch,
@@ -119,13 +124,15 @@ export interface VenusUniversityApi {
     generateCharacter: <T>(request: StructuredRequest, group: string) => Promise<Result<T>>
     /**
      * Generates the save's class catalog and enrollments once, at New Game.
-     * `group` is the start's own, shared by all three one-shots.
+     * `group` is the start's own, shared by all four one-shots.
      */
     generateClasses: <T>(request: StructuredRequest, group: string) => Promise<Result<T>>
     /** Generates the roster's years, course loads and part-time jobs once, at New Game. */
     generateProfiles: <T>(request: StructuredRequest, group: string) => Promise<Result<T>>
     /** Generates the save's own calendar occasions once, at New Game. */
     generateOccasions: <T>(request: StructuredRequest, group: string) => Promise<Result<T>>
+    /** Generates the roster's secrets once, at the start of every semester. */
+    generateSecrets: <T>(request: StructuredRequest, group: string) => Promise<Result<T>>
     /** Generates one exam's multiple-choice questions. Never streams. */
     generateQuiz: <T>(request: StructuredRequest) => Promise<Result<T>>
     /**
@@ -152,9 +159,14 @@ export interface VenusUniversityApi {
     classifyHangout: (request: StructuredRequest) => Promise<Result<HangoutClassifierResponse>>
     /**
      * Sends a scene or continuation prompt. `group` is the loop's
-     * own, shared with the three calls below; an aborted call resolves `CANCELLED`.
+     * own, shared with the three calls below; an aborted call resolves `CANCELLED`. `stream`
+     * names this one call, and every delta it streams carries it.
      */
-    completeScene: (request: StructuredRequest, group: string) => Promise<Result<SceneResponse>>
+    completeScene: (
+      request: StructuredRequest,
+      group: string,
+      stream: string
+    ) => Promise<Result<SceneResponse>>
     /** Sends the end-of-scene bookkeeping prompt. Never streams. */
     completeLedger: (request: StructuredRequest, group: string) => Promise<Result<LedgerResponse>>
     /** Sends the slot-opening narration prompt. Never streams. */
@@ -172,8 +184,11 @@ export interface VenusUniversityApi {
       request: StructuredRequest,
       group: string
     ) => Promise<Result<TextingResponse>>
-    /** Preview deltas for the in-flight scene reply; returns an unsubscribe. */
-    onSceneDelta: (listener: (delta: string) => void) => () => void
+    /**
+     * Preview deltas for in-flight scene replies; returns an unsubscribe. `stream` is the one
+     * the call was sent with, which tells an aborted call's late deltas from the next call's.
+     */
+    onSceneDelta: (listener: (stream: string, delta: string) => void) => () => void
     /**
      * Preview deltas for in-flight texting replies; returns an unsubscribe.
      * `group` is the call's cancellation group, which tells concurrent replies apart.
@@ -298,12 +313,17 @@ export interface VenusUniversityApi {
      */
     saveExport: (kind: ExportKind, name: string, base64: string) => Promise<Result<string | null>>
     /**
-     * The charIds of the cast the game ships with, and which of them the player has taken off
-     * the roster.
+     * The charIds of the cast the game ships with, which of them the player has taken off the
+     * roster and which have an edited copy.
      */
-    defaults: () => Promise<Result<{ ids: string[]; removed: string[] }>>
+    defaults: () => Promise<Result<DefaultsStatus>>
     /** Puts every removed shipped character back on the roster. */
     restoreDefaults: () => Promise<Result<void>>
+    /**
+     * Throws away a shipped character's edited copy, records and pictures alike, and answers
+     * with her as the build ships her.
+     */
+    resetDefault: (charId: string) => Promise<Result<Character>>
     /** Opens the character's folder in the OS file manager. */
     openFolder: (charId: string) => Promise<Result<void>>
   }
@@ -314,10 +334,10 @@ export interface VenusUniversityApi {
     /** One save with the record it is read against — everything loading it needs. */
     read: (playthroughId: string, saveId: string) => Promise<Result<SaveReadResult>>
     /**
-     * Writes the semester the registrar is about to offer, minting the playthrough folder it
-     * will belong to.
+     * Writes the semester the registrar is about to offer: a first semester into a playthrough
+     * folder it mints, a next one beside the record of the playthrough `playthroughId` names.
      */
-    enroll: (draft: EnrollmentDraft) => Promise<Result<CreatedEnrollment>>
+    enroll: (draft: EnrollmentDraft, playthroughId?: string) => Promise<Result<CreatedEnrollment>>
     /** The semester waiting in one folder, for the registrar reopening on it. */
     enrollment: (playthroughId: string) => Promise<Result<Enrollment>>
     /**
@@ -328,6 +348,16 @@ export interface VenusUniversityApi {
       playthrough: PlaythroughDraft,
       draft: SaveDraft,
       playthroughId?: string
+    ) => Promise<Result<CreatedPlaythrough>>
+    /**
+     * Begins a next semester: adds it to the playthrough's record, writes its opening save into
+     * the boundary window and removes the registration it came from.
+     */
+    continueSemester: (
+      playthroughId: string,
+      semesterId: string,
+      semester: SemesterRecord,
+      draft: SaveDraft
     ) => Promise<Result<CreatedPlaythrough>>
     /**
      * Mints a slot-boundary save and prunes the window; the autosave stands. A `replay` the draft
@@ -363,23 +393,28 @@ export interface VenusUniversityApi {
      */
     rename: (playthroughId: string, name: string) => Promise<Result<void>>
     /**
-     * Draws the graduation picture from the renderer's reference sheet, writes it into the
-     * playthrough folder and answers with the same bytes.
+     * Draws a semester's graduation picture from the renderer's reference sheet, writes it into
+     * the playthrough folder and answers with the same bytes; `semesterId` is absent for the
+     * first semester.
      */
     generateEndingArt: (
       playthroughId: string,
       sheet: string,
       friendCount: number,
-      group: string
+      group: string,
+      semesterId?: string
       // A plain `ArrayBuffer`, as for `readWardrobeImage`.
     ) => Promise<Result<Uint8Array<ArrayBuffer>>>
-    /** The picture already on disk, or `null` where there is none. */
-    readEndingArt: (playthroughId: string) => Promise<Result<Uint8Array<ArrayBuffer> | null>>
+    /** A semester's picture already on disk, or `null` where there is none. */
+    readEndingArt: (
+      playthroughId: string,
+      semesterId?: string
+    ) => Promise<Result<Uint8Array<ArrayBuffer> | null>>
     /**
-     * Saves a copy of the graduation picture where the native dialog points; `null`
+     * Saves a copy of a semester's graduation picture where the native dialog points; `null`
      * when the player cancels.
      */
-    exportEndingArt: (playthroughId: string) => Promise<Result<string | null>>
+    exportEndingArt: (playthroughId: string, semesterId?: string) => Promise<Result<string | null>>
     /** The reader's own picture kept beside the playthrough, or `null` where there is none. */
     readProfilePicture: (playthroughId: string) => Promise<Result<Uint8Array<ArrayBuffer> | null>>
     /** Keeps the reader's picture, a PNG as base64, beside the playthrough. */
@@ -425,9 +460,26 @@ export interface VenusUniversityApi {
     export: (playthroughId: string, photoId: string) => Promise<Result<string | null>>
   }
   comfy: {
+    /** Starts the app's own server, or checks the player's own one answers. */
     start: () => Promise<Result<void>>
-    /** Kills the local server, freeing the VRAM it holds until something starts it again. */
+    /**
+     * Kills the local server, freeing the VRAM it holds until something starts it again; the
+     * player's own one is only forgotten.
+     */
     stop: () => Promise<Result<void>>
+    /** Each model slot's files in the app's own install, read off its folders. */
+    listLocalModels: () => Promise<Result<ComfyModelLists>>
+    /** What the player's own ComfyUI at `url` has: its missing nodes, models and local folders. */
+    probe: (url: string) => Promise<Result<ComfyProbe>>
+    /**
+     * Opens one slot's model folder: the app's own install's where `url` is null, else the one
+     * of the server's that holds `pick`, or failing that any of the slot's models.
+     */
+    openModelFolder: (
+      role: ComfyModelRole,
+      url: string | null,
+      pick?: string
+    ) => Promise<Result<void>>
     /** Subscribes to the server's runtime state on the fixed state channel. */
     onState: (listener: (status: ComfyStatus) => void) => () => void
     /**
@@ -514,6 +566,16 @@ export interface VenusUniversityApi {
      */
     apply: () => Promise<Result<void>>
     onProgress: (listener: (progress: UpdateProgress) => void) => () => void
+  }
+  /** The pictures older builds kept as PNG or JPEG, converted once at boot. */
+  images: {
+    /**
+     * Converts every picture the player's data still keeps as PNG or JPEG to WebP, the shipped
+     * cast aside, and answers what it did. Reports on `images:progress`; a picture that will not
+     * convert, or a build with no WebP encoder, leaves the pictures as they are.
+     */
+    convertLegacy: () => Promise<Result<LegacyImageReport>>
+    onProgress: (listener: (progress: LegacyImageProgress) => void) => () => void
   }
   /**
    * The whole game as one zip, in the format both builds write and read back. `export` answers

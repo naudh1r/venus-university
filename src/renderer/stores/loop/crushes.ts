@@ -21,9 +21,10 @@ export function rollCrushSettle(
   for (const charId of likedCharIds(ledger)) {
     const info = charInfo[charId]
     if (!info) continue
-    // A girl already carrying one has nothing to roll for, and a lover is past the stage.
+    // A girl already carrying one has nothing to roll for, and a lover is past the stage; a
+    // graduate is gone from Veridan, and one is never rolled for her.
     const flags = info.flags
-    if (flags?.hasCrush || flags?.isLover) continue
+    if (flags?.hasCrush || flags?.isLover || info.pursuing !== undefined) continue
     const character = game.characters[charId]
     if (rollsCrush(character, stats, affectionFor(info, game.date, character))) fell.push(charId)
   }

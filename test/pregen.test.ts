@@ -1,20 +1,28 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'fs/promises'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { defaultModelFor } from '@shared/providers'
-import type { Character, Settings } from '@shared/types'
+import type { Character } from '@shared/types'
 import { character } from './fixtures'
 
 /**
- * The shipped cast: which root a charId resolves to, what may be written to one, and what
+ * The shipped cast: which root a charId resolves to, where a write to one lands (a copy under
+ * `/data` in a packaged build, the shipped folder itself in an unpackaged run), and what
  * "delete" means when her folder is content the build came with. `safeStorage` rides along
- * because a removal is recorded in `settings.json`, where the secrets live.
+ * because a removal is recorded in `settings.json`, where the secrets live. Both builds
+ * resolve under one temp root, so a case flips `packaged` and the folders stay put.
  */
 let root = ''
+let packaged = false
 
 vi.mock('electron', () => ({
-  app: { isPackaged: false, getAppPath: () => root, getPath: () => root },
+  app: {
+    get isPackaged() {
+      return packaged
+    },
+    getAppPath: () => root,
+    getPath: (name: string) => (name === 'exe' ? join(root, 'game.exe') : root)
+  },
   safeStorage: {
     isEncryptionAvailable: () => false,
     encryptString: (plain: string) => Buffer.from(plain),
@@ -40,28 +48,10 @@ async function seed(dir: string, charId: string, over: Partial<Character> = {}):
   )
 }
 
-/** The dev switch, hand-edited into a complete `settings.json` exactly as a dev puts it there. */
-async function enableEditPregens(): Promise<void> {
-  await settingsService.ensureDataDir()
-  const settings: Omit<Settings, 'apiKey'> = {
-    schemaVersion: 1,
-    apiProvider: 'gemini',
-    apiModel: defaultModelFor('gemini').id,
-    thinkingLevel: defaultModelFor('gemini').defaultThinkingLevel,
-    serviceTier: 'standard',
-    streamResponses: true,
-    comfyDeferred: false,
-    noNsfwImages: false,
-    lessNsfwText: false,
-    sfwAsked: false,
-    removedDefaults: [],
-    editPregens: true
-  }
-  await writeFile(paths.getSettingsPath(), JSON.stringify(settings), 'utf-8')
-}
-
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'dd-pregen-'))
+  packaged = false
+  Object.assign(process, { resourcesPath: root })
   // The listing is memoized for the run, so a fresh root needs a fresh read.
   paths.clearPregenCache()
 })
@@ -88,6 +78,17 @@ describe('which root a character lives under', () => {
       join(paths.getPregenCharactersPath(), SHIPPED, 'expressions', 'happy.png')
     )
   })
+
+  it('sends a shipped charId to her copy once a packaged build has one', async () => {
+    packaged = true
+    await seed(paths.getPregenCharactersPath(), SHIPPED)
+    await seed(paths.getCharactersPath(), SHIPPED)
+    paths.clearPregenCache()
+
+    expect(paths.hasShippedCopy(SHIPPED)).toBe(true)
+    expect(paths.getCharacterPath(SHIPPED)).toBe(join(paths.getCharactersPath(), SHIPPED))
+    expect(paths.isPregenChar(SHIPPED)).toBe(true)
+  })
 })
 
 describe('listing', () => {
@@ -111,23 +112,70 @@ describe('what may be done to a shipped character', () => {
     paths.clearPregenCache()
   })
 
-  it('refuses a write to one and allows a write to the player’s own', async () => {
-    await expect(characterService.writeCharacter(character({ charId: SHIPPED }))).rejects.toMatchObject(
-      { code: 'CHARACTER_READ_ONLY' }
+  it('writes to the shipped folder itself in an unpackaged run, and offers no reset', async () => {
+    await characterService.writeCharacter(character({ charId: SHIPPED, firstName: 'Edited' }))
+
+    expect(paths.listShippedCopies()).toEqual([])
+    await expect(readFile(join(paths.getPregenCharactersPath(), SHIPPED, 'character.json'), 'utf-8'))
+      .resolves.toContain('Edited')
+    await expect(characterService.resetDefault(SHIPPED)).rejects.toMatchObject({
+      code: 'CHARACTER_NOT_SHIPPED'
+    })
+  })
+
+  it('copies a shipped character out on her first edit in a packaged build', async () => {
+    packaged = true
+    const shippedFolder = join(paths.getPregenCharactersPath(), SHIPPED)
+    await mkdir(join(shippedFolder, 'expressions'), { recursive: true })
+    await writeFile(join(shippedFolder, 'expressions', 'neutral.png'), 'sprite-bytes')
+    const before = await readFile(join(shippedFolder, 'character.json'))
+
+    const written = await characterService.writeCharacter(
+      character({ charId: SHIPPED, firstName: 'Edited' })
     )
+
+    // The build's folder is untouched; the copy holds her record and the sprites beside it.
+    expect(await readFile(join(shippedFolder, 'character.json'))).toEqual(before)
+    const copy = join(paths.getCharactersPath(), SHIPPED)
+    expect(await readFile(join(copy, 'expressions', 'neutral.png'), 'utf-8')).toBe('sprite-bytes')
+    expect(paths.listShippedCopies()).toEqual([SHIPPED])
+    expect((await characterService.getCharacter(SHIPPED)).firstName).toBe('Edited')
+    expect((await characterService.getDefaultsStatus()).edited).toEqual([SHIPPED])
+
+    // She is listed once, in her shipped place, carrying the edit.
+    const listed = (await characterService.listCharacters()).filter((c) => c.charId === SHIPPED)
+    expect(listed).toHaveLength(1)
+    expect(listed[0].updatedAt).toBe(written.updatedAt)
+  })
+
+  it('goes back to the shipped record when a copy is reset', async () => {
+    packaged = true
+    await characterService.writeCharacter(character({ charId: SHIPPED, firstName: 'Edited' }))
+
+    const reset = await characterService.resetDefault(SHIPPED)
+
+    expect(reset.firstName).not.toBe('Edited')
+    expect(paths.listShippedCopies()).toEqual([])
+    await expect(readFile(join(paths.getCharactersPath(), SHIPPED, 'character.json'))).rejects
+      .toMatchObject({ code: 'ENOENT' })
+    // The next edit copies her afresh.
+    await characterService.writeCharacter(character({ charId: SHIPPED, firstName: 'Again' }))
+    expect((await characterService.getCharacter(SHIPPED)).firstName).toBe('Again')
+  })
+
+  it('keeps an edited copy when she is deleted, recording the removal', async () => {
+    packaged = true
+    await characterService.writeCharacter(character({ charId: SHIPPED, firstName: 'Edited' }))
+    await characterService.deleteCharacter(SHIPPED)
+
+    expect((await characterService.getCharacter(SHIPPED)).firstName).toBe('Edited')
+    expect((await settingsService.getSettings()).removedDefaults).toEqual([SHIPPED])
+  })
+
+  it('writes to the player’s own in either build', async () => {
     await expect(characterService.writeCharacter(character({ charId: OWN }))).resolves.toMatchObject(
       { charId: OWN }
     )
-  })
-
-  it('still records a removal rather than deleting while the dev switch is on', async () => {
-    // The one thing the switch does not unlock: `/assets` has no undo, and what
-    // deleting her means is a fact about her folder rather than a permission.
-    await enableEditPregens()
-    await characterService.deleteCharacter(SHIPPED)
-
-    await expect(characterService.getCharacter(SHIPPED)).resolves.toMatchObject({ charId: SHIPPED })
-    expect((await settingsService.getSettings()).removedDefaults).toEqual([SHIPPED])
   })
 
   it('records a removal instead of deleting the folder', async () => {

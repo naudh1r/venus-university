@@ -3,12 +3,26 @@ import {
   affectionFor,
   emptyFlags,
   foldRelationshipEvents,
+  observedUpperHalves,
   refreshedFlags,
-  withMemoryReplaced
+  withMemoryReplaced,
+  withBreakPenaltiesStepped,
+  withRomanceScenes
 } from '@shared/relationship'
 import { escapeRegExp } from '@shared/sentences'
 import { affectionsOf, type SceneSetup } from '@shared/sceneCreator'
 import type { GameReplays } from '@shared/replays'
+import { SAVE_SCHEMA_VERSION } from '@shared/saveRules'
+import { observedSecretTiers, withSecretTold } from '@shared/secrets'
+import { HAPPY_SPARKLE_CHANCE } from '@shared/odds'
+import { withFiredEvent } from '@shared/sceneEvents'
+import {
+  calendarOf,
+  charStateOf,
+  graduatesOf,
+  semesterOf,
+  type SemesterCalendar
+} from '@shared/semesters'
 import { displaySlotsOf, retireCgs } from './stageDisplay'
 import {
   chargeAbsences,
@@ -46,13 +60,19 @@ import {
   giftMemoryCapFor,
   giftMemoryDesc,
   giftReactionOf,
+  isMedicine,
   itemDefOf,
+  sameLine,
   withGiftMemory,
-  type GiftReaction
+  withItem,
+  withoutItem,
+  type GiftReaction,
+  type ItemPick
 } from '@shared/shop'
+import { canDose, withColdCaught, withDose } from '@shared/colds'
 import type { GameOverReason } from '@shared/gameOver'
 import type { Weather } from '@shared/weather'
-import { MAX_RAISES, newJobState, RAISE_EVERY } from '@shared/jobs'
+import { globalSlotOf, MAX_RAISES, newJobState, RAISE_EVERY } from '@shared/jobs'
 import type { ExamPeriod } from '@shared/academics'
 import type { DatingPassOutcome } from '@shared/dating'
 import type {
@@ -70,14 +90,17 @@ import {
   type BunnyboardState,
   type CalendarEvent,
   type CharMemory,
+  type ColdCase,
+  type ColdPass,
   type CrushHint,
   type ChatMessage,
+  type ReceivedGift,
   type RelationshipEvent,
+  type SceneEvent,
+  type SceneEventsFired,
   type Suspicion,
   type Character,
   type CharInfo,
-  type CharProfile,
-  type CharState,
   type ClassEntry,
   type ClassMeetingRecord,
   type FeedExtras,
@@ -95,7 +118,8 @@ import {
   type IntimateAct,
   type PlaythroughRecord,
   type JobState,
-  type Occasion,
+  type FormerJob,
+  type Transcript,
   type OwnedItem,
   type SceneGift,
   type ShiftSlot,
@@ -117,9 +141,6 @@ export { PORTRAIT_SLOTS }
 
 /** What a character is called before the reader has learned her name. */
 export const UNKNOWN_NAME = '???'
-
-/** How often the first happy expression of a turn throws sparkles off her. */
-const HAPPY_SPARKLE_CHANCE = 0.5
 
 /** Whether one first-happy-of-the-turn wins its sparkle. */
 function rollsSparkle(rand: () => number): boolean {
@@ -166,7 +187,8 @@ export type ReplayStayFields = Pick<
   | 'charInfo'
   | 'charKeyToId'
   | 'weather'
-  | 'occasions'
+  | 'calendar'
+  | 'semesterIndex'
 >
 
 /**
@@ -207,6 +229,12 @@ export interface SceneKind {
    * Absent means public.
    */
   inPublic?: boolean
+  /** The secret the scene's one girl tells in it, decided as she is cast. */
+  secret?: string | null
+  /** The curveball the scene opens on, rolled as it is cast. */
+  event?: SceneEvent | null
+  /** The present a girl brings him in it, rolled as it is cast. */
+  receivedGift?: ReceivedGift | null
 }
 
 /** The scene-kind facts a `set` writes onto the store, unpacked from one verdict. */
@@ -223,7 +251,10 @@ function sceneKindFields(scene: SceneKind | null | undefined) {
     sceneJobStats: [...(scene?.jobStats ?? [])],
     sceneMentions: [...(scene?.mentions ?? [])],
     sceneLocation: scene?.location ?? null,
-    sceneInPublic: scene?.inPublic ?? true
+    sceneInPublic: scene?.inPublic ?? true,
+    sceneSecret: scene?.secret ?? null,
+    sceneEvent: scene?.event ? { ...scene.event } : null,
+    sceneReceivedGift: scene?.receivedGift ? { ...scene.receivedGift } : null
   }
 }
 
@@ -243,8 +274,19 @@ interface GameStoreState {
   replaying: { over?: true } | null
   date: number
   time: TimeSlot
-  /** charIds loaded into the current save. */
+  /** The save's semester, a key of the record's semesters; null in the first. */
+  semesterId: string | null
+  /** Which semester of the playthrough the save is in, from 0. */
+  semesterIndex: number
+  /** The on-campus roster of the save's semester. */
   chars: string[]
+  /**
+   * Every girl who has graduated by this semester, oldest first: loaded and textable, never
+   * cast, scheduled or rolled for.
+   */
+  alumni: string[]
+  /** Who graduates at this semester's ceremony, in roster order (`graduatesOf`). */
+  graduating: string[]
   /** The reader's own name, chosen at New Game and fixed for the playthrough. */
   playerFirstName: string
   playerLastName: string
@@ -282,14 +324,18 @@ interface GameStoreState {
   bunnyboard: BunnyboardState
   /** Plans the reader has made, oldest first. Persisted. */
   events: CalendarEvent[]
-  /** The occasions this playthrough invented. Persisted; write-once at New Game. */
-  occasions: Occasion[]
+  /** The semester's season and the occasions it invented. Read off the record. */
+  calendar: SemesterCalendar
   /** The occasions he turned down an invitation to, or let one stand. Persisted. */
   occasionsDeclined: string[]
   /** The part-time job the reader holds, or null. One at a time. */
   job: JobState | null
-  /** Job ids he was fired from or quit; those employers never post again. */
+  /** Job ids he was fired from or quit; those employers do not post again this semester. */
   jobsClosed: string[]
+  /** Every employer he has left, by job id. Persisted. */
+  formerJobs: Record<string, FormerJob>
+  /** What the semesters before this one left on his record; null in the first. Persisted. */
+  transcript: Transcript | null
   /** The slots each all-hours employer is not offering this playthrough. */
   jobClosures: Record<string, ShiftSlot[]>
   /** Every slot's sky, read off the record and never rewritten. */
@@ -340,6 +386,8 @@ interface GameStoreState {
   outingSlots: Record<string, number>
   /** Who leaves campus for spring break, null until it is settled. Persisted. */
   springBreakAway: string[] | null
+  /** The graduate back in town for this fall's Homecoming, null until then or with none. Persisted. */
+  homecomingVisitor: string | null
   /** The feed items belonging to today alone, stamped with it. Persisted. */
   feedExtras: FeedExtras | null
   /** The graduation narration has played. Persisted. */
@@ -401,6 +449,18 @@ interface GameStoreState {
   sceneLocation: string | null
   /** The scene is somewhere people can see them — the witness roll's input. */
   sceneInPublic: boolean
+  /** The secret the scene's one girl tells in it; null when she tells none. */
+  sceneSecret: string | null
+  /** The curveball the scene opened on; null when it opened on none. */
+  sceneEvent: SceneEvent | null
+  /** The present a girl brings him in this scene; null when nobody does. */
+  sceneReceivedGift: ReceivedGift | null
+  /** When each scene event last fired this semester. Persisted. */
+  sceneEventsFired: SceneEventsFired
+  /** The reader's last cold this semester, kept once it is over; null before any. Persisted. */
+  readerCold: ColdCase | null
+  /** Every strain the reader has caught this semester. Persisted. */
+  readerColdsHad: number[]
   /** The gifts given so far in this scene, oldest first. */
   sceneGifts: SceneGift[]
   /** The exam being sat this slot, or null when the slot is an ordinary scene. */
@@ -467,6 +527,11 @@ interface GameStoreState {
    * modal wait on.
    */
   endingArtPending: boolean
+  /**
+   * The contacts' last posts are still being asked for — what Continue waits on, so the next
+   * semester carries them.
+   */
+  endingPostsPending: boolean
   /** True while a classifier or scene call is in flight. */
   busy: boolean
   /** True while a scene call may still append lines; distinct from `busy`. */
@@ -632,6 +697,7 @@ interface GameStoreState {
   /** Publishes the graduation picture, or takes it away on the way out. */
   setEndingArt: (url: string | null) => void
   setEndingArtPending: (pending: boolean) => void
+  setEndingPostsPending: (pending: boolean) => void
   /** Hands the screen the reader's own picture as an object URL, or clears it. */
   setProfilePicture: (url: string | null) => void
   /** Keeps the goodbye that just ended, for the log the menu reads it back from. */
@@ -690,7 +756,7 @@ interface GameStoreState {
   truncateUnread: () => void
   /**
    * Steps playback back to the previous line that says something, across the reader's own lines
-   * as far as the scene's first reply — onto his own lines too in a replay — putting the lines
+   * as far as the scene's first reply — in a replay as far as its first line — putting the lines
    * after it back on the queue and the stage back as it stood there. Returns false, changing
    * nothing, when there is no such line.
    */
@@ -769,11 +835,24 @@ interface GameStoreState {
    * stamping `repeat` from `charInfo` and earlier gifts this scene, and `at` where its action
    * will land on the transcript.
    */
-  giftItem: (charId: string, itemId: string) => GiftReaction
+  giftItem: (charId: string, pick: ItemPick) => GiftReaction
   /** Undoes the newest gift, putting the item back: its turn was abandoned. */
   ungiftItem: () => void
+  /** Puts the present a girl brought this scene in his inventory, once. */
+  receiveSceneGift: () => void
+  /** Files the scene's curveball as fired today — run once at the boundary. */
+  commitSceneEvent: () => void
   /** Folds this scene's gifts into `charInfo` — run once at the boundary. */
   recordGifts: () => void
+  /** Files the colds a finished slot passed on — run once at the boundary, and idempotent. */
+  applyColdPass: (pass: ColdPass) => void
+  /**
+   * The reader takes a dose of medicine off `pick`'s line, which ends his cold's stage from the
+   * next slot. False, changing nothing, while he has no symptoms or has already had one this slot.
+   */
+  takeMedicine: (pick: ItemPick) => boolean
+  /** Marks his boss as having texted him about this cold. */
+  markReaderBossTold: () => void
   /** Empties the scene's gift list at a scene boundary or a slot opening. */
   clearSceneGifts: () => void
   recordMemory: (charId: string, entry: CharMemory) => void
@@ -810,12 +889,30 @@ interface GameStoreState {
   refreshDerivedFlags: (charIds: readonly string[]) => void
   /** Files a crush the ending rolled for her. Latches — a second call is a no-op. */
   setCrush: (charId: string) => void
+  /**
+   * Steps every girl's new-crush and new-relationship scene count over the boundary, off the
+   * entries she crossed it with and who was cast.
+   */
+  stepRomanceScenes: (
+    before: Readonly<Record<string, CharInfo>>,
+    charIds: readonly string[]
+  ) => void
+  /** Steps the break penalty of every girl in `charIds`, the cast, over the boundary. */
+  stepBreakPenalties: (charIds: readonly string[]) => void
+  /** Records which upper halves of her tiers each girl is in, off her affection today. */
+  observeUpperHalves: () => void
+  /** Files the secret the scene's one girl told in it as told. */
+  tellSceneSecret: () => void
+  /** Marks every untold secret whose tier each girl stands in today as reached. */
+  observeSecretTiers: () => void
 
   /**
    * Appends one Bunnyboard message, creating the conversation on first use.
    * `unreadDelta` is 1 for a message that should light the badge, 0 otherwise.
    */
   appendChatMessage: (charId: string, message: ChatMessage, unreadDelta: number) => void
+  /** Takes one message out of a conversation by id; the unread count is left alone. */
+  removeChatMessage: (charId: string, messageId: string) => void
   /** The player opened the conversation — its unread count clears. */
   markConversationRead: (charId: string) => void
   /** Banks a texting turn's merged recap on the conversation. */
@@ -870,7 +967,10 @@ interface GameStoreState {
   markEventNoShow: (eventId: string, charIds: readonly string[]) => void
   /** Moves one plan to another slot — the one field of an event the player edits. */
   rescheduleEvent: (eventId: string, date: number, time: TimeSlot) => void
-  /** The reader was hired. `settledThrough` is the slot he accepted in. */
+  /**
+   * The reader was hired. `settledThrough` is the slot he accepted in. An employer he worked
+   * for before takes him back on the raises he left with and a clean record.
+   */
   takeJob: (jobId: string, shifts: readonly ShiftSlot[], settledThrough: number) => void
   /** Credits one worked shift and pays for it. Returns whether the streak just bought a raise. */
   recordShiftWorked: (slotId: number, pay: number) => boolean
@@ -878,8 +978,11 @@ interface GameStoreState {
   recordStrike: (slotId: number) => void
   /** The one setter for the rest of `JobState` — shifts, the excuse, the sweep's mark. */
   updateJob: (patch: Partial<JobState>) => void
-  /** Fired or quit: drops the job and closes that employer for the playthrough. */
-  endJob: () => void
+  /**
+   * Fired or quit: drops the job, files it among his former jobs and closes that employer for
+   * the semester — for good where he was fired.
+   */
+  endJob: (left: 'quit' | 'fired') => void
 
   /** Files one meeting of one class. Write-once per date: a replayed boundary is inert. */
   recordClassMeeting: (code: string, meeting: ClassMeetingRecord) => void
@@ -960,6 +1063,8 @@ interface GameStoreState {
   recordOutingSlots: (charIds: readonly string[], slotId: number) => void
   /** Files who leaves campus for spring break. One-way. */
   setSpringBreakAway: (charIds: readonly string[]) => void
+  /** Files the graduate back in town for Homecoming, or that nobody is. */
+  setHomecomingVisitor: (charId: string | null) => void
   /** Marks the graduation narration played, so a resumed epilogue skips it. */
   markGraduationSeen: () => void
   /** Spends one goodbye off the epilogue's menu. Idempotent. */
@@ -1051,27 +1156,8 @@ function patchConversation(
   }
 }
 
-/**
- * Every key of the settled half. A field added to `CharProfile` is a compile error until
- * it is listed here, which is what keeps it out of the save files.
- */
-const PROFILE_KEYS: Record<keyof CharProfile, true> = {
-  year: true,
-  dorm: true,
-  major: true,
-  schedule: true,
-  hiddenSchedule: true,
-  moodCycleOffset: true,
-  handle: true,
-  springBreakPlans: true
-}
-
-/** The half of one entry a save file carries: everything the record already holds, dropped. */
-function charStateOf(info: CharInfo): CharState {
-  const state = { ...info } as Record<string, unknown>
-  for (const key of Object.keys(PROFILE_KEYS)) delete state[key]
-  return state as unknown as CharState
-}
+/** The calendar a store holds before any semester is loaded: a spring with nothing invented. */
+const NO_CALENDAR: SemesterCalendar = calendarOf('spring', [])
 
 /** The entry for a charId the save has none for; the writers must survive one. */
 export function blankCharInfo(): CharInfo {
@@ -1087,21 +1173,9 @@ export function blankCharInfo(): CharInfo {
   }
 }
 
-/** The inventory with one more of `itemId`, appending a line if it holds none. */
-function addItem(inventory: readonly OwnedItem[], itemId: string): OwnedItem[] {
-  const held = inventory.find((entry) => entry.itemId === itemId)
-  if (!held) return [...inventory, { itemId, count: 1 }]
-  return inventory.map((entry) =>
-    entry.itemId === itemId ? { ...entry, count: entry.count + 1 } : entry
-  )
-}
-
-/** The inventory with one fewer of `itemId`; a line that reaches zero is dropped. */
-function removeItem(inventory: readonly OwnedItem[], itemId: string): OwnedItem[] {
-  return inventory.flatMap((entry) => {
-    if (entry.itemId !== itemId) return [entry]
-    return entry.count > 1 ? [{ ...entry, count: entry.count - 1 }] : []
-  })
+/** The inventory line a gift came off, so taking it back puts it where it was. */
+function pickOfGift(gift: SceneGift): ItemPick {
+  return { itemId: gift.itemId, ...(gift.from ? { from: { ...gift.from } } : {}) }
 }
 
 /** The blank stage: no background, no portraits, no sticky emotions. */
@@ -1211,7 +1285,7 @@ function giftsWithin(
   if (taken.length === 0) return {}
   return {
     sceneGifts: state.sceneGifts.filter((gift) => !cut(gift)),
-    inventory: taken.reduce((inventory, gift) => addItem(inventory, gift.itemId), state.inventory)
+    inventory: taken.reduce((inventory, gift) => withItem(inventory, pickOfGift(gift)), state.inventory)
   }
 }
 
@@ -1245,26 +1319,22 @@ function foldedStageOf(
 
 /**
  * What reaching the next pending line sets — popped and shown, its `bg` and actions applied, one
- * fewer beat ahead read — with the reader's lines in front of it logged and charged on the way.
- * In a replay his line is charged and then shown like any other. `landed` is false when only his
- * lines were left, and null means the queue was empty.
+ * fewer beat ahead read — with the reader's lines in front of it logged and charged on the way,
+ * a replay's as well. `landed` is false when only his lines were left, and null means the queue
+ * was empty.
  */
 function nextLineFields(
   state: GameStoreState
 ): { patch: Partial<GameStoreState>; landed: boolean } | null {
   if (state.pendingLines.length === 0) return null
 
-  // A rewind across the reader's line put it back on the queue: it is passed over unshown, and
-  // charged as the decision point before it was.
+  // The reader's line on the queue — a replay's, or one a rewind put back — is passed over
+  // unshown, and charged as the decision point before it was.
   let queue = state.pendingLines
   let sceneLog = state.sceneLog
   let absences = { offStage: state.offStage, departed: state.departed }
   const reader = (line: SceneLine | undefined): boolean => line?.speaker === READER_SPEAKER
-  if (state.replaying && reader(queue[0])) {
-    const charged = chargeAbsences(absences.offStage, absences.departed)
-    absences = { offStage: charged.offStage, departed: charged.departed }
-  }
-  while (!state.replaying && reader(queue[0])) {
+  while (reader(queue[0])) {
     const charged = chargeAbsences(absences.offStage, absences.departed)
     absences = { offStage: charged.offStage, departed: charged.departed }
     sceneLog = [...sceneLog, queue[0]]
@@ -1340,7 +1410,11 @@ const initialState = {
   replaying: null as { over?: true } | null,
   date: 0,
   time: 0 as TimeSlot,
+  semesterId: null as string | null,
+  semesterIndex: 0,
   chars: [] as string[],
+  alumni: [] as string[],
+  graduating: [] as string[],
   playerFirstName: DEFAULT_PLAYER_FIRST_NAME,
   playerLastName: DEFAULT_PLAYER_LAST_NAME,
   stats: DEFAULT_PLAYER_STATS,
@@ -1354,10 +1428,12 @@ const initialState = {
   replays: {} as GameReplays,
   bunnyboard: emptyBunnyboard(),
   events: [] as CalendarEvent[],
-  occasions: [] as Occasion[],
+  calendar: NO_CALENDAR,
   occasionsDeclined: [] as string[],
   job: null as JobState | null,
   jobsClosed: [] as string[],
+  formerJobs: {} as Record<string, FormerJob>,
+  transcript: null as Transcript | null,
   jobClosures: {} as Record<string, ShiftSlot[]>,
   weather: [] as Weather[],
   inventory: [] as OwnedItem[],
@@ -1386,6 +1462,7 @@ const initialState = {
   weekendOutings: {} as Record<string, number>,
   outingSlots: {} as Record<string, number>,
   springBreakAway: null as string[] | null,
+  homecomingVisitor: null as string | null,
   feedExtras: null as FeedExtras | null,
   graduationSeen: false,
   farewellsDone: [] as string[],
@@ -1406,6 +1483,12 @@ const initialState = {
   sceneMentions: [] as string[],
   sceneLocation: null as string | null,
   sceneInPublic: true,
+  sceneSecret: null as string | null,
+  sceneEvent: null as SceneEvent | null,
+  sceneReceivedGift: null as ReceivedGift | null,
+  sceneEventsFired: {} as SceneEventsFired,
+  readerCold: null as ColdCase | null,
+  readerColdsHad: [] as number[],
   sceneGifts: [] as SceneGift[],
   sceneQuiz: null as QuizState | null,
   currentSceneTranscript: [] as SceneLine[],
@@ -1422,6 +1505,7 @@ const initialState = {
   endingArt: null as string | null,
   profilePicture: null as string | null,
   endingArtPending: false,
+  endingPostsPending: false,
   farewellLog: [] as SceneLine[],
   busy: false,
   streaming: false,
@@ -1448,14 +1532,22 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   ...initialState,
   loads: 0,
 
-  loadSave: (save, record, characters) =>
+  loadSave: (save, record, characters) => {
+    // The record read as the semester the save is in; the services refuse a save whose
+    // semester the record does not hold.
+    const semester = semesterOf(record, save.semester)
     set({
       ...initialState,
       loads: get().loads + 1,
       playthroughId: save.playthroughId,
       date: save.date,
       time: save.time,
-      chars: record.chars,
+      semesterId: semester.id ?? null,
+      semesterIndex: semester.index,
+      chars: semester.chars,
+      // A graduate whose character is gone is left out, her save entry kept as it is.
+      alumni: semester.alumni.filter((charId) => characters[charId] !== undefined),
+      graduating: graduatesOf(semester),
       playerFirstName: record.playerFirstName,
       playerLastName: record.playerLastName,
       stats: save.stats,
@@ -1469,22 +1561,24 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       charInfo: Object.fromEntries(
         Object.entries(save.charInfo).map(([charId, state]) => [
           charId,
-          { ...blankCharInfo(), ...record.profiles[charId], ...state }
+          { ...blankCharInfo(), ...semester.profiles[charId], ...state }
         ])
       ),
-      classes: record.classes,
+      classes: semester.classes,
       playerSchedule: save.playerSchedule,
       history: save.history,
       // Younger than the save format: a save from before it keeps none.
       replays: save.replays ?? {},
       bunnyboard: save.bunnyboard,
       events: save.events,
-      occasions: record.occasions,
+      calendar: calendarOf(semester.season, semester.occasions),
       occasionsDeclined: save.occasionsDeclined ?? [],
       job: save.job,
       jobsClosed: save.jobsClosed,
-      jobClosures: record.jobClosures,
-      weather: record.weather,
+      formerJobs: save.formerJobs ?? {},
+      transcript: save.transcript ?? null,
+      jobClosures: semester.jobClosures,
+      weather: semester.weather,
       inventory: save.inventory,
       classRecords: save.classRecords,
       gradesStanding: save.gradesStanding,
@@ -1511,6 +1605,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       weekendOutings: save.weekendOutings,
       outingSlots: save.outingSlots,
       springBreakAway: save.springBreakAway,
+      homecomingVisitor: save.homecomingVisitor ?? null,
+      sceneEventsFired: save.sceneEventsFired ?? {},
+      readerCold: save.readerCold ?? null,
+      readerColdsHad: save.readerColdsHad ?? [],
       feedExtras: save.feedExtras,
       graduationSeen: save.graduationSeen,
       farewellsDone: save.farewellsDone,
@@ -1518,7 +1616,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       characters,
       charKeyToId: buildCharKeyToId(characters),
       ...freshStage()
-    }),
+    })
+  },
 
   loadCreatedScene: (scene, fields, characters) =>
     set({
@@ -1592,6 +1691,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   setEndingArt: (url) => set({ endingArt: url }),
 
   setEndingArtPending: (pending) => set({ endingArtPending: pending }),
+  setEndingPostsPending: (pending) => set({ endingPostsPending: pending }),
 
   setProfilePicture: (url) => set({ profilePicture: url }),
 
@@ -1656,6 +1756,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       ...(state.sceneLocation ? { location: state.sceneLocation } : {}),
       // Written only when *false*: absent is the classifier's own default.
       ...(state.sceneInPublic ? {} : { inPublic: false }),
+      ...(state.sceneSecret ? { secret: state.sceneSecret } : {}),
+      ...(state.sceneEvent ? { event: { ...state.sceneEvent } } : {}),
+      ...(state.sceneReceivedGift ? { receivedGift: { ...state.sceneReceivedGift } } : {}),
       ...(state.sceneGifts.length > 0 ? { gifts: state.sceneGifts.map((g) => ({ ...g })) } : {}),
       ...(state.sceneQuiz
         ? { quiz: { ...state.sceneQuiz, questions: state.sceneQuiz.questions.map((q) => ({ ...q })) } }
@@ -1811,8 +1914,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   rewindLine: () => {
     const state = get()
     const log = state.sceneLog
-    const replaying = state.replaying !== null
-    const target = rewindTargetOf(log, replaying)
+    const target = rewindTargetOf(log, state.replaying !== null)
     if (target === -1) return false
     const sceneLog = log.slice(0, target + 1)
     const stepped = log.slice(target + 1)
@@ -1822,12 +1924,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       currentLine: log[target],
       ...foldedStageOf(state, sceneLog),
       lineRewound: state.lineRewound + 1,
-      // The lines stepped back over were read, all but the reader's own counting outside a
-      // replay, where his are shown too, and so was the decision point if it was open.
-      reread:
-        state.reread +
-        (replaying ? stepped.length : nonReaderCount(stepped)) +
-        (state.awaitingInput ? 1 : 0)
+      // The lines stepped back over were read, all but the reader's own, and so was the decision
+      // point if it was open.
+      reread: state.reread + nonReaderCount(stepped) + (state.awaitingInput ? 1 : 0)
     })
     return true
   },
@@ -2053,30 +2152,57 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   buyItem: (itemId, price) =>
     set((state) => ({
-      inventory: addItem(state.inventory, itemId),
+      inventory: withItem(state.inventory, { itemId }),
       // No affordability check: buying past the debt floor ends the playthrough at the next
       // slot opening, or on the epilogue's next button.
       money: state.money - price
     })),
 
-  giftItem: (charId, itemId) => {
+  giftItem: (charId, pick) => {
     const state = get()
+    const { itemId } = pick
+    // Her own present going back to her lands badly, whatever she thinks of it.
+    const returned = pick.from?.charId === charId
+    const medicine = isMedicine(itemId)
+    // Medicine she can take for the cold she has, a dose the boundary files; one a slot at most.
+    const dose =
+      medicine &&
+      !state.sceneGifts.some((gift) => gift.charId === charId && gift.dose) &&
+      canDose(state.charInfo[charId]?.cold, globalSlotOf(state.date, state.time))
     // Stamped now: once the boundary has folded this gift into `charInfo`, the same question
-    // would answer yes about the gift itself.
+    // would answer yes about the gift itself. Medicine is never a repeat: a cold is new each time.
     const repeat =
-      (state.charInfo[charId]?.gifts ?? []).includes(itemId) ||
-      state.sceneGifts.some((gift) => gift.charId === charId && gift.itemId === itemId)
+      !medicine &&
+      ((state.charInfo[charId]?.gifts ?? []).includes(itemId) ||
+        state.sceneGifts.some((gift) => gift.charId === charId && gift.itemId === itemId))
     // The verdict is stamped here and nowhere else: the action line says it out loud.
     const item = itemDefOf(itemId)
-    const reaction: GiftReaction = item
-      ? giftReactionOf(item, state.characters[charId], repeat)
-      : 'neutral'
+    const tasted: GiftReaction = item ? giftReactionOf(item, state.characters[charId], repeat) : 'neutral'
+    // Medicine pleases a girl who is sick, whatever her taste, and nobody else.
+    const reaction: GiftReaction = returned
+      ? 'unimpressed'
+      : medicine
+        ? dose
+          ? tasted === 'loved'
+            ? 'loved'
+            : 'liked'
+          : 'neutral'
+        : tasted
     set({
-      inventory: removeItem(state.inventory, itemId),
+      inventory: withoutItem(state.inventory, pick),
       // The action that hands it over is the next line the transcript takes.
       sceneGifts: [
         ...state.sceneGifts,
-        { charId, itemId, repeat, reaction, at: state.currentSceneTranscript.length }
+        {
+          charId,
+          itemId,
+          repeat,
+          reaction,
+          at: state.currentSceneTranscript.length,
+          ...(pick.from ? { from: { ...pick.from } } : {}),
+          ...(returned ? { returned: true as const } : {}),
+          ...(dose ? { dose: true as const } : {})
+        }
       ]
     })
     return reaction
@@ -2087,15 +2213,36 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       const last = state.sceneGifts[state.sceneGifts.length - 1]
       if (!last) return {}
       return {
-        inventory: addItem(state.inventory, last.itemId),
+        inventory: withItem(state.inventory, pickOfGift(last)),
         sceneGifts: state.sceneGifts.slice(0, -1)
       }
+    }),
+
+  receiveSceneGift: () =>
+    set((state) => {
+      const gift = state.sceneReceivedGift
+      if (!gift || gift.delivered) return {}
+      return {
+        inventory: withItem(state.inventory, {
+          itemId: gift.itemId,
+          from: { charId: gift.charId, date: state.date }
+        }),
+        sceneReceivedGift: { ...gift, delivered: true }
+      }
+    }),
+
+  commitSceneEvent: () =>
+    set((state) => {
+      if (!state.sceneEvent) return {}
+      const fired = withFiredEvent(state.sceneEventsFired, state.sceneEvent.id, state.date)
+      return fired === state.sceneEventsFired ? {} : { sceneEventsFired: fired }
     }),
 
   recordGifts: () =>
     set((state) => {
       if (state.sceneGifts.length === 0) return {}
       const charInfo = { ...state.charInfo }
+      const slot = globalSlotOf(state.date, state.time)
       for (const gift of state.sceneGifts) {
         const existing = charInfo[gift.charId] ?? blankCharInfo()
         const item = itemDefOf(gift.itemId)
@@ -2105,19 +2252,54 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           ...existing,
           // Uncapped: the list never forgets a present.
           gifts: [...(existing.gifts ?? []), gift.itemId],
-          // Only what she was glad to get; a present that missed is not a grievance.
+          // Only what she was glad to get; a present that missed is not a grievance, and a dose of
+          // medicine is not a keepsake.
           giftMemories:
-            item && (reaction === 'loved' || reaction === 'liked')
+            item && !item.medicine && (reaction === 'loved' || reaction === 'liked')
               ? withGiftMemory(
                   existing.giftMemories ?? [],
                   { date: state.date, type: reaction, desc: giftMemoryDesc(item) },
                   giftMemoryCapFor(character)
                 )
-              : existing.giftMemories
+              : existing.giftMemories,
+          // The dose she took, which ends her cold's stage from the next slot.
+          ...(gift.dose && existing.cold ? { cold: withDose(existing.cold, slot) } : {})
         }
       }
       return { charInfo }
     }),
+
+  applyColdPass: (pass) =>
+    set((state) => {
+      const caught = Object.entries(pass.caught)
+      const charInfo = caught.length > 0 ? { ...state.charInfo } : state.charInfo
+      for (const [charId, cold] of caught) {
+        charInfo[charId] = withColdCaught(charInfo[charId] ?? blankCharInfo(), cold)
+      }
+      if (!pass.reader) return caught.length > 0 ? { charInfo } : {}
+      const reader = withColdCaught(
+        { cold: state.readerCold ?? undefined, coldsHad: state.readerColdsHad },
+        pass.reader
+      )
+      return { charInfo, readerCold: pass.reader, readerColdsHad: [...(reader.coldsHad ?? [])] }
+    }),
+
+  takeMedicine: (pick) => {
+    const state = get()
+    const slot = globalSlotOf(state.date, state.time)
+    const cold = state.readerCold
+    if (!cold || !isMedicine(pick.itemId) || !canDose(cold, slot)) return false
+    if (!state.inventory.some((entry) => sameLine(entry, pick))) return false
+    set({ inventory: withoutItem(state.inventory, pick), readerCold: withDose(cold, slot) })
+    return true
+  },
+
+  markReaderBossTold: () =>
+    set((state) =>
+      state.readerCold && !state.readerCold.bossTold
+        ? { readerCold: { ...state.readerCold, bossTold: true } }
+        : {}
+    ),
 
   clearSceneGifts: () => set({ sceneGifts: [] }),
 
@@ -2159,6 +2341,59 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         return { ...info, flags: { ...flags, hasCrush: true } }
       })
     ),
+
+  // The step lives in `shared/relationship`, shared with the ending's projection.
+  stepRomanceScenes: (before, charIds) =>
+    set((state) => {
+      const charInfo = withRomanceScenes(before, state.charInfo, charIds)
+      return charInfo === state.charInfo ? {} : { charInfo }
+    }),
+
+  // The step lives in `shared/relationship`, shared with the ending's projection.
+  stepBreakPenalties: (charIds) =>
+    set((state) => {
+      const charInfo = withBreakPenaltiesStepped(state.charInfo, charIds)
+      return charInfo === state.charInfo ? {} : { charInfo }
+    }),
+
+  observeUpperHalves: () =>
+    set((state) => {
+      let charInfo = state.charInfo
+      for (const charId of [...state.chars, ...state.alumni]) {
+        const info = charInfo[charId]
+        if (!info) continue
+        const affection = affectionFor(info, state.date, state.characters[charId])
+        const upperHalves = observedUpperHalves(info.upperHalves, affection)
+        // An entry nothing moved keeps its identity.
+        if (upperHalves === info.upperHalves) continue
+        if (charInfo === state.charInfo) charInfo = { ...charInfo }
+        charInfo[charId] = { ...info, upperHalves }
+      }
+      return charInfo === state.charInfo ? {} : { charInfo }
+    }),
+
+  // The move lives in `shared/secrets`, shared with the ending's projection.
+  tellSceneSecret: () =>
+    set((state) => {
+      const charInfo = withSecretTold(state.charInfo, state.cast, state.sceneSecret)
+      return charInfo === state.charInfo ? {} : { charInfo }
+    }),
+
+  observeSecretTiers: () =>
+    set((state) => {
+      let charInfo = state.charInfo
+      for (const charId of [...state.chars, ...state.alumni]) {
+        const info = charInfo[charId]
+        if (!info?.secrets) continue
+        const affection = affectionFor(info, state.date, state.characters[charId])
+        const secrets = observedSecretTiers(info.secrets, affection)
+        // An entry nothing moved keeps its identity.
+        if (secrets === info.secrets) continue
+        if (charInfo === state.charInfo) charInfo = { ...charInfo }
+        charInfo[charId] = { ...info, secrets }
+      }
+      return charInfo === state.charInfo ? {} : { charInfo }
+    }),
 
   setSuspicions: (charId, records) =>
     set((state) =>
@@ -2268,6 +2503,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         messages: [...chat.messages, message],
         unread: chat.unread + unreadDelta
       }))
+    ),
+
+  removeChatMessage: (charId, messageId) =>
+    set((state) =>
+      patchConversation(state, charId, (chat) =>
+        chat.messages.some((message) => message.id === messageId)
+          ? { ...chat, messages: chat.messages.filter((message) => message.id !== messageId) }
+          : null
+      )
     ),
 
   markConversationRead: (charId) =>
@@ -2492,7 +2736,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }),
 
   takeJob: (jobId, shifts, settledThrough) =>
-    set({ job: newJobState(jobId, [...shifts], settledThrough) }),
+    set((state) => ({
+      job: {
+        ...newJobState(jobId, [...shifts], settledThrough),
+        raises: state.formerJobs[jobId]?.raises ?? 0
+      }
+    })),
 
   recordShiftWorked: (slotId, pay) => {
     const { job, tallies } = get()
@@ -2539,12 +2788,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   updateJob: (patch) =>
     set((state) => (state.job ? { job: { ...state.job, ...patch } } : {})),
 
-  endJob: () =>
+  endJob: (left) =>
     set((state) => {
       if (!state.job) return {}
-      const { jobId } = state.job
+      const { jobId, raises } = state.job
       return {
         job: null,
+        formerJobs: { ...state.formerJobs, [jobId]: { raises, left } },
         jobsClosed: state.jobsClosed.includes(jobId)
           ? state.jobsClosed
           : [...state.jobsClosed, jobId]
@@ -2735,6 +2985,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   setSpringBreakAway: (charIds) => set({ springBreakAway: [...charIds] }),
 
+  setHomecomingVisitor: (charId) => set({ homecomingVisitor: charId }),
+
   markGraduationSeen: () => set({ graduationSeen: true }),
 
   markEndingArtWanted: () => set({ endingArtWanted: true }),
@@ -2787,7 +3039,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   toGameSave: () => {
     const state = get()
     return {
-      schemaVersion: 12 as const,
+      schemaVersion: SAVE_SCHEMA_VERSION,
+      ...(state.semesterId !== null ? { semester: state.semesterId } : {}),
       stats: state.stats,
       money: state.money,
       bio: state.bio,
@@ -2806,6 +3059,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       events: state.events,
       job: state.job,
       jobsClosed: state.jobsClosed,
+      ...(Object.keys(state.formerJobs).length > 0 ? { formerJobs: state.formerJobs } : {}),
+      ...(state.transcript ? { transcript: state.transcript } : {}),
       inventory: state.inventory,
       classRecords: state.classRecords,
       gradesStanding: state.gradesStanding,
@@ -2833,6 +3088,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       weekendOutings: state.weekendOutings,
       outingSlots: state.outingSlots,
       springBreakAway: state.springBreakAway,
+      ...(state.homecomingVisitor ? { homecomingVisitor: state.homecomingVisitor } : {}),
+      ...(Object.keys(state.sceneEventsFired).length > 0
+        ? { sceneEventsFired: state.sceneEventsFired }
+        : {}),
+      ...(state.readerCold ? { readerCold: state.readerCold } : {}),
+      ...(state.readerColdsHad.length > 0 ? { readerColdsHad: state.readerColdsHad } : {}),
       feedExtras: state.feedExtras,
       graduationSeen: state.graduationSeen,
       farewellsDone: state.farewellsDone,

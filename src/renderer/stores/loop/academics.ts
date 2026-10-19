@@ -52,8 +52,10 @@ export function classOutcomeNow(): StatContext['classOutcome'] {
   const game = useGameStore.getState()
   const entry = game.classes[enrolled]
   const attended = game.sceneClass === enrolled
+  // A meeting the professor called off teaches nothing and costs nothing.
+  if (attended && game.sceneEvent?.id === 'classCancelled') return null
 
-  if (entry && examOn(entry, game.date, game.occasions) !== null) {
+  if (entry && examOn(entry, game.date, game.calendar) !== null) {
     return kindOf(entry) === 'project' && attended
       ? { stat: 'heart', attended, showcase: true }
       : null
@@ -73,7 +75,7 @@ export function gradeOutcomeNow(): StatContext['gradeOutcome'] {
   if (!code) return null
   const entry = game.classes[code]
   if (!entry || !isCourse(entry)) return null
-  if (handbackDateOf(entry, game.occasions) !== game.date) return null
+  if (handbackDateOf(entry, game.calendar) !== game.date) return null
 
   const record = game.classRecords[code]
   const score = record?.midtermScore
@@ -130,7 +132,7 @@ function freezeDueScores(): void {
     if (!entry || !isCourse(entry)) continue
 
     for (const exam of EXAM_PERIODS) {
-      const examDate = examDateOf(entry, exam, game.occasions)
+      const examDate = examDateOf(entry, exam, game.calendar)
       if (examDate === null || examDate > game.date) continue
       // Due once the exam's slot has finished, not its date: the boundary runs before the clock
       // moves, so a night class is still sitting its paper at the end of the day slot.
@@ -154,7 +156,7 @@ function freezeDueScores(): void {
             present,
             correct: record?.[exam]?.correct ?? 0,
             asked: record?.[exam]?.asked ?? 0,
-            skipped: skippedFactMeetings(entry, examDate, record, state.occasions),
+            skipped: skippedFactMeetings(entry, examDate, record, state.calendar),
             brain: state.stats.brain,
             difficulty,
             exam
@@ -166,7 +168,7 @@ function freezeDueScores(): void {
       const showcase = {
         present,
         worked: workedOn(record, exam),
-        needed: projectPeriodOf(entry, examDate, state.occasions)?.needed ?? 1,
+        needed: projectPeriodOf(entry, examDate, state.calendar)?.needed ?? 1,
         brain: state.stats.brain,
         heart: state.stats.heart,
         difficulty,
@@ -232,7 +234,7 @@ export function settleGrades(): GradeNotices {
   const midtermsIn = classes.every(
     (entry) =>
       typeof scoreOf(entry, 'midterm') === 'number' &&
-      (handbackDateOf(entry, game.occasions) ?? Infinity) <= game.date
+      (handbackDateOf(entry, game.calendar) ?? Infinity) <= game.date
   )
   const saturday = game.date % 7 === 5
   if (midtermsIn && saturday && !game.midtermStandingDone) {
@@ -273,12 +275,15 @@ export function recordAcademics(ledger: LedgerResponse | null): void {
     })
   } else if (game.sceneClass) {
     const summary = ledger?.classSummary?.trim()
-    const factoid = ledger?.classFactoid?.trim()
+    // A meeting the professor called off is attended and taught nothing, so it asks no question.
+    const cancelled = game.sceneEvent?.id === 'classCancelled'
+    const factoid = cancelled ? undefined : ledger?.classFactoid?.trim()
     game.recordClassMeeting(game.sceneClass, {
       date,
       attended: true,
       ...(summary ? { summary } : {}),
-      ...(factoid ? { factoid } : {})
+      ...(factoid ? { factoid } : {}),
+      ...(cancelled ? { cancelled: true } : {})
     })
   }
 

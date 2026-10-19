@@ -98,7 +98,11 @@ export function slotFromId(id: number): { date: number; time: TimeSlot } {
 
 // ─── The catalog ───────────────────────────────────────────────────────────────
 
-/** The ten texts every boss can send. He never writes anything else. */
+/**
+ * The twelve texts every boss can send — `welcomeBack` in place of `intro` when he takes back
+ * a job he once held, and `coldNotice` once a cold, as it first keeps him off work. He never
+ * writes anything else.
+ */
 type CoreJobMessageKind =
   | 'intro'
   | 'raise'
@@ -110,12 +114,14 @@ type CoreJobMessageKind =
   | 'shiftChange'
   | 'sick1'
   | 'sick2'
+  | 'welcomeBack'
+  | 'coldNotice'
 
 /**
- * The core ten plus the two only a university employer sends: `holiday` for a campus closure
- * and `summer` for the last closure of the year, which lets him go.
+ * The core twelve plus the three only a university employer sends: `holiday` for a campus
+ * closure, and `summer` or `winter` for the last closure of a spring or a fall.
  */
-export type JobMessageKind = CoreJobMessageKind | 'holiday' | 'summer'
+export type JobMessageKind = CoreJobMessageKind | 'holiday' | 'summer' | 'winter'
 
 /** One opening on the jobs board. */
 export interface JobDef {
@@ -151,7 +157,7 @@ export interface JobDef {
   gains: readonly ShiftGain[]
   /**
    * An employer that keeps the university's calendar: a day an occasion closes campus
-   * cancels its shifts outright, and it owes a `holiday` and a `summer` text.
+   * cancels its shifts outright, and it owes a `holiday`, a `summer` and a `winter` text.
    */
   closesWithUniversity?: true
   /** One clause naming what he actually does, appended to a job action. */
@@ -161,7 +167,11 @@ export interface JobDef {
   /** The detail pane's job-ad prose. */
   description: string
   /** Every text this boss can send. */
-  messages: Record<CoreJobMessageKind, string> & { holiday?: string; summer?: string }
+  messages: Record<CoreJobMessageKind, string> & {
+    holiday?: string
+    summer?: string
+    winter?: string
+  }
 }
 
 /** Every opening in the game, in board order, which is pay order. */
@@ -196,6 +206,8 @@ Need cash? Apply now and start as early as the next hour!`,
       missed2: `Show the fuck up man. You're on two strikes now, ok? Ditch your shift another time and you're out.`,
       fired: `Come on man, really? You're fired.`,
       quit: `Aw man, I'll miss you bud. Take care.`,
+      welcomeBack: `Dale here! Look who's back, amigo. Same pay you left on and a clean slate, so take it easy on your first shift alright?`,
+      coldNotice: `Heads up amigo, there's a flu going around and half the crew is coughing on the fries. If you feel like crap don't come in, I'll cover your shifts. No strikes.`,
       shiftApproved: `Got your schedule request. Looks all good just keep in mind it doesn't kick in til sunday morning so show up to your regular shifts this week.`,
       shiftChange: `Okay your schedule change is good now.`,
       sick1: `Get well man, I'll find someone to cover no worries.`,
@@ -233,12 +245,15 @@ We are looking for applicants who can start immediately.`,
       missed2: `Yesterday marks your second unexcused absence. Another one and you will be relieved of your duties.`,
       fired: `Due to your third unexcused absence, your employment with the library has been terminated.`,
       quit: `Thank you for letting me know. I wish you best of luck with the rest of the semester.`,
+      welcomeBack: `Welcome back to Kendall Library. Your previous pay rate has been restored and your record starts fresh this semester. Please arrive a few minutes early for your first shift.`,
+      coldNotice: `A flu is going around campus, and several of our assistants have already called in. If you are feeling unwell, please stay home. I will excuse your shifts until you have recovered.`,
       shiftApproved: `Your schedule change has been approved. Please show up to your current assigned shifts until the reschedule goes into the system on Sunday morning.`,
       shiftChange: `Your schedule change is now in effect. Please mark the newly assigned shifts on your calendar this week.`,
       sick1: `Thanks for letting me know, please get some rest. I will file an excused absence for you.`,
       sick2: `I apologize, but I can only file one excused absence a semester for assistants. If you don't come in, it will count as an unexcused absence.`,
       holiday: `The university is closed today, so no need to come in for your shift. Enjoy the holiday.`,
-      summer: `The library is officially closed for summer break. Thank you for all your hard work this semester, I hope that you'll work with us again in the spring.`
+      summer: `The library is officially closed for summer break. Thank you for all your hard work this semester, I hope that you'll work with us again in the fall.`,
+      winter: `The library is officially closed for winter break. Thank you for all your hard work this semester, I hope that you'll work with us again in the spring.`
     }
   },
   {
@@ -268,6 +283,8 @@ We would love it if you could come in as soon as possible! Give Junie a call.`,
       missed2: `hey where were you? that's two strikes now... i really don't want to be weird about this but one more and i can't keep you on jsyk`,
       fired: `hey so yesterday was your third strike which means I have to let you go... sorry. take care of yourself okay?`,
       quit: `aw!! thanks for everything, seriously. come by as a customer okay! 🧋`,
+      welcomeBack: `omg you're back!!! 💕 same pay as before and we're starting fresh, see you at your first shift!! 🧋`,
+      coldNotice: `heyy just a heads up there's a flu going around 🤧 if you're feeling even a little bad pls don't come in!! i'll cover your shifts, just rest up 💕`,
       shiftApproved: `okok your schedule change is approved!! 💕 BUT it doesn't start until sunday morning, so PLEASE PLEASE don't forget to come to your old shifts 🙏`,
       shiftChange: `hey just a reminder that your new schedule's up don't forget 💕`,
       sick1: `oh nooo feel better!! don't even think about it, i've got today covered. rest!!`,
@@ -306,6 +323,8 @@ Flexible hours and start week. Employee discount. Apply in store or online.`,
       missed2: `Hey man, why didn't you show up? That's two write ups now. I'm not trying to be a hardass but corporate says three and you're out. Don't make me do that.`,
       fired: `That's a third write-up so I have to let you go. Sorry man. Come grab your last check from the office whenever.`,
       quit: `Alright, thanks for the heads up. Good luck with school.`,
+      welcomeBack: `Hey, Ollie from SpringMart. Good to have you back, I put you on your requested shifts at your old rate.`,
+      coldNotice: `Hey, Ollie here. There's a flu going around the store. If you're feeling bad don't come in, I'll get your shifts covered. No write-ups for it.`,
       shiftApproved: `Got your schedule change, it's approved. Starts sunday though so you're still on your old shifts this week.`,
       shiftChange: `New schedule's up on the board in the back. Don't go to your old shifts okay.`,
       sick1: `No worries, feel better. I'll get someone to cover.`,
@@ -342,12 +361,15 @@ Free gym access with the job. Can start immediately if needed.`,
       missed2: `Hey I can't keep you around if you don't show up. This is your second strike.`,
       fired: `Three strikes means you're out. Return your equipment by the end of next week.`,
       quit: `Sorry to see you go. Take care of yourself.`,
+      welcomeBack: `Vasse here. Welcome back, your spot's yours again at the same rate. Clean slate, so don't make me regret it.`,
+      coldNotice: `Vasse here. There's a flu going around the gym. If you're feeling bad, stay home. Nobody wants you sneezing on the equipment. Your shifts are covered.`,
       shiftApproved: `Schedule change approved. You still need to go to your current shifts until Sunday.`,
       shiftChange: `Your new schedule's up. Check the board in the equipment room for which gym you're in.`,
       sick1: `Thanks for not coming in sick. Hope you feel better.`,
       sick2: `I'm sorry but campus policy only allows one excused absence for student jobs. Try to make it if you can.`,
       holiday: `Campus is closed so the gyms are too. No shifts til we're back. Enjoy the break.`,
-      summer: `Facilities are closed for the summer so that's it for the semester. Thanks for all your work. Come find me in the fall if you want your spot back.`
+      summer: `Facilities are closed for the summer so that's it for the semester. Thanks for all your work. Come find me in the fall if you want your spot back.`,
+      winter: `Facilities are closed for winter break so that's it for the semester. Thanks for all your work. Come find me in the spring if you want your spot back.`
     }
   },
   {
@@ -380,12 +402,15 @@ We are looking for applicants who can start immediately.`,
       missed2: `This is your second unexcused absence. A third will end your position with the center.`,
       fired: `Following your third unexcused absence, your position with the Tutoring Center has been terminated, effective immediately. Your sessions have been reassigned.`,
       quit: `Thank you for letting me know. Best of luck with your future endeavors.`,
+      welcomeBack: `Hello again, this is Dr. Roque. Your tutoring account has been reactivated at your previous rate, and your record starts fresh this semester. Check the app for your bookings before every shift.`,
+      coldNotice: `Hello, this is Dr. Roque. There is a flu going around campus. If you are feeling unwell, please stay home, and I will reassign your sessions until you have recovered.`,
       shiftApproved: `Your schedule change has been approved. It will go into the app on Sunday. Please maintain your current schedule until then.`,
       shiftChange: `Your new schedule is now live in the app.`,
       sick1: `Please stay home and rest. I'll reassign your sessions for today.`,
       sick2: `I'm sorry, but I can only excuse one absence per semester. If you don't come in today I'll have to record it as unexcused.`,
       holiday: `The center is closed while the university is closed. You shouldn't have any appointments today, so enjoy the break.`,
-      summer: `The center is closed for the summer. Thank you for a great semester, your students clearly appreciated you. Your account will stay active if you'd like to return in the fall.`
+      summer: `The center is closed for the summer. Thank you for a great semester, your students clearly appreciated you. Your account will stay active if you'd like to return in the fall.`,
+      winter: `The center is closed for winter break. Thank you for a great semester, your students clearly appreciated you. Your account will stay active if you'd like to return in the spring.`
     }
   },
   {
@@ -421,6 +446,8 @@ Requirements: kitchen experience, good fitness, and quick thinking. We are looki
       missed2: `Do you want to be in my kitchen or not? This is your second strike.`,
       fired: `You're fired.`,
       quit: `Alright, good luck.`,
+      welcomeBack: `Welcome back to Lumiere. Your old rate stands. Bring your best.`,
+      coldNotice: `There is a flu going around. If you are sick, stay out of my kitchen until you are well. Your shifts are covered.`,
       shiftApproved: `Your new schedule is approved and will start Sunday. You're still on this week's service.`,
       shiftChange: `Don't forget that you have new shifts this week.`,
       sick1: `I guess it can't be helped. Don't come.`,
@@ -460,6 +487,8 @@ We're prioritizing people who can start immediately.`,
       missed2: `The bare minimum is to FUCKING BE HERE!! Try this shit again and you're OUT YOU HEAR ME`,
       fired: `I FUCKING WARNED YOU!!! Don't come in again asshole.`,
       quit: `Alright. No hard feelings. Take care.`,
+      welcomeBack: `Heyyy look who came back 😏 Same pay as before, hot stuff. Service elevator, wear black.`,
+      coldNotice: `Heads up, there's a flu going around the club. If you're feeling like shit don't bring it in here, I'll cover you. Get well hot stuff 😏`,
       shiftApproved: `New nights approved starting Sunday. SUNDAY, got it? You still come in to your current shifts until then.`,
       shiftChange: `Hey bud your new schedule's up, don't come in to your old times I'll make fun of you`,
       sick1: `Like hell you are. Whatever dude, I'll give you a pass this once.`,
@@ -659,6 +688,9 @@ export const NO_JOB_MESSAGE = "You don't have a job."
 
 /** The reader has a job, but is not rostered this slot. */
 export const NO_SHIFT_MESSAGE = "You're not scheduled to work right now."
+
+/** The reader has a job, but his cold keeps him off it. */
+export const NO_SHIFT_SICK_MESSAGE = "You're off work until you get over your cold."
 
 // ─── The settle pass ───────────────────────────────────────────────────────────
 

@@ -122,7 +122,7 @@ export function targetStat(stats) {
 
 /** What a landing chip is, off its tone class and its words. */
 export function chipKind(chip) {
-  if (chip.mod === 'idle') return 'filler'
+  if (chip.mod === 'idle') return /^Relax \(/.test(chip.text) ? 'relax' : 'filler'
   if (chip.mod === 'plans') return 'plan'
   if (chip.mod === 'work') return 'shift'
   if (chip.mod === 'class') return /^Work on .* project$/.test(chip.text) ? 'project' : 'class'

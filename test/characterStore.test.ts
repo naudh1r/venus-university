@@ -414,7 +414,9 @@ describe('missingContentPlan', () => {
       },
       rooms: { c1: presentMap(ROOM_VARIANTS, false) as Record<RoomVariant, boolean> },
       progress,
-      pregenIds: []
+      pregenIds: [],
+      editedDefaults: [],
+      defaultsInPlace: false
     }
   }
 
@@ -435,6 +437,14 @@ describe('missingContentPlan', () => {
     const written = roster({}, { customCgs: { customcg2: { tags: ['cowgirl_position'] } } })
     const plan = missingContentPlan(written, { ...OPEN, noNsfwImages: true })
     expect(plan.map((set) => set.target)).toEqual(['pe', 'swim', 'room'])
+  })
+
+  it('leaves a shipped character alone until she has an edited copy, or edits land in place', () => {
+    // A render writes to her folder, which would fork a default nobody has edited.
+    const shipped = { ...roster(), pregenIds: ['c1'] }
+    expect(missingContentPlan(shipped, OPEN)).toEqual([])
+    expect(missingContentPlan({ ...shipped, editedDefaults: ['c1'] }, OPEN)).not.toEqual([])
+    expect(missingContentPlan({ ...shipped, defaultsInPlace: true }, OPEN)).not.toEqual([])
   })
 
   it('queues a custom wardrobe she has tags for and never one she has not', () => {

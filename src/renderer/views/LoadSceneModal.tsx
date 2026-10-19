@@ -175,7 +175,7 @@ function SceneRow({
         <span className="vu-scene-load-text">
           <span className="vu-scene-load-name">{scene.name}</span>
           <span className="vu-scene-load-meta">
-            {formatWeekday(date).slice(0, 3)} {formatGameDate(date)} · {slotHalf(time)}
+            {formatWeekday(date).slice(0, 3)} {formatGameDate(date, 'spring')} · {slotHalf(time)}
             <HalfMarkIcon kind={halfMarkKindOf(weather, time === 1)} strokeWidth={2.5} still />
           </span>
           {dead && (

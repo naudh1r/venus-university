@@ -181,12 +181,12 @@ const HOOKS: readonly {
   },
   {
     file: 'src/renderer/views/BunnyboardModal.tsx',
-    needs: ['<PostPhoto '],
+    needs: ['<PostPicture '],
     why: 'a post whose picture failed has no frame saying so and nothing to reroll it with'
   },
   {
     file: 'src/renderer/views/NewGameView.tsx',
-    needs: ["postLikes(\n        { kind: 'winter'"],
+    needs: ["postLikes(\n              { kind: 'winter'"],
     why: 'her winter posts are liked by her roster friends alone, not by her following'
   },
   {
@@ -216,7 +216,7 @@ const HOOKS: readonly {
   },
   {
     file: 'src/renderer/views/BunnyboardModal.tsx',
-    needs: ['MessagePhotoBubble', 'messageId={message.id}', 'PhotoLightboxHost', 'PostComments'],
+    needs: ['MessagePhotoBubble', 'messageId={message.id}', 'PhotoLightboxHost', '<PostCommentsView'],
     why: 'nothing draws the picture on a text, on a post, or the replies under one'
   },
   {

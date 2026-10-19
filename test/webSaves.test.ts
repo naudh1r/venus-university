@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { IDBFactory } from 'fake-indexeddb'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { replayIdOf, type SlotReplay } from '@shared/replays'
-import { AUTOSAVE_ID, MAX_SLOT_SAVES, type SaveDraft } from '@shared/types'
+import { AUTOSAVE_ID, MAX_SLOT_SAVES, type SaveDraft, type SemesterRecord } from '@shared/types'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { enrollment, record } from './fixtures'
 
@@ -300,5 +300,64 @@ describe('replays', () => {
 
     expect(await replays.listReplayIds(first.playthroughId)).toEqual([])
     expect(await replays.listReplayIds(other.playthroughId)).toEqual([a])
+  })
+})
+
+describe('next semesters', () => {
+  /** A semester past the first, carrying nothing but its roster and the log it was given. */
+  function semester(over: Partial<SemesterRecord> = {}): SemesterRecord {
+    return {
+      index: 1,
+      chars: ['b'],
+      alumni: ['a'],
+      classes: {},
+      occasions: [],
+      jobClosures: {},
+      weather: [],
+      profiles: {},
+      before: { history: {}, playerSchedule: {}, events: [] },
+      ...over
+    }
+  }
+
+  it('never writes a record over a playthrough that has already begun', async () => {
+    const { save } = await saves.createPlaythrough(record(), draft())
+    await expect(
+      saves.createPlaythrough(record({ chars: ['x'] }), draft(), save.playthroughId)
+    ).rejects.toMatchObject({ code: 'PLAYTHROUGH_EXISTS' })
+    expect((await saves.readPlaythroughRecord(save.playthroughId)).chars).toEqual([])
+  })
+
+  it('adds the semester, writes its save and spends the registration in one write', async () => {
+    const { save } = await saves.createPlaythrough(record({ chars: ['a', 'b'] }), draft())
+    const playthroughId = save.playthroughId
+    await saves.renamePlaythrough(playthroughId, 'Mine')
+    await saves.writeEnrollment(enrollment({ chars: ['b'] }), playthroughId)
+    expect((await saves.listPlaythroughs())[0]).toMatchObject({ enrolling: true, chars: ['b'] })
+
+    const begun = await saves.continueSemester(playthroughId, '200', semester(), draft({ semester: '200' }))
+
+    expect(begun.record).toMatchObject({ name: 'Mine', semesters: { '200': { chars: ['b'] } } })
+    await expect(saves.readEnrollment(playthroughId)).rejects.toMatchObject({
+      code: 'ENROLLMENT_NOT_FOUND'
+    })
+    const [summary] = await saves.listPlaythroughs()
+    expect(summary).toMatchObject({ chars: ['b'], semesterIndex: 1, saveCount: 2 })
+    expect(summary.enrolling).toBeUndefined()
+  })
+
+  it('refuses a semester the record already holds, and spends its registration', async () => {
+    const { save } = await saves.createPlaythrough(record(), draft())
+    const playthroughId = save.playthroughId
+    await saves.continueSemester(playthroughId, '200', semester(), draft({ semester: '200' }))
+    await saves.writeEnrollment(enrollment(), playthroughId)
+
+    await expect(
+      saves.continueSemester(playthroughId, '200', semester({ chars: ['z'] }), draft())
+    ).rejects.toMatchObject({ code: 'SEMESTER_EXISTS' })
+    expect((await saves.readPlaythroughRecord(playthroughId)).semesters?.['200'].chars).toEqual(['b'])
+    await expect(saves.readEnrollment(playthroughId)).rejects.toMatchObject({
+      code: 'ENROLLMENT_NOT_FOUND'
+    })
   })
 })

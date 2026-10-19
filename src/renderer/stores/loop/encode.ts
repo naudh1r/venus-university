@@ -18,6 +18,19 @@ export function canvasToBlob(
   })
 }
 
+/**
+ * Encodes `canvas` as WebP at `quality`, or as `fallbackMime` where the browser answered some
+ * other type (a canvas that cannot encode WebP hands back a PNG).
+ */
+export async function canvasToWebpOr(
+  canvas: HTMLCanvasElement,
+  quality: number,
+  fallbackMime: string
+): Promise<Blob> {
+  const blob = await canvasToBlob(canvas, 'image/webp', quality)
+  return blob.type === 'image/webp' ? blob : canvasToBlob(canvas, fallbackMime, quality)
+}
+
 /** Reads a blob back as base64 with the `data:` prefix stripped. */
 export function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {

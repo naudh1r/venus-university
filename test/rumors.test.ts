@@ -53,6 +53,7 @@ function passInput(over: Partial<RumorPassInput> = {}): RumorPassInput {
     cast: [],
     departed: [],
     roster: [],
+    alumni: [],
     charInfo: {},
     npcRelationships: {},
     groupmates: {},

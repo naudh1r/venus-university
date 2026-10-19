@@ -1,12 +1,12 @@
 # Mods in this build
 
-This branch is a proposal for how the community mods share one build: every mod's code is
-always in the game, and a switch decides whether it acts. Players turn mods on and off from
-**Mods** on the main menu; nothing is chosen at install time.
+This is how the community mods share one build: every mod's code is always in the game, and a
+switch decides whether it acts. Players turn mods on and off from **Mods** on the main menu;
+nothing is chosen at install time.
 
-It carries no mods yet. This is the frame alone, on the game as Venus Dev released it (0.3.1),
-so any mod can start from it. The `extracurriculars-base` branch adds Continuing Semesters on
-top as a worked example.
+`core` is the frame alone, on the game from Venus Dev's public repository, so any mod can
+start from it.
+`main` is `core` with every mod, and each mod's own guide is in `docs/mods/`.
 
 ## The three things a mod does
 
@@ -154,15 +154,19 @@ else names it.
 | --- | --- | --- |
 | `prompts.dm` | `textingPrompt.ts` | Add lines to her DM prompt, and fields to its reply |
 | `prompts['slot-posts']` | `slotIntroPrompt.ts` | Add lines about status posts, and fields to each post |
+| `prompts['slot-reach-outs']` | `slotIntroPrompt.ts` | Add lines under a girl texting first, and fields to her entry |
 | `prompts.character` | `characterPrompt.ts` | Add lines and fields to character generation |
 | `dmHistoryNote` | `textingPrompt.ts` | Add a note after a DM in the history the prompt quotes |
 | `characterFromDraft` | `characterPrompt.ts` | Fill fields of a generated character from the reply |
 | `afterDmReply` | `textingLoop.ts` | Act after her reply in a DM has landed |
-| `playerActs` | `gameLoop.ts` (`submitAction`), `loop/hangouts.ts` | Act when the reader commits to something |
+| `afterReachOut` | `textingLoop.ts` | Act after the texts of a girl texting first have landed |
+| `playerActs` | `gameLoop.ts` (`submitAction`), `loop/hangouts.ts`, `loop/relax.ts` | Act when the reader commits to something: an action, a hangout begun, or Relax |
 | `gameEntered` | `gameLoop.ts` (`enterGame`) | Act when a game is entered, new or loaded |
 | `fileFeedPost` | `loop/feed.ts` | Change a slot post before it is filed, or file it later itself (`held`) |
 | `postLikes` | `loop/feed.ts`, `NewGameView.tsx` | Decide likes on ending, stranger and winter posts |
 | `postVisible` | `feedView.ts`, `loop/feed.ts`, `ContactPage.tsx` | Keep a post off the feed for now |
+| `postComments` | `BunnyboardModal.tsx` (`PostSpots.tsx`) | Draw the comments under a post and a control beside its like; one mod at a time |
+| `postPicture` | `BunnyboardModal.tsx` (`PostSpots.tsx`) | Draw a post's picture under its text |
 | `endingChoice` | `GameView.tsx` | Offer a way on from the ending, beside "Return to the main menu" |
 | `saveChoice` | `LoadGameModal.tsx` | Offer something for a picked save, beside "Load" |
 
@@ -215,11 +219,13 @@ Where a branch goes:
 
 - `core`: the mod system on the current game version, with no mods.
 - `mod/<name>`: one mod, built on `core`, looked after by its author.
+- `integrate/<name>`: the mod merged with `main`, where conflicts with other mods are settled;
+  its pull request goes into `main`.
 - `main`: what players get, assembled from `core` and every mod branch.
 
 ## Not decided yet
 
-- The build's name and version (`BUILD` in `mods.ts`).
+- The build's version numbering (`BUILD.version` in `mods.ts`).
 - Whether `data/mods.json` goes into the game's own backup; it does not today.
 - How a mod that patches the built code, rather than the source, reads its switch.
 
@@ -233,8 +239,22 @@ These hooks add to the existing API; existing hooks and their arguments are unch
 
 - `bunnyboardPage` registers an independently gated tab with `id`, `word`, `Mark` and `Page`. Disabling its mod unmounts the page and returns the phone to Chats. Native tab IDs cannot be replaced. Other screen integration remains direct.
 
+### Comments under posts
+
+The game keeps a post's comments (`comments` on `SocialPost`, shaped as `PostComment` in
+`shared/postComments.ts`) and moves them with the post through New Game+, but writes and draws
+none of its own. A mod that does registers `postComments`: only one draws them at a time, the
+first that is on in `MODS` order (`postCommentsOwner`), and a mod asks `ownsPostComments(id)`
+before writing any, so two mods never both ask the slot's opening for them. Its `claims` marks the
+comments only it writes; another mod drawing comments leaves those out, whether or not it is on.
+A mod adds its own fields to `PostComment` by declaration merging. `PostCommentsView`,
+`PostCommentAction` and `PostPicture` in `components/PostSpots.tsx` draw a post's spots in a
+mod's own screens too.
+
 ### Optional semester carryover
 
-A mod may augment `ModCarryFields` and register its own pure adapter with `registerTermCarry` in `shared/modCarry.ts`, imported by its entry in `shared/modEntries/`. A semester extension calls `carryModFields` with the outgoing semester, native date offset, and roster, and `carriedModFields` when creating the opening save. These adapters retain saved data even with a switch off; they must not trigger generation. The registry itself requires neither Continuing Semesters nor any feature mod.
+A mod may augment `ModCarryFields` and register its own pure adapter with `registerTermCarry` in `shared/modCarry.ts`, imported by its entry in `shared/modEntries/`. The game's New Game+ calls them: Continue reads every registered field off the ending's save (`modFieldsLeaving` in `renderer/stores/semesterModCarry.ts`, with the outgoing semester's index, the days its dates move back, and the characters) and keeps it on the carry beside the game's own, and the next semester's opening save takes it back in through `carriedModFields`. These adapters retain saved data even with a switch off; they must not trigger generation. The registry itself requires neither Continuing Semesters nor any feature mod.
 
-Files a mod keeps per playthrough outside the save (pictures, say) are carried the same way: `registerTermFiles(modId, async ({ from, to }) => …)` copies them from the finished playthrough's folder to the new one's, and the semester extension calls `carryModFiles({ from, to })` once the new playthrough is written, before it is entered. A copier runs with its mod's switch off too, and one that fails costs only its own files.
+Fields a mod adds to a feed post that hold a time (the last slot it answered, say) are carried by the mod too: New Game+ moves each post's own date back onto the next semester's clock, and `registerPostCarry(modId, (post, days) => …)` in `shared/modCarry.ts` moves the mod's fields back the same `days` (a global slot moves twice that). Like the adapters, it runs with the switch off.
+
+Files a mod keeps per playthrough outside the save (pictures, say) need nothing: New Game+ continues the same playthrough, so they stay where they are. `registerTermFiles(modId, async ({ from, to }) => …)` is kept for an extension that starts a new playthrough per semester, which calls `carryModFiles({ from, to })` once the new playthrough is written, before it is entered; the game itself never calls it. A copier runs with its mod's switch off too, and one that fails costs only its own files.

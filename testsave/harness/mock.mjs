@@ -340,11 +340,13 @@ function parseCast(user, castKeys) {
       firstMeeting: has(`^${F} and the reader are meeting (?:in person )?for the first time`),
       nameUnknown: has(`^The reader doesn't know ${F}'s name yet\\.`),
       crush:
-        has(`^${F} has a crush on the reader\\.`) ||
+        has(`^${F} (?:has|recently developed) a crush on the reader\\b`) ||
+        has(`^${F} and the reader have kissed but are not lovers yet\\. She has a crush on him`) ||
         has(`^${F} .*still has a crush on them\\.`) ||
         has(`^${F} and the reader are friends with benefits.*(?:make things official|wants to be his girlfriend)`),
       lover:
         has(`^${F} and the reader are lovers`) ||
+        has(`^${F} and the reader recently (?:became lovers|got back together)`) ||
         has(`^${F} is (?:thinking of )?breaking up with the reader`) ||
         has(`^${F} and the reader have broken up .*, but are lovers right now\\.`),
       kissed: has(`^${F} and the reader have kissed`),
@@ -352,7 +354,7 @@ function parseCast(user, castKeys) {
       disposition:
         body.match(
           new RegExp(
-            `^${F} (is devoted to|trusts|is friendly towards|doesn't particularly care about|is annoyed by|hates) the reader\\.$`,
+            `^${F} (is devoted to the reader|trusts the reader(?: deeply and (?:is appreciating him more and more|appreciates him))?|is (?:close )?friends with the reader and (?:is confiding in him more and more|confides in him)|is friendly towards the reader|is warming up to the reader|is on good terms with the reader|doesn't particularly care about the reader|is annoyed by the reader|hates the reader)\\.$`,
             'm'
           )
         )?.[1] ?? null,
@@ -1639,6 +1641,14 @@ const POSTS = {
   wet: ['rain again?? my umbrella has officially given up 😩', 'rainy days are for blankets and bad movies ☔']
 }
 
+/** A reach-out's texts, by the start of the topic phrase the prompt lists beside her key. */
+const REACH_OUT_TEXTS = [
+  ['checking in', ['heyyy', 'how are you doing today?']],
+  ['telling him some good news', ['omg guess what', 'i aced my presentation!! 🎉']],
+  ['telling him some bad news', ['ugh today sucks', 'my laptop died and took my essay with it 😭']],
+  ['asking him a question', ['random question', 'what have you been listening to lately?']]
+]
+
 const ENDING_POSTS = [
   'packing up my dorm and somehow i own twice as much stuff as i came with 📦',
   'last walk across the quad for a while. gonna miss this place 🥲',
@@ -1761,6 +1771,13 @@ function slotIntroReply(schema, user) {
       const other = note.match(/^he started dating (.+)$/)?.[1] ?? 'someone else'
       return { char: key, texts: [`i saw you with ${other}.`, 'honestly i thought we had something.', "we're done. don't text me."] }
     })
+  }
+  const reachers = keyRows(user, 'REACHING OUT')
+  if (reachers) {
+    values.reachOuts = reachers.map(({ key, note }) => ({
+      char: key,
+      texts: REACH_OUT_TEXTS.find(([topic]) => note.startsWith(topic))?.[1] ?? REACH_OUT_TEXTS[0][1]
+    }))
   }
   return { obj: inSchemaOrder(schema, values), date, time }
 }
@@ -1923,7 +1940,7 @@ async function handleChatCompletions(req, res) {
     } else if (schemaName === 'slot_intro') {
       const out = slotIntroReply(schema, userText)
       obj = out.obj
-      meta = { date: out.date, time: out.time, reply: { hangouts: obj.hangouts?.length ?? 0, posts: obj.posts?.length ?? 0, breakups: obj.breakups?.length ?? 0 } }
+      meta = { date: out.date, time: out.time, reply: { hangouts: obj.hangouts?.length ?? 0, posts: obj.posts?.length ?? 0, breakups: obj.breakups?.length ?? 0, reachOuts: obj.reachOuts?.length ?? 0 } }
     } else if (schemaName === 'exam_quiz') {
       obj = quizReply(userText)
       meta.reply = { questions: obj.questions.length }

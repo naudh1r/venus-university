@@ -7,23 +7,31 @@ const TONE_POLARITY: Partial<Record<TextMark['tone'], Polarity>> = {
 }
 
 /**
- * Assembles the sentence from its three parts rather than searching for the run afterwards, so
- * the offset can't drift from the wording: a reworded line and its mark are the same edit.
+ * Assembles the sentence from its parts rather than searching for the runs afterwards, so the
+ * offsets can't drift from the wording: a reworded line and its marks are the same edit. Every
+ * odd-numbered segment is a run, all of them in `tone`.
  */
+export function markedRuns(segments: readonly string[], tone: TextMark['tone']): SceneLine {
+  const marks: TextMark[] = []
+  let at = 0
+  segments.forEach((segment, i) => {
+    if (i % 2 === 1) marks.push({ start: at, end: at + segment.length, tone })
+    at += segment.length
+  })
+  const polarity = TONE_POLARITY[tone]
+  return {
+    speaker: '',
+    text: segments.join(''),
+    status: { marks, ...(polarity ? { polarity } : {}) }
+  }
+}
+
+/** {@link markedRuns} with the one run between `before` and `after`. */
 export function markedLine(
   before: string,
   run: string,
   after: string,
   tone: TextMark['tone']
 ): SceneLine {
-  const start = before.length
-  const polarity = TONE_POLARITY[tone]
-  return {
-    speaker: '',
-    text: `${before}${run}${after}`,
-    status: {
-      marks: [{ start, end: start + run.length, tone }],
-      ...(polarity ? { polarity } : {})
-    }
-  }
+  return markedRuns([before, run, after], tone)
 }

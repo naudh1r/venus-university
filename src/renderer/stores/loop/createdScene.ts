@@ -110,7 +110,7 @@ function defaultSceneName(
     const name = characters[entry.charId]?.firstName
     return name ? [name] : []
   })
-  const when = formatGameDate(setup.date)
+  const when = formatGameDate(setup.date, 'spring')
   return sceneNameOf(names.length > 0 ? `${andList(names)}, ${when}` : when)
 }
 

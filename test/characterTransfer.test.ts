@@ -2,8 +2,10 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { unzipSync } from 'fflate'
+import sharp from 'sharp'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EMOTIONS } from '@shared/emotions'
+import { imageTypeOf } from '@shared/imageBytes'
 import type { AppError, Character } from '@shared/types'
 import { character } from './fixtures'
 
@@ -268,6 +270,30 @@ describe('importCharacter', () => {
     expect(await readFile(join(getCharacterCgsPath(imported.charId), 'sex.webp'))).toEqual(
       Buffer.from(WEBP_BYTES)
     )
+  })
+
+  it("keeps an older package's PNG pictures as WebP, her base frame losslessly", async () => {
+    const picture = await sharp({
+      create: { width: 8, height: 8, channels: 4, background: { r: 200, g: 40, b: 90, alpha: 0.5 } }
+    })
+      .png()
+      .toBuffer()
+    const archive = await zipOf('older', async (dir) => {
+      await writeFile(join(dir, 'character.json'), JSON.stringify(portableCharacter()))
+      await writeFile(join(dir, MANIFEST_NAME), JSON.stringify(manifest()))
+      await mkdir(join(dir, 'expressions'), { recursive: true })
+      await writeFile(join(dir, 'expressions', 'happy.png'), picture)
+      await writeFile(join(dir, 'expressions', 'neutral.base.png'), picture)
+    })
+
+    const imported = await importCharacter(archive)
+
+    const sprites = getCharacterExpressionsPath(imported.charId)
+    expect((await readdir(sprites)).sort()).toEqual(['happy.webp', 'neutral.base.webp'])
+    expect(imageTypeOf(await readFile(join(sprites, 'happy.webp')))).toBe('image/webp')
+    // The base frame is read back by every later render, so it arrives losslessly.
+    const base = await readFile(join(sprites, 'neutral.base.webp'))
+    expect(base.subarray(12, 16).toString('latin1')).toBe('VP8L')
   })
 
   it('keeps neither the manifest nor a staged set the archive carried', async () => {

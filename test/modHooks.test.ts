@@ -136,3 +136,28 @@ describe('preparing a way on', () => {
     expect(await ready).toBeNull()
   })
 })
+
+describe('post comments', () => {
+  const comment = (id: string, mine?: boolean) =>
+    ({ id, handle: 'h', emoji: '', text: 'hi', at: 0, ...(mine ? { mine } : {}) }) as never
+  const View = () => null
+
+  it('are drawn by the first mod on that draws them, without what another mod claims', async () => {
+    const on = { threads: true, plain: true }
+    const hooks = await fresh(on, ['plain', 'threads'])
+    hooks.registerHooks('threads', {
+      postComments: { View, claims: (c) => (c as { mine?: boolean }).mine === true }
+    })
+    hooks.registerHooks('plain', { postComments: { View } })
+    const all = [comment('a'), comment('b', true)]
+
+    expect(hooks.postCommentsOwner()?.modId).toBe('plain')
+    expect(hooks.ownsPostComments('threads')).toBe(false)
+    // The other mod's comments stay out while it is not drawing them, on or off.
+    expect(hooks.ownedComments(all, 'plain').map((c: { id: string }) => c.id)).toEqual(['a'])
+    expect(hooks.ownedComments(all, 'threads')).toHaveLength(2)
+
+    on.plain = false
+    expect(hooks.postCommentsOwner()?.modId).toBe('threads')
+  })
+})

@@ -1,24 +1,13 @@
 import type { Disposition } from '@shared/relationship'
 import { markedLine } from '@shared/statusMark'
-import type { SceneLine, TimeSlot } from '@shared/types'
+import type { SceneLine, Season, TimeSlot } from '@shared/types'
 import { formatDatePart, formatGameDate } from './gameDate'
-import { FINALS_WEEK, GRADUATION_DATE, SUMMER_VACATION } from './occasions'
+import { FINALS_WEEK, GRADUATION_DATE } from './occasions'
 
 /**
  * The end of the semester: the last fortnight's dates, and every sentence said about a
  * term running out.
  */
-
-/**
- * The Monday summer vacation's own week starts, which is what the NPC-relationship
- * outing roll reads.
- */
-const SUMMER_BREAK_START = SUMMER_VACATION.startDate + 2
-
-/** Whether `date` is one of the empty weekdays after finals. */
-export function isSummerOutingWeek(date: number): boolean {
-  return date >= SUMMER_BREAK_START && date <= SUMMER_VACATION.endDate
-}
 
 /** Graduation morning — the slot the game ends in. */
 export function isGraduationSlot(date: number, time: TimeSlot): boolean {
@@ -38,13 +27,24 @@ export function isEpilogueNight(
 }
 
 /**
- * The one thing a cast member says about the end of term, from the Monday of finals week to
- * the day before the ceremony.
+ * What a cast member's lines say about the end of term: that she graduates at it, all semester
+ * long where she does, and from the Monday of finals week to the day before the ceremony, that
+ * she is staying for it.
  */
-export function graduationCastLines(firstName: string, date: number): string[] {
-  if (date < FINALS_WEEK.startDate || date >= GRADUATION_DATE) return []
+export function graduationCastLines(
+  firstName: string,
+  date: number,
+  season: Season,
+  graduating: boolean
+): string[] {
+  const ceremony = formatDatePart(GRADUATION_DATE, season)
+  const lines = graduating
+    ? [`${firstName} graduates at the end of this semester, at the ceremony on ${ceremony}.`]
+    : []
+  if (date < FINALS_WEEK.startDate || date >= GRADUATION_DATE) return lines
   return [
-    `${firstName} isn't leaving campus until after the graduation ceremony on ${formatDatePart(GRADUATION_DATE)}.`
+    ...lines,
+    `${firstName} isn't leaving campus until after the graduation ceremony on ${ceremony}.`
   ]
 }
 
@@ -57,13 +57,19 @@ function graduateList(names: readonly string[]): string {
 
 /**
  * The scripted graduation morning, one line per click — the arrival scroll's bookend, with `bg`
- * named only where the camera moves.
+ * named only where the camera moves. A fall's ceremony is under a tent, and on the reader's own
+ * graduation he crosses the stage too.
  */
-export function graduationScrollLines(seniors: readonly string[]): SceneLine[] {
-  return [
+export function graduationScrollLines(
+  graduates: readonly string[],
+  season: Season,
+  readerGraduates: boolean
+): SceneLine[] {
+  const fall = season === 'fall'
+  const lines: { bg?: string; text: string }[] = [
     {
       bg: 'lowrise_dorm_room',
-      text: `${formatDatePart(GRADUATION_DATE)}. You wake up in an empty room, all of your stuff packed in neat little boxes.`
+      text: `${formatDatePart(GRADUATION_DATE, season)}. You wake up in an empty room, all of your stuff packed in neat little boxes.`
     },
     {
       bg: 'campus_road',
@@ -71,32 +77,48 @@ export function graduationScrollLines(seniors: readonly string[]): SceneLine[] {
     },
     {
       bg: 'quad',
-      text: `You follow the Gold road to the quad, which has been turned into a makeshift amphitheater overnight, filled with white folding chairs shaded by trees.`
+      text: fall
+        ? `You follow the Gold road to the quad, where heaters have been set up near the rows of folding chairs to combat the colder weather.`
+        : `You follow the Gold road to the quad, which has been turned into a makeshift amphitheater overnight, filled with white folding chairs shaded by trees.`
     },
     {
-      text: `You find a seat near the back. For hours, black-gowned students filter up on stage to get a handshake and a little piece of paper.`
+      text: readerGraduates
+        ? `You take your seat among the black-gowned graduates. For hours, they filter up on stage one by one to get a handshake and a little piece of paper.`
+        : `You find a seat near the back. For hours, black-gowned students filter up on stage to get a handshake and a little piece of paper.`
     },
     {
       text:
-        seniors.length > 0
-          ? `You sit patiently, waving when you see ${graduateList(seniors)} get on stage to receive their diploma.`
+        graduates.length > 0
+          ? `You sit patiently, waving when you see ${graduateList(graduates)} get on stage to receive their diploma.`
           : `You sit patiently through a long procession of names you have never heard, clapping along with everybody else as each one crosses the stage.`
     },
+    ...(readerGraduates
+      ? [{ text: `Then they call your name, and you cross the stage for a little piece of paper of your own.` }]
+      : []),
     {
-      text: `This year's graduation speech is by some tech CEO warning that AI could end the world, followed up by Thorne cracking a few jokes in poor taste afterwards.`
+      text: fall
+        ? `The fall graduation speech is by some alumna who founded a dating app, followed up by Thorne cracking a few jokes in poor taste afterwards.`
+        : `This year's graduation speech is by some tech CEO warning that AI could end the world, followed up by Thorne cracking a few jokes in poor taste afterwards.`
     },
     {
-      text: `Finally, the caps go up, and the after-ceremony begins: hugs, laughter, weeping, the whole shebang. You know the deal.`
+      text: readerGraduates
+        ? `Finally, the caps go up, yours among them, and the after-ceremony begins: hugs, laughter, weeping, the whole shebang.`
+        : `Finally, the caps go up, and the after-ceremony begins: hugs, laughter, weeping, the whole shebang. You know the deal.`
     },
     {
       bg: 'campus_road',
-      text: `You head home. With that, the semester is finally over. Some are leaving campus sooner, some later.`
+      text: readerGraduates
+        ? `You head home. With that, your time at Venus University is over. Some are leaving campus sooner, some later.`
+        : `You head home. With that, the semester is finally over. Some are leaving campus sooner, some later.`
     },
     {
       bg: 'lowrise_dorm_room',
-      text: `Over the next few days, you say your final goodbyes to your friends before heading home yourself.`
+      text: readerGraduates
+        ? `Over the next few days, you say your final goodbyes to your friends before leaving Veridan yourself.`
+        : `Over the next few days, you say your final goodbyes to your friends before heading home yourself.`
     }
-  ].map((line) => ({ speaker: '', ...line }))
+  ]
+  return lines.map((line) => ({ speaker: '', ...line }))
 }
 
 /**
@@ -107,13 +129,17 @@ export function farewellAction(firstName: string): string {
   return `The reader is saying goodbye to ${firstName} some time after graduation day.`
 }
 
-/** The two `NOW` lines a goodbye scene replaces the date banner and the semester line with. */
-export function farewellNowLines(firstName: string, senior: boolean): string[] {
+/**
+ * The two `NOW` lines a goodbye scene replaces the date banner and the semester line with;
+ * `forAWhile` where one of them is graduating, so no vacation brings them back.
+ */
+export function farewellNowLines(firstName: string, forAWhile: boolean, season: Season): string[] {
+  const vacation = season === 'spring' ? 'summer vacation' : 'winter vacation'
   return [
-    `An unspecified night a few days after ${formatGameDate(GRADUATION_DATE)}, graduation day...`,
-    senior
+    `An unspecified night a few days after ${formatGameDate(GRADUATION_DATE, season)}, graduation day...`,
+    forAWhile
       ? `This is the last time that the reader will be seeing ${firstName} for a while.`
-      : `This is the last time the reader will be seeing ${firstName} until after summer vacation.`
+      : `This is the last time the reader will be seeing ${firstName} until after ${vacation}.`
   ]
 }
 

@@ -18,10 +18,11 @@ export const SETTINGS_SCHEMA_VERSION = 1
 
 /**
  * What the settings must carry; the three keys, the custom endpoint's URL, model ids, effort and
- * reply cap, its images URL and model, the three dev switches, the two hand-edited call switches, the hand-edited ComfyUI
- * build, Gemini's secondary model, the group volumes, the browser
- * build's key-remembering, the sampling fields, the memory budgets and the custom scene
- * persona are all optional.
+ * reply cap, its images URL and model, the two dev switches, the service tier, the
+ * hand-edited stream switch, the hand-edited ComfyUI build, which ComfyUI draws with its URL
+ * and both sources' model picks and LoRA weights, Gemini's secondary model, the group
+ * volumes, the browser build's key-remembering, the sampling fields, the memory and secret
+ * budgets and the custom scene persona are all optional.
  */
 const SETTINGS_REQUIRED: Record<
   keyof Omit<
@@ -37,11 +38,16 @@ const SETTINGS_REQUIRED: Record<
     | 'imageEndpointUrl'
     | 'imageModel'
     | 'freezeSeeds'
-    | 'editPregens'
     | 'forceTime'
     | 'serviceTier'
     | 'streamResponses'
     | 'comfyGpu'
+    | 'comfySource'
+    | 'comfyUrl'
+    | 'comfyModels'
+    | 'comfyExternalModels'
+    | 'comfyLoraWeight'
+    | 'comfyExternalLoraWeight'
     | 'checkUpdates'
     | 'fullscreen'
     | 'warnEndingInterrupt'
@@ -57,6 +63,7 @@ const SETTINGS_REQUIRED: Record<
     | 'topP'
     | 'topK'
     | 'memoryBudgets'
+    | 'secretBudget'
     | 'scenePersona'
   >,
   true
@@ -104,7 +111,8 @@ export function upgradeSettings<T extends UpgradeFields>(
 ): { settings: T; upgraded: boolean } {
   const endpoint = upgradeEndpointModels(settings)
   const sound = upgradeNsfwSound(endpoint)
-  return { settings: sound, upgraded: sound !== settings }
+  const cast = upgradeCastSwitch(sound)
+  return { settings: cast, upgraded: cast !== settings }
 }
 
 /**
@@ -134,6 +142,16 @@ function upgradeNsfwSound<T extends UpgradeFields>(settings: T): T {
   return { ...rest, volumes: { ...volumesOf(settings.volumes), nsfw: 0 } } as T
 }
 
+/**
+ * The retired switch that let the shipped cast be written in place dropped, whatever it held:
+ * every build edits her now, and what the switch once wrote is the boot's cast check to find.
+ */
+function upgradeCastSwitch<T extends UpgradeFields>(settings: T): T {
+  if (!('editPregens' in settings)) return settings
+  const { editPregens: _retired, ...rest } = settings as T & { editPregens?: unknown }
+  return rest as T
+}
+
 /** Raised when the settings are there but cannot be read. */
 export const SETTINGS_UNREADABLE = {
   code: 'SETTINGS_UNREADABLE',
@@ -153,11 +171,11 @@ export function defaultSettings(): Settings {
     // absent beside it, which is what routes the default set (`DEFAULT_SECONDARY_KINDS`)
     // until the panel says otherwise.
     secondaryModel: defaultSecondaryModelFor('gemini').id,
-    // `serviceTier`, `streamResponses`, `comfyGpu`, `updateAsVersion` and `updateFeed` are
-    // deliberately absent: they are hand-edited switches, and absent is what resolves to
-    // priority, to streaming on, to whichever GPU vendor the machine reports and to the real
-    // build on itch.io. `checkUpdates` is absent too, and absent is offering, as is `fullscreen`,
-    // absent being fullscreen.
+    // `streamResponses`, `comfyGpu`, `updateAsVersion` and `updateFeed` are deliberately
+    // absent: they are hand-edited switches, and absent is what resolves to streaming on, to
+    // whichever GPU vendor the machine reports and to the real build on itch.io. `serviceTier`
+    // is absent too, and absent is priority; so is `checkUpdates`, absent being offering, and
+    // `fullscreen`, absent being fullscreen.
     comfyDeferred: false,
     // Nothing is withheld until the player says so; an unanswered `sfwAsked` raises the question.
     noNsfwImages: false,
@@ -385,10 +403,20 @@ export function mergePatch(current: Settings, patch: SettingsPatch): Settings {
     maxOutputTokens: patch.maxOutputTokens,
     imageEndpointUrl: patch.imageEndpointUrl,
     imageModel: patch.imageModel,
-    // `serviceTier`, `streamResponses`, `comfyGpu`, `updateAsVersion` and `updateFeed` are not
-    // the renderer's to send: `...current` is what carries whatever is stored, so a hand-edited
-    // switch survives every save.
+    // Absent stays absent, and absent is priority.
+    serviceTier: patch.serviceTier,
+    // `streamResponses`, `comfyGpu`, `updateAsVersion` and `updateFeed` are not the renderer's
+    // to send: `...current` is what carries whatever is stored, so a hand-edited switch survives
+    // every save.
     comfyDeferred: patch.comfyDeferred,
+    // Absent stays absent, and absent is the app's own ComfyUI, the default URL, the shipped
+    // models and the default LoRA weight.
+    comfySource: patch.comfySource,
+    comfyUrl: patch.comfyUrl,
+    comfyModels: patch.comfyModels,
+    comfyExternalModels: patch.comfyExternalModels,
+    comfyLoraWeight: patch.comfyLoraWeight,
+    comfyExternalLoraWeight: patch.comfyExternalLoraWeight,
     // Absent stays absent, and absent is offering.
     checkUpdates: patch.checkUpdates,
     // Absent stays absent, and absent is fullscreen.
@@ -410,18 +438,29 @@ export function mergePatch(current: Settings, patch: SettingsPatch): Settings {
     topK: patch.topK,
     // Absent stays absent, and absent is the default budgets.
     memoryBudgets: patch.memoryBudgets,
+    secretBudget: patch.secretBudget,
     // Absent stays absent, and absent is the shipped persona.
     scenePersona: patch.scenePersona,
     ...secretsAfter(current, patch)
   }
 }
 
+/** The ComfyUI fields, which name a server and files on one machine and so stay its own. */
+const COMFY_FIELDS = [
+  'comfySource',
+  'comfyUrl',
+  'comfyModels',
+  'comfyExternalModels',
+  'comfyLoraWeight',
+  'comfyExternalLoraWeight'
+] as const
+
 /**
  * The settings a restore leaves behind: the backup's, checked as the stored settings are and
  * brought up to this build, merged over `current` as a renderer patch is — so the keys, the dev
- * switches and the hand-edited switches stay the install's, as does whether the browser keeps
- * keys at all — with the roster's removals the backup's. Refuses with `malformed` before
- * anything is written.
+ * switches and the hand-edited switches stay the install's, as do whether the browser keeps
+ * keys at all and which ComfyUI draws with what — with the roster's removals the backup's.
+ * Refuses with `malformed` before anything is written.
  */
 export function settingsFromBackup(
   current: Settings,
@@ -451,9 +490,15 @@ export function settingsFromBackup(
     ...patch
   } = upgradeSettings(checked as Settings & Partial<RendererSettings>).settings
   const { rememberKey: _patchedRemember, ...merged } = mergePatch(current, patch)
+  const comfy: Partial<Settings> = {}
+  for (const field of COMFY_FIELDS) {
+    delete (merged as Partial<Settings>)[field]
+    if (current[field] !== undefined) Object.assign(comfy, { [field]: current[field] })
+  }
   return {
     ...merged,
     ...(current.rememberKey !== undefined ? { rememberKey: current.rememberKey } : {}),
+    ...comfy,
     removedDefaults: removedDefaults.filter((id): id is string => typeof id === 'string')
   }
 }
@@ -517,7 +562,7 @@ function samplingBoundsMessage(field: SamplingField): string {
 }
 
 /** Whether `text` is a plain decimal number, `.9` and `1.` included; rejects `"1e3"`, `"abc"` and blank. */
-const PLAIN_NUMBER = /^-?(\d+\.?\d*|\.\d+)$/
+export const PLAIN_NUMBER = /^-?(\d+\.?\d*|\.\d+)$/
 
 /** The one line naming why a sampling field's typed text is not sendable; blank is never a problem. */
 export function samplingProblem(key: SamplingKey, text: string): string | null {
@@ -589,6 +634,17 @@ export function memoryBudgetsOf(settings: Pick<Settings, 'memoryBudgets'>): Requ
     }
   }
   return budgets
+}
+
+/** How many of her told secrets a prompt carries when nothing is stored. */
+export const DEFAULT_SECRET_BUDGET = 3
+
+/** The secret budget as stored, falling back to its default where it is not a valid count. */
+export function secretBudgetOf(settings: Pick<Settings, 'secretBudget'>): number {
+  const value = settings.secretBudget
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 999
+    ? value
+    : DEFAULT_SECRET_BUDGET
 }
 
 /** Which of the three stored budgets a cast of `castSize` spends. */

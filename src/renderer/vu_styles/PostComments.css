@@ -57,3 +57,4 @@
   color: color-mix(in oklab, var(--vu-text) 72%, var(--vu-accent));
   font: 700 12px var(--font-mono);
 }
+

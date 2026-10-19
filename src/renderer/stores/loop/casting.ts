@@ -1,4 +1,10 @@
 import { dormBuildingOf } from '@shared/dorms'
+import {
+  EXTRA_CHARACTER_CHANCE,
+  LOCAL_INJECT_CHANCE,
+  MEET_SOMEBODY_CHANCE,
+  PUBLIC_INJECT_CHANCE
+} from '@shared/odds'
 import { affectionFor } from '@shared/relationship'
 import { shuffle } from '@shared/shuffle'
 import { PORTRAIT_SLOTS, useGameStore } from '../gameStore'
@@ -10,12 +16,15 @@ import {
   charJobNow,
   charOverlayGroupNow,
   charRoomDormNow,
+  castableIds,
+  charSickAtHomeNow,
   charStandingHauntAt,
   charUnavailableNow
 } from '../timetable'
 import { firstNameOf, isContact, nameIsKnown } from './classify'
 import { jobDefOf, JOB_CATALOG } from '@shared/jobs'
 import { ELYSIUM_LOCATION, LOWRISE_LOCATION, ROOM_LOCATION } from '@shared/locations'
+import { isTutorialSlot } from '../../prompts/introScript'
 import { loreEntryById } from '../../prompts/lorebook'
 import { hauntActivity } from '../../prompts/npcRelationship'
 
@@ -31,7 +40,8 @@ import { hauntActivity } from '../../prompts/npcRelationship'
 function freeCharacters(location?: string | null): string[] {
   const game = useGameStore.getState()
   return game.chars.filter((charId) => {
-    if (charUnavailableNow(charId)) return false
+    // In bed with a cold, she is reached only by name or by a plan.
+    if (charUnavailableNow(charId) || charSickAtHomeNow(charId)) return false
     const haunt = charHiddenLocationNow(charId)
     if (haunt === null) return true
     return haunt === ROOM_LOCATION && atRoomBuilding(charId, location)
@@ -48,13 +58,6 @@ function atRoomBuilding(charId: string, location: string | null | undefined): bo
   if (building === null) return false
   return location === (building === 'elysium' ? ELYSIUM_LOCATION : LOWRISE_LOCATION)
 }
-
-/** The odds of running into somebody while anyone on the roster is still unmet. */
-const MEET_SOMEBODY_CHANCE = 0.75
-/** The odds of any other body joining a nobody-named action. */
-const EXTRA_CHARACTER_CHANCE = 0.25
-/** The odds a public scene the reader cast by name is walked in on. */
-const PUBLIC_INJECT_CHANCE = 0.1
 
 /** One uniform draw off a non-empty pool. */
 export function anyOf(pool: readonly string[]): string {
@@ -126,6 +129,15 @@ export function pickFirstNightCast(inPublic: boolean, location?: string | null):
   return unmet.length > 0 ? [anyOf(unmet)] : pickCast(inPublic, location)
 }
 
+/** The encounter draw, with the first night's guaranteed stranger. */
+export function drawFreeCast(inPublic: boolean, location?: string | null): string[] {
+  const game = useGameStore.getState()
+  const where = resolveLocationId(location)
+  return isTutorialSlot(game.date, game.time, game.semesterIndex)
+    ? pickFirstNightCast(inPublic, where)
+    : pickCast(inPublic, where)
+}
+
 /**
  * Splits a mention list into who actually shows up and what the reader's action says about the
  * rest.
@@ -135,7 +147,8 @@ export function resolveAttendance(
   required?: string,
   exempt: readonly string[] = []
 ): { cast: string[]; notes: string[] } {
-  const roster = useGameStore.getState().chars
+  // A graduate back for Homecoming can be named in too.
+  const roster = castableIds()
   const ordered: string[] = []
   for (const charId of [...(required ? [required] : []), ...mentionedIds]) {
     if (roster.includes(charId) && !ordered.includes(charId)) ordered.push(charId)
@@ -173,16 +186,17 @@ export function planAttendees(event: CalendarEvent): string[] {
 /**
  * A line under a plan's opening action for each attendee in the cast who has class or a shift
  * this slot, leaving the model to pick whether it comes after the scene or she has just come
- * from it. A girl working where the scene is set gets none.
+ * from it. A girl whose class or shift the scene itself is — working where it is set, or
+ * sitting the class it is in — gets none.
  */
 export function commitmentNotes(
   cast: readonly string[],
   attendees: readonly string[],
-  workers: readonly string[]
+  atCommitment: readonly string[]
 ): string[] {
   const notes: string[] = []
   for (const charId of cast) {
-    if (!attendees.includes(charId) || workers.includes(charId)) continue
+    if (!attendees.includes(charId) || atCommitment.includes(charId)) continue
     const commitment = charCommitmentAt(charId)
     if (!commitment) continue
     const what =
@@ -194,6 +208,13 @@ export function commitmentNotes(
     )
   }
   return notes
+}
+
+/** Names run together as a sentence reads them: "Mina", "Mina and Mia", "Mina, Mia and Sara". */
+export function listOf(items: readonly string[]): string {
+  return items.length > 1
+    ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+    : (items[0] ?? '')
 }
 
 /** Spelled-out counts for the stranger item below; `PORTRAIT_SLOTS` bounds the range. */
@@ -213,9 +234,7 @@ export function runIntoNote(charIds: readonly string[], location?: string | null
   if (strangers === 1) items.push("someone they don't know")
   else if (strangers > 1) items.push(`${COUNT_WORDS[strangers] ?? strangers} people they don't know`)
 
-  const listed =
-    items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}` : items[0]
-  let note = `They happen to run into ${listed}.`
+  let note = `They happen to run into ${listOf(items)}.`
 
   const resolved = location ? resolveLocationId(location) : null
   if (resolved) {
@@ -290,7 +309,7 @@ export function localsAtLocation(location: string): string[] {
   if (!resolved || resolved === ROOM_LOCATION) return []
 
   return useGameStore.getState().chars.filter((charId) => {
-    if (charUnavailableNow(charId)) return false
+    if (charUnavailableNow(charId) || charSickAtHomeNow(charId)) return false
     const haunt = charHiddenLocationNow(charId)
     if (haunt === null) return false
     return haunt === resolved || (haunt === ROOM_LOCATION && atRoomBuilding(charId, resolved))
@@ -330,12 +349,6 @@ export function admitWorkers(
   }
   return { cast: next, notes, jobId: workers[0].jobId }
 }
-
-/**
- * The odds a girl at her own haunt joins a scene the reader cast by name
- * holding nobody she is spending the slot with — the crash-the-party roll.
- */
-const LOCAL_INJECT_CHANCE = 0.25
 
 /**
  * Puts whoever the scene's location holds into it — the last casting step, where both

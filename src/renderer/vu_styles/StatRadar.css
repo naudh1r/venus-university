@@ -121,7 +121,8 @@
 
 .vu-radar-next {
   color: var(--vu-text-muted);
-  font: 700 10px var(--font-mono);
+  opacity: 70%;
+  font: 700 9px var(--font-mono);
 }
 
 /* The two readings a badge carries where its stat just crossed a tier: stacked in **one grid

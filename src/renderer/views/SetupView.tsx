@@ -16,10 +16,30 @@ import {
   imageModelOf,
   writerReady
 } from '@shared/settingsRules'
-import { modelForComponentId } from '@shared/setupManifest'
+import { modelForComponentId, PINNED_NODES } from '@shared/setupManifest'
+import {
+  COMFY_MODEL_SLOTS,
+  comfyPicksOf,
+  comfySourceOf,
+  comfyUrlOf,
+  comfyUrlProblem,
+  DEFAULT_COMFY_URL,
+  DEFAULT_LORA_WEIGHT,
+  loraWeightOf,
+  loraWeightText,
+  loraWeightToStore,
+  normalizeComfyUrl,
+  parseLoraWeight,
+  picksToStore,
+  type ComfyModelPicks,
+  type ComfyModelRole,
+  type ComfySource
+} from '@shared/comfyModels'
 import type { ProviderApi } from '@shared/providers'
 import type { SetupComponent, SettingsPatch } from '@shared/types'
 import { CheckField } from '../components/CheckField'
+import { ComfyEndpointFields } from '../components/ComfyEndpointFields'
+import { ComfyModelPicker, resolvedPickOf } from '../components/ComfyModelPicker'
 import { ComboField } from '../components/ComboField'
 import { SelectField } from '../components/SelectField'
 import { TitleTab } from '../components/TitleTab'
@@ -27,7 +47,7 @@ import { isWebBuild } from '../platform'
 import { useComfyStore } from '../stores/comfyStore'
 import { beginCrossing, endCrossing, useCrossingStore } from '../stores/crossingStore'
 import { patchOf, useSettingsStore } from '../stores/settingsStore'
-import { useSetupStore, type ComponentProgress } from '../stores/setupStore'
+import { comfySettled, useSetupStore, type ComponentProgress } from '../stores/setupStore'
 import { useUiStore } from '../stores/uiStore'
 import { heldScreenTheme } from './clockTheme'
 import {
@@ -49,6 +69,8 @@ import {
 } from './motion'
 import { CloseIcon, DownloadIcon } from './screenIcons'
 import { SfwPromptModal } from './SfwPromptModal'
+import { COMFY_SOURCE_OPTIONS, OWN_COMFY_NOTE } from './SettingsComfyTab'
+import { useComfyProbe } from './useComfyProbe'
 import { useEndpointProbe, useImageProbe } from './useEndpointProbe'
 import '../vu_styles/Setup.css'
 
@@ -81,9 +103,7 @@ function stagesOf(mode: SetupMode): [SetupStage, ...SetupStage[]] {
   return firstRunStages(
     settings ? writerReady(settings, settings.apiKeySet) : false,
     // The browser has no install to settle, so that stage is settled before it is asked for.
-    isWebBuild() ||
-      Boolean(useSetupStore.getState().status?.comfyReady) ||
-      Boolean(settings?.comfyDeferred)
+    isWebBuild() || comfySettled(settings, useSetupStore.getState().status)
   )
 }
 
@@ -97,7 +117,7 @@ const PANEL_IN = fadeIn(0.18)
  */
 const ARCH = {
   apiKey: { width: 1000, left: -250 },
-  imageGen: { width: 840, left: -230 }
+  imageGen: { width: 1000, left: -250 }
 }
 
 /**
@@ -364,8 +384,92 @@ export function SetupView({ mode }: { mode: SetupMode }): JSX.Element {
   )
 }
 
-/** The install checklist with per-item progress and retry state. */
+/** The image stage: which ComfyUI draws, and beside it the install checklist or the own-server card. */
 function ImageGenStage({ onDone, last }: { onDone: () => void; last: boolean }): JSX.Element {
+  const settings = useSettingsStore((s) => s.settings)
+  const installing = useSetupStore((s) => s.installing)
+
+  // Which ComfyUI the player is setting up, staged like everything else on the screen and
+  // opening on the stored one: picking it writes nothing.
+  const [source, setSource] = useState<ComfySource>(() =>
+    settings ? comfySourceOf(settings) : 'managed'
+  )
+
+  return (
+    <>
+      <motion.div
+        className="vu-setup-pitch vu-setup-pitch--wide"
+        variants={PITCH_IN}
+        initial="hidden"
+        animate="shown"
+        exit="gone"
+      >
+        <span className="vu-setup-kicker">COMFYUI SETUP</span>
+        <h1 className="vu-setup-title">Set up image generation</h1>
+        <p className="vu-setup-body">
+          ComfyUI is only needed to generate new characters. You can still play with the default
+          characters without it.
+        </p>
+        <div className="vu-setup-blurb">
+          <span className="vu-setup-blurb-head">Install for me (recommended)</span>
+          <p className="vu-setup-body">
+            Creates a ~14 GB instance of ComfyUI in your game folder pre-installed with suggested
+            models. An NVIDIA GPU (GeForce 20 series or newer) with more than 8GB of VRAM is
+            recommended. AMD support is experimental and only lightly tested: please reach out if
+            you encounter issues. Your GPU is automatically detected when deciding which ComfyUI
+            version to install.
+          </p>
+        </div>
+        <div className="vu-setup-blurb">
+          <span className="vu-setup-blurb-head">Use my own</span>
+          <p className="vu-setup-body">
+            Connect to a running instance of ComfyUI (v0.34 or newer). You must have these custom
+            nodes installed:
+          </p>
+          <ul className="vu-setup-nodes">
+            {PINNED_NODES.map((node) => (
+              <li className="vu-setup-body" key={node.id}>
+                <motion.a
+                  className="vu-link"
+                  href={`https://github.com/${node.owner}/${node.repo}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  whileHover={linkLift}
+                  whileFocus={linkLift}
+                >
+                  {node.label}
+                </motion.a>
+              </li>
+            ))}
+          </ul>
+          <p className="vu-setup-body">{OWN_COMFY_NOTE}</p>
+        </div>
+
+        {/* The pane beside the pitch is drawn off this; an install running holds it. */}
+        <SelectField
+          id="setup-comfy-source"
+          label="ComfyUI"
+          value={source}
+          onChange={(value) => setSource(value as ComfySource)}
+          options={COMFY_SOURCE_OPTIONS}
+          disabled={installing}
+        />
+      </motion.div>
+
+      {/* One pane at a time, in wait mode: the pane leaving fades out before the next arrives. */}
+      <AnimatePresence mode="wait" initial={false} propagate>
+        {source === 'managed' ? (
+          <InstallPanel key="install" onDone={onDone} last={last} />
+        ) : (
+          <OwnComfyCard key="own" onDone={onDone} />
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
+
+/** The install checklist with per-item progress and retry state. */
+function InstallPanel({ onDone, last }: { onDone: () => void; last: boolean }): JSX.Element {
   const status = useSetupStore((s) => s.status)
   const checking = useSetupStore((s) => s.checking)
   const installing = useSetupStore((s) => s.installing)
@@ -389,137 +493,274 @@ function ImageGenStage({ onDone, last }: { onDone: () => void; last: boolean }):
   const weights = components.filter((c) => c.id.startsWith('model:'))
 
   return (
-    <>
-      <motion.div
-        className="vu-setup-pitch"
-        variants={PITCH_IN}
-        initial="hidden"
-        animate="shown"
-        exit="gone"
-      >
-        <span className="vu-setup-kicker">COMFYUI AUTO-INSTALLER</span>
-        <h1 className="vu-setup-title">Set up image generation</h1>
-        <span className="vu-setup-total">≈14 GB TOTAL</span>
-        <p className="vu-setup-body">
-          Image generation runs on your own machine and is only needed if you want to{' '}
-          <strong>create new characters</strong>. You can still play with pre-genned characters.
-          
-        </p>
-        <p className="vu-setup-body">
-          An NVIDIA GPU (GeForce 20 series or newer) with more than 8GB of VRAM is recommended.
-        </p>
-        <p className="vu-setup-body">
-          AMD support is experimental and only lightly tested: please reach out if you encounter issues.
-        </p>
-        <p className="vu-setup-body">
-          Your GPU is automatically detected when deciding which ComfyUI version to install.
-        </p>
-      </motion.div>
-
-      <motion.div
-        className="vu-setup-panel"
-        variants={PANEL_IN}
-        initial="hidden"
-        animate="shown"
-        exit="gone"
-      >
-        <header className="vu-setup-head">
-          <div className="vu-title">
-            <h2 className="vu-title-text">Install checklist</h2>
-          </div>
-          <motion.button
-            id="setup-recheck"
-            className="vu-pill"
-            {...gestures(checking || installing, quietLift, quietPress)}
-            disabled={checking || installing}
-            onClick={() => void refresh()}
-          >
-            <RefreshMark />
-            Re-check
-          </motion.button>
-        </header>
-
-        {checking && !status ? (
-          <div className="vu-setup-wait">
-            <motion.span className="vu-ring vu-setup-ring" animate={spin} />
-            <span className="vu-setup-wait-label">CHECKING INSTALLED COMPONENTS…</span>
-          </div>
-        ) : (
-          <div className="vu-setup-list-box">
-            <motion.ul
-              className="vu-setup-list"
-              variants={dealt(0.25, 0.05)}
-              initial="hidden"
-              animate="shown"
-            >
-              <motion.li className="vu-setup-group" variants={dealtItem}>
-                COMFYUI DEPENDENCIES
-              </motion.li>
-              {runtime.map((c) => (
-                <SetupRow
-                  key={c.id}
-                  component={c}
-                  progress={progress[c.id]}
-                  installing={installing}
-                />
-              ))}
-
-              <motion.li className="vu-setup-group" variants={dealtItem}>
-                MODELS
-              </motion.li>
-              {weights.map((c) => (
-                <SetupRow
-                  key={c.id}
-                  component={c}
-                  progress={progress[c.id]}
-                  installing={installing}
-                />
-              ))}
-            </motion.ul>
-            <div className="vu-setup-fade" />
-          </div>
-        )}
-
-        <div className="vu-setup-foot">
-          <span className="vu-setup-hint">
-            You can return to this setup from the main menu if you skip for now.
-          </span>
-          {/* Two direct children, so `.vu-foot > button` reaches both and an answer swells
-              in place rather than lunging at the one beside it. */}
-          <div className="vu-foot">
-            {/* Leaving an unfinished install is the decision to defer it. */}
-            <motion.button
-              id="setup-back"
-              className="vu-btn vu-btn--quiet"
-              {...gestures(installing, quietLift, quietPress)}
-              disabled={installing}
-              onClick={() => {
-                if (!complete) void setComfyDeferred(true)
-                onDone()
-              }}
-            >
-              {complete ? (last ? 'Main Menu' : 'Continue') : 'Skip for now'}
-            </motion.button>
-            <motion.button
-              id="setup-install"
-              className="vu-btn vu-btn--primary vu-btn--panel vu-paper"
-              {...gestures(installing || checking || complete, lift, press)}
-              disabled={installing || checking || complete}
-              onClick={() => {
-                void install().then(() => {
-                  // A run that finishes the job un-defers and warms the server it installed.
-                  if (!useSetupStore.getState().status?.comfyReady) return
-                  void setComfyDeferred(false)
-                  void ensureComfyStarted()
-                })
-              }}
-            >
-              {installing ? 'Installing…' : 'Install missing'}
-            </motion.button>
-          </div>
+    <motion.div
+      className="vu-setup-panel"
+      variants={PANEL_IN}
+      initial="hidden"
+      animate="shown"
+      exit="gone"
+    >
+      <header className="vu-setup-head">
+        <div className="vu-title">
+          <h2 className="vu-title-text">Install checklist</h2>
         </div>
-      </motion.div>
-    </>
+        <motion.button
+          id="setup-recheck"
+          className="vu-pill"
+          {...gestures(checking || installing, quietLift, quietPress)}
+          disabled={checking || installing}
+          onClick={() => void refresh()}
+        >
+          <RefreshMark />
+          Re-check
+        </motion.button>
+      </header>
+
+      {checking && !status ? (
+        <div className="vu-setup-wait">
+          <motion.span className="vu-ring vu-setup-ring" animate={spin} />
+          <span className="vu-setup-wait-label">CHECKING INSTALLED COMPONENTS…</span>
+        </div>
+      ) : (
+        <div className="vu-setup-list-box">
+          <motion.ul
+            className="vu-setup-list"
+            variants={dealt(0.25, 0.05)}
+            initial="hidden"
+            animate="shown"
+          >
+            <motion.li className="vu-setup-group" variants={dealtItem}>
+              COMFYUI DEPENDENCIES
+            </motion.li>
+            {runtime.map((c) => (
+              <SetupRow
+                key={c.id}
+                component={c}
+                progress={progress[c.id]}
+                installing={installing}
+              />
+            ))}
+
+            <motion.li className="vu-setup-group" variants={dealtItem}>
+              MODELS
+            </motion.li>
+            {weights.map((c) => (
+              <SetupRow
+                key={c.id}
+                component={c}
+                progress={progress[c.id]}
+                installing={installing}
+              />
+            ))}
+          </motion.ul>
+          <div className="vu-setup-fade" />
+        </div>
+      )}
+
+      <div className="vu-setup-foot">
+        <span className="vu-setup-hint">
+          You can return to this setup from the main menu if you skip for now.
+        </span>
+        {/* Two direct children, so `.vu-foot > button` reaches both and an answer swells
+            in place rather than lunging at the one beside it. */}
+        <div className="vu-foot">
+          {/* Leaving an unfinished install is the decision to defer it. */}
+          <motion.button
+            id="setup-back"
+            className="vu-btn vu-btn--quiet"
+            {...gestures(installing, quietLift, quietPress)}
+            disabled={installing}
+            onClick={() => {
+              if (!complete) void setComfyDeferred(true)
+              onDone()
+            }}
+          >
+            {complete ? (last ? 'Main Menu' : 'Continue') : 'Skip for now'}
+          </motion.button>
+          <motion.button
+            id="setup-install"
+            className="vu-btn vu-btn--primary vu-btn--panel vu-paper"
+            {...gestures(installing || checking || complete, lift, press)}
+            disabled={installing || checking || complete}
+            onClick={() => {
+              void install().then(() => {
+                // A run that finishes the job un-defers and warms the server it installed.
+                if (!useSetupStore.getState().status?.comfyReady) return
+                void setComfyDeferred(false)
+                void ensureComfyStarted()
+              })
+            }}
+          >
+            {installing ? 'Installing…' : 'Install missing'}
+          </motion.button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+/**
+ * The card a player who runs their own ComfyUI fills in: where it answers and whether it has
+ * what the workflows need, and the models it draws with. Everything is staged until Save; Skip
+ * defers the image stage as the checklist's does.
+ */
+function OwnComfyCard({ onDone }: { onDone: () => void }): JSX.Element {
+  const settings = useSettingsStore((s) => s.settings)
+  const update = useSettingsStore((s) => s.update)
+  const setComfyDeferred = useSettingsStore((s) => s.setComfyDeferred)
+  const complete = useSetupStore((s) => Boolean(s.status?.comfyReady))
+  const openModelFolder = useComfyStore((s) => s.openModelFolder)
+
+  const [url, setUrl] = useState(() => (settings ? comfyUrlOf(settings) : DEFAULT_COMFY_URL))
+  const [picks, setPicks] = useState<ComfyModelPicks | undefined>(() =>
+    settings ? comfyPicksOf(settings, 'external') : undefined
+  )
+  // The LoRA weight as typed, and the last text of it that was a weight.
+  const [weight, setWeight] = useState(() =>
+    settings ? loraWeightOf(settings, 'external') : DEFAULT_LORA_WEIGHT
+  )
+  const [weightText, setWeightText] = useState(() => loraWeightText(weight))
+  const [saving, setSaving] = useState(false)
+  const probe = useComfyProbe({ source: 'external', url })
+
+  // A card opening on a stored or default address has somewhere to ask already.
+  useEffect(() => {
+    void probe.refreshModels()
+  }, [])
+
+  const saveDead = saving || comfyUrlProblem(url) !== null
+  const folderUrl = comfyUrlProblem(url) === null ? normalizeComfyUrl(url) : null
+
+  /** One slot's model; the LoRA going to None, or picked from None, puts its weight back. */
+  function handlePick(role: ComfyModelRole, value: string): void {
+    const slot = COMFY_MODEL_SLOTS.find((s) => s.role === role)
+    if (
+      slot !== undefined &&
+      slot.optional &&
+      (value === '' || resolvedPickOf(slot, picks, probe.models, 'external') === '')
+    ) {
+      setWeight(DEFAULT_LORA_WEIGHT)
+      setWeightText(loraWeightText(DEFAULT_LORA_WEIGHT))
+    }
+    setPicks((prev) => picksToStore({ ...prev, [role]: value }, 'external'))
+  }
+
+  /** Takes the typed weight where it is one, and otherwise puts back the last that was. */
+  function handleWeightBlur(): void {
+    const next = parseLoraWeight(weightText) ?? weight
+    setWeight(next)
+    setWeightText(loraWeightText(next))
+  }
+
+  /** Writes the player's own ComfyUI with everything it draws with, and hands the run on. */
+  async function handleSave(): Promise<void> {
+    if (saveDead) return
+    setSaving(true)
+    const normalized = normalizeComfyUrl(url)
+    const ok = await update({
+      comfySource: 'external',
+      // The default address is stored absent, so a later default reaches a player who kept it.
+      comfyUrl: normalized === DEFAULT_COMFY_URL ? undefined : normalized,
+      comfyExternalModels: picks,
+      comfyExternalLoraWeight: loraWeightToStore(parseLoraWeight(weightText) ?? weight)
+    })
+    setSaving(false)
+    // A failed write leaves the stage up; the store has already raised the error.
+    if (ok) onDone()
+  }
+
+  return (
+    <motion.div
+      className="vu-setup-stand"
+      variants={PANEL_IN}
+      initial="hidden"
+      animate="shown"
+      exit="gone"
+    >
+      <div className="vu-setup-card-frame vu-setup-card-frame--comfy">
+        <motion.div
+          id="setup-comfy-card"
+          className="vu-setup-card vu-paper"
+          variants={panelUnderTab}
+          initial="hidden"
+          animate="shown"
+          exit="gone"
+        >
+          <TitleTab>Setup</TitleTab>
+
+          <div className="vu-scroll-box">
+            <div className="vu-setup-card-fields vu-setup-card-fields--split">
+              <div className="vu-setup-card-col">
+                <span className="vu-setup-card-heading">Connect your own ComfyUI</span>
+                <ComfyEndpointFields
+                  idPrefix="setup-comfy"
+                  url={url}
+                  onUrlChange={setUrl}
+                  probe={probe}
+                  picks={picks}
+                />
+              </div>
+
+              <div className="vu-setup-card-col">
+                <span className="vu-setup-card-heading">Models</span>
+                <p className="vu-setup-note">
+                  These list the models your ComfyUI has while it&apos;s running. To add your own,
+                  drop them into its model folders, then test the connection.
+                </p>
+                <ComfyModelPicker
+                  idPrefix="setup-comfy-model"
+                  source="external"
+                  picks={picks}
+                  models={probe.models}
+                  listed={probe.listed}
+                  folders={probe.folders}
+                  onPick={handlePick}
+                  onOpenFolder={(role, pick) => {
+                    if (folderUrl !== null) void openModelFolder(role, folderUrl, pick)
+                  }}
+                  weightText={weightText}
+                  onWeightText={setWeightText}
+                  onWeightBlur={handleWeightBlur}
+                />
+              </div>
+            </div>
+            <div className="vu-scroll-fade" />
+          </div>
+
+          <div className="vu-setup-card-foot">
+            <span className="vu-setup-hint">
+              You can change these later on the ComfyUI tab of Settings.
+            </span>
+            {/* Two direct children, so `.vu-foot > button` reaches both and an answer swells
+                in place rather than lunging at the one beside it. */}
+            <div className="vu-foot">
+              {/* Leaving an unfinished install is the decision to defer it. */}
+              <motion.button
+                id="setup-comfy-skip"
+                className="vu-btn vu-btn--quiet"
+                {...gestures(saving, quietLift, quietPress)}
+                disabled={saving}
+                onClick={() => {
+                  if (!complete) void setComfyDeferred(true)
+                  onDone()
+                }}
+              >
+                Skip for now
+              </motion.button>
+              <motion.button
+                id="setup-comfy-save"
+                className="vu-btn vu-btn--primary vu-btn--panel vu-paper"
+                {...gestures(saveDead, lift, press)}
+                disabled={saveDead}
+                onClick={() => void handleSave()}
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </motion.div>
   )
 }
 

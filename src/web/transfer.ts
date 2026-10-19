@@ -3,7 +3,7 @@ import {
   CHARACTER_FILE_NAME,
   isCharFileRel,
   namedRel,
-  shippedRel,
+  storedRel,
   STAGING_DIR
 } from '@shared/characterFiles'
 import { readCharacterRecord } from '@shared/characterRules'
@@ -36,7 +36,8 @@ import { adoptCharacter, type FileWrite } from './db/chars'
 import { offerDownload } from './download'
 import { portableImages } from './files'
 import { forgetImages } from './images'
-import { buildPack, isShipped, packBytes } from './packs'
+import { isPackRead } from './copies'
+import { buildPack, packBytes } from './packs'
 
 /** Moving one character between installs, as a zip in the package format both builds read. */
 
@@ -152,7 +153,7 @@ export function readJsonEntry(
 
 /** The name one image is packaged under: the app's own, or WebP where the bytes are one. */
 export function packagedRel(rel: string, bytes: Uint8Array): string {
-  return imageTypeOf(bytes) === 'image/webp' ? shippedRel(rel) : rel
+  return imageTypeOf(bytes) === 'image/webp' ? storedRel(rel) : rel
 }
 
 /** Everything one character's package carries: her images, her record and the marker. */
@@ -172,8 +173,8 @@ async function packageOf(character: Character): Promise<Record<string, Uint8Arra
 /** Offers one character as a zip and answers with the name it is offered under. */
 export async function exportCharacter(charId: string): Promise<string> {
   const character = await getCharacter(charId)
-  // A shipped character's pack already is a package in this format.
-  const bytes = isShipped(charId) ? await packBytes(charId) : buildPack(await packageOf(character))
+  // A shipped character still read out of her pack is that pack, already a package in this format.
+  const bytes = isPackRead(charId) ? await packBytes(charId) : buildPack(await packageOf(character))
   return offerDownload(exportFileName(character), bytes, ZIP_TYPE)
 }
 
@@ -185,8 +186,9 @@ function imagesOf(entries: Record<string, Uint8Array>): FileWrite[] {
     if (name === CHARACTER_FILE_NAME || name === MANIFEST_NAME) continue
     if (name.startsWith(`${STAGING_DIR}/`)) continue
     const rel = namedRel(name)
-    // An archive holding both twins of one picture keeps the one already under the stored name.
-    if (rel !== name && entries[rel]) continue
+    // An archive holding both twins of one picture keeps the WebP, which a folder reads first.
+    const twin = storedRel(name)
+    if (twin !== name && (entries[twin]?.length ?? 0) > 0) continue
     if (!isCharFileRel(rel) || data.length === 0) continue
     files.push({ rel, blob: imageBlob(data) })
   }

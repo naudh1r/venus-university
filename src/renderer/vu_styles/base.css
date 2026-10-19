@@ -433,8 +433,8 @@ body {
 }
 
 /* Sprites are full-body 1160x1696 but display thigh-up: the container shows the top of the
-   image, scaled so that at full size the visible portion fills the stage's own height. The PNG
-   itself is never modified — this is a CSS crop.
+   image, scaled so that at full size the visible portion fills the stage's own height and a
+   taller character runs off its top. The PNG itself is never modified — this is a CSS crop.
 
    **The dim on whoever is not speaking is not here**: motion writes the `filter`
    (`spriteLit`/`spriteDim`), so the stage keeps no transition of its own for it. */
@@ -708,6 +708,36 @@ body {
   height: 34px;
   background: linear-gradient(transparent, var(--vu-surface));
   pointer-events: none;
+}
+
+/* The fade is drawn only while its scroller has more below: the scroller just before it lends it
+   a scroll timeline, which is inactive where nothing scrolls, and the fade clears over the
+   scroll's last stretch so the last row is not left under it. A browser without scroll
+   timelines keeps it drawn. */
+@supports (animation-timeline: scroll()) and (timeline-scope: none) {
+  :has(> .vu-scroll-fade) {
+    timeline-scope: --vu-scroll-fade;
+  }
+
+  :has(+ .vu-scroll-fade) {
+    scroll-timeline: --vu-scroll-fade block;
+  }
+
+  .vu-scroll-fade {
+    opacity: 0;
+    animation: vu-scroll-fade linear both;
+    animation-timeline: --vu-scroll-fade;
+    animation-range: calc(100% - 34px) 100%;
+  }
+}
+
+@keyframes vu-scroll-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 /* A screen's name, on its own tint blob. The blob rotates, the word never does;

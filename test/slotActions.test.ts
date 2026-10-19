@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { slotOf } from '@shared/classes'
 import { newJobState } from '@shared/jobs'
+import { calendarOf } from '@shared/semesters'
 import { meetingDatesOf } from '../src/renderer/prompts/occasions'
 import { resetFillerCache, slotActionsNow } from '../src/renderer/stores/slotActions'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { useGrabBagStore } from '../src/renderer/stores/grabBagStore'
 import { calendarEvent, classEntry } from './fixtures'
+
+const SPRING = calendarOf('spring', [])
 
 /**
  * The buttons a slot opens with: everything the reader already committed this half-day to is
@@ -44,7 +47,7 @@ function enroll(kind: 'lecture' | 'project' = 'lecture'): void {
 function meetFirstClass(attended = true): void {
   useGameStore.setState({
     classRecords: {
-      'ART 110': { meetings: [{ date: meetingDatesOf(MONDAY_DAY)[0], attended }] }
+      'ART 110': { meetings: [{ date: meetingDatesOf(MONDAY_DAY, SPRING)[0], attended }] }
     }
   })
 }
@@ -68,7 +71,7 @@ function enrollSecondProject(): void {
     playerSchedule: { ...game.playerSchedule, [TUESDAY_DAY]: 'CWR 305' },
     classRecords: {
       ...game.classRecords,
-      'CWR 305': { meetings: [{ date: meetingDatesOf(TUESDAY_DAY)[0], attended: true }] }
+      'CWR 305': { meetings: [{ date: meetingDatesOf(TUESDAY_DAY, SPRING)[0], attended: true }] }
     }
   })
 }

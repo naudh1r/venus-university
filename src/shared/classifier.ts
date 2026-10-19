@@ -221,7 +221,7 @@ export function normalizeVerdict(
   const mentionedOnly = rosterKeys(reply.mentionedOnly).filter((key) => !mentioned.includes(key))
 
   // The two class fields join into the loop's one `goto_class:` string; a code without the flag
-  // still counts, and is re-checked against the list.
+  // still counts unless the reply says work or a project, and is re-checked against the list.
   const rawClassCode = typeof reply.classCode === 'string' ? reply.classCode.trim() : ''
   const classCode = !rawClassCode
     ? ''
@@ -231,12 +231,16 @@ export function normalizeVerdict(
   if (rawClassCode && !classCode) {
     console.warn(`[classify] "${rawClassCode}" is not meeting this slot — dropping it.`)
   }
-  const goingToClass = reply.goingToClass === true || classCode !== ''
+  const goingToClass =
+    reply.goingToClass === true ||
+    (classCode !== '' && reply.goingToWork !== true && reply.workingOnProject !== true)
 
   // Class outranks work outranks project work; `projectCode` passes through raw for
-  // the loop to check against its own state.
-  const projectCode =
+  // the loop to check against its own state, a project class meeting this slot standing in
+  // for a blank one.
+  const rawProjectCode =
     typeof reply.projectClassCode === 'string' ? reply.projectClassCode.trim() : ''
+  const projectCode = rawProjectCode || (goingToClass ? '' : classCode)
   const actionType = goingToClass
     ? `goto_class:${classCode}`
     : reply.goingToWork === true

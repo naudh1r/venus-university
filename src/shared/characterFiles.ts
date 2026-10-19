@@ -72,27 +72,45 @@ export const CUSTOM_CGS_DIR = 'customcg'
 /** Where a regenerate's images land until they are committed over the live set. */
 export const STAGING_DIR = 'staging'
 
-/** The extension every image this vocabulary names is written under. */
+/** The extension every image this vocabulary names is called by, whatever it is stored as. */
 export const IMAGE_EXTENSION = '.png'
 
 /**
- * The extension the release transcodes the shipped cast to, which every reader takes for the
- * `.png` it names.
+ * The extension every image is kept under — the shipped cast as the release transcodes it,
+ * everything the app writes as it writes it — which every reader takes for the `.png` it names.
  */
-export const SHIPPED_EXTENSION = '.webp'
+export const STORED_EXTENSION = '.webp'
 
-/** The name this vocabulary calls a shipped file by. */
+/** The name this vocabulary calls a stored file by. */
 export function namedRel(entry: string): string {
-  return entry.toLowerCase().endsWith(SHIPPED_EXTENSION)
-    ? `${entry.slice(0, -SHIPPED_EXTENSION.length)}${IMAGE_EXTENSION}`
+  return entry.toLowerCase().endsWith(STORED_EXTENSION)
+    ? `${entry.slice(0, -STORED_EXTENSION.length)}${IMAGE_EXTENSION}`
     : entry
 }
 
-/** The shipped name of an image this vocabulary calls `<stem>.png`. */
-export function shippedRel(rel: string): string {
+/** The stored name of an image this vocabulary calls `<stem>.png`. */
+export function storedRel(rel: string): string {
   return rel.toLowerCase().endsWith(IMAGE_EXTENSION)
-    ? `${rel.slice(0, -IMAGE_EXTENSION.length)}${SHIPPED_EXTENSION}`
+    ? `${rel.slice(0, -IMAGE_EXTENSION.length)}${STORED_EXTENSION}`
     : rel
+}
+
+/**
+ * Whether `rel` is a picture's PNG name whose stored twin stands among `present` (paths
+ * lowercased): the stored one is the picture read, and the PNG beside it is stale.
+ */
+export function isStaleTwinRel(rel: string, present: ReadonlySet<string>): boolean {
+  const stored = storedRel(rel)
+  return stored !== rel && present.has(stored.toLowerCase())
+}
+
+/**
+ * Whether an image is one of the editor's working files — a base frame, the face mask, a paint
+ * layer — which later renders and repairs read back as pixels, and so is kept losslessly.
+ */
+export function isLosslessRel(rel: string): boolean {
+  const name = namedRel(rel.slice(rel.lastIndexOf('/') + 1))
+  return name === FACE_MASK_NAME || isEditorFile(name)
 }
 
 /** `expressions/{emotion}.png` — one default-wardrobe sprite. */

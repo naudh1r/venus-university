@@ -1,15 +1,7 @@
 import { slotSettled } from '../mods/hooks'
-import { GAME_OVER_SCENES, gameOverReasonOf } from '@shared/gameOver'
+import { GAME_OVER_SCENES, gameCompleteSceneOf, gameOverReasonOf } from '@shared/gameOver'
 import { earnLine, spendLine, spentOf } from '@shared/money'
-import {
-  globalSlotOf,
-  jobDefOf,
-  NO_JOB_MESSAGE,
-  NO_SHIFT_MESSAGE,
-  rollShiftGain,
-  shiftRecordOf,
-  shiftSlotOf
-} from '@shared/jobs'
+import { globalSlotOf, NO_JOB_MESSAGE, shiftSlotOf } from '@shared/jobs'
 import {
   applyStatDeltas,
   resolveStatDeltas,
@@ -18,9 +10,15 @@ import {
   type StatusText
 } from '@shared/playerStats'
 import { factoidLine, kindOf, projectProgress, projectProgressLine } from '@shared/academics'
-import { giftActionLine, itemDefOf } from '@shared/shop'
+import { giftActionLine, itemDefOf, type ItemPick } from '@shared/shop'
 import type { NpcSlotOverlay } from '@shared/npcRelationships'
 import { isSilentLine, isSlotSaveId } from '@shared/saveRules'
+import {
+  affectionFor,
+  breakDecayLine,
+  withBreakPenaltiesStepped,
+  withRomanceScenes
+} from '@shared/relationship'
 import {
   charKeyOf,
   READER_SPEAKER,
@@ -28,7 +26,9 @@ import {
   type CalendarEvent,
   type Character,
   type EventCancellation,
+  type EverydayAsk,
   type GameSave,
+  type InviteKind,
   type PlaythroughRecord,
   type LedgerResponse,
   type SceneLine,
@@ -39,9 +39,12 @@ import {
   type StructuredRequest,
   type TimeSlot
 } from '@shared/types'
+import { withSecretTold } from '@shared/secrets'
+import { sickInSlot, withGiftDoses, worstInSlot } from '@shared/colds'
+import { LAST_SEMESTER, semesterOf } from '@shared/semesters'
 import type { SavedScene, SceneSetup } from '@shared/sceneCreator'
 import type { SlotReplay } from '@shared/replays'
-import { formatSlotOpening, nextSlot, ordinal, shiftWeekdayOf } from '../prompts/gameDate'
+import { formatGameDate, formatSlotOpening, nextSlot, shiftWeekdayOf } from '../prompts/gameDate'
 import {
   introScrollLines,
   isOrientationSlot,
@@ -62,8 +65,12 @@ import {
   buildSlotIntroPrompt,
   type IntroAsker,
   type IntroBreakup,
-  type IntroPoster
+  type IntroLeaver,
+  type IntroVisitor,
+  type IntroPoster,
+  type IntroReachOut
 } from '../prompts/slotIntroPrompt'
+import { sendsSpringBreakNotice } from '../prompts/springBreak'
 import {
   ambientLoreCharacters,
   characterLoreForIds,
@@ -73,6 +80,7 @@ import {
   rumorSentenceFor
 } from '../prompts/lorebook'
 import { pickSlotPosters } from './feedRolls'
+import { isFeedContact } from './feedView'
 import { deliverSlotPosts, rollFeedExtrasIfNewSlot, rollSuggestions } from './loop/feed'
 import {
   filterEventsByAttendance,
@@ -80,8 +88,9 @@ import {
   textLedgerCharKeys,
   type SchedulePromptInput
 } from '../prompts/schedulePrompt'
-import { hasTexted } from '../prompts/textingPrompt'
+import { composeTextingSummary, hasTexted } from '../prompts/textingPrompt'
 import { buildTextLedgerPrompt, mergeLedgerReplies } from '../prompts/textLedgerPrompt'
+import { dealEverydayAsk, rollReachOutTopic } from './slotAskers'
 import { SETTING } from '../prompts/setting'
 import {
   buildClosingPrompt,
@@ -100,6 +109,7 @@ import {
   PORTRAIT_SLOTS,
   summariesWithin,
   useGameStore,
+  type ReplayStayFields,
   type SceneKind
 } from './gameStore'
 import { gameEntered, playerActs } from '../mods/hooks'
@@ -116,6 +126,9 @@ import {
   type ProjectedLedger
 } from './sceneSanitizer'
 import { retrySilently as silentRetry } from './silentRetry'
+import { sanitizeSlotIntro } from './slotIntroReply'
+import { postsWithModFields } from './slotPostsForMods'
+import { modFieldsLeaving } from './semesterModCarry'
 import { boxFits } from '../views/boxRows'
 import { answerCrossing, cancelCrossing, endCrossing, markCrossingWait } from './crossingStore'
 import {
@@ -126,10 +139,16 @@ import {
   revealSceneOpening,
   revealSlot
 } from './slotCrossing'
-import { charCommitmentAt, charJobNow, charStandingHauntAt, shiftNow } from './timetable'
+import {
+  charCommitmentAt,
+  charStandingHauntAt,
+  homecomingVisitorNow,
+  readerSickNow
+} from './timetable'
 import { useBunnyboardStore } from './bunnyboardStore'
 import {
   addPlanContacts,
+  answerPlanReminders,
   askOccasionFor,
   deliverBossMessage,
   deliverBunnybotMessages,
@@ -138,13 +157,20 @@ import {
   deliverEventCancellations,
   deliverSlotBreakups,
   deliverSlotHangouts,
+  deliverSlotReachOuts,
+  deliverSpringBreakTexts,
+  deliverHomecomingTexts,
+  deliverVenusColdTip,
   deliverVenusJobIntro,
   deliverVenusMessages,
+  everydayRoundNow,
   pickOccasionAsker,
   pickSlotAskers,
+  pickSlotReachOut,
   plannedWith,
   resetTextingLoop,
-  resolveFriendRequests
+  resolveFriendRequests,
+  rollAskerInvite
 } from './textingLoop'
 import {
   bunnybotHauntRevealTexts,
@@ -158,6 +184,7 @@ import {
   classifierGate,
   classifyAction,
   firstNameOf,
+  graduateRejection,
   isContact,
   nameIsKnown,
   rejection,
@@ -165,18 +192,11 @@ import {
   type Verdict
 } from './loop/classify'
 import {
-  admitLocals,
   anyOf,
-  commitmentNotes,
-  injectPasserby,
+  drawFreeCast,
   localsAtLocation,
-  pickCast,
-  pickFirstNightCast,
   planAttendees,
-  resolveAttendance,
-  resolveLocationId,
   runIntoNote,
-  workersAtLocation,
   workingHereNote
 } from './loop/casting'
 import {
@@ -188,10 +208,20 @@ import {
 import { applyCrushSettle, rollCrushSettle } from './loop/crushes'
 import { startExam } from './loop/exams'
 import { startHangoutScene } from './loop/hangouts'
+import { sceneEventsFor } from './loop/sceneEvents'
 import { liveView, withCrushes, withRumorPass, type PostLedgerView } from './loop/ledgerView'
 import { registerLoopHooks } from './loop/hooks'
 import { failTurn, runSceneTurn } from './loop/turn'
-import { resolveProject, settleShifts } from './loop/jobs'
+import { armSceneRecords, sceneRecordsOf, settleShifts } from './loop/jobs'
+import {
+  composeMeeting,
+  kindLabel,
+  meetingKindOf,
+  NO_KIND,
+  sceneKindOf,
+  shiftOf,
+  type SceneKindVerdict
+} from './loop/meetings'
 import {
   applyNewFriendships,
   applyNpcOverlay,
@@ -201,6 +231,7 @@ import {
   rollSlotEncounterGroups
 } from './loop/npc'
 import { applyRumorPass, rollRumorPass } from './loop/rumors'
+import { rollColdPass } from './loop/colds'
 import {
   endingGameOver,
   endingSave,
@@ -224,8 +255,9 @@ import {
 } from './loop/replay'
 import { armEpilogue, dropEndingArt } from './loop/endingArt'
 import { dropProfilePicture, loadProfilePicture } from './loop/profilePicture'
-import { farewellDisposition, seniorNames } from './loop/farewells'
-import { settleSpringBreak } from './loop/springBreak'
+import { farewellDisposition, graduatingNames } from './loop/farewells'
+import { settleSpringBreak, springBreakPickFor } from './loop/springBreak'
+import { homecomingPickFor, settleHomecoming } from './loop/homecoming'
 import { dropHeldSceneLines, sceneInProgress, streamScene, unpark } from './loop/stream'
 import {
   announceableAdds,
@@ -236,9 +268,9 @@ import {
   promptState,
   reader,
   recentSummaries,
-  scenePromptState,
   sceneSoFar,
   scheduleInput,
+  secretBudgetNow,
   stageCast
 } from './loop/promptState'
 import { forwardOpenOf, interjectOfferOf, replyRowOfferOf, rewindOpenOf } from './loop/playback'
@@ -255,6 +287,8 @@ import {
   type EndingAnswer,
   type TurnSnapshot
 } from './loop/state'
+import { stageContinuation } from './newGame'
+import { carryOf } from './semesterCarry'
 import { buildStatusSteps, markStatusLine } from './loop/statusSteps'
 import {
   memoryEditRows,
@@ -288,6 +322,22 @@ const OLD_ACTION_PROMPT = 'What would you like to do?'
 /** Drops `OLD_ACTION_PROMPT` from a queue read off disk. */
 function withoutActionPrompt(lines: readonly SceneLine[]): SceneLine[] {
   return lines.filter((line) => line.text !== OLD_ACTION_PROMPT)
+}
+
+/**
+ * A later semester's first morning's word on what the break cost, where its semester of the
+ * record says a stat fell or a girl whose name he knows cooled; nothing on any other slot.
+ */
+function breakDecayLines(): SceneLine[] {
+  const game = useGameStore.getState()
+  if (game.semesterIndex === 0 || game.date !== 0 || game.time !== 0) return []
+  if (game.semesterId === null) return []
+  const decay = loopState.record?.semesters?.[game.semesterId]?.breakDecay
+  if (!decay) return []
+  const cooled = decay.girls.some(
+    (charId) => game.characters[charId] && game.charInfo[charId]?.nameKnown
+  )
+  return decay.stats.length > 0 || cooled ? [breakDecayLine()] : []
 }
 
 /** Opens a slot: the transition, the narration, and the action prompt. */
@@ -325,7 +375,15 @@ async function beginSlot(): Promise<void> {
     // goodbye; outside the branch below because a reload lands here too.
     armEpilogue()
     // Queued only: `graduationSeen` is raised where the scroll is read.
-    if (!state.graduationSeen) state.appendPendingLines(graduationScrollLines(seniorNames()))
+    if (!state.graduationSeen) {
+      state.appendPendingLines(
+        graduationScrollLines(
+          graduatingNames(),
+          state.calendar.season,
+          state.semesterIndex === LAST_SEMESTER
+        )
+      )
+    }
     advance()
     // The curtain announces the morning like any other and peels back off the scroll's first
     // line, which `advance` has already put up.
@@ -340,7 +398,7 @@ async function beginSlot(): Promise<void> {
   state.setSceneQuiz(null)
 
   // The authored first slot: the arrival scroll, then freshman orientation.
-  if (isOrientationSlot(state.date, state.time)) {
+  if (isOrientationSlot(state.date, state.time, state.semesterIndex)) {
     state.setWaitingForLine(false)
     state.setAwaitingInput(false)
     state.appendPendingLines(introScrollLines(state.stats, state.date))
@@ -352,9 +410,12 @@ async function beginSlot(): Promise<void> {
     return
   }
 
-  // Who leaves campus for spring break. First, because it reads the affection the
-  // boundary just saved and the sweeps below write `charInfo`.
-  const awayCancellations = settleSpringBreak()
+  // Who leaves campus for spring break: the pick the ending banked with this opening, or one made
+  // now. First, because it reads the affection the boundary just saved and the sweeps below write
+  // `charInfo`.
+  const springBreak = settleSpringBreak(loopState.bankedOpening?.springBreakAway)
+  // Who is back for Homecoming, on its morning, settled the same way and for the same reason.
+  const homecoming = settleHomecoming(loopState.bankedOpening)
 
   // Friend requests resolve against today's disposition, inside the start-of-slot save.
   resolveFriendRequests()
@@ -370,6 +431,7 @@ async function beginSlot(): Promise<void> {
 
   // BunnyBot's half of the same window.
   deliverVenusJobIntro()
+  deliverVenusColdTip()
   deliverBunnybotMessages()
   deliverBunnybotTwoTimingTip()
 
@@ -390,12 +452,23 @@ async function beginSlot(): Promise<void> {
   state.setWaitingForLine(true)
 
   // Banked by the ending that led here, or fetched when no scene precedes the slot.
-  const tutorial = isTutorialSlot(state.date, state.time)
+  const tutorial = isTutorialSlot(state.date, state.time, state.semesterIndex)
   const silent: SlotOpening = { lines: [], hangouts: [], events: [], cancellations: [] }
   const banked = loopState.bankedOpening
   const narration = tutorial
     ? (banked ?? silent)
-    : (banked ?? fetchSlotIntro(state.date, state.time, [], [], [], undefined, overlay))
+    : (banked ??
+      fetchSlotIntro(
+        state.date,
+        state.time,
+        [],
+        [],
+        [],
+        springBreak?.away ?? null,
+        homecoming,
+        undefined,
+        overlay
+      ))
   loopState.bankedOpening = null
   // **Nothing was banked, so this slot is waiting on a call**: the curtain is the loading screen,
   // so it is told there is a load to report and stays down over the whole of it — the
@@ -416,6 +489,8 @@ async function beginSlot(): Promise<void> {
     // The standing heads the opening.
     ...grades.standing.map((text) => ({ speaker: '', text })),
     ...(tutorial ? tutorialLines().map((text) => ({ speaker: '', text })) : opening.lines),
+    // What the break cost, after the narration that brought him back.
+    ...breakDecayLines(),
     // The finals close the list, so the narration's last line is theirs.
     ...grades.finals.map((text) => ({ speaker: '', text }))
   ]
@@ -442,14 +517,26 @@ async function beginSlot(): Promise<void> {
   // first put their people on his contacts, since a plan is coordinated by text.
   addPlanContacts(opening.events)
   useGameStore.getState().addEvents(opening.events)
+  // Each leaver's own word that she is going, ahead of the plans her going cancels.
+  deliverSpringBreakTexts(opening.springBreakTexts)
+  // The graduate back for Homecoming, saying she is in town.
+  deliverHomecomingTexts(opening.homecomingTexts)
   // The break's withdrawals ride with the ledger's: one message, one shape.
-  deliverEventCancellations([...awayCancellations, ...opening.cancellations])
+  deliverEventCancellations([...(springBreak?.cancellations ?? []), ...opening.cancellations])
 
   // Before the fold, so the invitations are inside the start-of-slot save.
-  deliverSlotHangouts(opening.hangouts, opening.askOccasionId)
+  deliverSlotHangouts(
+    opening.hangouts,
+    opening.askOccasionId,
+    opening.everydayAsks,
+    opening.inviteKinds
+  )
 
   // The texts the girls he left wrote, filed on the same terms.
   deliverSlotBreakups(opening.breakups)
+
+  // The girl reaching out just to talk; after the invitations, so one standing for her wins.
+  deliverSlotReachOuts(opening.reachOuts)
 
   // The status updates the same call wrote, filed before the fold on the same terms. Awaited,
   // since a mod may need a moment with a post before the fold writes it down.
@@ -497,7 +584,7 @@ async function startOrientationScene(): Promise<void> {
 
   const castCharacters = castCharactersOf(cast)
   const solo = cast.length === 0
-  const state = scenePromptState()
+  const state = promptState()
   const request = solo
     ? buildSoloPrompt(action, state, SETTING, reader())
     : buildScenePrompt(castCharacters, action, state, SETTING, reader())
@@ -595,7 +682,7 @@ async function startCreatedOpening(): Promise<void> {
   const request = buildScenePrompt(
     castCharacters,
     action,
-    { ...scenePromptState(), openingOutfits },
+    { ...promptState(), openingOutfits },
     SETTING,
     reader()
   )
@@ -638,7 +725,7 @@ export async function startFarewellScene(charId: string): Promise<void> {
   console.log(`[cast] farewell → ${nameOf(charId)}`)
 
   const castCharacters = castCharactersOf([charId])
-  const request = buildScenePrompt(castCharacters, action, scenePromptState(), SETTING, reader())
+  const request = buildScenePrompt(castCharacters, action, promptState(), SETTING, reader())
   await runSceneTurn(
     streamScene(request, undefined, { forceShowSpeakers: true }),
     snapshot,
@@ -707,7 +794,9 @@ function endEpilogue(reason: 'gameComplete' | 'endingDebt'): void {
   game.setWaitingForLine(false)
   game.setAwaitingInput(false)
   game.setBusy(false)
-  game.appendPendingLines(GAME_OVER_SCENES[reason].lines.map((text) => ({ speaker: '', text })))
+  const scene =
+    reason === 'gameComplete' ? gameCompleteSceneOf(game.semesterIndex) : GAME_OVER_SCENES[reason]
+  game.appendPendingLines(scene.lines.map((text) => ({ speaker: '', text })))
   advance()
 }
 
@@ -736,6 +825,16 @@ async function fetchSlotIntro(
   cancellations: readonly EventCancellation[] = [],
   /** The lovers the finished slot left, each ending it by text as this one opens. */
   breakups: readonly IntroBreakup[] = [],
+  /**
+   * The spring break pick this opening settles, on the first slot on or after the notice: each
+   * leaver who would tell him texts that she is going. Null on every other opening.
+   */
+  springBreakPick: readonly string[] | null = null,
+  /**
+   * The graduate back in town that Homecoming morning's opening settles, who texts him she is
+   * here. Null on every other opening.
+   */
+  homecomingPick: string | null = null,
   pendingSummary?: string | null,
   npcOverlay: NpcSlotOverlay | null = null,
   view: PostLedgerView = liveView(),
@@ -744,7 +843,7 @@ async function fetchSlotIntro(
   const run = currentRun()
   const group = call.group ?? LOOP_LLM_GROUP
   const stale = call.stale ?? ((): boolean => false)
-  const opening = formatSlotOpening(date, time)
+  const opening = formatSlotOpening(date, time, useGameStore.getState().calendar.season)
   // Split as the scene's own lines are: the narration is read in the same box, and what is
   // banked here is what the landing plays back.
   const narrate = (lines: string[]): SceneLine[] =>
@@ -752,9 +851,13 @@ async function fetchSlotIntro(
 
   const game = useGameStore.getState()
 
-  // Who posts a status update this slot, as charKeys — the whole roster, strangers included.
+  // Who posts a status update this slot, as charKeys — the whole roster, strangers included,
+  // and every graduate still on his feed.
   const postingKeys = new Set(
-    pickSlotPosters(game.chars, game.characters).flatMap((charId) => {
+    pickSlotPosters(
+      [...game.chars, ...game.alumni.filter((charId) => isFeedContact(view.charInfo[charId]))],
+      game.characters
+    ).flatMap((charId) => {
       const character = game.characters[charId]
       return character ? [charKeyOf(character.firstName, character.lastName)] : []
     })
@@ -772,6 +875,10 @@ async function fetchSlotIntro(
   }
 
   const askers: IntroAsker[] = []
+  // The everyday asks already dealt; each asker's own is dealt before the next one rolls.
+  let round = everydayRoundNow()
+  const everydayAsks: Record<string, EverydayAsk> = {}
+  const inviteKinds: Record<string, InviteKind> = {}
   for (const charKey of askerKeys) {
     const charId = game.charKeyToId[charKey]
     const character = game.characters[charId]
@@ -781,6 +888,13 @@ async function fetchSlotIntro(
     const plan = plannedWith(charId, date, time, view.events)
     // The class or the shift she meets him before or after.
     const commitment = plan ? charCommitmentAt(charId, date, time) : null
+    // What she asks for, when it is neither a plan nor the occasion.
+    const invite = plan || occasion ? null : rollAskerInvite(charId, date, time, view, round)
+    if (invite?.kind === 'everyday') {
+      round = dealEverydayAsk(round, invite.ask)
+      everydayAsks[charKey] = invite.ask
+    }
+    if (invite) inviteKinds[charKey] = invite.kind
     // Where she is texting from and who is with her, off the overlay for the slot about
     // to open — the store's still describes the hour being played.
     const whereabouts = npcWhereaboutsFor(charId, date, time, npcOverlay, view.charInfo)
@@ -793,6 +907,7 @@ async function fetchSlotIntro(
       ...(commitment ? { commitment } : {}),
       // A girl with a plan is writing about that; anybody else is asking him to the occasion.
       ...(occasion && !plan ? { occasion } : {}),
+      ...(invite ? { invite } : {}),
       ...(whereabouts
         ? {
             whereabouts: {
@@ -836,16 +951,93 @@ async function fetchSlotIntro(
     })
   }
 
+  // The leavers who would tell him they are going; a girl ending it with him says only that.
+  const leavers: IntroLeaver[] = []
+  const breakingUp = new Set(breakups.map(({ character }) => character.charId))
+  for (const charId of springBreakPick ?? []) {
+    const character = game.characters[charId]
+    const info = view.charInfo[charId]
+    if (!character || !info || breakingUp.has(charId)) continue
+    if (!sendsSpringBreakNotice(info, affectionFor(info, date, character))) continue
+    leavers.push({
+      character,
+      info,
+      charKey: charKeyOf(character.firstName, character.lastName),
+      texted: hasTexted(game.bunnyboard.conversations[charId])
+    })
+  }
+
+  // The graduate back for Homecoming, texting him she is in town; whoever is back for the day
+  // is described so in every entry, on the morning and the night alike.
+  const visitor = homecomingPick ?? homecomingVisitorNow(date)
+  const visitors: IntroVisitor[] = []
+  for (const charId of homecomingPick ? [homecomingPick] : []) {
+    const character = game.characters[charId]
+    const info = view.charInfo[charId]
+    if (!character || !info || breakingUp.has(charId)) continue
+    visitors.push({
+      character,
+      info,
+      charKey: charKeyOf(character.firstName, character.lastName),
+      texted: hasTexted(game.bunnyboard.conversations[charId])
+    })
+  }
+
+  // The one contact texting him just to talk, about what the app picked for her: nobody the
+  // slot already has texting him about something else.
+  const taken = new Set(
+    [...askers, ...breakups, ...leavers, ...visitors].map(({ character }) => character.charId)
+  )
+  const reachOutKey = pickSlotReachOut(date, time, view, taken)
+  const reachOuts: IntroReachOut[] = []
+  for (const charKey of reachOutKey ? [reachOutKey] : []) {
+    const charId = game.charKeyToId[charKey]
+    const character = game.characters[charId]
+    const info = view.charInfo[charId]
+    if (!character || !info) continue
+    const conversation = game.bunnyboard.conversations[charId]
+    const whereabouts = npcWhereaboutsFor(charId, date, time, npcOverlay, view.charInfo)
+    reachOuts.push({
+      charKey,
+      character,
+      info,
+      texted: hasTexted(conversation),
+      // A girl in bed with a cold texts about that, whatever the roll would have had her say.
+      topic: worstInSlot(info.cold, globalSlotOf(date, time)) ? 'sick' : rollReachOutTopic(),
+      // Her thread as a scene in the slot about to open would read it.
+      thread: composeTextingSummary(
+        conversation,
+        info.ignoredInvitation === true,
+        character.firstName,
+        { date, time }
+      ),
+      ...(whereabouts
+        ? {
+            whereabouts: {
+              location: whereabouts.location,
+              companions: {
+                knownNames: whereabouts.knownNames,
+                unknown: whereabouts.unknown
+              },
+              ...(whereabouts.haunt ? { haunt: whereabouts.haunt } : {})
+            }
+          }
+        : {})
+    })
+  }
+
   // The girls no list carries but the opening should know anyway: the closest friends of
-  // whoever is asking, ending it or posting.
+  // whoever is asking, ending it, leaving, back in town, reaching out or posting.
   const presentIds = new Set(
-    [...askers, ...breakups, ...posters].map(({ character }) => character.charId)
+    [...askers, ...breakups, ...leavers, ...visitors, ...reachOuts, ...posters].map(
+      ({ character }) => character.charId
+    )
   )
   const present = [...presentIds].flatMap((charId) => {
     const character = game.characters[charId]
     return character ? [character] : []
   })
-  const absent = game.chars
+  const absent = [...game.chars, ...game.alumni]
     .filter((charId) => !presentIds.has(charId))
     .flatMap((charId) => {
       const character = game.characters[charId]
@@ -855,12 +1047,14 @@ async function fetchSlotIntro(
     ambientLoreCharacters(absent, present, view.npcRelationships),
     view.charInfo,
     date,
-    { relationships: view.npcRelationships, present }
+    { relationships: view.npcRelationships, present },
+    undefined,
+    visitor ?? undefined
   )
 
   // What is going on today, read once: the rumor is drawn only for a slot with neither an
   // occasion nor an asker.
-  const occasions = occasionsAt(date, time, game.occasions)
+  const occasions = occasionsAt(date, time, game.calendar)
   // Drawn before the request, so a retry re-sends the same place and the reply's own sentence
   // about it can be banked.
   const rumorPlace =
@@ -877,19 +1071,31 @@ async function fetchSlotIntro(
       stats: game.stats,
       opening,
       lessNsfwText: lessNsfwTextNow(),
+      secretBudget: secretBudgetNow(),
       recent: recentSummaries(date, time, pendingSummary),
       askers,
       breakups,
+      leavers,
+      visitors,
+      reachOuts,
       posters,
       occasions,
-      occasionLeadUps: occasionLeadUpLines(date, time, game.occasions),
+      season: game.calendar.season,
+      // A later semester's first morning says he has come back.
+      ...(game.semesterIndex > 0 && date === 0 && time === 0
+        ? { backOnCampus: game.semesterIndex }
+        : {}),
+      occasionLeadUps: occasionLeadUpLines(date, time, game.calendar),
       weather: game.weather,
       ...(rumorPlace ? { rumorPlace } : {}),
-      springBreakAway: game.springBreakAway,
+      // The pick being settled, which the store does not hold until the boundary assigns it.
+      springBreakAway: springBreakPick ?? game.springBreakAway,
+      ...(visitor ? { homecomingVisitor: visitor } : {}),
       ...(backgroundLore.length > 0 ? { backgroundLore } : {})
     },
     SETTING,
-    reader(view)
+    // His cold as it stands in the slot opening, not the one ending.
+    reader(view, { date, time })
   )
 
   let silentSpent = 0
@@ -900,16 +1106,33 @@ async function fetchSlotIntro(
     // Null is the "player left" answer; it also keeps a stale failure off the menu.
     if (runStale(run) || stale()) return null
     if (result.ok) {
-      const written = result.data.lines.map((line) => line.text.trim()).filter(Boolean)
+      // Each list kept to the girls the slot rolled for it, one entry each: an entry for
+      // anybody else would skip her odds and waits.
+      const keysOf = (listed: ReadonlyArray<{ charKey: string }>): Set<string> =>
+        new Set(listed.map(({ charKey }) => charKey))
+      const reply = sanitizeSlotIntro(result.data, {
+        askers: keysOf(askers),
+        breakups: keysOf(breakups),
+        posters: keysOf(posters),
+        leavers: keysOf(leavers),
+        reachOuts: keysOf(reachOuts),
+        visitors: keysOf(visitors)
+      })
+      const written = reply.lines
       // What the narration actually said about the place it was handed. A rumor about
       // an entry that is not a place, or one the narration never named, banks nothing.
       const said = rumorPlace?.id ? rumorSentenceFor(rumorPlace, written) : null
       return {
         lines: narrate([opening, ...written]),
-        hangouts: result.data.hangouts,
-        breakups: result.data.breakups,
+        hangouts: reply.hangouts,
+        breakups: reply.breakups,
         ...(occasion ? { askOccasionId: occasion.id } : {}),
-        posts: result.data.posts,
+        ...(Object.keys(everydayAsks).length > 0 ? { everydayAsks } : {}),
+        ...(Object.keys(inviteKinds).length > 0 ? { inviteKinds } : {}),
+        posts: postsWithModFields(result.data, reply, askers, posters),
+        springBreakTexts: reply.springBreakTexts,
+        ...(reply.reachOuts.length > 0 ? { reachOuts: reply.reachOuts } : {}),
+        ...(reply.homecomingTexts.length > 0 ? { homecomingTexts: reply.homecomingTexts } : {}),
         events: [...events],
         cancellations: [...cancellations],
         // Banked with the narration it was rolled beside.
@@ -1028,11 +1251,13 @@ export function abandonEndingCall(): void {
 function settlePlans(
   ledger: LedgerResponse,
   date: number,
-  time: TimeSlot
+  time: TimeSlot,
+  /** The spring break pick the same ending is settling, which the store does not hold yet. */
+  springBreakPick: readonly string[] | null = null
 ): { events: CalendarEvent[]; cancellations: EventCancellation[] } {
   const game = useGameStore.getState()
   const placed = normalizeSchedule(ledger, game.charKeyToId, { date, time })
-  const settled = filterEventsByAttendance(placed, game.springBreakAway)
+  const settled = filterEventsByAttendance(placed, springBreakPick ?? game.springBreakAway)
 
   // An event that loses every attendee is dropped whole, and named here.
   if (placed.length > settled.events.length) {
@@ -1057,8 +1282,17 @@ function dispatchTurn(snapshot: TurnSnapshot): void {
   else if (snapshot.intro) void startOrientationScene()
   else if (snapshot.farewell) void startFarewellScene(snapshot.farewell)
   else if (snapshot.charId)
-    void startHangoutScene(snapshot.charId, snapshot.action, snapshot.preset)
-  else void submitAction(snapshot.action, snapshot.gift, snapshot.preset, snapshot.planId)
+    void startHangoutScene(snapshot.charId, snapshot.action, snapshot.preset, snapshot.sceneEvents)
+  else {
+    void submitAction(
+      snapshot.action,
+      snapshot.gift,
+      snapshot.preset,
+      snapshot.planId,
+      snapshot.sceneEvents,
+      snapshot.answeredReminder
+    )
+  }
 }
 
 /** Re-sends the turn that failed — the retry modal's confirm. */
@@ -1083,6 +1317,11 @@ export function lastTurnAuthored(): boolean {
 /** The `user` message of the last scene call — what the edit-prompt modal opens. */
 export function lastScenePromptText(): string | null {
   return loopState.lastScenePrompt
+}
+
+/** Whether the failed turn on screen failed in its scene call, which the editor can resend. */
+export function turnPromptEditable(): boolean {
+  return loopState.turnPromptEditable
 }
 
 /** The same for the ledger call, whose modal opens the editor on its own prompt. */
@@ -1131,9 +1370,9 @@ export function abandonTurn(): void {
  * lines still to come, where it interjects exactly as words do. False, spending nothing, when
  * neither applies.
  */
-export function submitGift(charId: string, itemId: string, message: string): boolean {
+export function submitGift(charId: string, pick: ItemPick, message: string): boolean {
   const character = useGameStore.getState().characters[charId]
-  const item = itemDefOf(itemId)
+  const item = itemDefOf(pick.itemId)
   // Checked before anything is cut, so a gift that cannot go out leaves the reply standing.
   if (!character || !item) return false
   if (!takeTurnFromReply()) return false
@@ -1141,8 +1380,19 @@ export function submitGift(charId: string, itemId: string, message: string): boo
   const said = message.trim()
 
   // Given first, then described: `giftItem` stamps how it landed.
-  const reaction = useGameStore.getState().giftItem(charId, itemId)
-  const line = giftActionLine(nameIsKnown(charId) ? character.firstName : null, item, reaction)
+  const reaction = useGameStore.getState().giftItem(charId, pick)
+  // Her own present going back to her says so; given to anybody else it reads as bought.
+  const returnedOn =
+    pick.from?.charId === charId
+      ? formatGameDate(pick.from.date, useGameStore.getState().calendar.season)
+      : undefined
+  const line = giftActionLine(
+    nameIsKnown(charId) ? character.firstName : null,
+    item,
+    reaction,
+    returnedOn,
+    useGameStore.getState().sceneGifts.at(-1)?.dose === true
+  )
   void submitAction(said ? `"${said}" ${line}` : line, true)
   return true
 }
@@ -1156,7 +1406,11 @@ export async function submitAction(
   gift = false,
   preset?: Verdict,
   /** The plan whose landing button this is; its attendees are cast whatever the words name. */
-  planId?: string
+  planId?: string,
+  /** What a failed attempt at this turn rolled, so its retry opens on the same. */
+  sceneEvents?: TurnSnapshot['sceneEvents'],
+  /** Whose reminder a failed attempt at this plan answered, so its retry skips her thread too. */
+  answeredReminder?: string
 ): Promise<void> {
   const run = currentRun()
   const raw = action.trim()
@@ -1181,7 +1435,9 @@ export async function submitAction(
     action: raw,
     ...(gift ? { gift } : {}),
     ...(preset ? { preset } : {}),
-    ...(planId ? { planId } : {})
+    ...(planId ? { planId } : {}),
+    ...(sceneEvents ? { sceneEvents } : {}),
+    ...(answeredReminder ? { answeredReminder } : {})
   }
   const snapshot = loopState.lastTurn
 
@@ -1208,14 +1464,28 @@ export async function submitAction(
     loopState.projectWork = null
   }
 
-  // A turn naming a stranger is refused before the classifier.
-  const stranger = game.chars.find(
+  // A turn naming a stranger is refused before the classifier; a graduate he never learned the
+  // name of is one too.
+  const stranger = [...game.chars, ...game.alumni].find(
     (charId) =>
       !nameIsKnown(charId) &&
       namesCharacter(trimmed, game.characters[charId]?.firstName ?? '')
   )
   if (stranger) {
     failTurn(rejection(UNKNOWN_NAME_REJECTION), snapshot)
+    return
+  }
+  // So is a scene opening on a graduate, who is gone from Veridan; mid-scene she can be talked
+  // about, her lorebook entry saying she is out of town.
+  const graduate = isContinuation
+    ? undefined
+    : game.alumni.find(
+        (charId) =>
+          charId !== homecomingVisitorNow() &&
+          namesCharacter(trimmed, game.characters[charId]?.firstName ?? '')
+      )
+  if (graduate) {
+    failTurn(rejection(graduateRejection(graduate)), snapshot)
     return
   }
 
@@ -1227,8 +1497,28 @@ export async function submitAction(
     if (!cast) return
     if (runStale(run)) return
     plan = cast
+    // A plan's own button is his yes to her reminder about it, so those texts only arranged the
+    // meeting and the ledger skips her thread, as it does a hangout begun from it. Before the
+    // cast is applied, which would clear the reminder unanswered; backfilled onto the snapshot,
+    // since a retry finds the reminder already answered.
+    const event = planOf(snapshot)
+    if (event && !snapshot.answeredReminder) {
+      const attendees = planAttendees(event).filter((charId) => cast.cast.includes(charId))
+      const [answered] = answerPlanReminders(attendees)
+      if (answered) snapshot.answeredReminder = answered
+    }
+    if (snapshot.answeredReminder) {
+      plan.scene = { ...plan.scene, textLedgerSkip: snapshot.answeredReminder }
+    }
+    // The curveball and the present, once the cast is final; the first night stays as authored.
+    if (!isTutorialSlot(game.date, game.time, game.semesterIndex)) {
+      plan.scene = { ...plan.scene, ...sceneEventsFor(snapshot, plan.cast, plan.scene) }
+    }
     await applyCastToScene(plan)
     if (runStale(run)) return
+    // Off the scene just cast, the same derivation a resumed save runs, so what the boundary
+    // credits cannot depend on whether the player reloaded during it.
+    armSceneRecords()
   }
 
   // Whoever is still in the scene; a cast that has entirely walked off comes back whole.
@@ -1265,6 +1555,15 @@ interface CastPlan {
   passerby: string | null
 }
 
+/** The plan this turn's landing button starts, while the clock is still on its slot. */
+function planOf(snapshot: TurnSnapshot): CalendarEvent | undefined {
+  if (!snapshot.planId) return undefined
+  const game = useGameStore.getState()
+  return game.events.find(
+    (entry) => entry.id === snapshot.planId && entry.date === game.date && entry.time === game.time
+  )
+}
+
 /** Classifies a fresh turn and casts it. */
 async function castTurn(
   trimmed: string,
@@ -1289,24 +1588,19 @@ async function castTurn(
   }
 
   // A plan's own button is a meeting with its attendees whatever the words sound like, as the
-  // same plan begun from her reminder is; one whose words are project work is also a session.
-  const game = useGameStore.getState()
-  const event = snapshot.planId
-    ? game.events.find(
-        (entry) =>
-          entry.id === snapshot.planId && entry.date === game.date && entry.time === game.time
-      )
-    : undefined
+  // same plan begun from her reminder is, and also whatever kind of scene the words are.
+  const event = planOf(snapshot)
   const attendees = event ? planAttendees(event) : []
+  const meeting = event ? meetingKindOf(actionType) : null
 
-  const plan = actionType.startsWith('project:')
-    ? castProjectTurn(actionType, mentioned, trimmed, inPublic, sceneLocation, snapshot, attendees)
-    : event
-      ? castPeopleTurn(mentioned, trimmed, inPublic, sceneLocation, snapshot, attendees)
-      : actionType.startsWith('goto_class:')
-        ? await castClassTurn(actionType, mentioned, trimmed, snapshot)
-        : actionType === 'job'
-          ? castJobTurn(trimmed, inPublic, snapshot)
+  const plan = meeting
+    ? castPeopleTurn(mentioned, trimmed, inPublic, sceneLocation, snapshot, attendees, meeting)
+    : actionType.startsWith('goto_class:')
+      ? await castClassTurn(actionType, mentioned, trimmed, snapshot)
+      : actionType === 'job'
+        ? castJobTurn(trimmed, inPublic, snapshot)
+        : actionType.startsWith('project:')
+          ? castProjectTurn(actionType, mentioned, trimmed, inPublic, sceneLocation, snapshot)
           : castPeopleTurn(mentioned, trimmed, inPublic, sceneLocation, snapshot)
   if (!plan) return null
 
@@ -1321,9 +1615,12 @@ async function castTurn(
   }
 
   // Logged beside main's `[classify]` lines, so the casting decision reads as one sequence.
+  const kind = kindLabel(plan.scene)
   console.log(
     `[cast] classified: ${mentioned.map(nameOf).join(', ') || 'nobody'}` +
-      `${actionType ? ` (${actionType})` : ''}${inPublic ? ' [public]' : ' [private]'}` +
+      `${actionType ? ` (${actionType})` : ''}` +
+      `${meeting?.kind === 'none' && meeting.reason ? ` — met as company: ${meeting.reason}` : ''}` +
+      `${kind ? ` | ${kind}` : ''}${inPublic ? ' [public]' : ' [private]'}` +
       ` → cast: ${plan.cast.map(nameOf).join(', ') || 'nobody — solo scene'}` +
       `${plan.passerby ? ` (ran into ${nameOf(plan.passerby)})` : ''}` +
       `${
@@ -1354,7 +1651,7 @@ async function castClassTurn(
   // A lecture's midterm and final are sat, not played; intercepted after `castForClass`,
   // so an enrollment refusal still outranks the exam.
   const examEntry = game.classes[resolved.classCode]
-  const exam = examEntry ? examOn(examEntry, game.date, game.occasions) : null
+  const exam = examEntry ? examOn(examEntry, game.date, game.calendar) : null
   if (examEntry && exam && kindOf(examEntry) === 'lecture') {
     await startExam(examEntry, exam, snapshot)
     return null
@@ -1370,24 +1667,16 @@ function castJobTurn(
   snapshot: TurnSnapshot
 ): CastPlan | null {
   // Both refusals are composed from the save; the model was never told.
-  const game = useGameStore.getState()
-  const slot = shiftNow()
-  if (!game.job) {
-    failTurn(rejection(NO_JOB_MESSAGE), snapshot)
+  const kind = sceneKindOf('job')
+  if (kind.kind !== 'shift') {
+    failTurn(rejection(kind.kind === 'none' && kind.reason ? kind.reason : NO_JOB_MESSAGE), snapshot)
     return null
   }
-  if (slot === null) {
-    failTurn(rejection(NO_SHIFT_MESSAGE), snapshot)
-    return null
-  }
-
-  const def = jobDefOf(game.job.jobId)
+  const { job, def } = kind
 
   // Whoever else is rostered here right now is on the other side of the counter,
   // resolved without the classifier and seated ahead of the draw.
-  const coworkers = game.chars
-    .filter((charId) => charJobNow(charId) === game.job?.jobId)
-    .slice(0, PORTRAIT_SLOTS)
+  const coworkers = kind.coworkers.slice(0, PORTRAIT_SLOTS)
 
   // Whoever spends this slot at his workplace turns up on his side of the counter, cast
   // outright.
@@ -1402,41 +1691,24 @@ function castJobTurn(
   const customers = filled < PORTRAIT_SLOTS ? drawFreeCast(inPublic, def?.locationId) : []
   const cast = [...coworkers, ...locals, ...customers].slice(0, PORTRAIT_SLOTS)
   const drawn = cast.filter((charId) => !coworkers.includes(charId))
-  // Rolled once here and written onto the scene, so a reload pays the same stats back.
-  // An employer with a single gain leaves the field off: the derivation finds it anyway.
-  const gain = def ? rollShiftGain(def) : null
-  // Never also `visitJobId`: one paragraph describes the workplace either way.
-  const scene = {
-    jobId: game.job.jobId,
-    ...(def && gain && def.gains.length > 1 ? { jobStats: [...gain.stats] } : {})
-  }
-  // The same derivation a resumed save runs, so what the boundary pays
-  // for an hour cannot depend on whether the player reloaded during it.
-  loopState.jobShift = shiftRecordOf(game.job, scene, game.date, game.time)
+  const shift = shiftOf(kind)
   return {
     cast,
-    scene,
+    scene: shift.scene,
     passerby: null,
     // Under the action, like a busy character's absence, so the Chat Log shows it too.
     sceneAction: [
       sceneAction,
-      ...(def
-        ? [
-            // The shift he is about to work: `recordShiftWorked` runs at the boundary, after
-            // this prompt is built.
-            `(He is working his ${ordinal(game.job.shiftsWorked + 1)} shift as a ${def.title} at ${def.employer}, ${def.duty}.)`
-          ]
-        : []),
-      ...coworkers.map((charId) => workingHereNote(charId, game.job!.jobId)),
+      ...(shift.note ? [shift.note] : []),
+      ...coworkers.map((charId) => workingHereNote(charId, job.jobId)),
       ...(drawn.length > 0 ? [runIntoNote(drawn)] : [])
     ].join('\n')
   }
 }
 
 /**
- * A `project:` verdict: a work session in an otherwise ordinary scene, cast as
- * {@link castPeopleTurn} casts it. A plan's button with no project to work on plays as the
- * meeting alone rather than being refused.
+ * A typed `project:` verdict: a work session in an otherwise ordinary scene, cast as
+ * {@link castPeopleTurn} casts it.
  */
 function castProjectTurn(
   actionType: string,
@@ -1444,45 +1716,27 @@ function castProjectTurn(
   sceneAction: string,
   inPublic: boolean,
   sceneLocation: string,
-  snapshot: TurnSnapshot,
-  attendees: readonly string[] = []
+  snapshot: TurnSnapshot
 ): CastPlan | null {
-  const resolved = resolveProject(actionType.slice('project:'.length))
-  if (!resolved || resolved === 'unassigned') {
-    if (attendees.length > 0) {
-      return castPeopleTurn(mentioned, sceneAction, inPublic, sceneLocation, snapshot, attendees)
-    }
-    // Both refusals are composed from the reader's timetable; the classifier was never told it.
+  const kind = sceneKindOf(actionType)
+  if (kind.kind !== 'project') {
     failTurn(
       rejection(
-        resolved === 'unassigned'
-          ? "That class hasn't handed out its project yet."
+        kind.kind === 'none' && kind.reason
+          ? kind.reason
           : "You don't have a project to work on right now."
       ),
       snapshot
     )
     return null
   }
-
-  const entry = useGameStore.getState().classes[resolved.code]
-  // Straight under the reader's words, ahead of the absences and encounters.
-  const people = castPeopleTurn(
-    mentioned,
-    `${sceneAction}\n(He is putting a work session into his ${entry?.name ?? 'course'} project.)`,
-    inPublic,
-    sceneLocation,
-    snapshot,
-    attendees
-  )
-  if (!people) return null
-  // Armed only once the cast is settled, so a refused turn leaves no session behind.
-  loopState.projectWork = resolved
-  return { ...people, scene: { ...people.scene, projectClass: resolved.code } }
+  return castPeopleTurn(mentioned, sceneAction, inPublic, sceneLocation, snapshot, [], kind)
 }
 
 /**
- * Every other verdict: the people the reader named, or whoever he runs into. A plan's
- * `attendees` come first and clear the busy gate, as the plan's own button brings them.
+ * Every other verdict: the people the reader named, or whoever he runs into, in the kind of
+ * scene the verdict is. A plan's `attendees` come first and clear the busy gate, as the plan's
+ * own button brings them.
  */
 function castPeopleTurn(
   mentioned: string[],
@@ -1490,7 +1744,8 @@ function castPeopleTurn(
   inPublic: boolean,
   sceneLocation: string,
   snapshot: TurnSnapshot,
-  attendees: readonly string[] = []
+  attendees: readonly string[] = [],
+  kind: SceneKindVerdict = NO_KIND
 ): CastPlan | null {
   // Naming her needs her number; checked before availability, so unreachable
   // outranks busy. Safe to name her back: a stranger was refused two gates above.
@@ -1500,54 +1755,22 @@ function castPeopleTurn(
     return null
   }
 
-  // Whoever is working where the action is set clears the busy gate.
-  const workers = workersAtLocation(sceneLocation).map((worker) => worker.charId)
   const called = [...attendees, ...mentioned]
-  const attendance = resolveAttendance(called, undefined, [...workers, ...attendees])
-  const notes = [...attendance.notes, ...commitmentNotes(attendance.cast, attendees, workers)]
+  const composed = composeMeeting({ called, attendees, inPublic, sceneLocation }, kind)
 
   // A named cast that is entirely busy is refused; a partly free one plays, with the absences
   // written under the action.
-  if (called.length > 0 && attendance.cast.length === 0) {
+  if (called.length > 0 && composed.people.length === 0) {
     failTurn(rejection('Nobody you named is free right now.'), snapshot)
     return null
   }
 
-  const named = called.length > 0
-  let cast: string[]
-  let passerby: string | null = null
-  if (named) {
-    cast = attendance.cast
-    // Only a named cast rolls for a passerby: the draw below accounts for its own bodies.
-    passerby = injectPasserby(cast, inPublic, resolveLocationId(sceneLocation))
-    if (passerby) {
-      cast = [...cast, passerby]
-      notes.push(runIntoNote([passerby]))
-    }
-  } else {
-    cast = drawFreeCast(inPublic, sceneLocation)
-    // Every uninvited body is named under the action, whichever branch added it.
-    if (cast.length > 0) notes.push(runIntoNote(cast))
-  }
-
-  // Last, so the people the reader came for have their slots first; the one branch
-  // that can add to a full scene's notes without adding to its cast.
-  const atWork = admitLocals(cast, sceneLocation, { named, inPublic })
   return {
-    cast: atWork.cast,
-    scene: atWork.jobId ? { visitJobId: atWork.jobId } : {},
-    passerby,
-    sceneAction: [sceneAction, ...notes, ...atWork.notes].join('\n')
+    cast: composed.cast,
+    scene: composed.scene,
+    passerby: composed.passerby,
+    sceneAction: [sceneAction, ...composed.notes].join('\n')
   }
-}
-
-/** The encounter draw, with the first night's guaranteed stranger. */
-function drawFreeCast(inPublic: boolean, location?: string | null): string[] {
-  const game = useGameStore.getState()
-  const where = resolveLocationId(location)
-  return isTutorialSlot(game.date, game.time)
-    ? pickFirstNightCast(inPublic, where)
-    : pickCast(inPublic, where)
 }
 
 /** Puts a decided cast on the stage and settles the phone for the slot it spends. */
@@ -1562,7 +1785,7 @@ function buildTurnRequest(
   isContinuation: boolean,
   solo: boolean
 ): StructuredRequest {
-  const state = scenePromptState()
+  const state = promptState()
   if (!isContinuation) {
     return solo
       ? buildSoloPrompt(sceneAction, state, SETTING, reader())
@@ -1689,7 +1912,6 @@ async function fetchEndingOpening(
 ): Promise<BankedOpening | null> {
   const game = useGameStore.getState()
   const { date, time } = nextSlot(game.date, game.time)
-  const plans = settlePlans(ledger, game.date, game.time)
 
   // The finished scene, folded by value: the boundary owns the real apply, so
   // everything below narrates off a projection and writes nothing.
@@ -1698,7 +1920,7 @@ async function fetchEndingOpening(
   // The run-ins the affinity settle counts, which are dice and so are rolled once.
   const groups = rollSlotEncounterGroups()
 
-  // The finished slot's three settles, banked below for the boundary to apply.
+  // The finished slot's settles, banked below for the boundary to apply.
   const rumor = rollRumorPass(ledger, projected.charInfo)
   const seen = withRumorPass(projected.charInfo, rumor)
   // Safe on the exam prefetch too: a texting-only ledger carries no `stats`, and every other
@@ -1708,9 +1930,42 @@ async function fetchEndingOpening(
   // what the boundary's fallback would see too.
   const crushes = rollCrushSettle(ledger, seen, stats)
   const npcRelationships = rollNpcRelationshipSettle(bondedCharIds(ledger), groups)
+  // Who caught a cold in the finished slot, off the same run-ins; a cold caught tonight is still
+  // incubating in the slot about to open, so the projection below has nothing of it to step.
+  const coldPass = rollColdPass(ledger, groups, stats)
+  // The scene counts, break penalties, told secret and medicine given stepped as the boundary
+  // will step them, so a crush rolled tonight reads as new in the morning too, a penalty halved
+  // tonight reads halved, a secret told tonight is one she has told and a dose she took tonight
+  // has moved her cold on.
+  const charInfo = withGiftDoses(
+    withSecretTold(
+      withBreakPenaltiesStepped(
+        withRomanceScenes(game.charInfo, withCrushes(seen, crushes), game.cast),
+        game.cast
+      ),
+      game.cast,
+      game.sceneSecret
+    ),
+    game.sceneGifts,
+    globalSlotOf(game.date, game.time)
+  )
+
+  // Who leaves for spring break, when the slot about to open is the one that settles it: picked
+  // off the affection the projection leaves and banked for the boundary to assign, so the texts
+  // the opening writes and the pick the save keeps are one answer.
+  const springBreakPick = springBreakPickFor(date, charInfo)
+  const plans = settlePlans(ledger, game.date, game.time, springBreakPick)
+  // Who is back for Homecoming, when the slot about to open is its morning, banked on the same
+  // terms; a girl ending it with him tonight is not the one coming back to see him.
+  const homecomingPick = homecomingPickFor(
+    date,
+    time,
+    charInfo,
+    new Set(projected.breakups.map(({ charId }) => charId))
+  )
 
   const view: PostLedgerView = {
-    charInfo: withCrushes(seen, crushes),
+    charInfo,
     stats,
     // The calendar plus what the scene just agreed to.
     events: [...game.events, ...plans.events],
@@ -1723,16 +1978,19 @@ async function fetchEndingOpening(
 
   // The first night's opening is the authored tutorial and the last morning's the authored
   // graduation: no call, but the plans, overlay and settles are banked either way.
-  if (isTutorialSlot(date, time) || isGraduationSlot(date, time)) {
+  if (isTutorialSlot(date, time, game.semesterIndex) || isGraduationSlot(date, time)) {
     return {
       lines: [],
       hangouts: [],
       events: plans.events,
       cancellations: plans.cancellations,
       ...(npcOverlay ? { npcOverlay } : {}),
+      ...(springBreakPick ? { springBreakAway: springBreakPick } : {}),
+      ...(homecomingPick ? { homecomingVisitor: homecomingPick } : {}),
       rumorPass: rumor,
       crushes,
-      npcRelationships
+      npcRelationships,
+      coldPass
     }
   }
 
@@ -1743,6 +2001,8 @@ async function fetchEndingOpening(
     plans.events,
     plans.cancellations,
     introBreakupsOf(projected),
+    springBreakPick,
+    homecomingPick,
     useGameStore.getState().sceneSummary,
     npcOverlay,
     view,
@@ -1750,7 +2010,17 @@ async function fetchEndingOpening(
   )
   // An abandoned opening banks nothing, the rolls above included; the player replays the
   // turn.
-  return opening ? { ...opening, rumorPass: rumor, crushes, npcRelationships } : null
+  return opening
+    ? {
+        ...opening,
+        ...(springBreakPick ? { springBreakAway: springBreakPick } : {}),
+        ...(homecomingPick ? { homecomingVisitor: homecomingPick } : {}),
+        rumorPass: rumor,
+        crushes,
+        npcRelationships,
+        coldPass
+      }
+    : null
 }
 
 /**
@@ -2028,13 +2298,17 @@ function resolveScene(): { deltas: PlayerStats; lines: StatusText[] } {
   return resolveStatDeltas(loopState.pendingLedgerResult?.stats, {
     // Not `closingCast`, which a resumed save has already cleared by this point.
     solo: useGameStore.getState().cast.length === 0,
-    // The same fact the ledger's `STATS` section is dropped on.
-    classScene: useGameStore.getState().sceneClass !== null,
+    // The same fact the ledger's `STATS` section is dropped on: a class that went ahead.
+    classScene:
+      useGameStore.getState().sceneClass !== null &&
+      useGameStore.getState().sceneEvent?.id !== 'classCancelled',
     classOutcome: classOutcomeNow(),
     // On a worked shift, replaces every other source, the ledger's award included.
     jobOutcome: loopState.jobShift ? { gain: loopState.jobShift.gain } : null,
     // Additive, unlike `jobOutcome`.
-    gradeOutcome: gradeOutcomeNow()
+    gradeOutcome: gradeOutcomeNow(),
+    // Read at the scene's own slot, which a dose taken during it never moves.
+    sick: readerSickNow()
   })
 }
 
@@ -2044,7 +2318,7 @@ function projectStatusLines(): string[] {
   const game = useGameStore.getState()
   const entry = game.classes[loopState.projectWork.code]
   if (!entry) return []
-  const period = projectPeriodOf(entry, game.date, game.occasions)
+  const period = projectPeriodOf(entry, game.date, game.calendar)
   if (!period) return []
   // The session being reported is not banked until the boundary, so it is counted in here.
   const worked = workedOn(game.classRecords[loopState.projectWork.code], loopState.projectWork.exam) + 1
@@ -2524,7 +2798,7 @@ async function crossSlotBoundary(): Promise<void> {
   // The same claim filed by the slot of the week, which the map reads; before
   // `advanceSlot`, so the clock still names the scene's slot. Orientation files nothing.
   const seenSlot = shiftSlotOf(shiftWeekdayOf(game.date), game.time)
-  const newlySeen = isOrientationSlot(game.date, game.time)
+  const newlySeen = isOrientationSlot(game.date, game.time, game.semesterIndex)
     ? []
     : useGameStore.getState().markSeenAt(useGameStore.getState().cast, seenSlot)
   // The first standing haunt seen is what earns him BunnyMap, if a contact has not already.
@@ -2569,7 +2843,7 @@ async function crossSlotBoundary(): Promise<void> {
   }
   // Independent of the ledger too, and here so it lands once, on the boundary's write.
   useGameStore.getState().recordGifts()
-  // The finished slot's three settles, banked by the ending; null only on
+  // The finished slot's settles, banked by the ending; null only on
   // the game-over path, which banks nothing.
   const banked = loopState.bankedOpening
   if (banked) {
@@ -2578,6 +2852,8 @@ async function crossSlotBoundary(): Promise<void> {
     // Before the map is stored: what is recorded is the difference between the two.
     applyNewFriendships(useGameStore.getState().npcRelationships, banked.npcRelationships)
     useGameStore.getState().setNpcRelationships(banked.npcRelationships)
+    // Absent only on an opening banked before colds existed.
+    if (banked.coldPass) useGameStore.getState().applyColdPass(banked.coldPass)
 
     // The one warning that what gets seen gets told, owed the first time anybody sees him with
     // a girl whose name he knows. Left unsent before BunnyBot has introduced itself, or over a
@@ -2596,6 +2872,29 @@ async function crossSlotBoundary(): Promise<void> {
       owedTexts.push(() => deliverBunnybotNow([bunnybotSeenTipText(seenWith.firstName)]))
     }
   }
+  // His boss tells him once a cold to stay home, as it first keeps him off work: marked on the
+  // cold itself, so the boundary save carries it and a reload does not send it twice.
+  const ahead = nextSlot(game.date, game.time)
+  const readerCold = useGameStore.getState().readerCold
+  const bossJob = useGameStore.getState().job?.jobId
+  if (
+    bossJob &&
+    readerCold &&
+    !readerCold.bossTold &&
+    sickInSlot(readerCold, globalSlotOf(ahead.date, ahead.time))
+  ) {
+    useGameStore.getState().markReaderBossTold()
+    owedTexts.push(() => deliverBossMessage(bossJob, 'coldNotice'))
+  }
+  // After every pass that can make her a lover or give her a crush, off the entries the boundary
+  // started from: the step the ending projected for the opening.
+  useGameStore.getState().stepRomanceScenes(game.charInfo, useGameStore.getState().cast)
+  // Then the break penalty of everybody the scene cast, as the ending projected it.
+  useGameStore.getState().stepBreakPenalties(useGameStore.getState().cast)
+  // And the secret a girl cast alone told, as the ending projected it too.
+  useGameStore.getState().tellSceneSecret()
+  // And the curveball it opened on, which waits out its cooldown from today.
+  useGameStore.getState().commitSceneEvent()
   // Filed under the slot the scene ran in, so before the clock moves on.
   useGameStore.getState().commitSceneToHistory(game.date, game.time)
   // Stamped with the finishing slot and before the cast clears below: the ask-out roll reads it
@@ -2638,6 +2937,10 @@ async function crossSlotBoundary(): Promise<void> {
   if (!over && !keepReplay) useGameStore.getState().dropReplay(game.date, game.time)
 
   useGameStore.getState().advanceSlot()
+  // Off the affection the slot about to open reads, so a girl decayed out of a half is caught.
+  useGameStore.getState().observeUpperHalves()
+  // On the same reading: a secret reached tonight waits for the next scene she is alone in.
+  useGameStore.getState().observeSecretTiers()
   // The whole scene is cleared before the write, so the boundary save records `scene: null`;
   // `beginSlot` clears the same things again, but after the write.
   useGameStore.getState().setCast([])
@@ -2717,11 +3020,9 @@ export function enterGame(
     : null
   // Both records are derived from the save the way the cast turn derived them;
   // without them the boundary credits neither the shift nor the session.
-  loopState.jobShift = shiftRecordOf(save.job, save.scene, save.date, save.time)
-  // Only `resolveProject`'s exact-name arm may answer here; its fallback is for a fresh action.
-  const project = save.scene.projectClass ? resolveProject(save.scene.projectClass) : null
-  loopState.projectWork =
-    typeof project === 'object' && project?.code === save.scene.projectClass ? project : null
+  const records = sceneRecordsOf(save.job, save.scene, save.date, save.time)
+  loopState.jobShift = records.jobShift
+  loopState.projectWork = records.projectWork
 
   // A save taken on a line the reader had not turned yet shows that line as it stands, and the
   // next click reads on from it.
@@ -2792,6 +3093,34 @@ export async function leaveToMenu(opts?: { keepCrossing?: boolean }): Promise<vo
 }
 
 /**
+ * Continue from the ending: once the contacts' last posts are in, hands what the ending leaves
+ * to the next semester's roster screen, then leaves the game under the caller's curtain, as
+ * leaving for the menu does. False where there was no playthrough to continue.
+ */
+export async function leaveForNextSemester(): Promise<boolean> {
+  await loopState.endingPostsCall
+  const game = useGameStore.getState()
+  const record = loopState.record
+  const playthroughId = game.playthroughId
+  if (record && playthroughId) {
+    const view = semesterOf(record, game.semesterId ?? undefined)
+    // Read off the store before the teardown resets it: purchases since the goodbyes included.
+    const handoff = carryOf(game, view)
+    // What the mods carry, read off the same ending, rides beside the game's own carry.
+    const mods = modFieldsLeaving(game.toGameSave(), {
+      playthroughId,
+      index: game.semesterIndex,
+      season: view.season,
+      characters: useCharacterStore.getState().characters
+    })
+    if (Object.keys(mods).length > 0) handoff.carry.mods = mods
+    stageContinuation({ playthroughId, record, from: view.id, handoff })
+  }
+  await leaveToMenu({ keepCrossing: true })
+  return Boolean(record && playthroughId)
+}
+
+/**
  * Leaves for the main menu without the last word, for a playthrough about to be deleted: the
  * decision point is dropped rather than written, and the writes already queued settle so none
  * lands after its files are gone. The caller is running the crossing back, as `keepCrossing` says.
@@ -2825,10 +3154,15 @@ export async function leaveCreatedScene(): Promise<void> {
 /**
  * Enters a replay from the calendar under the curtain the caller raised: the game being played is
  * held in memory as a load of it would find it and torn down with nothing written, and the stay
- * queues every line the scene delivered, the reader's own among them, to be read from its first.
- * Where the game cannot be held now, the curtain lifts back onto it.
+ * queues every line the scene delivered to be read from its first, the reader's own passed over.
+ * An earlier semester's replay stays under that semester's calendar and sky. Where the game
+ * cannot be held now, the curtain lifts back onto it.
  */
-export async function enterReplay(replay: SlotReplay, inputDraft: string): Promise<void> {
+export async function enterReplay(
+  replay: SlotReplay,
+  inputDraft: string,
+  earlier?: Pick<ReplayStayFields, 'calendar' | 'weather' | 'semesterIndex'>
+): Promise<void> {
   const run = currentRun()
   // What the game already queued lands first: the teardown below would drop it.
   await writesSettled()
@@ -2841,7 +3175,7 @@ export async function enterReplay(replay: SlotReplay, inputDraft: string): Promi
   leaveGame(true)
 
   const live = useGameStore.getState()
-  live.loadReplay(replayStayOf(held, replay), held.characters)
+  live.loadReplay({ ...replayStayOf(held, replay), ...earlier }, held.characters)
   const cast = [...replay.cast]
   live.restoreScene({
     ...openingScene(replayLinesOf(replay.transcript)),
@@ -2912,9 +3246,13 @@ export async function switchGame(playthroughId: string, saveId: string): Promise
   const read = await window.api.saves.read(playthroughId, saveId)
   if (!read.ok) throw read.error
   const { record, save } = read.data
+  // The save's own semester: its roster, and the graduates who are loaded beside it.
+  const semester = semesterOf(record, save.semester)
 
   const characters = Object.fromEntries(
-    castOf(record.chars, useSaveStore.getState().characters).map((c) => [c.charId, c])
+    castOf([...semester.chars, ...semester.alumni], useSaveStore.getState().characters).map(
+      (c) => [c.charId, c]
+    )
   )
 
   leaveGame(true)
@@ -2925,5 +3263,6 @@ export async function switchGame(playthroughId: string, saveId: string): Promise
 export { speakerNameOf }
 export { abandonClassify, retryClassify } from './loop/classify'
 export { submitQuizAnswer } from './loop/exams'
+export { relax } from './loop/relax'
 export { manualSaveOffer, writeManualSave } from './loop/saves'
 export type { ManualSaveOffer } from './loop/saves'

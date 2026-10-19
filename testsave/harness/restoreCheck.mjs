@@ -27,7 +27,6 @@ const INSTALL_OWN_SETTINGS = new Set([
   'imageApiKeySet',
   'rememberKey',
   'freezeSeeds',
-  'editPregens',
   'forceTime',
   'serviceTier',
   'streamResponses',

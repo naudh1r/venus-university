@@ -1,7 +1,38 @@
 import { create } from 'zustand'
-import type { AppError, InstallProgress, SetupStatus } from '@shared/types'
+import { comfySourceOf } from '@shared/comfyModels'
+import type { AppError, InstallProgress, RendererSettings, SetupStatus } from '@shared/types'
 import { isWebBuild } from '../platform'
 import { useUiStore } from './uiStore'
+
+/**
+ * Whether characters can be rendered at all: never in the browser; with the player's own ComfyUI
+ * named, always (whether it answers is a job's to find); with the app's own, once its install
+ * verified and was not deferred.
+ */
+export function comfyAvailable(
+  settings: RendererSettings | null,
+  status: SetupStatus | null
+): boolean {
+  if (isWebBuild() || !settings) return false
+  if (comfySourceOf(settings) === 'external') return true
+  return Boolean(status?.comfyReady) && !settings.comfyDeferred
+}
+
+/**
+ * Whether the first run's image stage, and a boot, owe the player nothing about ComfyUI: their
+ * own one is named, or the app's own install is finished or deferred.
+ */
+export function comfySettled(
+  settings: RendererSettings | null,
+  status: SetupStatus | null
+): boolean {
+  if (!settings) return false
+  return (
+    comfySourceOf(settings) === 'external' ||
+    settings.comfyDeferred ||
+    Boolean(status?.comfyReady)
+  )
+}
 
 /** Live per-component install state, keyed by `SetupComponent.id`. */
 export interface ComponentProgress {
@@ -31,8 +62,11 @@ interface SetupStoreState {
   installing: boolean
   progress: Record<string, ComponentProgress>
 
-  /** Runs the startup verify pipeline. Called on boot and on user refresh. */
-  refresh: () => Promise<void>
+  /**
+   * Runs the startup verify pipeline. Called on boot and on user refresh; `quiet` logs a
+   * failure rather than raising the fatal screen, for a check nothing is waiting on.
+   */
+  refresh: (quiet?: boolean) => Promise<void>
   /** Runs the install pipeline; per-component failures surface in progress. */
   install: () => Promise<void>
   /** Reveals the folder a hand-downloaded model belongs in. */
@@ -55,14 +89,15 @@ export const useSetupStore = create<SetupStoreState>((set, get) => ({
   installing: false,
   progress: {},
 
-  refresh: async () => {
+  refresh: async (quiet = false) => {
     if (isWebBuild()) return
     set({ checking: true })
     const result = await window.api.setup.getStatus()
     // A fresh verify supersedes the previous run's telemetry.
     set({ checking: false, progress: {} })
     if (!result.ok) {
-      useUiStore.getState().showFatalError(result.error)
+      if (quiet) console.warn(`Could not verify the ComfyUI install: ${result.error.message}`)
+      else useUiStore.getState().showFatalError(result.error)
       return
     }
     set({ status: result.data })

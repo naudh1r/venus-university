@@ -45,7 +45,7 @@ export function rollRumorPass(
 ): RumorPassOutcome {
   const game = useGameStore.getState()
   const firstNames: Record<string, string> = {}
-  for (const charId of game.chars) {
+  for (const charId of [...game.chars, ...game.alumni]) {
     const character = game.characters[charId]
     if (character) firstNames[charId] = character.firstName
   }
@@ -58,6 +58,7 @@ export function rollRumorPass(
     // across one cannot un-settle it.
     departed: stageAt([...game.sceneLog, ...game.pendingLines], stageContextOf(game)).departed,
     roster: game.chars,
+    alumni: game.alumni,
     charInfo,
     npcRelationships: game.npcRelationships,
     groupmates: groupmatesNow(game.date, game.time),

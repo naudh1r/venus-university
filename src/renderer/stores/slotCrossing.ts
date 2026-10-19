@@ -1,8 +1,9 @@
-import type { GameSave, Occasion, PlaythroughRecord, TimeSlot } from '@shared/types'
+import { calendarOf, semesterOf, type SemesterCalendar } from '@shared/semesters'
+import type { GameSave, PlaythroughRecord, Season, TimeSlot } from '@shared/types'
 import type { Weather } from '@shared/weather'
 import { nextSlot, slotHalf } from '../prompts/gameDate'
 import { GOODBYES_SPLASH, isEpilogueNight } from '../prompts/graduation'
-import { GRADUATION_DATE, occasionsAt, SUMMER_VACATION } from '../prompts/occasions'
+import { endVacationOf, GRADUATION_DATE, occasionsAt } from '../prompts/occasions'
 import { slotWeather } from '../prompts/weather'
 import type { ScreenTheme } from '../views/clockTheme'
 import {
@@ -36,13 +37,14 @@ function saveTheme(save: GameSave): ScreenTheme {
 
 /**
  * What the curtain announces the goodbye menu with: the epilogue's own words in place of a
- * date, over the evening summer vacation has started in.
+ * date, over the evening the end-of-term vacation has started in.
  */
-function goodbyesStamp(): SlotStamp {
+function goodbyesStamp(season: Season): SlotStamp {
   return {
     date: GRADUATION_DATE,
     time: 1,
-    occasion: SUMMER_VACATION.title,
+    season,
+    occasion: endVacationOf(season).title,
     weather: 'clear',
     words: GOODBYES_SPLASH
   }
@@ -56,10 +58,16 @@ function goodbyesStamp(): SlotStamp {
 export function slotStampOf(
   date: number,
   time: TimeSlot,
-  occasions: readonly Occasion[],
+  calendar: SemesterCalendar,
   weather: Weather
 ): SlotStamp {
-  return { date, time, occasion: occasionsAt(date, time, occasions)[0]?.title ?? null, weather }
+  return {
+    date,
+    time,
+    season: calendar.season,
+    occasion: occasionsAt(date, time, calendar)[0]?.title ?? null,
+    weather
+  }
 }
 
 /**
@@ -72,13 +80,14 @@ export function entryCrossing(
   save: GameSave,
   record: PlaythroughRecord
 ): CrossingOptions {
+  const semester = semesterOf(record, save.semester)
   const splash = save.graduationSeen
-    ? goodbyesStamp()
+    ? goodbyesStamp(semester.season)
     : slotStampOf(
         save.date,
         save.time,
-        record.occasions,
-        slotWeather(record.weather, save.date, save.time, save.graduationSeen)
+        calendarOf(semester.season, semester.occasions),
+        slotWeather(semester.weather, save.date, save.time, save.graduationSeen)
       )
   return {
     from,
@@ -114,7 +123,7 @@ function untilPhase(done: (phase: string) => boolean): Promise<void> {
  * `ask`, the curtain holds flat once down until the boundary's question is answered.
  */
 export async function coverSlotCrossing(ask = false): Promise<void> {
-  const { date, time, occasions, weather, graduationSeen } = useGameStore.getState()
+  const { date, time, calendar, weather, graduationSeen } = useGameStore.getState()
   const next = nextSlot(date, time)
   // No load is declared: the ending paid for the ledger and for the next slot's opening before
   // the status lines were read, so this cover has a boundary to hide and nothing to wait on.
@@ -125,7 +134,7 @@ export async function coverSlotCrossing(ask = false): Promise<void> {
     splash: slotStampOf(
       next.date,
       next.time,
-      occasions,
+      calendar,
       slotWeather(weather, next.date, next.time, graduationSeen)
     ),
     ask
@@ -142,7 +151,7 @@ export async function coverGoodbyesCrossing(): Promise<boolean> {
   const raised = beginCrossing(undefined, {
     from: gameThemeNow(),
     to: 'night',
-    splash: goodbyesStamp()
+    splash: goodbyesStamp(useGameStore.getState().calendar.season)
   })
   if (!raised) return false
   await untilPhase((phase) => phase === 'holding' || phase === 'idle')

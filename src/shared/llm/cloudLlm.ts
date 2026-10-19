@@ -201,8 +201,8 @@ export async function completeStructured<T>(
   // Against the model that will actually run, so a secondary that takes fewer levels than the
   // primary falls to its own default rather than 400ing.
   const thinkingLevel = reasoningToSend(settings, model.id, request.minThinking)
-  // Absent is `priority`: the tier is a hand-edited switch rather than a player setting.
-  const serviceTier = serviceTierFor(settings.apiProvider, settings.serviceTier ?? 'priority')
+  // Absent is the provider's first tier: `priority` under Gemini.
+  const serviceTier = serviceTierFor(settings.apiProvider, settings.serviceTier)
   // The player's own cap where a custom endpoint names one, else the pinned ceiling.
   const maxOutputTokens = maxOutputTokensOf(settings) ?? MAX_OUTPUT_TOKENS
   // `{}` under Gemini; a custom endpoint's stored sampling values, under their wire keys.

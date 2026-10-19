@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { emptyFlags } from '@shared/relationship'
 import type { CharInfo } from '@shared/types'
+import { WEATHER_SLOTS, type Weather } from '@shared/weather'
 import {
   admitLocals,
   admitWorkers,
@@ -365,6 +366,24 @@ describe('the hidden schedule and the encounter pool', () => {
     })
     vi.spyOn(Math, 'random').mockReturnValue(0)
     expect(pickCast(true)).toContain('a')
+  })
+
+  it('frees a girl whose open-air haunt is rained out', () => {
+    seed({
+      a: { ...met(), hiddenSchedule: { 0: { location: 'green_hill_park', kind: 'activity' } } },
+      b: { ...met(), schedule: { 0: 'BIO 210' } },
+      c: { ...met(), schedule: { 0: 'BIO 210' } },
+      d: { ...met(), schedule: { 0: 'BIO 210' } }
+    })
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    expect(localsAtLocation('green_hill_park')).toEqual(['a'])
+    expect(pickCast(true)).toEqual([])
+
+    const weather: Weather[] = Array(WEATHER_SLOTS).fill('clear')
+    weather[MONDAY * 2] = 'rain'
+    useGameStore.setState({ weather })
+    expect(localsAtLocation('green_hill_park')).toEqual([])
+    expect(pickCast(true)).toEqual(['a'])
   })
 })
 

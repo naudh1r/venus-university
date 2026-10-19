@@ -3,15 +3,13 @@
  * callers that must not drift.
  */
 
+import { MAX_ACCEPT_CHANCE } from './odds'
 import { MAX_TIER, pointsForTier } from './playerStats'
 import { hasTrait } from './traits'
 import type { Character, SocialPost } from './types'
 
 /** The digits a fallback handle ends on — `livvietierra9`, never `livvietierra`. */
 const HANDLE_DIGITS = 10
-
-/** The most an acquaintance's request roll can ever come to, at Godly Heart. */
-const MAX_ACCEPT_CHANCE = 0.8
 
 /** How far above the friends count a post's likes can land. */
 const LIKE_SPREAD = 4

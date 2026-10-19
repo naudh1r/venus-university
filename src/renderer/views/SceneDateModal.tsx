@@ -3,11 +3,12 @@ import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import { SCENE_FIRST_DATE, SCENE_LAST_DATE } from '@shared/sceneCreator'
 import { WEEK_COLUMNS, WEEK_DAY_HEADERS } from '@shared/jobs'
+import { calendarOf } from '@shared/semesters'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
 import { formatDatePart } from '../prompts/gameDate'
 import { occasionsOn } from '../prompts/occasions'
-import { dayOfMonth, gridCellsOf, MONTHS, monthIndexOf, monthName } from './calendarMonths'
+import { dayOfMonth, gridCellsOf, monthIndexOf, monthName, monthsOf } from './calendarMonths'
 import type { ScreenTheme } from './clockTheme'
 import {
   gestures,
@@ -23,6 +24,10 @@ import {
 import { ChevronIcon } from './screenIcons'
 import '../vu_styles/Calendar.css'
 import '../vu_styles/SceneDate.css'
+
+/** A standalone scene is always set in the spring semester, with no invented occasions. */
+const SCENE_CALENDAR = calendarOf('spring', [])
+const SCENE_MONTHS = monthsOf('spring')
 
 export interface SceneDateModalProps {
   /** Drawn by the screen that opened this — a portal inherits no palette. */
@@ -43,13 +48,13 @@ export function SceneDateModal({
   onPick,
   onClose
 }: SceneDateModalProps): JSX.Element | null {
-  const [month, setMonth] = useState(() => monthIndexOf(date))
+  const [month, setMonth] = useState(() => monthIndexOf(date, 'spring'))
   const { host, overlayProps } = useModalShell(onClose)
 
-  const { first, last } = MONTHS[month]
+  const { first, last } = SCENE_MONTHS[month]
   const firstMonth = month === 0
-  const lastMonth = month === MONTHS.length - 1
-  const cells = gridCellsOf(MONTHS[month])
+  const lastMonth = month === SCENE_MONTHS.length - 1
+  const cells = gridCellsOf(SCENE_MONTHS[month])
 
   if (!host) return null
 
@@ -87,7 +92,7 @@ export function SceneDateModal({
             >
               <ChevronIcon />
             </motion.button>
-            <span className="vu-cal-name">{monthName(first)}</span>
+            <span className="vu-cal-name">{monthName(first, 'spring')}</span>
             <motion.button
               id="scene-date-next"
               className="vu-square vu-square--step"
@@ -122,7 +127,7 @@ export function SceneDateModal({
               if (day < first || day > last || day < SCENE_FIRST_DATE || day > SCENE_LAST_DATE) {
                 return (
                   <div className="vu-cal-cell vu-cal-cell--out" key={day}>
-                    <span className="vu-cal-num">{dayOfMonth(day)}</span>
+                    <span className="vu-cal-num">{dayOfMonth(day, 'spring')}</span>
                   </div>
                 )
               }
@@ -134,16 +139,16 @@ export function SceneDateModal({
                   key={day}
                   type="button"
                   aria-pressed={picked}
-                  aria-label={formatDatePart(day)}
+                  aria-label={formatDatePart(day, 'spring')}
                   {...gestures(false, rowLift, rowPress)}
                   onClick={() => {
                     onPick(day)
                     onClose()
                   }}
                 >
-                  <span className="vu-cal-num">{dayOfMonth(day)}</span>
+                  <span className="vu-cal-num">{dayOfMonth(day, 'spring')}</span>
                   <span className="vu-cal-chips">
-                    {occasionsOn(day, []).map((occasion) => (
+                    {occasionsOn(day, SCENE_CALENDAR).map((occasion) => (
                       <span className="vu-cal-chip" data-cat="occasion" key={occasion.id}>
                         <span className="vu-cal-chip-label">{occasion.title}</span>
                       </span>

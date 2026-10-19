@@ -1,5 +1,5 @@
-import { readFile, rename, rm, writeFile } from 'fs/promises'
-import { nativeImage } from 'electron'
+import { readFile } from 'fs/promises'
+import type { Sharp } from 'sharp'
 import { expressionRel, faceRel, profileRel } from '@shared/characterFiles'
 import { appError, messageOf } from '@shared/errors'
 import { alphaBounds, type LineupBox } from '@shared/lineup'
@@ -11,12 +11,12 @@ import {
   getCharacterProfilePath,
   getStagedPath
 } from '../paths'
-import { dropImageTwins, imagePath } from './imageFiles'
+import { imagePath, openImage, writeImageFile } from './imageFiles'
 
 /**
- * Her portrait, cut from her neutral sprite. Main owns it because `nativeImage`
- * decodes, crops and re-encodes a PNG here, which is all this needs — the renderer's canvas is
- * still the only thing that can *composite*.
+ * Her portrait, cut from her neutral sprite. Main owns it because sharp decodes, crops and
+ * re-encodes the picture here, which is all this needs — the renderer's canvas is still the only
+ * thing that can *composite*.
  */
 
 /** How opaque a mask pixel must be to count as face; the mask is drawn white on black. */
@@ -40,24 +40,32 @@ function paths(
       }
 }
 
-/** One image off disk, whichever extension it is under, or `null` where there is none. */
-async function decode(path: string): Promise<Electron.NativeImage | null> {
+/** One image off disk and its size, opened for reading its pixels. */
+interface Decoded {
+  image: Sharp
+  width: number
+  height: number
+}
+
+/** One image off disk, whichever extension it is under, or `null` where there is no readable one. */
+async function decode(path: string): Promise<Decoded | null> {
   try {
-    const image = nativeImage.createFromBuffer(await readFile(await imagePath(path)))
-    return image.isEmpty() ? null : image
+    const image = await openImage(await readFile(await imagePath(path)))
+    const { width, height } = await image.metadata()
+    return width > 0 && height > 0 ? { image, width, height } : null
   } catch {
     return null
   }
 }
 
-/** The sprite a portrait is cut from, or `PROFILE_SOURCE_MISSING` where there is no readable PNG. */
-async function decodeSpriteOrThrow(path: string): Promise<Electron.NativeImage> {
+/** The sprite a portrait is cut from, or `PROFILE_SOURCE_MISSING` where there is no readable one. */
+async function decodeSpriteOrThrow(path: string): Promise<Decoded> {
   const sprite = await decode(path)
   if (!sprite) {
     throw appError(
       'PROFILE_SOURCE_MISSING',
       'Could not read the neutral sprite.',
-      `${path} is missing or not a readable PNG.`
+      `${path} is missing or not a readable picture.`
     )
   }
   return sprite
@@ -65,21 +73,22 @@ async function decodeSpriteOrThrow(path: string): Promise<Electron.NativeImage> 
 
 /**
  * The box the face mask marks out, in the sprite's own pixels. The mask is greyscale, so any
- * one channel says what the whole pixel does and the red one is read.
+ * one channel says what the whole pixel does and the first one is read.
  */
 async function faceBoxOf(maskPath: string): Promise<LineupBox | null> {
   const mask = await decode(maskPath)
   if (!mask) return null
 
-  const { width, height } = mask.getSize()
-  if (width === 0 || height === 0) return null
-
-  // BGRA, four bytes a pixel; every channel carries the same value in a greyscale mask.
-  const bitmap = mask.toBitmap()
-  const values = new Uint8Array(width * height)
-  for (let i = 0; i < values.length; i++) values[i] = bitmap[i * 4]
-
-  return alphaBounds(values, width, height, MASK_FLOOR)
+  try {
+    // One byte a pixel: the single channel extracted, unpacked.
+    const { data, info } = await mask.image
+      .extractChannel(0)
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    return alphaBounds(data, info.width, info.height, MASK_FLOOR)
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -94,22 +103,25 @@ export async function cutProfile(
   const at = paths(charId, staged)
   const sprite = await decodeSpriteOrThrow(at.sprite)
 
-  const { width, height } = sprite.getSize()
+  const { width, height } = sprite
   const stored = activeProfileCrop(character)
   const crop = stored
     ? clampProfileCrop(stored, width, height)
     : defaultProfileCrop(await faceBoxOf(at.face), width, height, character.generationSeed)
 
-  const temp = `${at.profile}.tmp`
+  let cut: Buffer
   try {
-    const cut = sprite.crop({ x: crop.x, y: crop.y, width: crop.width, height: crop.height })
-    await writeFile(temp, cut.toPNG())
-    await rename(temp, at.profile)
-    await dropImageTwins(at.profile)
+    cut = await sprite.image
+      .extract({ left: crop.x, top: crop.y, width: crop.width, height: crop.height })
+      .png({ compressionLevel: 1 })
+      .toBuffer()
   } catch (err) {
-    await rm(temp, { force: true }).catch(() => {})
-    throw appError('PROFILE_UNWRITABLE', 'Could not save the portrait.', messageOf(err))
+    // The header read, but the pixels behind it did not.
+    throw appError('PROFILE_SOURCE_MISSING', 'Could not read the neutral sprite.', messageOf(err))
   }
+  await writeImageFile(at.profile, cut, {
+    error: { code: 'PROFILE_UNWRITABLE', message: 'Could not save the portrait.' }
+  })
 
   return crop
 }
@@ -136,9 +148,8 @@ export async function profileCropOf(
   character: Character
 ): Promise<ProfileCropInfo> {
   const at = paths(charId, false)
-  const sprite = await decodeSpriteOrThrow(at.sprite)
+  const { width, height } = await decodeSpriteOrThrow(at.sprite)
 
-  const { width, height } = sprite.getSize()
   const stored = activeProfileCrop(character)
   return {
     stored: stored ? clampProfileCrop(stored, width, height) : null,

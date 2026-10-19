@@ -232,7 +232,7 @@ async function archiveCharacter(id, blobs) {
   const entries = {}
   for (const [name, bytes] of read) entries[name] = bytes
 
-  // Stored, not deflated: PNG does not shrink, and git delta-compresses a stored
+  // Stored, not deflated: PNG and WebP do not shrink, and git delta-compresses a stored
   // zip well against its last version when only some entries changed.
   const zip = zipSync(entries, { level: 0, mtime: ZIP_MTIME })
   if (zip.length >= MAX_ZIP_BYTES) {

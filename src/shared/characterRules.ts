@@ -1,4 +1,5 @@
 import { CHARACTER_FILE_NAME } from './characterFiles'
+import { characterLoraToStore, DEFAULT_LORA_WEIGHT, isLoraWeight } from './comfyModels'
 import { EMOTIONS } from './emotions'
 import { assertSafeId, validateRecord, type ValidateRecordOptions } from './jsonValidate'
 import { allFollowMain } from './outfits'
@@ -8,6 +9,8 @@ import {
   type Character,
   type CharacterBehavior,
   type CharacterBrief,
+  type CharacterLoraBrief,
+  type DefaultsStatus,
   type Emotion
 } from './types'
 import { randomId } from './uuid'
@@ -35,6 +38,7 @@ const CHARACTER_REQUIRED: Record<
     | 'charId'
     | 'customCgs'
     | 'customOutfits'
+    | 'lora'
     | 'negativeTags'
     | 'profileCrop'
     | 'regenTags'
@@ -221,12 +225,59 @@ export function blankSheet(character: Character, personality: string, pose: stri
   }
 }
 
-/** Every shipped charId, and which of them the player has removed; only a shipped id counts. */
+/** One tag group joined in order, blanks and repeats dropped. */
+function joinedTags(...groups: readonly (readonly string[])[]): string[] {
+  const out: string[] = []
+  for (const tag of groups.flat().map((entry) => entry.trim())) {
+    if (tag !== '' && !out.includes(tag)) out.push(tag)
+  }
+  return out
+}
+
+/**
+ * Her sheet with the LoRA the New Character modal picked: the LoRA on her record, its trigger
+ * word and appearance tags after the subject tags, and its outfit tags in her default outfit.
+ * A group the player filled stands in for the one her sheet already holds where `replace` is
+ * on, and goes in front of it otherwise; a group left empty keeps what her sheet holds.
+ */
+export function withCharacterLora(character: Character, lora: CharacterLoraBrief): Character {
+  const appearance = joinedTags([lora.trigger], lora.appearance)
+  const outfit = joinedTags(lora.outfit)
+  const written = character.baseAppearance.filter((tag) => !SUBJECT_TAGS.includes(tag))
+  const baseAppearance = joinedTags(
+    SUBJECT_TAGS,
+    appearance,
+    lora.replace && appearance.length > 0 ? [] : written
+  )
+  return {
+    ...character,
+    lora: characterLoraToStore(
+      lora.name,
+      isLoraWeight(lora.weight) ? lora.weight : DEFAULT_LORA_WEIGHT
+    ),
+    baseAppearance,
+    outfit: joinedTags(outfit, lora.replace && outfit.length > 0 ? [] : character.outfit),
+    // Her build tags may have changed, and the height is read off them.
+    height: defaultSpriteScale(baseAppearance)
+  }
+}
+
+/**
+ * Every shipped charId, which of them the player has removed and which have an edited copy; only
+ * a shipped id counts in either list.
+ */
 export function defaultsStatusOf(
   ids: readonly string[],
-  removed: readonly string[]
-): { ids: string[]; removed: string[] } {
-  return { ids: [...ids], removed: removed.filter((charId) => ids.includes(charId)) }
+  removed: readonly string[],
+  edited: readonly string[],
+  inPlace: boolean
+): DefaultsStatus {
+  return {
+    ids: [...ids],
+    removed: removed.filter((charId) => ids.includes(charId)),
+    edited: edited.filter((charId) => ids.includes(charId)),
+    inPlace
+  }
 }
 
 /** The removed-defaults list with `charId` on it, unchanged where it already is. */

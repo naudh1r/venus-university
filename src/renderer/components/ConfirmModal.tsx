@@ -11,7 +11,8 @@ export interface ConfirmModalProps {
   /** Drawn by the screen that raised this — a portal inherits neither palette nor state rules. */
   theme: 'day' | 'night'
   title: string
-  message: ReactNode
+  /** The prose; a list of strings is one paragraph apiece. */
+  message: ReactNode | readonly string[]
   /** Drawn under the message, inside the frame and above the foot — a checkbox the answer carries. */
   aside?: ReactNode
   confirmText?: string
@@ -33,6 +34,10 @@ export interface ConfirmModalProps {
   onExtra?: () => void
   /** Locks the third answer alone, where what it offers is not there to give. */
   extraDisabled?: boolean
+  /** Stands the third answer before the dismiss button rather than after it. */
+  extraFirst?: boolean
+  /** Locks the confirm alone, while what it would do is not ready to be done. */
+  confirmDisabled?: boolean
   onConfirm: () => void
   /**
    * Omitted for a modal with only one way out: the dismiss button is then
@@ -45,6 +50,11 @@ export interface ConfirmModalProps {
    * right thing for those to do.
    */
   onDismiss?: () => void
+}
+
+/** Whether a message is a list of paragraphs rather than one node. */
+function isParagraphs(message: ReactNode | readonly string[]): message is readonly string[] {
+  return Array.isArray(message) && message.every((part) => typeof part === 'string')
 }
 
 /**
@@ -66,11 +76,25 @@ export function ConfirmModal({
   extraText,
   onExtra,
   extraDisabled = false,
+  extraFirst = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
   onDismiss
 }: ConfirmModalProps): JSX.Element | null {
   const dismiss = onDismiss ?? onCancel ?? onConfirm
+  const extra = extraText && onExtra && (
+    <motion.button
+      id={`${id}-extra`}
+      className="vu-btn vu-btn--quiet"
+      type="button"
+      disabled={busy || extraDisabled}
+      {...gestures(busy || extraDisabled, quietLift, quietPress)}
+      onClick={onExtra}
+    >
+      {extraText}
+    </motion.button>
+  )
   const { host, overlayProps, primaryProps } = useModalShell(
     busy || lockOut ? () => {} : dismiss,
     'panel',
@@ -89,6 +113,7 @@ export function ConfirmModal({
       title={title}
       foot={
         <>
+          {extraFirst && extra}
           {onCancel && (
             <motion.button
               id={`${id}-cancel`}
@@ -101,24 +126,13 @@ export function ConfirmModal({
               {cancelText}
             </motion.button>
           )}
-          {extraText && onExtra && (
-            <motion.button
-              id={`${id}-extra`}
-              className="vu-btn vu-btn--quiet"
-              type="button"
-              disabled={busy || extraDisabled}
-              {...gestures(busy || extraDisabled, quietLift, quietPress)}
-              onClick={onExtra}
-            >
-              {extraText}
-            </motion.button>
-          )}
+          {!extraFirst && extra}
           <motion.button
             id={`${id}-confirm`}
             className="vu-btn vu-btn--primary vu-paper vu-btn--panel"
             type="button"
-            disabled={busy}
-            {...gestures(busy, lift, press)}
+            disabled={busy || confirmDisabled}
+            {...gestures(busy || confirmDisabled, lift, press)}
             onClick={onConfirm}
           >
             {busy && busyText ? busyText : confirmText}
@@ -126,7 +140,15 @@ export function ConfirmModal({
         </>
       }
     >
-      <p className="vu-note-text">{message}</p>
+      {isParagraphs(message) ? (
+        message.map((paragraph, index) => (
+          <p key={index} className="vu-note-text">
+            {paragraph}
+          </p>
+        ))
+      ) : (
+        <p className="vu-note-text">{message}</p>
+      )}
       {aside}
     </DialogFrame>,
     host

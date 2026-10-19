@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatMessage, Conversation } from '@shared/types'
-import { composeTextingSummary } from '../src/renderer/prompts/textingPrompt'
+import { composeTextingSummary, unansweredReachOuts } from '../src/renderer/prompts/textingPrompt'
 
 /**
  * A slot-start ask-out and the Sure that answers it land in the thread without a texting
@@ -50,5 +50,34 @@ describe('composeTextingSummary', () => {
     const lines = composeTextingSummary(conversation([message()]), false, 'Mina', now)
     expect(lines).toContain('The last text in the thread was sent earlier tonight.')
     expect(lines.join('\n')).not.toContain('"hey"')
+  })
+})
+
+/**
+ * Her wait before reaching out again, and whether her thread reaches the texting ledger, are
+ * both read off which of her reach-outs he has left unanswered.
+ */
+describe('unansweredReachOuts', () => {
+  const text = (id: string, over: Partial<ChatMessage> = {}): ChatMessage => ({
+    id,
+    sender: 'contact',
+    text: 'hey',
+    date: 3,
+    time: 1,
+    ...over
+  })
+
+  it('counts only the reach-outs after his newest text, a system line answering nothing', () => {
+    const messages = [
+      text('r1', { reachOut: true }),
+      text('p1', { sender: 'player' }),
+      text('r2', { reachOut: true }),
+      // The second bubble of the same reach-out carries no mark of its own.
+      text('r2b'),
+      text('s1', { sender: 'system' }),
+      text('r3', { reachOut: true })
+    ]
+    expect(unansweredReachOuts(messages).map(({ id }) => id)).toEqual(['r2', 'r3'])
+    expect(unansweredReachOuts([...messages, text('p2', { sender: 'player' })])).toEqual([])
   })
 })

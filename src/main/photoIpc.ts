@@ -37,7 +37,7 @@ function queuePhoto<T>(
     run: async ({ signal, report }) => {
       // The job starts ComfyUI itself; the queue is serial, so only the first pays the boot.
       report('Waiting for ComfyUI')
-      await startComfy((step) => report(step))
+      await startComfy(undefined, (step) => report(step))
       return run({ signal, onProgress: (step) => report(step) })
     }
   })

@@ -159,7 +159,17 @@ export function patchOf(settings: RendererSettings): SettingsPatch {
     // Carried, or a save made from anywhere else would drop Gemini's secondary model.
     secondaryModel: settings.secondaryModel,
     secondaryModelFor: settings.secondaryModelFor,
+    // Carried, or a save made from anywhere else would put Gemini back on priority.
+    serviceTier: settings.serviceTier,
     comfyDeferred: settings.comfyDeferred,
+    // Carried, or a save made from anywhere else would put the app's own ComfyUI back in charge
+    // and forget which models each one draws with, and at what LoRA weight.
+    comfySource: settings.comfySource,
+    comfyUrl: settings.comfyUrl,
+    comfyModels: settings.comfyModels,
+    comfyExternalModels: settings.comfyExternalModels,
+    comfyLoraWeight: settings.comfyLoraWeight,
+    comfyExternalLoraWeight: settings.comfyExternalLoraWeight,
     // Carried, or a save made from anywhere else would turn the launch offer back on.
     checkUpdates: settings.checkUpdates,
     // Carried, or a save made from anywhere else would open the next launch fullscreen again.
@@ -179,8 +189,9 @@ export function patchOf(settings: RendererSettings): SettingsPatch {
     repetitionPenalty: settings.repetitionPenalty,
     topP: settings.topP,
     topK: settings.topK,
-    // Carried, or a save made from anywhere else would drop the memory budgets and the persona.
+    // Carried, or a save made from anywhere else would drop the budgets and the persona.
     memoryBudgets: settings.memoryBudgets,
+    secretBudget: settings.secretBudget,
     scenePersona: settings.scenePersona
   }
 }

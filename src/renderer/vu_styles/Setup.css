@@ -79,7 +79,7 @@
   padding: 120px 0 0 96px;
 }
 
-/* The key stage's measure: two provider blurbs under the intro, in the wider arch. */
+/* The key and image stages' measure: two blurbs under the intro, in the wider arch. */
 .vu-setup-pitch--wide {
   width: 540px;
 }
@@ -101,11 +101,6 @@
   font: 400 56px/1.08 var(--font-display);
 }
 
-.vu-setup-total {
-  color: var(--vu-text-muted);
-  font: 700 15px var(--font-mono);
-}
-
 .vu-setup-body {
   margin: 0;
   max-width: 360px;
@@ -124,6 +119,22 @@
 .vu-setup-blurb-head {
   color: var(--vu-text);
   font: 700 19px var(--font-body);
+}
+
+/* The custom nodes a player's own ComfyUI needs, one link a line, inset under the sentence
+   that asks for them. */
+.vu-setup-nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+/* The image stage's select stands under the blurbs, a beat apart from the copy over it. */
+.vu-setup-pitch .vu-field {
+  max-width: 440px;
+  margin-top: 6px;
 }
 
 /* ---- the checklist --------------------------------------------------------- */
@@ -387,6 +398,18 @@
   height: 980px;
   padding: 46px 60px 32px 240px;
   border-radius: 400px 0 0 400px;
+}
+
+/* The own-ComfyUI card's measure: its two columns are fields and pickers rather than prose. */
+.vu-setup-card-frame--comfy {
+  width: 1300px;
+}
+
+/* The one paragraph a card column says about itself, in a hint's muted voice. */
+.vu-setup-note {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 500 14px/1.5 var(--font-body);
 }
 
 /* What the steps under it are about, and the one thing on the card that changes with the

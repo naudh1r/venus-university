@@ -252,6 +252,8 @@ export async function generatePhoto(
       seed,
       // Rendered as PNG either way; a WebP name is encoded by the renderer once it lands.
       destPath: getPhotoPath(playthroughId, character.charId, pngPhotoOf(file)),
+      // Written as ComfyUI rendered it; the renderer does any encoding.
+      format: 'raw',
       label: `${character.charId} / photo:${tier}`,
       logContext: `seed=${seed} file=${file}`
     },

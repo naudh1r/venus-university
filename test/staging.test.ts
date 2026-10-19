@@ -152,6 +152,20 @@ describe('commitStagedSet', () => {
     )
   })
 
+  it('commits a staged room kept as WebP over the live PNG one', async () => {
+    // A room rendered now is written as WebP, while the live one may be a PNG not yet converted:
+    // matched by name alone, the staged one would never go live.
+    await seed(getCharacterPath(CHAR), ['room_day'], 'old')
+    await mkdir(getCharacterStagingPath(CHAR), { recursive: true })
+    await writeFile(join(getCharacterStagingPath(CHAR), 'room_day.webp'), 'new:room_day')
+
+    await expect(characterService.commitStagedSet(CHAR, 'room')).resolves.toBe('committed')
+
+    const live = (await readdir(getCharacterPath(CHAR))).filter((name) => name.startsWith('room_'))
+    expect(live).toEqual(['room_day.webp'])
+    expect(await readFile(join(getCharacterPath(CHAR), 'room_day.webp'), 'utf8')).toBe('new:room_day')
+  })
+
   it('refuses a charId that could escape the characters folder', async () => {
     for (const id of ['..', '../x', 'a/b', '']) {
       await expect(characterService.commitStagedSet(id, 'default')).rejects.toMatchObject({

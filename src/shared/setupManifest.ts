@@ -114,6 +114,8 @@ export interface PinnedNode {
    * after an install.
    */
   modules: readonly string[]
+  /** The node classes the workflows take from this pack, so one a server lacks is named under it. */
+  classes: readonly string[]
 }
 
 /** Custom nodes required by the runtime workflows, verified against them. */
@@ -127,7 +129,16 @@ export const PINNED_NODES: readonly PinnedNode[] = [
     sha: '429d0159ad429e64d2b3916e6e7be9c22d025c3c',
     bytes: 2672533,
     sha256: '017BD1DDB7D17C923A1309FF1251379EAF65B71A9AC8FA91D384BB275BF000CE',
-    modules: ['cv2', 'skimage', 'piexif', 'segment_anything']
+    modules: ['cv2', 'skimage', 'piexif', 'segment_anything'],
+    classes: [
+      'BboxDetectorSEGS',
+      'DetailerForEach',
+      'FaceDetailer',
+      'ImpactDilateMask',
+      'ImpactSegsAndMask',
+      'MaskToSEGS',
+      'SegsToCombinedMask'
+    ]
   },
   {
     id: 'impactSubpack',
@@ -138,7 +149,8 @@ export const PINNED_NODES: readonly PinnedNode[] = [
     sha: '50c7b71a6a224734cc9b21963c6d1926816a97f1',
     bytes: 27328,
     sha256: '08E73CFE3304F25EE0A8C9E35C281B14D9CF1838682D92A071D8A18692674CDE',
-    modules: ['ultralytics']
+    modules: ['ultralytics'],
+    classes: ['UltralyticsDetectorProvider']
   },
   {
     id: 'inspyrenetRembg',
@@ -149,7 +161,8 @@ export const PINNED_NODES: readonly PinnedNode[] = [
     sha: '87ac452ef1182e8f35f59b04010158d74dcefd06',
     bytes: 6894,
     sha256: '9C4881A826562435F77F311A550AC0188721259220B0CE8319AAD1B0C4CCC545',
-    modules: ['transparent_background']
+    modules: ['transparent_background'],
+    classes: ['InspyrenetRembgAdvanced']
   }
 ] as const
 

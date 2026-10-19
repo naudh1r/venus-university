@@ -4,6 +4,7 @@ import { setTokenSink } from '@shared/llm/tokenPort'
 import { STAGE_HEIGHT, STAGE_MIN_WIDTH, zoomFor } from '@shared/stageZoom'
 import { setImageResolver } from '../renderer/stores/imageUrl'
 import { buildApi, jobProgress, tokensGenerated } from './bridge'
+import { loadCopied } from './copies'
 import { resolveImage, setImagesLoadedSink } from './images'
 import { openLog } from './log'
 import { currentSettings } from './settings'
@@ -108,6 +109,9 @@ async function boot(): Promise<void> {
   // Before anything can print: the log picks up what the last visit left behind.
   await openLog()
   void claimStorage()
+  // Before the renderer asks for a picture: which shipped characters are read from storage
+  // rather than from their packs decides where each picture comes from.
+  await loadCopied()
 
   const root = document.getElementById('root')
   if (root) holdStage(root)

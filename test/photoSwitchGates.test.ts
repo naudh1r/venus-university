@@ -43,6 +43,19 @@ describe('Photo Feature asks its switch', () => {
     expect(bodyDetailsOn()).toBe(false)
   })
 
+  it("draws on the player's own ComfyUI, and not while the app's install is deferred", async () => {
+    stubApi({ jobs: { onProgress: () => () => {} } })
+    const { photos, useSettingsStore } = await load()
+    const { useSetupStore } = await import('../src/renderer/stores/setupStore')
+    // Their own ComfyUI is named and the app's install was never verified.
+    useSetupStore.setState({ status: null })
+    useSettingsStore.setState({ settings: { comfySource: 'external' } as never })
+    expect(photos.canSendPhotos()).toBe(true)
+    useSettingsStore.setState({ settings: { comfyDeferred: true } as never })
+    useSetupStore.setState({ status: { comfyReady: true } as never })
+    expect(photos.canSendPhotos()).toBe(false)
+  })
+
   it('forbids an explicit photo when either switch does', async () => {
     const { switches, photos, useSettingsStore } = await load()
     expect(photos.noExplicitPhotos()).toBe(false)

@@ -9,6 +9,7 @@ import {
   SHIFT_CHANGE_SLOT
 } from '@shared/jobs'
 import { slotOf } from '@shared/classes'
+import { calendarOf } from '@shared/semesters'
 import type { JobState, Occasion, TimeSlot } from '@shared/types'
 import { meetingDatesOf } from '../src/renderer/prompts/occasions'
 import {
@@ -20,6 +21,8 @@ import {
 import { shiftNow } from '../src/renderer/stores/timetable'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { classEntry, peClassEntry } from './fixtures'
+
+const SPRING = calendarOf('spring', [])
 
 /**
  * The store half of the shift sweep: the strikes it banks, the boss texts it sends, the roster
@@ -35,7 +38,7 @@ const MONDAY_DAY_SHIFT = shiftSlotOf(0, 0)
 /** Puts the clock on a slot with a job already in force, sweeping from `from`. */
 function seed(date: number, time: TimeSlot, job: JobState, occasions: Occasion[] = []): void {
   useGameStore.getState().reset()
-  useGameStore.setState({ date, time, job, occasions })
+  useGameStore.setState({ date, time, job, calendar: calendarOf('spring', occasions) })
 }
 
 /** A closure spanning `startDate`–`endDate`, of the kind that shuts the university. */
@@ -100,7 +103,7 @@ describe('resolveProject', () => {
       ...(met
         ? {
             classRecords: {
-              'ART 110': { meetings: [{ date: meetingDatesOf(SLOT)[0], attended: true }] }
+              'ART 110': { meetings: [{ date: meetingDatesOf(SLOT, SPRING)[0], attended: true }] }
             }
           }
         : {})
@@ -156,8 +159,8 @@ describe('projectsNeedingWork', () => {
       },
       playerSchedule: { [SLOT]: 'ART 110', [OTHER_SLOT]: 'CWR 305' },
       classRecords: {
-        'ART 110': { meetings: [{ date: meetingDatesOf(SLOT)[0], attended: true }] },
-        'CWR 305': { meetings: [{ date: meetingDatesOf(OTHER_SLOT)[0], attended: true }] }
+        'ART 110': { meetings: [{ date: meetingDatesOf(SLOT, SPRING)[0], attended: true }] },
+        'CWR 305': { meetings: [{ date: meetingDatesOf(OTHER_SLOT, SPRING)[0], attended: true }] }
       }
     })
   }

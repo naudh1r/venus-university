@@ -24,11 +24,13 @@ import { placeClosedOn } from '../prompts/occasions'
 import { useGameStore } from './gameStore'
 import { localsAtLocation, workersAtLocation } from './loop/casting'
 import {
+  castableIds,
   charAwayNow,
   charClassNow,
   charHiddenLocationNow,
   charJobNow,
   charRoomDormNow,
+  charSickAtHomeNow,
   charStandingHauntAt
 } from './timetable'
 
@@ -42,7 +44,7 @@ import {
 type WhereaboutsSource = 'told' | 'remembered'
 
 /** What kind of answer a row is, which is what the view's furniture branches on. */
-type WhereaboutsKind = 'place' | 'room' | 'class' | 'away' | 'unknown'
+type WhereaboutsKind = 'place' | 'room' | 'class' | 'away' | 'sick' | 'unknown'
 
 /** The section every class fills — one bucket, not one per class. */
 export const CLASS_PLACE_KEY = 'class'
@@ -52,6 +54,9 @@ export const UNKNOWN_PLACE_KEY = 'unknown'
 
 /** The section a contact who has left the city for the week falls into. */
 export const AWAY_PLACE_KEY = 'away'
+
+/** The section a contact in bed with a cold falls into, which nobody can be sent to. */
+export const SICK_PLACE_KEY = 'sick'
 
 /** The glyph over the out-of-town line. */
 const AWAY_ICON = '✈️'
@@ -98,6 +103,7 @@ const PLACE_ORDER: readonly string[] = [
   ...NARRATIVE_LOCATIONS.map((def) => def.id),
   dormPlaceKey(FALLBACK_DORM),
   dormPlaceKey('elysium'),
+  SICK_PLACE_KEY,
   AWAY_PLACE_KEY,
   UNKNOWN_PLACE_KEY
 ]
@@ -131,21 +137,38 @@ function dormOf(charId: string): DormId {
   return useGameStore.getState().charInfo[charId].dorm
 }
 
+/** Where somebody off campus is, as the phone tells it: out of town. */
+export function awayWhereabouts(charId: string): Whereabouts {
+  return {
+    charId,
+    source: 'told',
+    kind: 'away',
+    location: null,
+    placeKey: AWAY_PLACE_KEY,
+    placeLabel: 'Out of town',
+    placeIcon: AWAY_ICON,
+    placeBlurb: '',
+    onCampus: false
+  }
+}
+
 /** The told route: where she actually is, obligations included. */
 function toldWhereabouts(charId: string, date: number, time: TimeSlot): Whereabouts {
   const base = { charId, source: 'told' as const }
 
   // First of everything, on `charHiddenLocationNow`'s own ordering.
-  if (charAwayNow(charId, date)) {
+  if (charAwayNow(charId, date)) return awayWhereabouts(charId)
+  // In bed with a cold: home, but nowhere a Go can find her.
+  if (charSickAtHomeNow(charId, date, time)) {
     return {
       ...base,
-      kind: 'away',
+      kind: 'sick',
       location: null,
-      placeKey: AWAY_PLACE_KEY,
-      placeLabel: 'Out of town',
-      placeIcon: AWAY_ICON,
+      placeKey: SICK_PLACE_KEY,
+      placeLabel: 'Home sick',
+      placeIcon: '',
       placeBlurb: '',
-      onCampus: false
+      onCampus: true
     }
   }
 
@@ -224,7 +247,8 @@ export function knownWhereabouts(date?: number, time?: TimeSlot): Whereabouts[] 
   const slot = shiftSlotOf(shiftWeekdayOf(on), half)
 
   const rows: Whereabouts[] = []
-  for (const charId of game.chars) {
+  // The roster, and a graduate back for Homecoming, who is somewhere he cannot place.
+  for (const charId of castableIds(on)) {
     const info = game.charInfo[charId]
     if (!info?.nameKnown) continue
 
@@ -263,7 +287,7 @@ export function mapFillers(shownKeys: readonly string[], count: number): Section
 
   const open = [...LOCATIONS, ...NARRATIVE_LOCATIONS]
     .map((def) => def.id)
-    .filter((id) => isLocationOpen(id, slot) && !placeClosedOn(id, on, game.occasions))
+    .filter((id) => isLocationOpen(id, slot) && !placeClosedOn(id, on, game.calendar))
     .map(placeSection)
     .filter((section) => !shownKeys.includes(section.placeKey))
 

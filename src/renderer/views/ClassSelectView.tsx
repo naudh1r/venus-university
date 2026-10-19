@@ -216,7 +216,7 @@ export function ClassSelectView({
               {/* Only the revision has a deadline; a first enrollment is the deadline. */}
               {ADD_DROP && (
                 <span className="vu-courses-deadline">
-                  Closes {formatDatePart(ADD_DROP_DATE)}
+                  Closes {formatDatePart(ADD_DROP_DATE, 'spring')}
                 </span>
               )}
               <span

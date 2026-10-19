@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { shownComments, type PostComment } from '../src/shared/postComments'
+import { carriedComments, shownComments, type PostComment } from '../src/shared/postComments'
+import { globalSlotOf } from '../src/shared/jobs'
 
 /** Every reply is rolled when the post is filed, and each carries the slot it turns up in. */
 describe('shownComments', () => {
@@ -20,5 +21,19 @@ describe('shownComments', () => {
 
   it('answers nothing where a post has no replies', () => {
     expect(shownComments(undefined, 0, 0)).toEqual([])
+  })
+})
+
+describe('carriedComments', () => {
+  it('keeps each comment where it was in the day when New Game+ moves the post back', () => {
+    const post = {
+      date: 90,
+      comments: [{ id: 'c', handle: 'h', emoji: '', text: 'hi', at: globalSlotOf(90, 1) + 1 }]
+    }
+    const carried = carriedComments({ ...post, date: post.date - 100 }, 100)
+    expect(carried.comments?.[0].at).toBe(globalSlotOf(-10, 1) + 1)
+    // Shown in the new semester exactly when it was in the old one, and the source is untouched.
+    expect(shownComments(carried.comments, -9, 0)).toHaveLength(1)
+    expect(post.comments[0].at).toBe(globalSlotOf(90, 1) + 1)
   })
 })

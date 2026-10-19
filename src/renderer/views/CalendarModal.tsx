@@ -2,9 +2,16 @@ import { useEffect, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { kindSentenceOf } from '@shared/academics'
-import { FINAL_DATE, studentsOf, TIME_SLOTS } from '@shared/classes'
+import { FINAL_DATE, TIME_SLOTS } from '@shared/classes'
 import { jobDefOf, shiftSlotOf, WEEK_COLUMNS, WEEK_DAY_HEADERS } from '@shared/jobs'
-import type { CalendarEvent, ClassEntry, Occasion, TimeSlot } from '@shared/types'
+import type { GameReplays } from '@shared/replays'
+import {
+  calendarOf,
+  semesterName,
+  type SemesterCalendar,
+  type SemesterView
+} from '@shared/semesters'
+import type { CalendarEvent, ClassEntry, GameHistory, Occasion, TimeSlot } from '@shared/types'
 import { weatherAt, type Weather } from '@shared/weather'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { DeadNote } from '../components/DeadNote'
@@ -18,13 +25,13 @@ import {
   shiftWeekdayOf,
   slotHalf
 } from '../prompts/gameDate'
-import { everAttended } from '../prompts/classProgress'
+import { knownClassmatesOf } from '../prompts/classProgress'
 import { classSlotOf, jobClosedOn, occasionsOn } from '../prompts/occasions'
 import { profileUrl, useSpriteVersion } from '../stores/characterStore'
 import { useGameStore } from '../stores/gameStore'
-import { keptReplayIds } from '../stores/loop/replay'
-import type { ManualSaveOffer } from '../stores/loop/saves'
-import { dayOfMonth, gridCellsOf, MONTHS, monthIndexOf, monthName } from './calendarMonths'
+import { earlierSemesters, keptReplayIds } from '../stores/loop/replay'
+import type { ReplayOffer } from '../stores/loop/saves'
+import { dayOfMonth, gridCellsOf, monthIndexOf, monthName, monthsOf } from './calendarMonths'
 import type { ScreenTheme } from './clockTheme'
 import {
   dealt,
@@ -64,6 +71,38 @@ const KINDS: ReadonlyArray<{ kind: Kind; label: string }> = [
 
 /** The day's cards, dealt under their heads every time another day is picked. */
 const DAY_DEAL = dealt(0, 0.05)
+
+/**
+ * One semester the calendar pages through: its own dates, sky and catalog, and what the reader
+ * did in it. Every day of an earlier one is past.
+ */
+interface SemesterPage {
+  /** Which semester of the playthrough, from 0. */
+  index: number
+  /** The semester being played, whose days run on and whose replays may be deleted. */
+  current: boolean
+  calendar: SemesterCalendar
+  weather: readonly Weather[]
+  classes: Readonly<Record<string, ClassEntry>>
+  playerSchedule: Readonly<Record<number, string>>
+  history: GameHistory
+  replays: GameReplays
+  events: readonly CalendarEvent[]
+  /** The classmates the reader knows sat in one of its classes. */
+  rosterOf: (entry: ClassEntry) => string[]
+}
+
+/** A month of one semester, as the arrows step through them. */
+interface MonthAt {
+  page: number
+  month: number
+}
+
+/** A day of one semester, as the pane reads it. */
+interface DayAt {
+  page: number
+  date: number
+}
 
 /** Her `profile.png` in an archway: a person is one at every size. */
 function Face({ charId }: { charId: string }): JSX.Element {
@@ -216,9 +255,9 @@ export interface CalendarModalProps {
   /** Drawn by the screen that opened this — a portal inherits no palette. */
   theme: ScreenTheme
   /** Whether a past half's replay may be played now, has to wait for the loop, or never can. */
-  replayOffer: ManualSaveOffer
-  /** Plays one past half's replay. */
-  onReplay: (date: number, time: TimeSlot) => void
+  replayOffer: ReplayOffer
+  /** Plays one past half's replay, of this semester or the earlier one `semesterIndex` names. */
+  onReplay: (date: number, time: TimeSlot, semesterIndex?: number) => void
   /** Deletes one past half's replay; false where the delete was refused. */
   onDeleteReplay: (date: number, time: TimeSlot) => Promise<boolean>
   onClose: () => void
@@ -226,7 +265,8 @@ export interface CalendarModalProps {
 
 /**
  * The in-game calendar: a month of the semester on the left, the day being read
- * on the right — its classes ahead of the clock, what happened behind it. It reads
+ * on the right — its classes ahead of the clock, what happened behind it. The arrows step back
+ * through every semester before this one, each month in its own semester's dates. It reads
  * Sunday-first off `WEEK_COLUMNS`.
  */
 export function CalendarModal({
@@ -237,6 +277,7 @@ export function CalendarModal({
   onClose
 }: CalendarModalProps): JSX.Element | null {
   const today = useGameStore((s) => s.date)
+  const semesterIndex = useGameStore((s) => s.semesterIndex)
   const playerSchedule = useGameStore((s) => s.playerSchedule)
   const classes = useGameStore((s) => s.classes)
   const classRecords = useGameStore((s) => s.classRecords)
@@ -246,15 +287,70 @@ export function CalendarModal({
   const replays = useGameStore((s) => s.replays)
   const characters = useGameStore((s) => s.characters)
   const events = useGameStore((s) => s.events)
-  // The generated half only; `occasionsOn` merges the fixed calendar in.
-  const occasions = useGameStore((s) => s.occasions)
+  // The season and the generated half only; `occasionsOn` merges the fixed calendar in.
+  const calendar = useGameStore((s) => s.calendar)
   const weather = useGameStore((s) => s.weather)
   const job = useGameStore((s) => s.job)
   const jobDef = job ? jobDefOf(job.jobId) : undefined
   const jobTitle = jobDef ? `${jobDef.title} — ${jobDef.employer}` : 'Shift'
 
-  const [month, setMonth] = useState(() => monthIndexOf(today))
-  const [selected, setSelected] = useState(today)
+  // The semesters before this one, read once: the record does not change under an open
+  // calendar, and each keeps one calendar object, which the meeting dates are worked out on.
+  const [earlier] = useState(() =>
+    earlierSemesters().map(({ view, log }) => ({
+      view,
+      log,
+      calendar: calendarOf(view.season, view.occasions)
+    }))
+  )
+
+  /**
+   * The classmates the reader knows sat in one of an earlier semester's classes, off that
+   * semester's own timetables: the girls still loaded whose names he knows.
+   */
+  function earlierRosterOf(entry: ClassEntry, view: SemesterView): string[] {
+    return view.chars.filter(
+      (charId) =>
+        characters[charId] !== undefined &&
+        charInfo[charId]?.nameKnown === true &&
+        Object.values(view.profiles[charId]?.schedule ?? {}).includes(entry.code)
+    )
+  }
+
+  const pages: SemesterPage[] = [
+    ...earlier.map(({ view, log, calendar: past }) => ({
+      index: view.index,
+      current: false,
+      calendar: past,
+      weather: view.weather,
+      classes: view.classes,
+      playerSchedule: log?.playerSchedule ?? {},
+      history: log?.history ?? {},
+      replays: log?.replays ?? {},
+      events: log?.events ?? [],
+      rosterOf: (entry: ClassEntry) => earlierRosterOf(entry, view)
+    })),
+    {
+      index: semesterIndex,
+      current: true,
+      calendar,
+      weather,
+      classes,
+      playerSchedule,
+      history,
+      replays,
+      events,
+      rosterOf: (entry: ClassEntry) =>
+        knownClassmatesOf(entry, chars, charInfo, classRecords[entry.code])
+    }
+  ]
+  const currentPage = pages.length - 1
+
+  const [at, setAt] = useState<MonthAt>(() => ({
+    page: currentPage,
+    month: monthIndexOf(today, calendar.season)
+  }))
+  const [picked, setPicked] = useState<DayAt>(() => ({ page: currentPage, date: today }))
 
   // Which plans were new when the modal opened, read before the effect below
   // clears the flag.
@@ -286,15 +382,38 @@ export function CalendarModal({
 
   const { host, overlayProps } = useModalShell(onClose)
 
-  const { first, last } = MONTHS[month]
-  const firstMonth = month === 0
-  const lastMonth = month === MONTHS.length - 1
+  /** The month on the grid, of its own semester. */
+  const page = pages[at.page]
+  const months = monthsOf(page.calendar.season)
+  const { first, last } = months[at.month]
+  const firstMonth = at.page === 0 && at.month === 0
+  const lastMonth = at.page === currentPage && at.month === months.length - 1
+  /** The day the pane reads, of its own semester. */
+  const day = pages[picked.page]
+  const selected = picked.date
+
+  /** Turns the grid one month, from a semester's first month into the last of the one before. */
+  function step(by: 1 | -1): void {
+    setAt(({ page: at, month }) => {
+      const next = month + by
+      if (next < 0) {
+        return { page: at - 1, month: monthsOf(pages[at - 1].calendar.season).length - 1 }
+      }
+      if (next >= monthsOf(pages[at].calendar.season).length) return { page: at + 1, month: 0 }
+      return { page: at, month: next }
+    })
+  }
+
+  /** The day the clock stands on, in a semester's own dates: past every day of an earlier one. */
+  function todayOn(of: SemesterPage): number {
+    return of.current ? today : Number.POSITIVE_INFINITY
+  }
 
   /** The classes meeting on `date`, each with the half it meets in, Day then Night. */
-  function classesOn(date: number): Array<{ time: TimeSlot; entry: ClassEntry }> {
+  function classesOn(date: number, of: SemesterPage): Array<{ time: TimeSlot; entry: ClassEntry }> {
     return TIME_SLOTS.flatMap((time) => {
-      const slot = classSlotOf(date, time, occasions)
-      const entry = slot === null ? undefined : classes[playerSchedule[slot] ?? '']
+      const slot = classSlotOf(date, time, of.calendar)
+      const entry = slot === null ? undefined : of.classes[of.playerSchedule[slot] ?? '']
       return entry ? [{ time, entry }] : []
     })
   }
@@ -305,33 +424,39 @@ export function CalendarModal({
    * reader is told nothing, so the pane says what the half is rather than what the sky did.
    */
   function paneWeather(time: TimeSlot): Weather {
-    return selected <= today + FORECAST_DAYS ? weatherAt(weather, selected, time) : 'clear'
+    return selected <= todayOn(day) + FORECAST_DAYS
+      ? weatherAt(day.weather, selected, time)
+      : 'clear'
   }
 
   /** What is happening on `date` whoever the reader is — holidays included. */
-  function occasionsFor(date: number): Occasion[] {
-    return occasionsOn(date, occasions)
+  function occasionsFor(date: number, of: SemesterPage): Occasion[] {
+    return occasionsOn(date, of.calendar)
   }
 
   /** The plans made for `date`, Day then Night. */
-  function plansOn(date: number): CalendarEvent[] {
-    return events.filter((event) => event.date === date).sort((a, b) => a.time - b.time)
+  function plansOn(date: number, of: SemesterPage): CalendarEvent[] {
+    return of.events.filter((event) => event.date === date).sort((a, b) => a.time - b.time)
   }
 
-  /** The halves of `date` the reader is rostered to work, Day then Night. */
-  function shiftsOn(date: number): TimeSlot[] {
-    if (!job) return []
+  /**
+   * The halves of `date` the reader is rostered to work, Day then Night; none in an earlier
+   * semester, whose job the record does not keep.
+   */
+  function shiftsOn(date: number, of: SemesterPage): TimeSlot[] {
+    if (!job || !of.current) return []
     // A day the employer is closed has no shift to show.
-    if (jobClosedOn(job.jobId, date, occasions)) return []
+    if (jobClosedOn(job.jobId, date, calendar)) return []
     return TIME_SLOTS.filter((time) => job.shifts.includes(shiftSlotOf(shiftWeekdayOf(date), time)))
   }
 
   /**
-   * Only the people the reader has been introduced to; every charId list on this screen
-   * goes through here first.
+   * Only the people the reader has been introduced to, and who are still in the game — an earlier
+   * semester's plan can name a graduate whose character is gone; every charId list on this
+   * screen goes through here first.
    */
   function known(charIds: readonly string[]): string[] {
-    return charIds.filter((charId) => charInfo[charId]?.nameKnown)
+    return charIds.filter((charId) => charInfo[charId]?.nameKnown && characters[charId])
   }
 
   /** A classmate's first name. No mask: `known` has already dropped strangers. */
@@ -342,17 +467,6 @@ export function CalendarModal({
   /** The people a card captions, off a list `known` has already filtered. */
   function peopleOf(charIds: readonly string[]): Person[] {
     return charIds.map((id) => ({ id, name: nameOf(id) }))
-  }
-
-  /**
-   * The classmates the reader knows sit in that room: he has attended it, or her Bunnyboard
-   * profile told him.
-   */
-  function rosterOf(entry: ClassEntry): string[] {
-    const attended = everAttended(classRecords[entry.code])
-    return known(studentsOf(entry, chars, charInfo)).filter(
-      (charId) => attended || charInfo[charId]?.flags?.gaveContactInfo === true
-    )
   }
 
   /** An occasion on a card, wherever on the day it is read: above both halves, or inside one. */
@@ -373,24 +487,24 @@ export function CalendarModal({
    * opens it, and stands beside the history line on a day already played.
    */
   function halfOf(time: TimeSlot): JSX.Element {
-    const timed = occasionsFor(selected).filter((occasion) => occasion.time === time)
+    const timed = occasionsFor(selected, day).filter((occasion) => occasion.time === time)
 
     // A day already played reads back what happened in that slot, and offers it again where a
     // replay of it is kept.
-    if (selected < today) {
+    if (selected < todayOn(day)) {
       return (
         <>
           {timed.map(occasionCard)}
-          <Quiet>{history[selected]?.[time] ?? 'Nothing recorded.'}</Quiet>
+          <Quiet>{day.history[selected]?.[time] ?? 'Nothing recorded.'}</Quiet>
           {replayRow(time)}
         </>
       )
     }
 
-    const slot = classSlotOf(selected, time, occasions)
-    const entry = slot === null ? undefined : classes[playerSchedule[slot] ?? '']
-    const plans = plansOn(selected).filter((plan) => plan.time === time)
-    const onShift = shiftsOn(selected).includes(time)
+    const slot = classSlotOf(selected, time, day.calendar)
+    const entry = slot === null ? undefined : day.classes[day.playerSchedule[slot] ?? '']
+    const plans = plansOn(selected, day).filter((plan) => plan.time === time)
+    const onShift = shiftsOn(selected, day).includes(time)
     if (!entry && plans.length === 0 && !onShift && timed.length === 0) {
       return <Quiet empty>Nothing scheduled.</Quiet>
     }
@@ -407,7 +521,7 @@ export function CalendarModal({
             title={entry.name}
             code={entry.code}
             text={[entry.description, kindSentenceOf(entry)].filter(Boolean).join(' ')}
-            people={peopleOf(rosterOf(entry))}
+            people={peopleOf(day.rosterOf(entry))}
           />
         )}
         {plans.map((plan) => (
@@ -425,45 +539,56 @@ export function CalendarModal({
   }
 
   /**
-   * A past half's replay under its summary: Replay where the game can be left for it, dead while
-   * a call it would cancel is out, and Delete beside it. Nothing where no replay of it is kept.
+   * A past half's replay under its summary: Replay where the game can be left for it, dead through
+   * a scene and while a call it would cancel is out, and Delete beside it in the semester being
+   * played — an earlier one's replays are its record's, kept for the playthrough's life. Nothing
+   * where no replay of it is kept.
    */
   function replayRow(time: TimeSlot): JSX.Element | null {
-    const id = replays[selected]?.[time]
+    const id = day.replays[selected]?.[time]
     if (!id || !kept?.has(id)) return null
-    const dead = replayOffer === 'waiting'
+    const note =
+      replayOffer === 'scene'
+        ? 'Unavailable in scenes'
+        : replayOffer === 'waiting'
+          ? 'Waiting for LLM response'
+          : null
+    const dead = note !== null
     return (
       <motion.div className="vu-cal-replay" variants={slideInQuick}>
         {replayOffer !== 'none' && (
-          <DeadNote note={dead ? 'Waiting for LLM response' : null}>
+          <DeadNote note={note}>
             <motion.button
               id={`calendar-replay-${time}`}
               className="vu-pill"
               type="button"
               disabled={dead}
               {...gestures(dead, quietLift, quietPress)}
-              onClick={() => onReplay(selected, time)}
+              onClick={() => onReplay(selected, time, day.current ? undefined : day.index)}
             >
-              {time === 0 ? 'Replay day' : 'Replay night'}
+              Replay
             </motion.button>
           </DeadNote>
         )}
-        <motion.button
-          id={`calendar-delete-replay-${time}`}
-          className="vu-pill vu-cal-replay-delete"
-          type="button"
-          {...gestures(false, quietLift, quietPress)}
-          onClick={() => setDeleting({ date: selected, time })}
-        >
-          Delete replay
-        </motion.button>
+        {day.current && (
+          <motion.button
+            id={`calendar-delete-replay-${time}`}
+            className="vu-pill vu-cal-replay-delete"
+            type="button"
+            {...gestures(false, quietLift, quietPress)}
+            onClick={() => setDeleting({ date: selected, time })}
+          >
+            Delete replay
+          </motion.button>
+        )}
       </motion.div>
     )
   }
 
-  const cells = gridCellsOf(MONTHS[month])
+  const cells = gridCellsOf(months[at.month])
+  const season = page.calendar.season
 
-  const dayOccasions = occasionsFor(selected).filter((occasion) => occasion.time === null)
+  const dayOccasions = occasionsFor(selected, day).filter((occasion) => occasion.time === null)
 
   if (!host) return null
 
@@ -498,11 +623,18 @@ export function CalendarModal({
                 aria-label="Previous month"
                 disabled={firstMonth}
                 {...gestures(firstMonth, quietLift, quietPress)}
-                onClick={() => setMonth((m) => m - 1)}
+                onClick={() => step(-1)}
               >
                 <ChevronIcon />
               </motion.button>
-              <span className="vu-cal-name">{monthName(first)}</span>
+              {/* Which semester the month is of, under it, once there is more than one to page
+                  through. */}
+              <span className="vu-cal-name">
+                {monthName(first, season)}
+                {pages.length > 1 && (
+                  <span className="vu-cal-semester">{semesterName(page.index)}</span>
+                )}
+              </span>
               <motion.button
                 id="calendar-next"
                 className="vu-square vu-square--step"
@@ -510,7 +642,7 @@ export function CalendarModal({
                 aria-label="Next month"
                 disabled={lastMonth}
                 {...gestures(lastMonth, quietLift, quietPress)}
-                onClick={() => setMonth((m) => m + 1)}
+                onClick={() => step(1)}
               >
                 <ChevronIcon />
               </motion.button>
@@ -539,40 +671,41 @@ export function CalendarModal({
                 if (date < first || date > last || date < 0 || date > FINAL_DATE) {
                   return (
                     <div className="vu-cal-cell vu-cal-cell--out" key={date}>
-                      <span className="vu-cal-num">{dayOfMonth(date)}</span>
+                      <span className="vu-cal-num">{dayOfMonth(date, season)}</span>
                     </div>
                   )
                 }
 
-                const isToday = date === today
+                const isToday = page.current && date === today
+                const isPicked = picked.page === at.page && date === selected
                 // Today and the pick are two marks shown apart; on the one day they
                 // agree, today is the one that is said.
-                const picked = date === selected && !isToday
+                const onPick = isPicked && !isToday
                 const state =
                   (isToday ? ' vu-cal-cell--today' : '') +
-                  (picked ? ' vu-cal-cell--on' : '') +
-                  (date < today ? ' vu-cal-cell--past' : '')
+                  (onPick ? ' vu-cal-cell--on' : '') +
+                  (date < todayOn(page) ? ' vu-cal-cell--past' : '')
 
                 return (
                   <motion.button
                     className={`vu-cal-cell${state}`}
                     key={date}
                     type="button"
-                    aria-pressed={date === selected}
-                    aria-label={formatDatePart(date)}
+                    aria-pressed={isPicked}
+                    aria-label={formatDatePart(date, season)}
                     {...gestures(false, rowLift, rowPress)}
-                    onClick={() => setSelected(date)}
+                    onClick={() => setPicked({ page: at.page, date })}
                   >
                     <span className="vu-cal-num">
-                      {dayOfMonth(date)}
+                      {dayOfMonth(date, season)}
                       {isToday && <span className="vu-cal-mark vu-cal-mark--today">Today</span>}
-                      {picked && <span className="vu-cal-mark vu-cal-mark--on">Selected</span>}
-                      {date >= today && date <= today + FORECAST_DAYS && (
+                      {onPick && <span className="vu-cal-mark vu-cal-mark--on">Selected</span>}
+                      {page.current && date >= today && date <= today + FORECAST_DAYS && (
                         <Forecast date={date} weather={weather} />
                       )}
                     </span>
                     <span className="vu-cal-chips">
-                      {occasionsFor(date).map((occasion) => (
+                      {occasionsFor(date, page).map((occasion) => (
                         <Chip
                           key={occasion.id}
                           kind="occasion"
@@ -580,19 +713,19 @@ export function CalendarModal({
                           time={occasion.time}
                         />
                       ))}
-                      {classesOn(date).map(({ time, entry }) => (
+                      {classesOn(date, page).map(({ time, entry }) => (
                         <Chip
                           key={`${entry.code}-${time}`}
                           kind="class"
                           label={entry.code}
                           time={time}
-                          faces={rosterOf(entry)}
+                          faces={page.rosterOf(entry)}
                         />
                       ))}
-                      {shiftsOn(date).map((time) => (
+                      {shiftsOn(date, page).map((time) => (
                         <Chip key={`shift-${time}`} kind="work" label="Shift" time={time} />
                       ))}
-                      {plansOn(date).map((plan) => (
+                      {plansOn(date, page).map((plan) => (
                         <Chip
                           key={plan.id}
                           kind="plans"
@@ -611,7 +744,7 @@ export function CalendarModal({
 
           <div className="vu-cal-day">
             <h3 className="vu-cal-daytitle">
-              {formatWeekday(selected)}, {formatShortGameDate(selected)}
+              {formatWeekday(selected)}, {formatShortGameDate(selected, day.calendar.season)}
             </h3>
 
             {/* Each list is keyed on the day, so a pick deals its cards in under heads — and the
@@ -621,7 +754,7 @@ export function CalendarModal({
               {dayOccasions.length > 0 && (
                 <motion.div
                   className="vu-cal-cards"
-                  key={`occasions-${selected}`}
+                  key={`occasions-${picked.page}-${selected}`}
                   variants={DAY_DEAL}
                   initial="hidden"
                   animate="shown"
@@ -638,7 +771,7 @@ export function CalendarModal({
                   </div>
                   <motion.div
                     className="vu-cal-cards"
-                    key={selected}
+                    key={`${picked.page}-${selected}`}
                     variants={DAY_DEAL}
                     initial="hidden"
                     animate="shown"

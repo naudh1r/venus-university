@@ -4,7 +4,7 @@ An unofficial mod for Venus University by **naudh1r**. Version **1.2.0**, for th
 
 The girls send you photos in their DMs and post them on their feeds, with comments from the rest
 of campus. Each contact gets a gallery, and characters can get optional body details. Photos are
-drawn on your own machine by the game's local ComfyUI.
+drawn on your own machine by ComfyUI, the game's own or yours.
 
 It is separate from the game's own **Photos** tab in the Bunnyboard, where you make pictures
 yourself. This mod is about the photos *she* sends and posts.
@@ -13,14 +13,14 @@ This is not made or supported by Venus Dev. Please do not report problems with i
 
 ## What you need
 
-- The desktop game, with local image generation (ComfyUI) working. The browser version never
-  makes photos.
+- The desktop game, with image generation working: the game's own ComfyUI, or your own one set
+  in Settings. The browser version never makes photos.
 - Photos use the game's own photo checkpoint and LoRA (`assets/workflows/characterPhoto.json`).
   Nothing else to download.
 
 ## Settings
 
-Everything is in **Mods → Photo Feature**.
+Everything is in **Mods → Photo Feature**. The mod is off until you turn it on there.
 
 | Option | Default | What it does |
 |---|---|---|
@@ -34,7 +34,8 @@ Everything is in **Mods → Photo Feature**.
 ## How a photo is made
 
 1. In a DM, she decides whether a picture fits the moment. She can send one when you ask, or on
-   her own. On the feed, some of her posts come with one.
+   her own, and when she texts you first she can send one with it. On the feed, some of her posts
+   come with one.
 2. She writes one sentence describing it: where she is, what she wears, her pose, what her hands
    are doing, how close the shot is.
 3. The game decides how much the photo may show (everyday, suggestive or explicit) from your
@@ -76,6 +77,22 @@ seed, file name, the full prompt and the negative. Send it with the picture: mos
 were one word in her sentence the model drew too literally, and each is a small fix.
 
 If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` line.
+
+## 1.4.0
+
+- **Photos when she texts first**: a girl who texts you just to talk (new in 0.5.0) can send a
+  picture with it when it fits, a selfie in bed with her cold or something she wants to show you.
+  The same limits as her other DMs apply.
+- **Comments survive New Game+**: comments on posts carried into the next semester show as they
+  did, instead of staying hidden until the new semester caught up with the old dates.
+
+## 1.3.0
+
+- **Comments and pictures go through the game's own places on a post**: the game now keeps a
+  post's comments and draws whatever a mod puts there. Another mod can draw the comments in place
+  of Photo Feature's stranger comments; when none does, comments work exactly as in 1.2.0.
+- **Off by default**: like every mod on the build, it starts off. Turn it on in **Mods**; nothing
+  it made is lost while it is off.
 
 ## 1.2.0
 
@@ -185,13 +202,22 @@ Every tag these files can write has to be in the verified list in `test/photoTag
 which fails on any other. A tag goes on that list once a same-seed ComfyUI check shows the
 checkpoint draws it.
 
+### Comments and the picture on a post
+
+A post's comments are the game's (`comments` on `SocialPost`, `shared/postComments.ts`), and the
+game moves them with the post through New Game+. Photo Feature registers `postComments` to draw
+its stranger comments and `postPicture` to draw her picture, both in
+`components/PhotoPostSpots.tsx`. Only one mod draws comments at a time, the first that is on in
+the mods list; Photo Feature asks the slot's opening for comments, and files them, only while it
+is that mod (`ownsPostComments`). It never names any other mod.
+
 ### Hooks
 
 All of Photo Feature's prompt, event and feed additions are in
 `src/renderer/modEntries/photo-feature.ts`.
-In the ten game files involved, lines naming Photo Feature went from 67 to 4: two for its gallery
-on `ContactPage.tsx` (screens have no hook points yet) and two that are Continuing Semesters'
-own photo carry-over in `NewGameView.tsx`.
+Its picture and comments on the feed are drawn through the game's places on a post; its gallery
+on `ContactPage.tsx` and the picture on a text are still direct edits, since those screens have
+no places for a mod yet.
 
 Off, three things differ from before hooks, all because a mod that is off is not asked: the
 photo fields leave the reply's schema rather than being asked for empty; old DMs lose their

@@ -9,10 +9,12 @@ import {
   validateReplay,
   type SlotReplay
 } from '@shared/replays'
+import { hasSemester, recordReplayIds, SEMESTER_NOT_FOUND, semesterOf } from '@shared/semesters'
 import {
   assertManualSlot,
   assertSafePlaythroughId,
   assertSafeSaveId,
+  assertSemesters,
   atLocation,
   classifySaveId,
   ENROLLMENT_NOT_FOUND,
@@ -27,6 +29,7 @@ import {
   RECORD_NOT_FOUND,
   RECORD_READ,
   renamedRecord,
+  SAFE_NUMERIC_ID,
   SAVE_NOT_FOUND,
   SAVE_READ,
   stampEnrollment,
@@ -34,6 +37,7 @@ import {
   stampSave,
   summaryOf,
   withPlaythroughName,
+  withRegistration,
   type SaveIdGroups
 } from '@shared/saveRules'
 import {
@@ -51,8 +55,10 @@ import {
   type PlaythroughSummary,
   type SaveDraft,
   type SaveEntry,
-  type SaveReadResult
+  type SaveReadResult,
+  type SemesterRecord
 } from '@shared/types'
+import { storedBlob } from '../webp'
 import {
   database,
   partRange,
@@ -125,13 +131,35 @@ export async function loadSave(playthroughId: string, saveId: string): Promise<G
   return atLocation(validateRecord<GameSave>(stored, where, SAVE_READ), playthroughId, saveId)
 }
 
+/** A save the record does not hold the semester of, refused as one that cannot be read. */
+function assertSaveSemester(record: PlaythroughRecord | null, save: GameSave, where: string): void {
+  if (record && !hasSemester(record, save.semester)) {
+    throw appError(SEMESTER_NOT_FOUND.code, SEMESTER_NOT_FOUND.message, where)
+  }
+}
+
+/**
+ * The next semester waiting at the registrar in a playthrough's row beside its saves, or null;
+ * one that cannot be read is passed over, the saves beside it still standing for the playthrough.
+ */
+function registrationIn(row: PlaythroughRow, playthroughId: string): Enrollment | null {
+  if (!row.enrollment) return null
+  try {
+    return validateRecord<Enrollment>(row.enrollment, playthroughId, ENROLLMENT_READ)
+  } catch (err) {
+    console.warn(`[saves] ${playthroughId}'s class registration is unreadable:`, err)
+    return null
+  }
+}
+
 /**
  * The newest readable save of one playthrough by `saveDate`, or the first refusal met where none
  * reads. A row the index cannot place, missing a field it is keyed on, is still read by its id.
  */
 async function newestSave(
   playthroughId: string,
-  saveIds: readonly string[]
+  saveIds: readonly string[],
+  record: PlaythroughRecord | null
 ): Promise<{ save: GameSave | null; reason: string }> {
   let reason = ''
   const indexed = await storage('read the saves', async () => {
@@ -144,6 +172,7 @@ async function newestSave(
       if (owner !== playthroughId || classifySaveId(saveId) === null) continue
       try {
         const save = validateRecord<GameSave>(cursor.value, `${owner}/${saveId}`, SAVE_READ)
+        assertSaveSemester(record, save, `${owner}/${saveId}`)
         return atLocation(save, playthroughId, saveId)
       } catch (err) {
         if (!reason) reason = (err as AppError).message
@@ -155,7 +184,9 @@ async function newestSave(
 
   for (const saveId of saveIds) {
     try {
-      return { save: await loadSave(playthroughId, saveId), reason }
+      const save = await loadSave(playthroughId, saveId)
+      assertSaveSemester(record, save, `${playthroughId}/${saveId}`)
+      return { save, reason }
     } catch (err) {
       if (!reason) reason = (err as AppError).message
     }
@@ -193,12 +224,16 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
     if (saveIds.length === 0) {
       try {
         const enrollment = await readEnrollment(playthroughId)
+        const semesterIndex = enrollment.continued?.index ?? 0
         summaries.push({
           ...base,
           enrolling: true,
           chars: enrollment.chars,
           date: FIRST_SLOT.date,
           time: FIRST_SLOT.time,
+          ...(semesterIndex > 0
+            ? { semesterIndex, registration: { savedAt: enrollment.savedAt, semesterIndex } }
+            : {}),
           savedAt: enrollment.savedAt,
           unloadable: null
         })
@@ -228,27 +263,33 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
 
     const named = withPlaythroughName(base, record)
 
-    const newest = await newestSave(playthroughId, saveIds)
+    const newest = await newestSave(playthroughId, saveIds, record)
     if (!reason) reason = newest.reason
+    // The roster and the semester the newest save is in.
+    const semester = newest.save && record ? semesterOf(record, newest.save.semester) : null
     summaries.push(
-      newest.save
-        ? {
-            ...named,
-            chars: record?.chars ?? [],
-            date: newest.save.date,
-            time: newest.save.time,
-            savedAt: newest.save.saveDate,
-            // A refused record outranks a readable save: without it nothing resolves.
-            unloadable: record ? null : reason
-          }
-        : {
-            ...named,
-            chars: [],
-            date: 0,
-            time: 0,
-            savedAt: row.createdAt,
-            unloadable: reason
-          }
+      withRegistration(
+        newest.save
+          ? {
+              ...named,
+              chars: semester?.chars ?? [],
+              date: newest.save.date,
+              time: newest.save.time,
+              ...(semester && semester.index > 0 ? { semesterIndex: semester.index } : {}),
+              savedAt: newest.save.saveDate,
+              // A refused record outranks a readable save: without it nothing resolves.
+              unloadable: record ? null : reason
+            }
+          : {
+              ...named,
+              chars: [],
+              date: 0,
+              time: 0,
+              savedAt: row.createdAt,
+              unloadable: reason
+            },
+        registrationIn(row, playthroughId)
+      )
     )
   }
 
@@ -277,6 +318,7 @@ export async function listSaves(playthroughId: string): Promise<PlaythroughListi
   for (const saveId of saveIds) {
     try {
       const save = await loadSave(playthroughId, saveId)
+      assertSaveSemester(record, save, `${playthroughId}/${saveId}`)
       saves.push({ saveId, savedAt: save.saveDate, summary: summaryOf(save), error: null })
     } catch (err) {
       saves.push({ saveId, savedAt: createdAt, summary: null, error: err as AppError })
@@ -290,6 +332,7 @@ export async function listSaves(playthroughId: string): Promise<PlaythroughListi
 export async function readSave(playthroughId: string, saveId: string): Promise<SaveReadResult> {
   const record = await readPlaythroughRecord(playthroughId)
   const save = await loadSave(playthroughId, saveId)
+  assertSaveSemester(record, save, `${playthroughId}/${saveId}`)
   return { record, save }
 }
 
@@ -299,22 +342,37 @@ async function mintPlaythroughId(): Promise<string> {
 }
 
 /**
- * Writes a semester that has no timetable yet into a row of its own, so the registrar
- * offering it can be left and come back to.
+ * Writes a semester that has no timetable yet, so the registrar offering it can be left and
+ * come back to: a first semester into a row of its own, a next one beside the record of the
+ * playthrough `playthroughId` names, replacing any registration already waiting there.
  */
-export async function writeEnrollment(draft: EnrollmentDraft): Promise<CreatedEnrollment> {
+export async function writeEnrollment(
+  draft: EnrollmentDraft,
+  playthroughId?: string
+): Promise<CreatedEnrollment> {
+  if (playthroughId !== undefined) {
+    assertSafePlaythroughId(playthroughId)
+    const enrollment = stampEnrollment(draft, Date.now())
+    const written = await storage('save the class registration', async () => {
+      const tx = (await database()).transaction('playthroughs', 'readwrite')
+      const row = await tx.store.get(playthroughId)
+      // A next semester belongs to a playthrough that has begun.
+      if (!row?.record) return false
+      await tx.store.put({ ...row, enrollment }, playthroughId)
+      await tx.done
+      return true
+    })
+    if (!written) throw appError(RECORD_NOT_FOUND.code, RECORD_NOT_FOUND.message, playthroughId)
+    return { playthroughId, enrollment }
+  }
   const now = Date.now()
-  const playthroughId = await mintPlaythroughId()
+  const minted = await mintPlaythroughId()
   const enrollment = stampEnrollment(draft, now)
 
   await storage('save the class registration', async () =>
-    (await database()).put(
-      'playthroughs',
-      { record: null, enrollment, createdAt: now },
-      playthroughId
-    )
+    (await database()).put('playthroughs', { record: null, enrollment, createdAt: now }, minted)
   )
-  return { playthroughId, enrollment }
+  return { playthroughId: minted, enrollment }
 }
 
 /**
@@ -337,26 +395,93 @@ export async function createPlaythrough(
 
   const record = stampRecord(playthrough)
   const save = stampSave(draft, folder, folder, Date.now())
-  // Load Game may have deleted the row while the registrar stood open.
-  const createdAt = (await rowOf(folder))?.createdAt ?? Number(folder)
 
-  await storage('start the playthrough', async () => {
+  const started = await storage('start the playthrough', async () => {
     const tx = (await database()).transaction(['playthroughs', 'saves'], 'readwrite')
+    // A row whose playthrough has already begun is never written over.
+    const existing = await tx.objectStore('playthroughs').get(folder)
+    if (existing?.record) {
+      tx.abort()
+      await tx.done.catch(() => {})
+      return false
+    }
+    // Load Game may have deleted the row while the registrar stood open.
+    const createdAt = existing?.createdAt ?? Number(folder)
     // Both puts are database requests, so the transaction is still open for the second.
     void tx.objectStore('playthroughs').put({ record, enrollment: null, createdAt }, folder)
     void tx.objectStore('saves').put(save, [folder, folder])
     await tx.done
+    return true
   })
+  if (!started) throw appError('PLAYTHROUGH_EXISTS', 'That playthrough has already begun.', folder)
 
   return { record, save }
 }
 
-/** A save write's transaction: the saves and, beside them, the replays they name. */
-type SaveTx = IDBPTransaction<VenusUniversityDb, ['saves', 'replays'], 'readwrite'>
+/**
+ * Begins a next semester in a playthrough, in one transaction: the semester added to the record
+ * read fresh, so a rename since is kept, its opening save written into the boundary window, and
+ * the registration it came from removed. A semester id the record already holds is refused and
+ * its registration removed with it, so a semester is never written twice under a save naming it.
+ */
+export async function continueSemester(
+  playthroughId: string,
+  semesterId: string,
+  semester: SemesterRecord,
+  draft: SaveDraft
+): Promise<CreatedPlaythrough> {
+  assertSafePlaythroughId(playthroughId)
+  if (!SAFE_NUMERIC_ID.test(semesterId)) {
+    throw appError('SEMESTER_ID_INVALID', 'That semester id is not valid.', semesterId)
+  }
+  const now = Date.now()
 
-/** Opens one save write's transaction over the saves and the replays. */
+  const outcome = await storage('begin the semester', async () => {
+    const tx = (await database()).transaction(['playthroughs', 'saves', 'replays'], 'readwrite')
+    const rows = tx.objectStore('playthroughs')
+    const row = await rows.get(playthroughId)
+    if (!row?.record) {
+      await tx.done
+      return { kind: 'missing' as const }
+    }
+    const current = validateRecord<PlaythroughRecord>(row.record, playthroughId, RECORD_READ)
+    if (current.semesters?.[semesterId]) {
+      // The registration is spent either way.
+      void rows.put({ ...row, enrollment: null }, playthroughId)
+      await tx.done
+      return { kind: 'exists' as const }
+    }
+    const { schemaVersion: _stamped, ...rest } = current
+    const record = stampRecord({
+      ...rest,
+      semesters: { ...current.semesters, [semesterId]: semester }
+    })
+    // Checked as a read would check it, before anything is written.
+    assertSemesters(record, playthroughId)
+    void rows.put({ ...row, record, enrollment: null }, playthroughId)
+    const save = await writeBoundaryIn(tx, playthroughId, draft, now)
+    await tx.done
+    return { kind: 'begun' as const, record, save }
+  })
+
+  if (outcome.kind === 'missing') {
+    throw appError(RECORD_NOT_FOUND.code, RECORD_NOT_FOUND.message, playthroughId)
+  }
+  if (outcome.kind === 'exists') {
+    throw appError('SEMESTER_EXISTS', 'That semester has already begun.', semesterId)
+  }
+  return { record: outcome.record, save: outcome.save }
+}
+
+/**
+ * A save write's transaction: the saves and, beside them, the replays they name and the
+ * playthrough rows whose records name the replays a finished semester left.
+ */
+type SaveTx = IDBPTransaction<VenusUniversityDb, ['playthroughs', 'saves', 'replays'], 'readwrite'>
+
+/** Opens one save write's transaction over the playthroughs, the saves and the replays. */
 async function saveTransaction(): Promise<SaveTx> {
-  return (await database()).transaction(['saves', 'replays'], 'readwrite')
+  return (await database()).transaction(['playthroughs', 'saves', 'replays'], 'readwrite')
 }
 
 /**
@@ -377,11 +502,24 @@ async function dropReplaysIn(
   const present = new Set(kept)
   if (!dropped.some((replayId) => present.has(replayId) && !keep.includes(replayId))) return
 
+  // The replays a finished semester left for the calendar stay as long as the playthrough.
+  const named: Set<string>[] = []
+  const row = await tx.objectStore('playthroughs').get(playthroughId)
+  if (row?.record) {
+    try {
+      named.push(
+        recordReplayIds(validateRecord<PlaythroughRecord>(row.record, playthroughId, RECORD_READ))
+      )
+    } catch (err) {
+      console.warn(`[saves] ${playthroughId}'s record could not be read, so no replay is deleted:`, err)
+      return
+    }
+  }
+
   // Requests run in order, so these reads see the write this transaction has already queued.
   const store = tx.objectStore('saves')
   const keys = await store.getAllKeys(partRange(playthroughId))
   const rows = await store.getAll(partRange(playthroughId))
-  const named: Set<string>[] = []
   for (const [index, [, saveId]] of keys.entries()) {
     if (classifySaveId(saveId) === null) continue
     const where = `${playthroughId}/${saveId}`
@@ -427,26 +565,40 @@ export async function writeSlotSave(
 
   return storage('write the save', async () => {
     const tx = await saveTransaction()
-    const store = tx.objectStore('saves')
-    // Read and writes are all database requests, so the transaction lives to the end of them.
-    const keys = await store.getAllKeys(partRange(playthroughId))
-    // Boundary saves alone: the window never counts, and so never prunes, a manual save.
-    const slots = keys.map(([, saveId]) => saveId).filter(isSlotSaveId)
-
-    const saved = stampSave(draft, playthroughId, mintId(new Set(slots)), now)
     if (kept) void tx.objectStore('replays').put(kept.replay, [playthroughId, kept.replayId])
-    void store.put(saved, [playthroughId, saved.saveId])
-    // `slots` was read before this write, so the window is what the new save pushes out of it.
-    const dropped: string[] = []
-    for (const stale of prunedSlotIds(slots)) {
-      dropped.push(...replayIdsOf((await store.get([playthroughId, stale]))?.replays))
-      void store.delete([playthroughId, stale])
-    }
-    await dropReplaysIn(tx, playthroughId, idsMissingFrom(dropped, named))
-
+    const saved = await writeBoundaryIn(tx, playthroughId, draft, now, named)
     await tx.done
     return saved
   })
+}
+
+/**
+ * Inside a save write's transaction: mints the boundary save's id, puts it, prunes the slot
+ * saves back to their window and drops any replay only the pruned saves named but `named`.
+ */
+async function writeBoundaryIn(
+  tx: SaveTx,
+  playthroughId: string,
+  draft: SaveDraft,
+  now: number,
+  named: ReadonlySet<string> = replayIdsOf(draft.replays)
+): Promise<GameSave> {
+  const store = tx.objectStore('saves')
+  // Read and writes are all database requests, so the transaction lives to the end of them.
+  const keys = await store.getAllKeys(partRange(playthroughId))
+  // Boundary saves alone: the window never counts, and so never prunes, a manual save.
+  const slots = keys.map(([, saveId]) => saveId).filter(isSlotSaveId)
+
+  const saved = stampSave(draft, playthroughId, mintId(new Set(slots)), now)
+  void store.put(saved, [playthroughId, saved.saveId])
+  // `slots` was read before this write, so the window is what the new save pushes out of it.
+  const dropped: string[] = []
+  for (const stale of prunedSlotIds(slots)) {
+    dropped.push(...replayIdsOf((await store.get([playthroughId, stale]))?.replays))
+    void store.delete([playthroughId, stale])
+  }
+  await dropReplaysIn(tx, playthroughId, idsMissingFrom(dropped, named))
+  return saved
 }
 
 /** Rewrites an existing slot-save in place — mints nothing, prunes nothing. */
@@ -561,6 +713,7 @@ export async function deletePlaythrough(playthroughId: string): Promise<void> {
     void tx.objectStore('playthroughs').delete(playthroughId)
     void tx.objectStore('saves').delete(partRange(playthroughId))
     void tx.objectStore('endingArt').delete(playthroughId)
+    void tx.objectStore('endingArt').delete(semesterPicturesRange(playthroughId))
     void tx.objectStore('profilePictures').delete(playthroughId)
     void tx.objectStore('photos').delete(partRange(playthroughId))
     void tx.objectStore('replays').delete(partRange(playthroughId))
@@ -568,20 +721,55 @@ export async function deletePlaythrough(playthroughId: string): Promise<void> {
   })
 }
 
-/** The graduation picture already stored, or `null` where there is none. */
-export async function readEndingArt(playthroughId: string): Promise<Uint8Array | null> {
+/**
+ * The key a semester's graduation picture is kept under: the playthrough's id for the first
+ * semester, `{playthroughId}.{semesterId}` for a later one.
+ */
+export function endingArtKey(playthroughId: string, semesterId?: string): string {
   assertSafePlaythroughId(playthroughId)
+  if (semesterId === undefined) return playthroughId
+  if (!SAFE_NUMERIC_ID.test(semesterId)) {
+    throw appError('SEMESTER_ID_INVALID', 'That semester id is not valid.', semesterId)
+  }
+  return `${playthroughId}.${semesterId}`
+}
+
+/** Every key a playthrough's later semesters keep their graduation pictures under. */
+function semesterPicturesRange(playthroughId: string): IDBKeyRange {
+  return IDBKeyRange.bound(`${playthroughId}.`, `${playthroughId}.\uffff`)
+}
+
+/** The later semesters a playthrough keeps a graduation picture for. */
+export async function endingArtSemesters(playthroughId: string): Promise<string[]> {
+  assertSafePlaythroughId(playthroughId)
+  const keys = await storage('read the graduation pictures', async () =>
+    (await database()).getAllKeys('endingArt', semesterPicturesRange(playthroughId))
+  )
+  return keys.map((key) => String(key).slice(playthroughId.length + 1))
+}
+
+/** A semester's graduation picture already stored, or `null` where there is none. */
+export async function readEndingArt(
+  playthroughId: string,
+  semesterId?: string
+): Promise<Uint8Array | null> {
+  const key = endingArtKey(playthroughId, semesterId)
   const blob = await storage('read the graduation picture', async () =>
-    (await database()).get('endingArt', playthroughId)
+    (await database()).get('endingArt', key)
   )
   return blob ? new Uint8Array(await blob.arrayBuffer()) : null
 }
 
-/** Keeps the graduation picture beside the playthrough it belongs to. */
-export async function writeEndingArt(playthroughId: string, blob: Blob): Promise<void> {
-  assertSafePlaythroughId(playthroughId)
+/** Keeps a semester's graduation picture beside the playthrough it belongs to. */
+export async function writeEndingArt(
+  playthroughId: string,
+  picture: Blob,
+  semesterId?: string
+): Promise<void> {
+  const key = endingArtKey(playthroughId, semesterId)
+  const blob = await storedBlob(picture, false)
   await storage('save the graduation picture', async () =>
-    (await database()).put('endingArt', blob, playthroughId)
+    (await database()).put('endingArt', blob, key)
   )
 }
 
@@ -595,8 +783,9 @@ export async function readProfilePicture(playthroughId: string): Promise<Uint8Ar
 }
 
 /** Keeps the reader's own picture beside the playthrough it belongs to. */
-export async function writeProfilePicture(playthroughId: string, blob: Blob): Promise<void> {
+export async function writeProfilePicture(playthroughId: string, picture: Blob): Promise<void> {
   assertSafePlaythroughId(playthroughId)
+  const blob = await storedBlob(picture, false)
   await storage('save the profile picture', async () =>
     (await database()).put('profilePictures', blob, playthroughId)
   )

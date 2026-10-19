@@ -1,8 +1,11 @@
-/** How tall a character stands on the stage, as a fraction of the maximum. */
+/**
+ * How tall a character stands on the stage, as a fraction of full size: at 1 her sprite's top
+ * edge meets the stage's, so a taller one runs off it.
+ */
 
-/** Ten percent below the maximum, the floor the New Game modal enforces. */
+/** Ten percent below full size, the floor the New Game modal enforces. */
 export const SPRITE_SCALE_MIN = 0.9
-export const SPRITE_SCALE_MAX = 1
+export const SPRITE_SCALE_MAX = 1.05
 /** One click of the New Game modal's steppers. */
 export const SPRITE_SCALE_STEP = 0.01
 
@@ -12,7 +15,7 @@ export const SPRITE_SCALE_STEP = 0.01
  */
 export function defaultSpriteScale(baseAppearance: readonly string[]): number {
   if (baseAppearance.includes('small_breasts')) return 0.94
-  if (baseAppearance.includes('big_breasts')) return SPRITE_SCALE_MAX
+  if (baseAppearance.includes('big_breasts')) return 1
   return 0.97
 }
 

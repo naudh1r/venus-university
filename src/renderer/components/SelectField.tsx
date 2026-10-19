@@ -1,4 +1,4 @@
-import type { JSX } from 'react'
+import type { JSX, ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { fieldDim } from '../views/motion'
 
@@ -13,8 +13,8 @@ export interface SelectFieldProps {
   value: string
   onChange: (value: string) => void
   options: readonly SelectFieldOption[]
-  /** The body-text line under the label saying what the choice means. */
-  hint?: string
+  /** The body-text line under the label saying what the choice means; it may carry a link. */
+  hint?: ReactNode
   /** Held where something else on the form decides it, the field dimmed as a dead one is. */
   disabled?: boolean
 }

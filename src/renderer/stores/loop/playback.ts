@@ -1,5 +1,13 @@
 import type { GameOverReason } from '@shared/gameOver'
-import { READER_SPEAKER, type QuizState, type SceneLine, type TimeSlot } from '@shared/types'
+import {
+  READER_SPEAKER,
+  type ClassEntry,
+  type QuizState,
+  type ReceivedGift,
+  type SceneEvent,
+  type SceneLine,
+  type TimeSlot
+} from '@shared/types'
 import { isOrientationSlot } from '../../prompts/introScript'
 import { lastReaderIndexOf, rewindTargetOf } from '../stageStep'
 import { sceneOnScreenOf } from '../textingLoop'
@@ -18,6 +26,9 @@ export interface PlaybackSlice {
   sceneLog: readonly SceneLine[]
   cast: readonly string[]
   sceneClass: string | null
+  classes: Readonly<Record<string, ClassEntry>>
+  sceneEvent: SceneEvent | null
+  sceneReceivedGift: ReceivedGift | null
   sceneQuiz: QuizState | null
   sceneEnding: boolean
   statusShown: boolean
@@ -28,6 +39,7 @@ export interface PlaybackSlice {
   activeGameOver: GameOverReason | null
   date: number
   time: TimeSlot
+  semesterIndex: number
   sceneSummary: string | null
   reread: number
   /** A replay from the calendar is being read: nothing in it can be interrupted. */
@@ -68,15 +80,18 @@ export function playbackOffered(s: PlaybackSlice): boolean {
     s.activeGameOver === null &&
     (s.replaying !== null ||
       (s.cast.length > 0 &&
-        !(isOrientationSlot(s.date, s.time) && !s.currentSceneTranscript.some(isReaderLine))))
+        !(
+          isOrientationSlot(s.date, s.time, s.semesterIndex) &&
+          !s.currentSceneTranscript.some(isReaderLine)
+        )))
   )
 }
 
 /**
  * Whether stepping back a line is open: a line of the reply on screen has been reached, and the
  * scene has an earlier line that says something. Closed while a turn is in flight before its
- * reply's first line shows, and at a decision point after a reply with no lines. A replay shows
- * the reader's lines too, so there it is open wherever an earlier line says something.
+ * reply's first line shows, and at a decision point after a reply with no lines. A replay has no
+ * turn in flight, so there it is open wherever an earlier line of the scene says something.
  */
 export function rewindOpenOf(s: PlaybackSlice): boolean {
   if (!playbackOffered(s)) return false
@@ -93,12 +108,31 @@ export function forwardOpenOf(s: PlaybackSlice): boolean {
 export type InterjectOffer = 'none' | 'open' | 'locked'
 
 /**
- * Whether the scene lets the reader through: locked in a class scene while the line on screen
- * is no later than the reply to the action that opened it.
+ * What holds the scene's opening reply shut, or null: a lecture in session, one the professor has
+ * not called off, or a girl with a present still to hand him.
+ */
+export function openingLockOf(
+  s: Pick<PlaybackSlice, 'sceneClass' | 'classes' | 'sceneEvent' | 'sceneReceivedGift'>
+): 'class' | 'gift' | null {
+  const entry = s.sceneClass !== null ? s.classes[s.sceneClass] : undefined
+  if (
+    entry !== undefined &&
+    entry.category !== 'pe' &&
+    entry.kind === 'lecture' &&
+    s.sceneEvent?.id !== 'classCancelled'
+  ) {
+    return 'class'
+  }
+  return s.sceneReceivedGift !== null ? 'gift' : null
+}
+
+/**
+ * Whether the scene lets the reader through: locked by {@link openingLockOf} while the line on
+ * screen is no later than the reply to the action that opened it.
  */
 function lockOf(s: PlaybackSlice): 'locked' | 'open' {
   const acted = readPrefixOf(s).filter(isReaderLine).length
-  return s.sceneClass !== null && acted <= 1 ? 'locked' : 'open'
+  return openingLockOf(s) !== null && acted <= 1 ? 'locked' : 'open'
 }
 
 /**

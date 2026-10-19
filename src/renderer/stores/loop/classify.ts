@@ -3,13 +3,20 @@ import {
   classCodeKey,
   type ClassifierPromptRequest
 } from '@shared/classifier'
-import { charKeyOf, fullNameOf, type AppError } from '@shared/types'
+import { charKeyOf, fullNameOf, type AppError, type ClassEntry } from '@shared/types'
 import { jobDefOf } from '@shared/jobs'
 import type { DormId } from '@shared/dorms'
 import { locationDefOf, LOWRISE_LOCATION, ROOM_LOCATION } from '@shared/locations'
 import { useGameStore } from '../gameStore'
 import { createRetryGate } from '../retryGate'
-import { charHiddenLocationNow, charJobNow, charRoomDormNow, playerClassNow } from '../timetable'
+import {
+  castableIds,
+  charHiddenLocationNow,
+  charJobNow,
+  charRoomDormNow,
+  charSickAtHomeNow,
+  playerClassNow
+} from '../timetable'
 import { classesNow, studentsHere } from './cast'
 import { playerProjectClasses } from './jobs'
 import { currentRun, runStale, LOOP_LLM_GROUP } from './state'
@@ -102,13 +109,18 @@ export interface ClassifyAttempt {
 /** Prepares a turn's classifier call without sending it. */
 export function buildClassifyAttempt(action: string): ClassifyAttempt {
   const game = useGameStore.getState()
-  const charKeys = Object.keys(game.charKeyToId)
+  // The on-campus roster alone: a graduate is gone from Veridan and can be named by nobody,
+  // but for the one back for Homecoming.
+  const onCampus = castableIds().flatMap((charId) =>
+    game.characters[charId] ? [game.characters[charId]] : []
+  )
+  const charKeys = onCampus.map((character) => charKeyOf(character.firstName, character.lastName))
   if (charKeys.length === 0) {
     return { request: null, charKeys, verdict: EMPTY_VERDICT }
   }
 
   // Key and name both: the sentence says "Kira", the reply has to say `kira_weber`.
-  const roster = Object.values(game.characters).map((character) => ({
+  const roster = onCampus.map((character) => ({
     charKey: charKeyOf(character.firstName, character.lastName),
     name: fullNameOf(character)
   }))
@@ -212,6 +224,11 @@ export function isContact(charId: string): boolean {
  */
 export const UNKNOWN_NAME_REJECTION = "You don't know anyone by that name yet."
 
+/** Why a scene cannot open on a graduate. */
+export function graduateRejection(charId: string): string {
+  return `${firstNameOf(charId)} graduated and moved away from Veridan.`
+}
+
 /** First name for a message the player reads; falls back to the charId. */
 export function firstNameOf(charId: string): string {
   return useGameStore.getState().characters[charId]?.firstName ?? charId
@@ -225,6 +242,31 @@ export function castForClass(
   code: string,
   mentionedIds: string[]
 ): { cast: string[]; classCode: string } | { error: AppError } {
+  const resolved = classNowFor(code)
+  if ('error' in resolved) return resolved
+  const { entry } = resolved
+
+  const students = studentsHere(entry)
+  const absent = mentionedIds.find((charId) => !students.includes(charId))
+  if (absent) {
+    // Enrolled but in bed with a cold, she is missing it rather than not in it.
+    return {
+      error: rejection(
+        charSickAtHomeNow(absent)
+          ? `${firstNameOf(absent)} is home sick today.`
+          : `${firstNameOf(absent)} isn't in that class.`
+      )
+    }
+  }
+
+  return { cast: students, classCode: entry.code }
+}
+
+/**
+ * The class a `goto_class:` code puts the reader in this slot — his own, when the code is blank
+ * or names it — or the refusal for why there is none.
+ */
+export function classNowFor(code: string): { entry: ClassEntry } | { error: AppError } {
   const enrolled = playerClassNow()
   if (!enrolled) {
     return { error: rejection("You don't have a class right now.") }
@@ -237,12 +279,5 @@ export function castForClass(
   if (!entry) {
     return { error: rejection("You don't have a class right now.") }
   }
-
-  const students = studentsHere(entry)
-  const absent = mentionedIds.find((charId) => !students.includes(charId))
-  if (absent) {
-    return { error: rejection(`${firstNameOf(absent)} isn't in that class.`) }
-  }
-
-  return { cast: students, classCode: enrolled }
+  return { entry }
 }
