@@ -63,6 +63,7 @@ import {
 } from '../stores/characterStore'
 import { LandingChrome, type LandingRow } from './LandingChrome'
 import { SceneChrome } from './SceneChrome'
+import { useTableInputLayout } from '../minigames/inputLayout'
 import { DialogueBox } from './Dialogue'
 import {
   breatheCg,
@@ -187,7 +188,7 @@ import { ClassScheduleModal } from './ClassScheduleModal'
 import { EditPromptModal } from './EditPromptModal'
 import { FeedbackModal } from './FeedbackModal'
 import { GameMenuModal } from './GameMenuModal'
-import { endingChoice, prepareWayOn, type WayOn } from '../mods/hooks'
+import { endingChoice, prepareWayOn, scenePlays, type WayOn } from '../mods/hooks'
 import { currentRun, runStale } from '../stores/loop/state'
 import { ModsModal } from './ModsModal'
 import { LoadGameModal } from './LoadGameModal'
@@ -273,6 +274,7 @@ type OpenPanel =
   | { kind: 'appSettings' }
   | { kind: 'controls' }
   | { kind: 'mods' }
+  | { kind: 'modPanel'; modId: string }
   | { kind: 'feedback' }
   | { kind: 'leaving' }
   | { kind: 'quitting' }
@@ -563,6 +565,7 @@ function InterruptEndingModal({
 
 /** Game View: renders `gameStore`; `gameLoop.ts` owns state changes. */
 export function GameView(): JSX.Element {
+  const tableOwnsInput = useTableInputLayout((state) => state.layout !== null)
   const bg = useGameStore((s) => s.bg)
   const time = useGameStore((s) => s.time)
   const date = useGameStore((s) => s.date)
@@ -2083,6 +2086,7 @@ export function GameView(): JSX.Element {
           goodbye menu), or the three game overs — each wearing the slot's own half of the day. */}
       {sceneMode || cinematic || created || replaying ? (
         <SceneChrome
+          inputOwned={tableOwnsInput}
           theme={half}
           date={date}
           season={season}
@@ -2139,6 +2143,7 @@ export function GameView(): JSX.Element {
           onCalendar={() => setPanel({ kind: 'calendar' })}
           onBunnyboard={() => useBunnyboardStore.getState().openApp()}
           onSettings={() => setPanel({ kind: 'settings' })}
+          onModPanel={(modId) => setPanel({ kind: 'modPanel', modId })}
           onHideUi={hideUi}
           onBackground={() => setPanel({ kind: 'background' })}
           onCast={() => setPanel({ kind: 'cast' })}
@@ -2767,6 +2772,13 @@ export function GameView(): JSX.Element {
         {panel?.kind === 'mods' && (
           <ModsModal key="mods" theme={half} onClose={closePanel} inGame />
         )}
+
+        {panel?.kind === 'modPanel' &&
+          scenePlays()
+            .filter(({ modId }) => modId === panel.modId)
+            .map(({ modId, play }) => (
+              <play.Panel key={`mod-${modId}`} theme={half} onClose={closePanel} />
+            ))}
 
         {/* The key list the menu opens, an arm of `OpenPanel` for the reason Settings is. */}
         {panel?.kind === 'controls' && (

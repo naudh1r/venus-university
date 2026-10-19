@@ -14,6 +14,7 @@ import {
 import { ConfirmModal } from '../components/ConfirmModal'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
+import { modDetail } from '../mods/hooks'
 import { useModsStore } from '../stores/modsStore'
 import { useUiStore } from '../stores/uiStore'
 import { gestures, lift, panelUnderTab, press, veilIn } from './motion'
@@ -123,6 +124,8 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
   const selected = MODS.find((mod) => mod.id === selectedId) ?? null
   const missing = selected ? missingRequirement(switches, selected.id) : null
   const count = modsOn(switches).length
+  // A mod's own page, where one of the mods that are on has one for it.
+  const Detail = selected ? modDetail(selected) : undefined
 
   return createPortal(
     <motion.div
@@ -224,8 +227,17 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
               )}
 
               <hr className="vu-rule" />
-              <h4 className="vu-mods-label">Options</h4>
-              {selected.options?.length ? (
+              {Detail && (
+                <Detail
+                  key={selected.id}
+                  mod={selected}
+                  Switch={Switch}
+                  optionOn={(optionId) => optionOn(switches, selected.id, optionId)}
+                  setOption={(optionId, on) => request({ modId: selected.id, optionId, on })}
+                />
+              )}
+              {!Detail && <h4 className="vu-mods-label">Options</h4>}
+              {Detail ? null : selected.options?.length ? (
                 <ul className="vu-mods-options">
                   {selected.options.map((option, index, all) => {
                     if (!option.group) {

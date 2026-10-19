@@ -1,5 +1,5 @@
 import { appError } from '@shared/errors'
-import type { AppError, SceneLine, StructuredRequest } from '@shared/types'
+import type { AppError, SceneLine, SceneResponse, StructuredRequest } from '@shared/types'
 import { useGameStore } from '../gameStore'
 import {
   createSceneSanitizer,
@@ -80,9 +80,23 @@ export interface PreviewSink {
   held: SceneLine[]
 }
 
-/** What one scene call comes back with, resolved. */
+/**
+ * What one scene call comes back with, resolved; `at` is the transcript length the call was
+ * made at, which is what the reply's summary covers up to (Breakthrough reads it). `reply` is the
+ * reply as the model wrote it, for the mods that asked it for fields of their own.
+ */
 export type SceneCall = Promise<
-  | { ok: true; data: { lines: SceneLine[]; summary: string | null; end: boolean; applied: boolean } }
+  | {
+      ok: true
+      data: {
+        lines: SceneLine[]
+        summary: string | null
+        end: boolean
+        applied: boolean
+        at: number
+        reply: SceneResponse
+      }
+    }
   | { ok: false; error: AppError }
 >
 
@@ -122,6 +136,8 @@ export async function streamScene(
   // abandons it from that moment.
   const mine = {}
   loopState.sceneCall = mine
+  // The transcript this call answers, which its summary covers up to.
+  const at = useGameStore.getState().currentSceneTranscript.length
   // What this call's deltas are tagged with: an abandoned call's still in flight reach every
   // listener, the next call's included.
   const stream = `scene-${++streamCount}`
@@ -234,7 +250,7 @@ export async function streamScene(
   const { lines, summary, end } = sanitizeScene(result.data, options)
 
   // A prefetch still holding its lines has nothing to reconcile; Begin appends the reply whole.
-  if (sink && !sink.live) return { ok: true, data: { lines, summary, end, applied: false } }
+  if (sink && !sink.live) return { ok: true, data: { lines, summary, end, applied: false, at, reply: result.data } }
 
   const game = useGameStore.getState()
 
@@ -260,7 +276,7 @@ export async function streamScene(
   // that read the store here would find a scene that has not arrived yet.
   await delivered
 
-  return { ok: true, data: { lines, summary, end, applied: true } }
+  return { ok: true, data: { lines, summary, end, applied: true, at, reply: result.data } }
 }
 
 /** Hands playback back to a player parked on the spinner at the end of the queue. */

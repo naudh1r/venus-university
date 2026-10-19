@@ -1,47 +1,33 @@
 # Maintaining the Darts pack
 
-`mod/mini-game-darts` is based on Extracurriculars `core`. Its changes contain only
-the Darts pack, its assets, guide and rules tests. Update it from `core` only; never
-merge the combined `main` build into this branch. No other game packs are bundled.
+`mod/mini-game-darts` is based on Extracurriculars `core` and includes the Mini-games
+framework dependency, its core scene hooks, and the Darts pack. It is a runnable
+build with no other game packs or unrelated mods bundled.
 
-## Required framework
+Update from `core`; never merge the combined `main` build into this maintenance
+branch. Framework files retain upstream authorship and should be kept aligned with
+upstream. The place resolver uses core locations; the combined main build also
+checks optional City Life location availability.
 
-Darts requires the `mini-games` framework. Current `core` (`16da338`) does not
-contain that framework, so this branch alone is not a complete runnable build.
-It intentionally does not copy the framework or its bundled games into the pack.
-
-Use a framework that includes the additions shipped with Darts in Extracurriculars
-0.3.0: `MiniGameDef.skillAxes`, `MiniGameDef.resultBrief`, opponent ability biases,
-expression-aware `GamePlay.speak`, `useEffectsGain`, per-game screen styling and
-the shared/renderer mini-game kits. The framework owns scene integration, dialogue,
-input layout and location resolution. Those files are not maintained by this pack.
-
-## Test the rules on the clean mod branch
+## Validate
 
 ```sh
-npx vitest run test/darts.test.ts
-```
-
-The rules are self-contained and can be tested without the renderer framework.
-A full typecheck, build or game launch needs the framework to be present.
-
-## Test or submit a combined build
-
-Start a temporary integration branch from the latest Extracurriculars `main`, which
-contains the released framework, then merge the mod branch into that integration:
-
-```sh
-git fetch extracurricular
-git switch -c integrate/darts extracurricular/main
-git merge mod/mini-game-darts
+npm install
 npm run typecheck
+npx vitest run test/darts.test.ts test/minigame*.test.ts
 npm run build
+npm run dev
 ```
 
-Resolve any conflicts on the integration branch. Open the PR from that branch to
-upstream `main`; after merge, the integration branch can be removed. Keep the mod
-branch based on `core`. When `core` eventually contains the framework API, the same
-pack can build there directly without copying another mod into this branch.
+Enable Mini-games in Mods. The Darts pack follows the framework dependency switch.
+Its content switch defaults on; the framework defaults off, matching upstream.
 
-The artwork licence files are part of this pack. The separately submitted licence
-PR is not changed by creating or maintaining this branch.
+## Submit changes
+
+Create a temporary `integrate/darts` branch from the latest Extracurriculars `main`
+and merge the maintenance branch there. Resolve combined-build conflicts there,
+retaining upstream's other mods and optional location checks. Open PRs from the
+integration branch to upstream `main`.
+
+Artwork licensing remains beside the assets in `src/assets/darts/LICENSE.md` and
+in the player guide. The separate licence PR is unchanged.

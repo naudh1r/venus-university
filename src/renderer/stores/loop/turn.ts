@@ -1,3 +1,4 @@
+import { afterSceneReply } from '../../mods/hooks'
 import { isPermanent } from '@shared/errors'
 import type { AppError, Character } from '@shared/types'
 import { shortenSceneSoFar } from '../../prompts/scenePrompt'
@@ -199,6 +200,8 @@ export async function runSceneTurn(
   // after its one turn.
   const ending = solo || result.data.end
   useGameStore.getState().setSceneEnding(ending)
+
+  afterSceneReply({ reply: { ...result.data.reply }, cast: castCharacters, solo, ending })
 
   if (!ending) {
     // Written before playback is handed back: `unpark()` can run to the next decision point,
