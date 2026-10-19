@@ -48,3 +48,57 @@ export function rollCrowd(
   const drawn = Math.floor(rand() * (talkers + 1) + rand() * talkers * 0.6)
   return Math.min(drawn, MAX_CROWD)
 }
+
+/**
+ * Who joins a post's thread besides its poster, rolled by the game so the model is never handed
+ * a crowd to use. Only her friends among the roster join on their own; the rest of the campus
+ * are her followers.
+ */
+
+/** The chance one of her friends is among the replies a new post arrives with. */
+export const OPENING_FRIEND_CHANCE = 0.35
+
+/** The chance a friend of hers who is also on the reader's contacts joins a round he started. */
+export const MUTUAL_FRIEND_CHANCE = 0.6
+
+/** The chance one of her other friends joins instead, when no mutual friend does. */
+export const FRIEND_CHANCE = 0.2
+
+/** The chance a girl whose comment the reader answered answers him back. */
+export const ADDRESSED_GIRL_CHANCE = 0.7
+
+/** The chance a follower whose comment the reader answered answers him back. */
+export const ADDRESSED_FOLLOWER_CHANCE = 0.5
+
+/** The chance one of her followers chimes in on a round: from 30% to 60% as her following grows. */
+export function followerChance(following: number): number {
+  const reach = Math.min(1, Math.max(0, (following - REACH_FLOOR) / REACH_SPAN))
+  return 0.3 + 0.3 * reach
+}
+
+/** One of `ids`, or nothing when there are none. */
+function oneOf(ids: readonly string[], rand: () => number): string | null {
+  return ids.length > 0 ? ids[Math.floor(rand() * ids.length)] : null
+}
+
+/** The friend of hers, if any, whose reply a new post arrives with. */
+export function pickOpeningFriend(
+  friends: readonly string[],
+  rand: () => number = Math.random
+): string | null {
+  return friends.length > 0 && rand() < OPENING_FRIEND_CHANCE ? oneOf(friends, rand) : null
+}
+
+/**
+ * The friend of hers, if any, who joins a round of answers to the reader: one he knows too
+ * first, and failing that one he does not. At most one a round.
+ */
+export function pickJoiningFriend(
+  mutuals: readonly string[],
+  others: readonly string[],
+  rand: () => number = Math.random
+): string | null {
+  if (mutuals.length > 0 && rand() < MUTUAL_FRIEND_CHANCE) return oneOf(mutuals, rand)
+  if (others.length > 0 && rand() < FRIEND_CHANCE) return oneOf(others, rand)
+  return null
+}

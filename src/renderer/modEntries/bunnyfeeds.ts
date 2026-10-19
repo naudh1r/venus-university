@@ -9,6 +9,7 @@ import {
   ownsPostComments,
   postVisible,
   registerHooks,
+  type OptionPreviewProps,
   type PostCommentsProps
 } from '../mods/hooks'
 import {
@@ -20,6 +21,7 @@ import { repliersFor, rollFeedComments, writtenComments } from '../stores/bunnyf
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { fileDueFeedMemories } from '../stores/bunnyfeedsMemory'
 import { takeCommented } from '../stores/bunnyfeedsVisit'
+import { settleFeedReadMark, unreadFeedNotesOf } from '../stores/bunnyfeedsNotes'
 import { useGameStore } from '../stores/gameStore'
 
 // Loaded on first draw, so registering the mod pulls in no screen code.
@@ -27,6 +29,33 @@ const screens = (): Promise<typeof import('../components/BunnyfeedsThread')> =>
   import('../components/BunnyfeedsThread')
 const LazyPreview = lazy(() => screens().then((module) => ({ default: module.FeedPreview })))
 const LazyPill = lazy(() => screens().then((module) => ({ default: module.CommentPill })))
+const notifications = (): Promise<typeof import('../components/BunnyfeedsNotifications')> =>
+  import('../components/BunnyfeedsNotifications')
+const LazyNotes = lazy(() =>
+  notifications().then((module) => ({ default: module.FeedNotificationsPage }))
+)
+const LazyMarkAll = lazy(() =>
+  notifications().then((module) => ({ default: module.MarkAllFeedNotes }))
+)
+
+/** Notifications, drawn once its code has loaded. */
+function FeedNotificationsView(): ReturnType<typeof createElement> {
+  return createElement(Suspense, { fallback: null }, createElement(LazyNotes))
+}
+
+const LazyFaces = lazy(() =>
+  import('../components/BunnyfeedsFaces').then((module) => ({ default: module.FacesPreview }))
+)
+
+/** The faces option's preview on the Mods screen, drawn once its code has loaded. */
+function FacesPreviewView(props: OptionPreviewProps): ReturnType<typeof createElement> {
+  return createElement(Suspense, { fallback: null }, createElement(LazyFaces, props))
+}
+
+/** Mark all as read, over Notifications, drawn once its code has loaded. */
+function MarkAllView(): ReturnType<typeof createElement> {
+  return createElement(Suspense, { fallback: null }, createElement(LazyMarkAll))
+}
 
 /** The thread's preview under a post, drawn once its code has loaded. */
 function FeedPreviewView(props: PostCommentsProps): ReturnType<typeof createElement> {
@@ -152,8 +181,21 @@ registerHooks(BUNNYFEEDS, {
     claims: (comment) => Boolean(comment.player || comment.charId || comment.replyTo)
   },
 
+  // What each choice of followers' faces looks like, under the choice on the Mods screen.
+  optionPreviews: { faces: FacesPreviewView },
+
+  // Every reply to his comments, beside the feed in Updates, counting what he has not seen.
+  updatesTab: {
+    id: 'notifications',
+    word: 'Notifications',
+    Page: FeedNotificationsView,
+    Action: MarkAllView,
+    unread: unreadFeedNotesOf
+  },
+
   gameEntered: () => {
     takeCommented()
+    settleFeedReadMark()
     void threads().then((module) => module.resetFeedThreads())
   }
 })

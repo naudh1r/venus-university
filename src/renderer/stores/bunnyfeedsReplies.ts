@@ -1,9 +1,19 @@
 import { fallbackHandleOf } from '@shared/feed'
 import { globalSlotOf } from '@shared/jobs'
-import { npcFriendsOf, type NpcRelationshipMap } from '@shared/npcRelationships'
-import { followingOf, rollCrowd } from '@shared/bunnyfeedsCrowd'
+import {
+  areNpcFriends,
+  npcFriendsOf,
+  npcPairOf,
+  zoneOf,
+  type NpcRelationshipMap
+} from '@shared/npcRelationships'
+import {
+  followingOf,
+  pickJoiningFriend,
+  pickOpeningFriend,
+  rollCrowd
+} from '@shared/bunnyfeedsCrowd'
 import type { PostComment } from '@shared/postComments'
-import { shuffle } from '@shared/shuffle'
 import { charKeyOf, type Character, type CharInfo } from '@shared/types'
 import {
   FEED_EMOJI,
@@ -11,53 +21,81 @@ import {
   FEED_HANDLE_BAG,
   FEED_HANDLE_POOL
 } from '../prompts/feedRandoms'
+import { isFeedContact } from './feedView'
 import { useGameStore } from './gameStore'
 import { useGrabBagStore } from './grabBagStore'
 
 /** Bunnyfeeds' side of a post's replies: who may write them, and how they are filed. */
 
-/** A roster girl who may reply under one poster's post, and whether the two are friends. */
+/** How a roster girl stands with the poster whose post she replies under. */
+export type PosterStanding = 'friend' | 'enemy' | 'barely'
+
+/** A roster girl who may reply under one poster's post, and how the two stand. */
 export interface Replier {
   character: Character
   charKey: string
-  friend: boolean
+  standing: PosterStanding
   /** What the game knows of her, for how she stands with the reader. */
   info?: CharInfo
 }
 
-/** How many of her friends may reply under a post, and how many randoms stand in for none. */
-const MAX_FRIEND_REPLIERS = 3
-const MAX_RANDOM_REPLIERS = 2
+/** How `charId` stands with `posterId`, read off the game's pairs. */
+function standingOf(
+  relationships: NpcRelationshipMap | undefined,
+  posterId: string,
+  charId: string
+): PosterStanding {
+  const pair = npcPairOf(relationships, posterId, charId)
+  if (!pair) return 'barely'
+  const zone = zoneOf(pair.affinity)
+  return zone === 'friends' ? 'friend' : zone === 'enemies' ? 'enemy' : 'barely'
+}
+
+/** One roster girl as a replier under `posterId`'s post; null for one the game does not hold. */
+export function replierOf(
+  charId: string,
+  posterId: string,
+  relationships: NpcRelationshipMap | undefined
+): Replier | null {
+  const game = useGameStore.getState()
+  const character = game.characters[charId]
+  if (!character) return null
+  return {
+    character,
+    charKey: charKeyOf(character.firstName, character.lastName),
+    standing: standingOf(relationships, posterId, charId),
+    info: game.charInfo[charId]
+  }
+}
+
+/** The friend of hers, if the roll offers one, who may reply under a post as it is written. */
+export function repliersFor(posterId: string, relationships: NpcRelationshipMap | undefined): Replier[] {
+  const friends = npcFriendsOf(relationships, posterId, useGameStore.getState().chars)
+  const picked = pickOpeningFriend(friends)
+  const replier = picked ? replierOf(picked, posterId, relationships) : null
+  return replier ? [replier] : []
+}
 
 /**
- * The roster girls who may reply under one girl's post: a few of her friends, or a random few
- * of the roster where she has none.
+ * The friend of hers, if the roll offers one, who may join a round of answers to the reader:
+ * a friend he has on his contacts too is likelier than one he does not.
  */
-export function repliersFor(posterId: string, relationships: NpcRelationshipMap | undefined): Replier[] {
+export function joiningFriendOf(
+  posterId: string,
+  relationships: NpcRelationshipMap | undefined
+): Replier | null {
   const game = useGameStore.getState()
   const friends = npcFriendsOf(relationships, posterId, game.chars)
-  const picked =
-    friends.length > 0
-      ? shuffle(friends).slice(0, MAX_FRIEND_REPLIERS)
-      : shuffle(game.chars.filter((id) => id !== posterId)).slice(0, MAX_RANDOM_REPLIERS)
-  return picked.flatMap((charId) => {
-    const character = game.characters[charId]
-    return character
-      ? [
-          {
-            character,
-            charKey: charKeyOf(character.firstName, character.lastName),
-            friend: friends.length > 0,
-            info: game.charInfo[charId]
-          }
-        ]
-      : []
-  })
+  const mutuals = friends.filter((id) => isFeedContact(game.charInfo[id]))
+  const others = friends.filter((id) => !mutuals.includes(id))
+  const picked = pickJoiningFriend(mutuals, others)
+  return picked ? replierOf(picked, posterId, relationships) : null
 }
 
 /**
  * The replies a post came back with, each signed by the roster girl its "from" names. A key
- * nobody holds, or the poster's own, leaves the reply to a stranger.
+ * nobody holds, or the poster's own, leaves the reply to a follower; one from a girl who is not
+ * the poster's friend is dropped, since only her friends reply under a post as it is written.
  */
 export function writtenComments(raw: unknown, posterId: string): WrittenComment[] {
   if (!Array.isArray(raw)) return []
@@ -69,7 +107,10 @@ export function writtenComments(raw: unknown, posterId: string): WrittenComment[
     if (typeof text !== 'string') return []
     const charId = typeof from === 'string' && from ? game.charKeyToId[from.trim()] : undefined
     if (from && !charId) console.warn(`[bunnyfeeds] reply from unknown key "${String(from)}"`)
-    return [charId && charId !== posterId ? { charId, text } : { text }]
+    if (charId && charId !== posterId) {
+      return areNpcFriends(game.npcRelationships, posterId, charId) ? [{ charId, text }] : []
+    }
+    return [{ text }]
   })
 }
 
