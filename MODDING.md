@@ -111,6 +111,13 @@ Shared code holds no switches. Where a rule there has to follow one, give the ru
 a setter, and set it from `modsStore.ts` at boot and whenever a switch moves
 (`useModsStore.subscribe`). Echo does this for its bonus, and Photo Feature for its switches.
 
+## Screens and the files in the root
+
+A mod's screens follow `UI_STYLE_GUIDE.md`, but nobody edits it, nor any other file in the root
+besides this one (`DESIGN_GUIDE.md`, `README.md`, …): they come from Venus Dev and are replaced
+whenever a new version of the game is synced in. How a mod's own screens look goes in its guide
+under `docs/mods/`; how a hook point draws goes in its entry here.
+
 ## Hook points
 
 A switch decides whether a mod acts. Hook points decide **where** it acts without editing the
@@ -196,11 +203,13 @@ as a new hook beside the old one.
 
 ### Not covered yet
 
-- Screens: a mod's menu entries and editor fields, and its panels anywhere but over a scene.
+- Screens: a mod's menu entries and editor fields, and its panels anywhere but over a scene, a
+  tab of the phone (`bunnyboardPage`), a page beside the feed (`updatesTab`) and a preview on
+  the Mods screen (`optionPreviews`).
 - Main process: IPC, protocols, services, settings and character rules.
-- Saves: a mod's own fields in a save, and what carries into the next semester.
+- Saves: a mod's own fields in a save. Carrying them into the next semester is covered below.
 
-Both are still direct edits, as before.
+These are still direct edits, as before.
 
 ### Tests
 
