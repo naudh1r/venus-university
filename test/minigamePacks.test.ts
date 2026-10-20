@@ -94,18 +94,16 @@ describe('switching the games off', () => {
     }
   })
 
-  it('takes the games of one pack and no other', async () => {
-    const { NO_SWITCHES, modOn, withMod } = await import('../src/shared/mods')
-    const { MINI_GAMES_LIST, gamesOffered } = await import('../src/shared/minigames')
-    const { MINI_GAMES } = await import('../src/shared/minigames')
-    const pack = 'morrowkiln-card-games'
-    const off = withMod(withMod(NO_SWITCHES, MINI_GAMES, true), pack, false)
-    const offered = gamesOffered({ location: 'room', girls: 1 }, (modId) => modOn(off, modId))
-    expect(offered.some((game) => game.modId === pack)).toBe(false)
-    expect(offered.length).toBeGreaterThan(0)
-    expect(MINI_GAMES_LIST.some((game) => game.modId === pack)).toBe(true)
-  })
-})
+  it('bundles only Darts and its framework dependency', async () => {
+    const { MODS, NO_SWITCHES, modOn, withMod } = await import('../src/shared/mods')
+    const { MINI_GAMES, MINI_GAMES_LIST, gamesOffered } = await import('../src/shared/minigames')
+    expect(MODS.map(mod => mod.id).sort()).toEqual(['mini-games', 'naudh1r-darts'])
+    expect(MINI_GAMES_LIST.map(game => game.id)).toEqual(['darts'])
+    const on = withMod(NO_SWITCHES, MINI_GAMES, true)
+    expect(gamesOffered({ location: 'pino_cola_lounge', girls: 1 }, id => modOn(on, id)).map(game => game.id)).toEqual(['darts'])
+    const off = withMod(on, 'naudh1r-darts', false)
+    expect(gamesOffered({ location: 'pino_cola_lounge', girls: 1 }, id => modOn(off, id))).toEqual([])
+  })})
 
 it('lets the framework gate Darts while respecting the pack switch', async () => {
   const { NO_SWITCHES, modOn, withMod, modById } = await import('../src/shared/mods')

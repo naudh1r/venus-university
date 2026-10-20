@@ -4,7 +4,7 @@ import { useTableStore } from '../src/renderer/minigames/session'
 import { fileResult } from '../src/renderer/minigames/table'
 import { submitAction } from '../src/renderer/stores/gameLoop'
 import DARTS from '../src/shared/minigameEntries/darts'
-import POOL from '../src/shared/minigameEntries/pool'
+const POOL = { ...DARTS, id: 'generic-fixture', resultBrief: undefined }
 import type { MiniGameDef } from '../src/shared/minigames'
 import type { PlayResult } from '../src/renderer/minigames/play'
 

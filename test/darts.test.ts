@@ -1,13 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { newMatch, summary, throwDart, targetRegion, scoreHit, validateMatch, traitsFor, planPartnerTurn, applyPlannedThrow, NUMBERS, type Match } from '../src/shared/minigameRules/darts'
-import { applySessionPlan, newSession, planNpcVisit, sessionSummary, sessionThrow, type DartsSession } from '../src/shared/minigameRules/dartsSession'
+import { targetRegion, scoreHit, traitsFor, NUMBERS, aimEllipse, movingDot, panelLights, applySessionPlan, newSession, planNpcVisit, sessionSummary, sessionThrow, type DartsSession } from '../src/shared/minigameRules/darts'
 
-/** A released dart uses a scoring region's normalized centre. */
-const hit = (m: Match, n: number, kind: 'single' | 'double' | 'triple' = 'single'): Match => throwDart(m, targetRegion(n, kind), 0)
-const miss = (m: Match): Match => throwDart(m, { x: 1.2, y: 0 }, 0)
-const fresh = (mode = 301): Match => newMatch({ seed: 42, id: 'darts-test', mode })
-
-describe('cooperative darts ledger', () => {
+describe('darts geometry and traits', () => {
   it('scores each wedge from the same normalized regions the board draws', () => {
     for (const n of NUMBERS) for (const kind of ['single', 'double', 'triple'] as const) {
       const p = targetRegion(n, kind)
@@ -15,28 +9,6 @@ describe('cooperative darts ledger', () => {
     }
     expect(scoreHit(0, 0).points).toBe(50)
     expect(scoreHit(1.2, 0).points).toBe(0)
-  })
-  it('ends immediately at exact zero, including a single out', () => {
-    let m = fresh()
-    for (let i = 0; i < 4; i++) m = hit(m, 20, 'triple')
-    m = miss(miss(m)); m = hit(m, 20, 'triple'); m = hit(m, 1)
-    expect(summary(m)).toMatchObject({ done: true, outcome: 'win', balance: 0, count: 8 })
-    expect(validateMatch(JSON.parse(JSON.stringify(m)))).toEqual(m)
-    expect(() => miss(m)).toThrow()
-  })
-  it('cancels every point in a bust visit and hands over early', () => {
-    let m = fresh()
-    for (let i = 0; i < 4; i++) m = hit(m, 20, 'triple')
-    m = miss(miss(m)); m = hit(m, 20, 'triple'); m = hit(m, 2)
-    const s = summary(m)
-    expect(s.balance).toBe(61)
-    expect(s.actor).toBe('partner')
-    expect(s.visits?.at(-1)).toMatchObject({ bust: true, points: 0, start: 61 })
-  })
-  it('loses after five visits with any positive balance', () => {
-    let m = fresh()
-    for (let i = 0; i < 15; i++) m = miss(m)
-    expect(summary(m)).toMatchObject({ done: true, outcome: 'loss', balance: 301 })
   })
   it('fixes independent traits by character and framework skill', () => {
     for (let skill = 1; skill <= 5; skill++) for (let i = 0; i < 100; i++) {
@@ -50,20 +22,6 @@ describe('cooperative darts ledger', () => {
     }
     expect(traitsFor(5, 'ana').accuracy).toBeGreaterThan(traitsFor(1, 'ana').accuracy)
     expect(traitsFor(3, 'ana')).not.toEqual(traitsFor(3, 'bea'))
-  })
-  it('commits a precomputed visit exactly once and independently of dialogue', () => {
-    let m = fresh(501)
-    m = { ...m, partnerTraits: traitsFor(3, 'ana') }
-    for (let i = 0; i < 3; i++) m = hit(m, 20)
-    const plan = planPartnerTurn(m)
-    expect(planPartnerTurn({ ...m, dialogue: { opening: 'Different words.' } })).toEqual(plan)
-    m = { ...m, partnerPlan: { start: m.throws.length, seed: m.seed, strategy: m.strategy, items: plan } }
-    for (const item of plan) {
-      m = applyPlannedThrow(m, item)
-      expect(m.throws.at(-1)).toEqual(item.dart)
-      expect(() => applyPlannedThrow(m, item)).toThrow()
-    }
-    expect(summary(m).actor).toBe('you')
   })
 })
 
@@ -230,5 +188,26 @@ describe('NPC darts accuracy balance', () => {
     const nervous = { ...calm, composure: 10 }
     expect(sample(calm)).toEqual(sample(nervous))
     expect(sample(calm, true).mean).toBeLessThan(sample(nervous, true).mean * 0.6)
+  })
+})
+
+
+describe('time-based board effects', () => {
+  it('keeps the seeded pointer inside the locked ellipse at any frame rate', () => {
+    const ellipse = aimEllipse({ x: 1.35, y: -1.35 }, 'club')
+    for (const seconds of [0, 1 / 144, 1 / 60, 0.1, 1, 20]) {
+      const point = movingDot(ellipse, 42, 2, seconds)
+      expect(((point.x - ellipse.x) / ellipse.rx) ** 2 + ((point.y - ellipse.y) / ellipse.ry) ** 2).toBeLessThanOrEqual(1.0000001)
+      expect(Math.abs(point.x)).toBeLessThanOrEqual(1.35)
+      expect(Math.abs(point.y)).toBeLessThanOrEqual(1.35)
+    }
+  })
+  it('finishes every LED pattern before the board becomes idle', () => {
+    for (const kind of ['single', 'double', 'triple', 'outerBull', 'bull'] as const) {
+      const dart = targetRegion(20, kind)
+      expect(panelLights(dart, 0).length).toBeGreaterThan(0)
+      expect(panelLights(dart, 650)).toEqual([])
+      expect(panelLights(dart, 1200)).toEqual([])
+    }
   })
 })

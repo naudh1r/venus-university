@@ -32,17 +32,6 @@ describe("the mini-games' place for a scene", () => {
   })
 })
 
-describe("a place City Life adds", () => {
-  it('is a place only where the playthrough has City Life', async () => {
-    const { setCityLifeEnabled } = await import('@shared/cityLife')
-    setCityLifeEnabled(true, true)
-    expect(placeOf('the student lanes', 'bowling_alley')).toBe('bowling_alley')
-    expect(placeOf('bowling', null)).toBe('bowling_alley')
-    setCityLifeEnabled(false, false)
-    expect(placeOf('bowling', null)).toBeNull()
-    expect(placeOf('the student lanes', 'bowling_alley')).toBeNull()
-  })
-})
 
 describe('a game played where the scene is', () => {
   it('tells the model the game is here and the background stays', () => {
@@ -71,15 +60,4 @@ describe('the reached place after a scene transition', () => {
     expect(reachedScenePlace('room', [{ bg: 'pinocola_lounge' }, {}])).toBe('pino_cola_lounge')
   })
 
-  it('honors City Life availability after a transition', async () => {
-    const { setCityLifeEnabled } = await import('@shared/cityLife')
-    try {
-      setCityLifeEnabled(true, true)
-      expect(reachedScenePlace('room', [{ bg: 'bowling_alley' }])).toBe('bowling_alley')
-      setCityLifeEnabled(false, false)
-      expect(reachedScenePlace('room', [{ bg: 'bowling_alley' }])).toBeNull()
-    } finally {
-      setCityLifeEnabled(false, false)
-    }
-  })
 })
