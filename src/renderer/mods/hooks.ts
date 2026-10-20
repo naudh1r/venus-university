@@ -98,6 +98,11 @@ export interface EndingChoice extends WayOn {
   label: string
 }
 
+/** What the Mods screen hands a preview of one of a mod's option groups: the option picked. */
+export interface OptionPreviewProps {
+  optionId: string | null
+}
+
 /** What a mod offers for a save picked in Load Game, beside loading it. */
 export interface SaveChoice extends WayOn {
   title: string
@@ -128,6 +133,19 @@ export interface BunnyboardPage {
   word: string
   Mark: ComponentType
   Page: ComponentType
+}
+
+/**
+ * A page of a mod's own beside the feed in the Updates tab, behind a title of its own beside the
+ * feed's. `unread` is what its title and the Updates tile on the rail count; `Action` is drawn at
+ * the end of the titles' row while the page is showing.
+ */
+export interface UpdatesTab {
+  id: string
+  word: string
+  Page: ComponentType
+  Action?: ComponentType
+  unread?: (game: ReturnType<typeof useGameStore.getState>) => number
 }
 
 /** What the row drawing a post hands to whatever draws its comments or acts on them. */
@@ -164,6 +182,8 @@ export interface PostPictureProps {
 
 export interface ModHooks {
   bunnyboardPage?: BunnyboardPage
+  /** A page beside the feed in the Updates tab; see {@link UpdatesTab}. */
+  updatesTab?: UpdatesTab
   /** Draws the comments under a post; see {@link PostCommentsSpot}. */
   postComments?: PostCommentsSpot
   /** Draws a post's picture under its text, wherever a post is drawn; the first mod on decides. */
@@ -221,6 +241,11 @@ export interface ModHooks {
     playthroughId: string
     save: ResolvedSave & { record: PlaythroughRecord }
   }) => SaveChoice | undefined
+  /**
+   * A preview drawn under one of its option groups on the Mods screen, by the group's id, of
+   * whichever option is picked. Asked whether or not the mod is on, so it shows before it is.
+   */
+  optionPreviews?: Record<string, ComponentType<OptionPreviewProps>>
 }
 
 interface Registered {
@@ -431,5 +456,25 @@ export function bunnyboardPages(): BunnyboardPage[] {
     if (!page || seen.has(page.id)) return []
     seen.add(page.id)
     return [page]
+  })
+}
+
+/** The preview a mod draws under one of its option groups, on or off; none where it has none. */
+export function optionPreview(
+  modId: string,
+  groupId: string
+): ComponentType<OptionPreviewProps> | undefined {
+  return registered.find((entry) => entry.modId === modId && entry.hooks.optionPreviews?.[groupId])
+    ?.hooks.optionPreviews?.[groupId]
+}
+
+/** The pages beside the feed in the Updates tab, one per id, in mod-list order. */
+export function updatesTabs(): UpdatesTab[] {
+  const seen = new Set(['feed'])
+  return active().flatMap(hooks => {
+    const tab = hooks.updatesTab
+    if (!tab || seen.has(tab.id)) return []
+    seen.add(tab.id)
+    return [tab]
   })
 }

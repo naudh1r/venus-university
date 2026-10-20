@@ -1,4 +1,4 @@
-import { bunnyboardPages } from '../mods/hooks'
+import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
 import { useModsStore } from '../stores/modsStore'
 import {
   Fragment,
@@ -312,6 +312,10 @@ export function BunnyboardModal({
     0
   )
   const friendsBadge = bunnyboard.contactsBadge
+  // What the mods' pages beside the feed have unread, on the Updates tile.
+  const updatesBadge = useGameStore((s) =>
+    updatesTabs().reduce((total, page) => total + (page.unread?.(s) ?? 0), 0)
+  )
 
   // Opening the Friends tab is seeing what the badge was about.
   useEffect(() => {
@@ -363,7 +367,13 @@ export function BunnyboardModal({
             {tabs.map((entry, index) => {
               const on = entry.id === tab
               const badge =
-                entry.id === 'chats' ? chatsBadge : entry.id === 'friends' ? friendsBadge : 0
+                entry.id === 'chats'
+                  ? chatsBadge
+                  : entry.id === 'friends'
+                    ? friendsBadge
+                    : entry.id === 'updates'
+                      ? updatesBadge
+                      : 0
               return (
                 <motion.button
                   key={entry.id}
@@ -426,7 +436,7 @@ export function BunnyboardModal({
                   </>
                 )}
                 {tab === 'friends' && <FriendsList />}
-                {tab === 'updates' && <UpdatesFeed />}
+                {tab === 'updates' && <UpdatesPages />}
                 {tab === 'profile' && <ProfilePage />}
                 {tab === 'photos' && <PhotosPage theme={theme} />}
                 {tab === 'lorebook' && <LorebookPage theme={theme} />}
@@ -2022,8 +2032,69 @@ const FeedPage = memo(function FeedPage({
   )
 })
 
-/** The feed: every contact's posts, plus the things the day surfaces from outside that list. */
-function UpdatesFeed(): JSX.Element {
+/**
+ * The Updates tab: the feed, and beside it any page a mod adds, each behind a title of its own
+ * in one row, the one showing drawn as the screen's title. Leaving the tab comes back to the feed.
+ */
+function UpdatesPages(): JSX.Element {
+  useModsStore((s) => s.switches)
+  const pages = updatesTabs()
+  const [picked, setPicked] = useState('feed')
+  const page = pages.find((entry) => entry.id === picked)
+  const head =
+    pages.length === 0 ? (
+      <div className="vu-title vu-bb-title">
+        <h2 className="vu-title-text">Updates</h2>
+      </div>
+    ) : (
+      <div className="vu-bb-updates-head">
+        <div className="vu-bb-updates-tabs" role="tablist" aria-label="Updates">
+          {[{ id: 'feed', word: 'Updates' } as UpdatesTab, ...pages].map((entry) => {
+            const on = entry.id === (page?.id ?? 'feed')
+            return (
+              <motion.button
+                key={entry.id}
+                id={`bb-updates-${entry.id}`}
+                className={`vu-title vu-bb-title vu-bb-title-tab${on ? '' : ' vu-bb-title-tab--off'}`}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                {...gestures(false, on ? toggleLift : lift, press)}
+                onClick={() => setPicked(entry.id)}
+              >
+                <span className="vu-title-text">{entry.word}</span>
+                {entry.unread && <UpdatesTabCount unread={entry.unread} />}
+              </motion.button>
+            )
+          })}
+        </div>
+        {page?.Action && (
+          <span className="vu-bb-updates-action">
+            <page.Action />
+          </span>
+        )}
+      </div>
+    )
+  if (!page) return <UpdatesFeed head={head} />
+  return (
+    <div className="vu-bb-page">
+      {head}
+      <page.Page />
+    </div>
+  )
+}
+
+/** A mod page's unread count on its title's corner, while it has any. */
+function UpdatesTabCount({ unread }: { unread: NonNullable<UpdatesTab['unread']> }): JSX.Element | null {
+  const count = useGameStore(unread)
+  return count > 0 ? <span className="vu-tile-badge">{count}</span> : null
+}
+
+/**
+ * The feed: every contact's posts, plus the things the day surfaces from outside that list,
+ * under the tab's `head`.
+ */
+function UpdatesFeed({ head }: { head: JSX.Element }): JSX.Element {
   const chars = useGameStore((s) => s.chars)
   const alumni = useGameStore((s) => s.alumni)
   const characters = useGameStore((s) => s.characters)
@@ -2118,9 +2189,7 @@ function UpdatesFeed(): JSX.Element {
 
   return (
     <div className="vu-bb-page">
-      <div className="vu-title vu-bb-title">
-        <h2 className="vu-title-text">Updates</h2>
-      </div>
+      {head}
 
       <div className="vu-bb-scroll">
         {nothing ? (
