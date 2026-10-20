@@ -7,6 +7,7 @@
 .vu-minigame-veil[data-game='darts'] .vu-minigame-foot { position: absolute; top: 36px; right: 60px; pointer-events: auto; }
 .vu-minigame-veil[data-game='darts'] .vu-minigame-next { position: absolute; left: 50%; bottom: 364px; pointer-events: auto; }
 .vu-darts { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0, 1fr) 390px; align-items: start; gap: 36px; padding: 90px 90px 350px 40px; color: var(--vu-text); pointer-events: none; }
+.vu-darts-mode { position: absolute; z-index: 2; left: 58px; top: 120px; margin: 0; max-width: 230px; padding: 8px 28px 8px 14px; border-radius: 4px 16px 4px 4px; background: var(--vu-surface); color: var(--vu-text-muted); font: 500 12px/1.4 var(--font-mono); overflow-wrap: anywhere; border: 0; text-align: left; pointer-events: auto; cursor: pointer; }
 .vu-darts-stage { position: relative; width: 780px; height: 780px; max-width: 100%; justify-self: center; margin-top: -135px; }
 .vu-darts-stage > canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; touch-action: none; outline-offset: -40px; pointer-events: auto; }
 .vu-darts-score { position: relative; display: flex; flex-direction: column; gap: 0; min-width: 0; padding: 0 22px 14px; border-radius: 8px 36px 8px 8px; background: color-mix(in srgb, var(--vu-surface) 94%, transparent); pointer-events: auto; }
@@ -33,3 +34,21 @@
 .vu-darts-celebration strong { font: 400 68px var(--font-display); }
 
 .vu-darts-controls > button:first-child:nth-last-child(3) { position: absolute; right: calc(100% + 28px); bottom: 12px; white-space: nowrap; }
+
+/* Keep the caption clear of the board on narrower PC stage ratios. */
+@media (max-aspect-ratio: 3/2) {
+  .vu-darts-mode { max-width: 128px; font-size: 11px; }
+}
+
+.vu-darts-mode:focus-visible { outline: 2px solid var(--vu-accent); outline-offset: 3px; }
+.vu-darts-mode:disabled { cursor: default; }
+.vu-darts-mode-info { position: absolute; left: 58px; top: 188px; width: 220px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; padding: 18px; border-radius: 8px 32px 8px 8px; background: var(--vu-surface); color: var(--vu-text); pointer-events: auto; }
+.vu-darts-mode-info h2 { margin: 0; font: 400 30px/1.2 var(--font-display); }
+.vu-darts-mode-info p { margin: 0; font: 400 15px/1.5 var(--font-body); }
+.vu-darts-mode-info button { align-self: flex-start; }
+
+.vu-darts[data-info] { grid-template-columns: 250px minmax(0, 1fr) 390px; gap: 24px; }
+.vu-darts[data-info] .vu-darts-stage { grid-column: 2; width: 100%; max-width: 780px; }
+.vu-darts[data-info] .vu-darts-score { grid-column: 3; }
+
+.vu-darts-mode > span { position: absolute; top: 8px; right: 10px; }

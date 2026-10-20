@@ -235,3 +235,11 @@ Quiet and Some allow at least 1.5 seconds from a silent NPC landing to the next
 throw. This includes the existing score/LED pause rather than adding another
 1.5 seconds. Lots, spoken reactions and play-by-play retain their existing pacing.
 No preset dialogue is added; the number of reactions per mode is unchanged.
+
+## Mode information on the board
+
+The active mode appears below the Darts title at the top left. Click its name to
+expand or collapse the mode rules. Rules stay in the left column; the scoreboard
+stays on the right and character dialogue stays in the scene box below. The board
+uses the remaining space while the information is open. Close the info to resume
+aiming. This control is unavailable during an active throw or NPC turn.

@@ -56,6 +56,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
   const [impact, setImpact] = useState<Impact | null>(null)
   const [boardVisit, setBoardVisit] = useState(0)
   const [guide, setGuide] = useState(false)
+  const [modeInfo, setModeInfo] = useState(false)
   const [muted, setMuted] = useState(false)
   const [status, setStatus] = useState('Your turn')
   const [displayedScore, setDisplayedScore] = useState(target)
@@ -67,8 +68,8 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
   const timers = useRef(new Map<ReturnType<typeof setTimeout>, () => void>())
   const sound = useRef<DartsAudio | null>(null)
   const away = useAway(), reduced = useReducedMotion() ?? false, effectsGain = useEffectsGain()
-  const latest = useRef({ play, session, phase, flight, impact, guide, away, reduced, boardVisit })
-  latest.current = { play, session, phase, flight, impact, guide, away, reduced, boardVisit }
+  const latest = useRef({ play, session, phase, flight, impact, guide, modeInfo, away, reduced, boardVisit })
+  latest.current = { play, session, phase, flight, impact, guide, modeInfo, away, reduced, boardVisit }
 
   /** Collect the previous visit's darts only when the next player takes the board. */
   function collectDarts(visit: number): void {
@@ -210,7 +211,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
   function release(): void {
     const held = hold.current; hold.current = null
     const state = latest.current
-    if (!held || locked.current || state.phase !== 'player' || state.away || state.guide) return
+    if (!held || locked.current || state.phase !== 'player' || state.away || state.guide || state.modeInfo) return
     const targetPoint = movingDot(held.ellipse, state.session.seed, state.session.throws.length, (performance.now() - held.time) / 1000)
     state.play.moved(); state.play.started()
     void run(async (token) => {
@@ -228,13 +229,14 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
 
   function begin(pointer: number): void {
     const state = latest.current
-    if (locked.current || state.phase !== 'player' || hold.current || state.away || state.guide) return
+    if (locked.current || state.phase !== 'player' || hold.current || state.away || state.guide || state.modeInfo) return
     hold.current = { ellipse: aimEllipse(aim.current, 'club'), time: performance.now(), pointer }
     void sound.current?.unlock()
   }
 
   function partnersTurn(): void {
     if (phase !== 'handover' || !pending.current) return
+    setModeInfo(false)
     latest.current.play.moved()
     void run(async (token) => {
       collectDarts(sessionSummary(latest.current.session).visit)
@@ -287,7 +289,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
     let previous: readonly unknown[] = []
     const paint = (time: number): void => {
       frame = requestAnimationFrame(paint)
-      const state = latest.current, active = state.phase === 'player' && !locked.current && !state.guide && !state.away && !finished.current
+      const state = latest.current, active = state.phase === 'player' && !locked.current && !state.guide && !state.modeInfo && !state.away && !finished.current
       if (!active) hold.current = null
       const held = hold.current
       // Keep animation timing intact, but do no canvas work behind a guide/away screen.
@@ -324,7 +326,19 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
   }, [guide])
 
   const live = sessionSummary(session), activeName = live.done ? '' : seatName(session, live.currentSeatId)
-  return <div className="vu-darts" data-guide={guide || undefined} data-finished={phase === 'finished' || undefined}>
+  const modeTitle = session.mode === 'rival' ? '301 Rival Match' : opponents.length ? 'Co-op Beat the House' : 'Solo Beat the House'
+  const modeDescription = session.mode === 'rival'
+    ? `Each player starts at 301 with a separate balance. You each get 3 visits of up to 3 darts. Reach exactly 0 to win. Otherwise, the lowest balance wins; equal lowest balances tie.`
+    : opponents.length
+      ? `Share a ${session.target}-point countdown with your ${opponents.length === 1 ? 'companion' : 'companions'}. Order: you, then each companion. You get 3 visits; each companion gets 2. Up to 3 darts per visit. Reach exactly 0 together.`
+      : `Reach exactly 0 from ${session.target} within 5 visits (15 darts). Each visit gives you up to 3 darts. Select Next round to continue. If points remain after visit 5, the house wins.`
+
+  return <div className="vu-darts" data-info={modeInfo || undefined} data-guide={guide || undefined} data-finished={phase === 'finished' || undefined}>
+    <button type="button" className="vu-darts-mode" disabled={busy} aria-label={`About ${modeTitle}`} aria-expanded={modeInfo} aria-controls="darts-mode-info" onClick={() => { hold.current = null; setGuide(false); setModeInfo(!modeInfo) }}>{modeTitle}<span aria-hidden="true">{modeInfo ? ' −' : ' +'}</span></button>
+      {modeInfo && <section id="darts-mode-info" className="vu-darts-mode-info" aria-label={`${modeTitle} rules`} onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setModeInfo(false) } }}>
+        <p>{modeDescription}</p><p>Any scoring ring can finish. Going below 0 is a bust: your visit ends and its points are cancelled.</p>
+        <button autoFocus type="button" className="vu-btn vu-btn--primary vu-paper vu-btn--panel" onClick={() => setModeInfo(false)}>Close info</button>
+      </section>}
     <div className="vu-darts-stage">
       <canvas ref={canvas} width={1000} height={1000} tabIndex={0} role="application" aria-label="Dartboard. Move the mouse to aim, hold left click, and release at the moving dot."
         onPointerMove={(event) => { if (!hold.current && !locked.current) aim.current = board.current!.point(event) }}
@@ -337,13 +351,13 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
     <aside className="vu-darts-score" aria-label="Match score">
       <div className="vu-darts-scorehead">{phase === 'finished' ? 'MATCH COMPLETE' : `${activeName.toUpperCase()}’S TURN`}</div>
       <span className="vu-darts-label">{session.mode === 'house' ? opponents.length ? 'TEAM REMAINING' : 'REMAINING' : 'ACTIVE REMAINING'}</span><strong className="vu-darts-balance" aria-live="polite">{displayedScore}</strong>
-      <div className="vu-darts-start">{session.mode === 'house' ? 'BEAT THE HOUSE' : '301 RIVAL MATCH'}<span>ROUND {Math.min(opponents.length ? 3 : 5, Math.floor(live.visit / session.seats.length) + 1)}</span></div>
+      <div className="vu-darts-start"><span>START {session.target}</span><span>ROUND {Math.min(opponents.length ? 3 : 5, Math.floor(live.visit / session.seats.length) + 1)}</span></div>
       <ol className="vu-darts-results" aria-label="Darts in the current visit">{[0, 1, 2].map((index) => { const dart = shownVisit?.darts[index], hit = dart && scoreHit(dart.x, dart.y); return <li key={index}><span>{index + 1}</span>{hit ? <><span>{hit.label}</span><strong>{hit.points}</strong></> : <img src={dartIcon} alt="Dart remaining" />}</li> })}</ol>
       <div className="vu-darts-contributions">{session.seats.map((seat) => <span key={seat.id}>{seat.name.toUpperCase()} <strong>{session.mode === 'house' ? pointsOf(visible, seat.id) : state.balances[seat.id]}</strong></span>)}</div>
       <p className="vu-darts-status" aria-live="polite">{status}</p>
       <div className="vu-darts-controls">
-        {['handover', 'my-turn'].includes(phase) && <motion.button type="button" disabled={busy} className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { if (busy) return; if (phase === 'handover') partnersTurn(); else { latest.current.play.moved(); collectDarts(sessionSummary(latest.current.session).visit); setPhase('player'); setStatus('Your turn'); pending.current = null } }}>{phase === 'handover' ? 'Change turn' : opponents.length ? 'My turn' : 'Next round'}</motion.button>}
-        <motion.button type="button" disabled={busy} className="vu-btn vu-btn--outline vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => setGuide((value) => !value)}>Score guide</motion.button>
+        {['handover', 'my-turn'].includes(phase) && <motion.button type="button" disabled={busy} className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { if (busy) return; if (phase === 'handover') partnersTurn(); else { setModeInfo(false); latest.current.play.moved(); collectDarts(sessionSummary(latest.current.session).visit); setPhase('player'); setStatus('Your turn'); pending.current = null } }}>{phase === 'handover' ? 'Change turn' : opponents.length ? 'My turn' : 'Next round'}</motion.button>}
+        <motion.button type="button" disabled={busy} className="vu-btn vu-btn--outline vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { setModeInfo(false); setGuide((value) => !value) }}>Score guide</motion.button>
         <motion.button type="button" className="vu-pill" {...gestures(false, lift, press)} onClick={() => setMuted(!muted)}>{muted ? 'Sound off' : 'Sound on'}</motion.button>
       </div>
       {phase === 'finished' && <p className="vu-darts-ending">{live.outcome === 'won' ? 'You won.' : live.outcome === 'draw' ? 'A hard-fought draw.' : 'Next time.'}</p>}
