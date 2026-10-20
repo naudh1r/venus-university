@@ -42,7 +42,7 @@ The match can be played entirely with the mouse.
 | Hand over to the NPCs | Click **Change turn** when it becomes available. |
 | Start your next visit | Click **My turn** when it becomes available. |
 | Check scoring | Click **Score Guide**, then **Back to the board** to close it. |
-| Toggle Darts sound | Click the speaker mute/unmute icon in the score header. |
+| Adjust sound effects | Use the base game’s Sound Effects volume setting; Darts follows it live. |
 | Leave an unfinished match | Use the framework's **Walk away** button. |
 
 Holding locks the ellipse at the chosen aim; moving the mouse afterwards does not drag
@@ -204,7 +204,7 @@ or Dare, stay visible.
 
 Throw and impact animations, dartboard LED patterns, animated score changes, hit sounds
 and win/loss feedback accompany the match. The score guide overlays the board with a
-blurred backdrop. Local sound mute respects the game's global SFX volume. The game's
+blurred backdrop. Darts follows the game's global SFX volume live, including zero; it has no separate mute switch. The game's
 Reduce Motion setting shortens animation and timing.
 
 When a match with NPC participants ends, the framework hands its actual outcome and
@@ -310,3 +310,8 @@ delete document.documentElement.dataset.dartsDebug
 
 Reloading also hides it again. This visual debug flag does not change game rules,
 NPC skills or other mini-games. The visible report button keeps its normal copy action.
+
+Both guide overlays are inset from the board area to clear the dialogue. Their
+**Back to the board** button sits at the bottom right. **SECTOR 20** is the Score
+Guide's heading above the diagram, rather than text drawn over the board. Walk
+away keeps a light background and red text, including while hovered or pressed.

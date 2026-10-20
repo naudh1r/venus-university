@@ -234,11 +234,6 @@ export class Board {
     label(60, 199, 'SINGLE', '20 pts', 'Both wide areas · 20 × 1');
     leader([[350, 350], [350, 433]]);
     label(290, 462, 'BULL', '25 / 50 pts', 'Outer 25 · inner 50');
-    c.fillStyle = '#fff8ef';
-    c.font = 'bold 19px "Plus Jakarta Sans", sans-serif';
-    c.textAlign = 'center';
-    c.fillText('SECTOR 20', 350, 70);
-    c.textAlign = 'left';
   }
   point(event: {
     clientX: number;
