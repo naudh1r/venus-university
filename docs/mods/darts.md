@@ -183,6 +183,17 @@ resetting cached NPC skill; start a new match to use the updated throw plans.
 
 The Arcade & Bar Games pack defaults on and requires the Mini-games framework. Turning the framework off disables Darts; with the framework on, Darts is available unless its pack is explicitly switched off. Existing saved mod preferences are respected.
 
+## Rendering and startup
+
+Darts reuses fixed-size board texture layers and dart images between games. Canvas
+redraws stop while the board is unchanged or covered by its score guide, and resume
+for mouse aim, throws, impact effects and resizing. The frame callback still checks
+for visual changes; pointer timing and animation speed are unchanged.
+
+NPC skill loading belongs to the Mini-games framework. A first game with an NPC
+can still wait for that AI judgment before the board appears; this rendering
+optimization does not change the framework or its skill cache.
+
 ## Artwork, audio and licensing
 
 Dart artwork was contributed by **naudh1r**. The images are AI-generated or adapted

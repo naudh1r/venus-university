@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { motion } from 'motion/react'
 import { gestures, lift, press, useAway, useReducedMotion, useEffectsGain, type GamePlay, type Opponent, type TableExpression } from '../kit'
-import { aimEllipse, movingDot, scoreHit, traitsFor, type Ellipse, type Flight, type Impact, type Point } from '@shared/minigameRules/darts'
-import { applySessionPlan, newSession, planNpcVisit, sessionSummary, sessionThrow, type DartsMode, type DartsSession, type SessionPlanItem } from '@shared/minigameRules/dartsSession'
+import { aimEllipse, movingDot, scoreHit, traitsFor, applySessionPlan, newSession, planNpcVisit, sessionSummary, sessionThrow, type Ellipse, type Flight, type Impact, type Point, type DartsMode, type DartsSession, type SessionPlanItem } from '@shared/minigameRules/darts'
 import { Board } from './dartsBoard'
 import { DartsAudio } from './dartsAudio'
 import '../../vu_styles/Darts.css'
@@ -277,15 +276,22 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
   useEffect(() => {
     const dartboard = new Board(canvas.current!); board.current = dartboard
     let frame = 0
+    let previous: readonly unknown[] = []
     const paint = (time: number): void => {
+      frame = requestAnimationFrame(paint)
       const state = latest.current, active = state.phase === 'player' && !locked.current && !state.guide && !state.away && !finished.current
       if (!active) hold.current = null
       const held = hold.current
+      // Keep animation timing intact, but do no canvas work behind a guide/away screen.
+      if (state.away || state.guide || document.hidden) { previous = []; return }
+      const visual = [state.session, state.boardVisit, active, held, state.flight, state.impact, state.reduced, aim.current.x, aim.current.y, dartboard.revision]
+      const animating = !!held || !!state.flight || !!state.impact && time - state.impact.time < 1200
+      if (!animating && visual.every((value, index) => value === previous[index])) return
+      previous = visual
       const landed = state.flight ? state.session.throws.slice(0, -1) : state.session.throws
       const currentDarts = landed.filter((dart) => dart.visit === state.boardVisit)
       const aimingOrFlying = !!held || !!state.flight
       dartboard.draw({ darts: aimingOrFlying ? [] : currentDarts.slice(-1), silhouettes: aimingOrFlying ? currentDarts : currentDarts.slice(0, -1), aim: active ? held?.ellipse ?? aim.current : null, ellipse: active ? held?.ellipse : null, dot: active && held ? movingDot(held.ellipse, state.session.seed, state.session.throws.length, (time - held.time) / 1000) : null, flight: state.flight, impact: state.impact, reduced: state.reduced }, time)
-      frame = requestAnimationFrame(paint)
     }
     frame = requestAnimationFrame(paint)
     return () => { cancelAnimationFrame(frame); dartboard.dispose(); board.current = null }

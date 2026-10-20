@@ -1,9 +1,7 @@
+/** Darts rules and visual geometry shared by the game and board. */
+
 export type Actor = 'you' | 'partner';
-export type PartnerId = 'ren' | 'jules' | 'sage';
 export type Level = 'casual' | 'club' | 'expert';
-export type Strategy = 'safe' | 'triples';
-export type Expression = 'neutral' | 'focused' | 'happy' | 'sad' | 'surprised' | 'embarrassed' | 'confident';
-export type Outcome = 'win' | 'draw' | 'loss';
 export type HitKind = 'miss' | 'bull' | 'outerBull' | 'single' | 'double' | 'triple';
 export interface Point {
   x: number;
@@ -25,102 +23,7 @@ export interface Traits {
   consistency: number;
   composure: number;
 }
-export interface SpokenLine {
-  dialogue: string;
-  expression: Expression;
-}
-export interface TurnScript {
-  intro: SpokenLine;
-  outro: SpokenLine;
-  outroShown: boolean;
-}
-export interface PlannedThrow {
-  throwId: number;
-  beforeSeed: number;
-  seed: number;
-  dart: Dart;
-  target: Point;
-  drift: {
-    base: number;
-    offset: number;
-    pressure: number;
-    radius: number;
-  };
-  hit: Hit;
-  balanceBefore?: number;
-  balanceAfter?: number;
-  bust: boolean;
-  outcome: Outcome | null;
-}
-export interface PartnerPlan {
-  start: number;
-  seed: number;
-  strategy: Strategy;
-  items: PlannedThrow[];
-}
-export interface Match {
-  version: number;
-  id: string;
-  partner: PartnerId;
-  level: Level;
-  mode?: number;
-  target: number;
-  seed: number;
-  throws: Dart[];
-  strategy: Strategy;
-  dialogue: Record<string, string>;
-  reactions: Record<string, SpokenLine>;
-  turnScripts: Record<string, TurnScript>;
-  partnerTraits: Traits;
-  acknowledged: number;
-  requested: string[];
-  partnerPlan?: PartnerPlan;
-}
-export interface Visit {
-  turn: number;
-  actor: Actor;
-  start: number;
-  balance: number;
-  darts: Dart[];
-  points: number;
-  rawPoints: number;
-  bust: boolean;
-  closed: boolean;
-  end: number;
-}
-export interface Summary {
-  count: number;
-  done: boolean;
-  round: number;
-  actor: Actor;
-  dart: number;
-  you: number;
-  partner: number;
-  total: number;
-  remaining: number;
-  outcome: Outcome | null;
-  turn?: number;
-  balance?: number;
-  visits?: Visit[];
-  completedTurns?: number;
-}
-export interface TurnRecap {
-  actor: Actor;
-  points: number;
-  hits: Hit[];
-  rawPoints?: number;
-  bust?: boolean;
-  start?: number;
-  balance?: number;
-}
-export interface MatchSetup {
-  partner?: PartnerId;
-  level?: Level;
-  mode?: number;
-  version?: number;
-  seed: number;
-  id: string;
-}
+
 export interface Ellipse extends Point {
   rx: number;
   ry: number;
@@ -135,23 +38,6 @@ export interface Impact {
   dart: Dart;
   time: number;
 }
-export interface Settings {
-  volume: number;
-  reduced: boolean;
-  model: string;
-  ai: boolean;
-}
-export interface AiOptions {
-  key: string;
-  model: string;
-  signal?: AbortSignal;
-  fetcher?: (url: string, options: RequestInit) => Promise<Pick<Response, 'ok' | 'status' | 'json'>>;
-}
-export interface TurnResponse {
-  intro: SpokenLine;
-  reactions: Record<string, SpokenLine>;
-  outro: SpokenLine;
-}
 
 export const NUMBERS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
 export const RINGS = Object.freeze({
@@ -162,51 +48,7 @@ export const RINGS = Object.freeze({
   doubleIn: 162 / 170,
   edge: 1
 });
-export const MODES = Object.freeze([301, 501, 701]);
-export const LEVELS = Object.freeze({
-  casual: 360,
-  club: 480,
-  expert: 600
-});
-export const PARTNERS = Object.freeze({
-  ren: {
-    name: 'Ren',
-    style: 'The steady hand',
-    description: 'Calm, dry wit. Celebrates teamwork without making a fuss.',
-    spread: 0.115,
-    traits: Object.freeze({
-      version: 1,
-      accuracy: 50,
-      consistency: 65,
-      composure: 35
-    })
-  },
-  jules: {
-    name: 'Jules',
-    style: 'The risk taker',
-    description: 'Playful and competitive. Loves a bold shot, laughs off a miss.',
-    spread: 0.19,
-    traits: Object.freeze({
-      version: 1,
-      accuracy: 45,
-      consistency: 35,
-      composure: 70
-    })
-  },
-  sage: {
-    name: 'Sage',
-    style: 'The quiet ace',
-    description: 'Observant and warm. Gives concise, practical encouragement.',
-    spread: 0.075,
-    traits: Object.freeze({
-      version: 1,
-      accuracy: 70,
-      consistency: 50,
-      composure: 30
-    })
-  }
-});
-/** Score normalized coordinates: board centre (0,0), double outer edge radius 1, y down. */
+
 export function scoreHit(x: number, y: number): Hit {
   if (!Number.isFinite(x) || !Number.isFinite(y)) throw Error('Invalid landing');
   const r = Math.hypot(x, y);
@@ -300,122 +142,7 @@ export function movingDot(ellipse: Ellipse, seed: number, count: number, seconds
     y: ellipse.y + ellipse.ry * radius * Math.sin(angle)
   };
 }
-/** Derive turns and scores from the throw ledger, never from mutable totals. */
-function legacySummary(match: Match): Summary {
-  const count = match.throws.length,
-    done = count === 30;
-  const you = match.throws.filter(t => t.actor === 'you').reduce((n, t) => n + scoreHit(t.x, t.y).points, 0);
-  const partner = match.throws.filter(t => t.actor === 'partner').reduce((n, t) => n + scoreHit(t.x, t.y).points, 0);
-  return {
-    count,
-    done,
-    round: Math.min(5, Math.floor(count / 6) + 1),
-    actor: count % 6 < 3 ? 'you' : 'partner',
-    dart: count % 3 + 1,
-    you,
-    partner,
-    total: you + partner,
-    remaining: 30 - count,
-    outcome: done ? you + partner > match.target ? 'win' : you + partner === match.target ? 'draw' : 'loss' : null
-  };
-}
-/** Replay countdown visits; a bust restores that visit's opening score and ends it early. */
-export function summary(match: Match): Summary {
-  if (match.version === 1) return legacySummary(match);
-  let balance = match.target,
-    turn = 0,
-    current: Visit | null = null,
-    won = false;
-  const visits: Visit[] = [];
-  for (const dart of match.throws) {
-    if (!current || current.closed) {
-      current = {
-        turn,
-        actor: turn % 2 ? 'partner' : 'you',
-        start: balance,
-        balance,
-        darts: [],
-        points: 0,
-        rawPoints: 0,
-        bust: false,
-        closed: false,
-        end: 0
-      };
-      visits.push(current);
-    }
-    const hit = scoreHit(dart.x, dart.y);
-    current.darts.push(dart);
-    current.rawPoints += hit.points;
-    if (hit.points > balance) {
-      balance = current.start;
-      current.bust = current.closed = true;
-      current.points = 0;
-    } else {
-      balance -= hit.points;
-      current.points = current.start - balance;
-      won = balance === 0;
-      current.closed = won || current.darts.length === 3;
-    }
-    current.balance = balance;
-    if (current.closed) turn++;
-  }
-  let end = 0;
-  for (const visit of visits) {
-    end += visit.darts.length;
-    visit.end = end;
-  }
-  const done = won || turn >= 5;
-  const used = current && !current.closed ? current.darts.length : 0;
-  return {
-    count: match.throws.length,
-    done,
-    round: Math.min(5, turn + 1),
-    turn,
-    actor: turn % 2 ? 'partner' : 'you',
-    dart: used + 1,
-    you: visits.filter(v => v.actor === 'you').reduce((n, v) => n + v.points, 0),
-    partner: visits.filter(v => v.actor === 'partner').reduce((n, v) => n + v.points, 0),
-    total: match.target - balance,
-    balance,
-    visits,
-    remaining: done ? 0 : (5 - turn) * 3 - used,
-    completedTurns: visits.filter(v => v.closed).length,
-    outcome: done ? won ? 'win' : 'loss' : null
-  };
-}
-/** Freeze the rules at creation; legacy count-up matches retain their original rules. */
-export function newMatch({
-  partner = 'ren',
-  level = 'club',
-  mode = 501,
-  version = 2,
-  seed,
-  id
-}: MatchSetup): Match {
-  if (!Object.hasOwn(PARTNERS, partner) || !Object.hasOwn(LEVELS, level) || ![1, 2].includes(version) || version === 2 && !MODES.includes(mode) || !Number.isInteger(seed) || seed < 0 || seed > 0xffffffff || typeof id !== 'string' || !id) throw Error('Invalid match setup');
-  return {
-    version,
-    id,
-    partner,
-    level,
-    ...(version === 2 ? {
-      mode
-    } : {}),
-    target: version === 1 ? LEVELS[level] : mode,
-    seed,
-    throws: [],
-    strategy: 'safe',
-    dialogue: {},
-    reactions: {},
-    turnScripts: {},
-    partnerTraits: {
-      ...PARTNERS[partner].traits
-    },
-    acknowledged: 0,
-    requested: []
-  };
-}
-/** Convert a named scoring region into its geometric centre. */
+
 export function targetRegion(number: number, kind: HitKind = 'single'): Point {
   if (kind === 'bull') return {
     x: 0,
@@ -432,353 +159,6 @@ export function targetRegion(number: number, kind: HitKind = 'single'): Point {
   return {
     x: Math.sin(angle) * radius,
     y: -Math.cos(angle) * radius
-  };
-}
-interface Candidate {
-  kind: HitKind;
-  number: number;
-  aim: Point;
-  points: number;
-  label: string;
-  outcomes: number[];
-  chance: number;
-}
-interface Route {
-  chance: number;
-  route: Candidate[];
-}
-const candidateCache = new Map<number, Candidate[]>();
-/** Estimate ordinary skill scatter for each region without advancing the saved PRNG. */
-function candidates(spread: number): Candidate[] {
-  if (candidateCache.has(spread)) return candidateCache.get(spread)!;
-  const regions: {
-    kind: HitKind;
-    number: number;
-  }[] = [];
-  for (const kind of ['single', 'double', 'triple'] as const) for (let number = 1; number <= 20; number++) regions.push({
-    kind,
-    number
-  });
-  regions.push({
-    kind: 'bull',
-    number: 50
-  }, {
-    kind: 'outerBull',
-    number: 25
-  });
-  const result = regions.map(region => {
-    const aim = targetRegion(region.number, region.kind),
-      hit = scoreHit(aim.x, aim.y);
-    const outcomes = [];
-    for (let i = 0; i < 96; i++) {
-      const radius = Math.sqrt((i + 0.5) / 96) * spread,
-        angle = i * 2.399963229728653;
-      outcomes.push(scoreHit(aim.x + Math.cos(angle) * radius, aim.y + Math.sin(angle) * radius).points);
-    }
-    return {
-      ...region,
-      aim,
-      points: hit.points,
-      label: hit.label,
-      outcomes,
-      chance: outcomes.filter(n => n === hit.points).length / 96
-    };
-  });
-  candidateCache.set(spread, result);
-  return result;
-}
-/** Find a feasible exact-zero route within the darts left in this visit. */
-function routeToZero(balance: number, darts: number, regions: Candidate[], memo = new Map<string, Route | null>()): Route | null {
-  if (balance === 0) return {
-    chance: 1,
-    route: []
-  };
-  if (!darts || balance > darts * 60) return null;
-  const key = `${balance}:${darts}`;
-  if (memo.has(key)) return memo.get(key)!;
-  let best: Route | null = null;
-  for (const region of regions) {
-    if (!region.chance || region.points > balance) continue;
-    const next = routeToZero(balance - region.points, darts - 1, regions, memo);
-    if (!next) continue;
-    const chance = region.chance * next.chance;
-    if (!best || chance > best.chance + 1e-9 || Math.abs(chance - best.chance) < 1e-9 && next.route.length + 1 < best.route.length) best = {
-      chance,
-      route: [region, ...next.route]
-    };
-  }
-  memo.set(key, best);
-  return best;
-}
-/** A displayed checkout is a possible route, not a promised result. */
-export function checkoutHint(match: Match): string[] {
-  if (match.version === 1 || summary(match).done) return [];
-  const s = summary(match),
-    plan = routeToZero(s.balance!, 4 - s.dart, candidates(0.06));
-  return plan?.route.map(r => r.label) || [];
-}
-/** Target exact finishes first, otherwise balance progress, bust risk and the next leave. */
-export function companionAim(match: Match): Point {
-  if (match.version === 1) return match.strategy === 'triples' ? targetRegion(20, 'triple') : targetRegion(20);
-  const s = summary(match),
-    regions = candidates(partnerDrift(match).base + partnerDrift(match).pressure);
-  const finish = routeToZero(s.balance!, 4 - s.dart, regions);
-  if (finish?.route.length) return finish.route[0].aim;
-  const visit = s.visits!.at(-1),
-    lost = visit && !visit.closed ? visit.points : 0;
-  const choices = regions.filter(r => r.points <= s.balance! && (match.strategy === 'triples' || !['triple', 'double'].includes(r.kind)));
-  const scored = choices.map(r => ({
-    ...r,
-    utility: r.outcomes.reduce((sum, n) => sum + (n > s.balance! ? -lost - 25 : n), 0) / r.outcomes.length + (s.balance! - r.points <= 60 ? 3 : 0)
-  }));
-  const best = Math.max(...scored.map(r => r.utility));
-  const shortlist = scored.filter(r => r.utility >= best - 2);
-  const [pick] = random((match.seed ^ Math.imul(s.count + 1, 2246822519)) >>> 0);
-  return shortlist[Math.floor(pick * shortlist.length)]?.aim || targetRegion(1);
-}
-export const EXPRESSIONS: readonly Expression[] = Object.freeze(['neutral', 'focused', 'happy', 'sad', 'surprised', 'embarrassed', 'confident']);
-/** Fixed ability with bounded signed variation; pressure matters only near a finish or late turn. */
-export function partnerDrift(match: Match) {
-  const traits = match.partnerTraits || PARTNERS[match.partner].traits;
-  const s = summary(match);
-  const underPressure = match.version === 2 && (s.balance! <= 60 || s.turn! >= 3);
-  const base = 0.26 - traits.accuracy * 0.0024;
-  const variation = 0.08 * (1 - traits.consistency / 100);
-  const pressure = underPressure ? 0.08 * (1 - traits.composure / 100) : 0;
-  const [roll, seed] = random(match.seed);
-  const offset = (roll * 2 - 1) * variation;
-  return {
-    base,
-    variation,
-    pressure,
-    offset,
-    radius: Math.max(0.015, Math.min(0.5, base + offset + pressure)),
-    seed
-  };
-}
-/** Preview a full partner visit without committing it or consuming the live match's seed. */
-export function planPartnerTurn(match: Match): PlannedThrow[] {
-  const actor = summary(match).actor;
-  if (actor !== 'partner' || summary(match).done) return [];
-  let preview = match;
-  const turn = summary(match).turn,
-    plan: PlannedThrow[] = [];
-  while (!summary(preview).done && summary(preview).actor === actor && (match.version === 1 ? plan.length === 0 || preview.throws.length % 3 !== 0 : summary(preview).turn === turn)) {
-    const target = companionAim(preview),
-      drift = partnerDrift(preview);
-    const next = throwDart({
-      ...preview,
-      seed: drift.seed
-    }, target, drift.radius);
-    const state = summary(next),
-      dart = next.throws.at(-1)!;
-    plan.push({
-      throwId: next.throws.length,
-      beforeSeed: preview.seed,
-      seed: next.seed,
-      dart,
-      target,
-      drift: {
-        base: drift.base,
-        offset: drift.offset,
-        pressure: drift.pressure,
-        radius: drift.radius
-      },
-      hit: scoreHit(dart.x, dart.y),
-      balanceBefore: summary(preview).balance,
-      balanceAfter: state.balance,
-      bust: !!state.visits?.at(-1)?.bust,
-      outcome: state.outcome
-    });
-    preview = next;
-  }
-  return plan;
-}
-/** Commit only the next landing from an already saved turn plan. */
-export function applyPlannedThrow(match: Match, item: PlannedThrow): Match {
-  const expected = match.partnerPlan?.items.find(p => p.throwId === item.throwId);
-  if (!expected || JSON.stringify(expected) !== JSON.stringify(item)) throw Error('Unknown planned dart');
-  if (item.throwId !== match.throws.length + 1 || item.beforeSeed !== match.seed || summary(match).done || summary(match).actor !== 'partner') throw Error('Stale partner plan');
-  return {
-    ...match,
-    seed: item.seed,
-    throws: [...match.throws, item.dart]
-  };
-}
-/** Resolve one immutable throw; persisting the returned ledger commits its randomness. */
-export function throwDart(match: Match, target: Point, spread: number): Match {
-  const s = summary(match);
-  if (s.done) throw Error('Match is complete');
-  if (!target || !Number.isFinite(target.x) || !Number.isFinite(target.y) || Math.abs(target.x) > 1.35 || Math.abs(target.y) > 1.35 || !Number.isFinite(spread) || spread < 0 || spread > 0.5) throw Error('Invalid aim');
-  const landing = scatter(match.seed, target, spread);
-  const dart = {
-    actor: s.actor,
-    ...(match.version === 2 ? {
-      turn: s.turn
-    } : {}),
-    x: landing.x,
-    y: landing.y
-  };
-  const {
-    partnerPlan,
-    ...rest
-  } = match;
-  return {
-    ...rest,
-    seed: landing.seed,
-    throws: [...match.throws, dart]
-  };
-}
-/** Refuse malformed saves and reconstruct only known fields; keys never belong in a match. */
-export function validateMatch(input: unknown): Match | null {
-  const value = input as Match;
-  try {
-    if (!value || ![1, 2].includes(value.version) || typeof value.id !== 'string' || value.id.length > 100 || !Object.hasOwn(LEVELS, value.level) || value.target !== (value.version === 1 ? LEVELS[value.level] : value.mode) || value.version === 2 && !MODES.includes(value.mode!)) return null;
-    const base = newMatch(value);
-    if (!['safe', 'triples'].includes(value.strategy) || !Array.isArray(value.throws) || value.throws.length > (value.version === 1 ? 30 : 15)) return null;
-    let replay = base;
-    const throws = value.throws.map((t, i) => {
-      const state = summary(replay);
-      if (!t || (value.version === 1 ? t.actor !== (i % 6 < 3 ? 'you' : 'partner') : state.done || t.actor !== state.actor || t.turn !== state.turn) || !Number.isFinite(t.x) || !Number.isFinite(t.y) || Math.abs(t.x) > 1.85 || Math.abs(t.y) > 1.85) throw Error('Bad throw');
-      const dart = {
-        actor: t.actor,
-        ...(value.version === 2 ? {
-          turn: t.turn
-        } : {}),
-        x: t.x,
-        y: t.y
-      };
-      replay = {
-        ...replay,
-        throws: [...replay.throws, dart]
-      };
-      return dart;
-    });
-    const dialogue: Record<string, string> = {};
-    for (const [key, line] of Object.entries(value.dialogue || {})) {
-      if (!/^(opening|turn[1-9]|round[1-5]|result)$/.test(key) || typeof line !== 'string' || line.length > 400) throw Error('Bad dialogue');
-      dialogue[key] = line;
-    }
-    if (!Array.isArray(value.requested) || value.requested.length > 16 || value.requested.some(k => !/^(opening|turn[1-9]|round[1-5]|partner(?:[1-9]|10)|result)$/.test(k)) || new Set(value.requested).size !== value.requested.length) return null;
-    const partnerTraits = value.partnerTraits ?? base.partnerTraits;
-    if (partnerTraits.version !== 1 || (['accuracy', 'consistency', 'composure'] as const).some(k => !Number.isInteger(partnerTraits[k]) || partnerTraits[k] < 0 || partnerTraits[k] > 100)) return null;
-    const reactions: Record<string, SpokenLine> = {};
-    for (const [key, reaction] of Object.entries(value.reactions || {})) {
-      if (!/^[1-9][0-9]?$/.test(key) || Number(key) > (value.version === 1 ? 30 : 15) || !reaction || typeof reaction.dialogue !== 'string' || reaction.dialogue.length > 200 || !EXPRESSIONS.includes(reaction.expression)) return null;
-      reactions[key] = {
-        dialogue: reaction.dialogue,
-        expression: reaction.expression
-      };
-    }
-    const turnScripts: Record<string, TurnScript> = {};
-    for (const [key, script] of Object.entries(value.turnScripts || {})) {
-      if (!/^(0|[1-9][0-9]?)$/.test(key) || Number(key) > 29 || !script || typeof script.outroShown !== 'boolean') return null;
-      for (const phase of ['intro', 'outro'] as const) {
-        const line = script[phase];
-        if (!line || typeof line.dialogue !== 'string' || line.dialogue.length > 200 || !EXPRESSIONS.includes(line.expression)) return null;
-      }
-      turnScripts[key] = {
-        intro: {
-          dialogue: script.intro.dialogue,
-          expression: script.intro.expression
-        },
-        outro: {
-          dialogue: script.outro.dialogue,
-          expression: script.outro.expression
-        },
-        outroShown: script.outroShown
-      };
-    }
-    let partnerPlan: PartnerPlan | null = null;
-    if (value.partnerPlan != null) {
-      const plan = value.partnerPlan;
-      if (!Number.isInteger(plan.start) || plan.start < 0 || plan.start > throws.length || !Number.isInteger(plan.seed) || plan.seed < 0 || plan.seed > 0xffffffff || !['safe', 'triples'].includes(plan.strategy)) return null;
-      const start = {
-        ...base,
-        partnerTraits,
-        strategy: plan.strategy,
-        seed: plan.seed,
-        throws: throws.slice(0, plan.start)
-      };
-      const items = planPartnerTurn(start);
-      if (!items.length || JSON.stringify(items) !== JSON.stringify(plan.items)) return null;
-      const played = throws.length - plan.start;
-      if (played > items.length || played < items.length && value.strategy !== plan.strategy) return null;
-      for (let i = 0; i < played; i++) if (JSON.stringify(throws[plan.start + i]) !== JSON.stringify(items[i].dart)) return null;
-      if (value.seed !== (played ? items[played - 1].seed : plan.seed)) return null;
-      partnerPlan = {
-        start: plan.start,
-        seed: plan.seed,
-        strategy: plan.strategy,
-        items
-      };
-    }
-    const acknowledged = value.acknowledged ?? 0;
-    if (!Number.isInteger(acknowledged) || acknowledged < 0 || acknowledged > throws.length || (value.version === 1 ? acknowledged % 3 !== 0 : acknowledged !== 0 && !summary(replay).visits!.some(v => v.closed && v.end === acknowledged))) return null;
-    return {
-      ...base,
-      strategy: value.strategy,
-      throws,
-      partnerTraits: {
-        version: 1,
-        accuracy: partnerTraits.accuracy,
-        consistency: partnerTraits.consistency,
-        composure: partnerTraits.composure
-      },
-      reactions,
-      turnScripts,
-      ...(partnerPlan ? {
-        partnerPlan
-      } : {}),
-      dialogue,
-      acknowledged,
-      requested: [...value.requested]
-    };
-  } catch {
-    return null;
-  }
-}
-
-/** Identify the latest completed turn, retaining its comment while the next turn is played. */
-export function dialogueEvent(match: Match): string {
-  if (match.version === 2) {
-    const s = summary(match);
-    return s.done ? 'result' : s.completedTurns ? `turn${s.completedTurns}` : 'opening';
-  }
-  const count = match.throws.length;
-  return count === 30 ? 'result' : count < 3 ? 'opening' : `turn${Math.floor(count / 3)}`;
-}
-/** Each completed visit pauses for a score recap until explicitly continued. */
-export function turnBreak(match: Match): boolean {
-  if (match.version === 2) {
-    const s = summary(match),
-      visit = s.visits!.at(-1);
-    return !s.done && !!visit?.closed && (match.acknowledged ?? 0) < visit.end;
-  }
-  const count = match.throws.length;
-  return count > 0 && count < 30 && count % 3 === 0 && (match.acknowledged ?? 0) < count;
-}
-/** Return the latest completed visit, including shortened bust and checkout visits. */
-export function lastTurn(match: Match): TurnRecap | null {
-  if (match.version === 2) {
-    const visit = summary(match).visits!.filter(v => v.closed).at(-1);
-    return visit ? {
-      actor: visit.actor,
-      points: visit.points,
-      rawPoints: visit.rawPoints,
-      bust: visit.bust,
-      start: visit.start,
-      balance: visit.balance,
-      hits: visit.darts.map(t => scoreHit(t.x, t.y))
-    } : null;
-  }
-  const end = Math.floor(match.throws.length / 3) * 3;
-  if (!end) return null;
-  const darts = match.throws.slice(end - 3, end);
-  return {
-    actor: darts[0].actor,
-    points: darts.reduce((sum, t) => sum + scoreHit(t.x, t.y).points, 0),
-    hits: darts.map(t => scoreHit(t.x, t.y))
   };
 }
 
@@ -884,4 +264,238 @@ export function traitsFor(skill: number, charId: string, biases: Partial<Record<
     return Math.max(0, Math.min(100, base + bias * 6 + Math.floor(draw * 5) - 2));
   });
   return { version: 1, accuracy: values[0], consistency: values[1], composure: values[2] };
+}
+
+export type DartsMode = 'house' | 'rival'
+export type SessionOutcome = 'won' | 'lost' | 'draw'
+
+export interface DartsSeat {
+  id: string
+  name: string
+  kind: 'reader' | 'npc'
+  traits?: Traits
+}
+
+export interface SessionDart extends Point {
+  actor: 'you' | 'partner'
+  seatId: string
+  visit: number
+}
+
+export interface DartsSession {
+  version: 1
+  id: string
+  mode: DartsMode
+  target: number
+  seed: number
+  seats: DartsSeat[]
+  throws: SessionDart[]
+}
+
+export interface SessionVisit {
+  index: number
+  seatId: string
+  start: number
+  balance: number
+  darts: SessionDart[]
+  points: number
+  rawPoints: number
+  bust: boolean
+  closed: boolean
+}
+
+export interface SessionSummary {
+  done: boolean
+  outcome: SessionOutcome | null
+  winnerIds: string[]
+  visit: number
+  completedVisits: number
+  currentSeatId: string
+  dart: number
+  balances: Record<string, number>
+  teamBalance: number
+  visits: SessionVisit[]
+}
+
+export interface SessionPlanItem {
+  throwId: number
+  beforeSeed: number
+  seed: number
+  seatId: string
+  target: Point
+  dart: SessionDart
+  hit: Hit
+  balanceBefore: number
+  balanceAfter: number
+  bust: boolean
+  outcome: SessionOutcome | null
+}
+
+const RIVAL_ROUNDS = 3
+
+export function newSession(input: Omit<DartsSession, 'version' | 'throws'>): DartsSession {
+  if (!input.id || !Number.isInteger(input.seed) || input.seed < 0 || input.seed > 0xffffffff) throw Error('Invalid darts session')
+  if (!['house', 'rival'].includes(input.mode) || ![301, 501, 701].includes(input.target)) throw Error('Invalid darts rules')
+  if (input.seats.length < 1 || input.seats.length > 3 || input.seats[0]?.kind !== 'reader' || input.seats.slice(1).some((seat) => seat.kind !== 'npc') || input.mode === 'rival' && input.seats.length < 2) throw Error('Invalid darts seats')
+  if (new Set(input.seats.map((seat) => seat.id)).size !== input.seats.length) throw Error('Duplicate darts seat')
+  return { ...input, version: 1, throws: [], seats: input.seats.map((seat) => ({ ...seat, traits: seat.traits && { ...seat.traits } })) }
+}
+
+function maxVisits(session: DartsSession): number {
+  if (session.seats.length === 1) return 5
+  return session.mode === 'house' ? 3 + (session.seats.length - 1) * 2 : session.seats.length * RIVAL_ROUNDS
+}
+
+/** Rebuild every score and turn from the immutable dart ledger. */
+export function sessionSummary(session: DartsSession): SessionSummary {
+  const balances = Object.fromEntries(session.seats.map((seat) => [seat.id, session.target]))
+  let teamBalance = session.target
+  const visits: SessionVisit[] = []
+  let current: SessionVisit | null = null
+  let checkout: string | null = null
+
+  for (const dart of session.throws) {
+    const expectedSeat = session.seats[dart.visit % session.seats.length]?.id
+    if (expectedSeat !== dart.seatId) throw Error('Invalid darts ledger order')
+    if (!current || current.index !== dart.visit) {
+      const start = session.mode === 'house' ? teamBalance : balances[dart.seatId]
+      current = { index: dart.visit, seatId: dart.seatId, start, balance: start, darts: [], points: 0, rawPoints: 0, bust: false, closed: false }
+      visits.push(current)
+    }
+    if (current.closed) throw Error('Dart after closed visit')
+    const hit = scoreHit(dart.x, dart.y)
+    current.darts.push(dart)
+    current.rawPoints += hit.points
+    const before = session.mode === 'house' ? teamBalance : balances[dart.seatId]
+    if (hit.points > before) {
+      current.bust = current.closed = true
+      current.points = 0
+      current.balance = current.start
+      if (session.mode === 'house') teamBalance = current.start
+      else balances[dart.seatId] = current.start
+    } else {
+      const after = before - hit.points
+      if (session.mode === 'house') teamBalance = after
+      else balances[dart.seatId] = after
+      current.balance = after
+      current.points = current.start - after
+      checkout = after === 0 ? dart.seatId : checkout
+      current.closed = after === 0 || current.darts.length === 3
+    }
+  }
+
+  const completedVisits = visits.filter((visit) => visit.closed).length
+  const visit = current && !current.closed ? current.index : completedVisits
+  const limitReached = completedVisits >= maxVisits(session)
+  const done = checkout !== null || limitReached
+  let winnerIds: string[] = []
+  if (checkout) winnerIds = session.mode === 'house' ? session.seats.map((seat) => seat.id) : [checkout]
+  else if (done && session.mode === 'rival') {
+    const best = Math.min(...Object.values(balances))
+    winnerIds = session.seats.filter((seat) => balances[seat.id] === best).map((seat) => seat.id)
+  }
+  const readerWon = winnerIds.includes(session.seats[0].id)
+  const outcome: SessionOutcome | null = !done ? null : session.mode === 'house'
+    ? checkout ? 'won' : 'lost'
+    : winnerIds.length !== 1 ? 'draw' : readerWon ? 'won' : 'lost'
+  const currentSeatId = session.seats[Math.min(visit, maxVisits(session) - 1) % session.seats.length].id
+  const open = current && !current.closed ? current : null
+  return { done, outcome, winnerIds, visit, completedVisits, currentSeatId, dart: (open?.darts.length ?? 0) + 1, balances, teamBalance, visits }
+}
+
+/** Add one player or simulated dart, with all randomness committed to the returned ledger. */
+export function sessionThrow(session: DartsSession, target: Point, spread = 0): DartsSession {
+  const state = sessionSummary(session)
+  if (state.done) throw Error('Match is complete')
+  if (!Number.isFinite(target.x) || !Number.isFinite(target.y) || Math.abs(target.x) > 1.35 || Math.abs(target.y) > 1.35 || spread < 0 || spread > 0.5) throw Error('Invalid aim')
+  const landing = scatter(session.seed, target, spread)
+  const seat = session.seats.find((candidate) => candidate.id === state.currentSeatId)!
+  const dart: SessionDart = { actor: seat.kind === 'reader' ? 'you' : 'partner', seatId: seat.id, visit: state.visit, x: landing.x, y: landing.y }
+  return { ...session, seed: landing.seed, throws: [...session.throws, dart] }
+}
+
+function valueOf(session: DartsSession, seatId: string, state = sessionSummary(session)): number {
+  return session.mode === 'house' ? state.teamBalance : state.balances[seatId]
+}
+
+const HIGH_TARGETS = [
+  targetRegion(20, 'triple'), targetRegion(19, 'triple'), targetRegion(18, 'triple'),
+  targetRegion(20, 'double'), targetRegion(17, 'triple'), targetRegion(16, 'triple')
+]
+
+function exactTarget(balance: number, darts: number): Point | null {
+  const regions: { points: number; point: Point }[] = []
+  for (let number = 1; number <= 20; number++) for (const kind of ['single', 'double', 'triple'] as const) {
+    const point = targetRegion(number, kind)
+    regions.push({ points: scoreHit(point.x, point.y).points, point })
+  }
+  regions.push({ points: 25, point: targetRegion(25, 'outerBull') }, { points: 50, point: targetRegion(50, 'bull') })
+  regions.sort((a, b) => b.points - a.points)
+  const find = (left: number, count: number): Point[] | null => {
+    if (left === 0) return []
+    if (!count || left < 0 || left > count * 60) return null
+    for (const region of regions) {
+      if (region.points > left) continue
+      const tail = find(left - region.points, count - 1)
+      if (tail) return [region.point, ...tail]
+    }
+    return null
+  }
+  return find(balance, darts)?.[0] ?? null
+}
+
+function npcTarget(session: DartsSession, seatId: string): Point {
+  const state = sessionSummary(session)
+  const left = valueOf(session, seatId, state)
+  const finish = exactTarget(left, 4 - state.dart)
+  if (finish) return finish
+  const [pick] = random((session.seed ^ Math.imul(session.throws.length + 1, 2246822519)) >>> 0)
+  return HIGH_TARGETS[Math.min(HIGH_TARGETS.length - 1, Math.floor(pick * HIGH_TARGETS.length))]
+}
+
+function npcSpread(session: DartsSession, traits: Traits): { radius: number; seed: number } {
+  const state = sessionSummary(session)
+  const left = valueOf(session, state.currentSeatId, state)
+  const underPressure = left <= 60 || state.completedVisits >= Math.max(2, maxVisits(session) - session.seats.length)
+  // Radius is relative to the board, not a score percentage. A triple band is only
+  // 0.047 board radii wide: strong precision needs a tight group to show up on it.
+  const imprecision = 1 - traits.accuracy / 100
+  const inconsistency = 1 - traits.consistency / 100
+  const nerves = 1 - traits.composure / 100
+  const base = 0.024 + 0.30 * imprecision ** 2
+  const variation = 0.06 * inconsistency ** 2
+  const pressure = underPressure ? 0.06 * nerves ** 2 : 0
+  const [roll, seed] = random(session.seed)
+  return { radius: Math.max(0.015, Math.min(0.5, base + (roll * 2 - 1) * variation + pressure)), seed }
+}
+
+/** Fix one NPC visit before dialogue is requested; applying words cannot alter these darts. */
+export function planNpcVisit(session: DartsSession, seatId: string): SessionPlanItem[] {
+  const opening = sessionSummary(session)
+  if (opening.done || opening.currentSeatId !== seatId) return []
+  const seat = session.seats.find((candidate) => candidate.id === seatId)
+  if (!seat?.traits) throw Error('NPC traits missing')
+  const visit = opening.visit
+  let preview = session
+  const items: SessionPlanItem[] = []
+  while (!sessionSummary(preview).done && sessionSummary(preview).visit === visit) {
+    const before = sessionSummary(preview)
+    const target = npcTarget(preview, seatId)
+    const drift = npcSpread(preview, seat.traits)
+    const next = sessionThrow({ ...preview, seed: drift.seed }, target, drift.radius)
+    const after = sessionSummary(next)
+    const dart = next.throws.at(-1)!
+    // Keep the existing NPC script vocabulary while sharing the scoring geometry.
+    const hit = scoreHit(dart.x, dart.y)
+    if (hit.kind === 'miss') hit.label = 'OUT'
+    items.push({ throwId: next.throws.length, beforeSeed: preview.seed, seed: next.seed, seatId, target, dart, hit, balanceBefore: valueOf(preview, seatId, before), balanceAfter: valueOf(next, seatId, after), bust: !!after.visits.at(-1)?.bust, outcome: after.outcome })
+    preview = next
+  }
+  return items
+}
+
+export function applySessionPlan(session: DartsSession, item: SessionPlanItem): DartsSession {
+  const state = sessionSummary(session)
+  if (state.done || state.currentSeatId !== item.seatId || item.throwId !== session.throws.length + 1 || item.beforeSeed !== session.seed) throw Error('Stale planned dart')
+  return { ...session, seed: item.seed, throws: [...session.throws, { ...item.dart }] }
 }

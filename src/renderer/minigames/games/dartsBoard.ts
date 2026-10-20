@@ -118,6 +118,10 @@ const MODEL_SPRITES = {
     wings: 558
   }
 };
+// Fixed-size artwork is shared across visits. Two 1400px RGBA layers use about 15 MiB
+// before browser overhead; reopening a game never grows this cache.
+let artwork: { base: HTMLCanvasElement; dividers: HTMLCanvasElement; dartArt: HTMLImageElement; modelArt: HTMLImageElement } | undefined;
+
 /** A board whose painted boundaries come from the same radii as its scoring engine. */
 export class Board {
   canvas: HTMLCanvasElement;
@@ -128,35 +132,47 @@ export class Board {
   dividers: HTMLCanvasElement;
   panelPaths: Map<string, Path2D>;
   resize: ResizeObserver;
+  revision = 0;
+  private invalidate = (): void => { this.revision++; };
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
-    this.dartArt = new Image();
-    this.dartArt.src = new URL('../../../assets/darts/darts-eye-level.png', import.meta.url).href;
-    this.modelArt = new Image();
-    this.modelArt.src = new URL('../../../assets/darts/darts-meshy-views.png', import.meta.url).href;
-    this.base = document.createElement('canvas');
-    this.base.width = this.base.height = 1400;
     this.panelPaths = new Map();
-    const c = this.base.getContext('2d')!;
-    c.scale(2, 2);
-    this.paintBoard(c);
-    this.dividers = document.createElement('canvas');
-    this.dividers.width = this.dividers.height = 1400;
-    const dividerContext = this.dividers.getContext('2d')!;
-    dividerContext.scale(2, 2);
-    this.paintDividers(dividerContext);
+    if (!artwork) {
+      const dartArt = new Image();
+      dartArt.src = new URL('../../../assets/darts/darts-eye-level.png', import.meta.url).href;
+      const modelArt = new Image();
+      modelArt.src = new URL('../../../assets/darts/darts-meshy-views.png', import.meta.url).href;
+      const base = document.createElement('canvas');
+      base.width = base.height = 1400;
+      const c = base.getContext('2d')!;
+      c.scale(2, 2);
+      this.paintBoard(c);
+      const dividers = document.createElement('canvas');
+      dividers.width = dividers.height = 1400;
+      const dividerContext = dividers.getContext('2d')!;
+      dividerContext.scale(2, 2);
+      this.paintDividers(dividerContext);
+      artwork = { base, dividers, dartArt, modelArt };
+    }
+    ({ base: this.base, dividers: this.dividers, dartArt: this.dartArt, modelArt: this.modelArt } = artwork);
+    this.dartArt.addEventListener('load', this.invalidate);
+    this.modelArt.addEventListener('load', this.invalidate);
     this.resize = new ResizeObserver(() => {
       const size = Math.max(1, canvas.getBoundingClientRect().width),
         ratio = Math.min(2, devicePixelRatio || 1);
-      canvas.width = canvas.height = Math.round(size * ratio);
+      const pixels = Math.round(size * ratio);
+      if (canvas.width !== pixels || canvas.height !== pixels) {
+        canvas.width = canvas.height = pixels;
+        this.invalidate();
+      }
     });
     this.resize.observe(canvas);
   }
   dispose() {
     this.resize.disconnect();
-    this.dartArt.src = '';
-    this.modelArt.src = '';
+    this.dartArt.removeEventListener('load', this.invalidate);
+    this.modelArt.removeEventListener('load', this.invalidate);
   }
   /** Annotate the same scoring radii used by the playable board. */
   paintScoreGuide(c: CanvasRenderingContext2D) {
