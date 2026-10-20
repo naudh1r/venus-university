@@ -14,7 +14,7 @@ import {
 import { ConfirmModal } from '../components/ConfirmModal'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
-import { modDetail } from '../mods/hooks'
+import { modDetail, optionPreview } from '../mods/hooks'
 import { useModsStore } from '../stores/modsStore'
 import { useUiStore } from '../stores/uiStore'
 import { gestures, lift, panelUnderTab, press, veilIn } from './motion'
@@ -260,6 +260,7 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
                     if (all.findIndex((o) => o.group === option.group) !== index) return null
                     const group = selected.optionGroups?.find((g) => g.id === option.group)
                     const members = all.filter((o) => o.group === option.group)
+                    const Preview = optionPreview(selected.id, option.group)
                     return (
                       <li key={`group-${option.group}`} className="vu-mods-option vu-mods-group">
                         <span className="vu-mods-option-text">
@@ -281,6 +282,16 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
                             </li>
                           ))}
                         </ul>
+                        {Preview && (
+                          <div className="vu-mods-group-preview">
+                            <Preview
+                              optionId={
+                                members.find((member) => optionOn(switches, selected.id, member.id))
+                                  ?.id ?? null
+                              }
+                            />
+                          </div>
+                        )}
                       </li>
                     )
                   })}
