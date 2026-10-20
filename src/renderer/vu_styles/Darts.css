@@ -52,3 +52,12 @@
 .vu-darts[data-info] .vu-darts-score { grid-column: 3; }
 
 .vu-darts-mode > span { position: absolute; top: 8px; right: 10px; }
+
+.vu-darts-target { margin-top: 12px; font: 600 18px/1.3 var(--font-mono); color: var(--vu-accent); overflow-wrap: anywhere; }
+.vu-darts-mode-picker { grid-column: 1 / -1; width: min(700px, 100%); max-height: 640px; justify-self: center; overflow-y: auto; padding: 24px; border-radius: 8px 32px 8px 8px; background: var(--vu-surface); pointer-events: auto; }
+.vu-darts-mode-picker h2 { font: 400 28px var(--font-display); }
+.vu-darts-mode-picker > div { margin: 12px 0; }
+.vu-darts-mode-picker small { display: block; margin-top: 6px; color: var(--vu-text-muted); }
+
+.vu-darts-score--extra .vu-darts-balance { font-size: 84px; }
+.vu-darts-score--extra .vu-darts-start { gap: 10px; flex-wrap: wrap; }

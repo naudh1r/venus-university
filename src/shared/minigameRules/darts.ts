@@ -499,3 +499,212 @@ export function applySessionPlan(session: DartsSession, item: SessionPlanItem): 
   if (state.done || state.currentSeatId !== item.seatId || item.throwId !== session.throws.length + 1 || item.beforeSeed !== session.seed) throw Error('Stale planned dart')
   return { ...session, seed: item.seed, throws: [...session.throws, { ...item.dart }] }
 }
+
+// Additional modes use their own ledger. Existing countdown/Rival rules above are unchanged.
+export type ExtraDartsMode = 'girls-team' | 'leader' | 'precision' | 'exact'
+export interface PrecisionTarget { number: number; kind: 'double' | 'triple' | 'bull' }
+export interface ExtraDartsMatch {
+  version: 1
+  id: string
+  mode: ExtraDartsMode
+  seed: number
+  target: number
+  rounds: number
+  seats: (DartsSeat & { skill?: number })[]
+  precisionTargets: PrecisionTarget[]
+  exactTargets: number[]
+  throws: SessionDart[]
+}
+export interface ExtraVisit {
+  index: number; round: number; seatId: string; darts: SessionDart[]
+  total: number; start: number; remaining: number; bust: boolean; closed: boolean; success: boolean
+}
+export interface ExtraSummary {
+  done: boolean; outcome: SessionOutcome | null; winnerIds: string[]
+  visit: number; round: number; currentSeatId: string; dart: number
+  visits: ExtraVisit[]; points: Record<string, number>; balances: Record<string, number>
+  girlsBalance: number; leaderId: string; leaderScore: number | null
+}
+export interface ExtraPlanItem {
+  throwId: number; beforeSeed: number; seed: number; seatId: string
+  target: Point; dart: SessionDart; hit: Hit; bust: boolean; success: boolean
+  before: string; after: string; outcome: SessionOutcome | null
+}
+export const EXTRA_MODE_TITLES: Readonly<Record<ExtraDartsMode, string>> = {
+  'girls-team': 'Player vs Girls Team', leader: 'Chase the Leader', precision: 'Precision Duel', exact: 'Exact Total'
+}
+export function extraModeUnavailable(mode: ExtraDartsMode, skills: readonly number[]): string | null {
+  if ((mode === 'girls-team' || mode === 'leader') && skills.length !== 2) return 'This mode requires two companions.'
+  if ((mode === 'precision' || mode === 'exact') && skills.length !== 1) return 'This duel requires exactly one companion.'
+  const minimum = mode === 'precision' ? 4 : mode === 'exact' ? 3 : 1
+  return skills.some(skill => !Number.isFinite(skill) || skill < minimum) ? `This mode requires a companion with Darts skill tier ${minimum} or higher.` : null
+}
+export function newExtraMatch(input: { id: string; mode: ExtraDartsMode; seed: number; target?: number; long?: boolean; seats: (DartsSeat & { skill?: number })[] }): ExtraDartsMatch {
+  if (!Object.hasOwn(EXTRA_MODE_TITLES, input.mode) || !input.id || !Number.isInteger(input.seed) || input.seed < 0 || input.seed > 0xffffffff) throw Error('Invalid extra Darts match')
+  const count = input.mode === 'girls-team' || input.mode === 'leader' ? 3 : 2
+  if (input.seats.length !== count || input.seats[0]?.id !== 'reader' || input.seats[0].kind !== 'reader' || input.seats.slice(1).some(s => s.kind !== 'npc' || !s.traits) || new Set(input.seats.map(s => s.id)).size !== count) throw Error('Invalid extra Darts seats')
+  if (input.seats.some(s => !s.id || s.kind === 'npc' && (!s.traits || s.traits.version !== 1 || [s.traits.accuracy, s.traits.consistency, s.traits.composure].some(n => !Number.isFinite(n) || n < 0 || n > 100)))) throw Error('Invalid NPC traits')
+  const locked = extraModeUnavailable(input.mode, input.seats.slice(1).map(s => s.skill ?? 1))
+  if (locked) throw Error(locked)
+  const target = input.target ?? 501
+  if (![301, 501, 701].includes(target)) throw Error('Invalid countdown')
+  let seed = input.seed
+  const pick = (n: number): number => { let value: number; [value, seed] = random(seed); return Math.floor(value * n) }
+  // Two distinct doubles, two distinct triples, and one bull in a seeded shuffled order.
+  const numbers = Array.from({ length: 20 }, (_, i) => i + 1)
+  const take = (): number => numbers.splice(pick(numbers.length), 1)[0]
+  const precisionTargets: PrecisionTarget[] = [{ number: take(), kind: 'double' }, { number: take(), kind: 'double' }, { number: take(), kind: 'triple' }, { number: take(), kind: 'triple' }, { number: 50, kind: 'bull' }]
+  for (let i = precisionTargets.length - 1; i > 0; i--) { const j = pick(i + 1); [precisionTargets[i], precisionTargets[j]] = [precisionTargets[j], precisionTargets[i]] }
+  // All targets are one-dart finishes with multi-dart single alternatives.
+  const choices = [24, 27, 30, 32, 33, 36, 39, 40, 42, 45, 48, 50, 51, 54, 57, 60]
+  const exactTargets = Array.from({ length: 5 }, () => choices.splice(pick(choices.length), 1)[0])
+  return { version: 1, id: input.id, mode: input.mode, seed, target, rounds: input.mode === 'leader' ? input.long ? 9 : 3 : input.mode === 'girls-team' ? 3 : 5, seats: input.seats.map(s => ({ ...s, traits: s.traits && { ...s.traits } })), precisionTargets, exactTargets, throws: [] }
+}
+function extraOrder(game: ExtraDartsMatch, round: number): DartsSeat[] {
+  if (game.mode === 'girls-team') return [...game.seats.slice(1), game.seats[0]]
+  if (game.mode === 'leader') return game.seats.map((_, i) => game.seats[(round + i) % game.seats.length])
+  return game.seats
+}
+export function extraTargetLabel(game: ExtraDartsMatch, round: number): string {
+  const index = Math.min(round, game.rounds - 1)
+  if (game.mode === 'precision') { const t = game.precisionTargets[index]; return t.kind === 'bull' ? 'BULLSEYE' : `${t.kind.toUpperCase()} ${t.number}` }
+  if (game.mode === 'exact') return `EXACTLY ${game.exactTargets[index]}`
+  return game.mode === 'leader' ? 'MATCH OR BEAT THE LEADER' : `COUNTDOWN ${game.target}`
+}
+export function extraDescription(game: ExtraDartsMatch): string {
+  if (game.mode === 'girls-team') return `Two girls share a ${game.target}-point balance against your separate balance. Order: girl 1, girl 2, you. Three darts each per round, three rounds. Exact zero wins immediately; otherwise the lower balance wins. Bust cancels that visit. The girls have twice as many darts: this is a 1-vs-2 challenge.`
+  if (game.mode === 'leader') return `${game.rounds} rounds. Each player leads ${game.rounds / 3} time${game.rounds === 3 ? '' : 's'}. Three darts each. Each challenger who matches or beats the leader scores 1 point. The leader scores 1 only if both challengers fail. Most points wins; tied leaders share the win.`
+  if (game.mode === 'precision') return 'Five seeded targets, identical for both players: two doubles, two triples and one bullseye. Three darts each per target. Only the exact number and ring count. Each correct hit earns 1 point; most points wins. Tier 4 or higher required.'
+  return 'Five identical targets, three darts each per target. Add up the exact total in as few darts as possible. Bust resets your total to 0 without refunding darts. A successful finish beats a failure; fewer darts wins the target. Equal successful finishes share 1 point. Most target wins takes the match. Tier 3 or higher required.'
+}
+export function extraSummary(game: ExtraDartsMatch): ExtraSummary {
+  const points = Object.fromEntries(game.seats.map(s => [s.id, 0]))
+  const balances = Object.fromEntries(game.seats.map(s => [s.id, game.target]))
+  const visits: ExtraVisit[] = []
+  let girlsBalance = game.target, visit = 0, current: ExtraVisit | undefined, checkout: string | null = null
+  for (const dart of game.throws) {
+    const round = Math.floor(visit / game.seats.length), seat = extraOrder(game, round)[visit % game.seats.length]
+    if (checkout || round >= game.rounds || dart.visit !== visit || dart.seatId !== seat.id || dart.actor !== (seat.kind === 'reader' ? 'you' : 'partner')) throw Error('Invalid extra Darts ledger')
+    if (!current) {
+      const start = game.mode === 'girls-team' ? seat.kind === 'npc' ? girlsBalance : balances.reader : game.mode === 'exact' ? game.exactTargets[round] : 0
+      current = { index: visit, round, seatId: seat.id, darts: [], total: 0, start, remaining: start, bust: false, closed: false, success: false }
+      visits.push(current)
+    }
+    const hit = scoreHit(dart.x, dart.y)
+    current.darts.push(dart)
+    if (game.mode === 'girls-team') {
+      if (hit.points > current.remaining) { current.bust = true; current.closed = true; current.total = 0; current.remaining = current.start }
+      else { current.total += hit.points; current.remaining -= hit.points; current.success = current.remaining === 0; current.closed = current.success }
+      if (seat.kind === 'npc') girlsBalance = current.remaining
+      else balances.reader = current.remaining
+      if (current.success) checkout = seat.kind === 'reader' ? 'reader' : 'girls'
+    } else if (game.mode === 'precision') {
+      const target = game.precisionTargets[round]
+      if (hit.kind === target.kind && hit.number === target.number) { current.total++; points[seat.id]++ }
+    } else if (game.mode === 'exact') {
+      if (current.total + hit.points > current.start) { current.total = 0; current.bust = true }
+      else current.total += hit.points
+      current.remaining = current.start - current.total
+      current.success = current.remaining === 0
+      current.closed = current.success
+    } else current.total += hit.points
+    current.closed ||= current.darts.length === 3
+    if (current.closed) {
+      visit++
+      if (visit % game.seats.length === 0) {
+        const group = visits.slice(-game.seats.length)
+        if (game.mode === 'leader') {
+          const [leader, ...challengers] = group
+          const winners = challengers.filter(v => v.total >= leader.total)
+          if (winners.length) for (const v of winners) points[v.seatId]++
+          else points[leader.seatId]++
+        } else if (game.mode === 'exact') {
+          const finished = group.filter(v => v.success)
+          const best = Math.min(...finished.map(v => v.darts.length))
+          for (const v of finished) if (v.darts.length === best) points[v.seatId]++
+        }
+      }
+      current = undefined
+    }
+  }
+  for (const s of game.seats.slice(1)) balances[s.id] = girlsBalance
+  const done = checkout !== null || visit >= game.rounds * game.seats.length
+  let winnerIds: string[] = []
+  if (done) {
+    if (game.mode === 'girls-team') {
+      const winner = checkout ?? (balances.reader === girlsBalance ? 'tie' : balances.reader < girlsBalance ? 'reader' : 'girls')
+      winnerIds = winner === 'reader' ? ['reader'] : winner === 'girls' ? game.seats.slice(1).map(s => s.id) : game.seats.map(s => s.id)
+    } else { const best = Math.max(...Object.values(points)); winnerIds = game.seats.filter(s => points[s.id] === best).map(s => s.id) }
+  }
+  const round = Math.min(game.rounds - 1, Math.floor(visit / game.seats.length))
+  const order = extraOrder(game, round)
+  const currentSeatId = order[visit % game.seats.length].id
+  const leaderId = extraOrder(game, round)[0].id
+  const leaderScore = visits.find(v => v.round === round && v.seatId === leaderId && v.closed)?.total ?? null
+  const sharedWin = winnerIds.includes('reader') && winnerIds.length > 1
+  return { done, outcome: !done ? null : sharedWin ? 'draw' : winnerIds.includes('reader') ? 'won' : 'lost', winnerIds, visit, round, currentSeatId, dart: (current?.darts.length ?? 0) + 1, visits, points, balances, girlsBalance, leaderId, leaderScore }
+}
+export function extraThrow(game: ExtraDartsMatch, aim: Point, spread = 0): ExtraDartsMatch {
+  const state = extraSummary(game)
+  if (state.done) throw Error('Match is complete')
+  if (!Number.isFinite(aim.x) || !Number.isFinite(aim.y) || Math.abs(aim.x) > 1.35 || Math.abs(aim.y) > 1.35 || !Number.isFinite(spread) || spread < 0 || spread > 0.5) throw Error('Invalid aim')
+  const p = scatter(game.seed, aim, spread), seat = game.seats.find(s => s.id === state.currentSeatId)!
+  return { ...game, seed: p.seed, throws: [...game.throws, { x: p.x, y: p.y, actor: seat.kind === 'reader' ? 'you' : 'partner', seatId: seat.id, visit: state.visit }] }
+}
+function extraNpcTarget(game: ExtraDartsMatch, state: ExtraSummary): Point {
+  if (game.mode === 'precision') { const t = game.precisionTargets[state.round]; return targetRegion(t.number, t.kind) }
+  const current = state.visits.find(v => v.index === state.visit)
+  if (game.mode === 'exact' || game.mode === 'girls-team') {
+    const left = game.mode === 'exact' ? current?.remaining ?? game.exactTargets[state.round] : state.girlsBalance
+    const traits = game.seats.find(s => s.id === state.currentSeatId)?.traits
+    if (game.mode === 'exact' && (traits?.accuracy ?? 0) < 70) {
+      if (left >= 1 && left <= 20) return targetRegion(left)
+      if (state.dart < 3) return targetRegion(20)
+    }
+    const finish = exactTarget(left, 4 - state.dart)
+    if (finish) return finish
+  }
+  if (game.mode === 'leader' && state.leaderScore !== null) {
+    const needed = state.leaderScore - (current?.total ?? 0)
+    // A challenger who already matched the leader takes a safe large single.
+    if (needed <= 0) return targetRegion(20)
+    const shot = exactTarget(needed, 4 - state.dart)
+    if (shot) return shot
+  }
+  const [pick] = random((game.seed ^ Math.imul(game.throws.length + 1, 2246822519)) >>> 0)
+  return HIGH_TARGETS[Math.min(HIGH_TARGETS.length - 1, Math.floor(pick * HIGH_TARGETS.length))]
+}
+export function extraSituation(game: ExtraDartsMatch): string {
+  const s = extraSummary(game)
+  if (game.mode === 'girls-team') return `You ${s.balances.reader} remaining; girls team ${s.girlsBalance} remaining.`
+  const totals = game.seats.map(p => `${p.name} ${s.points[p.id]} points`).join('; ')
+  const current = s.visits.find(v => v.index === s.visit)
+  return `${extraTargetLabel(game, s.round)}. ${totals}.${game.mode === 'leader' && s.leaderScore !== null ? ` Leader total ${s.leaderScore}.` : ''}${game.mode === 'exact' ? ` ${current?.remaining ?? game.exactTargets[s.round]} left this visit.` : ''}`
+}
+export function planExtraVisit(game: ExtraDartsMatch): ExtraPlanItem[] {
+  const start = extraSummary(game)
+  const seat = game.seats.find(s => s.id === start.currentSeatId)!
+  if (start.done || seat.kind !== 'npc') return []
+  if (!seat.traits) throw Error('NPC traits missing')
+  let preview = game
+  const plan: ExtraPlanItem[] = []
+  while (!extraSummary(preview).done && extraSummary(preview).visit === start.visit) {
+    const before = extraSummary(preview), target = extraNpcTarget(preview, before), t = seat.traits
+    const current = before.visits.find(v => v.index === before.visit)
+    const pressure = game.mode === 'precision' || game.mode === 'exact' || before.round === game.rounds - 1 || game.mode === 'girls-team' && before.girlsBalance <= 60
+    const [roll, seed] = random(preview.seed)
+    const radius = Math.max(0.015, Math.min(0.5, 0.024 + 0.30 * (1 - t.accuracy / 100) ** 2 + (roll * 2 - 1) * 0.06 * (1 - t.consistency / 100) ** 2 + (pressure ? 0.06 * (1 - t.composure / 100) ** 2 : 0)))
+    const next = extraThrow({ ...preview, seed }, target, radius), after = extraSummary(next), dart = next.throws.at(-1)!, visit = after.visits.at(-1)!
+    plan.push({ throwId: next.throws.length, beforeSeed: preview.seed, seed: next.seed, seatId: seat.id, target, dart, hit: scoreHit(dart.x, dart.y), bust: preview.mode === 'exact' ? scoreHit(dart.x, dart.y).points > (current?.remaining ?? preview.exactTargets[before.round]) : preview.mode === 'girls-team' && visit.bust, success: preview.mode === 'precision' ? visit.total > (current?.total ?? 0) : visit.success, before: extraSituation(preview), after: extraSituation(next), outcome: after.outcome })
+    preview = next
+  }
+  return plan
+}
+export function applyExtraPlan(game: ExtraDartsMatch, item: ExtraPlanItem): ExtraDartsMatch {
+  const s = extraSummary(game)
+  if (s.done || s.currentSeatId !== item.seatId || item.throwId !== game.throws.length + 1 || item.beforeSeed !== game.seed) throw Error('Stale planned dart')
+  // Validate the immutable ledger before accepting a precomputed result.
+  const next = { ...game, seed: item.seed, throws: [...game.throws, { ...item.dart }] }
+  extraSummary(next)
+  return next
+}

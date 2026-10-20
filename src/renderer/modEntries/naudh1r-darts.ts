@@ -1,5 +1,5 @@
 import DARTS from '@shared/minigameEntries/darts'
-import { Darts } from '../minigames/games/Darts'
+import { DartsPack } from '../minigames/games/DartsPack'
 import { registerGame } from '../minigames/kit'
 
-registerGame(DARTS.id, Darts)
+registerGame(DARTS.id, DartsPack)
