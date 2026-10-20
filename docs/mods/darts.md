@@ -41,8 +41,8 @@ The match can be played entirely with the mouse.
 | Throw | Release the left mouse button when the dot is where you want the dart to land. |
 | Hand over to the NPCs | Click **Change turn** when it becomes available. |
 | Start your next visit | Click **My turn** when it becomes available. |
-| Check scoring | Click **Score guide**, then **Back to the board** to close it. |
-| Toggle Darts sound | Click **Sound on / Sound off**. |
+| Check scoring | Click **Score Guide**, then **Back to the board** to close it. |
+| Toggle Darts sound | Click the speaker mute/unmute icon in the score header. |
 | Leave an unfinished match | Use the framework's **Walk away** button. |
 
 Holding locks the ellipse at the chosen aim; moving the mouse afterwards does not drag
@@ -280,3 +280,33 @@ expand or collapse the mode rules. Rules stay in the left column; the scoreboard
 stays on the right and character dialogue stays in the scene box below. The board
 uses the remaining space while the information is open. Close the info to resume
 aiming. This control is unavailable during an active throw or NPC turn.
+
+## Control guide and debug reports
+
+**Score Guide** and **Control** are equal-width buttons below the scoreboard's turn
+button. Control opens the same board-area overlay and blur as Score Guide, with
+mouse instructions: move to aim, hold left click to lock the ellipse, then release
+at the moving white dot. Aiming is blocked while either guide is open. Close with
+**Back to the board**. Mode-specific rules remain in the left dropdown.
+
+Participant names and their larger scores are centred in equal columns. The left
+rules and right scoreboard use equal screen gutters. The primary turn button stays
+inside the scoreboard. **Walk away** is a styled game action beneath it; it still
+uses the framework's existing unfinished-match reporting.
+
+**Copy bug report is hidden by default in Darts only.** The report functionality
+is retained for debugging. To show the button for the current app session, open
+Developer Tools and run this in the console:
+
+```js
+document.documentElement.dataset.dartsDebug = 'true'
+```
+
+Hide it again with:
+
+```js
+delete document.documentElement.dataset.dartsDebug
+```
+
+Reloading also hides it again. This visual debug flag does not change game rules,
+NPC skills or other mini-games. The visible report button keeps its normal copy action.
