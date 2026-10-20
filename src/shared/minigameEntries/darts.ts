@@ -12,7 +12,7 @@ const DARTS: MiniGameDef = {
     'AFTER DARTS: The final dart has already landed, the score has already settled, and the player has already watched the result animation. Begin AFTER that moment. Do not describe a dart flying or landing, points being counted down, or a victory animation or fanfare starting again.',
     'For this result turn, your FIRST line opens in the aftermath: let the participants react to the settled outcome, their shared experience or rivalry, and any agreed stake. This takes precedence over the usual instruction to reword the reader’s action in the opening line. Past-tense references to a memorable hit are fine; do not stage it happening again.'
   ],
-  controls: 'Move the mouse to aim. Hold left click to lock the ellipse, then release at the moving dot. Change turn hands over to the girls; My turn takes the darts back.',
+  controls: 'Move the mouse to aim. Hold left click to lock the ellipse, then release at the moving dot. Solo: Next round starts your next three darts. With companions: Change turn hands over to the girls; My turn takes the darts back.',
   skillBrief: 'A good darts player aims accurately, repeats her throw consistently and stays composed near a checkout. A beginner scatters widely, especially under pressure.',
   skillAxes: [
     { id: 'accuracy', label: 'natural precision', brief: 'Judge hand-eye coordination, patience and attention to detail.' },

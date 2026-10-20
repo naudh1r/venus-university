@@ -142,7 +142,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
       for (const item of plan) preview = applySessionPlan(preview, item)
     }
     pending.current = scripts
-    setPhase('preparing'); setStatus(play.chattiness === 'quiet' ? 'Partners ready' : `${scripts.map((script) => script.seat.name).join(' and ')} are thinking…`)
+    setPhase('preparing'); setStatus(play.chattiness === 'quiet' ? 'Partners ready' : 'Preparing next turn…')
     if (play.chattiness !== 'quiet' && scripts.length) {
       const fields: Record<string, 'text' | readonly string[]> = {}, facts: string[] = []
       for (let index = 0; index < scripts.length; index++) {
@@ -240,6 +240,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
       collectDarts(sessionSummary(latest.current.session).visit)
       setPhase('partners')
       const scripts = pending.current!
+      let silentImpact: number | null = null
       for (let index = 0; index < scripts.length; index++) {
         const script = scripts[index]
         if (index > 0) {
@@ -248,10 +249,17 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
           if (latest.current.play.chattiness !== 'quiet' && !(await speak(script.seat, script.intro, token))) return
         }
         for (const item of script.plan) {
-          if (!(await present(token)) || !(await pause(reduced ? 150 : 550, token))) return
+          if (!(await present(token))) return
+          const usualDelay = reduced ? 150 : 550
+          // Measure from impact, including time already spent showing the score/LED.
+          const delay = silentImpact === null ? usualDelay : Math.max(usualDelay, 1500 - (performance.now() - silentImpact))
+          if (!(await pause(delay, token))) return
           const next = await land(item.target, token, item)
           if (!next || sessionSummary(next).done) return
-          if (script.spoken.has(item.throwId) && !(await speak(script.seat, script.reactions[item.throwId], token))) return
+          const hasReaction = script.spoken.has(item.throwId)
+          if (hasReaction && !(await speak(script.seat, script.reactions[item.throwId], token))) return
+          silentImpact = latest.current.play.chattiness !== 'lots' && !hasReaction && !latest.current.play.playByPlay
+            ? latest.current.impact!.time : null
         }
         if (latest.current.play.chattiness === 'lots' && !(await speak(script.seat, script.outro, token))) return
       }
@@ -334,7 +342,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
       <div className="vu-darts-contributions">{session.seats.map((seat) => <span key={seat.id}>{seat.name.toUpperCase()} <strong>{session.mode === 'house' ? pointsOf(visible, seat.id) : state.balances[seat.id]}</strong></span>)}</div>
       <p className="vu-darts-status" aria-live="polite">{status}</p>
       <div className="vu-darts-controls">
-        {['handover', 'my-turn'].includes(phase) && <motion.button type="button" disabled={busy} className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { if (busy) return; if (phase === 'handover') partnersTurn(); else { latest.current.play.moved(); collectDarts(sessionSummary(latest.current.session).visit); setPhase('player'); setStatus('Your turn'); pending.current = null } }}>{phase === 'handover' ? 'Change turn' : 'My turn'}</motion.button>}
+        {['handover', 'my-turn'].includes(phase) && <motion.button type="button" disabled={busy} className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { if (busy) return; if (phase === 'handover') partnersTurn(); else { latest.current.play.moved(); collectDarts(sessionSummary(latest.current.session).visit); setPhase('player'); setStatus('Your turn'); pending.current = null } }}>{phase === 'handover' ? 'Change turn' : opponents.length ? 'My turn' : 'Next round'}</motion.button>}
         <motion.button type="button" disabled={busy} className="vu-btn vu-btn--outline vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => setGuide((value) => !value)}>Score guide</motion.button>
         <motion.button type="button" className="vu-pill" {...gestures(false, lift, press)} onClick={() => setMuted(!muted)}>{muted ? 'Sound off' : 'Sound on'}</motion.button>
       </div>

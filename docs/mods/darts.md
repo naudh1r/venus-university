@@ -223,3 +223,15 @@ and [terms of service](https://www.meshy.ai/terms-of-use).
 
 All Darts sound effects are synthesized at runtime by the game's audio code;
 there are no bundled third-party Darts sound recordings.
+
+## Turn pacing
+
+In solo play, **Next round** collects the previous visit's darts and starts the next
+three throws. With companions, **Change turn** hands over and **My turn** returns
+the board to you. While companion dialogue is being prepared, the status reads
+**Preparing next turn…**.
+
+Quiet and Some allow at least 1.5 seconds from a silent NPC landing to the next
+throw. This includes the existing score/LED pause rather than adding another
+1.5 seconds. Lots, spoken reactions and play-by-play retain their existing pacing.
+No preset dialogue is added; the number of reactions per mode is unchanged.
