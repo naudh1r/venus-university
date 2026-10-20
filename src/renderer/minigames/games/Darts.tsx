@@ -334,8 +334,9 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
       : `Reach exactly 0 from ${session.target} within 5 visits (15 darts). Each visit gives you up to 3 darts. Select Next round to continue. If points remain after visit 5, the house wins.`
 
   return <div className="vu-darts" data-info={modeInfo || undefined} data-guide={guide || undefined} data-finished={phase === 'finished' || undefined}>
-    <button type="button" className="vu-darts-mode" disabled={busy} aria-label={`About ${modeTitle}`} aria-expanded={modeInfo} aria-controls="darts-mode-info" onClick={() => { hold.current = null; setGuide(false); setModeInfo(!modeInfo) }}>{modeTitle}<span aria-hidden="true">{modeInfo ? ' −' : ' +'}</span></button>
+    <button type="button" className="vu-darts-mode" disabled={busy} aria-label={`About ${modeTitle}`} aria-expanded={modeInfo} aria-controls="darts-mode-info" onClick={() => { hold.current = null; setGuide(false); setModeInfo(!modeInfo) }}><span className="vu-darts-mode-caption">Game mode</span><span className="vu-darts-mode-title">{modeTitle}</span><span className="vu-darts-mode-arrow" aria-hidden="true" /></button>
       {modeInfo && <section id="darts-mode-info" className="vu-darts-mode-info" aria-label={`${modeTitle} rules`} onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setModeInfo(false) } }}>
+        <h2>How to play</h2>
         <p>{modeDescription}</p><p>Any scoring ring can finish. Going below 0 is a bust: your visit ends and its points are cancelled.</p>
         <button autoFocus type="button" className="vu-btn vu-btn--primary vu-paper vu-btn--panel" onClick={() => setModeInfo(false)}>Close info</button>
       </section>}

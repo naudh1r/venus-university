@@ -3,11 +3,11 @@
 .vu-minigame-veil[data-game='darts'] .vu-minigame-surface { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 0; border-radius: 0; background: none; pointer-events: none; }
 .vu-minigame-veil[data-game='darts'] .vu-minigame-surface::before,
 .vu-minigame-veil[data-game='darts'] .vu-minigame-surface::after { content: none; }
-.vu-minigame-veil[data-game='darts'] .vu-minigame-name { position: absolute; left: 58px; top: 34px; font: 400 44px var(--font-display); color: var(--vu-text); padding: 8px 22px; border-radius: 4px 28px 4px 4px; background: var(--vu-surface); }
+.vu-minigame-veil[data-game='darts'] .vu-minigame-name { position: absolute; left: 58px; top: 34px; font: 400 44px var(--font-display); color: var(--vu-accent-ink); padding: 8px 22px; border-radius: 4px 28px 4px 4px; background: var(--vu-accent); }
 .vu-minigame-veil[data-game='darts'] .vu-minigame-foot { position: absolute; right: auto; bottom: auto; left: anchor(center, calc(100% - 285px)); top: calc(anchor(bottom, 34px) + 16px); position-anchor: --darts-score; transform: translateX(-50%); width: 390px; flex-direction: row; align-items: center; justify-content: center; gap: 10px; pointer-events: auto; }
 .vu-minigame-veil[data-game='darts'] .vu-minigame-next { position: absolute; left: 50%; bottom: 364px; pointer-events: auto; }
 .vu-darts { position: absolute; inset: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr) 390px; grid-template-rows: minmax(0, 1fr); align-items: start; gap: 24px; padding: 0 90px 316px 40px; color: var(--vu-text); pointer-events: none; }
-.vu-darts-mode { position: absolute; z-index: 2; left: 58px; top: 120px; margin: 0; max-width: 230px; padding: 8px 28px 8px 14px; border-radius: 4px 16px 4px 4px; background: var(--vu-surface); color: var(--vu-text-muted); font: 500 12px/1.4 var(--font-mono); overflow-wrap: anywhere; border: 0; text-align: left; pointer-events: auto; cursor: pointer; }
+.vu-darts-mode { position: absolute; z-index: 2; left: 58px; top: 120px; margin: 0; width: 280px; min-height: 60px; padding: 10px 48px 10px 14px; border: 1px solid var(--vu-border); border-left: 4px solid var(--vu-accent); border-radius: 4px 20px 4px 4px; background: var(--vu-surface); color: var(--vu-text); text-align: left; pointer-events: auto; cursor: pointer; }
 /* Centre in the area above the native dialogue: 126px bottom + 232px box, less its 42px resting drop. */
 .vu-darts-stage { grid-column: 2; position: relative; width: 780px; aspect-ratio: 1; max-width: 100%; justify-self: center; align-self: center; }
 .vu-darts-stage > canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; touch-action: none; outline-offset: -40px; pointer-events: auto; }
@@ -36,22 +36,24 @@
 
 .vu-darts-controls > button:first-child:nth-last-child(3) { position: absolute; right: calc(100% + 28px); bottom: 12px; white-space: nowrap; }
 
-/* Keep the caption clear of the board on narrower PC stage ratios. */
-@media (max-aspect-ratio: 3/2) {
-  .vu-darts-mode { max-width: 128px; font-size: 11px; }
-}
 
 .vu-darts-mode:focus-visible { outline: 2px solid var(--vu-accent); outline-offset: 3px; }
 .vu-darts-mode:disabled { cursor: default; }
-.vu-darts-mode-info { position: absolute; left: 58px; top: 188px; width: 280px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; padding: 18px; border-radius: 8px 32px 8px 8px; background: var(--vu-surface); color: var(--vu-text); pointer-events: auto; }
-.vu-darts-mode-info h2 { margin: 0; font: 400 30px/1.2 var(--font-display); }
+.vu-darts-mode-info { position: absolute; left: 58px; top: 188px; width: 280px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; padding: 18px; border: 1px solid var(--vu-border); border-top: 4px solid var(--vu-accent); border-radius: 4px 24px 8px 8px; box-shadow: 4px 5px 0 color-mix(in srgb, var(--vu-accent) 16%, transparent); background: var(--vu-surface); color: var(--vu-text); pointer-events: auto; }
+.vu-darts-mode-info h2 { margin: 0; font: 400 24px/1.2 var(--font-display); color: var(--vu-accent); }
 .vu-darts-mode-info p { margin: 0; font: 400 15px/1.5 var(--font-body); }
 .vu-darts-mode-info button { align-self: flex-start; }
 
 /* Opening the rules never changes the board or score columns. */
 .vu-darts-mode-info { z-index: 2; }
 
-.vu-darts-mode > span { position: absolute; top: 8px; right: 10px; }
+.vu-darts-mode-caption { display: block; margin-bottom: 4px; font: 600 10px/1.2 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--vu-accent); }
+.vu-darts-mode-title { display: block; font: 600 13px/1.35 var(--font-body); }
+.vu-darts-mode-arrow { position: absolute; right: 12px; top: 50%; width: 28px; height: 28px; transform: translateY(-50%); border-radius: 50%; background: color-mix(in srgb, var(--vu-accent) 10%, var(--vu-surface)); }
+.vu-darts-mode-arrow::before { content: ''; position: absolute; left: 9px; top: 8px; width: 8px; height: 8px; border-right: 2px solid var(--vu-accent); border-bottom: 2px solid var(--vu-accent); transform: rotate(45deg); transition: transform 160ms ease, top 160ms ease; }
+.vu-darts-mode[aria-expanded='true'] .vu-darts-mode-arrow::before { top: 11px; transform: rotate(225deg); }
+.vu-darts-mode:hover:not(:disabled) { border-color: var(--vu-accent); }
+@media (prefers-reduced-motion: reduce) { .vu-darts-mode-arrow::before { transition: none; } }
 
 .vu-darts-target { margin-top: 12px; font: 600 18px/1.3 var(--font-mono); color: var(--vu-accent); overflow-wrap: anywhere; }
 .vu-darts-mode-picker { margin-top: 34px; grid-column: 1 / -1; width: min(700px, 100%); max-height: 640px; justify-self: center; overflow-y: auto; padding: 24px; border-radius: 8px 32px 8px 8px; background: var(--vu-surface); pointer-events: auto; }
