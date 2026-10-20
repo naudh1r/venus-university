@@ -316,9 +316,12 @@ Both guide overlays are inset from the board area to clear the dialogue. Their
 and the diagram's visible top rim; it is not a screen title. Control has no title. Walk
 away keeps a light background and red text, including while hovered or pressed.
 
-The turn button stays visible throughout the match. It shows your turn in progress,
+The turn button stays visible throughout the match. It shows **You’re playing**,
 the active girl's name while she plays, preparation status, or match complete. It
 is disabled in these states. **Change turn**, **My turn** and solo **Next round**
 become clickable only at the existing handover points, after dialogue has finished.
+Preparation status appears only on the turn button. Final win/draw/loss text uses
+the reserved status row above that button, without adding a footer below the guides.
+**Next time.** appears for a completed loss, never as the result of an interrupted match.
 The guide buttons sit below a separate gap. Back buttons have additional right and
 bottom clearance. Walk away uses the same offset paper shadow as the other game buttons.

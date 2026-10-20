@@ -39,5 +39,5 @@ export function dartsTurnLabel(phase: string, hasOpponents: boolean, playingName
   if (phase === 'partners') return `${playingName} is playing`
   if (phase === 'preparing') return 'Preparing next turn…'
   if (phase === 'finished') return 'Match complete'
-  return 'Your turn in progress'
+  return "You're playing"
 }
