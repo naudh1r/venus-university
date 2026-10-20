@@ -6,11 +6,12 @@
 .vu-minigame-veil[data-game='darts'] .vu-minigame-name { position: absolute; left: 58px; top: 34px; font: 400 44px var(--font-display); color: var(--vu-text); padding: 8px 22px; border-radius: 4px 28px 4px 4px; background: var(--vu-surface); }
 .vu-minigame-veil[data-game='darts'] .vu-minigame-foot { position: absolute; right: auto; bottom: auto; left: anchor(center, calc(100% - 285px)); top: calc(anchor(bottom, 34px) + 16px); position-anchor: --darts-score; transform: translateX(-50%); width: 390px; flex-direction: row; align-items: center; justify-content: center; gap: 10px; pointer-events: auto; }
 .vu-minigame-veil[data-game='darts'] .vu-minigame-next { position: absolute; left: 50%; bottom: 364px; pointer-events: auto; }
-.vu-darts { position: absolute; inset: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr) 390px; align-items: start; gap: 24px; padding: 34px 90px 350px 40px; color: var(--vu-text); pointer-events: none; }
+.vu-darts { position: absolute; inset: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr) 390px; grid-template-rows: minmax(0, 1fr); align-items: start; gap: 24px; padding: 0 90px 316px 40px; color: var(--vu-text); pointer-events: none; }
 .vu-darts-mode { position: absolute; z-index: 2; left: 58px; top: 120px; margin: 0; max-width: 230px; padding: 8px 28px 8px 14px; border-radius: 4px 16px 4px 4px; background: var(--vu-surface); color: var(--vu-text-muted); font: 500 12px/1.4 var(--font-mono); overflow-wrap: anywhere; border: 0; text-align: left; pointer-events: auto; cursor: pointer; }
-.vu-darts-stage { grid-column: 2; position: relative; width: 780px; aspect-ratio: 1; max-width: 100%; justify-self: center; margin-top: -79px; }
+/* Centre in the area above the native dialogue: 126px bottom + 232px box, less its 42px resting drop. */
+.vu-darts-stage { grid-column: 2; position: relative; width: 780px; aspect-ratio: 1; max-width: 100%; justify-self: center; align-self: center; }
 .vu-darts-stage > canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; touch-action: none; outline-offset: -40px; pointer-events: auto; }
-.vu-darts-score { grid-column: 3; anchor-name: --darts-score; position: relative; display: flex; flex-direction: column; gap: 0; min-width: 0; padding: 0 22px 14px; border-radius: 8px 36px 8px 8px; background: color-mix(in srgb, var(--vu-surface) 94%, transparent); pointer-events: auto; }
+.vu-darts-score { margin-top: 34px; grid-column: 3; anchor-name: --darts-score; position: relative; display: flex; flex-direction: column; gap: 0; min-width: 0; padding: 0 22px 14px; border-radius: 8px 36px 8px 8px; background: color-mix(in srgb, var(--vu-surface) 94%, transparent); pointer-events: auto; }
 .vu-darts-scorehead { margin: 0 -22px; padding: 14px 22px; border-radius: 8px 36px 0 0; background: var(--vu-accent); color: var(--vu-accent-ink); font: 600 14px var(--font-mono); }
 .vu-darts-label { margin-top: 10px; color: var(--vu-text-muted); font: 500 11px var(--font-mono); letter-spacing: .15em; }
 .vu-darts-balance { padding-bottom: 8px; font: 400 112px/1.05 var(--font-display); font-variant-numeric: tabular-nums; }
@@ -53,7 +54,7 @@
 .vu-darts-mode > span { position: absolute; top: 8px; right: 10px; }
 
 .vu-darts-target { margin-top: 12px; font: 600 18px/1.3 var(--font-mono); color: var(--vu-accent); overflow-wrap: anywhere; }
-.vu-darts-mode-picker { grid-column: 1 / -1; width: min(700px, 100%); max-height: 640px; justify-self: center; overflow-y: auto; padding: 24px; border-radius: 8px 32px 8px 8px; background: var(--vu-surface); pointer-events: auto; }
+.vu-darts-mode-picker { margin-top: 34px; grid-column: 1 / -1; width: min(700px, 100%); max-height: 640px; justify-self: center; overflow-y: auto; padding: 24px; border-radius: 8px 32px 8px 8px; background: var(--vu-surface); pointer-events: auto; }
 .vu-darts-mode-picker h2 { font: 400 28px var(--font-display); }
 .vu-darts-mode-picker > div { margin: 12px 0; }
 .vu-darts-mode-picker small { display: block; margin-top: 6px; color: var(--vu-text-muted); }
