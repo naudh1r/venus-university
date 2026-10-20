@@ -11,12 +11,12 @@
 /* Centre in the area above the native dialogue: 126px bottom + 232px box, less its 42px resting drop. */
 .vu-darts-stage { grid-column: 2; position: relative; width: 780px; aspect-ratio: 1; max-width: 100%; justify-self: center; align-self: center; }
 .vu-darts-stage > canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; touch-action: none; outline-offset: -40px; pointer-events: auto; }
-.vu-darts-score { margin-top: 34px; grid-column: 3; anchor-name: --darts-score; position: relative; display: flex; flex-direction: column; gap: 0; min-width: 0; padding: 0 22px 14px; border-radius: 8px 36px 8px 8px; background: color-mix(in srgb, var(--vu-surface) 94%, transparent); pointer-events: auto; }
+.vu-darts-score { margin-top: 34px; grid-column: 3; anchor-name: --darts-score; position: relative; display: flex; flex-direction: column; gap: 0; min-width: 0; padding: 0 22px 24px; border-radius: 8px 36px 8px 8px; background: color-mix(in srgb, var(--vu-surface) 94%, transparent); pointer-events: auto; }
 .vu-darts-scorehead { margin: 0 -22px; padding: 14px 22px; border-radius: 8px 36px 0 0; background: var(--vu-accent); color: var(--vu-accent-ink); font: 600 14px var(--font-mono); }
 .vu-darts-label { margin-top: 10px; color: var(--vu-text-muted); font: 500 11px var(--font-mono); letter-spacing: .15em; }
 .vu-darts-balance { padding-bottom: 8px; font: 400 112px/1.05 var(--font-display); font-variant-numeric: tabular-nums; }
 .vu-darts-start { display: flex; justify-content: space-between; padding: 10px 0; border-block: 1px solid var(--vu-border); font: 500 12px var(--font-mono); }
-.vu-darts-results { margin: 8px 0; padding: 0; list-style: none; }
+.vu-darts-results { margin: 0 0 8px; padding: 0; list-style: none; }
 .vu-darts-results li { display: flex; align-items: center; gap: 12px; height: 34px; border-bottom: 1px solid var(--vu-border); font: 500 13px var(--font-mono); }
 .vu-darts-results li > :first-child { color: var(--vu-text-muted); }
 .vu-darts-results strong { margin-left: auto; font-size: 20px; }
