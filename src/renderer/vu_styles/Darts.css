@@ -4,7 +4,7 @@
 .vu-minigame-veil[data-game='darts'] .vu-minigame-surface::before,
 .vu-minigame-veil[data-game='darts'] .vu-minigame-surface::after { content: none; }
 .vu-minigame-veil[data-game='darts'] .vu-minigame-name { position: absolute; left: 58px; top: 34px; font: 400 44px var(--font-display); color: var(--vu-text); padding: 8px 22px; border-radius: 4px 28px 4px 4px; background: var(--vu-surface); }
-.vu-minigame-veil[data-game='darts'] .vu-minigame-foot { position: absolute; top: 36px; right: 60px; pointer-events: auto; }
+.vu-minigame-veil[data-game='darts'] .vu-minigame-foot { position: absolute; top: auto; right: auto; bottom: 36px; left: 58px; flex-direction: column; align-items: flex-start; gap: 8px; pointer-events: auto; }
 .vu-minigame-veil[data-game='darts'] .vu-minigame-next { position: absolute; left: 50%; bottom: 364px; pointer-events: auto; }
 .vu-darts { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0, 1fr) 390px; align-items: start; gap: 36px; padding: 90px 90px 350px 40px; color: var(--vu-text); pointer-events: none; }
 .vu-darts-mode { position: absolute; z-index: 2; left: 58px; top: 120px; margin: 0; max-width: 230px; padding: 8px 28px 8px 14px; border-radius: 4px 16px 4px 4px; background: var(--vu-surface); color: var(--vu-text-muted); font: 500 12px/1.4 var(--font-mono); overflow-wrap: anywhere; border: 0; text-align: left; pointer-events: auto; cursor: pointer; }
