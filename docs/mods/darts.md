@@ -312,6 +312,13 @@ Reloading also hides it again. This visual debug flag does not change game rules
 NPC skills or other mini-games. The visible report button keeps its normal copy action.
 
 Both guide overlays are inset from the board area to clear the dialogue. Their
-**Back to the board** button sits at the bottom right. **SECTOR 20** is the Score
-Guide's heading above the diagram, rather than text drawn over the board. Walk
+**Back to the board** button sits at the bottom right. **SECTOR 20** labels the sample sector, centred vertically between the overlay's top
+and the diagram's visible top rim; it is not a screen title. Control has no title. Walk
 away keeps a light background and red text, including while hovered or pressed.
+
+The turn button stays visible throughout the match. It shows your turn in progress,
+the active girl's name while she plays, preparation status, or match complete. It
+is disabled in these states. **Change turn**, **My turn** and solo **Next round**
+become clickable only at the existing handover points, after dialogue has finished.
+The guide buttons sit below a separate gap. Back buttons have additional right and
+bottom clearance. Walk away uses the same offset paper shadow as the other game buttons.

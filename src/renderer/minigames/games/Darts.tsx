@@ -4,7 +4,7 @@ import { gestures, lift, press, useAway, useReducedMotion, useEffectsGain, type 
 import { aimEllipse, movingDot, scoreHit, traitsFor, applySessionPlan, newSession, planNpcVisit, sessionSummary, sessionThrow, type Ellipse, type Flight, type Impact, type Point, type DartsMode, type DartsSession, type SessionPlanItem } from '@shared/minigameRules/darts'
 import { Board } from './dartsBoard'
 import { DartsAudio } from './dartsAudio'
-import { DartsControlGuide } from './DartsHelp'
+import { DartsControlGuide, DartsSectorLabel, dartsTurnLabel } from './DartsHelp'
 import '../../vu_styles/Darts.css'
 
 type Phase = 'player' | 'preparing' | 'handover' | 'partners' | 'my-turn' | 'finished'
@@ -326,6 +326,8 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
   }, [guide])
 
   const live = sessionSummary(session), activeName = live.done ? '' : seatName(session, live.currentSeatId)
+  const turnReady = !busy && ['handover', 'my-turn'].includes(phase)
+  const turnLabel = dartsTurnLabel(phase, opponents.length > 0, seatName(session, shownVisit?.seatId ?? live.currentSeatId))
   const modeTitle = session.mode === 'rival' ? '301 Rival Match' : opponents.length ? 'Co-op Beat the House' : 'Solo Beat the House'
   const modeDescription = session.mode === 'rival'
     ? `Each player starts at 301 with a separate balance. You each get 3 visits of up to 3 darts. Reach exactly 0 to win. Otherwise, the lowest balance wins; equal lowest balances tie.`
@@ -346,7 +348,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
         onPointerDown={(event) => { if (event.button !== 0) return; event.preventDefault(); event.currentTarget.focus(); aim.current = board.current!.point(event); begin(event.pointerId); if (hold.current) event.currentTarget.setPointerCapture(event.pointerId) }}
         onPointerUp={(event) => { if (hold.current?.pointer === event.pointerId) release() }} onBlur={() => { hold.current = null }} onPointerCancel={() => { hold.current = null }} onLostPointerCapture={() => { hold.current = null }}
       />
-      <AnimatePresence>{guide && <motion.div key={guide} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : .18 }} className="vu-darts-guide" onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setGuide(false) } }}><h2 className="vu-darts-guide-title">{guide === 'score' ? 'SECTOR 20' : 'Control'}</h2><div className="vu-darts-guide-content">{guide === 'score' ? <canvas ref={guideCanvas} width={1400} height={1400} aria-label="Single, double, triple; outer bull 25, inner bull 50." /> : <DartsControlGuide />}</div><motion.button autoFocus type="button" className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(false, lift, press)} onClick={() => setGuide(false)}>Back to the board</motion.button></motion.div>}</AnimatePresence>
+      <AnimatePresence>{guide && <motion.div key={guide} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : .18 }} className="vu-darts-guide" onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setGuide(false) } }}>{guide === 'score' && <DartsSectorLabel />}<div className="vu-darts-guide-content">{guide === 'score' ? <canvas ref={guideCanvas} width={1400} height={1400} aria-label="Single, double, triple; outer bull 25, inner bull 50." /> : <DartsControlGuide />}</div><motion.button autoFocus type="button" className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(false, lift, press)} onClick={() => setGuide(false)}>Back to the board</motion.button></motion.div>}</AnimatePresence>
       {phase === 'finished' && live.outcome === 'won' && <motion.div className="vu-darts-celebration" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><span>{session.mode === 'house' ? 'HOUSE BEATEN' : 'MATCH WON'}</span><strong>{session.mode === 'house' && opponents.length ? 'Together.' : 'Bullseye.'}</strong></motion.div>}
     </div>
     <aside className="vu-darts-score" aria-label="Match score">
@@ -357,7 +359,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
       <div className="vu-darts-contributions">{session.seats.map((seat) => <span key={seat.id}>{seat.name.toUpperCase()} <strong>{session.mode === 'house' ? pointsOf(visible, seat.id) : state.balances[seat.id]}</strong></span>)}</div>
       <p className="vu-darts-status" aria-live="polite">{status === 'Your turn' ? '' : status}</p>
       <div className="vu-darts-controls">
-        {['handover', 'my-turn'].includes(phase) && <motion.button type="button" disabled={busy} className="vu-darts-turn vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { if (busy) return; setGuide(false); if (phase === 'handover') partnersTurn(); else { setModeInfo(false); latest.current.play.moved(); collectDarts(sessionSummary(latest.current.session).visit); setPhase('player'); setStatus('Your turn'); pending.current = null } }}>{phase === 'handover' ? 'Change turn' : opponents.length ? 'My turn' : 'Next round'}</motion.button>}
+        <motion.button type="button" disabled={!turnReady} className="vu-darts-turn vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(!turnReady, lift, press)} onClick={() => { if (!turnReady) return; setGuide(false); if (phase === 'handover') partnersTurn(); else { setModeInfo(false); latest.current.play.moved(); collectDarts(sessionSummary(latest.current.session).visit); setPhase('player'); setStatus('Your turn'); pending.current = null } }}>{turnLabel}</motion.button>
         <motion.button type="button" disabled={busy} className="vu-btn vu-btn--outline vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { setModeInfo(false); setGuide(value => value === 'score' ? false : 'score') }}>Score Guide</motion.button>
         <motion.button type="button" disabled={busy} className="vu-btn vu-btn--outline vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { hold.current = null; setModeInfo(false); setGuide(value => value === 'control' ? false : 'control') }}>Control</motion.button>
       </div>

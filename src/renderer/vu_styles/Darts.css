@@ -27,10 +27,11 @@
 .vu-darts-status { min-height: 30px; margin: 8px 0; color: var(--vu-text-body); font: 500 14px/1.4 var(--font-body); }
 .vu-darts-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: auto; }
 .vu-darts-controls > button { min-width: 0; padding-inline: 10px; font-size: 16px; text-align: center; justify-content: center; }
-.vu-darts-controls > .vu-darts-turn { grid-column: 1 / -1; }
+.vu-darts-controls > .vu-darts-turn { grid-column: 1 / -1; margin-bottom: 20px; min-height: 52px; }
+.vu-darts-controls > .vu-darts-turn:disabled { opacity: 1; cursor: default; color: var(--vu-text-muted); --paper-face: var(--vu-surface); --paper-border: 2px solid var(--vu-border); }
 .vu-darts-ending { margin: 8px 0 0; color: var(--vu-accent); font: 400 24px var(--font-display); }
-.vu-darts-guide { position: absolute; inset: 16px 24px 58px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; padding: 16px; pointer-events: auto; border-radius: 24px; background: color-mix(in srgb, var(--vu-surface) 75%, transparent); backdrop-filter: blur(8px); }
-.vu-darts-guide-title { margin: 0; text-align: center; color: var(--vu-accent); font: 700 18px/1.3 var(--font-mono); }
+.vu-darts-guide { position: absolute; inset: 16px 24px 58px; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 16px; padding: 28px 40px 32px; pointer-events: auto; border-radius: 24px; background: color-mix(in srgb, var(--vu-surface) 75%, transparent); backdrop-filter: blur(8px); }
+.vu-darts-sector-label { position: absolute; left: 50%; transform: translate(-50%, -50%); white-space: nowrap; color: var(--vu-accent); font: 700 18px/1.3 var(--font-mono); }
 .vu-darts-guide-content { min-width: 0; min-height: 0; display: grid; place-items: center; }
 .vu-darts-guide canvas { display: block; width: 100%; height: 100%; min-height: 0; object-fit: contain; pointer-events: none; }
 .vu-darts-guide > button { justify-self: end; align-self: end; position: relative; font-size: 16px; }
@@ -70,8 +71,14 @@
 .vu-darts-score--extra .vu-darts-start { gap: 10px; flex-wrap: wrap; }
 
 /* Darts owns the visual treatment of the framework's existing leave/report controls. */
-.vu-minigame-veil[data-game='darts'] #minigame-walk { display: flex; justify-content: center; align-items: center; width: 100%; padding: 12px 18px; border: 2px solid var(--vu-accent); border-radius: 4px 24px 4px 4px; background: #fff8ef !important; color: var(--vu-accent) !important; font: 700 16px var(--font-body); box-shadow: 4px 5px 0 color-mix(in srgb, var(--vu-accent) 25%, transparent); }
-.vu-minigame-veil[data-game='darts'] #minigame-walk:hover:not(:disabled) { box-shadow: 4px 5px 0 color-mix(in srgb, var(--vu-accent) 45%, transparent); }
+/* Match the design system's layered outline button, without changing the host component. */
+.vu-minigame-veil[data-game='darts'] #minigame-walk { --paper-offset: 8px 7px; --paper-tilt: -2deg; --paper-face: #fff8ef; --paper-border: 3.5px solid var(--vu-accent); --paper-shadow: var(--vu-shadow); position: relative; isolation: isolate; display: flex; justify-content: center; align-items: center; width: 100%; padding: 14px 24px; border: 0; border-radius: 0 999px 999px 0; background: transparent !important; color: var(--vu-accent) !important; font: 800 16px var(--font-body); transform-origin: left center; }
+.vu-minigame-veil[data-game='darts'] #minigame-walk::before,
+.vu-minigame-veil[data-game='darts'] #minigame-walk::after { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--paper-face); border: var(--paper-border); }
+.vu-minigame-veil[data-game='darts'] #minigame-walk::before { z-index: -2; background: var(--paper-shadow); translate: var(--paper-offset); rotate: var(--paper-tilt); }
+.vu-minigame-veil[data-game='darts'] #minigame-walk:hover:not(:disabled) { --paper-offset: 12px 10px; --paper-tilt: 1deg; }
+.vu-minigame-veil[data-game='darts'] #minigame-walk:active:not(:disabled) { --paper-offset: 0px 0px; }
+.vu-minigame-veil[data-game='darts'] #minigame-walk:disabled::before { display: none; }
 html:not([data-darts-debug='true']) .vu-minigame-veil[data-game='darts'] #minigame-report { display: none; }
 .vu-darts-scorehead { position: relative; min-height: 48px; padding-right: 22px; display: flex; align-items: center; }
 .vu-darts-control-help { position: relative; margin: auto; width: min(460px, 100%); padding: 24px; border-radius: 8px 28px 8px 8px; background: var(--vu-surface); color: var(--vu-text); }

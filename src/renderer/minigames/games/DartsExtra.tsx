@@ -4,7 +4,7 @@ import { gestures, lift, press, useAway, useReducedMotion, useEffectsGain, type 
 import { aimEllipse, movingDot, scoreHit, traitsFor, newExtraMatch, extraSummary, extraThrow, planExtraVisit, applyExtraPlan, extraSituation, extraTargetLabel, extraDescription, EXTRA_MODE_TITLES, type Ellipse, type Flight, type Impact, type Point, type ExtraDartsMode, type ExtraDartsMatch, type ExtraPlanItem } from '@shared/minigameRules/darts'
 import { Board } from './dartsBoard'
 import { DartsAudio } from './dartsAudio'
-import { DartsControlGuide } from './DartsHelp'
+import { DartsControlGuide, DartsSectorLabel, dartsTurnLabel } from './DartsHelp'
 import '../../vu_styles/Darts.css'
 
 type Phase = 'player' | 'preparing' | 'handover' | 'partners' | 'my-turn' | 'finished'
@@ -312,6 +312,8 @@ export function DartsExtra({ play }: { play: GamePlay }): JSX.Element {
   }, [guide])
 
   const live = extraSummary(session), activeName = live.done ? '' : seatName(session, live.currentSeatId)
+  const turnReady = !busy && ['handover', 'my-turn'].includes(phase)
+  const turnLabel = dartsTurnLabel(phase, opponents.length > 0, seatName(session, shownVisit?.seatId ?? live.currentSeatId))
   const modeTitle = EXTRA_MODE_TITLES[session.mode]
   const modeDescription = extraDescription(session)
   useEffect(() => {
@@ -332,7 +334,7 @@ export function DartsExtra({ play }: { play: GamePlay }): JSX.Element {
         onPointerDown={(event) => { if (event.button !== 0) return; event.preventDefault(); event.currentTarget.focus(); aim.current = board.current!.point(event); begin(event.pointerId); if (hold.current) event.currentTarget.setPointerCapture(event.pointerId) }}
         onPointerUp={(event) => { if (hold.current?.pointer === event.pointerId) release() }} onBlur={() => { hold.current = null }} onPointerCancel={() => { hold.current = null }} onLostPointerCapture={() => { hold.current = null }}
       />
-      <AnimatePresence>{guide && <motion.div key={guide} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : .18 }} className="vu-darts-guide" onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setGuide(false) } }}><h2 className="vu-darts-guide-title">{guide === 'score' ? 'SECTOR 20' : 'Control'}</h2><div className="vu-darts-guide-content">{guide === 'score' ? <canvas ref={guideCanvas} width={1400} height={1400} aria-label="Single, double, triple; outer bull 25, inner bull 50." /> : <DartsControlGuide />}</div><motion.button autoFocus type="button" className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(false, lift, press)} onClick={() => setGuide(false)}>Back to the board</motion.button></motion.div>}</AnimatePresence>
+      <AnimatePresence>{guide && <motion.div key={guide} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : .18 }} className="vu-darts-guide" onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setGuide(false) } }}>{guide === 'score' && <DartsSectorLabel />}<div className="vu-darts-guide-content">{guide === 'score' ? <canvas ref={guideCanvas} width={1400} height={1400} aria-label="Single, double, triple; outer bull 25, inner bull 50." /> : <DartsControlGuide />}</div><motion.button autoFocus type="button" className="vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(false, lift, press)} onClick={() => setGuide(false)}>Back to the board</motion.button></motion.div>}</AnimatePresence>
       {phase === 'finished' && live.outcome === 'won' && <motion.div className="vu-darts-celebration" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><span>{'MATCH WON'}</span><strong>{'Well played.'}</strong></motion.div>}
     </div>
     <aside className="vu-darts-score vu-darts-score--extra" aria-label="Match score">
@@ -344,7 +346,7 @@ export function DartsExtra({ play }: { play: GamePlay }): JSX.Element {
       <div className="vu-darts-contributions">{mode === 'girls-team' ? <><span>YOU <strong>{state.balances.reader}</strong></span><span>GIRLS TEAM <strong>{state.girlsBalance}</strong></span></> : session.seats.map(seat => <span key={seat.id}>{seat.name.toUpperCase()} <strong>{state.points[seat.id]}</strong></span>)}</div>
       <p className="vu-darts-status" aria-live="polite">{status === 'Your turn' ? '' : status}</p>
       <div className="vu-darts-controls">
-        {['handover', 'my-turn'].includes(phase) && <motion.button type="button" disabled={busy} className="vu-darts-turn vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { if (busy) return; setGuide(false); if (phase === 'handover') partnersTurn(); else { setModeInfo(false); latest.current.play.moved(); collectDarts(extraSummary(latest.current.session).visit); setPhase('player'); setStatus('Your turn'); pending.current = null } }}>{phase === 'handover' ? 'Change turn' : opponents.length ? 'My turn' : 'Next round'}</motion.button>}
+        <motion.button type="button" disabled={!turnReady} className="vu-darts-turn vu-btn vu-btn--primary vu-paper vu-btn--panel" {...gestures(!turnReady, lift, press)} onClick={() => { if (!turnReady) return; setGuide(false); if (phase === 'handover') partnersTurn(); else { setModeInfo(false); latest.current.play.moved(); collectDarts(extraSummary(latest.current.session).visit); setPhase('player'); setStatus('Your turn'); pending.current = null } }}>{turnLabel}</motion.button>
         <motion.button type="button" disabled={busy} className="vu-btn vu-btn--outline vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { setModeInfo(false); setGuide(value => value === 'score' ? false : 'score') }}>Score Guide</motion.button>
         <motion.button type="button" disabled={busy} className="vu-btn vu-btn--outline vu-paper vu-btn--panel" {...gestures(busy, lift, press)} onClick={() => { hold.current = null; setModeInfo(false); setGuide(value => value === 'control' ? false : 'control') }}>Control</motion.button>
       </div>
