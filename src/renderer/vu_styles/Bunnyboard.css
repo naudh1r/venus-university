@@ -528,6 +528,12 @@
   color: var(--vu-accent-ink);
 }
 
+/* A message a mod draws bare: what was sent, with no bubble behind it. */
+.vu-bb-bubble--bare {
+  padding: 0 2px;
+  background: transparent;
+}
+
 /* What the app says about the conversation rather than anything either of them said: centred,
    in the bookkeeping voice, and carrying no tail — nobody spoke it. */
 .vu-bb-bubble--system {
@@ -1166,3 +1172,51 @@
 /* Extra mod pages share a compact rail with the native destinations. */
 .vu-bb-rail--expanded { gap: 10px; }
 .vu-bb-rail--expanded .vu-bb-tile { min-height: 0; padding-block: 12px; }
+
+/* The Updates tab's titles, while a mod adds a page beside the feed: one per page in a row, each
+   a button, the one showing drawn as the screen's title and the rest faded back. */
+.vu-bb-updates-head {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  gap: 24px;
+  margin-bottom: 12px;
+}
+
+.vu-bb-updates-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 44px;
+}
+
+.vu-bb-updates-head .vu-bb-title {
+  margin-bottom: 0;
+}
+
+.vu-bb-title-tab {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+
+.vu-bb-title-tab--off {
+  color: var(--vu-text-muted);
+}
+
+.vu-bb-title-tab--off::before {
+  opacity: 0.4;
+}
+
+/* What the page showing offers over its own list, at the row's far end. */
+.vu-bb-updates-action {
+  align-self: center;
+  margin-left: auto;
+}
+
+/* Its count rides the blob's far corner, clear of the word's first letter. */
+.vu-bb-title-tab .vu-tile-badge {
+  top: -18px;
+  right: -28px;
+  left: auto;
+}

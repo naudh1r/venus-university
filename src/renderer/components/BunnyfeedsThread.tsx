@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { create } from 'zustand'
 import { motion } from 'motion/react'
-import { hashString } from '@shared/hash'
 import { shownComments, type PostComment } from '@shared/postComments'
 import { fullNameOf } from '@shared/types'
 import { isFeedContact } from '../stores/feedView'
@@ -10,21 +9,30 @@ import { profileUrl, useSpriteVersion } from '../stores/characterStore'
 import { useGameStore } from '../stores/gameStore'
 import { leavePlayerComment } from '../stores/bunnyfeedsThreads'
 import { epilogueOf, sceneActiveOf } from '../stores/textingLoop'
-import type { PostCommentsProps } from '../mods/hooks'
+import { sentText, type PostCommentsProps } from '../mods/hooks'
 import { fadeIn, gestures, lift, press, quietLift, quietPress } from '../views/motion'
 import { CloseIcon, HeartIcon } from '../views/screenIcons'
 import { formatShortGameDate, slotHalf } from '../prompts/gameDate'
 import { PostPicture } from './PostSpots'
+import { FollowerFace } from './BunnyfeedsFaces'
 import { armFeedThreads } from '../stores/bunnyfeedsThreads'
 import { takeCommented } from '../stores/bunnyfeedsVisit'
+import { EmojiTool, SentText } from './TextSpots'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import '../vu_styles/PopList.css'
 import '../vu_styles/Bunnyfeeds.css'
 
+/** A post's full view, and the comment in it to scroll to, if any. */
+interface OpenPost {
+  charId: string
+  postId: string
+  commentId?: string
+}
+
 /** The post whose full view is open, if any; one at a time across the whole feed. */
-const usePostView = create<{
-  open: { charId: string; postId: string } | null
-  show: (open: { charId: string; postId: string } | null) => void
+export const usePostView = create<{
+  open: OpenPost | null
+  show: (open: OpenPost | null) => void
 }>((set) => ({ open: null, show: (open) => set({ open }) }))
 
 // The phone closing takes the post view with it, so it is not waiting there next time.
@@ -137,6 +145,22 @@ export function CommentPill(props: PostCommentsProps): JSX.Element | null {
   )
 }
 
+/** The open post's full view, for a screen that lists posts without drawing them. */
+export function PostViewHost(): JSX.Element | null {
+  const open = usePostView((s) => s.open)
+  const info = useGameStore((s) => (open ? s.charInfo[open.charId] : undefined))
+  const post = info?.feed?.find((one) => one.id === open?.postId)
+  if (!open || !post) return null
+  return (
+    <PostView
+      comments={post.comments ?? []}
+      charId={open.charId}
+      postId={open.postId}
+      stranger={!isFeedContact(info)}
+    />
+  )
+}
+
 /** The speech bubble the comment count wears, drawn like the heart beside it. */
 function BubbleIcon(): JSX.Element {
   return (
@@ -153,6 +177,7 @@ function BubbleIcon(): JSX.Element {
 function PostView(props: PostCommentsProps & { charId: string; postId: string }): JSX.Element | null {
   const { charId, postId } = props
   const show = usePostView((s) => s.show)
+  const focusId = usePostView((s) => s.open?.commentId)
   const character = useGameStore((s) => s.characters[charId])
   const handle = useGameStore((s) => s.charInfo[charId]?.handle)
   const post = useGameStore((s) => s.charInfo[charId]?.feed?.find((one) => one.id === postId))
@@ -206,7 +231,7 @@ function PostView(props: PostCommentsProps & { charId: string; postId: string })
       </div>
       <div className="vu-bb-postview-body">
         <div className="vu-bb-postview-who">
-          <RosterFace charId={charId} />
+          <RosterFace charId={charId} size="md" />
           <div>
             <div className="vu-bb-postview-name">{fullNameOf(character)}</div>
             <div className="vu-bb-postview-meta">
@@ -215,7 +240,9 @@ function PostView(props: PostCommentsProps & { charId: string; postId: string })
             </div>
           </div>
         </div>
-        <p className="vu-bb-post-text">{post.text}</p>
+        <p className="vu-bb-post-text">
+          <SentText text={post.text} />
+        </p>
         <PostPicture charId={charId} postId={postId} />
         <div className="vu-bb-post-actions">
           <motion.button
@@ -234,6 +261,7 @@ function PostView(props: PostCommentsProps & { charId: string; postId: string })
           posterId={charId}
           postId={postId}
           canComment={canComment}
+          focusId={focusId}
           replying={replying}
           setReplying={setReplying}
         />
@@ -291,6 +319,7 @@ function Thread({
   posterId,
   postId,
   canComment,
+  focusId,
   replying,
   setReplying
 }: {
@@ -298,15 +327,22 @@ function Thread({
   posterId: string
   postId: string
   canComment: boolean
+  /** The comment the view opened on, its thread unfolded and scrolled to. */
+  focusId?: string
   /** The reply whose box is open, which the post view holds. */
   replying: Replying | null
   setReplying: (replying: Replying | null) => void
 }): JSX.Element | null {
   const said = useShown(comments)
-  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set())
+  const { roots, repliesTo } = grouped(said)
+  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(() => {
+    const root = roots.find(
+      (one) => one.id === focusId || repliesTo.get(one.id)?.some((reply) => reply.id === focusId)
+    )
+    return new Set(root ? [root.id] : [])
+  })
   const reader = useReaderHandle()
   if (said.length === 0) return null
-  const { roots, repliesTo } = grouped(said)
   const byId = new Map(said.map((one) => [one.id, one]))
   // Whom a reply answers, named by the game off its target: his own carry the @ he typed.
   const toOf = (one: PostComment): string | undefined => {
@@ -324,6 +360,7 @@ function Thread({
           <li className="vu-bf-comment-group" key={root.id}>
             <CommentRow
               comment={root}
+              focused={root.id === focusId}
               onReply={canComment ? () => setReplying({ root, to: root }) : undefined}
             />
             {replies.length > 0 && !open && (
@@ -343,6 +380,7 @@ function Thread({
                     <CommentRow
                       comment={one}
                       to={toOf(one)}
+                      focused={one.id === focusId}
                       onReply={
                         canComment && !one.player
                           ? () => setReplying({ root, to: one })
@@ -378,41 +416,41 @@ function Thread({
 function CommentRow({
   comment,
   to,
+  focused,
   onReply
 }: {
   comment: PostComment
   /** Whom it answers, leading the line. */
   to?: string
+  /** The comment the post view opened on: scrolled into view and marked. */
+  focused?: boolean
   onReply?: () => void
 }): JSX.Element {
   const reader = useReaderHandle()
+  const row = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (focused) row.current?.scrollIntoView({ block: 'center' })
+  }, [focused])
   return (
-    <div className="vu-bf-comment">
-      {comment.charId ? (
-        <RosterFace charId={comment.charId} />
-      ) : comment.player ? (
-        <PlayerFace />
-      ) : (
-        <span
-          className="vu-bf-comment-face"
-          style={{ '--vu-face-hue': hashString(comment.handle) % 360 } as CSSProperties}
-          aria-hidden
-        >
-          {comment.emoji}
-        </span>
-      )}
+    <div ref={row} className={`vu-bf-comment${focused ? ' vu-bf-comment--focus' : ''}`}>
+      <CommentFace comment={comment} />
       <span className="vu-bf-comment-said">
         <span className="vu-bf-comment-who vu-bf-comment-who--over">
           {comment.player ? reader : `@${comment.handle}`}
         </span>
         {to && <span className="vu-bf-comment-mention">{to} </span>}
-        {comment.text.split(/(@[\w.]+)/).map((part, i) =>
-          i % 2 === 1 ? (
-            <span key={i} className="vu-bf-comment-mention">
-              {part}
-            </span>
-          ) : (
-            part
+        {/* A comment of nothing but a few emoji is drawn whole, big where a mod draws it so. */}
+        {sentText()?.bare?.(comment.text) ? (
+          <SentText text={comment.text} />
+        ) : (
+          comment.text.split(/(@[\w.]+)/).map((part, i) =>
+            i % 2 === 1 ? (
+              <span key={i} className="vu-bf-comment-mention">
+                {part}
+              </span>
+            ) : (
+              <SentText key={i} text={part} big={false} />
+            )
           )
         )}
         {onReply && (
@@ -437,27 +475,61 @@ function useReaderHandle(): string {
   return handle ? `@${handle}` : 'you'
 }
 
+/** How large a face is drawn: a comment's, or a heading's and a notification's. */
+type FaceSize = 'sm' | 'md'
+
+/**
+ * The archway every face on the feed stands in, at its size: ringed in the accent at a list's
+ * size, plain at a comment's, where a column of rings would crowd the thread.
+ */
+function archOf(size: FaceSize, kind?: 'follower' | 'player'): string {
+  const ring = size === 'md' ? ' vu-bb-face--ring' : ''
+  return `vu-arch vu-bb-face${ring} vu-bf-face vu-bf-face--${size}${kind ? ` vu-bf-face--${kind}` : ''}`
+}
+
 /** The reader's own picture from his Profile tab, or the word "you" while he has none. */
-function PlayerFace(): JSX.Element {
+function PlayerFace({ size = 'sm' }: { size?: FaceSize }): JSX.Element {
   const picture = useGameStore((s) => s.profilePicture)
   return picture ? (
-    <span className="vu-bf-comment-face vu-bf-comment-face--roster" aria-hidden>
-      <img src={picture} alt="" />
+    <span className={archOf(size)} aria-hidden>
+      <span className="vu-crop">
+        <img className="vu-crop-img" src={picture} alt="" />
+      </span>
     </span>
   ) : (
-    <span className="vu-bf-comment-face vu-bf-comment-face--player" aria-hidden>
+    <span className={archOf(size, 'player')} aria-hidden>
       you
     </span>
   )
 }
 
-/** A roster girl's profile picture in the disc a stranger's emoji sits in. */
-function RosterFace({ charId }: { charId: string }): JSX.Element {
+/** A roster girl's profile picture in her archway. */
+export function RosterFace({ charId, size = 'sm' }: { charId: string; size?: FaceSize }): JSX.Element {
   const version = useSpriteVersion(charId)
   return (
-    <span className="vu-bf-comment-face vu-bf-comment-face--roster" aria-hidden>
-      <img src={profileUrl(charId, version)} alt="" />
+    <span className={archOf(size)} aria-hidden>
+      <span className="vu-crop">
+        <img className="vu-crop-img" src={profileUrl(charId, version)} alt="" />
+      </span>
     </span>
+  )
+}
+
+/**
+ * Whoever wrote a comment, in an archway: a roster girl's picture, the reader's, or a follower's
+ * face drawn off her handle.
+ */
+export function CommentFace({
+  comment,
+  size = 'sm'
+}: {
+  comment: Pick<PostComment, 'charId' | 'player' | 'handle'>
+  size?: FaceSize
+}): JSX.Element {
+  if (comment.charId) return <RosterFace charId={comment.charId} size={size} />
+  if (comment.player) return <PlayerFace size={size} />
+  return (
+    <FollowerFace handle={comment.handle} className={archOf(size, 'follower')} />
   )
 }
 
@@ -544,6 +616,18 @@ function CommentField({
     requestAnimationFrame(() => input.current?.setSelectionRange(before.length, before.length))
   }
 
+  // An emoji goes in at the caret, which then stands after it.
+  const addEmoji = (emoji: string): void => {
+    const box = input.current
+    const start = Math.min(box?.selectionStart ?? draft.length, draft.length)
+    const end = Math.min(box?.selectionEnd ?? start, draft.length)
+    const next = draft.slice(0, start) + emoji + draft.slice(end)
+    setDraft(next)
+    setCaret(start + emoji.length)
+    setDismissed(true)
+    requestAnimationFrame(() => box?.setSelectionRange(start + emoji.length, start + emoji.length))
+  }
+
   const send = (): void => {
     if (!draft.trim()) return
     // The contact a reply opened addressed to counts as tagged, as one picked from the list does.
@@ -617,6 +701,7 @@ function CommentField({
             else send()
           }}
         />
+        <EmojiTool onPick={addEmoji} />
         {/* Enter sends too; this is the way for whoever reaches for the mouse. */}
         <motion.button
           type="button"

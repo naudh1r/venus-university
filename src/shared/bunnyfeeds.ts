@@ -15,6 +15,8 @@ declare module './postComments' {
     charId?: string
     /** The reader wrote it. */
     player?: true
+    /** A reply to the reader he marked read in Notifications, or opened from there. */
+    read?: true
     /** The comment it answers; absent for one left on the post itself. */
     replyTo?: string
     /** The contacts the reader tagged in it, each of whom answers it. */
@@ -23,6 +25,14 @@ declare module './postComments' {
 }
 
 declare module './types' {
+  interface BunnyboardState {
+    /**
+     * Every reply to the reader up to this global slot counts as read: set by "Mark all as read",
+     * and to the slot a game is entered in when a save has none, so replies from before
+     * Notifications existed start read.
+     */
+    feedReadThrough?: number
+  }
   interface SocialPost {
     /** The last global slot whose comments the thread call answered (`threadWork`). */
     threadedThrough?: number
@@ -124,4 +134,46 @@ export function carriedThread(post: SocialPost, days: number): SocialPost {
       ? { heldMemories: post.heldMemories.map((memory) => ({ ...memory, at: memory.at - back })) }
       : {})
   }
+}
+
+/** Who answered the reader: the poster under her own post, or anybody else. */
+export type FeedNoteKind = 'poster' | 'reply'
+
+/** One reply to the reader, under one of her posts. */
+export interface FeedNote {
+  posterId: string
+  postId: string
+  comment: PostComment
+  kind: FeedNoteKind
+}
+
+/**
+ * Every reply to one of the reader's comments that has arrived by global slot `now`, newest
+ * first: under each post, a comment answering one of his, named for who wrote it.
+ */
+export function feedNotes(
+  posts: ReadonlyArray<{ posterId: string; post: SocialPost }>,
+  now: number
+): FeedNote[] {
+  const notes = posts.flatMap(({ posterId, post }) => {
+    const said = (post.comments ?? []).filter((one) => one.at <= now)
+    const his = new Map(said.filter((one) => one.player).map((one) => [one.id, one]))
+    return said.flatMap((one): FeedNote[] => {
+      const target = one.replyTo && !one.player ? his.get(one.replyTo) : undefined
+      if (!target) return []
+      const kind: FeedNoteKind = one.charId === posterId ? 'poster' : 'reply'
+      return [{ posterId, postId: post.id, comment: one, kind }]
+    })
+  })
+  return notes.sort((a, b) => b.comment.at - a.comment.at)
+}
+
+/** Whether he has yet to read a reply: neither marked read nor older than "Mark all as read". */
+export function feedNoteUnread(note: FeedNote, readThrough: number | undefined): boolean {
+  return !note.comment.read && note.comment.at > (readThrough ?? Number.NEGATIVE_INFINITY)
+}
+
+/** How many of `notes` he has yet to read. */
+export function unreadFeedNotes(notes: readonly FeedNote[], readThrough: number | undefined): number {
+  return notes.filter((note) => feedNoteUnread(note, readThrough)).length
 }
