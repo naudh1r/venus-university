@@ -9,17 +9,25 @@ import {
   ownsPostComments,
   postVisible,
   registerHooks,
+  type OptionPreviewProps,
   type PostCommentsProps
 } from '../mods/hooks'
 import {
+  crowdBlock,
   replierBlock,
   slotCommentLines,
   slotCommentsField
 } from '../prompts/bunnyfeedsPrompt'
-import { repliersFor, rollFeedComments, writtenComments } from '../stores/bunnyfeedsReplies'
+import {
+  planSlotCrowds,
+  repliersFor,
+  rollFeedComments,
+  writtenComments
+} from '../stores/bunnyfeedsReplies'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { fileDueFeedMemories } from '../stores/bunnyfeedsMemory'
 import { takeCommented } from '../stores/bunnyfeedsVisit'
+import { settleFeedReadMark, unreadFeedNotesOf } from '../stores/bunnyfeedsNotes'
 import { useGameStore } from '../stores/gameStore'
 
 // Loaded on first draw, so registering the mod pulls in no screen code.
@@ -27,6 +35,33 @@ const screens = (): Promise<typeof import('../components/BunnyfeedsThread')> =>
   import('../components/BunnyfeedsThread')
 const LazyPreview = lazy(() => screens().then((module) => ({ default: module.FeedPreview })))
 const LazyPill = lazy(() => screens().then((module) => ({ default: module.CommentPill })))
+const notifications = (): Promise<typeof import('../components/BunnyfeedsNotifications')> =>
+  import('../components/BunnyfeedsNotifications')
+const LazyNotes = lazy(() =>
+  notifications().then((module) => ({ default: module.FeedNotificationsPage }))
+)
+const LazyMarkAll = lazy(() =>
+  notifications().then((module) => ({ default: module.MarkAllFeedNotes }))
+)
+
+/** Notifications, drawn once its code has loaded. */
+function FeedNotificationsView(): ReturnType<typeof createElement> {
+  return createElement(Suspense, { fallback: null }, createElement(LazyNotes))
+}
+
+const LazyFaces = lazy(() =>
+  import('../components/BunnyfeedsFaces').then((module) => ({ default: module.FacesPreview }))
+)
+
+/** The faces option's preview on the Mods screen, drawn once its code has loaded. */
+function FacesPreviewView(props: OptionPreviewProps): ReturnType<typeof createElement> {
+  return createElement(Suspense, { fallback: null }, createElement(LazyFaces, props))
+}
+
+/** Mark all as read, over Notifications, drawn once its code has loaded. */
+function MarkAllView(): ReturnType<typeof createElement> {
+  return createElement(Suspense, { fallback: null }, createElement(LazyMarkAll))
+}
 
 /** The thread's preview under a post, drawn once its code has loaded. */
 function FeedPreviewView(props: PostCommentsProps): ReturnType<typeof createElement> {
@@ -57,11 +92,15 @@ function recentPostLines(characters: readonly Character[]): string[] {
       `${name}'s latest feed posts, which everyone can see:`,
       ...posts.flatMap((post) => {
         const said = shownComments(post.comments, date, time)
-        const his = said.filter((one) => one.player)
-        const hisIds = new Set(his.map((one) => one.id))
         const hers = said.filter(
-          (one) => one.charId === character.charId && one.replyTo && hisIds.has(one.replyTo)
+          (one) =>
+            one.charId === character.charId &&
+            said.some((his) => his.player && his.id === one.replyTo)
         )
+        // Only what she has answered where everyone can see: a comment still waiting on her
+        // answer is one she has not read yet, in texts or in person either.
+        const answered = new Set(hers.map((one) => one.replyTo))
+        const his = said.filter((one) => one.player && answered.has(one.id))
         return [
           `- ${formatShortGameDate(post.date, calendar.season)}: "${post.text}"`,
           ...his.map((one) => `  The reader commented: "${one.text}"`),
@@ -105,13 +144,32 @@ registerHooks(BUNNYFEEDS, {
   requests: {
     'slot-intro': (request, { input }) => {
       const { npcRelationships } = useGameStore.getState()
-      const block = replierBlock(
+      const repliers = replierBlock(
         input.posters.map(({ character }) => ({
           character,
           charKey: charKeyOf(character.firstName, character.lastName),
           repliers: repliersFor(character.charId, npcRelationships)
         }))
       )
+      // How many reply under each post, rolled now so the call writes those and no more.
+      const planned = writesComments()
+        ? planSlotCrowds(input.posters.map(({ character }) => character.charId))
+        : new Map<string, { words: number; picture: number }>()
+      const crowd = crowdBlock(
+        input.posters.flatMap(({ character }) => {
+          const plan = planned.get(character.charId)
+          return plan
+            ? [
+                {
+                  name: character.firstName,
+                  charKey: charKeyOf(character.firstName, character.lastName),
+                  ...plan
+                }
+              ]
+            : []
+        })
+      )
+      const block = [...repliers, ...(repliers.length > 0 && crowd.length > 0 ? [''] : []), ...crowd]
       if (block.length === 0) return request
       const at = request.user.lastIndexOf('YOUR TURN')
       const text = [...block, ''].join('\n')
@@ -152,8 +210,21 @@ registerHooks(BUNNYFEEDS, {
     claims: (comment) => Boolean(comment.player || comment.charId || comment.replyTo)
   },
 
+  // What each choice of followers' faces looks like, under the choice on the Mods screen.
+  optionPreviews: { faces: FacesPreviewView },
+
+  // Every reply to his comments, beside the feed in Updates, counting what he has not seen.
+  updatesTab: {
+    id: 'notifications',
+    word: 'Notifications',
+    Page: FeedNotificationsView,
+    Action: MarkAllView,
+    unread: unreadFeedNotesOf
+  },
+
   gameEntered: () => {
     takeCommented()
+    settleFeedReadMark()
     void threads().then((module) => module.resetFeedThreads())
   }
 })

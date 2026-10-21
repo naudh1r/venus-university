@@ -6,8 +6,13 @@ import {
   type HeldFeedMemory,
   type ThreadWork
 } from '@shared/bunnyfeeds'
+import {
+  ADDRESSED_FOLLOWER_CHANCE,
+  ADDRESSED_GIRL_CHANCE,
+  followerChance,
+  followingOf
+} from '@shared/bunnyfeedsCrowd'
 import { globalSlotOf } from '@shared/jobs'
-import { areNpcFriends } from '@shared/npcRelationships'
 import type { PostComment } from '@shared/postComments'
 import {
   charKeyOf,
@@ -29,7 +34,7 @@ import {
 import { SETTING } from '../prompts/setting'
 import { hasTexted } from '../prompts/textingPrompt'
 import { markCommented } from './bunnyfeedsVisit'
-import { repliersFor, type Replier } from './bunnyfeedsReplies'
+import { joiningFriendOf, replierOf, type Replier } from './bunnyfeedsReplies'
 import { fileDueFeedMemories, holdFeedMemories } from './bunnyfeedsMemory'
 import { useGameStore } from './gameStore'
 import { useGrabBagStore } from './grabBagStore'
@@ -47,9 +52,6 @@ const MAX_THREADS = 8
 
 const MEMORY_TYPES: readonly MemoryType[] = ['loved', 'liked', 'disliked', 'hated']
 
-/** The most comments anybody but the poster adds under one post in a call. */
-const MAX_CROWD_REACTIONS = 2
-
 /** The reader's own name on a comment he left. */
 const PLAYER_HANDLE = 'you'
 
@@ -58,6 +60,18 @@ interface Owed {
   charId: string
   post: SocialPost
   work: ThreadWork
+}
+
+/** Who besides the poster the game let into one post's round, so the filing holds to it. */
+interface Joiners {
+  /** Roster girls: the friend the roll offered, girls he tagged, girls answering him back. */
+  girls: Set<string>
+  /** Whether one new follower may chime in. */
+  follower: boolean
+  /** Followers answering him back, by handle. */
+  followersBack: Set<string>
+  /** Girls he answered directly who let it go unanswered this round; each still remembers it. */
+  silent: Set<string>
 }
 
 /** Every post the thread call owes something to as of global slot `now`, the reader's first. */
@@ -75,27 +89,43 @@ function owedThreads(now: number): Owed[] {
     .slice(0, MAX_THREADS)
 }
 
-/** A post's repliers with every girl the reader tagged under it added, once each. */
-function withTagged(
-  repliers: Replier[],
-  comments: readonly PostComment[],
-  posterId: string
-): Replier[] {
-  const game = useGameStore.getState()
+/** A post's repliers with each girl in `charIds` added, once each and never the poster. */
+function withGirls(repliers: Replier[], charIds: readonly string[], posterId: string): Replier[] {
+  const { npcRelationships } = useGameStore.getState()
   const listed = new Set(repliers.map(({ character }) => character.charId))
   const added: Replier[] = []
-  for (const tagged of comments.flatMap((one) => one.tags ?? [])) {
-    const character = game.characters[tagged]
-    if (!character || tagged === posterId || listed.has(tagged)) continue
-    listed.add(tagged)
-    added.push({
-      character,
-      charKey: charKeyOf(character.firstName, character.lastName),
-      friend: areNpcFriends(game.npcRelationships, posterId, tagged),
-      info: game.charInfo[tagged]
-    })
+  for (const charId of charIds) {
+    if (charId === posterId || listed.has(charId)) continue
+    const replier = replierOf(charId, posterId, npcRelationships)
+    if (!replier) continue
+    listed.add(charId)
+    added.push(replier)
   }
   return [...repliers, ...added]
+}
+
+/**
+ * Whom each of the reader's comments answers directly, other than the poster: the author of the
+ * comment it went under, and anybody whose handle he wrote in it. A roster girl by her id, a
+ * follower by handle.
+ */
+function addressedBy(
+  mine: PostComment,
+  shown: readonly PostComment[],
+  posterId: string
+): Array<{ charId?: string; handle: string }> {
+  const others = shown.filter((one) => !one.player && one.charId !== posterId)
+  const under = others.find((one) => one.id === mine.replyTo)
+  const named = others.filter((one) =>
+    new RegExp(`(^|\\s)@${one.handle.replace(/\./g, '\\.')}(?![\\w.])`).test(mine.text)
+  )
+  const seen = new Set<string>()
+  return [...(under ? [under] : []), ...named].flatMap((one) => {
+    const key = one.charId ?? `@${one.handle}`
+    if (seen.has(key)) return []
+    seen.add(key)
+    return [{ ...(one.charId ? { charId: one.charId } : {}), handle: one.handle }]
+  })
 }
 
 /** Who said a comment, worded for the thread block. */
@@ -103,7 +133,7 @@ function whoSaid(comment: PostComment, posterId: string): string {
   const game = useGameStore.getState()
   if (comment.player) return 'the reader'
   const character = comment.charId ? game.characters[comment.charId] : undefined
-  if (!character) return `@${comment.handle} (a stranger)`
+  if (!character) return `@${comment.handle} (a follower)`
   const key = charKeyOf(character.firstName, character.lastName)
   return comment.charId === posterId
     ? `${character.firstName} (the poster)`
@@ -160,6 +190,7 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
   const refOf = new Map<string, string>()
   // And the posts themselves, for a new comment left on one rather than under a comment.
   const postByRef = new Map<string, Owed>()
+  const joiners = new Map<string, Joiners>()
   const threads: FeedThread[] = []
   for (const entry of owed) {
     const { charId, post, work } = entry
@@ -174,6 +205,48 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
       byRef.set(ref, { owed: entry, comment })
       refOf.set(comment.id, ref)
     }
+    // Who joins this round besides her: rolled here, so the model is told who rather than handed
+    // a crowd. A thread winding down hears only from the girls he tagged.
+    const open = work.player.length > 0 && !work.windingDown
+    const tagged = work.player.flatMap((one) => (one.tags ?? []).filter((id) => id !== charId))
+    const friend = open ? joiningFriendOf(charId, game.npcRelationships) : null
+    const answersBack: Array<{ ref: string; who: string }> = []
+    const girlsBack: string[] = []
+    const silent: Array<{ ref: string; charId: string }> = []
+    const followersBack = new Set<string>()
+    for (const mine of open ? work.player : []) {
+      for (const target of addressedBy(mine, shown, charId)) {
+        if (target.charId) {
+          const girl = game.characters[target.charId]
+          if (!girl || tagged.includes(target.charId) || girlsBack.includes(target.charId)) continue
+          if (silent.some((one) => one.charId === target.charId)) continue
+          if (Math.random() >= ADDRESSED_GIRL_CHANCE) {
+            silent.push({ ref: refOf.get(mine.id) ?? '', charId: target.charId })
+            continue
+          }
+          girlsBack.push(target.charId)
+          answersBack.push({
+            ref: refOf.get(mine.id) ?? '',
+            who: `${girl.firstName} ("${charKeyOf(girl.firstName, girl.lastName)}")`
+          })
+        } else {
+          if (followersBack.has(target.handle) || Math.random() >= ADDRESSED_FOLLOWER_CHANCE) continue
+          followersBack.add(target.handle)
+          answersBack.push({ ref: refOf.get(mine.id) ?? '', who: `@${target.handle}` })
+        }
+      }
+    }
+    const follower =
+      open &&
+      Math.random() < followerChance(followingOf(game.playthroughId, charId, character))
+    const repliers = withGirls(friend ? [friend] : [], [...tagged, ...girlsBack], charId)
+    joiners.set(post.id, {
+      girls: new Set(repliers.map(({ character: girl }) => girl.charId)),
+      follower,
+      followersBack,
+      silent: new Set(silent.map((one) => one.charId))
+    })
+
     const lines: ThreadLine[] = shown.map((comment) => ({
       ref: refOf.get(comment.id) ?? '',
       who: whoSaid(comment, charId),
@@ -199,13 +272,13 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
       mayAnswer: work.others.map((one) => refOf.get(one.id) ?? ''),
       mayAnswerCount: work.othersLeft,
       ...(work.windingDown ? { windingDown: true } : {}),
-      repliers: withTagged(
-        work.player.length > 0 && !work.windingDown
-          ? repliersFor(charId, game.npcRelationships)
-          : [],
-        work.player,
-        charId
-      ),
+      repliers,
+      follower,
+      answersBack,
+      silent: silent.flatMap(({ ref, charId: girlId }) => {
+        const replier = replierOf(girlId, charId, game.npcRelationships)
+        return replier ? [{ ref, replier }] : []
+      }),
       tagged: work.player.flatMap((one) =>
         (one.tags ?? []).flatMap((tagged) => {
           const girl = game.characters[tagged]
@@ -236,7 +309,7 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
   try {
     const reply = await send(request, run)
     if (runStale(run) || !reply) return
-    fileReplies(reply, owed, byRef, postByRef, now, showAt === 'next' ? now + 1 : now)
+    fileReplies(reply, owed, byRef, postByRef, joiners, now, showAt === 'next' ? now + 1 : now)
   } catch (err) {
     console.warn('[feed] no thread replies:', messageOf(err))
   } finally {
@@ -252,28 +325,30 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
 
 /**
  * Files what the call wrote: the poster answers only what her post owed and no more of other
- * people's than her cap allows; anybody else adds a few, to anyone in the thread or to the post.
+ * people's than her cap allows; anybody else only where the round let them in (`joiners`), a
+ * few at most, to anyone in the thread or to the post.
  */
 function fileReplies(
   reply: FeedThreadsResponse,
   owed: readonly Owed[],
   byRef: ReadonlyMap<string, { owed: Owed; comment: PostComment }>,
   postByRef: ReadonlyMap<string, Owed>,
+  joiners: ReadonlyMap<string, Joiners>,
   now: number,
   shownAt: number
 ): void {
   const game = useGameStore.getState()
   const filed = new Map<string, PostComment[]>()
-  // Girls who know him, other than the poster, who answered him here; each keeps a memory too.
+  // Girls other than the poster who answered him here, met or not; each keeps a memory too.
   const answeredHim = new Set<string>()
   // Whose post each girl's memory happened under: the first post she was owed or answered on.
   const posterOf = new Map<string, string>()
   const capLeft = new Map<string, number>(owed.map(({ post, work }) => [post.id, work.othersLeft]))
-  // Everybody but the poster: a few reactions a post, to anybody in the thread or to the post.
-  const crowdLeft = new Map<string, number>(owed.map(({ post }) => [post.id, MAX_CROWD_REACTIONS]))
-  // A thread winding down hears only from the girls he tagged.
-  const taggedOn = new Map<string, Set<string>>(
-    owed.map(({ post, work }) => [post.id, new Set(work.player.flatMap((one) => one.tags ?? []))])
+  // Everybody but the poster says one thing a post a round, by girl or by follower's handle.
+  const spoke = new Set<string>()
+  // One new follower a post at most, where the round let one in.
+  const followerLeft = new Map<string, boolean>(
+    owed.map(({ post }) => [post.id, joiners.get(post.id)?.follower ?? false])
   )
   const owedIds = new Set(
     owed.flatMap(({ work }) => [...work.player, ...work.others].map((one) => one.id))
@@ -288,8 +363,18 @@ function fileReplies(
     const entry = target?.owed ?? (onPost as Owed)
     const comment = target?.comment
     const posterId = entry.charId
-    const fromId = one.from?.trim() ? game.charKeyToId[one.from.trim()] : undefined
-    if (one.from?.trim() && !fromId) console.warn(`[feed] thread reply from unknown key "${one.from}"`)
+    const from = one.from?.trim() ?? ''
+    const fromId = from && !from.startsWith('@') ? game.charKeyToId[from] : undefined
+    if (from && !from.startsWith('@') && !fromId) {
+      console.warn(`[feed] thread reply from unknown key "${one.from}"`)
+    }
+    // A follower answering him back is named by her handle, and keeps the face she had.
+    const back = from.startsWith('@')
+      ? (entry.post.comments ?? []).find(
+          (said) => !said.charId && !said.player && said.handle === from.slice(1)
+        )
+      : undefined
+    const letIn = joiners.get(entry.post.id)
 
     if (fromId === posterId) {
       // She answers what is owed under her own post; she does not comment on it.
@@ -300,12 +385,19 @@ function fileReplies(
         capLeft.set(entry.post.id, left - 1)
       }
     } else {
-      // Nobody answers themselves, and the crowd stops at its few.
+      // Nobody answers themselves, only who the round let in speaks, and each of them once.
       if (comment && fromId && comment.charId === fromId) continue
-      if (entry.work.windingDown && !(fromId && taggedOn.get(entry.post.id)?.has(fromId))) continue
-      const left = crowdLeft.get(entry.post.id) ?? 0
-      if (left <= 0) continue
-      crowdLeft.set(entry.post.id, left - 1)
+      const speaker = `${entry.post.id}:${fromId ?? back?.handle ?? ''}`
+      if (fromId) {
+        if (!letIn?.girls.has(fromId) || spoke.has(speaker)) continue
+      } else if (from.startsWith('@')) {
+        if (!back || !letIn?.followersBack.has(back.handle) || comment?.handle === back.handle) continue
+        if (spoke.has(speaker)) continue
+      } else {
+        if (!followerLeft.get(entry.post.id)) continue
+        followerLeft.set(entry.post.id, false)
+      }
+      if (fromId || back) spoke.add(speaker)
     }
 
     const list = filed.get(entry.post.id) ?? []
@@ -322,8 +414,11 @@ function fileReplies(
           }
         : {
             id: crypto.randomUUID(),
-            handle: strangerHandle(),
-            emoji: useGrabBagStore.getState().drawMany(FEED_EMOJI_BAG, FEED_EMOJI, 1)[0] ?? FEED_EMOJI[0],
+            handle: back?.handle ?? strangerHandle(),
+            emoji:
+              back?.emoji ??
+              useGrabBagStore.getState().drawMany(FEED_EMOJI_BAG, FEED_EMOJI, 1)[0] ??
+              FEED_EMOJI[0],
             text,
             ...(comment ? { replyTo: comment.id } : {}),
             at: shownAt
@@ -335,8 +430,7 @@ function fileReplies(
       comment?.player &&
       fromId &&
       fromId !== posterId &&
-      known &&
-      (known.nameKnown || known.memories.length > 0)
+      known
     ) {
       answeredHim.add(fromId)
       if (!posterOf.has(fromId)) posterOf.set(fromId, posterId)
@@ -352,16 +446,25 @@ function fileReplies(
   for (const { charId, work } of owed) {
     if (work.player.length > 0) posterOf.set(charId, charId)
   }
+  // Girls he answered who stayed quiet saw it all the same, so they remember it too.
+  const sawHim = owed.flatMap(({ charId: posterId, post }) =>
+    [...(joiners.get(post.id)?.silent ?? [])].filter((girl) => {
+      if (answeredHim.has(girl)) return false
+      if (!posterOf.has(girl)) posterOf.set(girl, posterId)
+      return true
+    })
+  )
   const commentedOn = new Set([
     ...owed.filter(({ work }) => work.player.length > 0).map((o) => o.charId),
-    ...answeredHim
+    ...answeredHim,
+    ...sawHim
   ])
   const remembered: string[] = []
   const held: HeldFeedMemory[] = []
   for (const memory of reply.memories ?? []) {
     const charId = game.charKeyToId[memory.char?.trim() ?? '']
     const type = MEMORY_TYPES.find((one) => one === memory.type)
-    const desc = memory.desc?.trim()
+    const desc = memory.desc?.trim().replace(SAID_WHERE, '')
     if (!charId || !commentedOn.has(charId) || !type || !desc) continue
     // One a call: a girl met under two posts keeps what the first of them left her.
     commentedOn.delete(charId)
@@ -380,6 +483,13 @@ function fileReplies(
       (remembered.length > 0 ? `memory for ${remembered.join(', ')}` : 'no memory')
   )
 }
+
+/**
+ * Where it happened, said at the end of a memory although the call is told the game adds that
+ * itself: "under her post", "on Ami's post", "in her comments". Taken off, so it is said once.
+ */
+const SAID_WHERE =
+  /,?\s+(?:under|on|in|beneath)\s+(?:her|his|their|my|a|the|[\p{L}'’.-]+(?:'s|’s))\s+(?:own\s+)?(?:post|feed|comments?|comment section|thread)\s*\.?$/iu
 
 /** A stranger's handle off the shared bag, so the four thousand do not repeat too soon. */
 function strangerHandle(): string {
