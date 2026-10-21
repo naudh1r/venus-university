@@ -305,6 +305,15 @@
   font: 600 14px var(--font-body);
 }
 
+/* What the picked option looks like, drawn by the mod under its group, on the recessed ground a
+   sample sits on. */
+.vu-mods-group-preview {
+  margin: 4px 0 2px 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--vu-recessed);
+}
+
 /* What the two words on every row mean, once, under the list. */
 .vu-mods-legend {
   color: var(--vu-text-muted);
