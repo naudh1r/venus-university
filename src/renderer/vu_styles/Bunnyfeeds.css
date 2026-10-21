@@ -15,34 +15,82 @@
 }
 
 /* One reply, read the way a feed's are: a face, then the name and what they said running on in
-   one line. The text carries the card's own colour — a whole reply greyed out reads as a note
-   about the post rather than as somebody talking under it. */
+   one line, the face centred on the words beside it. The text carries the card's own colour — a
+   whole reply greyed out reads as a note about the post rather than as somebody talking under it. */
 .vu-bf-comment {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   color: var(--vu-text);
   font: 500 13.5px/1.45 var(--font-body);
 }
 
-/* The four thousand have no faces, so their emoji stands in for one — in a disc, which is what
-   makes it read as somebody rather than as a bullet. The tint is theirs: taken from the handle,
-   so one stranger keeps the same face wherever she turns up. */
-.vu-bf-comment-face {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  background: oklch(0.72 0.07 var(--vu-face-hue, 0) / 0.35);
-  font-size: 15px;
-  line-height: 1;
+/* Every face on the feed is an archway: a heading's and a notification's at the list size and
+   ringed in the accent, as a person is in any list; a comment's small and plain. */
+.vu-bf-face--sm {
+  width: 28px;
+  height: 34px;
+}
+
+.vu-bf-face--md {
+  width: 50px;
+  height: 59px;
+}
+
+/* A follower has no face, so one is drawn off her handle in the style the Mods screen picked: her
+   colours on a wash of the first, all from the theme's roles so night redraws them. */
+.vu-bf-face--follower {
+  overflow: hidden;
+  background: color-mix(in oklab, var(--bf-ink-1) 18%, var(--vu-surface));
+}
+
+.vu-bf-face--follower svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.vu-bf-ink1 {
+  fill: var(--bf-ink-1);
+}
+
+.vu-bf-ink2 {
+  fill: var(--bf-ink-2);
+}
+
+.vu-bf-ink3 {
+  fill: var(--bf-ink-3);
+}
+
+/* Blobs and shapes sit a little into the wash, so a face reads as one picture. */
+.vu-bf-face--gradient .vu-bf-ink1,
+.vu-bf-face--gradient .vu-bf-ink2 {
+  opacity: 0.9;
+}
+
+.vu-bf-face--shapes [class^='vu-bf-ink'] {
+  opacity: 0.85;
+}
+
+.vu-bf-face--monogram text {
+  font: 400 26px var(--font-display);
+}
+
+/* The faces group's preview on the Mods screen: a few followers, each at list and comment size. */
+.vu-bf-faces-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+}
+
+.vu-bf-faces-sample {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
 }
 
 .vu-bf-comment-said {
   min-width: 0;
-  padding-top: 5px;
   overflow-wrap: anywhere;
 }
 
@@ -56,18 +104,6 @@
 }
 
 
-/* A roster girl has a face of her own: her profile picture fills the disc, cropped to her head. */
-.vu-bf-comment-face--roster {
-  overflow: hidden;
-  background: var(--vu-surface);
-}
-
-.vu-bf-comment-face--roster img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center top;
-}
 
 /* ---- threads and the reader's own word ------------------------------------ */
 
@@ -98,8 +134,10 @@
   margin: 0 0 2px;
 }
 
-/* The reader has no picture on the feed, so his disc carries the word instead, in the accent. */
-.vu-bf-comment-face--player {
+/* The reader without a picture: his archway carries the word instead, in the accent. */
+.vu-bf-face--player {
+  display: grid;
+  place-items: center;
   background: color-mix(in oklab, var(--vu-accent) 30%, transparent);
   color: var(--vu-text);
   font: 700 10px var(--font-mono);
@@ -146,7 +184,7 @@
   flex: 1;
   min-width: 0;
   width: 100%;
-  padding: 9px 18px;
+  padding: 13.5px 18px;
   border-radius: 999px;
   font-size: 13.5px;
 }
@@ -199,14 +237,14 @@
   background: color-mix(in srgb, var(--vu-accent-shadow) 78%, transparent);
 }
 
-/* The post itself: a rounded sheet, as tall as it needs and no taller than the screen. */
+/* The post itself: a rounded sheet, as tall as it needs and no taller than the screen. Nothing
+   in it is clipped, so the well's emoji panel can stand past its top edge. */
 .vu-bb-postview {
   display: flex;
   flex-direction: column;
   width: min(760px, 100%);
   max-height: 100%;
   border-radius: 32px;
-  overflow: hidden;
   background: var(--vu-surface);
 }
 
@@ -250,11 +288,6 @@
   gap: 12px;
 }
 
-.vu-bb-postview-who .vu-bf-comment-face {
-  width: 44px;
-  height: 44px;
-}
-
 .vu-bb-postview-name {
   color: var(--vu-text);
   font: 700 16px var(--font-body);
@@ -288,3 +321,74 @@
 .vu-bb-postview .vu-bf-comment .vu-bf-comment-reply:focus-visible {
   display: inline;
 }
+
+/* The comment the post view opened on, from Notifications: washed in the accent so the eye lands. */
+.vu-bf-comment--focus {
+  margin: -5px -8px;
+  padding: 5px 8px;
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--vu-accent) 14%, transparent);
+}
+
+/* ---- Notifications ------------------------------------------------------------ */
+
+/* One reply to him: a chat row, its face the girl's disc or a stranger's emoji. A reply he has not
+   read yet wears the accent border an open thread does, and its Mark as read after the date. The
+   row gives its padding to its two controls, so every pixel of it belongs to one or the other. */
+.vu-bf-note {
+  gap: 0;
+  padding: 0;
+  border: 2.5px solid transparent;
+  background: var(--vu-surface);
+}
+
+.vu-bf-note-hit {
+  display: flex;
+  flex: 1;
+  align-self: stretch;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 12px 18px 12px 28px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.vu-bf-note-read {
+  flex: none;
+  align-self: stretch;
+  padding: 0 22px 0 4px;
+}
+
+.vu-bf-note--new {
+  border-color: var(--vu-accent);
+}
+
+/* What happened, in the body's ink, over what she said in the preview's muted one. */
+.vu-bf-note-what {
+  overflow: hidden;
+  color: var(--vu-text-body);
+  font: 500 13px var(--font-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A day of replies: its heading, then its rows. */
+.vu-bf-notes-day {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vu-bf-notes-day + .vu-bf-notes-day {
+  margin-top: 8px;
+}
+
+.vu-bf-notes-day .vu-bb-section {
+  margin: 0 0 0 8px;
+}
+
+
