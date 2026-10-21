@@ -38,6 +38,20 @@ const mod: ModDef = {
       hint: 'A few overlapping shapes.',
       default: false,
       group: 'faces'
+    },
+    {
+      id: 'faces-monogram',
+      label: 'Monogram',
+      hint: 'The first letter of her handle.',
+      default: false,
+      group: 'faces'
+    },
+    {
+      id: 'faces-mixed',
+      label: 'Mixed',
+      hint: 'Each student gets one of the styles above, and keeps it.',
+      default: false,
+      group: 'faces'
     }
   ],
   optionGroups: [

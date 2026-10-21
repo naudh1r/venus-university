@@ -14,6 +14,7 @@ import {
 import { formatNumericGameDate, slotHalf } from '../prompts/gameDate'
 import { dealt, gestures, quietLift, quietPress, rowLift, rowPress, slideInQuick } from '../views/motion'
 import { CommentFace, PostViewHost, usePostView } from './BunnyfeedsThread'
+import { EmojiText } from './EmojiText'
 import '../vu_styles/Bunnyfeeds.css'
 
 /** The rows dealing themselves out, as every list on the phone does. */
@@ -154,7 +155,9 @@ function NoteRow({ note, unread }: { note: FeedNote; unread: boolean }): JSX.Ele
             <span className="vu-bf-comment-who">@{comment.handle}</span>
           </span>
           <span className="vu-bf-note-what">{what}</span>
-          <span className="vu-bb-preview">{comment.text}</span>
+          <span className="vu-bb-preview">
+            <EmojiText text={comment.text} big={false} />
+          </span>
         </span>
         <span className="vu-bb-stamp">{slotHalf(slotFromId(comment.at).time)}</span>
       </button>

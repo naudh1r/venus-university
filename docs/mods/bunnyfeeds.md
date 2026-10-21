@@ -100,10 +100,15 @@ on them, from any mod that puts one there, get threads like any other post.
 - **Who comments, reworked**: only her friends join on their own, rolled each time (a friend you
   share most often), anybody else only where you tag her; tagging her enemy reads as such; the
   people you answer directly answer back; strangers are her followers, with a public feed's
-  whole range of tones; and a girl who replies to you remembers it even before you meet.
+  whole range of tones; and a girl who replies to you, or whom you answer and who stays quiet,
+  remembers it even before you meet.
 - **Faces**: every face is an archway, ringed in the accent at list size and plain in comments;
-  other students get a face drawn off their handle in place of an emoji, Gradient, Identicon or
-  Shapes, chosen in the Mods screen with a preview.
+  other students get a face drawn off their handle in place of an emoji, Gradient, Identicon,
+  Shapes, Monogram or Mixed (one of the four per student, kept), chosen in the Mods screen with
+  a preview.
+- **Emoji**: the comment well has the game's emoji panel, every emoji in tabs with search, the
+  ones you used last first and one skin tone for every hand and person; emoji in posts and
+  comments stand a size up from the words, and a comment of nothing but a few is drawn big.
 - **Notifications**: a page beside the feed in Updates listing every answer to your comments, with
   an unread count on its title and on the rail, each opening its post at the reply, and Mark as
   read on each one or all at once. No AI calls.

@@ -523,6 +523,12 @@
   color: var(--vu-accent-ink);
 }
 
+/* A message of nothing but a few emoji: the emoji themselves, with no bubble behind them. */
+.vu-bb-bubble--emoji {
+  padding: 0 2px;
+  background: transparent;
+}
+
 /* What the app says about the conversation rather than anything either of them said: centred,
    in the bookkeeping voice, and carrying no tail — nobody spoke it. */
 .vu-bb-bubble--system {
@@ -578,36 +584,20 @@
 .vu-bb-input {
   flex: 1;
   min-width: 0;
-  padding: 14px 24px;
+  padding: 12.5px 24px;
   border-radius: 999px 0 0 999px;
   font-size: 15px;
 }
 
 /* The well grows upward as the messages above it move out of the way, up to four lines, instead
-   of scrolling sideways. `field-sizing: content` sizes it with nothing manually measured; 33px is
-   `.vu-bb-input`'s 14px padding and `.vu-input`'s 2.5px border, doubled. */
+   of scrolling sideways. `field-sizing: content` sizes it with nothing manually measured; 30px is
+   `.vu-bb-input`'s 12.5px padding and `.vu-input`'s 2.5px border, doubled. */
 .vu-bb-input--multiline.vu-input {
   display: block;
-  max-height: calc(4lh + 33px);
+  max-height: calc(4lh + 30px);
   overflow: hidden auto;
   field-sizing: content;
   resize: none;
-}
-
-/* One tap each, and present and dead exactly when the field is. */
-.vu-bb-emoji {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.vu-bb-emoji-btn {
-  padding: 5px 12px;
-  border: 0;
-  border-radius: 14px;
-  background: var(--vu-recessed);
-  font: 400 20px var(--font-body);
-  line-height: 1.2;
 }
 
 /* What the thread offers instead of a composer: an invitation, a retry, or a bot's two buttons —

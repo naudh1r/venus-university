@@ -70,6 +70,8 @@ interface Joiners {
   follower: boolean
   /** Followers answering him back, by handle. */
   followersBack: Set<string>
+  /** Girls he answered directly who let it go unanswered this round; each still remembers it. */
+  silent: Set<string>
 }
 
 /** Every post the thread call owes something to as of global slot `now`, the reader's first. */
@@ -210,13 +212,18 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
     const friend = open ? joiningFriendOf(charId, game.npcRelationships) : null
     const answersBack: Array<{ ref: string; who: string }> = []
     const girlsBack: string[] = []
+    const silent: Array<{ ref: string; charId: string }> = []
     const followersBack = new Set<string>()
     for (const mine of open ? work.player : []) {
       for (const target of addressedBy(mine, shown, charId)) {
         if (target.charId) {
           const girl = game.characters[target.charId]
           if (!girl || tagged.includes(target.charId) || girlsBack.includes(target.charId)) continue
-          if (Math.random() >= ADDRESSED_GIRL_CHANCE) continue
+          if (silent.some((one) => one.charId === target.charId)) continue
+          if (Math.random() >= ADDRESSED_GIRL_CHANCE) {
+            silent.push({ ref: refOf.get(mine.id) ?? '', charId: target.charId })
+            continue
+          }
           girlsBack.push(target.charId)
           answersBack.push({
             ref: refOf.get(mine.id) ?? '',
@@ -236,7 +243,8 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
     joiners.set(post.id, {
       girls: new Set(repliers.map(({ character: girl }) => girl.charId)),
       follower,
-      followersBack
+      followersBack,
+      silent: new Set(silent.map((one) => one.charId))
     })
 
     const lines: ThreadLine[] = shown.map((comment) => ({
@@ -267,6 +275,10 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
       repliers,
       follower,
       answersBack,
+      silent: silent.flatMap(({ ref, charId: girlId }) => {
+        const replier = replierOf(girlId, charId, game.npcRelationships)
+        return replier ? [{ ref, replier }] : []
+      }),
       tagged: work.player.flatMap((one) =>
         (one.tags ?? []).flatMap((tagged) => {
           const girl = game.characters[tagged]
@@ -434,9 +446,18 @@ function fileReplies(
   for (const { charId, work } of owed) {
     if (work.player.length > 0) posterOf.set(charId, charId)
   }
+  // Girls he answered who stayed quiet saw it all the same, so they remember it too.
+  const sawHim = owed.flatMap(({ charId: posterId, post }) =>
+    [...(joiners.get(post.id)?.silent ?? [])].filter((girl) => {
+      if (answeredHim.has(girl)) return false
+      if (!posterOf.has(girl)) posterOf.set(girl, posterId)
+      return true
+    })
+  )
   const commentedOn = new Set([
     ...owed.filter(({ work }) => work.player.length > 0).map((o) => o.charId),
-    ...answeredHim
+    ...answeredHim,
+    ...sawHim
   ])
   const remembered: string[] = []
   const held: HeldFeedMemory[] = []

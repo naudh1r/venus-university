@@ -17,6 +17,8 @@ import { PostPicture } from './PostSpots'
 import { FollowerFace } from './BunnyfeedsFaces'
 import { armFeedThreads } from '../stores/bunnyfeedsThreads'
 import { takeCommented } from '../stores/bunnyfeedsVisit'
+import { EmojiButton } from './EmojiPicker'
+import { EmojiText, emojiOnly } from './EmojiText'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import '../vu_styles/PopList.css'
 import '../vu_styles/Bunnyfeeds.css'
@@ -239,7 +241,9 @@ function PostView(props: PostCommentsProps & { charId: string; postId: string })
             </div>
           </div>
         </div>
-        <p className="vu-bb-post-text">{post.text}</p>
+        <p className="vu-bb-post-text">
+          <EmojiText text={post.text} />
+        </p>
         <PostPicture charId={charId} postId={postId} />
         <div className="vu-bb-post-actions">
           <motion.button
@@ -436,13 +440,17 @@ function CommentRow({
           {comment.player ? reader : `@${comment.handle}`}
         </span>
         {to && <span className="vu-bf-comment-mention">{to} </span>}
-        {comment.text.split(/(@[\w.]+)/).map((part, i) =>
-          i % 2 === 1 ? (
-            <span key={i} className="vu-bf-comment-mention">
-              {part}
-            </span>
-          ) : (
-            part
+        {emojiOnly(comment.text) ? (
+          <EmojiText text={comment.text} />
+        ) : (
+          comment.text.split(/(@[\w.]+)/).map((part, i) =>
+            i % 2 === 1 ? (
+              <span key={i} className="vu-bf-comment-mention">
+                {part}
+              </span>
+            ) : (
+              <EmojiText key={i} text={part} big={false} />
+            )
           )
         )}
         {onReply && (
@@ -608,6 +616,18 @@ function CommentField({
     requestAnimationFrame(() => input.current?.setSelectionRange(before.length, before.length))
   }
 
+  // An emoji goes in at the caret, which then stands after it.
+  const addEmoji = (emoji: string): void => {
+    const box = input.current
+    const start = Math.min(box?.selectionStart ?? draft.length, draft.length)
+    const end = Math.min(box?.selectionEnd ?? start, draft.length)
+    const next = draft.slice(0, start) + emoji + draft.slice(end)
+    setDraft(next)
+    setCaret(start + emoji.length)
+    setDismissed(true)
+    requestAnimationFrame(() => box?.setSelectionRange(start + emoji.length, start + emoji.length))
+  }
+
   const send = (): void => {
     if (!draft.trim()) return
     // The contact a reply opened addressed to counts as tagged, as one picked from the list does.
@@ -681,6 +701,7 @@ function CommentField({
             else send()
           }}
         />
+        <EmojiButton onPick={addEmoji} />
         {/* Enter sends too; this is the way for whoever reaches for the mouse. */}
         <motion.button
           type="button"

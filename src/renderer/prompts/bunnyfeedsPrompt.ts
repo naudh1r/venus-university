@@ -40,11 +40,11 @@ export function slotCommentsField(): Record<string, unknown> {
   }
 }
 
-/** How a replier stands with the poster, in the words the prompt names it by. */
-const STANDING_WORDS: Record<PosterStanding, string> = {
-  friend: 'her friend',
-  enemy: 'her enemy',
-  barely: 'barely knows her'
+/** How a replier stands with the poster, named, so "her" never reads as the replier herself. */
+function standingWords(standing: PosterStanding, poster: string): string {
+  if (standing === 'friend') return `${poster}'s friend`
+  if (standing === 'enemy') return `${poster}'s enemy: they can't stand each other`
+  return `barely knows ${poster}`
 }
 
 /** One poster this slot, and the friend of hers, if any, who may reply under her post. */
@@ -68,7 +68,7 @@ export function replierBlock(posters: readonly PosterRepliers[]): string[] {
     if (repliers.length === 0) continue
     const names = repliers.map(
       ({ character: other, charKey: key, standing }) =>
-        `${other.firstName} ("${key}", ${STANDING_WORDS[standing]})`
+        `${other.firstName} ("${key}", ${standingWords(standing, character.firstName)})`
     )
     under.push(`- Under ${character.firstName}'s post ("${charKey}"): ${names.join(', ')}`)
     for (const { character: other, charKey: key } of repliers) {
@@ -125,6 +125,8 @@ export interface FeedThread {
   follower: boolean
   /** Whoever the reader answered directly and answers him back, with the ref of his comment. */
   answersBack?: readonly { ref: string; who: string }[]
+  /** Girls the reader answered directly who stay quiet this round, with the ref of his comment. */
+  silent?: readonly { ref: string; replier: Replier }[]
   /** Girls the reader tagged, each with the ref of the comment she answers. */
   tagged?: readonly { ref: string; name: string }[]
   /** The thread has run long and she wraps it up. */
@@ -178,6 +180,7 @@ const PERSONA_LINES = [
   'Nobody is in the same room: they only read what the others typed. Nobody sees a face or hears a laugh, so nobody mentions giggling, looks or tone of voice; a laugh is typed or an emoji, and a reaction is to the words on the screen.',
   'You know these people well and keep each of them sounding like herself, so a reader could tell who wrote a comment with the name covered.',
   'You hate generic, robotic comments. Nobody writes "Great post!" or explains a joke. People tease, flirt, hype, deflect and get petty, and leave things unsaid.',
+  'The reader is the exception: he types however he types, in plain words, short or in broken English. The girls read him for what he means: none of them corrects, mocks or judges his grammar, his spelling or how little he wrote (a one-word comment is a fine comment), and how a girl feels about his comment goes by what he said, never how he said it. A follower may now and then poke fun at a badly mangled comment, the way strangers online do, and that counts as the post\'s one mean comment.',
   'You never use semicolons or em dashes.',
   'You always return a single, fully-formed JSON object matching the provided schema exactly.'
 ]
@@ -222,7 +225,8 @@ function characterBlock(input: FeedThreadsInput): string[] {
   }
 
   for (const thread of input.threads) {
-    for (const { character, charKey, info } of thread.repliers) {
+    const quiet = (thread.silent ?? []).map(({ replier }) => replier)
+    for (const { character, charKey, info } of [...thread.repliers, ...quiet]) {
       if (named.has(charKey)) continue
       named.add(charKey)
       const { withFriends, withStrangers } = character.behavior
@@ -273,7 +277,7 @@ function threadLines(thread: FeedThread, season: Season): string[] {
   const when = `${formatShortGameDate(post.date, season)}, ${post.time === 0 ? 'morning' : 'evening'}`
   const repliers = thread.repliers.map(
     ({ character: other, charKey: key, standing }) =>
-      `${other.firstName} ("${key}", ${STANDING_WORDS[standing]})`
+      `${other.firstName} ("${key}", ${standingWords(standing, name)})`
   )
   return [
     `POST ${thread.postRef} by ${fullNameOf(character)} ("${charKey}"), ${when}: ${post.text}`,
@@ -292,10 +296,14 @@ function threadLines(thread: FeedThread, season: Season): string[] {
       : []),
     ...(thread.tagged ?? []).map(({ ref, name: tagged }) => {
       const standing = thread.repliers.find(({ character: girl }) => girl.firstName === tagged)?.standing
-      return `The reader tagged ${tagged}${standing ? ` (${STANDING_WORDS[standing]})` : ''} in ${ref}, so she answers it too.`
+      return `The reader tagged ${tagged}${standing ? ` (${standingWords(standing, name)})` : ''} in ${ref}, so she answers it too.`
     }),
     ...(thread.answersBack ?? []).map(
       ({ ref, who }) => `The reader answered ${who} directly in ${ref}, so ${who} answers him back.`
+    ),
+    ...(thread.silent ?? []).map(
+      ({ ref, replier }) =>
+        `The reader answered ${replier.character.firstName} ("${replier.charKey}") directly in ${ref}. She sees it but does not answer it, and writes nothing here.`
     ),
     ...(thread.windingDown
       ? [
@@ -339,9 +347,9 @@ export function buildFeedThreadsPrompt(
     'Fill "replies" with the new comments under these posts. "to" is the ref of the comment it answers, or the post\'s own ref for a new comment on the post, exactly as written. "from" is who writes it: the poster\'s or another girl\'s key exactly as written in LOREBOOK, or an empty string for one of her followers. A follower is one of the four thousand students on campus who follows her account: a fan, a classmate, somebody from her club or her dorm. Followers are friendly with her at most, never close: no inside jokes, nothing about her private life. A follower named above as answering the reader back writes "from" as that handle exactly, @ included.',
     'The poster answers exactly what her post says she answers, as herself: how she talks, how she feels about whoever she is answering, and what she remembers of the reader. A girl answering the reader can flirt back, tease, brush him off or ignore the question, whatever she actually would.',
     'Under each post only who THREADS names there reacts: the poster, the girls it names, and a follower where it says one may. Whoever may react can still leave it; none is fine. They react to the reader\'s comment, to another comment in the thread, or to the post itself. The thread is a conversation, not a line of people answering him: they can talk to each other and to the poster too. Nobody else speaks for the reader, nobody answers herself, and nobody @s anybody or writes a handle in "text".',
-    'Everybody replies however they actually would. A girl goes by her personality, how she stands with the poster and what she knows of the reader: she can flirt, tease, hype, roast or brush him off. Followers have the whole range a public feed has: mostly friendly, sometimes flirty, sometimes roasting her or the reader, now and then a hater. Never more than one mean comment under a post.',
+    'Everybody replies however they actually would. A girl goes by her personality, how she stands with the poster and what she knows of the reader: she can flirt, tease, hype, roast or brush him off. The poster and a girl who is her enemy are never warm to each other, however sweet either is with everyone else: cool, catty or passive-aggressive, each in her own manner, and never a compliment that is not backhanded. Followers have the whole range a public feed has: mostly friendly, sometimes flirty, sometimes roasting her or the reader, now and then a hater. Never more than one mean comment under a post.',
     'All of this happens in front of the whole campus, and everybody types like it. Nobody settles anything here: no meeting up, no date, no time or place agreed, whoever suggests it. A girl who likes the idea can say so in a way that keeps it open, or tell him to message her; one who does not can laugh it off. Nothing she would only say to him alone goes in a comment: feelings she has not shown in public, what passed between them in private, anything explicit. Followers know nothing about the reader beyond the comment in front of them.',
-    'Fill "memories" with one entry per poster the reader commented under, and one per other girl who answers him in "replies", whether or not she has met him, saying what she made of what he said: "char" is her key, "type" how she felt about it, and "desc" what happened, in a few words, starting with "the reader". Say only what he said or did: never the post, whose post it was, or where it happened, since the game adds that.'
+    'Fill "memories" with one entry per poster the reader commented under, one per other girl who answers him in "replies", and one per girl who sees his answer without answering it, whether or not she has met him, saying what she made of what he said: "char" is her key, "type" how she felt about it, and "desc" what happened, in a few words, starting with "the reader". Say only what he said or did: never the post, whose post it was, or where it happened, since the game adds that.'
   ].join('\n')
 
   return {

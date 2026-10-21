@@ -72,6 +72,10 @@
   opacity: 0.85;
 }
 
+.vu-bf-face--monogram text {
+  font: 400 26px var(--font-display);
+}
+
 /* The faces group's preview on the Mods screen: a few followers, each at list and comment size. */
 .vu-bf-faces-preview {
   display: flex;
@@ -180,7 +184,7 @@
   flex: 1;
   min-width: 0;
   width: 100%;
-  padding: 9px 18px;
+  padding: 13.5px 18px;
   border-radius: 999px;
   font-size: 13.5px;
 }
@@ -233,14 +237,14 @@
   background: color-mix(in srgb, var(--vu-accent-shadow) 78%, transparent);
 }
 
-/* The post itself: a rounded sheet, as tall as it needs and no taller than the screen. */
+/* The post itself: a rounded sheet, as tall as it needs and no taller than the screen. Nothing
+   in it is clipped, so the well's emoji panel can stand past its top edge. */
 .vu-bb-postview {
   display: flex;
   flex-direction: column;
   width: min(760px, 100%);
   max-height: 100%;
   border-radius: 32px;
-  overflow: hidden;
   background: var(--vu-surface);
 }
 

@@ -86,11 +86,15 @@ function recentPostLines(characters: readonly Character[]): string[] {
       `${name}'s latest feed posts, which everyone can see:`,
       ...posts.flatMap((post) => {
         const said = shownComments(post.comments, date, time)
-        const his = said.filter((one) => one.player)
-        const hisIds = new Set(his.map((one) => one.id))
         const hers = said.filter(
-          (one) => one.charId === character.charId && one.replyTo && hisIds.has(one.replyTo)
+          (one) =>
+            one.charId === character.charId &&
+            said.some((his) => his.player && his.id === one.replyTo)
         )
+        // Only what she has answered where everyone can see: a comment still waiting on her
+        // answer is one she has not read yet, in texts or in person either.
+        const answered = new Set(hers.map((one) => one.replyTo))
+        const his = said.filter((one) => one.player && answered.has(one.id))
         return [
           `- ${formatShortGameDate(post.date, calendar.season)}: "${post.text}"`,
           ...his.map((one) => `  The reader commented: "${one.text}"`),

@@ -1,12 +1,15 @@
 import { useId, useMemo, type CSSProperties, type JSX, type ReactNode } from 'react'
-import { hashString } from '@shared/hash'
+import { hashString, seededRand } from '@shared/hash'
 import { BUNNYFEEDS } from '@shared/bunnyfeeds'
 import type { OptionPreviewProps } from '../mods/hooks'
 import { useModOption } from '../stores/modsStore'
 import '../vu_styles/Bunnyfeeds.css'
 
 /** How a follower's face is drawn, as the Mods screen's "Faces of other students" picks it. */
-export type FaceStyle = 'gradient' | 'identicon' | 'shapes'
+export type FaceStyle = 'gradient' | 'identicon' | 'shapes' | 'monogram' | 'mixed'
+
+/** The styles a face can actually be drawn in; "mixed" picks one of these per handle. */
+const DRAWN_STYLES = ['gradient', 'identicon', 'shapes', 'monogram'] as const
 
 /** The colours a follower's face is drawn in, three picked off her handle. */
 const FOLLOWER_INKS = [
@@ -112,10 +115,28 @@ function shapes(roll: () => number): ReactNode {
   })
 }
 
+/** The first letter or digit of her handle, set large in the display face. */
+function monogram(handle: string): ReactNode {
+  const letter = handle.match(/[\p{L}\p{N}]/u)?.[0]?.toUpperCase() ?? '?'
+  return (
+    <text className="vu-bf-ink1" x={25} y={36} textAnchor="middle" dominantBaseline="central">
+      {letter}
+    </text>
+  )
+}
+
+/** The style a handle is drawn in: the one picked, or under "mixed" one of them, kept per handle. */
+function drawnStyleOf(handle: string, style: FaceStyle): (typeof DRAWN_STYLES)[number] {
+  if (style !== 'mixed') return style
+  return DRAWN_STYLES[Math.floor(seededRand(`${handle}#faces`)() * DRAWN_STYLES.length)]
+}
+
 /** The style an option of the "faces" group stands for; the gradient when none is picked. */
 function styleOf(optionId: string | null): FaceStyle {
   if (optionId === 'faces-identicon') return 'identicon'
   if (optionId === 'faces-shapes') return 'shapes'
+  if (optionId === 'faces-monogram') return 'monogram'
+  if (optionId === 'faces-mixed') return 'mixed'
   return 'gradient'
 }
 
@@ -123,19 +144,32 @@ function styleOf(optionId: string | null): FaceStyle {
 function useFaceStyle(): FaceStyle {
   const identiconOn = useModOption(BUNNYFEEDS, 'faces-identicon')
   const shapesOn = useModOption(BUNNYFEEDS, 'faces-shapes')
-  return styleOf(identiconOn ? 'faces-identicon' : shapesOn ? 'faces-shapes' : null)
+  const monogramOn = useModOption(BUNNYFEEDS, 'faces-monogram')
+  const mixedOn = useModOption(BUNNYFEEDS, 'faces-mixed')
+  return styleOf(
+    identiconOn
+      ? 'faces-identicon'
+      : shapesOn
+        ? 'faces-shapes'
+        : monogramOn
+          ? 'faces-monogram'
+          : mixedOn
+            ? 'faces-mixed'
+            : null
+  )
 }
 
 /** One follower's face in a given style; `className` is the archway it stands in. */
 function DrawnFace({
   handle,
-  style,
+  style: picked,
   className
 }: {
   handle: string
   style: FaceStyle
   className: string
 }): JSX.Element {
+  const style = drawnStyleOf(handle, picked)
   const filter = `vu-bf-blur${useId().replace(/[^\w-]/g, '')}`
   const { inks, art } = useMemo(() => {
     const roll = rollsOf(handle)
@@ -145,7 +179,9 @@ function DrawnFace({
         ? identicon(roll)
         : style === 'shapes'
           ? shapes(roll)
-          : gradient(roll, filter)
+          : style === 'monogram'
+            ? monogram(handle)
+            : gradient(roll, filter)
     return { inks: picked, art: drawn }
   }, [handle, style, filter])
   const colours = Object.fromEntries(inks.map((ink, i) => [`--bf-ink-${i + 1}`, `var(${ink})`]))
