@@ -42,6 +42,7 @@ export interface TurnSnapshot {
   /** The epilogue goodbye this turn is, and who it is with. */
   farewell?: string
   /** The settled verdict this turn runs on, so a retry re-classifies nothing. */
+  activity?: import('@shared/slotActivity').SlotActivityOffer
   preset?: Verdict
   /** The plan whose landing button this turn is, so a retry casts its attendees again. */
   planId?: string
