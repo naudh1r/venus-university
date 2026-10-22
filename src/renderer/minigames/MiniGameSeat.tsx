@@ -1,3 +1,4 @@
+import { MINI_GAMES } from '@shared/minigames'
 import { gameById } from './prefs'
 import { useEffect, useRef, type JSX } from 'react'
 import type { SceneSeatProps } from '../mods/hooks'
@@ -17,6 +18,9 @@ export function MiniGameSeat({ Seat, visible, open }: SceneSeatProps): JSX.Eleme
   // A game she agreed to opens by itself, once her answer has been read out.
   const agreed = useTableStore((s) => s.agreed)
   const atTurn = useAtTurn()
+  const activity = useGameStore(s => s.sceneActivity)
+  const training = activity?.owner === MINI_GAMES && activity.status === 'pending' ? activity : null
+  const openedTraining = useRef<unknown>(null)
   // Read at the effect rather than depended on: the rail hands down a new one every render.
   const opener = useRef(open)
   opener.current = open
@@ -25,7 +29,13 @@ export function MiniGameSeat({ Seat, visible, open }: SceneSeatProps): JSX.Eleme
     // In hand, or kept beside the save for exactly this point of the scene: a game reloaded
     // between her yes and the table.
     const due = agreed ?? keptAgreed()
-    if (!due) return
+    if (!due) {
+      if (training && offered.some(game => game.id === training.id) && openedTraining.current !== training) {
+        openedTraining.current = training
+        opener.current()
+      }
+      return
+    }
     // A girl who has left the scene since she said yes is not sat down; with too few left for
     // the game, there is no game.
     const scene = useGameStore.getState()
@@ -41,7 +51,7 @@ export function MiniGameSeat({ Seat, visible, open }: SceneSeatProps): JSX.Eleme
       useTableStore.getState().setAgreed({ ...due, charIds: here })
     }
     opener.current()
-  }, [agreed, atTurn, visible])
+  }, [agreed, atTurn, visible, training, offered])
 
   const spent = useSceneSpent()
   // Absent where there is nothing to offer; dim where there is, but not this moment.

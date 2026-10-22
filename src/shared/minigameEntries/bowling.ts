@@ -1,6 +1,7 @@
 import type { MiniGameDef } from '../minigameKit'
 
 const BOWLING: MiniGameDef = {
+  trainingStat: 'body',
   id: 'bowling',
   modId: 'morrowkiln-arcade-games',
   name: 'Bowling',

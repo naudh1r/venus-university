@@ -1,6 +1,7 @@
 import type { MiniGameDef } from '../minigameKit'
 
 const ROLLER_DERBY: MiniGameDef = {
+  trainingStat: 'body',
   id: 'roller-derby',
   modId: 'morrowkiln-sports',
   name: 'Rink Race',

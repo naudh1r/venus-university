@@ -1,6 +1,7 @@
 import type { MiniGameDef } from '../minigameKit'
 
 const SWIM_RACE: MiniGameDef = {
+  trainingStat: 'body',
   id: 'swim-race',
   modId: 'morrowkiln-sports',
   name: 'Swim Race',
