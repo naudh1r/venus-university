@@ -1,6 +1,7 @@
 import type { MiniGameDef } from '../minigameKit'
 
 const DARTS: MiniGameDef = {
+  trainingStat: 'body',
   id: 'darts', modId: 'naudh1r-darts', name: 'Darts', icon: '🎯',
   calledAs: ['dart'],
   blurb: 'full-screen darts alone against the house, with one or two teammates, or as 301 rivals',

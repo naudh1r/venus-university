@@ -1,0 +1,22 @@
+import { describe, it, expect } from 'vitest'
+import { trainingOffers } from '@shared/minigameTraining'
+import { MINI_GAMES, MINI_GAMES_LIST } from '@shared/minigames'
+import { locationDefOf } from '@shared/locations'
+const places = (id: string) => locationDefOf(id)?.label ?? null
+
+describe('training catalogue', () => {
+  it('offers only declared solo games, with a known concrete place and matching stat', () => {
+    const brain = trainingOffers(MINI_GAMES, 'brain', MINI_GAMES_LIST, () => true, places)
+    expect([...new Set(brain.map(o => o.id))].sort()).toEqual(['cat-pairs', 'pool'])
+    const body = trainingOffers(MINI_GAMES, 'body', MINI_GAMES_LIST, () => true, places)
+    expect(body.some(o => o.id === 'darts' && o.location === 'pino_cola_lounge')).toBe(true)
+    expect(body.some(o => o.id === 'air-hockey')).toBe(false)
+    expect(trainingOffers(MINI_GAMES, 'heart', MINI_GAMES_LIST, () => true, places)).toEqual([])
+  })
+  it('removes disabled games and unavailable locations instead of offering a broken button', () => {
+    expect(trainingOffers(MINI_GAMES, 'body', MINI_GAMES_LIST, () => false, places)).toEqual([])
+    expect(trainingOffers(MINI_GAMES, 'body', MINI_GAMES_LIST, () => true, () => null)).toEqual([])
+    const offers = trainingOffers(MINI_GAMES, 'brain', MINI_GAMES_LIST, g => g.id === 'cat-pairs', id => id === 'cutetea' ? 'CuteTea' : null)
+    expect(offers).toEqual([{ owner: MINI_GAMES, id: 'cat-pairs', stat: 'brain', location: 'cutetea', label: 'Improve Brain by playing Cat Pairs at CuteTea.' }])
+  })
+})

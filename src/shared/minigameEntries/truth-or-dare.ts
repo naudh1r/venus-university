@@ -1,6 +1,7 @@
 import type { MiniGameDef } from '../minigameKit'
 
 const TRUTH_OR_DARE: MiniGameDef = {
+  trainingStat: 'heart',
   id: 'truth-or-dare',
   modId: 'morrowkiln-party-games',
   name: 'Truth or Dare',

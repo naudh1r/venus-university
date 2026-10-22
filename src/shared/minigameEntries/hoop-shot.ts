@@ -1,6 +1,7 @@
 import type { MiniGameDef } from '../minigameKit'
 
 const HOOP_SHOT: MiniGameDef = {
+  trainingStat: 'body',
   id: 'hoop-shot',
   modId: 'morrowkiln-arcade-games',
   name: 'Hoop Shot',
