@@ -232,6 +232,8 @@ export interface ShiftGain {
 
 /** What the app knows about the slot that the ledger does not. */
 export interface StatContext {
+  /** A committed training activity: its own stat, and only once it was completed. */
+  activity?: import('./slotActivity').SlotActivity | null
   /**
    * The scene had no other characters in it: every exercised stat counts, and each pays twice.
    */
@@ -312,7 +314,9 @@ export function resolveStatDeltas(
 
   // What the ledger said the hour exercised: all alone, one with company, none for a
   // class the reader sat in.
-  const exercised = STAT_KEYS.filter((key) => ledger?.[key] === true)
+  const exercised = ctx.activity
+    ? ctx.activity.status === 'completed' ? [ctx.activity.stat] : []
+    : STAT_KEYS.filter((key) => ledger?.[key] === true)
   const gained = ctx.solo ? exercised : ctx.classScene ? [] : exercised.slice(0, CAST_STATS)
   for (const key of gained) deltas[key] += AWARD
   if (gained.length > 0) {

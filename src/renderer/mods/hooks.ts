@@ -232,6 +232,10 @@ export interface PostPictureProps {
 }
 
 export interface ModHooks {
+  /** Optional training alternatives for the landing's existing stat suggestions. */
+  statActivities?: (stat: import('@shared/playerStats').StatKey) => readonly import('@shared/slotActivity').SlotActivityOffer[]
+  /** Revalidate a stored offer before committing or resuming it. */
+  slotActivityAvailable?: (offer: import('@shared/slotActivity').SlotActivityOffer) => boolean
   bunnyboardPage?: BunnyboardPage
   /** Draws the comments under a post; see {@link PostCommentsSpot}. */
   postComments?: PostCommentsSpot
@@ -540,4 +544,14 @@ export function bunnyboardPages(): BunnyboardPage[] {
     seen.add(page.id)
     return [page]
   })
+}
+
+/** Offers are owned by the registering mod, and only enabled mods participate. */
+export function statActivities(stat: import('@shared/playerStats').StatKey): import('@shared/slotActivity').SlotActivityOffer[] {
+  return activeEntries().flatMap(({ modId, hooks }) =>
+    (hooks.statActivities?.(stat) ?? []).filter(offer => offer.owner === modId && offer.stat === stat && hooks.slotActivityAvailable?.(offer)))
+}
+
+export function slotActivityAvailable(offer: import('@shared/slotActivity').SlotActivityOffer): boolean {
+  return activeEntries().some(({ modId, hooks }) => modId === offer.owner && hooks.slotActivityAvailable?.(offer) === true)
 }

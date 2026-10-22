@@ -1766,3 +1766,20 @@ describe('the quiz on the scene capture', () => {
     expect(useGameStore.getState().sceneQuiz).toMatchObject({ index: 2, correct: 1 })
   })
 })
+
+describe('committed activity persistence', () => {
+  it('round-trips pending and settled activities and clears them with the scene', () => {
+    const activity = { owner: 'pack', id: 'memory', label: 'Train Brain', location: 'cutetea', stat: 'brain' as const, status: 'pending' as const }
+    useGameStore.setState({ currentSceneTranscript: [{ speaker: 'reader', text: 'Train' }], sceneActivity: activity })
+    const pending = useGameStore.getState().captureScene()!
+    useGameStore.getState().restoreScene(pending)
+    expect(useGameStore.getState().sceneActivity).toEqual(activity)
+    useGameStore.setState({ sceneActivity: { ...activity, status: 'completed', result: 'Finished.' } })
+    const complete = useGameStore.getState().captureScene()!
+    useGameStore.getState().reset()
+    useGameStore.getState().restoreScene(complete)
+    expect(useGameStore.getState().sceneActivity?.status).toBe('completed')
+    useGameStore.getState().restoreScene(null)
+    expect(useGameStore.getState().sceneActivity).toBeNull()
+  })
+})

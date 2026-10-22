@@ -1,4 +1,5 @@
-import { projectSlotMemories, slotSettled } from '../mods/hooks'
+import { projectSlotMemories, slotActivityAvailable, slotSettled } from '../mods/hooks'
+import { withSlotActivityPrompt } from '../prompts/slotActivity'
 import { talentProjectWork, talentStatGains } from '@shared/talentPerks'
 import { showUpHeartForScene } from './loop/talentShowUp'
 import { feedStatusLines } from './bunnyfeedsMemory'
@@ -1320,7 +1321,8 @@ function dispatchTurn(snapshot: TurnSnapshot): void {
       snapshot.preset,
       snapshot.planId,
       snapshot.sceneEvents,
-      snapshot.answeredReminder
+      snapshot.answeredReminder,
+      snapshot.activity
     )
   }
 }
@@ -1441,7 +1443,8 @@ export async function submitAction(
   /** What a failed attempt at this turn rolled, so its retry opens on the same. */
   sceneEvents?: TurnSnapshot['sceneEvents'],
   /** Whose reminder a failed attempt at this plan answered, so its retry skips her thread too. */
-  answeredReminder?: string
+  answeredReminder?: string,
+  activity?: import('@shared/slotActivity').SlotActivityOffer
 ): Promise<void> {
   const run = currentRun()
   const raw = action.trim()
@@ -1450,6 +1453,7 @@ export async function submitAction(
 
   const game = useGameStore.getState()
   if (game.busy || !game.awaitingInput) return
+  if (activity && !slotActivityAvailable(activity)) return
 
   // A created scene's opening, typed again after its first send was refused or abandoned: it
   // goes the way its first send went, to the cast the setup settled, never to the classifier.
@@ -1466,6 +1470,7 @@ export async function submitAction(
     action: raw,
     ...(game.exBreakthrough.pending ? { breakthrough: { ...game.exBreakthrough.pending } } : {}),
     ...(gift ? { gift } : {}),
+    ...(activity ? { activity } : {}),
     ...(preset ? { preset } : {}),
     ...(planId ? { planId } : {}),
     ...(sceneEvents ? { sceneEvents } : {}),
@@ -1546,6 +1551,7 @@ export async function submitAction(
     if (!isTutorialSlot(game.date, game.time, game.semesterIndex)) {
       plan.scene = { ...plan.scene, ...sceneEventsFor(snapshot, plan.cast, plan.scene) }
     }
+    if (activity) plan.scene = { ...plan.scene, activity: { ...activity, status: 'pending' } }
     await applyCastToScene(plan)
     if (runStale(run)) return
     // Off the scene just cast, the same derivation a resumed save runs, so what the boundary
@@ -1560,12 +1566,12 @@ export async function submitAction(
   useGameStore.getState().logPlayerAction(plan.sceneAction, isContinuation)
 
   // A solo scene opens and closes in this one call, so it is never a continuation.
-  const solo = !isContinuation && plan.cast.length === 0
+  const solo = (!isContinuation || Boolean(useGameStore.getState().sceneActivity)) && plan.cast.length === 0
 
   const request = withBreakthrough(buildTurnRequest(plan.sceneAction, castCharacters, isContinuation, solo), castCharacters, solo)
   // Only the call that opens a scene repairs a forgotten entrance.
   await runSceneTurn(
-    streamScene(request, undefined, { forceShowSpeakers: !isContinuation && !solo }),
+    streamScene(withSlotActivityPrompt(request, useGameStore.getState().sceneActivity), undefined, { forceShowSpeakers: !isContinuation && !solo }),
     snapshot,
     plan.cast,
     castCharacters,
@@ -2354,6 +2360,7 @@ function claimTextLedger(date: number, time: TimeSlot): Promise<LedgerResponse |
 function resolveScene(): { deltas: PlayerStats; lines: StatusText[]; showUp: number } {
   const game = useGameStore.getState()
   const ctx: Parameters<typeof resolveStatDeltas>[1] = {
+    activity: useGameStore.getState().sceneActivity,
     // Not `closingCast`, which a resumed save has already cleared by this point.
     solo: useGameStore.getState().cast.length === 0,
     // The same fact the ledger's `STATS` section is dropped on: a class that went ahead.
