@@ -35,7 +35,7 @@ import {
   veilIn
 } from '../views/motion'
 import { gameComponent, type GamePlay, type Opponent, type PlayResult } from './play'
-import { useTableStore, type Agreed } from './session'
+import { agreementAvailable, useTableStore, type Agreed } from './session'
 import { tableRound } from './round'
 import { skillOf } from './skill'
 import {
@@ -129,7 +129,10 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
   // Who is standing where on the stage: left, middle, right.
   const slots = useGameStore((s) => s.slots)
   // The game she agreed to, taken off the table's own state as the panel opens on it.
-  const [agreed] = useState(() => useTableStore.getState().agreed)
+  const [agreed] = useState(() => {
+    const due = useTableStore.getState().agreed
+    return due && agreementAvailable(due, location, offered) ? due : null
+  })
   useEffect(() => {
     if (agreed) useTableStore.getState().setAgreed(null)
   }, [agreed])

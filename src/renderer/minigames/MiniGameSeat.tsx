@@ -6,7 +6,7 @@ import type { SceneSeatProps } from '../mods/hooks'
 import { fewestWith } from '@shared/minigames'
 import { useGameStore } from '../stores/gameStore'
 import { DiceIcon } from '../views/screenIcons'
-import { keptAgreed, useTableStore } from './session'
+import { agreementAvailable, keptAgreed, useTableStore } from './session'
 import { useAtTurn, useGamesOffered, useSceneSpent, useTableOpen } from './table'
 
 /**
@@ -49,7 +49,7 @@ export function MiniGameSeat({ Seat, visible, open }: SceneSeatProps): JSX.Eleme
       return
     }
     // Destination context is permission to discuss, not permission to open early.
-    if ((due.location && due.location !== scenePlace()) || !offered.some(entry => entry.id === due.gameId)) return
+    if (!agreementAvailable(due, scenePlace(), offered)) return
     if (!agreed || here.length !== due.charIds.length) {
       useTableStore.getState().setAgreed({ ...due, charIds: here })
     }

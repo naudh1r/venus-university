@@ -106,3 +106,36 @@ export const useTableStore = create<TableState>((set) => ({
   },
   dropAgreed: () => set({ agreed: null })
 }))
+
+/** An unanswered NPC invitation, scoped to the exact conversation prefix and slot. */
+export interface Invitation { gameId: string; location: string | null }
+const INVITE = 'vu-minigames:invitation'
+let invitationMemory: string | null = null
+export function keepInvitation(invitation: Invitation | null): void {
+  const game = useGameStore.getState()
+  invitationMemory = invitation ? JSON.stringify({ invitation, playthrough: game.playthroughId,
+    date: game.date, time: game.time, transcript: game.currentSceneTranscript }) : null
+  try {
+    if (invitationMemory) localStorage.setItem(INVITE, invitationMemory)
+    else localStorage.removeItem(INVITE)
+  } catch { /* Memory remains available without browser storage. */ }
+}
+export function keptInvitation(): Invitation | null {
+  try {
+    const raw = typeof localStorage === 'undefined' ? invitationMemory : localStorage.getItem(INVITE) ?? invitationMemory
+    if (!raw) return null
+    const saved = JSON.parse(raw)
+    const game = useGameStore.getState()
+    const before = saved.transcript
+    const now = game.currentSceneTranscript
+    if (!Array.isArray(before) || before.length === 0 || now.length < before.length || now.length > before.length + 1 ||
+      saved.playthrough !== game.playthroughId || saved.date !== game.date || saved.time !== game.time ||
+      JSON.stringify(now.slice(0, before.length)) !== JSON.stringify(before)) return null
+    return saved.invitation && typeof saved.invitation.gameId === 'string' ? saved.invitation : null
+  } catch { return null }
+}
+
+/** An agreement is not a travel shortcut or an override for a disabled game. */
+export function agreementAvailable(agreed: Agreed, location: string | null, offered: readonly { id: string }[]): boolean {
+  return (!agreed.location || agreed.location === location) && offered.some(game => game.id === agreed.gameId)
+}

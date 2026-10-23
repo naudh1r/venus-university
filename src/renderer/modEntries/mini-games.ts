@@ -14,10 +14,10 @@ import { charKeyOf, type Character } from '@shared/types'
 import { MiniGamePanel } from '../minigames/MiniGamePanel'
 import { PackPage } from '../minigames/PackPage'
 import { MiniGameSeat } from '../minigames/MiniGameSeat'
-import { agreedOf, withOffer } from '../minigames/offer'
+import { agreedOf, withOffer, withGameHints, withInvitationField } from '../minigames/offer'
 import { gameComponent } from '../minigames/play'
 import { answerOf, withProposal, type Asked } from '../minigames/proposal'
-import { useTableStore } from '../minigames/session'
+import { keepInvitation, keptInvitation, useTableStore } from '../minigames/session'
 import { skillOf } from '../minigames/skill'
 import { gameIsOn, nameOf } from '../minigames/table'
 import { registerHooks } from '../mods/hooks'
@@ -26,7 +26,7 @@ import { useModsStore } from '../stores/modsStore'
 import { destinationOf, scenePlace } from '../minigames/place'
 
 // The exact catalogue supplied to this request, not a venue projected from unread reply lines.
-let requestedOffer: { games: MiniGameDef[]; location: string | null } | null = null
+let requestedOffer: { games: MiniGameDef[]; location: string | null; detailed: boolean } | null = null
 
 /** The games a girl in this scene could be played at, each with a component to play it with. */
 function gamesWith(cast: readonly Character[], location: string | null): MiniGameDef[] {
@@ -100,7 +100,7 @@ registerHooks(MINI_GAMES, {
 
   requests: {
     scene: (request, ctx) => {
-      requestedOffer = null;
+      requestedOffer = null
       // The turn that carries the reader's own proposal asks for her answer to it and nothing
       // else: its words are in what the request was built from, so a turn retried or rewound
       // never picks up a stale one.
@@ -116,6 +116,7 @@ registerHooks(MINI_GAMES, {
       // Only the games a girl may bring up here are on it, and any his action names: the rest
       // are his to ask for from the table.
       const current = scenePlace()
+      const invitation = keptInvitation()
       const action = actionOf(request.user)
       const destination = gamesNamed(MINI_GAMES_LIST, action).length ? destinationOf(action) : null
       const location = destination ?? current
@@ -123,12 +124,16 @@ registerHooks(MINI_GAMES, {
       const here = gamesWith(ctx.cast, location)
       const suggested = gamesSuggested(here, location, busy, keen)
       const named = gamesNamed(here, actionOf(request.user))
-      const games = destination && destination !== current
-        ? named
-        : here.filter((game) => suggested.includes(game) || named.includes(game))
+      const pending = invitation?.location === current ? here.filter(game => game.id === invitation.gameId) : []
+      const detailed = named.length > 0 || pending.length > 0
+      const games = named.length ? named : pending.length ? pending : destination && destination !== current ? [] : suggested
       if (games.length === 0) return request
-      requestedOffer = { games, location }
-      return withOffer(request, games, ctx.cast, location, busy, keen, location !== current)
+      requestedOffer = { games, location, detailed }
+      if (!detailed) return withGameHints(request, games, location, busy, keen)
+      const contextual = pending.length && !named.length
+        ? { ...request, user: request.user + `\nUnanswered invitation: ${pending[0].name}. The reader may accept, refuse, ask a question or change topic; judge their actual words.` }
+        : request
+      return withInvitationField(withOffer(contextual, games, ctx.cast, location, busy, keen, location !== current), games)
     }
   },
 
@@ -137,6 +142,9 @@ registerHooks(MINI_GAMES, {
     requestedOffer = null
     const table = useTableStore.getState()
     table.setPlayed(null)
+    keepInvitation(null)
+    const invited = !ending && offered?.games.find(game => game.id === reply.minigameInvite && gameIsOn(game.modId, game))
+    if (invited) keepInvitation({ gameId: invited.id, location: offered?.location ?? null })
     const { proposal } = table
     table.setProposal(null)
 
@@ -155,7 +163,7 @@ registerHooks(MINI_GAMES, {
     }
 
     // No proposal of his own was out: the two of them may still have agreed in the scene.
-    if (ending) return
+    if (ending || !offered?.detailed) return
     // The reply can only name a game its request offered: the field allows no other.
     const agreed = agreedOf(reply, offered?.games.filter(game => gameIsOn(game.modId, game)) ?? [], cast)
     if (agreed) agree(agreed.game, agreed.characters, agreed.stake, agreed.options, offered?.location)
