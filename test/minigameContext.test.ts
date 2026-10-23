@@ -20,7 +20,7 @@ function reply(data: Record<string, unknown>, ending=false) {afterSceneReply({re
 function properties(r: StructuredRequest) {return (r.schema.schema as {properties:Record<string,unknown>}).properties}
 beforeEach(()=>{
  setHookRules({isOn:id=>id==='mini-games',order:()=>0})
- useGameStore.setState({playthroughId:'test',date:1,time:0,currentSceneTranscript:transcript,sceneLog:[{bg:'pinocola_lounge',speaker:'',text:'Here'}],sceneLocation:'pino_cola_lounge',sceneClass:null,sceneJob:null,sceneProject:null})
+ useGameStore.setState({sceneMiniGame:null,playthroughId:'test',date:1,time:0,currentSceneTranscript:transcript,sceneLog:[{bg:'pinocola_lounge',speaker:'',text:'Here'}],sceneLocation:'pino_cola_lounge',sceneClass:null,sceneJob:null,sceneProject:null})
  useTableStore.setState({proposal:null,agreed:null,played:null})
  keepInvitation(null)
 })
@@ -35,7 +35,7 @@ describe('compact scene game context',()=>{
   expect(useTableStore.getState().agreed).toBeNull()
  })
  it('records an invitation and supplies only its game for a short reply',()=>{
-  request('Hello'); reply({minigameInvite:'darts'})
+  request('Hello'); reply({minigameInvite:{game:'darts',location:'pino_cola_lounge'}})
   useGameStore.setState({currentSceneTranscript:[...transcript,{speaker:'reader',text:'okay'}]})
   const r=request('okay')
   expect(r.user).toContain('Unanswered invitation: Darts')
@@ -47,7 +47,7 @@ describe('compact scene game context',()=>{
  })
  it('a refusal clears invitation without opening a game',()=>{
   keepInvitation({gameId:'darts',location:'pino_cola_lounge'})
-  request('No thanks'); reply({minigameInvite:'',minigame:{play:'',with:{ana_seo:'out',bea_seo:'out'}}})
+  request('No thanks'); reply({minigameInvite:{game:'',location:''},minigame:{play:'',with:{ana_seo:'out',bea_seo:'out'}}})
   expect(useTableStore.getState().agreed).toBeNull()
   expect(keptInvitation()).toBeNull()
  })
@@ -60,12 +60,14 @@ describe('compact scene game context',()=>{
   expect(useTableStore.getState().agreed?.location).toBe('pino_cola_lounge')
   expect(useGameStore.getState().sceneLog[0].bg).toBe('cafe')
  })
- it('does not carry invitations into a different slot or rewritten history',()=>{
+ it('restoring an old scene clears the invitation',()=>{
   keepInvitation({gameId:'darts',location:'pino_cola_lounge'})
-  useGameStore.setState({date:2})
+  const saved=useGameStore.getState().captureScene()!
+  const {miniGame: _state,...old}=saved
+  useGameStore.getState().restoreScene(old)
   expect(keptInvitation()).toBeNull()
-  useGameStore.setState({date:1,currentSceneTranscript:[{speaker:'reader',text:'Different scene'}]})
-  expect(keptInvitation()).toBeNull()
+  useGameStore.getState().restoreScene(saved)
+  expect(keptInvitation()?.gameId).toBe('darts')
  })
  it('opens only after arrival, with an enabled game, including restored agreements',()=>{
   const due={gameId:'darts',charIds:['a'],stake:'',options:{},location:'pino_cola_lounge'}
@@ -73,20 +75,32 @@ describe('compact scene game context',()=>{
   expect(agreementAvailable(due,'pino_cola_lounge',[])).toBe(false)
   expect(agreementAvailable(JSON.parse(JSON.stringify(due)),'pino_cola_lounge',[{id:'darts'}])).toBe(true)
  })
- it('restores invitation from storage and rejects later turns',()=>{
-  const saved=new Map<string,string>()
-  vi.stubGlobal('localStorage',{getItem:(key:string)=>saved.get(key)??null,setItem:(key:string,value:string)=>saved.set(key,value),removeItem:(key:string)=>saved.delete(key)})
-  try {
-   keepInvitation({gameId:'darts',location:'pino_cola_lounge'})
-   expect(keptInvitation()?.gameId).toBe('darts')
-   useGameStore.setState({currentSceneTranscript:[...transcript,{speaker:'reader',text:'okay'}]})
-   expect(keptInvitation()?.gameId).toBe('darts')
-   useGameStore.setState({currentSceneTranscript:[...transcript,{speaker:'reader',text:'okay'},{speaker:'',text:'later'}]})
-   expect(keptInvitation()).toBeNull()
-  } finally { vi.unstubAllGlobals() }
+ it('stores an offered outing and follows it on okay after save/load',()=>{
+  useGameStore.setState({sceneLocation:'reserve_bank_cafe',sceneLog:[{speaker:'',text:'Cafe',bg:'cafe'}]})
+  const out=request('How was your day?')
+  const line=out.user.split('\n').find(line=>line.startsWith('Possible outing: '))!
+  expect(line).toBeTruthy()
+  const id=line.split(' ')[2]
+  const location=line.match(/\(([^)]+)\)/)![1]
+  reply({minigameInvite:{game:id,location}})
+  const saved=useGameStore.getState().captureScene()!
+  useGameStore.getState().restoreScene(null)
+  useGameStore.getState().restoreScene(JSON.parse(JSON.stringify(saved)))
+  const accepted=request('okay')
+  expect(accepted.user).toContain('Unanswered invitation:')
+  expect(accepted.user).toContain('Destination:')
+ })
+ it('keeps outing context bounded and omits it during work or class',()=>{
+  expect(request('Hello').user.split('Possible outing:').length-1).toBeLessThanOrEqual(2)
+  useGameStore.setState({sceneClass:'CS 101'})
+  expect(request('Hello').user).not.toContain('Possible outing:')
+ })
+ it('rejects fabricated game/location pairs from the model',()=>{
+  request('Hello'); reply({minigameInvite:{game:'darts',location:'selkie_beach'}})
+  expect(keptInvitation()).toBeNull()
  })
  it('scene closing cannot retain an invitation or launch a match',()=>{
-  request('Darts?'); reply({minigameInvite:'darts',minigame:{play:'darts',with:{ana_seo:'in',bea_seo:'in'}}},true)
+  request('Darts?'); reply({minigameInvite:{game:'darts',location:'pino_cola_lounge'},minigame:{play:'darts',with:{ana_seo:'in',bea_seo:'in'}}},true)
   expect(keptInvitation()).toBeNull()
   expect(useTableStore.getState().agreed).toBeNull()
  })

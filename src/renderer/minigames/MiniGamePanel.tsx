@@ -1,4 +1,5 @@
 import { pendingTraining } from './training'
+import { writeAutosave } from '../stores/loop/saves'
 import { gameById } from './prefs'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react'
 import { createPortal } from 'react-dom'
@@ -36,7 +37,7 @@ import {
   veilIn
 } from '../views/motion'
 import { gameComponent, type GamePlay, type Opponent, type PlayResult } from './play'
-import { agreementAvailable, useTableStore, type Agreed } from './session'
+import { agreementAvailable, checkpointResult, keptAgreed, useTableStore, type Agreed } from './session'
 import { tableRound } from './round'
 import { skillOf } from './skill'
 import {
@@ -127,6 +128,10 @@ export function sittingOf(agreed: Agreed | null): Sitting | null {
  */
 export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element | null {
   const training = pendingTraining()
+  useEffect(() => {
+    useTableStore.setState({ active: true })
+    return () => { useTableStore.setState({ active: false }) }
+  }, [])
   const offered = useGamesOffered()
   const girls = usePresentGirls()
   // How much she says for herself, as the player has it in the Mods screen.
@@ -138,11 +143,11 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
   const slots = useGameStore((s) => s.slots)
   // The game she agreed to, taken off the table's own state as the panel opens on it.
   const [agreed] = useState(() => {
-    const due = useTableStore.getState().agreed
+    const due = useTableStore.getState().agreed ?? keptAgreed()
     return due && agreementAvailable(due, location, offered) ? due : null
   })
   useEffect(() => {
-    if (agreed) useTableStore.getState().setAgreed(null)
+    if (agreed) useTableStore.getState().dropAgreed()
   }, [agreed])
 
   const offers = useMemo<Offer[]>(
@@ -183,6 +188,14 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
     [sitting, only]
   )
   const Game = seated ? gameComponent(seated.game.id) : undefined
+  useEffect(() => {
+    if (!seated || seated.opponents === null) return
+    useTableStore.getState().setAgreed({ gameId: seated.game.id,
+      charIds: seated.opponents.map(girl => girl.charId), location,
+      stake: seated.stake, options: seated.options })
+    useTableStore.getState().dropAgreed()
+    void writeAutosave(useGameStore.getState().captureScene())
+  }, [seated?.game.id, seated?.opponents, seated?.options, seated?.stake, location])
 
   // Her skill, judged when she agreed and ready by now more often than not.
   useEffect(() => {
@@ -191,7 +204,11 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
     const characters = agreed.charIds
       .map((charId) => useGameStore.getState().characters[charId])
       .filter((character) => character !== undefined)
-    if (characters.length === 0 || !game) return
+    if (!game) return
+    if (characters.length === 0) {
+      setSitting(now => now ? { ...now, opponents: NO_ONE } : now)
+      return
+    }
     let live = true
     void Promise.all(
       characters.map(async (character): Promise<Opponent> => {
@@ -428,7 +445,11 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
       progress: (account) => {
         soFar.current = account
       },
-      finish: (ended) => setResult(ended)
+      finish: (ended) => {
+        checkpointResult(ended, seated?.opponents?.map(girl => girl.name) ?? [])
+        void writeAutosave(useGameStore.getState().captureScene())
+        setResult(ended)
+      }
     }),
     [seated?.game.name, seated?.game.stepped, seated?.game.playByPlay, seated?.opponents, seated?.stake, seated?.options, chattiness, location]
   )
