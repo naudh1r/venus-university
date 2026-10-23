@@ -2,6 +2,7 @@ import type { MiniGameDef } from '../minigameKit'
 
 const WHACK_A_BUN: MiniGameDef = {
   trainingStat: 'body',
+  trainingActivity: 'by testing your reflexes on Whack-a-Bun',
   id: 'whack-a-bun',
   modId: 'morrowkiln-arcade-games',
   name: 'Whack-a-Bun',
