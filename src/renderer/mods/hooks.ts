@@ -210,6 +210,25 @@ export interface PostCommentsProps {
  * One mod's way of drawing the comments under a post. Only one draws them at a time: the first
  * mod that is on and has one, in the order `MODS` lists them ({@link postCommentsOwner}).
  */
+/** What the game hands a mod's emoji tool beside a box being typed in. */
+export interface EmojiToolProps {
+  /** The box is shut, and the tool with it. */
+  dead?: boolean
+  /** Puts an emoji into the box, where its caret is. */
+  onPick: (emoji: string) => void
+}
+
+/**
+ * How a mod draws what somebody sent — a phone message, a post, a comment — in place of its bare
+ * text. Only one draws it, the first mod that is on and has one ({@link sentText}).
+ */
+export interface SentTextSpot {
+  /** The text drawn; `big` off where it stands on a one-line preview. */
+  Text: ComponentType<{ text: string; big?: boolean }>
+  /** Whether a phone message is drawn bare, with no bubble behind it. */
+  bare?: (text: string) => boolean
+}
+
 export interface PostCommentsSpot {
   /** Under the post's text and picture. */
   View: ComponentType<PostCommentsProps>
@@ -232,6 +251,10 @@ export interface ModHooks {
   bunnyboardPage?: BunnyboardPage
   /** Draws the comments under a post; see {@link PostCommentsSpot}. */
   postComments?: PostCommentsSpot
+  /** An emoji tool beside a box being typed in, in place of the phone's own row of emoji. */
+  emojiTool?: ComponentType<EmojiToolProps>
+  /** Draws what somebody sent; see {@link SentTextSpot}. */
+  sentText?: SentTextSpot
   /** Draws a post's picture under its text, wherever a post is drawn; the first mod on decides. */
   postPicture?: ComponentType<PostPictureProps>
 
@@ -328,6 +351,16 @@ function activeEntries(): Registered[] {
 }
 
 /** The mod drawing post comments right now: the first that is on and draws them, or none. */
+/** The emoji tool beside a box being typed in: the first mod's that is on, or none. */
+export function emojiTool(): ComponentType<EmojiToolProps> | null {
+  return active().find((hooks) => hooks.emojiTool)?.emojiTool ?? null
+}
+
+/** How sent text is drawn: the first mod's that is on, or none. */
+export function sentText(): SentTextSpot | null {
+  return active().find((hooks) => hooks.sentText)?.sentText ?? null
+}
+
 export function postCommentsOwner(): { modId: string; spot: PostCommentsSpot } | null {
   const entry = activeEntries().find((one) => one.hooks.postComments)
   return entry?.hooks.postComments ? { modId: entry.modId, spot: entry.hooks.postComments } : null

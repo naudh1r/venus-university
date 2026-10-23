@@ -528,6 +528,12 @@
   color: var(--vu-accent-ink);
 }
 
+/* A message a mod draws bare: what was sent, with no bubble behind it. */
+.vu-bb-bubble--bare {
+  padding: 0 2px;
+  background: transparent;
+}
+
 /* What the app says about the conversation rather than anything either of them said: centred,
    in the bookkeeping voice, and carrying no tail — nobody spoke it. */
 .vu-bb-bubble--system {

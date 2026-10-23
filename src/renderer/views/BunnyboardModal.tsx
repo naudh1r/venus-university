@@ -36,6 +36,7 @@ import { PROFILE_PICTURE_TYPES } from '@shared/profilePicture'
 import { formatTokens } from '@shared/tallies'
 import { affectionFor, emptyFlags, relationshipTagOf } from '@shared/relationship'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { EmojiTool, SentText, useBareMessage, useEmojiTool } from '../components/TextSpots'
 import { CheckField } from '../components/CheckField'
 import { DeadNote } from '../components/DeadNote'
 import { promptEditable } from '../components/LlmFailureModal'
@@ -1307,10 +1308,21 @@ function Composer({
   closed: boolean
   draft: string
   placeholder: string
-  /** The setter itself, so an emoji appends to whatever is in the field at the click. */
+  /** The setter itself, so an emoji goes into whatever is in the field at the click. */
   onDraft: Dispatch<SetStateAction<string>>
   onSend: () => void
 }): JSX.Element {
+  const field = useRef<HTMLTextAreaElement>(null)
+  // A mod's emoji tool stands beside the field in place of the row of quick emoji.
+  const ownTool = useEmojiTool()
+  // A mod's emoji goes in at the caret, which then stands after it.
+  const addEmoji = (emoji: string): void => {
+    const box = field.current
+    const start = Math.min(box?.selectionStart ?? draft.length, draft.length)
+    const end = Math.min(box?.selectionEnd ?? start, draft.length)
+    onDraft((current) => current.slice(0, start) + emoji + current.slice(end))
+    requestAnimationFrame(() => box?.setSelectionRange(start + emoji.length, start + emoji.length))
+  }
   return (
     <div
       className="vu-bb-composer"
@@ -1338,6 +1350,7 @@ function Composer({
       )}
       <div className="vu-bb-compose">
         <textarea
+          ref={field}
           id="bb-compose"
           rows={1}
           className="vu-input vu-bb-input vu-bb-input--multiline"
@@ -1346,33 +1359,38 @@ function Composer({
           placeholder={placeholder}
           onChange={(e) => onDraft(e.target.value)}
         />
+        {ownTool && <EmojiTool dead={closed} onPick={addEmoji} />}
         <PrimaryButton id="bb-send" dead={closed || !draft.trim()} onClick={onSend}>
           {incoming ? 'Generate' : 'Send'}
         </PrimaryButton>
       </div>
 
-      <div className="vu-bb-emoji">
-        {QUICK_EMOJI.map((emoji) => (
-          <motion.button
-            key={emoji}
-            type="button"
-            className="vu-bb-emoji-btn"
-            aria-label={`Add ${emoji}`}
-            disabled={closed}
-            {...gestures(closed, quietLift, quietPress)}
-            // Appended to the end of the draft, which has no selection to insert into.
-            onClick={() => onDraft((current) => current + emoji)}
-          >
-            {emoji}
-          </motion.button>
-        ))}
-      </div>
+      {!ownTool && (
+        <div className="vu-bb-emoji">
+          {QUICK_EMOJI.map((emoji) => (
+            <motion.button
+              key={emoji}
+              type="button"
+              className="vu-bb-emoji-btn"
+              aria-label={`Add ${emoji}`}
+              disabled={closed}
+              {...gestures(closed, quietLift, quietPress)}
+              // Appended to the end of the draft, which has no selection to insert into.
+              onClick={() => onDraft((current) => current + emoji)}
+            >
+              {emoji}
+            </motion.button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 /** One message bubble: the player's, the contact's, or a system line. */
 function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
+  // A message drawn bare stands with no bubble behind it, as a mod drawing sent text says.
+  const bare = useBareMessage(message.text)
   if (message.sender === 'system') {
     return (
       <div
@@ -1387,7 +1405,11 @@ function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
   const side = message.sender === 'player' ? 'mine' : 'theirs'
   return (
     <>
-      {message.text && <div className={`vu-bb-bubble vu-bb-bubble--${side}`}>{message.text}</div>}
+      {message.text && (
+        <div className={`vu-bb-bubble vu-bb-bubble--${side}${bare ? ' vu-bb-bubble--bare' : ''}`}>
+          <SentText text={message.text} />
+        </div>
+      )}
       {message.photo && (
         <MessagePhotoBubble photo={message.photo} sender={message.sender} messageId={message.id} />
       )}
@@ -1919,7 +1941,9 @@ const FeedPost = memo(function FeedPost({
           </PrimaryButton>
         )}
       </div>
-      <p className="vu-bb-post-text">{post.text}</p>
+      <p className="vu-bb-post-text">
+        <SentText text={post.text} />
+      </p>
       {charId && post.id && <PostPicture charId={charId} postId={post.id} />}
       <PostCommentsView
         comments={post.comments ?? []}
