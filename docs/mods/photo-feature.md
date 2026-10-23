@@ -87,6 +87,8 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
   somebody took, instead of with an arm reaching out of the picture.
 - **No more coloured legs**: stockings and leggings in colours from her hair or the scene, often
   on one leg only, came from the photo's own list of legwear to avoid. That list is gone.
+- **No smudge under her skirt**: sitting in a short skirt sometimes drew a smear between her legs,
+  caused by the photo's own `pantyshot` refusal. It is gone, and shows no more than before.
 - **Her top keeps its colour**: in dark or neon-lit scenes a pink or white top could come out black.
 - **Her own clothes on the feed**: posts with a picture now know her wardrobe, and both DMs and
   posts are told not to put her in an oversized knit sweater she does not own.

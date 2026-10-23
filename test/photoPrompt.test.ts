@@ -276,9 +276,10 @@ describe('a shop named after its drink', () => {
 describe('a dressed picture', () => {
   it('keeps her covered where the caption does not undress her', () => {
     const { negative } = buildPhotoPrompt(character(), 'everyday', 'lying on her bed in a sweater')
-    for (const tag of ['nude', 'nipples', 'areolae', 'pussy', 'pantyshot']) {
+    for (const tag of ['nude', 'nipples', 'areolae', 'pussy']) {
       expect(negative).toContain(tag)
     }
+    expect(negative).not.toContain('pantyshot')
   })
 
   it('keeps her chest covered in an everyday photo unless what she wears shows it', () => {
@@ -295,9 +296,9 @@ describe('a dressed picture', () => {
     const { negative } = buildPhotoPrompt(
       character(),
       'suggestive',
-      'sitting on the bed in her lace panties and a loose shirt'
+      'sitting on the bed, nude under a loose shirt'
     )
-    expect(negative).not.toContain('pantyshot')
+    expect(negative).not.toMatch(/\bnude\b/)
     const bare = buildPhotoPrompt(character(), 'explicit', 'naked on the bed').negative
     expect(bare).not.toContain('nipples')
   })

@@ -67,14 +67,15 @@ const BARE_POSITIVE = 'uncensored'
  * to (a sweater slipping, a skirt riding up), and a feed photo is seen by the whole campus. A
  * same-seed check showed these change nothing in a picture that was not slipping. The wider set
  * (cleavage, bra straps, underwear) toned down what the caption had asked for, so it is not here.
+ * Nor is `pantyshot`: sitting in a short skirt, it smeared something between her legs on two
+ * seeds of sixteen and on none without it, and showed no more of her underwear for being gone.
  * Each is dropped where the caption names it.
  */
 const DRESSED_NEGATIVE: readonly (readonly [string, RegExp])[] = [
   ['nude', /\b(?:nude|naked)\b/],
   ['nipples', /\bnipples?\b/],
   ['areolae', /\bareola/],
-  ['pussy', /\bpussy\b/],
-  ['pantyshot', /\b(?:pantyshot|panties|underwear|knickers)\b/]
+  ['pussy', /\bpussy\b/]
 ]
 
 /**
