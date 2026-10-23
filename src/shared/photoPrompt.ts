@@ -2,7 +2,7 @@ import type { PhotoTier } from './photoGate'
 import { DORM_IDS, dormLabel } from './dorms'
 import { bodyAppearance, bodyNegative } from './characterBody'
 import { bodyTagsFor, describesNothingOn } from './photoBody'
-import { framingInTags } from './photoFraming'
+import { framingInTags, framingOf } from './photoFraming'
 import { photoPose, withoutCameraHold, withoutHeldObject, withoutSelfieWord } from './photoPose'
 import { LOCATIONS, NARRATIVE_LOCATIONS } from './locations'
 import type { Character } from './types'
@@ -12,7 +12,7 @@ import type { Character } from './types'
 // tsconfig line, which would be one more thing to re-add on a sync.
 import type {} from './photoTypes'
 import { photoWardrobe } from './photoWardrobe'
-import { saysAny } from './photoWords'
+import { says, saysAny } from './photoWords'
 
 /**
  * The prompt one phone photo is drawn from. Built like the CG prompt — her appearance tags
@@ -509,4 +509,181 @@ function displacedTags(scene: string): string[] {
   // Something moved and named in no row: the general word for clothes pulled out of the way.
   if (tags.length === 0 && new RegExp(`\\b${MOVED}`).test(text)) tags.push('clothes_pull')
   return tags
+}
+
+/** The four strings a picture of two girls needs: the shared scene, and each girl's own half. */
+export interface DuoPhotoPrompts {
+  /** The whole picture: where they are and what the shot is. */
+  scene: string
+  /** The girl who sends it, drawn in the left half. */
+  left: string
+  /** Her friend, drawn in the right half. */
+  right: string
+  negative: string
+}
+
+/**
+ * Words for the two of them touching. Wherever they met, their bodies merged and hands came out
+ * on the wrong girl, so a picture of two is drawn with them side by side and the words go.
+ */
+const TOUCHING = new RegExp(
+  '\\s*,?\\s*\\b(?:hugg\\w*|hugs?|cuddl\\w*|snuggl\\w*|embrac\\w*|kiss\\w*|holding hands|hand in hand|' +
+    'arm in arm|arms? (?:around|linked|wrapped)|leaning (?:on|against) (?:each other|her)|' +
+    'cheek to cheek|head on (?:her|each other)\\S*\\s+shoulder)[^,.;]*?(?=\\s+and\\s|[,.;]|$)',
+  'gi'
+)
+
+/** The sentence without the two of them touching. */
+export function withoutTouching(scene: string): string {
+  return scene.replace(TOUCHING, '').replace(/\s{2,}/g, ' ').replace(/\s+([,.;])/g, '$1').trim()
+}
+
+/** What is on her legs or feet: out of a picture of two drawn from the waist up. */
+const LEG_GARMENT =
+  /(?:thigh[_\s-]?high|socks?|stockings?|pantyhose|tights|legwear|leggings|shoes|sneakers|boots|heels|loafers|sandals|^thighs$|^bare_legs$)/i
+
+/** How each half may hold herself: her pose, never a hand placement or a framing. */
+const DUO_POSTURE: ReadonlySet<string> = new Set([
+  'standing',
+  'sitting',
+  'lying',
+  'on_back',
+  'on_side',
+  'on_stomach',
+  'kneeling',
+  'from_above',
+  'looking_at_viewer',
+  'looking_away',
+  'indian_style',
+  'crossed_legs'
+])
+
+/** Where the two of them are drawn, from what the caption asks for. */
+function duoFraming(text: string): { tags: string[]; scene: string[] } {
+  if (saysAny(text, ['from behind', 'back view', 'backs to', 'looking back', 'over her shoulder'])) {
+    // Each half turns on its own, and one of them faced the camera unless both were told.
+    return {
+      tags: ['(from_behind:1.3)', 'looking_back', '(upper_body:1.3)'],
+      scene: ['both with their backs to the viewer']
+    }
+  }
+  // A close-up needed the framing weighted in both halves before either was drawn close.
+  if (framingOf(text) === 'face' || saysAny(text, ['close-up', 'close up', 'closeup'])) {
+    return { tags: ['(close-up:1.3)', '(portrait:1.3)'], scene: [] }
+  }
+  // Waist up, always: a whole-body shot of two drew one of them smaller, as if a step behind,
+  // and her legs folded to fit her half.
+  return { tags: ['(upper_body:1.3)'], scene: ['same height'] }
+}
+
+/** One girl's half: who she is, what of her the shot shows, and what she wears. */
+function duoHalf(
+  girl: Character,
+  tier: PhotoTier,
+  scene: string,
+  posture: readonly string[],
+  extra: readonly string[]
+): { prompt: string; worn: string } {
+  const bare = tier === 'explicit'
+  const dressed = describesClothing(scene)
+  const appearance = bodyAppearance(girl, 'photo').filter((tag) => tag !== '1girl')
+  const body = bodyTagsFor(girl.body, scene, bare, 'waist')
+  const wardrobe = bare
+    ? dressed && !describesNothingOn(scene)
+      ? ['partially_undressed', ...displacedTags(scene), BARE_POSITIVE]
+      : ['nude', 'completely_nude', BARE_POSITIVE]
+    : (photoWardrobe(girl, scene, dressed, tier !== 'everyday') ?? [])
+        .filter((tag) => !LEG_GARMENT.test(tag))
+        .map(heldColour)
+  return {
+    prompt: plainColours(
+      [PHOTO_QUALITY, '1girl, solo', ...appearance, ...body, ...wardrobe, ...posture, ...extra].join(
+        ', '
+      )
+    ),
+    worn: `${appearance.join(' ')} ${wardrobe.join(' ')}`
+  }
+}
+
+/**
+ * The caption with her friend said as "her friend" rather than taken out like any other name:
+ * "me and Ana at the cafe" read as "me and at the cafe".
+ */
+function friendAsFriend(friend: Character, scene: string): string {
+  return [`${friend.firstName} ${friend.lastName}`, friend.firstName]
+    .filter((name) => name.length > 2)
+    .reduce(
+      (text, name) =>
+        text.replace(new RegExp(`\\b${escaped(name)}(?:['\u2019]s)?\\b`, 'gi'), 'her friend'),
+      scene
+    )
+}
+
+/**
+ * Assembles a picture of two girls side by side: `sender` on the left, who sent it, `friend` on
+ * the right. Each is drawn in her own half from her own tags, and the scene over the whole picture.
+ *
+ * Told as one prompt, the checkpoint swapped their hair, glasses and clothes between them; drawn
+ * in halves, each kept her own. The tier has been settled for the pair already.
+ */
+export function buildDuoPhotoPrompt(
+  sender: Character,
+  friend: Character,
+  tier: PhotoTier,
+  photoPrompt: string
+): DuoPhotoPrompts {
+  const named = withoutNames(sender, friendAsFriend(friend, photoPrompt.trim()))
+  const scene = withoutTouching(shopNotDrink(drinkNotLiquid(plainColours(named))))
+  const text = scene.toLowerCase()
+  const bare = tier === 'explicit'
+
+  const pose = photoPose(scene, bare)
+  const posture = pose.tags.filter((tag) => DUO_POSTURE.has(tag))
+  const framing = duoFraming(text)
+
+  // Selfies: the phone is hers, and only her half reaches for it.
+  const selfie = says(text, 'selfie')
+  const mirror = selfie && says(text, 'mirror')
+  const lying = posture.includes('lying')
+  const holds = mirror
+    ? ['holding_phone']
+    : selfie && !lying
+      ? ['selfie', 'outstretched_arm']
+      : []
+  const phoneNegative = selfie && !mirror ? ['phone', 'cellphone', 'smartphone', 'holding_phone'] : []
+
+  // A selfie lying down did not hold for two, so it is said as the photo it is drawn as.
+  const sentence = lookingAtViewer(
+    withoutWhoTookIt(withoutCameraHold(lying ? scene.replace(/\bselfie\b/gi, 'photo') : scene))
+  ).replace(/[.!?]+$/, '')
+
+  const shared = [...framing.tags]
+  const sceneTags = [
+    `${PHOTO_QUALITY}, 2girls, multiple_girls, depth_of_field`,
+    sentence,
+    'side by side',
+    ...framing.scene,
+    ...(mirror ? ['mirror', 'reflection'] : []),
+    ...shared
+  ]
+
+  const left = duoHalf(sender, tier, scene, posture, [...shared, ...holds])
+  const right = duoHalf(friend, tier, scene, posture, shared)
+  const worn = `${scene} ${left.worn} ${right.worn}`
+  const negative = [
+    PHOTO_NEGATIVE.replace('multiple_girls, 2girls, ', ''),
+    '3girls',
+    ...(bare ? [] : dressedNegative(worn.toLowerCase().replace(/_/g, ' '), tier === 'everyday')),
+    ...SPILL_NEGATIVE.filter(([, said]) => !said.test(text)).map(([tag]) => tag),
+    ...phoneNegative,
+    ...(mirror || saysAny(text, ['camera']) ? [] : ['camera']),
+    ...new Set([...bodyNegative(sender), ...bodyNegative(friend)])
+  ].join(', ')
+
+  return {
+    scene: sceneTags.filter((part) => part.length > 0).join(', '),
+    left: left.prompt,
+    right: right.prompt,
+    negative
+  }
 }
