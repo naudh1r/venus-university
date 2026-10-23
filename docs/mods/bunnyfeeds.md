@@ -106,9 +106,9 @@ on them, from any mod that puts one there, get threads like any other post.
   other students get a face drawn off their handle in place of an emoji, Gradient, Identicon,
   Shapes, Monogram or Mixed (one of the four per student, kept), chosen in the Mods screen with
   a preview.
-- **Emoji**: the comment well has the game's emoji panel, every emoji in tabs with search, the
-  ones you used last first and one skin tone for every hand and person; emoji in posts and
-  comments stand a size up from the words, and a comment of nothing but a few is drawn big.
+- **Emoji**: the comment well takes the game's emoji tool, and posts and comments are drawn
+  through its sent text, so with Emoji Extended on the well has its panel and a comment of nothing
+  but a few emoji is drawn big.
 - **Notifications**: a page beside the feed in Updates listing every answer to your comments, with
   an unread count on its title and on the rail, each opening its post at the reply, and Mark as
   read on each one or all at once. No AI calls.

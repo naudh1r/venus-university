@@ -9,7 +9,7 @@ import { profileUrl, useSpriteVersion } from '../stores/characterStore'
 import { useGameStore } from '../stores/gameStore'
 import { leavePlayerComment } from '../stores/bunnyfeedsThreads'
 import { epilogueOf, sceneActiveOf } from '../stores/textingLoop'
-import type { PostCommentsProps } from '../mods/hooks'
+import { sentText, type PostCommentsProps } from '../mods/hooks'
 import { fadeIn, gestures, lift, press, quietLift, quietPress } from '../views/motion'
 import { CloseIcon, HeartIcon } from '../views/screenIcons'
 import { formatShortGameDate, slotHalf } from '../prompts/gameDate'
@@ -17,8 +17,7 @@ import { PostPicture } from './PostSpots'
 import { FollowerFace } from './BunnyfeedsFaces'
 import { armFeedThreads } from '../stores/bunnyfeedsThreads'
 import { takeCommented } from '../stores/bunnyfeedsVisit'
-import { EmojiButton } from './EmojiPicker'
-import { EmojiText, emojiOnly } from './EmojiText'
+import { EmojiTool, SentText } from './TextSpots'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import '../vu_styles/PopList.css'
 import '../vu_styles/Bunnyfeeds.css'
@@ -242,7 +241,7 @@ function PostView(props: PostCommentsProps & { charId: string; postId: string })
           </div>
         </div>
         <p className="vu-bb-post-text">
-          <EmojiText text={post.text} />
+          <SentText text={post.text} />
         </p>
         <PostPicture charId={charId} postId={postId} />
         <div className="vu-bb-post-actions">
@@ -440,8 +439,9 @@ function CommentRow({
           {comment.player ? reader : `@${comment.handle}`}
         </span>
         {to && <span className="vu-bf-comment-mention">{to} </span>}
-        {emojiOnly(comment.text) ? (
-          <EmojiText text={comment.text} />
+        {/* A comment of nothing but a few emoji is drawn whole, big where a mod draws it so. */}
+        {sentText()?.bare?.(comment.text) ? (
+          <SentText text={comment.text} />
         ) : (
           comment.text.split(/(@[\w.]+)/).map((part, i) =>
             i % 2 === 1 ? (
@@ -449,7 +449,7 @@ function CommentRow({
                 {part}
               </span>
             ) : (
-              <EmojiText key={i} text={part} big={false} />
+              <SentText key={i} text={part} big={false} />
             )
           )
         )}
@@ -701,7 +701,7 @@ function CommentField({
             else send()
           }}
         />
-        <EmojiButton onPick={addEmoji} />
+        <EmojiTool onPick={addEmoji} />
         {/* Enter sends too; this is the way for whoever reaches for the mouse. */}
         <motion.button
           type="button"

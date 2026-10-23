@@ -36,8 +36,7 @@ import { PROFILE_PICTURE_TYPES } from '@shared/profilePicture'
 import { formatTokens } from '@shared/tallies'
 import { affectionFor, emptyFlags, relationshipTagOf } from '@shared/relationship'
 import { ConfirmModal } from '../components/ConfirmModal'
-import { EmojiButton } from '../components/EmojiPicker'
-import { EmojiText, emojiOnly } from '../components/EmojiText'
+import { EmojiTool, SentText, useBareMessage, useEmojiTool } from '../components/TextSpots'
 import { CheckField } from '../components/CheckField'
 import { promptEditable } from '../components/LlmFailureModal'
 import { TextField } from '../components/TextField'
@@ -264,6 +263,7 @@ const TABS: ReadonlyArray<{ id: BunnyboardTab; word: string; Mark: () => JSX.Ele
 ]
 
 /** The composer's quick-bar: one tap each, short enough to sit under the field unwrapped. */
+const QUICK_EMOJI: readonly string[] = ['😂', '😭', '❤️', '👍', '🍆', '😳', '🔥', '🥺']
 
 /** The rail dealing itself out, and every list in the app's own body. Module scope. */
 const RAIL_DEAL = dealt(0.06, 0.05)
@@ -1290,17 +1290,15 @@ function Composer({
   onSend: () => void
 }): JSX.Element {
   const field = useRef<HTMLTextAreaElement>(null)
-  // An emoji goes in at the caret, which then stands after it.
+  // A mod's emoji tool stands beside the field in place of the row of quick emoji.
+  const ownTool = useEmojiTool()
+  // A mod's emoji goes in at the caret, which then stands after it.
   const addEmoji = (emoji: string): void => {
     const box = field.current
-    const start = box?.selectionStart ?? Number.MAX_SAFE_INTEGER
-    const end = box?.selectionEnd ?? start
-    onDraft((current) => {
-      const at = Math.min(start, current.length)
-      return current.slice(0, at) + emoji + current.slice(Math.min(end, current.length))
-    })
-    const caret = Math.min(start, draft.length) + emoji.length
-    requestAnimationFrame(() => box?.setSelectionRange(caret, caret))
+    const start = Math.min(box?.selectionStart ?? draft.length, draft.length)
+    const end = Math.min(box?.selectionEnd ?? start, draft.length)
+    onDraft((current) => current.slice(0, start) + emoji + current.slice(end))
+    requestAnimationFrame(() => box?.setSelectionRange(start + emoji.length, start + emoji.length))
   }
   return (
     <div
@@ -1308,7 +1306,7 @@ function Composer({
       onKeyDown={(e) => {
         if (e.key !== 'Enter') return
         // Keep the window-level Enter handler from advancing the scene, on the field and the
-        // emoji panel alike; the field itself sends on Enter and breaks a line on Shift+Enter.
+        // emoji buttons alike; the field itself sends on Enter and breaks a line on Shift+Enter.
         e.stopPropagation()
         if ((e.target as HTMLElement).id !== 'bb-compose' || e.shiftKey) return
         e.preventDefault()
@@ -1338,17 +1336,38 @@ function Composer({
           placeholder={placeholder}
           onChange={(e) => onDraft(e.target.value)}
         />
-        <EmojiButton dead={closed} onPick={addEmoji} />
+        {ownTool && <EmojiTool dead={closed} onPick={addEmoji} />}
         <PrimaryButton id="bb-send" dead={closed || !draft.trim()} onClick={onSend}>
           {incoming ? 'Generate' : 'Send'}
         </PrimaryButton>
       </div>
+
+      {!ownTool && (
+        <div className="vu-bb-emoji">
+          {QUICK_EMOJI.map((emoji) => (
+            <motion.button
+              key={emoji}
+              type="button"
+              className="vu-bb-emoji-btn"
+              aria-label={`Add ${emoji}`}
+              disabled={closed}
+              {...gestures(closed, quietLift, quietPress)}
+              // Appended to the end of the draft, which has no selection to insert into.
+              onClick={() => onDraft((current) => current + emoji)}
+            >
+              {emoji}
+            </motion.button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 /** One message bubble: the player's, the contact's, or a system line. */
 function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
+  // A message drawn bare stands with no bubble behind it, as a mod drawing sent text says.
+  const bare = useBareMessage(message.text)
   if (message.sender === 'system') {
     return (
       <div
@@ -1364,11 +1383,8 @@ function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
   return (
     <>
       {message.text && (
-        // A message of nothing but a few emoji is drawn big, with no bubble behind it.
-        <div
-          className={`vu-bb-bubble vu-bb-bubble--${side}${emojiOnly(message.text) ? ' vu-bb-bubble--emoji' : ''}`}
-        >
-          <EmojiText text={message.text} />
+        <div className={`vu-bb-bubble vu-bb-bubble--${side}${bare ? ' vu-bb-bubble--bare' : ''}`}>
+          <SentText text={message.text} />
         </div>
       )}
       {message.photo && (
@@ -1903,7 +1919,7 @@ const FeedPost = memo(function FeedPost({
         )}
       </div>
       <p className="vu-bb-post-text">
-        <EmojiText text={post.text} />
+        <SentText text={post.text} />
       </p>
       {charId && post.id && <PostPicture charId={charId} postId={post.id} />}
       <PostCommentsView
