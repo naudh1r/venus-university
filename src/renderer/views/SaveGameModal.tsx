@@ -47,6 +47,7 @@ export interface SaveGameModalProps {
  * written on a click, a save already there only once the player has said to overwrite it.
  */
 export function SaveGameModal({ theme, onClose }: SaveGameModalProps): JSX.Element | null {
+  const matchStatus = useGameStore(state => state.sceneMiniGame?.match?.status)
   const listSavesOf = useSaveStore((s) => s.listSavesOf)
   const removeSaveOf = useSaveStore((s) => s.removeSaveOf)
   const covered = useCrossingStore((s) => s.phase !== 'idle')
@@ -129,6 +130,9 @@ export function SaveGameModal({ theme, onClose }: SaveGameModalProps): JSX.Eleme
           variants={panelUnderTab}
         >
           <TitleTab>Save Game</TitleTab>
+          {matchStatus && <p className="vu-empty" role="status">{matchStatus === 'playing'
+            ? 'Loading this save restarts the mini-game with the same players and settings.'
+            : 'The mini-game result is saved. Loading continues after the match.'}</p>}
 
           <SavePagesGrid
             id="save-pages"

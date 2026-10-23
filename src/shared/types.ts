@@ -1219,6 +1219,7 @@ export interface SceneSummaryMark {
 export interface SceneState {
   /** Optional interactive training chosen before this scene was cast. */
   activity?: import('./slotActivity').SlotActivity
+  miniGame?: import('./minigameScene').MiniGameScene
   /** Cast charIds, fixed for the whole scene. */
   cast: string[]
   /** The scene as delivered: the reader's action lines and every reply line, in order. */
