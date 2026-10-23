@@ -4,8 +4,8 @@ import { useGameStore } from './gameStore'
 import { create } from 'zustand'
 import { toAppError } from '@shared/errors'
 import {
-  MODS,
   modOn,
+  MODS,
   NO_SWITCHES,
   optionOn,
   photoSwitchesOf,

@@ -3,7 +3,8 @@ import {
   photoPose,
   posePhotoTags,
   withoutCameraHold,
-  withoutHeldObject
+  withoutHeldObject,
+  withoutSelfieWord
 } from '../src/shared/photoPose'
 
 describe('posePhotoTags', () => {
@@ -200,6 +201,29 @@ describe('a selfie caption that says how she holds the phone', () => {
     expect(posePhotoTags(caption, false)).toContain('from_below')
   })
 
+  /** A playtest selfie that came back as its first clause alone, and with an arm out of frame. */
+  const beanbag =
+    'A relaxed selfie taken in her room wearing her everyday clothes, sitting curled up on a ' +
+    'beanbag chair holding a ceramic mug with both hands and smiling warmly at the camera.'
+
+  it('keeps a clause that holds something else and only looks at the camera', () => {
+    expect(withoutCameraHold(beanbag)).toBe(beanbag)
+    expect(withoutCameraHold('A selfie on her bed, holding her phone up high, smiling')).toBe(
+      'A selfie on her bed, smiling'
+    )
+    expect(withoutCameraHold('A selfie in bed, smiling, camera held low above her face.')).toBe(
+      'A selfie in bed, smiling.'
+    )
+  })
+
+  it('draws a selfie her hands are both full for as a picture somebody else took', () => {
+    const pose = photoPose(beanbag, false)
+    expect(pose.tags).not.toContain('full_body')
+    expect(pose.tags.join(' ')).not.toMatch(/outstretched_arm/)
+    expect(pose.negative).toEqual(expect.arrayContaining(['selfie', 'outstretched_arm']))
+    expect(withoutSelfieWord(beanbag)).toMatch(/^A relaxed photo taken/)
+  })
+
   it('leaves a mirror selfie, a camera of her own, and any other picture alone', () => {
     const mirror = 'a mirror selfie, holding her phone up'
     expect(withoutCameraHold(mirror)).toBe(mirror)
@@ -239,6 +263,17 @@ describe('her hands, one placement at a time', () => {
     const tags = posePhotoTags('a naked mirror selfie in the bathroom, one hand on her hip', true)
     expect(tags).toContain('hand_on_own_hip')
     expect(tags).not.toContain('hand_on_own_chest')
+  })
+
+  it('adds no hand placement where she is leaning on her hands', () => {
+    for (const caption of [
+      'sitting naked on the edge of the bed, legs spread, leaning back on her hands',
+      'naked on all fours on the bed from behind, looking back at the camera'
+    ]) {
+      expect(posePhotoTags(caption, true)).not.toEqual(
+        expect.arrayContaining([expect.stringMatching(/^(?:hands?_on_own_|hand_on_own_)/)])
+      )
+    }
   })
 
   it('does not add a hand on her hip to hands already on her knees', () => {

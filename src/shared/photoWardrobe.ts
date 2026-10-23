@@ -102,5 +102,5 @@ export function wardrobeLine(character: Character): string {
       return name && set && set.tags.length > 0 ? [`"${name}" — ${spoken(set.tags)}`] : []
     })
   ]
-  return `${character.firstName}'s clothes: ${sets.join('; ')}. If the picture has her in one of these, say which — "her everyday clothes", "her PE kit", "her swimsuit"${sets.length > 3 ? ', or the name of the set' : ''} — rather than describing it.`
+  return `${character.firstName}'s clothes: ${sets.join('; ')}. If the picture has her in one of these, say which — "her everyday clothes", "her PE kit", "her swimsuit"${sets.length > 3 ? ', or the name of the set' : ''} — rather than describing it. Otherwise dress her in what she would actually wear there, in her own style: not an oversized knit sweater, cardigan or hoodie unless one is hers.`
 }

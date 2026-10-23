@@ -498,7 +498,10 @@ function posterBlock(input: SlotIntroInput): string[] {
   return [
     'STATUS UPDATES',
     'Each of these characters is posting a status update on social media right now. Write one entry in "posts" for each, and nothing for anyone else. They are described under LOREBOOK.',
-    ...input.posters.map(({ charKey }) => `- ${charKey}`)
+    ...input.posters.flatMap(({ character, info, charKey }) => [
+      `- ${charKey}`,
+      ...promptLines('slot-poster', { character, info })
+    ])
   ]
 }
 
