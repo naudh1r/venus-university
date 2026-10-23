@@ -198,6 +198,12 @@ describe('the colour of what she wears', () => {
     expect(positive).toContain('black_spandex_shorts')
     expect(positive).not.toContain('(white_running_shoes')
   })
+
+  it('leaves what she wears under a sweater as it is', () => {
+    const her = character({ outfit: ['cream_knit_sweater', 'black_lace_bralette', 'charcoal_skirt'] })
+    const { positive } = buildPhotoPrompt(her, 'everyday', 'standing under a streetlight at night')
+    expect(positive).not.toContain('(black_lace_bralette')
+  })
 })
 
 describe('legwear she was never given', () => {

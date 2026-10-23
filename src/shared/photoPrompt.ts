@@ -388,18 +388,34 @@ const TOP_GARMENT = new RegExp(
     'bandeau|dress|sundress|tank)s?(?:$|[_\\s-])'
 )
 
+/** What she wears under a top, which shows only where nothing is over it. */
+const UNDER_TOP = /(?:^|[_\s-])(?:bra|bralette|camisole)s?(?:$|[_\s-])/
+const SPORTS = /(?:^|[_\s-])sports(?:$|[_\s-])/
+
 /**
- * One of her garments, weighted where it is her top and names a colour. A dark or neon-lit scene
- * took the colour off it: her pink sports bra came back black or white on every seed, and pink on
- * every seed at 1.2. Only her top: every coloured garment weighted put her sneakers on the bed
- * beside her and turned her hair the colour of her clothes, and 1.1 did not hold the shoes back.
- * A negative for the colour it turned did nothing, and saying the colour twice changed the garment.
+ * Her garments, her top weighted where it names a colour. A dark or neon-lit scene took the
+ * colour off it: her pink sports bra came back black or white on every seed, and pink on every
+ * seed at 1.2. Only her top: every coloured garment weighted put her sneakers on the bed beside
+ * her and turned her hair the colour of her clothes, and 1.1 did not hold the shoes back. What she
+ * wears under a sweater stays as it is: a weighted black bralette came through her cream sweater
+ * as a black top of its own. A negative for the colour it turned did nothing, and saying the
+ * colour twice changed the garment.
  */
-function heldColour(tag: string): string {
-  const text = tag.toLowerCase()
-  return GARMENT_COLOUR.test(text) && TOP_GARMENT.test(text) && !tag.startsWith('(')
-    ? `(${tag}:1.2)`
-    : tag
+function heldColours(tags: readonly string[]): string[] {
+  const under = (text: string): boolean => UNDER_TOP.test(text) && !SPORTS.test(text)
+  const covered = tags.some((tag) => {
+    const text = tag.toLowerCase()
+    return TOP_GARMENT.test(text) && !under(text)
+  })
+  return tags.map((tag) => {
+    const text = tag.toLowerCase()
+    const held =
+      GARMENT_COLOUR.test(text) &&
+      TOP_GARMENT.test(text) &&
+      !(covered && under(text)) &&
+      !tag.startsWith('(')
+    return held ? `(${tag}:1.2)` : tag
+  })
 }
 
 /** The two strings one photo render needs. */
@@ -443,7 +459,7 @@ export function buildPhotoPrompt(
     : // One of her own sets, or nothing where the picture she described dressed her in
       // something none of them is.
       plainColours(
-        (photoWardrobe(character, scene, dressed, tier !== 'everyday') ?? []).map(heldColour).join(', ')
+        heldColours(photoWardrobe(character, scene, dressed, tier !== 'everyday') ?? []).join(', ')
       )
 
   // Her appearance, with her build and her chest in it while the body switch is on. It opens on
