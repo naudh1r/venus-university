@@ -1,6 +1,6 @@
 import { minigameLocation, minigameSceneLocation } from '@shared/minigames'
 import { locationAvailable } from '@shared/cityLife'
-import { locationDefOf, ROOM_LOCATION } from '@shared/locations'
+import { locationDefOf, ROOM_LOCATION, LOCATIONS, NARRATIVE_LOCATIONS } from '@shared/locations'
 import { keyPattern, LOREBOOK } from '../prompts/lorebook'
 import { useGameStore } from '../stores/gameStore'
 
@@ -85,4 +85,15 @@ export function hereLine(place: string | null): string[] {
         `Every game listed is played right here at ${label}, where the scene already is: agreeing to one never takes anyone somewhere else, and the background stays as it is.`
       ]
     : []
+}
+
+/** Explicit venue names in an action, never generic lore triggers such as "race". */
+export function destinationOf(action: string): string | null {
+  const words = (text: string): string => ` ${text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `
+  const said = words(action)
+  const matches = [...LOCATIONS, ...NARRATIVE_LOCATIONS].filter(place =>
+    locationAvailable(place.id) && [place.id, place.label, ...(place.id === 'pino_cola_lounge' ? ['pino cola'] : [])]
+      .some(name => said.includes(words(name))))
+  const ids = [...new Set(matches.map(place => place.id))]
+  return ids.length === 1 ? ids[0] : null
 }

@@ -22,7 +22,10 @@ import { gameIsOn, nameOf } from '../minigames/table'
 import { registerHooks } from '../mods/hooks'
 import { useGameStore } from '../stores/gameStore'
 import { useModsStore } from '../stores/modsStore'
-import { scenePlace } from '../minigames/place'
+import { destinationOf, scenePlace } from '../minigames/place'
+
+// The exact catalogue supplied to this request, not a venue projected from unread reply lines.
+let requestedOffer: { games: MiniGameDef[]; location: string | null } | null = null
 
 /** The games a girl in this scene could be played at, each with a component to play it with. */
 function gamesWith(cast: readonly Character[], location: string | null): MiniGameDef[] {
@@ -63,11 +66,12 @@ function agree(
   game: MiniGameDef,
   characters: readonly Character[],
   stake: string,
-  options: Record<string, number>
+  options: Record<string, number>,
+  location?: string | null
 ): void {
   useTableStore
     .getState()
-    .setAgreed({ gameId: game.id, charIds: characters.map((c) => c.charId), stake, options })
+    .setAgreed({ gameId: game.id, charIds: characters.map((c) => c.charId), stake, options, location })
   // Judged while the reader reads the answer, so the table opens with everyone ready.
   for (const character of characters) void skillOf(character, game)
 }
@@ -91,6 +95,7 @@ registerHooks(MINI_GAMES, {
 
   requests: {
     scene: (request, ctx) => {
+      requestedOffer = null;
       // The turn that carries the reader's own proposal asks for her answer to it and nothing
       // else: its words are in what the request was built from, so a turn retried or rewound
       // never picks up a stale one.
@@ -105,18 +110,26 @@ registerHooks(MINI_GAMES, {
       if (!request.user.includes("Reader's action:")) return request
       // Only the games a girl may bring up here are on it, and any his action names: the rest
       // are his to ask for from the table.
-      const location = scenePlace()
+      const current = scenePlace()
+      const action = actionOf(request.user)
+      const destination = gamesNamed(MINI_GAMES_LIST, action).length ? destinationOf(action) : null
+      const location = destination ?? current
       const { busy, keen } = sceneTerms()
       const here = gamesWith(ctx.cast, location)
       const suggested = gamesSuggested(here, location, busy, keen)
       const named = gamesNamed(here, actionOf(request.user))
-      const games = here.filter((game) => suggested.includes(game) || named.includes(game))
+      const games = destination && destination !== current
+        ? named
+        : here.filter((game) => suggested.includes(game) || named.includes(game))
       if (games.length === 0) return request
-      return withOffer(request, games, ctx.cast, location, busy, keen)
+      requestedOffer = { games, location }
+      return withOffer(request, games, ctx.cast, location, busy, keen, location !== current)
     }
   },
 
   afterSceneReply: ({ reply, cast, ending }) => {
+    const offered = requestedOffer
+    requestedOffer = null
     const table = useTableStore.getState()
     table.setPlayed(null)
     const { proposal } = table
@@ -139,8 +152,8 @@ registerHooks(MINI_GAMES, {
     // No proposal of his own was out: the two of them may still have agreed in the scene.
     if (ending) return
     // The reply can only name a game its request offered: the field allows no other.
-    const agreed = agreedOf(reply, gamesWith(cast, scenePlace()), cast)
-    if (agreed) agree(agreed.game, agreed.characters, agreed.stake, agreed.options)
+    const agreed = agreedOf(reply, offered?.games.filter(game => gameIsOn(game.modId, game)) ?? [], cast)
+    if (agreed) agree(agreed.game, agreed.characters, agreed.stake, agreed.options, offered?.location)
   },
 
   // A turn the reader takes instead lets an agreed game go; his own proposal is not that turn.
@@ -148,6 +161,7 @@ registerHooks(MINI_GAMES, {
   // Nothing in hand belongs to the game being entered. Its scene is not loaded yet, so whether
   // she had just agreed at the point it stands on is asked later, by the seat, at the reader's turn.
   gameEntered: () => {
+    requestedOffer = null
     useTableStore.getState().setProposal(null)
     useTableStore.getState().dropAgreed()
     useTableStore.getState().setPlayed(null)
