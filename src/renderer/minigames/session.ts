@@ -1,12 +1,7 @@
 import { create } from 'zustand'
 import { useGameStore } from '../stores/gameStore'
 
-/**
- * What stands between a game being asked for and being played: the reader's proposal while the
- * turn carrying it is out, and the game a girl agreed to until the table opens on it. The save
- * knows nothing of either. An agreed game is kept beside it, against the point of the scene it
- * was agreed at, so a game reloaded there still has its table to open.
- */
+/** Proposals are transient; invitations, match setup and outcomes live in scene saves. */
 
 /** A game the reader has asked a girl, or several, to play, in the words he asked with. */
 export interface Proposal {
@@ -40,61 +35,42 @@ export interface Played {
 }
 
 interface TableState {
+  active: boolean
   proposal: Proposal | null
   agreed: Agreed | null
   played: Played | null
   setPlayed: (played: Played | null) => void
   setProposal: (proposal: Proposal | null) => void
   setAgreed: (agreed: Agreed | null) => void
-  /** Lets go of the agreed game in hand, leaving what is kept beside the save where it is. */
+  /** Lets go of the agreed game in hand, preserving the scene checkpoint for restart. */
   dropAgreed: () => void
 }
 
-/** Where the agreed game is kept across a reload. */
-const KEPT = 'vu-minigames:agreed'
-
-/** The point of a scene an agreement belongs to: the playthrough, and how far its scene had got. */
-function sceneMark(): { playthrough: string | null; at: number } {
-  const game = useGameStore.getState()
-  return { playthrough: game.playthroughId, at: game.currentSceneTranscript.length }
-}
-
-function keep(agreed: Agreed | null): void {
-  try {
-    if (agreed) localStorage.setItem(KEPT, JSON.stringify({ ...sceneMark(), agreed }))
-    else localStorage.removeItem(KEPT)
-  } catch {
-    // Kept for this sitting only.
-  }
-}
-
-/**
- * The game she agreed to at exactly the point the loaded scene stands at, or null: one agreed in
- * another playthrough, or before lines the scene has since gained or lost, is not this scene's.
- */
+/** A running save restarts this match; a settled result must never reopen it. */
 export function keptAgreed(): Agreed | null {
-  try {
-    const raw = localStorage.getItem(KEPT)
-    if (!raw) return null
-    const { playthrough, at, agreed } = JSON.parse(raw) as {
-      playthrough?: unknown
-      at?: unknown
-      agreed?: Agreed & { charId?: string }
-    }
-    const mark = sceneMark()
-    if (!agreed || playthrough !== mark.playthrough || at !== mark.at) return null
-    // One kept before a table seated more than one girl names only her.
-    if (!Array.isArray(agreed.charIds)) {
-      if (typeof agreed.charId !== 'string') return null
-      return { ...agreed, charIds: [agreed.charId] }
-    }
-    return agreed
-  } catch {
-    return null
+  const match = useGameStore.getState().sceneMiniGame?.match
+  return match?.status === 'playing' ? { ...match, location: match.location } : null
+}
+function keep(agreed: Agreed | null): void {
+  const state = useGameStore.getState().sceneMiniGame ?? {}
+  // Submitting the persisted result must not erase its recovery checkpoint.
+  if (!agreed && state.match?.status === 'result') return
+  if (!agreed) {
+    const { match: _match, ...rest } = state
+    useGameStore.setState({ sceneMiniGame: rest })
+    return
   }
+  if (state.match?.status === 'result') return
+  const existing = state.match
+  const same = existing?.status === 'playing' && existing.gameId === agreed.gameId &&
+    JSON.stringify(existing.charIds) === JSON.stringify(agreed.charIds) && JSON.stringify(existing.options) === JSON.stringify(agreed.options)
+  useGameStore.setState({ sceneMiniGame: { ...state, invitation: undefined, match: {
+    ...agreed, location: agreed.location ?? null, id: same ? existing.id : crypto.randomUUID(), status: 'playing'
+  } } })
 }
 
 export const useTableStore = create<TableState>((set) => ({
+  active: false,
   proposal: null,
   agreed: null,
   played: null,
@@ -107,32 +83,33 @@ export const useTableStore = create<TableState>((set) => ({
   dropAgreed: () => set({ agreed: null })
 }))
 
-/** An unanswered NPC invitation, scoped to the exact conversation prefix and slot. */
-export interface Invitation { gameId: string; location: string | null }
-const INVITE = 'vu-minigames:invitation'
-let invitationMemory: string | null = null
+export type Invitation = import('@shared/minigameScene').MiniGameInvitation
 export function keepInvitation(invitation: Invitation | null): void {
   const game = useGameStore.getState()
-  invitationMemory = invitation ? JSON.stringify({ invitation, playthrough: game.playthroughId,
-    date: game.date, time: game.time, transcript: game.currentSceneTranscript }) : null
-  try {
-    if (invitationMemory) localStorage.setItem(INVITE, invitationMemory)
-    else localStorage.removeItem(INVITE)
-  } catch { /* Memory remains available without browser storage. */ }
+  const state = game.sceneMiniGame ?? {}
+  const transcript = game.currentSceneTranscript
+  useGameStore.setState({ sceneMiniGame: { ...state, invitation: invitation ?? undefined,
+    invitationAt: invitation ? { at: transcript.length, tail: JSON.stringify(transcript.at(-1) ?? null) } : undefined } })
 }
 export function keptInvitation(): Invitation | null {
-  try {
-    const raw = typeof localStorage === 'undefined' ? invitationMemory : localStorage.getItem(INVITE) ?? invitationMemory
-    if (!raw) return null
-    const saved = JSON.parse(raw)
-    const game = useGameStore.getState()
-    const before = saved.transcript
-    const now = game.currentSceneTranscript
-    if (!Array.isArray(before) || before.length === 0 || now.length < before.length || now.length > before.length + 1 ||
-      saved.playthrough !== game.playthroughId || saved.date !== game.date || saved.time !== game.time ||
-      JSON.stringify(now.slice(0, before.length)) !== JSON.stringify(before)) return null
-    return saved.invitation && typeof saved.invitation.gameId === 'string' ? saved.invitation : null
-  } catch { return null }
+  const game = useGameStore.getState()
+  const state = game.sceneMiniGame
+  const mark = state?.invitationAt
+  if (mark && (game.currentSceneTranscript.length < mark.at || game.currentSceneTranscript.length > mark.at + 1 ||
+    JSON.stringify(game.currentSceneTranscript[mark.at - 1] ?? null) !== mark.tail)) return null
+  return state?.invitation ?? null
+}
+
+/** Result is recorded immediately, including during the final animation/dialogue. */
+export function checkpointResult(result: import('@shared/minigameScene').MiniGameResult, names: readonly string[]): void {
+  const state = useGameStore.getState().sceneMiniGame
+  if (!state?.match || state.match.status === 'result') return
+  useGameStore.setState({ sceneMiniGame: { ...state, match: { ...state.match, status: 'result', result: { ...result }, names: [...names] } } })
+}
+export function clearMatch(): void {
+  const state = useGameStore.getState().sceneMiniGame
+  if (!state?.match) return
+  useGameStore.setState({ sceneMiniGame: { ...state, match: undefined } })
 }
 
 /** An agreement is not a travel shortcut or an override for a disabled game. */

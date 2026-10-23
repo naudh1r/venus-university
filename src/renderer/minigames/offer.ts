@@ -194,25 +194,28 @@ export function agreedOf(
   }
 }
 
+export interface InviteChoice { game: MiniGameDef; location: string | null }
+
 /** Cheap discovery context for ordinary conversation: no game options or launch schema. */
 export function withGameHints(
   request: StructuredRequest, games: readonly MiniGameDef[], location: string | null,
-  busy: boolean, keen: boolean
+  busy: boolean, keen: boolean, outings: readonly InviteChoice[] = []
 ): StructuredRequest {
-  return withInvitationField({ ...request, user: [request.user, '', 'GAMES HERE',
+  return withInvitationField({ ...request, user: [request.user, '', `GAMES HERE (${location ?? 'unknown'}):`,
     ...games.map(game => `${game.id}: ${game.blurb}. Suggest: ${suggestRate(game, location, busy, keen)}.`),
+    ...outings.map(choice => `Possible outing: ${choice.game.id} at ${choice.location ? locationDefOf(choice.location)?.label ?? choice.location : ''} (${choice.location}). Agree before travelling.`),
     'Suggest naturally only when appropriate (rarely means exceptional occasions; never means do not suggest). Never narrate gameplay or results. Stop at an invitation for the reader to answer.'
-  ].join('\n') }, games)
+  ].join('\n') }, games, [...games.map(game => ({ game, location })), ...outings])
 }
 
 /** Explicit invite metadata avoids guessing which game a later "okay" accepts. */
-export function withInvitationField(request: StructuredRequest, games: readonly MiniGameDef[]): StructuredRequest {
+export function withInvitationField(request: StructuredRequest, games: readonly MiniGameDef[], choices: readonly InviteChoice[] = games.map(game => ({game, location: null}))): StructuredRequest {
   const schema = request.schema.schema as { required?: string[]; properties?: Record<string, unknown> }
   return { ...request,
-    user: request.user + '\nminigameInvite: ID only if an NPC leaves a game invitation awaiting the reader’s answer; otherwise "". An invitation never starts a game.',
+    user: request.user + '\nminigameInvite: {game, location} from the listed pairs only when an NPC leaves an invitation awaiting the reader; otherwise both strings empty. Inviting never starts a game or implies consent.',
     schema: { ...request.schema, schema: { ...schema,
       required: [...(schema.required ?? []), 'minigameInvite'],
-      properties: { ...schema.properties, minigameInvite: { type: 'string', enum: ['', ...games.map(game => game.id)] } }
+      properties: { ...schema.properties, minigameInvite: { type: 'object', additionalProperties: false, required: ['game', 'location'], properties: { game: { type: 'string', enum: ['', ...new Set(choices.map(choice => choice.game.id))] }, location: { type: 'string', enum: ['', ...new Set(choices.map(choice => choice.location).filter((id): id is string => Boolean(id)))] } } } }
     } }
   }
 }

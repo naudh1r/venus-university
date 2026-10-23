@@ -1,14 +1,15 @@
 # Mini-game invitations and destination requests
 
-Ordinary conversation gets a short catalogue of games available at the reached venue, their suggestion frequency, and one `minigameInvite` field. No game option enums or launch agreement object are sent on these turns. A reported invitation cannot launch a game.
+Ordinary conversation gets a short catalogue of games available at the reached venue, their suggestion frequency, and one structured `minigameInvite` field containing game and location. At most two available outing pairs may also be included. No game option enums or launch agreement object are sent on these turns. A reported invitation cannot launch a game.
 
 A player action naming a game, or answering the previous NPC invitation, gets that game's rules, options and consent schema. Other games are omitted. Explicit destination names such as “darts at Pino-Cola” can supply destination context before travel; they do not change the actual scene location. Ambiguous or unrecognized venue names are not guessed. Requests without a named destination remain scoped to the reached venue.
 
 Agreement comes before travel. The model is told to narrate arrival and setup, never the actual game. The agreement records its destination; both automatic opening and the manual panel check the reached location and available games. Only participating NPCs who agree are seated. Disabled games, refusals and scene endings cannot launch a match. Existing proposal-panel behavior remains.
 
-Unanswered invitations are stored beside the save, scoped to playthrough, slot and the exact conversation prefix. They can supply context for the next reader action (including “okay”), but the model still judges whether the reply accepts, refuses or changes topic. A reply clears the invitation unless it explicitly leaves another invitation pending. An altered history or different slot invalidates it. No extra AI calls are added.
+Unanswered invitations and match checkpoints now live in the normal scene save. See [Mini-game scene state](minigame-scene-state.md) for restart and result recovery behavior. No extra AI calls are added for invitation detection.
 
-Measured ordinary-turn prompt text plus added field schema, all packs enabled, one NPC, normal suggestion settings:
+
+Baseline measurements from the compact-context patch, before the bounded outing shortlist and structured destination field were added: ordinary-turn prompt text plus added field schema, all packs enabled, one NPC, normal suggestion settings:
 
 | Venue | Before (characters) | After (characters) | Reduction |
 | --- | ---: | ---: | ---: |

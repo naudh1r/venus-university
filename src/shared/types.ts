@@ -1217,6 +1217,7 @@ export interface SceneSummaryMark {
 
 /** Mid-scene save/rewind snapshot — of a drained scene or a queued reply. */
 export interface SceneState {
+  miniGame?: import('./minigameScene').MiniGameScene
   /** Cast charIds, fixed for the whole scene. */
   cast: string[]
   /** The scene as delivered: the reader's action lines and every reply line, in order. */

@@ -1,3 +1,4 @@
+import { copyMiniGameScene } from '@shared/minigameScene'
 import { normalizeReckoning, type ReckoningState } from '@shared/reckoning'
 import type { CharacterDynamics } from '@shared/characterDynamics'
 import { assertEchoEdit, normalizeEcho, type EchoState } from '@shared/echo'
@@ -244,6 +245,8 @@ export function queuedScene(
   if (game.sceneSummaries.length > 0) {
     scene.summaries = game.sceneSummaries.map((mark) => ({ ...mark }))
   } else delete scene.summaries
+  if (game.sceneMiniGame) scene.miniGame = copyMiniGameScene(game.sceneMiniGame)!
+  else delete scene.miniGame
   // Set-or-delete: a scene that is not one of these kinds must carry no key at all.
   if (game.sceneClass) scene.classCode = game.sceneClass
   else delete scene.classCode
