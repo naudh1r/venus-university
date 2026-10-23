@@ -31,9 +31,18 @@ function whereabouts(): DuoWhereabouts {
 export function duoCandidatesOf(charId: string): Character[] {
   if (!duoPhotosOn() || !canSendPhotos()) return []
   const game = useGameStore.getState()
-  return duoCandidates(charId, Object.keys(game.characters), whereabouts())
+  const candidates = duoCandidates(charId, Object.keys(game.characters), whereabouts())
     .map((id) => game.characters[id])
     .filter((girl): girl is Character => girl !== undefined)
+  // Said every time a brief is built, so a picture of two that never comes can be told apart
+  // from one she was never offered.
+  const name = game.characters[charId]?.firstName ?? charId
+  console.log(
+    candidates.length > 0
+      ? `[photo] ${name} may put ${candidates.map((girl) => girl.firstName).join(' or ')} in a picture`
+      : `[photo] ${name} has nobody to put in a picture: nobody with her this slot, and no friend`
+  )
+  return candidates
 }
 
 /**
