@@ -190,6 +190,16 @@ describe('an explicit picture she is still partly dressed in', () => {
 })
 
 
+describe('the colour of what she wears', () => {
+  it('holds her top to its colour, and leaves her shoes and the rest alone', () => {
+    const her = character({ outfit: ['pink_sports_bra', 'black_spandex_shorts', 'white_running_shoes'] })
+    const { positive } = buildPhotoPrompt(her, 'everyday', 'posing in a neon-lit alley at night')
+    expect(positive).toContain('(pink_sports_bra:1.2)')
+    expect(positive).toContain('black_spandex_shorts')
+    expect(positive).not.toContain('(white_running_shoes')
+  })
+})
+
 describe('legwear she was never given', () => {
   /** The in-game caption that drew pink latex leggings under white thighhighs. */
   const scene =

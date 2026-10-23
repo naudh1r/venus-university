@@ -78,6 +78,19 @@ were one word in her sentence the model drew too literally, and each is a small 
 
 If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` line.
 
+## 1.4.1
+
+- **Selfies keep their whole description**: a selfie that mentioned the camera while she held
+  something else ("holding a mug with both hands and smiling at the camera") lost everything after
+  the comma. Only the words about holding the phone are dropped now.
+- **Both hands full**: a selfie where she holds something with both hands is drawn as a photo
+  somebody took, instead of with an arm reaching out of the picture.
+- **No more coloured legs**: stockings and leggings in colours from her hair or the scene, often
+  on one leg only, came from the photo's own list of legwear to avoid. That list is gone.
+- **Her top keeps its colour**: in dark or neon-lit scenes a pink or white top could come out black.
+- **Her own clothes on the feed**: posts with a picture now know her wardrobe, and both DMs and
+  posts are told not to put her in an oversized knit sweater she does not own.
+
 ## 1.4.0
 
 - **Photos when she texts first**: a girl who texts you just to talk (new in 0.5.0) can send a

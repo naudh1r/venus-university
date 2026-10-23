@@ -374,6 +374,32 @@ export function withoutWhoTookIt(scene: string): string {
     .trim()
 }
 
+/** A colour a garment can be named in. */
+const GARMENT_COLOUR = new RegExp(
+  '(?:^|[_\\s-])(?:pink|red|blue|green|purple|yellow|orange|brown|grey|gray|black|white|beige|' +
+    'navy|teal|cream|ivory|lavender|violet|maroon|burgundy|gold|silver|tan|khaki|olive)(?:$|[_\\s-])'
+)
+
+/** What she wears on her top half: the garment a scene's light takes the colour off. */
+const TOP_GARMENT = new RegExp(
+  '(?:^|[_\\s-])(?:top|shirt|t-shirt|blouse|sweater|cardigan|hoodie|bra|bralette|camisole|' +
+    'bandeau|dress|sundress|tank)s?(?:$|[_\\s-])'
+)
+
+/**
+ * One of her garments, weighted where it is her top and names a colour. A dark or neon-lit scene
+ * took the colour off it: her pink sports bra came back black or white on every seed, and pink on
+ * every seed at 1.2. Only her top: every coloured garment weighted put her sneakers on the bed
+ * beside her and turned her hair the colour of her clothes, and 1.1 did not hold the shoes back.
+ * A negative for the colour it turned did nothing, and saying the colour twice changed the garment.
+ */
+function heldColour(tag: string): string {
+  const text = tag.toLowerCase()
+  return GARMENT_COLOUR.test(text) && TOP_GARMENT.test(text) && !tag.startsWith('(')
+    ? `(${tag}:1.2)`
+    : tag
+}
+
 /** The two strings one photo render needs. */
 export interface PhotoPrompts {
   positive: string
@@ -414,7 +440,9 @@ export function buildPhotoPrompt(
       : `nude, completely_nude, ${BARE_POSITIVE}`
     : // One of her own sets, or nothing where the picture she described dressed her in
       // something none of them is.
-      plainColours((photoWardrobe(character, scene, dressed, tier !== 'everyday') ?? []).join(', '))
+      plainColours(
+        (photoWardrobe(character, scene, dressed, tier !== 'everyday') ?? []).map(heldColour).join(', ')
+      )
 
   // Her appearance, with her build and her chest in it while the body switch is on. It opens on
   // the subject tag where she has one, so the base does not say it a second time.
