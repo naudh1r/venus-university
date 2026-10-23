@@ -2,6 +2,7 @@ import type { MiniGameDef } from '../minigameKit'
 
 const FOOT_RACE: MiniGameDef = {
   trainingStat: 'body',
+  trainingActivity: 'by running',
   id: 'foot-race',
   modId: 'morrowkiln-sports',
   name: 'Foot Race',

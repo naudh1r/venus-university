@@ -2,6 +2,7 @@ import type { MiniGameDef } from '../minigameKit'
 
 const BLACKJACK: MiniGameDef = {
   trainingStat: 'brain',
+  trainingActivity: 'by practising blackjack',
   id: 'blackjack',
   modId: 'morrowkiln-card-games',
   name: 'Blackjack',

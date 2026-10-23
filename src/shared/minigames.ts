@@ -81,6 +81,8 @@ export const OFFER_TRAINING = 'offer-stat-training'
 export interface MiniGameDef {
   /** Optional stat exercised by a committed training slot; no reward for ordinary play. */
   trainingStat?: import('./playerStats').StatKey
+  /** Natural activity phrase following 'Improve <stat>', without the location. */
+  trainingActivity?: string
   /** Stable, lower case with dashes: memories and saves may name it. */
   id: string
   /** The mod that brings this game; the game is offered only while that mod is on. */

@@ -2,6 +2,7 @@ import type { MiniGameDef } from '../minigameKit'
 
 const AIR_HOCKEY: MiniGameDef = {
   trainingStat: 'body',
+  trainingActivity: 'by practising air hockey',
   id: 'air-hockey',
   modId: 'morrowkiln-arcade-games',
   name: 'Air Hockey',

@@ -2,6 +2,7 @@ import type { MiniGameDef } from '../minigameKit'
 
 const POOL: MiniGameDef = {
   trainingStat: 'brain',
+  trainingActivity: 'by practising pool',
   id: 'pool',
   modId: 'morrowkiln-arcade-games',
   name: 'Pool',

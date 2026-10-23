@@ -6,7 +6,7 @@ Test branch: `experiment/minigame-stat-slots`. Its prerequisite is `fix/minigame
 
 Turn on Mini-games and the packs you want to play. In the Mini-games mod settings, enable **Offer mini-games when committing to a slot**. It ships **off**.
 
-The landing's Improve Stats suggestions can now name a real game and place, for example “Improve Brain by playing Cat Pairs at CuteTea.” Suggestions alternate with ordinary activities across slots; classes, jobs and plans retain their existing priority. The selection stays stable during a slot. Turning a pack or game off removes its training offers.
+The landing's Improve Stats suggestions can now name a real game and place, for example “Improve Brain with a memory game at CuteTea.” Suggestions alternate with ordinary activities across slots; classes, jobs and plans retain their existing priority. The selection stays stable during a slot. Turning a pack or game off removes its training offers.
 
 Commit that activity and read the opening. Normal encounters still happen. With no girl present, the selected game opens for solo play. With company, its panel offers Play alone or asking the eligible girls to join; agreement is still required. A girl merely being present does not make her a participant. The selected game is retained when she declines; play alone remains available from the HUD.
 
@@ -21,6 +21,8 @@ Only games that support solo play are landing candidates, so a missing encounter
 | Heart | No solo-compatible training game yet; ordinary Heart activities remain |
 
 Blackjack and Poker declare Brain, Air Hockey declares Body, and Truth or Dare declares Heart, but they are excluded from landing offers because they require another player. High-Low, Claw Machine and Beer Pong are recreational and declare no training stat in this experiment.
+
+Each training game supplies a natural activity phrase rather than inserting its menu title after “playing”. Swim Race is offered only at the Palaestra Stadium pool, including HUD and narrator offers; Selkie Beach remains available for ordinary narrative swimming.
 
 ## Completion, rewards and recovery
 

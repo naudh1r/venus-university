@@ -14,7 +14,7 @@ export function trainingOffers(
     return (game.locations ?? []).flatMap(location => {
       const place = placeLabel(location)
       return place ? [{ owner, id: game.id, stat, location,
-        label: `Improve ${STAT_LABELS[stat]} by playing ${game.name} at ${place}.` }] : []
+        label: `Improve ${STAT_LABELS[stat]} ${game.trainingActivity ?? `by playing ${game.name}`} at ${place}.` }] : []
     })
   })
 }
