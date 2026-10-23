@@ -450,6 +450,22 @@ const PEACE_CUES = ['peace sign', 'v sign', 'v-sign', 'flashing a v']
 /** Both her hands on one thing. */
 const BOTH_HANDS_CUES = ['both hands', 'two hands', 'both of her hands', 'two-handed']
 
+/** Both her hands on something she holds, so neither is free for a phone. */
+function handsFull(text: string): boolean {
+  return saysAny(text, BOTH_HANDS_CUES) && saysAny(text, BUSY_HAND_CUES)
+}
+
+/**
+ * A selfie her hands are both too full to take, said as the photo it is drawn as. The word
+ * alone put her free arm out of frame on most seeds, whatever the negative refused; "photo" left
+ * it on the table.
+ */
+export function withoutSelfieWord(scene: string): string {
+  const text = scene.toLowerCase()
+  if (says(text, 'mirror') || !handsFull(text)) return scene
+  return scene.replace(/\bselfie\b/gi, (word) => (word[0] === 'S' ? 'Photo' : 'photo'))
+}
+
 
 /**
  * A selfie, as tested on the checkpoint (same seed, one change at a time). Her own arm holds the
@@ -484,7 +500,7 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
   const camera = saysAny(text, CAMERA_CUES) ? [] : ['camera']
   // Both hands on what she holds leave none for the phone: drawn as a picture somebody else
   // took, or a timer, rather than with an arm out of frame she does not have.
-  if (saysAny(text, BOTH_HANDS_CUES) && saysAny(text, BUSY_HAND_CUES)) {
+  if (handsFull(text)) {
     return {
       tags: [...tags],
       negative: [...lyingNegative(tags), ...PHONE_NEGATIVE, ...camera, 'selfie', 'outstretched_arm']

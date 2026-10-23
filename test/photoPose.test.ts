@@ -3,7 +3,8 @@ import {
   photoPose,
   posePhotoTags,
   withoutCameraHold,
-  withoutHeldObject
+  withoutHeldObject,
+  withoutSelfieWord
 } from '../src/shared/photoPose'
 
 describe('posePhotoTags', () => {
@@ -220,6 +221,7 @@ describe('a selfie caption that says how she holds the phone', () => {
     expect(pose.tags).not.toContain('full_body')
     expect(pose.tags.join(' ')).not.toMatch(/outstretched_arm/)
     expect(pose.negative).toEqual(expect.arrayContaining(['selfie', 'outstretched_arm']))
+    expect(withoutSelfieWord(beanbag)).toMatch(/^A relaxed photo taken/)
   })
 
   it('leaves a mirror selfie, a camera of her own, and any other picture alone', () => {
