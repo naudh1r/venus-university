@@ -92,6 +92,8 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
   gone; nothing is censored and nothing more shows than before.
 - **Topless and bottomless mean half**: "topless in her skirt" no longer draws what is under the
   skirt, and "in just her crop top, nothing on below" keeps the crop top on.
+- **Her hands where she leans**: leaning back on her hands or on all fours no longer adds a hand
+  on her thigh or hip as well.
 - **Her top keeps its colour**: in dark or neon-lit scenes a pink or white top could come out black.
 - **Her own clothes on the feed**: posts with a picture now know her wardrobe, and both DMs and
   posts are told not to put her in an oversized knit sweater she does not own.

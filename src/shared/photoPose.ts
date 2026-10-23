@@ -184,7 +184,13 @@ const BUSY_HAND_CUES = [
   'cup of',
   'mug of',
   'tucking her hair',
-  'fixing her hair'
+  'fixing her hair',
+  // Her hands on what she is leaning on: a hand on her hip or her thighs beside them is a third.
+  'on her hands',
+  'hands behind her',
+  'on her elbows',
+  'all fours',
+  'hands and knees'
 ]
 
 /** What her hands are doing. Up to two fire — she has two of them. */

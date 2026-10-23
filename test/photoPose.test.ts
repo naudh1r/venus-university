@@ -265,6 +265,17 @@ describe('her hands, one placement at a time', () => {
     expect(tags).not.toContain('hand_on_own_chest')
   })
 
+  it('adds no hand placement where she is leaning on her hands', () => {
+    for (const caption of [
+      'sitting naked on the edge of the bed, legs spread, leaning back on her hands',
+      'naked on all fours on the bed from behind, looking back at the camera'
+    ]) {
+      expect(posePhotoTags(caption, true)).not.toEqual(
+        expect.arrayContaining([expect.stringMatching(/^(?:hands?_on_own_|hand_on_own_)/)])
+      )
+    }
+  })
+
   it('does not add a hand on her hip to hands already on her knees', () => {
     const tags = posePhotoTags('naked, bent over the bed from behind, looking back', true)
     expect(tags).toContain('hands_on_own_knees')
