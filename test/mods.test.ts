@@ -136,7 +136,8 @@ describe("Photo Feature's switches", () => {
       explicit: true,
       loader: 'bunny',
       webp: true,
-      body: false
+      body: false,
+      duo: false
     })
   })
 
@@ -151,7 +152,8 @@ describe("Photo Feature's switches", () => {
       explicit: true,
       loader: 'dots',
       webp: false,
-      body: false
+      body: false,
+      duo: false
     })
   })
 
