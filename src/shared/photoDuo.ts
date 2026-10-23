@@ -1,6 +1,7 @@
 import { ROOM_LOCATION } from './locations'
 import {
-  npcBestFriendOf,
+  npcPairOf,
+  zoneOf,
   type NpcRelationshipMap,
   type NpcSlotOverlay
 } from './npcRelationships'
@@ -34,8 +35,10 @@ function groupOf(charId: string, where: DuoWhereabouts) {
 }
 
 /**
- * The girls she may name: whoever is with her this slot, else her closest friend, and never more
- * than {@link MAX_CANDIDATES}. Only girls on the roster she is drawn from.
+ * The girls she may name, never more than {@link MAX_CANDIDATES}: whoever is with her this slot,
+ * then her friends, then the girls she knows and gets on with, each closest first. Never one she
+ * has fallen out with, and only girls on the roster she is drawn from. She need not be with them:
+ * only a picture past everyday asks that.
  */
 export function duoCandidates(
   charId: string,
@@ -45,9 +48,16 @@ export function duoCandidates(
   const here =
     groupOf(charId, where)?.members.filter((other) => other !== charId && roster.includes(other)) ??
     []
-  if (here.length > 0) return here.slice(0, MAX_CANDIDATES)
-  const best = npcBestFriendOf(where.relationships, charId, roster)
-  return best ? [best] : []
+  const affinity = (other: string): number | undefined =>
+    npcPairOf(where.relationships, charId, other)?.affinity
+  const known = roster
+    .filter((other) => other !== charId && !here.includes(other))
+    .filter((other) => {
+      const value = affinity(other)
+      return value !== undefined && zoneOf(value) !== 'enemies'
+    })
+    .sort((a, b) => (affinity(b) ?? 0) - (affinity(a) ?? 0))
+  return [...here, ...known].slice(0, MAX_CANDIDATES)
 }
 
 /** Whether the two of them are together this slot, in one of their own rooms. */
