@@ -53,12 +53,14 @@ const PHOTO_NEGATIVE =
   'bad_hands, extra_digits, fewer_digits'
 
 /**
- * What an uncovered picture has to say, and what it has to refuse.
+ * What an uncovered picture has to say.
  *
  * Danbooru is full of censored explicit art — `censored` is on nearly as many posts as `nude`
  * itself, and mosaics and bars on hundreds of thousands more — so a checkpoint trained on it
- * has learned to draw the censoring alongside the thing being censored. Asking for the one
- * without refusing the other is how a render comes back with a mosaic in the middle of it.
+ * has learned to draw the censoring alongside the thing being censored. `uncensored` alone keeps
+ * it out: refusing the censoring as well (`censored`, `mosaic_censoring`, `bar_censor`,
+ * `convenient_censoring`) smudged something between her legs on four seeds of twelve, and
+ * without them none of twelve was censored.
  */
 const BARE_POSITIVE = 'uncensored'
 
@@ -99,7 +101,6 @@ function dressedNegative(text: string, everyday: boolean): string[] {
   return everyday && !SHOWS_CLEAVAGE.test(text) ? [...kept, 'cleavage', 'downblouse'] : kept
 }
 
-const BARE_NEGATIVE = 'censored, mosaic_censoring, bar_censor, convenient_censoring'
 
 /** Words in her description that say she is already dressed for the picture. */
 const CLOTHING_WORDS = [
@@ -476,7 +477,6 @@ export function buildPhotoPrompt(
 
   const negative = [
     PHOTO_NEGATIVE,
-    ...(bare ? [BARE_NEGATIVE] : []),
     ...(bare ? [] : dressedNegative(worn.toLowerCase().replace(/_/g, ' '), tier === 'everyday')),
     ...SPILL_NEGATIVE.filter(([, said]) => !said.test(scene.toLowerCase())).map(([tag]) => tag),
     ...pose.negative,

@@ -281,7 +281,7 @@ function emittedTags(): string[] {
     ...quoted(pose, /\.\.\.tags, ('indian_style')\]/g),
     ...quoted(pose, /'looking_at_viewer'\), ('looking_away')\]/g),
     ...quoted(body, /BARE_TAGS[^=]*=\s*\{([^}]*)\}/g),
-    ...['PHOTO_QUALITY', 'PHOTO_BASE', 'PHOTO_NEGATIVE', 'BARE_POSITIVE', 'BARE_NEGATIVE'].flatMap(
+    ...['PHOTO_QUALITY', 'PHOTO_BASE', 'PHOTO_NEGATIVE', 'BARE_POSITIVE'].flatMap(
       (name) => constantTags(prompt, name)
     )
   ]
