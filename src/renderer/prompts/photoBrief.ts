@@ -104,7 +104,7 @@ export function photoLines(
 function duoLines(name: string, duoNames: readonly string[]): string[] {
   if (duoNames.length === 0) return ['Leave "photoWith" empty.']
   return [
-    `${name} may put ${duoNames.join(' or ')} in a picture beside her: the two of them side by side, not touching, from the waist up. Then "photoWith" is that name, and the caption says "her and her friend". Most of her pictures are just her, with "photoWith" empty.`
+    `${name} may put ${duoNames.join(' or ')} in a picture beside her: the two of them side by side, not touching, from the waist up. Then "photoWith" is that name, and the caption says "her and her friend". A picture of the two of them fits whenever they are out together or she would want her friend in it; otherwise "photoWith" is empty.`
   ]
 }
 

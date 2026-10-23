@@ -75,7 +75,8 @@ combinations. The comment beside each rule in the code says what was tried.
 ## 2 girls 1 photo (experimental)
 
 With the option on, a girl may put one friend in a DM photo or a post beside her: whoever is
-with her that slot, or else her closest friend. The model only gets their names; the game decides
+with her that slot, then the girls she gets on with, closest first, never one she has fallen out
+with. The model only gets their names; the game decides
 the rest:
 
 - A picture past everyday keeps the friend only when she would send you that much herself, and

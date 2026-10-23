@@ -40,7 +40,7 @@ export function duoCandidatesOf(charId: string): Character[] {
   console.log(
     candidates.length > 0
       ? `[photo] ${name} may put ${candidates.map((girl) => girl.firstName).join(' or ')} in a picture`
-      : `[photo] ${name} has nobody to put in a picture: nobody with her this slot, and no friend`
+      : `[photo] ${name} has nobody to put in a picture: nobody with her this slot, and no girl she gets on with`
   )
   return candidates
 }

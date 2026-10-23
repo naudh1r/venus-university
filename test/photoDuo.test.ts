@@ -22,9 +22,11 @@ function where(groups: { members: string[]; location: string; host?: string }[])
 }
 
 describe('who she may put in a picture beside her', () => {
-  it('offers whoever is with her this slot, else her closest friend', () => {
-    expect(duoCandidates('risa', ROSTER, where([{ members: ['risa', 'ana'], location: 'cafe' }]))).toEqual(['ana'])
+  it('offers whoever is with her, then the girls she gets on with, never one she has fallen out with', () => {
+    expect(duoCandidates('risa', ROSTER, where([{ members: ['risa', 'ana'], location: 'cafe' }]))).toEqual(['ana', 'lia'])
     expect(duoCandidates('risa', ROSTER, where([]))).toEqual(['lia'])
+    const quarrel = { ...where([]), relationships: { [pairKeyOf('risa', 'lia')]: { affinity: -5 } } }
+    expect(duoCandidates('risa', ROSTER, quarrel)).toEqual([])
     expect(duoCandidates('sara', ROSTER, where([]))).toEqual([])
   })
 
