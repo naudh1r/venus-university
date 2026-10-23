@@ -269,7 +269,9 @@ checkpoint draws it.
 `buildDuoPhotoPrompt` in `photoPrompt.ts` writes four strings: the scene over the whole
 picture, the sender's half, the friend's half and one negative. `assets/workflows/characterPhotoDuo.json`
 is the photo graph with each girl's prompt held to her half by `ConditioningSetArea` (strength
-2.0) and combined with the scene. Who may be in it and whether she stays is `photoDuo.ts`.
+2.0) and combined with the scene. The face pass reads the scene alone: it redraws each face in a
+crop of its own, where the halves' whole-picture areas point at the wrong places or past the crop's
+edge, which ComfyUI refuses. Who may be in it and whether she stays is `photoDuo.ts`.
 
 The graph has three prompts where `runGenerationJob` fills two, so `comfyService.ts` carries one
 more edit beside the exported `runGenerationJob`: its `texts` field, which fills prompt nodes by
