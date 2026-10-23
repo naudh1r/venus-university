@@ -1,6 +1,6 @@
 # Photo Feature
 
-An unofficial mod for Venus University by **naudh1r**. Version **1.4.1**, for the game's 0.5.0.
+An unofficial mod for Venus University by **naudh1r**. Version **1.5.0-exp**, for the game's 0.5.0. This is the experimental build, with 2 girls 1 photo.
 
 The girls send you photos in their DMs and post them on their feeds, with comments from the rest
 of campus. Each contact gets a gallery, and characters can get optional body details. Photos are
@@ -28,6 +28,7 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
 | Photo generation | on | Off, no new photos are made and the girls are not told they can send one. Photos already sent stay visible. |
 | Explicit photos | on | Off, nobody sends an undressed photo and ones already sent stay covered. The game's own "No NSFW images" turns them off too. |
 | Body details | off | Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable in their character editor, and drawn in their sprites, CGs and photos. The default characters can't be edited, so clone one first to give her body details. Off, what they have is kept but not used. |
+| 2 girls 1 photo (experimental) | off | A girl may put one friend in a picture beside her. See below. |
 | Save photos as WebP | on | New photos are saved as WebP, with no visible quality loss while taking much less space than PNG. Off, they are saved as PNG. Photos already saved stay as they are. |
 | Loading animation | Bunny hop | What a photo shows while it is being drawn: Bunny hop, Dot shimmer or Typing dots. |
 
@@ -71,6 +72,24 @@ Every tag the mod adds has been checked in ComfyUI on the photo checkpoint, side
 same seed. Many plain tags turned out to do nothing, so some rules use weights or special
 combinations. The comment beside each rule in the code says what was tried.
 
+## 2 girls 1 photo (experimental)
+
+With the option on, a girl may put one friend in a DM photo or a post beside her: whoever is
+with her that slot, or else her closest friend. The model only gets their names; the game decides
+the rest:
+
+- A picture past everyday keeps the friend only when she would send you that much herself, and
+  the two of them are together right now in one of their own rooms. Otherwise the picture is of
+  the girl who sent it, alone.
+- The two are drawn side by side and not touching, from the waist up, each in her own half of the
+  picture: told as one prompt, the model swapped their hair and clothes between them, and where
+  they touched their bodies merged.
+- The picture is the sender's, in her gallery only. The friend's own prompt is in the `photo:`
+  console lines as `node 50` and `node 51`.
+
+Still being tuned: now and then a face, an outfit or a colour comes out wrong, and close-ups and
+from-behind shots hold less well than plain ones. Pictures from below are drawn at eye level.
+
 ## Where photos are kept
 
 `data/saves/<save>/photos/<character>/`, named after her, for example `risa_chat_004.webp` or
@@ -83,6 +102,11 @@ seed, file name, the full prompt and the negative. Send it with the picture: mos
 were one word in her sentence the model drew too literally, and each is a small fix.
 
 If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` line.
+
+## 1.5.0-exp
+
+- **2 girls 1 photo (experimental)**: a girl can put one friend in a picture beside her, off by
+  default.
 
 ## 1.4.1
 
@@ -239,6 +263,17 @@ that sentence and adds tags read off it:
 Every tag these files can write has to be in the verified list in `test/photoTags.test.ts`,
 which fails on any other. A tag goes on that list once a same-seed ComfyUI check shows the
 checkpoint draws it.
+
+### A picture of two
+
+`buildDuoPhotoPrompt` in `photoPrompt.ts` writes four strings: the scene over the whole
+picture, the sender's half, the friend's half and one negative. `assets/workflows/characterPhotoDuo.json`
+is the photo graph with each girl's prompt held to her half by `ConditioningSetArea` (strength
+2.0) and combined with the scene. Who may be in it and whether she stays is `photoDuo.ts`.
+
+The graph has three prompts where `runGenerationJob` fills two, so `comfyService.ts` carries one
+more edit beside the exported `runGenerationJob`: its `texts` field, which fills prompt nodes by
+id. A sync that replaces the file has to put both back.
 
 ### Comments and the picture on a post
 

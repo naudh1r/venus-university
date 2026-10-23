@@ -10,6 +10,7 @@ import {
 } from './localPhotoStore'
 import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
 import { renderPhoto } from './photoWebp'
+import { settleFriend } from './photoDuoTurn'
 
 /**
  * The picture on a post on her feed.
@@ -65,6 +66,8 @@ async function reservePostPhotoName(charId: string): Promise<string | null> {
 export interface PreparedPostPhoto {
   shot: { tier: PhotoTier; scene: string }
   file: string
+  /** The friend beside her in it, by charId. */
+  with?: string
 }
 
 /**
@@ -80,12 +83,16 @@ export interface PreparedPostPhoto {
  */
 export async function preparePostPhoto(
   charId: string,
-  image: string | undefined
+  image: string | undefined,
+  // The friend she named to be in it beside her, if any.
+  imageWith?: string
 ): Promise<PreparedPostPhoto | null> {
   const shot = settlePostPhoto(image)
   if (!shot) return null
   const file = await reservePostPhotoName(charId)
-  return file ? { shot, file } : null
+  if (!file) return null
+  const friend = settleFriend(charId, imageWith, shot.tier)
+  return { shot, file, ...(friend ? { with: friend.charId } : {}) }
 }
 
 /**
@@ -118,7 +125,13 @@ export function holdPostPhoto(
   const { tier, scene } = prepared.shot
   useGameStore.getState().appendFeedPost(charId, {
     ...written,
-    photo: { tier, scene, file: prepared.file, held: true }
+    photo: {
+      tier,
+      scene,
+      file: prepared.file,
+      held: true,
+      ...(prepared.with ? { with: prepared.with } : {})
+    }
   })
 }
 
@@ -182,7 +195,8 @@ async function drawPostPhoto(charId: string, postId: string): Promise<void> {
   const key = keyOf(playthroughId, postId)
   if (drawing.has(key)) return
   const { tier, scene, file } = photo
-  const drawn: ChatPhoto = { tier, scene, file }
+  const drawn: ChatPhoto = { tier, scene, file, ...(photo.with ? { with: photo.with } : {}) }
+  const friend = photo.with ? game.characters[photo.with] : undefined
   const live = (): boolean => useGameStore.getState().playthroughId === playthroughId
 
   // A render can finish after the save that was waiting on it was written: the picture is on disk
@@ -196,7 +210,7 @@ async function drawPostPhoto(charId: string, postId: string): Promise<void> {
   }
 
   drawing.add(key)
-  const render = renderPhoto(playthroughId, character, tier, scene, file)
+  const render = renderPhoto(playthroughId, character, tier, scene, file, friend)
     .catch((error: unknown) => ({
       ok: false as const,
       error: { code: 'PHOTO_THREW', message: String(error) }
@@ -287,7 +301,13 @@ export function rerollPostPhoto(charId: string, postId: string): void {
   const photo = photoOf(charId, postId)
   if (!game.playthroughId || !photo?.file || !photo.scene || !canSendPhotos()) return
   const { tier, scene, file } = photo
-  setFeedPostPhoto(charId, postId, { tier, scene, file, pending: true })
+  setFeedPostPhoto(charId, postId, {
+    tier,
+    scene,
+    file,
+    pending: true,
+    ...(photo.with ? { with: photo.with } : {})
+  })
   if (drawing.has(keyOf(game.playthroughId, postId))) return
   enqueue(charId, postId)
 }

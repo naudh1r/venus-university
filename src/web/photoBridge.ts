@@ -26,6 +26,7 @@ export const photoBridge = {
     storeWebp: () => desktopOnly<void>('photo.storeWebp'),
     // The browser build has never drawn one, so there is nothing to carry.
     carry: (): Promise<Result<void>> => Promise.resolve({ ok: true, data: undefined }),
-    generate: () => desktopOnly<string>('photo.generate')
+    generate: () => desktopOnly<string>('photo.generate'),
+    generateDuo: () => desktopOnly<string>('photo.generateDuo')
   }
 }
