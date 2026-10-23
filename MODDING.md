@@ -169,6 +169,8 @@ else names it.
 | `postVisible` | `feedView.ts`, `loop/feed.ts`, `ContactPage.tsx` | Keep a post off the feed for now |
 | `postComments` | `BunnyboardModal.tsx` (`PostSpots.tsx`) | Draw the comments under a post and a control beside its like; one mod at a time |
 | `postPicture` | `BunnyboardModal.tsx` (`PostSpots.tsx`) | Draw a post's picture under its text |
+| `emojiTool` | `BunnyboardModal.tsx` (`TextSpots.tsx`) | Stand an emoji tool beside a box being typed in, in place of the phone's row of quick emoji; one mod at a time |
+| `sentText` | `BunnyboardModal.tsx` (`TextSpots.tsx`) | Draw what somebody sent (a message, a post) and say which messages stand with no bubble; one mod at a time |
 | `endingChoice` | `GameView.tsx` | Offer a way on from the ending, beside "Return to the main menu" |
 | `saveChoice` | `LoadGameModal.tsx` | Offer something for a picked save, beside "Load" |
 | `modDetail` | `ModsModal.tsx` | Draw a page of its own for the mod picked on the Mods screen, its own or one built on it, in place of the list of that mod's options |
@@ -262,6 +264,19 @@ comments only it writes; another mod drawing comments leaves those out, whether 
 A mod adds its own fields to `PostComment` by declaration merging. `PostCommentsView`,
 `PostCommentAction` and `PostPicture` in `components/PostSpots.tsx` draw a post's spots in a
 mod's own screens too.
+
+### Emoji and sent text
+
+The phone's composer stands the row of quick emoji under its field, and draws messages and
+posts as their bare text. A mod that draws either itself registers `emojiTool`, `sentText` or
+both: only one draws each, the first that is on in `MODS` order. `emojiTool` is a component the
+game hands `dead` (the box is shut) and `onPick(emoji)`, which puts the emoji in at the caret;
+with one on, it stands beside the field and the row of quick emoji goes. `sentText` is a `Text`
+component, handed the `text` and `big` (off on a one-line preview), and an optional
+`bare(text)` saying which messages stand with no bubble behind them. `EmojiTool`, `SentText`,
+`useEmojiTool` and `useBareMessage` in `components/TextSpots.tsx` draw them in a mod's own
+screens too, so a mod with a box of its own takes the same tool without importing the mod that
+draws it. What is sent and saved is the text as typed either way.
 
 ### Optional semester carryover
 
