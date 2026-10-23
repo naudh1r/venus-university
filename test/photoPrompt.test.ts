@@ -197,42 +197,15 @@ describe('legwear she was never given', () => {
     'elbow propped up and her cheek resting on her hand while she bites softly on a pastel ' +
     'boba straw, looking directly into the camera'
 
-  it('refuses the legwear she has not got, and keeps the thighhighs she has', () => {
-    const her = character({ baseAppearance: ['1girl', 'pink_eyeshadow'] })
-    const { negative } = buildPhotoPrompt(
+  it('is not named in the negative, where it painted one of her legs instead', () => {
+    const her = character({ baseAppearance: ['1girl', 'pink_hair', 'pink_eyeshadow'] })
+    const { positive, negative } = buildPhotoPrompt(
       her,
       'everyday',
-      `${scene}, in a white pleated skirt and sheer white thighhigh socks`
+      'posing in a neon-lit back alley at night in a white crop top and black shorts'
     )
-    expect(negative).toEqual(expect.stringContaining('leggings'))
-    expect(negative).toEqual(expect.stringContaining('latex'))
-    expect(negative).toEqual(expect.stringContaining('colored_legwear'))
-    // The pink of her eyeshadow is refused on her legs; a colour the prompt never names is not.
-    expect(negative).toContain('pink_legwear')
-    expect(negative).not.toContain('green_legwear')
-    expect(negative).not.toContain('thighhighs')
-  })
-
-  it('bares her legs under a skirt with nothing named on them', () => {
-    const { positive, negative } = buildPhotoPrompt(
-      character(),
-      'everyday',
-      'sitting in the cafe in a short pleated skirt, smiling'
-    )
-    expect(positive).toContain('bare_legs')
-    expect(negative).toContain('thighhighs')
-  })
-
-  it('leaves the coloured legwear she asked for', () => {
-    const { negative } = buildPhotoPrompt(
-      character(),
-      'everyday',
-      'standing by the window in a red skirt and pink thighhigh stockings'
-    )
-    expect(negative).not.toContain('colored_legwear')
-    expect(negative).not.toContain('pink_legwear')
-    expect(negative).toContain('red_legwear')
-    expect(negative).not.toContain('thighhighs')
+    expect(negative).not.toMatch(/legwear|pantyhose|leggings|thighhighs|latex/)
+    expect(positive).not.toContain('bare_legs')
   })
 
   it('takes her hands off her lap when her cheek is resting on one', () => {

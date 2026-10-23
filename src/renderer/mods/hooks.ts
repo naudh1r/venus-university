@@ -37,6 +37,8 @@ export interface PromptSpots {
   dm: { character: Character; info: CharInfo | undefined; state: TextingPromptState }
   /** The status updates the slot's opening writes, one entry per post. */
   'slot-posts': Record<string, never>
+  /** One girl posting this slot, under her name in the slot's opening: lines only. */
+  'slot-poster': { character: Character; info: CharInfo }
   /** The girl the slot's opening has texting the reader just to talk, one call per girl. */
   'slot-reach-outs': { character: Character; info: CharInfo; date: number }
   /** A character being generated. */

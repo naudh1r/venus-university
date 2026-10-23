@@ -62,22 +62,6 @@ const PHOTO_NEGATIVE =
  */
 const BARE_POSITIVE = 'uncensored'
 
-/** What can be on her legs, as the words a caption says it with. */
-const LEG_ITEMS = [
-  'thigh[- ]?highs?',
-  'thighhighs?',
-  'stockings?',
-  'pantyhose',
-  'tights',
-  'leggings',
-  'kneehighs?',
-  'knee[- ]highs?',
-  'over[- ]the[- ]knee',
-  'socks?',
-  'legwear',
-  'fishnets?'
-].join('|')
-
 /**
  * What a picture with her dressed keeps out: the checkpoint can undress a pose it was not asked
  * to (a sweater slipping, a skirt riding up), and a feed photo is seen by the whole campus. A
@@ -114,49 +98,6 @@ function dressedNegative(text: string, everyday: boolean): string[] {
   return everyday && !SHOWS_CLEAVAGE.test(text) ? [...kept, 'cleavage', 'downblouse'] : kept
 }
 
-/** Anything on her legs the picture names. */
-const LEGWEAR = new RegExp(`\\b(?:${LEG_ITEMS})\\b`)
-
-/** What she can wear on her legs, each refused unless the caption names it. */
-const LEGWEAR_NEGATIVE: readonly (readonly [string, RegExp])[] = [
-  ['pantyhose', /\b(?:pantyhose|tights)\b/],
-  ['leggings', /\bleggings\b/],
-  ['latex', /\blatex\b/],
-  ['thighhighs', /\b(?:thigh[- ]?highs?|thighhighs?|stockings?|over[- ]the[- ]knee)\b/]
-]
-
-/**
- * The colours Danbooru files legwear under, as `<colour>_legwear`. Black and white are not
- * among the ones refused: they are not "coloured" legwear, and the plain ones she is often in.
- */
-const LEG_COLOURS = ['pink', 'red', 'blue', 'green', 'purple', 'yellow', 'orange', 'brown', 'grey']
-
-/** A colour on what is on her legs: then that colour is what she asked for there. */
-function legColour(text: string, colour: string): boolean {
-  return new RegExp(`\\b${colour}\\b(?:\\s+[a-z-]+){0,2}\\s+(?:${LEG_ITEMS})\\b`).test(text)
-}
-
-/**
- * Legwear she was never given. A colour anywhere else in the prompt bleeds onto her legs: a
- * pink ribbon and pink loafers put pink latex leggings on her in game, and in a same-seed
- * check `bare_legs` and these negatives stopped it. So every colour the prompt names is
- * refused on her legs, unless the caption put that colour there. Bare legs only where the
- * caption names nothing on them and something short above: under jeans there are no legs.
- */
-function legwear(text: string): { positive: string[]; negative: string[] } {
-  const named = LEGWEAR.test(text)
-  const short =
-    /\b(?:skirt|shorts|dress|sundress|swimsuit|bikini|towel|nightie|nightgown)\b/.test(text)
-  const negative = LEGWEAR_NEGATIVE.filter(([, said]) => !said.test(text)).map(([tag]) => tag)
-  const coloured = LEG_COLOURS.filter((colour) => legColour(text, colour))
-  if (coloured.length === 0) negative.push('colored_legwear')
-  for (const colour of LEG_COLOURS) {
-    if (new RegExp(`\\b${colour}\\b`).test(text) && !coloured.includes(colour)) {
-      negative.push(`${colour}_legwear`)
-    }
-  }
-  return { positive: !named && short ? ['bare_legs'] : [], negative }
-}
 const BARE_NEGATIVE = 'censored, mosaic_censoring, bar_censor, convenient_censoring'
 
 /** Words in her description that say she is already dressed for the picture. */
@@ -482,13 +423,12 @@ export function buildPhotoPrompt(
 
   // Read off everything the picture will be told she wears, her own tags and outfit included.
   const worn = `${appearance.join(' ')} ${wardrobe} ${scene}`
-  const legs = legwear(worn.toLowerCase().replace(/_/g, ' '))
 
   const positive = [
     `${PHOTO_QUALITY}, ${base}`,
     appearance.join(', '),
     body.join(', '),
-    [wardrobe, ...legs.positive].filter((part) => part.length > 0).join(', '),
+    wardrobe,
     // The sentence's own full stop would sit in front of the tags that follow it.
     [
       lookingAtViewer(withoutHeldObject(withoutCameraHold(withoutWhoTookIt(scene)))).replace(
@@ -507,7 +447,6 @@ export function buildPhotoPrompt(
     PHOTO_NEGATIVE,
     ...(bare ? [BARE_NEGATIVE] : []),
     ...(bare ? [] : dressedNegative(worn.toLowerCase().replace(/_/g, ' '), tier === 'everyday')),
-    ...legs.negative,
     ...SPILL_NEGATIVE.filter(([, said]) => !said.test(scene.toLowerCase())).map(([tag]) => tag),
     ...pose.negative,
     ...bodyNegative(character),

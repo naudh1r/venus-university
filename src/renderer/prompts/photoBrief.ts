@@ -199,6 +199,7 @@ export function postPhotoLines(canRenderImages: boolean): string[] {
   if (!canRenderImages) return ['Leave "image" empty on every post: nobody posts a picture today.']
   return [
     'A post may carry a picture of her. Describe it in "image" — what the photograph shows, the way she would caption it to herself: where she is, what she is wearing, how she is standing or sitting, how close the shot is. One sentence, and a full one. Leave "image" empty on a post that is just words, which most of them are.',
+    'What she owns is listed under her name above.',
     'It can be a selfie, a mirror selfie, a photo somebody took of her, or a candid one where she is not posing for it, whichever fits the moment.',
     'What is not written is not drawn: "a photo of me" gets a picture of nobody in particular.',
     'Her whole year sees this, so it is an ordinary picture or a flirty one at most — what she is wearing, a day out, a swimsuit. Never anything undressed, whatever she might send one person in a message.',
@@ -206,6 +207,14 @@ export function postPhotoLines(canRenderImages: boolean): string[] {
     'She is the only person in the picture.',
     'The post’s own "text" should read like somebody who just posted that picture, without describing it.'
   ]
+}
+
+/**
+ * One poster's wardrobe, under her name in the slot's opening, so the picture on her post has her
+ * in her own clothes rather than ones the model reaches for. Nothing where no picture is drawn.
+ */
+export function posterPhotoLines(character: Character, canRenderImages: boolean): string[] {
+  return canRenderImages ? [`  ${wardrobeLine(character)}`] : []
 }
 
 /**

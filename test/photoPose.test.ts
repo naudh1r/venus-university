@@ -200,6 +200,28 @@ describe('a selfie caption that says how she holds the phone', () => {
     expect(posePhotoTags(caption, false)).toContain('from_below')
   })
 
+  /** A playtest selfie that came back as its first clause alone, and with an arm out of frame. */
+  const beanbag =
+    'A relaxed selfie taken in her room wearing her everyday clothes, sitting curled up on a ' +
+    'beanbag chair holding a ceramic mug with both hands and smiling warmly at the camera.'
+
+  it('keeps a clause that holds something else and only looks at the camera', () => {
+    expect(withoutCameraHold(beanbag)).toBe(beanbag)
+    expect(withoutCameraHold('A selfie on her bed, holding her phone up high, smiling')).toBe(
+      'A selfie on her bed, smiling'
+    )
+    expect(withoutCameraHold('A selfie in bed, smiling, camera held low above her face.')).toBe(
+      'A selfie in bed, smiling.'
+    )
+  })
+
+  it('draws a selfie her hands are both full for as a picture somebody else took', () => {
+    const pose = photoPose(beanbag, false)
+    expect(pose.tags).not.toContain('full_body')
+    expect(pose.tags.join(' ')).not.toMatch(/outstretched_arm/)
+    expect(pose.negative).toEqual(expect.arrayContaining(['selfie', 'outstretched_arm']))
+  })
+
   it('leaves a mirror selfie, a camera of her own, and any other picture alone', () => {
     const mirror = 'a mirror selfie, holding her phone up'
     expect(withoutCameraHold(mirror)).toBe(mirror)

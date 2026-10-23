@@ -8,6 +8,7 @@ import {
   PHOTO_SCHEMA_REQUIRED,
   postCommentLines,
   postPhotoLines,
+  posterPhotoLines,
   POST_PHOTO_SCHEMA_FIELD,
   POST_PHOTO_SCHEMA_REQUIRED
 } from '../prompts/photoBrief'
@@ -68,6 +69,10 @@ registerHooks(PHOTO_FEATURE, {
           ? POST_PHOTO_SCHEMA_FIELD
           : { image: POST_PHOTO_SCHEMA_FIELD.image },
       required: () => (ownsPostComments(PHOTO_FEATURE) ? POST_PHOTO_SCHEMA_REQUIRED : ['image'])
+    },
+    // What each poster owns, for a post whose picture has her in it.
+    'slot-poster': {
+      lines: ({ character }) => posterPhotoLines(character, canSendPhotos())
     },
     character: {
       lines: () => bodyBriefLines(),
