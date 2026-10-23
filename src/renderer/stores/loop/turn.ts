@@ -1,3 +1,4 @@
+import { activityEnding } from '@shared/slotActivity'
 import { finishBreakthrough } from '../breakthrough'
 import { finishReckoningAftermath, settleUnspokenVoice } from '../reckoning'
 import { isPermanent } from '@shared/errors'
@@ -204,7 +205,7 @@ export async function runSceneTurn(
   finishBreakthrough(snapshot.breakthrough?.id, false, result.data.lines, result.data.at)
   finishReckoningAftermath(snapshot.reckoning)
   if(!snapshot.reckoning)settleUnspokenVoice()
-  const ending = solo || result.data.end
+  const ending = activityEnding(useGameStore.getState().sceneActivity, solo || result.data.end)
   useGameStore.getState().setSceneEnding(ending)
 
   // The lines are on the transcript and the scene knows whether it is over: what a mod reads off

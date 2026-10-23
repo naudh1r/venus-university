@@ -1,6 +1,8 @@
 import type { MiniGameDef } from '../minigameKit'
 
 const PARADISO: MiniGameDef = {
+  trainingStat: 'body',
+  trainingActivity: 'by practising dance steps',
   id: 'paradiso',
   modId: 'morrowkiln-arcade-games',
   name: 'PARADISO',

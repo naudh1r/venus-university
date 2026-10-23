@@ -245,6 +245,8 @@ export function queuedScene(
     scene.summaries = game.sceneSummaries.map((mark) => ({ ...mark }))
   } else delete scene.summaries
   // Set-or-delete: a scene that is not one of these kinds must carry no key at all.
+  if (game.sceneActivity) scene.activity = { ...game.sceneActivity }
+  else delete scene.activity
   if (game.sceneClass) scene.classCode = game.sceneClass
   else delete scene.classCode
   if (game.sceneProject) scene.projectClass = game.sceneProject

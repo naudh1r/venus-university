@@ -12,7 +12,7 @@ import type { PlaythroughRecord } from './types'
  */
 
 /** The build these mods ship in, as the main menu and the log name it. */
-export const BUILD = { name: 'Venus Extracurriculars', version: '0.3.0' } as const
+export const BUILD = { name: 'Venus Extracurriculars', version: '0.3.1' } as const
 
 /**
  * When a mod's switch takes effect.

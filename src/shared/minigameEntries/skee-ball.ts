@@ -1,6 +1,8 @@
 import type { MiniGameDef } from '../minigameKit'
 
 const SKEE_BALL: MiniGameDef = {
+  trainingStat: 'body',
+  trainingActivity: 'by practising Skee-Ball',
   id: 'skee-ball',
   modId: 'morrowkiln-arcade-games',
   name: 'Skee-Ball',

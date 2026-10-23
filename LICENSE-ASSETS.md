@@ -31,6 +31,14 @@ Venus Extracurriculars and supplied for inclusion with this project. They are no
 Venus Dev assets and are excluded from the blanket attribution above. Their asset
 catalog is ARTWORK.json in that folder. No rights to other game assets are implied.
 
+## Community Darts artwork
+
+The three PNGs in `src/assets/darts` (`dart-hud-side.png`, `darts-eye-level.png`
+and `darts-meshy-views.png`) were contributed by **naudh1r**. They are not Venus Dev
+assets and are excluded from the blanket attribution above. See the
+[Darts asset permissions](src/assets/darts/LICENSE.md) for their provenance,
+redistribution permissions and CC BY 4.0 attribution requirements where applicable.
+
 ## Optional Echo model and artwork dependencies
 
 The Megaten Style LoRA is by **emerjk** and retains its creator permissions and

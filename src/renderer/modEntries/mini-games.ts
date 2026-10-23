@@ -1,3 +1,4 @@
+import { trainingSuggestions, trainingAvailable, pendingTraining } from '../minigames/training'
 import { gameById, tunedGame } from '../minigames/prefs'
 import {
   gamesOffered,
@@ -27,7 +28,9 @@ import { scenePlace } from '../minigames/place'
 /** The games a girl in this scene could be played at, each with a component to play it with. */
 function gamesWith(cast: readonly Character[], location: string | null): MiniGameDef[] {
   if (cast.length === 0) return []
-  return gamesOffered({ location, girls: cast.length }, gameIsOn)
+  const training = pendingTraining()
+  return gamesOffered({ location: training?.location ?? location, girls: cast.length }, gameIsOn)
+    .filter(game => !training || game.id === training.id)
     .filter((game) => game.players.max >= 1 && Boolean(gameComponent(game.id)))
     .map(tunedGame)
 }
@@ -73,6 +76,8 @@ function agree(
 }
 
 registerHooks(MINI_GAMES, {
+  statActivities: trainingSuggestions,
+  slotActivityAvailable: trainingAvailable,
   scenePlay: { Seat: MiniGameSeat, Panel: MiniGamePanel },
   // A pack's page on the Mods screen: its games, and each one's own page.
   modDetail: (mod) => (MINI_GAMES_LIST.some((game) => game.modId === mod.id) ? PackPage : undefined),

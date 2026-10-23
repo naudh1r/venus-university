@@ -1,6 +1,8 @@
 import type { MiniGameDef } from '../minigameKit'
 
 const POKER: MiniGameDef = {
+  trainingStat: 'brain',
+  trainingActivity: 'by practising poker',
   id: 'poker',
   modId: 'morrowkiln-card-games',
   name: 'Poker',

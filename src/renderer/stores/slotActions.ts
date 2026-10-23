@@ -1,3 +1,5 @@
+import { statActivities } from '../mods/hooks'
+import type { SlotActivityOffer } from '@shared/slotActivity'
 import { kindOf } from '@shared/academics'
 import { jobDefOf } from '@shared/jobs'
 import { LOWRISE_LOCATION } from '@shared/locations'
@@ -30,6 +32,7 @@ export interface SlotAction {
   verdict: Verdict | null
   /** The plan this button starts, whose attendees it casts whatever its words name. */
   planId?: string
+  activity?: SlotActivityOffer
 }
 
 /** A verdict for a button that names nobody and knows what it is doing. */
@@ -154,12 +157,22 @@ function fillerText(stat: StatKey): string {
 /** Pushes the reader's weakest stats: somewhere to go and a stat to push, one per stat. */
 function fillers(count: number): SlotAction[] {
   const stats = statsLowestFirst(useGameStore.getState().stats).slice(0, count)
-  return stats.map((stat) => ({
+  return stats.map((stat) => {
+    const game = useGameStore.getState()
+    const offers = statActivities(stat)
+    const seed = game.date * 2 + game.time + ['brain', 'body', 'heart'].indexOf(stat)
+    const offer = offers.length && seed % 2 === 0 ? offers[Math.floor(seed / 2) % offers.length] : undefined
+    if (offer) return {
+      key: `stat:${stat}:${offer.owner}:${offer.id}:${offer.location}`,
+      text: offer.label, tone: 'idle' as const,
+      verdict: goToVerdict(offer.location), activity: offer
+    }
+    return ({
     key: `stat:${stat}`,
     text: fillerText(stat),
     tone: 'idle',
     verdict: null
-  }))
+  })})
 }
 
 /** What the Relax row is keyed by, which `relax` answers rather than the classifier. */

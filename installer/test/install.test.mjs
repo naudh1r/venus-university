@@ -15,6 +15,12 @@ const INSTALLER = join(HERE, '..')
 const GAME_VERSION = '9.9.9'
 const WORKFLOW = 'resources/assets/workflows/characterPhoto.json'
 const COMMUNITY_MUSIC = ['first-mod/opening.mp3', 'another-mod/arrival.ogg', 'later-added-track.wav']
+const NATIVE_FILES = [
+  'node_modules/7zip-bin/win/x64/7za.exe',
+  'node_modules/sharp/lib/index.js',
+  'node_modules/@img/sharp-win32-x64/lib/sharp-win32-x64.node',
+  'node_modules/@img/sharp-win32-x64/lib/libvips-42.dll'
+]
 const sha = async (path) => createHash('sha256').update(await readFile(path)).digest('hex')
 
 async function put(path, text) {
@@ -41,10 +47,13 @@ async function fixture() {
   await put(join(app, 'package.json'), '{"name":"venus-university","main":"out/main/index.js"}')
   await put(join(app, 'out/main/index.js'), "console.log('official')\n")
   await put(join(app, 'out/renderer/picture.png'), 'not really a picture')
+  for (const rel of NATIVE_FILES) await put(join(app, rel), `native fixture: ${rel}`)
   const game = join(root, 'game')
   const res = join(game, 'resources')
   await mkdir(res, { recursive: true })
-  await asar.createPackage(app, join(res, 'app.asar'))
+  await asar.createPackageWithOptions(app, join(res, 'app.asar'), {
+    unpack: '**/node_modules/{7zip-bin,sharp,@img}/**'
+  })
   // The game's own workflow, as the release ships it: built on Windows.
   await put(join(res, 'assets/workflows/characterBase.json'), '{\r\n  "base": true\r\n}\r\n')
   await writeFile(join(game, 'Venus University.exe'), 'stand-in')
@@ -114,6 +123,22 @@ test('install puts the build and its added file in; uninstall restores the game 
   const again = run(patch, 'install', game)
   assert.notEqual(again.status, 0)
   assert.match(again.text, /already installed/)
+  assert.equal(run(patch, 'uninstall', game).status, 0)
+  assert.deepEqual(await snapshot(game), before)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('install keeps Sharp and its native libraries unpacked, and uninstall restores them', async () => {
+  const { root, game, res, patch } = await fixture()
+  const before = await snapshot(game)
+  const result = run(patch, 'install', game)
+  assert.equal(result.status, 0, result.text)
+  for (const rel of NATIVE_FILES) {
+    // A leftover file beside the archive is not sufficient: Electron follows its header flag.
+    assert.equal(asar.statFile(join(res, 'app.asar'), join(...rel.split('/'))).unpacked, true, rel)
+    assert.equal(await readFile(join(res, 'app.asar.unpacked', rel), 'utf8'), `native fixture: ${rel}`)
+  }
+  assert.equal(asar.statFile(join(res, 'app.asar'), join('out', 'main', 'index.js')).unpacked, undefined)
   assert.equal(run(patch, 'uninstall', game).status, 0)
   assert.deepEqual(await snapshot(game), before)
   await rm(root, { recursive: true, force: true })

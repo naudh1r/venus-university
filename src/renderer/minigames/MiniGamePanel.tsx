@@ -1,3 +1,4 @@
+import { pendingTraining } from './training'
 import { gameById } from './prefs'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react'
 import { createPortal } from 'react-dom'
@@ -117,6 +118,7 @@ function sittingOf(agreed: Agreed | null): Sitting | null {
  * into the scene.
  */
 export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element | null {
+  const training = pendingTraining()
   const offered = useGamesOffered()
   const girls = usePresentGirls()
   // How much she says for herself, as the player has it in the Mods screen.
@@ -150,7 +152,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
       offered.map((game) => ({ game, ways: offers.filter((offer) => offer.game.id === game.id) })),
     [offered, offers]
   )
-  const [openGame, setOpenGame] = useState<string | null>(null)
+  const [openGame, setOpenGame] = useState<string | null>(training?.id ?? null)
 
   const [sitting, setSitting] = useState<Sitting | null>(() => sittingOf(agreed))
   const [asking, setAsking] = useState<Offer | null>(null)
@@ -158,6 +160,8 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
   // An agreed game is under way from the moment the table opens: she is sitting at it.
   const [underWay, setUnderWay] = useState(agreed !== null)
   const [result, setResult] = useState<PlayResult | null>(null)
+  const [trainingFault, setTrainingFault] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
   // The one thing on offer, alone, is the game: nothing to pick.
   const only = offers.length === 1 && offers[0].charIds.length === 0 ? offers[0].game : null
@@ -205,7 +209,10 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
 
   /** Escape and a click outside leave only a table nothing is at stake on. */
   const dismiss = (): void => {
-    if (!underWay && !result) onClose()
+    if (!underWay && !result) {
+      if (training && offered[0]) fileResult({ outcome: 'abandoned', summary: 'You leave the training session before completing it.' }, { game: offered[0], names: [], stake: '' })
+      onClose()
+    }
   }
   const { host, overlayProps } = useModalShell(dismiss)
 
@@ -416,6 +423,13 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
   )
 
   function leave(ended: PlayResult): void {
+    if (training && ended.outcome === 'broken') {
+      closeTable()
+      compactTable()
+      setResult(null)
+      setTrainingFault(true)
+      return
+    }
     closeTable()
     compactTable()
     if (!seated) return
@@ -514,12 +528,25 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
           transition={{ duration: 0.24, ease: 'easeOut' }}
         >
           <p className="vu-minigame-name">{seated.game.name}</p>
-          {seated.opponents ? (
-            <GameGuard
+          {trainingFault ? (
+            <div className="vu-empty" role="alert">
+              <p>The game could not continue. Retry this training session or end it without a reward.</p>
+              <button className="vu-btn vu-btn--primary vu-paper" onClick={() => {
+                begun.current = false
+                soFar.current = []
+                situation.current = ''
+                setUnderWay(false)
+                setAttempt(n => n + 1)
+                setTrainingFault(false)
+              }}>Retry training</button>
+              <button className="vu-btn vu-paper" onClick={() => leave({ outcome: 'abandoned', summary: 'You end the training session after a technical problem, without completing it.' })}>End session</button>
+            </div>
+          ) : seated.opponents ? (
+            <GameGuard key={attempt}
               onFault={(error) => {
                 noteFault(seated.game.id, error)
                 if (result) return
-                if (!underWay) {
+                if (!underWay && !training) {
                   onClose()
                   return
                 }
@@ -578,7 +605,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
                           ? { account: [`How it stood when he left: ${situation.current}`] }
                           : {})
                     })
-                  : onClose()
+                  : dismiss()
               }
             >
               {underWay ? 'Walk away' : 'Not now'}
@@ -795,7 +822,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
               className="vu-btn vu-btn--quiet"
               type="button"
               {...gestures(false, quietLift, quietPress)}
-              onClick={onClose}
+              onClick={dismiss}
             >
               Not now
             </motion.button>

@@ -1,6 +1,8 @@
 import type { MiniGameDef } from '../minigameKit'
 
 const CAT_PAIRS: MiniGameDef = {
+  trainingStat: 'brain',
+  trainingActivity: 'with a memory game',
   id: 'cat-pairs',
   modId: 'morrowkiln-card-games',
   name: 'Cat Pairs',

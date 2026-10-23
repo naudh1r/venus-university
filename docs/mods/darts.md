@@ -41,8 +41,8 @@ The match can be played entirely with the mouse.
 | Throw | Release the left mouse button when the dot is where you want the dart to land. |
 | Hand over to the NPCs | Click **Change turn** when it becomes available. |
 | Start your next visit | Click **My turn** when it becomes available. |
-| Check scoring | Click **Score Guide**, then **Back to the board** to close it. |
-| Adjust sound effects | Use the base game’s Sound Effects volume setting; Darts follows it live. |
+| Check scoring | Click **Score guide**, then **Back to the board** to close it. |
+| Toggle Darts sound | Click **Sound on / Sound off**. |
 | Leave an unfinished match | Use the framework's **Walk away** button. |
 
 Holding locks the ellipse at the chosen aim; moving the mouse afterwards does not drag
@@ -67,7 +67,7 @@ silhouettes. The board clears when the next participant's visit starts.
 | Inner bull | 50 |
 | Outside the scoring board | 0 |
 
-Countdown modes use **straight-out**: reach exactly zero on any scoring region to check out.
+Both modes use **straight-out**: reach exactly zero on any scoring region to check out.
 A double is not required. Going below zero is a **bust**: all points from that visit
 are cancelled, its opening balance is restored, and the visit ends immediately.
 
@@ -85,8 +85,8 @@ everyone subtracts from the same team balance.
 | Player + two girls | Player → first girl → second girl → repeat, ending with the player | Three player visits and two visits per NPC |
 
 Reaching zero wins immediately. If the last visit ends with points remaining, the house
-wins. During solo play, **Next round** starts each new visit. Solo uses Beat the House; modes that require companions show their participant
-requirements when selected without them.
+wins. During solo play, **My turn** starts each new visit. Solo always uses Beat the
+House, even if Rival Match was previously selected in preferences.
 
 ### 301 Rival Match
 
@@ -95,42 +95,6 @@ balance and gets up to three visits, alternating player, first girl and second g
 where present. The first checkout wins immediately. If nobody checks out, the lowest
 remaining balance wins; equal lowest balances draw. The house starting-score option
 does not change Rival Match's 301 starting balance.
-
-### Player vs Girls Team
-
-Exactly two girls share a countdown balance against your separate balance. Choose
-301, 501 or 701. Turn order is girl 1 → girl 2 → player for three rounds, with
-three darts per visit. Exact zero wins immediately; otherwise the lower balance
-wins at the round limit. A bust cancels only that visit. The girls deliberately
-have twice as many darts: this is a 1-vs-2 challenge.
-
-### Chase the Leader
-
-Three players: you and two girls. Choose three quick rounds or nine full rounds;
-each participant leads equally often. The leader sets a three-dart total. Each
-challenger who matches or beats it earns one point. The leader earns one point
-only if both challengers fail. Highest points wins; tied leaders share first place.
-
-### Precision Duel
-
-One girl with cached Darts skill tier **4 or higher**. Both players face the same
-five seeded targets: two doubles, two triples and one bullseye, in shuffled order.
-Three darts each per target. Only the exact number and ring count; every correct
-hit earns one point. Most points wins.
-
-### Exact Total
-
-One girl with cached Darts skill tier **3 or higher**. Five shared, seeded totals
-above 20, each reachable in one double, triple or bullseye, or several singles.
-Use up to three darts per target. A successful finish beats a failure; fewer darts
-wins the target. Overshooting resets the accumulated total to zero without refunding
-used darts. Equal successful finishes award both players one point; two failures
-award neither. Most target wins takes the match.
-
-New modes require the stated companion count and tier. An unavailable selection
-explains the requirement and offers eligible modes; it does not bypass the gate.
-These modes have separate scoring ledgers. Existing Beat the House and Rival Match
-rules remain unchanged. Solo still has five visits for every starting balance.
 
 ## NPC skill
 
@@ -185,9 +149,8 @@ Each reaction finishes before the next throw; another brief pause separates the 
 **My turn** becomes available only after the whole NPC block and its dialogue finish.
 Native reader-paced settings and text overflow sequencing remain in effect.
 
-A full, non-Quiet Beat the House team match normally needs up to **two companion batch calls**;
-an early checkout can reduce that. New modes batch consecutive NPC visits until control
-returns to the player; call count follows that mode’s turn order. First-time skill judgments, optional player chat
+A full, non-Quiet team match normally needs up to **two companion batch calls**;
+an early checkout can reduce that. First-time skill judgments, optional player chat
 and the narrator's result response are separate calls. Solo has no NPC skill or
 companion reaction calls. Quiet still permits first-time NPC skill judgment and the
 framework's normal result narration.
@@ -204,7 +167,7 @@ or Dare, stay visible.
 
 Throw and impact animations, dartboard LED patterns, animated score changes, hit sounds
 and win/loss feedback accompany the match. The score guide overlays the board with a
-blurred backdrop. Darts follows the game's global SFX volume live, including zero; it has no separate mute switch. The game's
+blurred backdrop. Local sound mute respects the game's global SFX volume. The game's
 Reduce Motion setting shortens animation and timing.
 
 When a match with NPC participants ends, the framework hands its actual outcome and
@@ -219,17 +182,6 @@ closing if you want a completed result. Updating the precision balance does not 
 resetting cached NPC skill; start a new match to use the updated throw plans.
 
 The Arcade & Bar Games pack defaults on and requires the Mini-games framework. Turning the framework off disables Darts; with the framework on, Darts is available unless its pack is explicitly switched off. Existing saved mod preferences are respected.
-
-## Rendering and startup
-
-Darts reuses fixed-size board texture layers and dart images between games. Canvas
-redraws stop while the board is unchanged or covered by its score guide, and resume
-for mouse aim, throws, impact effects and resizing. The frame callback still checks
-for visual changes; pointer timing and animation speed are unchanged.
-
-NPC skill loading belongs to the Mini-games framework. A first game with an NPC
-can still wait for that AI judgment before the board appears; this rendering
-optimization does not change the framework or its skill cache.
 
 ## Artwork, audio and licensing
 
@@ -260,68 +212,3 @@ and [terms of service](https://www.meshy.ai/terms-of-use).
 
 All Darts sound effects are synthesized at runtime by the game's audio code;
 there are no bundled third-party Darts sound recordings.
-
-## Turn pacing
-
-In solo play, **Next round** collects the previous visit's darts and starts the next
-three throws. With companions, **Change turn** hands over and **My turn** returns
-the board to you. While companion dialogue is being prepared, the status reads
-**Preparing next turn…**.
-
-Quiet and Some allow at least 1.5 seconds from a silent NPC landing to the next
-throw. This includes the existing score/LED pause rather than adding another
-1.5 seconds. Lots, spoken reactions and play-by-play retain their existing pacing.
-No preset dialogue is added; the number of reactions per mode is unchanged.
-
-## Mode information on the board
-
-The active mode appears below the Darts title at the top left. Click its name to
-expand or collapse the mode rules. Rules stay in the left column; the scoreboard
-stays on the right and character dialogue stays in the scene box below. The board
-uses the remaining space while the information is open. Close the info to resume
-aiming. This control is unavailable during an active throw or NPC turn.
-
-## Control guide and debug reports
-
-**Score Guide** and **Control** are equal-width buttons below the scoreboard's turn
-button. Control opens the same board-area overlay and blur as Score Guide, with
-mouse instructions: move to aim, hold left click to lock the ellipse, then release
-at the moving white dot. Aiming is blocked while either guide is open. Close with
-**Back to the board**. Mode-specific rules remain in the left dropdown.
-
-Participant names and their larger scores are centred in equal columns. The left
-rules and right scoreboard use equal screen gutters. The primary turn button stays
-inside the scoreboard. **Walk away** is a styled game action beneath it; it still
-uses the framework's existing unfinished-match reporting.
-
-**Copy bug report is hidden by default in Darts only.** The report functionality
-is retained for debugging. To show the button for the current app session, open
-Developer Tools and run this in the console:
-
-```js
-document.documentElement.dataset.dartsDebug = 'true'
-```
-
-Hide it again with:
-
-```js
-delete document.documentElement.dataset.dartsDebug
-```
-
-Reloading also hides it again. This visual debug flag does not change game rules,
-NPC skills or other mini-games. The visible report button keeps its normal copy action.
-
-Both guide overlays are inset from the board area to clear the dialogue. Their
-**Back to the board** button sits at the bottom right. **SECTOR 20** labels the sample sector, centred vertically between the overlay's top
-and the diagram's visible top rim; it is not a screen title. Control has no title. Walk
-away keeps a light background and red text, including while hovered or pressed.
-
-The turn button stays visible throughout the match. It shows **You’re playing**,
-the active girl's name while she plays, preparation status, or match complete. It
-is disabled in these states. **Change turn**, **My turn** and solo **Next round**
-become clickable only at the existing handover points, after dialogue has finished.
-Preparation status appears only on the turn button. Final win/draw/loss text uses
-the reserved status row above that button, without adding a footer below the guides.
-**Next time.** appears for a completed loss, never as the result of an interrupted match.
-The guide buttons sit below a separate gap. Back buttons have additional right and
-bottom clearance. Walk away uses the same offset paper shadow as the other game buttons.

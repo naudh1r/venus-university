@@ -1,3 +1,5 @@
+import { MINI_GAMES } from '@shared/minigames'
+import { finishSlotActivity } from '../stores/slotActivity'
 import { create } from 'zustand'
 import { gamesOffered, gameSwitchOn, listed, type MiniGameDef } from '@shared/minigames'
 import { modById, optionKey } from '@shared/mods'
@@ -27,7 +29,10 @@ export function gameIsOn(modId: string, game: MiniGameDef): boolean {
 
 /** The games on offer in the scene on screen, each with a component to play it with. */
 export function useGamesOffered(): MiniGameDef[] {
-  const location = useScenePlace()
+  const sceneLocation = useScenePlace()
+  const activity = useGameStore(s => s.sceneActivity)
+  const training = activity?.owner === MINI_GAMES && activity.status === 'pending' ? activity : null
+  const location = training?.location ?? sceneLocation
   const girls = useGameStore((s) => s.cast.filter((id) => !s.departed.includes(id)).length)
   // Read so a switch moved mid-scene is answered at once.
   useModsStore((s) => s.switches)
@@ -40,6 +45,7 @@ export function useGamesOffered(): MiniGameDef[] {
   )
   if (!under) return []
   return gamesOffered({ location, girls }, gameIsOn)
+    .filter(game => !training || game.id === training.id)
     .filter((game) => Boolean(gameComponent(game.id)))
     .map(tunedGame)
 }
@@ -82,6 +88,9 @@ export function proposeGame(gameId: string, charIds: readonly string[], words: s
 export function useTableOpen(): boolean {
   return useGameStore((s) => {
     if (s.replaying || s.sceneQuiz) return false
+    if (s.sceneActivity?.owner === MINI_GAMES && s.sceneActivity.status === 'pending') {
+      return s.awaitingInput && !s.busy && s.pendingLines.length === 0
+    }
     if (s.awaitingInput && !s.busy && s.pendingLines.length === 0) return true
     return replyRowOfferOf(s) === 'open'
   })
@@ -385,6 +394,16 @@ export function fileResult(result: PlayResult, played: PlayedWith, tries = 0): v
   // lost: the model was promised it would be told how the game went.
   if (!reachTurn()) {
     if (tries < FILE_TRIES) setTimeout(() => fileResult(result, played, tries + 1), FILE_WAIT_MS)
+    return
+  }
+
+  const activity = useGameStore.getState().sceneActivity
+  if (activity?.owner === MINI_GAMES && activity.id === played.game.id) {
+    if (result.outcome === 'broken') return // training panel offers retry; never settle a technical failure
+    const company = played.names.length ? ` Played with ${listed(played.names)}.` : ' Played alone.'
+    const account = result.account?.join(' ') ?? ''
+    void finishSlotActivity(MINI_GAMES, played.game.id, result.outcome !== 'abandoned',
+      `${result.summary}${company} ${account}${played.stake ? ` Agreed stake: ${played.stake}.` : ''}`)
     return
   }
 
