@@ -1,6 +1,6 @@
 # Photo Feature
 
-An unofficial mod for Venus University by **naudh1r**. Version **1.2.0**, for the game's 0.4.0.
+An unofficial mod for Venus University by **naudh1r**. Version **1.4.1**, for the game's 0.5.0.
 
 The girls send you photos in their DMs and post them on their feeds, with comments from the rest
 of campus. Each contact gets a gallery, and characters can get optional body details. Photos are
@@ -48,17 +48,23 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
      candid one where she is not posing.
    - **Selfies**: her arm reaches out of the picture and no phone is drawn. A mirror selfie
      shows the phone and nothing else in her hands. Lying-down selfies are framed from the
-     waist up.
-   - **Hands**: one thing for her hands per photo, so nobody grows a third hand.
+     waist up. A selfie with both her hands on something is drawn as a photo somebody took.
+   - **Hands**: one thing for her hands per photo, so nobody grows a third hand. Hands she is
+     leaning on count.
+   - **Her clothes**: her top is weighted where it names a colour, so a dark or neon-lit scene
+     does not turn it black. "Topless" bares her top half only and "bottomless" her bottom
+     half; what the sentence still names stays on.
    - **Her body**: only the parts in the shot, as far as her clothes allow.
-   - **Cleanup**: names are taken out, a selfie loses how she holds the phone, "the camera"
+   - **Cleanup**: names are taken out, a selfie loses the words about how she holds the phone, "the camera"
      becomes the viewer, whoever took the photo is left out (they were drawn in), colours named
      after food are said plainly (a "cream shirt" was drawn as cream), a "liquid" becomes a
      drink (it was splashed everywhere), and a bubble tea shop becomes a tea shop (it put a cup
      in her hand).
-   - **Things kept out**: legwear she was not given (colours in the prompt bleed onto her legs),
-     a phone or camera, anyone else in the picture, splashes and stains, and on everyday photos
-     cleavage and undressing (a top slipping off a shoulder stays how she wears it).
+   - **Things kept out**: a phone or camera, anyone else in the picture, splashes and stains,
+     and on everyday photos cleavage and undressing (a top slipping off a shoulder stays how
+     she wears it). Nothing on her legs, under her skirt or between her legs is named in the
+     negative: naming legwear, `pantyshot` or censoring there drew a smudge or a coloured leg
+     in its place.
 5. ComfyUI draws it, and it lands in the bubble or the post.
 
 Every tag the mod adds has been checked in ComfyUI on the photo checkpoint, side by side with the
@@ -140,13 +146,20 @@ For Venus University 0.4.0, on the shared mod build, with a lot of photo tuning.
 
 ## Known limits
 
-- A colour from the picture can still bleed onto her legs on some seeds: from her outfit, her
-  hair or the lighting (neon pink, for example). It can show as one coloured leg fading down to
-  the sock. Blocking legwear in every colour the prompt names, and asking for bare legs, did
-  not stop it on the seeds it showed on, and no other negative tag tried so far does. A reroll
-  usually clears it.
+- Now and then a seed still gets something wrong that no tag changed: a coloured mark on her
+  face, a small photo stuck over her in an undressed picture. A reroll clears it.
 - Nude photos on her side or stomach can drift onto her back.
 - A bikini can take its colour from her own swimsuit set instead of her sentence.
+
+Some things come from a girl's own tags rather than from the mod, and are fixed in her profile:
+
+- **Sara**: her swimsuit has `tie_side_bikini_bottom`, which is not a Danbooru tag. The model
+  reads "tie" and draws a green necktie on her in most beach photos, and once a brown glove.
+  `side-tie_bikini_bottom` drew neither on six seeds of six.
+- **Florentine**: her tag says `light_purple_hair`, but her sprites draw it dark purple, and her
+  photos come out either. `dark_purple_hair` would match her sprites.
+- **Lia**: `black_lace_bralette` with `clothing_cutout` under her off-shoulder sweater often
+  shows as a black turtleneck or inner top. Take either tag out if she should not wear one.
 
 ## For modders
 
@@ -215,8 +228,13 @@ that sentence and adds tags read off it:
 - **Clean-up of the sentence**: names are taken out, a selfie loses how she holds the phone
   (the model draws "holding the camera" as a camera), and colours named after food are said
   plainly ("cream shirt" was drawn as cream).
-- **Negatives**: legwear she was not given, in every colour the prompt names (a colour
-  anywhere in the prompt bleeds onto her legs); a selfie's phone and camera.
+- **Weights on her clothes**: her top, where it names a colour, at 1.2. Not her shoes, skirt or
+  what she wears under another top: weighting those drew shoes beside her, her hair in her
+  clothes' colour, and her bralette as a top of its own.
+- **Negatives**: a selfie's phone and camera; on a dressed photo nude, nipples, areolae and
+  pussy, which tested harmless. Never what is on her legs, under her skirt or between her legs,
+  nor censoring: a same-seed check drew a smudge or a coloured leg exactly where each of those
+  pointed, and nothing they were meant to keep out showed without them.
 
 Every tag these files can write has to be in the verified list in `test/photoTags.test.ts`,
 which fails on any other. A tag goes on that list once a same-seed ComfyUI check shows the
