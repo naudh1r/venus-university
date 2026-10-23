@@ -18,6 +18,8 @@ export interface Proposal {
 
 /** A game she said yes to, and what the two of them put on it. */
 export interface Agreed {
+  /** A destination agreement may open only after playback reaches this venue. */
+  location?: string | null
   gameId: string
   /** Everyone who is in, in the order they sit. */
   charIds: string[]

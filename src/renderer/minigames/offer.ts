@@ -6,6 +6,7 @@ import {
   type SuggestRate
 } from '@shared/minigames'
 import { charKeyOf, type Character, type StructuredRequest } from '@shared/types'
+import { locationDefOf } from '@shared/locations'
 import { hereLine } from './place'
 
 /**
@@ -57,7 +58,8 @@ export function withOffer(
   cast: readonly Character[],
   location: string | null,
   busy: boolean,
-  keen: boolean
+  keen: boolean,
+  travelling = false
 ): StructuredRequest {
   const schema = request.schema.schema as {
     required?: string[]
@@ -134,7 +136,9 @@ export function withOffer(
       '',
       'MINI-GAMES',
       'These games are real here. They are played at a table the reader actually plays at, by their own rules, and you are told afterwards how they went. Never play one out in your lines: do not deal, turn a card, take a shot or say who wins.',
-      ...hereLine(location),
+      ...(travelling ? [
+        `The reader is proposing a game at ${location ? locationDefOf(location)?.label ?? location : 'another venue'}, not at the current location. Get agreement first. If accepted, narrate arrival there with its correct background, then setup only. If declined, do not travel just to play. Never play the game in narration.`
+      ] : hereLine(location)),
       ...described,
       'A girl suggests a game only as its note above allows, only when it suits her and the moment, and in her own words. When she does, your lines end on her asking, so the reader can answer.',
       `THE "${FIELD}" FIELD`,

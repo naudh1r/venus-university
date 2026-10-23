@@ -1,4 +1,5 @@
 import { MINI_GAMES } from '@shared/minigames'
+import { scenePlace } from './place'
 import { gameById } from './prefs'
 import { useEffect, useRef, type JSX } from 'react'
 import type { SceneSeatProps } from '../mods/hooks'
@@ -47,6 +48,8 @@ export function MiniGameSeat({ Seat, visible, open }: SceneSeatProps): JSX.Eleme
       useTableStore.getState().setAgreed(null)
       return
     }
+    // Destination context is permission to discuss, not permission to open early.
+    if ((due.location && due.location !== scenePlace()) || !offered.some(entry => entry.id === due.gameId)) return
     if (!agreed || here.length !== due.charIds.length) {
       useTableStore.getState().setAgreed({ ...due, charIds: here })
     }
