@@ -7,7 +7,6 @@ import { RENDER_PATIENCE_MS } from './photoPost'
 import { canSendPhotos, noExplicitPhotos, photoNamesInSave, savePhotoState, setMessagePhoto } from './localPhotoStore'
 import { tellAboutDmPhotos } from './photoTipDelivery'
 import { renderPhoto } from './photoWebp'
-import { settleFriend } from './photoDuoTurn'
 
 /**
  * The picture attached to one reply: settled against the save, hung on her last text as a
@@ -68,14 +67,7 @@ export async function sendPhoto(
   const live = useGameStore.getState()
   const held = live.bunnyboard.conversations[charId]?.messages.find(message => message.id === last.id)
   if (live.playthroughId !== playthroughId || live.loads !== game.loads || !held || held.photo || !canSendPhotos()) return
-  const friend = settleFriend(charId, data.photoWith, verdict.tier)
-  setMessagePhoto(charId, last.id, {
-    tier: verdict.tier,
-    scene,
-    file,
-    pending: true,
-    ...(friend ? { with: friend.charId } : {})
-  })
+  setMessagePhoto(charId, last.id, { tier: verdict.tier, scene, file, pending: true })
   // Her first picture to him is the moment BunnyBot explains them.
   tellAboutDmPhotos(character.firstName)
   // The waiting bubble is saved too, carrying the name the render will land under: that name is

@@ -72,8 +72,6 @@ declare module './types' {
      * instead of it: it may only raise the reading, never lower it.
      */
     photoTier?: string
-    /** The friend she puts in the picture beside her, by name, or empty for her alone. */
-    photoWith?: string
   }
 
 }

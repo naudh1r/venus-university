@@ -10,7 +10,6 @@ import {
 } from './localPhotoStore'
 import { noNsfwImagesOf, useSettingsStore } from './settingsStore'
 import { renderPhoto } from './photoWebp'
-import { settleFriend } from './photoDuoTurn'
 
 /**
  * The picture on a post on her feed.
@@ -84,14 +83,14 @@ export interface PreparedPostPhoto {
 export async function preparePostPhoto(
   charId: string,
   image: string | undefined,
-  // The friend she named to be in it beside her, if any.
-  imageWith?: string
+  // The friend beside her in a group photo, by charId; the scene they shared settled it.
+  friendId?: string
 ): Promise<PreparedPostPhoto | null> {
   const shot = settlePostPhoto(image)
   if (!shot) return null
   const file = await reservePostPhotoName(charId)
   if (!file) return null
-  const friend = settleFriend(charId, imageWith, shot.tier)
+  const friend = friendId ? useGameStore.getState().characters[friendId] : undefined
   return { shot, file, ...(friend ? { with: friend.charId } : {}) }
 }
 

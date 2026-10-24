@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import type { StructuredRequest, LedgerResponse } from '@shared/types'
+import type { StructuredRequest, LedgerResponse, SlotIntroResponse } from '@shared/types'
 import type { PromptState } from '../prompts/scenePrompt'
 import type { SlotIntroInput } from '../prompts/slotIntroPrompt'
 import type { useGameStore } from '../stores/gameStore'
@@ -172,6 +172,11 @@ export interface ModHooks {
   requests?: { [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest }
   /** After bookkeeping settles, before the clock advances and the boundary save is written. */
   slotSettled?: (ctx: SlotSettled) => void
+  /**
+   * More posts for the slot's opening to file beside its posters', read off its whole reply:
+   * for a field a mod asked for through `requests['slot-intro']`. Each is filed like any post.
+   */
+  extraSlotPosts?: (reply: Readonly<Record<string, unknown>>) => NonNullable<SlotIntroResponse['posts']>
 
   prompts?: { [S in PromptSpot]?: PromptAddition<PromptSpots[S]> }
   /** Added to a DM in the history a prompt quotes, after its text. */
@@ -405,6 +410,12 @@ export function modRequest<S extends keyof RequestSpots>(spot: S, ctx: RequestSp
     if (extend) next = extend(next, ctx)
   }
   return next
+}
+
+/** Every mod's extra posts for the slot's opening, in mod-list order. */
+export function extraSlotPosts(reply: unknown): NonNullable<SlotIntroResponse['posts']> {
+  if (!reply || typeof reply !== 'object') return []
+  return active().flatMap((hooks) => hooks.extraSlotPosts?.(reply as Record<string, unknown>) ?? [])
 }
 
 export function slotSettled(ctx: SlotSettled): void {

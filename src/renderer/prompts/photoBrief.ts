@@ -58,9 +58,7 @@ export function photoLines(
   character: Character,
   info: CharInfo | undefined,
   state: Pick<TextingPromptState, 'date' | 'canRenderImages' | 'noNsfwImages'>,
-  occasion: PhotoOccasion = 'reply',
-  // The friends she may put in a picture beside her, by first name; none while that is off.
-  duoNames: readonly string[] = []
+  occasion: PhotoOccasion = 'reply'
 ): string[] {
   // Settled from the save before she is asked anything, and read again when the reply lands.
   const tier: PhotoTier = allowedPhotoTier({
@@ -78,34 +76,9 @@ export function photoLines(
 
   // Two briefs, and she reads only hers: how an undressed picture is captioned, and why she would
   // send one, are said only to a girl who may.
-  const brief =
-    tier === 'explicit'
-      ? intimateBrief(character, photoReasonOf(info?.flags, character.traits) ?? 'crush', occasion)
-      : normalBrief(character, tier, occasion)
-  // Her blank line closes the brief, so the line about a friend goes in before it; with one she
-  // may name, "only person" would contradict it.
-  const alone = `${character.firstName} is the only person in the picture.`
-  const kept =
-    duoNames.length > 0
-      ? brief.map((line) =>
-          line.startsWith(alone)
-            ? line.replace(alone, `${character.firstName} is the only person in the picture, but for the friend she names.`)
-            : line
-        )
-      : brief
-  return [...kept.slice(0, -1), ...duoLines(character.firstName, duoNames), ...kept.slice(-1)]
-}
-
-/**
- * Who she may put in a picture beside her, and how the two of them are drawn: side by side, apart,
- * from the waist up, which is all the renderer can hold two girls apart in. Said with the field
- * that carries it, so the field is never left unexplained.
- */
-function duoLines(name: string, duoNames: readonly string[]): string[] {
-  if (duoNames.length === 0) return ['Leave "photoWith" empty.']
-  return [
-    `${name} may put ${duoNames.join(' or ')} in a picture beside her: the two of them side by side, not touching, from the waist up. Then "photoWith" is that name, and the caption says "her and her friend". A picture of the two of them fits whenever they are out together or she would want her friend in it; otherwise "photoWith" is empty.`
-  ]
+  return tier === 'explicit'
+    ? intimateBrief(character, photoReasonOf(info?.flags, character.traits) ?? 'crush', occasion)
+    : normalBrief(character, tier, occasion)
 }
 
 /** What her picture goes with: her answer to him, or texts she sends him first. */
@@ -207,7 +180,7 @@ function keeping(name: string, occasion: PhotoOccasion): string[] {
 }
 
 /** The reply fields a photo needs, spread into `textingSchema`'s required list. */
-export const PHOTO_SCHEMA_REQUIRED = ['sendPhoto', 'photoPrompt', 'photoTier', 'photoWith'] as const
+export const PHOTO_SCHEMA_REQUIRED = ['sendPhoto', 'photoPrompt', 'photoTier'] as const
 
 /** The same three as schema properties, spread into `textingSchema`'s property map. */
 export const PHOTO_SCHEMA_FIELDS: Record<string, unknown> = {
@@ -215,9 +188,7 @@ export const PHOTO_SCHEMA_FIELDS: Record<string, unknown> = {
   photoPrompt: { type: 'string' },
   // What she says the picture is. Required and answered "none" where there is no picture, since
   // an optional field is one a model leaves out.
-  photoTier: { type: 'string', enum: [...PHOTO_TIERS] },
-  // The friend beside her, or empty: required for the same reason.
-  photoWith: { type: 'string' }
+  photoTier: { type: 'string', enum: [...PHOTO_TIERS] }
 }
 
 /**
@@ -239,7 +210,7 @@ export function postPhotoLines(canRenderImages: boolean): string[] {
     'What is not written is not drawn: "a photo of me" gets a picture of nobody in particular.',
     'Her whole year sees this, so it is an ordinary picture or a flirty one at most — what she is wearing, a day out, a swimsuit. Never anything undressed, whatever she might send one person in a message.',
     'Name nobody and nowhere: a picture cannot show a name. "her room", "the quad", "a cafe" — what it looks like, never what it is called.',
-    'She is the only person in the picture, unless her entry says who she may put in it beside her and she names her in "imageWith"; otherwise leave "imageWith" empty.',
+    'She is the only person in the picture.',
     'The post’s own "text" should read like somebody who just posted that picture, without describing it.'
   ]
 }
@@ -248,21 +219,8 @@ export function postPhotoLines(canRenderImages: boolean): string[] {
  * One poster's wardrobe, under her name in the slot's opening, so the picture on her post has her
  * in her own clothes rather than ones the model reaches for. Nothing where no picture is drawn.
  */
-export function posterPhotoLines(
-  character: Character,
-  canRenderImages: boolean,
-  // The friends she may put in her picture beside her, by first name.
-  duoNames: readonly string[] = []
-): string[] {
-  if (!canRenderImages) return []
-  return [
-    `  ${wardrobeLine(character)}`,
-    ...(duoNames.length > 0
-      ? [
-          `  She may put ${duoNames.join(' or ')} in her picture beside her: side by side, not touching, from the waist up, named in "imageWith".`
-        ]
-      : [])
-  ]
+export function posterPhotoLines(character: Character, canRenderImages: boolean): string[] {
+  return canRenderImages ? [`  ${wardrobeLine(character)}`] : []
 }
 
 /**
@@ -283,7 +241,6 @@ export function postCommentLines(on: boolean = photoFeatureOn()): string[] {
 /** The fields a post's picture and its replies need, spread into the slot-intro schema. */
 export const POST_PHOTO_SCHEMA_FIELD: Record<string, unknown> = {
   image: { type: 'string' },
-  imageWith: { type: 'string' },
   comments: { type: 'array', items: { type: 'string' } }
 }
 
@@ -291,4 +248,4 @@ export const POST_PHOTO_SCHEMA_FIELD: Record<string, unknown> = {
  * Both are **required and answered empty**, never omitted: a field a model may leave out is a
  * field it leaves out, and `image` decides whether a picture happens at all.
  */
-export const POST_PHOTO_SCHEMA_REQUIRED = ['image', 'imageWith', 'comments'] as const
+export const POST_PHOTO_SCHEMA_REQUIRED = ['image', 'comments'] as const

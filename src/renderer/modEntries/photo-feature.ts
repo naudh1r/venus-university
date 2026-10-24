@@ -24,7 +24,7 @@ import { postLikes, rollComments, strangerLikes } from '../stores/photoComments'
 import { holdPostPhoto, preparePostPhoto, startHeldPostPhoto } from '../stores/photoPost'
 import { settlePendingPhotos } from '../stores/photoRecovery'
 import { sendPhoto } from '../stores/photoTurn'
-import { duoCandidatesOf } from '../stores/photoDuoTurn'
+import { groupPhotoPost, noteGroupPhoto, withGroupPhotoRequest } from '../stores/photoGroup'
 import { useGameStore } from '../stores/gameStore'
 import { registerTermFiles } from '@shared/modCarry'
 import { ownsPostComments, registerHooks } from '../mods/hooks'
@@ -39,13 +39,11 @@ registerHooks(PHOTO_FEATURE, {
     dm: {
       // What she may photograph is settled from the save before she is asked anything.
       lines: ({ character, info, state }) =>
-        photoLines(
-          character,
-          info,
-          { ...state, canRenderImages: canSendPhotos(), noNsfwImages: noExplicitPhotos() },
-          'reply',
-          duoCandidatesOf(character.charId).map((girl) => girl.firstName)
-        ),
+        photoLines(character, info, {
+          ...state,
+          canRenderImages: canSendPhotos(),
+          noNsfwImages: noExplicitPhotos()
+        }),
       fields: () => PHOTO_SCHEMA_FIELDS,
       required: () => PHOTO_SCHEMA_REQUIRED
     },
@@ -56,8 +54,7 @@ registerHooks(PHOTO_FEATURE, {
           character,
           info,
           { date, canRenderImages: canSendPhotos(), noNsfwImages: noExplicitPhotos() },
-          'reachOut',
-          duoCandidatesOf(character.charId).map((girl) => girl.firstName)
+          'reachOut'
         ),
       fields: () => PHOTO_SCHEMA_FIELDS,
       required: () => PHOTO_SCHEMA_REQUIRED
@@ -71,18 +68,12 @@ registerHooks(PHOTO_FEATURE, {
       fields: () =>
         ownsPostComments(PHOTO_FEATURE)
           ? POST_PHOTO_SCHEMA_FIELD
-          : { image: POST_PHOTO_SCHEMA_FIELD.image, imageWith: POST_PHOTO_SCHEMA_FIELD.imageWith },
-      required: () =>
-        ownsPostComments(PHOTO_FEATURE) ? POST_PHOTO_SCHEMA_REQUIRED : ['image', 'imageWith']
+          : { image: POST_PHOTO_SCHEMA_FIELD.image },
+      required: () => (ownsPostComments(PHOTO_FEATURE) ? POST_PHOTO_SCHEMA_REQUIRED : ['image'])
     },
     // What each poster owns, for a post whose picture has her in it.
     'slot-poster': {
-      lines: ({ character }) =>
-        posterPhotoLines(
-          character,
-          canSendPhotos(),
-          duoCandidatesOf(character.charId).map((girl) => girl.firstName)
-        )
+      lines: ({ character }) => posterPhotoLines(character, canSendPhotos())
     },
     character: {
       lines: () => bodyBriefLines(),
@@ -90,6 +81,11 @@ registerHooks(PHOTO_FEATURE, {
       required: () => bodySchemaRequired()
     }
   },
+
+  // Two of the scene's girls, for a group photo in the next slot's opening.
+  slotSettled: (ctx) => noteGroupPhoto(ctx),
+  requests: { 'slot-intro': (request) => withGroupPhotoRequest(request) },
+  extraSlotPosts: (reply) => groupPhotoPost(reply),
 
   dmHistoryNote: (message) =>
     photoStub(
@@ -113,8 +109,7 @@ registerHooks(PHOTO_FEATURE, {
     void sendPhoto(charId, character, {
       sendPhoto: reply.sendPhoto === true,
       photoPrompt: typeof reply.photoPrompt === 'string' ? reply.photoPrompt : '',
-      ...(typeof reply.photoTier === 'string' ? { photoTier: reply.photoTier } : {}),
-      ...(typeof reply.photoWith === 'string' ? { photoWith: reply.photoWith } : {})
+      ...(typeof reply.photoTier === 'string' ? { photoTier: reply.photoTier } : {})
     }),
 
   // The slot's held feed pictures, now that he is busy with something: they draw under the scene
@@ -125,12 +120,13 @@ registerHooks(PHOTO_FEATURE, {
   gameEntered: () => void settlePendingPhotos(),
 
   fileFeedPost: async (filing, { nudge }) => {
-    const reply = filing.reply as { image?: string; imageWith?: unknown; comments?: unknown }
+    const reply = filing.reply as { image?: string; groupWith?: unknown; comments?: unknown }
     // Awaited: the picture's name has to be in the post the slot save is about to write down.
     const shot = await preparePostPhoto(
       filing.charId,
       reply.image,
-      typeof reply.imageWith === 'string' ? reply.imageWith : undefined
+      // A group photo's friend, set by the mod itself on the post it added.
+      typeof reply.groupWith === 'string' ? reply.groupWith : undefined
     )
     // Another mod drawing the replies has filed its own already.
     const comments = ownsPostComments(PHOTO_FEATURE)

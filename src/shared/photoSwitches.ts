@@ -28,7 +28,7 @@ export interface PhotoSwitches {
   webp: boolean
   /** Her build, chest, hips, backside and hair are asked for, edited and drawn. */
   body: boolean
-  /** A girl may put one friend in a picture beside her. Experimental. */
+  /** A scene with two or more of the girls ends in a group photo on one's feed. Experimental. */
   duo: boolean
 }
 
@@ -104,7 +104,7 @@ export function explicitPhotosAllowed(
   return switches.explicit && !noNsfwImages
 }
 
-/** Whether a girl may put a friend in a picture beside her: new photos made, and its option. */
+/** Whether a shared scene ends in a group photo: new photos made, and its option. */
 export function duoPhotosOn(switches: PhotoSwitches = current): boolean {
   return photoGenerationOn(switches) && switches.duo
 }
@@ -150,7 +150,7 @@ export const PHOTO_FEATURE_MOD = {
     {
       id: 'duo',
       label: '2 girls 1 photo (experimental)',
-      hint: "Lets a girl put one of her friends in a picture beside her. Still being tuned: now and then a face, an outfit or a colour comes out wrong.",
+      hint: "A scene with two or more of the girls ends in a photo of two of them, posted on one's feed. Still being tuned: now and then a face, an outfit or a colour comes out wrong.",
       default: false
     },
     {
