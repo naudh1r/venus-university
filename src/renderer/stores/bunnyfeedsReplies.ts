@@ -166,11 +166,15 @@ export function rollFeedComments(
         picture,
         following: followingOf(game.playthroughId, charId, game.characters[charId])
       })
-  const count = Math.min(lines.length, allowed)
-  if (count === 0) return []
-
-  const kept = lines.slice(0, count)
-  const strangers = kept.filter((one) => !(one.charId && game.characters[one.charId])).length
+  // The followers counted, and the friend of hers named under the post on top of them.
+  const isFriend = (one: WrittenComment): boolean => Boolean(one.charId && game.characters[one.charId])
+  let followers = 0
+  let friends = 0
+  const kept = lines.filter((one) =>
+    isFriend(one) ? friends++ < 1 : followers++ < allowed
+  )
+  if (kept.length === 0) return []
+  const strangers = kept.filter((one) => !isFriend(one)).length
   const bag = useGrabBagStore.getState()
   // Through the bags, so a handle and a face are both spent before either comes round again.
   const handles = bag.drawMany(FEED_HANDLE_BAG, FEED_HANDLE_POOL, strangers, (one) => one.key)

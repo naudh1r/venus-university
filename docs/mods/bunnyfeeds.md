@@ -104,7 +104,8 @@ on them, from any mod that puts one there, get threads like any other post.
   remembers it even before you meet.
 - **Busier feed, nothing written for nothing**: how many people reply under each of the slot's new
   posts is rolled before it is written, a count for words and one for a picture, and the call
-  writes exactly that many, where it used to write a few and the game kept fewer. Posts draw more
+  writes exactly that many, where it used to write a few and the game kept fewer. The count is
+  her followers; a friend named under the post replies on top of them, so the two mix. Posts draw more
   too: about a reply under a typical girl's post of words where most had none, two under her
   picture, and a lively thread under a popular girl's.
 - **Faces**: every face is an archway, ringed in the accent at list size and plain in comments;
