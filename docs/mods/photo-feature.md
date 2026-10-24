@@ -108,6 +108,12 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
 - **2 girls 1 photo (experimental)**: a scene with two or more of the girls ends in a group photo
   that one of them posts, off by default.
 
+## 1.4.2
+
+- **No more "dorm" in a picture**: Gemini refused to answer a thread where an undressed picture was
+  remembered as taken "on her dorm bed". She is told to call it her room, and a picture already
+  written that way is read back without the word ("on her bed").
+
 ## 1.4.1
 
 - **Selfies keep their whole description**: a selfie that mentioned the camera while she held

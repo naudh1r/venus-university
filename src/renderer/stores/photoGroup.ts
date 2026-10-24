@@ -37,7 +37,7 @@ export function noteGroupPhoto({ before, closingCast }: SlotSettled): void {
 /** Where the two of them were, as the post's request says it. */
 function placeOf(location: string | null): string {
   if (!location) return ''
-  if (location === ROOM_LOCATION) return ' in a dorm room'
+  if (location === ROOM_LOCATION) return ' in her room'
   return ` at ${locationLabel(location)}`
 }
 
