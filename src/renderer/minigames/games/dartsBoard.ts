@@ -145,12 +145,14 @@ export class Board {
       modelArt.src = new URL('../../../assets/darts/darts-meshy-views.png', import.meta.url).href;
       const base = document.createElement('canvas');
       base.width = base.height = 1400;
-      const c = base.getContext('2d')!;
+      // Rasterize dense static perforations on CPU once. GPU-backed path replay can
+      // stall the first visible frame for seconds; the live board stays accelerated.
+      const c = base.getContext('2d', { willReadFrequently: true })!;
       c.scale(2, 2);
       this.paintBoard(c);
       const dividers = document.createElement('canvas');
       dividers.width = dividers.height = 1400;
-      const dividerContext = dividers.getContext('2d')!;
+      const dividerContext = dividers.getContext('2d', { willReadFrequently: true })!;
       dividerContext.scale(2, 2);
       this.paintDividers(dividerContext);
       artwork = { base, dividers, dartArt, modelArt };
