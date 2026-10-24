@@ -82,6 +82,13 @@ picture is drawn under the scene, behind any of the slot's own feed pictures sti
 are dressed for where they are, so the pool puts them in their swimsuits, and like every post it is
 never past suggestive.
 
+The option also lets a girl's own feed post be a picture of her and a friend. As the slot opens,
+one of the girls posting, at most, is rolled a picture with one of her friends (1 in 4 for a girl
+who has any), wherever either of them is: neither has to be in your scene. The opening is told so
+under her name and writes it with her post. A friend stays in a picture only in everyday clothes
+or swimwear; past that the picture is drawn of the poster alone. The console says so as the
+opening is written (`[photo] X's post this slot is a picture with Y`).
+
 - The two are drawn side by side and not touching, from the waist up, each in her own half of the
   picture: told as one prompt, the model swapped their hair and clothes between them, and where
   they touched their bodies merged.
@@ -109,7 +116,8 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
 
 - **2 girls 1 photo (experimental)**: a scene with two or more of the girls brings a group photo
   that one of them posts, off by default. The scene's first call writes it, so the two are girls
-  you are with, and its picture is drawn under that scene.
+  you are with, and its picture is drawn under that scene. Now and then a girl's own post is a
+  picture with one of her friends too.
 
 ## 1.4.2
 

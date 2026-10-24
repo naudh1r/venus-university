@@ -1,4 +1,5 @@
 import { PHOTO_FEATURE } from '@shared/mods'
+import { npcFriendsOf } from '@shared/npcRelationships'
 import { groupPhotoPair, type GroupPhotoPair } from '@shared/photoDuo'
 import { duoPhotosOn } from '@shared/photoSwitches'
 import type { Character, StructuredRequest } from '@shared/types'
@@ -150,4 +151,49 @@ export function fileGroupPhoto({ reply }: SceneReplied): void {
     char: string
     text: string
   }).then(() => startHeldPostPhoto())
+}
+
+/** The chance a poster with a friend posts a picture of the two of them, at most one a slot. */
+const FEED_FRIEND_CHANCE = 0.25
+
+/** The slot's feed posts that are a picture with a friend: poster to friend, by charId. */
+let feedFriends: { slot: string; rolled: Set<string>; pairs: Map<string, string> } | null = null
+
+/**
+ * The friend in this poster's picture, rolled once a slot as the opening is written: one of her
+ * friends, wherever either of them is. Null for a picture of her alone.
+ */
+export function feedFriendOf(character: Character): Character | null {
+  if (!duoPhotosOn() || !canSendPhotos()) return null
+  const slot = slotKey()
+  if (!slot) return null
+  if (feedFriends?.slot !== slot) feedFriends = { slot, rolled: new Set(), pairs: new Map() }
+  const game = useGameStore.getState()
+  const known = feedFriends.pairs.get(character.charId)
+  if (feedFriends.rolled.has(character.charId)) return known ? (game.characters[known] ?? null) : null
+  feedFriends.rolled.add(character.charId)
+  if (feedFriends.pairs.size > 0) return null
+  const friends = npcFriendsOf(game.npcRelationships, character.charId, game.chars).filter(
+    (id) => game.characters[id]
+  )
+  if (friends.length === 0 || Math.random() >= FEED_FRIEND_CHANCE) return null
+  const friend = game.characters[friends[Math.floor(Math.random() * friends.length)]]
+  if (!friend) return null
+  feedFriends.pairs.set(character.charId, friend.charId)
+  console.log(`[photo] ${character.firstName}'s post this slot is a picture with ${friend.firstName}`)
+  return friend
+}
+
+/** Her entry's line for a picture with a friend, under her name in the opening. */
+export function feedFriendLines(character: Character): string[] {
+  const friend = feedFriendOf(character)
+  if (!friend) return []
+  return [
+    `  Her post is a picture of her and her friend ${friend.firstName}, so it carries an "image": the two of them side by side and not touching, from the waist up, in everyday clothes, or swimsuits only where they are at a pool or a beach. Say "her and her friend", never ${friend.firstName}'s name.`
+  ]
+}
+
+/** The friend rolled for this poster's picture this slot, by charId. */
+export function feedFriendFor(charId: string): string | undefined {
+  return feedFriends?.slot === slotKey() ? feedFriends?.pairs.get(charId) : undefined
 }

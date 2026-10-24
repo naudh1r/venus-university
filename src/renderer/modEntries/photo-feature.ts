@@ -24,7 +24,12 @@ import { postLikes, rollComments, strangerLikes } from '../stores/photoComments'
 import { holdPostPhoto, preparePostPhoto, startHeldPostPhoto } from '../stores/photoPost'
 import { settlePendingPhotos } from '../stores/photoRecovery'
 import { sendPhoto } from '../stores/photoTurn'
-import { fileGroupPhoto, withGroupPhotoRequest } from '../stores/photoGroup'
+import {
+  feedFriendFor,
+  feedFriendLines,
+  fileGroupPhoto,
+  withGroupPhotoRequest
+} from '../stores/photoGroup'
 import { useGameStore } from '../stores/gameStore'
 import { registerTermFiles } from '@shared/modCarry'
 import { ownsPostComments, registerHooks } from '../mods/hooks'
@@ -73,7 +78,10 @@ registerHooks(PHOTO_FEATURE, {
     },
     // What each poster owns, for a post whose picture has her in it.
     'slot-poster': {
-      lines: ({ character }) => posterPhotoLines(character, canSendPhotos())
+      lines: ({ character }) => [
+        ...posterPhotoLines(character, canSendPhotos()),
+        ...feedFriendLines(character)
+      ]
     },
     character: {
       lines: () => bodyBriefLines(),
@@ -124,8 +132,9 @@ registerHooks(PHOTO_FEATURE, {
     const shot = await preparePostPhoto(
       filing.charId,
       reply.image,
-      // A group photo's friend, set by the mod itself on the post it added.
-      typeof reply.groupWith === 'string' ? reply.groupWith : undefined
+      // A group photo's friend, set by the mod itself on the post it added, or the friend rolled
+      // for her picture as the opening was written.
+      typeof reply.groupWith === 'string' ? reply.groupWith : feedFriendFor(filing.charId)
     )
     // Another mod drawing the replies has filed its own already.
     const comments = ownsPostComments(PHOTO_FEATURE)

@@ -61,6 +61,9 @@ async function reservePostPhotoName(charId: string): Promise<string | null> {
   return null
 }
 
+/** What a picture of two may show past everyday clothes. */
+const SWIMWEAR = /\b(swim\w*|bikini\w*)/i
+
 /** A picture a post has settled on and reserved a name for, waiting on the post it belongs to. */
 export interface PreparedPostPhoto {
   shot: { tier: PhotoTier; scene: string }
@@ -90,7 +93,10 @@ export async function preparePostPhoto(
   if (!shot) return null
   const file = await reservePostPhotoName(charId)
   if (!file) return null
-  const friend = friendId ? useGameStore.getState().characters[friendId] : undefined
+  // A friend is in it only in everyday clothes or swimwear: past that is hers alone to post.
+  const dressed = shot.tier === 'everyday' || (shot.tier === 'suggestive' && SWIMWEAR.test(shot.scene))
+  const friend = friendId && dressed ? useGameStore.getState().characters[friendId] : undefined
+  if (friendId && !friend) console.log('[photo] the friend is left out of a picture past everyday clothes')
   return { shot, file, ...(friend ? { with: friend.charId } : {}) }
 }
 

@@ -217,7 +217,7 @@ export function postPhotoLines(canRenderImages: boolean): string[] {
     'What is not written is not drawn: "a photo of me" gets a picture of nobody in particular.',
     'Her whole year sees this, so it is an ordinary picture or a flirty one at most — what she is wearing, a day out, a swimsuit. Never anything undressed, whatever she might send one person in a message.',
     'Name nobody and nowhere: a picture cannot show a name. "her room", "the quad", "a cafe" — what it looks like, never what it is called.',
-    'She is the only person in the picture.',
+    'She is the only person in the picture, unless her entry says it is a picture with a friend.',
     'The post’s own "text" should read like somebody who just posted that picture, without describing it.'
   ]
 }
