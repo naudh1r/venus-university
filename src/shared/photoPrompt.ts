@@ -545,6 +545,27 @@ export function withoutTouching(scene: string): string {
  */
 const WORN_CLAUSE = /,?\s*\b(?:wearing|dressed in|in (?:their|her|matching)\b)[^,.;]*/gi
 
+/**
+ * The faces a caption asks of the two, as tags each half carries: the face pass redraws each face
+ * from her half's prompt alone, and with no expression in it every face came out serious. A
+ * caption that names none gets a smile.
+ */
+const DUO_EXPRESSIONS: readonly [RegExp, readonly string[]][] = [
+  [/\blaugh/i, ['laughing', 'open_mouth']],
+  [/\bgrin/i, ['grin']],
+  [/\bwink/i, ['one_eye_closed']],
+  [/\bpout/i, ['pout']],
+  [/\btongue/i, ['tongue_out']],
+  [/\bsleepy|\bdrowsy|\byawn/i, ['sleepy']],
+  [/\bsmirk/i, ['smirk']],
+  [/\bsmil/i, ['smile']]
+]
+
+function duoExpression(text: string): string[] {
+  const said = DUO_EXPRESSIONS.filter(([words]) => words.test(text)).flatMap(([, tags]) => tags)
+  return [...new Set(said.length > 0 ? said : ['smile']), ...(/\bblush/i.test(text) ? ['blush'] : [])]
+}
+
 /** What is on her legs or feet: out of a picture of two drawn from the waist up. */
 const LEG_GARMENT =
   /(?:thigh[_\s-]?high|socks?|stockings?|pantyhose|tights|legwear|leggings|shoes|sneakers|boots|heels|loafers|sandals|^thighs$|^bare_legs$)/i
@@ -676,8 +697,9 @@ export function buildDuoPhotoPrompt(
     ...shared
   ]
 
-  const left = duoHalf(sender, tier, scene, posture, [...shared, ...holds])
-  const right = duoHalf(friend, tier, scene, posture, shared)
+  const faces = duoExpression(text)
+  const left = duoHalf(sender, tier, scene, posture, [...faces, ...shared, ...holds])
+  const right = duoHalf(friend, tier, scene, posture, [...faces, ...shared])
   const worn = `${scene} ${left.worn} ${right.worn}`
   const negative = [
     PHOTO_NEGATIVE.replace('multiple_girls, 2girls, ', ''),
