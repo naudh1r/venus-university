@@ -120,6 +120,9 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
   that one of them posts, off by default. The scene's first call writes it, so the two are girls
   you are with, and its picture is drawn under that scene. Now and then a girl's own post is a
   picture with one of her friends too.
+- **Food colours in her own tags**: a colour named after a food in her outfit tags is said plainly,
+  as it already was in captions: Lia's `cream_…_sweater` drew cream on her lip and a hand at her
+  mouth, and is now `ivory_…_sweater`.
 
 ## 1.4.2
 

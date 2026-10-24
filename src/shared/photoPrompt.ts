@@ -288,9 +288,10 @@ const COLOURED_THINGS = [
   'walls'
 ].join('|')
 
+// A tag's words are joined by underscores where a caption's are by spaces: both are read.
 const FOOD_COLOUR = new RegExp(
-  `\\b(${Object.keys(FOOD_COLOURS).join('|')})(?:[- ]colou?red)?\\b` +
-    `(?=(?:[\\s-]+[a-z]+){0,2}?[\\s-]+(?:${COLOURED_THINGS})s?\\b)`,
+  `(?<![a-z])(${Object.keys(FOOD_COLOURS).join('|')})(?:[-_ ]colou?red)?(?![a-z])` +
+    `(?=(?:[\\s_-]+[a-z]+){0,4}?[\\s_-]+(?:${COLOURED_THINGS})s?(?![a-z]))`,
   'gi'
 )
 
@@ -308,8 +309,10 @@ const SHADE_OF = new RegExp(
 export function plainColours(scene: string): string {
   // "cherry red", "honey blonde": the colour is already said after it, so the food just goes.
   const shaded = scene.replace(SHADE_OF, '$1')
-  return shaded.replace(FOOD_COLOUR, (word: string, food: string) => {
-    const plain = FOOD_COLOURS[food.toLowerCase()]
+  return shaded.replace(FOOD_COLOUR, (word: string, food: string, at: number, text: string) => {
+    // Inside a tag, a two-word colour is joined the way the tag's own words are.
+    const said = FOOD_COLOURS[food.toLowerCase()]
+    const plain = text[at + word.length] === '_' ? said.replace(/ /g, '_') : said
     return word[0] === word[0].toUpperCase() ? plain[0].toUpperCase() + plain.slice(1) : plain
   })
 }
