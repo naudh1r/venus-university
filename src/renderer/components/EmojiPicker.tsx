@@ -1,4 +1,14 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type JSX
+} from 'react'
+import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import { useDismissLayer } from './useModalShell'
 import { tonedEmoji, useEmojiPrefs } from '../stores/emojiPrefs'
@@ -206,6 +216,7 @@ export function EmojiButton({
 }): JSX.Element {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
+  const layer = useRef<HTMLDivElement>(null)
   const shut = !open || dead
   useDismissLayer(() => setOpen(false), !shut)
 
@@ -213,11 +224,41 @@ export function EmojiButton({
   useEffect(() => {
     if (shut) return
     const away = (event: MouseEvent): void => {
-      if (event.button === 0 && !root.current?.contains(event.target as Node)) setOpen(false)
+      const target = event.target as Node
+      if (event.button !== 0 || root.current?.contains(target) || layer.current?.contains(target)) {
+        return
+      }
+      setOpen(false)
     }
     window.addEventListener('mousedown', away, true)
     return () => window.removeEventListener('mousedown', away, true)
   }, [shut])
+
+  // The panel stands on the stage itself, over the smiley's corner, so no box it sits in can clip
+  // it; it is placed again whenever anything under it scrolls or the window resizes.
+  const stage = document.getElementById('root')
+  useLayoutEffect(() => {
+    if (shut || !stage) return
+    const place = (): void => {
+      const button = root.current?.getBoundingClientRect()
+      const panel = layer.current
+      if (!button || !panel) return
+      const box = stage.getBoundingClientRect()
+      // The browser build zooms the stage rather than the page: a rect over the stage's own width.
+      const scale = box.width / stage.offsetWidth || 1
+      panel.style.setProperty('right', `${(box.right - button.right) / scale}px`)
+      panel.style.setProperty('bottom', `${(box.bottom - button.top) / scale + 10}px`)
+    }
+    place()
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
+    }
+  }, [shut, stage])
+  // A portal inherits nothing, so it wears the half of the day the smiley stands in.
+  const theme = root.current?.closest('[data-theme]')?.getAttribute('data-theme') ?? undefined
 
   return (
     <div className="vu-emoji" ref={root}>
@@ -234,7 +275,14 @@ export function EmojiButton({
       >
         <Icon>{TABS[1].icon}</Icon>
       </motion.button>
-      {!shut && <EmojiPanel onPick={onPick} />}
+      {!shut &&
+        stage &&
+        createPortal(
+          <div className="vu-emoji-layer" ref={layer} data-theme={theme}>
+            <EmojiPanel onPick={onPick} />
+          </div>,
+          stage
+        )}
     </div>
   )
 }

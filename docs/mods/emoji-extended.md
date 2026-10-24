@@ -33,6 +33,8 @@ first time a panel opens.
 - The emoji are the system's own font, Windows 11's on Windows, so they match every other emoji
   in the game. Country flags are left out, Windows drawing them as two letters; the other flags
   are under Symbols. The list stops at Emoji 15.0, what Windows 11's font draws.
+- The panel stands on the stage itself, over the window it was opened from, its corner set against
+  the smiley's, so a short post or a reply box deep in a thread never cuts it off.
 - The grid puts only the rows in view on the page, about ten of them, and swaps rows in as it
   scrolls; the scrollbar still measures the whole tab.
 - Each emoji in view is drawn once by the system font into a small picture, and the grid shows

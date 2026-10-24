@@ -36,9 +36,16 @@
 }
 
 /* The panel: the floating list's own rounded rectangle, standing up from the smiley's corner. */
+/* Where the panel stands: on the stage over the modal it was opened from (a veil stands at 100),
+   its corner set against the smiley's. */
+.vu-emoji-layer {
+  position: absolute;
+  z-index: 150;
+  pointer-events: none;
+}
+
 .vu-emoji-pop {
-  right: 0;
-  bottom: calc(100% + 10px);
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 372px;
