@@ -38,15 +38,31 @@ export function followingOf(
   return hasTrait(character, 'Terminally Online') ? reach * 2 : reach
 }
 
+/** How many of every hundred who follow her say something under a post of words, and a picture. */
+const TALKERS_PER_HUNDRED = { words: 1.0, picture: 1.6 }
+
 /** How many say something under one post: a picture draws a crowd where words do not. */
 export function rollCrowd(
   input: { picture: boolean; following: number },
   rand: () => number = Math.random
 ): number {
-  const talkers = (input.following / 100) * (input.picture ? 0.9 : 0.35)
+  const rate = input.picture ? TALKERS_PER_HUNDRED.picture : TALKERS_PER_HUNDRED.words
+  const talkers = (input.following / 100) * rate
   // Long-tailed: a quiet post stays quiet where a loud one can run to the cap.
   const drawn = Math.floor(rand() * (talkers + 1) + rand() * talkers * 0.6)
   return Math.min(drawn, MAX_CROWD)
+}
+
+/**
+ * Her post's crowd rolled before it is written, both ways, since whether it carries a picture is
+ * only known once it is: a picture never draws fewer than the same post in words.
+ */
+export function planCrowd(
+  following: number,
+  rand: () => number = Math.random
+): { words: number; picture: number } {
+  const words = rollCrowd({ picture: false, following }, rand)
+  return { words, picture: Math.max(words, rollCrowd({ picture: true, following }, rand)) }
 }
 
 /**

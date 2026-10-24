@@ -11,6 +11,7 @@ import {
   followingOf,
   pickJoiningFriend,
   pickOpeningFriend,
+  planCrowd,
   rollCrowd
 } from '@shared/bunnyfeedsCrowd'
 import type { PostComment } from '@shared/postComments'
@@ -26,6 +27,25 @@ import { useGameStore } from './gameStore'
 import { useGrabBagStore } from './grabBagStore'
 
 /** Bunnyfeeds' side of a post's replies: who may write them, and how they are filed. */
+
+/** The crowd each of the slot's posters was told to draw, rolled before her post was written. */
+const plannedCrowds = new Map<string, { words: number; picture: number }>()
+
+/**
+ * Rolls the crowd under each of the slot's posts before they are written, so the call writes as
+ * many replies as are kept and no more; the ones planned for the slot before are forgotten.
+ */
+export function planSlotCrowds(charIds: readonly string[]): Map<string, { words: number; picture: number }> {
+  const game = useGameStore.getState()
+  plannedCrowds.clear()
+  for (const charId of charIds) {
+    plannedCrowds.set(
+      charId,
+      planCrowd(followingOf(game.playthroughId, charId, game.characters[charId]))
+    )
+  }
+  return plannedCrowds
+}
 
 /** How a roster girl stands with the poster whose post she replies under. */
 export type PosterStanding = 'friend' | 'enemy' | 'barely'
@@ -137,8 +157,16 @@ export function rollFeedComments(
   if (lines.length === 0) return []
 
   const game = useGameStore.getState()
-  const following = followingOf(game.playthroughId, charId, game.characters[charId])
-  const count = Math.min(lines.length, rollCrowd({ picture, following }))
+  // As many as she was told to draw; a post nobody planned for, rolled now.
+  const planned = plannedCrowds.get(charId)
+  plannedCrowds.delete(charId)
+  const allowed = planned
+    ? planned[picture ? 'picture' : 'words']
+    : rollCrowd({
+        picture,
+        following: followingOf(game.playthroughId, charId, game.characters[charId])
+      })
+  const count = Math.min(lines.length, allowed)
   if (count === 0) return []
 
   const kept = lines.slice(0, count)

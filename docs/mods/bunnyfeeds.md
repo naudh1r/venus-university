@@ -102,6 +102,11 @@ on them, from any mod that puts one there, get threads like any other post.
   people you answer directly answer back; strangers are her followers, with a public feed's
   whole range of tones; and a girl who replies to you, or whom you answer and who stays quiet,
   remembers it even before you meet.
+- **Busier feed, nothing written for nothing**: how many people reply under each of the slot's new
+  posts is rolled before it is written, a count for words and one for a picture, and the call
+  writes exactly that many, where it used to write a few and the game kept fewer. Posts draw more
+  too: about a reply under a typical girl's post of words where most had none, two under her
+  picture, and a lively thread under a popular girl's.
 - **Faces**: every face is an archway, ringed in the accent at list size and plain in comments;
   other students get a face drawn off their handle in place of an emoji, Gradient, Identicon,
   Shapes, Monogram or Mixed (one of the four per student, kept), chosen in the Mods screen with

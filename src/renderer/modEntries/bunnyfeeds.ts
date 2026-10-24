@@ -13,11 +13,17 @@ import {
   type PostCommentsProps
 } from '../mods/hooks'
 import {
+  crowdBlock,
   replierBlock,
   slotCommentLines,
   slotCommentsField
 } from '../prompts/bunnyfeedsPrompt'
-import { repliersFor, rollFeedComments, writtenComments } from '../stores/bunnyfeedsReplies'
+import {
+  planSlotCrowds,
+  repliersFor,
+  rollFeedComments,
+  writtenComments
+} from '../stores/bunnyfeedsReplies'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { fileDueFeedMemories } from '../stores/bunnyfeedsMemory'
 import { takeCommented } from '../stores/bunnyfeedsVisit'
@@ -138,13 +144,32 @@ registerHooks(BUNNYFEEDS, {
   requests: {
     'slot-intro': (request, { input }) => {
       const { npcRelationships } = useGameStore.getState()
-      const block = replierBlock(
+      const repliers = replierBlock(
         input.posters.map(({ character }) => ({
           character,
           charKey: charKeyOf(character.firstName, character.lastName),
           repliers: repliersFor(character.charId, npcRelationships)
         }))
       )
+      // How many reply under each post, rolled now so the call writes those and no more.
+      const planned = writesComments()
+        ? planSlotCrowds(input.posters.map(({ character }) => character.charId))
+        : new Map<string, { words: number; picture: number }>()
+      const crowd = crowdBlock(
+        input.posters.flatMap(({ character }) => {
+          const plan = planned.get(character.charId)
+          return plan
+            ? [
+                {
+                  name: character.firstName,
+                  charKey: charKeyOf(character.firstName, character.lastName),
+                  ...plan
+                }
+              ]
+            : []
+        })
+      )
+      const block = [...repliers, ...(repliers.length > 0 && crowd.length > 0 ? [''] : []), ...crowd]
       if (block.length === 0) return request
       const at = request.user.lastIndexOf('YOUR TURN')
       const text = [...block, ''].join('\n')

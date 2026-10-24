@@ -20,7 +20,7 @@ import type { PosterStanding, Replier } from '../stores/bunnyfeedsReplies'
 /** The slot opening's lines about the replies each post arrives with. */
 export function slotCommentLines(): string[] {
   return [
-    'Each post also carries "comments": what other students replied underneath it, in their own voices — up to five, and an empty array on the posts nobody answers, which is most of them. A post with a picture draws more than one without.',
+    'Each post also carries "comments": what other students replied underneath it, in their own voices, exactly as many as CROWD says for that post, and an empty array where it says none.',
     'A reply is either the friend of hers REPLIERS names under that post, if it names one, or one of her followers. For that friend, "from" is her key exactly as written there, and she types the way she would actually type to a friend — her own words, slang and emoji, not a generic commenter\'s. She may leave it; most replies are followers.',
     'A follower is one of the four thousand students on campus who follows her account: a fan, a classmate, somebody from her club or her dorm. "from" is an empty string; she is friendly with the poster at most, never close, so no inside jokes and nothing about her private life, and she is not the reader. Followers reply the way a public feed does: mostly friendly, sometimes flirty, sometimes roasting, now and then a hater, never more than one mean reply under a post. No reply is the reader. No handles and no @s in "text" — just what each one said. Each typed it on her phone and has only read the post: nobody hears, sees or laughs out loud at anybody here.',
     'They answer the post they are under. A reply to a picture is a reply to that picture; one under a picture with skin in it reads like a public feed at its least charming, which is strangers being obvious at somebody who did not ask.'
@@ -45,6 +45,25 @@ function standingWords(standing: PosterStanding, poster: string): string {
   if (standing === 'friend') return `${poster}'s friend`
   if (standing === 'enemy') return `${poster}'s enemy: they can't stand each other`
   return `barely knows ${poster}`
+}
+
+/**
+ * How many replies each of the slot's posts carries, as the game rolled them: one count for a
+ * post of words and another for one with a picture, since the picture is only known once written.
+ */
+export function crowdBlock(
+  posters: ReadonlyArray<{ name: string; charKey: string; words: number; picture: number }>
+): string[] {
+  if (posters.length === 0) return []
+  const many = (n: number): string => (n === 0 ? 'none' : n === 1 ? '1 reply' : `${n} replies`)
+  return [
+    'CROWD',
+    ...posters.map(({ name, charKey, words, picture }) =>
+      words === picture
+        ? `- ${name}'s post ("${charKey}"): ${many(words)}.`
+        : `- ${name}'s post ("${charKey}"): ${many(words)}, or ${many(picture)} if it carries a picture.`
+    )
+  ]
 }
 
 /** One poster this slot, and the friend of hers, if any, who may reply under her post. */
