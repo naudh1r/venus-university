@@ -566,9 +566,12 @@ function duoExpression(text: string): string[] {
   return [...new Set(said.length > 0 ? said : ['smile']), ...(/\bblush/i.test(text) ? ['blush'] : [])]
 }
 
-/** What is on her legs or feet: out of a picture of two drawn from the waist up. */
-const LEG_GARMENT =
-  /(?:thigh[_\s-]?high|socks?|stockings?|pantyhose|tights|legwear|leggings|shoes|sneakers|boots|heels|loafers|sandals|^thighs$|^bare_legs$)/i
+/**
+ * What is at or below her waist: out of a picture of two drawn from the waist up. A skirt, jeans
+ * or a belt in either half drew both of them down to the hips, where their sides met and fused.
+ */
+const BELOW_WAIST =
+  /(?:thigh[_\s-]?high|socks?|stockings?|pantyhose|tights|legwear|leggings|shoes|sneakers|boots|heels|loafers|sandals|mary_janes|skirt|jeans|pants|trousers|shorts|belt|^navel$|^midriff$|^thighs$|^bare_legs$)/i
 
 /** How each half may hold herself: her pose, never a hand placement or a framing. */
 const DUO_POSTURE: ReadonlySet<string> = new Set([
@@ -615,13 +618,15 @@ function duoHalf(
   const bare = tier === 'explicit'
   const dressed = bare && describesClothing(scene)
   const appearance = bodyAppearance(girl, 'photo').filter((tag) => tag !== '1girl')
-  const body = bodyTagsFor(girl.body, scene, bare, 'waist')
+  const body = bodyTagsFor(girl.body, scene, bare, 'waist').filter(
+    (tag) => bare || !BELOW_WAIST.test(tag)
+  )
   const wardrobe = bare
     ? dressed && !describesNothingOn(scene)
       ? ['partially_undressed', ...displacedTags(scene), BARE_POSITIVE]
       : ['nude', 'completely_nude', BARE_POSITIVE]
     : (photoWardrobe(girl, scene, false, tier !== 'everyday') ?? [])
-        .filter((tag) => !LEG_GARMENT.test(tag))
+        .filter((tag) => !BELOW_WAIST.test(tag))
         .map(heldColour)
   return {
     prompt: plainColours(

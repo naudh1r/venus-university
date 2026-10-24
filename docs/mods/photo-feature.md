@@ -91,7 +91,9 @@ opening is written (`[photo] X's post this slot is a picture with Y`).
 
 - The two are drawn side by side and not touching, from the waist up, each in her own half of the
   picture: told as one prompt, the model swapped their hair and clothes between them, and where
-  they touched their bodies merged.
+  they touched their bodies merged. Each half is dressed from the waist up only: a skirt, jeans or a
+  belt in either drew them down to the hips, where their sides fused. Their clothes are their own,
+  never the caption's, and both carry the face the caption asks for, or a smile.
 - The picture is the poster's, in her gallery only. The console names the pair when the scene is asked for it
   (`[photo] group photo asked of the scene: …`), and the `photo:` lines show each girl's prompt
   as `node 50` and `node 51`.
