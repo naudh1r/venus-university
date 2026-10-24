@@ -1129,9 +1129,10 @@ async function fetchSlotIntro(
         ...(occasion ? { askOccasionId: occasion.id } : {}),
         ...(Object.keys(everydayAsks).length > 0 ? { everydayAsks } : {}),
         ...(Object.keys(inviteKinds).length > 0 ? { inviteKinds } : {}),
+        // A mod's own posts first, so a picture they carry is drawn ahead of the slot's.
         posts: [
-          ...postsWithModFields(result.data, reply, askers, posters),
-          ...extraSlotPosts(result.data)
+          ...extraSlotPosts(result.data),
+          ...postsWithModFields(result.data, reply, askers, posters)
         ],
         springBreakTexts: reply.springBreakTexts,
         ...(reply.reachOuts.length > 0 ? { reachOuts: reply.reachOuts } : {}),

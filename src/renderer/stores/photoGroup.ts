@@ -2,7 +2,7 @@ import { locationLabel, ROOM_LOCATION } from '@shared/locations'
 import { groupPhotoPair, type GroupPhotoPair } from '@shared/photoDuo'
 import { duoPhotosOn } from '@shared/photoSwitches'
 import type { SlotIntroResponse, StructuredRequest } from '@shared/types'
-import type { SlotSettled } from '../mods/hooks'
+import { promptFields, promptRequired, type SlotSettled } from '../mods/hooks'
 import { useGameStore } from './gameStore'
 import { canSendPhotos } from './localPhotoStore'
 
@@ -41,11 +41,20 @@ function placeOf(location: string | null): string {
   return ` at ${locationLabel(location)}`
 }
 
-/** The field the opening fills for it: always asked for, so the call stays the same shape. */
-const GROUP_POST_FIELD = {
-  type: 'object',
-  properties: { text: { type: 'string' }, image: { type: 'string' } },
-  required: ['text', 'image']
+/**
+ * The field the opening fills for it: always asked for, so the call stays the same shape. It
+ * carries whatever the mods ask of every post, such as its comments.
+ */
+function groupPostField(): Record<string, unknown> {
+  return {
+    type: 'object',
+    properties: {
+      ...promptFields('slot-posts'),
+      text: { type: 'string' },
+      image: { type: 'string' }
+    },
+    required: [...new Set(['text', 'image', ...promptRequired('slot-posts')])]
+  }
 }
 
 /**
@@ -61,7 +70,7 @@ export function withGroupPhotoRequest(request: StructuredRequest): StructuredReq
     pending && poster && friend
       ? [
           'GROUP PHOTO',
-          `${poster.firstName} and ${friend.firstName} were together${placeOf(pending.location)} just now, and ${poster.firstName} is posting a photo of the two of them. Fill "groupPost": "text" is her post, one or two short lines in her own voice, like her other posts; "image" is one full sentence describing the photograph: where they are, what they are wearing for being there, the two of them side by side and not touching, from the waist up, looking at the camera. Say "her and her friend" rather than either name, and never "two girls".`
+          `${poster.firstName} and ${friend.firstName} were together${placeOf(pending.location)} just now, and ${poster.firstName} is posting a photo of the two of them. Fill "groupPost": "text" is her post, one or two short lines in her own voice, like her other posts; "image" is one full sentence describing the photograph: where they are, what they are wearing for being there, the two of them side by side and not touching, from the waist up, looking at the camera. Say "her and her friend" rather than either name, and never "two girls". Anything else a post carries, it carries too.`
         ]
       : ['Return "groupPost" with "text" and "image" both empty.']
   const schema = request.schema.schema as {
@@ -75,7 +84,7 @@ export function withGroupPhotoRequest(request: StructuredRequest): StructuredReq
       ...request.schema,
       schema: {
         ...schema,
-        properties: { ...(schema.properties ?? {}), groupPost: GROUP_POST_FIELD },
+        properties: { ...(schema.properties ?? {}), groupPost: groupPostField() },
         required: [...(schema.required ?? []), 'groupPost']
       }
     }
@@ -89,12 +98,12 @@ export function groupPhotoPost(
   const waiting = pending
   pending = null
   if (!waiting) return []
-  const written = reply.groupPost as { text?: unknown; image?: unknown } | undefined
+  const written = reply.groupPost as Record<string, unknown> | undefined
   const text = typeof written?.text === 'string' ? written.text.trim() : ''
   const image = typeof written?.image === 'string' ? written.image.trim() : ''
   if (!text || !image) return []
   const game = useGameStore.getState()
   const char = Object.keys(game.charKeyToId).find((key) => game.charKeyToId[key] === waiting.poster)
   if (!char) return []
-  return [{ char, text, image, groupWith: waiting.friend } as { char: string; text: string }]
+  return [{ ...written, char, text, image, groupWith: waiting.friend } as { char: string; text: string }]
 }
