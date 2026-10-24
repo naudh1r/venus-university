@@ -63,7 +63,7 @@ function deferredCall(): { call: SceneCall; resolve: (result: Awaited<SceneCall>
 function replied(texts: string[], summary: string | null = 'they talked'): Awaited<SceneCall> {
   return {
     ok: true,
-    data: { lines: sceneLines(...texts), summary, end: false, applied: true }
+    data: { lines: sceneLines(...texts), summary, end: false, applied: true, reply: { lines: [] } }
   }
 }
 

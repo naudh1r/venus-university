@@ -1,4 +1,4 @@
-import { extraSlotPosts, slotSettled } from '../mods/hooks'
+import { slotSettled } from '../mods/hooks'
 import { GAME_OVER_SCENES, gameCompleteSceneOf, gameOverReasonOf } from '@shared/gameOver'
 import { earnLine, spendLine, spentOf } from '@shared/money'
 import { globalSlotOf, NO_JOB_MESSAGE, shiftSlotOf } from '@shared/jobs'
@@ -1129,11 +1129,7 @@ async function fetchSlotIntro(
         ...(occasion ? { askOccasionId: occasion.id } : {}),
         ...(Object.keys(everydayAsks).length > 0 ? { everydayAsks } : {}),
         ...(Object.keys(inviteKinds).length > 0 ? { inviteKinds } : {}),
-        // A mod's own posts first, so a picture they carry is drawn ahead of the slot's.
-        posts: [
-          ...extraSlotPosts(result.data),
-          ...postsWithModFields(result.data, reply, askers, posters)
-        ],
+        posts: postsWithModFields(result.data, reply, askers, posters),
         springBreakTexts: reply.springBreakTexts,
         ...(reply.reachOuts.length > 0 ? { reachOuts: reply.reachOuts } : {}),
         ...(reply.homecomingTexts.length > 0 ? { homecomingTexts: reply.homecomingTexts } : {}),

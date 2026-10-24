@@ -160,6 +160,7 @@ else names it.
 | `dmHistoryNote` | `textingPrompt.ts` | Add a note after a DM in the history the prompt quotes |
 | `characterFromDraft` | `characterPrompt.ts` | Fill fields of a generated character from the reply |
 | `afterDmReply` | `textingLoop.ts` | Act after her reply in a DM has landed |
+| `afterSceneReply` | `loop/turn.ts` | Read a landed scene reply as the model wrote it, fields a mod asked for included |
 | `afterReachOut` | `textingLoop.ts` | Act after the texts of a girl texting first have landed |
 | `playerActs` | `gameLoop.ts` (`submitAction`), `loop/hangouts.ts`, `loop/relax.ts` | Act when the reader commits to something: an action, a hangout begun, or Relax |
 | `gameEntered` | `gameLoop.ts` (`enterGame`) | Act when a game is entered, new or loaded |
@@ -167,7 +168,6 @@ else names it.
 | `postLikes` | `loop/feed.ts`, `NewGameView.tsx` | Decide likes on ending, stranger and winter posts |
 | `postVisible` | `feedView.ts`, `loop/feed.ts`, `ContactPage.tsx` | Keep a post off the feed for now |
 | `postComments` | `BunnyboardModal.tsx` (`PostSpots.tsx`) | Draw the comments under a post and a control beside its like; one mod at a time |
-| `extraSlotPosts` | `gameLoop.ts` | Add posts to the slot's opening, read off its whole reply |
 | `postPicture` | `BunnyboardModal.tsx` (`PostSpots.tsx`) | Draw a post's picture under its text |
 | `endingChoice` | `GameView.tsx` | Offer a way on from the ending, beside "Return to the main menu" |
 | `saveChoice` | `LoadGameModal.tsx` | Offer something for a picked save, beside "Load" |

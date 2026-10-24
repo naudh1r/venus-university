@@ -24,7 +24,7 @@ import { postLikes, rollComments, strangerLikes } from '../stores/photoComments'
 import { holdPostPhoto, preparePostPhoto, startHeldPostPhoto } from '../stores/photoPost'
 import { settlePendingPhotos } from '../stores/photoRecovery'
 import { sendPhoto } from '../stores/photoTurn'
-import { groupPhotoPost, noteGroupPhoto, withGroupPhotoRequest } from '../stores/photoGroup'
+import { fileGroupPhoto, withGroupPhotoRequest } from '../stores/photoGroup'
 import { useGameStore } from '../stores/gameStore'
 import { registerTermFiles } from '@shared/modCarry'
 import { ownsPostComments, registerHooks } from '../mods/hooks'
@@ -82,10 +82,9 @@ registerHooks(PHOTO_FEATURE, {
     }
   },
 
-  // Two of the scene's girls, for a group photo in the next slot's opening.
-  slotSettled: (ctx) => noteGroupPhoto(ctx),
-  requests: { 'slot-intro': (request) => withGroupPhotoRequest(request) },
-  extraSlotPosts: (reply) => groupPhotoPost(reply),
+  // Two of the scene's girls in a group photo, written by the scene's first call.
+  requests: { scene: (request, { cast }) => withGroupPhotoRequest(request, cast) },
+  afterSceneReply: (ctx) => fileGroupPhoto(ctx),
 
   dmHistoryNote: (message) =>
     photoStub(

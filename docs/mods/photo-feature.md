@@ -28,7 +28,7 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
 | Photo generation | on | Off, no new photos are made and the girls are not told they can send one. Photos already sent stay visible. |
 | Explicit photos | on | Off, nobody sends an undressed photo and ones already sent stay covered. The game's own "No NSFW images" turns them off too. |
 | Body details | off | Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable in their character editor, and drawn in their sprites, CGs and photos. The default characters can't be edited, so clone one first to give her body details. Off, what they have is kept but not used. |
-| 2 girls 1 photo (experimental) | off | A scene with two or more of the girls ends in a group photo on one's feed. See below. |
+| 2 girls 1 photo (experimental) | off | A scene with two or more of the girls brings a group photo on one's feed. See below. |
 | Save photos as WebP | on | New photos are saved as WebP, with no visible quality loss while taking much less space than PNG. Off, they are saved as PNG. Photos already saved stay as they are. |
 | Loading animation | Bunny hop | What a photo shows while it is being drawn: Bunny hop, Dot shimmer or Typing dots. |
 
@@ -74,17 +74,19 @@ combinations. The comment beside each rule in the code says what was tried.
 
 ## 2 girls 1 photo (experimental)
 
-With the option on, a scene you spend with two or more of the girls ends in a group photo: two of
-them, picked at random, and one posts it on her feed in the next slot's opening, beside whatever
-posts that slot brings. It is written in the same call as those posts, and drawn and filed like
-them: held until the picture lands, with likes and comments. They are dressed for where they were,
-so the pool puts them in their swimsuits, and like every post it is never past suggestive.
+With the option on, a scene you go into with two or more of the girls brings a group photo: two of
+them, picked at random, and one posts it on her feed, once a slot. The scene's first call writes it
+beside the scene's opening lines, once the game has settled who is there, and it is filed like any
+feed post: held until the picture lands, with likes and comments from whichever mod draws them. Its
+picture is drawn under the scene, behind any of the slot's own feed pictures still waiting. They
+are dressed for where they are, so the pool puts them in their swimsuits, and like every post it is
+never past suggestive.
 
 - The two are drawn side by side and not touching, from the waist up, each in her own half of the
   picture: told as one prompt, the model swapped their hair and clothes between them, and where
   they touched their bodies merged.
-- The picture is the poster's, in her gallery only. The console names the pair when the scene ends
-  (`[photo] group photo for the next opening: …`), and the `photo:` lines show each girl's prompt
+- The picture is the poster's, in her gallery only. The console names the pair when the scene is asked for it
+  (`[photo] group photo asked of the scene: …`), and the `photo:` lines show each girl's prompt
   as `node 50` and `node 51`.
 
 Still being tuned: now and then a face, an outfit or a colour comes out wrong, and close-ups and
@@ -105,8 +107,9 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
 
 ## 1.5.0-exp
 
-- **2 girls 1 photo (experimental)**: a scene with two or more of the girls ends in a group photo
-  that one of them posts, off by default.
+- **2 girls 1 photo (experimental)**: a scene with two or more of the girls brings a group photo
+  that one of them posts, off by default. The scene's first call writes it, so the two are girls
+  you are with, and its picture is drawn under that scene.
 
 ## 1.4.2
 
@@ -279,12 +282,18 @@ is the photo graph with each girl's prompt held to her half by `ConditioningSetA
 back, with that girl's own prompt: one pass over the whole picture redraws each face in a crop where
 the halves' whole-picture areas point at the wrong girl or past the crop's edge (which ComfyUI
 refuses), and driven by the scene alone it changed their eye colours. Who is in it is `photoDuo.ts`;
-noting the pair, asking the slot's opening for its post and filing it is `photoGroup.ts`, through
-the `extraSlotPosts` hook that `gameLoop.ts` asks after the opening's reply.
+picking the pair, asking the scene's first call for its post (`requests.scene`) and filing it
+off the reply (`afterSceneReply`) is `photoGroup.ts`. The post is filed through `fileLatePost` in
+`loop/feed.ts`, the opening's own filing for a post written mid-slot, and its picture joins the
+feed's queue.
 
 The graph has three prompts where `runGenerationJob` fills two, so `comfyService.ts` carries one
 more edit beside the exported `runGenerationJob`: its `texts` field, which fills prompt nodes by
 id. A sync that replaces the file has to put both back.
+
+The group photo needs two more: `fileLatePost` in `loop/feed.ts`, and the `afterSceneReply` hook
+(`hooks.ts`, `loop/turn.ts`, the reply on `SceneCall` in `loop/stream.ts`), ported as it is
+written on the 0.5.0 core branches, so a merge with them meets the same code.
 
 ### Comments and the picture on a post
 

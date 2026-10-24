@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import type { StructuredRequest, LedgerResponse, SlotIntroResponse } from '@shared/types'
+import type { StructuredRequest, LedgerResponse } from '@shared/types'
 import type { PromptState } from '../prompts/scenePrompt'
 import type { SlotIntroInput } from '../prompts/slotIntroPrompt'
 import type { useGameStore } from '../stores/gameStore'
@@ -161,6 +161,17 @@ export interface PostPictureProps {
   postId: string
 }
 
+/** A scene reply that has landed, as the model wrote it. */
+export interface SceneReplied {
+  /** The whole reply, including the fields mods asked for. */
+  reply: Readonly<Record<string, unknown>>
+  /** Who is still in the scene. */
+  cast: readonly Character[]
+  solo: boolean
+  /** The reply ends the scene: its closing is next, and no turn is handed back. */
+  ending: boolean
+}
+
 export interface ModHooks {
   bunnyboardPage?: BunnyboardPage
   /** Draws the comments under a post; see {@link PostCommentsSpot}. */
@@ -172,11 +183,6 @@ export interface ModHooks {
   requests?: { [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest }
   /** After bookkeeping settles, before the clock advances and the boundary save is written. */
   slotSettled?: (ctx: SlotSettled) => void
-  /**
-   * More posts for the slot's opening to file beside its posters', read off its whole reply:
-   * for a field a mod asked for through `requests['slot-intro']`. Each is filed like any post.
-   */
-  extraSlotPosts?: (reply: Readonly<Record<string, unknown>>) => NonNullable<SlotIntroResponse['posts']>
 
   prompts?: { [S in PromptSpot]?: PromptAddition<PromptSpots[S]> }
   /** Added to a DM in the history a prompt quotes, after its text. */
@@ -188,6 +194,8 @@ export interface ModHooks {
   ) => Partial<Character>
   /** After her reply in a DM has landed. */
   afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void
+  /** After a scene reply has landed and its lines are on the transcript. */
+  afterSceneReply?: (ctx: SceneReplied) => void
   /**
    * After the texts of a girl reaching out just to talk have landed. `reply` is her entry from the
    * slot's opening, with whatever fields `prompts['slot-reach-outs']` added to it.
@@ -330,6 +338,18 @@ export function afterDmReply(ctx: {
   for (const hooks of active()) hooks.afterDmReply?.(ctx)
 }
 
+export function afterSceneReply(ctx: SceneReplied): void {
+  // Called in the middle of a turn, with the autosave and the turn's release still to come: a
+  // mod that throws here costs its own reading of the reply and nothing of the scene's.
+  for (const hooks of active()) {
+    try {
+      hooks.afterSceneReply?.(ctx)
+    } catch (error) {
+      console.warn('[mods] afterSceneReply failed', error)
+    }
+  }
+}
+
 export function afterReachOut(ctx: {
   charId: string
   character: Character
@@ -410,12 +430,6 @@ export function modRequest<S extends keyof RequestSpots>(spot: S, ctx: RequestSp
     if (extend) next = extend(next, ctx)
   }
   return next
-}
-
-/** Every mod's extra posts for the slot's opening, in mod-list order. */
-export function extraSlotPosts(reply: unknown): NonNullable<SlotIntroResponse['posts']> {
-  if (!reply || typeof reply !== 'object') return []
-  return active().flatMap((hooks) => hooks.extraSlotPosts?.(reply as Record<string, unknown>) ?? [])
 }
 
 export function slotSettled(ctx: SlotSettled): void {
