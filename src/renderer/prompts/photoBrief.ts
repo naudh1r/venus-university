@@ -33,6 +33,13 @@ declare module './textingPrompt' {
   }
 }
 
+/** "Dorm" read back beside an undressed picture gets the next reply refused, so it is her room. */
+function withoutDorm(scene: string): string {
+  return scene
+    .replace(/\bdorm(itory)?\s+(room|bed)\b/gi, '$2')
+    .replace(/\bdorm(itory)?\b/gi, 'room')
+}
+
 /**
  * The picture that went with a text, as the thread remembers it. Written beside her words so the
  * next turn knows she sent one and what was in it — otherwise every photo is new to her.
@@ -40,7 +47,7 @@ declare module './textingPrompt' {
 export function photoStub(message: ChatMessage, flatText: (text: string) => string): string {
   const scene = message.photo?.scene?.trim()
   if (!scene) return ''
-  return ` [attached a photo: ${flatText(scene)}]`
+  return ` [attached a photo: ${flatText(withoutDorm(scene))}]`
 }
 
 /**
@@ -162,7 +169,7 @@ function keeping(name: string, occasion: PhotoOccasion): string[] {
     "Describe the picture itself: how she looks in it, not how it was taken or sent. A phone only appears in it when it's a mirror selfie.",
     // The renderer draws one girl and nobody else, and the gate refuses a caption that says otherwise.
     `${name} is the only person in the picture. Whoever took it stays behind the camera: nobody else is in it, touching her, or doing anything with her.`,
-    'Name nobody and nowhere: not herself, not the reader, not a building, a dorm or a place on the map. A picture cannot show a name. "her room", "a lecture hall", "the cafe" — what it looks like, never what it is called.',
+    'Name nobody and nowhere: not herself, not the reader, not a building or a place on the map. A picture cannot show a name. "her room", "a lecture hall", "the cafe" — what it looks like, never what it is called. Her own room is "her room" or "her bedroom", never a dorm.',
     'Her texts should read like somebody who just sent that picture. Do not describe it in them.',
     // The slot's opening sums her thread up rather than quoting it, so only a reply is told where
     // her pictures are written.

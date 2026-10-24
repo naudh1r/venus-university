@@ -84,6 +84,12 @@ were one word in her sentence the model drew too literally, and each is a small 
 
 If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` line.
 
+## 1.4.2
+
+- **No more "dorm" in a picture**: Gemini refused to answer a thread where an undressed picture was
+  remembered as taken "on her dorm bed". She is told to call it her room, and a picture already
+  written that way is read back without the word ("on her bed").
+
 ## 1.4.1
 
 - **Selfies keep their whole description**: a selfie that mentioned the camera while she held
