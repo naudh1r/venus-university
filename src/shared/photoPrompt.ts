@@ -538,6 +538,13 @@ export function withoutTouching(scene: string): string {
   return scene.replace(TOUCHING, '').replace(/\s{2,}/g, ' ').replace(/\s+([,.;])/g, '$1').trim()
 }
 
+/**
+ * What a sentence says they wear, taken out of a picture of two: said over the whole picture, the
+ * two split it between them, and one in an open shirt over another's camisole was left in nothing
+ * under it. Each half is dressed from her own wardrobe instead.
+ */
+const WORN_CLAUSE = /,?\s*\b(?:wearing|dressed in|in (?:their|her|matching)\b)[^,.;]*/gi
+
 /** What is on her legs or feet: out of a picture of two drawn from the waist up. */
 const LEG_GARMENT =
   /(?:thigh[_\s-]?high|socks?|stockings?|pantyhose|tights|legwear|leggings|shoes|sneakers|boots|heels|loafers|sandals|^thighs$|^bare_legs$)/i
@@ -585,14 +592,14 @@ function duoHalf(
   extra: readonly string[]
 ): { prompt: string; worn: string } {
   const bare = tier === 'explicit'
-  const dressed = describesClothing(scene)
+  const dressed = bare && describesClothing(scene)
   const appearance = bodyAppearance(girl, 'photo').filter((tag) => tag !== '1girl')
   const body = bodyTagsFor(girl.body, scene, bare, 'waist')
   const wardrobe = bare
     ? dressed && !describesNothingOn(scene)
       ? ['partially_undressed', ...displacedTags(scene), BARE_POSITIVE]
       : ['nude', 'completely_nude', BARE_POSITIVE]
-    : (photoWardrobe(girl, scene, dressed, tier !== 'everyday') ?? [])
+    : (photoWardrobe(girl, scene, false, tier !== 'everyday') ?? [])
         .filter((tag) => !LEG_GARMENT.test(tag))
         .map(heldColour)
   return {
@@ -655,7 +662,9 @@ export function buildDuoPhotoPrompt(
   // A selfie lying down did not hold for two, so it is said as the photo it is drawn as.
   const sentence = lookingAtViewer(
     withoutWhoTookIt(withoutCameraHold(lying ? scene.replace(/\bselfie\b/gi, 'photo') : scene))
-  ).replace(/[.!?]+$/, '')
+  )
+    .replace(WORN_CLAUSE, '')
+    .replace(/[.!?]+$/, '')
 
   const shared = [...framing.tags]
   const sceneTags = [
