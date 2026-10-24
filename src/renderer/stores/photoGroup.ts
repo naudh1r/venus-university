@@ -99,7 +99,7 @@ export function withGroupPhotoRequest(
 
   const block = [
     'GROUP PHOTO',
-    `${poster.firstName} is posting a photo of herself and ${friend.firstName}, taken here as this scene begins. Fill "groupPost": "text" is her post, one or two short lines in her own voice; "image" is one full sentence describing the photograph: where they are, "in their everyday clothes", or "in their swimsuits" at a pool or a beach, rather than what each one wears; the two of them side by side and not touching, from the waist up, looking at the camera with the faces friends pull in a photo together: smiling, laughing, a grin or a pout. Say "her and her friend" rather than either name, and never "two girls". The scene itself does not mention the photo.`,
+    `${poster.firstName} is posting a photo of herself and ${friend.firstName}, taken here as this scene begins. Fill "groupPost": "text" is her post, one or two short lines in her own voice; "image" is one full sentence describing the photograph: where they are, "in their everyday clothes", "in their PE kit" for sport or the gym, or "in their swimsuits" at a pool or a beach, rather than what each one wears; the two of them side by side and not touching, from the waist up, looking at the camera with the faces friends pull in a photo together: smiling, laughing, a grin or a pout. Say "her and her friend" rather than either name, and never "two girls". The scene itself does not mention the photo.`,
     ...postFieldLines(),
     ''
   ].join('\n')
@@ -189,7 +189,7 @@ export function feedFriendLines(character: Character): string[] {
   const friend = feedFriendOf(character)
   if (!friend) return []
   return [
-    `  Her post is a picture of her and her friend ${friend.firstName}, so it carries an "image": the two of them side by side and not touching, from the waist up, "in their everyday clothes", or "in their swimsuits" only where they are at a pool or a beach, rather than what each one wears, and pulling the faces friends do in a photo together: smiling, laughing, a grin or a pout. Say "her and her friend", never ${friend.firstName}'s name.`
+    `  Her post is a picture of her and her friend ${friend.firstName}, so it carries an "image": the two of them side by side and not touching, from the waist up, "in their everyday clothes", "in their PE kit" for sport or the gym, or "in their swimsuits" only where they are at a pool or a beach, rather than what each one wears, and pulling the faces friends do in a photo together: smiling, laughing, a grin or a pout. Say "her and her friend", never ${friend.firstName}'s name.`
   ]
 }
 

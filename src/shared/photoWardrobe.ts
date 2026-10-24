@@ -43,7 +43,20 @@ const MAIN_NAMES = [
 const SWIM_PLACES = ['pool', 'poolside', 'beach', 'swimming', 'swim']
 
 /** What she would be doing in her PE kit; the same rule. */
-const PE_PLACES = ['pe', 'gym', 'workout', 'working out', 'running', 'jogging', 'training', 'yoga']
+const PE_PLACES = [
+  'pe',
+  'gym',
+  'workout',
+  'working out',
+  'running',
+  'jogging',
+  'training',
+  'yoga',
+  'stadium',
+  'turf',
+  'track',
+  'practice'
+]
 
 /** The custom set whose name the caption says, if any. */
 function namedCustomSet(character: Character, text: string): CustomOutfitSlot | null {

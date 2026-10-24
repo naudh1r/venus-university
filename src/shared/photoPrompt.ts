@@ -574,7 +574,7 @@ function duoExpression(text: string): string[] {
  * or a belt in either half drew both of them down to the hips, where their sides met and fused.
  */
 const BELOW_WAIST =
-  /(?:thigh[_\s-]?high|socks?|stockings?|pantyhose|tights|legwear|leggings|shoes|sneakers|boots|heels|loafers|sandals|mary_janes|skirt|jeans|pants|trousers|shorts|belt|^navel$|^midriff$|^thighs$|^bare_legs$)/i
+  /(?:thigh[_\s-]?high|socks?|stockings?|pantyhose|tights|legwear|leggings|shoes|sneakers|boots|heels|loafers|sandals|mary_janes|skirt|jeans|pants|trousers|shorts|buruma|bloomers|belt|^navel$|^midriff$|^thighs$|^bare_legs$)/i
 
 /** How each half may hold herself: her pose, never a hand placement or a framing. */
 const DUO_POSTURE: ReadonlySet<string> = new Set([
@@ -656,6 +656,22 @@ function friendAsFriend(friend: Character, scene: string): string {
 }
 
 /**
+ * The caption with the girl who posted it said as "her": "Lia and her friend" taken out like any
+ * other name left ", and her friend stand".
+ */
+function senderAsHer(sender: Character, scene: string): string {
+  return [`${sender.firstName} ${sender.lastName}`, sender.firstName]
+    .filter((name) => name.length > 2)
+    .reduce(
+      (text, name) =>
+        text.replace(new RegExp(`\\b${escaped(name)}(?:['\u2019]s)?\\b`, 'gi'), (_said: string, at: number) =>
+          at === 0 ? 'Her' : 'her'
+        ),
+      scene
+    )
+}
+
+/**
  * Assembles a picture of two girls side by side: `sender` on the left, who sent it, `friend` on
  * the right. Each is drawn in her own half from her own tags, and the scene over the whole picture.
  *
@@ -668,7 +684,7 @@ export function buildDuoPhotoPrompt(
   tier: PhotoTier,
   photoPrompt: string
 ): DuoPhotoPrompts {
-  const named = withoutNames(sender, friendAsFriend(friend, photoPrompt.trim()))
+  const named = withoutNames(sender, senderAsHer(sender, friendAsFriend(friend, photoPrompt.trim())))
   const scene = withoutTouching(shopNotDrink(drinkNotLiquid(plainColours(named))))
   const text = scene.toLowerCase()
   const bare = tier === 'explicit'
