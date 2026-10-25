@@ -1,6 +1,6 @@
 # Experimental slot activity hooks
 
-This branch adds generic, optional hooks for interactive Improve Stats activities. Core does not import any game pack. No activity appears unless an enabled provider registers one.
+Core has generic, optional hooks for interactive Improve Stats activities. Core does not import any game pack. No activity appears unless an enabled provider registers one.
 
 `statActivities(stat)` supplies landing alternatives with an owner, ID, display label, location and stat. `slotActivityAvailable(offer)` revalidates a selection at commit and on recovery. Offers may be chosen alongside the existing ordinary activities. Obligations retain their existing priority. A preset location uses the normal encounter casting path.
 
