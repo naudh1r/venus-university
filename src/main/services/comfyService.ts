@@ -1125,6 +1125,8 @@ interface GenerationSpec {
   prompts?: { positive: string; negative: string }
   /** Text for `nodes.detailerPositivePrompt`, if the graph has one. */
   detailerPositive?: string
+  /** More text-prompt nodes to fill, by node id: a graph with more prompts than the two above. */
+  texts?: Record<string, string>
   /** What `nodes.seed` is set to, where the graph names one. */
   seed?: number
   /** Her own LoRA for `nodes.characterLora`, or null to take that loader out of the graph. */
@@ -1182,6 +1184,9 @@ function logJob(spec: GenerationSpec): void {
   if (spec.detailerPositive) {
     console.log('[comfy] → detailer:', spec.detailerPositive.replace(/\n\n/g, ' | '))
   }
+  for (const [id, text] of Object.entries(spec.texts ?? {})) {
+    console.log(`[comfy] → node ${id}:`, text)
+  }
 }
 
 /**
@@ -1219,6 +1224,7 @@ async function runGraph(spec: GenerationSpec, options: RunOptions): Promise<stri
     if (nodes.negativePrompt) node(nodes.negativePrompt).inputs.text = prompts.negative
   }
   if (nodes.seed && spec.seed !== undefined) node(nodes.seed).inputs.seed = spec.seed
+  for (const [id, text] of Object.entries(spec.texts ?? {})) node(id).inputs.text = text
   if (nodes.detailerPositivePrompt && spec.detailerPositive) {
     node(nodes.detailerPositivePrompt).inputs.text = spec.detailerPositive
   }

@@ -161,6 +161,7 @@ else names it.
 | --- | --- | --- |
 | `prompts.dm` | `textingPrompt.ts` | Add lines to her DM prompt, and fields to its reply |
 | `prompts['slot-posts']` | `slotIntroPrompt.ts` | Add lines about status posts, and fields to each post |
+| `prompts['slot-poster']` | `slotIntroPrompt.ts` | Add lines under each girl posting, by her name |
 | `prompts['slot-reach-outs']` | `slotIntroPrompt.ts` | Add lines under a girl texting first, and fields to her entry |
 | `prompts.character` | `characterPrompt.ts` | Add lines and fields to character generation |
 | `dmHistoryNote` | `textingPrompt.ts` | Add a note after a DM in the history the prompt quotes |
