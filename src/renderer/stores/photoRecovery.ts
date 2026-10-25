@@ -31,6 +31,7 @@ export async function settlePendingPhotos(): Promise<void> {
         tier: photo.tier,
         scene: photo.scene,
         ...(photo.file ? { file: photo.file } : {}),
+        ...(photo.with ? { with: photo.with } : {}),
         ...(found ? {} : { failed: true })
       })
       settled = true
@@ -56,6 +57,7 @@ export async function settlePendingPhotos(): Promise<void> {
         tier: photo.tier,
         scene: photo.scene,
         ...(photo.file ? { file: photo.file } : {}),
+        ...(photo.with ? { with: photo.with } : {}),
         ...(found ? {} : { failed: true })
       })
       settled = true

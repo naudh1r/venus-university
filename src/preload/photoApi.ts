@@ -38,6 +38,23 @@ export const photoApi = {
       photoPrompt: string,
       file: string
     ) =>
-      ipcRenderer.invoke('comfy:generatePhoto', playthroughId, character, tier, photoPrompt, file)
+      ipcRenderer.invoke('comfy:generatePhoto', playthroughId, character, tier, photoPrompt, file),
+    generateDuo: (
+      playthroughId: string,
+      character: Character,
+      friend: Character,
+      tier: string,
+      photoPrompt: string,
+      file: string
+    ) =>
+      ipcRenderer.invoke(
+        'comfy:generateDuoPhoto',
+        playthroughId,
+        character,
+        friend,
+        tier,
+        photoPrompt,
+        file
+      )
   }
 }
