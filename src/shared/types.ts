@@ -1232,7 +1232,8 @@ export interface SceneSummaryMark {
 export interface SceneState {
   /** Optional interactive training chosen before this scene was cast. */
   activity?: import('./slotActivity').SlotActivity
-  miniGame?: import('./minigameScene').MiniGameScene
+  /** What mods keep with this scene, under fields they declare on `ModSceneFields`. */
+  mods?: ModSceneFields
   /** Cast charIds, fixed for the whole scene. */
   cast: string[]
   /** The scene as delivered: the reader's action lines and every reply line, in order. */
@@ -2084,6 +2085,9 @@ export interface QuickstartBundle {
 
 /** Optional enrollment data declared by mods in their own modules. */
 export interface ModEnrollmentFields {}
+
+/** Optional scene data declared by mods in their own modules, saved and restored with the scene. */
+export interface ModSceneFields {}
 
 /** A whole semester with the reader beside it, as the screen that generated it hands it over. */
 export type EnrollmentDraft = QuickstartBundle & ModEnrollmentFields & {

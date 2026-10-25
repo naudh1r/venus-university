@@ -16,7 +16,7 @@ import { splitOverflow } from '../stores/sceneSanitizer'
 import { boxFits } from '../views/boxRows'
 import { gameComponent, type PlayResult } from './play'
 import { gameById, tunedGame, usePrefsStore } from './prefs'
-import { checkpointResult, useTableStore } from './session'
+import { checkpointResult, sceneMiniGame, useTableStore } from './session'
 import { tableLine } from './talk'
 import { useScenePlace } from './place'
 
@@ -400,7 +400,7 @@ function resultRun(run: object) {
 /** Persist the settled outcome before narration. Reload recovers it, never the match. */
 export function fileResult(result: PlayResult, played: PlayedWith, tries = 0): void {
   const game = useGameStore.getState()
-  const match = game.sceneMiniGame?.match
+  const match = game.sceneMods.miniGame?.match
   if (!match || match.gameId !== played.game.id) { deliverResult(result, played, tries); return }
   const run = currentRun()
   const delivery = resultRun(run)
@@ -408,7 +408,7 @@ export function fileResult(result: PlayResult, played: PlayedWith, tries = 0): v
   if (delivery.filing.has(key) || delivery.dispatched.has(key)) return
   if (!reachTurn()) {
     if (tries < FILE_TRIES) setTimeout(() => {
-      if (!runStale(run) && useGameStore.getState().sceneMiniGame?.match?.id === key) fileResult(result, played, tries + 1)
+      if (!runStale(run) && sceneMiniGame()?.match?.id === key) fileResult(result, played, tries + 1)
     }, FILE_WAIT_MS)
     return
   }
@@ -419,14 +419,14 @@ export function fileResult(result: PlayResult, played: PlayedWith, tries = 0): v
     if (runStale(run)) return
     useGameStore.setState({ busy: false })
     delivery.dispatched.add(key)
-    const saved = useGameStore.getState().sceneMiniGame?.match
+    const saved = sceneMiniGame()?.match
     deliverResult(saved?.result ?? result, { ...played, names: saved?.names ?? played.names })
   }).finally(() => { delivery.filing.delete(key) })
 }
 
 export function resumeMiniGameResult(): void {
   const state = useGameStore.getState()
-  const match = state.sceneMiniGame?.match
+  const match = state.sceneMods.miniGame?.match
   if (!match || match.status !== 'result' || !match.result || state.busy || state.turnError || state.sceneEnding || useTableStore.getState().active) return
   const game = gameById(match.gameId)
   if (game) fileResult(match.result, { game, names: match.names ?? [], stake: match.stake })
@@ -497,7 +497,7 @@ function deliverResult(result: PlayResult, played: PlayedWith, tries = 0): void 
 
   // Played alone, what the game has to say about how it went rides with the next turn's prompt,
   // whoever is there to have watched.
-  if (result.account?.length || useGameStore.getState().sceneMiniGame?.match) {
+  if (result.account?.length || sceneMiniGame()?.match) {
     useTableStore.getState().setPlayed({
       text: result.summary,
       next: true,
@@ -505,11 +505,11 @@ function deliverResult(result: PlayResult, played: PlayedWith, tries = 0): void 
         'MINI-GAME',
         `The reader has just played ${played.game.name} on his own, for real, in this scene. It is over: do not replay it or change how it came out. Anyone here saw it and may bring it up.`,
         ...(result.account ?? []),
-        ...(useGameStore.getState().sceneMiniGame?.match ? played.game.resultBrief ?? [] : [])
+        ...(sceneMiniGame()?.match ? played.game.resultBrief ?? [] : [])
       ]
     })
   }
-  if (useGameStore.getState().sceneMiniGame?.match?.status === 'result') {
+  if (sceneMiniGame()?.match?.status === 'result') {
     void submitAction(result.summary)
   } else playLines(result.summary)
 }

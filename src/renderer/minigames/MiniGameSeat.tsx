@@ -22,7 +22,7 @@ export function MiniGameSeat({ Seat, visible, open }: SceneSeatProps): JSX.Eleme
   const activity = useGameStore(s => s.sceneActivity)
   const training = activity?.owner === MINI_GAMES && activity.status === 'pending' ? activity : null
   const openedTraining = useRef<unknown>(null)
-  const saved = useGameStore(state => state.sceneMiniGame)
+  const saved = useGameStore(state => state.sceneMods.miniGame)
   const active = useTableStore(state => state.active)
   const busy = useGameStore(state => state.busy)
   const turnError = useGameStore(state => state.turnError)

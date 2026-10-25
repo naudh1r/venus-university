@@ -12,7 +12,7 @@ import type {
 } from '@shared/types'
 import type { GameOverReason } from '@shared/gameOver'
 import type { PostComment } from '@shared/postComments'
-import type { PlaythroughRecord } from '@shared/types'
+import type { ModSceneFields, PlaythroughRecord } from '@shared/types'
 import type { TextingPromptState } from '../prompts/textingPrompt'
 import type { ResolvedSave } from '../stores/saveStore'
 import type { ViewName } from '../stores/uiStore'
@@ -304,6 +304,8 @@ export interface ModHooks {
     playthroughId: string
     save: ResolvedSave & { record: PlaythroughRecord }
   }) => SaveChoice | undefined
+  /** A line on Save Game about what a save of the scene keeps of the mod's own; null for none. */
+  saveNote?: (scene: Readonly<ModSceneFields>) => string | null
 }
 
 interface Registered {
@@ -554,4 +556,12 @@ export function statActivities(stat: import('@shared/playerStats').StatKey): imp
 
 export function slotActivityAvailable(offer: import('@shared/slotActivity').SlotActivityOffer): boolean {
   return activeEntries().some(({ modId, hooks }) => modId === offer.owner && hooks.slotActivityAvailable?.(offer) === true)
+}
+
+/** The lines Save Game shows about the scene being saved, one from each mod that has one. */
+export function saveNotes(scene: Readonly<ModSceneFields>): string[] {
+  return active().flatMap((hooks) => {
+    const note = hooks.saveNote?.(scene)
+    return note ? [note] : []
+  })
 }

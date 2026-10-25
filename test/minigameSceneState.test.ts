@@ -1,6 +1,6 @@
 import {beforeEach, describe, it, expect, vi} from 'vitest'
 import {useGameStore} from '../src/renderer/stores/gameStore'
-import {checkpointResult, clearMatch, keepInvitation, keptInvitation, keptAgreed, useTableStore} from '../src/renderer/minigames/session'
+import {checkpointResult, clearMatch, keepInvitation, keptInvitation, keptAgreed, sceneMiniGame, useTableStore} from '../src/renderer/minigames/session'
 import {fileResult, resumeMiniGameResult} from '../src/renderer/minigames/table'
 import {writeAutosave, queuedScene} from '../src/renderer/stores/loop/saves'
 import {submitAction} from '../src/renderer/stores/gameLoop'
@@ -38,9 +38,9 @@ describe('mini-game scene checkpoint',()=>{
  it('captures a solo match and does not leak mutable options into the save',()=>{
   useTableStore.getState().setAgreed({...agreed,charIds:[]})
   const saved=useGameStore.getState().captureScene()!
-  useGameStore.getState().sceneMiniGame!.match!.options['darts-mode']=1
-  expect(saved.miniGame!.match!.options['darts-mode']).toBe(2)
-  expect(saved.miniGame!.match!.charIds).toEqual([])
+  sceneMiniGame()!.match!.options['darts-mode']=1
+  expect(saved.mods!.miniGame!.match!.options['darts-mode']).toBe(2)
+  expect(saved.mods!.miniGame!.match!.charIds).toEqual([])
  })
  it('rewinding before an invitation invalidates it',()=>{
   useGameStore.setState({currentSceneTranscript:[{speaker:'reader',text:'Hello'},{speaker:'a',text:'Darts?'}]})
@@ -50,12 +50,12 @@ describe('mini-game scene checkpoint',()=>{
  })
  it('old saves and new scenes clear checkpoint fields',()=>{
   useTableStore.getState().setAgreed(agreed)
-  const {miniGame:_match,...old}=useGameStore.getState().captureScene()!
+  const {mods:_mods,...old}=useGameStore.getState().captureScene()!
   useGameStore.getState().restoreScene(old)
   expect(keptAgreed()).toBeNull()
   useTableStore.getState().setAgreed(agreed)
   useGameStore.getState().setCast([])
-  expect(useGameStore.getState().sceneMiniGame).toBeNull()
+  expect(sceneMiniGame()).toBeUndefined()
  })
  it('settled result blocks restart even before the final dialogue is read',()=>{
   useTableStore.getState().setAgreed(agreed)
@@ -63,7 +63,7 @@ describe('mini-game scene checkpoint',()=>{
   expect(keptAgreed()).toBeNull()
   const saved=useGameStore.getState().captureScene()!
   useGameStore.getState().restoreScene(saved)
-  expect(useGameStore.getState().sceneMiniGame?.match?.result).toEqual(outcome)
+  expect(sceneMiniGame()?.match?.result).toEqual(outcome)
   useTableStore.getState().setAgreed(agreed)
   expect(keptAgreed()).toBeNull()
  })
@@ -73,7 +73,7 @@ describe('mini-game scene checkpoint',()=>{
   vi.mocked(writeAutosave).mockImplementationOnce(()=>new Promise<void>(resolve=>{saved=resolve}))
   fileResult(outcome,{game:DARTS,names:['Ana','Bea'],stake:agreed.stake})
   expect(submitAction).not.toHaveBeenCalled()
-  expect(useGameStore.getState().sceneMiniGame?.match?.status).toBe('result')
+  expect(sceneMiniGame()?.match?.status).toBe('result')
   // A recovery effect cannot submit a second request while persistence is busy.
   resumeMiniGameResult()
   saved(); await vi.waitFor(()=>expect(submitAction).toHaveBeenCalledTimes(1))
@@ -102,6 +102,6 @@ describe('mini-game scene checkpoint',()=>{
   useTableStore.getState().setAgreed(agreed)
   const base=useGameStore.getState().captureScene()!
   clearMatch()
-  expect(queuedScene(base,[]).miniGame?.match).toBeUndefined()
+  expect(queuedScene(base,[]).mods?.miniGame?.match).toBeUndefined()
  })
 })

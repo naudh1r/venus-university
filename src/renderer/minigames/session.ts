@@ -1,7 +1,19 @@
 import { create } from 'zustand'
+import type { MiniGameInvitation, MiniGameResult, MiniGameScene } from '@shared/minigameScene'
 import { useGameStore } from '../stores/gameStore'
 
 /** Proposals are transient; invitations, match setup and outcomes live in scene saves. */
+
+/** The mini-game state kept with the scene being played. */
+export function sceneMiniGame(): MiniGameScene | undefined {
+  return useGameStore.getState().sceneMods.miniGame
+}
+
+/** Replaces the mini-game state kept with the scene, leaving every other mod's as it is. */
+function setSceneMiniGame(next: MiniGameScene): void {
+  const kept = Object.values(next).some((value) => value !== undefined) ? next : undefined
+  useGameStore.setState((state) => ({ sceneMods: { ...state.sceneMods, miniGame: kept } }))
+}
 
 /** A game the reader has asked a girl, or several, to play, in the words he asked with. */
 export interface Proposal {
@@ -48,25 +60,25 @@ interface TableState {
 
 /** A running save restarts this match; a settled result must never reopen it. */
 export function keptAgreed(): Agreed | null {
-  const match = useGameStore.getState().sceneMiniGame?.match
+  const match = sceneMiniGame()?.match
   return match?.status === 'playing' ? { ...match, location: match.location } : null
 }
 function keep(agreed: Agreed | null): void {
-  const state = useGameStore.getState().sceneMiniGame ?? {}
+  const state = sceneMiniGame() ?? {}
   // Submitting the persisted result must not erase its recovery checkpoint.
   if (!agreed && state.match?.status === 'result') return
   if (!agreed) {
     const { match: _match, ...rest } = state
-    useGameStore.setState({ sceneMiniGame: rest })
+    setSceneMiniGame(rest)
     return
   }
   if (state.match?.status === 'result') return
   const existing = state.match
   const same = existing?.status === 'playing' && existing.gameId === agreed.gameId &&
     JSON.stringify(existing.charIds) === JSON.stringify(agreed.charIds) && JSON.stringify(existing.options) === JSON.stringify(agreed.options)
-  useGameStore.setState({ sceneMiniGame: { ...state, invitation: undefined, match: {
+  setSceneMiniGame({ ...state, invitation: undefined, match: {
     ...agreed, location: agreed.location ?? null, id: same ? existing.id : crypto.randomUUID(), status: 'playing'
-  } } })
+  } })
 }
 
 export const useTableStore = create<TableState>((set) => ({
@@ -83,17 +95,17 @@ export const useTableStore = create<TableState>((set) => ({
   dropAgreed: () => set({ agreed: null })
 }))
 
-export type Invitation = import('@shared/minigameScene').MiniGameInvitation
+export type Invitation = MiniGameInvitation
 export function keepInvitation(invitation: Invitation | null): void {
   const game = useGameStore.getState()
-  const state = game.sceneMiniGame ?? {}
+  const state = sceneMiniGame() ?? {}
   const transcript = game.currentSceneTranscript
-  useGameStore.setState({ sceneMiniGame: { ...state, invitation: invitation ?? undefined,
-    invitationAt: invitation ? { at: transcript.length, tail: JSON.stringify(transcript.at(-1) ?? null) } : undefined } })
+  setSceneMiniGame({ ...state, invitation: invitation ?? undefined,
+    invitationAt: invitation ? { at: transcript.length, tail: JSON.stringify(transcript.at(-1) ?? null) } : undefined })
 }
 export function keptInvitation(): Invitation | null {
   const game = useGameStore.getState()
-  const state = game.sceneMiniGame
+  const state = sceneMiniGame()
   const mark = state?.invitationAt
   if (mark && (game.currentSceneTranscript.length < mark.at || game.currentSceneTranscript.length > mark.at + 1 ||
     JSON.stringify(game.currentSceneTranscript[mark.at - 1] ?? null) !== mark.tail)) return null
@@ -101,15 +113,15 @@ export function keptInvitation(): Invitation | null {
 }
 
 /** Result is recorded immediately, including during the final animation/dialogue. */
-export function checkpointResult(result: import('@shared/minigameScene').MiniGameResult, names: readonly string[]): void {
-  const state = useGameStore.getState().sceneMiniGame
+export function checkpointResult(result: MiniGameResult, names: readonly string[]): void {
+  const state = sceneMiniGame()
   if (!state?.match || state.match.status === 'result') return
-  useGameStore.setState({ sceneMiniGame: { ...state, match: { ...state.match, status: 'result', result: { ...result }, names: [...names] } } })
+  setSceneMiniGame({ ...state, match: { ...state.match, status: 'result', result: { ...result }, names: [...names] } })
 }
 export function clearMatch(): void {
-  const state = useGameStore.getState().sceneMiniGame
+  const state = sceneMiniGame()
   if (!state?.match) return
-  useGameStore.setState({ sceneMiniGame: { ...state, match: undefined } })
+  setSceneMiniGame({ ...state, match: undefined })
 }
 
 /** An agreement is not a travel shortcut or an override for a disabled game. */

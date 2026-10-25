@@ -20,14 +20,10 @@ export interface MiniGameScene {
     names?: string[]
   }
 }
-export function copyMiniGameScene(value: MiniGameScene | null | undefined): MiniGameScene | null {
-  if (!value) return null
-  return {
-    ...(value.invitationAt ? { invitationAt: { ...value.invitationAt } } : {}),
-    ...(value.invitation ? { invitation: { ...value.invitation } } : {}),
-    ...(value.match ? { match: { ...value.match, charIds: [...value.match.charIds], options: { ...value.match.options },
-      ...(value.match.names ? { names: [...value.match.names] } : {}),
-      ...(value.match.result ? { result: { ...value.match.result, ...(value.match.result.account ? { account: [...value.match.result.account] } : {}) } } : {})
-    } } : {})
+
+declare module './types' {
+  interface ModSceneFields {
+    /** The mini-game invitation and match kept with the scene. */
+    miniGame?: MiniGameScene
   }
 }

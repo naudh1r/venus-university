@@ -20,7 +20,7 @@ function reply(data: Record<string, unknown>, ending=false) {afterSceneReply({re
 function properties(r: StructuredRequest) {return (r.schema.schema as {properties:Record<string,unknown>}).properties}
 beforeEach(()=>{
  setHookRules({isOn:id=>id==='mini-games',order:()=>0})
- useGameStore.setState({sceneMiniGame:null,playthroughId:'test',date:1,time:0,currentSceneTranscript:transcript,sceneLog:[{bg:'pinocola_lounge',speaker:'',text:'Here'}],sceneLocation:'pino_cola_lounge',sceneClass:null,sceneJob:null,sceneProject:null})
+ useGameStore.setState({sceneMods:{},playthroughId:'test',date:1,time:0,currentSceneTranscript:transcript,sceneLog:[{bg:'pinocola_lounge',speaker:'',text:'Here'}],sceneLocation:'pino_cola_lounge',sceneClass:null,sceneJob:null,sceneProject:null})
  useTableStore.setState({proposal:null,agreed:null,played:null})
  keepInvitation(null)
 })
@@ -63,7 +63,7 @@ describe('compact scene game context',()=>{
  it('restoring an old scene clears the invitation',()=>{
   keepInvitation({gameId:'darts',location:'pino_cola_lounge'})
   const saved=useGameStore.getState().captureScene()!
-  const {miniGame: _state,...old}=saved
+  const {mods: _state,...old}=saved
   useGameStore.getState().restoreScene(old)
   expect(keptInvitation()).toBeNull()
   useGameStore.getState().restoreScene(saved)
