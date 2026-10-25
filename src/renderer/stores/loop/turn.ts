@@ -209,8 +209,13 @@ export async function runSceneTurn(
   finishBreakthrough(snapshot.breakthrough?.id, false, result.data.lines, result.data.at)
   finishReckoningAftermath(snapshot.reckoning)
   if(!snapshot.reckoning)settleUnspokenVoice()
-  const ending = activityEnding(useGameStore.getState().sceneActivity, solo || result.data.end)
+  const activity = useGameStore.getState().sceneActivity
+  const ending = activityEnding(activity, solo || result.data.end)
   useGameStore.getState().setSceneEnding(ending)
+  // The reply to a settled activity's closing turn has landed: it steers the scene no further.
+  if (activity && activity.status !== 'pending' && !activity.closed) {
+    useGameStore.setState({ sceneActivity: { ...activity, closed: true } })
+  }
 
   // The lines are on the transcript and the scene knows whether it is over: what a mod reads off
   // the reply is read against both.

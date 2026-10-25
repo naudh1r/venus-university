@@ -17,7 +17,7 @@ export async function finishSlotActivity(owner: string, id: string, completed: b
 export async function resumeSlotActivity(): Promise<void> {
   const game = useGameStore.getState()
   const activity = game.sceneActivity
-  if (!activity || activity.status === 'pending' || game.busy || game.turnError || game.sceneEnding || !game.awaitingInput) return
+  if (!activity || activity.status === 'pending' || activity.closed || game.busy || game.turnError || game.sceneEnding || !game.awaitingInput) return
   const run = currentRun()
   // Lock during persistence, before a second effect/callback can submit this closing.
   useGameStore.setState({ busy: true })

@@ -15,6 +15,11 @@ describe('committed slot activities', () => {
     expect(activityEnding(null, true)).toBe(true)
     expect(activityEnding(null, false)).toBe(false)
   })
+  it('lets the reply decide once the closing has landed, as when the reader talks over its ending', () => {
+    const closed: SlotActivity = { ...activity, status: 'abandoned', closed: true }
+    expect(activityEnding(closed, false)).toBe(false)
+    expect(activityEnding(closed, true)).toBe(true)
+  })
   it.each([true, false])('replaces ledger training with exactly the selected stat (solo=%s)', solo => {
     const { deltas } = resolveStatDeltas({ brain: true, body: true, heart: true }, {
       ...context, solo, activity: { ...activity, status: 'completed' }
@@ -38,5 +43,6 @@ describe('committed slot activities', () => {
     const closing = withSlotActivityPrompt(request, { ...activity, status: 'completed', result: 'You scored 50.' })
     expect(closing.system).toContain('You scored 50.')
     expect(closing.system).toContain('Do not replay the last move')
+    expect(withSlotActivityPrompt(request, { ...activity, status: 'completed', closed: true })).toBe(request)
   })
 })

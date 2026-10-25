@@ -13,9 +13,15 @@ export interface SlotActivityOffer {
 export interface SlotActivity extends SlotActivityOffer {
   status: 'pending' | 'completed' | 'abandoned'
   result?: string
+  /** Set once the reply to its closing turn has landed: from then on the scene runs as any other. */
+  closed?: true
 }
 
-/** Whether a scene ends now: one committed to an activity ends once it is settled, and not before. */
+/**
+ * Whether a scene ends now: one committed to an activity is held open until it is settled and
+ * ends on the reply to its closing turn. Once closed, as when the reader talks over that ending,
+ * the reply decides as it would in any scene.
+ */
 export function activityEnding(activity: SlotActivity | null | undefined, ordinary: boolean): boolean {
-  return activity ? activity.status !== 'pending' : ordinary
+  return activity && !activity.closed ? activity.status !== 'pending' : ordinary
 }
