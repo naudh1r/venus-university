@@ -537,8 +537,11 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
       (onStage >= 3 && playing.length < onStage && playing.includes(slots[1] ?? '')))
 
   if (seated && Game) {
+    // Keyed apart from the list, so a game picked there mounts its own table rather than taking
+    // over the list's elements mid-animation, which left the table drawn at no opacity.
     return createPortal(
       <motion.div
+        key="table"
         data-game={seated.game.id}
         className={`vu-veil vu-minigame-veil${aside ? ' vu-minigame-veil--aside' : ''}`}
         data-theme={theme}
@@ -737,6 +740,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
 
   return createPortal(
     <motion.div
+      key="list"
       className="vu-veil"
       data-theme={theme}
       variants={veilIn}
