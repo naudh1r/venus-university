@@ -28,7 +28,7 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
 | Photo generation | on | Off, no new photos are made and the girls are not told they can send one. Photos already sent stay visible. |
 | Explicit photos | on | Off, nobody sends an undressed photo and ones already sent stay covered. The game's own "No NSFW images" turns them off too. |
 | Body details | off | Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable in their character editor, and drawn in their sprites, CGs and photos. The default characters can't be edited, so clone one first to give her body details. Off, what they have is kept but not used. |
-| 2 girls 1 photo (experimental) | off | A scene with two or more of the girls brings a group photo on one's feed. See below. |
+| 2 girls 1 photo (experimental) | off | A girl's feed post can be a photo of her and a friend, and a scene you are in with other girls can bring a photo of two of them on one's feed. Always two girls, never more. See below. |
 | Save photos as WebP | on | New photos are saved as WebP, with no visible quality loss while taking much less space than PNG. Off, they are saved as PNG. Photos already saved stay as they are. |
 | Loading animation | Bunny hop | What a photo shows while it is being drawn: Bunny hop, Dot shimmer or Typing dots. |
 
@@ -74,8 +74,8 @@ combinations. The comment beside each rule in the code says what was tried.
 
 ## 2 girls 1 photo (experimental)
 
-With the option on, a scene you go into with two or more of the girls brings a group photo: two of
-them, picked at random, and one posts it on her feed, once a slot. The scene's first call writes it
+With the option on, a scene you go into with two or more of the girls brings a photo of two of
+them, never more: two picked at random where more are there, and one posts it on her feed, once a slot. The scene's first call writes it
 beside the scene's opening lines, once the game has settled who is there, and it is filed like any
 feed post: held until the picture lands, with likes and comments from whichever mod draws them. Its
 picture is drawn under the scene, behind any of the slot's own feed pictures still waiting. They
@@ -116,8 +116,8 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
 
 ## 1.5.0-exp
 
-- **2 girls 1 photo (experimental)**: a scene with two or more of the girls brings a group photo
-  that one of them posts, off by default. The scene's first call writes it, so the two are girls
+- **2 girls 1 photo (experimental)**: a scene with two or more of the girls brings a photo of two of
+  them, never more, that one of them posts, off by default. The scene's first call writes it, so the two are girls
   you are with, and its picture is drawn under that scene. Now and then a girl's own post is a
   picture with one of her friends too.
 - **Food colours in her own tags**: a colour named after a food in her outfit tags is said plainly,

@@ -28,7 +28,7 @@ export interface PhotoSwitches {
   webp: boolean
   /** Her build, chest, hips, backside and hair are asked for, edited and drawn. */
   body: boolean
-  /** A scene with two or more of the girls brings a group photo on one's feed. Experimental. */
+  /** A photo of two girls, never more, on one's feed: her own post with a friend, or from a scene. Experimental. */
   duo: boolean
 }
 
@@ -150,7 +150,7 @@ export const PHOTO_FEATURE_MOD = {
     {
       id: 'duo',
       label: '2 girls 1 photo (experimental)',
-      hint: "A scene with two or more of the girls brings a photo of two of them, posted on one's feed. Still being tuned: now and then a face, an outfit or a colour comes out wrong.",
+      hint: "A girl's feed post can be a photo of her and a friend, and a scene you are in with other girls can bring a photo of two of them, posted on one's feed. Always two girls, never more. Still being tuned: now and then a face, an outfit or a colour comes out wrong.",
       default: false
     },
     {
