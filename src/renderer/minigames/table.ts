@@ -437,7 +437,7 @@ function deliverResult(result: PlayResult, played: PlayedWith, tries = 0): void 
   // scene is busy with something of its own just now, the result waits for it rather than being
   // lost: the model was promised it would be told how the game went.
   if (!reachTurn()) {
-    if (tries < FILE_TRIES) setTimeout(() => fileResult(result, played, tries + 1), FILE_WAIT_MS)
+    if (tries < FILE_TRIES) setTimeout(() => deliverResult(result, played, tries + 1), FILE_WAIT_MS)
     return
   }
 

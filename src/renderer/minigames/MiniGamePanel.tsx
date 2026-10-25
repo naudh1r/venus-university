@@ -235,11 +235,17 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
     if (nothing) onClose()
   }, [nothing, onClose])
 
+  /** Closes a table before its first move, letting go of the match kept for a reload. */
+  function standUp(): void {
+    useTableStore.getState().setAgreed(null)
+    onClose()
+  }
+
   /** Escape and a click outside leave only a table nothing is at stake on. */
   const dismiss = (): void => {
     if (!underWay && !result) {
       if (training && offered[0]) fileResult({ outcome: 'abandoned', summary: 'You leave the training session before completing it.' }, { game: offered[0], names: [], stake: '' })
-      onClose()
+      standUp()
     }
   }
   const { host, overlayProps } = useModalShell(dismiss)
@@ -579,7 +585,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
                 noteFault(seated.game.id, error)
                 if (result) return
                 if (!underWay && !training) {
-                  onClose()
+                  standUp()
                   return
                 }
                 leave({
