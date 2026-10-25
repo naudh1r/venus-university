@@ -38,6 +38,8 @@ export interface ChatPhoto {
    * picture lands or fails (`postIsOut`). Never on a thread's picture.
    */
   held?: true
+  /** The friend beside her in it, by charId: a picture of two, drawn in her own folder. */
+  with?: string
 }
 
 declare module './types' {
@@ -127,6 +129,15 @@ declare module '../preload/api' {
       generate: (
         playthroughId: string,
         character: Character,
+        tier: string,
+        photoPrompt: string,
+        file: string
+      ) => Promise<Result<string>>
+      /** {@link generate} for a picture of her with `friend` beside her, in her own folder. */
+      generateDuo: (
+        playthroughId: string,
+        character: Character,
+        friend: Character,
         tier: string,
         photoPrompt: string,
         file: string

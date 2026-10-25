@@ -34,44 +34,14 @@ export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promi
   const featured: TeaserCandidate[] = []
 
   for (const post of posts ?? []) {
-    const game = useGameStore.getState()
-    const charId = game.charKeyToId[post.char]
-    if (!charId) continue
-    const text = post.text?.trim()
-    if (!text) continue
-    const id = crypto.randomUUID()
-    // Handed to the mods before it is filed: they may add to it, or file it themselves later.
-    const filing = await fileFeedPost(
-      {
-        charId,
-        post: {
-          id,
-          text,
-          date: game.date,
-          time: game.time,
-          likes: rollPostLikes(
-            npcFriendsOf(game.npcRelationships, charId, [...game.chars, ...game.alumni]).length
-          )
-        },
-        reply: post,
-        held: false,
-        featured: false
-      },
-      { nudge: nudgeFirstContactPost }
-    )
+    const filed = await filePost(post, run)
     if (runStale(run)) return
+    if (!filed) continue
     // A stranger's post is a teaser candidate; blocked counts as contact, since the flag is
     // masked rather than cleared.
-    const flags = game.charInfo[charId]?.flags
-    const candidates = filing.featured ? featured : fresh
-    if (filing.held) {
-      if (!flags?.gaveContactInfo) candidates.push({ charId, postId: id })
-      continue
-    }
-
-    game.appendFeedPost(charId, filing.post)
-    if (!flags?.gaveContactInfo) candidates.push({ charId, postId: id })
-    else if (!flags.blocked) nudgeFirstContactPost(charId)
+    const { charId, id } = filed
+    const flags = useGameStore.getState().charInfo[charId]?.flags
+    if (!flags?.gaveContactInfo) (filed.featured ? featured : fresh).push({ charId, postId: id })
   }
 
   // Replaced every slot, whether or not one was drawn: a teaser is never held over.
@@ -105,6 +75,59 @@ export async function deliverSlotPosts(posts: SlotIntroResponse['posts']): Promi
   if (fill.length > 0) extras.fill = fill
   else delete extras.fill
   game.setFeedExtras(extras)
+}
+
+/**
+ * Files one post on the current slot, handed to the mods first: they may add to it, or file it
+ * themselves later (`held`). Null for a post with no girl or no words, or once the game `run`
+ * belongs to has been left.
+ */
+async function filePost(
+  post: NonNullable<SlotIntroResponse['posts']>[number],
+  run: object
+): Promise<{ charId: string; id: string; featured: boolean } | null> {
+  const game = useGameStore.getState()
+  const charId = game.charKeyToId[post.char]
+  if (!charId) return null
+  const text = post.text?.trim()
+  if (!text) return null
+  const id = crypto.randomUUID()
+  const filing = await fileFeedPost(
+    {
+      charId,
+      post: {
+        id,
+        text,
+        date: game.date,
+        time: game.time,
+        likes: rollPostLikes(
+          npcFriendsOf(game.npcRelationships, charId, [...game.chars, ...game.alumni]).length
+        )
+      },
+      reply: post,
+      held: false,
+      featured: false
+    },
+    { nudge: nudgeFirstContactPost }
+  )
+  if (runStale(run)) return null
+  if (!filing.held) {
+    const now = useGameStore.getState()
+    now.appendFeedPost(charId, filing.post)
+    const flags = now.charInfo[charId]?.flags
+    if (flags?.gaveContactInfo && !flags.blocked) nudgeFirstContactPost(charId)
+  }
+  return { charId, id, featured: filing.featured }
+}
+
+/**
+ * Files a post a mod wrote outside the slot's opening, mid-slot, the way the opening's own posts
+ * are filed. It leaves the slot's teaser and fill as the opening drew them.
+ */
+export async function fileLatePost(
+  post: NonNullable<SlotIntroResponse['posts']>[number]
+): Promise<void> {
+  await filePost(post, currentRun())
 }
 
 /**

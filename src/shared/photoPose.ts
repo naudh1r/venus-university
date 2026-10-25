@@ -184,7 +184,13 @@ const BUSY_HAND_CUES = [
   'cup of',
   'mug of',
   'tucking her hair',
-  'fixing her hair'
+  'fixing her hair',
+  // Her hands on what she is leaning on: a hand on her hip or her thighs beside them is a third.
+  'on her hands',
+  'hands behind her',
+  'on her elbows',
+  'all fours',
+  'hands and knees'
 ]
 
 /** What her hands are doing. Up to two fire — she has two of them. */
@@ -447,6 +453,25 @@ const CAMERA_CUES = ['holding a camera', 'her camera', 'a camera in', 'film came
  */
 const PEACE_CUES = ['peace sign', 'v sign', 'v-sign', 'flashing a v']
 
+/** Both her hands on one thing. */
+const BOTH_HANDS_CUES = ['both hands', 'two hands', 'both of her hands', 'two-handed']
+
+/** Both her hands on something she holds, so neither is free for a phone. */
+function handsFull(text: string): boolean {
+  return saysAny(text, BOTH_HANDS_CUES) && saysAny(text, BUSY_HAND_CUES)
+}
+
+/**
+ * A selfie her hands are both too full to take, said as the photo it is drawn as. The word
+ * alone put her free arm out of frame on most seeds, whatever the negative refused; "photo" left
+ * it on the table.
+ */
+export function withoutSelfieWord(scene: string): string {
+  const text = scene.toLowerCase()
+  if (says(text, 'mirror') || !handsFull(text)) return scene
+  return scene.replace(/\bselfie\b/gi, (word) => (word[0] === 'S' ? 'Photo' : 'photo'))
+}
+
 
 /**
  * A selfie, as tested on the checkpoint (same seed, one change at a time). Her own arm holds the
@@ -478,9 +503,17 @@ function selfieShot(text: string, tags: readonly string[]): PhotoPose | null {
     const add = ['mirror', 'reflection', 'holding_phone', ...frame]
     return { tags: [...new Set([...kept, ...add])], negative: [] }
   }
+  const camera = saysAny(text, CAMERA_CUES) ? [] : ['camera']
+  // Both hands on what she holds leave none for the phone: drawn as a picture somebody else
+  // took, or a timer, rather than with an arm out of frame she does not have.
+  if (handsFull(text)) {
+    return {
+      tags: [...tags],
+      negative: [...lyingNegative(tags), ...PHONE_NEGATIVE, ...camera, 'selfie', 'outstretched_arm']
+    }
+  }
   // The arm holding the phone is not also on her hip.
   const kept = tags.filter((tag) => !FRAMING_TAGS.has(tag) && !PLACEMENT_TAGS.has(tag))
-  const camera = saysAny(text, CAMERA_CUES) ? [] : ['camera']
   const busy = !peace && saysAny(text, BUSY_HAND_CUES)
   const negative = [...PHONE_NEGATIVE, ...camera, ...(busy ? ['v'] : [])]
   // `from_below` alone left a selfie at eye level; her looking down into the phone held low
@@ -565,29 +598,56 @@ function lyingNegative(tags: readonly string[]): string[] {
   return []
 }
 
-/** A part of the sentence about the phone or camera taking the picture. */
-const HOLDS_CAMERA = /\b(?:camera|phone|cellphone|smartphone)\b/
-const HOLDING_IT =
-  /\b(?:hold\w*|rais\w*|angl\w*|aim\w*|lift\w*|tilt\w*|grip\w*|clutch\w*|extend\w*)\b/
+/** The phone or camera taking the picture, and what a hand does with it. */
+const DEVICE = '(?:camera|phone|cellphone|smartphone)'
+const HOLD_VERB =
+  '(?:hold\\w*|held|rais\\w*|angl\\w*|aim\\w*|lift\\w*|tilt\\w*|grip\\w*|clutch\\w*|extend\\w*)'
+/** Where the hand puts it: "up", "low", "above her head", "at arm's length". */
+const HOLD_WHERE =
+  '(?:\\s+(?:up|out|down|low|high|overhead|close|away|above\\s+her(?:\\s+(?:head|face))?|' +
+  "in\\s+front\\s+of\\s+her(?:\\s+face)?|at\\s+arm['’]?s\\s+length|" +
+  `(?:with\\s+)?(?:one|her)\\s+(?:free\\s+|other\\s+)?(?:hand|arm)|and\\s+${HOLD_VERB}))*`
+/**
+ * The hand on the device: the verb before it ("holding her phone up high") or after it ("camera
+ * held low"), at most three words apart. Words saying where she looks — "smiling at the camera"
+ * — are never between the two, so a gaze is not taken for a grip.
+ */
+const NEAR = "(?:\\s+(?!at\\b|to\\b|into\\b|toward\\b|towards\\b)[\\w'’-]+){0,3}?"
+const CAMERA_HOLD = new RegExp(
+  '(?:\\s*\\b(?:with|and)\\b)?\\s*(?:\\b(?:one|her)\\s+(?:hand|arm)\\s+)?' +
+    `(?:\\b${HOLD_VERB}\\b${NEAR}\\s+${DEVICE}\\b|` +
+    `(?:\\b(?:her|the|a|my)\\s+)?\\b${DEVICE}\\s+${HOLD_VERB}\\b)${HOLD_WHERE}`,
+  'gi'
+)
 
 /**
  * Her selfie's sentence without how she holds the phone. The model reads "holding the camera
  * low" as a camera to draw in her hand, and the sentence outweighs any negative; the angle in
- * those words has already been read off into `from_below` or `from_above` by then. Only an
+ * those words has already been read off into `from_below` or `from_above` by then. Only that
+ * phrase goes: the rest of its clause — a mug in her hands, her smile — is the picture. Only an
  * ordinary selfie: a mirror selfie shows the phone, and a caption that gives her a camera of
  * her own keeps it.
  */
 export function withoutCameraHold(scene: string): string {
   const text = scene.toLowerCase()
   if (!says(text, 'selfie') || says(text, 'mirror') || saysAny(text, CAMERA_CUES)) return scene
-  return scene
-    .split(/,|;|\s+while\s+|\s+as\s+/)
-    .map((part) => part.trim())
-    .filter((part) => {
-      const lower = part.toLowerCase()
-      return part.length > 0 && !(HOLDS_CAMERA.test(lower) && HOLDING_IT.test(lower))
-    })
-    .join(', ')
+  // Clauses at even places, the joints between them at odd ones.
+  const pieces = scene.split(/(,|;|\s+while\s+|\s+as\s+)/)
+  let out = ''
+  for (let i = 0; i < pieces.length; i += 2) {
+    const part = pieces[i]
+      .replace(CAMERA_HOLD, '')
+      .trim()
+      .replace(/^(?:and|with)\s+/i, '')
+    // A clause the phone was all of goes, with the joint in front of it.
+    if (part.length === 0 || /^[.!?]+$/.test(part)) {
+      if (i === pieces.length - 1) out = out.replace(/[,;]?\s*$/, part)
+      continue
+    }
+    const joint = pieces[i - 1]?.trim() ?? ''
+    out += out.length === 0 ? part : /^[,;]$/.test(joint) ? `${joint} ${part}` : ` ${joint} ${part}`
+  }
+  return out.replace(/\s+([,;.])/g, '$1').replace(/\s{2,}/g, ' ').trim()
 }
 
 /**

@@ -190,6 +190,16 @@ describe('an explicit picture she is still partly dressed in', () => {
 })
 
 
+describe('the colour of what she wears', () => {
+  it('holds her top to its colour, and leaves her shoes and the rest alone', () => {
+    const her = character({ outfit: ['pink_sports_bra', 'black_spandex_shorts', 'white_running_shoes'] })
+    const { positive } = buildPhotoPrompt(her, 'everyday', 'posing in a neon-lit alley at night')
+    expect(positive).toContain('(pink_sports_bra:1.2)')
+    expect(positive).toContain('black_spandex_shorts')
+    expect(positive).not.toContain('(white_running_shoes')
+  })
+})
+
 describe('legwear she was never given', () => {
   /** The in-game caption that drew pink latex leggings under white thighhighs. */
   const scene =
@@ -197,42 +207,15 @@ describe('legwear she was never given', () => {
     'elbow propped up and her cheek resting on her hand while she bites softly on a pastel ' +
     'boba straw, looking directly into the camera'
 
-  it('refuses the legwear she has not got, and keeps the thighhighs she has', () => {
-    const her = character({ baseAppearance: ['1girl', 'pink_eyeshadow'] })
-    const { negative } = buildPhotoPrompt(
+  it('is not named in the negative, where it painted one of her legs instead', () => {
+    const her = character({ baseAppearance: ['1girl', 'pink_hair', 'pink_eyeshadow'] })
+    const { positive, negative } = buildPhotoPrompt(
       her,
       'everyday',
-      `${scene}, in a white pleated skirt and sheer white thighhigh socks`
+      'posing in a neon-lit back alley at night in a white crop top and black shorts'
     )
-    expect(negative).toEqual(expect.stringContaining('leggings'))
-    expect(negative).toEqual(expect.stringContaining('latex'))
-    expect(negative).toEqual(expect.stringContaining('colored_legwear'))
-    // The pink of her eyeshadow is refused on her legs; a colour the prompt never names is not.
-    expect(negative).toContain('pink_legwear')
-    expect(negative).not.toContain('green_legwear')
-    expect(negative).not.toContain('thighhighs')
-  })
-
-  it('bares her legs under a skirt with nothing named on them', () => {
-    const { positive, negative } = buildPhotoPrompt(
-      character(),
-      'everyday',
-      'sitting in the cafe in a short pleated skirt, smiling'
-    )
-    expect(positive).toContain('bare_legs')
-    expect(negative).toContain('thighhighs')
-  })
-
-  it('leaves the coloured legwear she asked for', () => {
-    const { negative } = buildPhotoPrompt(
-      character(),
-      'everyday',
-      'standing by the window in a red skirt and pink thighhigh stockings'
-    )
-    expect(negative).not.toContain('colored_legwear')
-    expect(negative).not.toContain('pink_legwear')
-    expect(negative).toContain('red_legwear')
-    expect(negative).not.toContain('thighhighs')
+    expect(negative).not.toMatch(/legwear|pantyhose|leggings|thighhighs|latex/)
+    expect(positive).not.toContain('bare_legs')
   })
 
   it('takes her hands off her lap when her cheek is resting on one', () => {
@@ -293,9 +276,10 @@ describe('a shop named after its drink', () => {
 describe('a dressed picture', () => {
   it('keeps her covered where the caption does not undress her', () => {
     const { negative } = buildPhotoPrompt(character(), 'everyday', 'lying on her bed in a sweater')
-    for (const tag of ['nude', 'nipples', 'areolae', 'pussy', 'pantyshot']) {
+    for (const tag of ['nude', 'nipples', 'areolae', 'pussy']) {
       expect(negative).toContain(tag)
     }
+    expect(negative).not.toContain('pantyshot')
   })
 
   it('keeps her chest covered in an everyday photo unless what she wears shows it', () => {
@@ -312,9 +296,9 @@ describe('a dressed picture', () => {
     const { negative } = buildPhotoPrompt(
       character(),
       'suggestive',
-      'sitting on the bed in her lace panties and a loose shirt'
+      'sitting on the bed, nude under a loose shirt'
     )
-    expect(negative).not.toContain('pantyshot')
+    expect(negative).not.toMatch(/\bnude\b/)
     const bare = buildPhotoPrompt(character(), 'explicit', 'naked on the bed').negative
     expect(bare).not.toContain('nipples')
   })

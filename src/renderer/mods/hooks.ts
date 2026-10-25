@@ -39,6 +39,8 @@ export interface PromptSpots {
   dm: { character: Character; info: CharInfo | undefined; state: TextingPromptState }
   /** The status updates the slot's opening writes, one entry per post. */
   'slot-posts': Record<string, never>
+  /** One girl posting this slot, under her name in the slot's opening: lines only. */
+  'slot-poster': { character: Character; info: CharInfo }
   /** The girl the slot's opening has texting the reader just to talk, one call per girl. */
   'slot-reach-outs': { character: Character; info: CharInfo; date: number }
   /** A character being generated. */
@@ -263,6 +265,17 @@ export interface PostCommentsSpot {
 export interface PostPictureProps {
   charId: string
   postId: string
+}
+
+/** A scene reply that has landed, as the model wrote it. */
+export interface SceneReplied {
+  /** The whole reply, including the fields mods asked for. */
+  reply: Readonly<Record<string, unknown>>
+  /** Who is still in the scene. */
+  cast: readonly Character[]
+  solo: boolean
+  /** The reply ends the scene: its closing is next, and no turn is handed back. */
+  ending: boolean
 }
 
 export interface ModHooks {

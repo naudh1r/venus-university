@@ -17,9 +17,13 @@ export async function renderPhoto(
   character: Character,
   tier: string,
   scene: string,
-  file: string
+  file: string,
+  // Beside her in it, for a picture of the two of them.
+  friend?: Character
 ): Promise<Result<string>> {
-  const result = await window.api.photo.generate(playthroughId, character, tier, scene, file)
+  const result = friend
+    ? await window.api.photo.generateDuo(playthroughId, character, friend, tier, scene, file)
+    : await window.api.photo.generate(playthroughId, character, tier, scene, file)
   if (result.ok && isWebpPhoto(file)) await encodeWebp(playthroughId, character.charId, file)
   return result
 }
