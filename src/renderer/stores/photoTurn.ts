@@ -109,7 +109,9 @@ function drawMessagePhoto(charId: string, messageId: string): void {
   const key = `${playthroughId}:${messageId}`
   if (drawing.has(key)) return
   const { tier, scene, file } = photo
-  const drawn: ChatPhoto = { tier, scene, file }
+  const drawn: ChatPhoto = { tier, scene, file, ...(photo.with ? { with: photo.with } : {}) }
+  // A friend gone from the roster since leaves a picture of her alone.
+  const friend = photo.with ? game.characters[photo.with] : undefined
   // The save may have moved on under a render: a photo from a playthrough the player has left
   // belongs to nothing.
   const live = (): boolean => useGameStore.getState().playthroughId === playthroughId
@@ -129,7 +131,7 @@ function drawMessagePhoto(charId: string, messageId: string): void {
     }
   }, RENDER_PATIENCE_MS)
 
-  void renderPhoto(playthroughId, character, tier, scene, file)
+  void renderPhoto(playthroughId, character, tier, scene, file, friend)
     .catch((error: unknown) => ({
       ok: false as const,
       error: { code: 'PHOTO_THREW', message: String(error) }
@@ -155,6 +157,12 @@ export function rerollMessagePhoto(charId: string, messageId: string): void {
   const photo = messagePhotoOf(charId, messageId)
   if (!photo?.file || !photo.scene || !canSendPhotos()) return
   const { tier, scene, file } = photo
-  setMessagePhoto(charId, messageId, { tier, scene, file, pending: true })
+  setMessagePhoto(charId, messageId, {
+    tier,
+    scene,
+    file,
+    pending: true,
+    ...(photo.with ? { with: photo.with } : {})
+  })
   drawMessagePhoto(charId, messageId)
 }

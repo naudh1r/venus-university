@@ -181,21 +181,25 @@ const SHAPES: Readonly<Record<string, readonly Region[]>> = {
 }
 
 /** Words that say there is nothing left on her, whatever else the caption mentions. */
-const BARE_CUES = [
+const WHOLE_BARE_CUES = [
   'naked',
   'nude',
   'no clothes',
   'undressed',
   'without clothes',
   'fully exposed',
-  'topless',
-  'bottomless',
   'wearing nothing',
-  'nothing on',
-  // The same phrasings `photoGate` reads as explicit, and for the same reason: a caption that
-  // says "bare-chested and wearing only black lace panties" was drawn with her chest covered,
-  // because nothing in the list above appears in it. The two lists answer one question and
-  // must not disagree about it.
+  'nothing on'
+]
+
+/**
+ * Words that bare her top half, whatever the caption leaves on below it. The same phrasings
+ * `photoGate` reads as explicit, and for the same reason: a caption that says "bare-chested and
+ * wearing only black lace panties" was drawn with her chest covered, because no garment word
+ * appears in it. The two lists answer one question and must not disagree about it.
+ */
+const TOP_BARE_CUES = [
+  'topless',
   'bare-chested',
   'bare chested',
   'bare chest',
@@ -210,13 +214,24 @@ const BARE_CUES = [
   'braless',
   'no bra',
   'without a bra',
-  'nothing covering',
-  'wearing only',
-  'wearing nothing but',
-  'dressed in only',
-  'in only her',
-  'clad only in'
+  'nothing covering'
 ]
+
+/** Words that bare her bottom half, whatever is still on above it. */
+const BOTTOM_BARE_CUES = ['bottomless', 'no bottoms', 'no panties', 'without panties', 'pantiless']
+
+/** "Nothing on below": her bottom half, said in the words for all of her. */
+const NOTHING_BELOW =
+  /\bnothing\s+(?:on\s+)?(?:below|underneath|under\s+it|down\s+there|on\s+the\s+bottom|from\s+the\s+waist\s+down)\b/
+
+/** What each half is. */
+const TOP_HALF: readonly Region[] = ['bust', 'nipples']
+const BOTTOM_HALF: readonly Region[] = ['hipsThighs', 'buttocks', 'pubic']
+
+/** The caption with "nothing on below" taken out, so it is not read as nothing on at all. */
+function withoutNothingBelow(text: string): string {
+  return text.replace(new RegExp(NOTHING_BELOW.source, 'g'), '')
+}
 
 /**
  * What is covering each part. `bare` is the gate's verdict, and overrules the caption: a
@@ -224,13 +239,12 @@ const BARE_CUES = [
  */
 function coverageIn(caption: string, bare: boolean): Record<Region, Coverage> {
   const text = caption.toLowerCase()
-  const stripped = bare && saysAny(text, BARE_CUES)
 
   const coverage = Object.fromEntries(REGIONS.map((field) => [field, 'exposed'])) as Record<
     Region,
     Coverage
   >
-  if (stripped) return coverage
+  if (bare && saysAny(withoutNothingBelow(text), WHOLE_BARE_CUES)) return coverage
 
   for (const [word, fields] of Object.entries(SHAPES)) {
     if (!says(text, word) || displaced(text, word)) continue
@@ -240,6 +254,14 @@ function coverageIn(caption: string, bare: boolean): Record<Region, Coverage> {
   for (const [word, fields] of Object.entries(HIDES)) {
     if (!says(text, word) || displaced(text, word)) continue
     for (const field of fields) coverage[field] = 'hidden'
+  }
+  // Last, so a half the caption bares stays bare whatever it names: "topless, her shirt on the
+  // floor". The other half keeps what is on it — "topless in her skirt" covers nothing below.
+  if (bare && saysAny(text, TOP_BARE_CUES)) {
+    for (const field of TOP_HALF) coverage[field] = 'exposed'
+  }
+  if (bare && (saysAny(text, BOTTOM_BARE_CUES) || NOTHING_BELOW.test(text))) {
+    for (const field of BOTTOM_HALF) coverage[field] = 'exposed'
   }
   return coverage
 }
@@ -321,7 +343,7 @@ const BARE_TAGS: Partial<Record<Region, string>> = {
 
 /** Whether the caption has nothing left on her at all, rather than something moved aside. */
 export function describesNothingOn(caption: string): boolean {
-  return saysAny(caption.toLowerCase(), [
+  return saysAny(withoutNothingBelow(caption.toLowerCase()), [
     'naked',
     'nude',
     'no clothes',
