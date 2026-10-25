@@ -464,7 +464,7 @@ function fileReplies(
   for (const memory of reply.memories ?? []) {
     const charId = game.charKeyToId[memory.char?.trim() ?? '']
     const type = MEMORY_TYPES.find((one) => one === memory.type)
-    const desc = memory.desc?.trim()
+    const desc = memory.desc?.trim().replace(SAID_WHERE, '')
     if (!charId || !commentedOn.has(charId) || !type || !desc) continue
     // One a call: a girl met under two posts keeps what the first of them left her.
     commentedOn.delete(charId)
@@ -483,6 +483,13 @@ function fileReplies(
       (remembered.length > 0 ? `memory for ${remembered.join(', ')}` : 'no memory')
   )
 }
+
+/**
+ * Where it happened, said at the end of a memory although the call is told the game adds that
+ * itself: "under her post", "on Ami's post", "in her comments". Taken off, so it is said once.
+ */
+const SAID_WHERE =
+  /,?\s+(?:under|on|in|beneath)\s+(?:her|his|their|my|a|the|[\p{L}'’.-]+(?:'s|’s))\s+(?:own\s+)?(?:post|feed|comments?|comment section|thread)\s*\.?$/iu
 
 /** A stranger's handle off the shared bag, so the four thousand do not repeat too soon. */
 function strangerHandle(): string {
