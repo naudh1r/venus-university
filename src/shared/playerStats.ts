@@ -206,6 +206,7 @@ export interface StatContext {
   /**
    * The scene had no other characters in it: every exercised stat counts, and each pays twice.
    */
+  activity?: import('./slotActivity').SlotActivity | null
   solo: boolean
   /** The scene *was* the reader's class, whose stat the timetable decides. */
   classScene: boolean
@@ -283,7 +284,9 @@ export function resolveStatDeltas(
 
   // What the ledger said the hour exercised: all alone, one with company, none for a
   // class the reader sat in.
-  const exercised = STAT_KEYS.filter((key) => ledger?.[key] === true)
+  const exercised = ctx.activity
+    ? ctx.activity.status === 'completed' ? [ctx.activity.stat] : []
+    : STAT_KEYS.filter((key) => ledger?.[key] === true)
   const gained = ctx.solo ? exercised : ctx.classScene ? [] : exercised.slice(0, CAST_STATS)
   for (const key of gained) deltas[key] += AWARD
   if (gained.length > 0) {

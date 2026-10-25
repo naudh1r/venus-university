@@ -1,3 +1,4 @@
+import { copyMiniGameScene } from '@shared/minigameScene'
 import { normalizeReckoning, type ReckoningState } from '@shared/reckoning'
 import type { CharacterDynamics } from '@shared/characterDynamics'
 import { assertEchoEdit, normalizeEcho, type EchoState } from '@shared/echo'
@@ -247,7 +248,11 @@ export function queuedScene(
   if (game.scenePresetVars.length > 0) {
     scene.presetVarMarks = game.scenePresetVars.map((mark) => ({ at: mark.at, before: { ...mark.before } }))
   } else delete scene.presetVarMarks
+  if (game.sceneMiniGame) scene.miniGame = copyMiniGameScene(game.sceneMiniGame)!
+  else delete scene.miniGame
   // Set-or-delete: a scene that is not one of these kinds must carry no key at all.
+  if (game.sceneActivity) scene.activity = { ...game.sceneActivity }
+  else delete scene.activity
   if (game.sceneClass) scene.classCode = game.sceneClass
   else delete scene.classCode
   if (game.sceneProject) scene.projectClass = game.sceneProject

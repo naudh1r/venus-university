@@ -222,3 +222,18 @@ describe('post comments', () => {
     expect(hooks.postCommentsOwner()?.modId).toBe('threads')
   })
 })
+
+describe('slot activity offers', () => {
+  it('accepts only enabled owners, the requested stat, and currently available offers', async () => {
+    const hooks = await fresh({ disabled: false }, ['pack', 'disabled'])
+    const offer = { owner: 'pack', id: 'memory', label: 'Memory', location: 'cutetea', stat: 'brain' as const }
+    hooks.registerHooks('pack', {
+      statActivities: () => [offer, { ...offer, owner: 'someone-else' }, { ...offer, stat: 'body' }],
+      slotActivityAvailable: o => o.id === 'memory'
+    })
+    hooks.registerHooks('disabled', { statActivities: () => [{ ...offer, owner: 'disabled' }], slotActivityAvailable: () => true })
+    expect(hooks.statActivities('brain')).toEqual([offer])
+    expect(hooks.slotActivityAvailable({ ...offer, id: 'removed' })).toBe(false)
+    expect(hooks.slotActivityAvailable({ ...offer, owner: 'disabled' })).toBe(false)
+  })
+})

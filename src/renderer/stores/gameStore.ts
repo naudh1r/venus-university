@@ -1,3 +1,4 @@
+import { copyMiniGameScene } from '@shared/minigameScene'
 import { normalizeReckoning, rebaseReckoning, rewindReckoning, type ReckoningState } from '@shared/reckoning'
 import { normalizeEcho, type EchoState } from '@shared/echo'
 import { normalizeStoryMemory, type StoryMemory } from '@shared/storyMemory'
@@ -205,6 +206,8 @@ export type ReplayStayFields = Pick<
  * classifier verdict decides.
  */
 export interface SceneKind {
+  activity?: import('@shared/slotActivity').SlotActivity
+  miniGame?: import('@shared/minigameScene').MiniGameScene
   /** The class the scene sits in — a `goto_class:` verdict, or an exam. */
   classCode?: string | null
   /** The course a work session is for — a `project:` verdict. */
@@ -249,6 +252,8 @@ export interface SceneKind {
 /** The scene-kind facts a `set` writes onto the store, unpacked from one verdict. */
 function sceneKindFields(scene: SceneKind | null | undefined) {
   return {
+    sceneActivity: scene?.activity ? { ...scene.activity } : null,
+    sceneMiniGame: copyMiniGameScene(scene?.miniGame),
     sceneClass: scene?.classCode ?? null,
     sceneProject: scene?.projectClass ?? null,
     sceneJob: scene?.jobId ?? null,
@@ -272,6 +277,8 @@ function sceneKindFields(scene: SceneKind | null | undefined) {
  * `gameLoop.ts` drives this store imperatively outside React.
  */
 interface GameStoreState {
+  sceneActivity: import('@shared/slotActivity').SlotActivity | null
+  sceneMiniGame: import('@shared/minigameScene').MiniGameScene | null
   exReckoning: ReckoningState
   exEcho: EchoState
   exBreakthrough: BreakthroughState
@@ -1520,7 +1527,9 @@ const initialState = {
   characters: {} as Record<string, Character>,
   charKeyToId: {} as Record<string, string>,
   cast: [] as string[],
+  sceneMiniGame: null as import('@shared/minigameScene').MiniGameScene | null,
   sceneClass: null as string | null,
+  sceneActivity: null,
   sceneProject: null as string | null,
   sceneJob: null as string | null,
   sceneJobStats: [] as StatKey[],
@@ -1796,6 +1805,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       return null
     }
     return {
+      ...(state.sceneActivity ? { activity: { ...state.sceneActivity } } : {}),
+      ...(state.sceneMiniGame ? { miniGame: copyMiniGameScene(state.sceneMiniGame)! } : {}),
       cast: [...state.cast],
       // Optional on `SceneState`: a field that does not apply to the scene is not written.
       ...(state.sceneClass ? { classCode: state.sceneClass } : {}),

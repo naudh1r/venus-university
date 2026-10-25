@@ -6,14 +6,10 @@ import {
   type SuggestRate
 } from '@shared/minigames'
 import { charKeyOf, type Character, type StructuredRequest } from '@shared/types'
+import { locationDefOf } from '@shared/locations'
 import { hereLine } from './place'
 
-/**
- * The standing offer: on every turn of a scene where a game can be played with a girl, the model
- * is told the games are real and played at the table, how readily she brings each up herself, and
- * how to say that the two of them have agreed to play one, whoever suggested it and however the
- * other answered. That signal opens the table, exactly as a yes to the reader's own proposal does.
- */
+/** Detailed agreement context is sent only for a named game or an unanswered invitation. */
 
 /** The reply field the signal comes back in; the proposal's own turn uses it for her answer. */
 const FIELD = 'minigame'
@@ -57,7 +53,8 @@ export function withOffer(
   cast: readonly Character[],
   location: string | null,
   busy: boolean,
-  keen: boolean
+  keen: boolean,
+  travelling = false
 ): StructuredRequest {
   const schema = request.schema.schema as {
     required?: string[]
@@ -130,26 +127,19 @@ export function withOffer(
   return {
     ...request,
     user: [
-      request.user,
-      '',
-      'MINI-GAMES',
-      'These games are real here. They are played at a table the reader actually plays at, by their own rules, and you are told afterwards how they went. Never play one out in your lines: do not deal, turn a card, take a shot or say who wins.',
-      ...hereLine(location),
+      request.user, '', 'MINI-GAME AGREEMENT',
+      'These are playable games. Never narrate moves, scores or outcomes; the engine reports results later.',
+      ...(travelling ? [
+        `Destination: ${location ? locationDefOf(location)?.label ?? location : 'another venue'}. Get agreement first; if accepted, narrate arrival with its correct background, then setup. If declined, do not travel just to play.`
+      ] : hereLine(location)),
       ...described,
-      'A girl suggests a game only as its note above allows, only when it suits her and the moment, and in her own words. When she does, your lines end on her asking, so the reader can answer.',
-      `THE "${FIELD}" FIELD`,
-      ...(several
-        ? [
-            'Fill it first. Leave "play" as "" and every girl in "with" as "out" unless, by the end of your lines, the reader and the girls who are to play have ALL agreed in words to play one of these games right now. It takes his word as well as theirs: either his action this turn says yes to a game one of them suggested, or his action asks and they say yes in your lines. A suggestion nobody has answered yet is not an agreement, and neither is talk of playing later.',
-            'When they have agreed: "play" is the game\'s id, and "with" says "in" for each girl who is playing and "out" for each who is not, as many in as the game is played with and no more. A girl who is out stays in the scene and watches.'
-          ]
-        : [
-            'Fill it first. Leave "play" and "with" as "" unless, by the end of your lines, the reader and one girl have BOTH agreed in words to play one of these games right now. It takes his word as well as hers: either his action this turn says yes to a game she suggested, or his action asks her to play and she says yes in your lines. A suggestion nobody has answered yet is not an agreement, and neither is talk of playing later.',
-            'When they have agreed: "play" is the game\'s id and "with" is her.'
-          ]),
-      '"stake" is what they have settled is riding on it, in one sentence written the way your narration is, with the reader as "you", or "" if nothing is. An option keeps its standard value unless a different one was named out loud, by him in his action or by her in your lines; never change one on your own.',
-      'Then write them getting set up and stop there, without playing. Do not send end_scene on that turn.',
-      'That is the whole of what the table can do: nothing either of them says changes a game\'s rules. If the reader asks for a way of playing a game does not cover, she steers it back to what the game does, in character, or says no.'
+      ...games.map(game => `${game.name} rules: ${game.format}`),
+      several
+        ? 'Set minigame.play to the game ID only when the reader and participating girls have ALL agreed to play now. In minigame.with mark each girl "in" or "out"; spectators may stay. Respect participant limits.'
+        : 'Set minigame.play to the game ID and minigame.with to her key only when the reader and girl have BOTH agreed to play now.',
+      'Otherwise play is "" and with is empty (or every girl "out"). A suggestion, refusal, hypothetical or plan for later is not consent. Do not assume a vague reply accepts: use the conversation.',
+      'stake: agreed stakes in second person, or "". Use default options unless explicitly agreed otherwise. Reject unsupported rules in character.',
+      'On agreement, stop after setup; end_scene must be false. Do not play. If merely inviting, stop for the reader to answer.'
     ].join('\n'),
     schema: {
       ...request.schema,
@@ -201,5 +191,31 @@ export function agreedOf(
     characters,
     stake: typeof stake === 'string' ? stake.trim() : '',
     options: settledOptions(game, options)
+  }
+}
+
+export interface InviteChoice { game: MiniGameDef; location: string | null }
+
+/** Cheap discovery context for ordinary conversation: no game options or launch schema. */
+export function withGameHints(
+  request: StructuredRequest, games: readonly MiniGameDef[], location: string | null,
+  busy: boolean, keen: boolean, outings: readonly InviteChoice[] = []
+): StructuredRequest {
+  return withInvitationField({ ...request, user: [request.user, '', `GAMES HERE (${location ?? 'unknown'}):`,
+    ...games.map(game => `${game.id}: ${game.blurb}. Suggest: ${suggestRate(game, location, busy, keen)}.`),
+    ...outings.map(choice => `Possible outing: ${choice.game.id} at ${choice.location ? locationDefOf(choice.location)?.label ?? choice.location : ''} (${choice.location}). Agree before travelling.`),
+    'Suggest naturally only when appropriate (rarely means exceptional occasions; never means do not suggest). Never narrate gameplay or results. Stop at an invitation for the reader to answer.'
+  ].join('\n') }, games, [...games.map(game => ({ game, location })), ...outings])
+}
+
+/** Explicit invite metadata avoids guessing which game a later "okay" accepts. */
+export function withInvitationField(request: StructuredRequest, games: readonly MiniGameDef[], choices: readonly InviteChoice[] = games.map(game => ({game, location: null}))): StructuredRequest {
+  const schema = request.schema.schema as { required?: string[]; properties?: Record<string, unknown> }
+  return { ...request,
+    user: request.user + '\nminigameInvite: {game, location} from the listed pairs only when an NPC leaves an invitation awaiting the reader; otherwise both strings empty. Inviting never starts a game or implies consent.',
+    schema: { ...request.schema, schema: { ...schema,
+      required: [...(schema.required ?? []), 'minigameInvite'],
+      properties: { ...schema.properties, minigameInvite: { type: 'object', additionalProperties: false, required: ['game', 'location'], properties: { game: { type: 'string', enum: ['', ...new Set(choices.map(choice => choice.game.id))] }, location: { type: 'string', enum: ['', ...new Set(choices.map(choice => choice.location).filter((id): id is string => Boolean(id)))] } } } }
+    } }
   }
 }

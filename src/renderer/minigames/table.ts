@@ -1,3 +1,7 @@
+import { MINI_GAMES } from '@shared/minigames'
+import { finishSlotActivity } from '../stores/slotActivity'
+import { writeAutosave } from '../stores/loop/saves'
+import { currentRun, runStale } from '../stores/loop/state'
 import { create } from 'zustand'
 import { gamesOffered, gameSwitchOn, listed, type MiniGameDef } from '@shared/minigames'
 import { modById, optionKey } from '@shared/mods'
@@ -11,8 +15,8 @@ import { useModsStore, modIsOn } from '../stores/modsStore'
 import { splitOverflow } from '../stores/sceneSanitizer'
 import { boxFits } from '../views/boxRows'
 import { gameComponent, type PlayResult } from './play'
-import { tunedGame, usePrefsStore } from './prefs'
-import { useTableStore } from './session'
+import { gameById, tunedGame, usePrefsStore } from './prefs'
+import { checkpointResult, useTableStore } from './session'
 import { tableLine } from './talk'
 import { useScenePlace } from './place'
 
@@ -27,7 +31,10 @@ export function gameIsOn(modId: string, game: MiniGameDef): boolean {
 
 /** The games on offer in the scene on screen, each with a component to play it with. */
 export function useGamesOffered(): MiniGameDef[] {
-  const location = useScenePlace()
+  const sceneLocation = useScenePlace()
+  const activity = useGameStore(s => s.sceneActivity)
+  const training = activity?.owner === MINI_GAMES && activity.status === 'pending' ? activity : null
+  const location = training?.location ?? sceneLocation
   const girls = useGameStore((s) => s.cast.filter((id) => !s.departed.includes(id)).length)
   // Read so a switch moved mid-scene is answered at once.
   useModsStore((s) => s.switches)
@@ -40,6 +47,7 @@ export function useGamesOffered(): MiniGameDef[] {
   )
   if (!under) return []
   return gamesOffered({ location, girls }, gameIsOn)
+    .filter(game => !training || game.id === training.id)
     .filter((game) => Boolean(gameComponent(game.id)))
     .map(tunedGame)
 }
@@ -82,6 +90,9 @@ export function proposeGame(gameId: string, charIds: readonly string[], words: s
 export function useTableOpen(): boolean {
   return useGameStore((s) => {
     if (s.replaying || s.sceneQuiz) return false
+    if (s.sceneActivity?.owner === MINI_GAMES && s.sceneActivity.status === 'pending') {
+      return s.awaitingInput && !s.busy && s.pendingLines.length === 0
+    }
     if (s.awaitingInput && !s.busy && s.pendingLines.length === 0) return true
     return replyRowOfferOf(s) === 'open'
   })
@@ -379,12 +390,64 @@ export interface PlayedWith {
  * her reaction is the next thing written, and what the game has to say about how it went rides
  * with that one request.
  */
+const resultRuns = new WeakMap<object, { filing: Set<string>; dispatched: Set<string> }>()
+function resultRun(run: object) {
+  let state = resultRuns.get(run)
+  if (!state) { state = { filing: new Set(), dispatched: new Set() }; resultRuns.set(run, state) }
+  return state
+}
+
+/** Persist the settled outcome before narration. Reload recovers it, never the match. */
 export function fileResult(result: PlayResult, played: PlayedWith, tries = 0): void {
+  const game = useGameStore.getState()
+  const match = game.sceneMiniGame?.match
+  if (!match || match.gameId !== played.game.id) { deliverResult(result, played, tries); return }
+  const run = currentRun()
+  const delivery = resultRun(run)
+  const key = match.id
+  if (delivery.filing.has(key) || delivery.dispatched.has(key)) return
+  if (!reachTurn()) {
+    if (tries < FILE_TRIES) setTimeout(() => {
+      if (!runStale(run) && useGameStore.getState().sceneMiniGame?.match?.id === key) fileResult(result, played, tries + 1)
+    }, FILE_WAIT_MS)
+    return
+  }
+  checkpointResult(result, played.names)
+  delivery.filing.add(key)
+  useGameStore.setState({ busy: true })
+  void writeAutosave(useGameStore.getState().captureScene()).then(() => {
+    if (runStale(run)) return
+    useGameStore.setState({ busy: false })
+    delivery.dispatched.add(key)
+    const saved = useGameStore.getState().sceneMiniGame?.match
+    deliverResult(saved?.result ?? result, { ...played, names: saved?.names ?? played.names })
+  }).finally(() => { delivery.filing.delete(key) })
+}
+
+export function resumeMiniGameResult(): void {
+  const state = useGameStore.getState()
+  const match = state.sceneMiniGame?.match
+  if (!match || match.status !== 'result' || !match.result || state.busy || state.turnError || state.sceneEnding || useTableStore.getState().active) return
+  const game = gameById(match.gameId)
+  if (game) fileResult(match.result, { game, names: match.names ?? [], stake: match.stake })
+}
+
+function deliverResult(result: PlayResult, played: PlayedWith, tries = 0): void {
   // The game's first move took the turn, and its narration has stood on the box since. Where the
   // scene is busy with something of its own just now, the result waits for it rather than being
   // lost: the model was promised it would be told how the game went.
   if (!reachTurn()) {
     if (tries < FILE_TRIES) setTimeout(() => fileResult(result, played, tries + 1), FILE_WAIT_MS)
+    return
+  }
+
+  const activity = useGameStore.getState().sceneActivity
+  if (activity?.owner === MINI_GAMES && activity.id === played.game.id) {
+    if (result.outcome === 'broken') return // training panel offers retry; never settle a technical failure
+    const company = played.names.length ? ` Played with ${listed(played.names)}.` : ' Played alone.'
+    const account = result.account?.join(' ') ?? ''
+    void finishSlotActivity(MINI_GAMES, played.game.id, result.outcome !== 'abandoned',
+      `${result.summary}${company} ${account}${played.stake ? ` Agreed stake: ${played.stake}.` : ''}`)
     return
   }
 
@@ -434,16 +497,19 @@ export function fileResult(result: PlayResult, played: PlayedWith, tries = 0): v
 
   // Played alone, what the game has to say about how it went rides with the next turn's prompt,
   // whoever is there to have watched.
-  if (result.account && result.account.length > 0) {
+  if (result.account?.length || useGameStore.getState().sceneMiniGame?.match) {
     useTableStore.getState().setPlayed({
       text: result.summary,
       next: true,
       brief: [
         'MINI-GAME',
         `The reader has just played ${played.game.name} on his own, for real, in this scene. It is over: do not replay it or change how it came out. Anyone here saw it and may bring it up.`,
-        ...result.account
+        ...(result.account ?? []),
+        ...(useGameStore.getState().sceneMiniGame?.match ? played.game.resultBrief ?? [] : [])
       ]
     })
   }
-  playLines(result.summary)
+  if (useGameStore.getState().sceneMiniGame?.match?.status === 'result') {
+    void submitAction(result.summary)
+  } else playLines(result.summary)
 }

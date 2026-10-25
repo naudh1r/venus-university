@@ -1,3 +1,6 @@
+import { trainingSuggestions, trainingAvailable, pendingTraining } from '../minigames/training'
+import { locationAvailable } from '@shared/cityLife'
+import { locationDefOf } from '@shared/locations'
 import { gameById, tunedGame } from '../minigames/prefs'
 import {
   gamesOffered,
@@ -13,23 +16,43 @@ import { charKeyOf, type Character } from '@shared/types'
 import { MiniGamePanel } from '../minigames/MiniGamePanel'
 import { PackPage } from '../minigames/PackPage'
 import { MiniGameSeat } from '../minigames/MiniGameSeat'
-import { agreedOf, withOffer } from '../minigames/offer'
+import { agreedOf, withOffer, withGameHints, withInvitationField, type InviteChoice } from '../minigames/offer'
 import { gameComponent } from '../minigames/play'
 import { answerOf, withProposal, type Asked } from '../minigames/proposal'
-import { useTableStore } from '../minigames/session'
+import { clearMatch, keepInvitation, keptInvitation, useTableStore } from '../minigames/session'
 import { skillOf } from '../minigames/skill'
 import { gameIsOn, nameOf } from '../minigames/table'
 import { registerHooks } from '../mods/hooks'
 import { useGameStore } from '../stores/gameStore'
 import { useModsStore } from '../stores/modsStore'
-import { scenePlace } from '../minigames/place'
+import { destinationOf, scenePlace } from '../minigames/place'
+
+// The exact catalogue supplied to this request, not a venue projected from unread reply lines.
+let requestedOffer: { games: MiniGameDef[]; location: string | null; detailed: boolean; choices: InviteChoice[] } | null = null
 
 /** The games a girl in this scene could be played at, each with a component to play it with. */
 function gamesWith(cast: readonly Character[], location: string | null): MiniGameDef[] {
   if (cast.length === 0) return []
-  return gamesOffered({ location, girls: cast.length }, gameIsOn)
+  const training = pendingTraining()
+  return gamesOffered({ location: training?.location ?? location, girls: cast.length }, gameIsOn)
+    .filter(game => !training || game.id === training.id)
     .filter((game) => game.players.max >= 1 && Boolean(gameComponent(game.id)))
     .map(tunedGame)
+}
+
+/** At most two real outings, rotated by slot. Never a full remote catalogue. */
+function outingsWith(cast: readonly Character[], current: string | null, busy: boolean, keen: boolean): InviteChoice[] {
+  if (busy || cast.length === 0 || pendingTraining()) return []
+  const choices: InviteChoice[] = []
+  const state = useGameStore.getState()
+  for (const game of MINI_GAMES_LIST) {
+    if (!gameIsOn(game.modId, game) || !gameComponent(game.id) || game.players.max < 1 || game.players.min > cast.length) continue
+    const locations = game.locations?.filter(id => id !== current && locationAvailable(id) && locationDefOf(id) && gamesSuggested([tunedGame(game)], id, busy, keen).length > 0) ?? []
+    const location = locations[(state.date + state.time) % locations.length]
+    if (location) choices.push({ game: tunedGame(game), location })
+  }
+  const offset = choices.length ? (state.date * 2 + state.time) % choices.length : 0
+  return [...choices.slice(offset), ...choices.slice(0, offset)].slice(0, 2)
 }
 
 /** What the reader did this turn, off the request's own line for it. */
@@ -63,16 +86,19 @@ function agree(
   game: MiniGameDef,
   characters: readonly Character[],
   stake: string,
-  options: Record<string, number>
+  options: Record<string, number>,
+  location?: string | null
 ): void {
   useTableStore
     .getState()
-    .setAgreed({ gameId: game.id, charIds: characters.map((c) => c.charId), stake, options })
+    .setAgreed({ gameId: game.id, charIds: characters.map((c) => c.charId), stake, options, location })
   // Judged while the reader reads the answer, so the table opens with everyone ready.
   for (const character of characters) void skillOf(character, game)
 }
 
 registerHooks(MINI_GAMES, {
+  statActivities: trainingSuggestions,
+  slotActivityAvailable: trainingAvailable,
   scenePlay: { Seat: MiniGameSeat, Panel: MiniGamePanel },
   // A pack's page on the Mods screen: its games, and each one's own page.
   modDetail: (mod) => (MINI_GAMES_LIST.some((game) => game.modId === mod.id) ? PackPage : undefined),
@@ -91,6 +117,7 @@ registerHooks(MINI_GAMES, {
 
   requests: {
     scene: (request, ctx) => {
+      requestedOffer = null
       // The turn that carries the reader's own proposal asks for her answer to it and nothing
       // else: its words are in what the request was built from, so a turn retried or rewound
       // never picks up a stale one.
@@ -105,20 +132,44 @@ registerHooks(MINI_GAMES, {
       if (!request.user.includes("Reader's action:")) return request
       // Only the games a girl may bring up here are on it, and any his action names: the rest
       // are his to ask for from the table.
-      const location = scenePlace()
+      const current = scenePlace()
+      const invitation = keptInvitation()
+      const action = actionOf(request.user)
+      const destination = gamesNamed(MINI_GAMES_LIST, action).length ? destinationOf(action) : null
+      const namedAnywhere = gamesNamed(MINI_GAMES_LIST, action)
+      const followsInvite = invitation && (!namedAnywhere.length || namedAnywhere.some(game => game.id === invitation.gameId))
+      const location = destination ?? (followsInvite ? invitation.location : current)
       const { busy, keen } = sceneTerms()
       const here = gamesWith(ctx.cast, location)
       const suggested = gamesSuggested(here, location, busy, keen)
       const named = gamesNamed(here, actionOf(request.user))
-      const games = here.filter((game) => suggested.includes(game) || named.includes(game))
-      if (games.length === 0) return request
-      return withOffer(request, games, ctx.cast, location, busy, keen)
+      const pending = invitation && invitation.location === location ? here.filter(game => game.id === invitation.gameId) : []
+      const detailed = named.length > 0 || pending.length > 0
+      const games = named.length ? named : pending.length ? pending : destination && destination !== current ? [] : suggested
+      const outings = detailed ? [] : outingsWith(ctx.cast, current, busy, keen)
+      if (games.length === 0 && outings.length === 0) return request
+      const choices = [...games.map(game => ({ game, location })), ...outings]
+      requestedOffer = { games, location, detailed, choices }
+      if (!detailed) return withGameHints(request, games, location, busy, keen, outings)
+      const contextual = pending.length && !named.length
+        ? { ...request, user: request.user + `\nUnanswered invitation: ${pending[0].name}. The reader may accept, refuse, ask a question or change topic; judge their actual words.` }
+        : request
+      return withInvitationField(withOffer(contextual, games, ctx.cast, location, busy, keen, location !== current), games, choices)
     }
   },
 
   afterSceneReply: ({ reply, cast, ending }) => {
+    const offered = requestedOffer
+    requestedOffer = null
     const table = useTableStore.getState()
     table.setPlayed(null)
+    if (useGameStore.getState().sceneMiniGame?.match?.status === 'result') clearMatch()
+    keepInvitation(null)
+    const invitation = reply.minigameInvite as { game?: unknown; location?: unknown } | undefined
+    const invited = !ending && offered?.choices.find(choice => choice.game.id === invitation?.game &&
+      (choice.location ?? '') === invitation?.location && gameIsOn(choice.game.modId, choice.game) &&
+      (!choice.location || locationAvailable(choice.location)))
+    if (invited) keepInvitation({ gameId: invited.game.id, location: invited.location })
     const { proposal } = table
     table.setProposal(null)
 
@@ -137,10 +188,10 @@ registerHooks(MINI_GAMES, {
     }
 
     // No proposal of his own was out: the two of them may still have agreed in the scene.
-    if (ending) return
+    if (ending || !offered?.detailed) return
     // The reply can only name a game its request offered: the field allows no other.
-    const agreed = agreedOf(reply, gamesWith(cast, scenePlace()), cast)
-    if (agreed) agree(agreed.game, agreed.characters, agreed.stake, agreed.options)
+    const agreed = agreedOf(reply, offered?.games.filter(game => gameIsOn(game.modId, game)) ?? [], cast)
+    if (agreed) agree(agreed.game, agreed.characters, agreed.stake, agreed.options, offered?.location)
   },
 
   // A turn the reader takes instead lets an agreed game go; his own proposal is not that turn.
@@ -148,6 +199,8 @@ registerHooks(MINI_GAMES, {
   // Nothing in hand belongs to the game being entered. Its scene is not loaded yet, so whether
   // she had just agreed at the point it stands on is asked later, by the seat, at the reader's turn.
   gameEntered: () => {
+    requestedOffer = null
+    useTableStore.setState({ active: false })
     useTableStore.getState().setProposal(null)
     useTableStore.getState().dropAgreed()
     useTableStore.getState().setPlayed(null)

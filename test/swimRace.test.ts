@@ -459,18 +459,18 @@ describe('Swim Race on paper', () => {
     ])
   })
 
-  it('is played where there is water, and nowhere else', () => {
+  it('is offered at the stadium pool, never at the beach', () => {
     if (!swim) throw new Error('no swim race')
     const on = (): boolean => true
     const at = (location: string | null): boolean =>
       gamesOffered({ location, girls: 0 }, on, [swim]).length === 1
-    expect(swim.locations).toEqual(['palaestra_stadium', 'selkie_beach'])
+    expect(swim.locations).toEqual(['palaestra_stadium'])
     expect(at('palaestra_stadium')).toBe(true)
-    expect(at('selkie_beach')).toBe(true)
+    expect(at('selkie_beach')).toBe(false)
     expect(at('lowrise_dorms')).toBe(false)
     expect(at(null)).toBe(false)
     expect(suggestRate(swim, 'palaestra_stadium', false)).toBe('often')
-    expect(suggestRate(swim, 'selkie_beach', false)).toBe('sometimes')
+    expect(swim.suggestAt).not.toHaveProperty('selkie_beach')
   })
 })
 
