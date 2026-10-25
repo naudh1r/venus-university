@@ -379,18 +379,9 @@ export interface PlayedWith {
   stake: string
 }
 
-/**
- * Puts a finished game into the scene, over whatever of the reply was still unread.
- *
- * A game played alone is a line of narration: on the transcript, where the next reply, the
- * scene's summary and its bookkeeping all read it, and on the box, where the reader does; reading
- * past it is his turn again.
- *
- * A game played with a girl is the reader's turn itself: the result goes out as his action, so
- * her reaction is the next thing written, and what the game has to say about how it went rides
- * with that one request.
- */
+// The matches whose result each stay in a game is saving, and has already put into the scene.
 const resultRuns = new WeakMap<object, { filing: Set<string>; dispatched: Set<string> }>()
+/** The results a stay in a game is filing and has filed, by match id. */
 function resultRun(run: object) {
   let state = resultRuns.get(run)
   if (!state) { state = { filing: new Set(), dispatched: new Set() }; resultRuns.set(run, state) }
@@ -424,6 +415,7 @@ export function fileResult(result: PlayResult, played: PlayedWith, tries = 0): v
   }).finally(() => { delivery.filing.delete(key) })
 }
 
+/** Puts a result saved before its scene was told of it into the scene, once nothing else holds it. */
 export function resumeMiniGameResult(): void {
   const state = useGameStore.getState()
   const match = state.sceneMods.miniGame?.match
@@ -432,6 +424,17 @@ export function resumeMiniGameResult(): void {
   if (game) fileResult(match.result, { game, names: match.names ?? [], stake: match.stake })
 }
 
+/**
+ * Puts a finished game into the scene, over whatever of the reply was still unread.
+ *
+ * A game played alone is a line of narration: on the transcript, where the next reply, the
+ * scene's summary and its bookkeeping all read it, and on the box, where the reader does; reading
+ * past it is his turn again.
+ *
+ * A game played with a girl is the reader's turn itself: the result goes out as his action, so
+ * her reaction is the next thing written, and what the game has to say about how it went rides
+ * with that one request.
+ */
 function deliverResult(result: PlayResult, played: PlayedWith, tries = 0): void {
   // The game's first move took the turn, and its narration has stood on the box since. Where the
   // scene is busy with something of its own just now, the result waits for it rather than being

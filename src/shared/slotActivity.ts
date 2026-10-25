@@ -15,6 +15,7 @@ export interface SlotActivity extends SlotActivityOffer {
   result?: string
 }
 
+/** Whether a scene ends now: one committed to an activity ends once it is settled, and not before. */
 export function activityEnding(activity: SlotActivity | null | undefined, ordinary: boolean): boolean {
   return activity ? activity.status !== 'pending' : ordinary
 }

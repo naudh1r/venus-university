@@ -96,6 +96,8 @@ export const useTableStore = create<TableState>((set) => ({
 }))
 
 export type Invitation = MiniGameInvitation
+
+/** Keeps a girl's unanswered invitation with the scene, against the line it was made on; null drops it. */
 export function keepInvitation(invitation: Invitation | null): void {
   const game = useGameStore.getState()
   const state = sceneMiniGame() ?? {}
@@ -103,6 +105,8 @@ export function keepInvitation(invitation: Invitation | null): void {
   setSceneMiniGame({ ...state, invitation: invitation ?? undefined,
     invitationAt: invitation ? { at: transcript.length, tail: JSON.stringify(transcript.at(-1) ?? null) } : undefined })
 }
+
+/** The invitation still awaiting the reader's answer, or null once the scene has moved past it. */
 export function keptInvitation(): Invitation | null {
   const game = useGameStore.getState()
   const state = sceneMiniGame()
@@ -118,6 +122,8 @@ export function checkpointResult(result: MiniGameResult, names: readonly string[
   if (!state?.match || state.match.status === 'result') return
   setSceneMiniGame({ ...state, match: { ...state.match, status: 'result', result: { ...result }, names: [...names] } })
 }
+
+/** Drops the match kept with the scene, once its result has been told. */
 export function clearMatch(): void {
   const state = sceneMiniGame()
   if (!state?.match) return

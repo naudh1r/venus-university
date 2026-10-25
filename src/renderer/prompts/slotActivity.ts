@@ -1,6 +1,7 @@
 import type { StructuredRequest } from '@shared/types'
 import type { SlotActivity } from '@shared/slotActivity'
 
+/** Tells the writer what a committed training activity allows: its arrival before play, its aftermath after. */
 export function withSlotActivityPrompt(request: StructuredRequest, activity: SlotActivity | null): StructuredRequest {
   if (!activity) return request
   const instructions = activity.status === 'pending'

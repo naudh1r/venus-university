@@ -554,6 +554,7 @@ export function statActivities(stat: import('@shared/playerStats').StatKey): imp
     (hooks.statActivities?.(stat) ?? []).filter(offer => offer.owner === modId && offer.stat === stat && hooks.slotActivityAvailable?.(offer)))
 }
 
+/** Whether the mod that owns a training activity is on and still offers it. */
 export function slotActivityAvailable(offer: import('@shared/slotActivity').SlotActivityOffer): boolean {
   return activeEntries().some(({ modId, hooks }) => modId === offer.owner && hooks.slotActivityAvailable?.(offer) === true)
 }
