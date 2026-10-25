@@ -184,6 +184,9 @@ else names it.
 | `postPicture` | `BunnyboardModal.tsx` (`PostSpots.tsx`) | Draw a post's picture under its text |
 | `endingChoice` | `GameView.tsx` | Offer a way on from the ending, beside "Return to the main menu" |
 | `saveChoice` | `LoadGameModal.tsx` | Offer something for a picked save, beside "Load" |
+| `saveNote` | `SaveGameModal.tsx` | Add a line to Save Game about what a save of the scene keeps of the mod's own |
+| `statActivities` | `slotActions.ts` | Offer a training activity in place of one of the landing's stat suggestions |
+| `slotActivityAvailable` | `gameLoop.ts`, `slotActions.ts`, `GameView.tsx` | Say whether a training activity is still there to commit to or resume |
 | `modDetail` | `ModsModal.tsx` | Draw a page of its own for the mod picked on the Mods screen, its own or one built on it, in place of the list of that mod's options |
 
 The two ways on (`endingChoice`, `saveChoice`) share one shape, `WayOn`. Its `prepare` runs
@@ -286,6 +289,11 @@ Files a mod keeps per playthrough outside the save (pictures, say) need nothing:
 
 ## Shared gameplay extensions
 
+- A mod keeps data with the scene being played by declaring optional fields on
+  `ModSceneFields` in `shared/types.ts` by declaration merging, and reading and writing them on
+  the game store's `sceneMods`, leaving other mods' fields as they are. They are saved as the
+  scene's `mods`, restored with it and cleared when the next scene is cast, so they must be
+  plain data. Mini-games keeps its invitation and match there.
 - `projectSlotMemories` transforms the projected character memories before the crush roll
   and next opening. It runs for enabled mods in list order. Return fresh values; do not write
   stores, award currency, consume an ability or roll randomness. Commit effects at
