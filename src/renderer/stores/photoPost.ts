@@ -61,10 +61,15 @@ async function reservePostPhotoName(charId: string): Promise<string | null> {
   return null
 }
 
+/** What a picture of two may show past everyday clothes. */
+const SWIMWEAR = /\b(swim\w*|bikini\w*)/i
+
 /** A picture a post has settled on and reserved a name for, waiting on the post it belongs to. */
 export interface PreparedPostPhoto {
   shot: { tier: PhotoTier; scene: string }
   file: string
+  /** The friend beside her in it, by charId. */
+  with?: string
 }
 
 /**
@@ -80,12 +85,19 @@ export interface PreparedPostPhoto {
  */
 export async function preparePostPhoto(
   charId: string,
-  image: string | undefined
+  image: string | undefined,
+  // The friend beside her in a group photo, by charId; the scene they shared settled it.
+  friendId?: string
 ): Promise<PreparedPostPhoto | null> {
   const shot = settlePostPhoto(image)
   if (!shot) return null
   const file = await reservePostPhotoName(charId)
-  return file ? { shot, file } : null
+  if (!file) return null
+  // A friend is in it only in everyday clothes or swimwear: past that is hers alone to post.
+  const dressed = shot.tier === 'everyday' || (shot.tier === 'suggestive' && SWIMWEAR.test(shot.scene))
+  const friend = friendId && dressed ? useGameStore.getState().characters[friendId] : undefined
+  if (friendId && !friend) console.log('[photo] the friend is left out of a picture past everyday clothes')
+  return { shot, file, ...(friend ? { with: friend.charId } : {}) }
 }
 
 /**
@@ -118,7 +130,13 @@ export function holdPostPhoto(
   const { tier, scene } = prepared.shot
   useGameStore.getState().appendFeedPost(charId, {
     ...written,
-    photo: { tier, scene, file: prepared.file, held: true }
+    photo: {
+      tier,
+      scene,
+      file: prepared.file,
+      held: true,
+      ...(prepared.with ? { with: prepared.with } : {})
+    }
   })
 }
 
@@ -155,7 +173,7 @@ function photoOf(charId: string, postId: string): ChatPhoto | null {
 function settle(charId: string, postId: string, photo: ChatPhoto): void {
   const before = photoOf(charId, postId)
   if (!before) return
-  setFeedPostPhoto(charId, postId, photo)
+  setFeedPostPhoto(charId, postId, before.held ? { ...photo, outAt: Date.now() } : photo)
   if (before.held) {
     const flags = useGameStore.getState().charInfo[charId]?.flags
     if (flags?.gaveContactInfo && !flags.blocked) nudgeOf?.(charId)
@@ -182,7 +200,8 @@ async function drawPostPhoto(charId: string, postId: string): Promise<void> {
   const key = keyOf(playthroughId, postId)
   if (drawing.has(key)) return
   const { tier, scene, file } = photo
-  const drawn: ChatPhoto = { tier, scene, file }
+  const drawn: ChatPhoto = { tier, scene, file, ...(photo.with ? { with: photo.with } : {}) }
+  const friend = photo.with ? game.characters[photo.with] : undefined
   const live = (): boolean => useGameStore.getState().playthroughId === playthroughId
 
   // A render can finish after the save that was waiting on it was written: the picture is on disk
@@ -196,7 +215,7 @@ async function drawPostPhoto(charId: string, postId: string): Promise<void> {
   }
 
   drawing.add(key)
-  const render = renderPhoto(playthroughId, character, tier, scene, file)
+  const render = renderPhoto(playthroughId, character, tier, scene, file, friend)
     .catch((error: unknown) => ({
       ok: false as const,
       error: { code: 'PHOTO_THREW', message: String(error) }
@@ -287,7 +306,13 @@ export function rerollPostPhoto(charId: string, postId: string): void {
   const photo = photoOf(charId, postId)
   if (!game.playthroughId || !photo?.file || !photo.scene || !canSendPhotos()) return
   const { tier, scene, file } = photo
-  setFeedPostPhoto(charId, postId, { tier, scene, file, pending: true })
+  setFeedPostPhoto(charId, postId, {
+    tier,
+    scene,
+    file,
+    pending: true,
+    ...(photo.with ? { with: photo.with } : {})
+  })
   if (drawing.has(keyOf(game.playthroughId, postId))) return
   enqueue(charId, postId)
 }

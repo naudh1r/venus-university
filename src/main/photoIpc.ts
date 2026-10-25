@@ -4,6 +4,7 @@ import type { Character } from '@shared/types'
 import { start as startComfy } from './services/comfyService'
 import {
   carryPhotos,
+  generateDuoPhoto,
   generatePhoto,
   photoLanded,
   readPhotoBytes,
@@ -97,6 +98,23 @@ export function registerPhotoIpc(handle: Handle): void {
     ) =>
       queuePhoto(character, `photo:${tier}`, (options) =>
         generatePhoto(playthroughId, character, tier, photoPrompt, file, options)
+      )
+  )
+
+  // A picture of her and a friend, queued under her: it is hers, and lands in her folder.
+  handle(
+    'comfy:generateDuoPhoto',
+    (
+      _event,
+      playthroughId: string,
+      character: Character,
+      friend: Character,
+      tier: string,
+      photoPrompt: string,
+      file: string
+    ) =>
+      queuePhoto(character, `photo-duo:${tier}`, (options) =>
+        generateDuoPhoto(playthroughId, character, friend, tier, photoPrompt, file, options)
       )
   )
 }

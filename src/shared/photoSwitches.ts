@@ -28,6 +28,8 @@ export interface PhotoSwitches {
   webp: boolean
   /** Her build, chest, hips, backside and hair are asked for, edited and drawn. */
   body: boolean
+  /** A photo of two girls, never more, on one's feed: her own post with a friend, or from a scene. Experimental. */
+  duo: boolean
 }
 
 /** Before the Mods screen's switches are read: the mod on, nothing forbidden, the bunny. */
@@ -37,7 +39,8 @@ export const DEFAULT_PHOTO_SWITCHES: PhotoSwitches = {
   explicit: true,
   loader: 'bunny',
   webp: true,
-  body: false
+  body: false,
+  duo: false
 }
 
 let current: PhotoSwitches = DEFAULT_PHOTO_SWITCHES
@@ -52,7 +55,8 @@ export function setPhotoSwitches(next: Partial<PhotoSwitches>): void {
     merged.explicit === current.explicit &&
     merged.loader === current.loader &&
     merged.webp === current.webp &&
-    merged.body === current.body
+    merged.body === current.body &&
+    merged.duo === current.duo
   ) {
     return
   }
@@ -100,6 +104,11 @@ export function explicitPhotosAllowed(
   return switches.explicit && !noNsfwImages
 }
 
+/** Whether a shared scene brings a group photo: new photos made, and its option. */
+export function duoPhotosOn(switches: PhotoSwitches = current): boolean {
+  return photoGenerationOn(switches) && switches.duo
+}
+
 /** The option that picks one loading animation. */
 export function loaderOptionId(loader: PhotoLoader): string {
   return `loader-${loader}`
@@ -135,7 +144,13 @@ export const PHOTO_FEATURE_MOD = {
     {
       id: 'body',
       label: 'Body details',
-      hint: "Gives characters a build and body shape for their pictures. Clone a default character first to edit hers.",
+      hint: "Gives characters a build and body shape for their pictures. Set them from the main menu, in Manage Characters, under a character's Generation settings.",
+      default: false
+    },
+    {
+      id: 'duo',
+      label: '2 girls 1 photo (experimental)',
+      hint: "A girl's feed post can be a photo of her and a friend, and a scene you are in with other girls can bring a photo of two of them, posted on one's feed. Always two girls, never more. Still being tuned: now and then a face, an outfit or a colour comes out wrong.",
       default: false
     },
     {

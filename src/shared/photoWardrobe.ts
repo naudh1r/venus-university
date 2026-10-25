@@ -43,7 +43,20 @@ const MAIN_NAMES = [
 const SWIM_PLACES = ['pool', 'poolside', 'beach', 'swimming', 'swim']
 
 /** What she would be doing in her PE kit; the same rule. */
-const PE_PLACES = ['pe', 'gym', 'workout', 'working out', 'running', 'jogging', 'training', 'yoga']
+const PE_PLACES = [
+  'pe',
+  'gym',
+  'workout',
+  'working out',
+  'running',
+  'jogging',
+  'training',
+  'yoga',
+  'stadium',
+  'turf',
+  'track',
+  'practice'
+]
 
 /** The custom set whose name the caption says, if any. */
 function namedCustomSet(character: Character, text: string): CustomOutfitSlot | null {
@@ -102,5 +115,5 @@ export function wardrobeLine(character: Character): string {
       return name && set && set.tags.length > 0 ? [`"${name}" — ${spoken(set.tags)}`] : []
     })
   ]
-  return `${character.firstName}'s clothes: ${sets.join('; ')}. If the picture has her in one of these, say which — "her everyday clothes", "her PE kit", "her swimsuit"${sets.length > 3 ? ', or the name of the set' : ''} — rather than describing it.`
+  return `${character.firstName}'s clothes: ${sets.join('; ')}. If the picture has her in one of these, say which — "her everyday clothes", "her PE kit", "her swimsuit"${sets.length > 3 ? ', or the name of the set' : ''} — rather than describing it. Otherwise dress her in what she would actually wear there, in her own style: not an oversized knit sweater, cardigan or hoodie unless one is hers.`
 }

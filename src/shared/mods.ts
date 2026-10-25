@@ -282,6 +282,7 @@ export function photoSwitchesOf(switches: ModSwitches): PhotoSwitches {
     explicit: optionOn(switches, PHOTO_FEATURE, 'explicit'),
     webp: optionOn(switches, PHOTO_FEATURE, 'webp'),
     body: optionOn(switches, PHOTO_FEATURE, 'body'),
+    duo: optionOn(switches, PHOTO_FEATURE, 'duo'),
     loader
   }
 }

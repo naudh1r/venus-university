@@ -16,7 +16,7 @@ import {
 } from '@shared/photoFiles'
 import { photoSwitches } from '@shared/photoSwitches'
 import { isPhotoTier, type PhotoTier } from '@shared/photoGate'
-import { buildPhotoPrompt } from '@shared/photoPrompt'
+import { buildDuoPhotoPrompt, buildPhotoPrompt } from '@shared/photoPrompt'
 import type { Character } from '@shared/types'
 import { getPhotoPath, getPhotosPath, getPhotosRoot } from '../photoProtocol'
 import { withBodySetting } from '../bodySetting'
@@ -29,10 +29,10 @@ import { assertSafePlaythroughId } from './saveService'
 /**
  * Rendering the pictures a character texts the reader.
  *
- * It sits beside `comfyService` rather than inside it, and asks that file for one thing only:
- * `runGenerationJob`, the submit-wait-save pipeline every render shares. The graph, the node
- * map, the folder and the naming are all this file's own, so the photo feature survives a sync
- * that replaces `comfyService` wholesale.
+ * It sits beside `comfyService` rather than inside it, and asks that file for two things only:
+ * `runGenerationJob`, the submit-wait-save pipeline every render shares, and its `texts` field,
+ * which fills the two girls' prompts in a picture of two. The graph, the node map, the folder and
+ * the naming are all this file's own, so a sync that replaces `comfyService` costs those two.
  *
  * Unlike a sprite, a photo is a whole picture — it keeps its background, so nothing cuts it
  * out — and it belongs to one save rather than to her: what she sends one reader in one
@@ -264,5 +264,62 @@ export async function generatePhoto(
   reservedPhotoNames.get(getPhotosPath(playthroughId, character.charId))?.delete(file)
 
   // The name, not the path: the message carries it and `playimg://` resolves it.
+  return file
+}
+
+/** The two girls' own prompt nodes in `assets/workflows/characterPhotoDuo.json`. */
+const DUO_GIRL_NODE = { left: '50', right: '51' } as const
+
+/**
+ * Renders one picture of her and a friend side by side, into her own photo folder: the picture is
+ * hers, sent by her, and the friend is only in it. `friend` has already been settled against the
+ * save; nothing here re-opens whether she may be in it.
+ */
+export async function generateDuoPhoto(
+  playthroughId: string,
+  character: Character,
+  friend: Character,
+  tier: string,
+  photoPrompt: string,
+  file: string,
+  options: { signal?: AbortSignal; onProgress?: (step: string) => void } = {}
+): Promise<string> {
+  assertSafeCharId(character.charId)
+  assertSafeCharId(friend.charId)
+  assertSafePlaythroughId(playthroughId)
+  if (!isPhotoTier(tier)) {
+    throw appError('PHOTO_TIER_UNKNOWN', `"${String(tier)}" is not a photo tier.`, tier)
+  }
+  if (!photoPrompt.trim()) {
+    throw appError('PHOTO_PROMPT_MISSING', 'There is nothing to take a picture of.')
+  }
+  if (options.signal?.aborted) throw appError('CANCELLED', 'Generation was cancelled.')
+  options.onProgress?.('Preparing')
+
+  assertPhotoFile(file)
+  const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
+  const prompts = buildDuoPhotoPrompt(
+    await withBodySetting(character),
+    await withBodySetting(friend),
+    tier as PhotoTier,
+    photoPrompt
+  )
+
+  await runGenerationJob(
+    {
+      workflowFile: 'characterPhotoDuo.json',
+      nodes: PHOTO_NODE,
+      prompts: { positive: prompts.scene, negative: prompts.negative },
+      texts: { [DUO_GIRL_NODE.left]: prompts.left, [DUO_GIRL_NODE.right]: prompts.right },
+      seed,
+      destPath: getPhotoPath(playthroughId, character.charId, pngPhotoOf(file)),
+      format: 'raw',
+      label: `${character.charId} + ${friend.charId} / photo:${tier}`,
+      logContext: `seed=${seed} file=${file}`
+    },
+    options
+  )
+
+  reservedPhotoNames.get(getPhotosPath(playthroughId, character.charId))?.delete(file)
   return file
 }

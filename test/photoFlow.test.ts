@@ -201,7 +201,12 @@ describe('the held render', () => {
     finish[0]?.()
     await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(2))
     expect(generate.mock.calls[1]?.[4]).toBe('gwen_p2.png')
-    expect(photoOf('p1')).toEqual({ tier: 'everyday', scene: 'on the grass', file: 'gwen_p1.png' })
+    expect(photoOf('p1')).toEqual({
+      tier: 'everyday',
+      scene: 'on the grass',
+      file: 'gwen_p1.png',
+      outAt: expect.any(Number)
+    })
     finish[1]?.()
     await vi.waitFor(() => expect(photoOf('p2')?.held).toBeUndefined())
   })

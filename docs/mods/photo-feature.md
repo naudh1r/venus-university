@@ -1,6 +1,6 @@
 # Photo Feature
 
-An unofficial mod for Venus University by **naudh1r**. Version **1.2.0**, for the game's 0.4.0.
+An unofficial mod for Venus University by **naudh1r**. Version **1.5.0**, for the game's 0.6.0.
 
 The girls send you photos in their DMs and post them on their feeds, with comments from the rest
 of campus. Each contact gets a gallery, and characters can get optional body details. Photos are
@@ -27,7 +27,8 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
 | Photo Feature | on | Off, nobody sends a new photo and posts get no new comments. Photos, galleries and comments already made are hidden, not deleted, and come back when it is on again. |
 | Photo generation | on | Off, no new photos are made and the girls are not told they can send one. Photos already sent stay visible. |
 | Explicit photos | on | Off, nobody sends an undressed photo and ones already sent stay covered. The game's own "No NSFW images" turns them off too. |
-| Body details | off | Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable in their character editor, and drawn in their sprites, CGs and photos. The default characters can't be edited, so clone one first to give her body details. Off, what they have is kept but not used. |
+| Body details | off | Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable from the main menu in Manage Characters, under a character's Generation settings (the default characters too), and drawn in their sprites, CGs and photos. Off, what they have is kept but not used. |
+| 2 girls 1 photo (experimental) | off | A girl's feed post can be a photo of her and a friend, and a scene you are in with other girls can bring a photo of two of them on one's feed. Always two girls, never more. See below. |
 | Save photos as WebP | on | New photos are saved as WebP, with no visible quality loss while taking much less space than PNG. Off, they are saved as PNG. Photos already saved stay as they are. |
 | Loading animation | Bunny hop | What a photo shows while it is being drawn: Bunny hop, Dot shimmer or Typing dots. |
 
@@ -48,22 +49,57 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
      candid one where she is not posing.
    - **Selfies**: her arm reaches out of the picture and no phone is drawn. A mirror selfie
      shows the phone and nothing else in her hands. Lying-down selfies are framed from the
-     waist up.
-   - **Hands**: one thing for her hands per photo, so nobody grows a third hand.
+     waist up. A selfie with both her hands on something is drawn as a photo somebody took.
+   - **Hands**: one thing for her hands per photo, so nobody grows a third hand. Hands she is
+     leaning on count.
+   - **Her clothes**: her top is weighted where it names a colour, so a dark or neon-lit scene
+     does not turn it black. "Topless" bares her top half only and "bottomless" her bottom
+     half; what the sentence still names stays on.
    - **Her body**: only the parts in the shot, as far as her clothes allow.
-   - **Cleanup**: names are taken out, a selfie loses how she holds the phone, "the camera"
+   - **Cleanup**: names are taken out, a selfie loses the words about how she holds the phone, "the camera"
      becomes the viewer, whoever took the photo is left out (they were drawn in), colours named
      after food are said plainly (a "cream shirt" was drawn as cream), a "liquid" becomes a
      drink (it was splashed everywhere), and a bubble tea shop becomes a tea shop (it put a cup
      in her hand).
-   - **Things kept out**: legwear she was not given (colours in the prompt bleed onto her legs),
-     a phone or camera, anyone else in the picture, splashes and stains, and on everyday photos
-     cleavage and undressing (a top slipping off a shoulder stays how she wears it).
+   - **Things kept out**: a phone or camera, anyone else in the picture, splashes and stains,
+     and on everyday photos cleavage and undressing (a top slipping off a shoulder stays how
+     she wears it). Nothing on her legs, under her skirt or between her legs is named in the
+     negative: naming legwear, `pantyshot` or censoring there drew a smudge or a coloured leg
+     in its place.
 5. ComfyUI draws it, and it lands in the bubble or the post.
 
 Every tag the mod adds has been checked in ComfyUI on the photo checkpoint, side by side with the
 same seed. Many plain tags turned out to do nothing, so some rules use weights or special
 combinations. The comment beside each rule in the code says what was tried.
+
+## 2 girls 1 photo (experimental)
+
+With the option on, a scene you go into with two or more of the girls brings a photo of two of them,
+never more: two picked at random where more are there, and one posts it on her feed, once a slot. The scene's first call writes it
+beside the scene's opening lines, once the game has settled who is there, and it is filed like any
+feed post: held until the picture lands, with likes and comments from whichever mod draws them. Its
+picture is drawn under the scene, behind any of the slot's own feed pictures still waiting. They
+are dressed for where they are, so the pool puts them in their swimsuits, and like every post it is
+never past suggestive.
+
+The option also lets a girl's own feed post be a picture of her and a friend. As the slot opens,
+one of the girls posting, at most, is rolled a picture with one of her friends (1 in 4 for a girl
+who has any), wherever either of them is: neither has to be in your scene. The opening is told so
+under her name and writes it with her post. A friend stays in a picture only in everyday clothes
+or swimwear; past that the picture is drawn of the poster alone. The console says so as the
+opening is written (`[photo] X's post this slot is a picture with Y`).
+
+- The two are drawn side by side and not touching, from the waist up, each in her own half of the
+  picture: told as one prompt, the model swapped their hair and clothes between them, and where
+  they touched their bodies merged. Each half is dressed from the waist up only: a skirt, jeans or a
+  belt in either drew them down to the hips, where their sides fused. Their clothes are their own,
+  never the caption's, and both carry the face the caption asks for, or a smile.
+- The picture is the poster's, in her gallery only. The console names the pair when the scene is asked for it
+  (`[photo] group photo asked of the scene: …`), and the `photo:` lines show each girl's prompt
+  as `node 50` and `node 51`.
+
+Still being tuned: now and then a face, an outfit or a colour comes out wrong, and close-ups and
+from-behind shots hold less well than plain ones. Pictures from below are drawn at eye level.
 
 ## Where photos are kept
 
@@ -77,6 +113,44 @@ seed, file name, the full prompt and the negative. Send it with the picture: mos
 were one word in her sentence the model drew too literally, and each is a small fix.
 
 If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` line.
+
+## 1.5.0
+
+- **Fixed**: a post waiting on its picture came out under the posts its slot already showed, as
+  if it were older. It now goes on top when it comes out.
+- **2 girls 1 photo (experimental)**: a scene with two or more of the girls brings a photo of two of
+  them, never more, that one of them posts, off by default. The scene's first call writes it, so the two are girls
+  you are with, and its picture is drawn under that scene. Now and then a girl's own post is a
+  picture with one of her friends too.
+- **Food colours in her own tags**: a colour named after a food in her outfit tags is said plainly,
+  as it already was in captions: Lia's `cream_…_sweater` drew cream on her lip and a hand at her
+  mouth, and is now `ivory_…_sweater`.
+
+## 1.4.2
+
+- **No more "dorm" in a picture**: Gemini refused to answer a thread where an undressed picture was
+  remembered as taken "on her dorm bed". She is told to call it her room, and a picture already
+  written that way is read back without the word ("on her bed").
+
+## 1.4.1
+
+- **Selfies keep their whole description**: a selfie that mentioned the camera while she held
+  something else ("holding a mug with both hands and smiling at the camera") lost everything after
+  the comma. Only the words about holding the phone are dropped now.
+- **Both hands full**: a selfie where she holds something with both hands is drawn as a photo
+  somebody took, instead of with an arm reaching out of the picture.
+- **No more coloured legs**: stockings and leggings in colours from her hair or the scene, often
+  on one leg only, came from the photo's own list of legwear to avoid. That list is gone.
+- **No smudge between her legs**: sitting in a short skirt, or undressed, sometimes drew a smear
+  between her legs, caused by the photo's own refusals of `pantyshot` and of censoring. Both are
+  gone; nothing is censored and nothing more shows than before.
+- **Topless and bottomless mean half**: "topless in her skirt" no longer draws what is under the
+  skirt, and "in just her crop top, nothing on below" keeps the crop top on.
+- **Her hands where she leans**: leaning back on her hands or on all fours no longer adds a hand
+  on her thigh or hip as well.
+- **Her top keeps its colour**: in dark or neon-lit scenes a pink or white top could come out black.
+- **Her own clothes on the feed**: posts with a picture now know her wardrobe, and both DMs and
+  posts are told not to put her in an oversized knit sweater she does not own.
 
 ## 1.4.0
 
@@ -120,13 +194,20 @@ For Venus University 0.4.0, on the shared mod build, with a lot of photo tuning.
 
 ## Known limits
 
-- A colour from the picture can still bleed onto her legs on some seeds: from her outfit, her
-  hair or the lighting (neon pink, for example). It can show as one coloured leg fading down to
-  the sock. Blocking legwear in every colour the prompt names, and asking for bare legs, did
-  not stop it on the seeds it showed on, and no other negative tag tried so far does. A reroll
-  usually clears it.
+- Now and then a seed still gets something wrong that no tag changed: a coloured mark on her
+  face, a small photo stuck over her in an undressed picture. A reroll clears it.
 - Nude photos on her side or stomach can drift onto her back.
 - A bikini can take its colour from her own swimsuit set instead of her sentence.
+
+Some things come from a girl's own tags rather than from the mod, and are fixed in her profile:
+
+- **Sara**: her swimsuit has `tie_side_bikini_bottom`, which is not a Danbooru tag. The model
+  reads "tie" and draws a green necktie on her in most beach photos, and once a brown glove.
+  `side-tie_bikini_bottom` drew neither on six seeds of six.
+- **Florentine**: her tag says `light_purple_hair`, but her sprites draw it dark purple, and her
+  photos come out either. `dark_purple_hair` would match her sprites.
+- **Lia**: `black_lace_bralette` with `clothing_cutout` under her off-shoulder sweater often
+  shows as a black turtleneck or inner top. Take either tag out if she should not wear one.
 
 ## For modders
 
@@ -155,8 +236,8 @@ options:
 - **Explicit photos**: off, nobody sends an undressed photo and ones already sent stay covered.
   The game's own "No NSFW images" turns them off too.
 - **Body details**: off by default. Characters get a build, chest, hips, backside and hair from
-  fixed tag lists, used in their sprites, CGs and photos. The default characters can't be edited,
-  so one has to be cloned first for the fields to show.
+  fixed tag lists, used in their sprites, CGs and photos. They are set from the main menu, in
+  Manage Characters, under a character's Generation settings, the default characters too.
 - **Save photos as WebP**: on by default. New photos are saved as WebP at 85% quality instead
   of PNG. Off, they are saved as PNG. Photos already saved stay as they are.
 - **Loading animation**: a group of three, Bunny hop, Dot shimmer and Typing dots.
@@ -195,12 +276,39 @@ that sentence and adds tags read off it:
 - **Clean-up of the sentence**: names are taken out, a selfie loses how she holds the phone
   (the model draws "holding the camera" as a camera), and colours named after food are said
   plainly ("cream shirt" was drawn as cream).
-- **Negatives**: legwear she was not given, in every colour the prompt names (a colour
-  anywhere in the prompt bleeds onto her legs); a selfie's phone and camera.
+- **Weights on her clothes**: her top, where it names a colour, at 1.2. Not her shoes, skirt or
+  what she wears under another top: weighting those drew shoes beside her, her hair in her
+  clothes' colour, and her bralette as a top of its own.
+- **Negatives**: a selfie's phone and camera; on a dressed photo nude, nipples, areolae and
+  pussy, which tested harmless. Never what is on her legs, under her skirt or between her legs,
+  nor censoring: a same-seed check drew a smudge or a coloured leg exactly where each of those
+  pointed, and nothing they were meant to keep out showed without them.
 
 Every tag these files can write has to be in the verified list in `test/photoTags.test.ts`,
 which fails on any other. A tag goes on that list once a same-seed ComfyUI check shows the
 checkpoint draws it.
+
+### A picture of two
+
+`buildDuoPhotoPrompt` in `photoPrompt.ts` writes four strings: the scene over the whole
+picture, the sender's half, the friend's half and one negative. `assets/workflows/characterPhotoDuo.json`
+is the photo graph with each girl's prompt held to her half by `ConditioningSetArea` (strength
+2.0) and combined with the scene. Its face pass runs on each half on its own, cut out and put
+back, with that girl's own prompt: one pass over the whole picture redraws each face in a crop where
+the halves' whole-picture areas point at the wrong girl or past the crop's edge (which ComfyUI
+refuses), and driven by the scene alone it changed their eye colours. Who is in it is `photoDuo.ts`;
+picking the pair, asking the scene's first call for its post (`requests.scene`) and filing it
+off the reply (`afterSceneReply`) is `photoGroup.ts`. The post is filed through `fileLatePost` in
+`loop/feed.ts`, the opening's own filing for a post written mid-slot, and its picture joins the
+feed's queue.
+
+The graph has three prompts where `runGenerationJob` fills two, so `comfyService.ts` carries one
+more edit beside the exported `runGenerationJob`: its `texts` field, which fills prompt nodes by
+id. A sync that replaces the file has to put both back.
+
+The group photo needs two more: `fileLatePost` in `loop/feed.ts`, and the `afterSceneReply` hook
+(`hooks.ts`, `loop/turn.ts`, the reply on `SceneCall` in `loop/stream.ts`), ported as it is
+written on the 0.5.0 core branches, so a merge with them meets the same code.
 
 ### Comments and the picture on a post
 
