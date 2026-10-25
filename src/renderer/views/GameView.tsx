@@ -200,7 +200,7 @@ import { ClassScheduleModal } from './ClassScheduleModal'
 import { EditPromptModal } from './EditPromptModal'
 import { FeedbackModal } from './FeedbackModal'
 import { GameMenuModal } from './GameMenuModal'
-import { endingChoice, prepareWayOn, scenePlays, type WayOn } from '../mods/hooks'
+import { endingChoice, prepareWayOn, scenePlays, updatesTabs, type WayOn } from '../mods/hooks'
 import { currentRun, runStale } from '../stores/loop/state'
 import { ModsModal } from './ModsModal'
 import { PlotTwistModal } from './PlotTwistModal'
@@ -763,10 +763,14 @@ export function GameView(): JSX.Element {
   /** The quit's autosave is being written; nothing is closed, since the app ends. */
   const [quitting, setQuitting] = useState(false)
 
-  // The badge sums every unread thread plus the Friends tab's own count.
+  // The badge sums every unread thread, the Friends tab's own count and what the pages mods add
+  // beside the feed have unread, as the phone's own rail does.
   const showingBunnyboard = useBunnyboardStore((s) => s.open)
   const bunnyboardLocked = useBunnyboardStore((s) => s.locked)
   const bunnyboard = useGameStore((s) => s.bunnyboard)
+  const updatesUnread = useGameStore((s) =>
+    updatesTabs().reduce((total, page) => total + (page.unread?.(s) ?? 0), 0)
+  )
 
   // What the menu's Save Game is gated on besides the fields selected above, subscribed so the
   // entry follows a reply, an ending or a text going out while the menu is open.
@@ -786,7 +790,9 @@ export function GameView(): JSX.Element {
           ? total
           : total + c.unread,
       0
-    ) + bunnyboard.contactsBadge
+    ) +
+    bunnyboard.contactsBadge +
+    updatesUnread
 
   /**
    * What the count was the last time the landing rang for it. **Starts at nothing**, so a save

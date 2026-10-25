@@ -1,5 +1,5 @@
 import { TextRegenerate } from '../components/TextRegenerate'
-import { bunnyboardPages } from '../mods/hooks'
+import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
 import { useModsStore, useModOn } from '../stores/modsStore'
 import { INCOMING_TEXTS } from '@shared/modEntries/incoming-texts'
 import {
@@ -37,6 +37,7 @@ import { formatTokens } from '@shared/tallies'
 import { affectionFor, emptyFlags, relationshipTagOf } from '@shared/relationship'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { CheckField } from '../components/CheckField'
+import { EmojiTool, SentText, useBareMessage, useEmojiTool } from '../components/TextSpots'
 import { DeadNote } from '../components/DeadNote'
 import { promptEditable } from '../components/LlmFailureModal'
 import { TextField } from '../components/TextField'
@@ -317,6 +318,10 @@ export function BunnyboardModal({
     0
   )
   const friendsBadge = bunnyboard.contactsBadge
+  // What the mods' pages beside the feed have unread, on the Updates tile.
+  const updatesBadge = useGameStore((s) =>
+    updatesTabs().reduce((total, page) => total + (page.unread?.(s) ?? 0), 0)
+  )
 
   // Opening the Friends tab is seeing what the badge was about.
   useEffect(() => {
@@ -369,7 +374,13 @@ export function BunnyboardModal({
             {tabs.map((entry, index) => {
               const on = entry.id === tab
               const badge =
-                entry.id === 'chats' ? chatsBadge : entry.id === 'friends' ? friendsBadge : 0
+                entry.id === 'chats'
+                  ? chatsBadge
+                  : entry.id === 'friends'
+                    ? friendsBadge
+                    : entry.id === 'updates'
+                      ? updatesBadge
+                      : 0
               return (
                 <motion.button
                   key={entry.id}
@@ -432,7 +443,7 @@ export function BunnyboardModal({
                   </>
                 )}
                 {tab === 'friends' && <FriendsList />}
-                {tab === 'updates' && <UpdatesFeed />}
+                {tab === 'updates' && <UpdatesPages />}
                 {tab === 'profile' && <ProfilePage />}
                 {tab === 'photos' && <PhotosPage theme={theme} />}
                 {tab === 'lorebook' && <LorebookPage theme={theme} />}
@@ -1307,10 +1318,21 @@ function Composer({
   closed: boolean
   draft: string
   placeholder: string
-  /** The setter itself, so an emoji appends to whatever is in the field at the click. */
+  /** The setter itself, so an emoji goes into whatever is in the field at the click. */
   onDraft: Dispatch<SetStateAction<string>>
   onSend: () => void
 }): JSX.Element {
+  const field = useRef<HTMLTextAreaElement>(null)
+  // A mod's emoji tool stands beside the field in place of the row of quick emoji.
+  const ownTool = useEmojiTool()
+  // A mod's emoji goes in at the caret, which then stands after it.
+  const addEmoji = (emoji: string): void => {
+    const box = field.current
+    const start = Math.min(box?.selectionStart ?? draft.length, draft.length)
+    const end = Math.min(box?.selectionEnd ?? start, draft.length)
+    onDraft((current) => current.slice(0, start) + emoji + current.slice(end))
+    requestAnimationFrame(() => box?.setSelectionRange(start + emoji.length, start + emoji.length))
+  }
   return (
     <div
       className="vu-bb-composer"
@@ -1338,6 +1360,7 @@ function Composer({
       )}
       <div className="vu-bb-compose">
         <textarea
+          ref={field}
           id="bb-compose"
           rows={1}
           className="vu-input vu-bb-input vu-bb-input--multiline"
@@ -1346,33 +1369,38 @@ function Composer({
           placeholder={placeholder}
           onChange={(e) => onDraft(e.target.value)}
         />
+        {ownTool && <EmojiTool dead={closed} onPick={addEmoji} />}
         <PrimaryButton id="bb-send" dead={closed || !draft.trim()} onClick={onSend}>
           {incoming ? 'Generate' : 'Send'}
         </PrimaryButton>
       </div>
 
-      <div className="vu-bb-emoji">
-        {QUICK_EMOJI.map((emoji) => (
-          <motion.button
-            key={emoji}
-            type="button"
-            className="vu-bb-emoji-btn"
-            aria-label={`Add ${emoji}`}
-            disabled={closed}
-            {...gestures(closed, quietLift, quietPress)}
-            // Appended to the end of the draft, which has no selection to insert into.
-            onClick={() => onDraft((current) => current + emoji)}
-          >
-            {emoji}
-          </motion.button>
-        ))}
-      </div>
+      {!ownTool && (
+        <div className="vu-bb-emoji">
+          {QUICK_EMOJI.map((emoji) => (
+            <motion.button
+              key={emoji}
+              type="button"
+              className="vu-bb-emoji-btn"
+              aria-label={`Add ${emoji}`}
+              disabled={closed}
+              {...gestures(closed, quietLift, quietPress)}
+              // Appended to the end of the draft, which has no selection to insert into.
+              onClick={() => onDraft((current) => current + emoji)}
+            >
+              {emoji}
+            </motion.button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 /** One message bubble: the player's, the contact's, or a system line. */
 function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
+  // A message drawn bare stands with no bubble behind it, as a mod drawing sent text says.
+  const bare = useBareMessage(message.text)
   if (message.sender === 'system') {
     return (
       <div
@@ -1387,7 +1415,11 @@ function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
   const side = message.sender === 'player' ? 'mine' : 'theirs'
   return (
     <>
-      {message.text && <div className={`vu-bb-bubble vu-bb-bubble--${side}`}>{message.text}</div>}
+      {message.text && (
+        <div className={`vu-bb-bubble vu-bb-bubble--${side}${bare ? ' vu-bb-bubble--bare' : ''}`}>
+          <SentText text={message.text} />
+        </div>
+      )}
       {message.photo && (
         <MessagePhotoBubble photo={message.photo} sender={message.sender} messageId={message.id} />
       )}
@@ -1919,7 +1951,9 @@ const FeedPost = memo(function FeedPost({
           </PrimaryButton>
         )}
       </div>
-      <p className="vu-bb-post-text">{post.text}</p>
+      <p className="vu-bb-post-text">
+        <SentText text={post.text} />
+      </p>
       {charId && post.id && <PostPicture charId={charId} postId={post.id} />}
       <PostCommentsView
         comments={post.comments ?? []}
@@ -2071,8 +2105,69 @@ const FeedPage = memo(function FeedPage({
   )
 })
 
-/** The feed: every contact's posts, plus the things the day surfaces from outside that list. */
-function UpdatesFeed(): JSX.Element {
+/**
+ * The Updates tab: the feed, and beside it any page a mod adds, each behind a title of its own
+ * in one row, the one showing drawn as the screen's title. Leaving the tab comes back to the feed.
+ */
+function UpdatesPages(): JSX.Element {
+  useModsStore((s) => s.switches)
+  const pages = updatesTabs()
+  const [picked, setPicked] = useState('feed')
+  const page = pages.find((entry) => entry.id === picked)
+  const head =
+    pages.length === 0 ? (
+      <div className="vu-title vu-bb-title">
+        <h2 className="vu-title-text">Updates</h2>
+      </div>
+    ) : (
+      <div className="vu-bb-updates-head">
+        <div className="vu-bb-updates-tabs" role="tablist" aria-label="Updates">
+          {[{ id: 'feed', word: 'Updates' } as UpdatesTab, ...pages].map((entry) => {
+            const on = entry.id === (page?.id ?? 'feed')
+            return (
+              <motion.button
+                key={entry.id}
+                id={`bb-updates-${entry.id}`}
+                className={`vu-title vu-bb-title vu-bb-title-tab${on ? '' : ' vu-bb-title-tab--off'}`}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                {...gestures(false, on ? toggleLift : lift, press)}
+                onClick={() => setPicked(entry.id)}
+              >
+                <span className="vu-title-text">{entry.word}</span>
+                {entry.unread && <UpdatesTabCount unread={entry.unread} />}
+              </motion.button>
+            )
+          })}
+        </div>
+        {page?.Action && (
+          <span className="vu-bb-updates-action">
+            <page.Action />
+          </span>
+        )}
+      </div>
+    )
+  if (!page) return <UpdatesFeed head={head} />
+  return (
+    <div className="vu-bb-page">
+      {head}
+      <page.Page />
+    </div>
+  )
+}
+
+/** A mod page's unread count on its title's corner, while it has any. */
+function UpdatesTabCount({ unread }: { unread: NonNullable<UpdatesTab['unread']> }): JSX.Element | null {
+  const count = useGameStore(unread)
+  return count > 0 ? <span className="vu-tile-badge">{count}</span> : null
+}
+
+/**
+ * The feed: every contact's posts, plus the things the day surfaces from outside that list,
+ * under the tab's `head`.
+ */
+function UpdatesFeed({ head }: { head: JSX.Element }): JSX.Element {
   const chars = useGameStore((s) => s.chars)
   const alumni = useGameStore((s) => s.alumni)
   const characters = useGameStore((s) => s.characters)
@@ -2167,9 +2262,7 @@ function UpdatesFeed(): JSX.Element {
 
   return (
     <div className="vu-bb-page">
-      <div className="vu-title vu-bb-title">
-        <h2 className="vu-title-text">Updates</h2>
-      </div>
+      {head}
 
       <div className="vu-bb-scroll">
         {nothing ? (
