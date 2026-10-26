@@ -527,6 +527,8 @@ export function EditCharacterModal({
   const buildNext = (): Character => {
     const next: Character = {
       ...character,
+      // The mods' own fields first, so the game's below win over any a mod writes by mistake.
+      ...Object.assign({}, ...editorFields().map(({ modId, field }) => field.write(modValue(modId)))),
       firstName: form.firstName,
       lastName: form.lastName,
       personality: form.personality,
@@ -563,8 +565,6 @@ export function EditCharacterModal({
     else if (held?.name !== form.loraName || held.weight !== weight) {
       next.lora = characterLoraToStore(form.loraName, weight)
     }
-    // The mods' own fields, each written back as its mod writes it.
-    for (const { modId, field } of editorFields()) Object.assign(next, field.write(modValue(modId)))
     return next
   }
 

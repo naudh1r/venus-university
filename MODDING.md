@@ -280,8 +280,9 @@ as a new hook beside the old one.
 A field in the character editor (`editorField`) is `read`, `Field` and `write`. `read` takes
 its value off her as the editor opens; `Field` is drawn under Generation settings, after the
 appearance tags, handed `value`, `onChange`, `charId` and her `baseAppearance` as the form holds
-it; `write` turns the value into what saving puts on her, merged over the game's own fields. Save
-and the unsaved-changes check see it as they see the game's fields. A mod that is off draws no
+it; `write` turns the value into what saving puts on her. Write only your own fields: the game's
+own are written over whatever a mod returns, so a mod cannot change her name or her traits by
+mistake. Save and the unsaved-changes check see it as they see the game's fields. A mod that is off draws no
 field and writes nothing, so what it saved on her stays.
 
 ### Not covered yet

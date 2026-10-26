@@ -844,8 +844,9 @@ export interface EditorFieldProps {
 /**
  * A field of a mod's own in the character editor, under Generation settings. `read` takes its
  * value off her as the editor opens, `Field` edits it with the rest of the form, and `write` is what
- * saving puts back on her, merged over the rest; Save and the unsaved-changes check see it as
- * they see the game's own fields. A mod that is off draws no field and writes nothing.
+ * saving puts back on her: its own fields only, since the game's own are written over it. Save
+ * and the unsaved-changes check see it as they see the game's fields. A mod that is off draws no
+ * field and writes nothing.
  */
 export interface EditorField {
   read: (character: Character) => unknown
