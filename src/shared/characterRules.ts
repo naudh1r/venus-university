@@ -28,24 +28,11 @@ export const CHARACTER_SCHEMA_VERSION = 3
 /** The tags every render opens her appearance with. */
 export const SUBJECT_TAGS: readonly string[] = ['1girl', 'mature_female']
 
+/** The keys of `T` that are not optional. */
+type RequiredKeys<T> = { [K in keyof T]-?: {} extends Pick<T, K> ? never : K }[keyof T]
+
 /** What a character record must carry; where it is kept names her. */
-const CHARACTER_REQUIRED: Record<
-  keyof Omit<
-    Character,
-    | 'brief'
-    | 'charId'
-    | 'customCgs'
-    | 'customOutfits'
-    | 'ex'
-    | 'lora'
-    | 'negativeTags'
-    | 'profileCrop'
-    | 'regenTags'
-    | 'updatedAt'
-    | 'voicePitch'
-  >,
-  true
-> = {
+const CHARACTER_REQUIRED: Record<Exclude<RequiredKeys<Character>, 'charId'>, true> = {
   schemaVersion: true,
   firstName: true,
   lastName: true,
