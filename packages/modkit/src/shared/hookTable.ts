@@ -47,7 +47,7 @@ const slot = <const N extends string>(name: N) =>
 
 export const HOOKS = [
   // Prompts and requests
-  { name: 'promptState.scene', side: 'renderer', kind: 'merge', dispatch: ['promptStateParts'], since: '0.5.0' },
+  { name: 'promptState.scene', side: 'renderer', kind: 'merge', dispatch: ['promptStateParts'], since: '0.6.0' },
   prompt('scene'),
   prompt('dm'),
   prompt('slot-posts'),
