@@ -12,8 +12,7 @@ import {
   type StoryMemory,
   type StoryRecord
 } from '../../shared/storyMemory'
-import { TitleTab } from '../components/TitleTab'
-import { gestures, lift, press, quietLift, quietPress, panelUnderTab, veilIn, useModalShell } from '@vx/modkit/renderer'
+import { gestures, lift, press, quietLift, quietPress, panelUnderTab, veilIn, useModalShell, TitleTab } from '@vx/modkit/renderer'
 import { useGameStore } from '../stores/gameStore'
 import { useModOn } from '@vx/modkit/renderer'
 import { manualSaveOffer, writeStoryMemory } from '../stores/loop/saves'
