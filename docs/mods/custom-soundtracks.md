@@ -45,7 +45,9 @@ No saved playthrough is rewritten and no AI prompt or token budget is involved.
 
 The renderer entry registers `settingsSection`. Its lazily loaded `SoundtrackSettings` component owns the existing button and `SoundtracksModal`, including the open/close state. Settings passes its day/night theme and backup/restore busy state through the generic outlet; it no longer imports the mod, stores its open state, or mounts its panel directly. Disabling the mod removes the contribution and runs the modal's existing preview cleanup while retaining imported tracks and assignments. The button's label, placement, styling and busy guard stay the same.
 
-This migrates the settings UI only. Audio cue resolution, file storage, backups and the typed native/web bridge remain on their existing paths until the kit supports their migration.
+The settings UI and desktop backup contribution use the kit. Audio cue resolution, file storage
+and the typed native/web bridge remain on their existing paths. Browser backups retain their
+existing transaction integration and legacy export format while accepting the new desktop format.
 
 | File | Responsibility |
 | --- | --- |
@@ -54,19 +56,20 @@ This migrates the settings UI only. Audio cue resolution, file storage, backups 
 | `src/shared/modEntries/custom-soundtracks.ts` | Registers the independent switch, without `requires` |
 | `src/renderer/modEntries/custom-soundtracks.ts`, `views/SoundtrackSettings.tsx` | Registers the settings contribution and owns its button/panel state |
 | `src/main/services/soundtrackService.ts` | Native file storage, bounded reads, SHA-256 and atomic writes |
+| `src/main/services/soundtrackBackup.ts` | Mod-owned required backup export, preparation and legacy migration |
 | `src/main/ipc.ts` | Native file dialog and seven typed soundtrack handlers |
 | `src/preload/api.d.ts`, `src/preload/index.ts` | Typed renderer bridge |
 | `src/web/soundtracks.ts`, `src/web/bridge.ts` | Browser file picker and IndexedDB storage behind the same API |
-| `src/web/db/open.ts` | Current database version 9; soundtrackMeta and soundtrackFiles retain the two additive soundtrack stores |
+| `src/web/db/open.ts` | Current database version 12; soundtrackMeta and soundtrackFiles retain the two additive soundtrack stores |
 | `src/renderer/stores/soundtrackStore.ts` | Import/decode/commit actions, busy state, errors and assignment state |
 | `src/renderer/stores/soundtrackAudio.ts` | Separate bounded decoded cache, stale-load fencing and fallback |
 | `src/renderer/stores/audioEngine.ts` | Replacement buffer resolution, looping, one-shot completion, refresh and preview |
 | `src/renderer/stores/audioStore.ts` | Watches changed assignments/mod switch and connects them to native cues |
 | `src/renderer/stores/soundscape.ts` | Optional custom title behavior; stock behavior when inactive |
-| `src/renderer/views/AppSettingsModal.tsx` | One animated Settings button and child panel |
+| `src/renderer/views/AppSettingsModal.tsx` | Generic settings-section outlet; the mod owns its button and panel |
 | `src/renderer/views/SoundtracksModal.tsx` | Native controls, picker, preview, restore, cleanup confirmation |
 | `src/renderer/vu_styles/Soundtracks.css` | Day/night panel, bounded body, fixed footer and scrollbar spacing |
-| `src/shared/backup.ts`, `src/main/services/backupService.ts`, `src/web/backup.ts` | Portable soundtrack metadata and audio in native backup ZIPs |
+| `src/shared/backup.ts`, `src/web/backup.ts` | Legacy archive classification and browser backup compatibility; desktop backup service calls generic parts only |
 | `test/soundtracks.test.ts` | Ownership, expiry, failure recovery, limits, cleanup and invalid backups |
 | `test/soundtrackStorage.test.ts` | Real temporary files, old maps, browser migration and cross-backend snapshots |
 | `test/soundtrackAudio.test.ts`, `test/soundscape.test.ts` | Playback clocks, off/on, play-once, fallback and stale loads |
@@ -157,28 +160,45 @@ silent-cue behavior. Disabling the mod does not delete an assignment to hide a f
 
 ## Backup format and restoration
 
-The existing backup schema stays at 1 with optional `BackupFile.exMusic`, matching the older
-compiled mod. Referenced recordings appear as `exMusic/<sha256>.<ext>` beside `backup.json`.
-Exports include assigned recordings, not unused imports or original source paths. They do
-include user filenames and user-selected audio: backups are personal data, not mod packages.
+The outer backup schema stays at 1. Desktop exports use a mod-owned entry:
+
+```ts
+mods['custom-soundtracks'] = {
+  version: '1.1.0',
+  json: { v: 1, tracks: /* assignment map, or null when export is disabled */ },
+  files: ['<sha256>.wav']
+}
+```
+
+Its recordings sit in `mods/custom-soundtracks/`. The browser still exports the older
+`exMusic` assignment map and `exMusic/<sha256>.<ext>` files. Both backends read both formats,
+so backups can travel in either direction. Old maps without `loop` still mean looping.
+The new metadata takes precedence if an archive also carries stale `exMusic` fields; an
+unsupported version fails preflight rather than falling back to the old data. Missing metadata
+beside new-format files is rejected too.
+
+Exports include assigned recordings, not unused imports or original source paths. They include
+user filenames and user-selected audio: backups are personal data, not mod packages.
 
 The Custom soundtracks switch also controls backup exports on desktop and browser. When
-off, a new backup omits both `exMusic` metadata and the `exMusic/` audio files. Imported
-tracks and assignments stay in local storage, and enabling the mod again restores their use.
-When on, backups include the assigned music as described above.
+off, no recordings or assignment map are exported. Desktop writes `tracks: null` and an empty
+file list to distinguish intentional omission from an empty assignment map. Browser exports
+omit `exMusic`. Imported tracks and assignments stay in local storage. When on, backups include
+the assigned music; an empty assignment map is an explicit request to restore original music.
 
-The official game's restore rejects a backup containing `exMusic/` files. Before exporting
-a backup for it, switch Custom soundtracks off and create a new backup; that copy contains
-no custom music. Keep a separate backup made with the switch on if you want to retain your
-music for another modded installation. This addresses soundtrack archive compatibility;
-other mods' data and the target game's save version still have their own requirements.
+Earlier VE builds that only understand `exMusic` cannot restore the new desktop music share.
+Use the matching build on the destination. The unmodded game's compatibility with mod archive
+folders is not guaranteed. Keep the source backup until restoration has been verified.
 
 Imports validate all referenced soundtrack names, byte limits and hashes **before changing
 game data**. A missing extension leaves the current music library alone; an explicit empty
 map restores original music assignments. Restoring music also works with the feature off.
 Browser restore includes the map and files in the same transaction as the rest of the backup,
-and shares the library's mutation queue. Desktop restore uses the native backup service's
-existing sequence of writes; it is not an all-files transaction. An unrelated disk failure
+and shares the library's mutation queue. Desktop registers `requiredBackupPart` when its
+native service loads. Export reads a verified snapshot; failure aborts before replacing an
+existing ZIP. Preparation checks every named recording before core changes any live data;
+commit restores the library after core has restored its share. Imports work with the mod off.
+Desktop restore remains a sequence of writes, not an all-files transaction. An unrelated disk failure
 partway through native restore can leave a partial overall restore, as in the base service.
 Always keep the original backup until a restore is verified. The app reloads after success,
 so hydrated settings, cached music and other stores restart from the restored data together.
@@ -192,9 +212,9 @@ subscriptions. Preserve one-shot completion and per-slot invalidation; repeatedl
 the cue defeats play-once even when `source.loop` is false. Keep the title override gated.
 
 Next check the bridge interface, native handler convention, backup entry classifier and the
-current IndexedDB schema version. This build already uses version 8. If the official game
-adds stores at version 8 or later, merge both sets of migrations and choose a version greater
-than either build's existing version, so players already on 8 receive the new stores too.
+current IndexedDB schema version. This build uses version 12. Merge future database changes
+with all existing stores and choose a version greater than either build's existing version
+when an upgrade is needed, so existing players receive the new stores too.
 Preserve existing rows and test upgrades from both official and modded schemas. Keep a
 separate soundtrack modal and the native gesture helpers when integrating Settings.
 
@@ -212,7 +232,12 @@ telemetry or AI calls.
 ## Framework registration
 
 - `src/shared/modEntries/custom-soundtracks.ts` supplies its existing mod definition.
-- This mod has no renderer hook registration; its existing switch-gated integration stays in place.
+- `src/renderer/modEntries/custom-soundtracks.ts` supplies the `settingsSection` contribution.
+- `src/main/services/soundtrackService.ts` registers its mod-owned adapter through
+  `requiredBackupPart`. A future standalone manifest must declare `main:requiredBackupPart`;
+  the generic `main:backupPart` capability alone does not guarantee complete exports.
+- Native IPC currently imports the service at startup. This is a bundled-mod migration, not
+  the standalone `main.js`/generic IPC move-out. Browser storage integration is also still direct.
 
 The stable IDs, defaults, dependencies, save fields and gameplay behavior are unchanged. Native character notes, scene-creator saves and calendar replays remain separate base-game features. Merge framework updates from `core` into this mod branch; resolve conflicts with `main` on a separate `integrate/custom-soundtracks` branch.
 

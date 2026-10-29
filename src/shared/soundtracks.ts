@@ -4,7 +4,7 @@ import type { Result } from './types'
 
 export const SOUNDTRACK_MOD = 'custom-soundtracks'
 export const SOUNDTRACK_DEF: ModDef = {
-  id: SOUNDTRACK_MOD, name: 'Custom soundtracks', author: 'Maestro Leeds', version: '1.0.0',
+  id: SOUNDTRACK_MOD, name: 'Custom soundtracks', author: 'Maestro Leeds', version: '1.1.0',
   scope: 'anytime', defaultOn: true,
   blurb: 'Replace the game’s music with your own local audio files. Open Custom soundtracks in Settings.',
   offNote: 'Turning this off plays the original music. Your imported tracks and choices are kept.'
@@ -78,6 +78,18 @@ export function readSoundtrackMap(value: unknown): SoundtrackMap {
 
 export interface SoundtrackSnapshot { map: SoundtrackMap; files: Record<string, Uint8Array> }
 export type SoundtrackHash = (bytes: Uint8Array) => Promise<string>
+/** Versioned desktop backup-part metadata. Legacy/browser exMusic remains readable separately. */
+export async function prepareSoundtrackBackupPart(
+  value: unknown, read: (file: string) => Promise<Uint8Array>, hash: SoundtrackHash
+): Promise<SoundtrackSnapshot | null> {
+  if (!value || typeof value !== 'object' || Array.isArray(value) ||
+      !('v' in value) || value.v !== 1 || !('tracks' in value) || value.tracks === undefined) {
+    throw appError('SOUNDTRACK_BACKUP', 'The custom music backup format is not supported.')
+  }
+  if (value.tracks === null) return null
+  return prepareSoundtrackSnapshot(value.tracks, read, hash)
+}
+
 /** Check all referenced content before a backup is allowed to change any game data. */
 export async function prepareSoundtrackSnapshot(
   value: unknown, read: (file: string) => Promise<Uint8Array>, hash: SoundtrackHash

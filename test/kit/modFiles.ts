@@ -61,6 +61,7 @@ export const MOD_FILES: Record<string, ModSet> = {
     globs: [
       'src/shared/soundtrack*.ts',
       'src/main/services/soundtrackService.ts',
+      'src/main/services/soundtrackBackup.ts',
       'src/renderer/stores/soundtrack*',
       'src/renderer/views/SoundtracksModal.tsx',
       'src/renderer/views/SoundtrackSettings.tsx',

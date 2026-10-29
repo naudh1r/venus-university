@@ -55,7 +55,7 @@ import { isPackRead, loadCopied } from './copies'
 import { buildPack } from './packs'
 import { currentSettings, forgetSettings, rendererSettings, rowFor } from './settings'
 import { encodeJson, openArchive, packagedRel, pickFile, readJsonEntry, ZIP_TYPE } from './transfer'
-import { prepareSoundtrackSnapshot, SOUNDTRACK_BACKUP_DIR } from '@shared/soundtracks'
+import { prepareSoundtrackBackupPart, prepareSoundtrackSnapshot, SOUNDTRACK_BACKUP_DIR, SOUNDTRACK_MOD } from '@shared/soundtracks'
 import { soundtrackLibrary, soundtrackHash } from './soundtracks'
 
 /**
@@ -261,8 +261,12 @@ export async function importBackup(): Promise<boolean> {
 
   preflightBackup(record)
 
-  const music = await prepareSoundtrackSnapshot(record.exMusic,
-    async file => entries[SOUNDTRACK_BACKUP_DIR + '/' + file], soundtrackHash)
+  const musicPart = record.mods?.[SOUNDTRACK_MOD]
+  const music = musicPart && (musicPart.json !== undefined || musicPart.files.length > 0)
+    ? await prepareSoundtrackBackupPart(musicPart.json,
+        async file => entries['mods/' + SOUNDTRACK_MOD + '/' + file], soundtrackHash)
+    : await prepareSoundtrackSnapshot(record.exMusic,
+        async file => entries[SOUNDTRACK_BACKUP_DIR + '/' + file], soundtrackHash)
 
   const echoImages = new Map<string, Uint8Array>()
   const existingEchoImages = new Set<string>()

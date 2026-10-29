@@ -56,8 +56,7 @@ const CORE_DIRS = [
   BACKGROUNDS_DIR,
   MOD_PARTS_DIR,
   // The in-repo mods' own folders, written and read back by their code here.
-  ECHO_ART_DIR.split('/')[0],
-  SOUNDTRACK_BACKUP_DIR
+  ECHO_ART_DIR.split('/')[0]
 ]
 
 /** Whether a top-level folder of a backup is none this build writes: a mod's, or a newer build's. */
@@ -144,7 +143,8 @@ export interface BackupFile {
 }
 
 /** Every key of the record this build reads; any other key is a mod's or a newer build's, kept for the mods' parts. */
-const BACKUP_KEYS: Record<keyof BackupFile, true> = {
+// Mods may augment BackupFile without making core the owner of their legacy keys.
+const BACKUP_KEYS: Partial<Record<keyof BackupFile, true>> = {
   schemaVersion: true,
   settings: true,
   grabbags: true,
@@ -162,7 +162,6 @@ const BACKUP_KEYS: Record<keyof BackupFile, true> = {
   characters: true,
   // The in-repo mods' own fields, written and read back by their code here.
   exEchoArt: true,
-  exMusic: true,
   exReflections: true
 }
 
