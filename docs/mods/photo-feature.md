@@ -1,6 +1,6 @@
 # Photo Feature
 
-An unofficial mod for Venus University by **naudh1r**. Version **1.5.0**, for the game's 0.6.0.
+An unofficial mod for Venus University by **naudh1r**. Version **1.6.0**, for the game's 0.6.0.
 
 The girls send you photos in their DMs and post them on their feeds, with comments from the rest
 of campus. Each contact gets a gallery, and characters can get optional body details. Photos are
@@ -113,6 +113,13 @@ seed, file name, the full prompt and the negative. Send it with the picture: mos
 were one word in her sentence the model drew too literally, and each is a small fix.
 
 If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` line.
+
+## 1.6.0
+
+- **Body details kept with the mod**: her build, chest, hips, backside and hair are saved in Photo
+  Feature's own place on her, rather than as a field of the game's. Her pictures don't change, and
+  a character made before keeps hers: it moves over the first time she is saved. An older Photo
+  Feature reading a character saved by 1.6.0 finds no body details on her.
 
 ## 1.5.0
 

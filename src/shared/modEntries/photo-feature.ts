@@ -3,7 +3,7 @@ import { bodyAppearance, bodyNegative, gateBody, withBodyTags } from '../charact
 import { registerImagePromptDraft } from '../imagePromptDrafts'
 import { PHOTO_FEATURE_MOD, photoSwitches } from '../photoSwitches'
 
-const mod: ModDef = { ...PHOTO_FEATURE_MOD, id: 'photo-feature', version: '1.5.0' }
+const mod: ModDef = { ...PHOTO_FEATURE_MOD, id: 'photo-feature', version: '1.6.0' }
 export default mod
 
 // Her body in her sprite and CG prompts, in the editor's drafts and in main's renders alike, while
