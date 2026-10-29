@@ -1,10 +1,12 @@
-import type { CSSProperties, JSX } from 'react'
+import { useEffect, useId, useState, type CSSProperties, type JSX } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { hashString } from '@shared/hash'
 import { shownComments } from '@shared/postComments'
 import type { PostCommentsProps, PostPictureProps } from '@vx/modkit/renderer'
 import { photoFriendHandle } from '../../shared/photoDuo'
 import { useGameStore } from '../stores/gameStore'
 import { usePhotosVisible } from '../stores/photoSwitchHooks'
+import { gestures, noteIn, quietPress, toggleLift } from '../views/motion'
 import { PostPhoto } from './PhotoBubble'
 import '../vu_styles/PostComments.css'
 
@@ -22,11 +24,74 @@ export function PhotoPostPicture({ charId, postId }: PostPictureProps): JSX.Elem
     photoFriendHandle(s.npcRelationships, charId, photo?.with, s.charInfo)
   )
   const visible = usePhotosVisible()
+  const [tagShown, setTagShown] = useState(false)
+  const tagId = useId()
+  useEffect(() => {
+    setTagShown(false)
+  }, [charId, postId, photo?.with, photo?.file, photo?.pending, photo?.failed, handle, visible])
   if (!photo || !visible) return null
+  const taggable = Boolean(handle && photo.file && !photo.pending && !photo.failed)
+  const showing = taggable && tagShown
   return (
-    <div className="vu-bb-post-shot">
+    <div
+      className="vu-bb-post-shot"
+      onClickCapture={(event) => {
+        if (!showing) return
+        event.preventDefault()
+        event.stopPropagation()
+        setTagShown(false)
+      }}
+    >
       <PostPhoto charId={charId} postId={postId} photo={photo} />
-      {handle && <p className="vu-bb-photo-with">with <span>@{handle}</span></p>}
+      {taggable && (
+        <>
+          <motion.button
+            type="button"
+            className="vu-bb-photo-tags-toggle"
+            aria-label={showing ? 'Hide who is in this photo' : 'Show who is in this photo'}
+            aria-expanded={showing}
+            aria-controls={tagId}
+            {...gestures(false, toggleLift, quietPress)}
+            onClick={(event) => {
+              event.stopPropagation()
+              setTagShown((shown) => !shown)
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <circle cx="12" cy="7.5" r="4" />
+              <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" />
+            </svg>
+          </motion.button>
+          <span className="vu-bb-photo-tag-seat">
+            <AnimatePresence>
+              {showing && (
+                <motion.span
+                  id={tagId}
+                  className="vu-bb-photo-tag"
+                  role="status"
+                  variants={noteIn}
+                  initial="hidden"
+                  animate="shown"
+                  exit="gone"
+                >
+                  @{handle}
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </span>
+        </>
+      )}
     </div>
   )
 }

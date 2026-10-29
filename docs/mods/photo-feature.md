@@ -119,8 +119,9 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
 
 ## 1.6.0
 
-- **Her friend tagged under the picture**: a photo of two girls says `with @handle` under it while
-  they are friends with each other. If they become friends later, her tag appears then.
+- **Her friend tagged in the picture**: a person icon on a photo of two girls shows her friend's
+  `@handle` when tapped, only while the two are friends with each other. Tap it again, or tap
+  elsewhere on the picture, to hide her tag.
 - **No enemy pairs**: a scene's group photo leaves enemy pairs out. Acquaintances can still be
   in one together; if no pair is left, no group photo is asked for.
 - **Her own LoRA in her photos**: a LoRA set under her Generation settings is used in her solo
