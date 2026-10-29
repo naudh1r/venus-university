@@ -270,6 +270,33 @@ They are the game's own objects, so a mod panel moves with the game when its mot
 rest of the game's motion stays core's, and an animation that is one mod's own look belongs in
 the mod.
 
+### A mod's own model call
+
+A mod asks the model something of its own with `completeStructured` from `@vx/modkit/renderer`,
+declared as `renderer:completeStructured`:
+
+```ts
+import { completeStructured, objectSchema } from '@vx/modkit/renderer'
+
+const result = await completeStructured<{ line: string }>('my-mod', {
+  system: 'You write one line of banter.',
+  user: situation,
+  schema: objectSchema('banter', ['line'], { line: { type: 'string' } })
+}, { group: 'my-mod' })
+if (result.ok) say(result.data.line)
+```
+
+It goes out as the game's own calls do: the player's model, key and settings, the schema
+enforced by the provider. The reply comes back parsed but not checked, so the mod checks its
+shape. A failure is the result's `error`, never a throw. The mod id names the mod in the game's
+log beside the call. `objectSchema(name, required, properties)` is the closed object schema the
+game's own builders use (`renderer:objectSchema`).
+
+A call sent with a `group` can be called off: `cancelCalls('my-mod', group)`
+(`renderer:cancelCalls`) aborts every one of the mod's calls still out under that group, and each
+resolves `CANCELLED`. A mod's groups are its own: no group of the game's or of another mod's is
+touched. A call without a group runs to the end.
+
 ## Mod data
 
 A mod keeps its data in one of four places: in the save, with the game; on a record inside the

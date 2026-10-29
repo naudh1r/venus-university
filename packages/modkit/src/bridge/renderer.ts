@@ -19,6 +19,8 @@ export { submitAction, takeTurnFromReply } from '../../../../src/renderer/stores
 export { finishSlotActivity } from '../../../../src/renderer/stores/slotActivity'
 export { fileLatePost } from '../../../../src/renderer/stores/loop/feed'
 export { Card, Locked } from '../../../../src/renderer/views/ContactPage'
+export { cancelCalls, completeStructured } from '../../../../src/renderer/mods/llm'
+export { objectSchema } from '../../../../src/renderer/prompts/schema'
 export {
   gestures,
   lift,

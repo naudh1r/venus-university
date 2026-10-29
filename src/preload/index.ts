@@ -64,6 +64,7 @@ const api: VenusUniversityApi = {
     classify: (request, charKeys, group) =>
       ipcRenderer.invoke('llm:classify', request, charKeys, group),
     classifyHangout: (request) => ipcRenderer.invoke('llm:classifyHangout', request),
+    completeMod: (modId, request, group) => ipcRenderer.invoke('llm:completeMod', modId, request, group),
     completeScene: (request, group, stream) =>
       ipcRenderer.invoke('llm:completeScene', request, group, stream),
     completeLedger: (request, group) => ipcRenderer.invoke('llm:completeLedger', request, group),

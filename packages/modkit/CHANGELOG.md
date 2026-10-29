@@ -7,6 +7,11 @@
   `renderer:<name>` capability. They are the game's own objects, re-exported, so a mod's controls
   and panels move as the native ones do and follow them when they change. The rest of the game's
   motion file stays core's. Nothing native changes.
+- `completeStructured(modId, request, { group })` in `renderer`: a mod's own structured model
+  call, over one `llm:completeMod` channel every mod shares, sent as the game sends its own and
+  answered as a `Result`. `cancelCalls(modId, group)` aborts the mod's calls under a group, the
+  mod's groups kept apart from the game's and other mods'. `objectSchema` comes with them. Mods no
+  longer need a channel of their own in core, or to borrow another call's.
 - A throw while the goodbye, the scene or texting bookkeeping, or the next slot's opening builds
   its request, from a `promptState.scene` capture or a `prompts.*` hook, now opens that call's
   retry modal instead of leaving the game waiting. Retry builds the request again; leaving goes
