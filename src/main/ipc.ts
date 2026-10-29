@@ -422,9 +422,10 @@ export function registerIpcHandlers(): void {
     completeStructured<HangoutClassifierResponse>(request)
   )
 
-  // A mod's own structured call: one channel for every mod, abortable under the group it names.
+  // A mod's own structured call: one channel for every mod, sent the way every call here is and
+  // abortable under the group it names.
   handle('llm:completeMod', (_event, modId: string, request: StructuredRequest, group?: string) =>
-    completeModRequest(modId, request, group)
+    completeModRequest(completeStructured, modId, request, group)
   )
 
   handle('saves:playthroughs', () => listPlaythroughs())

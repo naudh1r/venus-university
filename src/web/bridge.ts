@@ -256,7 +256,9 @@ export function buildApi(): VenusUniversityApi {
       classifyHangout: (request) =>
         result('judge the exchange', () => completeStructured<HangoutClassifierResponse>(request)),
       completeMod: (modId, request, group) =>
-        result("answer a mod's call", () => completeModRequest(modId, request, group)),
+        result("answer a mod's call", () =>
+          completeModRequest(completeStructured, modId, request, group)
+        ),
       // Unqueued; the streamed deltas are preview-only and the resolved reply is the
       // authoritative one. Every delta carries the call's `stream`.
       completeScene: (request, group, stream) =>
