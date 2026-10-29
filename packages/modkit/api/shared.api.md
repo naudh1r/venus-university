@@ -359,6 +359,12 @@ export const HOOKS: readonly [{
     readonly askedWhenOff: true;
     readonly since: '0.1.0';
 }, {
+    readonly name: 'postByline';
+    readonly side: 'renderer';
+    readonly kind: 'owner';
+    readonly dispatch: readonly ["postByline"];
+    readonly since: '0.5.0';
+}, {
     readonly name: 'postPicture';
     readonly side: 'renderer';
     readonly kind: 'owner';
@@ -551,7 +557,7 @@ export interface ImagePromptParts {
 }
 
 // @public
-export const KIT_APIS: readonly ['shared:carryModFiles', 'shared:DEPRECATED_HOOKS', 'shared:hasTrait', 'shared:HOOKS', 'shared:KIT_APIS', 'shared:KIT_VERSION', 'shared:MAX_TIER', 'shared:memoryStatusLine', 'shared:modById', 'shared:modOn', 'shared:optionKey', 'shared:optionOn', 'shared:pointsForTier', 'shared:registerCharacterTrait', 'shared:registerImagePromptDraft', 'shared:registerPostCarry', 'shared:registerRomanceRequirement', 'shared:registerTermCarry', 'shared:registerTermFiles', 'shared:REMOVED_HOOKS', 'shared:sharedModOn', 'renderer:Card', 'renderer:EmojiTool', 'renderer:fileLatePost', 'renderer:finishSlotActivity', 'renderer:Locked', 'renderer:modIsOn', 'renderer:modState', 'renderer:openPanel', 'renderer:ownsPostComments', 'renderer:PostCommentAction', 'renderer:PostCommentsView', 'renderer:PostPicture', 'renderer:postVisible', 'renderer:promptFields', 'renderer:promptLines', 'renderer:promptRequired', 'renderer:recordField', 'renderer:registerHooks', 'renderer:safePoint', 'renderer:saveField', 'renderer:SentText', 'renderer:submitAction', 'renderer:takeTurnFromReply', 'renderer:useBareMessage', 'renderer:useDismissLayer', 'renderer:useEmojiTool', 'renderer:useModalShell', 'renderer:useModOn', 'renderer:useModOption', 'renderer:useSafePoint', 'renderer:writeModField', 'renderer:writeModFields', 'main:backupPart', 'main:characterTransferPart', 'main:modDataPath', 'main:registerComfyLaunchEnvironment'];
+export const KIT_APIS: readonly ['shared:carryModFiles', 'shared:DEPRECATED_HOOKS', 'shared:hasTrait', 'shared:HOOKS', 'shared:KIT_APIS', 'shared:KIT_VERSION', 'shared:MAX_TIER', 'shared:memoryStatusLine', 'shared:modById', 'shared:modOn', 'shared:optionKey', 'shared:optionOn', 'shared:pointsForTier', 'shared:registerCharacterTrait', 'shared:registerImagePromptDraft', 'shared:registerPostCarry', 'shared:registerRomanceRequirement', 'shared:registerTermCarry', 'shared:registerTermFiles', 'shared:REMOVED_HOOKS', 'shared:sharedModOn', 'renderer:Card', 'renderer:EmojiTool', 'renderer:fileLatePost', 'renderer:finishSlotActivity', 'renderer:Locked', 'renderer:modIsOn', 'renderer:modState', 'renderer:openPanel', 'renderer:ownsPostComments', 'renderer:PostByline', 'renderer:PostCommentAction', 'renderer:PostCommentsView', 'renderer:PostPicture', 'renderer:postVisible', 'renderer:promptFields', 'renderer:promptLines', 'renderer:promptRequired', 'renderer:recordField', 'renderer:registerHooks', 'renderer:safePoint', 'renderer:saveField', 'renderer:SentText', 'renderer:submitAction', 'renderer:takeTurnFromReply', 'renderer:useBareMessage', 'renderer:useDismissLayer', 'renderer:useEmojiTool', 'renderer:useModalShell', 'renderer:useModOn', 'renderer:useModOption', 'renderer:useSafePoint', 'renderer:writeModField', 'renderer:writeModFields', 'main:backupPart', 'main:characterTransferPart', 'main:modDataPath', 'main:registerComfyLaunchEnvironment'];
 
 // @public
 export const KIT_VERSION = "0.5.0";

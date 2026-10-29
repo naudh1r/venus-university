@@ -18,17 +18,23 @@ export function PhotoPostPicture({ charId, postId }: PostPictureProps): JSX.Elem
   const photo = useGameStore(
     (s) => s.charInfo[charId]?.feed?.find((post) => post.id === postId)?.photo
   )
-  const handle = useGameStore((s) =>
-    photoFriendHandle(s.npcRelationships, charId, photo?.with, s.charInfo)
-  )
   const visible = usePhotosVisible()
   if (!photo || !visible) return null
   return (
     <div className="vu-bb-post-shot">
       <PostPhoto charId={charId} postId={postId} photo={photo} />
-      {handle && <p className="vu-bb-photo-with">with <span>@{handle}</span></p>}
     </div>
   )
+}
+
+/** The friend beside her, between the author's handle and the post's date. */
+export function PhotoPostByline({ charId, postId }: PostPictureProps): JSX.Element | null {
+  const handle = useGameStore((s) => {
+    const photo = s.charInfo[charId]?.feed?.find((post) => post.id === postId)?.photo
+    return photoFriendHandle(s.npcRelationships, charId, photo?.with, s.charInfo)
+  })
+  const visible = usePhotosVisible()
+  return visible && handle ? <span>with @{handle} · </span> : null
 }
 
 /**

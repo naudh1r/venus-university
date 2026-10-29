@@ -226,6 +226,7 @@ export interface ModHooks {
     photosPageSection?: ComponentType<ScreenSlotProps['photosPageSection']>;
     playerActs?: () => void;
     portraitOverlay?: ComponentType<ScreenSlotProps['portraitOverlay']>;
+    postByline?: ComponentType<PostPictureProps>;
     postComments?: PostCommentsSpot;
     postLikes?: (ask: LikesAsk) => number | undefined;
     postOutAt?: (post: SocialPost) => number | undefined;
@@ -293,6 +294,9 @@ export interface OptionPreviewProps {
 
 // @public
 export function ownsPostComments(modId: string): boolean;
+
+// @public
+export function PostByline(props: PostPictureProps): JSX.Element | null;
 
 // @public
 export function PostCommentAction(props: PostCommentsProps): JSX.Element | null;

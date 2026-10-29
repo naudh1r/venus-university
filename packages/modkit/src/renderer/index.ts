@@ -60,6 +60,7 @@ export {
   finishSlotActivity,
   Locked,
   modIsOn,
+  PostByline,
   PostCommentAction,
   PostCommentsView,
   PostPicture,
