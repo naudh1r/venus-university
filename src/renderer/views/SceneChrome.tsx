@@ -685,7 +685,7 @@ function SceneTips({ live, shown }: { live: boolean; shown: boolean }): JSX.Elem
 }
 
 /** Which state word the divider says. */
-type DividerWord = 'hover' | 'locked' | 'unavailable' | 'ending'
+export type DividerWord = 'hover' | 'locked' | 'unavailable' | 'ending'
 
 const DIVIDER_WORDS: Record<DividerWord, string> = {
   hover: 'HOVER TO SHOW ACTION BOX',
@@ -701,18 +701,17 @@ const DIVIDER_WORDS: Record<DividerWord, string> = {
  * is the row's one hover target while the well is away (`Scene.css`), and the well's box it sits
  * in hears the move that swaps the two as the strip's events bubble up to it.
  */
-export function SceneDivider({
-  state,
-  word,
-  className = ''
-}: {
+export interface SceneDividerProps {
   state: 'shown' | 'dim' | 'hidden'
   word: DividerWord
+  /** A class of the screen's own beside the divider's, for one drawn outside the scene's row. */
   className?: string
-}): JSX.Element {
+}
+
+export function SceneDivider({ state, word, className }: SceneDividerProps): JSX.Element {
   return (
     <motion.div
-      className={`vu-scene-divider ${className}`}
+      className={className ? `vu-scene-divider ${className}` : 'vu-scene-divider'}
       variants={sceneDivider}
       initial={false}
       animate={state}

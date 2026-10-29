@@ -2,7 +2,7 @@ import type { JSX, ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { fieldDim } from '../views/motion'
 
-interface SelectFieldOption {
+export interface SelectFieldOption {
   value: string
   label: string
 }
