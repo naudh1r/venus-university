@@ -259,7 +259,7 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
         text: post.text,
         date: post.date,
         time: post.time,
-        ...(pictureOf(post) ? { picture: pictureOf(post) } : {})
+        ...pictureOf(post)
       },
       lines,
       mustAnswer: work.player.map((one) => refOf.get(one.id) ?? ''),
@@ -538,7 +538,13 @@ function addComments(charId: string, postId: string, comments: readonly PostComm
  * What the picture on a post shows, where another mod put one there and described it: read off
  * the post as plain data, so the thread can answer the picture without that mod being installed.
  */
-function pictureOf(post: object): string | undefined {
-  const photo = (post as { photo?: { scene?: unknown } }).photo
-  return typeof photo?.scene === 'string' && photo.scene.trim() ? photo.scene : undefined
+function pictureOf(post: object): { picture?: string; pictureWith?: string } {
+  const photo = (post as { photo?: { scene?: unknown; with?: unknown } }).photo
+  if (typeof photo?.scene !== 'string' || !photo.scene.trim()) return {}
+  const other =
+    typeof photo.with === 'string' ? useGameStore.getState().characters[photo.with] : undefined
+  return {
+    picture: photo.scene,
+    ...(other ? { pictureWith: other.firstName } : {})
+  }
 }

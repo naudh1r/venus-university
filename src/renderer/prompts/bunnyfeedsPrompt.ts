@@ -133,7 +133,7 @@ export interface FeedThread {
   info: CharInfo
   charKey: string
   texted: boolean
-  post: { text: string; date: number; time: TimeSlot; picture?: string }
+  post: { text: string; date: number; time: TimeSlot; picture?: string; pictureWith?: string }
   lines: readonly ThreadLine[]
   /** Refs of the reader's comments, every one of which she answers. */
   mustAnswer: readonly string[]
@@ -302,7 +302,9 @@ function threadLines(thread: FeedThread, season: Season): string[] {
   )
   return [
     `POST ${thread.postRef} by ${fullNameOf(character)} ("${charKey}"), ${when}: ${post.text}`,
-    ...(post.picture ? [`Her picture: ${post.picture}`] : []),
+    ...(post.picture
+      ? [`Her picture${post.pictureWith ? `, with her friend ${post.pictureWith}` : ''}: ${post.picture}`]
+      : []),
     ...thread.lines.map(
       (line) =>
         `- ${line.ref}${line.replyTo ? ` (answering ${line.replyTo})` : ''} — ${line.who}: ${line.text}`
