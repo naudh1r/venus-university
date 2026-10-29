@@ -6,12 +6,11 @@ import { motion } from 'motion/react'
 import { MEANWHILE_MOD, meanwhileEvents, type MeanwhileScene } from '../../shared/meanwhile'
 import { fullNameOf } from '@shared/types'
 import { useGameStore } from '../stores/gameStore'
-import { useModOn } from '@vx/modkit/renderer'
+import { gestures, lift, press, quietLift, quietPress, useModOn } from '@vx/modkit/renderer'
 import { generateMeanwhile, meanwhileReady } from '../stores/meanwhile'
 import { profileUrl, useSpriteVersion } from '../stores/characterStore'
 import { formatShortGameDate } from '../prompts/gameDate'
 import { meanwhileBackgroundUrl } from './meanwhileImages'
-import { gestures, lift, press, quietLift, quietPress } from './motion'
 import '../vu_styles/Meanwhile.css'
 
 export function MeanwhilePage(): JSX.Element | null {

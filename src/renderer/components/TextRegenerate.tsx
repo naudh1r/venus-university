@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { motion } from 'motion/react'
 import { TEXT_REGENERATION_MOD } from '../../shared/textRegeneration'
-import { useModOn } from '@vx/modkit/renderer'
+import { gestures, quietLift, quietPress, useModOn } from '@vx/modkit/renderer'
 import { useGameStore } from '../stores/gameStore'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { regenerateTextReply, textRegenerationTarget } from '../stores/textingLoop'
 import { persistRegeneratedConversation } from '../stores/loop/saves'
-import { gestures, quietLift, quietPress } from '../views/motion'
 import '../vu_styles/TextRegenerate.css'
 
 export function TextRegenerate({ charId }: { charId: string }): JSX.Element | null {

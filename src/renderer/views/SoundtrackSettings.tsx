@@ -1,9 +1,9 @@
+import { gestures, quietLift, quietPress } from '@vx/modkit/renderer'
 import { lazy, Suspense, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { ScreenSlotProps } from '@vx/modkit/renderer'
-import { gestures, quietLift, quietPress } from './motion'
 
-// Drawing the settings button must not initialize the editor or the renderer kit's stores.
+// Load the editor only when the player opens it.
 const SoundtracksModal = lazy(() => import('./SoundtracksModal').then(module => ({
   default: module.SoundtracksModal
 })))
