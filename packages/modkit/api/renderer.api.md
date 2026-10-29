@@ -236,6 +236,9 @@ export interface ModHooks {
     prompts?: {
         [S in PromptSpot]?: PromptAddition<PromptSpots[S]>;
     };
+    promptState?: {
+        scene?: () => unknown;
+    };
     railButton?: ComponentType<ScreenSlotProps['railButton']>;
     requests?: {
         [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest;
@@ -412,6 +415,7 @@ export interface PromptState {
     date: number;
     droppedNotices?: readonly DroppedNotice[];
     emotions: Record<string, SpriteRef>;
+    ex?: Readonly<Record<string, unknown>>;
     farewell?: {
         firstName: string;
         forAWhile: boolean;

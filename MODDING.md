@@ -79,6 +79,37 @@ switch is left as the player set it.
 
 ## Installed mods
 
+### Capturing mod data for a scene request
+
+`promptState.scene` runs synchronously when the game constructs a scene prompt's state,
+before asynchronous request preparation. It also serves solo, continuation and closing requests
+that use that snapshot. Return only the small amount of mod data the prompt needs; do not write
+state or return a Promise. Core makes a structured clone under `state.ex[modId]`. This transient
+bag is separate from the versioned save's `ex` slices and is not automatically sent to the model.
+
+```ts
+registerHooks('my-mod', {
+  promptState: { scene: () => myField.read().chosenText },
+  prompts: {
+    scene: {
+      lines: ({ state }) => {
+        const text = state.ex?.['my-mod']
+        return typeof text === 'string' && text ? [text] : []
+      }
+    }
+  }
+})
+```
+
+Declare both `promptState.scene` and `prompts.scene` in the manifest. Each enabled mod owns one
+slice; it cannot overwrite native prompt fields or another mod's slice. `undefined` omits the
+slice, while `null` is retained. The outer bag is read-only; treat the contents as read-only too.
+Formatters must read the captured value instead of reading live mod state again. Existing
+prompt hooks still obey the current mod switches when they format. A duplicate capture for the
+same mod, a throwing callback, or a value that cannot be cloned fails the request with that
+mod's id in the error. No partial snapshot is used. DM, ledger and slot-intro capture hooks are
+not available yet; this addition only covers the scene state builder.
+
 A mod built outside the repo is installed under `data/mods/` and found at start; the game does not
 know it when it is built. The kit (`packages/modkit`) is the one part of the game it imports.
 

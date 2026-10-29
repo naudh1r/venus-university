@@ -154,6 +154,12 @@ export interface HookRow {
 
 // @public (undocumented)
 export const HOOKS: readonly [{
+    readonly name: 'promptState.scene';
+    readonly side: 'renderer';
+    readonly kind: 'merge';
+    readonly dispatch: readonly ["promptStateParts"];
+    readonly since: '0.5.0';
+}, {
     readonly name: "prompts.scene";
     readonly side: 'renderer';
     readonly kind: 'add';

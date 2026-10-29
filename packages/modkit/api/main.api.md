@@ -30,6 +30,7 @@ export interface BackupPartExport {
 
 // @public
 export interface BackupPartLegacy {
+    archive: string;
     dirs: readonly string[];
     record: Readonly<Record<string, unknown>>;
 }

@@ -328,6 +328,13 @@ export interface PostPictureProps {
 }
 
 export interface ModHooks {
+  /**
+   * Captured synchronously when core builds a prompt's state, before asynchronous request work.
+   * Return a structured-cloneable value (or undefined to omit it). Core copies the value into
+   * `state.ex[modId]`; formatters read that copy, not live mod state. Never write game state here.
+   * Scene includes solo, continuation and closing requests built from the scene snapshot.
+   */
+  promptState?: { scene?: () => unknown }
   /** Activities the landing may offer for a stat, in place of its own suggestion. */
   statActivities?: (stat: StatKey) => readonly SlotActivityOffer[]
   /** Whether an activity offered is still there, asked at commit and on reload. */
@@ -692,6 +699,29 @@ export function ownedComments(
 /** What draws a post's picture: the first mod that is on and draws one, or none. */
 export function postPicture(): ComponentType<PostPictureProps> | null {
   return active().find((hooks) => hooks.postPicture)?.postPicture ?? null
+}
+
+/**
+ * Capture each enabled mod's own prompt slice. No mod can replace a native field or another
+ * mod's answer. Copy at capture time so edits during request preparation cannot change it.
+ * A broken capture aborts this request with its owner named, rather than silently omitting it.
+ */
+export function promptStateParts(spot: 'scene'): Readonly<Record<string, unknown>> {
+  const parts: Record<string, unknown> = Object.create(null)
+  const owners = new Set<string>()
+  for (const { modId, hooks } of activeEntries()) {
+    const capture = hooks.promptState?.[spot]
+    if (!capture) continue
+    if (owners.has(modId)) throw new Error(`${modId}: duplicate promptState.${spot} capture`)
+    owners.add(modId)
+    try {
+      const value = capture()
+      if (value !== undefined) parts[modId] = structuredClone(value)
+    } catch (cause) {
+      throw new Error(`${modId}: could not capture promptState.${spot}`, { cause })
+    }
+  }
+  return Object.freeze(parts)
 }
 
 /** Every mod's lines for one prompt. */

@@ -136,6 +136,10 @@ const request = (spot: keyof RequestSpots) => (): Probe => {
 const slot = (name: keyof ModHooks) => thing(name, Comp as never, (host, id) => host.screenSlot(name as never).some((one) => one.modId === id))
 
 const PROBES: Record<RendererHook, (id: string) => Probe> = {
+  'promptState.scene': id => ({
+    hooks: { promptState: { scene: () => 'captured' } },
+    ask: host => host.promptStateParts('scene')[id] === 'captured'
+  }),
   'prompts.scene': prompt('scene'),
   'prompts.dm': prompt('dm'),
   'prompts.slot-posts': prompt('slot-posts'),

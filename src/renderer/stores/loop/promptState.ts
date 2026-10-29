@@ -8,6 +8,7 @@ import { giftLoreNote, itemDefOf } from '@shared/shop'
 import { pendingSecretOf } from '@shared/secrets'
 import { memoryBudgetsOf, secretBudgetOf } from '@shared/settingsRules'
 import { affectionsOf } from '@shared/sceneCreator'
+import { promptStateParts } from '@vx/modkit/host/renderer'
 import {
   charKeyOf,
   type CharInfo,
@@ -438,6 +439,7 @@ export function promptState(): PromptState {
     playthroughId: game.playthroughId ?? 'unsaved',
     date: game.date,
     time: game.time,
+    ex: promptStateParts('scene'),
     backgrounds: useAssetStore.getState().backgrounds,
     lorebook: lorebookNow(),
     charInfo: game.charInfo,
