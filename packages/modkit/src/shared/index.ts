@@ -1,6 +1,7 @@
 /** `@vx/modkit/shared`: what a mod may import on either side of the process boundary. */
 export type {
   AppError,
+  BunnyboardState,
   Character,
   CharacterTrait,
   CharacterTraitDefinition,

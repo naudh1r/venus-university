@@ -5,6 +5,7 @@
  */
 export type {
   AppError,
+  BunnyboardState,
   Character,
   CharInfo,
   CharMemory,

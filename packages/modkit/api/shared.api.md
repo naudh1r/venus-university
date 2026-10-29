@@ -15,6 +15,15 @@ export interface AppError {
 }
 
 // @public
+export interface BunnyboardState {
+    contactsBadge: number;
+    conversations: Record<string, Conversation>;
+    requestsReceived: string[];
+    requestsSent: string[];
+    suggestions?: string[];
+}
+
+// @public
 export function carryModFiles(context: TermFilesContext): Promise<void>;
 
 // @public
@@ -765,7 +774,7 @@ export interface PlayerStats {
 }
 
 // @public
-export interface PlaythroughRecord {
+export interface PlaythroughRecord extends ModPlaythroughFields {
     chars: string[];
     classes: Record<string, ClassEntry>;
     jobClosures: Record<string, ShiftSlot[]>;
