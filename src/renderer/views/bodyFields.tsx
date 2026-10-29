@@ -13,8 +13,7 @@ import {
   type CharacterBody
 } from '../../shared/characterBody'
 import { usePhotoSwitches } from '../stores/photoSwitchHooks'
-import { recordField, type EditorField } from '@vx/modkit/renderer'
-import { gestures, quietLift, quietPress } from './motion'
+import { gestures, quietLift, quietPress, recordField, type EditorField } from '@vx/modkit/renderer'
 import '../vu_styles/BodyFields.css'
 
 /**
