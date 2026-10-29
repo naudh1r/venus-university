@@ -14,6 +14,7 @@ import { giftLoreNote, itemDefOf } from '@shared/shop'
 import { pendingSecretOf } from '@shared/secrets'
 import { memoryBudgetsOf, secretBudgetOf } from '@shared/settingsRules'
 import { affectionsOf } from '@shared/sceneCreator'
+import { promptStateParts } from '@vx/modkit/host/renderer'
 import {
   charKeyOf,
   type CharInfo,
@@ -449,6 +450,7 @@ export function promptState(): PromptState {
     breakthrough: modIsOn(BREAKTHROUGH_MOD) ? game.exBreakthrough : undefined,
     date: game.date,
     time: game.time,
+    ex: promptStateParts('scene'),
     backgrounds: cityLifeBackgrounds(useAssetStore.getState().backgrounds),
     lorebook: lorebookNow(),
     charInfo: game.charInfo,

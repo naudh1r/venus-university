@@ -77,6 +77,37 @@ switch is left as the player set it.
 - A save's `ex`: each mod's own data, under its id (see Mod data below).
 
 
+## Capturing mod data for a scene request
+
+`promptState.scene` runs synchronously when the game constructs a scene prompt's state,
+before asynchronous request preparation. It also serves solo, continuation and closing requests
+that use that snapshot. Return only the small amount of mod data the prompt needs; do not write
+state or return a Promise. Core makes a structured clone under `state.ex[modId]`. This transient
+bag is separate from the versioned save's `ex` slices and is not automatically sent to the model.
+
+```ts
+registerHooks('my-mod', {
+  promptState: { scene: () => myField.read().chosenText },
+  prompts: {
+    scene: {
+      lines: ({ state }) => {
+        const text = state.ex?.['my-mod']
+        return typeof text === 'string' && text ? [text] : []
+      }
+    }
+  }
+})
+```
+
+Declare both `promptState.scene` and `prompts.scene` in the manifest. Each enabled mod owns one
+slice; it cannot overwrite native prompt fields or another mod's slice. `undefined` omits the
+slice, while `null` is retained. The outer bag is read-only; treat the contents as read-only too.
+Formatters must read the captured value instead of reading live mod state again. Existing
+prompt hooks still obey the current mod switches when they format. A duplicate capture for the
+same mod, a throwing callback, or a value that cannot be cloned fails the request with that
+mod's id in the error. No partial snapshot is used. DM, ledger and slot-intro capture hooks are
+not available yet; this addition only covers the scene state builder.
+
 ## Installed mods
 
 A mod built outside the repo is installed under `data/mods/` and found at start; the game does not
@@ -375,6 +406,13 @@ Moving to the default is the author's choice, and core moves nothing.
   as `mods[id]`, `{ version, json, files }`; `files` names what it wrote, as paths under
   `scratch`, and without it everything it wrote is carried. A part that throws, or names a file it
   did not write, is left out with a warning, and the backup goes ahead.
+  If leaving the mod's share out would make the backup incomplete, register the same part through
+  `requiredBackupPart(id, { export, prepare })` instead. A thrown export, invalid JSON, or a named
+  file it did not write then stops the backup before its target archive is created or replaced.
+  The error names the mod; temporary export files are discarded. Declare
+  `main:requiredBackupPart` in the manifest's `hooks`, so a core without that guarantee refuses
+  the mod rather than quietly applying the ordinary omission policy. A successful export may
+  still return an empty share when the mod deliberately has nothing to carry.
 - At import, every part's `prepare(json, { dir, list }, legacy)` runs before anything is written,
   reads its share and returns `{ commit, discard }`. `json` is undefined, and `dir` empty, where
   the backup carries no share for the mod, as an older backup does; a part with nothing to restore
@@ -407,7 +445,9 @@ mod's data with a character exported, imported or duplicated.
 Adopting and duplicating are all or nothing: a part that throws rolls back those before it, last
 first, and her folder is removed. An export's share for a mod that has no part here is left out.
 
-`backupPart` and `characterTransferPart` each take one registration per id; a second throws.
+`backupPart` and `requiredBackupPart` share one registration per id; mixing them for the same id
+throws. `characterTransferPart` separately takes one registration per id. Required backup parts
+use the same prepare/commit/discard import behavior; they do not make restore commits atomic.
 
 ## Options that are one choice
 

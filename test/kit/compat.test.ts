@@ -13,6 +13,16 @@ const core: CoreSurface = {
 }
 
 describe('checkCompat', () => {
+  it('refuses a required backup export on a core that can only omit failed parts', () => {
+    const required = ['main:requiredBackupPart']
+    expect(checkCompat(required).status).toBe('loads')
+    const older = { ...CORE_SURFACE, apis: KIT_APIS.filter(api => api !== 'main:requiredBackupPart') }
+    expect(checkCompat(['main:backupPart'], undefined, older).status).toBe('loads')
+    expect(checkCompat(required, undefined, older)).toMatchObject({
+      status: 'needs-update', missing: [{ name: 'main:requiredBackupPart' }]
+    })
+  })
+
   it('loads a mod whose every hook and API is present', () => {
     expect(checkCompat(['afterDmReply', 'prompts.dm', 'renderer:useModOn'], undefined, core)).toEqual({
       status: 'loads',

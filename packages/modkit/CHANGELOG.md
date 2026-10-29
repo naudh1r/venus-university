@@ -1,5 +1,21 @@
 # @vx/modkit
 
+## Unreleased
+
+- `requiredBackupPart` in `main`: the existing backup-part contract with a required export.
+  Export failure stops before creating or replacing the target archive, names the mod and drops
+  temporary files. Ordinary `backupPart` still warns and omits a failed share. The new
+  `main:requiredBackupPart` capability lets manifests refuse older cores that lack this guarantee.
+  Restore behavior is unchanged. This unblocks Custom Soundtracks' backup migration without
+  losing its existing protection against replacing a valid backup with one missing its music.
+- `promptState.scene`: capture an enabled mod's structured-cloneable value into a scene request's
+  `PromptState.ex[modId]`. The copy is made synchronously by the game prompt-state builder;
+  prompt formatters can keep using that value if the player edits live mod data while the
+  request is being prepared. Values are keyed by owner, never spread over native fields.
+  Undefined omits a slice. Duplicate owners or failed captures abort the request naming the mod.
+  Declare `promptState.scene` in the manifest; older cores reject the missing hook. DM, ledger
+  and slot-intro snapshots are not added by this change. Existing prompt hooks are unchanged.
+
 ## 0.5.0
 
 Mod data. A mod keeps its data in the save, on the records inside it, in memory for a game or a
