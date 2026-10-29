@@ -9,6 +9,7 @@ import { currentStorySnapshot } from './storyMemory'
 import { finishBreakthrough, rearmBreakthrough, withBreakthrough } from './breakthrough'
 import { GAME_OVER_SCENES, gameCompleteSceneOf, gameOverReasonOf } from '@shared/gameOver'
 import { earnLine, spendLine, spentOf } from '@shared/money'
+import { appError, messageOf } from '@shared/errors'
 import { globalSlotOf, NO_JOB_MESSAGE, shiftSlotOf } from '@shared/jobs'
 import {
   applyStatDeltas,
@@ -1093,43 +1094,50 @@ async function fetchSlotIntro(
       : undefined
 
   // Built once and re-sent verbatim on retry; only a hand edit replaces it.
-  let request = buildSlotIntroPrompt(
-    {
-      storyMemory: currentStorySnapshot(),
-      playthroughId: game.playthroughId ?? 'unsaved',
-      date,
-      time,
-      stats: game.stats,
-      opening,
-      exCharacterDynamics: game.exCharacterDynamics,
-      lessNsfwText: lessNsfwTextNow(),
-      globalTextEdits: textEditsNow()?.global,
-      secretBudget: secretBudgetNow(),
-      recent: recentSummaries(date, time, pendingSummary),
-      askers,
-      breakups,
-      leavers,
-      visitors,
-      reachOuts,
-      posters,
-      occasions,
-      season: game.calendar.season,
-      // A later semester's first morning says he has come back.
-      ...(game.semesterIndex > 0 && date === 0 && time === 0
-        ? { backOnCampus: game.semesterIndex }
-        : {}),
-      occasionLeadUps: occasionLeadUpLines(date, time, game.calendar),
-      weather: game.weather,
-      ...(rumorPlace ? { rumorPlace } : {}),
-      // The pick being settled, which the store does not hold until the boundary assigns it.
-      springBreakAway: springBreakPick ?? game.springBreakAway,
-      ...(visitor ? { homecomingVisitor: visitor } : {}),
-      ...(backgroundLore.length > 0 ? { backgroundLore } : {})
-    },
-    settingNow(),
-    // His cold as it stands in the slot opening, not the one ending.
-    reader(view, { date, time })
+  const built = await buildOrAsk(
+    () =>
+      buildSlotIntroPrompt(
+        {
+          storyMemory: currentStorySnapshot(),
+          exCharacterDynamics: game.exCharacterDynamics,
+          globalTextEdits: textEditsNow()?.global,
+          playthroughId: game.playthroughId ?? 'unsaved',
+          date,
+          time,
+          stats: game.stats,
+          opening,
+          lessNsfwText: lessNsfwTextNow(),
+          secretBudget: secretBudgetNow(),
+          recent: recentSummaries(date, time, pendingSummary),
+          askers,
+          breakups,
+          leavers,
+          visitors,
+          reachOuts,
+          posters,
+          occasions,
+          season: game.calendar.season,
+          // A later semester's first morning says he has come back.
+          ...(game.semesterIndex > 0 && date === 0 && time === 0
+            ? { backOnCampus: game.semesterIndex }
+            : {}),
+          occasionLeadUps: occasionLeadUpLines(date, time, game.calendar),
+          weather: game.weather,
+          ...(rumorPlace ? { rumorPlace } : {}),
+          // The pick being settled, which the store does not hold until the boundary assigns it.
+          springBreakAway: springBreakPick ?? game.springBreakAway,
+          ...(visitor ? { homecomingVisitor: visitor } : {}),
+          ...(backgroundLore.length > 0 ? { backgroundLore } : {})
+        },
+        settingNow(),
+        // His cold as it stands in the slot opening, not the one ending.
+        reader(view, { date, time })
+      ),
+    useGameStore.getState().setIntroError,
+    stale
   )
+  if (!built) return null
+  let request = built
 
   let silentSpent = 0
   for (;;) {
@@ -1260,6 +1268,30 @@ async function askToRetry(
     () => undefined
   )
   return asked
+}
+
+/**
+ * Builds an ending call's request, or puts it to the player through that call's modal when
+ * building it throws: a mod's prompt hook, say. Retry builds it again. Null once the player has
+ * left, or `stale` answers true. The first build runs before anything is awaited, so it reads the
+ * state the caller found.
+ */
+async function buildOrAsk<T>(
+  build: () => T,
+  setError: (error: AppError | null) => void,
+  stale: () => boolean
+): Promise<T | null> {
+  const run = currentRun()
+  for (;;) {
+    try {
+      return build()
+    } catch (err) {
+      console.error('[ending] could not build the request:', err)
+      const error = appError('SCENE_BUILD_FAILED', 'The request could not be prepared.', messageOf(err))
+      const answer = await askToRetry(error, setError, stale)
+      if (!answer.retry || runStale(run) || stale()) return null
+    }
+  }
 }
 
 /** The ending modals' Retry — re-sends the identical request. */
@@ -2098,16 +2130,16 @@ async function runClosing(dropped: () => boolean): Promise<boolean> {
 
   const run = currentRun()
   const game = useGameStore.getState()
+  const cast = loopState.closingCastPresent
   // Built once and re-sent verbatim: live state moves under the goodbye's own summary.
   // The block guard and a hand edit replace it in place.
-  let request = buildClosingPrompt(
-    loopState.closingCastPresent,
-    sceneSoFar(),
-    promptState(),
-    settingNow(),
-    reader(),
-    game.sceneSummary
+  const built = await buildOrAsk(
+    () => buildClosingPrompt(cast, sceneSoFar(), promptState(), settingNow(), reader(), game.sceneSummary),
+    useGameStore.getState().setClosingError,
+    dropped
   )
+  if (!built) return false
+  let request = built
 
   // Spent on the first content block: the transcript trim is tried before the modal.
   let blockedFallbackTried = false
@@ -2176,18 +2208,21 @@ function startLedger(
 ): Promise<LedgerResponse | null> {
   const run = currentRun()
   const game = useGameStore.getState()
-  let request = buildLedgerPrompt(
-    loopState.closingCast ?? [],
-    // The scene as *written*: the read log plus whatever is still queued.
-    [...game.sceneLog, ...game.pendingLines],
-    promptState(),
-    reader(),
-    schedule
-  )
+  const cast = loopState.closingCast ?? []
+  // The scene as *written*: the read log plus whatever is still queued. Read once, so a build
+  // tried again after the goodbye has landed still leaves the goodbye out.
+  const written = [...game.sceneLog, ...game.pendingLines]
   // Read with the request: by the time a retry runs, the closing call has folded the goodbye in.
   const summary = game.sceneSummary
 
   return (async () => {
+    const built = await buildOrAsk(
+      () => buildLedgerPrompt(cast, written, promptState(), reader(), schedule),
+      useGameStore.getState().setLedgerError,
+      dropped
+    )
+    if (!built) return null
+    let request = built
     // Spent on the first content block: the log is swapped for its summary.
     let blockedFallbackTried = false
     let silentSpent = 0
@@ -2239,13 +2274,15 @@ function startTextLedger(
   stale: () => boolean = () => false
 ): Promise<LedgerResponse | null> {
   const run = currentRun()
-  let request = buildTextLedgerPrompt(
-    schedule,
-    useGameStore.getState().charInfo,
-    textEditsNow()?.global
-  )
 
   return (async () => {
+    const built = await buildOrAsk(
+      () => buildTextLedgerPrompt(schedule, useGameStore.getState().charInfo, textEditsNow()?.global),
+      useGameStore.getState().setTextLedgerError,
+      stale
+    )
+    if (!built) return null
+    let request = built
     let silentSpent = 0
     for (;;) {
       loopState.lastTextLedgerPrompt = request.user

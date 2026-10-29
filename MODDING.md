@@ -107,10 +107,13 @@ prompt hooks still obey the current mod switches when they format. A duplicate c
 same mod, a throwing callback, or a value that cannot be cloned fails the request with that
 mod's id in the error. No partial snapshot is used. For a turn's request, that is any throw
 while it is built, a `prompts.*` hook's included: the turn is rewound and the player gets the
-retry modal, as for a failed call. The scene's goodbye and its bookkeeping call are built once
-the reply has landed, and a throw there is not yet caught; it leaves the game waiting. DM,
-ledger and slot-intro capture hooks are not available yet; this addition only covers the scene
-state builder.
+retry modal, as for a failed call. The calls that follow the reply, the goodbye, the two
+bookkeeping calls and the next slot's opening, put a throw while their request is built to the
+player through that call's own modal: Retry builds the request again, and leaving goes to the
+menu. No prompt was built, so the modal does not offer to edit one. Other hooks that run while a
+scene ends, such as `projectSlotMemories`, are not covered: a throw there still leaves the game
+waiting. DM, ledger and slot-intro capture hooks are not available yet; this addition only covers
+the scene state builder.
 
 ## Installed mods
 
