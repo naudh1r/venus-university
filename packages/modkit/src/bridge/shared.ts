@@ -30,7 +30,7 @@ export type { LedgerStats, PlayerStats, StatContext, StatKey, StatTier, StatusTe
 export { MAX_TIER, pointsForTier } from '@shared/playerStats'
 export type { PostComment } from '@shared/postComments'
 export type { SlotActivity, SlotActivityOffer } from '@shared/slotActivity'
-export type { ModDef, ModOption, ModOptionGroup, ModScope, ModSwitches } from '@shared/mods'
+export type { ModDef, ModOption, ModOptionGroup, ModPlaythroughFields, ModScope, ModSwitches } from '@shared/mods'
 export { modById, modOn, optionKey, optionOn } from '@shared/mods'
 export { registerRomanceRequirement } from '@shared/romanceRequirements'
 export { hasTrait, registerCharacterTrait } from '@shared/traits'

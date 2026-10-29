@@ -664,6 +664,12 @@ export interface ModOptionGroup {
 }
 
 // @public
+export interface ModPlaythroughFields {
+    mods?: string[];
+    modVersions?: Record<string, string>;
+}
+
+// @public
 export interface ModSceneFields {
 }
 

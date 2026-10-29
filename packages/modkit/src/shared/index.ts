@@ -20,6 +20,7 @@ export type {
   ModEnrollmentFields,
   ModOption,
   ModOptionGroup,
+  ModPlaythroughFields,
   ModSceneFields,
   ModSlice,
   ModScope,
