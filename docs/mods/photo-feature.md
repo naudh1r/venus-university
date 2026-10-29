@@ -1,6 +1,6 @@
 # Photo Feature
 
-An unofficial mod for Venus University by **naudh1r**. Version **1.5.0**, for the game's 0.6.0.
+An unofficial mod for Venus University by **naudh1r**. Version **1.6.0**, for the game's 0.6.0.
 
 The girls send you photos in their DMs and post them on their feeds, with comments from the rest
 of campus. Each contact gets a gallery, and characters can get optional body details. Photos are
@@ -15,7 +15,7 @@ This is not made or supported by Venus Dev. Please do not report problems with i
 
 - The desktop game, with image generation working: the game's own ComfyUI, or your own one set
   in Settings. The browser version never makes photos.
-- Photos use the game's own photo checkpoint and LoRA (`assets/workflows/characterPhoto.json`).
+- Photos use the game's own photo checkpoint and style LoRA (`assets/workflows/characterPhoto.json`).
   Nothing else to download.
 
 ## Settings
@@ -66,7 +66,9 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
      she wears it). Nothing on her legs, under her skirt or between her legs is named in the
      negative: naming legwear, `pantyshot` or censoring there drew a smudge or a coloured leg
      in its place.
-5. ComfyUI draws it, and it lands in the bubble or the post.
+5. ComfyUI draws it with the style LoRA, followed by her own LoRA if she has one under her
+   Generation settings. Pictures of two girls use the style LoRA alone. It lands in the bubble
+   or the post.
 
 Every tag the mod adds has been checked in ComfyUI on the photo checkpoint, side by side with the
 same seed. Many plain tags turned out to do nothing, so some rules use weights or special
@@ -75,7 +77,8 @@ combinations. The comment beside each rule in the code says what was tried.
 ## 2 girls 1 photo (experimental)
 
 With the option on, a scene you go into with two or more of the girls brings a photo of two of them,
-never more: two picked at random where more are there, and one posts it on her feed, once a slot. The scene's first call writes it
+never more: two picked at random from pairs who are not enemies, and one posts it on her feed, once a slot.
+If all the pairs are enemies, there is no group photo. The scene's first call writes it
 beside the scene's opening lines, once the game has settled who is there, and it is filed like any
 feed post: held until the picture lands, with likes and comments from whichever mod draws them. Its
 picture is drawn under the scene, behind any of the slot's own feed pictures still waiting. They
@@ -113,6 +116,20 @@ seed, file name, the full prompt and the negative. Send it with the picture: mos
 were one word in her sentence the model drew too literally, and each is a small fix.
 
 If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` line.
+
+## 1.6.0
+
+- **Her friend tagged in the picture**: a person icon on a photo of two girls shows her friend's
+  `@handle` when tapped, only while the two are friends with each other. Tap it again, or tap
+  elsewhere on the picture, to hide her tag.
+- **No enemy pairs**: a scene's group photo leaves enemy pairs out. Acquaintances can still be
+  in one together; if no pair is left, no group photo is asked for.
+- **Her own LoRA in her photos**: a LoRA set under her Generation settings is used in her solo
+  photos too, as in her sprites. Photos of two girls stay as they were.
+- **Body details kept with the mod**: her build, chest, hips, backside and hair are saved in Photo
+  Feature's own place on her, rather than as a field of the game's. Her pictures don't change, and
+  a character made before keeps hers: it moves over the first time she is saved. An older Photo
+  Feature reading a character saved by 1.6.0 finds no body details on her.
 
 ## 1.5.0
 

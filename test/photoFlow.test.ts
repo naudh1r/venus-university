@@ -641,13 +641,13 @@ describe('a character body in Photo’s record slice', () => {
     const before = structuredClone(old)
     expect(PHOTO_BODY_FIELD.read(old)).toEqual({ build: 'petite' })
     expect(PHOTO_BODY_FIELD.read({ ...old, ex: { ...old.ex,
-      'photo-feature': { v: '1.5.0', data: { build: 'curvy' } }
+      'photo-feature': { v: '1.6.0', data: { build: 'curvy' } }
     } })).toEqual({ build: 'curvy' })
     const field = hooks.editorFields().find((entry) => entry.modId === 'photo-feature')!.field
     const value = field.read(old)
     const saved = JSON.parse(JSON.stringify({ ...old, ...hooks.editorWrites(old, () => value) }))
     expect(saved).not.toHaveProperty('body')
-    expect(saved.ex['photo-feature']).toEqual({ v: '1.5.0', data: { build: 'petite' } })
+    expect(saved.ex['photo-feature']).toEqual({ v: '1.6.0', data: { build: 'petite' } })
     expect(saved.ex.other).toEqual(old.ex.other)
     expect(bodyOf(saved)).toEqual({ build: 'petite' })
     expect(old).toEqual(before)
@@ -672,7 +672,7 @@ describe('a character body in Photo’s record slice', () => {
     )))
     expect(written).not.toHaveProperty('body')
     expect(written.ex['photo-feature']).toMatchObject({
-      v: '1.5.0', data: { build: 'toned', breasts: 'large_breasts' }
+      v: '1.6.0', data: { build: 'toned', breasts: 'large_breasts' }
     })
   })
 })

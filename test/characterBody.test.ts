@@ -361,13 +361,13 @@ describe('body storage', () => {
 
   it('prefers the slice to a stale legacy body, including an explicitly cleared body', () => {
     const legacy = her({ build: 'curvy' })
-    expect(bodyOf({ ...legacy, ex: { 'photo-feature': { v: '1.5.0', data: body } } })).toEqual(body)
-    expect(bodyOf({ ...legacy, ex: { 'photo-feature': { v: '1.5.0', data: {} } } })).toEqual({})
+    expect(bodyOf({ ...legacy, ex: { 'photo-feature': { v: '1.6.0', data: body } } })).toEqual(body)
+    expect(bodyOf({ ...legacy, ex: { 'photo-feature': { v: '1.6.0', data: {} } } })).toEqual({})
   })
 
   it('gates a sliced body without changing her record or another mod’s data', () => {
     const record = { ...her(body), ex: {
-      'photo-feature': { v: '1.5.0', data: body },
+      'photo-feature': { v: '1.6.0', data: body },
       other: { v: '2.0.0', data: { kept: true } }
     } }
     const before = structuredClone(record)
@@ -380,7 +380,7 @@ describe('body storage', () => {
 
   it('keeps sprite, CG and single and duo photo prompts identical for both storage formats', () => {
     const legacy = her(body)
-    const slotted = { ...her(), ex: { 'photo-feature': { v: '1.5.0', data: body } } }
+    const slotted = { ...her(), ex: { 'photo-feature': { v: '1.6.0', data: body } } }
     for (const on of [false, true]) {
       setPhotoSwitches({ body: on })
       expect(spriteDraft(slotted, ['standing'], 'nude')).toEqual(spriteDraft(legacy, ['standing'], 'nude'))

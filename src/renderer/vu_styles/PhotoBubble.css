@@ -171,12 +171,56 @@
 /* Held to a block rather than the column's width: her renders are 2:3 portraits, and one at
    full width would be the card rather than a part of it. */
 .vu-bb-post-shot {
+  position: relative;
   width: min(100%, 330px);
 }
 
 .vu-bb-post-shot .vu-bb-photo {
   width: 100%;
   border-radius: 16px;
+}
+
+/* A person's mark stays in the corner; her handle is revealed over the picture when asked. */
+.vu-bb-photo-tags-toggle {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vu-accent-shadow) 72%, transparent);
+  color: var(--night-text);
+}
+
+.vu-bb-photo-tags-toggle:focus-visible {
+  outline: 2px solid var(--night-text);
+  outline-offset: 3px;
+}
+
+.vu-bb-photo-tag-seat {
+  position: absolute;
+  bottom: 16px;
+  left: 50px;
+  right: 50px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.vu-bb-photo-tag {
+  display: block;
+  max-width: 100%;
+  padding: 7px 11px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vu-accent-shadow) 86%, transparent);
+  color: var(--night-text);
+  font: 700 12px/1.4 var(--font-mono);
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 /* The dot shimmer: a field of dots over the whole frame, and a brighter band that sweeps

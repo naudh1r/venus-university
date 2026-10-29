@@ -34,7 +34,7 @@
     },
     "inputs": {
       "clip": [
-        "3",
+        "100",
         1
       ],
       "text": ""
@@ -47,7 +47,7 @@
     },
     "inputs": {
       "clip": [
-        "3",
+        "100",
         1
       ],
       "text": ""
@@ -60,7 +60,7 @@
     },
     "inputs": {
       "model": [
-        "3",
+        "100",
         0
       ],
       "positive": [
@@ -172,11 +172,11 @@
         0
       ],
       "model": [
-        "3",
+        "100",
         0
       ],
       "clip": [
-        "3",
+        "100",
         1
       ],
       "vae": [
@@ -252,6 +252,25 @@
         0
       ],
       "filename_prefix": "venus-university/photo"
+    }
+  },
+  "100": {
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Character LoRA"
+    },
+    "inputs": {
+      "model": [
+        "3",
+        0
+      ],
+      "clip": [
+        "3",
+        1
+      ],
+      "lora_name": "characterLora.safetensors",
+      "strength_model": 1,
+      "strength_clip": 1
     }
   }
 }

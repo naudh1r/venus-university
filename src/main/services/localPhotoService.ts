@@ -2,6 +2,7 @@ import { constants } from 'fs'
 import { copyFile, mkdir, readdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { SAFE_CHAR_ID } from '@shared/characterRules'
+import { characterLoraOf } from '@shared/comfyModels'
 import { appError } from '@shared/errors'
 import { imageTypeOf } from '@shared/imageBytes'
 import {
@@ -39,13 +40,16 @@ import { assertSafePlaythroughId } from './saveService'
  * playthrough is not part of her art.
  */
 
-/** Node ids overwritten in `assets/workflows/characterPhoto.json`. */
-const PHOTO_NODE = {
+/** Node ids overwritten in `assets/workflows/characterPhotoDuo.json`. */
+const DUO_PHOTO_NODE = {
   seed: '14',
   positivePrompt: '4',
   negativePrompt: '5',
   saveImage: '41'
 } as const
+
+/** Node ids overwritten in `assets/workflows/characterPhoto.json`. */
+const PHOTO_NODE = { ...DUO_PHOTO_NODE, characterLora: '100' } as const
 
 /** Refuses a name this app would not have minted, before it is joined onto a folder path. */
 function assertPhotoFile(file: string): void {
@@ -240,8 +244,11 @@ export async function generatePhoto(
   options.onProgress?.('Preparing')
 
   assertPhotoFile(file)
-  // Her own seed would make every picture the same picture; only her tags hold her together.
+  // Each photo gets its own seed; her tags and LoRA hold her together.
   const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
+
+  const lora = characterLoraOf(character)
+  const logged = lora ? `, lora=${lora.name}@${lora.weight}` : ''
 
   await runGenerationJob(
     {
@@ -250,12 +257,13 @@ export async function generatePhoto(
       // Her body only while the body switch is on, as her sprites are drawn.
       prompts: buildPhotoPrompt(await withBodySetting(character), tier as PhotoTier, photoPrompt),
       seed,
+      lora,
       // Rendered as PNG either way; a WebP name is encoded by the renderer once it lands.
       destPath: getPhotoPath(playthroughId, character.charId, pngPhotoOf(file)),
       // Written as ComfyUI rendered it; the renderer does any encoding.
       format: 'raw',
       label: `${character.charId} / photo:${tier}`,
-      logContext: `seed=${seed} file=${file}`
+      logContext: `seed=${seed} file=${file}${logged}`
     },
     options
   )
@@ -308,7 +316,7 @@ export async function generateDuoPhoto(
   await runGenerationJob(
     {
       workflowFile: 'characterPhotoDuo.json',
-      nodes: PHOTO_NODE,
+      nodes: DUO_PHOTO_NODE,
       prompts: { positive: prompts.scene, negative: prompts.negative },
       texts: { [DUO_GIRL_NODE.left]: prompts.left, [DUO_GIRL_NODE.right]: prompts.right },
       seed,

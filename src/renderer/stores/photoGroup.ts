@@ -87,7 +87,7 @@ export function withGroupPhotoRequest(
   }
   const ids = cast.map((girl) => girl.charId)
   if (!asked || asked.slot !== slot || !ids.includes(asked.poster) || !ids.includes(asked.friend)) {
-    const pair = groupPhotoPair(ids)
+    const pair = groupPhotoPair(ids, useGameStore.getState().npcRelationships)
     asked = pair ? { ...pair, slot } : null
     if (!asked) return request
   }
