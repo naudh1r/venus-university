@@ -343,8 +343,6 @@ export interface ModHooks {
   sentText?: SentTextSpot
   /** Draws a post's picture under its text, wherever a post is drawn; the first mod on decides. */
   postPicture?: ComponentType<PostPictureProps>
-  /** Adds metadata between the author handle and date; the first mod on decides. */
-  postByline?: ComponentType<PostPictureProps>
 
   /** Extend a completed request, preserving other mods' additions. */
   requests?: { [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest }
@@ -694,11 +692,6 @@ export function ownedComments(
 /** What draws a post's picture: the first mod that is on and draws one, or none. */
 export function postPicture(): ComponentType<PostPictureProps> | null {
   return active().find((hooks) => hooks.postPicture)?.postPicture ?? null
-}
-
-/** The first active mod's addition to a post's author line. */
-export function postByline(): ComponentType<PostPictureProps> | null {
-  return active().find((hooks) => hooks.postByline)?.postByline ?? null
 }
 
 /** Every mod's lines for one prompt. */

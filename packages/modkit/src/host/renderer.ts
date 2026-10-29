@@ -30,7 +30,6 @@ export {
   postLikes,
   postOutAt,
   postPicture,
-  postByline,
   prepareWayOn,
   projectSlotMemories,
   saveChoice,

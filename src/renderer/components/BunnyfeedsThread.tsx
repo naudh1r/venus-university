@@ -11,7 +11,7 @@ import { useGameStore } from '../stores/gameStore'
 import { leavePlayerComment } from '../stores/bunnyfeedsThreads'
 import { epilogueOf, sceneActiveOf } from '../stores/textingLoop'
 import { sentText } from '../mods/hooks'
-import { EmojiTool, PostByline, PostPicture, SentText, type PostCommentsProps } from '@vx/modkit/renderer'
+import { EmojiTool, PostPicture, SentText, type PostCommentsProps } from '@vx/modkit/renderer'
 import { fadeIn, gestures, lift, press, quietLift, quietPress } from '../views/motion'
 import { CloseIcon, HeartIcon } from '../views/screenIcons'
 import { formatShortGameDate, slotHalf } from '../prompts/gameDate'
@@ -235,7 +235,6 @@ function PostView(props: PostCommentsProps & { charId: string; postId: string })
             <div className="vu-bb-postview-name">{fullNameOf(character)}</div>
             <div className="vu-bb-postview-meta">
               {handle && <span>@{handle} · </span>}
-              <PostByline charId={charId} postId={postId} />
               {formatShortGameDate(post.date, season)} · {slotHalf(post.time)}
             </div>
           </div>

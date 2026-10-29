@@ -34,7 +34,7 @@ import { useGameStore } from '../stores/gameStore'
 import { registerTermFiles } from '@vx/modkit/shared'
 import { ownsPostComments, registerHooks } from '@vx/modkit/renderer'
 import { BODY_EDITOR_FIELD, writeBody } from '../views/bodyFields'
-import { PhotoComments, PhotoPostByline, PhotoPostPicture } from '../components/PhotoPostSpots'
+import { PhotoComments, PhotoPostPicture } from '../components/PhotoPostSpots'
 import { MessagePhotoAttachment, PhotoLightboxHost } from '../components/PhotoBubble'
 import { GalleryPanel, galleryShown, PostPhotoExtra } from '../views/ContactGallery'
 
@@ -184,8 +184,7 @@ registerHooks(PHOTO_FEATURE, {
   postComments: { View: PhotoComments },
 
   // Her picture under the post's text.
-  postPicture: PhotoPostPicture,
-  postByline: PhotoPostByline
+  postPicture: PhotoPostPicture
 })
 
 // A continued semester carries her threads and feed into a new playthrough; the pictures on them

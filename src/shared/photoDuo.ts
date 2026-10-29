@@ -34,7 +34,7 @@ export function groupPhotoPair(
   return pairs.length ? pairs[Math.floor(rand() * pairs.length)] : null
 }
 
-/** The other girl's handle on a post, only while she and its poster are friends. */
+/** The other girl's handle under a photo, only while she and its poster are friends. */
 export function photoFriendHandle(
   relationships: NpcRelationshipMap | undefined,
   posterId: string,
