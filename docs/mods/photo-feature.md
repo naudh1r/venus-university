@@ -15,7 +15,7 @@ This is not made or supported by Venus Dev. Please do not report problems with i
 
 - The desktop game, with image generation working: the game's own ComfyUI, or your own one set
   in Settings. The browser version never makes photos.
-- Photos use the game's own photo checkpoint and LoRA (`assets/workflows/characterPhoto.json`).
+- Photos use the game's own photo checkpoint and style LoRA (`assets/workflows/characterPhoto.json`).
   Nothing else to download.
 
 ## Settings
@@ -66,7 +66,9 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
      she wears it). Nothing on her legs, under her skirt or between her legs is named in the
      negative: naming legwear, `pantyshot` or censoring there drew a smudge or a coloured leg
      in its place.
-5. ComfyUI draws it, and it lands in the bubble or the post.
+5. ComfyUI draws it with the style LoRA, followed by her own LoRA if she has one under her
+   Generation settings. Pictures of two girls use the style LoRA alone. It lands in the bubble
+   or the post.
 
 Every tag the mod adds has been checked in ComfyUI on the photo checkpoint, side by side with the
 same seed. Many plain tags turned out to do nothing, so some rules use weights or special
@@ -116,6 +118,8 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
 
 ## 1.6.0
 
+- **Her own LoRA in her photos**: a LoRA set under her Generation settings is used in her solo
+  photos too, as in her sprites. Photos of two girls stay as they were.
 - **Body details kept with the mod**: her build, chest, hips, backside and hair are saved in Photo
   Feature's own place on her, rather than as a field of the game's. Her pictures don't change, and
   a character made before keeps hers: it moves over the first time she is saved. An older Photo
