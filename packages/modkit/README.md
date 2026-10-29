@@ -62,3 +62,6 @@ them, and a mod never does.
   and the contract test.
 - `npm run report` here (after `npm install` here, once) regenerates `api/*.api.md` and
   `dist/*.d.ts`; `npm run report:check` fails if the committed report is out of date.
+  Both commands also compile `test/consumer.ts` against those rolled-up declarations with
+  strict library checking and no game-source aliases. This catches missing public types
+  or fields that the game's own ambient declarations would otherwise supply.
