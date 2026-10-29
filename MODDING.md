@@ -77,9 +77,7 @@ switch is left as the player set it.
 - A save's `ex`: each mod's own data, under its id (see Mod data below).
 
 
-## Installed mods
-
-### Capturing mod data for a scene request
+## Capturing mod data for a scene request
 
 `promptState.scene` runs synchronously when the game constructs a scene prompt's state,
 before asynchronous request preparation. It also serves solo, continuation and closing requests
@@ -109,6 +107,8 @@ prompt hooks still obey the current mod switches when they format. A duplicate c
 same mod, a throwing callback, or a value that cannot be cloned fails the request with that
 mod's id in the error. No partial snapshot is used. DM, ledger and slot-intro capture hooks are
 not available yet; this addition only covers the scene state builder.
+
+## Installed mods
 
 A mod built outside the repo is installed under `data/mods/` and found at start; the game does not
 know it when it is built. The kit (`packages/modkit`) is the one part of the game it imports.
