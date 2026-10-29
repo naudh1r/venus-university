@@ -77,7 +77,8 @@ combinations. The comment beside each rule in the code says what was tried.
 ## 2 girls 1 photo (experimental)
 
 With the option on, a scene you go into with two or more of the girls brings a photo of two of them,
-never more: two picked at random where more are there, and one posts it on her feed, once a slot. The scene's first call writes it
+never more: two picked at random from pairs who are not enemies, and one posts it on her feed, once a slot.
+If all the pairs are enemies, there is no group photo. The scene's first call writes it
 beside the scene's opening lines, once the game has settled who is there, and it is filed like any
 feed post: held until the picture lands, with likes and comments from whichever mod draws them. Its
 picture is drawn under the scene, behind any of the slot's own feed pictures still waiting. They
@@ -118,6 +119,10 @@ If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` lin
 
 ## 1.6.0
 
+- **Her friend tagged under the picture**: a photo of two girls says `with @handle` under it while
+  they are friends with each other. If they become friends later, her tag appears then.
+- **No enemy pairs**: a scene's group photo leaves enemy pairs out. Acquaintances can still be
+  in one together; if no pair is left, no group photo is asked for.
 - **Her own LoRA in her photos**: a LoRA set under her Generation settings is used in her solo
   photos too, as in her sprites. Photos of two girls stay as they were.
 - **Body details kept with the mod**: her build, chest, hips, backside and hair are saved in Photo

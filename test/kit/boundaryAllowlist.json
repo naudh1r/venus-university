@@ -602,6 +602,7 @@
   "src/shared/modEntries/prompt-studio.ts -> ../mods",
   "src/shared/modEntries/reckoning.ts -> ../modCarry",
   "src/shared/modEntries/starting-challenge.ts -> ../modCarry",
+  "src/shared/photoDuo.ts -> ./npcRelationships",
   "src/shared/photoGate.ts -> ./relationship",
   "src/shared/photoGate.ts -> ./types",
   "src/shared/photoPrompt.ts -> ./dorms",

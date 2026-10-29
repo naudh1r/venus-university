@@ -179,6 +179,19 @@
   border-radius: 16px;
 }
 
+/* The friend in a picture, named quietly below it in the feed's handle face. */
+.vu-bb-photo-with {
+  margin: 8px 0 0;
+  color: var(--vu-text-muted);
+  font: 500 12px/1.45 var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.vu-bb-photo-with span {
+  color: color-mix(in oklab, var(--vu-text) 72%, var(--vu-accent));
+  font-weight: 700;
+}
+
 /* The dot shimmer: a field of dots over the whole frame, and a brighter band that sweeps
    across it on a slant. The dots are separate marks, so the translucent colour never doubles. */
 .vu-bb-photo--shimmer {

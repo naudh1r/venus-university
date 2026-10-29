@@ -1,7 +1,8 @@
 import type { CSSProperties, JSX } from 'react'
 import { hashString } from '@shared/hash'
 import { shownComments } from '@shared/postComments'
-import type { PostCommentsProps, PostPictureProps } from '../mods/hooks'
+import type { PostCommentsProps, PostPictureProps } from '@vx/modkit/renderer'
+import { photoFriendHandle } from '../../shared/photoDuo'
 import { useGameStore } from '../stores/gameStore'
 import { usePhotosVisible } from '../stores/photoSwitchHooks'
 import { PostPhoto } from './PhotoBubble'
@@ -17,10 +18,15 @@ export function PhotoPostPicture({ charId, postId }: PostPictureProps): JSX.Elem
   const photo = useGameStore(
     (s) => s.charInfo[charId]?.feed?.find((post) => post.id === postId)?.photo
   )
-  if (!photo) return null
+  const handle = useGameStore((s) =>
+    photoFriendHandle(s.npcRelationships, charId, photo?.with, s.charInfo)
+  )
+  const visible = usePhotosVisible()
+  if (!photo || !visible) return null
   return (
     <div className="vu-bb-post-shot">
       <PostPhoto charId={charId} postId={postId} photo={photo} />
+      {handle && <p className="vu-bb-photo-with">with <span>@{handle}</span></p>}
     </div>
   )
 }
