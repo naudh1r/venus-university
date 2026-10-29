@@ -105,8 +105,12 @@ slice, while `null` is retained. The outer bag is read-only; treat the contents 
 Formatters must read the captured value instead of reading live mod state again. Existing
 prompt hooks still obey the current mod switches when they format. A duplicate capture for the
 same mod, a throwing callback, or a value that cannot be cloned fails the request with that
-mod's id in the error. No partial snapshot is used. DM, ledger and slot-intro capture hooks are
-not available yet; this addition only covers the scene state builder.
+mod's id in the error. No partial snapshot is used. For a turn's request, that is any throw
+while it is built, a `prompts.*` hook's included: the turn is rewound and the player gets the
+retry modal, as for a failed call. The scene's goodbye and its bookkeeping call are built once
+the reply has landed, and a throw there is not yet caught; it leaves the game waiting. DM,
+ledger and slot-intro capture hooks are not available yet; this addition only covers the scene
+state builder.
 
 ## Installed mods
 
