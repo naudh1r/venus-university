@@ -1,6 +1,10 @@
 # @vx/modkit
 
-## Unreleased
+## 0.6.0
+
+What the first mods moving onto the kit needed: a backup share that must be complete, a scene
+request's own copy of a mod's data, and declarations a mod built outside the repo compiles
+against.
 
 - `requiredBackupPart` in `main`: the existing backup-part contract with a required export.
   Export failure stops before creating or replacing the target archive, names the mod and drops
@@ -15,6 +19,19 @@
   Undefined omits a slice. Duplicate owners or failed captures abort the request naming the mod.
   Declare `promptState.scene` in the manifest; older cores reject the missing hook. DM, ledger
   and slot-intro snapshots are not added by this change. Existing prompt hooks are unchanged.
+- A throw while a turn's request is built, a `promptState.scene` capture's or a `prompts.*`
+  hook's, fails the turn: it is rewound and the player gets the retry modal, the error in its
+  detail, as for a failed call. It used to leave the game busy behind the covered stage. The
+  scene's goodbye and bookkeeping builds, which run after the reply has landed, are not covered
+  yet.
+- `ModPlaythroughFields` and `BunnyboardState` in `shared`. `PlaythroughRecord` extends the
+  first, so its `mods` and `modVersions` reach the rolled-up declarations, which dropped them
+  when they were a module augmentation. `report` and `report:check` now compile
+  `test/consumer.ts` against `dist/`, with no game-source aliases, to catch the next such gap.
+- `characterFromDraft` answers are merged as `editorField` writes are: each mod's `ex` slices go
+  in beside the ones she has and the other mods', never in place of them.
+- `report` resolves the kit's own names to its emitted declarations, so the report no longer
+  depends on a `dist/` left by an earlier run and `report:check` passes on a fresh checkout.
 
 ## 0.5.0
 

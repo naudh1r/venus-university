@@ -1,5 +1,5 @@
 import { activityEnding } from '@shared/slotActivity'
-import { isPermanent } from '@shared/errors'
+import { appError, isPermanent, messageOf } from '@shared/errors'
 import type { AppError, Character } from '@shared/types'
 import { shortenSceneSoFar } from '../../prompts/scenePrompt'
 import { afterSceneReply } from '../../mods/hooks'
@@ -77,6 +77,21 @@ export function failTurn(error: AppError, snapshot: TurnSnapshot, sceneCall = fa
   if (isPermanent(error) && !authored) {
     game.setInputDraft(snapshot.gift ? '' : snapshot.action)
     game.setAwaitingInput(true)
+  }
+}
+
+/**
+ * Builds a turn's request, or fails the turn when building it throws: a mod's prompt hook, say.
+ * The turn is rewound and the retry modal opens, as for a failed call, rather than the stage
+ * staying covered and the game busy. Null when it failed.
+ */
+export function buildOrFail<T>(snapshot: TurnSnapshot, build: () => T): T | null {
+  try {
+    return build()
+  } catch (err) {
+    console.error('[turn] could not build the request:', err)
+    failTurn(appError('SCENE_BUILD_FAILED', 'The scene request could not be prepared.', messageOf(err)), snapshot)
+    return null
   }
 }
 

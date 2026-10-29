@@ -220,7 +220,7 @@ import { startHangoutScene } from './loop/hangouts'
 import { sceneEventsFor } from './loop/sceneEvents'
 import { liveView, withCrushes, withRumorPass, type PostLedgerView } from './loop/ledgerView'
 import { registerLoopHooks } from './loop/hooks'
-import { failTurn, runSceneTurn } from './loop/turn'
+import { buildOrFail, failTurn, runSceneTurn } from './loop/turn'
 import { armSceneRecords, sceneRecordsOf, settleShifts } from './loop/jobs'
 import {
   composeMeeting,
@@ -600,10 +600,13 @@ async function startOrientationScene(): Promise<void> {
 
   const castCharacters = castCharactersOf(cast)
   const solo = cast.length === 0
-  const state = promptState()
-  const request = solo
-    ? buildSoloPrompt(action, state, settingNow(), reader())
-    : buildScenePrompt(castCharacters, action, state, settingNow(), reader())
+  const request = buildOrFail(snapshot, () => {
+    const state = promptState()
+    return solo
+      ? buildSoloPrompt(action, state, settingNow(), reader())
+      : buildScenePrompt(castCharacters, action, state, settingNow(), reader())
+  })
+  if (!request) return
   await runSceneTurn(
     streamScene(request, undefined, { forceShowSpeakers: !solo }),
     snapshot,
@@ -695,13 +698,10 @@ async function startCreatedOpening(): Promise<void> {
   useGameStore.getState().logPlayerAction(action, false)
   const castCharacters = castCharactersOf(cast)
   const openingOutfits = Object.fromEntries(setup.cast.map((entry) => [entry.charId, entry.outfit]))
-  const request = buildScenePrompt(
-    castCharacters,
-    action,
-    { ...promptState(), openingOutfits },
-    settingNow(),
-    reader()
+  const request = buildOrFail(snapshot, () =>
+    buildScenePrompt(castCharacters, action, { ...promptState(), openingOutfits }, settingNow(), reader())
   )
+  if (!request) return
   await runSceneTurn(
     streamScene(request, undefined, { forceShowSpeakers: true }),
     snapshot,
@@ -741,7 +741,10 @@ export async function startFarewellScene(charId: string): Promise<void> {
   console.log(`[cast] farewell → ${nameOf(charId)}`)
 
   const castCharacters = castCharactersOf([charId])
-  const request = buildScenePrompt(castCharacters, action, promptState(), settingNow(), reader())
+  const request = buildOrFail(snapshot, () =>
+    buildScenePrompt(castCharacters, action, promptState(), settingNow(), reader())
+  )
+  if (!request) return
   await runSceneTurn(
     streamScene(request, undefined, { forceShowSpeakers: true }),
     snapshot,
@@ -1551,7 +1554,8 @@ export async function submitAction(
   // A solo scene opens and closes in this one call, so it is never a continuation.
   const solo = (!isContinuation || Boolean(useGameStore.getState().sceneActivity)) && plan.cast.length === 0
 
-  const request = buildTurnRequest(plan.sceneAction, castCharacters, isContinuation, solo)
+  const request = buildOrFail(snapshot, () => buildTurnRequest(plan.sceneAction, castCharacters, isContinuation, solo))
+  if (!request) return
   // Only the call that opens a scene repairs a forgotten entrance.
   await runSceneTurn(
     streamScene(withSlotActivityPrompt(request, useGameStore.getState().sceneActivity), undefined, { forceShowSpeakers: !isContinuation && !solo }),
