@@ -104,6 +104,34 @@ for (const entry of ['shared', 'renderer', 'main']) {
   if (result.apiReportChanged) changed = true
 }
 
+// 4. Typecheck an actual external consumer against the rollups, not src/. The game's
+// aliases and ambient augmentations can otherwise conceal missing public declarations.
+const consumerConfig = resolve(temp, 'consumer.json')
+writeFileSync(
+  consumerConfig,
+  JSON.stringify({
+    compilerOptions: {
+      target: 'esnext', module: 'esnext', moduleResolution: 'bundler',
+      strict: true, skipLibCheck: false, noEmit: true,
+      lib: ['ESNext', 'DOM', 'DOM.Iterable'], types: ['node'],
+      typeRoots: [resolve(root, 'node_modules/@types')],
+      paths: Object.fromEntries(['shared', 'renderer', 'main'].map(entry => [
+        `@vx/modkit/${entry}`, [resolve(kit, 'dist', `${entry}.d.ts`)]
+      ]))
+    },
+    files: [resolve(kit, 'test/consumer.ts')]
+  }, null, 2)
+)
+const consumer = spawnSync(
+  process.execPath,
+  [resolve(root, 'node_modules/typescript/bin/tsc'), '-p', consumerConfig],
+  { cwd: kit, stdio: 'inherit' }
+)
+if (consumer.status !== 0) {
+  console.error('The rolled-up kit declarations do not compile for a standalone consumer.')
+  process.exit(consumer.status ?? 1)
+}
+
 if (check && changed) {
   console.error('The API report is out of date: run `npm run report` in packages/modkit and commit api/.')
   process.exit(1)
