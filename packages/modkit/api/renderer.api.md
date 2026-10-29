@@ -10,7 +10,9 @@ import { JSX } from 'react';
 import { MouseEventHandler } from 'react';
 import { ReactNode } from 'react';
 import { StoreApi } from 'zustand';
+import { TargetAndTransition } from 'motion/react';
 import { UseBoundStore } from 'zustand';
+import { Variants } from 'motion/react';
 
 // @public (undocumented)
 export interface BunnyboardPage {
@@ -116,6 +118,14 @@ export interface GameModalProps {
 }
 
 // @public
+export function gestures(dead: boolean, hover: TargetAndTransition, tap: TargetAndTransition): {
+    whileHover: TargetAndTransition;
+    whileTap: TargetAndTransition;
+    whileFocus: TargetAndTransition;
+    'data-lift'?: '';
+};
+
+// @public
 export interface LandingToolProps {
     // (undocumented)
     children: ReactNode;
@@ -124,6 +134,9 @@ export interface LandingToolProps {
     // (undocumented)
     onClick: () => void;
 }
+
+// @public
+export const lift: TargetAndTransition;
 
 // @public
 export interface LikesAsk {
@@ -297,6 +310,9 @@ export interface OptionPreviewProps {
 // @public
 export function ownsPostComments(modId: string): boolean;
 
+// @public (undocumented)
+export const panelUnderTab: Variants;
+
 // @public
 export function PostCommentAction(props: PostCommentsProps): JSX.Element | null;
 
@@ -343,6 +359,9 @@ export interface PostPictureProps {
 
 // @public (undocumented)
 export function postVisible(post: SocialPost): boolean;
+
+// @public
+export const press: TargetAndTransition;
 
 // @public
 export interface PromptAddition<C> {
@@ -474,6 +493,12 @@ export interface PromptState {
 }
 
 // @public
+export const quietLift: TargetAndTransition;
+
+// @public (undocumented)
+export const quietPress: TargetAndTransition;
+
+// @public
 export interface RailSeatProps {
     // (undocumented)
     badge?: number;
@@ -534,6 +559,12 @@ export interface ResolvedSave {
     summary: SaveSummary | null;
     unloadable: string | null;
 }
+
+// @public
+export const rowLift: TargetAndTransition;
+
+// @public (undocumented)
+export const rowPress: TargetAndTransition;
 
 // @public
 export function safePoint(): ManualSaveOffer;
@@ -805,6 +836,9 @@ export interface TextingPromptState {
 }
 
 // @public
+export const toggleLift: TargetAndTransition;
+
+// @public
 export interface UpdatesTab {
     // (undocumented)
     Action?: ComponentType;
@@ -838,6 +872,9 @@ export function useModOption(modId: string, optionId: string): boolean;
 
 // @public
 export function useSafePoint(): ManualSaveOffer;
+
+// @public
+export const veilIn: Variants;
 
 // @public
 export type ViewName = 'boot' | 'setup'

@@ -1,5 +1,13 @@
 # @vx/modkit
 
+## Unreleased
+
+- The game's motion presets in `renderer`: `gestures`, `lift`, `press`, `quietLift`, `quietPress`,
+  `rowLift`, `rowPress`, `toggleLift`, `veilIn` and `panelUnderTab`, each its own
+  `renderer:<name>` capability. They are the game's own objects, re-exported, so a mod's controls
+  and panels move as the native ones do and follow them when they change. The rest of the game's
+  motion file stays core's. Nothing native changes.
+
 ## 0.6.0
 
 What the first mods moving onto the kit needed: a backup share that must be complete, a scene

@@ -49,6 +49,13 @@ describe('the entry points', () => {
     expect(rendererKit.useDismissLayer).toBe(native.useDismissLayer)
   })
 
+  it("hands mods the game's own motion presets, so a mod panel moves as a native one does", async () => {
+    const native = await import('../../src/renderer/views/motion')
+    for (const name of ['gestures', 'lift', 'panelUnderTab', 'press', 'quietLift', 'quietPress', 'rowLift', 'rowPress', 'toggleLift', 'veilIn'] as const) {
+      expect(rendererKit[name], name).toBe(native[name])
+    }
+  })
+
   it('split every runtime export of hooks.ts, ModSlot, saveField.ts and modState.ts between the host and the mod', () => {
     const moved = [...runtime(hooksShim), ...runtime(slotShim), ...runtime(saveFieldKit), ...runtime(modStateKit)].sort()
     const host = runtime(hostRenderer)

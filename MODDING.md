@@ -239,6 +239,34 @@ Without a primary action, omit that argument and those props.
 true. The first Escape/right-click closes that layer; the underlying modal remains open.
 Changing `active` to false or unmounting removes the layer. Neither hook depends on any mod.
 
+### Motion presets
+
+A mod's controls and panels move as the game's do through the presets the game's own use,
+imported from `@vx/modkit/renderer` and declared as `renderer:<name>` for each one used.
+
+- `gestures(dead, hover, tap)` is what a control wears, spread on a motion element. A dead
+  control gets neither its hover nor its press: motion listens on pointer events, which a disabled
+  button still receives.
+- The hover and press it is handed come in pairs: `lift` and `press` for a paper control
+  (`vu-paper`), `quietLift` and `quietPress` for one with no paper layer, and `rowLift` and
+  `rowPress` for one that spans its column. `toggleLift` is the hover of a control whose fill is a
+  state, a tool in force.
+- `veilIn` and `panelUnderTab` are a modal's arrival, as variants with `hidden`, `shown` and
+  `gone`: the veil that dims the screen, and the panel rising under its title tab.
+
+```tsx
+import { motion } from 'motion/react'
+import { gestures, lift, press } from '@vx/modkit/renderer'
+
+<motion.button className="vu-btn vu-btn--primary vu-paper" disabled={busy} {...gestures(busy, lift, press)}>
+  Save
+</motion.button>
+```
+
+They are the game's own objects, so a mod panel moves with the game when its motion changes. The
+rest of the game's motion stays core's, and an animation that is one mod's own look belongs in
+the mod.
+
 ## Mod data
 
 A mod keeps its data in one of four places: in the save, with the game; on a record inside the
