@@ -19,3 +19,15 @@ export { submitAction, takeTurnFromReply } from '../../../../src/renderer/stores
 export { finishSlotActivity } from '../../../../src/renderer/stores/slotActivity'
 export { fileLatePost } from '../../../../src/renderer/stores/loop/feed'
 export { Card, Locked } from '../../../../src/renderer/views/ContactPage'
+export {
+  gestures,
+  lift,
+  panelUnderTab,
+  press,
+  quietLift,
+  quietPress,
+  rowLift,
+  rowPress,
+  toggleLift,
+  veilIn
+} from '../../../../src/renderer/views/motion'
