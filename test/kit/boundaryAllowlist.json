@@ -86,7 +86,6 @@
   "src/renderer/components/BunnyfeedsThread.tsx -> ../views/screenIcons",
   "src/renderer/components/BunnyfeedsThread.tsx -> @shared/postComments",
   "src/renderer/components/BunnyfeedsThread.tsx -> @shared/types",
-  "src/renderer/components/EmojiPicker.tsx -> ../views/motion",
   "src/renderer/components/TextRegenerate.tsx -> ../stores/bunnyboardStore",
   "src/renderer/components/TextRegenerate.tsx -> ../stores/gameStore",
   "src/renderer/components/TextRegenerate.tsx -> ../stores/loop/saves",
