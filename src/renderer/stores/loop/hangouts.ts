@@ -22,7 +22,7 @@ import { applyCast, reader, promptState } from './promptState'
 import { sceneEventsFor } from './sceneEvents'
 import { currentRun, loopState, runStale, type TurnSnapshot } from './state'
 import { deliverSceneLines, streamScene, type PreviewSink, type SceneCall } from './stream'
-import { runSceneTurn } from './turn'
+import { buildOrFail, runSceneTurn } from './turn'
 
 /** An agreed Bunnyboard hangout, from the plan to the scene. */
 registerHangoutEntry({ prefetchHangoutScene, startHangoutScene })
@@ -78,7 +78,14 @@ async function prefetchHangoutScene(charId: string, description: string): Promis
   const castCharacters = castCharactersOf(cast)
   // Not `logPlayerAction`: the reader's line in the transcript would take the Bunnyboard's
   // composer away mid-read. Begin logs it.
-  const request = buildScenePrompt(castCharacters, action, promptState(), settingNow(), reader())
+  let request
+  try {
+    request = buildScenePrompt(castCharacters, action, promptState(), settingNow(), reader())
+  } catch (err) {
+    // Begin finds no prefetched scene and builds its own, where a throw fails the turn.
+    console.warn('[hangout] the prefetched scene request could not be built:', err)
+    return
+  }
   const sink: PreviewSink = { live: false, settled: false, held: [] }
   token.scene = {
     cast,
@@ -174,13 +181,10 @@ export async function startHangoutScene(
   // An opening, not a continuation: the hangout scene starts here.
   useGameStore.getState().logPlayerAction(cast.action, false)
   const castCharacters = castCharactersOf(cast.cast)
-  const request = buildScenePrompt(
-    castCharacters,
-    cast.action,
-    promptState(),
-    settingNow(),
-    reader()
+  const request = buildOrFail(snapshot, () =>
+    buildScenePrompt(castCharacters, cast.action, promptState(), settingNow(), reader())
   )
+  if (!request) return
   await runSceneTurn(
     streamScene(request, undefined, { forceShowSpeakers: true }),
     snapshot,

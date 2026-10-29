@@ -152,7 +152,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   'requests.ledger': request('ledger'),
   'requests.slot-intro': request('slot-intro'),
   dmHistoryNote: fn('dmHistoryNote', ' note', (host) => host.dmHistoryNotes(never)),
-  characterFromDraft: fn('characterFromDraft', {}, (host) => host.characterFromDraft({}, { baseAppearance: [] })),
+  characterFromDraft: fn('characterFromDraft', {}, (host) => host.characterFromDraft({}, { baseAppearance: [] }, {})),
   afterDmReply: fn('afterDmReply', undefined, (host) => host.afterDmReply({ charId: 'c', character: never, reply: never })),
   afterSceneReply: fn('afterSceneReply', undefined, (host) => host.afterSceneReply({ reply: {}, cast: [], solo: true, ending: false })),
   afterReachOut: fn('afterReachOut', undefined, (host) => host.afterReachOut({ charId: 'c', character: never, reply: {} })),

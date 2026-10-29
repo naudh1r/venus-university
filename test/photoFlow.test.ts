@@ -668,7 +668,7 @@ describe('a character body in Photo’s record slice', () => {
     const hooks = await bodyHooks()
     vi.spyOn(Math, 'random').mockReturnValue(0.5)
     const written = JSON.parse(JSON.stringify(hooks.characterFromDraft(
-      { body: { build: ['toned'] } }, { baseAppearance: ['big_breasts'] }
+      { body: { build: ['toned'] } }, { baseAppearance: ['big_breasts'] }, {}
     )))
     expect(written).not.toHaveProperty('body')
     expect(written.ex['photo-feature']).toMatchObject({
