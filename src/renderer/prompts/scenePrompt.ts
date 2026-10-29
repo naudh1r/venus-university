@@ -177,7 +177,6 @@ export interface ProjectSceneContext {
 /** Everything the builders read out of `gameStore`. */
 export interface PromptState {
   exReckoning?: import('@shared/reckoning').ReckoningState
-  exPlotTwist?: string
   storyMemory?: import('@shared/storyMemory').StorySnapshot
   breakthrough?: import('@shared/breakthrough').BreakthroughState
   exCharacterDynamics?: CharacterDynamics

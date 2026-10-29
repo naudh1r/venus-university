@@ -15,7 +15,7 @@ export const PLOT_TWIST_DEF: ModDef = {
   id: PLOT_TWIST_MOD,
   name: 'Plot Twist',
   author: 'Maestro Leeds',
-  version: '1.1.0',
+  version: '1.1.1',
   scope: 'anytime',
   defaultOn: true,
   blurb: 'Give future scenes a new story direction. Edit one ongoing twist per save from the game menu.',

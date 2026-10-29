@@ -2,7 +2,6 @@ import { currentStorySnapshot } from '../storyMemory'
 import { BREAKTHROUGH_MOD } from '@shared/breakthrough'
 import { cityLifeBackgrounds } from '@shared/cityLife'
 import { slotFullLabel, studentsOf } from '@shared/classes'
-import { activePlotTwist, PLOT_TWIST_MOD } from '@shared/plotTwists'
 import { modIsOn } from '../modsStore'
 import { textEditsNow } from '../promptStudioStore'
 import { kindOf } from '@shared/academics'
@@ -446,7 +445,6 @@ export function promptState(): PromptState {
     exReckoning: modIsOn('reckoning')&&!game.replaying&&!game.createdScene?game.exReckoning:undefined,
     storyMemory: currentStorySnapshot(),
     playthroughId: game.playthroughId ?? 'unsaved',
-    exPlotTwist: activePlotTwist(game.modValues[PLOT_TWIST_MOD], modIsOn(PLOT_TWIST_MOD)),
     breakthrough: modIsOn(BREAKTHROUGH_MOD) ? game.exBreakthrough : undefined,
     date: game.date,
     time: game.time,
