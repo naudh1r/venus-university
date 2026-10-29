@@ -11,6 +11,12 @@
   scene's action row. The row is put away and dead, and the dialogue box stands clear of the
   panel's input, until the panel gives it back or unmounts. One holder at a time. Without a
   holder, the scene draws as before.
+- A throw while the goodbye, the scene or texting bookkeeping, or the next slot's opening builds
+  its request, from a `promptState.scene` capture or a `prompts.*` hook, now opens that call's
+  retry modal instead of leaving the game waiting. Retry builds the request again; leaving goes
+  to the menu, as for a failed call. The modals do not offer the prompt editor for it. This
+  covers the slot opening at the start of a slot, and the texting bookkeeping fetched ahead while
+  a scene plays, too. Other hooks that run while a scene ends are not covered.
 
 ## 0.6.0
 
