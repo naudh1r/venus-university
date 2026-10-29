@@ -303,7 +303,7 @@ function threadLines(thread: FeedThread, season: Season): string[] {
   return [
     `POST ${thread.postRef} by ${fullNameOf(character)} ("${charKey}"), ${when}: ${post.text}`,
     ...(post.picture
-      ? [`Her picture${post.pictureWith ? `, with her friend ${post.pictureWith}` : ''}: ${post.picture}`]
+      ? [`Her picture${post.pictureWith ? `, with ${post.pictureWith}` : ''}: ${post.picture}`]
       : []),
     ...thread.lines.map(
       (line) =>
