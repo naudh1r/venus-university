@@ -267,6 +267,22 @@ They are the game's own objects, so a mod panel moves with the game when its mot
 rest of the game's motion stays core's, and an animation that is one mod's own look belongs in
 the mod.
 
+### The scene's input
+
+A mod's panel over a scene can put an input of its own in the place of the scene's action row,
+with `useSceneInput` from `@vx/modkit/renderer`, declared as `renderer:useSceneInput`:
+
+```tsx
+useSceneInput(playing ? { open: fieldOpen, height: inputHeight } : null)
+```
+
+While a component holds a layout, the scene's row is put away and its field is dead, and the
+dialogue box stands clear of the panel's input as it does of the row, `height` being how tall that
+input stands. With `open`, the box stands as over the reader's own turn; without, as over a reply
+being read, with the well put away. `null`, or unmounting, gives the row back. One component holds
+the input at a time: a claim while another holds it is refused with a warning and changes nothing.
+It is a React hook, called on every render.
+
 ## Mod data
 
 A mod keeps its data in one of four places: in the save, with the game; on a record inside the

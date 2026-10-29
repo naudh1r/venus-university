@@ -38,6 +38,7 @@ import { CheckField } from '../components/CheckField'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { isProhibited, LlmFailureModal } from '../components/LlmFailureModal'
 import { PhotoFailedModal } from '../components/PhotoFailedModal'
+import { useSceneInputLayout } from '../components/useSceneInput'
 import { typingIn, useWindowKeydown } from '../components/useWindowKeydown'
 import { slotHalf } from '../prompts/gameDate'
 import { slotWeather } from '../prompts/weather'
@@ -582,6 +583,7 @@ function InterruptEndingModal({
 
 /** Game View: renders `gameStore`; `gameLoop.ts` owns state changes. */
 export function GameView(): JSX.Element {
+  const sceneInput = useSceneInputLayout()
   const bg = useGameStore((s) => s.bg)
   const time = useGameStore((s) => s.time)
   const date = useGameStore((s) => s.date)
@@ -2144,6 +2146,7 @@ export function GameView(): JSX.Element {
           goodbye menu), or the three game overs — each wearing the slot's own half of the day. */}
       {sceneMode || cinematic || created || replaying ? (
         <SceneChrome
+          inputLayout={sceneInput}
           theme={half}
           date={date}
           season={season}

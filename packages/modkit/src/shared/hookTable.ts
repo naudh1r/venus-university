@@ -210,6 +210,7 @@ export const KIT_APIS = [
   'renderer:useModOn',
   'renderer:useModOption',
   'renderer:useSafePoint',
+  'renderer:useSceneInput',
   'renderer:veilIn',
   'renderer:writeModField',
   'renderer:writeModFields',

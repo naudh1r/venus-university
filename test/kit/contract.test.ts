@@ -49,6 +49,11 @@ describe('the entry points', () => {
     expect(rendererKit.useDismissLayer).toBe(native.useDismissLayer)
   })
 
+  it('hands a mod panel the scene input core reads, rather than a store of its own', async () => {
+    const native = await import('../../src/renderer/components/useSceneInput')
+    expect(rendererKit.useSceneInput).toBe(native.useSceneInput)
+  })
+
   it("hands mods the game's own motion presets, so a mod panel moves as a native one does", async () => {
     const native = await import('../../src/renderer/views/motion')
     for (const name of ['gestures', 'lift', 'panelUnderTab', 'press', 'quietLift', 'quietPress', 'rowLift', 'rowPress', 'toggleLift', 'veilIn'] as const) {

@@ -48,6 +48,7 @@ export type {
   ModalShell,
   PromptState,
   ResolvedSave,
+  SceneInputLayout,
   ScreenTheme,
   SlotIntroInput,
   TextingPromptState,
@@ -81,5 +82,6 @@ export {
   useModalShell,
   useModOn,
   useModOption,
+  useSceneInput,
   veilIn
 } from '../bridge/renderer'
