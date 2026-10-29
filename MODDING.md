@@ -605,6 +605,7 @@ else names it.
 | `postVisible` | `feedView.ts`, `loop/feed.ts`, `ContactPage.tsx` | Keep a post off the feed for now |
 | `postOutAt` | `feedView.ts`, `ContactPage.tsx` | When a post kept off came out, so it stands above its slot's posts already showing |
 | `postComments` | `BunnyboardModal.tsx` (`PostSpots.tsx`) | Draw the comments under a post and a control beside its like; one mod at a time |
+| `postByline` | `BunnyboardModal.tsx`, `BunnyfeedsThread.tsx` (`PostSpots.tsx`) | Add metadata between the author handle and date |
 | `postPicture` | `BunnyboardModal.tsx` (`PostSpots.tsx`) | Draw a post's picture under its text |
 | `emojiTool` | `BunnyboardModal.tsx` (`TextSpots.tsx`) | Stand an emoji tool beside a box being typed in, in place of the phone's row of quick emoji; one mod at a time |
 | `sentText` | `BunnyboardModal.tsx` (`TextSpots.tsx`) | Draw what somebody sent (a message, a post) and say which messages stand with no bubble; one mod at a time |

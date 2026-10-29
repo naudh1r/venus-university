@@ -190,6 +190,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
       }
     }
   },
+  postByline: thing('postByline', Comp, (host) => host.postByline() === Comp),
   postPicture: thing('postPicture', Comp, (host) => host.postPicture() === Comp),
   emojiTool: thing('emojiTool', Comp, (host) => host.emojiTool() === Comp),
   sentText: thing('sentText', { Text: Comp }, (host) => host.sentText()?.Text === Comp),

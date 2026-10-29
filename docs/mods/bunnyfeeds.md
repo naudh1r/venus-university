@@ -97,6 +97,8 @@ on them, from any mod that puts one there, get threads like any other post.
 
 ## 1.1.1
 
+- **Her friend in the header**: when Photo Feature tags a friend in her picture, the open post
+  shows `with @handle` between the poster's handle and the date, as the feed does.
 - **Who is in her picture**: with Photo Feature's **2 girls 1 photo** on, she knows who is
   beside her when you ask in the comments, whether or not the two are friends.
 
