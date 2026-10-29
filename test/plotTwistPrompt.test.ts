@@ -41,7 +41,7 @@ it('routes the saved direction once to each scene request, leaving schema and sy
   }
   expect(useGameStore.getState().toGameSave().ex?.[PLOT_TWIST_MOD]?.data).toBe(direction)
   useModsStore.setState({ switches: { on: {}, options: {} } })
-  expect(promptState().exPlotTwist).toBe(direction)
+  expect(promptState().ex?.[PLOT_TWIST_MOD]).toBe(direction)
 })
 
 it('does not mutate a captured request when the player later edits the twist', () => {
@@ -57,4 +57,22 @@ it('formats a captured state from its own twist, rather than the subsequently ed
   const request = buildScenePrompt([character()], 'Talk.', state, '', '')
   expect(request.user).toContain(direction)
   expect(request.user).not.toContain('The library is closing.')
+})
+
+it('captures only bounded prompt text without truncating the saved legacy direction', () => {
+  const legacy = 'x'.repeat(10_050)
+  plotTwist.set(legacy)
+  expect(promptState().ex?.[PLOT_TWIST_MOD]).toHaveLength(10_000)
+  expect(plotTwist.read()).toBe(legacy)
+  useModsStore.setState({ switches: { on: { [PLOT_TWIST_MOD]: false }, options: {} } })
+  expect(promptState().ex).not.toHaveProperty(PLOT_TWIST_MOD)
+  expect(plotTwist.read()).toBe(legacy)
+})
+
+it('does not read newly enabled live data into a snapshot captured while disabled', () => {
+  useModsStore.setState({ switches: { on: { [PLOT_TWIST_MOD]: false }, options: {} } })
+  const state = promptState()
+  useModsStore.setState({ switches: { on: {}, options: {} } })
+  expect(buildScenePrompt([character()], 'Talk.', state, '', '').user).not.toContain(direction)
+  expect(requests()[0].user).toContain(direction)
 })

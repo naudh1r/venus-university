@@ -1,7 +1,7 @@
 import { activePlotTwist } from '../../shared/plotTwists'
 
 /** Narrative direction, separated from the output contract and from mechanical state. */
-export function plotTwistBlock(value: string | undefined): string[] {
+export function plotTwistBlock(value: unknown): string[] {
   const text = activePlotTwist(value, true)
   if (!text) return []
   return [

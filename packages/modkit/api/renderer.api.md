@@ -421,8 +421,6 @@ export interface PromptState {
     // (undocumented)
     exCharacterDynamics?: CharacterDynamics;
     // (undocumented)
-    exPlotTwist?: string;
-    // (undocumented)
     exReckoning?: ReckoningState;
     farewell?: {
         firstName: string;

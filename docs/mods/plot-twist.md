@@ -14,7 +14,10 @@ The menu adapter calls the kit's `openPanel`, preserves the native safe-save gat
 loads the existing editor. Closing returns to the game. GameView and GameMenuModal no longer
 import or name the Plot Twist panel. The editor now uses the public kit save field,
 game-lifetime editor state and safe-point APIs.
-This is still an in-repo mod: the prompt snapshot connection and shared UI helpers remain.
+Its `promptState.scene` hook captures the bounded text under `PromptState.ex['plot-twist']`;
+the scene formatter reads that captured value. Core's snapshot builder and `PromptState` type
+no longer name Plot Twist. This is still an in-repo mod; legacy carry-over and packaging work
+remain before it can become an independently installed release.
 
 ## Player behavior
 
@@ -39,10 +42,10 @@ facts; this is narrative guidance, not guaranteed obedience or a direct mechanic
 | `src/shared/mods.ts` | Registers the independent switch; no `requires` |
 | `src/renderer/stores/plotTwist.ts` | Registers `saveField`, legacy normalization, semester carry and a game-lifetime editor token; validates edits and delegates writes to the kit |
 | `src/shared/plotTwistCarry.ts` | Accepts old, already-prepared semester continuations containing `mods.exPlotTwist` |
-| `src/renderer/stores/loop/promptState.ts` | Remaining direct connection: captures the switch and the generic live slice when building request state |
+| `src/renderer/stores/loop/promptState.ts` | Generic `promptState.scene` outlet; no Plot Twist import or projection |
 | `src/renderer/prompts/plotTwist.ts` | Pure story-direction prompt block |
 | `src/renderer/prompts/scenePrompt.ts` | Cast opening, continuation and closing; solo-scene hook |
-| `src/renderer/modEntries/plot-twist.ts` | Registers the prompt, lazy menu entry and panel provider |
+| `src/renderer/modEntries/plot-twist.ts` | Registers the prompt snapshot, prompt lines, lazy menu entry and panel provider |
 | `src/renderer/views/PlotTwistEntry.tsx` | Uses the kit's menu item, safe-save status and `openPanel`; adapts the existing editor |
 | `src/renderer/views/GameMenuModal.tsx` | Generic `gameMenuEntry` outlet, without a Plot Twist callback |
 | `src/renderer/views/GameView.tsx` | Generic blocking panel host, without a Plot Twist import or panel case |
@@ -86,9 +89,10 @@ continuations carry the versioned slice under `carry.ex`. Fresh games start empt
 the mod keeps its stored slice; reinstalling lets the field read it again.
 
 This is forward migration, not a promise that an old build can read the new slice. Preserve
-an original save when testing a downgrade. The snapshot capture in `loop/promptState.ts`
-remains until core offers a generic prompt-snapshot hook; reading the live field from inside
-a prompt formatter instead would change the meaning of an already-captured request.
+an original save when testing a downgrade. Version 1.1.1 moves prompt capture to the generic
+`promptState.scene` hook; a standalone manifest must declare it as well as `prompts.scene`.
+Core captures a detached copy only while the mod is enabled. An old core lacking this hook
+must mark that build as needing an update rather than load it with an absent story direction.
 
 ## Prompt scope and cost
 
@@ -101,8 +105,10 @@ inventory or calendar events directly, and is not a replacement for persistent m
 
 Each supported scene request pays for the active text again; short directions cost less.
 Turning the mod off omits the direction from newly built requests but preserves saved text.
-Already captured, prefetched, or retried requests retain their original contents. This is
-deliberate: changing the switch does not rewrite a request already in flight.
+Already formatted, prefetched, or retried requests retain their original contents. A captured
+snapshot retains its text across later edits, but the prompt hook still obeys the current
+switch when it formats. A snapshot captured while disabled has no twist to add even if the
+player enables the mod before formatting it. No callback rereads live text during formatting.
 
 ## Extending or porting again
 
