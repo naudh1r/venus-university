@@ -143,8 +143,8 @@ export interface BackupFile {
 }
 
 /** Every key of the record this build reads; any other key is a mod's or a newer build's, kept for the mods' parts. */
-// Mods may augment BackupFile without making core the owner of their legacy keys.
-const BACKUP_KEYS: Partial<Record<keyof BackupFile, true>> = {
+// Custom Soundtracks owns its legacy key; keep every other backup field accounted for.
+const BACKUP_KEYS: Record<Exclude<keyof BackupFile, 'exMusic'>, true> = {
   schemaVersion: true,
   settings: true,
   grabbags: true,
