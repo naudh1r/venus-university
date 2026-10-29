@@ -153,6 +153,18 @@ describe('fields in the character editor', () => {
     plain.registerHooks('plain', { editorField: field('plain') })
     expect(plain.editorWrites(her, () => null)).not.toHaveProperty('ex')
   })
+
+  it("keep every mod's slice when a draft is written onto her, the ones she has included", async () => {
+    const hooks = await fresh({}, ['body', 'notes'])
+    const slice = (data: unknown) => ({ v: '1.0.0', data })
+    hooks.registerHooks('body', { characterFromDraft: () => ({ ex: { body: slice('drawn') } }) })
+    hooks.registerHooks('notes', { characterFromDraft: () => ({ backstory: 'written', ex: { notes: slice('noted') } }) })
+    const her = { ex: { other: slice('kept') } }
+    expect(hooks.characterFromDraft({}, { baseAppearance: [] }, her)).toEqual({
+      backstory: 'written',
+      ex: { body: slice('drawn'), other: slice('kept'), notes: slice('noted') }
+    })
+  })
 })
 
 describe('updates tabs and option previews', () => {

@@ -749,7 +749,9 @@ it; `write` turns the value into what saving puts on her. Write only your own fi
 own are written over whatever a mod returns, so a mod cannot change her name or her traits by
 mistake. A `write` may return `ex`: its slices go in beside hers and the other mods', never in
 place of them. Save and the unsaved-changes check see it as they see the game's fields. A mod that is off draws no
-field and writes nothing, so what it saved on her stays.
+field and writes nothing, so what it saved on her stays. `characterFromDraft` answers are merged
+the same way when a generated draft is written onto her: `ex` slices go in beside the ones she
+has and the other mods'.
 
 ### Not covered yet
 

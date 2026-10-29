@@ -752,11 +752,27 @@ export function dmHistoryNotes(message: ChatMessage): string {
     .join('')
 }
 
+/**
+ * What the mods put on a character written from a draft, onto `character`, the record the draft
+ * fills: each mod's answer, a later one over an earlier, with `ex` merged as `mergeWrites` does.
+ */
 export function characterFromDraft(
   draft: Readonly<Record<string, unknown>>,
-  ctx: { baseAppearance: readonly string[] }
+  ctx: { baseAppearance: readonly string[] },
+  character: Pick<Character, 'ex'>
 ): Partial<Character> {
-  return Object.assign({}, ...active().map((hooks) => hooks.characterFromDraft?.(draft, ctx) ?? {}))
+  return mergeWrites(character, active().map((hooks) => hooks.characterFromDraft?.(draft, ctx) ?? {}))
+}
+
+/**
+ * Mods' writes onto one character, a later one over an earlier, except `ex`, where every write's
+ * slices go in beside the ones she has and the other writes', since no write may replace the bag.
+ */
+function mergeWrites(character: Pick<Character, 'ex'>, writes: readonly Partial<Character>[]): Partial<Character> {
+  const merged: Partial<Character> = Object.assign({}, ...writes)
+  const carried = writes.filter((write) => write.ex)
+  if (carried.length > 0) merged.ex = Object.assign({}, character.ex, ...carried.map((write) => write.ex))
+  return merged
 }
 
 export function afterDmReply(ctx: {
@@ -1063,17 +1079,9 @@ export function editorFields(): { modId: string; field: EditorField }[] {
   return activeEntries().flatMap(({ modId, hooks }) => (hooks.editorField ? [{ modId, field: hooks.editorField }] : []))
 }
 
-/**
- * What the mods' fields put on her as the editor saves: each active field's `write` of its own
- * value, a later one over an earlier, except `ex`, where every write's slices go in beside hers
- * and the other mods', since no field may replace the bag.
- */
+/** What the mods' fields put on her as the editor saves: each active field's `write` of its own value, merged as `mergeWrites` does. */
 export function editorWrites(character: Character, valueOf: (modId: string) => unknown): Partial<Character> {
-  const writes = editorFields().map(({ modId, field }) => field.write(valueOf(modId)))
-  const merged: Partial<Character> = Object.assign({}, ...writes)
-  const carried = writes.filter((write) => write.ex)
-  if (carried.length > 0) merged.ex = Object.assign({}, character.ex, ...carried.map((write) => write.ex))
-  return merged
+  return mergeWrites(character, editorFields().map(({ modId, field }) => field.write(valueOf(modId))))
 }
 
 /** The lines Save Game shows about the scene being saved, one from each mod that has one. */
