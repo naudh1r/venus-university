@@ -4,9 +4,8 @@ import { motion } from 'motion/react'
 import { PLOT_TWIST_LIMIT, PLOT_TWIST_MOD } from '../../shared/plotTwists'
 import { TextField } from '../components/TextField'
 import { TitleTab } from '../components/TitleTab'
-import { useModalShell, useModOn, useSafePoint, type ScreenTheme } from '@vx/modkit/renderer'
+import { gestures, lift, panelUnderTab, press, quietLift, quietPress, veilIn, useModalShell, useModOn, useSafePoint, type ScreenTheme } from '@vx/modkit/renderer'
 import { beginPlotTwistEdit, plotTwist, plotTwistEditor, writePlotTwist } from '../stores/plotTwist'
-import { gestures, lift, panelUnderTab, press, quietLift, quietPress, veilIn } from './motion'
 import '../vu_styles/PlotTwist.css'
 
 /** A save-owned direction editor. The GameView panel blocks scene input underneath it. */

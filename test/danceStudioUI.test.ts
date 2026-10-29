@@ -11,6 +11,9 @@ import { TalentAbilityControls } from '../src/renderer/views/TalentAbilityContro
 
 // Rendering controls must not initialize Electron's generation jobs or make an AI call.
 vi.mock('../src/renderer/stores/gameLoop',()=>({interject:vi.fn(()=>true)}))
+// Keep the real motion behavior in this server render without starting Electron's
+// renderer bridge. The kit contract tests verify these are its exported presets.
+vi.mock('@vx/modkit/renderer', () => import('../src/renderer/views/motion'))
 
 // Select the new opening while rendering the real board, without substituting its rules or UI.
 vi.mock('@shared/jobs', async original => {

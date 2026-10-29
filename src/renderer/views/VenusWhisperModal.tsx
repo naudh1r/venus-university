@@ -6,10 +6,10 @@ import { useEffect, useRef, useState, type JSX } from 'react'
 import { motion } from 'motion/react'
 import { VENUS_WHISPER_MOD, WHISPER_COMMENTS, WHISPER_TEXT, whisperWednesday, whisperDiscussionOpen, whisperPeople, whisperPlayerHandle } from '../../shared/venusWhisper'
 import { useGameStore } from '../stores/gameStore'
-import { useModOn } from '@vx/modkit/renderer'
+import { gestures, lift, press, quietLift, quietPress, useModOn } from '@vx/modkit/renderer'
 import { profileUrl } from '../stores/characterStore'
 import { commentOnWhisper, dismissWhisper, markWhisperRead, replyOnWhisper, useWhisperActivity, whisperReady } from '../stores/venusWhisper'
-import { breatheMark, gestures, lift, press, quietLift, quietPress } from './motion'
+import { breatheMark } from './motion'
 import '../vu_styles/VenusWhisper.css'
 
 /** A separate reading room for the campus column and its one public discussion per issue. */

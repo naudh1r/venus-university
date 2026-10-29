@@ -10,6 +10,10 @@ import { useModsStore } from '../src/renderer/stores/modsStore'
 import { useSoundtrackStore } from '../src/renderer/stores/soundtrackStore'
 import '../src/renderer/modEntries/custom-soundtracks'
 
+// This server render has no Electron host. Use the real motion presets without
+// starting the renderer bridge's stores; the kit contract tests check identity.
+vi.mock('@vx/modkit/renderer', () => import('../src/renderer/views/motion'))
+
 function draw(busy = false): Promise<string> {
   const element: ReactNode = createElement(MotionConfig, { isStatic: true },
     createElement(ModSlot<'settingsSection'>, { slot: 'settingsSection', props: { theme: 'night', busy } }))
