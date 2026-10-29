@@ -4,7 +4,7 @@ import { join } from 'path'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installMods } from '@shared/mods'
 import type { SaveDraft } from '@shared/types'
-import type { BackupPart } from '../src/main/services/modParts'
+import type { BackupPart } from '@vx/modkit/main'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { record } from './fixtures'
 
@@ -21,7 +21,8 @@ vi.mock('electron', () => ({
 }))
 
 const { exportBackup, importBackup } = await import('../src/main/services/backupService')
-const { backupPart, clearModParts } = await import('../src/main/services/modParts')
+const { backupPart, requiredBackupPart } = await import('@vx/modkit/main')
+const { clearModParts } = await import('../src/main/services/modParts')
 const { modDataPath } = await import('../src/main/services/modDataService')
 const { createPlaythrough, listPlaythroughs } = await import('../src/main/services/saveService')
 const { createZip, extractZip } = await import('../src/main/services/archiveService')
@@ -127,6 +128,95 @@ async function backedUp(): Promise<{ archive: string; playthroughId: string }> {
 }
 
 describe('a backup part', () => {
+  describe('export failure policy', () => {
+    it.each([
+      ['omit', 'missing source'], ['omit', 'unwritten file'], ['omit', 'invalid JSON'],
+      ['abort', 'missing source'], ['abort', 'unwritten file'], ['abort', 'invalid JSON']
+    ] as const)('%s policy handles %s without leaving a partial mod backup', async (exportFailure, failure) => {
+      const { archive } = await backedUp()
+      const previous = await readFile(archive)
+      const settingsBefore = await readFile(getSettingsPath())
+      let partScratch = ''
+      const register = exportFailure === 'abort' ? requiredBackupPart : backupPart
+      register('tape-mod', {
+        export: async ({ scratch }) => {
+          partScratch = scratch
+          await writeFile(join(scratch, 'partial.bin'), TAPE)
+          if (failure === 'missing source') await readFile(join(root, 'missing-source.bin'))
+          if (failure === 'unwritten file') return { files: ['missing.bin'] }
+          const circular: Record<string, unknown> = {}
+          circular.self = circular
+          return { json: circular }
+        },
+        prepare: async () => ({ commit: async () => {}, discard: async () => {} })
+      })
+      const laterExport = vi.fn(async () => ({ json: { intact: true } }))
+      backupPart('later-mod', {
+        export: laterExport,
+        prepare: async () => ({ commit: async () => {}, discard: async () => {} })
+      })
+
+      if (exportFailure === 'abort') {
+        await expect(exportBackup(archive)).rejects.toMatchObject({
+          code: 'BACKUP_PART_FAILED',
+          message: expect.stringContaining('Mixtapes')
+        })
+        expect(await readFile(archive)).toEqual(previous)
+        expect(laterExport).not.toHaveBeenCalled()
+      } else {
+        await exportBackup(archive)
+        expect(laterExport).toHaveBeenCalledOnce()
+        const unpacked = await tempDir('venus-university-omitted-part-')
+        await extractZip(archive, unpacked)
+        const backup = JSON.parse(await readFile(join(unpacked, BACKUP_NAME), 'utf8'))
+        expect(backup.mods['tape-mod']).toBeUndefined()
+        expect(backup.mods['later-mod'].json).toEqual({ intact: true })
+        expect(backup.saves).toHaveLength(1)
+        expect(await readdir(join(unpacked, 'mods'))).not.toContain('tape-mod')
+        expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('tape-mod'), expect.any(String))
+      }
+      expect(await readFile(getSettingsPath())).toEqual(settingsBefore)
+      await expect(readdir(partScratch)).rejects.toMatchObject({ code: 'ENOENT' })
+    })
+
+    it('does not create a new target when an aborting part fails', async () => {
+      const target = join(await tempDir('venus-university-aborted-backup-'), 'new.zip')
+      requiredBackupPart('tape-mod', {
+        export: async () => { throw new Error('Missing required media') },
+        prepare: async () => ({ commit: async () => {}, discard: async () => {} })
+      })
+      await expect(exportBackup(target)).rejects.toMatchObject({ code: 'BACKUP_PART_FAILED' })
+      await expect(readFile(target)).rejects.toMatchObject({ code: 'ENOENT' })
+    })
+
+    it('exports and restores a successful part that opts into aborting failures', async () => {
+      const { archive } = await backedUp()
+      await freshRoot()
+      const prepare = vi.fn<BackupPart['prepare']>(async json => {
+        expect(json).toEqual({ intact: true })
+        return { commit: async () => {}, discard: async () => {} }
+      })
+      requiredBackupPart('tape-mod', {
+        export: async () => ({ json: { intact: true } }),
+        prepare
+      })
+      await exportBackup(archive)
+      await importBackup(archive)
+      expect(prepare).toHaveBeenCalledOnce()
+    })
+
+    it.each([false, true])('shares the one-part-per-mod rule across both registrations (required first: %s)', requiredFirst => {
+      const part: BackupPart = {
+        export: async () => ({}),
+        prepare: async () => ({ commit: async () => {}, discard: async () => {} })
+      }
+      const first = requiredFirst ? requiredBackupPart : backupPart
+      const second = requiredFirst ? backupPart : requiredBackupPart
+      first('tape-mod', part)
+      expect(() => second('tape-mod', part)).toThrow('registered a second backup part')
+    })
+  })
+
   it('carries its file and json out and back in, through prepare and commit', async () => {
     const { archive, playthroughId } = await backedUp()
     await freshRoot()

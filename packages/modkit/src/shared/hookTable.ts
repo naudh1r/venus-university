@@ -205,7 +205,8 @@ export const KIT_APIS = [
   'main:backupPart',
   'main:characterTransferPart',
   'main:modDataPath',
-  'main:registerComfyLaunchEnvironment'
+  'main:registerComfyLaunchEnvironment',
+  'main:requiredBackupPart'
 ] as const
 
 export type KitApiName = (typeof KIT_APIS)[number]

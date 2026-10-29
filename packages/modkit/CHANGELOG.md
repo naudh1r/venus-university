@@ -1,5 +1,14 @@
 # @vx/modkit
 
+## Unreleased
+
+- `requiredBackupPart` in `main`: the existing backup-part contract with a required export.
+  Export failure stops before creating or replacing the target archive, names the mod and drops
+  temporary files. Ordinary `backupPart` still warns and omits a failed share. The new
+  `main:requiredBackupPart` capability lets manifests refuse older cores that lack this guarantee.
+  Restore behavior is unchanged. This unblocks Custom Soundtracks' backup migration without
+  losing its existing protection against replacing a valid backup with one missing its music.
+
 ## 0.5.0
 
 Mod data. A mod keeps its data in the save, on the records inside it, in memory for a game or a

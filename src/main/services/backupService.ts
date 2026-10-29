@@ -248,14 +248,15 @@ async function backupReplays(
 /**
  * Every registered mod's share, written by its part into its own folder under `mods/` in
  * `scratch`. A part that throws, or answers what cannot be carried, is left out with a warning,
- * as an unreadable picture is, and the backup goes ahead.
+ * as an unreadable picture is, and the backup goes ahead, unless it registered through
+ * requiredBackupPart. A required export failure stops before the target archive is touched.
  */
 async function backupModParts(
   scratch: string,
   playthroughIds: readonly string[]
 ): Promise<Record<string, BackupModPart>> {
   const mods: Record<string, BackupModPart> = {}
-  for (const [modId, part] of backupParts()) {
+  for (const [modId, { part, exportRequired }] of backupParts()) {
     const folder = join(scratch, MOD_PARTS_DIR, modId)
     try {
       await mkdir(folder, { recursive: true })
@@ -273,8 +274,15 @@ async function backupModParts(
       const json: unknown = out?.json === undefined ? undefined : JSON.parse(JSON.stringify(out.json))
       mods[modId] = { version: modVersionOf(modId), ...(json !== undefined ? { json } : {}), files }
     } catch (err) {
-      console.warn(`[backup] leaving out ${modId}'s data:`, messageOf(err))
       await discard(folder)
+      if (exportRequired) {
+        throw appError(
+          'BACKUP_PART_FAILED',
+          `Could not create the backup: ${modNameOf(modId)} could not export its data. The backup file was not changed.`,
+          messageOf(err)
+        )
+      }
+      console.warn(`[backup] leaving out ${modId}'s data:`, messageOf(err))
     }
   }
   return mods
@@ -669,7 +677,7 @@ async function prepareModParts(
   const restores: PreparedRestore[] = []
   const ids = new Set([...Object.keys(carried), ...backupParts().keys()])
   for (const modId of ids) {
-    const part = backupParts().get(modId)
+    const part = backupParts().get(modId)?.part
     if (!part) continue
     const entry = carried[modId]
     const dir = join(scratch, MOD_PARTS_DIR, modId)

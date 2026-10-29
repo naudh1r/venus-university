@@ -58,17 +58,35 @@ export interface BackupPart {
   ): Promise<BackupPartRestore>
 }
 
-const backups = new Map<string, BackupPart>()
+interface RegisteredBackupPart {
+  part: BackupPart
+  exportRequired: boolean
+}
+
+const backups = new Map<string, RegisteredBackupPart>()
 
 /** Adds the mod's share to every backup from now on; one per mod id. */
 export function backupPart(modId: string, part: BackupPart): void {
+  registerBackupPart(modId, part, false)
+}
+
+/**
+ * A backup part whose export must succeed. If it throws or returns invalid data, no backup is
+ * written and any existing target archive stays intact. Import has the same two-phase contract
+ * as backupPart. Declare main:requiredBackupPart so older cores cannot silently omit this data.
+ */
+export function requiredBackupPart(modId: string, part: BackupPart): void {
+  registerBackupPart(modId, part, true)
+}
+
+function registerBackupPart(modId: string, part: BackupPart, exportRequired: boolean): void {
   assertModId(modId)
   if (backups.has(modId)) throw new Error(`[mods] ${modId}: registered a second backup part`)
-  backups.set(modId, part)
+  backups.set(modId, { part, exportRequired })
 }
 
 /** Every registered backup part, by mod id, in registration order. */
-export function backupParts(): ReadonlyMap<string, BackupPart> {
+export function backupParts(): ReadonlyMap<string, RegisteredBackupPart> {
   return backups
 }
 
