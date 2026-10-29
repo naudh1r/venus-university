@@ -48,7 +48,8 @@ vi.mock('../src/renderer/stores/loop/hooks', async (importOriginal) => {
 // `gameLoop` reaches `jobStore`, which subscribes to `jobs:progress` at module scope — so the
 // bridge has to exist before the import, not the call.
 stubApi({ jobs: { onProgress: () => () => {} } })
-const { dropEnding } = await import('../src/renderer/stores/gameLoop')
+const { dropEnding, retryEndingCall } = await import('../src/renderer/stores/gameLoop')
+const { registerHooks, setHookRules } = await import('../packages/modkit/src/renderer/hooks')
 
 /** One scene call the test resolves by hand, so leaving can be timed inside it. */
 function deferredCall(): { call: SceneCall; resolve: (result: Awaited<SceneCall>) => void } {
@@ -255,31 +256,33 @@ describe('a continuation’s running summary', () => {
   })
 })
 
-describe('an ending the player interjected over', () => {
-  /**
-   * A solo scene's ending under way with its ledger out, on the real slot cycle; the ledger is
-   * answered by hand once the ending has been dropped.
-   */
-  function endingUnderWay(): {
-    ending: Promise<void>
-    answer: (result: Result<LedgerResponse>) => void
-  } {
-    let answer!: (result: Result<LedgerResponse>) => void
-    const call = new Promise<Result<LedgerResponse>>((r) => {
-      answer = r
-    })
-    stubApi({
-      saves: { autosave },
-      llm: { completeLedger: vi.fn(() => call) },
-      jobs: { cancelGroup: vi.fn(async (): Promise<Result<void>> => ({ ok: true, data: undefined })) }
-    })
-    if (!registered.slotCycle) throw new Error('gameLoop registered no slot cycle')
-    registerLoopHooks(registered.slotCycle)
-    useGameStore.getState().setSceneEnding(true)
-    useGameStore.getState().setEndingInFlight(true)
-    return { ending: runEnding(true), answer }
-  }
+/**
+ * A solo scene's ending under way with its ledger out, on the real slot cycle; the ledger is
+ * answered by hand once the ending has been dropped.
+ */
+function endingUnderWay(): {
+  ending: Promise<void>
+  answer: (result: Result<LedgerResponse>) => void
+  completeLedger: ReturnType<typeof vi.fn>
+} {
+  let answer!: (result: Result<LedgerResponse>) => void
+  const call = new Promise<Result<LedgerResponse>>((r) => {
+    answer = r
+  })
+  const completeLedger = vi.fn(() => call)
+  stubApi({
+    saves: { autosave },
+    llm: { completeLedger },
+    jobs: { cancelGroup: vi.fn(async (): Promise<Result<void>> => ({ ok: true, data: undefined })) }
+  })
+  if (!registered.slotCycle) throw new Error('gameLoop registered no slot cycle')
+  registerLoopHooks(registered.slotCycle)
+  useGameStore.getState().setSceneEnding(true)
+  useGameStore.getState().setEndingInFlight(true)
+  return { ending: runEnding(true), answer, completeLedger }
+}
 
+describe('an ending the player interjected over', () => {
   it('writes and banks nothing when its ledger lands', async () => {
     const { ending, answer } = endingUnderWay()
 
@@ -305,5 +308,39 @@ describe('an ending the player interjected over', () => {
     await ending
 
     expect(useGameStore.getState().ledgerError).toBeNull()
+  })
+})
+
+describe('an ending whose request cannot be built', () => {
+  it('asks through its modal, and builds the request again on Retry', async () => {
+    let failing = true
+    registerHooks('broken-capture', {
+      promptState: {
+        scene: () => {
+          if (failing) throw new Error('capture failed')
+          return undefined
+        }
+      }
+    })
+    // Only the broken mod is on, for the rest of this file: the suite ends here.
+    setHookRules({ isOn: (id) => id === 'broken-capture', order: () => 0 })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    // Parked on the spinner, which is what the ending's modal waits for.
+    useGameStore.getState().setWaitingForLine(true)
+
+    const { ending, answer, completeLedger } = endingUnderWay()
+
+    await vi.waitFor(() => expect(useGameStore.getState().ledgerError?.code).toBe('SCENE_BUILD_FAILED'))
+    expect(useGameStore.getState().ledgerError?.detail).toContain('broken-capture')
+    expect(completeLedger).not.toHaveBeenCalled()
+
+    failing = false
+    retryEndingCall()
+    await vi.waitFor(() => expect(completeLedger).toHaveBeenCalledTimes(1))
+    expect(useGameStore.getState().ledgerError).toBeNull()
+
+    dropEnding()
+    answer({ ok: true, data: {} })
+    await ending
   })
 })
