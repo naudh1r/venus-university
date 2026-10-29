@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { IDBFactory } from 'fake-indexeddb'
 import { openDB } from 'idb'
-import { strFromU8, unzipSync } from 'fflate'
+import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -12,18 +12,27 @@ import { SOUNDTRACK_MOD } from '@shared/soundtracks'
 let root = ''
 let webEnabled = true
 let downloaded: Uint8Array | string | undefined
+const selected = vi.hoisted(() => ({ file: vi.fn() }))
 vi.mock('electron', () => ({ app: { isPackaged: false, getAppPath: () => root, getPath: () => root } }))
 vi.mock('../src/web/mods', () => ({ readModSwitches: () => ({ on: { 'custom-soundtracks': webEnabled }, options: {} }) }))
 vi.mock('../src/web/download', () => ({ offerDownload: (name: string, content: Uint8Array | string) => {
   downloaded = content
   return name
 } }))
+vi.mock('../src/web/transfer', async original => ({
+  ...await original<typeof import('../src/web/transfer')>(), pickFile: selected.file
+}))
+// This storage fixture has no shipped cast; ZIP packing and storage remain real.
+vi.mock('../src/web/packs', async original => ({
+  ...await original<typeof import('../src/web/packs')>(), isShipped: () => false, shippedCharIds: () => []
+}))
 const bytes = new Uint8Array([1, 2, 3, 4])
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'venus-soundtracks-'))
   globalThis.indexedDB = new IDBFactory()
   webEnabled = true
   downloaded = undefined
+  selected.file.mockReset()
   vi.resetModules()
 })
 afterEach(async () => { await rm(root, { recursive: true, force: true }) })
@@ -100,12 +109,14 @@ it.each([true, false])('exports native music only while enabled (%s), retaining 
   await exportBackup(archive)
   const entries = unzipSync(await readFile(archive))
   const record = JSON.parse(strFromU8(entries['backup.json']))
+  expect(record).not.toHaveProperty('exMusic')
   if (enabled) {
-    expect(record.exMusic).toEqual(map)
-    expect(entries['exMusic/' + map.title!.file]).toEqual(bytes)
+    expect(record.mods[SOUNDTRACK_MOD].json).toEqual({ v: 1, tracks: map })
+    expect(entries['mods/' + SOUNDTRACK_MOD + '/' + map.title!.file]).toEqual(bytes)
   } else {
-    expect(record).not.toHaveProperty('exMusic')
-    expect(Object.keys(entries).filter(name => name.startsWith('exMusic/'))).toEqual([])
+    expect(record.mods[SOUNDTRACK_MOD].json).toEqual({ v: 1, tracks: null })
+    expect(record.mods[SOUNDTRACK_MOD].files).toEqual([])
+    expect(Object.keys(entries).filter(name => name.startsWith('mods/' + SOUNDTRACK_MOD + '/') && !name.endsWith('/'))).toEqual([])
   }
   expect(await lib.list()).toEqual(map)
   expect(await lib.read('title')).toEqual(bytes)
@@ -138,4 +149,64 @@ it.each([true, false])('exports browser music only while enabled (%s), without c
     expect(await lib.list()).toEqual(map)
     expect(await lib.read('title')).toEqual(bytes)
   } finally { (await database()).close() }
+})
+
+it('moves a full desktop backup into the browser and the browser legacy-format backup back to desktop', async () => {
+  const native = await import('../src/main/services/soundtrackService')
+  const nativeBackup = await import('../src/main/services/backupService')
+  const web = await import('../src/web/soundtracks')
+  const webBackup = await import('../src/web/backup')
+  const { database } = await import('../src/web/db/open')
+  try {
+    const picked = await native.soundtrackLibrary.pick('portable.wav', bytes, 7)
+    await native.soundtrackLibrary.commit('venue_pop', picked.token, 4, 7)
+    await native.soundtrackLibrary.loop('venue_pop', false)
+    const expected = await native.soundtrackLibrary.snapshot()
+    const archive = join(root, 'desktop.zip')
+    await nativeBackup.exportBackup(archive)
+    selected.file.mockResolvedValue(new File([new Uint8Array(await readFile(archive))], 'desktop.zip'))
+    expect(await webBackup.importBackup()).toBe(true)
+    expect(await web.soundtrackLibrary.snapshot()).toEqual(expected)
+
+    await webBackup.exportBackup()
+    const legacy = join(root, 'browser.zip')
+    await writeFile(legacy, downloaded as Uint8Array)
+    expect(JSON.parse(strFromU8(unzipSync(downloaded as Uint8Array)['backup.json'])).exMusic).toEqual(expected.map)
+    await native.soundtrackLibrary.remove('venue_pop')
+    await native.soundtrackLibrary.cleanup()
+    await nativeBackup.importBackup(legacy)
+    expect(await native.soundtrackLibrary.snapshot()).toEqual(expected)
+  } finally { (await database()).close() }
+})
+
+it.each(['missing', 'corrupt', 'future', 'metadata'])('refuses %s native soundtrack data before the browser transaction', async failure => {
+  const native = await import('../src/main/services/soundtrackService')
+  const nativeBackup = await import('../src/main/services/backupService')
+  const web = await import('../src/web/soundtracks')
+  const webBackup = await import('../src/web/backup')
+  const { database } = await import('../src/web/db/open')
+  const db = await database()
+  try {
+    const picked = await native.soundtrackLibrary.pick('portable.wav', bytes, 7)
+    const map = await native.soundtrackLibrary.commit('title', picked.token, 4, 7)
+    const archive = join(root, 'desktop.zip')
+    await nativeBackup.exportBackup(archive)
+    const entries = unzipSync(await readFile(archive))
+    const backup = JSON.parse(strFromU8(entries['backup.json']))
+    const audioPath = 'mods/' + SOUNDTRACK_MOD + '/' + map.title!.file
+    if (failure === 'missing') delete entries[audioPath]
+    if (failure === 'corrupt') entries[audioPath][0] ^= 1
+    if (failure === 'future') backup.mods[SOUNDTRACK_MOD].json.v = 2
+    if (failure === 'metadata') delete backup.mods[SOUNDTRACK_MOD].json
+    entries['backup.json'] = new TextEncoder().encode(JSON.stringify(backup))
+    selected.file.mockResolvedValue(new File([new Uint8Array(zipSync(entries))], 'invalid.zip'))
+
+    const current = await web.soundtrackLibrary.pick('current.wav', Uint8Array.of(8, 9, 10), 0)
+    await web.soundtrackLibrary.commit('title', current.token, 4, 0)
+    const before = await web.soundtrackLibrary.snapshot()
+    await db.put('grabbags', { inspiration: ['Keep me'] }, 'grabbags')
+    await expect(webBackup.importBackup()).rejects.toBeDefined()
+    expect(await web.soundtrackLibrary.snapshot()).toEqual(before)
+    expect(await db.get('grabbags', 'grabbags')).toEqual({ inspiration: ['Keep me'] })
+  } finally { db.close() }
 })
