@@ -30,6 +30,7 @@ export interface BackupPartExport {
 
 // @public
 export interface BackupPartLegacy {
+    archive: string;
     dirs: readonly string[];
     record: Readonly<Record<string, unknown>>;
 }
@@ -63,6 +64,9 @@ export function modDataPath(modId: string, playthroughId?: string): string;
 
 // @public
 export function registerComfyLaunchEnvironment(modId: string, provider: EnvironmentProvider): () => void;
+
+// @public
+export function requiredBackupPart(modId: string, part: BackupPart): void;
 
 // (No @packageDocumentation comment for this package)
 
