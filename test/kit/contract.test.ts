@@ -49,6 +49,13 @@ describe('the entry points', () => {
     expect(rendererKit.useDismissLayer).toBe(native.useDismissLayer)
   })
 
+  it("hands mods the game's own motion presets, so a mod panel moves as a native one does", async () => {
+    const native = await import('../../src/renderer/views/motion')
+    for (const name of ['gestures', 'lift', 'panelUnderTab', 'press', 'quietLift', 'quietPress', 'rowLift', 'rowPress', 'toggleLift', 'veilIn'] as const) {
+      expect(rendererKit[name], name).toBe(native[name])
+    }
+  })
+
   it('split every runtime export of hooks.ts, ModSlot, saveField.ts and modState.ts between the host and the mod', () => {
     const moved = [...runtime(hooksShim), ...runtime(slotShim), ...runtime(saveFieldKit), ...runtime(modStateKit)].sort()
     const host = runtime(hostRenderer)
@@ -136,6 +143,10 @@ const request = (spot: keyof RequestSpots) => (): Probe => {
 const slot = (name: keyof ModHooks) => thing(name, Comp as never, (host, id) => host.screenSlot(name as never).some((one) => one.modId === id))
 
 const PROBES: Record<RendererHook, (id: string) => Probe> = {
+  'promptState.scene': id => ({
+    hooks: { promptState: { scene: () => 'captured' } },
+    ask: host => host.promptStateParts('scene')[id] === 'captured'
+  }),
   'prompts.scene': prompt('scene'),
   'prompts.dm': prompt('dm'),
   'prompts.slot-posts': prompt('slot-posts'),
@@ -148,7 +159,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   'requests.ledger': request('ledger'),
   'requests.slot-intro': request('slot-intro'),
   dmHistoryNote: fn('dmHistoryNote', ' note', (host) => host.dmHistoryNotes(never)),
-  characterFromDraft: fn('characterFromDraft', {}, (host) => host.characterFromDraft({}, { baseAppearance: [] })),
+  characterFromDraft: fn('characterFromDraft', {}, (host) => host.characterFromDraft({}, { baseAppearance: [] }, {})),
   afterDmReply: fn('afterDmReply', undefined, (host) => host.afterDmReply({ charId: 'c', character: never, reply: never })),
   afterSceneReply: fn('afterSceneReply', undefined, (host) => host.afterSceneReply({ reply: {}, cast: [], solo: true, ending: false })),
   afterReachOut: fn('afterReachOut', undefined, (host) => host.afterReachOut({ charId: 'c', character: never, reply: {} })),

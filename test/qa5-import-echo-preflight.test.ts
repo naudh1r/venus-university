@@ -99,10 +99,10 @@ it('rejects invalid reflection placement before writing any mixed backup data', 
 
 it('rejects a soundtrack integrity mismatch before writing Echoes, reflections, settings or saves', async () => {
   const invalid = await editedArchive((backup, entries) => {
-    const key = `exMusic/${backup.exMusic.title.file}`
+    const key = `mods/custom-soundtracks/${backup.mods['custom-soundtracks'].json.tracks.title.file}`
     entries[key] = new Uint8Array(entries[key]); entries[key][entries[key].length - 1] ^= 1
   })
-  await expect(importBackup(invalid)).rejects.toMatchObject({ code: 'SOUNDTRACK_INTEGRITY' })
+  await expect(importBackup(invalid)).rejects.toMatchObject({ code: 'BACKUP_PART_FAILED' })
   await assertLiveUntouched()
 })
 

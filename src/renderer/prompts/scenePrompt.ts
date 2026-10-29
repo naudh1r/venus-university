@@ -177,7 +177,6 @@ export interface ProjectSceneContext {
 /** Everything the builders read out of `gameStore`. */
 export interface PromptState {
   exReckoning?: import('@shared/reckoning').ReckoningState
-  exPlotTwist?: string
   storyMemory?: import('@shared/storyMemory').StorySnapshot
   breakthrough?: import('@shared/breakthrough').BreakthroughState
   exCharacterDynamics?: CharacterDynamics
@@ -185,6 +184,8 @@ export interface PromptState {
   playthroughId: string
   date: number
   time: TimeSlot
+  /** Mod-owned snapshots captured for this request, keyed by mod id. Not saved or prompt text. */
+  ex?: Readonly<Record<string, unknown>>
   /** Available background base names, sorted, suffixes already stripped, by category. */
   backgrounds: BackgroundSets
   /** The playthrough's lorebook: the shipped entries as the player has them, then his own. */

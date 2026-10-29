@@ -108,22 +108,63 @@ it('preserves a previous character export if the character cannot be read', asyn
   expect(unzipSync(new Uint8Array(await readFile(file)))).toBeDefined()
 })
 
-it('rejects altered soundtrack bytes before replacing any live data', async () => {
+it.each([false, true])('rejects altered or missing soundtrack bytes before replacing live data (missing: %s)', async missing => {
   const invalid = await editedArchive((backup, entries) => {
-    const key = 'exMusic/' + backup.exMusic.title.file
-    entries[key][entries[key].length - 1] ^= 1
+    const key = 'mods/custom-soundtracks/' + backup.mods['custom-soundtracks'].json.tracks.title.file
+    if (missing) delete entries[key]
+    else entries[key][entries[key].length - 1] ^= 1
   })
-  await expect(importBackup(invalid)).rejects.toMatchObject({ code: 'SOUNDTRACK_INTEGRITY' })
+  await expect(importBackup(invalid)).rejects.toMatchObject({ code: 'BACKUP_PART_FAILED' })
   await assertLiveUntouched()
 })
 
 it('keeps current music when importing an older backup without music', async () => {
   const legacy = await editedArchive((backup, entries) => {
-    delete entries['exMusic/' + backup.exMusic.title.file]
-    delete backup.exMusic
+    delete entries['mods/custom-soundtracks/' + backup.mods['custom-soundtracks'].json.tracks.title.file]
+    delete backup.mods['custom-soundtracks']
   })
   await importBackup(legacy)
   expect(await playthroughIds()).toEqual([SOURCE_ID])
   expect(await soundtrackLibrary.read('title')).toEqual(wav(12))
   expect((await soundtrackLibrary.list()).title?.name).toBe('Current.wav')
+})
+
+it.each([false, true])('reads a legacy-only exMusic backup before any live write (corrupt: %s)', async corrupt => {
+  const legacy = await editedArchive((backup, entries) => {
+    const part = backup.mods['custom-soundtracks']
+    backup.exMusic = part.json.tracks
+    for (const file of part.files) {
+      entries['exMusic/' + file] = entries['mods/custom-soundtracks/' + file]
+      delete entries['mods/custom-soundtracks/' + file]
+    }
+    delete backup.mods['custom-soundtracks']
+    if (corrupt) entries['exMusic/' + backup.exMusic.title.file][45] ^= 1
+  })
+  if (corrupt) {
+    await expect(importBackup(legacy)).rejects.toMatchObject({ code: 'BACKUP_PART_FAILED' })
+    await assertLiveUntouched()
+  } else {
+    await importBackup(legacy)
+    expect(await soundtrackLibrary.read('title')).toEqual(wav())
+    expect(await playthroughIds()).toEqual([SOURCE_ID])
+  }
+})
+
+it.each([undefined, null, { v: 2, tracks: {} }, { v: 1 }, { v: 1, tracks: [] }])(
+  'rejects malformed or future Soundtracks metadata before writes: %j', async json => {
+    const invalid = await editedArchive(backup => { backup.mods['custom-soundtracks'].json = json })
+    await expect(importBackup(invalid)).rejects.toMatchObject({ code: 'BACKUP_PART_FAILED' })
+    await assertLiveUntouched()
+  }
+)
+
+it.each([null, {}])('gives the new metadata precedence over stale legacy fields (tracks: %j)', async tracks => {
+  const mixed = await editedArchive(backup => {
+    backup.exMusic = { thisIsNotASlot: { file: '../invalid' } }
+    backup.mods['custom-soundtracks'].json = { v: 1, tracks }
+  })
+  await importBackup(mixed)
+  expect(await playthroughIds()).toEqual([SOURCE_ID])
+  if (tracks === null) expect(await soundtrackLibrary.read('title')).toEqual(wav(12))
+  else expect(await soundtrackLibrary.list()).toEqual({})
 })

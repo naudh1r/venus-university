@@ -3,11 +3,13 @@ import { open, mkdir, readFile, readdir, lstat, unlink } from 'fs/promises'
 import { basename, join } from 'path'
 import { appError } from '@shared/errors'
 import { modOn } from '@vx/modkit/shared'
+import { requiredBackupPart } from '@vx/modkit/main'
 import { SoundtrackLibrary } from '../../shared/soundtrackLibrary'
 import { SOUNDTRACK_FILE, SOUNDTRACK_MAX_BYTES, SOUNDTRACK_MOD } from '../../shared/soundtracks'
 import { getDataPath } from '../paths'
 import { getModSwitches } from './modsService'
 import { writeAtomicBytes, writeAtomicJson } from './jsonFile'
+import { soundtrackBackupPart } from './soundtrackBackup'
 
 const WRITE_ERROR = { code: 'SOUNDTRACK_WRITE', message: 'Could not save soundtrack choices.' }
 export const soundtrackDirectory = (): string => join(getDataPath(), 'ex-music')
@@ -64,6 +66,8 @@ export const soundtrackLibrary = new SoundtrackLibrary({
   },
   delete: file => unlink(pathOf(file))
 })
+
+requiredBackupPart(SOUNDTRACK_MOD, soundtrackBackupPart(soundtrackLibrary, soundtrackHash, readSoundtrackFile))
 
 /** Called only with the native dialog's answer, never a renderer-provided path. */
 export async function pickSoundtrack(path: string, sender: number) {

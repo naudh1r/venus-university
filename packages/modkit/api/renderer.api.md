@@ -10,7 +10,9 @@ import { JSX } from 'react';
 import { MouseEventHandler } from 'react';
 import { ReactNode } from 'react';
 import { StoreApi } from 'zustand';
+import { TargetAndTransition } from 'motion/react';
 import { UseBoundStore } from 'zustand';
+import { Variants } from 'motion/react';
 
 // @public (undocumented)
 export interface BunnyboardPage {
@@ -116,6 +118,14 @@ export interface GameModalProps {
 }
 
 // @public
+export function gestures(dead: boolean, hover: TargetAndTransition, tap: TargetAndTransition): {
+    whileHover: TargetAndTransition;
+    whileTap: TargetAndTransition;
+    whileFocus: TargetAndTransition;
+    'data-lift'?: '';
+};
+
+// @public
 export interface LandingToolProps {
     // (undocumented)
     children: ReactNode;
@@ -124,6 +134,9 @@ export interface LandingToolProps {
     // (undocumented)
     onClick: () => void;
 }
+
+// @public
+export const lift: TargetAndTransition;
 
 // @public
 export interface LikesAsk {
@@ -236,6 +249,9 @@ export interface ModHooks {
     prompts?: {
         [S in PromptSpot]?: PromptAddition<PromptSpots[S]>;
     };
+    promptState?: {
+        scene?: () => unknown;
+    };
     railButton?: ComponentType<ScreenSlotProps['railButton']>;
     requests?: {
         [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest;
@@ -294,6 +310,9 @@ export interface OptionPreviewProps {
 // @public
 export function ownsPostComments(modId: string): boolean;
 
+// @public (undocumented)
+export const panelUnderTab: Variants;
+
 // @public
 export function PostCommentAction(props: PostCommentsProps): JSX.Element | null;
 
@@ -342,6 +361,9 @@ export interface PostPictureProps {
 export function postVisible(post: SocialPost): boolean;
 
 // @public
+export const press: TargetAndTransition;
+
+// @public
 export interface PromptAddition<C> {
     fields?: () => Record<string, unknown>;
     // (undocumented)
@@ -367,7 +389,7 @@ export interface PromptSpots {
         character: Character;
         info: CharInfo;
         date: number;
-        time: TimeSlot_2;
+        time: TimeSlot;
     };
     'slot-posts': Record<string, never>;
     'slot-reach-outs': {
@@ -414,10 +436,9 @@ export interface PromptState {
     date: number;
     droppedNotices?: readonly DroppedNotice[];
     emotions: Record<string, SpriteRef>;
+    ex?: Readonly<Record<string, unknown>>;
     // (undocumented)
     exCharacterDynamics?: CharacterDynamics;
-    // (undocumented)
-    exPlotTwist?: string;
     // (undocumented)
     exReckoning?: ReckoningState;
     farewell?: {
@@ -465,11 +486,17 @@ export interface PromptState {
     textedWith?: readonly string[];
     textingSummaries?: Record<string, string[]>;
     // (undocumented)
-    time: TimeSlot_2;
+    time: TimeSlot;
     upcomingPlans?: Record<string, string[]>;
     visitJobId: string | null;
     weather?: readonly Weather[];
 }
+
+// @public
+export const quietLift: TargetAndTransition;
+
+// @public (undocumented)
+export const quietPress: TargetAndTransition;
 
 // @public
 export interface RailSeatProps {
@@ -532,6 +559,12 @@ export interface ResolvedSave {
     summary: SaveSummary | null;
     unloadable: string | null;
 }
+
+// @public
+export const rowLift: TargetAndTransition;
+
+// @public (undocumented)
+export const rowPress: TargetAndTransition;
 
 // @public
 export function safePoint(): ManualSaveOffer;
@@ -740,7 +773,7 @@ export interface SlotIntroInput {
     stats?: PlayerStats;
     // (undocumented)
     storyMemory?: StorySnapshot;
-    time: TimeSlot_2;
+    time: TimeSlot;
     visitors: readonly IntroVisitor[];
     weather?: readonly Weather[];
 }
@@ -797,10 +830,13 @@ export interface TextingPromptState {
     // (undocumented)
     storyMemory?: StorySnapshot;
     // (undocumented)
-    time: TimeSlot_2;
+    time: TimeSlot;
     upcomingPlans?: Record<string, string[]>;
     weather?: readonly Weather[];
 }
+
+// @public
+export const toggleLift: TargetAndTransition;
 
 // @public
 export interface UpdatesTab {
@@ -836,6 +872,9 @@ export function useModOption(modId: string, optionId: string): boolean;
 
 // @public
 export function useSafePoint(): ManualSaveOffer;
+
+// @public
+export const veilIn: Variants;
 
 // @public
 export type ViewName = 'boot' | 'setup'

@@ -80,13 +80,13 @@ function names(list: readonly string[]): string {
 
 /**
  * The names a `registerHooks` call registers, as the manifest spells them: each key with a value,
- * and `prompts` and `requests` spelt out per spot. Takes the object loosely so the main process
+ * and `prompts`, `requests` and `promptState` spelt out per spot. Takes the object loosely so the main process
  * can read a manifest's claim without the renderer's types.
  */
 export function hookNamesOf(hooks: object): string[] {
   return Object.entries(hooks as Record<string, unknown>).flatMap(([key, value]) => {
     if (value === undefined) return []
-    if ((key === 'prompts' || key === 'requests') && value && typeof value === 'object') {
+    if ((key === 'prompts' || key === 'requests' || key === 'promptState') && value && typeof value === 'object') {
       return Object.entries(value as Record<string, unknown>)
         .filter(([, spot]) => spot !== undefined)
         .map(([spot]) => `${key}.${spot}`)

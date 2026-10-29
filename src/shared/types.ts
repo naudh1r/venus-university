@@ -12,6 +12,7 @@ import type { LedgerStats, PlayerStats, StatKey, StatTier } from './playerStats'
 import type { ClassDifficulty, ClassKind, ExamPeriod, Professor } from './academics'
 import type { CharacterTrait } from './traits'
 import type { ModCarryFields } from './modCarry'
+import type { ModPlaythroughFields } from './mods'
 import type { PostComment } from './postComments'
 import type { GiftPreferences, GiftReaction } from './shop'
 import type { NpcFriendship, NpcRelationshipMap, NpcSlotOverlay } from './npcRelationships'
@@ -1933,7 +1934,7 @@ export interface SaveReadResult {
  * once beside the saves that read it, again with each semester Continue adds, and when the
  * player renames the playthrough. The folder names the playthrough, so no id is carried here.
  */
-export interface PlaythroughRecord {
+export interface PlaythroughRecord extends ModPlaythroughFields {
   schemaVersion: 3
   /** charIds of the first semester's roster, in roster order. */
   chars: string[]

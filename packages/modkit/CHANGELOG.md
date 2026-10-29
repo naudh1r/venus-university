@@ -1,5 +1,46 @@
 # @vx/modkit
 
+## Unreleased
+
+- The game's motion presets in `renderer`: `gestures`, `lift`, `press`, `quietLift`, `quietPress`,
+  `rowLift`, `rowPress`, `toggleLift`, `veilIn` and `panelUnderTab`, each its own
+  `renderer:<name>` capability. They are the game's own objects, re-exported, so a mod's controls
+  and panels move as the native ones do and follow them when they change. The rest of the game's
+  motion file stays core's. Nothing native changes.
+
+## 0.6.0
+
+What the first mods moving onto the kit needed: a backup share that must be complete, a scene
+request's own copy of a mod's data, and declarations a mod built outside the repo compiles
+against.
+
+- `requiredBackupPart` in `main`: the existing backup-part contract with a required export.
+  Export failure stops before creating or replacing the target archive, names the mod and drops
+  temporary files. Ordinary `backupPart` still warns and omits a failed share. The new
+  `main:requiredBackupPart` capability lets manifests refuse older cores that lack this guarantee.
+  Restore behavior is unchanged. This unblocks Custom Soundtracks' backup migration without
+  losing its existing protection against replacing a valid backup with one missing its music.
+- `promptState.scene`: capture an enabled mod's structured-cloneable value into a scene request's
+  `PromptState.ex[modId]`. The copy is made synchronously by the game prompt-state builder;
+  prompt formatters can keep using that value if the player edits live mod data while the
+  request is being prepared. Values are keyed by owner, never spread over native fields.
+  Undefined omits a slice. Duplicate owners or failed captures abort the request naming the mod.
+  Declare `promptState.scene` in the manifest; older cores reject the missing hook. DM, ledger
+  and slot-intro snapshots are not added by this change. Existing prompt hooks are unchanged.
+- A throw while a turn's request is built, a `promptState.scene` capture's or a `prompts.*`
+  hook's, fails the turn: it is rewound and the player gets the retry modal, the error in its
+  detail, as for a failed call. It used to leave the game busy behind the covered stage. The
+  scene's goodbye and bookkeeping builds, which run after the reply has landed, are not covered
+  yet.
+- `ModPlaythroughFields` and `BunnyboardState` in `shared`. `PlaythroughRecord` extends the
+  first, so its `mods` and `modVersions` reach the rolled-up declarations, which dropped them
+  when they were a module augmentation. `report` and `report:check` now compile
+  `test/consumer.ts` against `dist/`, with no game-source aliases, to catch the next such gap.
+- `characterFromDraft` answers are merged as `editorField` writes are: each mod's `ex` slices go
+  in beside the ones she has and the other mods', never in place of them.
+- `report` resolves the kit's own names to its emitted declarations, so the report no longer
+  depends on a `dist/` left by an earlier run and `report:check` passes on a fresh checkout.
+
 ## 0.5.0
 
 Mod data. A mod keeps its data in the save, on the records inside it, in memory for a game or a

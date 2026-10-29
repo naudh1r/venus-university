@@ -51,7 +51,15 @@ writeFileSync(
         types: ['node', 'vite/client'],
         typeRoots: [resolve(root, 'node_modules/@types')],
         baseUrl: dts,
-        paths: { '@shared/*': ['src/shared/*'] }
+        // The kit's own names resolve to its emitted entries, as in tsconfig.dts.json. Without
+        // these, a declaration importing `@vx/modkit/shared` (the mods' files on main do) reached
+        // the package's `exports`, so `dist/` from an earlier run, and the report differed on a
+        // fresh checkout that had none.
+        paths: {
+          '@shared/*': ['src/shared/*'],
+          '@vx/modkit/host/*': ['packages/modkit/src/host/*'],
+          '@vx/modkit/*': ['packages/modkit/src/*/index.d.ts']
+        }
       },
       include: [`${dts.split('\\').join('/')}/**/*.d.ts`]
     },
@@ -102,6 +110,34 @@ for (const entry of ['shared', 'renderer', 'main']) {
     process.exit(1)
   }
   if (result.apiReportChanged) changed = true
+}
+
+// 4. Typecheck an actual external consumer against the rollups, not src/. The game's
+// aliases and ambient augmentations can otherwise conceal missing public declarations.
+const consumerConfig = resolve(temp, 'consumer.json')
+writeFileSync(
+  consumerConfig,
+  JSON.stringify({
+    compilerOptions: {
+      target: 'esnext', module: 'esnext', moduleResolution: 'bundler',
+      strict: true, skipLibCheck: false, noEmit: true,
+      lib: ['ESNext', 'DOM', 'DOM.Iterable'], types: ['node'],
+      typeRoots: [resolve(root, 'node_modules/@types')],
+      paths: Object.fromEntries(['shared', 'renderer', 'main'].map(entry => [
+        `@vx/modkit/${entry}`, [resolve(kit, 'dist', `${entry}.d.ts`)]
+      ]))
+    },
+    files: [resolve(kit, 'test/consumer.ts')]
+  }, null, 2)
+)
+const consumer = spawnSync(
+  process.execPath,
+  [resolve(root, 'node_modules/typescript/bin/tsc'), '-p', consumerConfig],
+  { cwd: kit, stdio: 'inherit' }
+)
+if (consumer.status !== 0) {
+  console.error('The rolled-up kit declarations do not compile for a standalone consumer.')
+  process.exit(consumer.status ?? 1)
 }
 
 if (check && changed) {

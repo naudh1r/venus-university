@@ -108,8 +108,6 @@ import {
   saveIdsOf
 } from './saveService'
 import { getRendererSettings, getSettings, replaceSettings } from './settingsService'
-import { prepareSoundtrackSnapshot, SOUNDTRACK_BACKUP_DIR } from '@shared/soundtracks'
-import { soundtrackLibrary, soundtrackHash, readSoundtrackFile } from './soundtrackService'
 import { backupEchoArtwork, prepareEchoArtworkRestore } from './echoArtworkBackup'
 
 /** The data folder as one backup zip, and one backup zip back over the data folder. */
@@ -252,14 +250,15 @@ async function backupReplays(
 /**
  * Every registered mod's share, written by its part into its own folder under `mods/` in
  * `scratch`. A part that throws, or answers what cannot be carried, is left out with a warning,
- * as an unreadable picture is, and the backup goes ahead.
+ * as an unreadable picture is, and the backup goes ahead, unless it registered through
+ * requiredBackupPart. A required export failure stops before the target archive is touched.
  */
 async function backupModParts(
   scratch: string,
   playthroughIds: readonly string[]
 ): Promise<Record<string, BackupModPart>> {
   const mods: Record<string, BackupModPart> = {}
-  for (const [modId, part] of backupParts()) {
+  for (const [modId, { part, exportRequired }] of backupParts()) {
     const folder = join(scratch, MOD_PARTS_DIR, modId)
     try {
       await mkdir(folder, { recursive: true })
@@ -277,8 +276,15 @@ async function backupModParts(
       const json: unknown = out?.json === undefined ? undefined : JSON.parse(JSON.stringify(out.json))
       mods[modId] = { version: modVersionOf(modId), ...(json !== undefined ? { json } : {}), files }
     } catch (err) {
-      console.warn(`[backup] leaving out ${modId}'s data:`, messageOf(err))
       await discard(folder)
+      if (exportRequired) {
+        throw appError(
+          'BACKUP_PART_FAILED',
+          `Could not create the backup: ${modNameOf(modId)} could not export its data. The backup file was not changed.`,
+          messageOf(err)
+        )
+      }
+      console.warn(`[backup] leaving out ${modId}'s data:`, messageOf(err))
     }
   }
   return mods
@@ -389,17 +395,11 @@ export async function exportBackup(targetPath: string): Promise<void> {
     const backgrounds = await backupBackgrounds(scratch)
     const scenes = await backupScenes()
     const replays = await backupReplays(saves, playthroughs)
-    const music = await soundtrackLibrary.snapshotForBackup()
-    for (const [file, bytes] of Object.entries(music?.files ?? {})) {
-      await mkdir(join(scratch, SOUNDTRACK_BACKUP_DIR), { recursive: true })
-      await writeFile(join(scratch, SOUNDTRACK_BACKUP_DIR, file), bytes)
-    }
     const mods = await backupModParts(scratch, Object.keys(playthroughs))
 
     const record: BackupFile = {
       exReflections: await backupReflections(),
       exEchoArt: await backupEchoArtwork(scratch),
-      ...(music ? { exMusic: music.map } : {}),
       schemaVersion: BACKUP_SCHEMA_VERSION,
       settings,
       grabbags,
@@ -681,7 +681,7 @@ async function prepareModParts(
   const restores: PreparedRestore[] = []
   const ids = new Set([...Object.keys(carried), ...backupParts().keys()])
   for (const modId of ids) {
-    const part = backupParts().get(modId)
+    const part = backupParts().get(modId)?.part
     if (!part) continue
     const entry = carried[modId]
     const dir = join(scratch, MOD_PARTS_DIR, modId)
@@ -772,8 +772,6 @@ export async function importBackup(archivePath: string): Promise<void> {
     preflightBackup(record)
     const restoreReflections = prepareReflectionRestore(record.exReflections)
     const restoreEchoArtwork = await prepareEchoArtworkRestore(scratch, record.exEchoArt)
-    const music = await prepareSoundtrackSnapshot(record.exMusic,
-      file => readSoundtrackFile(join(scratch, SOUNDTRACK_BACKUP_DIR, file)), soundtrackHash)
 
     // Everything the record says is checked before anything here is written. The stored keys,
     // the dev switches and the ComfyUI build stay, being this install's own.
@@ -797,7 +795,6 @@ export async function importBackup(archivePath: string): Promise<void> {
       await restoreCharacters(scratch, record)
       await restoreBackgrounds(scratch, backgrounds)
       await restoreScenes(scenes)
-      if (music) await soundtrackLibrary.restore(music)
     } catch (err) {
       await discardRestores(restores)
       throw err

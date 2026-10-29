@@ -77,6 +77,41 @@ switch is left as the player set it.
 - A save's `ex`: each mod's own data, under its id (see Mod data below).
 
 
+## Capturing mod data for a scene request
+
+`promptState.scene` runs synchronously when the game constructs a scene prompt's state,
+before asynchronous request preparation. It also serves solo, continuation and closing requests
+that use that snapshot. Return only the small amount of mod data the prompt needs; do not write
+state or return a Promise. Core makes a structured clone under `state.ex[modId]`. This transient
+bag is separate from the versioned save's `ex` slices and is not automatically sent to the model.
+
+```ts
+registerHooks('my-mod', {
+  promptState: { scene: () => myField.read().chosenText },
+  prompts: {
+    scene: {
+      lines: ({ state }) => {
+        const text = state.ex?.['my-mod']
+        return typeof text === 'string' && text ? [text] : []
+      }
+    }
+  }
+})
+```
+
+Declare both `promptState.scene` and `prompts.scene` in the manifest. Each enabled mod owns one
+slice; it cannot overwrite native prompt fields or another mod's slice. `undefined` omits the
+slice, while `null` is retained. The outer bag is read-only; treat the contents as read-only too.
+Formatters must read the captured value instead of reading live mod state again. Existing
+prompt hooks still obey the current mod switches when they format. A duplicate capture for the
+same mod, a throwing callback, or a value that cannot be cloned fails the request with that
+mod's id in the error. No partial snapshot is used. For a turn's request, that is any throw
+while it is built, a `prompts.*` hook's included: the turn is rewound and the player gets the
+retry modal, as for a failed call. The scene's goodbye and its bookkeeping call are built once
+the reply has landed, and a throw there is not yet caught; it leaves the game waiting. DM,
+ledger and slot-intro capture hooks are not available yet; this addition only covers the scene
+state builder.
+
 ## Installed mods
 
 A mod built outside the repo is installed under `data/mods/` and found at start; the game does not
@@ -203,6 +238,34 @@ Without a primary action, omit that argument and those props.
 `useDismissLayer(onClose, active)` puts a nested popup on the same stack while `active` is
 true. The first Escape/right-click closes that layer; the underlying modal remains open.
 Changing `active` to false or unmounting removes the layer. Neither hook depends on any mod.
+
+### Motion presets
+
+A mod's controls and panels move as the game's do through the presets the game's own use,
+imported from `@vx/modkit/renderer` and declared as `renderer:<name>` for each one used.
+
+- `gestures(dead, hover, tap)` is what a control wears, spread on a motion element. A dead
+  control gets neither its hover nor its press: motion listens on pointer events, which a disabled
+  button still receives.
+- The hover and press it is handed come in pairs: `lift` and `press` for a paper control
+  (`vu-paper`), `quietLift` and `quietPress` for one with no paper layer, and `rowLift` and
+  `rowPress` for one that spans its column. `toggleLift` is the hover of a control whose fill is a
+  state, a tool in force.
+- `veilIn` and `panelUnderTab` are a modal's arrival, as variants with `hidden`, `shown` and
+  `gone`: the veil that dims the screen, and the panel rising under its title tab.
+
+```tsx
+import { motion } from 'motion/react'
+import { gestures, lift, press } from '@vx/modkit/renderer'
+
+<motion.button className="vu-btn vu-btn--primary vu-paper" disabled={busy} {...gestures(busy, lift, press)}>
+  Save
+</motion.button>
+```
+
+They are the game's own objects, so a mod panel moves with the game when its motion changes. The
+rest of the game's motion stays core's, and an animation that is one mod's own look belongs in
+the mod.
 
 ## Mod data
 
@@ -375,6 +438,13 @@ Moving to the default is the author's choice, and core moves nothing.
   as `mods[id]`, `{ version, json, files }`; `files` names what it wrote, as paths under
   `scratch`, and without it everything it wrote is carried. A part that throws, or names a file it
   did not write, is left out with a warning, and the backup goes ahead.
+  If leaving the mod's share out would make the backup incomplete, register the same part through
+  `requiredBackupPart(id, { export, prepare })` instead. A thrown export, invalid JSON, or a named
+  file it did not write then stops the backup before its target archive is created or replaced.
+  The error names the mod; temporary export files are discarded. Declare
+  `main:requiredBackupPart` in the manifest's `hooks`, so a core without that guarantee refuses
+  the mod rather than quietly applying the ordinary omission policy. A successful export may
+  still return an empty share when the mod deliberately has nothing to carry.
 - At import, every part's `prepare(json, { dir, list }, legacy)` runs before anything is written,
   reads its share and returns `{ commit, discard }`. `json` is undefined, and `dir` empty, where
   the backup carries no share for the mod, as an older backup does; a part with nothing to restore
@@ -407,7 +477,9 @@ mod's data with a character exported, imported or duplicated.
 Adopting and duplicating are all or nothing: a part that throws rolls back those before it, last
 first, and her folder is removed. An export's share for a mod that has no part here is left out.
 
-`backupPart` and `characterTransferPart` each take one registration per id; a second throws.
+`backupPart` and `requiredBackupPart` share one registration per id; mixing them for the same id
+throws. `characterTransferPart` separately takes one registration per id. Required backup parts
+use the same prepare/commit/discard import behavior; they do not make restore commits atomic.
 
 ## Options that are one choice
 
@@ -705,7 +777,9 @@ it; `write` turns the value into what saving puts on her. Write only your own fi
 own are written over whatever a mod returns, so a mod cannot change her name or her traits by
 mistake. A `write` may return `ex`: its slices go in beside hers and the other mods', never in
 place of them. Save and the unsaved-changes check see it as they see the game's fields. A mod that is off draws no
-field and writes nothing, so what it saved on her stays.
+field and writes nothing, so what it saved on her stays. `characterFromDraft` answers are merged
+the same way when a generated draft is written onto her: `ex` slices go in beside the ones she
+has and the other mods'.
 
 ### Not covered yet
 

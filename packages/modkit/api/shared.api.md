@@ -15,6 +15,15 @@ export interface AppError {
 }
 
 // @public
+export interface BunnyboardState {
+    contactsBadge: number;
+    conversations: Record<string, Conversation>;
+    requestsReceived: string[];
+    requestsSent: string[];
+    suggestions?: string[];
+}
+
+// @public
 export function carryModFiles(context: TermFilesContext): Promise<void>;
 
 // @public
@@ -166,6 +175,12 @@ export interface HookRow {
 
 // @public (undocumented)
 export const HOOKS: readonly [{
+    readonly name: 'promptState.scene';
+    readonly side: 'renderer';
+    readonly kind: 'merge';
+    readonly dispatch: readonly ["promptStateParts"];
+    readonly since: '0.6.0';
+}, {
     readonly name: "prompts.scene";
     readonly side: 'renderer';
     readonly kind: 'add';
@@ -551,10 +566,10 @@ export interface ImagePromptParts {
 }
 
 // @public
-export const KIT_APIS: readonly ['shared:carryModFiles', 'shared:DEPRECATED_HOOKS', 'shared:hasTrait', 'shared:HOOKS', 'shared:KIT_APIS', 'shared:KIT_VERSION', 'shared:MAX_TIER', 'shared:memoryStatusLine', 'shared:modById', 'shared:modOn', 'shared:optionKey', 'shared:optionOn', 'shared:pointsForTier', 'shared:registerCharacterTrait', 'shared:registerImagePromptDraft', 'shared:registerPostCarry', 'shared:registerRomanceRequirement', 'shared:registerTermCarry', 'shared:registerTermFiles', 'shared:REMOVED_HOOKS', 'shared:sharedModOn', 'renderer:Card', 'renderer:EmojiTool', 'renderer:fileLatePost', 'renderer:finishSlotActivity', 'renderer:Locked', 'renderer:modIsOn', 'renderer:modState', 'renderer:openPanel', 'renderer:ownsPostComments', 'renderer:PostCommentAction', 'renderer:PostCommentsView', 'renderer:PostPicture', 'renderer:postVisible', 'renderer:promptFields', 'renderer:promptLines', 'renderer:promptRequired', 'renderer:recordField', 'renderer:registerHooks', 'renderer:safePoint', 'renderer:saveField', 'renderer:SentText', 'renderer:submitAction', 'renderer:takeTurnFromReply', 'renderer:useBareMessage', 'renderer:useDismissLayer', 'renderer:useEmojiTool', 'renderer:useModalShell', 'renderer:useModOn', 'renderer:useModOption', 'renderer:useSafePoint', 'renderer:writeModField', 'renderer:writeModFields', 'main:backupPart', 'main:characterTransferPart', 'main:modDataPath', 'main:registerComfyLaunchEnvironment'];
+export const KIT_APIS: readonly ['shared:carryModFiles', 'shared:DEPRECATED_HOOKS', 'shared:hasTrait', 'shared:HOOKS', 'shared:KIT_APIS', 'shared:KIT_VERSION', 'shared:MAX_TIER', 'shared:memoryStatusLine', 'shared:modById', 'shared:modOn', 'shared:optionKey', 'shared:optionOn', 'shared:pointsForTier', 'shared:registerCharacterTrait', 'shared:registerImagePromptDraft', 'shared:registerPostCarry', 'shared:registerRomanceRequirement', 'shared:registerTermCarry', 'shared:registerTermFiles', 'shared:REMOVED_HOOKS', 'shared:sharedModOn', 'renderer:Card', 'renderer:EmojiTool', 'renderer:fileLatePost', 'renderer:finishSlotActivity', 'renderer:gestures', 'renderer:lift', 'renderer:Locked', 'renderer:modIsOn', 'renderer:modState', 'renderer:openPanel', 'renderer:ownsPostComments', 'renderer:panelUnderTab', 'renderer:PostCommentAction', 'renderer:PostCommentsView', 'renderer:PostPicture', 'renderer:postVisible', 'renderer:press', 'renderer:promptFields', 'renderer:promptLines', 'renderer:promptRequired', 'renderer:quietLift', 'renderer:quietPress', 'renderer:recordField', 'renderer:registerHooks', 'renderer:rowLift', 'renderer:rowPress', 'renderer:safePoint', 'renderer:saveField', 'renderer:SentText', 'renderer:submitAction', 'renderer:takeTurnFromReply', 'renderer:toggleLift', 'renderer:useBareMessage', 'renderer:useDismissLayer', 'renderer:useEmojiTool', 'renderer:useModalShell', 'renderer:useModOn', 'renderer:useModOption', 'renderer:useSafePoint', 'renderer:veilIn', 'renderer:writeModField', 'renderer:writeModFields', 'main:backupPart', 'main:characterTransferPart', 'main:modDataPath', 'main:registerComfyLaunchEnvironment', 'main:requiredBackupPart'];
 
 // @public
-export const KIT_VERSION = "0.5.0";
+export const KIT_VERSION = "0.6.0";
 
 // @public (undocumented)
 export type KitApiName = (typeof KIT_APIS)[number];
@@ -659,6 +674,12 @@ export interface ModOptionGroup {
     id: string;
     // (undocumented)
     label: string;
+}
+
+// @public
+export interface ModPlaythroughFields {
+    mods?: string[];
+    modVersions?: Record<string, string>;
 }
 
 // @public
@@ -772,7 +793,7 @@ export interface PlayerStats {
 }
 
 // @public
-export interface PlaythroughRecord {
+export interface PlaythroughRecord extends ModPlaythroughFields {
     chars: string[];
     classes: Record<string, ClassEntry>;
     jobClosures: Record<string, ShiftSlot[]>;

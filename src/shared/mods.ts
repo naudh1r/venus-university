@@ -306,24 +306,22 @@ export function cleanSwitches(value: unknown): ModSwitches {
 }
 
 /**
- * What the switches add to the on-disk shapes, added from outside them the way `termTypes.ts`
- * adds terms: the field means exactly what it would inside `types.ts`, and an update that
- * replaces that file carries nothing of this away.
+ * What the switches add to an on-disk playthrough. The record extends this named shape so
+ * declaration bundlers retain these fields for standalone kit consumers; an ambient module
+ * augmentation works inside the game but is lost from the rolled-up declarations.
  */
-declare module './types' {
-  interface PlaythroughRecord {
-    /**
-     * The `playthrough` mods this playthrough started with, by id. Absent where none were on,
-     * and on every record written before the list existed.
-     */
-    mods?: string[]
-    /**
-     * The version of every mod on when this playthrough started, `playthrough` and `anytime`
-     * alike, by id; empty where none were on. Absent only on a record written before mods
-     * recorded their versions.
-     */
-    modVersions?: Record<string, string>
-  }
+export interface ModPlaythroughFields {
+  /**
+   * The `playthrough` mods this playthrough started with, by id. Absent where none were on,
+   * and on every record written before the list existed.
+   */
+  mods?: string[]
+  /**
+   * The version of every mod on when this playthrough started, `playthrough` and `anytime`
+   * alike, by id; empty where none were on. Absent only on a record written before mods
+   * recorded their versions.
+   */
+  modVersions?: Record<string, string>
 }
 
 /**

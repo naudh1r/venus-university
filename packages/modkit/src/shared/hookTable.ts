@@ -47,6 +47,7 @@ const slot = <const N extends string>(name: N) =>
 
 export const HOOKS = [
   // Prompts and requests
+  { name: 'promptState.scene', side: 'renderer', kind: 'merge', dispatch: ['promptStateParts'], since: '0.6.0' },
   prompt('scene'),
   prompt('dm'),
   prompt('slot-posts'),
@@ -174,25 +175,34 @@ export const KIT_APIS = [
   'renderer:EmojiTool',
   'renderer:fileLatePost',
   'renderer:finishSlotActivity',
+  'renderer:gestures',
+  'renderer:lift',
   'renderer:Locked',
   'renderer:modIsOn',
   'renderer:modState',
   'renderer:openPanel',
   'renderer:ownsPostComments',
+  'renderer:panelUnderTab',
   'renderer:PostCommentAction',
   'renderer:PostCommentsView',
   'renderer:PostPicture',
   'renderer:postVisible',
+  'renderer:press',
   'renderer:promptFields',
   'renderer:promptLines',
   'renderer:promptRequired',
+  'renderer:quietLift',
+  'renderer:quietPress',
   'renderer:recordField',
   'renderer:registerHooks',
+  'renderer:rowLift',
+  'renderer:rowPress',
   'renderer:safePoint',
   'renderer:saveField',
   'renderer:SentText',
   'renderer:submitAction',
   'renderer:takeTurnFromReply',
+  'renderer:toggleLift',
   'renderer:useBareMessage',
   'renderer:useDismissLayer',
   'renderer:useEmojiTool',
@@ -200,12 +210,14 @@ export const KIT_APIS = [
   'renderer:useModOn',
   'renderer:useModOption',
   'renderer:useSafePoint',
+  'renderer:veilIn',
   'renderer:writeModField',
   'renderer:writeModFields',
   'main:backupPart',
   'main:characterTransferPart',
   'main:modDataPath',
-  'main:registerComfyLaunchEnvironment'
+  'main:registerComfyLaunchEnvironment',
+  'main:requiredBackupPart'
 ] as const
 
 export type KitApiName = (typeof KIT_APIS)[number]
