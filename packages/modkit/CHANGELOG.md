@@ -7,6 +7,10 @@
   `renderer:<name>` capability. They are the game's own objects, re-exported, so a mod's controls
   and panels move as the native ones do and follow them when they change. The rest of the game's
   motion file stays core's. Nothing native changes.
+- Small readers: `currentRun` and `runStale`, `isOrientationSlot` and `isGraduationSlot`,
+  `lessNsfwText` and `useLessNsfwText`, `useSfxGain`, `modsOnLine` and `buildLabel` in
+  `renderer`; `READER_SPEAKER` and `charKeyOf` in `shared`. Each is its own capability. The settings and mods
+  readers are new in core, the rest the game's own, re-exported.
 - A throw while the goodbye, the scene or texting bookkeeping, or the next slot's opening builds
   its request, from a `promptState.scene` capture or a `prompts.*` hook, now opens that call's
   retry modal instead of leaving the game waiting. Retry builds the request again; leaving goes

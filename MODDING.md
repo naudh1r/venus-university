@@ -270,6 +270,24 @@ They are the game's own objects, so a mod panel moves with the game when its mot
 rest of the game's motion stays core's, and an animation that is one mod's own look belongs in
 the mod.
 
+### Small readers
+
+A few of the game's own readers, each declared as `renderer:<name>` or `shared:<name>`:
+
+- `currentRun()` and `runStale(run)` (`renderer`): the game being played, as a token. Take one
+  before an `await`, and after it `runStale(run)` says whether the player has left that game,
+  for a new one or the menu, in the meantime; work that outlived its game is dropped.
+- `isOrientationSlot(date, time, semesterIndex)` and `isGraduationSlot(date, time)` (`renderer`):
+  the playthrough's first slot, and graduation morning.
+- `lessNsfwText()` and `useLessNsfwText()` (`renderer`): the player has Less NSFW text on, so the
+  game's own writing is toned down and a mod's should be.
+- `useSfxGain()` (`renderer`): the gain a mod's own sound effects play at, the player's effects
+  volume as the game's mix applies it.
+- `modsOnLine()` and `buildLabel()` (`renderer`): the mods that are on, each with its version, as
+  the log lists them, and the build's name and version: for a bug report.
+- `READER_SPEAKER` and `charKeyOf(firstName, lastName)` (`shared`): the speaker of the reader's own
+  lines, and a character's key in prompts and replies.
+
 ## Mod data
 
 A mod keeps its data in one of four places: in the save, with the game; on a record inside the

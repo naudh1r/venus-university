@@ -19,6 +19,10 @@ export { submitAction, takeTurnFromReply } from '../../../../src/renderer/stores
 export { finishSlotActivity } from '../../../../src/renderer/stores/slotActivity'
 export { fileLatePost } from '../../../../src/renderer/stores/loop/feed'
 export { Card, Locked } from '../../../../src/renderer/views/ContactPage'
+export { currentRun, runStale } from '../../../../src/renderer/stores/loop/state'
+export { isOrientationSlot } from '../../../../src/renderer/prompts/introScript'
+export { isGraduationSlot } from '../../../../src/renderer/prompts/graduation'
+export { buildLabel, lessNsfwText, modsOnLine, useLessNsfwText, useSfxGain } from '../../../../src/renderer/mods/readers'
 export {
   gestures,
   lift,
