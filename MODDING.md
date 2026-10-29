@@ -280,7 +280,7 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
 - `isOrientationSlot(date, time, semesterIndex)` and `isGraduationSlot(date, time)` (`renderer`):
   the playthrough's first slot, and graduation morning.
 - `lessNsfwText()` and `useLessNsfwText()` (`renderer`): the player has Less NSFW text on, so the
-  game's own writing is toned down and a mod's should be.
+  game's own writing is toned down and a mod's should be. True until the settings are read.
 - `useSfxGain()` (`renderer`): the gain a mod's own sound effects play at, the player's effects
   volume as the game's mix applies it.
 - `modsOnLine()` and `buildLabel()` (`renderer`): the mods that are on, each with its version, as

@@ -3,14 +3,17 @@ import { BUILD, modNames, modsOn } from '@shared/mods'
 import { useModsStore } from '../stores/modsStore'
 import { useSettingsStore } from '../stores/settingsStore'
 
-/** The player has Less NSFW text on: the game's own writing is toned down, and a mod's should be. */
+/**
+ * The player has Less NSFW text on: the game's own writing is toned down, and a mod's should be.
+ * True until the settings have been read, so nothing explicit is written before they are known.
+ */
 export function lessNsfwText(): boolean {
-  return useSettingsStore.getState().settings?.lessNsfwText === true
+  return useSettingsStore.getState().settings?.lessNsfwText !== false
 }
 
 /** {@link lessNsfwText} for a component, which renders again when the player changes it. */
 export function useLessNsfwText(): boolean {
-  return useSettingsStore((state) => state.settings?.lessNsfwText === true)
+  return useSettingsStore((state) => state.settings?.lessNsfwText !== false)
 }
 
 /** The gain a mod's own sound effects play at: the player's effects volume, as the game's mix applies it. */
