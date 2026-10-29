@@ -32,6 +32,7 @@ export {
   postPicture,
   prepareWayOn,
   projectSlotMemories,
+  promptStateParts,
   saveChoice,
   saveNotes,
   scenePlays,

@@ -8,6 +8,13 @@
   `main:requiredBackupPart` capability lets manifests refuse older cores that lack this guarantee.
   Restore behavior is unchanged. This unblocks Custom Soundtracks' backup migration without
   losing its existing protection against replacing a valid backup with one missing its music.
+- `promptState.scene`: capture an enabled mod's structured-cloneable value into a scene request's
+  `PromptState.ex[modId]`. The copy is made synchronously by the game prompt-state builder;
+  prompt formatters can keep using that value if the player edits live mod data while the
+  request is being prepared. Values are keyed by owner, never spread over native fields.
+  Undefined omits a slice. Duplicate owners or failed captures abort the request naming the mod.
+  Declare `promptState.scene` in the manifest; older cores reject the missing hook. DM, ledger
+  and slot-intro snapshots are not added by this change. Existing prompt hooks are unchanged.
 
 ## 0.5.0
 
