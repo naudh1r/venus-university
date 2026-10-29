@@ -51,7 +51,15 @@ writeFileSync(
         types: ['node', 'vite/client'],
         typeRoots: [resolve(root, 'node_modules/@types')],
         baseUrl: dts,
-        paths: { '@shared/*': ['src/shared/*'] }
+        // The kit's own names resolve to its emitted entries, as in tsconfig.dts.json. Without
+        // these, a declaration importing `@vx/modkit/shared` (the mods' files on main do) reached
+        // the package's `exports`, so `dist/` from an earlier run, and the report differed on a
+        // fresh checkout that had none.
+        paths: {
+          '@shared/*': ['src/shared/*'],
+          '@vx/modkit/host/*': ['packages/modkit/src/host/*'],
+          '@vx/modkit/*': ['packages/modkit/src/*/index.d.ts']
+        }
       },
       include: [`${dts.split('\\').join('/')}/**/*.d.ts`]
     },

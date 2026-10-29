@@ -535,7 +535,7 @@ export function draftToCharacter(
     outfit: cleanTags(draft.outfit),
     peOutfit: cleanTags(draft.peOutfit),
     swimOutfit: cleanTags(draft.swimOutfit),
-    ...characterFromDraft(draft as unknown as Record<string, unknown>, { baseAppearance }),
+    ...characterFromDraft(draft as unknown as Record<string, unknown>, { baseAppearance }, base),
     pose,
     expressionTags,
     roomPrompt: (draft.roomPrompt ?? '').trim()

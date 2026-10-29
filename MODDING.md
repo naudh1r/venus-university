@@ -105,8 +105,12 @@ slice, while `null` is retained. The outer bag is read-only; treat the contents 
 Formatters must read the captured value instead of reading live mod state again. Existing
 prompt hooks still obey the current mod switches when they format. A duplicate capture for the
 same mod, a throwing callback, or a value that cannot be cloned fails the request with that
-mod's id in the error. No partial snapshot is used. DM, ledger and slot-intro capture hooks are
-not available yet; this addition only covers the scene state builder.
+mod's id in the error. No partial snapshot is used. For a turn's request, that is any throw
+while it is built, a `prompts.*` hook's included: the turn is rewound and the player gets the
+retry modal, as for a failed call. The scene's goodbye and its bookkeeping call are built once
+the reply has landed, and a throw there is not yet caught; it leaves the game waiting. DM,
+ledger and slot-intro capture hooks are not available yet; this addition only covers the scene
+state builder.
 
 ## Installed mods
 
@@ -745,7 +749,9 @@ it; `write` turns the value into what saving puts on her. Write only your own fi
 own are written over whatever a mod returns, so a mod cannot change her name or her traits by
 mistake. A `write` may return `ex`: its slices go in beside hers and the other mods', never in
 place of them. Save and the unsaved-changes check see it as they see the game's fields. A mod that is off draws no
-field and writes nothing, so what it saved on her stays.
+field and writes nothing, so what it saved on her stays. `characterFromDraft` answers are merged
+the same way when a generated draft is written onto her: `ex` slices go in beside the ones she
+has and the other mods'.
 
 ### Not covered yet
 

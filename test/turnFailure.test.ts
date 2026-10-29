@@ -4,7 +4,7 @@ import { useGameStore } from '../src/renderer/stores/gameStore'
 import { registerLoopHooks } from '../src/renderer/stores/loop/hooks'
 import { loopState, resetLoopState, type TurnSnapshot } from '../src/renderer/stores/loop/state'
 import type { SceneCall } from '../src/renderer/stores/loop/stream'
-import { runSceneTurn } from '../src/renderer/stores/loop/turn'
+import { buildOrFail, runSceneTurn } from '../src/renderer/stores/loop/turn'
 import { restoreApi, sceneLines, stubApi } from './fixtures'
 
 /**
@@ -128,6 +128,27 @@ describe('a failed turn hands back only words the reader owns', () => {
     const game = useGameStore.getState()
     expect(game.inputDraft).toBe('I ask her about the reading.')
     expect(game.awaitingInput).toBe(true)
+  })
+})
+
+describe('a request that cannot be built', () => {
+  it('fails the turn into the retry modal instead of leaving the game busy', () => {
+    const game = useGameStore.getState()
+    game.setBusy(true)
+    game.setStreaming(true)
+    const snapshot: TurnSnapshot = { scene: game.captureScene(), action: 'I ask her about the reading.' }
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const request = buildOrFail(snapshot, () => {
+      throw new Error('plot-twist: could not capture promptState.scene')
+    })
+
+    const after = useGameStore.getState()
+    expect(request).toBeNull()
+    expect(after.busy).toBe(false)
+    expect(after.turnError).toMatchObject({ code: 'SCENE_BUILD_FAILED', detail: expect.stringContaining('plot-twist') })
+    // Retryable, so the box stays shut behind the modal's Retry.
+    expect(after.awaitingInput).toBe(false)
   })
 })
 
