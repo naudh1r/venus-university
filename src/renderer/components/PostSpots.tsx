@@ -3,7 +3,6 @@ import {
   ownedComments,
   postCommentsOwner,
   postPicture,
-  postByline,
   type PostCommentsProps,
   type PostPictureProps
 } from '../mods/hooks'
@@ -20,13 +19,6 @@ export function PostPicture(props: PostPictureProps): JSX.Element | null {
   useModsStore((s) => s.switches)
   const Picture = postPicture()
   return Picture ? <Picture {...props} /> : null
-}
-
-/** Metadata after the author handle, drawn by the first mod on that adds it. */
-export function PostByline(props: PostPictureProps): JSX.Element | null {
-  useModsStore((s) => s.switches)
-  const Byline = postByline()
-  return Byline ? <Byline {...props} /> : null
 }
 
 /** The comments under a post, drawn by the mod drawing them; nothing while none is on. */

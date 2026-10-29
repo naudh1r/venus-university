@@ -89,7 +89,7 @@ import {
   playerClassNow,
   shiftNow
 } from '../stores/timetable'
-import { PostCommentAction, PostCommentsView, PostByline, PostPicture } from '../components/PostSpots'
+import { PostCommentAction, PostCommentsView, PostPicture } from '../components/PostSpots'
 import { ContactPage } from './ContactPage'
 import { LorebookPage } from './LorebookPage'
 import { PhotosPage } from './PhotosPage'
@@ -1938,7 +1938,6 @@ const FeedPost = memo(function FeedPost({
             {/* Absent when there is none: a handle is never minted at render. */}
             {handle && <span>@{handle}</span>}
             {handle && <span className="vu-bb-thread-dot">·</span>}
-            {charId && post.id && <PostByline charId={charId} postId={post.id} />}
             <span className="vu-bb-post-when">
               {formatShortGameDate(post.date, season)} · {slotHalf(post.time)}
             </span>
