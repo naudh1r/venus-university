@@ -23,7 +23,7 @@ export function isProhibited(code: string): boolean {
 /**
  * The codes besides the connection three that a hand-edited prompt cannot answer: a quota or an
  * empty balance, a key or endpoint only Settings fixes, the app's own refusal of an action no
- * prompt was sent for, and a cancelled call.
+ * prompt was sent for, a request that could not be built, and a cancelled call.
  */
 const NOT_THE_PROMPT = new Set([
   'LLM_RATE_LIMITED',
@@ -31,6 +31,7 @@ const NOT_THE_PROMPT = new Set([
   'API_KEY_MISSING',
   'LLM_ENDPOINT_INVALID',
   'CLASSIFIER_REJECTED',
+  'SCENE_BUILD_FAILED',
   'CANCELLED'
 ])
 
