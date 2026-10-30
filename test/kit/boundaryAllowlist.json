@@ -619,7 +619,6 @@
   "src/shared/talentGrowth.ts -> ./playerStats",
   "src/shared/talentMemories.ts -> ./echo",
   "src/shared/talentPerks.ts -> ./academics",
-  "src/shared/talentShowUp.ts -> ./types",
   "src/shared/talentTrading.ts -> ./playerStats",
   "src/shared/textRegeneration.ts -> ./types",
   "src/shared/venusWhisper.ts -> ./locations",
