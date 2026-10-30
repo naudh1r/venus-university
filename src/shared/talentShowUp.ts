@@ -1,5 +1,5 @@
 import { talentEffect, talentsEnabled, type TalentState } from './campusTalents'
-import type { CalendarEvent, MemoryType, TimeSlot } from './types'
+import type { GameSave, MemoryType, TimeSlot } from '@vx/modkit/shared'
 
 export interface ShowUpContext {
   term: number
@@ -8,7 +8,7 @@ export interface ShowUpContext {
   cast: readonly string[]
   /** Native hangout/reminder scene marker, persisted in SceneState. */
   acceptedInvite: string | null
-  events: readonly CalendarEvent[]
+  events: Readonly<GameSave['events']>
   /** Validated scene memories only, never texts, gifts or old memories. */
   memories: readonly { charId: string; type: MemoryType }[]
 }
