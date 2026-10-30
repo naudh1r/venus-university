@@ -5,6 +5,9 @@ import { finishSlotActivity } from '../src/renderer/stores/slotActivity'
 import { submitAction } from '../src/renderer/stores/gameLoop'
 import CAT_PAIRS from '@shared/minigameEntries/cat-pairs'
 import { MINI_GAMES } from '@shared/minigames'
+
+// The kit's renderer entry loads the game's stores; these tests take each name from its own module.
+vi.mock('@vx/modkit/renderer', async () => (await import('./fixtures/miniGamesKit')).miniGamesKit())
 vi.mock('../src/renderer/stores/gameLoop', () => ({ submitAction: vi.fn(), takeTurnFromReply: vi.fn(() => false) }))
 vi.mock('../src/renderer/stores/slotActivity', () => ({ finishSlotActivity: vi.fn() }))
 vi.mock('../src/renderer/stores/loop/hooks', async original => ({ ...await original<typeof import('../src/renderer/stores/loop/hooks')>(), advance: vi.fn() }))

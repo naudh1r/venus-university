@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Chattiness } from '@shared/minigames'
 import type { GamePlay } from './play'
-import { busGain, volumesOf } from '@shared/audio'
-import { useSettingsStore } from '../stores/settingsStore'
+import { useSfxGain } from '@vx/modkit/renderer'
 
 /**
  * Everything a game pack may use from outside its own files, for the half of a pack that is
@@ -128,5 +127,5 @@ export function pointIn(
 
 /** A pack's synthesized effects follow the saved SFX slider's squared gain. */
 export function useEffectsGain(): number {
-  return useSettingsStore(state => busGain(volumesOf(state.settings?.volumes).sfx))
+  return useSfxGain()
 }

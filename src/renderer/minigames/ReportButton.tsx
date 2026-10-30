@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { motion } from 'motion/react'
-import { modNames, modsOn } from '@shared/mods'
-import { useModsStore } from '../stores/modsStore'
+import { modsOnLine } from '@vx/modkit/renderer'
 import { gestures, quietLift, quietPress } from '../views/motion'
 import { reportText, type ReportOf } from './report'
 
 /** Puts a report on the clipboard, with the mods that are on. False where it would not take it. */
 async function copyReport(report: ReportOf): Promise<boolean> {
   try {
-    const mods = modNames(modsOn(useModsStore.getState().switches))
+    const mods = modsOnLine()
     await navigator.clipboard.writeText(reportText(report, mods))
     return true
   } catch {

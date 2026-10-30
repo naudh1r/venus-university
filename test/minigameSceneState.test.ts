@@ -5,6 +5,9 @@ import {fileResult, resumeMiniGameResult} from '../src/renderer/minigames/table'
 import {writeAutosave, queuedScene} from '../src/renderer/stores/loop/saves'
 import {submitAction} from '../src/renderer/stores/gameLoop'
 import DARTS from '@shared/minigameEntries/darts'
+
+// The kit's renderer entry loads the game's stores; these tests take each name from its own module.
+vi.mock('@vx/modkit/renderer', async () => (await import('./fixtures/miniGamesKit')).miniGamesKit())
 vi.mock('../src/renderer/stores/gameLoop',()=>({submitAction:vi.fn(),takeTurnFromReply:vi.fn(()=>false)}))
 vi.mock('../src/renderer/stores/loop/saves',async original=>({...await original<typeof import('../src/renderer/stores/loop/saves')>(),writeAutosave:vi.fn(async()=>{})}))
 vi.mock('../src/renderer/stores/loop/hooks',async original=>({...await original<typeof import('../src/renderer/stores/loop/hooks')>(),advance:vi.fn()}))

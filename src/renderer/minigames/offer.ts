@@ -5,7 +5,7 @@ import {
   type MiniGameDef,
   type SuggestRate
 } from '@shared/minigames'
-import { charKeyOf, type Character, type StructuredRequest } from '@shared/types'
+import { charKeyOf, type Character, type StructuredRequest } from '@vx/modkit/shared'
 import { locationDefOf } from '@shared/locations'
 import { hereLine } from './place'
 

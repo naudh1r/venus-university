@@ -1,5 +1,5 @@
 import type { MiniGameDef } from '@shared/minigames'
-import type { Character, StructuredRequest } from '@shared/types'
+import type { Character, StructuredRequest } from '@vx/modkit/shared'
 import { objectSchema } from '../prompts/schema'
 import { useGameStore } from '../stores/gameStore'
 

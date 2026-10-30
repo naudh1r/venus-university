@@ -10,6 +10,9 @@ import { modRequest, afterSceneReply, setHookRules } from '../src/renderer/mods/
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { agreementAvailable, keepInvitation, keptInvitation, useTableStore } from '../src/renderer/minigames/session'
 import '../src/renderer/modEntries/mini-games'
+
+// The kit's renderer entry loads the game's stores; these tests take each name from its own module.
+vi.mock('@vx/modkit/renderer', async () => (await import('./fixtures/miniGamesKit')).miniGamesKit())
 const cast = [{charId:'a',firstName:'Ana',lastName:'Seo'}, {charId:'b',firstName:'Bea',lastName:'Seo'}] as Character[]
 const transcript = [{speaker:'reader',text:'Hello'}, {speaker:'ana_seo',text:'Darts?'}]
 function request(action: string) {

@@ -1,4 +1,4 @@
-import { READER_SPEAKER, type Character, type StructuredRequest } from '@shared/types'
+import { READER_SPEAKER, type Character, type StructuredRequest } from '@vx/modkit/shared'
 import { objectSchema } from '../prompts/schema'
 import { useGameStore } from '../stores/gameStore'
 

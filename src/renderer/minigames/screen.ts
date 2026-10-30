@@ -1,6 +1,5 @@
-import type { TimeSlot } from '@shared/types'
-import { isOrientationSlot } from '../prompts/introScript'
-import { isGraduationSlot } from '../prompts/graduation'
+import type { TimeSlot } from '@vx/modkit/shared'
+import { isGraduationSlot, isOrientationSlot } from '@vx/modkit/renderer'
 
 /** What of the scene says whether its screen has the game seat on it. */
 export interface ScreenState {

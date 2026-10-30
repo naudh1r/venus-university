@@ -24,7 +24,7 @@ import { useGameStore } from '../stores/gameStore'
 import { TurnField } from '../views/Dialogue'
 import { SceneDivider } from '../views/SceneChrome'
 import { useTableInputLayout } from './inputLayout'
-import { useModOption } from '../stores/modsStore'
+import { useModOption } from '@vx/modkit/renderer'
 import {
   gestures,
   lift,

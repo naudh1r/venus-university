@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { MiniGameDef } from '../src/shared/minigames'
 import { reportText } from '../src/renderer/minigames/report'
 import { faultOf, noteFault } from '../src/renderer/minigames/faults'
+
+// The kit's renderer entry loads the game's stores; these tests take each name from its own module.
+vi.mock('@vx/modkit/renderer', async () => (await import('./fixtures/miniGamesKit')).miniGamesKit())
 
 const game: MiniGameDef = {
   id: 'cards',

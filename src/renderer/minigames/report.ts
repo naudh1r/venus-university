@@ -1,4 +1,5 @@
-import { BUILD, modById } from '@shared/mods'
+import { modById } from '@vx/modkit/shared'
+import { buildLabel } from '@vx/modkit/renderer'
 import type { MiniGameDef } from '@shared/minigames'
 import { faultOf } from './faults'
 
@@ -29,7 +30,7 @@ export function reportText({ game, girls, options, account }: ReportOf, modsOn =
   return [
     `Mini-game report: ${game.name} (${game.id})`,
     `Pack: ${pack ? `${pack.name} ${pack.version}` : game.modId}`,
-    `Build: ${BUILD.name} ${BUILD.version}${modsOn ? `; mods on: ${modsOn}` : ''}`,
+    `Build: ${buildLabel()}${modsOn ? `; mods on: ${modsOn}` : ''}`,
     `Text: ${text}; play-by-play ${game.playByPlay ? 'on' : 'off'}`,
     ...(girls !== undefined ? [`Girls playing: ${girls}`] : []),
     ...(options && Object.keys(options).length > 0
