@@ -231,9 +231,12 @@ export interface VenusUniversityApi {
     classifyHangout: (request: StructuredRequest) => Promise<Result<HangoutClassifierResponse>>
     /**
      * A mod's own structured call, named by its mod id. The reply is parsed, not checked. Under
-     * `group`, cancelling that group aborts it; an aborted call resolves `CANCELLED`. Never streams.
+     * the mod's `group`, `cancelMod` with the same mod and group aborts it; an aborted call
+     * resolves `CANCELLED`. Never streams.
      */
     completeMod: (modId: string, request: StructuredRequest, group?: string) => Promise<Result<unknown>>
+    /** Aborts the mod's calls still out under its `group`; no other mod's or the game's. */
+    cancelMod: (modId: string, group: string) => Promise<Result<void>>
     /**
      * Sends a scene or continuation prompt. `group` is the loop's
      * own, shared with the three calls below; an aborted call resolves `CANCELLED`. `stream`

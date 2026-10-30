@@ -31,7 +31,7 @@ beforeEach(() => {
   characters: charactersById(character({ charId: 'a', firstName: 'Nina', personality: 'Outspoken but afraid of failing.' })),
   charInfo: { a: charInfo({ nameKnown: true, memories: Array.from({ length: 6 }, (_, i) => ({ date: 15, type: 'loved' as const, desc: `The reader listened on occasion ${i}.` })) }) },
   awaitingInput: true, currentSceneTranscript: lines, sceneLog: lines, currentLine: lines[0], exBreakthrough: normalizeBreakthrough({ meters: { a: 100 } }) })
- stubApi({ llm: { completeMod: complete }, jobs: { cancelGroup: cancel }, saves: { autosave: async (_id, draft) => {
+ stubApi({ llm: { completeMod: complete, cancelMod: cancel }, saves: { autosave: async (_id, draft) => {
   saved.push(structuredClone(draft)); return { ok: true, data: { ...draft, playthroughId: 'qa3-pending-opening', saveId: 'autosave', saveDate: 0 } }
  } } })
 })
@@ -78,7 +78,7 @@ it.each(['load', 'provider'] as const)('still discards a handed-off request afte
  await unlockReckoningDungeon('a')
  if (kind === 'load') useGameStore.setState({ loads: game().loads + 1 })
  else useSettingsStore.setState({ settings: { apiProvider: 'openai', endpointModel: 'other-model' } as never })
- expect(cancel).toHaveBeenCalledWith(group)
+ expect(cancel).toHaveBeenCalledWith('reckoning', group)
  release({ ok: true, data: questions }); await vi.advanceTimersByTimeAsync(0)
  expect(reckoningPreparationStatus(game(), 'a').status).not.toBe('ready')
  expect(game().exReckoning.active).toBeNull()

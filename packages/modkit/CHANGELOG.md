@@ -17,8 +17,9 @@
   readers are new in core, the rest the game's own, re-exported.
 - `completeStructured(modId, request, { group })` in `renderer`: a mod's own structured model
   call, over one `llm:completeMod` channel every mod shares, sent as the game sends its own and
-  answered as a `Result`. `cancelCalls(modId, group)` aborts the mod's calls under a group, the
-  mod's groups kept apart from the game's and other mods', and a call it aborts resolves
+  answered as a `Result`. `cancelCalls(modId, group)` aborts the mod's calls under a group, over
+  its own `llm:cancelMod` channel. The mod's groups are kept apart from the game's and other
+  mods' by the main process, which names each from the mod's id. A call it aborts resolves
   `CANCELLED` however far its reply had come. `objectSchema` comes with them. Mods no longer need
   a channel of their own in core, or to borrow another call's.
 - `useSceneInput` in `renderer`: a mod's panel over a scene puts its own input in the place of the
@@ -32,6 +33,11 @@
   to the menu, as for a failed call. The modals do not offer the prompt editor for it. This
   covers the slot opening at the start of a slot, and the texting bookkeeping fetched ahead while
   a scene plays, too. Other hooks that run while a scene ends are not covered.
+
+- More of the game's own readers and motion, re-exported: `globalSlotOf`, `messageOf` and
+  the `MemoryType` type in `shared`; `fadeIn`, `dealt`, `slideInQuick`, `noteIn`, `bunnyHop`,
+  `typingDot` and `retrySilently`, with its `SilentRetryOptions` type, in `renderer`. Each value
+  is its own capability. Nothing native changes.
 
 ## 0.6.0
 

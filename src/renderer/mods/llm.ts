@@ -1,11 +1,6 @@
 import { MOD_ID_RULE } from '@vx/modkit/host/shared'
 import type { Result, StructuredRequest } from '@shared/types'
 
-/** A mod's call group, kept apart from the game's and every other mod's. */
-function groupOf(modId: string, group: string): string {
-  return `mod:${modId}:${group}`
-}
-
 /**
  * Sends a mod's own structured request, as the game sends its own: the player's model, key and
  * settings, the schema enforced by the provider. The reply comes back parsed, not checked, so the
@@ -17,8 +12,7 @@ export function completeStructured<T>(
   request: StructuredRequest,
   options: { group?: string } = {}
 ): Promise<Result<T>> {
-  const group = options.group === undefined ? undefined : groupOf(modId, options.group)
-  return window.api.llm.completeMod(modId, request, group) as Promise<Result<T>>
+  return window.api.llm.completeMod(modId, request, options.group) as Promise<Result<T>>
 }
 
 /**
@@ -30,5 +24,5 @@ export async function cancelCalls(modId: string, group: string): Promise<void> {
     console.warn(`[llm] cancelCalls was asked for an invalid mod id: ${String(modId)}`)
     return
   }
-  await window.api.jobs.cancelGroup(groupOf(modId, group))
+  await window.api.llm.cancelMod(modId, group)
 }

@@ -69,7 +69,7 @@ describe('spectator generation and persistence',()=>{
       return {ok:true,data:game().toGameSave() as GameSave}
     })
     await generateMeanwhile(id,'test',()=>true)
-    expect(complete).toHaveBeenCalledWith(MEANWHILE_MOD, expect.objectContaining({schema:expect.objectContaining({name:'meanwhile'})}), 'mod:meanwhile-conversations:test')
+    expect(complete).toHaveBeenCalledWith(MEANWHILE_MOD, expect.objectContaining({schema:expect.objectContaining({name:'meanwhile'})}), 'test')
     const after=game().toGameSave()
     expect({...after,exNpcWatch:undefined}).toEqual({...before,exNpcWatch:undefined})
     expect(game().exNpcWatch.scenes).toHaveLength(1)
