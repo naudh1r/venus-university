@@ -7,6 +7,10 @@
   `renderer:<name>` capability. They are the game's own objects, re-exported, so a mod's controls
   and panels move as the native ones do and follow them when they change. The rest of the game's
   motion file stays core's. Nothing native changes.
+- The game's panel controls in `renderer`: `TitleTab`, `TextField`, `SelectField`, and the scene's
+  own `TurnField` and `SceneDivider`, each its own `renderer:<name>` capability, with their props
+  types. They are the game's components, re-exported. `SceneDivider` is now exported by core and
+  takes an optional `className`; nothing native changes.
 - `useSceneInput` in `renderer`: a mod's panel over a scene puts its own input in the place of the
   scene's action row. The row is put away and dead, and the dialogue box stands clear of the
   panel's input, until the panel gives it back or unmounts. One holder at a time. Without a
