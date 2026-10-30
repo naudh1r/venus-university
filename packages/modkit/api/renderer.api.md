@@ -635,6 +635,12 @@ export interface SceneDividerProps {
 }
 
 // @public
+export interface SceneInputLayout {
+    height: number;
+    open: boolean;
+}
+
+// @public
 export interface ScenePanelProps {
     // (undocumented)
     onClose: () => void;
@@ -993,6 +999,9 @@ export function useModOption(modId: string, optionId: string): boolean;
 
 // @public
 export function useSafePoint(): ManualSaveOffer;
+
+// @public
+export function useSceneInput(layout: SceneInputLayout | null): void;
 
 // @public
 export function useSfxGain(): number;
