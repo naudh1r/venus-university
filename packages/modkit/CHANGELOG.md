@@ -18,8 +18,9 @@
 - `completeStructured(modId, request, { group })` in `renderer`: a mod's own structured model
   call, over one `llm:completeMod` channel every mod shares, sent as the game sends its own and
   answered as a `Result`. `cancelCalls(modId, group)` aborts the mod's calls under a group, the
-  mod's groups kept apart from the game's and other mods'. `objectSchema` comes with them. Mods no
-  longer need a channel of their own in core, or to borrow another call's.
+  mod's groups kept apart from the game's and other mods', and a call it aborts resolves
+  `CANCELLED` however far its reply had come. `objectSchema` comes with them. Mods no longer need
+  a channel of their own in core, or to borrow another call's.
 - `useSceneInput` in `renderer`: a mod's panel over a scene puts its own input in the place of the
   scene's action row. The row is put away and dead, and the dialogue box stands clear of the
   panel's input, until the panel gives it back or unmounts. On the reader's turn the scene's

@@ -170,6 +170,27 @@ describe('completeStructured', () => {
     expect(error.detail).toContain('she wa')
   })
 
+  it('answers a cancel while an unstreamed body is still arriving as a cancel', async () => {
+    settings.streamResponses = false
+    const controller = new AbortController()
+    // The body stays open until the cancel errors it, as a real fetch's does.
+    responses = [
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(body) {
+            controller.signal.addEventListener('abort', () =>
+              body.error(new DOMException('The operation was aborted.', 'AbortError'))
+            )
+          }
+        })
+      )
+    ]
+
+    const call = completeStructured(request, controller.signal)
+    controller.abort()
+    expect((await errorOf(call)).code).toBe('CANCELLED')
+  })
+
   it('reports the tokens a truncated reply was billed for', async () => {
     const sink = vi.fn()
     setTokenSink(sink)
