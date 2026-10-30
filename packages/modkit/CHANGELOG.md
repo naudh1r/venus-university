@@ -33,6 +33,11 @@
   covers the slot opening at the start of a slot, and the texting bookkeeping fetched ahead while
   a scene plays, too. Other hooks that run while a scene ends are not covered.
 
+- More of the game's own readers and motion, re-exported: `globalSlotOf`, `messageOf` and
+  the `MemoryType` type in `shared`; `fadeIn`, `dealt`, `slideInQuick`, `noteIn`, `bunnyHop`,
+  `typingDot` and `retrySilently`, with its `SilentRetryOptions` type, in `renderer`. Each value
+  is its own capability. Nothing native changes.
+
 ## 0.6.0
 
 What the first mods moving onto the kit needed: a backup share that must be complete, a scene

@@ -56,7 +56,7 @@ describe('the entry points', () => {
 
   it("hands mods the game's own motion presets, so a mod panel moves as a native one does", async () => {
     const native = await import('../../src/renderer/views/motion')
-    for (const name of ['gestures', 'lift', 'panelUnderTab', 'press', 'quietLift', 'quietPress', 'rowLift', 'rowPress', 'toggleLift', 'veilIn'] as const) {
+    for (const name of ['bunnyHop', 'dealt', 'fadeIn', 'gestures', 'lift', 'noteIn', 'panelUnderTab', 'press', 'quietLift', 'quietPress', 'rowLift', 'rowPress', 'slideInQuick', 'toggleLift', 'typingDot', 'veilIn'] as const) {
       expect(rendererKit[name], name).toBe(native[name])
     }
   })
@@ -89,6 +89,15 @@ describe('the entry points', () => {
     }
     expect(sharedKit.charKeyOf).toBe(types.charKeyOf)
     expect(sharedKit.READER_SPEAKER).toBe(types.READER_SPEAKER)
+  })
+
+  it("hands mods the game's own slot id, error message and silent resend decision", async () => {
+    const jobs = await import('../../src/shared/jobs')
+    const errors = await import('../../src/shared/errors')
+    const retry = await import('../../src/renderer/stores/silentRetry')
+    expect(sharedKit.globalSlotOf).toBe(jobs.globalSlotOf)
+    expect(sharedKit.messageOf).toBe(errors.messageOf)
+    expect(rendererKit.retrySilently).toBe(retry.retrySilently)
   })
 
   it("sends a mod's own model call through the game's, on the one channel every mod shares", async () => {
