@@ -5,16 +5,20 @@
  */
 export async function miniGamesKit(): Promise<Record<string, unknown>> {
   const readers = await import('../../src/renderer/mods/readers')
+  const llm = await import('../../src/renderer/mods/llm')
+  const schema = await import('../../src/renderer/prompts/schema')
   const state = await import('../../src/renderer/stores/loop/state')
   const intro = await import('../../src/renderer/prompts/introScript')
   const graduation = await import('../../src/renderer/prompts/graduation')
   const mods = await import('../../src/renderer/stores/modsStore')
   return {
     ...readers,
+    completeStructured: llm.completeStructured,
     currentRun: state.currentRun,
     runStale: state.runStale,
     isOrientationSlot: intro.isOrientationSlot,
     isGraduationSlot: graduation.isGraduationSlot,
+    objectSchema: schema.objectSchema,
     useModOption: mods.useModOption
   }
 }
