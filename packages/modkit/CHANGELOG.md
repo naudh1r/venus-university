@@ -11,6 +11,15 @@
   own `TurnField` and `SceneDivider`, each its own `renderer:<name>` capability, with their props
   types. They are the game's components, re-exported. `SceneDivider` is now exported by core and
   takes an optional `className`; nothing native changes.
+- Small readers: `currentRun` and `runStale`, `isOrientationSlot` and `isGraduationSlot`,
+  `lessNsfwText` and `useLessNsfwText`, `useSfxGain`, `modsOnLine` and `buildLabel` in
+  `renderer`; `READER_SPEAKER` and `charKeyOf` in `shared`. Each is its own capability. The settings and mods
+  readers are new in core, the rest the game's own, re-exported.
+- `completeStructured(modId, request, { group })` in `renderer`: a mod's own structured model
+  call, over one `llm:completeMod` channel every mod shares, sent as the game sends its own and
+  answered as a `Result`. `cancelCalls(modId, group)` aborts the mod's calls under a group, the
+  mod's groups kept apart from the game's and other mods'. `objectSchema` comes with them. Mods no
+  longer need a channel of their own in core, or to borrow another call's.
 - A throw while the goodbye, the scene or texting bookkeeping, or the next slot's opening builds
   its request, from a `promptState.scene` capture or a `prompts.*` hook, now opens that call's
   retry modal instead of leaving the game waiting. Retry builds the request again; leaving goes

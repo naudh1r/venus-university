@@ -285,6 +285,49 @@ A mod's panel draws its title and fields with the game's own components, from
 
 They are the game's components, so a mod's panel looks and behaves as a native one does and
 changes with it. Their props are the ones the game's own screens pass, typed in the kit.
+### Small readers
+
+A few of the game's own readers, each declared as `renderer:<name>` or `shared:<name>`:
+
+- `currentRun()` and `runStale(run)` (`renderer`): the game being played, as a token. Take one
+  before an `await`, and after it `runStale(run)` says whether the player has left that game,
+  for a new one or the menu, in the meantime; work that outlived its game is dropped.
+- `isOrientationSlot(date, time, semesterIndex)` and `isGraduationSlot(date, time)` (`renderer`):
+  the playthrough's first slot, and graduation morning.
+- `lessNsfwText()` and `useLessNsfwText()` (`renderer`): the player has Less NSFW text on, so the
+  game's own writing is toned down and a mod's should be. True until the settings are read.
+- `useSfxGain()` (`renderer`): the gain a mod's own sound effects play at, the player's effects
+  volume as the game's mix applies it.
+- `modsOnLine()` and `buildLabel()` (`renderer`): the mods that are on, each with its version, as
+  the log lists them, and the build's name and version: for a bug report.
+- `READER_SPEAKER` and `charKeyOf(firstName, lastName)` (`shared`): the speaker of the reader's own
+  lines, and a character's key in prompts and replies.
+### A mod's own model call
+
+A mod asks the model something of its own with `completeStructured` from `@vx/modkit/renderer`,
+declared as `renderer:completeStructured`:
+
+```ts
+import { completeStructured, objectSchema } from '@vx/modkit/renderer'
+
+const result = await completeStructured<{ line: string }>('my-mod', {
+  system: 'You write one line of banter.',
+  user: situation,
+  schema: objectSchema('banter', ['line'], { line: { type: 'string' } })
+}, { group: 'my-mod' })
+if (result.ok) say(result.data.line)
+```
+
+It goes out as the game's own calls do: the player's model, key and settings, the schema
+enforced by the provider. The reply comes back parsed but not checked, so the mod checks its
+shape. A failure is the result's `error`, never a throw. The mod id names the mod in the game's
+log beside the call. `objectSchema(name, required, properties)` is the closed object schema the
+game's own builders use (`renderer:objectSchema`).
+
+A call sent with a `group` can be called off: `cancelCalls('my-mod', group)`
+(`renderer:cancelCalls`) aborts every one of the mod's calls still out under that group, and each
+resolves `CANCELLED`. A mod's groups are its own: no group of the game's or of another mod's is
+touched. A call without a group runs to the end.
 
 ## Mod data
 
