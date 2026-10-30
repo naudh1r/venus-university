@@ -1,5 +1,5 @@
-import { explicitPhotosAllowed, photoGenerationOn } from '@shared/photoSwitches'
-import type { ChatPhoto } from '@shared/photoTypes'
+import { explicitPhotosAllowed, photoGenerationOn } from '../../shared/photoSwitches'
+import type { ChatPhoto } from '../../shared/photoTypes'
 import { useGameStore } from './gameStore'
 import { writeAutosave } from './loop/saves'
 import { loopState } from './loop/state'

@@ -8,10 +8,18 @@ import { openShot } from '../components/PhotoBubble'
 import { newestFirst } from '../stores/feedRolls'
 import { useExplicitBlocked, usePhotosVisible } from '../stores/photoSwitchHooks'
 import { useGameStore } from '../stores/gameStore'
-import { Card, Locked, modIsOn, useModOn, type ContactTabProps } from '@vx/modkit/renderer'
+import {
+  Card,
+  gestures,
+  Locked,
+  modIsOn,
+  quietLift,
+  quietPress,
+  useModOn,
+  type ContactTabProps
+} from '@vx/modkit/renderer'
 import { EchoPanel } from './EchoPanel'
 import { photosVisible } from '../../shared/photoSwitches'
-import { gestures, quietLift, quietPress } from './motion'
 import { EyeIcon, EyeOffIcon } from './screenIcons'
 import '../vu_styles/ContactGallery.css'
 
