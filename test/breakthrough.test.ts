@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { SHIPPED_BOOK } from '../src/renderer/prompts/lorebook'
 import '../src/renderer/modEntries/breakthrough'
 import { calendarOf } from '@shared/semesters'

@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { SHIPPED_BOOK } from '../src/renderer/prompts/lorebook'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { calendarOf } from '@shared/semesters'
@@ -32,7 +33,7 @@ beforeEach(() => {
   game().reset(); resetLoopState(); requests = []; saves = []
   stubApi({
     jobs: { cancelGroup: async () => ({ ok: true, data: undefined }) },
-    llm: { completeReckoning: async request => {
+    llm: { completeMod: async (_modId, request) => {
       requests.push(request)
       const context = JSON.parse(request.user) as ReckoningContext
       const memory = context.evidence.find(item => item.kind === 'memory')!

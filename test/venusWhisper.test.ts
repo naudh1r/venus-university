@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   VENUS_WHISPER_MOD, carryWhisper, ensureWhisperAuthor, normalizeWhisper, validateWhisperComments,
@@ -32,14 +33,14 @@ function seed(): void {
 
 /** Only synthetic responses and an in-memory autosave sink are used. */
 function api(): { complete: ReturnType<typeof vi.fn>; save: ReturnType<typeof vi.fn> } {
-  const complete = vi.fn(async (request: StructuredRequest): Promise<Result<WhisperDraft | WhisperReply>> => {
+  const complete = vi.fn(async (_modId: string, request: StructuredRequest): Promise<Result<WhisperDraft | WhisperReply>> => {
     const data = JSON.parse(request.user)
     return { ok: true, data: data.publicSources ? { title: 'The campus has opinions', body: 'A cheerful debate at the park.',
       sources: data.publicSources.map((s: { id: string }) => s.id), comments: [] } : {
       comments: data.profiles.map((p: { id: string }) => ({ speaker: p.id, text: 'That sounds like a good afternoon.' })) } }
   })
   const save = vi.fn(async (_p: string, draft: SaveDraft): Promise<Result<GameSave>> => ({ ok: true, data: { ...draft, playthroughId: 'p', saveId: 'autosave', saveDate: 0 } }))
-  stubApi({ llm: { completeWhisper: complete }, saves: { autosave: save } })
+  stubApi({ llm: { completeMod: complete }, saves: { autosave: save } })
   return { complete, save }
 }
 
@@ -109,7 +110,7 @@ describe('public evidence and stable writes', () => {
     useGameStore.setState({ exVenusWhisper: { ...ensureWhisperAuthor(game(), () => 0), issues: [publicIssue] } })
     const root = await commentOnWhisper(id(), 'Hi, Sarah.', undefined, active)
     await replyOnWhisper(id(), root, 'test', active)
-    const request = JSON.parse(complete.mock.calls.at(-1)![0].user)
+    const request = JSON.parse(complete.mock.calls.at(-1)![1].user)
     expect(request.profiles.map((p: { id: string }) => p.id)).toEqual(['a'])
     expect(request.respondingTo.placement).toBe('article-comment')
     expect(request.respondingTo.parent).toBeUndefined()
@@ -118,7 +119,7 @@ describe('public evidence and stable writes', () => {
     expect(game().exVenusWhisper.issues[0].comments.at(-1)?.replyTo).toBe(root)
     const direct = await commentOnWhisper(id(), 'What did you think?', 'npc', active)
     await replyOnWhisper(id(), direct, 'test', active)
-    const reply = JSON.parse(complete.mock.calls.at(-1)![0].user)
+    const reply = JSON.parse(complete.mock.calls.at(-1)![1].user)
     expect(reply.profiles.map((p: { id: string }) => p.id)).toEqual(['b'])
     expect(reply.respondingTo.placement).toBe('comment-reply')
     expect(reply.respondingTo.parent.id).toBe('npc')

@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MEANWHILE_MOD, meanwhileEvents, normalizeMeanwhile, validateMeanwhile, withMeanwhile, type MeanwhileScene, type MeanwhileResponse } from '@shared/meanwhile'
 import type { GameSave, Result } from '@shared/types'
@@ -57,7 +58,7 @@ describe('spectator cache rules',()=>{
 function api(){
   const complete=vi.fn(async():Promise<Result<MeanwhileResponse>>=>({ok:true,data:{lines}}))
   const save=vi.fn(async()=>({ok:true as const,data:game().toGameSave() as GameSave}))
-  stubApi({llm:{completeMeanwhile:complete},saves:{autosave:save}})
+  stubApi({llm:{completeMod:complete},saves:{autosave:save}})
   return {complete,save}
 }
 describe('spectator generation and persistence',()=>{
@@ -68,6 +69,7 @@ describe('spectator generation and persistence',()=>{
       return {ok:true,data:game().toGameSave() as GameSave}
     })
     await generateMeanwhile(id,'test',()=>true)
+    expect(complete).toHaveBeenCalledWith(MEANWHILE_MOD, expect.objectContaining({schema:expect.objectContaining({name:'meanwhile'})}), 'mod:meanwhile-conversations:test')
     const after=game().toGameSave()
     expect({...after,exNpcWatch:undefined}).toEqual({...before,exNpcWatch:undefined})
     expect(game().exNpcWatch.scenes).toHaveLength(1)
@@ -79,7 +81,7 @@ describe('spectator generation and persistence',()=>{
     complete.mockResolvedValueOnce({ok:true,data:{lines:[{speaker:'reader',text:'No'}]}})
     await expect(generateMeanwhile(eventId(),'test',()=>true)).rejects.toThrow('two-character')
     expect(game().exNpcWatch.scenes).toEqual([])
-    stubApi({llm:{completeMeanwhile:async()=>({ok:true,data:{lines}})},
+    stubApi({llm:{completeMod:async()=>({ok:true,data:{lines}})},
       saves:{autosave:async()=>({ok:false,error:{code:'DISK',message:'Disk full'}})}})
     await expect(generateMeanwhile(eventId(),'test',()=>true)).rejects.toThrow('Disk full')
     expect(game().exNpcWatch.scenes).toEqual([])

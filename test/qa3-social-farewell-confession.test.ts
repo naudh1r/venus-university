@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { carryWhisper, ensureWhisperAuthor } from '@shared/venusWhisper'
 import { settleWhisperConfession, whisperCanConfess, whisperIdentityKnown, whisperIdentityLines, type WhisperConfession } from '@shared/whisperIdentity'

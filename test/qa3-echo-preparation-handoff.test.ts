@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { normalizeBreakthrough } from '@shared/breakthrough'
 import type { Result, SaveDraft } from '@shared/types'
@@ -17,7 +18,7 @@ const questions = { thoughts: [
  { belief: 'I have to earn every bit of kindness.', challenge: 'What would be left if I stopped proving myself?', evidence: ['e1','e4'] }
 ] }
 let stop: (() => void) | undefined
-const complete = vi.fn<(...args: Parameters<typeof window.api.llm.completeReckoning>) => Promise<Result<unknown>>>()
+const complete = vi.fn<(...args: Parameters<typeof window.api.llm.completeMod>) => Promise<Result<unknown>>>()
 const cancel = vi.fn(async () => ({ ok: true as const, data: undefined }))
 const saved: SaveDraft[] = []
 beforeEach(() => {
@@ -30,7 +31,7 @@ beforeEach(() => {
   characters: charactersById(character({ charId: 'a', firstName: 'Nina', personality: 'Outspoken but afraid of failing.' })),
   charInfo: { a: charInfo({ nameKnown: true, memories: Array.from({ length: 6 }, (_, i) => ({ date: 15, type: 'loved' as const, desc: `The reader listened on occasion ${i}.` })) }) },
   awaitingInput: true, currentSceneTranscript: lines, sceneLog: lines, currentLine: lines[0], exBreakthrough: normalizeBreakthrough({ meters: { a: 100 } }) })
- stubApi({ llm: { completeReckoning: complete }, jobs: { cancelGroup: cancel }, saves: { autosave: async (_id, draft) => {
+ stubApi({ llm: { completeMod: complete }, jobs: { cancelGroup: cancel }, saves: { autosave: async (_id, draft) => {
   saved.push(structuredClone(draft)); return { ok: true, data: { ...draft, playthroughId: 'qa3-pending-opening', saveId: 'autosave', saveDate: 0 } }
  } } })
 })
@@ -56,7 +57,7 @@ it('preserves an already-running same-context opening when its target link is in
  complete.mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
  stop = watchReckoningPreparation(); await tick()
  expect(reckoningPreparationStatus(game(),'a').status).toBe('preparing')
- const originalContext = JSON.parse(complete.mock.calls[0][0].user)
+ const originalContext = JSON.parse(complete.mock.calls[0][1].user)
  await unlockReckoningDungeon('a')
  expect(game().exReckoning.dungeon?.context).toEqual(originalContext)
  expect(game().exBreakthrough.meters.a).toBe(0)
@@ -65,7 +66,7 @@ it('preserves an already-running same-context opening when its target link is in
  expect(game().exReckoning.active?.thoughts).toEqual(questions.thoughts)
  // A lifecycle handoff preserves the exact immutable context; no provider change, load,
  // new scene evidence, or second intended encounter calls for another question set.
- expect.soft(complete.mock.calls.map(([request]) => JSON.parse(request.user))).toEqual([originalContext])
+ expect.soft(complete.mock.calls.map(([_modId, request]) => JSON.parse(request.user))).toEqual([originalContext])
  expect.soft(cancel).not.toHaveBeenCalled()
 })
 
@@ -73,7 +74,7 @@ it.each(['load', 'provider'] as const)('still discards a handed-off request afte
  let release!: (result: Result<unknown>) => void
  complete.mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
  stop = watchReckoningPreparation(); await tick()
- const group = complete.mock.calls[0][1]
+ const group = complete.mock.calls[0][2]
  await unlockReckoningDungeon('a')
  if (kind === 'load') useGameStore.setState({ loads: game().loads + 1 })
  else useSettingsStore.setState({ settings: { apiProvider: 'openai', endpointModel: 'other-model' } as never })

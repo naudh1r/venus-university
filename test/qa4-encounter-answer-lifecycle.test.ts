@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { normalizeBreakthrough } from '@shared/breakthrough'
 import type { GameSave, Result, SaveDraft } from '@shared/types'
@@ -14,7 +15,7 @@ const girl = character({ charId: 'a', firstName: 'Nina', personality: 'She worri
 const roster = charactersById(girl)
 const yes = { resolved: true, reaction: 'I can ask for help without earning it first.', feedback: 'You connected your answer to what she actually experienced.', reframe: 'I can accept help without losing myself.', tagName: 'Room for Kindness', growth: 'She finds it a little easier to ask for help.' }
 let saved: SaveDraft[]
-const complete = vi.fn<typeof window.api.llm.completeReckoning>()
+const complete = vi.fn<typeof window.api.llm.completeMod>()
 const cancel = vi.fn<typeof window.api.jobs.cancelGroup>()
 const persist = vi.fn<typeof window.api.saves.autosave>()
 
@@ -40,7 +41,7 @@ beforeEach(async () => {
     return { ok: true, data: { ...draft, playthroughId: 'qa4-encounter', saveId: 'autosave', saveDate: 0 } }
   })
   cancel.mockResolvedValue({ ok: true, data: undefined })
-  stubApi({ llm: { completeReckoning: complete }, jobs: { cancelGroup: cancel }, saves: { autosave: persist } })
+  stubApi({ llm: { completeMod: complete }, jobs: { cancelGroup: cancel }, saves: { autosave: persist } })
   await unlockReckoningDungeon('a')
   // A fresh, ordinary nighttime landing; do not restore a legacy invoking transcript.
   useGameStore.setState({ time: 1, currentSceneTranscript: [], sceneSummary: null, currentLine: null, sceneLog: [], pendingLines: [], awaitingInput: true, sceneEnding: false })

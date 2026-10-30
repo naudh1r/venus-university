@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { talkInReckoningDungeon } from '../src/renderer/stores/reckoningDungeon'
 import { enterTestDungeon } from './dungeonFixture'
 import { unlockReckoningDungeon } from '../src/renderer/stores/reckoning'
@@ -21,7 +22,7 @@ const thoughts={thoughts:[
   {belief:'I have to earn every bit of kindness.',challenge:'What would be left if I stopped proving myself?',evidence:['e1','e4']}
 ]}
 let stop:(()=>void)|undefined
-let complete:Mock<typeof window.api.llm.completeReckoning>,save:Mock<typeof window.api.saves.autosave>,cancel:Mock<typeof window.api.jobs.cancelGroup>
+let complete:Mock<typeof window.api.llm.completeMod>,save:Mock<typeof window.api.saves.autosave>,cancel:Mock<typeof window.api.jobs.cancelGroup>
 const tick=()=>vi.advanceTimersByTimeAsync(650)
 
 beforeEach(()=>{
@@ -36,7 +37,7 @@ beforeEach(()=>{
   complete=vi.fn(async()=>({ok:true,data:thoughts}))
   save=vi.fn(async(_id,draft)=>({ok:true,data:{...draft,playthroughId:'preparation-test',saveId:'autosave',saveDate:0}}))
   cancel=vi.fn(async()=>({ok:true,data:undefined}))
-  stubApi({llm:{completeReckoning:complete},jobs:{cancelGroup:cancel},saves:{autosave:save}})
+  stubApi({llm:{completeMod:complete},jobs:{cancelGroup:cancel},saves:{autosave:save}})
 })
 afterEach(async()=>{stop?.();stop=undefined;await writesSettled();restoreApi();vi.useRealTimers()})
 
@@ -125,7 +126,9 @@ describe('Reckoning background preparation',()=>{
     let release!:(value:Result<unknown>)=>void
     complete.mockImplementationOnce(()=>new Promise(r=>{release=r}))
     stop=watchReckoningPreparation();await tick()
-    const group=complete.mock.calls[0][1]
+    const group=complete.mock.calls[0][2]
+    expect(complete.mock.calls[0][0]).toBe('reckoning')
+    expect(group).toMatch(/^mod:reckoning:/)
     if(kind==='scene')useGameStore.setState({currentSceneTranscript:sceneLines('An entirely different conversation.')})
     if(kind==='history')useGameStore.setState({charInfo:{...game().charInfo,a:{...game().charInfo.a,memories:[...memories,{date:15,type:'hated',desc:'A recent argument.'}]}}})
     if(kind==='profile')useGameStore.setState({characters:{...game().characters,a:{...game().characters.a,personality:'Guarded and proud.'}}})

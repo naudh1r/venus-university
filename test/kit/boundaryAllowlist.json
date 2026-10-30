@@ -415,9 +415,7 @@
   "src/renderer/stores/venusWhisper.ts -> @shared/types",
   "src/renderer/stores/whisperDelivery.ts -> ./gameStore",
   "src/renderer/stores/whisperDelivery.ts -> ./modsStore",
-  "src/renderer/stores/whisperIdentity.ts -> ../prompts/graduation",
   "src/renderer/stores/whisperIdentity.ts -> ./gameStore",
-  "src/renderer/stores/whisperIdentity.ts -> @shared/types",
   "src/renderer/stores/whisperObservations.ts -> ./gameStore",
   "src/renderer/stores/whisperObservations.ts -> ./timetable",
   "src/renderer/stores/whisperObservations.ts -> @shared/jobs",
@@ -628,6 +626,5 @@
   "src/shared/venusWhisper.ts -> ./npcRelationships",
   "src/shared/venusWhisper.ts -> ./types",
   "src/shared/whisperCarry.ts -> ./modCarry",
-  "src/shared/whisperIdentity.ts -> ./relationship",
-  "src/shared/whisperIdentity.ts -> ./types"
+  "src/shared/whisperIdentity.ts -> ./relationship"
 ]

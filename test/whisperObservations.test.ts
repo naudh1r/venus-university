@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { carryWhisper, ensureWhisperAuthor, normalizeWhisper, observeWhisperSlot, whisperSources, WHISPER_OBSERVATIONS,
   type WhisperObservation, type WhisperPresence } from '@shared/venusWhisper'
@@ -180,7 +181,7 @@ describe('firsthand Whisper evidence', () => {
     settle()
     useGameStore.setState({ date: 9 })
     const initial = game().exVenusWhisper.observations!
-    const complete = vi.fn(async (request: StructuredRequest) => {
+    const complete = vi.fn(async (_modId: string, request: StructuredRequest) => {
       const data = JSON.parse(request.user)
       expect(data.publicSources).toHaveLength(1)
       expect(data.publicSources[0].basis).toBe('witnessed')
@@ -192,7 +193,7 @@ describe('firsthand Whisper evidence', () => {
       useGameStore.setState(s => ({ time: 1, exVenusWhisper: { ...s.exVenusWhisper, observations: [...initial, later] } }))
       return { ok: true as const, data: { title: 'An interesting afternoon', body: 'The park had its share of drama.', sources: data.publicSources.map((s: { id: string }) => s.id), comments: [] } }
     })
-    stubApi({ llm: { completeWhisper: complete }, saves: { autosave: async (_p: string, draft: SaveDraft) => ({ ok: true, data: { ...draft, playthroughId: 'p', saveId: 'autosave', saveDate: 0 } as GameSave }) } })
+    stubApi({ llm: { completeMod: complete }, saves: { autosave: async (_p: string, draft: SaveDraft) => ({ ok: true, data: { ...draft, playthroughId: 'p', saveId: 'autosave', saveDate: 0 } as GameSave }) } })
     await publishWhisper('test', () => true, true)
     expect(game().exVenusWhisper.observations).toHaveLength(2)
     expect(whisperSources({ ...game(), date: 9, time: 0 })).toHaveLength(1)

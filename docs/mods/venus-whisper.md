@@ -175,7 +175,7 @@ to what the reader subsequently does in a scene.
 | `src/shared/modEntries/venus-whisper.ts` | Independent anytime switch `venus-whisper` and carry registration. |
 | `src/shared/whisperCarry.ts` | Registers optional semester retention; no Continuing Semesters import is required. |
 | `src/renderer/stores/gameStore.ts`, `src/shared/saveRules.ts` | Default, load, reset, optional-field acceptance and save projection. |
-| `src/main/ipc.ts`, `src/preload/api.d.ts`, `src/preload/index.ts`, `src/web/bridge.ts` | Cancellable `llm:completeWhisper` structured requests on desktop and browser. |
+| `@vx/modkit/renderer` | `completeStructured('venus-whisper', request, { group })` and `cancelCalls('venus-whisper', group)` use core's shared model channel on desktop and browser. Request groups are namespaced to the mod; response validation and stale-save checks remain in the mod. |
 | `src/renderer/modEntries/venus-whisper.ts`, `src/renderer/mods/venusWhisper.tsx` | Automatic hook discovery, public scene/DM excerpts, private scene-only identity continuity, and ledger/settled-slot registration. Regenerated texts share the ordinary public DM hook. |
 | `src/renderer/views/BunnyboardModal.tsx`, `VenusWhisperModal.tsx` | Optional rail tab and embedded newsletter page, independent of character profiles and Updates. |
 | `test/venusWhisper.test.ts` | Identity persistence, repeated term rollover, bounded imports, privacy boundaries, duplicate prevention, failed writes and stale requests. |
