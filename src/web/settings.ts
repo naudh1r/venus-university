@@ -81,6 +81,16 @@ export function forgetSettings(): void {
   row = null
 }
 
+/** Records that a playthrough has been told it was started before mods recorded their versions. */
+export async function setUnversionedSeen(playthroughId: string): Promise<void> {
+  const stored = await settingsRow()
+  const seen = Array.isArray(stored.modUnversionedSeen) ? stored.modUnversionedSeen : []
+  if (seen.includes(playthroughId)) return
+  const written: StoredSettings = { ...stored, modUnversionedSeen: [...seen, playthroughId] }
+  await writeSettings(written)
+  row = written
+}
+
 /** Records which shipped characters the player has taken off the roster. */
 export async function setRemovedDefaults(charIds: readonly string[]): Promise<void> {
   const written: StoredSettings = { ...(await settingsRow()), removedDefaults: [...charIds] }
