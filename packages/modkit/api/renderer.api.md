@@ -7,6 +7,7 @@
 import { AnimationDefinition } from 'motion/react';
 import type { ComponentType } from 'react';
 import { JSX } from 'react';
+import { MotionProps } from 'motion/react';
 import { MouseEventHandler } from 'react';
 import { ReactNode } from 'react';
 import { StoreApi } from 'zustand';
@@ -62,6 +63,9 @@ export interface ContactTabProps {
 
 // @public
 export function currentRun(): object;
+
+// @public
+export type DividerWord = 'hover' | 'locked' | 'unavailable' | 'ending';
 
 // @public
 export interface EditorField {
@@ -607,6 +611,18 @@ export interface SaveFieldSpec<T> {
     normalize?: (stored: unknown, legacy: Readonly<Record<string, unknown>>, from: string | null) => T;
 }
 
+// @public (undocumented)
+export function SceneDivider(input: SceneDividerProps): JSX.Element;
+
+// @public
+export interface SceneDividerProps {
+    className?: string;
+    // (undocumented)
+    state: 'shown' | 'dim' | 'hidden';
+    // (undocumented)
+    word: DividerWord;
+}
+
 // @public
 export interface ScenePanelProps {
     // (undocumented)
@@ -741,6 +757,33 @@ export interface ScreenSlotProps {
 export type ScreenTheme = 'day' | 'night';
 
 // @public
+export function SelectField(input: SelectFieldProps): JSX.Element;
+
+// @public (undocumented)
+export interface SelectFieldOption {
+    // (undocumented)
+    label: string;
+    // (undocumented)
+    value: string;
+}
+
+// @public (undocumented)
+export interface SelectFieldProps {
+    disabled?: boolean;
+    hint?: ReactNode;
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    label: string;
+    // (undocumented)
+    onChange: (value: string) => void;
+    // (undocumented)
+    options: readonly SelectFieldOption[];
+    // (undocumented)
+    value: string;
+}
+
+// @public
 export function SentText(input: {
     text: string;
     big?: boolean;
@@ -805,6 +848,32 @@ answeredReminder?: string, activity?: SlotActivityOffer): Promise<void>;
 export function takeTurnFromReply(): boolean;
 
 // @public
+export function TextField(input: TextFieldProps): JSX.Element;
+
+// @public (undocumented)
+export interface TextFieldProps {
+    autoFocus?: boolean;
+    autoGrow?: boolean;
+    disabled?: boolean;
+    hint?: string;
+    // (undocumented)
+    id: string;
+    label: string;
+    maxLength?: number;
+    // (undocumented)
+    multiline?: boolean;
+    onBlur?: () => void;
+    // (undocumented)
+    onChange: (value: string) => void;
+    // (undocumented)
+    placeholder?: string;
+    // (undocumented)
+    rows?: number;
+    // (undocumented)
+    value: string;
+}
+
+// @public
 export interface TextingPromptState {
     calendar: SemesterCalendar;
     charCompanions?: NpcCompanions;
@@ -834,7 +903,47 @@ export interface TextingPromptState {
 }
 
 // @public
+export function TitleTab(input: TitleTabProps): JSX.Element;
+
+// @public (undocumented)
+export interface TitleTabProps {
+    children: string;
+}
+
+// @public
 export const toggleLift: TargetAndTransition;
+
+// @public
+export function TurnField(props: TurnFieldProps): JSX.Element;
+
+// @public (undocumented)
+export interface TurnFieldProps {
+    // (undocumented)
+    action: string;
+    cg?: boolean;
+    focus: boolean;
+    // (undocumented)
+    goMotion?: MotionProps;
+    // (undocumented)
+    inputDead: boolean;
+    multiline?: boolean;
+    // (undocumented)
+    onAction: (value: string) => void;
+    // (undocumented)
+    onBlur?: () => void;
+    onFocus?: () => void;
+    onHover?: (over: boolean) => void;
+    // (undocumented)
+    onSubmit: () => void;
+    overlay?: ReactNode;
+    // (undocumented)
+    placeholder: string;
+    revealed?: boolean;
+    sending: boolean;
+    // (undocumented)
+    submitDead: boolean;
+    wellMotion?: MotionProps;
+}
 
 // @public
 export interface UpdatesTab {

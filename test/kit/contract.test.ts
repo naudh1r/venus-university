@@ -56,6 +56,19 @@ describe('the entry points', () => {
     }
   })
 
+  it("hands mods the game's own panel controls, so a mod panel's fields and title are the native ones", async () => {
+    const dialogue = await import('../../src/renderer/views/Dialogue')
+    const chrome = await import('../../src/renderer/views/SceneChrome')
+    const tab = await import('../../src/renderer/components/TitleTab')
+    const text = await import('../../src/renderer/components/TextField')
+    const select = await import('../../src/renderer/components/SelectField')
+    expect(rendererKit.TurnField).toBe(dialogue.TurnField)
+    expect(rendererKit.SceneDivider).toBe(chrome.SceneDivider)
+    expect(rendererKit.TitleTab).toBe(tab.TitleTab)
+    expect(rendererKit.TextField).toBe(text.TextField)
+    expect(rendererKit.SelectField).toBe(select.SelectField)
+  })
+
   it("hands mods the game's own readers of the run, the slot, the settings and the build", async () => {
     const state = await import('../../src/renderer/stores/loop/state')
     const intro = await import('../../src/renderer/prompts/introScript')

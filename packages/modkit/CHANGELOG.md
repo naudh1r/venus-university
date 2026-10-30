@@ -7,6 +7,10 @@
   `renderer:<name>` capability. They are the game's own objects, re-exported, so a mod's controls
   and panels move as the native ones do and follow them when they change. The rest of the game's
   motion file stays core's. Nothing native changes.
+- The game's panel controls in `renderer`: `TitleTab`, `TextField`, `SelectField`, and the scene's
+  own `TurnField` and `SceneDivider`, each its own `renderer:<name>` capability, with their props
+  types. They are the game's components, re-exported. `SceneDivider` is now exported by core and
+  takes an optional `className`; nothing native changes.
 - Small readers: `currentRun` and `runStale`, `isOrientationSlot` and `isGraduationSlot`,
   `lessNsfwText` and `useLessNsfwText`, `useSfxGain`, `modsOnLine` and `buildLabel` in
   `renderer`; `READER_SPEAKER` and `charKeyOf` in `shared`. Each is its own capability. The settings and mods

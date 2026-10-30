@@ -44,13 +44,20 @@ export { modState } from './modState'
 export type { ModStateHandle, ModStateSpec } from './modState'
 export type { ModDataRecord, RecordFieldHandle, RecordFieldSpec, SaveFieldHandle, SaveFieldSpec } from './saveField'
 export type {
+  DividerWord,
   ManualSaveOffer,
   ModalShell,
   PromptState,
   ResolvedSave,
+  SceneDividerProps,
   ScreenTheme,
+  SelectFieldOption,
+  SelectFieldProps,
   SlotIntroInput,
+  TextFieldProps,
   TextingPromptState,
+  TitleTabProps,
+  TurnFieldProps,
   ViewName
 } from '../bridge/renderer'
 export {
@@ -78,10 +85,15 @@ export {
   rowLift,
   rowPress,
   runStale,
+  SceneDivider,
+  SelectField,
   SentText,
   submitAction,
   takeTurnFromReply,
+  TextField,
+  TitleTab,
   toggleLift,
+  TurnField,
   useBareMessage,
   useDismissLayer,
   useEmojiTool,
