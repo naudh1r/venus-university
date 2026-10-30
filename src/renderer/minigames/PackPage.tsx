@@ -10,10 +10,8 @@ import {
   type MiniGameDef,
   type SuggestRate
 } from '@shared/minigames'
-import { SelectField } from '../components/SelectField'
 import type { ModDetailProps } from '../mods/hooks'
-import { gestures, quietLift, quietPress, rowLift, rowPress } from '../views/motion'
-import { useLessNsfwText } from '@vx/modkit/renderer'
+import { gestures, quietLift, quietPress, rowLift, rowPress, SelectField, useLessNsfwText } from '@vx/modkit/renderer'
 import { tunedGame, usePrefsStore } from './prefs'
 import { ReportButton } from './ReportButton'
 import '../vu_styles/MiniGames.css'

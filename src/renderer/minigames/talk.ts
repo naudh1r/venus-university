@@ -1,5 +1,6 @@
+import { MINI_GAMES } from '@shared/minigames'
+import { completeStructured, objectSchema } from '@vx/modkit/renderer'
 import { READER_SPEAKER, type Character, type StructuredRequest } from '@vx/modkit/shared'
-import { objectSchema } from '../prompts/schema'
 import { useGameStore } from '../stores/gameStore'
 
 /**
@@ -62,14 +63,11 @@ export function tableLine(
   situation: string,
   cue: string
 ): Promise<string | null> {
-  // The one bridge call that takes any schema and answers whole, with no stream and no group.
   // Asked from inside the chain, so nothing about building the request can throw past it.
   const written = Promise.resolve()
     .then(
       () =>
-        window.api.llm.classifyHangout(request(character, situation, cue)) as Promise<
-          { ok: true; data: unknown } | { ok: false; error: unknown }
-        >
+        completeStructured<unknown>(MINI_GAMES, request(character, situation, cue))
     )
     .then((result) => {
       if (!result.ok) return null

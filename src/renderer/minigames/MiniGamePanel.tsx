@@ -16,15 +16,6 @@ import {
   type Chattiness,
   type MiniGameDef
 } from '@shared/minigames'
-import { TextField } from '../components/TextField'
-import { TitleTab } from '../components/TitleTab'
-import { useModalShell } from '../components/useModalShell'
-import type { ScenePanelProps } from '../mods/hooks'
-import { useGameStore } from '../stores/gameStore'
-import { TurnField } from '../views/Dialogue'
-import { SceneDivider } from '../views/SceneChrome'
-import { useTableInputLayout } from './inputLayout'
-import { useModOption } from '@vx/modkit/renderer'
 import {
   gestures,
   lift,
@@ -34,8 +25,17 @@ import {
   quietPress,
   rowLift,
   rowPress,
+  SceneDivider,
+  TextField,
+  TitleTab,
+  TurnField,
+  useModalShell,
+  useModOption,
   veilIn
-} from '../views/motion'
+} from '@vx/modkit/renderer'
+import type { ScenePanelProps } from '../mods/hooks'
+import { useGameStore } from '../stores/gameStore'
+import { useTableInputLayout } from './inputLayout'
 import { gameComponent, type GamePlay, type Opponent, type PlayResult } from './play'
 import { agreementAvailable, checkpointResult, keptAgreed, useTableStore, type Agreed } from './session'
 import { tableRound } from './round'
