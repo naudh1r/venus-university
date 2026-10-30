@@ -12,6 +12,7 @@ import { MouseEventHandler } from 'react';
 import { ReactNode } from 'react';
 import { StoreApi } from 'zustand';
 import { TargetAndTransition } from 'motion/react';
+import { Transition } from 'motion/react';
 import { UseBoundStore } from 'zustand';
 import { Variants } from 'motion/react';
 
@@ -29,6 +30,9 @@ export interface BunnyboardPage {
     // (undocumented)
     word: string;
 }
+
+// @public
+export const bunnyHop: Transition;
 
 // @public
 export function cancelCalls(modId: string, group: string): Promise<void>;
@@ -73,6 +77,9 @@ export interface ContactTabProps {
 export function currentRun(): object;
 
 // @public
+export const dealt: (startDelay: number, each?: number) => Variants;
+
+// @public
 export type DividerWord = 'hover' | 'locked' | 'unavailable' | 'ending';
 
 // @public
@@ -108,6 +115,9 @@ export interface EmojiToolProps {
 export interface EndingChoice extends WayOn {
     label: string;
 }
+
+// @public
+export const fadeIn: (delay: number, duration?: number) => Variants;
 
 // @public
 export function fileLatePost(post: NonNullable<SlotIntroResponse['posts']>[number]): Promise<void>;
@@ -327,6 +337,9 @@ export interface ModStateSpec<T> {
     initial: T;
     lifetime: 'game' | 'session';
 }
+
+// @public
+export const noteIn: Variants;
 
 // @public
 export function objectSchema(name: string, required: readonly string[], properties: Record<string, unknown>): StructuredRequest['schema'];
@@ -582,6 +595,9 @@ export interface ResolvedSave {
 }
 
 // @public
+export function retrySilently(call: string, error: AppError, spent: number, options?: SilentRetryOptions): Promise<boolean>;
+
+// @public
 export const rowLift: TargetAndTransition;
 
 // @public (undocumented)
@@ -815,6 +831,16 @@ export interface SentTextSpot {
     }>;
 }
 
+// @public (undocumented)
+export interface SilentRetryOptions {
+    onSleep?: (cancel: () => void) => void;
+    retryable?: (code: string) => boolean;
+    skip?: () => boolean;
+}
+
+// @public
+export const slideInQuick: Variants;
+
 // @public
 export interface SlotIntroInput {
     askers: readonly IntroAsker[];
@@ -961,6 +987,9 @@ export interface TurnFieldProps {
     submitDead: boolean;
     wellMotion?: MotionProps;
 }
+
+// @public (undocumented)
+export const typingDot: readonly TargetAndTransition[];
 
 // @public
 export interface UpdatesTab {

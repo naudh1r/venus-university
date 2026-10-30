@@ -14,6 +14,7 @@ export type {
   NativeGameSave,
   ModSlice,
   LedgerResponse,
+  MemoryType,
   ModEnrollmentFields,
   ModSceneFields,
   PlaythroughRecord,
@@ -40,3 +41,5 @@ export { memoryStatusLine } from '@shared/relationship'
 export { registerImagePromptDraft } from '@shared/imagePromptDrafts'
 export type { ImagePromptDraft, ImagePromptKind, ImagePromptParts } from '@shared/imagePromptDrafts'
 export type { PromptEdit } from '@shared/imagePrompt'
+export { globalSlotOf } from '@shared/jobs'
+export { messageOf } from '@shared/errors'

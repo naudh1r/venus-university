@@ -254,6 +254,10 @@ imported from `@vx/modkit/renderer` and declared as `renderer:<name>` for each o
   (`vu-paper`), `quietLift` and `quietPress` for one with no paper layer, and `rowLift` and
   `rowPress` for one that spans its column. `toggleLift` is the hover of a control whose fill is a
   state, a tool in force.
+- `fadeIn(delay, duration?)` is a layer's arrival and leaving; `dealt(startDelay, each?)`
+  deals a stack's children out one after another.
+- `slideInQuick` and `noteIn` bring a message and a note in; `bunnyHop` is the waiting bunny's
+  repeating hop, and `typingDot` the three dots of a reply being written, one target per dot.
 - `veilIn` and `panelUnderTab` are a modal's arrival, as variants with `hidden`, `shown` and
   `gone`: the veil that dims the screen, and the panel rising under its title tab.
 
@@ -302,6 +306,9 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
   the log lists them, and the build's name and version: for a bug report.
 - `READER_SPEAKER` and `charKeyOf(firstName, lastName)` (`shared`): the speaker of the reader's own
   lines, and a character's key in prompts and replies.
+- `globalSlotOf(date, time)` (`shared`): a slot's global id, the same one the game keeps.
+- `messageOf(err)` (`shared`): the message off any thrown value, an error's own or its string form.
+  `MemoryType` is the game's memory-kind type, from the same entry; types need no declaration.
 ### A mod's own model call
 
 A mod asks the model something of its own with `completeStructured` from `@vx/modkit/renderer`,
@@ -328,6 +335,12 @@ A call sent with a `group` can be called off: `cancelCalls('my-mod', group)`
 (`renderer:cancelCalls`) aborts every one of the mod's calls still out under that group, and each
 resolves `CANCELLED`. A mod's groups are its own: no group of the game's or of another mod's is
 touched. A call without a group runs to the end.
+
+`retrySilently(call, error, spent, options?)` (`renderer:retrySilently`) is the game's quiet
+re-send decision: it waits under the game's backoff budget and answers whether to send again.
+`spent` counts the retries already made; `SilentRetryOptions` lets the mod narrow the codes,
+skip a resend or take a canceller for the wait.
+
 ### The scene's input
 
 A mod's panel over a scene can put an input of its own in the place of the scene's action row,

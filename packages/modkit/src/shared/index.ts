@@ -16,6 +16,7 @@ export type {
   ImagePromptParts,
   LedgerResponse,
   LedgerStats,
+  MemoryType,
   ModDef,
   ModEnrollmentFields,
   ModOption,
@@ -45,9 +46,11 @@ export type {
 } from '../bridge/shared'
 export {
   charKeyOf,
+  globalSlotOf,
   hasTrait,
   MAX_TIER,
   memoryStatusLine,
+  messageOf,
   modById,
   modOn,
   optionKey,

@@ -36,16 +36,24 @@ export { isOrientationSlot } from '../../../../src/renderer/prompts/introScript'
 export { isGraduationSlot } from '../../../../src/renderer/prompts/graduation'
 export { buildLabel, lessNsfwText, modsOnLine, useLessNsfwText, useSfxGain } from '../../../../src/renderer/mods/readers'
 export { cancelCalls, completeStructured } from '../../../../src/renderer/mods/llm'
+export type { SilentRetryOptions } from '../../../../src/renderer/stores/silentRetry'
+export { retrySilently } from '../../../../src/renderer/stores/silentRetry'
 export { objectSchema } from '../../../../src/renderer/prompts/schema'
 export {
+  bunnyHop,
+  dealt,
+  fadeIn,
   gestures,
   lift,
+  noteIn,
   panelUnderTab,
   press,
   quietLift,
   quietPress,
   rowLift,
   rowPress,
+  slideInQuick,
   toggleLift,
+  typingDot,
   veilIn
 } from '../../../../src/renderer/views/motion'
