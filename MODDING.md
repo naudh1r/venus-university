@@ -287,6 +287,9 @@ A mod's panel draws its title and fields with the game's own components, from
 - `SceneDivider`: the rule and state word that stand in the well's place while a reply is read,
   with a `className` of the panel's own beside its class.
 
+- `CloseIcon`, `HeartIcon`, `BunnyMark`, `EyeIcon` and `EyeOffIcon`: the same marks the game's
+  controls draw, in the control's own colour.
+
 They are the game's components, so a mod's panel looks and behaves as a native one does and
 changes with it. Their props are the ones the game's own screens pass, typed in the kit.
 ### Small readers
@@ -309,6 +312,28 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
 - `globalSlotOf(date, time)` (`shared`): a slot's global id, the same one the game keeps.
 - `messageOf(err)` (`shared`): the message off any thrown value, an error's own or its string form.
   `MemoryType` is the game's memory-kind type, from the same entry; types need no declaration.
+- `SAFE_CHAR_ID`, `assertSafeCharId`, `SAFE_NUMERIC_ID` and `assertSafePlaythroughId`
+  (`shared`): the game's character and playthrough id checks, for names a mod keeps itself.
+- `appError`, `imageTypeOf` and `characterLoraOf` (`shared`): a shaped error, the type an image's
+  opening bytes name, and a character's own LoRA pick. `BACKUP_ZIP_LIMITS` is the game's archive cap.
+- `DORM_IDS`, `dormLabel`, `LOCATIONS` and `NARRATIVE_LOCATIONS` (`shared`): the dorm and place
+  vocabulary; `customOutfitSlotsIn` and `outfitTagsFor` read her own wardrobe.
+- `affectionFor`, `dispositionOf`, `dedupedMemoriesFor`, `emptyFlags` and `relationshipTagOf`
+  (`shared`) read the relationship a prompt describes. `areNpcFriends`, `npcFriendsOf`, `npcPairOf`
+  and `zoneOf` read the relationships between characters from the map the caller supplies.
+- `fullNameOf`, `slotFromId`, `hashString`, `seededRand`, `shownComments`, `fallbackHandleOf`,
+  `rollPostLikes`, `readerize` and `DEFAULT_PLAYER_STATS` (`shared`) are the game's small name,
+  clock, seeded-draw, feed and prompt helpers. They change no store.
+- `formatNumericGameDate`, `formatShortGameDate` and `slotHalf` (`renderer`) print the game's
+  dates; `SETTING` is its setting text, and `hasTexted` reads whether a conversation has begun.
+- `isFeedContact`, `FEED_PAGE` and `newestFirst` (`renderer`) read and order the feed. The feed's
+  `FEED_EMOJI`, `FEED_EMOJI_BAG`, `FEED_HANDLE_BAG` and `FEED_HANDLE_POOL` are its emoji and handle
+  tables and bag names; taking them does not draw a bag.
+
+`CharFlags`, `CustomOutfitSlot`, `Season` and `NpcRelationshipMap` are shared types from the
+same entry. Types need no capability declaration. These readers take the game's own arguments;
+a mod supplies the records it reads, and keeps any changes it makes to them under its own rules.
+
 ### A mod's own model call
 
 A mod asks the model something of its own with `completeStructured` from `@vx/modkit/renderer`,

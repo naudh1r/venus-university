@@ -38,6 +38,11 @@
   `typingDot` and `retrySilently`, with its `SilentRetryOptions` type, in `renderer`. Each value
   is its own capability. Nothing native changes.
 
+- More native readers in `shared`: ids, image bytes and LoRA picks; dorms, places, outfits and
+  relationships; names, slots, hashes, comments and feed draws, archive limits and prompt helpers.
+  In `renderer`, the game's date and conversation readers, setting text, feed tables and five
+  screen icons. Each value is its own capability; the record types come from `shared` too.
+
 ## 0.6.0
 
 What the first mods moving onto the kit needed: a backup share that must be complete, a scene
