@@ -25,6 +25,7 @@ export type {
   TextingResponse,
   TimeSlot
 } from '@shared/types'
+export { charKeyOf, READER_SPEAKER } from '@shared/types'
 export type { GameOverReason } from '@shared/gameOver'
 export type { LedgerStats, PlayerStats, StatContext, StatKey, StatTier, StatusText } from '@shared/playerStats'
 export { MAX_TIER, pointsForTier } from '@shared/playerStats'

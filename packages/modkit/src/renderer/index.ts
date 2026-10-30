@@ -61,14 +61,20 @@ export type {
   ViewName
 } from '../bridge/renderer'
 export {
+  buildLabel,
   Card,
+  currentRun,
   EmojiTool,
   fileLatePost,
   finishSlotActivity,
   gestures,
+  isGraduationSlot,
+  isOrientationSlot,
+  lessNsfwText,
   lift,
   Locked,
   modIsOn,
+  modsOnLine,
   panelUnderTab,
   PostCommentAction,
   PostCommentsView,
@@ -78,6 +84,7 @@ export {
   quietPress,
   rowLift,
   rowPress,
+  runStale,
   SceneDivider,
   SelectField,
   SentText,
@@ -90,8 +97,10 @@ export {
   useBareMessage,
   useDismissLayer,
   useEmojiTool,
+  useLessNsfwText,
   useModalShell,
   useModOn,
   useModOption,
+  useSfxGain,
   veilIn
 } from '../bridge/renderer'
