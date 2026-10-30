@@ -22,7 +22,7 @@ function api() {
   })
   const save = vi.fn(async (_p: string, draft: SaveDraft): Promise<Result<GameSave>> => ({ ok: true, data: { ...draft, playthroughId: 'p', saveId: 'autosave', saveDate: 0 } }))
   const cancel = vi.fn(async (): Promise<Result<void>> => ({ ok: true, data: undefined }))
-  stubApi({ llm: { completeMod: complete }, saves: { autosave: save }, jobs: { cancelGroup: cancel } })
+  stubApi({ llm: { completeMod: complete, cancelMod: cancel }, saves: { autosave: save } })
   return { complete, save, cancel }
 }
 beforeEach(() => {
@@ -155,8 +155,8 @@ describe('Wednesday edition and unread state', () => {
     await vi.advanceTimersByTimeAsync(500)
     expect(cancel).toHaveBeenCalledOnce()
     expect(complete.mock.calls[0][0]).toBe(VENUS_WHISPER_MOD)
-    expect(complete.mock.calls[0][2]).toMatch(/^mod:venus-whisper:whisper-delivery:/)
-    expect(cancel).toHaveBeenCalledWith(complete.mock.calls[0][2])
+    expect(complete.mock.calls[0][2]).toMatch(/^whisper-delivery:/)
+    expect(cancel).toHaveBeenCalledWith(VENUS_WHISPER_MOD, complete.mock.calls[0][2])
     expect(game().exVenusWhisper.issues).toEqual([])
     expect(useWhisperDelivery.getState().error).toBe('')
   })

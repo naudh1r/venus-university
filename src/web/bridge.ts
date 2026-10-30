@@ -16,7 +16,7 @@ import { LINEUP_MIME_TYPE } from '@shared/lineup'
 import { classifyCloud } from '@shared/llm/cloudClassifier'
 import { generateImage, generatePhoto } from '@shared/llm/cloudImage'
 import { completeStructured as completeCloudStructured, type StructuredRequest } from '@shared/llm/cloudLlm'
-import { completeModRequest } from '@shared/llm/modCall'
+import { cancelModCalls, completeModRequest } from '@shared/llm/modCall'
 import {
   listImageModels,
   listModels,
@@ -302,6 +302,7 @@ export function buildApi(): VenusUniversityApi {
         result("answer a mod's call", () =>
           completeModRequest(completeStructured, modId, request, group)
         ),
+      cancelMod: (modId, group) => result("cancel a mod's calls", () => cancelModCalls(modId, group)),
       // Unqueued; the streamed deltas are preview-only and the resolved reply is the
       // authoritative one. Every delta carries the call's `stream`.
       completeScene: (request, group, stream) =>

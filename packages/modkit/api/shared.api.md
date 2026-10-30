@@ -156,6 +156,9 @@ export interface GameSave extends NativeGameSave {
 }
 
 // @public
+export function globalSlotOf(date: number, time: TimeSlot): number;
+
+// @public
 export function hasTrait(character: Pick<Character, 'traits'> | undefined, trait: CharacterTrait): boolean;
 
 // @public
@@ -569,7 +572,7 @@ export interface ImagePromptParts {
 }
 
 // @public
-export const KIT_APIS: readonly ['shared:carryModFiles', 'shared:charKeyOf', 'shared:DEPRECATED_HOOKS', 'shared:hasTrait', 'shared:HOOKS', 'shared:KIT_APIS', 'shared:KIT_VERSION', 'shared:MAX_TIER', 'shared:memoryStatusLine', 'shared:modById', 'shared:modOn', 'shared:optionKey', 'shared:optionOn', 'shared:pointsForTier', 'shared:READER_SPEAKER', 'shared:registerCharacterTrait', 'shared:registerImagePromptDraft', 'shared:registerPostCarry', 'shared:registerRomanceRequirement', 'shared:registerTermCarry', 'shared:registerTermFiles', 'shared:REMOVED_HOOKS', 'shared:sharedModOn', 'renderer:buildLabel', 'renderer:cancelCalls', 'renderer:Card', 'renderer:completeStructured', 'renderer:currentRun', 'renderer:EmojiTool', 'renderer:fileLatePost', 'renderer:finishSlotActivity', 'renderer:gestures', 'renderer:isGraduationSlot', 'renderer:isOrientationSlot', 'renderer:lessNsfwText', 'renderer:lift', 'renderer:Locked', 'renderer:modIsOn', 'renderer:modsOnLine', 'renderer:modState', 'renderer:objectSchema', 'renderer:openPanel', 'renderer:ownsPostComments', 'renderer:panelUnderTab', 'renderer:PostCommentAction', 'renderer:PostCommentsView', 'renderer:PostPicture', 'renderer:postVisible', 'renderer:press', 'renderer:promptFields', 'renderer:promptLines', 'renderer:promptRequired', 'renderer:quietLift', 'renderer:quietPress', 'renderer:recordField', 'renderer:registerHooks', 'renderer:rowLift', 'renderer:rowPress', 'renderer:runStale', 'renderer:safePoint', 'renderer:saveField', 'renderer:SceneDivider', 'renderer:SelectField', 'renderer:SentText', 'renderer:submitAction', 'renderer:takeTurnFromReply', 'renderer:TextField', 'renderer:TitleTab', 'renderer:toggleLift', 'renderer:TurnField', 'renderer:useBareMessage', 'renderer:useDismissLayer', 'renderer:useEmojiTool', 'renderer:useLessNsfwText', 'renderer:useModalShell', 'renderer:useModOn', 'renderer:useModOption', 'renderer:useSafePoint', 'renderer:useSceneInput', 'renderer:useSfxGain', 'renderer:veilIn', 'renderer:writeModField', 'renderer:writeModFields', 'main:backupPart', 'main:characterTransferPart', 'main:modDataPath', 'main:registerComfyLaunchEnvironment', 'main:requiredBackupPart'];
+export const KIT_APIS: readonly ['shared:carryModFiles', 'shared:charKeyOf', 'shared:DEPRECATED_HOOKS', 'shared:globalSlotOf', 'shared:hasTrait', 'shared:HOOKS', 'shared:KIT_APIS', 'shared:KIT_VERSION', 'shared:MAX_TIER', 'shared:memoryStatusLine', 'shared:messageOf', 'shared:modById', 'shared:modOn', 'shared:optionKey', 'shared:optionOn', 'shared:pointsForTier', 'shared:READER_SPEAKER', 'shared:registerCharacterTrait', 'shared:registerImagePromptDraft', 'shared:registerPostCarry', 'shared:registerRomanceRequirement', 'shared:registerTermCarry', 'shared:registerTermFiles', 'shared:REMOVED_HOOKS', 'shared:sharedModOn', 'renderer:buildLabel', 'renderer:bunnyHop', 'renderer:cancelCalls', 'renderer:Card', 'renderer:completeStructured', 'renderer:currentRun', 'renderer:dealt', 'renderer:EmojiTool', 'renderer:fadeIn', 'renderer:fileLatePost', 'renderer:finishSlotActivity', 'renderer:gestures', 'renderer:isGraduationSlot', 'renderer:isOrientationSlot', 'renderer:lessNsfwText', 'renderer:lift', 'renderer:Locked', 'renderer:modIsOn', 'renderer:modsOnLine', 'renderer:modState', 'renderer:noteIn', 'renderer:objectSchema', 'renderer:openPanel', 'renderer:ownsPostComments', 'renderer:panelUnderTab', 'renderer:PostCommentAction', 'renderer:PostCommentsView', 'renderer:PostPicture', 'renderer:postVisible', 'renderer:press', 'renderer:promptFields', 'renderer:promptLines', 'renderer:promptRequired', 'renderer:quietLift', 'renderer:quietPress', 'renderer:recordField', 'renderer:registerHooks', 'renderer:retrySilently', 'renderer:rowLift', 'renderer:rowPress', 'renderer:runStale', 'renderer:safePoint', 'renderer:saveField', 'renderer:SceneDivider', 'renderer:SelectField', 'renderer:SentText', 'renderer:slideInQuick', 'renderer:submitAction', 'renderer:takeTurnFromReply', 'renderer:TextField', 'renderer:TitleTab', 'renderer:toggleLift', 'renderer:TurnField', 'renderer:typingDot', 'renderer:useBareMessage', 'renderer:useDismissLayer', 'renderer:useEmojiTool', 'renderer:useLessNsfwText', 'renderer:useModalShell', 'renderer:useModOn', 'renderer:useModOption', 'renderer:useSafePoint', 'renderer:useSceneInput', 'renderer:useSfxGain', 'renderer:veilIn', 'renderer:writeModField', 'renderer:writeModFields', 'main:backupPart', 'main:characterTransferPart', 'main:modDataPath', 'main:registerComfyLaunchEnvironment', 'main:requiredBackupPart'];
 
 // @public
 export const KIT_VERSION = "0.6.0";
@@ -621,6 +624,12 @@ export const MAX_TIER: StatTier;
 
 // @public
 export function memoryStatusLine(name: string, entry: Pick<CharMemory, 'type' | 'desc'>): SceneLine;
+
+// @public
+export type MemoryType = 'liked' | 'disliked' | 'loved' | 'hated';
+
+// @public
+export function messageOf(err: unknown): string;
 
 // @public (undocumented)
 export function modById(id: string, mods?: readonly ModDef[]): ModDef | undefined;

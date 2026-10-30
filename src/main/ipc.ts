@@ -155,7 +155,7 @@ import { classifyCloud } from '@shared/llm/cloudClassifier'
 import { generatePhoto } from '@shared/llm/cloudImage'
 import { completeStructured as completeCloudStructured, type StructuredRequest } from '@shared/llm/cloudLlm'
 import type { FeedThreadsResponse } from '@shared/bunnyfeeds'
-import { completeModRequest } from '@shared/llm/modCall'
+import { cancelModCalls, completeModRequest } from '@shared/llm/modCall'
 import {
   listImageModels,
   listModels,
@@ -556,6 +556,7 @@ export function registerIpcHandlers(): void {
   handle('llm:completeMod', (_event, modId: string, request: StructuredRequest, group?: string) =>
     completeModRequest(completeStructured, modId, request, group)
   )
+  handle('llm:cancelMod', (_event, modId: string, group: string) => cancelModCalls(modId, group))
 
   handle('saves:playthroughs', () => listPlaythroughs())
   handle('saves:list', (_event, playthroughId: string) => listSaves(playthroughId))

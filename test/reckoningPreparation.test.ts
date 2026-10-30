@@ -22,7 +22,7 @@ const thoughts={thoughts:[
   {belief:'I have to earn every bit of kindness.',challenge:'What would be left if I stopped proving myself?',evidence:['e1','e4']}
 ]}
 let stop:(()=>void)|undefined
-let complete:Mock<typeof window.api.llm.completeMod>,save:Mock<typeof window.api.saves.autosave>,cancel:Mock<typeof window.api.jobs.cancelGroup>
+let complete:Mock<typeof window.api.llm.completeMod>,save:Mock<typeof window.api.saves.autosave>,cancel:Mock<typeof window.api.llm.cancelMod>
 const tick=()=>vi.advanceTimersByTimeAsync(650)
 
 beforeEach(()=>{
@@ -37,7 +37,7 @@ beforeEach(()=>{
   complete=vi.fn(async()=>({ok:true,data:thoughts}))
   save=vi.fn(async(_id,draft)=>({ok:true,data:{...draft,playthroughId:'preparation-test',saveId:'autosave',saveDate:0}}))
   cancel=vi.fn(async()=>({ok:true,data:undefined}))
-  stubApi({llm:{completeMod:complete},jobs:{cancelGroup:cancel},saves:{autosave:save}})
+  stubApi({llm:{completeMod:complete,cancelMod:cancel},saves:{autosave:save}})
 })
 afterEach(async()=>{stop?.();stop=undefined;await writesSettled();restoreApi();vi.useRealTimers()})
 
@@ -128,7 +128,7 @@ describe('Reckoning background preparation',()=>{
     stop=watchReckoningPreparation();await tick()
     const group=complete.mock.calls[0][2]
     expect(complete.mock.calls[0][0]).toBe('reckoning')
-    expect(group).toMatch(/^mod:reckoning:/)
+    expect(group).toMatch(/^reckoning-prepare-/)
     if(kind==='scene')useGameStore.setState({currentSceneTranscript:sceneLines('An entirely different conversation.')})
     if(kind==='history')useGameStore.setState({charInfo:{...game().charInfo,a:{...game().charInfo.a,memories:[...memories,{date:15,type:'hated',desc:'A recent argument.'}]}}})
     if(kind==='profile')useGameStore.setState({characters:{...game().characters,a:{...game().characters.a,personality:'Guarded and proud.'}}})
@@ -138,7 +138,7 @@ describe('Reckoning background preparation',()=>{
     if(kind==='provider')useSettingsStore.setState({settings:{apiProvider:'openai',endpointModel:'new-writer'} as never})
     if(kind==='spirit')useGameStore.setState({exBreakthrough:normalizeBreakthrough({meters:{a:75}})})
     if(kind==='switch')useModsStore.setState({switches:{on:{reckoning:false},options:{'reckoning:prepare-questions':true}}})
-    expect(cancel).toHaveBeenCalledWith(group)
+    expect(cancel).toHaveBeenCalledWith('reckoning', group)
     release({ok:true,data:thoughts});await vi.advanceTimersByTimeAsync(0)
     expect(reckoningPreparationStatus(game(),'a').status).not.toBe('ready')
     expect(game().exReckoning.active).toBeNull();expect(save).not.toHaveBeenCalled()
