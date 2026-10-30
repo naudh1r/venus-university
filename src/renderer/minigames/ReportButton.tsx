@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { motion } from 'motion/react'
-import { modsOnLine } from '@vx/modkit/renderer'
-import { gestures, quietLift, quietPress } from '../views/motion'
+import { gestures, modsOnLine, quietLift, quietPress } from '@vx/modkit/renderer'
 import { reportText, type ReportOf } from './report'
 
 /** Puts a report on the clipboard, with the mods that are on. False where it would not take it. */
