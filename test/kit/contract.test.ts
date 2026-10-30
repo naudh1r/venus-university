@@ -69,6 +69,23 @@ describe('the entry points', () => {
     expect(rendererKit.SelectField).toBe(select.SelectField)
   })
 
+  it("hands mods the game's own readers of the run, the slot, the settings and the build", async () => {
+    const state = await import('../../src/renderer/stores/loop/state')
+    const intro = await import('../../src/renderer/prompts/introScript')
+    const graduation = await import('../../src/renderer/prompts/graduation')
+    const readers = await import('../../src/renderer/mods/readers')
+    const types = await import('../../src/shared/types')
+    expect(rendererKit.currentRun).toBe(state.currentRun)
+    expect(rendererKit.runStale).toBe(state.runStale)
+    expect(rendererKit.isOrientationSlot).toBe(intro.isOrientationSlot)
+    expect(rendererKit.isGraduationSlot).toBe(graduation.isGraduationSlot)
+    for (const name of ['buildLabel', 'lessNsfwText', 'useLessNsfwText', 'useSfxGain', 'modsOnLine'] as const) {
+      expect(rendererKit[name], name).toBe(readers[name])
+    }
+    expect(sharedKit.charKeyOf).toBe(types.charKeyOf)
+    expect(sharedKit.READER_SPEAKER).toBe(types.READER_SPEAKER)
+  })
+
   it("sends a mod's own model call through the game's, on the one channel every mod shares", async () => {
     const native = await import('../../src/renderer/mods/llm')
     const schema = await import('../../src/renderer/prompts/schema')

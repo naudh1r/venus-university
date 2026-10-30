@@ -15,6 +15,9 @@ import { TargetAndTransition } from 'motion/react';
 import { UseBoundStore } from 'zustand';
 import { Variants } from 'motion/react';
 
+// @public
+export function buildLabel(): string;
+
 // @public (undocumented)
 export interface BunnyboardPage {
     // (undocumented)
@@ -65,6 +68,9 @@ export interface ContactTabProps {
     // (undocumented)
     theme: ScreenTheme;
 }
+
+// @public
+export function currentRun(): object;
 
 // @public
 export type DividerWord = 'hover' | 'locked' | 'unavailable' | 'ending';
@@ -138,6 +144,12 @@ export function gestures(dead: boolean, hover: TargetAndTransition, tap: TargetA
 };
 
 // @public
+export function isGraduationSlot(date: number, time: TimeSlot): boolean;
+
+// @public
+export function isOrientationSlot(date: number, time: TimeSlot, semesterIndex: number): boolean;
+
+// @public
 export interface LandingToolProps {
     // (undocumented)
     children: ReactNode;
@@ -146,6 +158,9 @@ export interface LandingToolProps {
     // (undocumented)
     onClick: () => void;
 }
+
+// @public
+export function lessNsfwText(): boolean;
 
 // @public
 export const lift: TargetAndTransition;
@@ -292,6 +307,9 @@ export interface ModHooks {
 
 // @public
 export function modIsOn(id: string, record?: Pick<PlaythroughRecord, 'mods'> | null): boolean;
+
+// @public
+export function modsOnLine(): string;
 
 // @public
 export function modState<T>(modId: string, spec: ModStateSpec<T>): ModStateHandle<T>;
@@ -568,6 +586,9 @@ export const rowLift: TargetAndTransition;
 
 // @public (undocumented)
 export const rowPress: TargetAndTransition;
+
+// @public
+export function runStale(run: object): boolean;
 
 // @public
 export function safePoint(): ManualSaveOffer;
@@ -959,6 +980,9 @@ export function useDismissLayer(onDismiss: () => void, active: boolean): void;
 export function useEmojiTool(): boolean;
 
 // @public
+export function useLessNsfwText(): boolean;
+
+// @public
 export function useModalShell(onClose: () => void, sound?: 'panel' | 'phone' | 'none', primary?: () => void): ModalShell;
 
 // @public
@@ -969,6 +993,9 @@ export function useModOption(modId: string, optionId: string): boolean;
 
 // @public
 export function useSafePoint(): ManualSaveOffer;
+
+// @public
+export function useSfxGain(): number;
 
 // @public
 export const veilIn: Variants;

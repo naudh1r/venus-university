@@ -11,6 +11,10 @@
   own `TurnField` and `SceneDivider`, each its own `renderer:<name>` capability, with their props
   types. They are the game's components, re-exported. `SceneDivider` is now exported by core and
   takes an optional `className`; nothing native changes.
+- Small readers: `currentRun` and `runStale`, `isOrientationSlot` and `isGraduationSlot`,
+  `lessNsfwText` and `useLessNsfwText`, `useSfxGain`, `modsOnLine` and `buildLabel` in
+  `renderer`; `READER_SPEAKER` and `charKeyOf` in `shared`. Each is its own capability. The settings and mods
+  readers are new in core, the rest the game's own, re-exported.
 - `completeStructured(modId, request, { group })` in `renderer`: a mod's own structured model
   call, over one `llm:completeMod` channel every mod shares, sent as the game sends its own and
   answered as a `Result`. `cancelCalls(modId, group)` aborts the mod's calls under a group, the
