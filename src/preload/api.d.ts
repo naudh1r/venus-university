@@ -232,6 +232,11 @@ export interface VenusUniversityApi {
     /** Judges a finished texting turn for a hangout. Never streams. */
     classifyHangout: (request: StructuredRequest) => Promise<Result<HangoutClassifierResponse>>
     /**
+     * A mod's own structured call, named by its mod id. The reply is parsed, not checked. Under
+     * `group`, cancelling that group aborts it; an aborted call resolves `CANCELLED`. Never streams.
+     */
+    completeMod: (modId: string, request: StructuredRequest, group?: string) => Promise<Result<unknown>>
+    /**
      * Sends a scene or continuation prompt. `group` is the loop's
      * own, shared with the three calls below; an aborted call resolves `CANCELLED`. `stream`
      * names this one call, and every delta it streams carries it.

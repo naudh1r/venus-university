@@ -44,6 +44,7 @@ export type {
   TimeSlot
 } from '../bridge/shared'
 export {
+  charKeyOf,
   hasTrait,
   MAX_TIER,
   memoryStatusLine,
@@ -52,6 +53,7 @@ export {
   optionKey,
   optionOn,
   pointsForTier,
+  READER_SPEAKER,
   registerCharacterTrait,
   registerImagePromptDraft,
   registerRomanceRequirement
