@@ -43,6 +43,10 @@
   In `renderer`, the game's date and conversation readers, setting text, feed tables and five
   screen icons. Each value is its own capability; the record types come from `shared` too.
 
+- `bunnybotSays(modId, lines, { once? })` in `renderer`: BunnyBot says a mod's lines after his
+  introduction, through his own delivery. An exact message in his saved thread matching `once`
+  keeps them from being said again. It answers whether he spoke, declared as `renderer:bunnybotSays`.
+
 ## 0.6.0
 
 What the first mods moving onto the kit needed: a backup share that must be complete, a scene

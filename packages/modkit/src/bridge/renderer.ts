@@ -65,3 +65,5 @@ export { hasTexted } from '../../../../src/renderer/prompts/textingPrompt'
 export { isFeedContact, FEED_PAGE } from '../../../../src/renderer/stores/feedView'
 export { newestFirst } from '../../../../src/renderer/stores/feedRolls'
 export { FEED_EMOJI, FEED_EMOJI_BAG, FEED_HANDLE_BAG, FEED_HANDLE_POOL } from '../../../../src/renderer/prompts/feedRandoms'
+
+export { bunnybotSays } from '../../../../src/renderer/mods/bunnybot'

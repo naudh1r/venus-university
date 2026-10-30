@@ -226,6 +226,7 @@ export const KIT_APIS = [
   'shared:REMOVED_HOOKS',
   'shared:sharedModOn',
   'renderer:buildLabel',
+  'renderer:bunnybotSays',
   'renderer:bunnyHop',
   'renderer:cancelCalls',
   'renderer:Card',

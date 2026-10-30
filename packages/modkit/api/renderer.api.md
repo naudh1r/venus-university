@@ -32,6 +32,11 @@ export interface BunnyboardPage {
 }
 
 // @public
+export function bunnybotSays(modId: string, lines: readonly string[], options?: {
+    once?: string;
+}): boolean;
+
+// @public
 export const bunnyHop: Transition;
 
 // @public

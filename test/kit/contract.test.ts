@@ -192,6 +192,11 @@ describe('the entry points', () => {
     expect(rendererKit.FEED_HANDLE_POOL).toBe(feedRandoms.FEED_HANDLE_POOL)
   })
 
+  it("hands mods the game's BunnyBot delivery hook", async () => {
+    const native = await import('../../src/renderer/mods/bunnybot')
+    expect(rendererKit.bunnybotSays).toBe(native.bunnybotSays)
+  })
+
   it('record the version package.json says', () => {
     const pkg = JSON.parse(readFileSync(resolve(ROOT, 'packages/modkit/package.json'), 'utf8')) as { version: string }
     expect(KIT_VERSION).toBe(pkg.version)

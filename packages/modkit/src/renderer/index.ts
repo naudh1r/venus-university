@@ -137,3 +137,5 @@ export {
   FEED_HANDLE_BAG,
   FEED_HANDLE_POOL,
 } from '../bridge/renderer'
+
+export { bunnybotSays } from '../bridge/renderer'

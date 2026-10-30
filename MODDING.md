@@ -334,6 +334,19 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
 same entry. Types need no capability declaration. These readers take the game's own arguments;
 a mod supplies the records it reads, and keeps any changes it makes to them under its own rules.
 
+### A word from BunnyBot
+
+`bunnybotSays(modId, lines, { once? })` from `@vx/modkit/renderer`, declared as
+`renderer:bunnybotSays`, lets a mod have BunnyBot say a few lines. He says nothing until he has
+introduced himself. With `once`, he says nothing if his saved thread already holds a message
+whose whole text is that mark: put the mark among the lines. The thread itself remembers it,
+so it stays said after a save is loaded and becomes unsaid if the player returns to an earlier save.
+The mark is the message text, shared across callers; use a line of the mod's own.
+
+The call answers whether it delivered. An empty list or an invalid mod id answers false.
+The mod decides when to ask and whether its switch allows it. Lines land through the game's own
+BunnyBot delivery, with the same date, unread count and follow-up opening he uses himself.
+
 ### A mod's own model call
 
 A mod asks the model something of its own with `completeStructured` from `@vx/modkit/renderer`,
