@@ -270,6 +270,21 @@ They are the game's own objects, so a mod panel moves with the game when its mot
 rest of the game's motion stays core's, and an animation that is one mod's own look belongs in
 the mod.
 
+### Panel controls
+
+A mod's panel draws its title and fields with the game's own components, from
+`@vx/modkit/renderer`, each declared as `renderer:<name>`:
+
+- `TitleTab`: the tab a panel's title stands in, on its own corner over the panel.
+- `TextField` and `SelectField`: a labelled text field and a labelled choice, as the game's
+  settings and editors draw them.
+- `TurnField`: the well and Go of the scene's own turn, for a panel that takes the reader's input
+  itself.
+- `SceneDivider`: the rule and state word that stand in the well's place while a reply is read,
+  with a `className` of the panel's own beside its class.
+
+They are the game's components, so a mod's panel looks and behaves as a native one does and
+changes with it. Their props are the ones the game's own screens pass, typed in the kit.
 ### A mod's own model call
 
 A mod asks the model something of its own with `completeStructured` from `@vx/modkit/renderer`,

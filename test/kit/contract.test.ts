@@ -56,6 +56,19 @@ describe('the entry points', () => {
     }
   })
 
+  it("hands mods the game's own panel controls, so a mod panel's fields and title are the native ones", async () => {
+    const dialogue = await import('../../src/renderer/views/Dialogue')
+    const chrome = await import('../../src/renderer/views/SceneChrome')
+    const tab = await import('../../src/renderer/components/TitleTab')
+    const text = await import('../../src/renderer/components/TextField')
+    const select = await import('../../src/renderer/components/SelectField')
+    expect(rendererKit.TurnField).toBe(dialogue.TurnField)
+    expect(rendererKit.SceneDivider).toBe(chrome.SceneDivider)
+    expect(rendererKit.TitleTab).toBe(tab.TitleTab)
+    expect(rendererKit.TextField).toBe(text.TextField)
+    expect(rendererKit.SelectField).toBe(select.SelectField)
+  })
+
   it("sends a mod's own model call through the game's, on the one channel every mod shares", async () => {
     const native = await import('../../src/renderer/mods/llm')
     const schema = await import('../../src/renderer/prompts/schema')
