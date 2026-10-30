@@ -333,8 +333,9 @@ game's own builders use (`renderer:objectSchema`).
 
 A call sent with a `group` can be called off: `cancelCalls('my-mod', group)`
 (`renderer:cancelCalls`) aborts every one of the mod's calls still out under that group, and each
-resolves `CANCELLED`. A mod's groups are its own: no group of the game's or of another mod's is
-touched. A call without a group runs to the end.
+resolves `CANCELLED`. A mod's groups are its own: the main process files each under the mod's
+id, so no group of the game's or of another mod's is touched, whatever its name. A call without a
+group runs to the end.
 
 `retrySilently(call, error, spent, options?)` (`renderer:retrySilently`) is the game's quiet
 re-send decision: it waits under the game's backoff budget and answers whether to send again.
