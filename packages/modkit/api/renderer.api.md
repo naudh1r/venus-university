@@ -15,6 +15,9 @@ import { TargetAndTransition } from 'motion/react';
 import { UseBoundStore } from 'zustand';
 import { Variants } from 'motion/react';
 
+// @public
+export function buildLabel(): string;
+
 // @public (undocumented)
 export interface BunnyboardPage {
     // (undocumented)
@@ -28,11 +31,19 @@ export interface BunnyboardPage {
 }
 
 // @public
+export function cancelCalls(modId: string, group: string): Promise<void>;
+
+// @public
 export function Card(input: {
     label: string;
     className?: string;
     children: ReactNode;
 }): JSX.Element;
+
+// @public
+export function completeStructured<T>(modId: string, request: StructuredRequest, options?: {
+    group?: string;
+}): Promise<Result<T>>;
 
 // @public
 export interface ContactTab {
@@ -57,6 +68,9 @@ export interface ContactTabProps {
     // (undocumented)
     theme: ScreenTheme;
 }
+
+// @public
+export function currentRun(): object;
 
 // @public
 export type DividerWord = 'hover' | 'locked' | 'unavailable' | 'ending';
@@ -130,6 +144,12 @@ export function gestures(dead: boolean, hover: TargetAndTransition, tap: TargetA
 };
 
 // @public
+export function isGraduationSlot(date: number, time: TimeSlot): boolean;
+
+// @public
+export function isOrientationSlot(date: number, time: TimeSlot, semesterIndex: number): boolean;
+
+// @public
 export interface LandingToolProps {
     // (undocumented)
     children: ReactNode;
@@ -138,6 +158,9 @@ export interface LandingToolProps {
     // (undocumented)
     onClick: () => void;
 }
+
+// @public
+export function lessNsfwText(): boolean;
 
 // @public
 export const lift: TargetAndTransition;
@@ -286,6 +309,9 @@ export interface ModHooks {
 export function modIsOn(id: string, record?: Pick<PlaythroughRecord, 'mods'> | null): boolean;
 
 // @public
+export function modsOnLine(): string;
+
+// @public
 export function modState<T>(modId: string, spec: ModStateSpec<T>): ModStateHandle<T>;
 
 // @public
@@ -301,6 +327,9 @@ export interface ModStateSpec<T> {
     initial: T;
     lifetime: 'game' | 'session';
 }
+
+// @public
+export function objectSchema(name: string, required: readonly string[], properties: Record<string, unknown>): StructuredRequest['schema'];
 
 // @public
 export function openPanel(id: string, arg?: string): boolean;
@@ -557,6 +586,9 @@ export const rowLift: TargetAndTransition;
 
 // @public (undocumented)
 export const rowPress: TargetAndTransition;
+
+// @public
+export function runStale(run: object): boolean;
 
 // @public
 export function safePoint(): ManualSaveOffer;
@@ -954,6 +986,9 @@ export function useDismissLayer(onDismiss: () => void, active: boolean): void;
 export function useEmojiTool(): boolean;
 
 // @public
+export function useLessNsfwText(): boolean;
+
+// @public
 export function useModalShell(onClose: () => void, sound?: 'panel' | 'phone' | 'none', primary?: () => void): ModalShell;
 
 // @public
@@ -967,6 +1002,9 @@ export function useSafePoint(): ManualSaveOffer;
 
 // @public
 export function useSceneInput(layout: SceneInputLayout | null): void;
+
+// @public
+export function useSfxGain(): number;
 
 // @public
 export const veilIn: Variants;
