@@ -338,8 +338,8 @@ touched. A call without a group runs to the end.
 
 `retrySilently(call, error, spent, options?)` (`renderer:retrySilently`) is the game's quiet
 re-send decision: it waits under the game's backoff budget and answers whether to send again.
-`call` names the call in the log's retry line; `spent` counts the retries already made; `SilentRetryOptions` lets the mod narrow the codes,
-skip a resend or take a canceller for the wait.
+`call` names the call in the log's retry line, and `spent` counts the retries already made;
+`SilentRetryOptions` lets the mod narrow the codes, skip a resend or take a canceller for the wait.
 
 ### The scene's input
 
