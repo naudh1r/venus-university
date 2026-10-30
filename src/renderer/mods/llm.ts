@@ -1,3 +1,4 @@
+import { MOD_ID_RULE } from '@vx/modkit/host/shared'
 import type { Result, StructuredRequest } from '@shared/types'
 
 /** A mod's call group, kept apart from the game's and every other mod's. */
@@ -20,7 +21,14 @@ export function completeStructured<T>(
   return window.api.llm.completeMod(modId, request, group) as Promise<Result<T>>
 }
 
-/** Aborts the mod's calls still out under `group`; the mod's other groups, and the game's, run on. */
+/**
+ * Aborts the mod's calls still out under `group`; the mod's other groups, and the game's, run on.
+ * An id no mod can have cancels nothing, so it never reaches another mod's group.
+ */
 export async function cancelCalls(modId: string, group: string): Promise<void> {
+  if (!MOD_ID_RULE.test(modId)) {
+    console.warn(`[llm] cancelCalls was asked for an invalid mod id: ${String(modId)}`)
+    return
+  }
   await window.api.jobs.cancelGroup(groupOf(modId, group))
 }

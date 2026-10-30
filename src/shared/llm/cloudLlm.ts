@@ -359,7 +359,13 @@ export async function completeStructured<T>(
           }
         }
       } else {
-        raw = await response.text()
+        try {
+          raw = await response.text()
+        } catch (err) {
+          // A cancel while the body is still arriving is a cancel, as it is mid-stream.
+          if (signal?.aborted) throw appError('CANCELLED', 'The job was cancelled.')
+          throw err
+        }
         generated = adapter.generatedTokensOf(raw)
         reasoning = adapter.reasoningOf?.(raw) ?? ''
         content = adapter.contentOf(raw, provider.label)
