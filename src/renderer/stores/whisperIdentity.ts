@@ -1,10 +1,10 @@
-import { charKeyOf, type Character, type StructuredRequest } from '@shared/types'
+import { charKeyOf, type Character, type StructuredRequest } from '@vx/modkit/shared'
 import { whisperTerm, WHISPER_TITLE, WHISPER_PEN_NAME } from '../../shared/venusWhisper'
 import { settleWhisperConfession, whisperCanConfess, whisperIdentityKnown, type WhisperIdentityContext } from '../../shared/whisperIdentity'
 import type { PromptState } from '@vx/modkit/renderer'
 import type { RequestSpots, SlotSettled } from '@vx/modkit/renderer'
 import { useGameStore } from './gameStore'
-import { isGraduationSlot } from '../prompts/graduation'
+import { isGraduationSlot } from '@vx/modkit/renderer'
 
 /** A prompt must belong to the active campaign; replays and scene-creator previews are inert. */
 export function whisperIdentityContext(state: PromptState, cast: readonly Character[]): WhisperIdentityContext | null {

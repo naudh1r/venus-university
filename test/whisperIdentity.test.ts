@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { charKeyOf, READER_SPEAKER, type GameSave, type SceneLine, type StructuredRequest } from '@shared/types'
 import { carryWhisper, ensureWhisperAuthor, normalizeWhisper, whisperRecall, type WhisperIssue } from '@shared/venusWhisper'

@@ -17,8 +17,6 @@ import type { StudioPrompts } from '@shared/presets/studioPrompts'
 import { getStudioPrompts, setStudioPrompts } from './services/studioPromptsService'
 import { readStudioBackupFile, saveStudioBackup } from './services/studioBackupService'
 import type { StoryRecallRequest } from '@shared/storyMemory'
-import type { WhisperDraft, WhisperReply } from '@shared/venusWhisper'
-import type { MeanwhileResponse } from '@shared/meanwhile'
 import {
   app,
   BrowserWindow,
@@ -299,13 +297,6 @@ async function enqueueComfyJob<T>(
 
 /** Registers every IPC channel; keep this, preload and the d.ts in sync. */
 export function registerIpcHandlers(): void {
-  handle('llm:completeReckoning', (_event, request: StructuredRequest, group: string) =>
-    runAbortable(group, signal => completeStructured<unknown>(request, signal))
-  )
-  handle('llm:completeWhisper', (_event, request: StructuredRequest, group: string) =>
-    runAbortable(group, signal => completeStructured<WhisperDraft | WhisperReply>(request, signal))
-  )
-
   // The photo feature's three channels, which keep their own module and their own queue.
   registerPhotoIpc(handle)
   handle('echo:reflectionExport',async(event,charId:string)=>{
@@ -538,10 +529,6 @@ export function registerIpcHandlers(): void {
   // The epilogue's status updates: one call for the whole week after graduation.
   handle('llm:completeEndingPosts', (_event, request: StructuredRequest, group: string) =>
     runAbortable(group, (signal) => completeStructured<EndingPostsResponse>(request, signal))
-  )
-
-  handle('llm:completeMeanwhile', (_event, request: StructuredRequest, group: string) =>
-    runAbortable(group, signal => completeStructured<MeanwhileResponse>(request, signal))
   )
 
   // Bunnyfeeds' thread call: answers what the reader wrote under her posts.

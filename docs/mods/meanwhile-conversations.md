@@ -58,7 +58,7 @@ will not update a different active game. No AI request is made when the mod is d
 | `src/renderer/views/meanwhileImages.ts` | Timetable/outing location-to-art mapping, native background resolution and optional City Life/custom art. |
 | `src/renderer/vu_styles/Meanwhile.css` | Native day/night paper palette, responsive layout. |
 | `src/renderer/views/BunnyboardModal.tsx`, `src/renderer/stores/bunnyboardStore.ts` | Optional rail tab and transient page routing. |
-| `src/preload/api.d.ts`, `index.ts`, `src/main/ipc.ts`, `src/web/bridge.ts` | Typed `completeMeanwhile` API, cancellation in desktop and browser builds. |
+| `@vx/modkit/renderer` | `completeStructured('meanwhile-conversations', request, { group })` and `cancelCalls('meanwhile-conversations', group)` use core's shared model channel on desktop and browser. The mod validates the parsed reply and checks the current save before storing it. |
 | `src/shared/types.ts`, `saveRules.ts`, `src/renderer/stores/gameStore.ts` | Optional `GameSave.exNpcWatch`, load/save normalization. |
 | `src/shared/mods.ts` | Independent anytime switch; no requirements. |
 | `test/meanwhile.test.ts` | Validation, bounded imports, rewind visibility, save conservation, failures and stale results. |

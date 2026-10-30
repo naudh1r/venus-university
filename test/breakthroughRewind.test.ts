@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { normalizeBreakthrough, type BreakthroughState } from '@shared/breakthrough'
 import { normalizeEcho } from '@shared/echo'

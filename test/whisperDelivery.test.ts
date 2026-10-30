@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VENUS_WHISPER_MOD, carryWhisper, normalizeWhisper, whisperDiscussionOpen, whisperHasUnread, whisperIssueId, whisperRecall,
   whisperSources, whisperSpotlight, whisperWednesday, whisperWeekOccupied, type WhisperDraft, type WhisperIssue, type WhisperReply } from '@shared/venusWhisper'
@@ -13,7 +14,7 @@ import { character, charactersById, charInfo, restoreApi, stubApi } from './fixt
 const game = () => useGameStore.getState()
 let stop: (() => void) | undefined
 function api() {
-  const complete = vi.fn(async (request: StructuredRequest): Promise<Result<WhisperDraft | WhisperReply>> => {
+  const complete = vi.fn(async (_modId: string, request: StructuredRequest, _group?: string): Promise<Result<WhisperDraft | WhisperReply>> => {
     const data = JSON.parse(request.user)
     return { ok: true, data: data.publicSources ? { title: 'Sarah has an audience', body: 'Sarah posted about a tense rematch.',
       sources: data.publicSources.map((s: { id: string }) => s.id), comments: [] } :
@@ -21,7 +22,7 @@ function api() {
   })
   const save = vi.fn(async (_p: string, draft: SaveDraft): Promise<Result<GameSave>> => ({ ok: true, data: { ...draft, playthroughId: 'p', saveId: 'autosave', saveDate: 0 } }))
   const cancel = vi.fn(async (): Promise<Result<void>> => ({ ok: true, data: undefined }))
-  stubApi({ llm: { completeWhisper: complete }, saves: { autosave: save }, jobs: { cancelGroup: cancel } })
+  stubApi({ llm: { completeMod: complete }, saves: { autosave: save }, jobs: { cancelGroup: cancel } })
   return { complete, save, cancel }
 }
 beforeEach(() => {
@@ -109,7 +110,7 @@ describe('Wednesday edition and unread state', () => {
     ] } } }))
     stop = startWhisperDelivery(); await vi.advanceTimersByTimeAsync(1100)
     expect(game().exVenusWhisper.issues.map(i => i.day)).toEqual([16])
-    const request = complete.mock.calls[0][0].user
+    const request = complete.mock.calls[0][1].user
     expect(request).toContain('LAST WEEK'); expect(request).not.toContain('AFTER WEDNESDAY')
     expect(whisperWednesday(0)).toBeNull(); expect(whisperWednesday(2)).toBe(2); expect(whisperWednesday(9)).toBe(9)
   })
@@ -153,6 +154,9 @@ describe('Wednesday edition and unread state', () => {
     finish({ ok: true, data: { title: 'Stale', body: 'Never publish me.', sources: [], comments: [] } })
     await vi.advanceTimersByTimeAsync(500)
     expect(cancel).toHaveBeenCalledOnce()
+    expect(complete.mock.calls[0][0]).toBe(VENUS_WHISPER_MOD)
+    expect(complete.mock.calls[0][2]).toMatch(/^mod:venus-whisper:whisper-delivery:/)
+    expect(cancel).toHaveBeenCalledWith(complete.mock.calls[0][2])
     expect(game().exVenusWhisper.issues).toEqual([])
     expect(useWhisperDelivery.getState().error).toBe('')
   })

@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Conversation, GameSave, Result, SaveDraft, TextingResponse } from '@shared/types'
 import { meanwhileEvents, normalizeMeanwhile } from '@shared/meanwhile'
@@ -39,7 +40,7 @@ function api(complete = vi.fn(async (): Promise<Result<TextingResponse>> => ({ o
     saved.push(structuredClone(draft))
     return { ok: true, data: { ...draft, playthroughId: id, saveId: 'autosave', saveDate: 0 } }
   })
-  stubApi({ llm: { completeMeanwhile: async () => ({ ok: true, data: { lines } }), completeTexting: complete,
+  stubApi({ llm: { completeMod: async () => ({ ok: true, data: { lines } }), completeTexting: complete,
     classifyHangout: async () => ({ ok: true, data: { playerAsked: false, characterOffered: false, description: '' } }) },
     saves: { autosave: save } })
   return { complete, save }

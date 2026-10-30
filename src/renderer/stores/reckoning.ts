@@ -1,9 +1,11 @@
+import { completeStructured, cancelCalls } from '@vx/modkit/renderer'
 import { CHARACTER_DYNAMICS_MOD, dynamicFor, type GrowthTag } from '@shared/characterDynamics'
 import { anchorReckoning, applyReckoningVerdict, hasReckoningAffection, parseReckoningThoughts, parseReckoningVerdict, RECKONING_AFFECTION_MIN, RECKONING_MOD, type ReckoningContext, type ReckoningSession } from '../../shared/reckoning'
 import { optionOn } from '@vx/modkit/shared'
 import { create } from 'zustand'
 import { profileAspect } from '@shared/echo'
-import { fullNameOf, charKeyOf } from '@shared/types'
+import { fullNameOf } from '@shared/types'
+import { charKeyOf } from '@vx/modkit/shared'
 import { beginUnspokenVoice, advanceUnspokenVoice, aftermathReady, unspokenLinkBeat } from '@shared/unspokenVoice'
 import { reckoningPrefix, reckoningAftermaths, withReckoningAftermaths } from '../../shared/reckoning'
 import { beginReckoningPrompt, answerReckoningPrompt, reckoningContext } from '../prompts/reckoningPrompt'
@@ -77,7 +79,7 @@ export function preparedReckoningThoughts(id:string):ReckoningSession['thoughts'
 function discardOpening(opening:Opening):void {
   opening.cancelled=true
   if(openings.get(opening.charId)===opening)openings.delete(opening.charId)
-  if(opening.status==='preparing')void window.api.jobs.cancelGroup(opening.group).catch(()=>{})
+  if(opening.status==='preparing')void cancelCalls(RECKONING_MOD, opening.group).catch(()=>{})
 }
 function schedulePreparation():void {
   if(!watchers||preparing||prepareTimer||flight)return
@@ -92,7 +94,7 @@ async function runPreparation():Promise<void> {
   preparing=opening;opening.status='preparing';changed()
   opening.promise=(async()=>{
     try {
-      const result=await window.api.llm.completeReckoning(beginReckoningPrompt(opening.context),opening.group)
+      const result=await completeStructured<unknown>(RECKONING_MOD, beginReckoningPrompt(opening.context), { group: opening.group })
       if(!validOpening(opening))return
       if(!result.ok)throw Error(result.error.message)
       opening.thoughts=parseReckoningThoughts(result.data,opening.context,true)
@@ -177,7 +179,7 @@ export function finishReckoningAftermath(token?:string):void {
 /** An in-flight disk commit finishes before the panel may close. */
 export function cancelReckoningRequest():boolean {
   if(flight?.committing)return false
-  if(flight){flight.cancelled=true;void window.api.jobs.cancelGroup(flight.group)}
+  if(flight){flight.cancelled=true;void cancelCalls(RECKONING_MOD, flight.group)}
   return true
 }
 async function operation<T>(run:(group:string,current:()=>boolean,commit:()=>void)=>Promise<T>):Promise<T> {
@@ -205,7 +207,7 @@ export async function startReckoning(charId:string):Promise<void> {
       if(cached.status!=='ready'||!cached.thoughts)throw Error(cached.error||'Her thoughts are still being prepared.')
       thoughts=cached.thoughts
     }else{
-      const result=await window.api.llm.completeReckoning(beginReckoningPrompt(context),group)
+      const result=await completeStructured<unknown>(RECKONING_MOD, beginReckoningPrompt(context), { group: group })
       if(!current())throw Error('The encounter changed. No spirit was spent.')
       if(!result.ok)throw Error(result.error.message)
       thoughts=parseReckoningThoughts(result.data,context,true)
@@ -223,7 +225,7 @@ export async function answerReckoning(reply:string):Promise<{tag?:GrowthTag;fail
     const game=useGameStore.getState(),session=game.exReckoning.active
     if(!session||!canResumeReckoning(game,session.charId))throw Error('Resume these questions in The Unspoken.')
     if(!reply.trim()||reply.length>1500)throw Error('Use 1–1,500 characters for your response.')
-    const result=await window.api.llm.completeReckoning(answerReckoningPrompt(session,reply.trim()),group)
+    const result=await completeStructured<unknown>(RECKONING_MOD, answerReckoningPrompt(session,reply.trim()), { group: group })
     if(!current())throw Error('The encounter changed; this answer was not applied.')
     if(!result.ok)throw Error(result.error.message)
     const verdict=parseReckoningVerdict(result.data,session.answers.length===2)

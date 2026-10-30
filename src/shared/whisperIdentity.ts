@@ -1,5 +1,5 @@
 import { affectionFor, isTrusted } from './relationship'
-import { charKeyOf, READER_SPEAKER, type Character, type CharInfo, type SceneLine, type TimeSlot } from './types'
+import { charKeyOf, READER_SPEAKER, type Character, type CharInfo, type SceneLine, type TimeSlot } from '@vx/modkit/shared'
 import { WHISPER_TITLE, WHISPER_PEN_NAME, type VenusWhisper } from './venusWhisper'
 
 export interface WhisperIdentityContext {

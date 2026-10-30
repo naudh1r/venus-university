@@ -1,3 +1,4 @@
+import { completeStructured } from '@vx/modkit/renderer'
 import { MEANWHILE_MOD, meanwhileEvents, validateMeanwhile, type MeanwhileScene } from '../../shared/meanwhile'
 import { buildMeanwhilePrompt } from '../prompts/meanwhilePrompt'
 import { useGameStore } from './gameStore'
@@ -20,7 +21,7 @@ export async function generateMeanwhile(id: string, group: string, active: () =>
     return active() && meanwhileReady() && live.playthroughId === game.playthroughId && live.loads === game.loads &&
       live.date === game.date && live.time === game.time && meanwhileEvents(live).some(e => e.id === id)
   }
-  const result = await window.api.llm.completeMeanwhile(buildMeanwhilePrompt(event, game), group)
+  const result = await completeStructured<unknown>(MEANWHILE_MOD, buildMeanwhilePrompt(event, game), { group })
   if (!isCurrent()) throw Error('The game changed. No conversation was saved.')
   if (!result.ok) throw Error(result.error.message)
   const scene = { ...event, lines: validateMeanwhile(result.data,event.participants) }

@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { normalizeBreakthrough } from '@shared/breakthrough'
 import type { SaveDraft } from '@shared/types'

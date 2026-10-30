@@ -79,6 +79,8 @@ The dungeon does not call native scene settlement or Story Memory extraction. It
 
 ## Source map and validation
 
+Questions, answers, dungeon Talk and aspect hints use `completeStructured('reckoning', request, { group })` from `@vx/modkit/renderer`. Preparation and encounter cancellation use `cancelCalls('reckoning', group)`, which targets the same mod-specific group. These requests follow core's shared model path on desktop and browser, including the player's provider settings and the existing Story Memory/Prompt Studio request handling. Reckoning still validates each parsed response and checks encounter/save ownership before spending spirit or applying progress. Artwork continues to use its separate image-generation path.
+
 The renderer entry registers the map entrance through `mapOverlay` and ordinary-scene preparation, whispers and aftermath continuation through `panelLayer`. Both contributions load lazily and follow Reckoning's required Breakthrough switch. Unmounting the panel contribution releases its preparation watcher and whisper timers; enabling it again resumes from the existing game state. Background preparation remains opt-in, and scene visibility continues to suppress whispers without pausing preparation. Continuation waits while the scene is blocked or covered.
 
 The active dungeon, link-establishment glitch and encounter modal still have their own mounts in GameView. In particular, an already-entered dungeon must remain recoverable when its mod is disabled; it cannot simply disappear with the switch-gated panel contribution.

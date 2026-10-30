@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ensureWhisperAuthor, observeWhisperSlot, whisperPeople, type WhisperIssue } from '@shared/venusWhisper'
 import { carryModFields } from '@shared/modCarry'
@@ -31,12 +32,12 @@ afterEach(async () => { await writesSettled(); restoreApi(); vi.restoreAllMocks(
 
 function deferredReply() {
   let finish!: () => void
-  const complete = vi.fn((request: StructuredRequest) => new Promise<Result<{ comments: { speaker: string; text: string }[] }>>(resolve => {
+  const complete = vi.fn((_modId: string, request: StructuredRequest) => new Promise<Result<{ comments: { speaker: string; text: string }[] }>>(resolve => {
     const profiles = JSON.parse(request.user).profiles as { id: string }[]
     finish = () => resolve({ ok: true, data: { comments: profiles.map(p => ({ speaker: p.id, text: 'A lovely morning indeed.' })) } })
   }))
   const save = vi.fn(async (_p: string, draft: SaveDraft): Promise<Result<GameSave>> => ({ ok: true, data: { ...draft, playthroughId: 'qa-social', saveId: 'autosave', saveDate: 0 } }))
-  stubApi({ llm: { completeWhisper: complete }, saves: { autosave: save } })
+  stubApi({ llm: { completeMod: complete }, saves: { autosave: save } })
   return { complete, save, finish: () => finish() }
 }
 

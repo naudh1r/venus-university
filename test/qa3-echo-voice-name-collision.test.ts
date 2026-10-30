@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { normalizeBreakthrough } from '@shared/breakthrough'
 import { firstPersonThought } from '@shared/reckoningVoice'
@@ -26,7 +27,7 @@ const questions = { thoughts: [
  { belief: 'I have to earn every bit of kindness.', challenge: 'What would be left if I stopped proving myself?', evidence: ['e1','e4'] }
 ] }
 let stop: (() => void) | undefined
-const complete = vi.fn<(...args: Parameters<typeof window.api.llm.completeReckoning>) => Promise<Result<unknown>>>()
+const complete = vi.fn<(...args: Parameters<typeof window.api.llm.completeMod>) => Promise<Result<unknown>>>()
 const cancel = vi.fn(async () => ({ ok: true as const, data: undefined }))
 const saved: SaveDraft[] = []
 beforeEach(() => {
@@ -39,7 +40,7 @@ beforeEach(() => {
   characters: charactersById(character({ charId: 'a', firstName: 'Nina', personality: 'Outspoken but afraid of failing.' })),
   charInfo: { a: charInfo({ nameKnown: true, memories: Array.from({ length: 6 }, (_, i) => ({ date: 15, type: 'loved' as const, desc: `The reader listened on occasion ${i}.` })) }) },
   awaitingInput: true, currentSceneTranscript: lines, sceneLog: lines, currentLine: lines[0], exBreakthrough: normalizeBreakthrough({ meters: { a: 100 } }) })
- stubApi({ llm: { completeReckoning: complete }, jobs: { cancelGroup: cancel }, saves: { autosave: async (_id, draft) => {
+ stubApi({ llm: { completeMod: complete }, jobs: { cancelGroup: cancel }, saves: { autosave: async (_id, draft) => {
   saved.push(structuredClone(draft)); return { ok: true, data: { ...draft, playthroughId: 'qa3-pending-opening', saveId: 'autosave', saveDate: 0 } }
  } } })
 })

@@ -1,3 +1,4 @@
+import { completeStructured } from '@vx/modkit/renderer'
 import { create } from 'zustand'
 import { sceneActiveOf, epilogueOf } from './textingLoop'
 import { RECKONING_DUNGEONS,DUNGEON_MAX_REPLIES } from '../../shared/reckoningDungeons'
@@ -71,7 +72,7 @@ export async function openDungeonConversation():Promise<void> {
  if(existing){beforeQuestions(existing);if(existing.lines.some(l=>l.who==='reflection'))return}
  return change(async(d,current,job)=>{
   beforeQuestions(d)
-  const context=withQuestions(d),result=await window.api.llm.completeReckoning(dungeonConversationPrompt(context),job)
+  const context=withQuestions(d),result=await completeStructured<unknown>('reckoning', dungeonConversationPrompt(context), { group: job })
   if(!current())throw Error('The visit changed.')
   if(!result.ok)throw Error(result.error.message)
   return withDungeonReply(context,parseDungeonText(result.data,context,'reply'))
@@ -83,7 +84,7 @@ export async function talkInReckoningDungeon(reply:string):Promise<void> {
   beforeQuestions(d)
   // The fourth reply ends the visit locally, without another paid request.
   if(d.replies>=DUNGEON_MAX_REPLIES-1)return dungeonFarewell({...d,replies:DUNGEON_MAX_REPLIES},'expelled')
-  const context=withQuestions(d),result=await window.api.llm.completeReckoning(dungeonConversationPrompt(context,reply.trim()),job)
+  const context=withQuestions(d),result=await completeStructured<unknown>('reckoning', dungeonConversationPrompt(context,reply.trim()), { group: job })
   if(!current())throw Error('The visit changed.')
   if(!result.ok)throw Error(result.error.message)
   const text=parseDungeonText(result.data,context,'reply')
@@ -96,7 +97,7 @@ export async function useDungeonInsight():Promise<void> {
   const aspect=useGameStore.getState().exEcho.player?.aspect
   if(!modIsOn('echo')||!aspect)throw Error('Enable Echoes and choose your Echo first.')
   if(d.insight)throw Error('You have already used your aspect hint for this connection.')
-  const context=withQuestions(d),result=await window.api.llm.completeReckoning(dungeonInsightPrompt(context,aspect),job)
+  const context=withQuestions(d),result=await completeStructured<unknown>('reckoning', dungeonInsightPrompt(context,aspect), { group: job })
   if(!current()||!modIsOn('echo')||useGameStore.getState().exEcho.player?.aspect!==aspect)throw Error('Your Echo or visit changed; the hint was not used.')
   if(!result.ok)throw Error(result.error.message)
   return {...context,insight:{aspect,text:parseDungeonText(result.data,context,'hint')}}

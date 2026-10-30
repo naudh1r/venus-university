@@ -6,7 +6,7 @@ import { motion } from 'motion/react'
 import { MEANWHILE_MOD, meanwhileEvents, type MeanwhileScene } from '../../shared/meanwhile'
 import { fullNameOf } from '@shared/types'
 import { useGameStore } from '../stores/gameStore'
-import { gestures, lift, press, quietLift, quietPress, useModOn } from '@vx/modkit/renderer'
+import { gestures, lift, press, quietLift, quietPress, useModOn, cancelCalls } from '@vx/modkit/renderer'
 import { generateMeanwhile, meanwhileReady } from '../stores/meanwhile'
 import { profileUrl, useSpriteVersion } from '../stores/characterStore'
 import { formatShortGameDate } from '../prompts/gameDate'
@@ -20,7 +20,7 @@ export function MeanwhilePage(): JSX.Element | null {
   const ticket = useRef<{active:boolean;group:string}|null>(null)
   const cancel = (): void => {
     const held=ticket.current
-    if (held) { held.active=false; void window.api.jobs.cancelGroup(held.group); ticket.current=null }
+    if (held) { held.active=false; void cancelCalls(MEANWHILE_MOD, held.group); ticket.current=null }
   }
   useEffect(() => { cancel(); setSelected(null); setBusy(false); setError(''); return cancel }, [game.loads,game.playthroughId,game.date,game.time,on])
   const dateLabel = (event: MeanwhileScene): string => event.origin ? termOriginLabel(event.origin) : formatShortGameDate(event.date, game.calendar.season)

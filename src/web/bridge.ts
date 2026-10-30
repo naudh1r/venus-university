@@ -1,7 +1,5 @@
 import { prepareStoryRequest, inspectStoryMemory } from './storyMemory'
 import * as echo from './echoArtwork'
-import type { WhisperDraft, WhisperReply } from '@shared/venusWhisper'
-import type { MeanwhileResponse } from '@shared/meanwhile'
 import type { ClassifierPromptRequest, ClassifierVerdict } from '@shared/classifier'
 import type { FeedThreadsResponse } from '@shared/bunnyfeeds'
 import { base64ToBytes } from '@shared/base64'
@@ -326,18 +324,11 @@ export function buildApi(): VenusUniversityApi {
         result('write the status updates', () =>
           runAbortable(group, (signal) => completeStructured<EndingPostsResponse>(request, signal))
         ),
-      completeReckoning: (request, group) => result('write Reckoning', () => runAbortable(group, signal => completeStructured<unknown>(request, signal))),
-      completeMeanwhile: (request, group) =>
-        result('write the Meanwhile conversation', () =>
-          runAbortable(group, signal => completeStructured<MeanwhileResponse>(request, signal))
-        ),
       completeFeedThreads: (request, group) =>
         result('answer the feed', () =>
           runAbortable(group, (signal) => completeStructured<FeedThreadsResponse>(request, signal))
         ),
       // Several texting calls can stream at once, so every delta carries its `group`.
-      completeWhisper: (request, group) => result('write the newsletter', () =>
-        runAbortable(group, signal => completeStructured<WhisperDraft | WhisperReply>(request, signal))),
       completeTexting: (request, group) =>
         result('write the text', () =>
           runAbortable(group, (signal) =>

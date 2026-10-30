@@ -1,3 +1,4 @@
+import { cancelCalls } from '@vx/modkit/renderer'
 import { whisperTerm } from '../../shared/venusWhisper'
 import { create } from 'zustand'
 import { VENUS_WHISPER_MOD, whisperWednesday, whisperWeekOccupied } from '../../shared/venusWhisper'
@@ -15,7 +16,7 @@ export function startWhisperDelivery(): () => void {
   let job: { group: string; active: boolean; current: () => boolean } | undefined
   let retrySeen = useWhisperDelivery.getState().retry
   const cancel = (): void => {
-    if (job?.active) { job.active = false; void window.api.jobs.cancelGroup(job.group) }
+    if (job?.active) { job.active = false; void cancelCalls(VENUS_WHISPER_MOD, job.group) }
   }
   const tick = (): void => {
     const game = useGameStore.getState()

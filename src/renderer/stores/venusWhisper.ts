@@ -1,3 +1,4 @@
+import { completeStructured } from '@vx/modkit/renderer'
 import { postVisible } from '../mods/hooks'
 import { whisperTerm } from '../../shared/venusWhisper'
 import {
@@ -71,8 +72,8 @@ export async function publishWhisper(group: string, active: () => boolean, autom
     const voice = anonymousVoice(author.voice, names)
     const interests = author.interests ?? []
     const hint = interests.length ? anonymousVoice(interests[Math.floor(day / 7) % interests.length], names).slice(0, 120) : undefined
-    const response = await window.api.llm.completeWhisper(buildWhisperIssue(sources, voice, person ? { name: person.name, handle: person.handle } : undefined,
-      hint ? [hint] : []), group)
+    const response = await completeStructured<unknown>(VENUS_WHISPER_MOD, buildWhisperIssue(sources, voice, person ? { name: person.name, handle: person.handle } : undefined,
+      hint ? [hint] : []), { group })
     if (!current()) throw Error('The game changed. No issue was published.')
     if (!response.ok) throw Error(response.error.message)
     const draft = validateWhisperDraft(response.data, sources, [])
@@ -125,7 +126,7 @@ export async function replyOnWhisper(issueId: string, replyTo: string | undefine
     const priority = addressees.map(p => p.id)
     const people = whisperCommenters(game, Math.random, priority, Math.min(WHISPER_COMMENTS - issue.comments.length, replyTo ? (Math.random() < .35 ? 3 : 1) : 3))
     if (!people.length) return []
-    const response = await window.api.llm.completeWhisper(buildWhisperReplies(issue, people, replyTo, whisperPlayerHandle(game.playerFirstName, game.playerLastName), addressees), group)
+    const response = await completeStructured<unknown>(VENUS_WHISPER_MOD, buildWhisperReplies(issue, people, replyTo, whisperPlayerHandle(game.playerFirstName, game.playerLastName), addressees), { group })
     if (!current()) throw Error('The game changed. No replies were added.')
     if (!response.ok) throw Error(response.error.message)
     const batch = validateWhisperComments(response.data, people).map(c => {

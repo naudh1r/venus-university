@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type JSX } from 'react'
 import { motion } from 'motion/react'
 import { VENUS_WHISPER_MOD, WHISPER_COMMENTS, WHISPER_TEXT, whisperWednesday, whisperDiscussionOpen, whisperPeople, whisperPlayerHandle } from '../../shared/venusWhisper'
 import { useGameStore } from '../stores/gameStore'
-import { gestures, lift, press, quietLift, quietPress, useModOn } from '@vx/modkit/renderer'
+import { gestures, lift, press, quietLift, quietPress, useModOn, cancelCalls } from '@vx/modkit/renderer'
 import { profileUrl } from '../stores/characterStore'
 import { commentOnWhisper, dismissWhisper, markWhisperRead, replyOnWhisper, useWhisperActivity, whisperReady } from '../stores/venusWhisper'
 import { breatheMark } from './motion'
@@ -26,7 +26,7 @@ export function VenusWhisperPage(): JSX.Element | null {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const cancel = (): void => {
     const t = ticket.current
-    if (t) { t.active = false; void window.api.jobs.cancelGroup(t.group); ticket.current = null }
+    if (t) { t.active = false; void cancelCalls(VENUS_WHISPER_MOD, t.group); ticket.current = null }
     timers.current.forEach(clearTimeout); timers.current = []
   }
   useEffect(() => {

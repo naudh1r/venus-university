@@ -1,7 +1,5 @@
 import type { EchoApi } from '@shared/echo'
 import type { StoryRecallRequest, StoryRecall } from '@shared/storyMemory'
-import type { WhisperDraft, WhisperReply } from '../shared/venusWhisper'
-import type { MeanwhileResponse } from '../shared/meanwhile'
 import type { ClassifierPromptRequest, ClassifierVerdict } from '@shared/classifier'
 import type { ComfyModelLists, ComfyModelRole, ComfyProbe } from '@shared/comfyModels'
 import type {
@@ -258,16 +256,12 @@ export interface VenusUniversityApi {
       request: StructuredRequest,
       group: string
     ) => Promise<Result<EndingPostsResponse>>
-    /** Writes a bounded, noncanonical spectator conversation; never streams. */
-    completeReckoning: (request: StructuredRequest, group: string) => Promise<Result<unknown>>
-    completeMeanwhile: (request: StructuredRequest, group: string) => Promise<Result<MeanwhileResponse>>
     /** Sends Bunnyfeeds' thread prompt. Never streams. */
     completeFeedThreads: (
       request: StructuredRequest,
       group: string
     ) => Promise<Result<FeedThreadsResponse>>
     /** Sends a Bunnyboard texting turn; `group` enables cancellation. */
-    completeWhisper: (request: StructuredRequest, group: string) => Promise<Result<WhisperDraft | WhisperReply>>
     completeTexting: (
       request: StructuredRequest,
       group: string

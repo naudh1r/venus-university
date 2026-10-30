@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { normalizeEcho } from '@shared/echo'
 import { ECHO_ASPECTS } from '@shared/echoAspects'
