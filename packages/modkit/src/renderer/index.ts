@@ -50,6 +50,7 @@ export type {
   PromptState,
   ResolvedSave,
   SceneDividerProps,
+  SceneInputLayout,
   ScreenTheme,
   SelectFieldOption,
   SelectFieldProps,
@@ -104,6 +105,7 @@ export {
   useModalShell,
   useModOn,
   useModOption,
+  useSceneInput,
   useSfxGain,
   veilIn
 } from '../bridge/renderer'

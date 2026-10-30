@@ -20,6 +20,11 @@
   answered as a `Result`. `cancelCalls(modId, group)` aborts the mod's calls under a group, the
   mod's groups kept apart from the game's and other mods'. `objectSchema` comes with them. Mods no
   longer need a channel of their own in core, or to borrow another call's.
+- `useSceneInput` in `renderer`: a mod's panel over a scene puts its own input in the place of the
+  scene's action row. The row is put away and dead, and the dialogue box stands clear of the
+  panel's input, until the panel gives it back or unmounts. On the reader's turn the scene's
+  Enter, Space and Tab leave the turn to the panel. One holder at a time. Without a holder, the
+  scene draws and answers keys as before.
 - A throw while the goodbye, the scene or texting bookkeeping, or the next slot's opening builds
   its request, from a `promptState.scene` capture or a `prompts.*` hook, now opens that call's
   retry modal instead of leaving the game waiting. Retry builds the request again; leaving goes

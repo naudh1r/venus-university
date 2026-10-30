@@ -328,6 +328,27 @@ A call sent with a `group` can be called off: `cancelCalls('my-mod', group)`
 (`renderer:cancelCalls`) aborts every one of the mod's calls still out under that group, and each
 resolves `CANCELLED`. A mod's groups are its own: no group of the game's or of another mod's is
 touched. A call without a group runs to the end.
+### The scene's input
+
+A mod's panel over a scene can put an input of its own in the place of the scene's action row,
+with `useSceneInput` from `@vx/modkit/renderer`, declared as `renderer:useSceneInput`:
+
+```tsx
+useSceneInput(playing ? { open: fieldOpen, height: inputHeight } : null)
+```
+
+While a component holds a layout, the scene's row is put away and its field is dead, and the
+dialogue box stands clear of the panel's input as it does of the row, `height` being how tall that
+input stands. With `open`, the box stands as over the reader's own turn; without, as over a reply
+being read, with the well put away. `null`, or unmounting, gives the row back. One component holds
+the input at a time: a claim while another holds it is refused with a warning and changes nothing,
+and stays refused once the other gives it back; the refused panel claims again by passing `null`
+and then its layout. It is a React hook, called on every render.
+
+While a panel holds the input, the scene leaves the reader's turn to it: Enter and Space send
+nothing from the scene, so the panel's focused button answers them, and Tab no longer goes to the
+scene's field. Over a reply, Enter, Space and a click still step the lines on, and the arrows and
+the wheel step them as ever.
 
 ## Mod data
 
