@@ -27,6 +27,7 @@ import {
   SlidersIcon
 } from './screenIcons'
 import { DeadNote } from '../components/DeadNote'
+import type { SceneInputLayout } from '../components/useSceneInput'
 import { MoneyCard } from '../components/MoneyCard'
 import { DialogueBox, TurnField } from './Dialogue'
 import {
@@ -94,6 +95,11 @@ export interface SceneChromeProps {
   rowShown: boolean
   /** A running scene activity owns input; its own row replaces the scene action row. */
   inputOwned?: boolean
+  /**
+   * A mod's panel holds the scene's input (`useSceneInput`): the row is put away and dead, and the
+   * box stands clear of the panel's own input instead. Null while the row has it.
+   */
+  inputLayout: SceneInputLayout | null
   /**
    * The row is standing over a reply still being read rather than for the player's turn: the
    * divider stands in the well's place, and the well answers a hover — `'open'` — or nothing at
@@ -163,8 +169,11 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
   /** What the whole layer answers to: the curtain and the eye each take it away entire. */
   const dark = covered || hidden
 
+  /** A mod's panel holds the input, in the row's place. */
+  const owned = props.inputLayout
+
   /** The row is up and answering: what every hover in it is dropped against. */
-  const rowLive = rowShown && !dark && !props.inputOwned
+  const rowLive = rowShown && !dark && !owned && !props.inputOwned
 
   /**
    * The pointer has moved over the divider's strip, or is on the well's box or Go's seat once the
@@ -275,29 +284,35 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
   /**
    * `--turn-h` (`Scene.css`) is written through a ref, not React state, so a keystroke never
    * re-renders the chrome; a `ResizeObserver` catches the field's growth. Dropped while the
-   * answers are down, so the box takes the one-line well's place instead.
+   * answers are down, so the box takes the one-line well's place instead. While a panel holds the
+   * input, it is the panel's height, so the box stands clear of the panel's input as of the row.
    */
   const root = useRef<HTMLDivElement>(null)
   const row = useRef<HTMLDivElement>(null)
+  // A panel taking the input finds the row put down the same way, the caret out of it.
+  const held = owned !== null
   useLayoutEffect(() => {
-    if (!props.inputOwned) return
+    if (!held && !props.inputOwned) return
     setHover(false)
     setPinned(false)
     const active = document.activeElement
     if (active instanceof HTMLElement && row.current?.contains(active)) active.blur()
-  }, [props.inputOwned])
+  }, [held, props.inputOwned])
+
+  const ownedHeight = owned?.height ?? null
   useEffect(() => {
     const box = row.current
     if (!box || typeof ResizeObserver === 'undefined') return
     const write = (): void => {
-      if (stackDown) root.current?.style.removeProperty('--turn-h')
+      if (ownedHeight !== null) root.current?.style.setProperty('--turn-h', `${ownedHeight}px`)
+      else if (stackDown) root.current?.style.removeProperty('--turn-h')
       else root.current?.style.setProperty('--turn-h', `${box.offsetHeight}px`)
     }
     write()
     const observer = new ResizeObserver(write)
     observer.observe(box)
     return () => observer.disconnect()
-  }, [stackDown])
+  }, [stackDown, ownedHeight])
 
   return (
     <motion.div
@@ -457,8 +472,8 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
         cg={props.cg}
         onTypeHold={props.onTypeHold}
         skips={props.skips}
-        rowShown={rowShown}
-        wellAway={rowShown && !wellOut}
+        rowShown={rowShown || held}
+        wellAway={owned ? !owned.open : rowShown && !wellOut}
         turnUp={rowShown && interject === null}
         onRewind={props.onRewind}
         cuts={props.cuts}
@@ -495,8 +510,8 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
       <motion.div
         ref={row}
         className="vu-turn vu-scene-row"
-        style={props.inputOwned ? { visibility: 'hidden' } : undefined}
-        aria-hidden={props.inputOwned || undefined}
+        style={held || props.inputOwned ? { visibility: 'hidden' } : undefined}
+        aria-hidden={held || props.inputOwned || undefined}
         data-well={wellOut ? 'out' : rowInterject === 'locked' ? 'locked' : 'away'}
         variants={sceneRow}
         initial="hidden"
@@ -529,7 +544,7 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
               sending={props.sending}
               cg={props.cg}
               submitDead={props.submitDead}
-              inputDead={props.inputDead || Boolean(props.inputOwned)}
+              inputDead={props.inputDead || held || Boolean(props.inputOwned)}
               focus={rowLive && props.inputFocus}
               placeholder="What do you do?"
               multiline
