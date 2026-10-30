@@ -1,4 +1,4 @@
-import { gestures, quietLift, quietPress } from '@vx/modkit/renderer'
+import { gestures, quietLift, quietPress, SelectField } from '@vx/modkit/renderer'
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import { abilityRank, farewellRomance, TALENT_ABILITIES } from '../../shared/talentAbilities'
@@ -9,7 +9,6 @@ import { useModOn } from '../stores/modsStore'
 import { availableEchoBreakthrough, activateBreakthrough, canBreakthrough } from '../stores/breakthrough'
 import { eurekaProjects, talentSceneOpen, talentGoodbyeOpen, type TalentChange } from '../stores/talentActions'
 import { interject } from '../stores/gameLoop'
-import { SelectField } from '../components/SelectField'
 
 /** Purchased abilities share the skill panel's save guard and close only after an accepted action. */
 export function TalentAbilityControls({skill,safe,act,onClose}:{skill:string;safe:boolean;act:(a:TalentChange)=>Promise<boolean>;onClose:()=>void}) {
