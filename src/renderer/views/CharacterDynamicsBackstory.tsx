@@ -3,10 +3,8 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { PERSONALITY_NUDGES, STARTING_RELATIONSHIPS, type CharacterDynamic } from '../../shared/characterDynamics'
 import { fullNameOf, type Character } from '@shared/types'
-import { TitleTab } from '../components/TitleTab'
-import { useModalShell } from '@vx/modkit/renderer'
+import { gestures, lift, panelUnderTab, press, quietLift, quietPress, veilIn, useModalShell, TitleTab } from '@vx/modkit/renderer'
 import type { ScreenTheme } from '@vx/modkit/renderer'
-import { gestures, lift, panelUnderTab, press, quietLift, quietPress, veilIn } from './motion'
 import '../vu_styles/CharacterDynamicsBackstory.css'
 
 interface Props {

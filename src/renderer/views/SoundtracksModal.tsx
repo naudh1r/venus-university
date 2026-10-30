@@ -5,13 +5,10 @@ import { isSoundtrackKey, SOUNDTRACK_LABELS, SOUNDTRACK_MOD, type SoundtrackKey 
 import { toAppError } from '@shared/errors'
 import { CheckField } from '../components/CheckField'
 import { ConfirmModal } from '../components/ConfirmModal'
-import { SelectField } from '../components/SelectField'
-import { TitleTab } from '../components/TitleTab'
-import { useModalShell, useModOn } from '@vx/modkit/renderer'
+import { gestures, panelUnderTab, quietLift, quietPress, veilIn, useModalShell, useModOn, SelectField, TitleTab } from '@vx/modkit/renderer'
 import { useAudioStore } from '../stores/audioStore'
 import { useSoundtrackStore } from '../stores/soundtrackStore'
 import type { ScreenTheme } from '@vx/modkit/renderer'
-import { gestures, panelUnderTab, quietLift, quietPress, veilIn } from './motion'
 import '../vu_styles/Soundtracks.css'
 
 const options = Object.entries(SOUNDTRACK_LABELS).map(([value, label]) => ({ value, label }))

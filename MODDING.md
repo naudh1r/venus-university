@@ -107,10 +107,13 @@ prompt hooks still obey the current mod switches when they format. A duplicate c
 same mod, a throwing callback, or a value that cannot be cloned fails the request with that
 mod's id in the error. No partial snapshot is used. For a turn's request, that is any throw
 while it is built, a `prompts.*` hook's included: the turn is rewound and the player gets the
-retry modal, as for a failed call. The scene's goodbye and its bookkeeping call are built once
-the reply has landed, and a throw there is not yet caught; it leaves the game waiting. DM,
-ledger and slot-intro capture hooks are not available yet; this addition only covers the scene
-state builder.
+retry modal, as for a failed call. The calls that follow the reply, the goodbye, the two
+bookkeeping calls and the next slot's opening, put a throw while their request is built to the
+player through that call's own modal: Retry builds the request again, and leaving goes to the
+menu. No prompt was built, so the modal does not offer to edit one. Other hooks that run while a
+scene ends, such as `projectSlotMemories`, are not covered: a throw there still leaves the game
+waiting. DM, ledger and slot-intro capture hooks are not available yet; this addition only covers
+the scene state builder.
 
 ## Installed mods
 
@@ -266,6 +269,22 @@ import { gestures, lift, press } from '@vx/modkit/renderer'
 They are the game's own objects, so a mod panel moves with the game when its motion changes. The
 rest of the game's motion stays core's, and an animation that is one mod's own look belongs in
 the mod.
+
+### Panel controls
+
+A mod's panel draws its title and fields with the game's own components, from
+`@vx/modkit/renderer`, each declared as `renderer:<name>`:
+
+- `TitleTab`: the tab a panel's title stands in, on its own corner over the panel.
+- `TextField` and `SelectField`: a labelled text field and a labelled choice, as the game's
+  settings and editors draw them.
+- `TurnField`: the well and Go of the scene's own turn, for a panel that takes the reader's input
+  itself.
+- `SceneDivider`: the rule and state word that stand in the well's place while a reply is read,
+  with a `className` of the panel's own beside its class.
+
+They are the game's components, so a mod's panel looks and behaves as a native one does and
+changes with it. Their props are the ones the game's own screens pass, typed in the kit.
 
 ## Mod data
 

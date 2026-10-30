@@ -7,13 +7,9 @@ import {
   type CharacterDynamic, type CharacterDynamics, type PersonalityNudge
 } from '../../shared/characterDynamics'
 import { fullNameOf, type Character } from '@shared/types'
-import { SelectField } from '../components/SelectField'
-import { TextField } from '../components/TextField'
-import { TitleTab } from '../components/TitleTab'
-import { useModalShell } from '@vx/modkit/renderer'
+import { gestures, lift, panelUnderTab, press, quietLift, quietPress, veilIn, useModalShell, SelectField, TextField, TitleTab } from '@vx/modkit/renderer'
 import { spriteUrl } from '../stores/characterStore'
 import type { ScreenTheme } from '@vx/modkit/renderer'
-import { gestures, lift, panelUnderTab, press, quietLift, quietPress, veilIn } from './motion'
 import '../vu_styles/CharacterDynamics.css'
 
 const TAG_MIME = 'application/x-vu-personality-nudge'

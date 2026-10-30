@@ -12,13 +12,11 @@ import {
   type StoryMemory,
   type StoryRecord
 } from '../../shared/storyMemory'
-import { TitleTab } from '../components/TitleTab'
-import { useModalShell } from '@vx/modkit/renderer'
+import { gestures, lift, press, quietLift, quietPress, panelUnderTab, veilIn, useModalShell, TitleTab } from '@vx/modkit/renderer'
 import { useGameStore } from '../stores/gameStore'
 import { useModOn } from '@vx/modkit/renderer'
 import { manualSaveOffer, writeStoryMemory } from '../stores/loop/saves'
 import { inspectCurrentStoryMemory } from '../stores/storyMemory'
-import { gestures, lift, press, quietLift, quietPress, panelUnderTab, veilIn } from './motion'
 import '../vu_styles/StoryMemory.css'
 import { termOriginLabel } from '@shared/termOrigin'
 
