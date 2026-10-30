@@ -95,6 +95,11 @@ on them, from any mod that puts one there, get threads like any other post.
 - After New Game+ the count starts over with the new semester: last semester's replies are still
   listed, as read.
 
+## 1.1.3
+
+- **Replies are saved when they arrive**: closing the game right after the girls answer no
+  longer loses their replies.
+
 ## 1.1.2
 
 - **Who is in her picture**: she no longer calls the girl beside her a friend when the two

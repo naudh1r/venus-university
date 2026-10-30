@@ -33,7 +33,9 @@ import { fileDueFeedMemories, holdFeedMemories } from './bunnyfeedsMemory'
 import { useGameStore } from './gameStore'
 import { useGrabBagStore } from './grabBagStore'
 import { lessNsfwTextNow, reader } from './loop/promptState'
+import { writeAutosave } from './loop/saves'
 import { currentRun, loopState, runStale, LOOP_LLM_GROUP } from './loop/state'
+import { sceneInProgress } from './loop/stream'
 import { retrySilently } from './silentRetry'
 
 /**
@@ -304,6 +306,7 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
     const reply = await send(request, run)
     if (runStale(run) || !reply) return
     fileReplies(reply, owed, byRef, postByRef, joiners, now, showAt === 'next' ? now + 1 : now)
+    saveThreads()
   } catch (err) {
     console.warn('[feed] no thread replies:', messageOf(err))
   } finally {
@@ -315,6 +318,17 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
       }
     }
   }
+}
+
+/**
+ * Writes the save as soon as a round is filed, rather than leaving it for the loop's next write:
+ * the replies and held memories live on her posts, so a game closed before then loses them. The
+ * autosave records the last decision point, so nothing half-streamed is written; mid-stream the
+ * loop's own imminent write carries them.
+ */
+function saveThreads(): void {
+  if (sceneInProgress() && !useGameStore.getState().awaitingInput) return
+  void writeAutosave(loopState.decisionSave)
 }
 
 /**
