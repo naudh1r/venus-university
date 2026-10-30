@@ -341,8 +341,14 @@ While a component holds a layout, the scene's row is put away and its field is d
 dialogue box stands clear of the panel's input as it does of the row, `height` being how tall that
 input stands. With `open`, the box stands as over the reader's own turn; without, as over a reply
 being read, with the well put away. `null`, or unmounting, gives the row back. One component holds
-the input at a time: a claim while another holds it is refused with a warning and changes nothing.
-It is a React hook, called on every render.
+the input at a time: a claim while another holds it is refused with a warning and changes nothing,
+and stays refused once the other gives it back; the refused panel claims again by passing `null`
+and then its layout. It is a React hook, called on every render.
+
+While a panel holds the input, the scene leaves the reader's turn to it: Enter and Space send
+nothing from the scene, so the panel's focused button answers them, and Tab no longer goes to the
+scene's field. Over a reply, Enter, Space and a click still step the lines on, and the arrows and
+the wheel step them as ever.
 
 ## Mod data
 

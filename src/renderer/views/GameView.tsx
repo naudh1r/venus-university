@@ -1881,9 +1881,10 @@ export function GameView(): JSX.Element {
     }
     // Tab puts the caret in the well, bringing it out over a reply: the well's own Tab gives the
     // caret up (`Dialogue.tsx`), a field in a modal walks its own form, and a modal in front keeps
-    // the key. Focusing a well the row has put away pins it out; a dead well takes no focus.
+    // the key. Focusing a well the row has put away pins it out; a dead well takes no focus, and
+    // while a panel holds the scene's input the key walks the panel's own controls.
     if (event.key === 'Tab' && !event.ctrlKey && !event.altKey && !event.metaKey) {
-      if (blocked || typingIn(event)) return
+      if (blocked || sceneInput || typingIn(event)) return
       document.getElementById('game-action')?.focus()
       return
     }
@@ -1920,6 +1921,9 @@ export function GameView(): JSX.Element {
     }
     const space = event.key === ' '
     if (event.key !== 'Enter' && !space) return
+    // On the reader's turn a panel holding the scene's input takes it with its own: neither key
+    // sends one here, and Space still presses the panel's focused button. A reply still steps on.
+    if (sceneInput && awaitingInput) return
     // Space is Enter aimed at the scene: a character in a field, and nothing behind a modal,
     // whose focused button it still presses.
     if (space) {
