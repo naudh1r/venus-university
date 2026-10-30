@@ -33,6 +33,8 @@ export { currentRun, runStale } from '../../../../src/renderer/stores/loop/state
 export { isOrientationSlot } from '../../../../src/renderer/prompts/introScript'
 export { isGraduationSlot } from '../../../../src/renderer/prompts/graduation'
 export { buildLabel, lessNsfwText, modsOnLine, useLessNsfwText, useSfxGain } from '../../../../src/renderer/mods/readers'
+export { cancelCalls, completeStructured } from '../../../../src/renderer/mods/llm'
+export { objectSchema } from '../../../../src/renderer/prompts/schema'
 export {
   gestures,
   lift,

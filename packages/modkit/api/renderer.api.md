@@ -31,11 +31,19 @@ export interface BunnyboardPage {
 }
 
 // @public
+export function cancelCalls(modId: string, group: string): Promise<void>;
+
+// @public
 export function Card(input: {
     label: string;
     className?: string;
     children: ReactNode;
 }): JSX.Element;
+
+// @public
+export function completeStructured<T>(modId: string, request: StructuredRequest, options?: {
+    group?: string;
+}): Promise<Result<T>>;
 
 // @public
 export interface ContactTab {
@@ -319,6 +327,9 @@ export interface ModStateSpec<T> {
     initial: T;
     lifetime: 'game' | 'session';
 }
+
+// @public
+export function objectSchema(name: string, required: readonly string[], properties: Record<string, unknown>): StructuredRequest['schema'];
 
 // @public
 export function openPanel(id: string, arg?: string): boolean;

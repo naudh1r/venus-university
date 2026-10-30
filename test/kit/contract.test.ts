@@ -86,6 +86,14 @@ describe('the entry points', () => {
     expect(sharedKit.READER_SPEAKER).toBe(types.READER_SPEAKER)
   })
 
+  it("sends a mod's own model call through the game's, on the one channel every mod shares", async () => {
+    const native = await import('../../src/renderer/mods/llm')
+    const schema = await import('../../src/renderer/prompts/schema')
+    expect(rendererKit.completeStructured).toBe(native.completeStructured)
+    expect(rendererKit.cancelCalls).toBe(native.cancelCalls)
+    expect(rendererKit.objectSchema).toBe(schema.objectSchema)
+  })
+
   it('split every runtime export of hooks.ts, ModSlot, saveField.ts and modState.ts between the host and the mod', () => {
     const moved = [...runtime(hooksShim), ...runtime(slotShim), ...runtime(saveFieldKit), ...runtime(modStateKit)].sort()
     const host = runtime(hostRenderer)

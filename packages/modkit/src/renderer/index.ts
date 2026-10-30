@@ -62,7 +62,9 @@ export type {
 } from '../bridge/renderer'
 export {
   buildLabel,
+  cancelCalls,
   Card,
+  completeStructured,
   currentRun,
   EmojiTool,
   fileLatePost,
@@ -75,6 +77,7 @@ export {
   Locked,
   modIsOn,
   modsOnLine,
+  objectSchema,
   panelUnderTab,
   PostCommentAction,
   PostCommentsView,
