@@ -95,6 +95,11 @@ on them, from any mod that puts one there, get threads like any other post.
 - After New Game+ the count starts over with the new semester: last semester's replies are still
   listed, as read.
 
+## 1.1.2
+
+- **Who is in her picture**: she no longer calls the girl beside her a friend when the two
+  aren't.
+
 ## 1.1.1
 
 - **Who is in her picture**: with Photo Feature's **2 girls 1 photo** on, she knows who is
