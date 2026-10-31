@@ -1,5 +1,5 @@
 import type { MeanwhileContext, MeanwhileScene } from '../../shared/meanwhile'
-import { fullNameOf, type StructuredRequest } from '@shared/types'
+import { fullNameOf, type StructuredRequest } from '@vx/modkit/shared'
 
 /** Only public personality and the native encounter are supplied: no player history or memory retrieval. */
 export function buildMeanwhilePrompt(event: MeanwhileScene, game: MeanwhileContext): StructuredRequest {
