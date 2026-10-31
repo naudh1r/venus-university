@@ -7,6 +7,7 @@ import { findInstalledMods, readInstalled } from './layout'
 import { orderMods, type OrderInput } from './order'
 import { requireMain as requireMainFile, UndeclaredApiError, type MainContext } from './require'
 import type { ServedMod } from './resolve'
+import { INVOKE_NAME_RULE, type InvokeHandler } from './invoke'
 
 /**
  * The main-process loader: finds every installed mod and developer folder, reads and checks the
@@ -52,6 +53,7 @@ export interface LoaderResult {
   /** Each mod as the protocol serves it, by id. */
   readonly served: ReadonlyMap<string, ServedMod>
   /** What each loaded `main.js` exported, by id, for a rerun to hand back without requiring it again. */
+  readonly invokes: ReadonlyMap<string, ReadonlyMap<string, InvokeHandler>>
   readonly mainExports: ReadonlyMap<string, unknown>
 }
 
@@ -250,7 +252,7 @@ function routesOf(exported: unknown, id: string, log: (line: string) => void): M
   const routes = new Map<string, RouteHandler>()
   if (typeof exported !== 'object' || exported === null) return routes
   for (const key of Object.keys(exported)) {
-    if (key !== 'protocols' && key !== '__esModule') log(`[mods] ${id}: main.js exports \`${key}\`, which this core does not read`)
+    if (key !== 'protocols' && key !== 'invoke' && key !== '__esModule') log(`[mods] ${id}: main.js exports \`${key}\`, which this core does not read`)
   }
   const protocols = (exported as { protocols?: unknown }).protocols
   if (protocols === undefined) return routes
@@ -267,6 +269,27 @@ function routesOf(exported: unknown, id: string, log: (line: string) => void): M
   return routes
 }
 
+/** The named invoke handlers exported by one main.js, validated before either registry is installed. */
+function invokesOf(exported: unknown, declared: readonly string[]): Map<string, InvokeHandler> {
+  const handlers = new Map<string, InvokeHandler>()
+  if (typeof exported !== 'object' || exported === null) return handlers
+  const invoke = (exported as { invoke?: unknown }).invoke
+  if (invoke === undefined) return handlers
+  if (!declared.includes('invoke')) throw new UndeclaredApiError('invoke')
+  if (typeof invoke !== 'object' || invoke === null || Array.isArray(invoke) ||
+      (Object.getPrototypeOf(invoke) !== Object.prototype && Object.getPrototypeOf(invoke) !== null)) {
+    throw new Error('`invoke` is not an object of handler functions')
+  }
+  for (const key of Reflect.ownKeys(invoke)) {
+    const value = Object.getOwnPropertyDescriptor(invoke, key)
+    if (typeof key !== 'string' || !INVOKE_NAME_RULE.test(key) || typeof value?.value !== 'function') {
+      throw new Error('`invoke` needs lower-case method names and handler functions')
+    }
+    handlers.set(key, value.value as InvokeHandler)
+  }
+  return handlers
+}
+
 /**
  * Requires each loaded mod's `main.js` in load order. A throw is `failed`; a read of an undeclared
  * kit API is `refused`; either way the whole mod is off, and whatever requires it is blocked.
@@ -276,9 +299,10 @@ function requireCandidates(
   order: readonly string[],
   optionalPresent: Readonly<Record<string, readonly string[]>>,
   input: LoaderInput
-): { routes: Map<string, Map<string, RouteHandler>>; mainExports: Map<string, unknown> } {
+): { routes: Map<string, Map<string, RouteHandler>>; invokes: Map<string, Map<string, InvokeHandler>>; mainExports: Map<string, unknown> } {
   const byId = new Map(candidates.map((one) => [one.entry.id, one]))
   const routes = new Map<string, Map<string, RouteHandler>>()
+  const invokes = new Map<string, Map<string, InvokeHandler>>()
   const mainExports = new Map<string, unknown>()
   const requireMain = input.requireMain ?? requireMainFile
   for (const id of order) {
@@ -308,7 +332,10 @@ function requireCandidates(
         dependencies,
         libraries: mainExports
       })
-      routes.set(id, routesOf(exported, id, input.log))
+      const modRoutes = routesOf(exported, id, input.log)
+      const modInvokes = invokesOf(exported, manifest.hooks)
+      routes.set(id, modRoutes)
+      invokes.set(id, modInvokes)
       mainExports.set(id, exported)
     } catch (err) {
       if (err instanceof UndeclaredApiError) fail(candidate, 'refused', `main.js reads ${err.message}`)
@@ -317,7 +344,7 @@ function requireCandidates(
       if (err instanceof Error && err.stack) input.log(err.stack)
     }
   }
-  return { routes, mainExports }
+  return { routes, invokes, mainExports }
 }
 
 function tableOf(candidates: Candidate[], order: readonly string[], input: LoaderInput, loaderError: string | null): ModSessionTable {
@@ -354,22 +381,22 @@ export function loadMods(input: LoaderInput): LoaderResult {
     if (input.safeStart !== null) {
       input.log(`[mods] started without mods (${input.safeStart}): nothing installed runs this session`)
       const table = tableOf(candidates, order, input, null)
-      return { table, routes: new Map(), served: servedOf(table), mainExports: new Map() }
+      return { table, routes: new Map(), invokes: new Map(), served: servedOf(table), mainExports: new Map() }
     }
-    const { routes, mainExports } = requireCandidates(candidates, order, optionalPresent, input)
+    const { routes, invokes, mainExports } = requireCandidates(candidates, order, optionalPresent, input)
     const table = tableOf(candidates, order, input, null)
     for (const mod of table.mods) {
       const line = mod.status === 'loaded' ? 'loaded' : `${mod.status}: ${mod.message ?? ''}`
       input.log(`[mods] ${mod.id} ${mod.manifest?.version ?? ''}${mod.dev ? ' (dev folder)' : ''}: ${line}`)
       for (const warning of mod.warnings) input.log(`[mods] ${mod.id}: ${warning}`)
     }
-    return { table, routes, served: servedOf(table), mainExports }
+    return { table, routes, invokes, served: servedOf(table), mainExports }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     input.log(`[mods] the mod loader failed: ${message}`)
     if (err instanceof Error && err.stack) input.log(err.stack)
     const table = tableOf(candidates, [], input, `the mod loader failed: ${message}`)
-    return { table, routes: new Map(), served: servedOf(table), mainExports: new Map() }
+    return { table, routes: new Map(), invokes: new Map(), served: servedOf(table), mainExports: new Map() }
   }
 }
 

@@ -154,6 +154,11 @@ export function gestures(dead: boolean, hover: TargetAndTransition, tap: TargetA
 };
 
 // @public
+export function invoke<T>(modId: string, name: string, args: unknown[], options?: {
+    signal?: AbortSignal;
+}): Promise<Result<T>>;
+
+// @public
 export function isGraduationSlot(date: number, time: TimeSlot): boolean;
 
 // @public

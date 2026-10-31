@@ -12,7 +12,9 @@
     "renderer:registerHooks",
     "renderer:useModOn",
     "shared:sharedModOn",
-    "protocols"
+    "protocols",
+    "invoke",
+    "renderer:invoke"
   ],
   "main": true,
   "scope": "anytime",

@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, rm, writeFile, unlink } from 'fs/promises'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -84,6 +84,28 @@ describe('the loader on the fixture set', () => {
     const handler = result.routes.get('hello-mod')?.get('ping')
     expect(handler).toBeDefined()
     expect(await handler?.(new Request('vxmod://hello-mod/@/ping'))).toBe('ok')
+  })
+
+  it('collects declared invoke handlers atomically and leaves none for failed or refused main code', () => {
+    const file = join(root, 'mods', 'hello-mod', '1.0.0', 'vxmod.json')
+    const manifest = JSON.parse(readFileSync(file, 'utf8'))
+    writeFileSync(file, JSON.stringify({ ...manifest, hooks: [...new Set([...manifest.hooks, 'invoke'])] }))
+    const say = (): string => 'hello'
+    expect(run({ requireMain: () => ({ invoke: { say } }) }).invokes.get('hello-mod')?.get('say')).toBe(say)
+    for (const invoke of [null, [], { 'Bad/name': say }, { say: 1 }]) {
+      const result = run({ requireMain: () => ({ protocols: [{ route: 'ok', handle: say }], invoke }) })
+      expect(statusOf(result, 'hello-mod')).toBe('failed')
+      expect(result.invokes.has('hello-mod')).toBe(false)
+      expect(result.routes.has('hello-mod')).toBe(false)
+    }
+    writeFileSync(file, JSON.stringify({ ...manifest, hooks: manifest.hooks.filter((hook: string) => hook !== 'invoke') }))
+    const undeclared = run({ requireMain: () => ({ invoke: { say } }) })
+    expect(statusOf(undeclared, 'hello-mod')).toBe('refused')
+    expect(undeclared.invokes.has('hello-mod')).toBe(false)
+    const failed = run({ requireMain: () => { throw new Error('boom') } })
+    expect(failed.invokes.has('hello-mod')).toBe(false)
+    const refused = run({ allowUnreviewedMain: false, requireMain: () => ({ invoke: { say } }) })
+    expect(refused.invokes.has('hello-mod')).toBe(false)
   })
 
   it("runs hello-mod's real main.js and serves its files", () => {

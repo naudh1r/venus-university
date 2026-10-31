@@ -117,3 +117,5 @@ export {
   useSfxGain,
   veilIn
 } from '../bridge/renderer'
+
+export { invoke } from '../bridge/renderer'

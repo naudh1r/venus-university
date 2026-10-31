@@ -190,7 +190,7 @@ else the highest, with a line in the log. The loader deletes nothing and writes 
   and a file inside the mod's folder. `main.js` is expected to be that one bundled file; a file of
   the mod's own that it requires runs under the same `require`, so nothing in it reaches past the
   kit or the folder either, and a `.node` addon is the one thing handed to Node's own loader. In
-  this step it exports `protocols`: routes under `vxmod://<id>/@/<route>/…`, each
+  this step it exports `invoke` (A mod's own main call, below) and `protocols`: routes under `vxmod://<id>/@/<route>/…`, each
   `{ route, handle(request) }`. A mod never has a scheme of its own.
 - **The window**, in `boot()` before the first screen: each loaded mod's `renderer.js` is imported
   from `vxmod://<id>/renderer.js`, one at a time in load order, and its `style.css` added, kept
@@ -341,6 +341,52 @@ group runs to the end.
 re-send decision: it waits under the game's backoff budget and answers whether to send again.
 `call` names the call in the log's retry line, and `spent` counts the retries already made;
 `SilentRetryOptions` lets the mod narrow the codes, skip a resend or take a canceller for the wait.
+
+### A mod's own main call
+
+A trusted `main.js` exports `invoke` beside `protocols`, declared as `invoke` in its manifest's
+`hooks`. Each lower-case method name, with dashes between words, names a function. Core validates
+the whole object before keeping any handlers; a missing declaration or malformed export stops
+the mod. The loader keeps them only while their mod is loaded and drops them on failure or removal.
+
+```js
+// main.js, with "invoke" declared in vxmod.json
+exports.invoke = {
+  inspect: ({ id, signal }, value) => ({ owner: id, value })
+}
+```
+
+The window calls it through `invoke` from `@vx/modkit/renderer` (`renderer:invoke`):
+
+```ts
+const controller = new AbortController()
+const result = await invoke<{ owner: string; value: unknown }>(
+  'my-mod', 'inspect', ['hello'], { signal: controller.signal }
+)
+if (result.ok) show(result.data)
+```
+
+A handler receives `{ id, signal }`, then the supplied arguments, and returns a value or promise.
+It validates its arguments and returns structured-cloneable data. It gets no Electron event or
+window. Core accepts loaded mods even with their switch off; the handler asks `sharedModOn` and
+`modOptionOn` where its operation requires them. The window is one page, as for model calls:
+the id selects a mod, not a sandbox boundary between scripts on that page. Main code is trusted
+and can use Node and Electron; these hooks do not sandbox it.
+
+One `mod:invoke` channel handles a start/result handshake so main can make the request id before
+the window needs to cancel it. Main files each call under `mod:<checked-id>:invoke:<main-id>`.
+The window sends no group name. Aborting calls `mod:invokeCancel` with the mod and request ids;
+it cannot reach another mod's request or another window's, and it never uses `jobs:cancelGroup`.
+`CANCELLED` wins over a late handler success or rejection. The handler must observe its signal
+to stop its own work; cancellation does not undo writes it already made. Core also cancels calls
+when their mod stops being loaded or their window leaves, and expires unclaimed start replies
+after 30 seconds. `InvokeContext` and `InvokeHandler` are types from `@vx/modkit/main`.
+
+The call always answers a `Result`, including transport failures. Handler errors use the same
+AppError normalization and machine-path redaction as every other IPC call. Bad ids answer
+`MOD_ID_INVALID`, an absent mod or method `MOD_INVOKE_UNKNOWN`, a known but unloaded mod
+`MOD_INVOKE_NOT_LOADED`, a non-list argument payload `MOD_INVOKE_ARGS_INVALID`, and a failed
+transport `MOD_INVOKE_FAILED`. The browser bridge answers `DESKTOP_ONLY` and runs no handler.
 
 ### The scene's input
 
