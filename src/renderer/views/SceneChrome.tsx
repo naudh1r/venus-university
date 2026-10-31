@@ -93,8 +93,6 @@ export interface SceneChromeProps {
   /** Bumped by a click during that arrival: the box lands at once rather than losing a line. */
   skips: number
   rowShown: boolean
-  /** A running scene activity owns input; its own row replaces the scene action row. */
-  inputOwned?: boolean
   /**
    * A mod's panel holds the scene's input (`useSceneInput`): the row is put away and dead, and the
    * box stands clear of the panel's own input instead. Null while the row has it.
@@ -173,7 +171,7 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
   const owned = props.inputLayout
 
   /** The row is up and answering: what every hover in it is dropped against. */
-  const rowLive = rowShown && !dark && !owned && !props.inputOwned
+  const rowLive = rowShown && !dark && !owned
 
   /**
    * The pointer has moved over the divider's strip, or is on the well's box or Go's seat once the
@@ -292,12 +290,12 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
   // A panel taking the input finds the row put down the same way, the caret out of it.
   const held = owned !== null
   useLayoutEffect(() => {
-    if (!held && !props.inputOwned) return
+    if (!held) return
     setHover(false)
     setPinned(false)
     const active = document.activeElement
     if (active instanceof HTMLElement && row.current?.contains(active)) active.blur()
-  }, [held, props.inputOwned])
+  }, [held])
 
   const ownedHeight = owned?.height ?? null
   useEffect(() => {
@@ -510,8 +508,8 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
       <motion.div
         ref={row}
         className="vu-turn vu-scene-row"
-        style={held || props.inputOwned ? { visibility: 'hidden' } : undefined}
-        aria-hidden={held || props.inputOwned || undefined}
+        style={held ? { visibility: 'hidden' } : undefined}
+        aria-hidden={held || undefined}
         data-well={wellOut ? 'out' : rowInterject === 'locked' ? 'locked' : 'away'}
         variants={sceneRow}
         initial="hidden"
@@ -544,7 +542,7 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
               sending={props.sending}
               cg={props.cg}
               submitDead={props.submitDead}
-              inputDead={props.inputDead || held || Boolean(props.inputOwned)}
+              inputDead={props.inputDead || held}
               focus={rowLive && props.inputFocus}
               placeholder="What do you do?"
               multiline

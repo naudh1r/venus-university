@@ -31,11 +31,11 @@ import {
   TurnField,
   useModalShell,
   useModOption,
+  useSceneInput,
   veilIn
 } from '@vx/modkit/renderer'
 import type { ScenePanelProps } from '../mods/hooks'
 import { useGameStore } from '../stores/gameStore'
-import { useTableInputLayout } from './inputLayout'
 import { gameComponent, type GamePlay, type Opponent, type PlayResult } from './play'
 import { agreementAvailable, checkpointResult, keptAgreed, useTableStore, type Agreed } from './session'
 import { tableRound } from './round'
@@ -320,12 +320,9 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
     return () => observer.disconnect()
   }, [hasInput])
 
-  useLayoutEffect(() => {
-    // Even solo games without a chat row own the input: the scene's action field must
-    // not remain visible or focused behind the running game.
-    useTableInputLayout.getState().setLayout(ownsInput ? { open: hasInput && inputOpen, height: hasInput ? inputHeight : 70 } : null)
-  }, [ownsInput, hasInput, inputOpen, inputHeight])
-  useLayoutEffect(() => () => useTableInputLayout.getState().setLayout(null), [])
+  // Even solo games without a chat row own the input: the scene's action field must
+  // not remain visible or focused behind the running game.
+  useSceneInput(ownsInput ? { open: hasInput && inputOpen, height: hasInput ? inputHeight : 70 } : null)
   const answerTo = useRef<((text: string | null) => void) | null>(null)
   /** Ends whatever is being asked, unanswered. */
   function endAsking(): void {

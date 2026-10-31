@@ -442,5 +442,6 @@ asked.
 ### 0.2.1
 
 The framework reaches the game through the mod kit: the readers it reads the game with, the
-controls its table draws, and its model calls, which go out as Mini-games' own rather than
-borrowing one of the game's. Nothing changes at the table, and no pack has to change.
+controls its table draws, the scene's input while a game holds it, and its model calls, which go
+out as Mini-games' own rather than borrowing one of the game's. Nothing changes at the table, and
+no pack has to change.
