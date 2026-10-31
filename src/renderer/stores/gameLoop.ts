@@ -122,6 +122,7 @@ import {
 } from '../prompts/scenePrompt'
 import { useGrabBagStore } from './grabBagStore'
 import { useModSessionStore } from './modSessionStore'
+import { useSettingsStore } from './settingsStore'
 import {
   namesCharacter,
   PORTRAIT_SLOTS,
@@ -3107,7 +3108,10 @@ export function enterGame(
   // Held for a replay's return, which enters the same game again.
   loopState.record = record
   // A `playthrough` mod this game started with that is not running this session is named once.
-  useModSessionStore.getState().gameEntered(record, save.playthroughId)
+  const unversionedSeen = useSettingsStore.getState().settings?.modUnversionedSeen
+  useModSessionStore
+    .getState()
+    .gameEntered(record, save.playthroughId, Array.isArray(unversionedSeen) ? unversionedSeen : [])
   const game = useGameStore.getState()
   game.loadSave(save, record, characters)
   // A read nothing on screen is waiting on: the profile is not open yet.

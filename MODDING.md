@@ -287,6 +287,9 @@ A mod's panel draws its title and fields with the game's own components, from
 - `SceneDivider`: the rule and state word that stand in the well's place while a reply is read,
   with a `className` of the panel's own beside its class.
 
+- `CloseIcon`, `HeartIcon`, `BunnyMark`, `EyeIcon` and `EyeOffIcon`: the same marks the game's
+  controls draw, in the control's own colour.
+
 They are the game's components, so a mod's panel looks and behaves as a native one does and
 changes with it. Their props are the ones the game's own screens pass, typed in the kit.
 ### Small readers
@@ -309,6 +312,41 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
 - `globalSlotOf(date, time)` (`shared`): a slot's global id, the same one the game keeps.
 - `messageOf(err)` (`shared`): the message off any thrown value, an error's own or its string form.
   `MemoryType` is the game's memory-kind type, from the same entry; types need no declaration.
+- `SAFE_CHAR_ID`, `assertSafeCharId`, `SAFE_NUMERIC_ID` and `assertSafePlaythroughId`
+  (`shared`): the game's character and playthrough id checks, for names a mod keeps itself.
+- `appError`, `imageTypeOf` and `characterLoraOf` (`shared`): a shaped error, the type an image's
+  opening bytes name, and a character's own LoRA pick. `BACKUP_ZIP_LIMITS` is the game's archive cap.
+- `DORM_IDS`, `dormLabel`, `LOCATIONS` and `NARRATIVE_LOCATIONS` (`shared`): the dorm and place
+  vocabulary; `customOutfitSlotsIn` and `outfitTagsFor` read her own wardrobe.
+- `affectionFor`, `dispositionOf`, `dedupedMemoriesFor`, `emptyFlags` and `relationshipTagOf`
+  (`shared`) read the relationship a prompt describes. `areNpcFriends`, `npcFriendsOf`, `npcPairOf`
+  and `zoneOf` read the relationships between characters from the map the caller supplies.
+- `fullNameOf`, `slotFromId`, `hashString`, `seededRand`, `shownComments`, `fallbackHandleOf`,
+  `rollPostLikes`, `readerize` and `DEFAULT_PLAYER_STATS` (`shared`) are the game's small name,
+  clock, seeded-draw, feed and prompt helpers. They change no store.
+- `formatNumericGameDate`, `formatShortGameDate` and `slotHalf` (`renderer`) print the game's
+  dates; `SETTING` is its setting text, and `hasTexted` reads whether a conversation has begun.
+- `isFeedContact`, `FEED_PAGE` and `newestFirst` (`renderer`) read and order the feed. The feed's
+  `FEED_EMOJI`, `FEED_EMOJI_BAG`, `FEED_HANDLE_BAG` and `FEED_HANDLE_POOL` are its emoji and handle
+  tables and bag names; taking them does not draw a bag.
+
+`CharFlags`, `CustomOutfitSlot`, `Season` and `NpcRelationshipMap` are shared types from the
+same entry. Types need no capability declaration. These readers take the game's own arguments;
+a mod supplies the records it reads, and keeps any changes it makes to them under its own rules.
+
+### A word from BunnyBot
+
+`bunnybotSays(modId, lines, { once? })` from `@vx/modkit/renderer`, declared as
+`renderer:bunnybotSays`, lets a mod have BunnyBot say a few lines. He says nothing until he has
+introduced himself. With `once`, he says nothing if his saved thread already holds a message
+whose whole text is that mark: put the mark among the lines. The thread itself remembers it,
+so it stays said after a save is loaded and becomes unsaid if the player returns to an earlier save.
+The mark is the message text, shared across callers; use a line of the mod's own.
+
+The call answers whether it delivered. An empty list or an invalid mod id answers false.
+The mod decides when to ask and whether its switch allows it. Lines land through the game's own
+BunnyBot delivery, with the same date, unread count and follow-up opening he uses himself.
+
 ### A mod's own model call
 
 A mod asks the model something of its own with `completeStructured` from `@vx/modkit/renderer`,
@@ -489,8 +527,8 @@ never as a throw:
 A new playthrough's record keeps `modVersions`: the version of every mod that was on as it
 started, `playthrough` and `anytime` alike, by id, and `{}` where none were. A record without it
 was written before mods recorded their versions. Such a game loads as it always did, with one
-quiet line, once per playthrough a session: "This game was started before mods recorded their
-versions." Where a game names a `playthrough` mod that is not running, its notice also says which
+quiet line, once per playthrough: "This game was started before mods recorded their versions."
+Where a game names a `playthrough` mod that is not running, its notice also says which
 version the game was played with, when that is not the one installed. `modVersions` is the version
 a game started with; a slice's `v`, and `from` in `normalize`, is the version that last wrote it.
 

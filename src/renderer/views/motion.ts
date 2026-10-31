@@ -1555,13 +1555,14 @@ export const earBreathLate: TargetAndTransition = {
   transition: { ...BREATH, delay: 2 }
 }
 
+/** The one clock the typing dots share. */
+const TYPING_DOT: Transition = { duration: 1.2, repeat: Infinity, ease: 'easeInOut' }
+
 /**
  * The `···` bubble, which means a reply is queued and never that a call is running: three dots
  * on one clock, each a beat behind the one above. A table rather than a factory, so their
  * identity survives re-renders; an opacity, so the dots keep moving under reduced motion.
  */
-const TYPING_DOT: Transition = { duration: 1.2, repeat: Infinity, ease: 'easeInOut' }
-
 export const typingDot: readonly TargetAndTransition[] = [0, 1, 2].map((i) => ({
   opacity: [0.3, 1, 0.3],
   transition: { ...TYPING_DOT, delay: i * 0.2 }
