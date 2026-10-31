@@ -12,6 +12,14 @@ import { sickInSlot } from '@shared/colds'
 import { globalSlotOf } from '@shared/jobs'
 import { showUpHeartForScene } from '../stores/loop/talentShowUp'
 import { loopState } from '../stores/loop/state'
+import { createElement, lazy, Suspense } from 'react'
+import type { GameModalProps, ScreenSlotProps } from '@vx/modkit/renderer'
+
+// The gameplay hooks register at boot; screen code loads only when its slot is mounted.
+const screens = () => import('../views/TalentEntry')
+const Rail = lazy(() => screens().then(module => ({ default: module.TalentRailButton })))
+const Landing = lazy(() => screens().then(module => ({ default: module.TalentLandingTool })))
+const Panel = lazy(() => screens().then(module => ({ default: module.TalentGamePanel })))
 
 export function ensureTalents(): void {
   const g=useGameStore.getState()
@@ -20,6 +28,11 @@ export function ensureTalents(): void {
   useGameStore.setState({exTalents:seedTalents(g.exTalents,total,g.semesterIndex,g.date)})
 }
 registerHooks('campus-talents', {
+  railButton: (props: ScreenSlotProps['railButton']) => createElement(Suspense, { fallback: null }, createElement(Rail, props)),
+  landingTool: (props: ScreenSlotProps['landingTool']) => createElement(Suspense, { fallback: null }, createElement(Landing, props)),
+  gameModals: {
+    'campus-talents': (props: GameModalProps) => createElement(Suspense, { fallback: null }, createElement(Panel, props))
+  },
   gameEntered:ensureTalents,
   settleSceneStats:(resolved,{ctx})=>{
     const g=useGameStore.getState()
