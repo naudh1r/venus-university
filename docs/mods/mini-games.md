@@ -436,3 +436,11 @@ expect(herCall(eight, seen, 1, () => 0.9)).toBe('lower')
 account and the cues are read in the running app, as is everything the component does. The
 quickest way to a table is a game with `min: 0`, which opens from the dice seat with nobody
 asked.
+
+## What changed
+
+### 0.2.1
+
+The framework reaches the game through the mod kit: the readers it reads the game with, the
+controls its table draws, and its model calls, which go out as Mini-games' own rather than
+borrowing one of the game's. Nothing changes at the table, and no pack has to change.
