@@ -200,6 +200,9 @@ export const KIT_APIS = [
   'renderer:FEED_HANDLE_BAG',
   'renderer:FEED_HANDLE_POOL',
 
+  'main:extractZip',
+  'main:sniffImageFile',
+  'main:modOptionOn',
   'shared:carryModFiles',
   'shared:charKeyOf',
   'shared:DEPRECATED_HOOKS',

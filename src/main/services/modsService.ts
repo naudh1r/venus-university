@@ -1,5 +1,5 @@
 import { mkdir } from 'fs/promises'
-import { cleanSwitches, modOn, NO_SWITCHES, type ModSwitches } from '@shared/mods'
+import { cleanSwitches, modOn, optionOn, NO_SWITCHES, type ModSwitches } from '@shared/mods'
 import { EMPTY_SESSION, isRunning, type ModSessionTable } from '@shared/modSession'
 import type { Manifest } from '@vx/modkit/host/shared'
 import { setSharedModRules } from '@shared/modRules'
@@ -24,6 +24,11 @@ setSharedModRules((modId) => isRunning(session(), modId) && modOn(known, modId))
 /** Binds the shared rules to the mod session's table, read live so a rerun of the checks counts. */
 export function bindModSession(lookup: () => ModSessionTable): void {
   session = lookup
+}
+
+/** The option's rule against main's current switches, independently of the mod's on/off switch. */
+export function modOptionOn(modId: string, optionId: string): boolean {
+  return optionOn(known, modId, optionId)
 }
 
 /** The installed mod's manifest as the session read it; null for an in-repo mod or one not installed. */
