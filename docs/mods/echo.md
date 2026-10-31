@@ -42,13 +42,29 @@ During Breaking Through the Silence, the reader's Echo defaults to a large, fain
 
 Every aspect has a one-exchange ability costing 25, 50 or 75 spirit. Activations use a fixed action with no free-text ability box. Normal Breakthrough retains its custom action and 100-spirit cost, and works with Echoes disabled. See the complete [ability catalog and pricing](echo-breakthrough.md). These effects guide the scene model; they do not guarantee success, force relationship points, or remove character boundaries.
 
+## Screen hooks
+
+Echo's rail and landing buttons register through `railButton` and `landingTool`.
+`gameModals` opens the existing manager under `echo`; the host supplies its theme,
+crossing state and close callback. The original manager still handles draft edits,
+artwork cancellation and save/session guards. The buttons are absent in Scene Creator
+and replays, and switching Echo off closes its open manager and releases game input.
+The screen entry loads lazily, so gameplay registration does not initialize the manager.
+
+The stage aura continues through `portraitOverlay`, independently of Photo Feature.
+`photosPageSection` remains an optional gallery contribution. Enrollment, stage
+placement, artwork, abilities and saved data retain their existing implementations.
+`EchoIcon.tsx` owns the original SVG; `screenIcons.tsx` re-exports it for existing
+consumers such as Campus Talents. GameView still calls `ensureEchoes` for enabled-save
+initialization; that gameplay/state migration remains separate from these screen hooks.
+
 ## Saves, backups and source map
 
 ### Screen-hook integration
 
 Echo registers `portraitOverlay` and `photosPageSection` from its renderer mod entry. The native portrait and Photos page render the generic `ModSlot` outlets; they no longer mount Echo directly at those two locations. The portrait contribution reuses `EchoAura`, including the saved placement, opacity, floating motion, owner visibility, and replay/created-scene gates. The optional Photos contribution reuses the existing gallery and manager with the page's theme. Neither hook requires Photo Feature, and switching Echo off removes both contributions without erasing its saved data.
 
-`renderer/stores/echoAssignments.ts` holds the shared assignment helper used by the entry, manager and game view, avoiding a manager-to-entry import cycle. The standalone manager, new-game setup, Reckoning staging and contact-specific gallery remain on their existing paths. This is a partial migration onto existing screen hooks, not a standalone downloadable Echo package; the remaining menu/modal, contact-gallery, kit, asset and main-process integration still needs the corresponding framework support.
+`renderer/stores/echoAssignments.ts` holds the shared assignment helper used by the entry, manager and game view, avoiding a manager-to-entry import cycle. The manager now opens through the screen hooks above; new-game setup, Reckoning staging and the contact-specific gallery retain their existing paths. This is a partial migration, not a standalone downloadable Echo package. Gameplay/state, contact-gallery, kit, asset and main-process dependencies still need to be migrated before Echo can ship separately.
 
 Echo identity, locks, staging and affinity markers are validated in the exEcho save extension. Native New Game+ carries them through modCarry; turning the mod off preserves the data. Whole-game desktop/browser backups include finished Echo artwork and reject conflicting immutable image IDs. Loose save JSON does not embed image bytes or recovery originals. This tree has no separate single-playthrough export.
 

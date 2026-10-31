@@ -18,7 +18,6 @@ import type { ScreenTheme } from './clockTheme'
 import {
   BunnyIcon,
   CalendarIcon,
-  EchoIcon,
   EyeIcon,
   HalfMarkIcon,
   halfMarkKindOf,
@@ -139,8 +138,6 @@ export interface SceneChromeProps {
   modButtons: boolean
   onCalendar: () => void
   onBunnyboard: () => void
-  /** Absent when Echo is disabled or this screen has no ordinary playthrough. */
-  onEchoes?: () => void
   onSettings: () => void
   /** Opens the panel of the mod whose seat on the rail was pressed. */
   onModPanel: (modId: string) => void
@@ -404,16 +401,6 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
         >
           <CalendarIcon />
         </RailSeat>
-        {props.onEchoes && (
-          <RailSeat
-            label="Echoes"
-            state={seatState(!dark && shown.has('settings'), props.railDead)}
-            onClick={props.onEchoes}
-          >
-            <EchoIcon />
-          </RailSeat>
-        )}
-
         {/* The mods' buttons, revealed with Settings, the rail's last seat. */}
         {props.modButtons && (
           <ModSlot
