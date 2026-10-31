@@ -31,6 +31,7 @@ const api: VenusUniversityApi = {
     exposeHost: (names) => ipcRenderer.invoke('mods:exposeHost', names),
     failed: (id, status, message) => ipcRenderer.invoke('mods:failed', id, status, message),
     noticesSeen: (seen) => ipcRenderer.invoke('mods:noticesSeen', seen),
+    unversionedSeen: (playthroughId) => ipcRenderer.invoke('mods:unversionedSeen', playthroughId),
     addDevFolder: () => ipcRenderer.invoke('mods:addDevFolder'),
     removeDevFolder: (folder) => ipcRenderer.invoke('mods:removeDevFolder', folder),
     devFolders: () => ipcRenderer.invoke('mods:devFolders'),

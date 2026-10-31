@@ -68,4 +68,38 @@ export { DEPRECATED_HOOKS, HOOKS, KIT_APIS, REMOVED_HOOKS } from './hookTable'
 export type { DeprecatedHook, HookKind, HookName, HookRow, HookSide, KitApiName, RemovedHook } from './hookTable'
 export { KIT_VERSION } from './version'
 
-export { BACKUP_ZIP_LIMITS } from '../bridge/shared'
+export {
+  SAFE_CHAR_ID,
+  assertSafeCharId,
+  SAFE_NUMERIC_ID,
+  assertSafePlaythroughId,
+  appError,
+  imageTypeOf,
+  characterLoraOf,
+  DORM_IDS,
+  dormLabel,
+  LOCATIONS,
+  NARRATIVE_LOCATIONS,
+  customOutfitSlotsIn,
+  outfitTagsFor,
+  affectionFor,
+  dispositionOf,
+  dedupedMemoriesFor,
+  emptyFlags,
+  relationshipTagOf,
+  areNpcFriends,
+  npcFriendsOf,
+  npcPairOf,
+  zoneOf,
+  hashString,
+  seededRand,
+  fullNameOf,
+  slotFromId,
+  shownComments,
+  fallbackHandleOf,
+  rollPostLikes,
+  BACKUP_ZIP_LIMITS,
+  readerize,
+  DEFAULT_PLAYER_STATS,
+} from '../bridge/shared'
+export type { CharFlags, CustomOutfitSlot, Season, NpcRelationshipMap } from '../bridge/shared'

@@ -196,6 +196,13 @@ export function registerModIpc(handle: Handle): void {
   handle('mods:noticesSeen', async (_event, seen: Record<string, string>) => {
     await patchStoredSettings((settings) => ({ ...settings, modNoticesSeen: { ...settings.modNoticesSeen, ...seen } }))
   })
+  handle('mods:unversionedSeen', async (_event, playthroughId: string) => {
+    if (typeof playthroughId !== 'string') return
+    await patchStoredSettings((settings) => {
+      const seen = Array.isArray(settings.modUnversionedSeen) ? settings.modUnversionedSeen : []
+      return seen.includes(playthroughId) ? settings : { ...settings, modUnversionedSeen: [...seen, playthroughId] }
+    })
+  })
   handle('mods:addDevFolder', async (event) => {
     const folder = await addDevFolder(event)
     if (folder) watchDevFolder(folder, devFolderChanged)

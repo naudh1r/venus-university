@@ -129,6 +129,8 @@ export interface VenusUniversityApi {
     failed: (id: string, status: ModStatus, message: string) => Promise<Result<void>>
     /** Records which mods the start notice has named, by id, each with the version it was named at. */
     noticesSeen: (seen: Record<string, string>) => Promise<Result<void>>
+    /** Records that a playthrough has been told it was started before mods recorded their versions. */
+    unversionedSeen: (playthroughId: string) => Promise<Result<void>>
     /** Picks a folder holding an unzipped release and adds it to the developer folders; null when dismissed. */
     addDevFolder: () => Promise<Result<string | null>>
     removeDevFolder: (folder: string) => Promise<Result<void>>

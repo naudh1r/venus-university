@@ -118,4 +118,25 @@ export {
   veilIn
 } from '../bridge/renderer'
 
+export {
+  CloseIcon,
+  HeartIcon,
+  BunnyMark,
+  EyeIcon,
+  EyeOffIcon,
+  formatNumericGameDate,
+  formatShortGameDate,
+  slotHalf,
+  SETTING,
+  hasTexted,
+  isFeedContact,
+  FEED_PAGE,
+  newestFirst,
+  FEED_EMOJI,
+  FEED_EMOJI_BAG,
+  FEED_HANDLE_BAG,
+  FEED_HANDLE_POOL,
+} from '../bridge/renderer'
+
+export { bunnybotSays } from '../bridge/renderer'
 export { invoke } from '../bridge/renderer'
