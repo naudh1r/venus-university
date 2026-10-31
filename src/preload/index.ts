@@ -21,6 +21,9 @@ const api: VenusUniversityApi = {
     set: (bags) => ipcRenderer.invoke('grabBags:set', bags)
   },
   mods: {
+    invokeStart: (id, name, args) => ipcRenderer.invoke('mod:invoke', id, { kind: 'start', name, args }),
+    invokeResult: (id, requestId) => ipcRenderer.invoke('mod:invoke', id, { kind: 'result', requestId }),
+    invokeCancel: (id, requestId) => ipcRenderer.invoke('mod:invokeCancel', id, requestId),
     get: () => ipcRenderer.invoke('mods:get'),
     set: (switches) => ipcRenderer.invoke('mods:set', switches),
     // Synchronous and once: the table is small, and the window's first module reads it.

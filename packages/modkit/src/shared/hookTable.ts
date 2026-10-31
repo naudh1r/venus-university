@@ -117,6 +117,7 @@ export const HOOKS = [
   { ...slot('gameMenuEntry'), since: '0.2.0' },
 
   // The main process: what a mod's `main.js` exports, collected by the loader at start
+  { name: 'invoke', side: 'main', kind: 'registry', dispatch: ['collectInvokes'], since: '0.6.0', askedWhenOff: true },
   { name: 'protocols', side: 'main', kind: 'registry', dispatch: ['collectRoutes'], since: '0.3.0' }
 ] as const satisfies readonly HookRow[]
 
@@ -179,6 +180,7 @@ export const KIT_APIS = [
   'shared:shownComments',
   'shared:fallbackHandleOf',
   'shared:rollPostLikes',
+  'renderer:invoke',
   'shared:BACKUP_ZIP_LIMITS',
   'shared:readerize',
   'shared:DEFAULT_PLAYER_STATS',

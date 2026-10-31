@@ -171,6 +171,9 @@ export function buildApi(): VenusUniversityApi {
       set: (bags) => result('save the grab bags', () => writeGrabBags(bags))
     },
     mods: {
+      invokeStart: () => desktopOnly('mod.invoke'),
+      invokeResult: () => desktopOnly('mod.invoke'),
+      invokeCancel: () => desktopOnly('mod.invokeCancel'),
       get: () => result('read the mod switches', readModSwitches),
       set: (switches) => result('save the mod switches', () => writeModSwitches(switches)),
       // The browser build installs nothing: no table, no host, no developer folders.

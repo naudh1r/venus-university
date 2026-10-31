@@ -206,6 +206,11 @@ describe('the entry points', () => {
     expect(mainKit.modOptionOn).toBe(mods.modOptionOn)
   })
 
+  it('hands the window the native main-call binding', async () => {
+    const native = await import('../../src/renderer/mods/invoke')
+    expect(rendererKit.invoke).toBe(native.invoke)
+  })
+
   it('record the version package.json says', () => {
     const pkg = JSON.parse(readFileSync(resolve(ROOT, 'packages/modkit/package.json'), 'utf8')) as { version: string }
     expect(KIT_VERSION).toBe(pkg.version)

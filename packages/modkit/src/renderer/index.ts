@@ -139,3 +139,4 @@ export {
 } from '../bridge/renderer'
 
 export { bunnybotSays } from '../bridge/renderer'
+export { invoke } from '../bridge/renderer'

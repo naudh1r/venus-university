@@ -66,6 +66,17 @@ export function extractZip(archivePath: string, destDir: string, limits?: {
 }): Promise<ZipEntry[]>;
 
 // @public
+export interface InvokeContext {
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly signal: AbortSignal;
+}
+
+// @public
+export type InvokeHandler = (context: InvokeContext, ...args: unknown[]) => unknown;
+
+// @public
 export function modDataPath(modId: string, playthroughId?: string): string;
 
 // @public
