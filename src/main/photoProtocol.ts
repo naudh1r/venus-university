@@ -1,9 +1,8 @@
 import { net, protocol } from 'electron'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
-import { SAFE_CHAR_ID } from '@shared/characterRules'
+import { SAFE_CHAR_ID, SAFE_NUMERIC_ID } from '@vx/modkit/shared'
 import { isPhotoFile } from '../shared/photoFiles'
-import { SAFE_NUMERIC_ID } from '@shared/saveRules'
 import { getPlaythroughPath } from './paths'
 import { imagePath } from './services/imageFiles'
 

@@ -1,7 +1,5 @@
 import { saysAny } from './photoWords'
-import { dispositionOf } from './relationship'
-import { hasTrait, type Character } from '@vx/modkit/shared'
-import type { CharFlags } from './types'
+import { dispositionOf, hasTrait, type Character, type CharFlags } from '@vx/modkit/shared'
 
 /**
  * What a character will photograph of herself, and for whom.

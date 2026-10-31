@@ -1,7 +1,6 @@
 import { allowedPhotoTier, isPhotoTier, settlePhoto } from '../../shared/photoGate'
-import { affectionFor } from '@shared/relationship'
+import { affectionFor, type Character, type TextingResponse } from '@vx/modkit/shared'
 import type { ChatPhoto } from '../../shared/photoTypes'
-import type { Character, TextingResponse } from '@vx/modkit/shared'
 import { useGameStore } from './gameStore'
 import { RENDER_PATIENCE_MS } from './photoPost'
 import { canSendPhotos, noExplicitPhotos, photoNamesInSave, savePhotoState, setMessagePhoto } from './localPhotoStore'

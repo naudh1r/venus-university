@@ -167,6 +167,8 @@ export const MOD_FILES: Record<string, ModSet> = {
       'src/main/bodySetting.ts',
       'src/main/localPhotoBackup.ts',
       'src/main/services/localPhotoService.ts',
+      'assets/workflows/characterPhoto.json',
+      'assets/workflows/characterPhotoDuo.json',
       'src/preload/photoApi.ts',
       'src/renderer/components/PhotoBubble.tsx',
       'src/renderer/components/PhotoPostSpots.tsx',
@@ -176,8 +178,10 @@ export const MOD_FILES: Record<string, ModSet> = {
       'src/renderer/views/bodyFields.tsx',
       'src/renderer/views/bodyDrafts.ts',
       'src/renderer/prompts/photoBrief.ts',
+      'src/renderer/prompts/photoTips.ts',
       'src/renderer/prompts/bodyBrief.ts',
       'src/renderer/vu_styles/PhotoBubble.css',
+      'src/renderer/vu_styles/PostComments.css',
       'src/renderer/vu_styles/ContactGallery.css',
       'src/renderer/vu_styles/BodyFields.css'
     ]

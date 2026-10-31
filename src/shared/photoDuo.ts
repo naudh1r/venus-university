@@ -1,5 +1,10 @@
-import { areNpcFriends, npcPairOf, zoneOf, type NpcRelationshipMap } from './npcRelationships'
-import type { CharInfo } from '@vx/modkit/shared'
+import {
+  areNpcFriends,
+  npcPairOf,
+  zoneOf,
+  type NpcRelationshipMap,
+  type CharInfo
+} from '@vx/modkit/shared'
 
 /**
  * Who is in a group photo: two of the girls who shared the scene that just ended, one of whom

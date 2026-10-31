@@ -6,6 +6,9 @@ import { sendPhoto } from '../src/renderer/stores/photoTurn'
 import * as localPhoto from '../src/renderer/stores/localPhotoStore'
 import { character, charInfo, restoreApi, stubApi } from './fixtures'
 
+// These overtaken reservations never reach a photo tip.
+vi.mock('@vx/modkit/renderer', () => ({ bunnybotSays: vi.fn() }))
+
 afterEach(() => { restoreApi(); vi.restoreAllMocks(); useGameStore.getState().reset() })
 
 it.each(['replacement', 'reload', 'disabled'] as const)('never renders a photo when %s overtakes its name reservation', async change => {

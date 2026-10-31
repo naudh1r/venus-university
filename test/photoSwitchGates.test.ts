@@ -9,6 +9,12 @@ import { restoreApi, stubApi } from './fixtures'
 
 stubApi({ jobs: { onProgress: () => () => {} } })
 
+// These feed readers need no renderer entry or generation-job subscription.
+vi.mock('@vx/modkit/renderer', async () => {
+  const { FEED_EMOJI, FEED_EMOJI_BAG, FEED_HANDLE_BAG, FEED_HANDLE_POOL } = await import('../src/renderer/prompts/feedRandoms')
+  return { FEED_EMOJI, FEED_EMOJI_BAG, FEED_HANDLE_BAG, FEED_HANDLE_POOL }
+})
+
 beforeEach(() => {
   vi.resetModules()
 })

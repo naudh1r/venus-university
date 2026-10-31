@@ -1,10 +1,15 @@
 import { constants } from 'fs'
 import { copyFile, mkdir, readdir, readFile } from 'fs/promises'
 import { join } from 'path'
-import { SAFE_CHAR_ID } from '@shared/characterRules'
-import { characterLoraOf } from '@shared/comfyModels'
-import { appError } from '@shared/errors'
-import { imageTypeOf } from '@shared/imageBytes'
+import {
+  SAFE_CHAR_ID,
+  characterLoraOf,
+  appError,
+  imageTypeOf,
+  type Character,
+  assertSafeCharId,
+  assertSafePlaythroughId
+} from '@vx/modkit/shared'
 import {
   isPhotoFile,
   isPhotoKind,
@@ -18,14 +23,11 @@ import {
 import { photoSwitches } from '../../shared/photoSwitches'
 import { isPhotoTier, type PhotoTier } from '../../shared/photoGate'
 import { buildDuoPhotoPrompt, buildPhotoPrompt } from '../../shared/photoPrompt'
-import type { Character } from '@shared/types'
 import { getPhotoPath, getPhotosPath, getPhotosRoot } from '../photoProtocol'
 import { withBodySetting } from '../bodySetting'
 import { runGenerationJob } from './comfyService'
-import { assertSafeCharId } from './characterService'
 import { dropImageTwins, findImage } from './imageFiles'
 import { writeAtomicBytes } from './jsonFile'
-import { assertSafePlaythroughId } from './saveService'
 
 /**
  * Rendering the pictures a character texts the reader.

@@ -1,10 +1,8 @@
 import { existsSync } from 'fs'
 import { readdir, rm } from 'fs/promises'
 import { join } from 'path'
-import { BACKUP_ZIP_LIMITS } from '@shared/backup'
-import { SAFE_CHAR_ID } from '@shared/characterRules'
+import { BACKUP_ZIP_LIMITS, SAFE_CHAR_ID, SAFE_NUMERIC_ID } from '@vx/modkit/shared'
 import { isPhotoFile } from '../shared/photoFiles'
-import { SAFE_NUMERIC_ID } from '@shared/saveRules'
 import { getPlaythroughPath, getSavesPath } from './paths'
 import { getPhotoPath } from './photoProtocol'
 import {

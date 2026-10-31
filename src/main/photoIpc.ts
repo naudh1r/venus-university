@@ -1,6 +1,6 @@
 import type { IpcMainInvokeEvent } from 'electron'
 import { enqueue } from '@shared/jobQueue'
-import type { Character } from '@shared/types'
+import type { Character } from '@vx/modkit/shared'
 import { start as startComfy } from './services/comfyService'
 import {
   carryPhotos,

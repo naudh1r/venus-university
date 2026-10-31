@@ -1,6 +1,5 @@
 import { isWebpPhoto, WEBP_QUALITY } from '../../shared/photoFiles'
-import type { Result } from '@shared/types'
-import type { Character } from '@vx/modkit/shared'
+import type { Result, Character } from '@vx/modkit/shared'
 
 /**
  * Renders one picture, and stores it as WebP where its name asks for that.

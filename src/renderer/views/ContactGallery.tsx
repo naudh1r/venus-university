@@ -5,10 +5,8 @@ import { photoUrl } from '../../shared/photoFiles'
 import type { ChatPhoto } from '../../shared/photoTypes'
 import type { SocialPost, TimeSlot } from '@vx/modkit/shared'
 import { openShot } from '../components/PhotoBubble'
-import { newestFirst } from '../stores/feedRolls'
-import { useExplicitBlocked, usePhotosVisible } from '../stores/photoSwitchHooks'
-import { useGameStore } from '../stores/gameStore'
 import {
+  newestFirst,
   Card,
   gestures,
   Locked,
@@ -16,11 +14,14 @@ import {
   quietLift,
   quietPress,
   useModOn,
-  type ContactTabProps
+  type ContactTabProps,
+  EyeIcon,
+  EyeOffIcon
 } from '@vx/modkit/renderer'
+import { useExplicitBlocked, usePhotosVisible } from '../stores/photoSwitchHooks'
+import { useGameStore } from '../stores/gameStore'
 import { EchoPanel } from './EchoPanel'
 import { photosVisible } from '../../shared/photoSwitches'
-import { EyeIcon, EyeOffIcon } from './screenIcons'
 import '../vu_styles/ContactGallery.css'
 
 /**

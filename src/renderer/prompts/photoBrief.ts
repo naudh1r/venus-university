@@ -6,9 +6,8 @@ import {
   type PhotoReason,
   type PhotoTier
 } from '../../shared/photoGate'
-import { affectionFor } from '@shared/relationship'
+import { affectionFor, type Character, type CharInfo, type ChatMessage } from '@vx/modkit/shared'
 import { wardrobeLine } from '../../shared/photoWardrobe'
-import type { Character, CharInfo, ChatMessage } from '@vx/modkit/shared'
 import type { TextingPromptState } from '@vx/modkit/renderer'
 
 /**
