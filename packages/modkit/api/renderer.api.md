@@ -32,7 +32,15 @@ export interface BunnyboardPage {
 }
 
 // @public
+export function bunnybotSays(modId: string, lines: readonly string[], options?: {
+    once?: string;
+}): boolean;
+
+// @public
 export const bunnyHop: Transition;
+
+// @public
+export function BunnyMark(): JSX.Element;
 
 // @public
 export function cancelCalls(modId: string, group: string): Promise<void>;
@@ -43,6 +51,9 @@ export function Card(input: {
     className?: string;
     children: ReactNode;
 }): JSX.Element;
+
+// @public (undocumented)
+export function CloseIcon(): JSX.Element;
 
 // @public
 export function completeStructured<T>(modId: string, request: StructuredRequest, options?: {
@@ -117,13 +128,45 @@ export interface EndingChoice extends WayOn {
 }
 
 // @public
+export function EyeIcon(input: {
+    size: number;
+    ariaHidden?: boolean;
+}): JSX.Element;
+
+// @public
+export function EyeOffIcon(input: {
+    size: number;
+}): JSX.Element;
+
+// @public
 export const fadeIn: (delay: number, duration?: number) => Variants;
+
+// @public
+export const FEED_EMOJI: readonly string[];
+
+// @public
+export const FEED_EMOJI_BAG = "feed.emoji";
+
+// @public
+export const FEED_HANDLE_BAG = "feed.handles";
+
+// @public
+export const FEED_HANDLE_POOL: FeedHandle[];
+
+// @public
+export const FEED_PAGE = 30;
 
 // @public
 export function fileLatePost(post: NonNullable<SlotIntroResponse['posts']>[number]): Promise<void>;
 
 // @public
 export function finishSlotActivity(owner: string, id: string, completed: boolean, result: string): Promise<boolean>;
+
+// @public
+export function formatNumericGameDate(date: number, season: Season): string;
+
+// @public
+export function formatShortGameDate(date: number, season: Season): string;
 
 // @public
 export interface GameMenuItemProps {
@@ -152,6 +195,15 @@ export function gestures(dead: boolean, hover: TargetAndTransition, tap: TargetA
     whileFocus: TargetAndTransition;
     'data-lift'?: '';
 };
+
+// @public
+export function hasTexted(conversation: Conversation | undefined): boolean;
+
+// @public
+export function HeartIcon(input?: MarkProps): JSX.Element;
+
+// @public
+export function isFeedContact(info: CharInfo | undefined): boolean;
 
 // @public
 export function isGraduationSlot(date: number, time: TimeSlot): boolean;
@@ -337,6 +389,15 @@ export interface ModStateSpec<T> {
     initial: T;
     lifetime: 'game' | 'session';
 }
+
+// @public
+export function newestFirst(a: {
+    date: number;
+    time: TimeSlot;
+}, b: {
+    date: number;
+    time: TimeSlot;
+}): number;
 
 // @public
 export const noteIn: Variants;
@@ -831,7 +892,10 @@ export interface SentTextSpot {
     }>;
 }
 
-// @public (undocumented)
+// @public
+export const SETTING = "VENUS UNIVERSITY (VU)\nMotto: Concordia et Prosperitas | Founded 2014 by Frederic Thorne | 6k Student Population.\n\nVenus University is a private megacampus built to maximize social connection. It admits students by a controversial lottery draw and funds a robust financial aid program off a seemingly bottomless endowment. The campus blends classical and ultra-modern architecture and walls itself off from the noisy city with lush gardens. Towering statues of Roman gods mark it: Venus in the quad, Jupiter at the North Entrance, Pluto at the South. Roads are paved with colored stone for navigation and purpose-built to be long and winding. The two major roads are the Gold Road, which links Jupiter and Pluto, and the Rose Road, which passes Venus and links the academic and residential areas. \"Meet me where Gold crosses Rose\" was cemented in national lingo by a romance film shot here called \"Love Between Gods\".\n\nCampus: Venus Quad (Concord Fountain), Agora (food court, study pods), Pino-Cola Lounge (games, study desks), Kendall Library, Whitman Greenhouse, Thorne Auditorium (concert hall, practice rooms, recording studios), Palaestra Stadium (gym, pool, turf, track).\nHousing: Elysium Village (upperclassmen townhouses), Lowrises 1 to 5 (anyone). All rooms are single-occupancy with shared facilities: no roommates.\nStudent government: VSA, split into CAPC (decor, plants) and SEB (events, mixers).\nSocial App: Bunnyboard.\n\nVERIDAN, USA\nRiver City (the Silk River) | Always Spring | 300k Population | Transit: The Loop electric tram.\n\nNineteenth-century textile money built Veridan, but its mills died in the 1970s and it coasted downhill until Thorne planted VU here in 2014, triggering an investment boom that delighted some longtime residents and enraged others. Sheltered by the river valley, it sits in a near-perpetual spring that meteorologists still can't explain properly.\n\nDistricts: Stanchion Street ($), Downtown ($$), Promenade ($$$).\nStanchion: BTB Arcade, Stalestein Bar (and stage), Hotel DREAMS (love hotel), Freights Books & Records, Pastel Palace (sweets), CuteTea, Eastern Buffet.\nDowntown: Green Hill Park, Lotterdale Market, Reserve Bank Cafe, Bobby's Diner, SpringMart, Fast Eats, Pier 44 Amusement Park.\nPromenade: Riverside Mall, Aquarium at Riverside, Future Cinema, Selkie Beach, Club Apogee, Lumiere Fusion (fine dining), Veridan Museum of Art.";
+
+// @public
 export interface SilentRetryOptions {
     onSleep?: (cancel: () => void) => void;
     retryable?: (code: string) => boolean;
@@ -840,6 +904,9 @@ export interface SilentRetryOptions {
 
 // @public
 export const slideInQuick: Variants;
+
+// @public
+export function slotHalf(time: TimeSlot): 'day' | 'night';
 
 // @public
 export interface SlotIntroInput {
@@ -988,7 +1055,7 @@ export interface TurnFieldProps {
     wellMotion?: MotionProps;
 }
 
-// @public (undocumented)
+// @public
 export const typingDot: readonly TargetAndTransition[];
 
 // @public

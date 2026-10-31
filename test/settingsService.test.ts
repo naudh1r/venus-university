@@ -284,6 +284,19 @@ describe('patching', () => {
     expect('apiKeySet' in file).toBe(false)
   })
 
+  it("keeps both main's write and the renderer's save when they overlap", async () => {
+    await seed(stored())
+
+    await Promise.all([
+      settingsService.patchStoredSettings((settings) => ({ ...settings, modUnversionedSeen: ['p1'] })),
+      settingsService.applySettingsPatch(patch({ lessNsfwText: true }))
+    ])
+
+    const file = await fileOnDisk()
+    expect(file.modUnversionedSeen).toEqual(['p1'])
+    expect(file.lessNsfwText).toBe(true)
+  })
+
   it('drops the retired editPregens switch from a stored file', async () => {
     await seed(stored({ editPregens: true }))
 

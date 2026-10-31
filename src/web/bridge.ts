@@ -76,7 +76,7 @@ import { emitter } from './emitter'
 import { convertLegacyImages } from './legacyImages'
 import { exportWorldInfo, importWorldInfo } from './lorebook'
 import { exportLog, writeLogLine } from './log'
-import { currentSettings, patchSettings, rendererSettings } from './settings'
+import { currentSettings, patchSettings, rendererSettings, setUnversionedSeen } from './settings'
 import { duplicateCharacter, exportCharacter, importCharacter, ZIP_TYPE } from './transfer'
 import { storedBlob } from './webp'
 
@@ -178,6 +178,8 @@ export function buildApi(): VenusUniversityApi {
       exposeHost: () => Promise.resolve({ ok: true, data: undefined }),
       failed: () => Promise.resolve({ ok: true, data: undefined }),
       noticesSeen: () => Promise.resolve({ ok: true, data: undefined }),
+      // In-repo mods run here too, so an old game's line is said, and remembered, as on desktop.
+      unversionedSeen: (playthroughId) => result('remember the notice', () => setUnversionedSeen(playthroughId)),
       addDevFolder: () => Promise.resolve({ ok: true, data: null }),
       removeDevFolder: () => Promise.resolve({ ok: true, data: undefined }),
       devFolders: () => Promise.resolve({ ok: true, data: [] }),

@@ -2,9 +2,13 @@
 
 ## Unreleased
 
+- A game started before mods recorded their versions is told so once, not once every session:
+  the playthroughs told are kept in `settings.json`'s `modUnversionedSeen`, written by main. The
+  record still holds no versions.
+
 - Main's `extractZip` and `sniffImageFile`, re-exported from the game's own services, and
   `modOptionOn`, reading an option against main's live switches independently of the mod's
-  on/off switch. Each is its own capability; `BACKUP_ZIP_LIMITS` comes from `shared` too.
+  on/off switch. Each is its own capability.
 
 - The game's motion presets in `renderer`: `gestures`, `lift`, `press`, `quietLift`, `quietPress`,
   `rowLift`, `rowPress`, `toggleLift`, `veilIn` and `panelUnderTab`, each its own
@@ -42,6 +46,15 @@
   the `MemoryType` type in `shared`; `fadeIn`, `dealt`, `slideInQuick`, `noteIn`, `bunnyHop`,
   `typingDot` and `retrySilently`, with its `SilentRetryOptions` type, in `renderer`. Each value
   is its own capability. Nothing native changes.
+
+- More native readers in `shared`: ids, image bytes and LoRA picks; dorms, places, outfits and
+  relationships; names, slots, hashes, comments and feed draws, archive limits and prompt helpers.
+  In `renderer`, the game's date and conversation readers, setting text, feed tables and five
+  screen icons. Each value is its own capability; the record types come from `shared` too.
+
+- `bunnybotSays(modId, lines, { once? })` in `renderer`: BunnyBot says a mod's lines after his
+  introduction, through his own delivery. An exact message in his saved thread matching `once`
+  keeps them from being said again. It answers whether he spoke, declared as `renderer:bunnybotSays`.
 
 ## 0.6.0
 
