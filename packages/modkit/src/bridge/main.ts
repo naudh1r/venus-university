@@ -20,3 +20,6 @@ export { sniffImageFile } from '../../../../src/main/services/imageFiles'
 export { modOptionOn } from '../../../../src/main/services/modsService'
 
 export type { InvokeContext, InvokeHandler } from '../../../../src/main/mods/invoke'
+
+export { renderComfyImage } from '../../../../src/main/services/comfyService'
+export type { ComfyRenderRequest } from '../../../../src/main/services/comfyService'

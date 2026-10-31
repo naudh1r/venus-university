@@ -1,7 +1,9 @@
+import { MOD_ID_RULE } from '@vx/modkit/host/shared'
+import { enqueue } from '@shared/jobQueue'
 import { spawn, type ChildProcess } from 'child_process'
 import { randomUUID } from 'crypto'
 import { closeSync, openSync } from 'fs'
-import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'fs/promises'
+import { mkdtemp, mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'fs/promises'
 import { basename, dirname, extname, join, relative } from 'path'
 import {
   buildBasePrompt,
@@ -934,7 +936,7 @@ async function isQueuedAhead(target: ComfyTarget, promptId: string): Promise<boo
 }
 
 /** Downloads one generated image from ComfyUI's `/view` endpoint. */
-async function fetchImage(target: ComfyTarget, image: ComfyImage): Promise<Buffer> {
+async function fetchImage(target: ComfyTarget, image: ComfyImage, limit?: number, signal?: AbortSignal): Promise<Buffer> {
   const query = new URLSearchParams({
     filename: image.filename,
     subfolder: image.subfolder ?? '',
@@ -943,9 +945,10 @@ async function fetchImage(target: ComfyTarget, image: ComfyImage): Promise<Buffe
   let response: Response
   try {
     response = await fetch(`${target.baseUrl}/view?${query}`, {
-      signal: AbortSignal.timeout(VIEW_TIMEOUT_MS)
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(VIEW_TIMEOUT_MS)]) : AbortSignal.timeout(VIEW_TIMEOUT_MS)
     })
   } catch (err) {
+    throwIfCancelled(signal)
     throw appError(
       'COMFY_UNREACHABLE',
       'Could not download the generated image from ComfyUI.',
@@ -959,12 +962,39 @@ async function fetchImage(target: ComfyTarget, image: ComfyImage): Promise<Buffe
       `HTTP ${response.status} for ${image.subfolder}/${image.filename}`
     )
   }
-  const bytes = Buffer.from(await response.arrayBuffer())
+  let bytes: Buffer
+  if (limit !== undefined) {
+    const tooLarge = (): ReturnType<typeof appError> =>
+      appError('RENDER_TOO_LARGE', 'The rendered image exceeds the size limit.')
+    if (Number(response.headers.get('content-length')) > limit) {
+      await response.body?.cancel()
+      throw tooLarge()
+    }
+    const reader = response.body?.getReader()
+    const chunks: Uint8Array[] = []
+    let size = 0
+    try {
+      if (!reader) throw appError('RENDER_NOT_IMAGE', 'ComfyUI returned no image bytes.')
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        throwIfCancelled(signal)
+        size += value.byteLength
+        if (size > limit) throw tooLarge()
+        chunks.push(value)
+      }
+      bytes = Buffer.concat(chunks, size)
+    } finally {
+      await reader?.cancel()
+    }
+  } else {
+    bytes = Buffer.from(await response.arrayBuffer())
+  }
 
   // The one gate on bytes from the server, and what every sprite file is written from.
   if (!imageTypeOf(bytes)) {
     throw appError(
-      'COMFY_VIEW_NOT_IMAGE',
+      limit === undefined ? 'COMFY_VIEW_NOT_IMAGE' : 'RENDER_NOT_IMAGE',
       'ComfyUI answered with something that is not an image.',
       `${image.subfolder}/${image.filename}, ${bytes.length} bytes`
     )
@@ -980,6 +1010,7 @@ type SaveFormat = 'lossy' | 'lossless' | 'raw'
 
 /** One sink of a finished graph: which `PreviewImage` node, where its picture goes, and how. */
 interface SaveTarget {
+  byteLimit?: number
   node: string
   destPath: string
   format: SaveFormat
@@ -1052,7 +1083,7 @@ async function saveResult(
 
   onProgress?.('Saving')
 
-  const bytes = await fetchImage(target, image)
+  const bytes = await fetchImage(target, image, save.byteLimit, signal)
 
   // Last gate before the write: the `mkdir` below would recreate a folder that
   // `chars:delete` just removed.
@@ -1123,6 +1154,8 @@ interface GenerationNodes {
 
 /** One render, fully resolved: which graph, what to write into it, where its pictures go. */
 interface GenerationSpec {
+  workflow?: ComfyWorkflow
+  byteLimit?: number
   /** Filename under `assets/workflows`. */
   workflowFile: string
   nodes: GenerationNodes
@@ -1217,7 +1250,7 @@ async function runGraph(spec: GenerationSpec, options: RunOptions): Promise<stri
   const { signal, onProgress, target } = options
   const { nodes, prompts } = spec
 
-  const workflow = JSON.parse(
+  const workflow = spec.workflow ? structuredClone(spec.workflow) : JSON.parse(
     await readFile(getWorkflowPath(spec.workflowFile), 'utf-8')
   ) as ComfyWorkflow
 
@@ -1279,7 +1312,7 @@ async function runGraph(spec: GenerationSpec, options: RunOptions): Promise<stri
   throwIfCancelled(signal)
   logJob(spec)
 
-  const save: SaveTarget = { node: nodes.saveImage, destPath: spec.destPath, format: spec.format }
+  const save: SaveTarget = { node: nodes.saveImage, destPath: spec.destPath, format: spec.format, byteLimit: spec.byteLimit }
 
   const promptId = await submitWorkflow(target, workflow)
   const { history, executionError } = await waitForPrompt(target, promptId, signal, onProgress)
@@ -1298,6 +1331,7 @@ async function runGraph(spec: GenerationSpec, options: RunOptions): Promise<stri
     // Inside the same try: a region that failed to save leaves a cutout nothing can place.
     if (regionSave) await saveResult(target, history, promptId, regionSave, signal, onProgress)
   } catch (err) {
+    if (spec.byteLimit !== undefined) await discardOutput(target, history, save)
     // The sprite is what the job is; its failure takes the other sinks' output with it.
     if (faceSave) await discardOutput(target, history, faceSave)
     if (regionSave) await discardOutput(target, history, regionSave)
@@ -1317,6 +1351,99 @@ async function runGraph(spec: GenerationSpec, options: RunOptions): Promise<stri
   }
 
   return destPath
+}
+
+/** The largest image handed back to a mod, before any mod-owned encoding. */
+const MOD_RENDER_BYTE_LIMIT = 32 * 1024 * 1024
+
+/** A mod-owned API-format graph and the inputs core fills for one image. */
+export interface ComfyRenderRequest {
+  workflow: Record<string, { class_type: string; inputs: Record<string, unknown> }>
+  nodes: {
+    saveImage: string
+    positivePrompt?: string
+    negativePrompt?: string
+    seed?: string
+    characterLora?: string
+  }
+  prompts?: { positive: string; negative: string }
+  seed?: number
+  lora?: { name: string; weight: number } | null
+  texts?: Record<string, string>
+}
+
+/** Queues a mod's graph through core's renderer and returns its checked image bytes. */
+export async function renderComfyImage(
+  modId: string,
+  request: ComfyRenderRequest,
+  { signal }: { signal: AbortSignal }
+): Promise<Uint8Array> {
+  if (typeof modId !== 'string' || !MOD_ID_RULE.test(modId)) {
+    throw appError('MOD_ID_INVALID', 'A render needs a valid mod id.')
+  }
+  throwIfCancelled(signal)
+  let owned: ComfyRenderRequest
+  try {
+    owned = structuredClone(request)
+    if (!owned || !owned.workflow || typeof owned.workflow !== 'object' || Array.isArray(owned.workflow) ||
+        !owned.nodes || typeof owned.nodes.saveImage !== 'string' ||
+        !Object.keys(owned.workflow).length || Object.values(owned.workflow).some(node =>
+          !node || typeof node.class_type !== 'string' || !node.inputs || typeof node.inputs !== 'object' || Array.isArray(node.inputs))) {
+      throw new Error('An API-format graph and its output node are required.')
+    }
+  } catch (err) {
+    throw appError('RENDER_REQUEST_INVALID', 'The render request is not a parsed ComfyUI graph.', messageOf(err))
+  }
+  const target = await resolveTarget()
+  throwIfCancelled(signal)
+  return enqueue({
+    group: `mod:${modId}:render`,
+    signal,
+    run: async ({ signal: jobSignal, report }) => {
+      let scratch: string | undefined
+      try {
+        throwIfCancelled(jobSignal)
+        await start(target, report)
+        throwIfCancelled(jobSignal)
+        await mkdir(getTempPath(), { recursive: true })
+        scratch = await mkdtemp(join(getTempPath(), 'mod-render-'))
+        const destPath = join(scratch, 'image.png')
+        await runGenerationJob({
+          workflowFile: `mod:${modId}`,
+          workflow: owned.workflow,
+          nodes: {
+            saveImage: owned.nodes.saveImage,
+            positivePrompt: owned.nodes.positivePrompt,
+            negativePrompt: owned.nodes.negativePrompt,
+            seed: owned.nodes.seed,
+            characterLora: owned.nodes.characterLora
+          },
+          prompts: owned.prompts,
+          seed: owned.seed,
+          lora: owned.lora,
+          texts: owned.texts,
+          destPath,
+          format: 'raw',
+          byteLimit: MOD_RENDER_BYTE_LIMIT,
+          label: `mod:${modId}`,
+          logContext: `seed=${owned.seed ?? 'graph'}`
+        }, { target, signal: jobSignal, onProgress: report })
+        throwIfCancelled(jobSignal)
+        if ((await stat(destPath)).size > MOD_RENDER_BYTE_LIMIT) {
+          throw appError('RENDER_TOO_LARGE', 'The rendered image exceeds the size limit.')
+        }
+        const bytes = await readFile(destPath)
+        throwIfCancelled(jobSignal)
+        if (!imageTypeOf(bytes)) throw appError('RENDER_NOT_IMAGE', 'ComfyUI returned no readable image.')
+        return new Uint8Array(bytes)
+      } catch (err) {
+        throwIfCancelled(jobSignal)
+        throw toAppError(err, 'RENDER_FAILED')
+      } finally {
+        if (scratch) await rm(scratch, { recursive: true, force: true })
+      }
+    }
+  })
 }
 
 /** Her own LoRA as a job draws it, and the log suffix naming it; nothing where she has none. */

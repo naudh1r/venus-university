@@ -211,6 +211,12 @@ describe('the entry points', () => {
     expect(rendererKit.invoke).toBe(native.invoke)
   })
 
+  it('offers the main-only byte render with its request and cancellation types', () => {
+    const render: (id: string, request: mainKit.ComfyRenderRequest,
+      options: Pick<mainKit.InvokeContext, 'signal'>) => Promise<Uint8Array> = mainKit.renderComfyImage
+    expect(typeof render).toBe('function')
+  })
+
   it('record the version package.json says', () => {
     const pkg = JSON.parse(readFileSync(resolve(ROOT, 'packages/modkit/package.json'), 'utf8')) as { version: string }
     expect(KIT_VERSION).toBe(pkg.version)

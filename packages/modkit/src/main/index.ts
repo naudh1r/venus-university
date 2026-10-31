@@ -13,3 +13,6 @@ export type {
 export { extractZip, sniffImageFile, modOptionOn } from '../bridge/main'
 
 export type { InvokeContext, InvokeHandler } from '../bridge/main'
+
+export { renderComfyImage } from '../bridge/main'
+export type { ComfyRenderRequest } from '../bridge/main'

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Main’s `renderComfyImage` queues a mod-owned ComfyUI graph and returns checked image bytes, capped at 32 MiB, with per-call cancellation.
+
 - A game started before mods recorded their versions is told so once, not once every session:
   the playthroughs told are kept in `settings.json`'s `modUnversionedSeen`, written by main. The
   record still holds no versions.

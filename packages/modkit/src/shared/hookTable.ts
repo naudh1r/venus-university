@@ -205,6 +205,7 @@ export const KIT_APIS = [
   'main:extractZip',
   'main:sniffImageFile',
   'main:modOptionOn',
+  'main:renderComfyImage',
   'shared:carryModFiles',
   'shared:charKeyOf',
   'shared:DEPRECATED_HOOKS',

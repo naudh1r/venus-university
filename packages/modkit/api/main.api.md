@@ -60,6 +60,37 @@ export interface ComfyLaunchContext {
 }
 
 // @public
+export interface ComfyRenderRequest {
+    // (undocumented)
+    lora?: {
+        name: string;
+        weight: number;
+    } | null;
+    // (undocumented)
+    nodes: {
+        saveImage: string;
+        positivePrompt?: string;
+        negativePrompt?: string;
+        seed?: string;
+        characterLora?: string;
+    };
+    // (undocumented)
+    prompts?: {
+        positive: string;
+        negative: string;
+    };
+    // (undocumented)
+    seed?: number;
+    // (undocumented)
+    texts?: Record<string, string>;
+    // (undocumented)
+    workflow: Record<string, {
+        class_type: string;
+        inputs: Record<string, unknown>;
+    }>;
+}
+
+// @public
 export function extractZip(archivePath: string, destDir: string, limits?: {
     maxEntries: number;
     maxTotalBytes: number;
@@ -84,6 +115,11 @@ export function modOptionOn(modId: string, optionId: string): boolean;
 
 // @public
 export function registerComfyLaunchEnvironment(modId: string, provider: EnvironmentProvider): () => void;
+
+// @public
+export function renderComfyImage(modId: string, request: ComfyRenderRequest, input: {
+    signal: AbortSignal;
+}): Promise<Uint8Array>;
 
 // @public
 export function requiredBackupPart(modId: string, part: BackupPart): void;

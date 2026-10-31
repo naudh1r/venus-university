@@ -426,6 +426,46 @@ AppError normalization and machine-path redaction as every other IPC call. Bad i
 `MOD_INVOKE_NOT_LOADED`, a non-list argument payload `MOD_INVOKE_ARGS_INVALID`, and a failed
 transport `MOD_INVOKE_FAILED`. The browser bridge answers `DESKTOP_ONLY` and runs no handler.
 
+### A mod's own ComfyUI image
+
+A trusted main handler calls `renderComfyImage` from `@vx/modkit/main`, declared as
+`main:renderComfyImage`, with a parsed API-format workflow from its own files:
+
+```js
+const { readFile } = require('fs/promises')
+const { join } = require('path')
+const { renderComfyImage } = require('@vx/modkit/main')
+
+exports.invoke = {
+  portrait: async ({ id, signal }, positive) => {
+    if (typeof positive !== 'string') throw new Error('A prompt is required.')
+    const workflow = JSON.parse(await readFile(join(__dirname, 'portrait.json'), 'utf8'))
+    return renderComfyImage(id, {
+      workflow,
+      nodes: { saveImage: '41', positivePrompt: '4', negativePrompt: '5', seed: '14' },
+      prompts: { positive, negative: '' },
+      seed: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
+    }, { signal })
+  }
+}
+```
+
+`ComfyRenderRequest` also accepts `texts`, a map of extra text-node ids to their text, and
+`lora: { name, weight } | null` for `nodes.characterLora`. Core copies the graph before filling
+its inputs. The mod owns its prompts, graph and node map; core chooses the server and models,
+starts ComfyUI if needed, and uses its normal model checks, timeout and prompt cancellation.
+It accepts no destination, server address, installation root or caller-chosen queue group.
+Main code is trusted; accepting a graph does not sandbox its custom nodes.
+
+All renders run on the game's serial queue, under `mod:<checked-id>:render`. The required
+`signal` cancels that call alone, including while queued, and answers `CANCELLED` after cleanup.
+Pass the invoke context's signal; the handler owns any enablement/option checks. A returned
+`Uint8Array` is PNG, JPEG or WebP by `imageTypeOf`, at most 32 MiB; core removes its private
+scratch files on success, refusal and cancellation. The mod writes returned bytes to its own
+folder if wanted. Oversized output answers `RENDER_TOO_LARGE`, unrecognized bytes
+`RENDER_NOT_IMAGE`, a malformed graph `RENDER_REQUEST_INVALID`, and a bad owner id
+`MOD_ID_INVALID`. Invoke carries these through the ordinary redacted error wrapper.
+
 ### The scene's input
 
 A mod's panel over a scene can put an input of its own in the place of the scene's action row,
