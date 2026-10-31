@@ -142,10 +142,22 @@ export async function getSettings(): Promise<Settings> {
   }
 }
 
+/** The settings writes so far: each one waits for them, so it reads what the last one wrote. */
+let lastWrite: Promise<unknown> = Promise.resolve()
+
+/** Runs `write` once every settings write queued before it has finished, failed or not. */
+function queued<T>(write: () => Promise<T>): Promise<T> {
+  const run = lastWrite.then(write, write)
+  lastWrite = run.catch(() => undefined)
+  return run
+}
+
 /** Records which shipped characters the player has taken off the roster. */
-export async function setRemovedDefaults(charIds: readonly string[]): Promise<void> {
-  const current = await getSettings()
-  await writeSettingsFile({ ...current, removedDefaults: [...charIds] })
+export function setRemovedDefaults(charIds: readonly string[]): Promise<void> {
+  return queued(async () => {
+    const current = await getSettings()
+    await writeSettingsFile({ ...current, removedDefaults: [...charIds] })
+  })
 }
 
 /** `settings:get` — settings as the renderer sees them, with no key in them. */
@@ -153,27 +165,28 @@ export async function getRendererSettings(): Promise<RendererSettings> {
   return redactSettings(await getSettings())
 }
 
-/** Writes `next` whole over the stored settings: a restore, once it has settled what they are. */
 /**
  * Rewrites the stored settings as `change` leaves them, for the fields main owns (the mod
  * loader's); the renderer's patches never carry those, and `...current` in a merge keeps them.
  */
-export async function patchStoredSettings(change: (settings: Settings) => Settings): Promise<Settings> {
-  const next = change(await getSettings())
-  await writeSettingsFile(next)
-  return next
+export function patchStoredSettings(change: (settings: Settings) => Settings): Promise<Settings> {
+  return queued(async () => {
+    const next = change(await getSettings())
+    await writeSettingsFile(next)
+    return next
+  })
 }
 
-export async function replaceSettings(next: Settings): Promise<void> {
-  await writeSettingsFile(next)
+/** Writes `next` whole over the stored settings: a restore, once it has settled what they are. */
+export function replaceSettings(next: Settings): Promise<void> {
+  return queued(() => writeSettingsFile(next))
 }
 
 /** `settings:set` — merges a renderer patch over the stored settings and writes. */
-export async function applySettingsPatch(patch: SettingsPatch): Promise<RendererSettings> {
-  const current = await getSettings()
-
-  const next = mergePatch(current, patch)
-
-  await writeSettingsFile(next)
-  return redactSettings(next)
+export function applySettingsPatch(patch: SettingsPatch): Promise<RendererSettings> {
+  return queued(async () => {
+    const next = mergePatch(await getSettings(), patch)
+    await writeSettingsFile(next)
+    return redactSettings(next)
+  })
 }

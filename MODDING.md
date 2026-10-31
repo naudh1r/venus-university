@@ -489,8 +489,8 @@ never as a throw:
 A new playthrough's record keeps `modVersions`: the version of every mod that was on as it
 started, `playthrough` and `anytime` alike, by id, and `{}` where none were. A record without it
 was written before mods recorded their versions. Such a game loads as it always did, with one
-quiet line, once per playthrough a session: "This game was started before mods recorded their
-versions." Where a game names a `playthrough` mod that is not running, its notice also says which
+quiet line, once per playthrough: "This game was started before mods recorded their versions."
+Where a game names a `playthrough` mod that is not running, its notice also says which
 version the game was played with, when that is not the one installed. `modVersions` is the version
 a game started with; a slice's `v`, and `from` in `normalize`, is the version that last wrote it.
 

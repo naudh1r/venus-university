@@ -2437,6 +2437,11 @@ export interface Settings {
    * screen's row carries the word after that. **Written by main**, like `devModFolders`.
    */
   modNoticesSeen?: Record<string, string>
+  /**
+   * The playthroughs already told that they were started before mods recorded their versions, by
+   * id: that line is said once per playthrough. **Written by main**, like `modNoticesSeen`.
+   */
+  modUnversionedSeen?: string[]
 }
 
 /** How many memories per character a cast scene's prompt carries, by cast size; absent is the default. */

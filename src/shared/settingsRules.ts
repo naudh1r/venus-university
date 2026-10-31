@@ -70,6 +70,7 @@ const SETTINGS_REQUIRED: Record<
     | 'devModFolders'
     | 'allowUnreviewedMain'
     | 'modNoticesSeen'
+    | 'modUnversionedSeen'
   >,
   true
 > = {
