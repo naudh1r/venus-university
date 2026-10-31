@@ -1,9 +1,20 @@
 import { useMemo, useState, type JSX } from 'react'
 import { motion } from 'motion/react'
-import { slotFromId } from '@shared/jobs'
-import { fullNameOf, type Season } from '@shared/types'
+import { slotFromId, fullNameOf, type Season } from '@vx/modkit/shared'
 import { feedNoteUnread, type FeedNote } from '../../shared/bunnyfeeds'
-import { FEED_PAGE } from '../stores/feedView'
+import {
+  FEED_PAGE,
+  formatNumericGameDate,
+  slotHalf,
+  dealt,
+  gestures,
+  quietLift,
+  quietPress,
+  rowLift,
+  rowPress,
+  slideInQuick,
+  SentText
+} from '@vx/modkit/renderer'
 import { useGameStore } from '../stores/gameStore'
 import {
   feedNotesOf,
@@ -11,10 +22,7 @@ import {
   markFeedNoteRead,
   unreadFeedNotesOf
 } from '../stores/bunnyfeedsNotes'
-import { formatNumericGameDate, slotHalf } from '../prompts/gameDate'
-import { dealt, gestures, quietLift, quietPress, rowLift, rowPress, slideInQuick } from '../views/motion'
 import { CommentFace, PostViewHost, usePostView } from './BunnyfeedsThread'
-import { SentText } from '@vx/modkit/renderer'
 import '../vu_styles/Bunnyfeeds.css'
 
 /** The rows dealing themselves out, as every list on the phone does. */

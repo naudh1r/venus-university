@@ -23,6 +23,7 @@ export const MOD_FILES: Record<string, ModSet> = {
     globs: [
       'src/shared/bunnyfeeds*.ts',
       'src/renderer/components/Bunnyfeeds*',
+      'src/renderer/prompts/bunnyfeedsPrompt.ts',
       'src/renderer/stores/bunnyfeeds*',
       'src/renderer/vu_styles/Bunnyfeeds.css'
     ]

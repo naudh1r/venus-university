@@ -1,5 +1,13 @@
-import type { CharInfo, PostComment, SocialPost, StructuredRequest } from '@vx/modkit/shared'
-import { messageOf } from '@shared/errors'
+import {
+  type CharInfo,
+  type PostComment,
+  type SocialPost,
+  type StructuredRequest,
+  messageOf,
+  globalSlotOf,
+  charKeyOf,
+  type MemoryType
+} from '@vx/modkit/shared'
 import {
   threadWork,
   type FeedThreadsResponse,
@@ -12,8 +20,6 @@ import {
   followerChance,
   followingOf
 } from '../../shared/bunnyfeedsCrowd'
-import { globalSlotOf } from '@shared/jobs'
-import { charKeyOf, type MemoryType } from '@shared/types'
 import {
   buildFeedThreadsPrompt,
   type FeedThread,
@@ -23,10 +29,11 @@ import {
   FEED_EMOJI,
   FEED_EMOJI_BAG,
   FEED_HANDLE_BAG,
-  FEED_HANDLE_POOL
-} from '../prompts/feedRandoms'
-import { SETTING } from '../prompts/setting'
-import { hasTexted } from '../prompts/textingPrompt'
+  FEED_HANDLE_POOL,
+  SETTING,
+  hasTexted,
+  retrySilently
+} from '@vx/modkit/renderer'
 import { markCommented } from './bunnyfeedsVisit'
 import { joiningFriendOf, replierOf, type Replier } from './bunnyfeedsReplies'
 import { fileDueFeedMemories, holdFeedMemories } from './bunnyfeedsMemory'
@@ -36,7 +43,6 @@ import { lessNsfwTextNow, reader } from './loop/promptState'
 import { writeAutosave } from './loop/saves'
 import { currentRun, loopState, runStale, LOOP_LLM_GROUP } from './loop/state'
 import { sceneInProgress } from './loop/stream'
-import { retrySilently } from './silentRetry'
 
 /**
  * The feed's comment threads: once a slot, one call answers whatever was said under her posts

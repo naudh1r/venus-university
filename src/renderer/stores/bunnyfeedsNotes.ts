@@ -1,6 +1,5 @@
 import { feedNotes, unreadFeedNotes, type FeedNote } from '../../shared/bunnyfeeds'
-import { globalSlotOf } from '@shared/jobs'
-import type { CharInfo } from '@vx/modkit/shared'
+import { globalSlotOf, type CharInfo } from '@vx/modkit/shared'
 import { postVisible } from '@vx/modkit/renderer'
 import { useGameStore } from './gameStore'
 

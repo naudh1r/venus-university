@@ -1,17 +1,20 @@
-import { affectionFor, dedupedMemoriesFor, emptyFlags, relationshipTagOf } from '@shared/relationship'
-import { readerize } from '@shared/readerVoice'
-import { DEFAULT_PLAYER_STATS, type PlayerStats } from '@shared/playerStats'
 import {
+  affectionFor,
+  dedupedMemoriesFor,
+  emptyFlags,
+  relationshipTagOf,
+  readerize,
+  DEFAULT_PLAYER_STATS,
+  type PlayerStats,
   fullNameOf,
   type Character,
   type CharInfo,
   type Season,
   type StructuredRequest,
   type TimeSlot
-} from '@shared/types'
-import { formatShortGameDate } from './gameDate'
+} from '@vx/modkit/shared'
+import { formatShortGameDate, objectSchema } from '@vx/modkit/renderer'
 import { relationshipLines } from './relationship'
-import { objectSchema } from './schema'
 import { memoryLines, profileLines, spaced } from './scenePrompt'
 import type { PosterStanding, Replier } from '../stores/bunnyfeedsReplies'
 

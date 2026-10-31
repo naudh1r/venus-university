@@ -2,19 +2,29 @@ import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { create } from 'zustand'
 import { motion } from 'motion/react'
-import { shownComments } from '@shared/postComments'
-import type { PostComment } from '@vx/modkit/shared'
-import { fullNameOf } from '@shared/types'
-import { isFeedContact } from '../stores/feedView'
+import { shownComments, type PostComment, fullNameOf } from '@vx/modkit/shared'
+import {
+  isFeedContact,
+  EmojiTool,
+  PostPicture,
+  SentText,
+  type PostCommentsProps,
+  fadeIn,
+  gestures,
+  lift,
+  press,
+  quietLift,
+  quietPress,
+  CloseIcon,
+  HeartIcon,
+  formatShortGameDate,
+  slotHalf
+} from '@vx/modkit/renderer'
 import { profileUrl, useSpriteVersion } from '../stores/characterStore'
 import { useGameStore } from '../stores/gameStore'
 import { leavePlayerComment } from '../stores/bunnyfeedsThreads'
 import { epilogueOf, sceneActiveOf } from '../stores/textingLoop'
 import { sentText } from '../mods/hooks'
-import { EmojiTool, PostPicture, SentText, type PostCommentsProps } from '@vx/modkit/renderer'
-import { fadeIn, gestures, lift, press, quietLift, quietPress } from '../views/motion'
-import { CloseIcon, HeartIcon } from '../views/screenIcons'
-import { formatShortGameDate, slotHalf } from '../prompts/gameDate'
 import { FollowerFace } from './BunnyfeedsFaces'
 import { armFeedThreads } from '../stores/bunnyfeedsThreads'
 import { takeCommented } from '../stores/bunnyfeedsVisit'

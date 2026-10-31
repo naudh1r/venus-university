@@ -1,5 +1,5 @@
 import { useId, useMemo, type CSSProperties, type JSX, type ReactNode } from 'react'
-import { hashString, seededRand } from '@shared/hash'
+import { hashString, seededRand } from '@vx/modkit/shared'
 import { BUNNYFEEDS } from '../../shared/bunnyfeeds'
 import { useModOption, type OptionPreviewProps } from '@vx/modkit/renderer'
 import '../vu_styles/Bunnyfeeds.css'
