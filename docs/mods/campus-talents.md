@@ -174,6 +174,15 @@ Silver Lining uses the normal scene provider and its result is narrative, not a 
 
 ## Saves and switches
 
+The Skill trees buttons on the scene rail and between-scene landing register through
+`railButton` and `landingTool`; `gameModals` opens the existing panel under
+`campus-talents`. The entry loads `TalentEntry.tsx` lazily so registering gameplay
+hooks does not initialize the screen. The host supplies the button appearance,
+visibility, input blocking, modal close behavior and removal when the mod is disabled.
+Scene Creator and replays still omit these buttons. Opening or closing the panel
+does not spend BP or write a save; purchases keep their existing queued save checks.
+Game-entry and enabled-save initialization still use `ensureTalents`.
+
 Scene stat bonuses register through `settleSceneStats`. That hook is a pure calculation used
 for both ending previews and the committed reward. Show Up is added after training bonuses,
 so its invitation reward cannot itself earn another training bonus. Its daily-use stamp is

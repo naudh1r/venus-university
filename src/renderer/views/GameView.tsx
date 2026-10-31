@@ -1,4 +1,3 @@
-import { TalentPanel } from './TalentPanel'
 import { ensureTalents } from '../modEntries/campus-talents'
 import { UnspokenLinkGlitch } from './UnspokenLinkGlitch'
 import { ReckoningModal } from './ReckoningModal'
@@ -298,7 +297,6 @@ type OpenPanel =
   | { kind: 'appSettings' }
   | { kind: 'controls' }
   | { kind: 'mods' }
-  | { kind: 'talents' }
   | { kind: 'echo' }
   | { kind: 'reckoning'; charId: string }
   /** A mod's own panel over the scene, opened from its seat on the rail. */
@@ -2226,7 +2224,6 @@ export function GameView(): JSX.Element {
           calendarBadge={calendarBadge}
           bunnyboardBadge={bunnyboardBadge}
           railDead={false}
-          onTalents={talentsOn && !created && !replaying ? () => setPanel({ kind: 'talents' }) : undefined}
           onEchoes={echoOn && !created && !replaying ? () => setPanel({ kind: 'echo' }) : undefined}
           modButtons={!created && !replaying}
           onCalendar={() => setPanel({ kind: 'calendar' })}
@@ -2290,7 +2287,6 @@ export function GameView(): JSX.Element {
              loses its own, an hour nobody is standing in having nothing to show. */
           bunnymapUnlocked={bunnymapShown}
           bunnyshopUnlocked={bunnyshopShown}
-          onTalents={talentsOn && !created && !replaying ? () => setPanel({ kind: 'talents' }) : undefined}
           onEchoes={echoOn && !created && !replaying ? () => setPanel({ kind: 'echo' }) : undefined}
           onCalendar={() => setPanel({ kind: 'calendar' })}
           onBunnyboard={() => useBunnyboardStore.getState().openApp()}
@@ -2856,7 +2852,6 @@ export function GameView(): JSX.Element {
           covered={panel !== null || covered}
         />
         {panel?.kind === 'reckoning' && <ReckoningModal key={`reckoning-${panel.charId}`} charId={panel.charId} onClose={closePanel} />}
-        {panel?.kind === 'talents' && <TalentPanel key="talents" theme={half} onClose={closePanel} />}
         {panel?.kind === 'echo' && (
           <EchoPanel key="echo" hidden={covered || created || replaying} theme={half} onClose={closePanel} />
         )}
