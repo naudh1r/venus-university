@@ -4,7 +4,7 @@ import { anchorReckoning, applyReckoningVerdict, hasReckoningAffection, parseRec
 import { optionOn } from '@vx/modkit/shared'
 import { create } from 'zustand'
 import { profileAspect } from '@shared/echo'
-import { fullNameOf } from '@shared/types'
+import { fullNameOf } from '@vx/modkit/shared'
 import { charKeyOf } from '@vx/modkit/shared'
 import { beginUnspokenVoice, advanceUnspokenVoice, aftermathReady, unspokenLinkBeat } from '@shared/unspokenVoice'
 import { reckoningPrefix, reckoningAftermaths, withReckoningAftermaths } from '../../shared/reckoning'

@@ -6,7 +6,7 @@ import {
   whisperWednesday, whisperWeekOccupied, whisperDiscussionOpen, whisperSpotlight, whisperIssueId, whisperMentions, whisperPeople, whisperPlayerHandle, whisperSources, validateWhisperComments,
   validateWhisperDraft, withWhisperIssue, type VenusWhisper, type WhisperComment, type WhisperIssue
 } from '../../shared/venusWhisper'
-import { fullNameOf } from '@shared/types'
+import { fullNameOf } from '@vx/modkit/shared'
 import { create } from 'zustand'
 import { anonymousVoice, buildWhisperIssue, buildWhisperReplies } from '../prompts/venusWhisperPrompt'
 import { useGameStore } from './gameStore'

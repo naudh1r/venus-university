@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { createPortal } from 'react-dom'
 import { dynamicFor, type GrowthTag } from '@shared/characterDynamics'
 import { RECKONING_MOD } from '../../shared/reckoning'
-import { fullNameOf } from '@shared/types'
+import { fullNameOf } from '@vx/modkit/shared'
 import { useModalShell } from '@vx/modkit/renderer'
 import { useGameStore } from '../stores/gameStore'
 import { useModOn, useModOption } from '@vx/modkit/renderer'

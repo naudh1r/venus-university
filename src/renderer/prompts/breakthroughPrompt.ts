@@ -1,5 +1,5 @@
 import { breakthroughFacts, type BreakthroughPending, type BreakthroughState } from '../../shared/breakthrough'
-import { fullNameOf, type Character, type TimeSlot } from '@shared/types'
+import { fullNameOf, type Character, type TimeSlot } from '@vx/modkit/shared'
 
 /** Kept separate from retrieval so a future index can deduplicate these stable event IDs. */
 export function breakthroughContinuity(state: BreakthroughState, cast: readonly Character[], date: number, time: TimeSlot): string {

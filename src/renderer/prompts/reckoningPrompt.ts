@@ -1,6 +1,6 @@
 import { dynamicFor, PERSONALITY_NUDGES, type CharacterDynamics, type GrowthTag } from '@shared/characterDynamics'
-import { dedupedMemoriesFor } from '@shared/relationship'
-import { fullNameOf, type Character, type CharInfo, type SceneLine, type StructuredRequest } from '@shared/types'
+import { dedupedMemoriesFor } from '@vx/modkit/shared'
+import { fullNameOf, type Character, type CharInfo, type SceneLine, type StructuredRequest } from '@vx/modkit/shared'
 import type { ReckoningContext, ReckoningEvidence, ReckoningSession } from '@shared/reckoning'
 
 export function reckoningContext(character: Character, info: CharInfo, reader: string, dynamics: CharacterDynamics | undefined, lines: readonly SceneLine[]): ReckoningContext {

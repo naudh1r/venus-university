@@ -1,7 +1,7 @@
 import { breakthroughSpent, type BreakthroughPending } from '@shared/breakthrough'
 import { echoBreakthroughAbility, ECHO_INFLUENCE } from '@shared/echoBreakthrough'
 import { ECHO_ASPECTS } from '@shared/echoAspects'
-import { fullNameOf, type Character } from '@shared/types'
+import { fullNameOf, type Character } from '@vx/modkit/shared'
 
 /** Only an active, paid scene turn receives this block; continuity stores actual output. */
 export function echoBreakthroughPrompt(pending:BreakthroughPending,character:Character):string {
