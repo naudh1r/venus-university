@@ -526,6 +526,19 @@ lower-case folder names, and the first is never one core keeps there (`saves`, `
 `manifest.ts`); a manifest that breaks this is refused. `modDataPath` then resolves to that folder.
 Moving to the default is the author's choice, and core moves nothing.
 
+`extractZip(archivePath, destDir, limits?)` and `sniffImageFile(path)` from `@vx/modkit/main`
+are the game's own guarded extractor and image-file sniffer (`main:extractZip`,
+`main:sniffImageFile`). Extraction checks the whole listing before writing and returns it;
+`BACKUP_ZIP_LIMITS` from `@vx/modkit/shared` (`shared:BACKUP_ZIP_LIMITS`) is the game's backup
+cap. Extract only into the mod's own staging folder, from `modDataPath` or a backup part's `dir`.
+Main code is trusted: these functions accept paths, and core does not enforce that destination.
+The sniffer reads the file's opening bytes and answers its image type, or null.
+
+`modOptionOn(modId, optionId)` from `@vx/modkit/main` (`main:modOptionOn`) applies the game's
+option rule to the switches main last read or wrote, read again on each call. An unset option
+uses its declared default; an unknown option answers false. It answers the option alone, even
+while the mod is off. Ask `sharedModOn(modId)` from `@vx/modkit/shared` for the on/off question.
+
 **Backups.** A mod's folders go into the game's backup only through its part. `backupPart(id,
 { export, prepare })` gives it a share, in two phases.
 

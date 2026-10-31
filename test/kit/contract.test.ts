@@ -115,6 +115,17 @@ describe('the entry points', () => {
     expect([...host, ...mod].sort()).toEqual(moved)
   })
 
+  it("hands main the game's guarded archive, image sniffer and live option reader", async () => {
+    const archive = await import('../../src/main/services/archiveService')
+    const images = await import('../../src/main/services/imageFiles')
+    const mods = await import('../../src/main/services/modsService')
+    const backup = await import('../../src/shared/backup')
+    expect(mainKit.extractZip).toBe(archive.extractZip)
+    expect(mainKit.sniffImageFile).toBe(images.sniffImageFile)
+    expect(mainKit.modOptionOn).toBe(mods.modOptionOn)
+    expect(sharedKit.BACKUP_ZIP_LIMITS).toBe(backup.BACKUP_ZIP_LIMITS)
+  })
+
   it('record the version package.json says', () => {
     const pkg = JSON.parse(readFileSync(resolve(ROOT, 'packages/modkit/package.json'), 'utf8')) as { version: string }
     expect(KIT_VERSION).toBe(pkg.version)

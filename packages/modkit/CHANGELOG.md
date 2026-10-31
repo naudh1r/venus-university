@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Main's `extractZip` and `sniffImageFile`, re-exported from the game's own services, and
+  `modOptionOn`, reading an option against main's live switches independently of the mod's
+  on/off switch. Each is its own capability; `BACKUP_ZIP_LIMITS` comes from `shared` too.
+
 - The game's motion presets in `renderer`: `gestures`, `lift`, `press`, `quietLift`, `quietPress`,
   `rowLift`, `rowPress`, `toggleLift`, `veilIn` and `panelUnderTab`, each its own
   `renderer:<name>` capability. They are the game's own objects, re-exported, so a mod's controls

@@ -150,6 +150,10 @@ export const REMOVED_HOOKS: readonly RemovedHook[] = []
  * the entry points' actual exports, both ways.
  */
 export const KIT_APIS = [
+  'shared:BACKUP_ZIP_LIMITS',
+  'main:extractZip',
+  'main:sniffImageFile',
+  'main:modOptionOn',
   'shared:carryModFiles',
   'shared:charKeyOf',
   'shared:DEPRECATED_HOOKS',

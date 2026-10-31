@@ -28,9 +28,9 @@ vi.mock('electron', () => ({
   safeStorage: {}
 }))
 
-const { getModSwitches, setModSwitches } = await import('../src/main/services/modsService')
+const { getModSwitches, setModSwitches, modOptionOn } = await import('../src/main/services/modsService')
 const { modSession, startModSession } = await import('../src/main/mods/session')
-const { MODS, switchedOn } = await import('../src/shared/mods')
+const { MODS, switchedOn, optionOn, optionKey } = await import('../src/shared/mods')
 const { sharedModOn } = await import('../src/shared/modRules')
 
 /** The hello-mod fixture's manifest, under another id and with a `main.js` that throws. */
@@ -70,6 +70,18 @@ describe('shared rules in main', () => {
     await writeFile(join(root, 'data', 'mods.json'), JSON.stringify({ schemaVersion: 1, on: { 'hello-mod': true }, options: {} }))
     await getModSwitches()
     expect(sharedModOn('hello-mod')).toBe(true)
+  })
+
+  it('reads option defaults and follows switch changes without combining the on/off switch', async () => {
+    const mod = MODS.find((mod) => mod.id === 'hello-mod')!
+    const option = mod.options![0]
+    expect(modOptionOn(mod.id, option.id)).toBe(optionOn({ on: {}, options: {} }, mod.id, option.id))
+    await setModSwitches({ on: { [mod.id]: false }, options: { [optionKey(mod.id, option.id)]: !option.default } })
+    expect(sharedModOn(mod.id)).toBe(false)
+    expect(modOptionOn(mod.id, option.id)).toBe(!option.default)
+    await setModSwitches({ on: {}, options: {} })
+    expect(modOptionOn(mod.id, option.id)).toBe(option.default)
+    expect(modOptionOn(mod.id, 'missing')).toBe(false)
   })
 
   it('answer off for an installed mod whose main.js failed, whatever its switch', async () => {

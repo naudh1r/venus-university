@@ -43,3 +43,5 @@ export type { ImagePromptDraft, ImagePromptKind, ImagePromptParts } from '@share
 export type { PromptEdit } from '@shared/imagePrompt'
 export { globalSlotOf } from '@shared/jobs'
 export { messageOf } from '@shared/errors'
+
+export { BACKUP_ZIP_LIMITS } from '@shared/backup'
