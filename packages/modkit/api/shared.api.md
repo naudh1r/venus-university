@@ -5,6 +5,9 @@
 ```ts
 
 // @public
+export function affectionFor(info: Pick<CharInfo, 'memories' | 'textMemory' | 'feed' | 'jealousyMemories' | 'giftMemories' | 'breakPenalty'> | undefined, today: number, character: Pick<Character, 'traits'> | undefined): number;
+
+// @public
 export interface AppError {
     // (undocumented)
     code: string;
@@ -13,6 +16,24 @@ export interface AppError {
     // (undocumented)
     message: string;
 }
+
+// @public
+export function appError(code: string, message: string, detail?: string): AppError;
+
+// @public
+export function areNpcFriends(map: NpcRelationshipMap | undefined, a: string, b: string): boolean;
+
+// @public
+export function assertSafeCharId(charId: string): void;
+
+// @public
+export function assertSafePlaythroughId(playthroughId: string): void;
+
+// @public
+export const BACKUP_ZIP_LIMITS: {
+    maxEntries: number;
+    maxTotalBytes: number;
+};
 
 // @public
 export interface BunnyboardState {
@@ -77,6 +98,12 @@ export interface Character {
 }
 
 // @public
+export function characterLoraOf(character: Pick<Character, 'lora'>): {
+    name: string;
+    weight: number;
+} | null;
+
+// @public
 export type CharacterTrait = NativeCharacterTrait | (string & {});
 
 // @public
@@ -88,6 +115,30 @@ export interface CharacterTraitDefinition {
     hint?: string;
     tone?: string;
     value: string;
+}
+
+// @public
+export interface CharFlags {
+    benefits: boolean;
+    blocked: boolean;
+    brokenUp: number;
+    friendZoned: boolean;
+    friendZonedBy: boolean;
+    gaveContactInfo: boolean;
+    // (undocumented)
+    hadSex: boolean;
+    harem: boolean;
+    hasCrush: boolean;
+    // (undocumented)
+    hasKissed: boolean;
+    hasMet: boolean;
+    // (undocumented)
+    isLover: boolean;
+    // (undocumented)
+    knowsBackstory: boolean;
+    // (undocumented)
+    knowsLoveLife: boolean;
+    knowsTraits: boolean;
 }
 
 // @public
@@ -125,6 +176,18 @@ export interface ChatMessage {
     time: TimeSlot;
 }
 
+// @public
+export type CustomOutfitSlot = `custom${number}`;
+
+// @public
+export function customOutfitSlotsIn(keys: Iterable<string>): CustomOutfitSlot[];
+
+// @public
+export function dedupedMemoriesFor(info: Pick<CharInfo, 'memories' | 'textMemory' | 'jealousyMemories' | 'giftMemories'> | undefined): readonly CharMemory[];
+
+// @public
+export const DEFAULT_PLAYER_STATS: PlayerStats;
+
 // @public (undocumented)
 export const DEPRECATED_HOOKS: readonly DeprecatedHook[];
 
@@ -137,6 +200,27 @@ export interface DeprecatedHook {
 }
 
 // @public
+export function dispositionOf(affection: number): Disposition;
+
+// @public
+export const DORM_IDS: readonly ['elysium', 'lowrise_1', 'lowrise_2', 'lowrise_3', 'lowrise_4', 'lowrise_5'];
+
+// @public
+export function dormLabel(dorm: DormId): string;
+
+// @public
+export function emptyFlags(): CharFlags;
+
+// @public
+export function fallbackHandleOf(firstName: string, lastName: string, rand?: () => number): string;
+
+// @public
+export function fullNameOf(char: {
+    firstName: string;
+    lastName: string;
+}): string;
+
+// @public
 export type GameOverReason = 'debt' | 'expulsion' | 'gameComplete' | 'endingDebt';
 
 // @public
@@ -145,6 +229,9 @@ export interface GameSave extends NativeGameSave {
 
 // @public
 export function globalSlotOf(date: number, time: TimeSlot): number;
+
+// @public
+export function hashString(value: string): number;
 
 // @public
 export function hasTrait(character: Pick<Character, 'traits'> | undefined, trait: CharacterTrait): boolean;
@@ -560,7 +647,10 @@ export interface ImagePromptParts {
 }
 
 // @public
-export const KIT_APIS: readonly ['shared:carryModFiles', 'shared:charKeyOf', 'shared:DEPRECATED_HOOKS', 'shared:globalSlotOf', 'shared:hasTrait', 'shared:HOOKS', 'shared:KIT_APIS', 'shared:KIT_VERSION', 'shared:MAX_TIER', 'shared:memoryStatusLine', 'shared:messageOf', 'shared:modById', 'shared:modOn', 'shared:optionKey', 'shared:optionOn', 'shared:pointsForTier', 'shared:READER_SPEAKER', 'shared:registerCharacterTrait', 'shared:registerImagePromptDraft', 'shared:registerPostCarry', 'shared:registerRomanceRequirement', 'shared:registerTermCarry', 'shared:registerTermFiles', 'shared:REMOVED_HOOKS', 'shared:sharedModOn', 'renderer:buildLabel', 'renderer:bunnyHop', 'renderer:cancelCalls', 'renderer:Card', 'renderer:completeStructured', 'renderer:currentRun', 'renderer:dealt', 'renderer:EmojiTool', 'renderer:fadeIn', 'renderer:fileLatePost', 'renderer:finishSlotActivity', 'renderer:gestures', 'renderer:isGraduationSlot', 'renderer:isOrientationSlot', 'renderer:lessNsfwText', 'renderer:lift', 'renderer:Locked', 'renderer:modIsOn', 'renderer:modsOnLine', 'renderer:modState', 'renderer:noteIn', 'renderer:objectSchema', 'renderer:openPanel', 'renderer:ownsPostComments', 'renderer:panelUnderTab', 'renderer:PostCommentAction', 'renderer:PostCommentsView', 'renderer:PostPicture', 'renderer:postVisible', 'renderer:press', 'renderer:promptFields', 'renderer:promptLines', 'renderer:promptRequired', 'renderer:quietLift', 'renderer:quietPress', 'renderer:recordField', 'renderer:registerHooks', 'renderer:retrySilently', 'renderer:rowLift', 'renderer:rowPress', 'renderer:runStale', 'renderer:safePoint', 'renderer:saveField', 'renderer:SceneDivider', 'renderer:SelectField', 'renderer:SentText', 'renderer:slideInQuick', 'renderer:submitAction', 'renderer:takeTurnFromReply', 'renderer:TextField', 'renderer:TitleTab', 'renderer:toggleLift', 'renderer:TurnField', 'renderer:typingDot', 'renderer:useBareMessage', 'renderer:useDismissLayer', 'renderer:useEmojiTool', 'renderer:useLessNsfwText', 'renderer:useModalShell', 'renderer:useModOn', 'renderer:useModOption', 'renderer:useSafePoint', 'renderer:useSceneInput', 'renderer:useSfxGain', 'renderer:veilIn', 'renderer:writeModField', 'renderer:writeModFields', 'main:backupPart', 'main:characterTransferPart', 'main:modDataPath', 'main:registerComfyLaunchEnvironment', 'main:requiredBackupPart'];
+export function imageTypeOf(bytes: Uint8Array): 'image/png' | 'image/jpeg' | 'image/webp' | null;
+
+// @public
+export const KIT_APIS: readonly ['shared:SAFE_CHAR_ID', 'shared:assertSafeCharId', 'shared:SAFE_NUMERIC_ID', 'shared:assertSafePlaythroughId', 'shared:appError', 'shared:imageTypeOf', 'shared:characterLoraOf', 'shared:DORM_IDS', 'shared:dormLabel', 'shared:LOCATIONS', 'shared:NARRATIVE_LOCATIONS', 'shared:customOutfitSlotsIn', 'shared:outfitTagsFor', 'shared:affectionFor', 'shared:dispositionOf', 'shared:dedupedMemoriesFor', 'shared:emptyFlags', 'shared:relationshipTagOf', 'shared:areNpcFriends', 'shared:npcFriendsOf', 'shared:npcPairOf', 'shared:zoneOf', 'shared:hashString', 'shared:seededRand', 'shared:fullNameOf', 'shared:slotFromId', 'shared:shownComments', 'shared:fallbackHandleOf', 'shared:rollPostLikes', 'shared:BACKUP_ZIP_LIMITS', 'shared:readerize', 'shared:DEFAULT_PLAYER_STATS', 'renderer:CloseIcon', 'renderer:HeartIcon', 'renderer:BunnyMark', 'renderer:EyeIcon', 'renderer:EyeOffIcon', 'renderer:formatNumericGameDate', 'renderer:formatShortGameDate', 'renderer:slotHalf', 'renderer:SETTING', 'renderer:hasTexted', 'renderer:isFeedContact', 'renderer:FEED_PAGE', 'renderer:newestFirst', 'renderer:FEED_EMOJI', 'renderer:FEED_EMOJI_BAG', 'renderer:FEED_HANDLE_BAG', 'renderer:FEED_HANDLE_POOL', 'shared:carryModFiles', 'shared:charKeyOf', 'shared:DEPRECATED_HOOKS', 'shared:globalSlotOf', 'shared:hasTrait', 'shared:HOOKS', 'shared:KIT_APIS', 'shared:KIT_VERSION', 'shared:MAX_TIER', 'shared:memoryStatusLine', 'shared:messageOf', 'shared:modById', 'shared:modOn', 'shared:optionKey', 'shared:optionOn', 'shared:pointsForTier', 'shared:READER_SPEAKER', 'shared:registerCharacterTrait', 'shared:registerImagePromptDraft', 'shared:registerPostCarry', 'shared:registerRomanceRequirement', 'shared:registerTermCarry', 'shared:registerTermFiles', 'shared:REMOVED_HOOKS', 'shared:sharedModOn', 'renderer:buildLabel', 'renderer:bunnybotSays', 'renderer:bunnyHop', 'renderer:cancelCalls', 'renderer:Card', 'renderer:completeStructured', 'renderer:currentRun', 'renderer:dealt', 'renderer:EmojiTool', 'renderer:fadeIn', 'renderer:fileLatePost', 'renderer:finishSlotActivity', 'renderer:gestures', 'renderer:isGraduationSlot', 'renderer:isOrientationSlot', 'renderer:lessNsfwText', 'renderer:lift', 'renderer:Locked', 'renderer:modIsOn', 'renderer:modsOnLine', 'renderer:modState', 'renderer:noteIn', 'renderer:objectSchema', 'renderer:openPanel', 'renderer:ownsPostComments', 'renderer:panelUnderTab', 'renderer:PostCommentAction', 'renderer:PostCommentsView', 'renderer:PostPicture', 'renderer:postVisible', 'renderer:press', 'renderer:promptFields', 'renderer:promptLines', 'renderer:promptRequired', 'renderer:quietLift', 'renderer:quietPress', 'renderer:recordField', 'renderer:registerHooks', 'renderer:retrySilently', 'renderer:rowLift', 'renderer:rowPress', 'renderer:runStale', 'renderer:safePoint', 'renderer:saveField', 'renderer:SceneDivider', 'renderer:SelectField', 'renderer:SentText', 'renderer:slideInQuick', 'renderer:submitAction', 'renderer:takeTurnFromReply', 'renderer:TextField', 'renderer:TitleTab', 'renderer:toggleLift', 'renderer:TurnField', 'renderer:typingDot', 'renderer:useBareMessage', 'renderer:useDismissLayer', 'renderer:useEmojiTool', 'renderer:useLessNsfwText', 'renderer:useModalShell', 'renderer:useModOn', 'renderer:useModOption', 'renderer:useSafePoint', 'renderer:useSceneInput', 'renderer:useSfxGain', 'renderer:veilIn', 'renderer:writeModField', 'renderer:writeModFields', 'main:backupPart', 'main:characterTransferPart', 'main:modDataPath', 'main:registerComfyLaunchEnvironment', 'main:requiredBackupPart'];
 
 // @public
 export const KIT_VERSION = "0.6.0";
@@ -605,6 +695,9 @@ export interface LedgerResponse {
 
 // @public
 export type LedgerStats = Partial<Record<StatKey, boolean>>;
+
+// @public
+export const LOCATIONS: readonly LocationDef[];
 
 // @public
 export const MAX_TIER: StatTier;
@@ -701,6 +794,9 @@ export interface ModSwitches {
 }
 
 // @public
+export const NARRATIVE_LOCATIONS: readonly LocationDef[];
+
+// @public
 export interface NativeGameSave {
     addedClasses: Record<string, AddedClass>;
     bio?: string;
@@ -776,10 +872,22 @@ export interface NativeGameSave {
 }
 
 // @public
+export function npcFriendsOf(map: NpcRelationshipMap | undefined, charId: string, roster: readonly string[]): string[];
+
+// @public
+export function npcPairOf(map: NpcRelationshipMap | undefined, a: string, b: string): NpcRelationship | undefined;
+
+// @public
+export type NpcRelationshipMap = Record<string, NpcRelationship>;
+
+// @public
 export function optionKey(modId: string, optionId: string): string;
 
 // @public
 export function optionOn(switches: ModSwitches, modId: string, optionId: string, mods?: readonly ModDef[]): boolean;
+
+// @public
+export function outfitTagsFor(character: Character, set: OutfitSet): readonly string[];
 
 // @public
 export interface PlayerStats {
@@ -863,6 +971,9 @@ export type PromptEdit = {
 export const READER_SPEAKER = "reader";
 
 // @public
+export function readerize(text: string): string;
+
+// @public
 export function registerCharacterTrait(modId: string, definition: CharacterTraitDefinition): () => void;
 
 // @public
@@ -879,6 +990,9 @@ export function registerTermCarry<K extends keyof ModCarryFields>(field: K, adap
 
 // @public
 export function registerTermFiles(modId: string, carrier: FileCarrier): void;
+
+// @public
+export function relationshipTagOf(flags: CharFlags, affection: number): string;
 
 // @public (undocumented)
 export const REMOVED_HOOKS: readonly RemovedHook[];
@@ -902,6 +1016,15 @@ export type Result<T> = {
 };
 
 // @public
+export function rollPostLikes(friendsCount: number, rand?: () => number): number;
+
+// @public
+export const SAFE_CHAR_ID: RegExp;
+
+// @public
+export const SAFE_NUMERIC_ID: RegExp;
+
+// @public
 export interface SceneLine {
     actions?: string[];
     bg?: string;
@@ -912,7 +1035,16 @@ export interface SceneLine {
 }
 
 // @public
+export type Season = 'spring' | 'fall';
+
+// @public
+export function seededRand(seed: string): () => number;
+
+// @public
 export function sharedModOn(modId: string): boolean;
+
+// @public
+export function shownComments(comments: readonly PostComment[] | undefined, date: number, time: TimeSlot): PostComment[];
 
 // @public
 export interface SlotActivity extends SlotActivityOffer {
@@ -936,6 +1068,12 @@ export interface SlotActivityOffer {
     // (undocumented)
     stat: StatKey;
 }
+
+// @public
+export function slotFromId(id: number): {
+    date: number;
+    time: TimeSlot;
+};
 
 // @public
 export interface SocialPost {
@@ -1025,6 +1163,9 @@ export interface TextingResponse {
 
 // @public
 export type TimeSlot = 0 | 1;
+
+// @public
+export function zoneOf(affinity: number): NpcZone;
 
 // (No @packageDocumentation comment for this package)
 

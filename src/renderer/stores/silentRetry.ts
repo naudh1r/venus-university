@@ -23,6 +23,7 @@ function silentlyRetryable(code: string): boolean {
   )
 }
 
+/** What a caller can change about one silent-retry decision. */
 export interface SilentRetryOptions {
   /** Narrows the codes worth a resend below the retryable tier, for a call billed on some of them. */
   retryable?: (code: string) => boolean
