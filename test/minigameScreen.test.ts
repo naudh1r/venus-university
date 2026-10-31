@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { tableCanOpen, type ScreenState } from '../src/renderer/minigames/screen'
 import { GRADUATION_DATE } from '../src/renderer/prompts/occasions'
+
+// The kit's renderer entry loads the game's stores; these tests take each name from its own module.
+vi.mock('@vx/modkit/renderer', async () => (await import('./fixtures/miniGamesKit')).miniGamesKit())
 
 /** Where a game can be offered at all: only on a screen that has the seat to open its table. */
 

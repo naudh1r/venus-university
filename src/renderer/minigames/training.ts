@@ -1,5 +1,5 @@
 import { MINI_GAMES, MINI_GAMES_LIST, OFFER_TRAINING } from '@shared/minigames'
-import { optionOn } from '@shared/mods'
+import { optionOn } from '@vx/modkit/shared'
 import { locationAvailable } from '@shared/cityLife'
 import { locationDefOf } from '@shared/locations'
 import { trainingOffers } from '@shared/minigameTraining'

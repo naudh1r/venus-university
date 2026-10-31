@@ -1,5 +1,5 @@
 import { fewestWith, listed, settledOptions, type MiniGameDef } from '@shared/minigames'
-import type { StructuredRequest } from '@shared/types'
+import type { StructuredRequest } from '@vx/modkit/shared'
 import { hereLine } from './place'
 
 /** How a proposed game rides on a scene request, and how her answer is read off the reply. */

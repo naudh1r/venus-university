@@ -1,5 +1,6 @@
-import { READER_SPEAKER, type Character, type StructuredRequest } from '@shared/types'
-import { objectSchema } from '../prompts/schema'
+import { MINI_GAMES } from '@shared/minigames'
+import { completeStructured, objectSchema } from '@vx/modkit/renderer'
+import { READER_SPEAKER, type Character, type StructuredRequest } from '@vx/modkit/shared'
 import { useGameStore } from '../stores/gameStore'
 
 /**
@@ -104,9 +105,7 @@ export function tableRound(
   const run = Promise.resolve()
     .then(
       () =>
-        window.api.llm.classifyHangout(request(gameName, players, situation, stake, ask)) as Promise<
-          { ok: true; data: unknown } | { ok: false; error: unknown }
-        >
+        completeStructured<unknown>(MINI_GAMES, request(gameName, players, situation, stake, ask))
     )
     .then((result) => {
       if (!result.ok || !result.data || typeof result.data !== 'object') return null

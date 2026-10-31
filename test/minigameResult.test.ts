@@ -8,6 +8,9 @@ import POOL from '../src/shared/minigameEntries/pool'
 import type { MiniGameDef } from '../src/shared/minigames'
 import type { PlayResult } from '../src/renderer/minigames/play'
 
+// The kit's renderer entry loads the game's stores; these tests take each name from its own module.
+vi.mock('@vx/modkit/renderer', async () => (await import('./fixtures/miniGamesKit')).miniGamesKit())
+
 vi.mock('../src/renderer/stores/gameLoop', () => ({ submitAction: vi.fn(), takeTurnFromReply: vi.fn(() => false) }))
 vi.mock('../src/renderer/stores/loop/hooks', async (importOriginal) => ({
   ...await importOriginal<typeof import('../src/renderer/stores/loop/hooks')>(), advance: vi.fn()

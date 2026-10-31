@@ -1,6 +1,6 @@
-import type { MiniGameDef } from '@shared/minigames'
-import type { Character, StructuredRequest } from '@shared/types'
-import { objectSchema } from '../prompts/schema'
+import { MINI_GAMES, type MiniGameDef } from '@shared/minigames'
+import { completeStructured, objectSchema } from '@vx/modkit/renderer'
+import type { Character, StructuredRequest } from '@vx/modkit/shared'
 import { useGameStore } from '../stores/gameStore'
 
 /**
@@ -90,10 +90,7 @@ export function skillOf(character: Character, game: MiniGameDef): Promise<Skill>
   const running = judging.get(key)
   if (running) return running
 
-  // The one bridge call that takes any schema and answers whole, with no stream and no group.
-  const call = window.api.llm.classifyHangout(request(character, game)) as Promise<
-    { ok: true; data: unknown } | { ok: false; error: unknown }
-  >
+  const call = completeStructured<unknown>(MINI_GAMES, request(character, game))
   const judged = call
     .then((result): Skill => {
       if (!result.ok) return MIDDLING

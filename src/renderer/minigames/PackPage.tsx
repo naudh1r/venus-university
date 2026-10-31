@@ -10,10 +10,8 @@ import {
   type MiniGameDef,
   type SuggestRate
 } from '@shared/minigames'
-import { SelectField } from '../components/SelectField'
-import { useSettingsStore } from '../stores/settingsStore'
 import type { ModDetailProps } from '../mods/hooks'
-import { gestures, quietLift, quietPress, rowLift, rowPress } from '../views/motion'
+import { gestures, quietLift, quietPress, rowLift, rowPress, SelectField, useLessNsfwText } from '@vx/modkit/renderer'
 import { tunedGame, usePrefsStore } from './prefs'
 import { ReportButton } from './ReportButton'
 import '../vu_styles/MiniGames.css'
@@ -67,7 +65,7 @@ function sentence(text: string): string {
 function GamePage({ game, onBack }: { game: MiniGameDef; onBack: () => void }): JSX.Element {
   const prefs = usePrefsStore((s) => s.byGame[game.id])
   const setPrefs = usePrefsStore((s) => s.set)
-  const nsfw = useSettingsStore((s) => s.settings?.lessNsfwText === false)
+  const nsfw = !useLessNsfwText()
   const shown = forContent(game, nsfw)
   // The page opens below the pack's own heading, in a pane that scrolls: it is brought to the
   // pane's top, so the way back and the game's name are the first things read.

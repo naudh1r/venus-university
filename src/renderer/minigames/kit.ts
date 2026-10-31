@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Chattiness } from '@shared/minigames'
 import type { GamePlay } from './play'
-import { busGain, volumesOf } from '@shared/audio'
-import { useSettingsStore } from '../stores/settingsStore'
+import { useSfxGain } from '@vx/modkit/renderer'
 
 /**
  * Everything a game pack may use from outside its own files, for the half of a pack that is
@@ -27,8 +26,7 @@ export {
 } from './play'
 
 // The game's own controls, so a pack's buttons and fields behave as every other does.
-export { gestures, lift, press, quietLift, quietPress, toggleLift } from '../views/motion'
-export { TextField } from '../components/TextField'
+export { gestures, lift, press, quietLift, quietPress, TextField, toggleLift } from '@vx/modkit/renderer'
 export { BunnyMark } from '../views/screenIcons'
 /** Keys for a game played on the keyboard; `typingIn` is true for a key meant for a text field. */
 export { typingIn, useWindowKeydown } from '../components/useWindowKeydown'
@@ -128,5 +126,5 @@ export function pointIn(
 
 /** A pack's synthesized effects follow the saved SFX slider's squared gain. */
 export function useEffectsGain(): number {
-  return useSettingsStore(state => busGain(volumesOf(state.settings?.volumes).sfx))
+  return useSfxGain()
 }
