@@ -3,7 +3,6 @@ import { UnspokenLinkGlitch } from './UnspokenLinkGlitch'
 import { ReckoningModal } from './ReckoningModal'
 import { ReckoningDungeonView } from './ReckoningDungeon'
 import { dungeonVisible } from '../stores/reckoningDungeon'
-import { EchoPanel } from './EchoPanel'
 import { ensureEchoes } from '../stores/echoAssignments'
 import { useModsStore } from '../stores/modsStore'
 import { slotActivityAvailable } from '../mods/hooks'
@@ -298,7 +297,6 @@ type OpenPanel =
   | { kind: 'appSettings' }
   | { kind: 'controls' }
   | { kind: 'mods' }
-  | { kind: 'echo' }
   | { kind: 'reckoning'; charId: string }
   /** A mod's own panel over the scene, opened from its seat on the rail. */
   | { kind: 'modPanel'; modId: string }
@@ -2227,7 +2225,6 @@ export function GameView(): JSX.Element {
           calendarBadge={calendarBadge}
           bunnyboardBadge={bunnyboardBadge}
           railDead={false}
-          onEchoes={echoOn && !created && !replaying ? () => setPanel({ kind: 'echo' }) : undefined}
           modButtons={!created && !replaying}
           onCalendar={() => setPanel({ kind: 'calendar' })}
           onBunnyboard={() => useBunnyboardStore.getState().openApp()}
@@ -2290,7 +2287,6 @@ export function GameView(): JSX.Element {
              loses its own, an hour nobody is standing in having nothing to show. */
           bunnymapUnlocked={bunnymapShown}
           bunnyshopUnlocked={bunnyshopShown}
-          onEchoes={echoOn && !created && !replaying ? () => setPanel({ kind: 'echo' }) : undefined}
           onCalendar={() => setPanel({ kind: 'calendar' })}
           onBunnyboard={() => useBunnyboardStore.getState().openApp()}
           onShop={() => setPanel({ kind: 'shop' })}
@@ -2855,9 +2851,6 @@ export function GameView(): JSX.Element {
           covered={panel !== null || covered}
         />
         {panel?.kind === 'reckoning' && <ReckoningModal key={`reckoning-${panel.charId}`} charId={panel.charId} onClose={closePanel} />}
-        {panel?.kind === 'echo' && (
-          <EchoPanel key="echo" hidden={covered || created || replaying} theme={half} onClose={closePanel} />
-        )}
         <ModSlot
           key="mod-panel-layer"
           slot="panelLayer"

@@ -487,15 +487,8 @@ export function CalendarIcon(): JSX.Element {
   )
 }
 
-/** A resonating spark: Echo's mark shares the other app tabs' size, weight and tint. */
-export function EchoIcon(): JSX.Element {
-  return (
-    <svg {...APP_MARK}>
-      <path d="m12 6 2 4 3 2-3 2-2 4-2-4-3-2 3-2Z" />
-      <path d="M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14" />
-    </svg>
-  )
-}
+// Kept for existing consumers such as Campus Talents' Echoes tree.
+export { EchoIcon } from './EchoIcon'
 
 /** BunnyShop's own mark: a shopping bag. */
 export function ShopIcon(): JSX.Element {
