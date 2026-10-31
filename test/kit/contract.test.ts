@@ -197,6 +197,20 @@ describe('the entry points', () => {
     expect(rendererKit.bunnybotSays).toBe(native.bunnybotSays)
   })
 
+  it("hands main the game's guarded archive, image sniffer and live option reader", async () => {
+    const archive = await import('../../src/main/services/archiveService')
+    const images = await import('../../src/main/services/imageFiles')
+    const mods = await import('../../src/main/services/modsService')
+    expect(mainKit.extractZip).toBe(archive.extractZip)
+    expect(mainKit.sniffImageFile).toBe(images.sniffImageFile)
+    expect(mainKit.modOptionOn).toBe(mods.modOptionOn)
+  })
+
+  it('hands the window the native main-call binding', async () => {
+    const native = await import('../../src/renderer/mods/invoke')
+    expect(rendererKit.invoke).toBe(native.invoke)
+  })
+
   it('record the version package.json says', () => {
     const pkg = JSON.parse(readFileSync(resolve(ROOT, 'packages/modkit/package.json'), 'utf8')) as { version: string }
     expect(KIT_VERSION).toBe(pkg.version)

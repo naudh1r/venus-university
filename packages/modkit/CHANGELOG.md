@@ -5,6 +5,16 @@
 - A game started before mods recorded their versions is told so once, not once every session:
   the playthroughs told are kept in `settings.json`'s `modUnversionedSeen`, written by main. The
   record still holds no versions.
+
+- `invoke` from `renderer` calls a trusted main.js's declared `invoke` handlers. Main owns the
+  request ids, namespaces and cancellation channel; aborts beat late results, errors use the
+  ordinary redacted Result wrapper, and web answers DESKTOP_ONLY. Loaded handlers run whether
+  or not their switch is on, with `{ id, signal }`; the loader owns their lifetime.
+
+- Main's `extractZip` and `sniffImageFile`, re-exported from the game's own services, and
+  `modOptionOn`, reading an option against main's live switches independently of the mod's
+  on/off switch. Each is its own capability.
+
 - The game's motion presets in `renderer`: `gestures`, `lift`, `press`, `quietLift`, `quietPress`,
   `rowLift`, `rowPress`, `toggleLift`, `veilIn` and `panelUnderTab`, each its own
   `renderer:<name>` capability. They are the game's own objects, re-exported, so a mod's controls

@@ -67,3 +67,4 @@ export { newestFirst } from '../../../../src/renderer/stores/feedRolls'
 export { FEED_EMOJI, FEED_EMOJI_BAG, FEED_HANDLE_BAG, FEED_HANDLE_POOL } from '../../../../src/renderer/prompts/feedRandoms'
 
 export { bunnybotSays } from '../../../../src/renderer/mods/bunnybot'
+export { invoke } from '../../../../src/renderer/mods/invoke'

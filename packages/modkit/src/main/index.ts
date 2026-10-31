@@ -9,3 +9,7 @@ export type {
   CharacterTransferPart,
   ComfyLaunchContext
 } from '../bridge/main'
+
+export { extractZip, sniffImageFile, modOptionOn } from '../bridge/main'
+
+export type { InvokeContext, InvokeHandler } from '../bridge/main'

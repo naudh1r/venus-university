@@ -14,3 +14,9 @@ export type {
   BackupPartRestore,
   CharacterTransferPart
 } from '../../../../src/main/services/modParts'
+
+export { extractZip } from '../../../../src/main/services/archiveService'
+export { sniffImageFile } from '../../../../src/main/services/imageFiles'
+export { modOptionOn } from '../../../../src/main/services/modsService'
+
+export type { InvokeContext, InvokeHandler } from '../../../../src/main/mods/invoke'

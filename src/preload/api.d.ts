@@ -152,6 +152,10 @@ export interface VenusUniversityApi {
     import: () => Promise<Result<PresetImport | null>>
   }
   mods: {
+    /** The invoke handshake uses one channel; request ids are made in main. */
+    invokeStart: (modId: string, name: string, args: unknown[]) => Promise<Result<string>>
+    invokeResult: (modId: string, requestId: string) => Promise<Result<unknown>>
+    invokeCancel: (modId: string, requestId: string) => Promise<Result<void>>
     /** Which community mods are switched on, and their options (`shared/mods.ts`). */
     get: () => Promise<Result<ModSwitches>>
     /** Replaces every switch and option. */

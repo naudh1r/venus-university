@@ -11,6 +11,7 @@ import { addDevFolder, devFolders, removeDevFolder, watchDevFolder, type DevChan
 import { loadMods, type LoaderResult } from './loader'
 import { handleModProtocol } from './protocol'
 import type { MainContext } from './require'
+import { ModInvocations } from './invoke'
 
 /**
  * The one mod session of this run: the loader's result, held for the protocol, the bridge and
@@ -19,6 +20,7 @@ import type { MainContext } from './require'
  */
 
 let result: LoaderResult | null = null
+const invocations = new ModInvocations()
 
 /**
  * The ids of the mods built into this copy of the game, read before the loader adds an installed one
@@ -34,6 +36,7 @@ const BUILT_IN_IDS: readonly string[] = MODS.map((mod) => mod.id)
  * is gone, so a mod a developer folder no longer holds cannot answer on from a stale entry.
  */
 function hold(next: LoaderResult): void {
+  invocations.replace(next.table, next.invokes)
   result = next
   setInstalledMods(next.table.mods.flatMap((mod) => (mod.def ? [mod.def] : [])), BUILT_IN_IDS)
 }
@@ -111,7 +114,23 @@ export function rerunModChecks(): void {
     }
   })
   // The routes a `main.js` registered at start stand for the session.
-  hold(before ? { ...next, routes: before.routes } : next)
+  const invokes = new Map([...next.invokes].map(([id, handlers]) => [id, before?.invokes.get(id) ?? handlers]))
+  hold(before ? { ...next, routes: before.routes, invokes } : next)
+}
+
+/** Dispatches the start/result handshake; main makes the request id before the window can cancel it. */
+export function invokeMod(owner: number, id: unknown, request: unknown): unknown {
+  return invocations.dispatch(owner, id, request)
+}
+
+/** Cancels a checked mod's own request, without reaching the general jobs channel. */
+export function cancelModInvoke(owner: number, id: unknown, requestId: unknown): void {
+  invocations.cancel(owner, id, requestId)
+}
+
+/** Ends the calls a window left behind, including requests not yet claimed by the handshake. */
+export function dropModInvokes(owner: number): void {
+  invocations.dropOwner(owner)
 }
 
 /** Serves `vxmod://`, and watches the developer folders. Must run after `ready`. */
@@ -135,6 +154,10 @@ function markFailed(id: string, status: ModStatus, message: string): void {
   const servedEntry = served.get(id)
   if (servedEntry) served.set(id, { ...servedEntry, loaded: false })
   result = { ...result, served, table: { ...result.table, order: result.table.order.filter((one) => one !== id) } }
+  const invokes = new Map(result.invokes)
+  invokes.delete(id)
+  result = { ...result, invokes }
+  invocations.replace(result.table, invokes)
   console.warn(`[mods] ${id}: ${status}: ${message}`)
 }
 

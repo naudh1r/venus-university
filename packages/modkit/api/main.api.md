@@ -60,13 +60,36 @@ export interface ComfyLaunchContext {
 }
 
 // @public
+export function extractZip(archivePath: string, destDir: string, limits?: {
+    maxEntries: number;
+    maxTotalBytes: number;
+}): Promise<ZipEntry[]>;
+
+// @public
+export interface InvokeContext {
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly signal: AbortSignal;
+}
+
+// @public
+export type InvokeHandler = (context: InvokeContext, ...args: unknown[]) => unknown;
+
+// @public
 export function modDataPath(modId: string, playthroughId?: string): string;
+
+// @public
+export function modOptionOn(modId: string, optionId: string): boolean;
 
 // @public
 export function registerComfyLaunchEnvironment(modId: string, provider: EnvironmentProvider): () => void;
 
 // @public
 export function requiredBackupPart(modId: string, part: BackupPart): void;
+
+// @public
+export function sniffImageFile(path: string): Promise<ReturnType<typeof imageTypeOf>>;
 
 // (No @packageDocumentation comment for this package)
 
