@@ -12,6 +12,16 @@ import { readSettings, writeSettings } from './db/settings'
 /** The stored row, read once and kept as written. */
 let row: StoredSettings | null = null
 
+/** The settings writes so far: each one waits for them, so it reads what the last one wrote. */
+let lastWrite: Promise<unknown> = Promise.resolve()
+
+/** Runs `write` once every settings write queued before it has finished, failed or not. */
+function queued<T>(write: () => Promise<T>): Promise<T> {
+  const run = lastWrite.then(write, write)
+  lastWrite = run.catch(() => undefined)
+  return run
+}
+
 /** The key this visit is running on, remembered or typed in. */
 let key = ''
 
@@ -64,16 +74,18 @@ export function rowFor(next: Settings): StoredSettings {
  * Merges a renderer patch over the settings and writes them. One put, so turning remembering
  * off is what takes the stored keys away with it.
  */
-export async function patchSettings(patch: SettingsPatch): Promise<RendererSettings> {
-  const next = mergePatch(await currentSettings(), patch)
-  key = next.apiKey
-  endpointKey = next.endpointApiKey ?? ''
-  imageKey = next.imageApiKey ?? ''
+export function patchSettings(patch: SettingsPatch): Promise<RendererSettings> {
+  return queued(async () => {
+    const next = mergePatch(await currentSettings(), patch)
+    key = next.apiKey
+    endpointKey = next.endpointApiKey ?? ''
+    imageKey = next.imageApiKey ?? ''
 
-  const written = rowFor(next)
-  await writeSettings(written)
-  row = written
-  return redactSettings(next)
+    const written = rowFor(next)
+    await writeSettings(written)
+    row = written
+    return redactSettings(next)
+  })
 }
 
 /** Drops what is held in memory, so the next read comes off storage. */
@@ -82,18 +94,22 @@ export function forgetSettings(): void {
 }
 
 /** Records that a playthrough has been told it was started before mods recorded their versions. */
-export async function setUnversionedSeen(playthroughId: string): Promise<void> {
-  const stored = await settingsRow()
-  const seen = Array.isArray(stored.modUnversionedSeen) ? stored.modUnversionedSeen : []
-  if (seen.includes(playthroughId)) return
-  const written: StoredSettings = { ...stored, modUnversionedSeen: [...seen, playthroughId] }
-  await writeSettings(written)
-  row = written
+export function setUnversionedSeen(playthroughId: string): Promise<void> {
+  return queued(async () => {
+    const stored = await settingsRow()
+    const seen = Array.isArray(stored.modUnversionedSeen) ? stored.modUnversionedSeen : []
+    if (seen.includes(playthroughId)) return
+    const written: StoredSettings = { ...stored, modUnversionedSeen: [...seen, playthroughId] }
+    await writeSettings(written)
+    row = written
+  })
 }
 
 /** Records which shipped characters the player has taken off the roster. */
-export async function setRemovedDefaults(charIds: readonly string[]): Promise<void> {
-  const written: StoredSettings = { ...(await settingsRow()), removedDefaults: [...charIds] }
-  await writeSettings(written)
-  row = written
+export function setRemovedDefaults(charIds: readonly string[]): Promise<void> {
+  return queued(async () => {
+    const written: StoredSettings = { ...(await settingsRow()), removedDefaults: [...charIds] }
+    await writeSettings(written)
+    row = written
+  })
 }
