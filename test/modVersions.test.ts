@@ -1,15 +1,17 @@
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installMods, type ModDef } from '@shared/mods'
 import { EMPTY_SESSION, type ModSessionEntry, type ModStatus } from '@shared/modSession'
+import type { PlaythroughRecord } from '@shared/types'
 import { stubApi } from './fixtures'
 
 /**
  * What entering a game says of the mods its record names: a `playthrough` mod that is not running,
  * with the version the game was played with where the installed one is another; and, once a
- * session, that a record holding no versions was started before mods recorded them.
+ * playthrough, that a record holding no versions was started before mods recorded them.
  */
 
-stubApi({})
+const keptOnDisk = vi.fn(async (_playthroughId: string) => ({ ok: true as const, data: undefined }))
+stubApi({ mods: { unversionedSeen: keptOnDisk } })
 const { useModSessionStore } = await import('../src/renderer/stores/modSessionStore')
 
 function def(id: string, version: string): ModDef {
@@ -40,20 +42,25 @@ beforeEach(() => {
     notice: null,
     unversionedTold: new Set()
   })
+  keptOnDisk.mockClear()
 })
 
-const enter = useModSessionStore.getState().gameEntered
+const enter = (record: Pick<PlaythroughRecord, 'mods' | 'modVersions'>, id: string, seen: string[] = []): void =>
+  useModSessionStore.getState().gameEntered(record, id, seen)
 const notice = (): ReturnType<typeof useModSessionStore.getState>['notice'] => useModSessionStore.getState().notice
 
 describe('a game started before mods recorded their versions', () => {
-  it('is said once a playthrough a session, and never refuses the game', () => {
+  it('is said once a playthrough and kept on disk, and never refuses the game', () => {
     enter({}, 'p1')
     expect(notice()).toEqual({ kind: 'unversioned', mods: [] })
     useModSessionStore.getState().dismissNotice()
     enter({ mods: ['places'] }, 'p1')
     expect(notice()).toBeNull()
+    enter({}, 'p3', ['p3'])
+    expect(notice()).toBeNull()
     enter({ mods: ['places'] }, 'p2')
     expect(notice()?.kind).toBe('unversioned')
+    expect(keptOnDisk.mock.calls).toEqual([['p1'], ['p2']])
   })
 
   it('is folded into the game notice when that is up, with no version to name', () => {
@@ -65,6 +72,7 @@ describe('a game started before mods recorded their versions', () => {
     useModSessionStore.setState({ notice: { kind: 'start', mods: [] } })
     enter({}, 'p1')
     expect(notice()?.kind).toBe('start')
+    expect(keptOnDisk).not.toHaveBeenCalled()
     useModSessionStore.getState().dismissNotice()
     enter({}, 'p1')
     expect(notice()?.kind).toBe('unversioned')

@@ -57,10 +57,14 @@ interface ModSessionState {
   noticeAtStart: (seen: Readonly<Record<string, string>>) => void
   /**
    * Raises the game's notice where its record names a `playthrough` mod that is not running, and
-   * says once a session of a playthrough whose record holds no versions that it was started
-   * before mods recorded them.
+   * says once of a playthrough whose record holds no versions that it was started before mods
+   * recorded them; `seen` is the playthroughs told so in an earlier session.
    */
-  gameEntered: (record: Pick<PlaythroughRecord, 'mods' | 'modVersions'>, playthroughId: string) => void
+  gameEntered: (
+    record: Pick<PlaythroughRecord, 'mods' | 'modVersions'>,
+    playthroughId: string,
+    seen: readonly string[]
+  ) => void
   dismissNotice: () => void
   setDevChange: (change: DevChange | null) => void
   /** Puts a line about the mod's data in this game on its row. */
@@ -123,15 +127,19 @@ export const useModSessionStore = create<ModSessionState>((set, get) => ({
     void window.api.mods.noticesSeen(Object.fromEntries(silent.map((mod) => [mod.id, noticeKeyOf(mod)])))
   },
 
-  gameEntered: (record, playthroughId) => {
+  gameEntered: (record, playthroughId, seen) => {
     const { table, running, notice, unversionedTold } = get()
     const missing = table.mods.filter(
       (mod) => record.mods?.includes(mod.id) && modById(mod.id, MODS)?.scope === 'playthrough' && !running(mod.id)
     )
     // No map is a record from before the versions were kept (a new one holds an empty map where
-    // no mod was on); a build with no mod has nothing to say of it. Said once a session, however often the same game is entered.
+    // no mod was on); a build with no mod has nothing to say of it. Said once a playthrough,
+    // however often and in however many sessions the same game is entered.
     const unversioned =
-      record.modVersions === undefined && MODS.some((mod) => !mod.library) && !unversionedTold.has(playthroughId)
+      record.modVersions === undefined &&
+      MODS.some((mod) => !mod.library) &&
+      !unversionedTold.has(playthroughId) &&
+      !seen.includes(playthroughId)
     const told = unversioned ? { unversionedTold: new Set([...unversionedTold, playthroughId]) } : {}
     if (missing.length > 0) {
       const playedWith = Object.fromEntries(
@@ -152,7 +160,11 @@ export const useModSessionStore = create<ModSessionState>((set, get) => ({
     } else if (unversioned && notice === null) {
       // The quiet one never stands in for a notice already up; it is said on a later entry instead.
       set({ notice: { kind: 'unversioned', mods: [] }, ...told })
+    } else {
+      return
     }
+    // Said, so kept on disk: the next session does not say it of this playthrough again.
+    if (unversioned) void window.api.mods.unversionedSeen(playthroughId)
   },
 
   dismissNotice: () => set({ notice: null }),
