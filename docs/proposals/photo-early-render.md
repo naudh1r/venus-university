@@ -39,6 +39,7 @@ Prompt wording is unchanged. Only the field order and the timing change.
   - If an early render exists for this `charId`, belongs to the live playthrough and load, and the reply's `photoPrompt` and `sendPhoto` still agree with it, hang `{ tier, scene, file, pending: true }` on her last text, save, and let the existing settle logic follow the **already-running** render. Reuse `drawMessagePhoto`'s settle and patience logic, but await the stored promise instead of calling `renderPhoto` again.
   - If the render has already landed, the photo is saved without `pending`.
   - With no early render, fall back to today's path unchanged. That covers a model that put the fields last, and a regenerated reply.
+- **Reach-outs keep today's path.** `afterReachOut` calls `sendPhoto` without ever looking at the early-render map. Give `sendPhoto` an explicit flag for that, so a girl texting first can never pick up a render left over from a DM.
 - **Stale early renders.** Clear an early render that never got attached, because the reply failed, was blocked or abandoned, or a load or new game happened. Do it on the next `dmReplyLead` or `afterDmReply` for that girl, and on `gameEntered`. Once its render settles, `drop` its file and sidecar, but only if no message in the save points at that file.
 - **Changelog:** add one bullet to `## 1.6.0` in the page's voice: her photo starts drawing as soon as she decides to send it, while she's still typing.
 
