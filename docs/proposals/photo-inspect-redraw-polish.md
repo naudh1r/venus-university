@@ -1,4 +1,4 @@
-# Polish: gallery hover and the info icon's look
+# Polish: gallery hover, the corner icons and the prompt fields
 
 Amend the same single commit on `mod/photo-1.6.0-redraw-vu0.6.0`, then redo the cherry-pick onto `mod/photo-kit-switch`. No new allowlist rows. Don't edit any guide.
 
@@ -32,8 +32,18 @@ The info icon is right as it is. The friend tag's icon (`.vu-bb-photo-tags-toggl
 
 The tag icon stays always visible, as it is today; only its look changes. Move the handle that the tag reveals (`.vu-bb-photo-tag-seat`, now `bottom: 16px; left: 50px; right: 50px`) by the same 4px, so it stays centred on the button's line and clear of both icons.
 
+## 4. Prompt fields show their whole text when the overlay opens
+
+- **Today:** each prompt field in `PhotoInfo.tsx` is a `TextField` with `rows={3}`, so a long prompt opens behind a scrollbar.
+- **Fix:** size each field to fit its whole text when the overlay's text arrives, and again after **Rebuild** refills the fields.
+  - Measure in a layout effect: set the height to `auto`, then to `scrollHeight` plus the border. Find each textarea by the `id` already passed to `TextField`, because `TextField` takes no ref.
+  - Keep the field resizable (`resize: vertical`) and scrollable (`overflow-y: auto`). Don't use `autoGrow`, which turns both off.
+  - While typing, grow the field when the text outgrows it, but never shrink it below the height the player dragged it to.
+  - The overlay body already scrolls (`.vu-photo-info-body`), so fields at full height scroll inside the panel and the foot stays in place.
+  - Re-measure if the panel's width changes while open (a `ResizeObserver` on the body), because the text rewraps.
+
 ## Checks
 
 - `npm run typecheck` passes on both branches; the kit and photo tests pass.
 - The allowlist is unchanged.
-- By hand: in the gallery, hover a tile in each row. It grows with its chip, eye and info icon in its corners, and touches neither its neighbours nor the scroller's edges. In a post, the tag icon mirrors the info icon exactly, and the revealed handle still sits level with them.
+- By hand: in the gallery, hover a tile in each row. It grows with its chip, eye and info icon in its corners, and touches neither its neighbours nor the scroller's edges. In a post, the tag icon mirrors the info icon exactly, and the revealed handle still sits level with them. In the overlay, a long solo and a long duo prompt open with every line visible and no field scrollbar; the panel body scrolls instead; a field can still be dragged taller and scrolls if dragged shorter; Rebuild refits the fields.
