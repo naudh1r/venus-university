@@ -63,6 +63,7 @@ export const HOOKS = [
   { name: 'characterFromDraft', side: 'renderer', kind: 'merge', dispatch: ['characterFromDraft'], since: '0.1.0' },
 
   // The turn and the game's life
+  { name: 'dmReplyLead', side: 'renderer', kind: 'event', dispatch: ['dmReplyLead'], since: '0.3.0' },
   { name: 'afterDmReply', side: 'renderer', kind: 'event', dispatch: ['afterDmReply'], since: '0.1.0' },
   { name: 'afterSceneReply', side: 'renderer', kind: 'event', dispatch: ['afterSceneReply'], since: '0.1.0' },
   { name: 'afterReachOut', side: 'renderer', kind: 'event', dispatch: ['afterReachOut'], since: '0.1.0' },

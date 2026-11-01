@@ -111,13 +111,23 @@ from-behind shots hold less well than plain ones. Pictures from below are drawn 
 
 ## If a photo looks wrong
 
-Open the console (Ctrl+Shift+I) and find the line starting with `photo:`. It shows the tier,
-seed, file name, the full prompt and the negative. Send it with the picture: most problems so far
-were one word in her sentence the model drew too literally, and each is a small fix.
+Hover the photo and open the **info icon** in its bottom-right corner. It shows the prompt,
+negative, seed and LoRA used to draw it. Send those with the picture: most problems so far were
+one word in her sentence the model drew too literally, and each is a small fix. A photo taken
+before 1.6.0 shows a rebuilt prompt and no seed.
 
-If a photo stays PNG while WebP is on, look for a `[photo] kept ... as PNG:` line.
+If a photo stays PNG while WebP is on, look in `data/app.log` for a `[photo] kept ... as PNG:` line.
 
 ## 1.6.0
+
+- **A head start on her photo**: it starts drawing as soon as she decides to send it, while she's
+  still typing. It arrives on her last text as before.
+
+- **See what drew a photo**: hover it and open the info icon for its prompt, negative, seed and
+  LoRA. Photos taken before 1.6.0 show a rebuilt prompt and no seed.
+- **Redraw a photo**: edit its prompts, or **Rebuild** them from her current tags first, and draw
+  it again with the same seed or a new one. The new picture replaces it once it lands; if it
+  fails, the old one stays and says so for a few seconds. Nothing she said changes.
 
 - **Her friend tagged in the picture**: a person icon on a photo of two girls shows her friend's
   `@handle` when tapped, only while the two are friends with each other. Tap it again, or tap

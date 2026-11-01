@@ -131,3 +131,26 @@
 .vu-contact-shot-item:hover .vu-bb-photo-eye.vu-contact-shot-eye {
   opacity: 1;
 }
+
+/* The row clearance matches the columns when a portrait tile grows by 10%. */
+.vu-contact-card--gallery .vu-contact-scroll:has(.vu-contact-shots) {
+  container-type: inline-size;
+}
+
+.vu-gallery-grid.vu-contact-shots {
+  --photo-tile-width: calc((100cqw - 48px) / 4);
+  --photo-overhang: calc(var(--photo-tile-width) * 0.075);
+  row-gap: calc(16px + var(--photo-tile-width) * 0.025);
+  padding-block: var(--photo-overhang);
+}
+
+.vu-contact-shots .vu-contact-shot-item {
+  border-radius: 26px;
+  background: var(--vu-recessed);
+}
+
+.vu-contact-shots .vu-contact-shot,
+.vu-contact-shots .vu-contact-shot-wait,
+.vu-contact-shots .vu-contact-shot-wait .vu-bb-photo {
+  background: inherit;
+}

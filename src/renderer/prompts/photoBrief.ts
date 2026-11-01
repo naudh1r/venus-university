@@ -155,7 +155,7 @@ function captioning(character: Character, occasion: PhotoOccasion): string[] {
   const name = character.firstName
   return [
     occasion === 'reply'
-      ? 'A picture is worth sending when the texts are already about one — she offers it, or he asked and she wants to. Most replies are just words: set "sendPhoto" false and leave "photoPrompt" empty.'
+      ? 'A picture is worth sending when the conversation is already about one — she offers it, or he asked and she wants to. Most replies are just words: set "sendPhoto" false and leave "photoPrompt" empty.'
       : 'A picture is worth sending when it is part of what she is texting about, and she would rather show him than tell him. Most texts like these are just words: set "sendPhoto" false and leave "photoPrompt" empty.',
     `Write "photoPrompt" as what the picture shows, the way ${name} would caption it to herself. One sentence, and a full one: where she is, what she is wearing, how she is sitting or lying or standing, what her hands are doing, how close the shot is, and where she is looking.`,
     // The three kinds of picture the renderer draws, named together so no one of them is the
