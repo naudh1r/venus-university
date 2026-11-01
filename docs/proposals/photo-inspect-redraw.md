@@ -37,6 +37,10 @@ Author `Naudh1r <102735014+naudh1r@users.noreply.github.com>`, no co-author line
     - "Same seed" is absent when the seed is unknown; "new seed" is then primary.
     - Both redraw buttons are disabled while photos are switched off (`photoGenerationOn`), with a `.vu-form-status` line saying so.
     - Draft the button and status wording against the existing "Image failed to generate." / "Reroll" voice.
+  - A quiet **Rebuild** button above the prompt fields (not in the foot: it answers nothing) refills them with the prompt the engine would build for this photo now, from its `scene`, `tier`, friend and her current tags and body setting.
+    - It doesn't redraw, and it keeps the recorded seed. A redraw afterwards sends the rebuilt text.
+    - Close without redrawing and nothing is kept: the sidecar only changes when a redraw lands.
+    - Shown for recorded photos only; a rebuilt one already shows the current build.
   - Pressing a redraw button closes the overlay and starts the redraw.
 - **Redraw:** the photo shows the loader the player picked (`PhotoWait`, via `usePhotoSwitches().loader`) wherever it appears, while it draws.
   - When the new picture lands, it replaces the old one, and the old file and its sidecar are deleted afterwards.
@@ -65,7 +69,8 @@ What ComfyUI received for each picture is kept in a small JSON file next to it, 
   - Use the given seed or a random one, and the given prompts or `buildPhotoPrompt` / `buildDuoPhotoPrompt` as today.
   - After `runGenerationJob` succeeds, write the sidecar with `writeAtomicBytes` for exactly what was sent.
   - A sidecar write failure is logged and does not fail the photo.
-- **New channel `photoInfo(playthroughId, character, friend | undefined, tier, scene, file)`:**
+- **New channel `photoInfo(playthroughId, character, friend | undefined, tier, scene, file, rebuild = false)`:**
+  - With `rebuild`, it skips the sidecar's prompts and returns the current build, but keeps the sidecar's seed (and says `recorded: false`).
   - Returns the sidecar with `recorded: true`.
   - If there's no valid sidecar (photos from before this change), it returns `{ recorded: false, seed: undefined, … }` with prompts rebuilt by the same builders, after `withBodySetting`, plus the LoRA from `characterLoraOf` for solo photos.
 - **New channel `dropPhoto(playthroughId, charId, file)`:** deletes the picture (both PNG and WebP twins) and its sidecar.
@@ -90,6 +95,9 @@ What ComfyUI received for each picture is kept in a small JSON file next to it, 
   3. **Mark it redrawing and render** with `renderPhoto` (extend it to pass `{ seed, prompts }`; WebP encoding stays as it is). Feed redraws don't need the held-post chain: main's job queue already serialises per girl.
   4. **On success:** if the playthrough is still live and the photo still points at the old file, set the photo to the same fields with `file: newFile`, call `savePhotoState()`, then `dropPhoto` the old file. If the photo or playthrough moved on, `dropPhoto` the **new** file instead.
   5. **On failure,** or no answer within `RENDER_PATIENCE_MS`: clear the redrawing mark, keep the photo, and `console.warn` with a `[photo]` line. A picture that lands after the patience ran out is still applied by step 4.
+     - The photo then shows one short line over its bottom edge for about four seconds, wherever it appears: **"Redraw failed. This photo stays."** (draft it against "Image failed to generate."; keep it that short).
+     - Style it like the friend tag's handle over the picture (`--vu-accent-shadow` fill, `--night-text` ink), `role="status"`, fading in and out; under reduced motion it appears and goes without the fade.
+     - Keep it in the same module store as the redrawing marks (a failed key with a timer), never in the save. A redraw started again clears it.
 - **Reload mid-redraw:** the save still has the old file, so the photo just shows. A late landing gets cleaned up by step 4's "moved on" branch if the window survives. Otherwise it's an orphan file, which is acceptable.
 - **Gallery:** `GalleryShot` needs the message or post id so its overlay can call the right redraw. Its cell shows `PhotoWait` while redrawing.
 
@@ -117,6 +125,7 @@ Nothing else: no tests of overlay wording.
   - The overlay shows recorded prompts and the seed for a new photo, and rebuilt prompts with no seed for an old one.
   - Same-seed and new-seed redraws work for a solo and a duo photo.
   - An edited prompt is sent and shows on reopening.
-  - A failed redraw (ComfyUI killed mid-render) keeps the old picture.
+  - Rebuild refills an edited photo's fields with the current build and keeps its seed.
+  - A failed redraw (ComfyUI killed mid-render) keeps the old picture and shows the failure line for a few seconds.
   - The old file and its sidecar are gone after a successful redraw.
   - A continued semester carries the sidecars.
