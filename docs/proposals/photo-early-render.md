@@ -1,6 +1,9 @@
 # Brief: Photo Feature — start a DM photo's render as soon as its flag streams in
 
-**Fork only.** This changes core, so it never goes to the org. Branch `mod/photo-1.6.0-early-render-vu0.6.0` from `origin/mod/photo-1.6.0-redraw-vu0.6.0`, in one commit. Author `Naudh1r <102735014+naudh1r@users.noreply.github.com>`, no co-author lines. Push to `origin` only. Don't cherry-pick it onto `mod/photo-kit-switch`. Don't edit any guide.
+**Fork only.** This changes core, so it never goes to the org. Two branches, both pushed to `origin` only. Author `Naudh1r <102735014+naudh1r@users.noreply.github.com>`, no co-author lines. Don't edit any guide, and don't touch `mod/photo-kit-switch`.
+
+1. **`core/dm-reply-lead`**, from `origin/main`: the **Core** section only, in one commit. Not a single Photo file changes on it, and it builds and passes on its own: no mod uses `lead` or `dmReplyLead` yet.
+2. **`mod/photo-1.6.0-early-render-vu0.6.0`**, from `origin/mod/photo-1.6.0-redraw-vu0.6.0`: merge `core/dm-reply-lead` into it (a merge commit, no rebase), then the **Photo** section as one commit on top. No core file changes in that commit.
 
 ## The flow
 
