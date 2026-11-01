@@ -22,19 +22,18 @@ Amend the same single commit on `mod/photo-1.6.0-redraw-vu0.6.0`, then redo the 
   - Columns stay as they are: left and right are already fine.
   - Check by hand at the smallest and largest window sizes that the first row, the last row and a middle row all grow without touching anything.
 
-## 3. The info icon matches the friend tag icon
+## 3. The friend tag icon matches the info icon
 
-The info icon (bottom-right) must be an exact mirror of the friend tag's icon (`.vu-bb-photo-tags-toggle`, bottom-left):
-- 12px from the bottom and right edges, not 8px.
-- Background `color-mix(in srgb, var(--vu-accent-shadow) 72%, transparent)`, with no darker hover fill.
-- SVG stroke width 2.75.
-- A `motion.button` with `gestures(false, toggleLift, quietPress)`.
-- Focus outline `2px solid var(--night-text)`, offset 3px.
+The info icon is right as it is. The friend tag's icon (`.vu-bb-photo-tags-toggle`, bottom-left) becomes its exact mirror:
+- 8px from the bottom and left edges, not 12px.
+- Background `color-mix(in srgb, var(--vu-accent-shadow) 62%, transparent)`, going to 82% on hover, as the info icon does.
+- SVG stroke width 2.5, not 2.75.
+- The same press and hover behaviour as the info icon: a plain button with no `toggleLift`/`quietPress` motion, and the same focus treatment as the info icon.
 
-The one difference stays: the info icon only shows on hover or keyboard focus. Fade it in and out with opacity as now, so the lift and press motion doesn't fight the fade. Leave the eye button as it is.
+The tag icon stays always visible, as it is today; only its look changes. Move the handle that the tag reveals (`.vu-bb-photo-tag-seat`, now `bottom: 16px; left: 50px; right: 50px`) by the same 4px, so it stays centred on the button's line and clear of both icons.
 
 ## Checks
 
 - `npm run typecheck` passes on both branches; the kit and photo tests pass.
 - The allowlist is unchanged.
-- By hand: in the gallery, hover a tile in each row. It grows with its chip, eye and info icon in its corners, and touches neither its neighbours nor the scroller's edges. In a post, the info and tag icons mirror each other exactly.
+- By hand: in the gallery, hover a tile in each row. It grows with its chip, eye and info icon in its corners, and touches neither its neighbours nor the scroller's edges. In a post, the tag icon mirrors the info icon exactly, and the revealed handle still sits level with them.
