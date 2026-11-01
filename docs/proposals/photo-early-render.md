@@ -17,7 +17,7 @@ Prompt wording is unchanged. Only the field order and the timing change.
    - Add `lead?: boolean` to `PromptAddition` (`packages/modkit/src/renderer/hooks.ts`), with a comment: for `dm` only, place these fields ahead of the reply's own.
    - Give `promptFields` / `promptRequired` (`src/renderer/mods/hooks.ts`) a way to return lead and trailing fields separately.
    - `textingSchema` (`src/renderer/prompts/textingPrompt.ts`) builds its properties as lead mod fields, then `messages`, `summary` and `blocked`, then the trailing mod fields. `required` follows the same order.
-   - **Verify the order holds on the wire.** The Gemini adapter sends `responseJsonSchema`; check in `data/app.log` or the stream that the photo fields arrive before `messages` on the default model and on an OpenAI-compatible endpoint. If a provider reorders the fields (for example alphabetically), note it in the commit message: the fallback below still covers it.
+   - Gemini keeps the schema's order (`responseJsonSchema`); no provider work is needed. A quick look at the log on the first test is enough.
 2. **Reading the lead fields mid-stream.**
    - Add a pure reader beside `createTextExtractor`. It's fed the same deltas, and returns the top-level fields that precede `messages` once the `"messages"` key appears. Parse the prefix as JSON, closing the object. It returns them once; it returns nothing if `messages` comes first or the prefix doesn't parse.
    - Give it a small test: lead fields first, `messages` first, a split across deltas, and an unparseable prefix. It feeds a render, not the save, so keep it to those four cases.
