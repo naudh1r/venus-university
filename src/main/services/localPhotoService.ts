@@ -1,5 +1,5 @@
 import { constants } from 'fs'
-import { copyFile, mkdir, readdir, readFile } from 'fs/promises'
+import { copyFile, mkdir, readdir, readFile, rm } from 'fs/promises'
 import { join } from 'path'
 import { SAFE_CHAR_ID } from '@shared/characterRules'
 import { characterLoraOf } from '@shared/comfyModels'
@@ -7,6 +7,8 @@ import { appError } from '@shared/errors'
 import { imageTypeOf } from '@shared/imageBytes'
 import {
   isPhotoFile,
+  isPhotoSidecar,
+  photoSidecarOf,
   isPhotoKind,
   isWebpPhoto,
   nextPhotoIndex,
@@ -15,6 +17,12 @@ import {
   pngPhotoOf,
   type PhotoKind
 } from '../../shared/photoFiles'
+import {
+  PHOTO_PROMPT_LIMIT,
+  type PhotoInfo,
+  type PhotoRenderOptions,
+  type PhotoSidecar
+} from '../../shared/photoTypes'
 import { photoSwitches } from '../../shared/photoSwitches'
 import { isPhotoTier, type PhotoTier } from '../../shared/photoGate'
 import { buildDuoPhotoPrompt, buildPhotoPrompt } from '../../shared/photoPrompt'
@@ -191,15 +199,15 @@ export async function carryPhotos(
   assertSafePlaythroughId(toPlaythroughId)
   const who =
     charIds ??
-    (await readdir(getPhotosRoot(fromPlaythroughId)).catch(() => [] as string[])).filter(
-      (name) => SAFE_CHAR_ID.test(name)
+    (await readdir(getPhotosRoot(fromPlaythroughId)).catch(() => [] as string[])).filter((name) =>
+      SAFE_CHAR_ID.test(name)
     )
   for (const charId of who) {
     assertSafeCharId(charId)
     const source = getPhotosPath(fromPlaythroughId, charId)
     let files: string[]
     try {
-      files = (await readdir(source)).filter(isPhotoFile)
+      files = (await readdir(source)).filter((name) => isPhotoFile(name) || isPhotoSidecar(name))
     } catch {
       continue
     }
@@ -216,6 +224,42 @@ export async function carryPhotos(
   }
 }
 
+/** Whether an override value is a plain record of fields. */
+function isOverrideRecord(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+/** Refuses malformed redraw overrides before a render is queued or started. */
+export function validatePhotoOverrides(
+  value: unknown,
+  duo: boolean
+): asserts value is PhotoRenderOptions {
+  const invalid = (): never => {
+    throw appError('PHOTO_OVERRIDE_INVALID', 'The photo seed or prompts are invalid.')
+  }
+  if (!isOverrideRecord(value)) invalid()
+  const overrides = value as Record<string, unknown>
+  if (Object.keys(overrides).some((key) => key !== 'seed' && key !== 'prompts')) invalid()
+  if (
+    overrides.seed !== undefined &&
+    (!Number.isSafeInteger(overrides.seed) || (overrides.seed as number) < 0)
+  ) {
+    invalid()
+  }
+  if (overrides.prompts === undefined) return
+  if (!isOverrideRecord(overrides.prompts)) invalid()
+  const prompts = overrides.prompts as Record<string, unknown>
+  const keys = duo ? ['positive', 'negative', 'left', 'right'] : ['positive', 'negative']
+  if (Object.keys(prompts).some((key) => !keys.includes(key))) invalid()
+  for (const key of keys) {
+    if (typeof prompts[key] !== 'string' || prompts[key].length > PHOTO_PROMPT_LIMIT) invalid()
+  }
+  if (!(prompts.positive as string).trim()) invalid()
+  if (!duo && ('left' in prompts || 'right' in prompts)) invalid()
+}
+
 /**
  * Renders one picture she texted the reader, into the playthrough's own photo folder.
  *
@@ -230,8 +274,10 @@ export async function generatePhoto(
   tier: string,
   photoPrompt: string,
   file: string,
-  options: { signal?: AbortSignal; onProgress?: (step: string) => void } = {}
+  options: { signal?: AbortSignal; onProgress?: (step: string) => void } = {},
+  overrides: PhotoRenderOptions = {}
 ): Promise<string> {
+  validatePhotoOverrides(overrides, false)
   assertSafeCharId(character.charId)
   assertSafePlaythroughId(playthroughId)
   if (!isPhotoTier(tier)) {
@@ -245,9 +291,12 @@ export async function generatePhoto(
 
   assertPhotoFile(file)
   // Each photo gets its own seed; her tags and LoRA hold her together.
-  const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
+  const seed = overrides.seed ?? Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
 
   const lora = characterLoraOf(character)
+  const prompts = overrides.prompts
+    ? { positive: overrides.prompts.positive, negative: overrides.prompts.negative }
+    : buildPhotoPrompt(await withBodySetting(character), tier as PhotoTier, photoPrompt)
   const logged = lora ? `, lora=${lora.name}@${lora.weight}` : ''
 
   await runGenerationJob(
@@ -255,7 +304,7 @@ export async function generatePhoto(
       workflowFile: 'characterPhoto.json',
       nodes: PHOTO_NODE,
       // Her body only while the body switch is on, as her sprites are drawn.
-      prompts: buildPhotoPrompt(await withBodySetting(character), tier as PhotoTier, photoPrompt),
+      prompts,
       seed,
       lora,
       // Rendered as PNG either way; a WebP name is encoded by the renderer once it lands.
@@ -267,6 +316,14 @@ export async function generatePhoto(
     },
     options
   )
+
+  await keepPhotoSidecar(playthroughId, character.charId, file, {
+    schemaVersion: 1,
+    seed,
+    tier,
+    ...prompts,
+    ...(lora ? { lora } : {})
+  })
 
   // On disk now, so the folder itself says the name is taken.
   reservedPhotoNames.get(getPhotosPath(playthroughId, character.charId))?.delete(file)
@@ -290,8 +347,10 @@ export async function generateDuoPhoto(
   tier: string,
   photoPrompt: string,
   file: string,
-  options: { signal?: AbortSignal; onProgress?: (step: string) => void } = {}
+  options: { signal?: AbortSignal; onProgress?: (step: string) => void } = {},
+  overrides: PhotoRenderOptions = {}
 ): Promise<string> {
+  validatePhotoOverrides(overrides, true)
   assertSafeCharId(character.charId)
   assertSafeCharId(friend.charId)
   assertSafePlaythroughId(playthroughId)
@@ -305,19 +364,32 @@ export async function generateDuoPhoto(
   options.onProgress?.('Preparing')
 
   assertPhotoFile(file)
-  const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
-  const prompts = buildDuoPhotoPrompt(
-    await withBodySetting(character),
-    await withBodySetting(friend),
-    tier as PhotoTier,
-    photoPrompt
-  )
+  const seed = overrides.seed ?? Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
+  const built = overrides.prompts
+    ? {
+        scene: overrides.prompts.positive,
+        negative: overrides.prompts.negative,
+        left: overrides.prompts.left ?? '',
+        right: overrides.prompts.right ?? ''
+      }
+    : buildDuoPhotoPrompt(
+        await withBodySetting(character),
+        await withBodySetting(friend),
+        tier as PhotoTier,
+        photoPrompt
+      )
+  const prompts = {
+    positive: built.scene,
+    negative: built.negative,
+    left: built.left,
+    right: built.right
+  }
 
   await runGenerationJob(
     {
       workflowFile: 'characterPhotoDuo.json',
       nodes: DUO_PHOTO_NODE,
-      prompts: { positive: prompts.scene, negative: prompts.negative },
+      prompts: { positive: prompts.positive, negative: prompts.negative },
       texts: { [DUO_GIRL_NODE.left]: prompts.left, [DUO_GIRL_NODE.right]: prompts.right },
       seed,
       destPath: getPhotoPath(playthroughId, character.charId, pngPhotoOf(file)),
@@ -328,6 +400,127 @@ export async function generateDuoPhoto(
     options
   )
 
+  await keepPhotoSidecar(playthroughId, character.charId, file, {
+    schemaVersion: 1,
+    seed,
+    tier,
+    ...prompts
+  })
   reservedPhotoNames.get(getPhotosPath(playthroughId, character.charId))?.delete(file)
   return file
+}
+
+/** Keeps the request next to its landed picture; metadata failure leaves the picture usable. */
+async function keepPhotoSidecar(
+  playthroughId: string,
+  charId: string,
+  file: string,
+  info: PhotoSidecar
+): Promise<void> {
+  try {
+    await writeAtomicBytes(
+      getPhotoPath(playthroughId, charId, photoSidecarOf(file)),
+      Buffer.from(JSON.stringify(info)),
+      {
+        code: 'PHOTO_SIDECAR_WRITE_FAILED',
+        message: 'Could not save the photo prompt.'
+      }
+    )
+  } catch (error) {
+    console.warn(`[photo] could not keep the prompt for ${file}:`, error)
+  }
+}
+
+/** Reads only the complete versioned shape; old or broken metadata falls back to a build. */
+async function recordedPhotoInfo(
+  playthroughId: string,
+  charId: string,
+  file: string
+): Promise<PhotoSidecar | undefined> {
+  try {
+    const bytes = await readFile(getPhotoPath(playthroughId, charId, photoSidecarOf(file)))
+    const info = JSON.parse(bytes.toString('utf8'))
+    if (
+      !info ||
+      info.schemaVersion !== 1 ||
+      !Number.isSafeInteger(info.seed) ||
+      info.seed < 0 ||
+      !isPhotoTier(info.tier) ||
+      typeof info.positive !== 'string' ||
+      typeof info.negative !== 'string' ||
+      (info.left !== undefined && typeof info.left !== 'string') ||
+      (info.right !== undefined && typeof info.right !== 'string') ||
+      (info.left === undefined) !== (info.right === undefined) ||
+      (info.lora !== undefined &&
+        (!info.lora ||
+          typeof info.lora.name !== 'string' ||
+          typeof info.lora.weight !== 'number' ||
+          !Number.isFinite(info.lora.weight)))
+    )
+      return undefined
+    return info as PhotoSidecar
+  } catch {
+    return undefined
+  }
+}
+
+/** The recorded request, or today's prompt built from her current tags and body setting. */
+export async function photoInfo(
+  playthroughId: string,
+  character: Character,
+  friend: Character | undefined,
+  tier: string,
+  scene: string,
+  file: string,
+  rebuild = false
+): Promise<PhotoInfo> {
+  assertSafePlaythroughId(playthroughId)
+  assertSafeCharId(character.charId)
+  if (friend) assertSafeCharId(friend.charId)
+  assertPhotoFile(file)
+  if (!isPhotoTier(tier))
+    throw appError('PHOTO_TIER_UNKNOWN', `"${String(tier)}" is not a photo tier.`, tier)
+  const saved = await recordedPhotoInfo(playthroughId, character.charId, file)
+  if (saved && !rebuild) return { ...saved, recorded: true }
+  const seed = saved?.seed
+  if (friend) {
+    const prompts = buildDuoPhotoPrompt(
+      await withBodySetting(character),
+      await withBodySetting(friend),
+      tier,
+      scene
+    )
+    return {
+      recorded: false,
+      seed,
+      tier,
+      positive: prompts.scene,
+      negative: prompts.negative,
+      left: prompts.left,
+      right: prompts.right
+    }
+  }
+  const lora = characterLoraOf(character)
+  return {
+    recorded: false,
+    seed,
+    tier,
+    ...buildPhotoPrompt(await withBodySetting(character), tier, scene),
+    ...(lora ? { lora } : {})
+  }
+}
+
+/** Deletes both image formats and the request that belongs to this photo name. */
+export async function dropPhoto(
+  playthroughId: string,
+  charId: string,
+  file: string
+): Promise<void> {
+  assertSafePlaythroughId(playthroughId)
+  assertSafeCharId(charId)
+  assertPhotoFile(file)
+  const png = pngPhotoOf(file)
+  for (const name of [png, png.replace(/\.png$/, '.webp'), photoSidecarOf(file)]) {
+    await rm(getPhotoPath(playthroughId, charId, name), { force: true })
+  }
 }

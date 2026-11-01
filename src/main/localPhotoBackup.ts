@@ -1,9 +1,9 @@
 import { existsSync } from 'fs'
-import { readdir, rm } from 'fs/promises'
+import { readdir, rm, readFile, stat } from 'fs/promises'
 import { join } from 'path'
 import { BACKUP_ZIP_LIMITS } from '@shared/backup'
 import { SAFE_CHAR_ID } from '@shared/characterRules'
-import { isPhotoFile } from '../shared/photoFiles'
+import { isPhotoFile, isPhotoSidecar } from '../shared/photoFiles'
 import { SAFE_NUMERIC_ID } from '@shared/saveRules'
 import { getPlaythroughPath, getSavesPath } from './paths'
 import { getPhotoPath } from './photoProtocol'
@@ -65,7 +65,13 @@ export async function exportLocalPhotos(backupPath: string): Promise<void> {
         for (const file of await readdir(join(photos, charId))) {
           const from = getPhotoPath(playthroughId, charId, file)
           // Only a picture named as one of ours: the build's own photos sit beside these folders.
-          if (!isPhotoFile(file) || !(await sniffImageFile(from))) continue
+          if (
+            isPhotoSidecar(file)
+              ? !(await validPhotoJson(from))
+              : !isPhotoFile(file) || !(await sniffImageFile(from))
+          ) {
+            continue
+          }
           await copyInto(from, join(scratch, playthroughId, charId, file))
           count++
         }
@@ -98,9 +104,11 @@ export async function importLocalPhotos(backupPath: string): Promise<void> {
         rest.length === 0 &&
         SAFE_NUMERIC_ID.test(playthroughId ?? '') &&
         SAFE_CHAR_ID.test(charId ?? '') &&
-        isPhotoFile(file ?? '') &&
+        (isPhotoFile(file ?? '') || isPhotoSidecar(file ?? '')) &&
         existsSync(getPlaythroughPath(playthroughId)) &&
-        (await sniffImageFile(join(scratch, rel))) !== null
+        (isPhotoSidecar(file)
+          ? await validPhotoJson(join(scratch, rel))
+          : (await sniffImageFile(join(scratch, rel))) !== null)
       if (!ours) {
         console.warn(`[backup] leaving out ${rel} from the photos beside the backup`)
         continue
@@ -111,5 +119,16 @@ export async function importLocalPhotos(backupPath: string): Promise<void> {
     console.warn('[backup] could not put back the DM and feed photos beside the backup:', err)
   } finally {
     await discard(scratch)
+  }
+}
+
+/** A small JSON sidecar; its name is checked by the caller before it reaches the archive. */
+async function validPhotoJson(path: string): Promise<boolean> {
+  try {
+    if ((await stat(path)).size >= 64 * 1024) return false
+    JSON.parse(await readFile(path, 'utf8'))
+    return true
+  } catch {
+    return false
   }
 }

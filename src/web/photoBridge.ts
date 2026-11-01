@@ -1,4 +1,5 @@
 import { appError } from '@shared/errors'
+import type { PhotoInfo } from '../shared/photoTypes'
 import type { Result } from '@shared/types'
 
 /**
@@ -23,6 +24,8 @@ export const photoBridge = {
     reserveName: () => desktopOnly<string>('photo.reserveName'),
     landed: () => desktopOnly<boolean>('photo.landed'),
     read: () => desktopOnly<Uint8Array>('photo.read'),
+    info: () => desktopOnly<PhotoInfo>('photo.info'),
+    drop: () => desktopOnly<void>('photo.drop'),
     storeWebp: () => desktopOnly<void>('photo.storeWebp'),
     // The browser build has never drawn one, so there is nothing to carry.
     carry: (): Promise<Result<void>> => Promise.resolve({ ok: true, data: undefined }),

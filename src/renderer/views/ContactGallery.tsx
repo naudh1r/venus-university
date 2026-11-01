@@ -1,10 +1,14 @@
 import { motion } from 'motion/react'
-import { Fragment, useState, type JSX } from 'react'
+import { Fragment, useEffect, useState, type JSX } from 'react'
 import { postIsOut } from '../../shared/heldPosts'
 import { photoUrl } from '../../shared/photoFiles'
 import type { ChatPhoto } from '../../shared/photoTypes'
 import type { SocialPost, TimeSlot } from '@vx/modkit/shared'
-import { openShot } from '../components/PhotoBubble'
+import { PhotoInfoButton, PhotoRedrawFailure } from '../components/PhotoInfo'
+import { photoRedrawKey, usePhotoRedraw } from '../stores/photoRedraw'
+import { redrawMessagePhoto } from '../stores/photoTurn'
+import { redrawPostPhoto } from '../stores/photoPost'
+import { PhotoWait, openShot } from '../components/PhotoBubble'
 import { newestFirst } from '../stores/feedRolls'
 import { useExplicitBlocked, usePhotosVisible } from '../stores/photoSwitchHooks'
 import { useGameStore } from '../stores/gameStore'
@@ -39,6 +43,7 @@ type ShotSource = 'dm' | 'feed'
 interface GalleryShot {
   id: string
   photo: ChatPhoto
+  itemId: string
   file: string
   from: ShotSource
   date: number
@@ -70,15 +75,21 @@ function Shot({
   charId,
   playthroughId,
   file,
-  tier,
+  photo,
+  itemId,
   from
 }: {
   charId: string
   playthroughId: string | null
   file: string
-  tier: string
+  photo: ChatPhoto
+  itemId: string
   from: ShotSource
 }): JSX.Element | null {
+  const tier = photo.tier
+  const character = useGameStore((s) => s.characters[charId])
+  const friend = useGameStore((s) => photo.with ? s.characters[photo.with] : undefined)
+  const redraw = usePhotoRedraw(photoRedrawKey(playthroughId, charId, file))
   const [opened, setShown] = useState(tier !== 'explicit')
   // An undressed picture while they are forbidden stays covered, and cannot be opened.
   const explicitBlocked = useExplicitBlocked()
@@ -87,45 +98,72 @@ function Shot({
   // A picture the save names but the folder does not hold — one a save brought along without
   // its pictures — is left out of the grid rather than drawn as an empty frame.
   const [missing, setMissing] = useState(false)
+  useEffect(() => { setMissing(false) }, [file])
   if (!playthroughId) return <li className="vu-gallery-item" />
   if (missing) return null
 
   const src = photoUrl(playthroughId, charId, file)
   return (
-    <li className="vu-gallery-item vu-contact-shot-item">
-      <motion.button
-        className="vu-gallery-cell vu-contact-shot"
-        type="button"
-        {...gestures(false, quietLift, quietPress)}
-        disabled={locked}
-        title={locked ? 'Explicit photos are switched off' : undefined}
-        onClick={() => (shown ? openShot(src) : setShown(true))}
-      >
-        {/* Covered the way the thread covers it: the picture itself, blurred past reading. */}
-        <img
-          className={`vu-gallery-img${shown ? '' : ' vu-contact-shot-img--veiled'}`}
-          src={src}
-          alt=""
-          decoding="async"
-          onError={() => setMissing(true)}
-        />
-        <span className="vu-contact-shot-from">{from === 'dm' ? 'DM' : 'Feed'}</span>
-      </motion.button>
+    <motion.li
+      className="vu-gallery-item vu-contact-shot-item"
+      {...gestures(locked, quietLift, quietPress)}
+    >
+      {redraw === 'drawing' ? (
+        <div className="vu-contact-shot-wait">
+          <PhotoWait />
+        </div>
+      ) : (
+        <button
+          className="vu-gallery-cell vu-contact-shot"
+          type="button"
+          disabled={locked}
+          title={locked ? 'Explicit photos are switched off' : undefined}
+          onClick={() => (shown ? openShot(src) : setShown(true))}
+        >
+          {/* Covered the way the thread covers it: the picture itself, blurred past reading. */}
+          <img
+            className={`vu-gallery-img${shown ? '' : ' vu-contact-shot-img--veiled'}`}
+            src={src}
+            alt=""
+            decoding="async"
+            onError={() => setMissing(true)}
+          />
+          <span className="vu-contact-shot-from">{from === 'dm' ? 'DM' : 'Feed'}</span>
+        </button>
+      )}
       {/* The thread's own eye, so an explicit one can be covered again once seen. Beside the cell
           rather than in it, since a button cannot sit inside another. */}
-      {tier === 'explicit' && !locked && (
+      {redraw !== 'drawing' && tier === 'explicit' && !locked && (
         <button
           type="button"
           className={`vu-bb-photo-eye vu-contact-shot-eye${shown ? '' : ' vu-bb-photo-eye--covered'}`}
           aria-pressed={!shown}
           aria-label={shown ? 'Cover the photo' : 'Uncover the photo'}
           title={shown ? 'Cover the photo' : 'Uncover the photo'}
-          onClick={() => setShown(!shown)}
+          onPointerDownCapture={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation()
+            setShown(!shown)
+          }}
         >
           {shown ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
         </button>
       )}
-    </li>
+      {shown && character && (!photo.with || friend) && (
+        <PhotoInfoButton
+          playthroughId={playthroughId}
+          character={character}
+          friend={friend}
+          photo={{ ...photo, file }}
+          redrawing={redraw === 'drawing'}
+          onRedraw={(options) => {
+            if (from === 'dm') void redrawMessagePhoto(charId, itemId, options)
+            else void redrawPostPhoto(charId, itemId, options)
+          }}
+        />
+      )}
+      <PhotoRedrawFailure failed={redraw === 'failed'} />
+    </motion.li>
   )
 }
 
@@ -152,6 +190,7 @@ export function GalleryPanel({ charId, isContact, theme }: ContactTabProps): JSX
       ? [
           {
             id: message.id,
+            itemId: message.id,
             photo: message.photo,
             file: message.photo.file,
             from: 'dm' as const,
@@ -166,6 +205,7 @@ export function GalleryPanel({ charId, isContact, theme }: ContactTabProps): JSX
       ? [
           {
             id: `post:${post.id}`,
+            itemId: post.id,
             photo: post.photo,
             file: post.photo.file,
             from: 'feed' as const,
@@ -226,7 +266,8 @@ export function GalleryPanel({ charId, isContact, theme }: ContactTabProps): JSX
                   charId={charId}
                   playthroughId={playthroughId}
                   file={shot.file}
-                  tier={shot.photo.tier}
+                  photo={shot.photo}
+                  itemId={shot.itemId}
                   from={shot.from}
                 />
               ))}

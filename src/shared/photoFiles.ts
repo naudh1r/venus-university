@@ -43,6 +43,16 @@ export function isPhotoFile(file: string): boolean {
   return PHOTO_FILE.test(file) || LEGACY_PHOTO_FILE.test(file)
 }
 
+/** The JSON kept beside a picture, under the same stem in either image format. */
+export function photoSidecarOf(file: string): string {
+  return file.replace(/\.(?:png|webp)$/, '.json')
+}
+
+/** Whether a name is the sidecar of a current or legacy photo name. */
+export function isPhotoSidecar(name: string): boolean {
+  return name.endsWith('.json') && isPhotoFile(name.slice(0, -5) + '.png')
+}
+
 /** How many digits the counter carries, so a folder sorts the way it was filled. */
 const INDEX_DIGITS = 3
 

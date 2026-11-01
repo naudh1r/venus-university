@@ -1,9 +1,9 @@
+import { redrawPhoto, RENDER_PATIENCE_MS } from './photoRedraw'
 import { allowedPhotoTier, isPhotoTier, settlePhoto } from '../../shared/photoGate'
 import { affectionFor } from '@shared/relationship'
-import type { ChatPhoto } from '../../shared/photoTypes'
+import type { ChatPhoto, PhotoRenderOptions } from '../../shared/photoTypes'
 import type { Character, TextingResponse } from '@vx/modkit/shared'
 import { useGameStore } from './gameStore'
-import { RENDER_PATIENCE_MS } from './photoPost'
 import { canSendPhotos, noExplicitPhotos, photoNamesInSave, savePhotoState, setMessagePhoto } from './localPhotoStore'
 import { tellAboutDmPhotos } from './photoTipDelivery'
 import { renderPhoto } from './photoWebp'
@@ -165,4 +165,33 @@ export function rerollMessagePhoto(charId: string, messageId: string): void {
     ...(photo.with ? { with: photo.with } : {})
   })
   drawMessagePhoto(charId, messageId)
+}
+
+/** Gives one landed photo's redraw access to its message and save. */
+export async function redrawMessagePhoto(
+  charId: string,
+  messageId: string,
+  options: PhotoRenderOptions
+): Promise<void> {
+  const game = useGameStore.getState()
+  const playthroughId = game.playthroughId
+  const character = game.characters[charId]
+  if (!playthroughId || !character || !canSendPhotos()) return
+  const photo = messagePhotoOf(charId, messageId)
+  await redrawPhoto({
+    playthroughId,
+    character,
+    friend: photo?.with ? game.characters[photo.with] : undefined,
+    kind: 'chat',
+    read: () => messagePhotoOf(charId, messageId),
+    write: (next) => {
+      setMessagePhoto(charId, messageId, next)
+      savePhotoState()
+    },
+    live: () => {
+      const now = useGameStore.getState()
+      return now.playthroughId === playthroughId && now.loads === game.loads
+    },
+    inSave: () => photoNamesInSave(charId)
+  }, options)
 }
