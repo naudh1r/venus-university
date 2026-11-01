@@ -9,13 +9,83 @@ import { describe, expect, it } from 'vitest'
  * deprecated, or simply made up — is read as loose English at best and ignored at worst. Several
  * were: `arms_above_head`, `ass_up`, `hand_between_legs` and `text` among them.
  *
- * Reads the tables as text, like `photoHooks.test.ts`, and checks each tag against a list that
- * was verified by hand against the Danbooru API — present, not deprecated, and in use. A new tag
- * fails here until somebody has looked it up and added it below.
+ * Reads the tables as text, like `photoHooks.test.ts`, and checks each tag against a list
+ * checked against the Danbooru API or a published tag catalog. A new tag fails here until
+ * somebody has looked it up and added it below.
  */
 
-/** Verified against danbooru.donmai.us: each exists, is not deprecated, and has posts. */
+/** Danbooru vocabulary checked against the API or the catalog cited beside its entries. */
 const VERIFIED = new Set([
+  'holding_panties',
+  'holding_bra',
+  'no_panties',
+  'panties_around_one_leg',
+  'bottomless',
+  // Gestures and the mirror's phone constraint, from the same published catalog.
+  'hand_on_own_neck',
+  'hand_in_own_hair',
+  'hand_on_own_cheek',
+  'hand_on_own_face',
+  'finger_to_mouth',
+  'biting_own_finger',
+  'nail_biting',
+  'adjusting_clothes',
+  'blowing_kiss',
+  'heart_hands',
+  'arms_behind_back',
+  'covering_breasts',
+  'covering_crotch',
+  'dual_wielding',
+  // Reveals, checked against the same published Danbooru catalog below.
+  'breasts_out',
+  'underboob',
+  'panty_pull',
+  'pants_pull',
+  'open_shirt',
+  'open_clothes',
+  'bra_pull',
+  'off_shoulder',
+  'strap_slip',
+  'bra',
+  'panties',
+  // Activities and instruments, checked against the published Danbooru catalog:
+  // github.com/DominikDoom/a1111-sd-webui-tagcomplete/blob/main/tags/danbooru.csv
+  'playing_guitar',
+  'playing_instrument',
+  'playing_bass_guitar',
+  'holding_instrument',
+  'guitar',
+  'ukulele',
+  'bass_guitar',
+  'violin',
+  'cello',
+  'flute',
+  'playing_piano',
+  'keyboard_(instrument)',
+  'holding_microphone',
+  'singing',
+  'reading',
+  'holding_book',
+  'typing',
+  'laptop',
+  'writing',
+  'holding_pen',
+  'drawing_(action)',
+  'holding_pencil',
+  'painting_(action)',
+  'holding_paintbrush',
+  'playing_games',
+  'holding_controller',
+  'handheld_game_console',
+  'eating',
+  'drinking',
+  'cooking',
+  'knitting',
+  'brushing_hair',
+  'applying_makeup',
+  'hugging_object',
+  'waving',
+  'pointing',
   // The body pools and a petite girl's negatives, looked up on the API for `characterBody`: each
   // present, not deprecated, not an alias, with thousands of posts.
   'petite',
@@ -262,11 +332,13 @@ function emittedTags(): string[] {
     ...quoted(pose, /\? \[\] : \[('camera')\]/g),
     ...quoted(pose, /'from_above'\],\s*\[([^\]]*)\]/g),
     ...quoted(pose, /negative: \[\.\.\.negative, ('on_back')\]/g),
+    ...quoted(pose, /negative:\s*\[([^\]]*)\]/g).map(unweighted),
     ...quoted(framing, /tags:\s*\[([^\]]*)\]/g).map(unweighted),
     ...quoted(pose, /BARE_POSITION_DEFAULT[^=]*=\s*\[([^\]]*)\]/g),
     ...quoted(pose, /PLACEMENT_TAGS[^=]*=\s*new Set\(\[([^\]]*)\]/g),
     ...quoted(body, /THROUGH_CLOTH[^=]*=\s*\{([^}]*)\}/g),
     ...quoted(prompt, /tag:\s*('[^']*')/g),
+    ...quoted(prompt, /tags:\s*\[([^\]]*)\]/g).map(unweighted),
     ...quoted(prompt, /\[('partially_undressed')/g),
     ...quoted(prompt, /DRESSED_NEGATIVE[^=]*=\s*\[([^=]*?)\n\]/g).filter((tag) =>
       /^[a-z_]+$/.test(tag)

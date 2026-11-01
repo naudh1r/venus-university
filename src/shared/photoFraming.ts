@@ -11,21 +11,30 @@ import { saysAny } from './photoWords'
  */
 export type Framing = 'face' | 'waist' | 'knees' | 'full'
 
+const CLOSE_UP = ['close-up', 'closeup', 'close up']
+const MEDIUM_CLOSE_UP = ['medium close-up', 'medium close up']
+
 const FRAMINGS: readonly { framing: Framing; cues: readonly string[]; tags: readonly string[] }[] =
   [
     {
       framing: 'face',
-      cues: ['face shot', 'face only', 'just her face', 'headshot', 'her face filling'],
+      cues: ['face shot', 'face only', 'just her face', 'headshot', 'her face filling', ...CLOSE_UP],
       tags: ['close-up', 'portrait']
     },
     {
       framing: 'waist',
-      cues: ['waist up', 'from the waist', 'upper body', 'chest up', 'bust shot', 'shoulders up'],
+      cues: [
+        'waist up', 'from the waist', 'upper body', 'chest up', 'bust shot', 'shoulders up',
+        'medium shot', 'half body', 'half-body', ...MEDIUM_CLOSE_UP
+      ],
       tags: ['(upper_body:1.3)']
     },
     {
       framing: 'knees',
-      cues: ['knees up', 'from the knees', 'thighs up', 'thigh up', 'mid-thigh', 'mid thigh'],
+      cues: [
+        'knees up', 'from the knees', 'thighs up', 'thigh up', 'mid-thigh', 'mid thigh',
+        'three-quarter', 'three quarter', 'cowboy shot', 'from the thighs'
+      ],
       tags: ['cowboy_shot']
     },
     {
@@ -37,7 +46,8 @@ const FRAMINGS: readonly { framing: Framing; cues: readonly string[]; tags: read
         'whole body',
         'full length',
         'full-length',
-        'whole outfit'
+        'whole outfit',
+        'full shot'
       ],
       tags: ['full_body']
     }
@@ -46,6 +56,13 @@ const FRAMINGS: readonly { framing: Framing; cues: readonly string[]; tags: read
 /** The framing the caption asks for, closest first, or null where it names none. */
 export function framingOf(caption: string): Framing | null {
   const text = caption.toLowerCase()
+  // A medium close-up includes her chest; a phone at arm's length does too.
+  if (
+    saysAny(text, MEDIUM_CLOSE_UP) ||
+    (saysAny(text, CLOSE_UP) && saysAny(text, ['selfie']))
+  ) {
+    return 'waist'
+  }
   return FRAMINGS.find((row) => saysAny(text, row.cues))?.framing ?? null
 }
 

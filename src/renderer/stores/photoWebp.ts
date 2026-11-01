@@ -1,4 +1,5 @@
 import { isWebpPhoto, WEBP_QUALITY } from '../../shared/photoFiles'
+import type { PhotoRenderOptions } from '../../shared/photoTypes'
 import type { Result } from '@shared/types'
 import type { Character } from '@vx/modkit/shared'
 
@@ -20,11 +21,12 @@ export async function renderPhoto(
   scene: string,
   file: string,
   // Beside her in it, for a picture of the two of them.
-  friend?: Character
+  friend?: Character,
+  options?: PhotoRenderOptions
 ): Promise<Result<string>> {
   const result = friend
-    ? await window.api.photo.generateDuo(playthroughId, character, friend, tier, scene, file)
-    : await window.api.photo.generate(playthroughId, character, tier, scene, file)
+    ? await window.api.photo.generateDuo(playthroughId, character, friend, tier, scene, file, options)
+    : await window.api.photo.generate(playthroughId, character, tier, scene, file, options)
   if (result.ok && isWebpPhoto(file)) await encodeWebp(playthroughId, character.charId, file)
   return result
 }

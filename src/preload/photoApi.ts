@@ -14,6 +14,12 @@ import type { Character } from '@shared/types'
  * renderer tsconfig projects include — this file is in neither's reach from the renderer side.
  */
 
+/** The optional request overrides carried over IPC. */
+type PhotoRenderOptions = {
+  seed?: number
+  prompts?: { positive: string; negative: string; left?: string; right?: string }
+}
+
 /** Spread into the preload's `api` object; one line there, everything else here. */
 export const photoApi = {
   photo: {
@@ -27,6 +33,27 @@ export const photoApi = {
       ipcRenderer.invoke('comfy:photoLanded', playthroughId, charId, file),
     read: (playthroughId: string, charId: string, file: string) =>
       ipcRenderer.invoke('comfy:readPhoto', playthroughId, charId, file),
+    info: (
+      playthroughId: string,
+      character: Character,
+      friend: Character | undefined,
+      tier: string,
+      scene: string,
+      file: string,
+      rebuild = false
+    ) =>
+      ipcRenderer.invoke(
+        'comfy:photoInfo',
+        playthroughId,
+        character,
+        friend,
+        tier,
+        scene,
+        file,
+        rebuild
+      ),
+    drop: (playthroughId: string, charId: string, file: string) =>
+      ipcRenderer.invoke('comfy:dropPhoto', playthroughId, charId, file),
     storeWebp: (playthroughId: string, charId: string, file: string, bytes: Uint8Array) =>
       ipcRenderer.invoke('comfy:storeWebpPhoto', playthroughId, charId, file, bytes),
     carry: (fromPlaythroughId: string, toPlaythroughId: string, charIds?: string[]) =>
@@ -36,16 +63,26 @@ export const photoApi = {
       character: Character,
       tier: string,
       photoPrompt: string,
-      file: string
+      file: string,
+      options?: PhotoRenderOptions
     ) =>
-      ipcRenderer.invoke('comfy:generatePhoto', playthroughId, character, tier, photoPrompt, file),
+      ipcRenderer.invoke(
+        'comfy:generatePhoto',
+        playthroughId,
+        character,
+        tier,
+        photoPrompt,
+        file,
+        options
+      ),
     generateDuo: (
       playthroughId: string,
       character: Character,
       friend: Character,
       tier: string,
       photoPrompt: string,
-      file: string
+      file: string,
+      options?: PhotoRenderOptions
     ) =>
       ipcRenderer.invoke(
         'comfy:generateDuoPhoto',
@@ -54,7 +91,8 @@ export const photoApi = {
         friend,
         tier,
         photoPrompt,
-        file
+        file,
+        options
       )
   }
 }
