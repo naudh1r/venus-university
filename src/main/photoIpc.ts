@@ -1,15 +1,19 @@
 import type { IpcMainInvokeEvent } from 'electron'
 import { enqueue } from '@shared/jobQueue'
-import type { Character } from '@shared/types'
+import type { PhotoRenderOptions } from '../shared/photoTypes'
+import type { Character } from '@vx/modkit/shared'
 import { start as startComfy } from './services/comfyService'
 import {
   carryPhotos,
+  photoInfo,
+  dropPhoto,
   generateDuoPhoto,
   generatePhoto,
   photoLanded,
   readPhotoBytes,
   reservePhotoName,
-  storeWebpPhoto
+  storeWebpPhoto,
+  validatePhotoOverrides
 } from './services/localPhotoService'
 
 /**
@@ -52,8 +56,7 @@ type Handle = <Args extends unknown[], T>(
 
 /** Registers the photo channels. Called from `registerIpcHandlers` with its own `handle`. */
 export function registerPhotoIpc(handle: Handle): void {
-  // The name the next picture will land under, settled before it is drawn so the bubble that
-  // is waiting for it can carry that name into the save straight away.
+  // Reserves the name the waiting bubble will carry into the save.
   handle(
     'comfy:reservePhotoName',
     (_event, playthroughId: string, character: Character, kind: string, inSave: unknown) =>
@@ -67,8 +70,7 @@ export function registerPhotoIpc(handle: Handle): void {
       carryPhotos(fromPlaythroughId, toPlaythroughId, charIds)
   )
 
-  // Whether a picture a bubble is still waiting for is on disk after all — asked on load, for
-  // a render that finished after the save that was waiting for it was written.
+  // Finds a picture that landed after its waiting bubble was saved.
   handle('comfy:photoLanded', (_event, playthroughId: string, charId: string, file: string) =>
     photoLanded(playthroughId, charId, file)
   )
@@ -85,6 +87,26 @@ export function registerPhotoIpc(handle: Handle): void {
       storeWebpPhoto(playthroughId, charId, file, bytes)
   )
 
+  // Reads the recorded request, or rebuilds it from today's tags and settings.
+  handle(
+    'comfy:photoInfo',
+    (
+      _event,
+      playthroughId: string,
+      character: Character,
+      friend: Character | undefined,
+      tier: string,
+      scene: string,
+      file: string,
+      rebuild: boolean = false
+    ) => photoInfo(playthroughId, character, friend, tier, scene, file, rebuild)
+  )
+
+  // Removes both image formats and the sidecar after a replacement lands.
+  handle('comfy:dropPhoto', (_event, playthroughId: string, charId: string, file: string) =>
+    dropPhoto(playthroughId, charId, file)
+  )
+
   // One picture she texted, rendered after her words have already landed on the thread.
   handle(
     'comfy:generatePhoto',
@@ -94,11 +116,14 @@ export function registerPhotoIpc(handle: Handle): void {
       character: Character,
       tier: string,
       photoPrompt: string,
-      file: string
-    ) =>
-      queuePhoto(character, `photo:${tier}`, (options) =>
-        generatePhoto(playthroughId, character, tier, photoPrompt, file, options)
+      file: string,
+      overrides: PhotoRenderOptions = {}
+    ) => {
+      validatePhotoOverrides(overrides, false)
+      return queuePhoto(character, `photo:${tier}`, (options) =>
+        generatePhoto(playthroughId, character, tier, photoPrompt, file, options, overrides)
       )
+    }
   )
 
   // A picture of her and a friend, queued under her: it is hers, and lands in her folder.
@@ -111,10 +136,22 @@ export function registerPhotoIpc(handle: Handle): void {
       friend: Character,
       tier: string,
       photoPrompt: string,
-      file: string
-    ) =>
-      queuePhoto(character, `photo-duo:${tier}`, (options) =>
-        generateDuoPhoto(playthroughId, character, friend, tier, photoPrompt, file, options)
+      file: string,
+      overrides: PhotoRenderOptions = {}
+    ) => {
+      validatePhotoOverrides(overrides, true)
+      return queuePhoto(character, `photo-duo:${tier}`, (options) =>
+        generateDuoPhoto(
+          playthroughId,
+          character,
+          friend,
+          tier,
+          photoPrompt,
+          file,
+          options,
+          overrides
+        )
       )
+    }
   )
 }

@@ -23,7 +23,7 @@ import { canSendPhotos, noExplicitPhotos } from '../stores/localPhotoStore'
 import { postLikes, rollComments, strangerLikes } from '../stores/photoComments'
 import { holdPostPhoto, preparePostPhoto, startHeldPostPhoto } from '../stores/photoPost'
 import { settlePendingPhotos } from '../stores/photoRecovery'
-import { sendPhoto } from '../stores/photoTurn'
+import { clearEarlyPhotos, sendPhoto, startDmPhoto } from '../stores/photoTurn'
 import {
   feedFriendFor,
   feedFriendLines,
@@ -55,6 +55,7 @@ registerHooks(PHOTO_FEATURE, {
   editorField: BODY_EDITOR_FIELD,
   prompts: {
     dm: {
+      lead: true,
       // What she may photograph is settled from the save before she is asked anything.
       lines: ({ character, info, state }) =>
         photoLines(character, info, {
@@ -117,26 +118,34 @@ registerHooks(PHOTO_FEATURE, {
   characterFromDraft: (draft, { baseAppearance }) =>
     writeBody(bodyOfDraft(draft.body as DraftBody | undefined, baseAppearance)),
 
-  // Her picture, if she offered one and the save will have it. Left to finish on its own: a
-  // render is half a minute, and her words have already landed.
-  afterDmReply: ({ charId, character, reply }) => void sendPhoto(charId, character, reply),
+  // Her streamed decision starts drawing; the completed reply claims that same render.
+  dmReplyLead: ({ charId, character, lead }) => startDmPhoto(charId, character, lead),
+  afterDmReply: ({ charId, character, reply }) => void sendPhoto(charId, character, reply, true),
 
   // The same for a girl texting first, read off her entry in the slot's opening: a custom
   // endpoint's JSON is not held to the schema, so each field is taken only as the type it should
   // be.
   afterReachOut: ({ charId, character, reply }) =>
-    void sendPhoto(charId, character, {
-      sendPhoto: reply.sendPhoto === true,
-      photoPrompt: typeof reply.photoPrompt === 'string' ? reply.photoPrompt : '',
-      ...(typeof reply.photoTier === 'string' ? { photoTier: reply.photoTier } : {})
-    }),
+    void sendPhoto(
+      charId,
+      character,
+      {
+        sendPhoto: reply.sendPhoto === true,
+        photoPrompt: typeof reply.photoPrompt === 'string' ? reply.photoPrompt : '',
+        ...(typeof reply.photoTier === 'string' ? { photoTier: reply.photoTier } : {})
+      },
+      false
+    ),
 
   // The slot's held feed pictures, now that he is busy with something: they draw under the scene
   // and the posts are waiting on the feed when he is free again.
   playerActs: () => startHeldPostPhoto(),
 
   // A picture whose render outlived the save that asked for it: found on disk, or given up on.
-  gameEntered: () => void settlePendingPhotos(),
+  gameEntered: () => {
+    clearEarlyPhotos()
+    void settlePendingPhotos()
+  },
 
   fileFeedPost: async (filing, { nudge }) => {
     const reply = filing.reply as { image?: string; groupWith?: unknown; comments?: unknown }

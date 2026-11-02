@@ -183,8 +183,8 @@
 /* A person's mark stays in the corner; her handle is revealed over the picture when asked. */
 .vu-bb-photo-tags-toggle {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
+  bottom: 8px;
+  left: 8px;
   display: grid;
   place-items: center;
   width: 30px;
@@ -192,8 +192,10 @@
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--vu-accent-shadow) 72%, transparent);
+  background: color-mix(in srgb, var(--vu-accent-shadow) 62%, transparent);
   color: var(--night-text);
+  cursor: pointer;
+  transition: opacity 0.14s ease-out;
 }
 
 .vu-bb-photo-tags-toggle:focus-visible {
@@ -201,11 +203,15 @@
   outline-offset: 3px;
 }
 
+.vu-bb-photo-tags-toggle:hover {
+  background: color-mix(in srgb, var(--vu-accent-shadow) 82%, transparent);
+}
+
 .vu-bb-photo-tag-seat {
   position: absolute;
-  bottom: 16px;
-  left: 50px;
-  right: 50px;
+  bottom: 12px;
+  left: 46px;
+  right: 46px;
   display: flex;
   justify-content: center;
   pointer-events: none;

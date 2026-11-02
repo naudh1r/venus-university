@@ -39,7 +39,7 @@ it.each(['accepted', 'failed-save', 'load-during-save', 'new-hangout', 'blocked'
   const sent = sendMessage('a', 'Send a coffee photo?')
   await vi.advanceTimersByTimeAsync(60_000); await sent
   expect(sendPhoto).toHaveBeenCalledOnce()
-  expect(sendPhoto).toHaveBeenCalledWith('a', game().characters.a, expect.objectContaining({ sendPhoto: false }))
+  expect(sendPhoto).toHaveBeenCalledWith('a', game().characters.a, expect.objectContaining({ sendPhoto: false }), true)
   expect(game().bunnyboard.conversations.a.messages.at(-1)?.photo).toBeUndefined()
   vi.mocked(sendPhoto).mockClear()
   const original = game().bunnyboard.conversations.a
@@ -61,5 +61,5 @@ it.each(['accepted', 'failed-save', 'load-during-save', 'new-hangout', 'blocked'
   const request = complete.mock.calls[1][0]
   expect(request.schema.schema.properties).toHaveProperty('sendPhoto')
   expect(game().bunnyboard.conversations.a.messages.at(-1)?.text).toBe('Here is my coffee photo.')
-  expect(sendPhoto).toHaveBeenCalledWith('a', game().characters.a, expect.objectContaining({ sendPhoto: true }))
+  expect(sendPhoto).toHaveBeenCalledWith('a', game().characters.a, expect.objectContaining({ sendPhoto: true }), true)
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { groupPhotoPair, photoFriendHandle } from '../src/shared/photoDuo'
-import { buildDuoPhotoPrompt } from '../src/shared/photoPrompt'
+import { buildDuoPhotoPrompt, withoutTouching } from '../src/shared/photoPrompt'
 import { character } from './fixtures'
 
 describe('who is in a group photo', () => {
@@ -60,6 +60,72 @@ describe('a picture of two', () => {
     expect(prompts.left).not.toMatch(/thighhighs|sneakers/)
     expect(prompts.right).toContain('(brown_sweater:1.2)')
     expect(prompts.negative).not.toMatch(/\b2girls\b|multiple_girls/)
+  })
+
+  it.each([
+    ['everyday clothes', 'pink_top', 'brown_sweater'],
+    ['PE kit', 'gym_uniform', 'gym_uniform'],
+    ['swimsuits', 'white_bikini', 'white_bikini']
+  ])('keeps the place after their %s, with each outfit in its own half', (set, left, right) => {
+    const sender = {
+      ...risa,
+      peOutfit: ['gym_uniform'],
+      swimOutfit: ['white_bikini']
+    }
+    const friend = {
+      ...ana,
+      peOutfit: ['gym_uniform'],
+      swimOutfit: ['white_bikini']
+    }
+    const prompts = buildDuoPhotoPrompt(
+      sender,
+      friend,
+      'suggestive',
+      `A photo of her and Ana in their ${set} beside the arcade cabinets, smiling.`
+    )
+    expect(prompts.scene).toContain('A photo of her and her friend beside the arcade cabinets, smiling')
+    expect(prompts.scene).not.toContain(set)
+    expect(prompts.left).toContain(left)
+    expect(prompts.right).toContain(right)
+  })
+
+  it('keeps their room and the place after touching', () => {
+    const prompts = buildDuoPhotoPrompt(
+      risa,
+      ana,
+      'everyday',
+      'Her and Ana in her room wearing their everyday clothes, smiling.'
+    )
+    expect(prompts.scene).toContain('Her and her friend in her room, smiling')
+    expect(withoutTouching('Her and her friend hugging beside the arcade cabinets.')).toBe(
+      'Her and her friend beside the arcade cabinets.'
+    )
+  })
+
+  it('keeps described clothes out of the scene and each wardrobe in its own half', () => {
+    const prompts = buildDuoPhotoPrompt(
+      risa,
+      ana,
+      'everyday',
+      'Her and Ana in matching pink hoodies beside the arcade cabinets.'
+    )
+    expect(prompts.scene).not.toContain('matching pink hoodies')
+    expect(prompts.scene).toContain('beside the arcade cabinets')
+    expect(prompts.left).toContain('(pink_top:1.2)')
+    expect(prompts.right).toContain('(brown_sweater:1.2)')
+  })
+
+  it('keeps a close-up selfie at waist framing in both halves', () => {
+    const prompts = buildDuoPhotoPrompt(
+      risa,
+      ana,
+      'everyday',
+      'A close-up selfie of her and Ana in her room'
+    )
+    for (const prompt of [prompts.scene, prompts.left, prompts.right]) {
+      expect(prompt).toContain('(upper_body:1.3)')
+      expect(prompt).not.toContain('portrait')
+    }
   })
 
   it('gives the phone to the girl who sent it alone', () => {

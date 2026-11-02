@@ -1,5 +1,4 @@
-import type { Result } from './types'
-import type { Character } from '@vx/modkit/shared'
+import type { Result, Character } from '@vx/modkit/shared'
 
 /**
  * What the photo feature adds to the save's shapes, added from outside them.
@@ -12,9 +11,41 @@ import type { Character } from '@vx/modkit/shared'
  * mean exactly the same thing to the compiler — and a sync that overwrites `types.ts` carries
  * nothing away with it.
  *
- * Nothing imports this file for a value; it has none. It reaches the compiler because the
- * project includes `src`, and the augmentations below apply to the whole program from there.
+ * The augmentations apply to the whole program because the project includes `src`.
  */
+
+/** The maximum length of each player-edited prompt sent with a redraw. */
+export const PHOTO_PROMPT_LIMIT = 8000
+
+/** The text sent to the scene and, for a duo, each girl's own prompt node. */
+export interface PhotoPrompts {
+  positive: string
+  negative: string
+  left?: string
+  right?: string
+}
+
+/** Optional overrides for a redraw; omitted values use today's builder and a fresh seed. */
+export interface PhotoRenderOptions {
+  seed?: number
+  prompts?: PhotoPrompts
+}
+
+/** What reached ComfyUI, kept beside the picture rather than in the save. */
+export interface PhotoSidecar extends PhotoPrompts {
+  schemaVersion: 1
+  seed: number
+  tier: string
+  lora?: { name: string; weight: number }
+}
+
+/** A recorded prompt, or today's reconstruction for a picture without a usable sidecar. */
+export interface PhotoInfo extends PhotoPrompts {
+  recorded: boolean
+  seed?: number
+  tier: string
+  lora?: { name: string; weight: number }
+}
 
 /** One picture on a thread, in whichever state the render left it. */
 export interface ChatPhoto {
@@ -98,6 +129,18 @@ declare module '../preload/api' {
       landed: (playthroughId: string, charId: string, file: string) => Promise<Result<boolean>>
       /** The bytes of a picture on disk, whichever of PNG or WebP it is under. */
       read: (playthroughId: string, charId: string, file: string) => Promise<Result<Uint8Array>>
+      /** The recorded prompt, or a current build; rebuilding retains a recorded seed. */
+      info: (
+        playthroughId: string,
+        character: Character,
+        friend: Character | undefined,
+        tier: string,
+        scene: string,
+        file: string,
+        rebuild?: boolean
+      ) => Promise<Result<PhotoInfo>>
+      /** Removes the picture's PNG, WebP and sidecar after a replacement has landed. */
+      drop: (playthroughId: string, charId: string, file: string) => Promise<Result<void>>
       /** Keeps the WebP encoded from a picture that landed as PNG, and drops the PNG. */
       storeWebp: (
         playthroughId: string,
@@ -124,7 +167,8 @@ declare module '../preload/api' {
         character: Character,
         tier: string,
         photoPrompt: string,
-        file: string
+        file: string,
+        options?: PhotoRenderOptions
       ) => Promise<Result<string>>
       /** {@link generate} for a picture of her with `friend` beside her, in her own folder. */
       generateDuo: (
@@ -133,7 +177,8 @@ declare module '../preload/api' {
         friend: Character,
         tier: string,
         photoPrompt: string,
-        file: string
+        file: string,
+        options?: PhotoRenderOptions
       ) => Promise<Result<string>>
     }
   }

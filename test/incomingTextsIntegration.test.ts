@@ -83,7 +83,7 @@ describe('Incoming Texts in the combined package', () => {
     await finish(sendIncomingMessage('a', 'She sends a selfie'))
     expect(complete.mock.calls[0][0].schema.schema.properties).toHaveProperty('sendPhoto')
     expect(sendPhoto).toHaveBeenCalledWith('a', useGameStore.getState().characters.a,
-      expect.objectContaining({ sendPhoto: true, photoPrompt: 'A selfie at the campus cafe' }))
+      expect.objectContaining({ sendPhoto: true, photoPrompt: 'A selfie at the campus cafe' }), true)
     expect(thread().messages.every(m => m.sender === 'contact')).toBe(true)
   }, 20_000)
 })

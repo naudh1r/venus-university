@@ -149,15 +149,17 @@ const HIDES: Readonly<Record<string, readonly Region[]>> = {
 
 /** What a garment can be doing that leaves what it would cover in shot. */
 const DISPLACED =
-  '(?:pulled (?:to the side|aside|down|up|off)|bunched|hiked up|hitched up|lifted|pushed (?:up|aside|down)|moved aside|tugged (?:aside|down)|around her (?:ankles|knees))'
+  '(?:pulled (?:to the side|aside|down|up|off)|bunched|hiked up|hitched up|lifted|pushed (?:up|aside|down)|moved aside|tugged (?:aside|down)|around (?:her )?(?:one )?(?:ankles?|knees?|legs?))'
 
-/**
- * Whether the caption has this garment on her but out of the way: "her thong pulled aside",
- * "her skirt hiked up". At most two words between them, so "her clothes with her skirt bunched"
- * moves the skirt and not the clothes.
- */
+/** Whether this garment is moved aside, removed, or being held rather than worn. */
 function displaced(text: string, word: string): boolean {
-  return new RegExp(`\\b${word}\\b(?:\\s+[a-z'-]+){0,2}?\\s+${DISPLACED}`).test(text)
+  const noun = `${word}(?:s|es)?`
+  const gap = "(?:\\s+(?!and\\b|with\\b|to\\b|while\\b)[a-z'’-]+){0,4}?\\s+"
+  return new RegExp(
+    `\\b${noun}\\b${gap}${DISPLACED}\\b|` +
+      `\\b(?:removed|removing|took off|taken off|holding(?: up)?|dangling|dangles|swinging|twirling|no)\\b${gap}${noun}\\b|` +
+      `\\b${noun}\\b${gap}(?:removed|off|dangles|dangling|hanging)\\b`
+  ).test(text)
 }
 
 /** Clothing that keeps the shape and gives away the rest: what suggestive is made of. */
@@ -266,6 +268,57 @@ function coverageIn(caption: string, bare: boolean): Record<Region, Coverage> {
   return coverage
 }
 
+/** The half a partially undressed caption bares, and whether anything still covers her below. */
+export interface PartialPhotoExposure {
+  readonly upper: boolean
+  readonly lower: boolean
+  readonly bottomless: boolean
+}
+
+/** Reveal tags settle the bare half; an unrecognised reveal retains the usual coverage. */
+export function partialExposureIn(
+  caption: string,
+  reveals: readonly string[],
+  outfit: readonly string[] = []
+): PartialPhotoExposure | undefined {
+  if (describesNothingOn(caption)) return undefined
+  const text = caption.toLowerCase()
+  const upper =
+    reveals.some((tag) => ['breasts_out', 'shirt_lift', 'bra_lift', 'bra_pull'].includes(tag)) ||
+    (reveals.includes('clothes_pull') &&
+      saysAny(text, ['neckline', 'shirt', 'top', 'sweater', 'blouse', 'hoodie', 'dress'])) ||
+    saysAny(text, TOP_BARE_CUES)
+  const lower =
+    reveals.some((tag) =>
+      [
+        'skirt_lift',
+        'panties_aside',
+        'panty_pull',
+        'pants_pull',
+        'no_panties',
+        'panties_around_one_leg',
+        'pussy',
+        'bottomless'
+      ].includes(tag)
+    ) ||
+    saysAny(text, BOTTOM_BARE_CUES) ||
+    NOTHING_BELOW.test(text)
+  if (!upper && !lower) return undefined
+  const worn = `${text} ${outfit.join(' ').replace(/_/g, ' ')}`
+  const lowerCover = [...Object.entries(HIDES), ...Object.entries(SHAPES)].some(
+    ([word, regions]) => regions.includes('pubic') && says(worn, word) && !displaced(text, word)
+  )
+  const removedBelow = reveals.some((tag) =>
+    ['no_panties', 'panty_pull', 'pants_pull', 'panties_around_one_leg'].includes(tag)
+  )
+  const bottomless =
+    lower &&
+    (saysAny(text, ['bottomless', 'no bottoms']) ||
+      NOTHING_BELOW.test(text) ||
+      (removedBelow && !lowerCover))
+  return { upper, lower, bottomless }
+}
+
 /**
  * How a part reads through what is still on her. Only the parts with a plain tag for it: the
  * `*_visible_through_clothes` tags and `cameltoe` asked the checkpoint to draw a part and to hide
@@ -300,10 +353,16 @@ export function bodyTagsFor(
   body: CharacterBody | undefined,
   caption: string,
   bare: boolean,
-  framing: Framing | null = null
+  framing: Framing | null = null,
+  partial?: PartialPhotoExposure
 ): string[] {
   const seen = seenIn(caption, framing)
   const coverage = coverageIn(caption, bare)
+  if (bare && partial) {
+    for (const region of TOP_HALF) coverage[region] = partial.upper ? 'exposed' : 'hidden'
+    coverage.pubic = partial.lower ? 'exposed' : 'hidden'
+    if (!partial.upper) coverage.stomach = 'hidden'
+  }
 
   const tags: string[] = []
   for (const region of REGIONS) {

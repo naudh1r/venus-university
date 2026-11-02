@@ -1,17 +1,18 @@
-import type { ChatMessage } from '@shared/types'
+import type { ChatMessage } from '@vx/modkit/shared'
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useState, type JSX } from 'react'
 import { photoUrl } from '../../shared/photoFiles'
 import { photoGenerationOn } from '../../shared/photoSwitches'
-import type { ChatPhoto } from '../../shared/photoTypes'
+import type { ChatPhoto, PhotoRenderOptions } from '../../shared/photoTypes'
 import { useExplicitBlocked, usePhotoSwitches, usePhotosVisible } from '../stores/photoSwitchHooks'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { useGameStore } from '../stores/gameStore'
-import { rerollPostPhoto } from '../stores/photoPost'
+import { redrawPostPhoto, rerollPostPhoto } from '../stores/photoPost'
 import { tellAboutFeedPhotos } from '../stores/photoTipDelivery'
-import { rerollMessagePhoto } from '../stores/photoTurn'
-import { bunnyHop, typingDot } from '../views/motion'
-import { BunnyMark, EyeIcon, EyeOffIcon } from '../views/screenIcons'
+import { redrawMessagePhoto, rerollMessagePhoto } from '../stores/photoTurn'
+import { bunnyHop, typingDot, BunnyMark, EyeIcon, EyeOffIcon } from '@vx/modkit/renderer'
+import { PhotoInfoButton, PhotoRedrawFailure } from './PhotoInfo'
+import { photoRedrawKey, usePhotoRedraw } from '../stores/photoRedraw'
 import { Lightbox } from './Lightbox'
 import '../vu_styles/PhotoBubble.css'
 
@@ -28,7 +29,7 @@ import '../vu_styles/PhotoBubble.css'
  * shimmer runs across; or her typing dots, at the size a frame carries them. Reduced motion
  * keeps each one and stills it — the wait still has to be legible as a wait.
  */
-function PhotoWait(): JSX.Element {
+export function PhotoWait(): JSX.Element {
   const still = useReducedMotion() ?? false
   const loader = usePhotoSwitches().loader
   return (
@@ -68,7 +69,8 @@ export function MessagePhoto({
   charId,
   photo,
   onOpen,
-  onMissing
+  onMissing,
+  onRedraw
 }: {
   charId: string
   photo: ChatPhoto
@@ -76,12 +78,17 @@ export function MessagePhoto({
   onOpen?: (src: string) => void
   /** Told when the file cannot be loaded, so the frame can offer to draw it again. */
   onMissing?: () => void
+  onRedraw?: (options: PhotoRenderOptions) => void
 }): JSX.Element | null {
   const playthroughId = useGameStore((s) => s.playthroughId)
+  const character = useGameStore((s) => s.characters[charId])
+  const friend = useGameStore((s) => photo.with ? s.characters[photo.with] : undefined)
+  const redraw = usePhotoRedraw(photoRedrawKey(playthroughId, charId, photo.file))
   const [opened, setShown] = useState(photo.tier !== 'explicit')
   // A picture the renderer cannot load says so, rather than collapsing to nothing and leaving
   // her talking about a photograph that is not there.
   const [broken, setBroken] = useState(false)
+  useEffect(() => { setBroken(false) }, [photo.file])
   const modOn = usePhotoSwitches().on
   // An undressed picture while they are forbidden stays covered, whatever was tapped before.
   const explicitBlocked = useExplicitBlocked()
@@ -152,11 +159,21 @@ export function MessagePhoto({
     image
   )
 
-  if (!covers) return picture
   return (
     <div className="vu-bb-photo-frame">
-      {picture}
-      {!locked && eye}
+      {redraw === 'drawing' ? <PhotoWait /> : picture}
+      {redraw !== 'drawing' && covers && !locked && eye}
+      {shown && character && onRedraw && (!photo.with || friend) && (
+        <PhotoInfoButton
+          playthroughId={playthroughId}
+          character={character}
+          friend={friend}
+          photo={{ ...photo, file: photo.file }}
+          onRedraw={onRedraw}
+          redrawing={redraw === 'drawing'}
+        />
+      )}
+      <PhotoRedrawFailure failed={redraw === 'failed'} />
     </div>
   )
 }
@@ -171,11 +188,13 @@ export function MessagePhoto({
 function RerollablePhoto({
   charId,
   photo,
-  onReroll
+  onReroll,
+  onRedraw
 }: {
   charId: string
   photo: ChatPhoto
   onReroll: () => void
+  onRedraw: (options: PhotoRenderOptions) => void
 }): JSX.Element {
   // Drawing again is the mod acting: it waits for the mod and its photo generation both.
   const photosOn = photoGenerationOn(usePhotoSwitches())
@@ -205,6 +224,7 @@ function RerollablePhoto({
       photo={photo}
       onOpen={openShot}
       onMissing={() => setMissing(true)}
+      onRedraw={onRedraw}
     />
   )
 }
@@ -231,6 +251,7 @@ export function PostPhoto({
       charId={charId}
       photo={photo}
       onReroll={() => rerollPostPhoto(charId, postId)}
+      onRedraw={(options) => { void redrawPostPhoto(charId, postId, options) }}
     />
   )
 }
@@ -261,6 +282,7 @@ export function MessagePhotoBubble({
         charId={charId}
         photo={photo}
         onReroll={() => rerollMessagePhoto(charId, messageId)}
+        onRedraw={(options) => { void redrawMessagePhoto(charId, messageId, options) }}
       />
     </div>
   )

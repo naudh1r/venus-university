@@ -15,6 +15,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   restoreApi()
 })
 
@@ -68,9 +69,10 @@ describe('Photo Feature asks its switch', () => {
   })
 
   it('files a post with no comments and the game’s own likes while off', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9)
     const { switches, comments, useGameStore } = await load()
     useGameStore.setState({ playthroughId: '1', chars: ['a'], npcRelationships: {} } as never)
-    expect(comments.rollComments('a', ['nice', 'wow', 'cute'], 'suggestive').length).toBeGreaterThanOrEqual(0)
+    expect(comments.rollComments('a', ['nice', 'wow', 'cute'], 'suggestive').length).toBeGreaterThan(0)
     switches.setPhotoSwitches({ on: false })
     expect(comments.rollComments('a', ['nice', 'wow', 'cute'], 'suggestive')).toEqual([])
     // The game's own roll: her friends (none here) and a handful more, never a crowd.
