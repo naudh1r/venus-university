@@ -1,6 +1,6 @@
 import { gateBody } from '../shared/characterBody'
 import { photoFeatureOn, photoSwitches } from '../shared/photoSwitches'
-import type { Character } from '@shared/types'
+import type { Character } from '@vx/modkit/shared'
 
 /**
  * The character a render draws, as the body switch has her. Read once per render, as it starts:

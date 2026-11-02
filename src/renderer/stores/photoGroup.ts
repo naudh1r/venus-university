@@ -1,8 +1,7 @@
 import { PHOTO_FEATURE } from '@shared/mods'
-import { npcFriendsOf } from '@shared/npcRelationships'
+import { npcFriendsOf, type Character, type StructuredRequest, type TimeSlot } from '@vx/modkit/shared'
 import { groupPhotoPair, type GroupPhotoPair } from '../../shared/photoDuo'
 import { duoPhotosOn } from '../../shared/photoSwitches'
-import type { Character, StructuredRequest, TimeSlot } from '@vx/modkit/shared'
 import {
   ownsPostComments,
   promptFields,

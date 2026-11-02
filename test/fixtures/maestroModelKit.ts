@@ -5,6 +5,7 @@ import { vi } from 'vitest'
 // The kit contract suite checks that these are the public exports.
 vi.mock('@vx/modkit/renderer', async () => ({
   ...await import('../../src/renderer/mods/llm'),
+  ...await import('../../src/renderer/prompts/feedRandoms'),
   ...await import('../../src/renderer/prompts/graduation'),
   ...await import('../../src/renderer/mods/hooks'),
   ...await import('../../packages/modkit/src/renderer/saveField'),

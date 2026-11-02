@@ -1,16 +1,8 @@
-import { rollPostLikes } from '@shared/feed'
+import { rollPostLikes, npcFriendsOf, globalSlotOf, type PostComment } from '@vx/modkit/shared'
 import { photoFeatureOn } from '../../shared/photoSwitches'
-import { npcFriendsOf } from '@shared/npcRelationships'
-import { globalSlotOf } from '@shared/jobs'
 import type { PhotoTier } from '../../shared/photoGate'
 import { reachOf, rollAudienceLikes, rollCrowdCount } from '../../shared/postAudience'
-import type { PostComment } from '@vx/modkit/shared'
-import {
-  FEED_EMOJI,
-  FEED_EMOJI_BAG,
-  FEED_HANDLE_BAG,
-  FEED_HANDLE_POOL
-} from '../prompts/feedRandoms'
+import { FEED_EMOJI, FEED_EMOJI_BAG, FEED_HANDLE_BAG, FEED_HANDLE_POOL } from '@vx/modkit/renderer'
 import { useGameStore } from './gameStore'
 import { useGrabBagStore } from './grabBagStore'
 

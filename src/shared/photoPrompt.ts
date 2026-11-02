@@ -1,17 +1,21 @@
 import type { PhotoTier } from './photoGate'
-import { DORM_IDS, dormLabel } from './dorms'
+import { DORM_IDS, dormLabel, LOCATIONS, NARRATIVE_LOCATIONS, type Character } from '@vx/modkit/shared'
 import { bodyAppearance, bodyNegative, bodyOf } from './characterBody'
-import { bodyTagsFor, describesNothingOn } from './photoBody'
+import { bodyTagsFor, describesNothingOn, partialExposureIn, type PartialPhotoExposure } from './photoBody'
 import { framingInTags, framingOf } from './photoFraming'
-import { photoPose, withoutCameraHold, withoutHeldObject, withoutSelfieWord } from './photoPose'
-import { LOCATIONS, NARRATIVE_LOCATIONS } from './locations'
-import type { Character } from '@vx/modkit/shared'
+import {
+  PHOTO_CLAUSE_END,
+  photoPose,
+  withoutCameraHold,
+  withoutHeldObject,
+  withoutSelfieWord
+} from './photoPose'
 // Carries Photo's message and post augmentations into whatever imports this module. The
 // project's `include` would reach it for the app, but `tsconfig.test.json` lists only the tests
 // and pulls in what they import — so the feature brings its own types rather than relying on a
 // tsconfig line, which would be one more thing to re-add on a sync.
 import type {} from './photoTypes'
-import { photoWardrobe } from './photoWardrobe'
+import { photoWardrobe, photoWardrobeNames, photoWardrobeFromGarment } from './photoWardrobe'
 import { says, saysAny } from './photoWords'
 
 /**
@@ -114,6 +118,7 @@ const CLOTHING_WORDS = [
   'sundress',
   'gown',
   'coat',
+  'raincoat',
   'jacket',
   'hoodie',
   'sweater',
@@ -155,11 +160,24 @@ const CLOTHING_WORDS = [
   'costume'
 ]
 
+/** These go with her set rather than replacing it. */
+const ACCESSORIES = [
+  'hat', 'beanie', 'cap', 'scarf', 'glasses', 'sunglasses', 'earrings', 'necklace',
+  'choker', 'bracelet', 'ring', 'bag', 'purse', 'backpack', 'hair clip', 'ribbon',
+  'headphones', 'watch'
+]
+
+/** A garment or outfit, apart from words that can introduce an accessory alone. */
+const GARMENT_WORDS = CLOTHING_WORDS.filter((word) => word !== 'wearing' && word !== 'dressed')
+
 /** Whether her description dresses her, in which case her everyday wardrobe stays out of it. */
 function describesClothing(photoPrompt: string): boolean {
   // "on top of the bed" is a place, not something she has on.
   const text = photoPrompt.toLowerCase().replace(/\btop of\b/g, '')
-  return saysAny(text, CLOTHING_WORDS)
+  return (
+    saysAny(text, GARMENT_WORDS) ||
+    (!saysAny(text, ACCESSORIES) && saysAny(text, ['wearing', 'dressed']))
+  )
 }
 
 /**
@@ -411,6 +429,27 @@ export interface PhotoPrompts {
   negative: string
 }
 
+/** A named outfit has already become tags; keep the place and action around its name. */
+function withoutOutfitName(scene: string, names: readonly string[]): string {
+  if (names.length === 0) return scene
+  const named = names
+    .map(escaped)
+    .sort((a, b) => b.length - a.length)
+    .join('|')
+  const reference = new RegExp(
+    `\\b(?:(?:dressed\\s+in|wearing|in|of)\\s+)?(?:(?:her|their)\\s+)?(?:own\\s+)?` +
+      `(?:["“])?(?:${named})(?:s|es)?(?![a-z0-9])(?:["”])?` +
+      '(?:\\s+(?:clothes|cloth|outfit)\\b)?',
+    'gi'
+  )
+  return scene
+    .replace(reference, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;])/g, '$1')
+    .replace(/,\s*,/g, ',')
+    .replace(/^[\s,]+|[\s,]+$/g, '')
+}
+
 /**
  * Assembles one photo's prompts. The tier has already been settled by `photoGate`; everything
  * here only draws what it allows.
@@ -431,23 +470,17 @@ export function buildPhotoPrompt(
   const bare = tier === 'explicit'
   const dressed = describesClothing(scene)
 
-  const pose = photoPose(scene, bare)
+  const pose = photoPose(scene, tier)
   // An everyday photo is seen by everyone: a hoodie slipping off a shoulder there is how she
   // wears it, not her undressing, and the tags pulled the picture towards it.
   if (tier === 'everyday') pose.tags = pose.tags.filter((tag) => !EVERYDAY_DROPS.has(tag))
   // Her body as far as the shot reaches: a selfie from the waist up names no hips.
-  const body = bodyTagsFor(bodyOf(character), scene, bare, framingInTags(pose.tags))
-
-  const wardrobe = bare
-    ? // Undressed by what she moved aside, where the caption still dresses her; nude otherwise.
-      dressed && !describesNothingOn(scene)
-      ? ['partially_undressed', ...displacedTags(scene), BARE_POSITIVE].join(', ')
-      : `nude, completely_nude, ${BARE_POSITIVE}`
-    : // One of her own sets, or nothing where the picture she described dressed her in
-      // something none of them is.
-      plainColours(
-        (photoWardrobe(character, scene, dressed, tier !== 'everyday') ?? []).map(heldColour).join(', ')
-      )
+  const selected = wardrobeForPhoto(character, tier, scene, dressed)
+  const body = bodyTagsFor(
+    bodyOf(character), scene, bare, framingInTags(pose.tags), selected.exposure
+  )
+  const wardrobe = plainColours(selected.tags.map(heldColour).join(', '))
+  const caption = withoutOutfitName(scene, selected.names)
 
   // Her appearance, with her build and her chest in it while the body switch is on. It opens on
   // the subject tag where she has one, so the base does not say it a second time.
@@ -465,11 +498,8 @@ export function buildPhotoPrompt(
     // The sentence's own full stop would sit in front of the tags that follow it.
     [
       lookingAtViewer(
-        withoutSelfieWord(withoutHeldObject(withoutCameraHold(withoutWhoTookIt(scene))))
-      ).replace(
-        /[.!?]+$/,
-        ''
-      ),
+        withoutSelfieWord(withoutHeldObject(withoutCameraHold(withoutWhoTookIt(caption))))
+      ).replace(/[.!?]+$/, ''),
       pose.tags.join(', ')
     ]
       .filter((part) => part.length > 0)
@@ -489,29 +519,184 @@ export function buildPhotoPrompt(
   return { positive, negative }
 }
 
-/** What she has moved out of the way, as the checkpoint's own words for it. */
-const DISPLACEMENTS: readonly { garments: readonly string[]; tag: string }[] = [
-  { garments: ['thong', 'panties', 'g-string', 'underwear', 'bikini bottom'], tag: 'panties_aside' },
-  { garments: ['skirt', 'dress'], tag: 'skirt_lift' },
-  { garments: ['shirt', 'top', 'blouse', 'sweater', 'hoodie', 'tank top', 'crop top'], tag: 'shirt_lift' },
-  { garments: ['bra', 'bikini top'], tag: 'bra_lift' }
-]
+/** Her set and the reveal it carries, with names removed only when their tags were supplied. */
+function wardrobeForPhoto(
+  character: Character,
+  tier: PhotoTier,
+  scene: string,
+  captionDressesHer: boolean
+): { tags: readonly string[]; names: readonly string[]; exposure?: PartialPhotoExposure } {
+  const bare = tier === 'explicit'
+  const named = photoWardrobeNames(character, scene)
+  const reveals = bare ? displacedTags(scene) : []
+  const partial =
+    bare &&
+    (captionDressesHer || named.length > 0 || reveals.length > 0) &&
+    !describesNothingOn(scene)
+  const names = !bare || partial ? named : []
+  const outfit =
+    !bare || names.length > 0
+      ? (photoWardrobe(character, scene, captionDressesHer, tier !== 'everyday') ?? [])
+      : partial
+        ? (photoWardrobeFromGarment(character, scene) ?? [])
+        : []
+  const exposure = partial ? partialExposureIn(scene, reveals, outfit) : undefined
+  const tags = bare
+    ? partial
+      ? [
+          ...outfit,
+          'partially_undressed',
+          ...reveals,
+          ...(exposure?.upper ? ['breasts_out'] : []),
+          ...(exposure?.bottomless ? ['bottomless'] : []),
+          BARE_POSITIVE
+        ]
+      : ['nude', 'completely_nude', BARE_POSITIVE]
+    : [...outfit, ...(tier === 'suggestive' ? suggestiveReveals(scene) : [])]
+  return { tags: [...new Set(tags)], names, exposure }
+}
 
 /** Pose tags an everyday photo never carries. */
 const EVERYDAY_DROPS: ReadonlySet<string> = new Set(['undressing', 'clothes_pull'])
 
-const MOVED =
-  '(?:pulled (?:to the side|aside|down|up|off)|bunched|hiked up|hitched up|lifted|pushed (?:up|aside|down)|moved aside|tugged (?:aside|down))'
+/** A few describing words can sit between the garment and what moved it. */
+const GARMENT_GAP = "(?:\\s+(?!to\\b|and\\b|while\\b|with\\b|beside\\b)[a-z'’-]+){0,4}?\\s+"
+const LOWERED = '(?:pull(?:ing|ed) down|tugg(?:ing|ed) down|lower(?:ing|ed))'
+const LIFTED =
+  '(?:lift(?:ing|ed)|rais(?:ing|ed)|pull(?:ing|ed) up|push(?:ing|ed) up|' +
+  'holding up|hiked up|hitched up|bunched)'
+const ASIDE = '(?:pull(?:ing|ed) (?:to the side|aside)|tugg(?:ing|ed) aside|moved aside)'
+const TOPS = ['shirt', 'top', 'blouse', 'sweater', 'hoodie', 'tank top', 'crop top']
+
+/** Either word order: "lifting her shirt" or "her shirt lifted". */
+function garmentMove(garments: readonly string[], motion: string): RegExp {
+  const garment = `(?:${garments.map(escaped).join('|')})(?:s|es)?`
+  return new RegExp(
+    `\\b(?:${motion})\\b${GARMENT_GAP}${garment}\\b|` +
+      `\\b${garment}\\b${GARMENT_GAP}(?:${motion})\\b`
+  )
+}
+
+interface RevealRule {
+  readonly words: RegExp
+  readonly tags: readonly string[]
+  readonly needs?: readonly string[]
+}
+
+/** What she has moved aside or opened, with the direction deciding the reveal. */
+const DISPLACEMENTS: readonly RevealRule[] = [
+  { words: garmentMove([...TOPS, 'neckline', 'dress'], LOWERED), tags: ['clothes_pull'] },
+  { words: garmentMove(TOPS, LIFTED), tags: ['shirt_lift'] },
+  { words: garmentMove(['skirt', 'dress'], LIFTED), tags: ['skirt_lift'] },
+  { words: garmentMove(['skirt', 'dress'], ASIDE), tags: ['skirt_lift'] },
+  {
+    words: garmentMove(['thong', 'panties', 'underwear', 'g-string', 'bikini bottom'], ASIDE),
+    tags: ['panties_aside']
+  },
+  {
+    words: garmentMove(['thong', 'panties', 'underwear', 'g-string', 'bikini bottom'], LOWERED),
+    tags: ['panty_pull']
+  },
+  { words: garmentMove(['shorts', 'pants', 'trousers'], LOWERED), tags: ['pants_pull'] },
+  { words: garmentMove(['bra', 'bikini top'], LIFTED), tags: ['bra_lift'] },
+  { words: garmentMove(['bra', 'bikini top'], LOWERED), tags: ['bra_pull'] },
+  {
+    words: garmentMove(['shirt', 'blouse'], '(?:open|unbuttoned|unbuttoning)'),
+    tags: ['open_shirt']
+  },
+  { words: /\b(?:unbuttoned|unbuttoning|open clothes|clothes open)\b/, tags: ['open_clothes'] },
+  {
+    words: new RegExp(
+      '\\b(?:bare|baring|bared|show(?:ing|n)?|expos(?:e|ing|ed)|' +
+        'reveal(?:ing|ed)?|uncover(?:ing|ed)?)\\b' +
+        "(?:\\s+[a-z'’-]+){0,3}\\s+(?:breasts?|boobs?|chest)\\b|" +
+        "\\b(?:breasts?|boobs?|chest)\\b(?:\\s+[a-z'’-]+){0,3}\\s+" +
+        '(?:bare|bared|shown|exposed|uncovered)\\b'
+    ),
+    tags: ['breasts_out']
+  },
+  { words: /\bunderboob\b/, tags: ['underboob'] },
+  { words: /\btopless\b/, tags: ['breasts_out'] },
+  { words: /\bbottomless\b/, tags: ['bottomless'] },
+  {
+    words: garmentMove(
+      ['panties', 'underwear', 'thong'],
+      '(?:removed|removing|took off|taken off|no)'
+    ),
+    tags: ['no_panties']
+  },
+  {
+    words: /\bpanties\b(?:\s+[a-z'’-]+){0,2}\s+around (?:her |one )?(?:ankles?|knees?|legs?)\b/,
+    tags: ['panty_pull']
+  },
+  {
+    words: /\bpanties\b(?:\s+[a-z'’-]+){0,2}\s+around (?:her )?one leg\b/,
+    tags: ['panties_around_one_leg']
+  },
+  {
+    words: new RegExp(
+      "\\b(?:bare|expos(?:e|ing|ed)|show(?:ing|n)?)(?:\\s+[a-z'’-]+){0,3}\\s+(?:slit|pussy)\\b|" +
+        "\\b(?:slit|pussy)\\b(?:\\s+[a-z'’-]+){0,3}\\s+(?:bare|showing|shown|exposed)\\b"
+    ),
+    tags: ['pussy']
+  }
+]
+
+/** The non-explicit reveals allowed beside a suggestive photo's outfit. */
+const SUGGESTIVE_REVEALS: readonly RevealRule[] = [
+  {
+    words: new RegExp(
+      '\\boff[- ]shoulder\\b|\\b(?:sweater|top|shirt|blouse)\\b' +
+        "(?:\\s+[a-z'’-]+){0,4}\\s+off(?:\\s+[a-z'’-]+){0,3}\\s+shoulder\\b"
+    ),
+    tags: ['off_shoulder']
+  },
+  {
+    words: /\bstraps?\b(?:\s+[a-z'’-]+){0,3}\s+(?:slipp(?:ing|ed)|slid(?:ing)?)\s+down\b/,
+    tags: ['strap_slip']
+  },
+  {
+    words: garmentMove(TOPS, LIFTED),
+    needs: ['bra', 'stomach', 'midriff', 'belly'],
+    tags: ['shirt_lift', 'bra']
+  },
+  { words: garmentMove(['neckline'], '(?:tugg(?:ing|ed)|pull(?:ing|ed))'), tags: ['clothes_pull'] },
+  {
+    words: garmentMove(['skirt'], `(?:${LIFTED}|flipp(?:ing|ed))`),
+    needs: ['panties', 'underwear', 'thong'],
+    tags: ['skirt_lift', 'panties']
+  }
+]
+
+/** Every matching reveal from the tier's own table. */
+function revealTags(scene: string, table: readonly RevealRule[]): string[] {
+  const text = scene.toLowerCase()
+  return [
+    ...new Set(
+      table
+        .filter((row) => row.words.test(text) && (!row.needs || saysAny(text, row.needs)))
+        .flatMap((row) => row.tags)
+    )
+  ]
+}
 
 /** The garments a caption has her wearing but out of the way, as tags. */
 function displacedTags(scene: string): string[] {
-  const text = scene.toLowerCase()
-  const tags = DISPLACEMENTS.filter(({ garments }) =>
-    garments.some((garment) => new RegExp(`\\b${garment}\\b(?:\\s+[a-z'-]+){0,2}?\\s+${MOVED}`).test(text))
-  ).map(({ tag }) => tag)
-  // Something moved and named in no row: the general word for clothes pulled out of the way.
-  if (tags.length === 0 && new RegExp(`\\b${MOVED}`).test(text)) tags.push('clothes_pull')
+  const tags = revealTags(scene, DISPLACEMENTS)
+  // A movement without a named garment still asks for clothes pulled out of the way.
+  const moved = new RegExp(
+    `\\b(?:${LOWERED}|${LIFTED}|${ASIDE}|pull(?:ing|ed)|tugg(?:ing|ed)|pushed aside)\\b`,
+    'i'
+  )
+  if (!tags.some((tag) => tag !== 'breasts_out' && tag !== 'underboob') && moved.test(scene)) {
+    tags.push('clothes_pull')
+  }
   return tags
+}
+
+/** Suggestive reveals come only from the clothed subset. */
+function suggestiveReveals(scene: string): string[] {
+  return revealTags(scene, SUGGESTIVE_REVEALS)
 }
 
 /** The four strings a picture of two girls needs: the shared scene, and each girl's own half. */
@@ -532,7 +717,8 @@ export interface DuoPhotoPrompts {
 const TOUCHING = new RegExp(
   '\\s*,?\\s*\\b(?:hugg\\w*|hugs?|cuddl\\w*|snuggl\\w*|embrac\\w*|kiss\\w*|holding hands|hand in hand|' +
     'arm in arm|arms? (?:around|linked|wrapped)|leaning (?:on|against) (?:each other|her)|' +
-    'cheek to cheek|head on (?:her|each other)\\S*\\s+shoulder)[^,.;]*?(?=\\s+and\\s|[,.;]|$)',
+    'cheek to cheek|head on (?:her|each other)\\S*\\s+shoulder)' +
+    `[^,.;]*?(?=\\s+and\\s|${PHOTO_CLAUSE_END})`,
   'gi'
 )
 
@@ -546,7 +732,11 @@ export function withoutTouching(scene: string): string {
  * two split it between them, and one in an open shirt over another's camisole was left in nothing
  * under it. Each half is dressed from her own wardrobe instead.
  */
-const WORN_CLAUSE = /,?\s*\b(?:wearing|dressed in|in (?:their|her|matching)\b)[^,.;]*/gi
+const WORN_CLAUSE = new RegExp(
+  ',?\\s*\\b(?:wearing|dressed in|in (?:their|her|matching)\\b)' +
+    `[^,.;]*?(?=\\s+(?:wearing|dressed in)\\b|${PHOTO_CLAUSE_END})`,
+  'gi'
+)
 
 /**
  * The faces a caption asks of the two, as tags each half carries: the face pass redraws each face
@@ -602,7 +792,7 @@ function duoFraming(text: string): { tags: string[]; scene: string[] } {
     }
   }
   // A close-up needed the framing weighted in both halves before either was drawn close.
-  if (framingOf(text) === 'face' || saysAny(text, ['close-up', 'close up', 'closeup'])) {
+  if (framingOf(text) === 'face') {
     return { tags: ['(close-up:1.3)', '(portrait:1.3)'], scene: [] }
   }
   // Waist up, always: a whole-body shot of two drew one of them smaller, as if a step behind,
@@ -617,27 +807,25 @@ function duoHalf(
   scene: string,
   posture: readonly string[],
   extra: readonly string[]
-): { prompt: string; worn: string } {
+): { prompt: string; worn: string; names: readonly string[] } {
   const bare = tier === 'explicit'
   const dressed = bare && describesClothing(scene)
   const appearance = bodyAppearance(girl, 'photo').filter((tag) => tag !== '1girl')
-  const body = bodyTagsFor(bodyOf(girl), scene, bare, 'waist').filter(
+  const selected = wardrobeForPhoto(girl, tier, scene, dressed)
+  const body = bodyTagsFor(bodyOf(girl), scene, bare, 'waist', selected.exposure).filter(
     (tag) => bare || !BELOW_WAIST.test(tag)
   )
-  const wardrobe = bare
-    ? dressed && !describesNothingOn(scene)
-      ? ['partially_undressed', ...displacedTags(scene), BARE_POSITIVE]
-      : ['nude', 'completely_nude', BARE_POSITIVE]
-    : (photoWardrobe(girl, scene, false, tier !== 'everyday') ?? [])
-        .filter((tag) => !BELOW_WAIST.test(tag))
-        .map(heldColour)
+  const wardrobe = selected.tags
+    .filter((tag) => bare || !BELOW_WAIST.test(tag))
+    .map(heldColour)
   return {
     prompt: plainColours(
       [PHOTO_QUALITY, '1girl, solo', ...appearance, ...body, ...wardrobe, ...posture, ...extra].join(
         ', '
       )
     ),
-    worn: `${appearance.join(' ')} ${wardrobe.join(' ')}`
+    worn: `${appearance.join(' ')} ${wardrobe.join(' ')}`,
+    names: selected.names
   }
 }
 
@@ -689,7 +877,7 @@ export function buildDuoPhotoPrompt(
   const text = scene.toLowerCase()
   const bare = tier === 'explicit'
 
-  const pose = photoPose(scene, bare)
+  const pose = photoPose(scene, tier)
   const posture = pose.tags.filter((tag) => DUO_POSTURE.has(tag))
   const framing = duoFraming(text)
 
@@ -704,14 +892,23 @@ export function buildDuoPhotoPrompt(
       : []
   const phoneNegative = selfie && !mirror ? ['phone', 'cellphone', 'smartphone', 'holding_phone'] : []
 
+  const shared = [...framing.tags]
+  const faces = duoExpression(text)
+  const left = duoHalf(sender, tier, scene, posture, [...faces, ...shared, ...holds])
+  const right = duoHalf(friend, tier, scene, posture, [...faces, ...shared])
+  const dressedScene = withoutOutfitName(scene, [...left.names, ...right.names])
   // A selfie lying down did not hold for two, so it is said as the photo it is drawn as.
   const sentence = lookingAtViewer(
-    withoutWhoTookIt(withoutCameraHold(lying ? scene.replace(/\bselfie\b/gi, 'photo') : scene))
+    withoutWhoTookIt(
+      withoutCameraHold(lying ? dressedScene.replace(/\bselfie\b/gi, 'photo') : dressedScene)
+    )
   )
-    .replace(WORN_CLAUSE, '')
+    // "in her room" is a place, even when a clothing clause follows it.
+    .replace(WORN_CLAUSE, (clause) => (describesClothing(clause) ? '' : clause))
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;])/g, '$1')
     .replace(/[.!?]+$/, '')
 
-  const shared = [...framing.tags]
   const sceneTags = [
     `${PHOTO_QUALITY}, 2girls, multiple_girls, depth_of_field`,
     sentence,
@@ -721,9 +918,6 @@ export function buildDuoPhotoPrompt(
     ...shared
   ]
 
-  const faces = duoExpression(text)
-  const left = duoHalf(sender, tier, scene, posture, [...faces, ...shared, ...holds])
-  const right = duoHalf(friend, tier, scene, posture, [...faces, ...shared])
   const worn = `${scene} ${left.worn} ${right.worn}`
   const negative = [
     PHOTO_NEGATIVE.replace('multiple_girls, 2girls, ', ''),

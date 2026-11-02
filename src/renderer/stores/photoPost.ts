@@ -1,5 +1,6 @@
+import { redrawPhoto, RENDER_PATIENCE_MS } from './photoRedraw'
 import { allowedPostTier, settlePhoto, type PhotoTier } from '../../shared/photoGate'
-import type { ChatPhoto } from '../../shared/photoTypes'
+import type { ChatPhoto, PhotoRenderOptions } from '../../shared/photoTypes'
 import type { SocialPost } from '@vx/modkit/shared'
 import { useGameStore } from './gameStore'
 import {
@@ -100,14 +101,7 @@ export async function preparePostPhoto(
   return { shot, file, ...(friend ? { with: friend.charId } : {}) }
 }
 
-/**
- * How long a render may go unanswered before its post comes out without it. A picture takes
- * about half a minute; the first after ComfyUI starts, or after the checkpoint changes, loads the
- * model first, and any of them can wait behind a sprite. Three minutes is past all of that, so
- * what this catches is a render that has stopped answering rather than a slow one — and a
- * picture that lands after it still fills the frame in.
- */
-export const RENDER_PATIENCE_MS = 3 * 60 * 1000
+export { RENDER_PATIENCE_MS } from './photoRedraw'
 
 /**
  * What tells BunnyBot a contact posted, handed in by the feed with each post it holds. Kept from
@@ -315,4 +309,33 @@ export function rerollPostPhoto(charId: string, postId: string): void {
   })
   if (drawing.has(keyOf(game.playthroughId, postId))) return
   enqueue(charId, postId)
+}
+
+/** Gives one landed photo's redraw access to its post and save. */
+export async function redrawPostPhoto(
+  charId: string,
+  postId: string,
+  options: PhotoRenderOptions
+): Promise<void> {
+  const game = useGameStore.getState()
+  const playthroughId = game.playthroughId
+  const character = game.characters[charId]
+  if (!playthroughId || !character || !canSendPhotos()) return
+  const photo = photoOf(charId, postId)
+  await redrawPhoto({
+    playthroughId,
+    character,
+    friend: photo?.with ? game.characters[photo.with] : undefined,
+    kind: 'bunnyboard',
+    read: () => photoOf(charId, postId),
+    write: (next) => {
+      setFeedPostPhoto(charId, postId, next)
+      savePhotoState()
+    },
+    live: () => {
+      const now = useGameStore.getState()
+      return now.playthroughId === playthroughId && now.loads === game.loads
+    },
+    inSave: () => photoNamesInSave(charId)
+  }, options)
 }
