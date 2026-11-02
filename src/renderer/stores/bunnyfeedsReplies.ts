@@ -1,12 +1,16 @@
-import { fallbackHandleOf } from '@shared/feed'
-import { globalSlotOf } from '@shared/jobs'
 import {
+  fallbackHandleOf,
+  globalSlotOf,
   areNpcFriends,
   npcFriendsOf,
   npcPairOf,
   zoneOf,
-  type NpcRelationshipMap
-} from '@shared/npcRelationships'
+  type NpcRelationshipMap,
+  type Character,
+  type CharInfo,
+  type PostComment,
+  charKeyOf
+} from '@vx/modkit/shared'
 import {
   followingOf,
   pickJoiningFriend,
@@ -14,15 +18,13 @@ import {
   planCrowd,
   rollCrowd
 } from '../../shared/bunnyfeedsCrowd'
-import type { Character, CharInfo, PostComment } from '@vx/modkit/shared'
-import { charKeyOf } from '@shared/types'
 import {
   FEED_EMOJI,
   FEED_EMOJI_BAG,
   FEED_HANDLE_BAG,
-  FEED_HANDLE_POOL
-} from '../prompts/feedRandoms'
-import { isFeedContact } from './feedView'
+  FEED_HANDLE_POOL,
+  isFeedContact
+} from '@vx/modkit/renderer'
 import { useGameStore } from './gameStore'
 import { useGrabBagStore } from './grabBagStore'
 

@@ -1,17 +1,20 @@
 import { BUNNYFEEDS, carriedThread } from '../../shared/bunnyfeeds'
-import { globalSlotOf } from '@shared/jobs'
-import { registerPostCarry, type Character } from '@vx/modkit/shared'
-import { shownComments } from '@shared/postComments'
-import { charKeyOf } from '@shared/types'
-import { formatShortGameDate } from '../prompts/gameDate'
-import { createElement, lazy, Suspense } from 'react'
 import {
+  globalSlotOf,
+  registerPostCarry,
+  type Character,
+  shownComments,
+  charKeyOf
+} from '@vx/modkit/shared'
+import {
+  formatShortGameDate,
   ownsPostComments,
   postVisible,
   registerHooks,
   type OptionPreviewProps,
   type PostCommentsProps
 } from '@vx/modkit/renderer'
+import { createElement, lazy, Suspense } from 'react'
 import {
   crowdBlock,
   replierBlock,
