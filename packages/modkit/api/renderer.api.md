@@ -381,6 +381,11 @@ export interface ModHooks {
     contactTab?: ContactTab;
     conversationFoot?: ComponentType<ScreenSlotProps['conversationFoot']>;
     dmHistoryNote?: (message: ChatMessage) => string;
+    dmReplyLead?: (ctx: {
+        charId: string;
+        character: Character;
+        lead: Readonly<Record<string, unknown>>;
+    }) => void;
     editCharacterImages?: ComponentType<ScreenSlotProps['editCharacterImages']>;
     editorField?: EditorField;
     emojiTool?: ComponentType<EmojiToolProps>;
@@ -567,6 +572,7 @@ export const PROMPT_BLOCKS: readonly PromptBlock[];
 // @public
 export interface PromptAddition<C> {
     fields?: () => Record<string, unknown>;
+    lead?: boolean;
     // (undocumented)
     lines?: (ctx: C) => readonly string[];
     required?: () => readonly string[];
@@ -589,13 +595,13 @@ export interface PromptBlock {
 }
 
 // @public
-export function promptFields(spot: PromptSpot): Record<string, unknown>;
+export function promptFields(spot: PromptSpot, part?: 'lead' | 'trailing'): Record<string, unknown>;
 
 // @public
 export function promptLines<S extends PromptSpot>(spot: S, ctx: PromptSpots[S]): string[];
 
 // @public
-export function promptRequired(spot: PromptSpot): string[];
+export function promptRequired(spot: PromptSpot, part?: 'lead' | 'trailing'): string[];
 
 // @public (undocumented)
 export type PromptSpot = keyof PromptSpots;

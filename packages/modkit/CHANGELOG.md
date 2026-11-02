@@ -2,6 +2,10 @@
 
 ## 0.7.0
 
+- `lead` on a `dm` prompt addition puts its fields ahead of the reply's own, and `dmReplyLead`
+  hands them over the moment they have streamed in, before her first text lands. Once per reply,
+  never for an abandoned one; the finished reply, and `afterDmReply`, stay authoritative.
+
 - Startup readers have a ten-second wait limit per mod. A timeout names the mod in a warning
   and lets startup continue. It does not cancel the reader; mods must still handle their own
   asynchronous work. Later switch-on notifications use the same limit.
@@ -29,6 +33,8 @@ and the readers, components and record helpers its screens and main code use.
   `PROMPT_PARTS`, the class pool sizes, `validateRecord` and `assertSafeId` in `shared`;
   `readJsonFile`, `writeAtomicJson` and `writeAtomicBytes` in `main`. Each value is its own
   capability. Nothing native changes.
+
+- Main’s `renderComfyImage` queues a mod-owned ComfyUI graph and returns checked image bytes, capped at 32 MiB, with per-call cancellation and an optional `onProgress` for its steps.
 
 - A game started before mods recorded their versions is told so once, not once every session:
   the playthroughs told are kept in `settings.json`'s `modUnversionedSeen`, written by main. The

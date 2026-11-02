@@ -50,6 +50,10 @@ export function isAppError(err: unknown): err is AppError {
 
 /** Permanent error codes: wrong requests, not flaky failures. */
 const PERMANENT_CODES = new Set([
+  // A mod's graph or returned image needs changing before it can be rendered again.
+  'RENDER_REQUEST_INVALID',
+  'RENDER_TOO_LARGE',
+  'RENDER_NOT_IMAGE',
   // Setup / download
   'DOWNLOAD_HTTP_PERMANENT',
   'DOWNLOAD_UNAUTHORIZED',

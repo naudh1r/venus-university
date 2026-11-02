@@ -443,6 +443,50 @@ AppError normalization and machine-path redaction as every other IPC call. Bad i
 `MOD_INVOKE_NOT_LOADED`, a non-list argument payload `MOD_INVOKE_ARGS_INVALID`, and a failed
 transport `MOD_INVOKE_FAILED`. The browser bridge answers `DESKTOP_ONLY` and runs no handler.
 
+### A mod's own ComfyUI image
+
+A trusted main handler calls `renderComfyImage` from `@vx/modkit/main`, declared as
+`main:renderComfyImage`, with a parsed API-format workflow from its own files:
+
+```js
+const { readFile } = require('fs/promises')
+const { join } = require('path')
+const { renderComfyImage } = require('@vx/modkit/main')
+
+exports.invoke = {
+  portrait: async ({ id, signal }, positive) => {
+    if (typeof positive !== 'string') throw new Error('A prompt is required.')
+    const workflow = JSON.parse(await readFile(join(__dirname, 'portrait.json'), 'utf8'))
+    return renderComfyImage(id, {
+      workflow,
+      nodes: { saveImage: '41', positivePrompt: '4', negativePrompt: '5', seed: '14' },
+      prompts: { positive, negative: '' },
+      seed: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
+    }, { signal })
+  }
+}
+```
+
+`ComfyRenderRequest` also accepts `texts`, a map of extra text-node ids to their text, and
+`lora: { name, weight } | null` for `nodes.characterLora`. Core copies the graph before filling
+its inputs. The mod owns its prompts, graph and node map; core chooses the server and models,
+starts ComfyUI if needed, and uses its normal model checks, timeout and prompt cancellation.
+It accepts no destination, server address, installation root or caller-chosen queue group.
+Main code is trusted; accepting a graph does not sandbox its custom nodes.
+
+All renders run on the game's serial queue, under `mod:<checked-id>:render`. The required
+`signal` cancels that call alone, including while queued, and answers `CANCELLED` after cleanup.
+Pass the invoke context's signal; the handler owns any enablement/option checks. The optional
+`onProgress(step)` hears the same steps as the game's own renders, such as `Queued in ComfyUI`,
+`Rendering` and `Saving`; an error it throws is logged and the render goes on. Call
+`renderComfyImage` directly, not from inside a job of your own on the queue: the queue runs one
+job at a time, so a render waiting behind its caller never starts. A returned
+`Uint8Array` is PNG, JPEG or WebP by `imageTypeOf`, at most 32 MiB; core removes its private
+scratch files on success, refusal and cancellation. The mod writes returned bytes to its own
+folder if wanted. Oversized output answers `RENDER_TOO_LARGE`, unrecognized bytes
+`RENDER_NOT_IMAGE`, a malformed graph `RENDER_REQUEST_INVALID`, and a bad owner id
+`MOD_ID_INVALID`. Invoke carries these through the ordinary redacted error wrapper.
+
 ### The scene's input
 
 A mod's panel over a scene can put an input of its own in the place of the scene's action row,
@@ -873,7 +917,7 @@ else names it.
 
 | Hook | Where the game asks | What a mod can do |
 | --- | --- | --- |
-| `prompts.dm` | `textingPrompt.ts` | Add lines to her DM prompt, and fields to its reply |
+| `prompts.dm` | `textingPrompt.ts` | Add lines to her DM prompt, and fields to its reply. `lead: true` puts those fields ahead of her messages, so they stream in first |
 | `prompts['slot-posts']` | `slotIntroPrompt.ts` | Add lines about status posts, and fields to each post |
 | `prompts['slot-poster']` | `slotIntroPrompt.ts` | Add lines under each girl posting, by her name, given the slot the opening is for |
 | `prompts['slot-reach-outs']` | `slotIntroPrompt.ts` | Add lines under a girl texting first, and fields to her entry |
@@ -881,6 +925,7 @@ else names it.
 | `prompts.character` | `characterPrompt.ts` | Add lines and fields to character generation |
 | `dmHistoryNote` | `textingPrompt.ts` | Add a note after a DM in the history the prompt quotes |
 | `characterFromDraft` | `characterPrompt.ts` | Fill fields of a generated character from the reply |
+| `dmReplyLead` | `textingLoop.ts` | Read the `lead` fields of her DM reply the moment they have streamed in, before her first text lands. Once per reply, never for one already abandoned; her finished reply stays the one to act on |
 | `afterDmReply` | `textingLoop.ts` | Act after her reply in a DM has landed |
 | `afterSceneReply` | `loop/turn.ts` | Read a landed scene reply as the model wrote it, fields a mod asked for included. A turn's reply only: a scene's closing reply is not handed over |
 | `scenePlay` | `SceneChrome.tsx`, `GameView.tsx` | Stand a seat on the scene's rail, and open a panel of its own over the scene |

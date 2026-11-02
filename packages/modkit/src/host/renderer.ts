@@ -6,6 +6,7 @@
  * test holds them so).
  */
 export {
+  dmReplyLead,
   afterDmReply,
   afterReachOut,
   afterSceneReply,

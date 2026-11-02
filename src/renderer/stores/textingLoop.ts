@@ -100,7 +100,8 @@ import { INCOMING_TEXTS } from '@shared/modEntries/incoming-texts'
 import { lorebookNow } from './lorebookStore'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
 import { createRetryGate } from './retryGate'
-import { createTextExtractor } from './textingStream'
+import { createDmLeadReader, createTextExtractor } from './textingStream'
+import { dmReplyLead } from '../mods/hooks'
 import { BOT_REPLY_MS, createTypingPacer, typingDelayFor, type TypingPacer } from './textingPace'
 import {
   charAwayNow,
@@ -635,6 +636,7 @@ async function runReply(
   // Streamed texts are queued as their JSON string closes; the resolved reply
   // stays authoritative for anything the preview missed.
   const extractor = createTextExtractor()
+  const leadReader = createDmLeadReader()
   let seen = 0
   // Every in-flight reply hears every other one's deltas: only this turn's group feeds the
   // extractor, or a foreign chunk splices two JSON documents into one buffer.
@@ -642,6 +644,8 @@ async function runReply(
   const unsubscribe = window.api.llm.onTextingDelta((deltaGroup, delta) => {
     if (deltaGroup !== group) return
     if (entry.abandoned) return
+    const lead = leadReader.feed(delta)
+    if (lead) dmReplyLead({ charId, character, lead })
     for (const message of extractor.feed(delta)) {
       const clean = message.trim()
       if (!clean) continue

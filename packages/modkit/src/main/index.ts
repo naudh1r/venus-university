@@ -17,3 +17,6 @@ export type {
 export { extractZip, modOptionOn, readJsonFile, sniffImageFile, writeAtomicBytes, writeAtomicJson } from '../bridge/main'
 
 export type { InvokeContext, InvokeHandler } from '../bridge/main'
+
+export { renderComfyImage } from '../bridge/main'
+export type { ComfyRenderRequest } from '../bridge/main'

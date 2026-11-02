@@ -67,6 +67,8 @@ export type PromptSpot = keyof PromptSpots
 /** What a mod adds to one prompt: instruction lines, and fields the reply has to fill in. */
 export interface PromptAddition<C> {
   lines?: (ctx: C) => readonly string[]
+  /** For `dm` only, place these fields ahead of the reply's own. */
+  lead?: boolean
   /**
    * Schema properties: the top level for `dm` and `character`, each post for `slot-posts`, each
    * girl's entry for `slot-reach-outs`.
@@ -424,6 +426,12 @@ export interface ModHooks {
     draft: Readonly<Record<string, unknown>>,
     ctx: { baseAppearance: readonly string[] }
   ) => Partial<Character>
+  /** Top-level DM fields streamed ahead of the messages, before her bubbles finish. */
+  dmReplyLead?: (ctx: {
+    charId: string
+    character: Character
+    lead: Readonly<Record<string, unknown>>
+  }) => void
   /** After her reply in a DM has landed. */
   afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void
   /** After a scene reply has landed and its lines are on the transcript. */
@@ -787,13 +795,21 @@ export function promptLines<S extends PromptSpot>(spot: S, ctx: PromptSpots[S]):
 }
 
 /** Every mod's schema fields for one prompt. */
-export function promptFields(spot: PromptSpot): Record<string, unknown> {
-  return Object.assign({}, ...active().map((hooks) => promptOf(hooks, spot)?.fields?.() ?? {}))
+export function promptFields(spot: PromptSpot, part?: 'lead' | 'trailing'): Record<string, unknown> {
+  return Object.assign({}, ...active().map((hooks) => {
+    const addition = promptOf(hooks, spot)
+    const lead = spot === 'dm' && addition?.lead === true
+    return part && (part === 'lead') !== lead ? {} : addition?.fields?.() ?? {}
+  }))
 }
 
 /** Every mod's required fields for one prompt. */
-export function promptRequired(spot: PromptSpot): string[] {
-  return active().flatMap((hooks) => [...(promptOf(hooks, spot)?.required?.() ?? [])])
+export function promptRequired(spot: PromptSpot, part?: 'lead' | 'trailing'): string[] {
+  return active().flatMap((hooks) => {
+    const addition = promptOf(hooks, spot)
+    const lead = spot === 'dm' && addition?.lead === true
+    return part && (part === 'lead') !== lead ? [] : [...(addition?.required?.() ?? [])]
+  })
 }
 
 function promptOf<S extends PromptSpot>(
@@ -830,6 +846,21 @@ function mergeWrites(character: Pick<Character, 'ex'>, writes: readonly Partial<
   const carried = writes.filter((write) => write.ex)
   if (carried.length > 0) merged.ex = Object.assign({}, character.ex, ...carried.map((write) => write.ex))
   return merged
+}
+
+/** Delivers a streamed DM prefix without letting one mod interrupt her reply. */
+export function dmReplyLead(ctx: {
+  charId: string
+  character: Character
+  lead: Readonly<Record<string, unknown>>
+}): void {
+  for (const hooks of active()) {
+    try {
+      hooks.dmReplyLead?.(ctx)
+    } catch (error) {
+      console.warn('[mods] dmReplyLead failed', error)
+    }
+  }
 }
 
 export function afterDmReply(ctx: {
