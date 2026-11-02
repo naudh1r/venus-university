@@ -7,14 +7,11 @@ Replaces the earlier version of this brief. Follow `photo-0.7.0-report.md`. Auth
 - **0.7.0:** the org's `main` at `b5b066b6` (PR #239). If `origin/main` is still behind it, fetch `https://github.com/venus-extracurriculars/build main` and use that commit. Don't push `main`.
 - **The core hooks:** PR #241 is not merged yet. Use its branch, `origin/core/photo-hook-1.7.0-vu0.7.0` at `8fe38547`. It has the early-DM hook (`71c123f1`) and `renderComfyImage` (`2f9f2f6e`). When #241 lands in `main`, these are the same commits, so a later merge of `main` is clean.
 
-## Step 1: `mod/photo-1.7.0-vu0.7.0`
+## Step 1: `mod/photo-1.7.0-vu0.7.0` (built, head `1f36894e`)
 
-1. Branch from `b5b066b6`.
-2. Merge `8fe38547` with a merge commit.
-3. Merge `origin/mod/photo-1.7.0-vu0.6.0` (`834ed9e1`) with a merge commit. That branch carries a 0.6.0 copy of the core hook (`99448bc6`). Where the two overlap, keep the `71c123f1` version: `since: '0.7.0'`, the separate `dmReplyLead` import next to the `textingStream` import, `promptTextEdits`, and LF line endings in the API reports.
-4. One commit with the fixes:
-   - **`test/qa2-textregen-photo.test.ts`:** add the fourth argument `true` to both `sendPhoto` assertions. All five cases must pass.
-   - **Early-render tests (`photoTurn`):** an early render must not attach when a game is loaded mid-reply, when Photo is switched off, on a blocked reply, on a failed reply, or when the final reply's `photoPrompt`, `sendPhoto` or tier differs from the lead. Each leaves no message pointing at the early file, and `drop`s it once settled. Add one test where a matching reply attaches the running render.
+This branch is already built: `b5b066b6`, then `8fe38547` merged in, then `834ed9e1` merged in, then the regeneration-test fix. Typecheck, the kit report check, and the kit and photo tests pass.
+
+What's left on it, in one commit: **early-render tests (`photoTurn`).** An early render must not attach when a game is loaded mid-reply, when Photo is switched off, on a blocked reply, on a failed reply, or when the final reply's `photoPrompt`, `sendPhoto` or tier differs from the lead. Each leaves no message pointing at the early file, and `drop`s it once settled. Add one test where a matching reply attaches the running render.
 
 ## Step 2: `mod/photo-kit-switch` gets 0.7.0 and 1.7.0
 
