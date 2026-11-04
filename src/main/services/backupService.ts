@@ -19,6 +19,8 @@ import {
   namedReplays,
   photoEntry,
   profilePictureEntry,
+  profileSourceEntry,
+  profileSourcesFromBackup,
   replaysFromBackup,
   scenesFromBackup,
   semesterEndingArtEntry,
@@ -40,6 +42,11 @@ import { appError, messageOf } from '@shared/errors'
 import { imageTypeOf } from '@shared/imageBytes'
 import type { LorebookRecord } from '@shared/lorebookRecord'
 import { isSafeEntryName, MOD_PARTS_DIR } from '@shared/modParts'
+import {
+  PROFILE_SOURCE_SCHEMA_VERSION,
+  type ProfileFrame,
+  type ProfileSourceRecord
+} from '@shared/profilePicture'
 import { REPLAY_NOT_FOUND } from '@shared/replays'
 import { SCENE_NOT_FOUND, type SavedScene } from '@shared/sceneCreator'
 import {
@@ -71,6 +78,8 @@ import {
   getPhotosPath,
   getPlaythroughRecordPath,
   getProfilePicturePath,
+  getProfileSourcePath,
+  getProfileSourceRecordPath,
   getReplayPath,
   getReplaysPath,
   getSaveFilePath,
@@ -94,12 +103,12 @@ import { getCharacter, ownCharIds } from './characterService'
 import { endingArtSemesters, readEndingArt } from './endingArtService'
 import { getGrabBags, setGrabBags } from './grabBagService'
 import { dropImageTwins, sniffImageFile } from './imageFiles'
-import { readValidatedJson, writeAtomicJson } from './jsonFile'
+import { isHeldError, readValidatedJson, renameWithPatience, writeAtomicJson } from './jsonFile'
 import { readLorebook } from './lorebookService'
 import { modNameOf, modVersionOf } from './modDataService'
 import { backupParts, type BackupPartLegacy, type BackupPartRestore } from './modParts'
 import { listPhotos, readPhoto } from './photoService'
-import { readProfilePicture } from './profilePictureService'
+import { readProfilePicture, readProfileSource } from './profilePictureService'
 import { readReplay } from './replayService'
 import { listScenes, readScene, writeScene } from './sceneService'
 import {
@@ -115,10 +124,23 @@ import { getRendererSettings, getSettings, replaceSettings } from './settingsSer
 
 /** The data folder as one backup zip, and one backup zip back over the data folder. */
 
-/** What a step of a restore raises when it cannot write where it has to. */
+/** What a step of restoring the saves raises when it cannot write where it has to. */
 const RESTORE_FAILED = {
   code: 'BACKUP_RESTORE_FAILED',
-  message: 'Could not put the backup back.'
+  message: 'Could not restore saves.'
+}
+
+/** What restoring a character raises when it cannot write where it has to. */
+const CHARACTERS_RESTORE_FAILED = {
+  code: RESTORE_FAILED.code,
+  message: 'Could not restore characters.'
+}
+
+/** What a restore raises when another process will not let the live saves folder move. */
+const SAVES_HELD = {
+  code: 'BACKUP_SAVES_HELD',
+  message:
+    "Couldn't restore saves. Another program may have the saves folder currently open. Close it first, then try again."
 }
 
 /**
@@ -307,6 +329,7 @@ export async function exportBackup(targetPath: string): Promise<void> {
     const endingArt: string[] = []
     const semesterEndingArt: SemesterPicture[] = []
     const profilePictures: string[] = []
+    const profileSources: Record<string, ProfileFrame> = {}
     const photos: BackupPhoto[] = []
     const lorebooks: Record<string, LorebookRecord> = {}
     const applications: Record<string, Application> = {}
@@ -367,6 +390,15 @@ export async function exportBackup(targetPath: string): Promise<void> {
         }
       }
 
+      const source = await readProfileSource(playthroughId).catch(() => null)
+      // One whose frame will not read is left out, which a restore reads as a crop alone.
+      if (source?.frame && imageTypeOf(source.image)) {
+        const path = join(scratch, profileSourceEntry(playthroughId))
+        await mkdir(dirname(path), { recursive: true })
+        await writeFile(path, source.image)
+        profileSources[playthroughId] = source.frame
+      }
+
       for (const entry of await listPhotos(playthroughId)) {
         const bytes = await readPhoto(playthroughId, entry.photoId).catch(() => null)
         // Bytes that are not a picture's are left out rather than packed under a name that says
@@ -417,6 +449,7 @@ export async function exportBackup(targetPath: string): Promise<void> {
       endingArt,
       ...(semesterEndingArt.length > 0 ? { semesterEndingArt } : {}),
       profilePictures,
+      ...(Object.keys(profileSources).length > 0 ? { profileSources } : {}),
       photos,
       backgrounds,
       scenes,
@@ -448,25 +481,37 @@ async function readBackupRecord(dir: string): Promise<BackupFile> {
   })
 }
 
-/** Puts `staged` in place of `/data/saves`, or leaves the folder that is there where it was. */
+/**
+ * Puts `staged` in place of `/data/saves`, or leaves the folder that is there where it was. A
+ * folder that cannot be moved back stays where it was parked, and the error names it.
+ */
 async function swapSaves(staged: string): Promise<void> {
   const live = getSavesPath()
   const old = scratchDir('saves-old')
 
   let displaced = false
   try {
-    await rename(live, old)
+    await renameWithPatience(live, old)
     displaced = true
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw appError(RESTORE_FAILED.code, RESTORE_FAILED.message, messageOf(err))
+      const failed = isHeldError(err) ? SAVES_HELD : RESTORE_FAILED
+      throw appError(failed.code, failed.message, messageOf(err))
     }
   }
 
   try {
-    await rename(staged, live)
+    await renameWithPatience(staged, live)
   } catch (err) {
-    if (displaced) await rename(old, live).catch(() => {})
+    if (displaced) {
+      await renameWithPatience(old, live).catch((back: unknown) => {
+        throw appError(
+          'BACKUP_SAVES_STRANDED',
+          `Couldn't restore saves. If they are present at data\\tmp\\${basename(old)}, quit the game and move them to data\\saves.`,
+          `${messageOf(err)}\n${messageOf(back)}`
+        )
+      })
+    }
     throw appError(RESTORE_FAILED.code, RESTORE_FAILED.message, messageOf(err))
   }
 
@@ -483,7 +528,8 @@ async function restoreSaves(
   replays: readonly BackupReplay[],
   semesterPictures: readonly SemesterPicture[],
   lorebooks: Readonly<Record<string, LorebookRecord>>,
-  applications: Readonly<Record<string, Application>>
+  applications: Readonly<Record<string, Application>>,
+  profileSources: Readonly<Record<string, ProfileFrame>>
 ): Promise<void> {
   const staged = scratchDir('saves')
 
@@ -562,6 +608,25 @@ async function restoreSaves(
         })
       }
 
+      const frame = profileSources[playthroughId] as ProfileFrame | undefined
+      if (frame) {
+        const from = join(scratch, profileSourceEntry(playthroughId))
+        const name = await restoredImageName(from, basename(getProfileSourcePath(playthroughId)))
+        // Named but not in the zip is one missing picture, and a frame with no picture is nothing.
+        const landed = await rename(from, join(folder, name)).then(
+          () => true,
+          (err: unknown) => {
+            console.warn(`[backup] no full profile picture for ${playthroughId}:`, err)
+            return false
+          }
+        )
+        if (landed) {
+          const recordPath = join(folder, basename(getProfileSourceRecordPath(playthroughId)))
+          const kept: ProfileSourceRecord = { schemaVersion: PROFILE_SOURCE_SCHEMA_VERSION, frame }
+          await writeAtomicJson(recordPath, kept, RESTORE_FAILED)
+        }
+      }
+
       const ownPhotos = (record.photos ?? []).filter(
         (entry) => entry.playthroughId === playthroughId && SAFE_NUMERIC_ID.test(entry.photoId)
       )
@@ -630,7 +695,7 @@ async function restoreCharacters(scratch: string, record: BackupFile): Promise<v
       // Written here rather than through `writeCharacter`, which would stamp a fresh
       // `updatedAt` over the backup's and reorder the grid.
       const name = basename(getCharacterFilePath(charId))
-      await writeAtomicJson(join(folder, name), character, RESTORE_FAILED)
+      await writeAtomicJson(join(folder, name), character, CHARACTERS_RESTORE_FAILED)
 
       const from = join(scratch, CHARACTERS_DIR, charId)
       for (const rel of backedUpFiles(await charFilesUnder(from))) {
@@ -639,7 +704,11 @@ async function restoreCharacters(scratch: string, record: BackupFile): Promise<v
           // The restored picture is the one read, not a twin the folder already held.
           await dropImageTwins(join(folder, rel))
         } catch (err) {
-          throw appError(RESTORE_FAILED.code, RESTORE_FAILED.message, messageOf(err))
+          throw appError(
+            CHARACTERS_RESTORE_FAILED.code,
+            CHARACTERS_RESTORE_FAILED.message,
+            messageOf(err)
+          )
         }
       }
     } catch (err) {
@@ -803,14 +872,25 @@ export async function importBackup(archivePath: string): Promise<void> {
     const lorebooks = lorebooksFromBackup(record)
     const applications = applicationsFromBackup(record)
     const mods = modPartsFromBackup(record)
+    const profileSources = profileSourcesFromBackup(record)
 
     // Every mod's share is read before anything is written, and made only once the game's is.
     const legacy = { record: unknownBackupKeys(record), dirs: await legacyDirsIn(scratch), archive: archivePath }
     const restores = await prepareModParts(scratch, mods, legacy)
     try {
+      // The saves go first: they are the step another program can refuse, and one refused here has
+      // written nothing the player keeps.
+      await restoreSaves(
+        scratch,
+        record,
+        replays,
+        semesterPictures,
+        lorebooks,
+        applications,
+        profileSources
+      )
       await replaceSettings(settings)
       await setGrabBags(record.grabbags)
-      await restoreSaves(scratch, record, replays, semesterPictures, lorebooks, applications)
       await restoreCharacters(scratch, record)
       await restoreBackgrounds(scratch, backgrounds)
       await restoreScenes(scenes)
