@@ -1,5 +1,5 @@
 import type { PostComment, SocialPost, MemoryType } from '@vx/modkit/shared'
-import { globalSlotOf } from './jobs'
+import { globalSlotOf } from '@vx/modkit/shared'
 
 /**
  * Bunnyfeeds' saved shape and its one rule: what a post's thread still owes the reader. The

@@ -1,8 +1,7 @@
 import type { ModDef } from '@vx/modkit/shared'
-import { BUNNYFEEDS } from '../bunnyfeeds'
 
 const mod: ModDef = {
-  id: BUNNYFEEDS,
+  id: 'bunnyfeeds',
   name: 'Bunnyfeeds',
   author: 'naudh1r',
   version: '1.1.3',

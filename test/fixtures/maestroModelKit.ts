@@ -14,5 +14,5 @@ vi.mock('@vx/modkit/renderer', async () => ({
   ...await import('../../packages/modkit/src/renderer/modState'),
   ...await import('../../src/renderer/views/motion'),
   ...Object.fromEntries(Object.entries(await import('../../src/renderer/stores/modsStore'))
-    .filter(([name]) => ['modIsOn', 'useModOn', 'useModOption'].includes(name)))
+    .filter(([name]) => ['modIsOn', 'modOptionOn', 'useModOn', 'useModOption'].includes(name)))
 }))

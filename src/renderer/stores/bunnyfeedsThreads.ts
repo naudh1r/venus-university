@@ -26,9 +26,9 @@ import {
   type ThreadLine
 } from '../prompts/bunnyfeedsPrompt'
 import {
+  drawFeedHandles,
+  drawFeedEmoji,
   FEED_EMOJI,
-  FEED_EMOJI_BAG,
-  FEED_HANDLE_BAG,
   FEED_HANDLE_POOL,
   SETTING,
   hasTexted,
@@ -38,7 +38,6 @@ import { markCommented } from './bunnyfeedsVisit'
 import { joiningFriendOf, replierOf, type Replier } from './bunnyfeedsReplies'
 import { fileDueFeedMemories, holdFeedMemories } from './bunnyfeedsMemory'
 import { useGameStore } from './gameStore'
-import { useGrabBagStore } from './grabBagStore'
 import { lessNsfwTextNow, reader } from './loop/promptState'
 import { writeAutosave } from './loop/saves'
 import { currentRun, loopState, runStale, LOOP_LLM_GROUP } from './loop/state'
@@ -431,7 +430,7 @@ function fileReplies(
             handle: back?.handle ?? strangerHandle(),
             emoji:
               back?.emoji ??
-              useGrabBagStore.getState().drawMany(FEED_EMOJI_BAG, FEED_EMOJI, 1)[0] ??
+              drawFeedEmoji(1)[0] ??
               FEED_EMOJI[0],
             text,
             ...(comment ? { replyTo: comment.id } : {}),
@@ -507,10 +506,8 @@ const SAID_WHERE =
 
 /** A stranger's handle off the shared bag, so the four thousand do not repeat too soon. */
 function strangerHandle(): string {
-  const [one] = useGrabBagStore
-    .getState()
-    .drawMany(FEED_HANDLE_BAG, FEED_HANDLE_POOL, 1, (entry) => entry.key)
-  return one?.handle ?? FEED_HANDLE_POOL[0].handle
+  const [one] = drawFeedHandles(1)
+  return one ?? FEED_HANDLE_POOL[0].handle
 }
 
 /** Leaves a comment of the reader's under one of her posts; closing the phone asks for the answer. */

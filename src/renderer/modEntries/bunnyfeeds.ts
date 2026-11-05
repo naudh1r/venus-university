@@ -10,6 +10,8 @@ import {
   formatShortGameDate,
   ownsPostComments,
   postVisible,
+  phoneOpen,
+  subscribePhoneView,
   registerHooks,
   type OptionPreviewProps,
   type PostCommentsProps
@@ -27,7 +29,6 @@ import {
   rollFeedComments,
   writtenComments
 } from '../stores/bunnyfeedsReplies'
-import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { feedStatusLines, fileDueFeedMemories, textLedgerFeedLines } from '../stores/bunnyfeedsMemory'
 import { takeCommented } from '../stores/bunnyfeedsVisit'
 import { settleFeedReadMark, unreadFeedNotesOf } from '../stores/bunnyfeedsNotes'
@@ -120,8 +121,11 @@ function threads(): Promise<typeof import('../stores/bunnyfeedsThreads')> {
 }
 
 // Closing the phone ends a visit: everything he commented during it goes out as one call.
-useBunnyboardStore.subscribe((state, before) => {
-  if (!before.open || state.open || !takeCommented()) return
+let wasPhoneOpen = phoneOpen()
+subscribePhoneView(() => {
+  const beforeOpen = wasPhoneOpen
+  wasPhoneOpen = phoneOpen()
+  if (!beforeOpen || wasPhoneOpen || !takeCommented()) return
   void threads().then((module) => module.armFeedThreads('next'))
 })
 

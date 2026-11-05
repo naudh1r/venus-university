@@ -19,14 +19,13 @@ import {
   rollCrowd
 } from '../../shared/bunnyfeedsCrowd'
 import {
+  drawFeedHandles,
+  drawFeedEmoji,
   FEED_EMOJI,
-  FEED_EMOJI_BAG,
-  FEED_HANDLE_BAG,
   FEED_HANDLE_POOL,
   isFeedContact
 } from '@vx/modkit/renderer'
 import { useGameStore } from './gameStore'
-import { useGrabBagStore } from './grabBagStore'
 
 /** Bunnyfeeds' side of a post's replies: who may write them, and how they are filed. */
 
@@ -177,10 +176,9 @@ export function rollFeedComments(
   )
   if (kept.length === 0) return []
   const strangers = kept.filter((one) => !isFriend(one)).length
-  const bag = useGrabBagStore.getState()
   // Through the bags, so a handle and a face are both spent before either comes round again.
-  const handles = bag.drawMany(FEED_HANDLE_BAG, FEED_HANDLE_POOL, strangers, (one) => one.key)
-  const emoji = bag.drawMany(FEED_EMOJI_BAG, FEED_EMOJI, strangers)
+  const handles = drawFeedHandles(strangers)
+  const emoji = drawFeedEmoji(strangers)
 
   // Three to a slot, so a loud post arrives loud and still grows; a quiet one trickles.
   const posted = globalSlotOf(game.date, game.time)
@@ -203,7 +201,7 @@ export function rollFeedComments(
     const n = drawn++
     return {
       id: crypto.randomUUID(),
-      handle: handles[n]?.handle ?? FEED_HANDLE_POOL[0].handle,
+      handle: handles[n] ?? FEED_HANDLE_POOL[0].handle,
       emoji: emoji[n] ?? FEED_EMOJI[0],
       text: one.text,
       at

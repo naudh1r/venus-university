@@ -167,7 +167,7 @@ Bunnyfeeds makes **one extra AI call** of its own, to your usual model, on top o
 | `src/renderer/prompts/bunnyfeedsPrompt.ts` | The slot opening's reply lines, the replier block, the thread call's prompt and the texting bookkeeping's note. |
 | `src/renderer/stores/bunnyfeedsReplies.ts` | Who may reply under a post, and how the slot opening's replies are filed. |
 | `src/shared/bunnyfeedsCrowd.ts` | How many answer a post (her following, and whether it carries a picture), and the rolls for who joins a thread. |
-| `src/renderer/stores/bunnyfeedsThreads.ts` | The thread call: what is owed, sending on phone close, filing the answers. |
+| `src/renderer/stores/bunnyfeedsThreads.ts` | The thread call: what is owed, sending when a post he commented on is closed (or the phone, or the slot turns), filing the answers. |
 | `src/renderer/stores/bunnyfeedsMemory.ts` | Feed memories: held until the answers show, filed, announced in the closing; and the texting bookkeeping's note. |
 | `src/renderer/stores/bunnyfeedsVisit.ts` | Whether he commented during this phone visit. |
 | `src/renderer/components/BunnyfeedsThread.tsx`, `vu_styles/Bunnyfeeds.css` | The feed preview, the comment pill, the post view with its thread, the comment box and the @ list. |

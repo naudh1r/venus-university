@@ -18,17 +18,18 @@ import {
   CloseIcon,
   HeartIcon,
   formatShortGameDate,
-  slotHalf
+  slotHalf,
+  phoneOpen,
+  subscribePhoneView,
+  useBareMessage
 } from '@vx/modkit/renderer'
 import { profileUrl, useSpriteVersion } from '../stores/characterStore'
 import { useGameStore } from '../stores/gameStore'
 import { leavePlayerComment } from '../stores/bunnyfeedsThreads'
 import { epilogueOf, sceneActiveOf } from '../stores/textingLoop'
-import { sentText } from '../mods/hooks'
 import { FollowerFace } from './BunnyfeedsFaces'
 import { armFeedThreads } from '../stores/bunnyfeedsThreads'
 import { takeCommented } from '../stores/bunnyfeedsVisit'
-import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import '../vu_styles/Bunnyfeeds.css'
 
 /** A post's full view, and the comment in it to scroll to, if any. */
@@ -45,8 +46,11 @@ export const usePostView = create<{
 }>((set) => ({ open: null, show: (open) => set({ open }) }))
 
 // The phone closing takes the post view with it, so it is not waiting there next time.
-useBunnyboardStore.subscribe((state, before) => {
-  if (before.open && !state.open) usePostView.getState().show(null)
+let wasPhoneOpen = phoneOpen()
+subscribePhoneView(() => {
+  const beforeOpen = wasPhoneOpen
+  wasPhoneOpen = phoneOpen()
+  if (beforeOpen && !wasPhoneOpen) usePostView.getState().show(null)
 })
 
 /** A thread's comments as drawn: the ones on the post, and under each the replies to its chain. */
@@ -436,6 +440,7 @@ function CommentRow({
   onReply?: () => void
 }): JSX.Element {
   const reader = useReaderHandle()
+  const bare = useBareMessage(comment.text)
   const row = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (focused) row.current?.scrollIntoView({ block: 'center' })
@@ -449,7 +454,7 @@ function CommentRow({
         </span>
         {to && <span className="vu-bf-comment-mention">{to} </span>}
         {/* A comment of nothing but a few emoji is drawn whole, big where a mod draws it so. */}
-        {sentText()?.bare?.(comment.text) ? (
+        {bare ? (
           <SentText text={comment.text} />
         ) : (
           comment.text.split(/(@[\w.]+)/).map((part, i) =>

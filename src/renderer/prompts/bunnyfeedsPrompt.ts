@@ -13,9 +13,14 @@ import {
   type StructuredRequest,
   type TimeSlot
 } from '@vx/modkit/shared'
-import { formatShortGameDate, objectSchema } from '@vx/modkit/renderer'
-import { relationshipLines } from './relationship'
-import { memoryLines, profileLines, spaced } from './scenePrompt'
+import {
+  formatShortGameDate,
+  objectSchema,
+  relationshipLines,
+  memoryLines,
+  profileLines,
+  spaced
+} from '@vx/modkit/renderer'
 import type { PosterStanding, Replier } from '../stores/bunnyfeedsReplies'
 
 /** Bunnyfeeds' prompts: the replies a post arrives with, and the call that answers the reader. */
