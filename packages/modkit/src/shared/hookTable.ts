@@ -289,6 +289,7 @@ export const KIT_APIS = [
   'renderer:subscribeNoNsfwImages',
   'renderer:useNoNsfwImages',
   'renderer:imageApiConfigured',
+  'renderer:spriteUrl',
   'renderer:subscribeImageApiConfigured',
   'renderer:useImageApiConfigured',
   'renderer:localImageSource',

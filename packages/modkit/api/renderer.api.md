@@ -1198,6 +1198,9 @@ export interface SlotSettled {
 export function spaced(lines: readonly string[]): string[];
 
 // @public
+export function spriteUrl(charId: string, value: SpriteRef, version?: number, staged?: boolean): string;
+
+// @public
 export function submitAction(action: string, gift?: boolean, preset?: Verdict,
 planId?: string,
 sceneEvents?: TurnSnapshot['sceneEvents'],

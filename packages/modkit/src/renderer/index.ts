@@ -164,7 +164,7 @@ export { bunnybotSays } from '../bridge/renderer'
 export { boxParts, dropTransientLines, reachTurn, readerSaysInScene, sayInScene } from '../bridge/renderer'
 export { invoke } from '../bridge/renderer'
 
-export { Lightbox, memoryLines, profileLines, relationshipLines, spaced } from '../bridge/renderer'
+export { Lightbox, memoryLines, profileLines, relationshipLines, spaced, spriteUrl } from '../bridge/renderer'
 export type { RelationshipMedium, RelationshipProgress } from '../bridge/renderer'
 
 export {

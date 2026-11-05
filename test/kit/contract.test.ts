@@ -47,6 +47,8 @@ describe('the entry points', () => {
   })
 
   it('re-exports the native lightbox and prompt helpers without wrappers', async () => {
+    const characters = await import('../../src/renderer/stores/characterStore')
+    expect(rendererKit.spriteUrl).toBe(characters.spriteUrl)
     const lightbox = await import('../../src/renderer/components/Lightbox')
     const relationship = await import('../../src/renderer/prompts/relationship')
     const scene = await import('../../src/renderer/prompts/scenePrompt')

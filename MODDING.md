@@ -5,6 +5,16 @@ from '@vx/modkit/shared'`. These are the game's existing definition types, not c
 The import is erased at runtime and does not register a catalogue or load native jobs or
 locations. Existing hook registration and mod on/off rules still control whether entries act.
 
+### Character sprite URLs
+
+Renderer mods can import `spriteUrl(charId, sprite, version?, staged?)` from
+`@vx/modkit/renderer`. This is the native function, not a file reader. For example,
+`spriteUrl(id, 'neutral')` displays a neutral character sprite in a setup screen.
+The URL uses the game's active image resolver, including browser builds; do not construct
+`charimg://` URLs yourself. `version` busts the image cache after a regeneration and
+`staged` selects the editor's staged files. This does not check that an image exists,
+load a character, or grant file-write access. It is separate from the reader's profile image.
+
 This is how the community mods share one build: every mod's code is always in the game, and a
 switch decides whether it acts. Players turn mods on and off from **Mods** on the main menu;
 nothing is chosen at install time.

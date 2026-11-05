@@ -5,6 +5,9 @@
 - Shared exports the native `JobDef` and `LocationDef` types for mod-owned catalogues.
   These are erased type exports; no native catalogue values or runtime APIs are exposed.
 
+- Renderer exports native `spriteUrl` for character sprites, including cache versions and
+  staging, through the game's desktop/web image resolver.
+
 - Renderer readers expose whether image API credentials are configured and the selected local
   image source, with component hooks and subscriptions for each. No keys, URLs or settings
   objects are exposed; configuration and connectivity remain distinct.
