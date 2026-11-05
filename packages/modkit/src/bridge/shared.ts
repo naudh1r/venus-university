@@ -8,6 +8,7 @@ export type {
   BunnyboardState,
   Character,
   CharInfo,
+  Conversation,
   CharMemory,
   ChatMessage,
   GameSave,

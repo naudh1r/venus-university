@@ -665,6 +665,60 @@ are until each moves. A mod moves in two steps. First it declares its `saveField
 `normalize` that reads its old key from `legacy` first, and reads and writes through the handle
 from then on. Then, at move-out, it drops the merged declaration and its carry adapter.
 
+### Reading the loaded game
+
+Available since 0.8.0 from `@vx/modkit/renderer`. These readers expose data, never a store or
+its actions. Record snapshots are detached, deeply frozen copies; changing a nested array or
+object cannot change the game. Repeated reads keep the same snapshot until its native source
+changes, so they are also suitable for `useSyncExternalStore`.
+
+| Plain getter | Component hook | Subscription |
+| --- | --- | --- |
+| `character(id)` | `useCharacter(id)` | `subscribeCharacter(id, onChange)` |
+| `characterInfo(id)` | `useCharacterInfo(id)` | `subscribeCharacterInfo(id, onChange)` |
+| `rosterIds({ alumni? })` | `useRosterIds({ alumni? })` | `subscribeRosterIds(onChange, { alumni? })` |
+| `conversation(id)` | `useConversation(id)` | `subscribeConversation(id, onChange)` |
+| `feed(id)` | `useFeed(id)` | `subscribeFeed(id, onChange)` |
+| `npcRelationships()` | `useNpcRelationships()` | `subscribeNpcRelationships(onChange)` |
+| `clock()` | `useClock()` | `subscribeClock(onChange)` |
+| `playerStats()` | `usePlayerStats()` | `subscribePlayerStats(onChange)` |
+| `playerProfilePicture()` | `usePlayerProfilePicture()` | `subscribePlayerProfilePicture(onChange)` |
+| `feedReadThrough()` | `useFeedReadThrough()` | `subscribeFeedReadThrough(onChange)` |
+| `sceneActive()` | `useSceneActive()` | `subscribeSceneActive(onChange)` |
+| `readerPromptText()` | `useReaderPromptText()` | `subscribeReaderPromptText(onChange)` |
+
+Each subscription returns an unsubscribe function and fires only when its own projected value
+changes. Record subscriptions are scoped to the supplied id; another girl's record or another
+thread does not notify them. Feed order and held/future posts are preserved: use `postVisible`
+and `shownComments` for the same filtering the game applies. Roster ids are active girls by
+default; `{ alumni: true }` appends graduates, without duplicates, in their saved order.
+
+Before a playthrough loads, or after it is left, collections return `[]`, the player's picture
+returns `null`, scene ownership is false, and the other getters return `undefined`. In
+particular the clock, stats, relationship map and reader block have no default game to report.
+A missing character, state record or conversation also returns `undefined`.
+
+`feedReadThrough` reads Bunnyfeeds' old board-wide numeric read marker, where present, so it can
+seed its own mod data from older saves. It neither creates nor updates that key. Use existing
+`gameFacts`/`useGameFacts` for the playthrough id and reader's name, and `charKeyOf` to derive a
+character key. No second identity reader is needed.
+
+`profileImageUrl(id)` combines the native profile URL with its image-cache version; it returns
+`undefined` without a game or that girl. `useProfileImageUrl(id)` is the component hook and
+`subscribeProfileImageUrl(id, onChange)` the plain subscription, both following changes to that
+girl's image only. No image store is exposed.
+`sceneActive` uses core's scene-ownership predicate. Together with `clock` and existing
+`isGraduationSlot`, it replaces the selectors used to close commenting while a scene or the
+epilogue owns the phone. It is not the same question as `safePoint`.
+
+`readerPromptText` returns core's own READER block, including profile, stats, academic reputation,
+cold and relationships, rather than reconstructing or abbreviating it. Its subscription compares
+the resulting text, so unrelated state changes do not notify. It supplies no data before a game.
+
+These APIs perform no writes or saves. Changes to records, comments or memories belong to the
+scoped writers and save policy in [#259](https://github.com/venus-extracurriculars/build/pull/259).
+Reading a snapshot does not give permission to publish a replacement with a whole-store write.
+
 ### Writing at a safe point
 
 A safe point is a moment the game could take a save: nothing on its way from the model, nothing

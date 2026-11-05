@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Read-only game records, clock, stats, pictures and the legacy feed-read marker
+  (`since: '0.8.0'`) have detached frozen snapshots, component hooks and narrow subscriptions.
+  `profileImageUrl` and its hook and subscription follow her image version; `sceneActive` follows core's scene predicate;
+  `readerPromptText` returns core's READER block. No stores, actions or save writers are exposed.
+
 - Optional `ModDef.hooks` lists hook and kit API declarations for built-in main entries, with the
   same name, shape and meaning as a manifest's `hooks`.
 

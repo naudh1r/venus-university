@@ -33,6 +33,53 @@ const listed = (side: string): string[] =>
   KIT_APIS.filter((api) => api.startsWith(`${side}:`)).map((api) => api.slice(side.length + 1)).sort()
 
 describe('the entry points', () => {
+  it('re-exports read-only game readers as the native functions', async () => {
+    const native = await import('../../src/renderer/mods/gameReaders')
+    for (const name of [
+      'character',
+      'useCharacter',
+      'subscribeCharacter',
+      'characterInfo',
+      'useCharacterInfo',
+      'subscribeCharacterInfo',
+      'rosterIds',
+      'subscribeRosterIds',
+      'useRosterIds',
+      'conversation',
+      'useConversation',
+      'subscribeConversation',
+      'feed',
+      'useFeed',
+      'subscribeFeed',
+      'npcRelationships',
+      'useNpcRelationships',
+      'subscribeNpcRelationships',
+      'clock',
+      'useClock',
+      'subscribeClock',
+      'playerStats',
+      'usePlayerStats',
+      'subscribePlayerStats',
+      'playerProfilePicture',
+      'usePlayerProfilePicture',
+      'subscribePlayerProfilePicture',
+      'feedReadThrough',
+      'useFeedReadThrough',
+      'subscribeFeedReadThrough',
+      'sceneActive',
+      'useSceneActive',
+      'subscribeSceneActive',
+      'readerPromptText',
+      'useReaderPromptText',
+      'subscribeReaderPromptText',
+      'useProfileImageUrl',
+      'profileImageUrl',
+      'subscribeProfileImageUrl'
+    ] as const) {
+      expect(rendererKit[name], name).toBe(native[name])
+    }
+  })
+
   it('re-exports narrow native readers and feed draws without wrapping stores', async () => {
     const readers = await import('../../src/renderer/mods/readers')
     const mods = await import('../../src/renderer/stores/modsStore')

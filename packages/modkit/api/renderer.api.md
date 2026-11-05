@@ -70,6 +70,12 @@ export function Card(input: {
 }): JSX.Element;
 
 // @public
+export const character: (id: string) => Readonly<Character> | undefined;
+
+// @public
+export const characterInfo: (id: string) => Readonly<CharInfo> | undefined;
+
+// @public
 export function CheckField(input: CheckFieldProps): JSX.Element;
 
 // @public (undocumented)
@@ -93,6 +99,13 @@ export function ChevronIcon(input?: {
     back?: boolean;
     down?: boolean;
 }): JSX.Element;
+
+// @public
+export const clock: () => Readonly<{
+    date: number;
+    time: TimeSlot;
+    season: Season;
+}> | undefined;
 
 // @public (undocumented)
 export function CloseIcon(): JSX.Element;
@@ -156,6 +169,9 @@ export interface ContactTabProps {
     // (undocumented)
     theme: ScreenTheme;
 }
+
+// @public
+export const conversation: (id: string) => Readonly<Conversation> | undefined;
 
 // @public
 export function currentRun(): object;
@@ -230,6 +246,9 @@ export function EyeOffIcon(input: {
 export const fadeIn: (delay: number, duration?: number) => Variants;
 
 // @public
+export const feed: (id: string) => readonly Readonly<SocialPost>[];
+
+// @public
 export const FEED_EMOJI: readonly string[];
 
 // @public
@@ -243,6 +262,9 @@ export const FEED_HANDLE_POOL: FeedHandle[];
 
 // @public
 export const FEED_PAGE = 30;
+
+// @public
+export const feedReadThrough: () => number | undefined;
 
 // @public
 export function fileLatePost(post: NonNullable<SlotIntroResponse['posts']>[number]): Promise<void>;
@@ -536,6 +558,9 @@ export function noNsfwImages(): boolean;
 export const noteIn: Variants;
 
 // @public
+export const npcRelationships: () => Readonly<NpcRelationshipMap> | undefined;
+
+// @public
 export function objectSchema(name: string, required: readonly string[], properties: Record<string, unknown>): StructuredRequest['schema'];
 
 // @public
@@ -555,6 +580,12 @@ export const panelUnderTab: Variants;
 
 // @public
 export function phoneOpen(): boolean;
+
+// @public
+export const playerProfilePicture: () => string | null;
+
+// @public
+export const playerStats: () => Readonly<PlayerStats> | undefined;
 
 // @public
 export function PlusIcon(input: {
@@ -610,6 +641,9 @@ export function postVisible(post: SocialPost): boolean;
 
 // @public
 export const press: TargetAndTransition;
+
+// @public
+export const profileImageUrl: (id: string) => string | undefined;
 
 // @public
 export function profileLines(character: Character, flags: CharFlags, castSize?: number): string[];
@@ -789,6 +823,9 @@ export interface RailSeatProps {
 export function reachTurn(): boolean;
 
 // @public
+export const readerPromptText: () => string | undefined;
+
+// @public
 export function readerSaysInScene(text: string): boolean;
 
 // @public
@@ -883,6 +920,11 @@ export interface ResolvedSave {
 export function retrySilently(call: string, error: AppError, spent: number, options?: SilentRetryOptions): Promise<boolean>;
 
 // @public
+export function rosterIds(options?: {
+    alumni?: boolean;
+}): readonly string[];
+
+// @public
 export const rowLift: TargetAndTransition;
 
 // @public (undocumented)
@@ -930,6 +972,9 @@ export interface SaveFieldSpec<T> {
 
 // @public
 export function sayInScene(modId: string, text: string, options?: SceneLineOptions): boolean;
+
+// @public
+export const sceneActive: () => boolean;
 
 // @public
 export interface SceneCall {
@@ -1252,10 +1297,51 @@ answeredReminder?: string, activity?: SlotActivityOffer): Promise<void>;
 export function subscribeCanRenderLocalImages(onChange: () => void): () => void;
 
 // @public
+export const subscribeCharacter: (id: string, onChange: () => void) => () => void;
+
+// @public
+export const subscribeCharacterInfo: (id: string, onChange: () => void) => () => void;
+
+// @public
+export const subscribeClock: (onChange: () => void) => () => void;
+
+// @public
+export const subscribeConversation: (id: string, onChange: () => void) => () => void;
+
+// @public
+export const subscribeFeed: (id: string, onChange: () => void) => () => void;
+
+// @public
+export const subscribeFeedReadThrough: (onChange: () => void) => () => void;
+
+// @public
 export function subscribeNoNsfwImages(onChange: () => void): () => void;
 
 // @public
+export const subscribeNpcRelationships: (onChange: () => void) => () => void;
+
+// @public
 export function subscribePhoneView(onChange: () => void): () => void;
+
+// @public
+export const subscribePlayerProfilePicture: (onChange: () => void) => () => void;
+
+// @public
+export const subscribePlayerStats: (onChange: () => void) => () => void;
+
+// @public
+export const subscribeProfileImageUrl: (id: string, onChange: () => void) => () => void;
+
+// @public
+export const subscribeReaderPromptText: (onChange: () => void) => () => void;
+
+// @public
+export function subscribeRosterIds(onChange: () => void, options?: {
+    alumni?: boolean;
+}): () => void;
+
+// @public
+export const subscribeSceneActive: (onChange: () => void) => () => void;
 
 // @public
 export function takeTurnFromReply(): boolean;
@@ -1410,10 +1496,32 @@ export interface UpdatesTab {
 export function useBareMessage(text: string): boolean;
 
 // @public
+export const useCharacter: (id: string) => Readonly<Character> | undefined;
+
+// @public
+export const useCharacterInfo: (id: string) => Readonly<CharInfo> | undefined;
+
+// @public
+export const useClock: () => Readonly<{
+    date: number;
+    time: TimeSlot;
+    season: Season;
+}> | undefined;
+
+// @public
+export const useConversation: (id: string) => Readonly<Conversation> | undefined;
+
+// @public
 export function useDismissLayer(onDismiss: () => void, active: boolean): void;
 
 // @public
 export function useEmojiTool(): boolean;
+
+// @public
+export const useFeed: (id: string) => readonly Readonly<SocialPost>[];
+
+// @public
+export const useFeedReadThrough: () => number | undefined;
 
 // @public
 export function useGameFacts(): {
@@ -1437,7 +1545,30 @@ export function useModOption(modId: string, optionId: string): boolean;
 export function useNoNsfwImages(): boolean;
 
 // @public
+export const useNpcRelationships: () => Readonly<NpcRelationshipMap> | undefined;
+
+// @public
+export const usePlayerProfilePicture: () => string | null;
+
+// @public
+export const usePlayerStats: () => Readonly<PlayerStats> | undefined;
+
+// @public
+export const useProfileImageUrl: (id: string) => string | undefined;
+
+// @public
+export const useReaderPromptText: () => string | undefined;
+
+// @public
+export function useRosterIds(options?: {
+    alumni?: boolean;
+}): readonly string[];
+
+// @public
 export function useSafePoint(): ManualSaveOffer;
+
+// @public
+export const useSceneActive: () => boolean;
 
 // @public
 export function useSceneInput(layout: SceneInputLayout | null): void;
