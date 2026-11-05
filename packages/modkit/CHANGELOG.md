@@ -36,6 +36,18 @@
   asked to answer; `reachTurn` brings the scene to his turn. A `transient` line is taken back by
   its mod's `dropTransientLines` and left out of every save, replay and saved scene.
 
+- A record field writes a live record: `set(ref, next)` and `update(ref, change)` put the mod's
+  slice on one of her texts, posts or comments (`RecordRef`), the record's own fields and every
+  other mod's slice kept. `PostComment` gains `ex`. `addPostComments` adds comments under a post
+  for the mod that draws them; `addMemory` adds a memory of hers marked as the mod's, `replacing`
+  only memories it marked; `toggleFeedLike` is the reader's like. `saveChanges` writes the game
+  now, at the scene's last decision point, or answers `deferred` while a line plays and the
+  loop's next save carries it. New refusals: `MOD_WRITE_GONE`, `MOD_WRITE_NOT_OWNER`,
+  `MOD_WRITE_INVALID`.
+
+- A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
+  that shows it nudges.
+
 ## 0.7.0
 
 - Startup readers have a ten-second wait limit per mod. A timeout names the mod in a warning

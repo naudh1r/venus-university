@@ -17,6 +17,17 @@ import { UseBoundStore } from 'zustand';
 import { Variants } from 'motion/react';
 
 // @public
+export function addMemory(modId: string, charId: string, memory: CharMemory, options?: RecordWriteOptions & {
+    replacing?: (memory: Readonly<CharMemory>) => boolean;
+}): Result<null>;
+
+// @public
+export function addPostComments(modId: string, post: {
+    charId: string;
+    postId: string;
+}, comments: readonly PostComment[], options?: RecordWriteOptions): Result<null>;
+
+// @public
 export function boxParts(text: string): string[];
 
 // @public
@@ -786,6 +797,8 @@ export function recordField<T>(modId: string, spec: RecordFieldSpec<T>): RecordF
 // @public
 export interface RecordFieldHandle<T> {
     read(record: ModDataRecord): T;
+    set(ref: RecordRef, next: T, options?: RecordWriteOptions): Result<null>;
+    update(ref: RecordRef, change: (current: T) => T | undefined, options?: RecordWriteOptions): Result<null>;
     with<R extends ModDataRecord>(record: R, next: T): R;
 }
 
@@ -794,6 +807,27 @@ export interface RecordFieldSpec<T> {
     empty: T;
     legacy?: readonly string[];
     normalize?: (stored: unknown, legacy: Readonly<Record<string, unknown>>, from: string | null) => T;
+}
+
+// @public
+export type RecordRef = {
+    kind: 'message';
+    charId: string;
+    messageId: string;
+} | {
+    kind: 'post';
+    charId: string;
+    postId: string;
+} | {
+    kind: 'comment';
+    charId: string;
+    postId: string;
+    commentId: string;
+};
+
+// @public
+export interface RecordWriteOptions {
+    run?: object;
 }
 
 // @public
@@ -859,6 +893,11 @@ export function runStale(run: object): boolean;
 
 // @public
 export function safePoint(): ManualSaveOffer;
+
+// @public
+export function saveChanges(modId: string, options?: {
+    run?: object;
+}): Promise<Result<'written' | 'deferred'>>;
 
 // @public
 export interface SaveChoice extends WayOn {
@@ -1311,6 +1350,9 @@ export function TitleTab(input: TitleTabProps): JSX.Element;
 export interface TitleTabProps {
     children: string;
 }
+
+// @public
+export function toggleFeedLike(charId: string, postId: string): void;
 
 // @public
 export const toggleLift: TargetAndTransition;

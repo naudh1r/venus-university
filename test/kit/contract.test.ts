@@ -229,6 +229,15 @@ describe('the entry points', () => {
     }
   })
 
+  it("hands mods the game's own record writes and save, so a mod's change is the game's", async () => {
+    const records = await import('../../src/renderer/mods/records')
+    const saves = await import('../../src/renderer/stores/loop/saves')
+    for (const name of ['addMemory', 'addPostComments', 'toggleFeedLike'] as const) {
+      expect(rendererKit[name], name).toBe(records[name])
+    }
+    expect(rendererKit.saveChanges).toBe(saves.saveChanges)
+  })
+
   it("hands main the game's guarded archive, image sniffer and live option reader", async () => {
     const archive = await import('../../src/main/services/archiveService')
     const images = await import('../../src/main/services/imageFiles')

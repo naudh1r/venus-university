@@ -632,10 +632,24 @@ not run, and writes them back on every save. Removing a mod loses nothing, and p
 finds its data where it was.
 
 **On a record.** `recordField(id, { empty, legacy, normalize })` is the same for the `ex` on a
-record inside the save: a character, a memory, a message, a conversation, a post, a project
-session. Its handle is pure: `read(record)` is the mod's value on that record, and
-`with(record, next)` is a new record holding it, without the legacy keys. Nothing in core writes
-the record back for the mod yet; that comes with each record's hook.
+record inside the save: a character, a memory, a message, a conversation, a post, a comment, a
+project session. `read(record)` is the mod's value on that record, and `with(record, next)` is a
+new record holding it, without the legacy keys; both are pure, for a record the mod has in hand,
+such as the post a `fileFeedPost` hook is filing. A record already in the game is written through
+the handle, which finds it by a `RecordRef`: one of her texts
+(`{ kind: 'message', charId, messageId }`), one of her posts (`{ kind: 'post', charId, postId }`)
+or a comment under one (`{ kind: 'comment', charId, postId, commentId }`).
+
+- `set(ref, next, { run })` puts `next` on that record as `with` would, in memory: the record's own
+  fields and every other mod's slice stay as they are, and it goes out with the next save, or now
+  with `saveChanges` (below).
+- `update(ref, change, { run })` is the same, with `change` handed the record's value as `read`
+  gives it; undefined leaves the record as it is.
+
+`run` is `currentRun()` from when the work began, for work that awaits something: the write is
+refused once that game has been left. Both answer a `Result` and never throw. A record's legacy
+keys go only as the mod writes that record, so an old key stays on every record the mod never
+writes again; `normalize` keeps reading it there. `id` and `ex` are never taken off.
 
 **New games and the next semester.** An enrollment has an `ex` of its own, and the playthrough's
 first save starts with it. At New Game+, the next semester's first save starts with what each
@@ -684,6 +698,43 @@ never as a throw:
 | `MOD_WRITE_STALE` | A value `expect` names has moved, as the write was asked for or at its turn, or the game was left or another loaded before its turn came |
 | `MOD_WRITE_WAIT` | It is not a safe point, as the write was asked for or at its turn; try again once `safePoint()` is `'open'` |
 | `SAVE_WRITE_FAILED` | The write itself failed; where the disk gave an error of its own, that comes back instead |
+
+### Writing the game's records, and saving them now
+
+A record field's `set` and `update`, and the game's own records a mod adds to (below), change the
+game in memory. `saveChanges(id, { run })` writes the game as it stands to the autosave now,
+behind every save already on its way, for a change that should not wait for the loop's next save:
+a picture that landed, replies filed while the phone is open. It is not a safe-point write. Outside
+a scene it writes at once, whatever else is still out; in a scene it writes the reader's last turn,
+the point a reload lands on. While the scene is not at his turn (a line playing, a reply
+streaming, its ending being written) it writes nothing and answers `deferred`: the loop's own next
+save carries the change, since every save is taken from the game as it stands. It answers
+`written` once the save is on disk.
+
+A mod adds to two lists the game owns, so that everything that reads them sees what it added:
+
+- `addPostComments(id, { charId, postId }, comments, { run })` adds comments under her post, after
+  the ones there, for the mod that draws the feed's comments (`ownsPostComments`). Each comment is
+  a comment's own fields (`id`, `handle`, `emoji`, `text`, `at`) and the mod's slice in `ex`, its
+  `id` one no comment of the post has. A mod's own fields go in its slice, written with its
+  `recordField`'s `with` before the comment is added and with `set` after.
+- `addMemory(id, charId, memory, { replacing, run })` adds a memory of hers, where the prompts, her
+  affection and the memory list read memories. It is a memory's own `date`, `type` and `desc`,
+  marked as the mod's: it carries the mod's slice, an empty one where it brings none. `replacing`
+  picks which of her memories the mod marked before go in its place; no other memory is asked.
+
+`toggleFeedLike(charId, postId)` is the reader's like on her post, put on or taken off as the heart
+on a post in the game does.
+
+The record writes and the two lists answer a `Result`, and a refusal changes nothing:
+
+| Code | When |
+| --- | --- |
+| `MOD_WRITE_OFF`, `MOD_WRITE_NO_GAME`, `MOD_WRITE_FOREIGN` | As for `writeModField`; `saveChanges` also refuses a game that is over |
+| `MOD_WRITE_STALE` | `run` has been left; for `saveChanges`, also the game left before the write's turn |
+| `MOD_WRITE_GONE` | The record is not in the game, as when it was deleted; for `addMemory`, she is not |
+| `MOD_WRITE_NOT_OWNER` | `addPostComments` from a mod that does not draw the feed's comments |
+| `MOD_WRITE_INVALID` | A comment or memory that is not one: a field it does not have, a slice of another mod, a repeated id |
 
 ### Which versions a game was played with
 
@@ -1195,6 +1246,7 @@ Where a branch goes:
 - `slotSettled` receives the scene's starting state, the completed ledger and closing cast after bookkeeping, before clock advancement and the boundary save. It is synchronous so mod state is included in that save.
 - `slotStatusLines` adds lines to the slot's closing report, after what each girl took away from it, written with `memoryStatusLine` as the game writes its own. It is handed `nextSlot`, the global slot about to begin, and every mod that is on is asked, in list order.
 - `fileLatePost(post)` in `loop/feed.ts` files a post a mod wrote mid-slot, outside the slot's opening, the way the opening files its own: through `fileFeedPost`, so it can be held like any other. It leaves the slot's teaser and fill as they were drawn.
+- A post the game files that `postVisible` keeps off the feed, such as one whose picture a mod is still drawing, goes into her feed without BunnyBot's first-post nudge. The mod that shows it calls the `nudge` its `fileFeedPost` was handed. A mod can keep such a post with its own data on it this way, rather than setting `held` and filing the post itself.
 - `texts` on a ComfyUI job in `comfyService.ts` fills more prompt nodes by id, for a graph with more prompts than the positive, negative and detailer the job already fills.
 
 These hooks add to the existing API; existing hooks and their arguments are unchanged. Screens and IPC still use direct integration as documented above; a mod's save data has `saveField` (Mod data).
@@ -1233,7 +1285,8 @@ none of its own. A mod that does registers `postComments`: only one draws them a
 first that is on in `MODS` order (`postCommentsOwner`), and a mod asks `ownsPostComments(id)`
 before writing any, so two mods never both ask the slot's opening for them. Its `claims` marks the
 comments only it writes; another mod drawing comments leaves those out, whether or not it is on.
-A mod adds its own fields to `PostComment` by declaration merging. `PostCommentsView`,
+A mod keeps its own fields on a comment in its slice, and adds comments under a post that is
+already out with `addPostComments` (Mod data). `PostCommentsView`,
 `PostCommentAction` and `PostPicture` in `components/PostSpots.tsx` draw a post's spots in a
 mod's own screens too.
 

@@ -58,12 +58,60 @@ export interface RecordFieldSpec<T> {
   normalize?: (stored: unknown, legacy: Readonly<Record<string, unknown>>, from: string | null) => T
 }
 
+/** A live record in the game being played: one of her texts, one of her posts, or a comment under one. */
+export type RecordRef =
+  | { kind: 'message'; charId: string; messageId: string }
+  | { kind: 'post'; charId: string; postId: string }
+  | { kind: 'comment'; charId: string; postId: string; commentId: string }
+
+/** How a write to a live record is fenced. */
+export interface RecordWriteOptions {
+  /**
+   * The game the change was worked out in, from `currentRun()` when the work began: refused as
+   * `MOD_WRITE_STALE` once that game has been left, as by a load or a return to the title.
+   */
+  run?: object
+}
+
 /** A mod's reader and writer for one kind of record, from {@link recordField}. */
 export interface RecordFieldHandle<T> {
   /** The mod's value on `record`, or `empty`. Pure. */
   read(record: ModDataRecord): T
   /** A new record holding `next` as the mod's slice, without the legacy keys. Pure. */
   with<R extends ModDataRecord>(record: R, next: T): R
+  /**
+   * `next` as the mod's slice on the live record `ref` names, as `with` makes it: the record's
+   * own fields and every other mod's slice stay as they are. In memory; it goes out with the next
+   * save of any kind, or now with `saveChanges`. A refusal changes nothing and comes back as the
+   * result's error, never as a throw: `MOD_WRITE_OFF`, `MOD_WRITE_NO_GAME`, `MOD_WRITE_STALE`,
+   * `MOD_WRITE_GONE` (no such record, as when it was deleted), or `MOD_WRITE_FOREIGN`.
+   */
+  set(ref: RecordRef, next: T, options?: RecordWriteOptions): Result<null>
+  /**
+   * `set`, with the value worked out from the record's current one: `change` is handed it as
+   * `read` makes it, and undefined leaves the record as it is.
+   */
+  update(ref: RecordRef, change: (current: T) => T | undefined, options?: RecordWriteOptions): Result<null>
+}
+
+/** What a record write puts on the record: the mod's slice, and the legacy keys it takes off. */
+export interface RecordChange {
+  slice: ModSlice
+  drop: readonly string[]
+}
+
+/** Where a record field's writes go: core's game store, bound at its load. */
+export interface RecordWrites {
+  /**
+   * Finds the live record `ref` names and hands it to `change`; what that answers goes on the
+   * record, and undefined leaves it. Never throws.
+   */
+  update: (
+    modId: string,
+    ref: RecordRef,
+    change: (record: Readonly<ModDataRecord>) => RecordChange | undefined,
+    options: RecordWriteOptions
+  ) => Result<null>
 }
 
 /** Where the live values are kept: core's game store, bound at its load. */
@@ -78,9 +126,16 @@ const fields = new Map<string, SaveFieldSpec<unknown>>()
 
 let store: SaveFieldStore | null = null
 
+let recordWrites: RecordWrites | null = null
+
 /** Hands the handles the game store; null takes it away again. */
 export function bindSaveFieldStore(next: SaveFieldStore | null): void {
   store = next
+}
+
+/** Hands the record fields the game store's records; null takes them away again. */
+export function bindRecordWrites(next: RecordWrites | null): void {
+  recordWrites = next
 }
 
 /** Every mod's registered save field this session, by id, whether the mod is on or off. */
@@ -164,27 +219,45 @@ export function saveField<T>(modId: string, spec: SaveFieldSpec<T>): SaveFieldHa
 }
 
 /**
- * A mod's data on one kind of record inside the save (a character, a memory, a message, a post),
- * read and written by the mod itself wherever it has the record in hand. During an installed
- * mod's import, a field under another id is refused: it reads `empty` and `with` changes nothing.
+ * A mod's data on one kind of record inside the save (a character, a memory, a message, a post,
+ * a comment), read and written by the mod itself wherever it has the record in hand, and set on a
+ * live text, post or comment by its `set` and `update`. During an installed mod's import, a field
+ * under another id is refused: it reads `empty`, `with` changes nothing, and a write is refused.
  */
 export function recordField<T>(modId: string, spec: RecordFieldSpec<T>): RecordFieldHandle<T> {
   const refused = refusedAsForeign(modId, 'a record field')
+  const drop = (spec.normalize ? spec.legacy : undefined) ?? []
+  const read = (record: ModDataRecord): T => {
+    if (refused) return spec.empty
+    const stored = sliceOf(record, modId)
+    const legacy = legacyOf(record, spec)
+    if (stored === undefined && Object.keys(legacy).length === 0) return spec.empty
+    return normalized(spec, stored, legacy)
+  }
+  const update = (ref: RecordRef, change: (current: T) => T | undefined, options: RecordWriteOptions = {}): Result<null> => {
+    if (refused) return failed('MOD_WRITE_FOREIGN', 'That record field was refused.')
+    if (!recordWrites) return failed('MOD_WRITE_NO_GAME', 'There is no game to write into.')
+    return recordWrites.update(
+      modId,
+      ref,
+      (record) => {
+        const next = change(read(record))
+        return next === undefined ? undefined : { slice: sliceFor(modId, next), drop }
+      },
+      options
+    )
+  }
   return {
-    read: (record) => {
-      if (refused) return spec.empty
-      const stored = sliceOf(record, modId)
-      const legacy = legacyOf(record, spec)
-      if (stored === undefined && Object.keys(legacy).length === 0) return spec.empty
-      return normalized(spec, stored, legacy)
-    },
+    read,
     with: <R extends ModDataRecord>(record: R, next: T): R => {
       if (refused) return record
       const copy = { ...record } as Record<string, unknown>
-      for (const key of (spec.normalize ? spec.legacy : undefined) ?? []) delete copy[key]
+      for (const key of drop) delete copy[key]
       copy.ex = { ...record.ex, [modId]: sliceFor(modId, next) }
       return copy as R
-    }
+    },
+    set: (ref, next, options) => update(ref, () => next, options),
+    update
   }
 }
 

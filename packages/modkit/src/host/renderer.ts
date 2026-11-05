@@ -59,8 +59,8 @@ export {
   updatesTabs
 } from '../renderer/hooks'
 export type { DeclaredHooks } from '../renderer/hooks'
-export { bindModWrites, bindSaveFieldStore, carryModSlices, readModSlices, saveFields, writeModSlices } from '../renderer/saveField'
-export type { ModWrites, ReadModSlices, SaveFieldStore } from '../renderer/saveField'
+export { bindModWrites, bindRecordWrites, bindSaveFieldStore, carryModSlices, readModSlices, saveFields, writeModSlices } from '../renderer/saveField'
+export type { ModWrites, ReadModSlices, RecordChange, RecordWrites, SaveFieldStore } from '../renderer/saveField'
 export { bindSceneFieldSaves, bindSceneFieldStore } from '../renderer/sceneField'
 export type { SceneFieldSaves, SceneFieldStore } from '../renderer/sceneField'
 export { bindGameBoundary } from '../renderer/modState'
