@@ -1,5 +1,10 @@
 # Mods in this build
 
+Mods can type their own job and location catalogues with `import type { JobDef, LocationDef }
+from '@vx/modkit/shared'`. These are the game's existing definition types, not copies.
+The import is erased at runtime and does not register a catalogue or load native jobs or
+locations. Existing hook registration and mod on/off rules still control whether entries act.
+
 This is how the community mods share one build: every mod's code is always in the game, and a
 switch decides whether it acts. Players turn mods on and off from **Mods** on the main menu;
 nothing is chosen at install time.
