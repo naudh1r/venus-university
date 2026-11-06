@@ -60,6 +60,16 @@ initialization; that gameplay/state migration remains separate from these screen
 
 ## Saves, backups and source map
 
+### Artwork provider controls
+
+The manager reads API credential presence through `useImageApiConfigured` and the local
+source through `useLocalImageSource` from `@vx/modkit/renderer`. It does not read the native
+settings store or receive a key/endpoint. The former follows the game's image-key fallback
+rule; it is not a connection test. The latter distinguishes managed/external ComfyUI so a
+player's external server is never offered the managed model installer. Local-art selection
+still permits rendering without an image API key; the existing artwork and cutout flow is
+unchanged. A standalone manifest must declare both renderer capabilities.
+
 ### Local creature artwork rendering
 
 Echo sends its own parsed Megaten workflow to the kit's `renderComfyImage` under
