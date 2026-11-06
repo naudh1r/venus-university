@@ -180,7 +180,6 @@ Bunnyfeeds makes **one extra AI call** of its own, to your usual model, on top o
 | `src/renderer/components/BunnyfeedsNotifications.tsx` | Notifications, the page beside the feed. |
 | `src/renderer/components/BunnyfeedsFaces.tsx` | Followers' faces, drawn off the handle in the style the Mods screen picked, and that choice's preview (`optionPreviews`). |
 | `src/renderer/stores/bunnyfeedsNotes.ts` | The root read mark, comment-slice read updates and unread count; `feedReadThrough` seeds only the legacy marker migration. |
-| `src/main/ipc.ts`, `src/preload/*`, `src/web/bridge.ts` | The older `llm:completeFeedThreads` channel remains in the host (direct edit); thread calls now use the kit's `completeStructured`. |
 | `test/bunnyfeeds*.test.ts` | Thread and notification calculations, draws, reply triggers, old-save round trips, save timing and refused writes. |
 
 It uses nothing of any other mod: only the game's places on a post (`postComments`,
