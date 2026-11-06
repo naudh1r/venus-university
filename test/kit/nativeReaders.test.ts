@@ -113,6 +113,44 @@ it('draws handles from the current native bag without spending emoji', () => {
   expect(readers.drawFeedHandles(1)).toEqual([FEED_HANDLE_POOL[0].handle])
 })
 
+it.each([
+  ['gemini', false, false, false, '', false],
+  ['gemini', true, false, false, '', true],
+  ['openai', true, false, false, '', true],
+  ['openai', true, false, false, 'https://pictures.example/v1', false],
+  ['openai', false, true, false, 'https://pictures.example/v1', true],
+  ['openai', false, false, true, 'https://pictures.example/v1', true]
+])('uses native image credentials for %s with presence flags %s/%s/%s and endpoint %s',
+  (apiProvider, apiKeySet, imageApiKeySet, endpointApiKeySet, imageEndpointUrl, expected) => {
+    useSettingsStore.setState({ settings: { apiProvider, apiKeySet, imageApiKeySet, endpointApiKeySet, imageEndpointUrl } as never })
+    expect(readers.imageApiConfigured()).toBe(expected)
+  })
+
+it('isolates provider configuration and local-source subscriptions, including load/reset and cleanup', () => {
+  const api: boolean[] = [], sources: (string | null)[] = []
+  const stopApi = readers.subscribeImageApiConfigured(() => api.push(readers.imageApiConfigured()))
+  const stopSource = readers.subscribeLocalImageSource(() => sources.push(readers.localImageSource()))
+  expect(readers.imageApiConfigured()).toBe(false)
+  expect(readers.localImageSource()).toBeNull()
+  const settings = { apiProvider: 'gemini', apiKeySet: false, comfySource: 'managed' }
+  useSettingsStore.setState({ settings: settings as never })
+  useSettingsStore.setState({ settings: { ...settings, temperature: 0.7 } as never })
+  useSetupStore.setState({ status: { comfyReady: true } as never })
+  expect(api).toEqual([])
+  expect(sources).toEqual(['managed'])
+  useSettingsStore.setState({ settings: { ...settings, apiKeySet: true } as never })
+  useSettingsStore.setState({ settings: { ...settings, apiKeySet: true, comfySource: 'external' } as never })
+  expect(api).toEqual([true])
+  expect(sources).toEqual(['managed', 'external'])
+  useSettingsStore.setState({ settings: null })
+  expect(api).toEqual([true, false])
+  expect(sources).toEqual(['managed', 'external', null])
+  stopApi(); stopSource()
+  useSettingsStore.setState({ settings: { ...settings, apiKeySet: true } as never })
+  expect(api).toEqual([true, false])
+  expect(sources).toEqual(['managed', 'external', null])
+})
+
 it('draws emoji from the current native bag without spending handles', () => {
   const handles = [FEED_HANDLE_POOL[0].key]
   useGrabBagStore.setState({ bags: {

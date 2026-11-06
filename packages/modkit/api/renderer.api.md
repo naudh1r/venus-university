@@ -17,6 +17,17 @@ import { UseBoundStore } from 'zustand';
 import { Variants } from 'motion/react';
 
 // @public
+export function addMemory(modId: string, charId: string, memory: CharMemory, options?: RecordWriteOptions & {
+    replacing?: (memory: Readonly<CharMemory>) => boolean;
+}): Result<null>;
+
+// @public
+export function addPostComments(modId: string, post: {
+    charId: string;
+    postId: string;
+}, comments: readonly PostComment[], options?: RecordWriteOptions): Result<null>;
+
+// @public
 export function boxParts(text: string): string[];
 
 // @public
@@ -59,6 +70,12 @@ export function Card(input: {
 }): JSX.Element;
 
 // @public
+export const character: (id: string) => Readonly<Character> | undefined;
+
+// @public
+export const characterInfo: (id: string) => Readonly<CharInfo> | undefined;
+
+// @public
 export function CheckField(input: CheckFieldProps): JSX.Element;
 
 // @public (undocumented)
@@ -82,6 +99,13 @@ export function ChevronIcon(input?: {
     back?: boolean;
     down?: boolean;
 }): JSX.Element;
+
+// @public
+export const clock: () => Readonly<{
+    date: number;
+    time: TimeSlot;
+    season: Season;
+}> | undefined;
 
 // @public (undocumented)
 export function CloseIcon(): JSX.Element;
@@ -145,6 +169,9 @@ export interface ContactTabProps {
     // (undocumented)
     theme: ScreenTheme;
 }
+
+// @public
+export const conversation: (id: string) => Readonly<Conversation> | undefined;
 
 // @public
 export function currentRun(): object;
@@ -219,6 +246,9 @@ export function EyeOffIcon(input: {
 export const fadeIn: (delay: number, duration?: number) => Variants;
 
 // @public
+export const feed: (id: string) => readonly Readonly<SocialPost>[];
+
+// @public
 export const FEED_EMOJI: readonly string[];
 
 // @public
@@ -232,6 +262,9 @@ export const FEED_HANDLE_POOL: FeedHandle[];
 
 // @public
 export const FEED_PAGE = 30;
+
+// @public
+export const feedReadThrough: () => number | undefined;
 
 // @public
 export function fileLatePost(post: NonNullable<SlotIntroResponse['posts']>[number]): Promise<void>;
@@ -286,6 +319,9 @@ export function hasTexted(conversation: Conversation | undefined): boolean;
 export function HeartIcon(input?: MarkProps): JSX.Element;
 
 // @public
+export function imageApiConfigured(): boolean;
+
+// @public
 export function invoke<T>(modId: string, name: string, args: unknown[], options?: {
     signal?: AbortSignal;
 }): Promise<Result<T>>;
@@ -335,6 +371,9 @@ export interface LikesAsk {
     // (undocumented)
     playthroughId?: string | null;
 }
+
+// @public
+export function localImageSource(): 'managed' | 'external' | null;
 
 // @public
 export function Locked(input: {
@@ -525,6 +564,9 @@ export function noNsfwImages(): boolean;
 export const noteIn: Variants;
 
 // @public
+export const npcRelationships: () => Readonly<NpcRelationshipMap> | undefined;
+
+// @public
 export function objectSchema(name: string, required: readonly string[], properties: Record<string, unknown>): StructuredRequest['schema'];
 
 // @public
@@ -544,6 +586,12 @@ export const panelUnderTab: Variants;
 
 // @public
 export function phoneOpen(): boolean;
+
+// @public
+export const playerProfilePicture: () => string | null;
+
+// @public
+export const playerStats: () => Readonly<PlayerStats> | undefined;
 
 // @public
 export function PlusIcon(input: {
@@ -599,6 +647,9 @@ export function postVisible(post: SocialPost): boolean;
 
 // @public
 export const press: TargetAndTransition;
+
+// @public
+export const profileImageUrl: (id: string) => string | undefined;
 
 // @public
 export function profileLines(character: Character, flags: CharFlags, castSize?: number): string[];
@@ -771,6 +822,9 @@ export interface RailSeatProps {
 export function reachTurn(): boolean;
 
 // @public
+export const readerPromptText: () => string | undefined;
+
+// @public
 export function readerSaysInScene(text: string): boolean;
 
 // @public
@@ -779,6 +833,8 @@ export function recordField<T>(modId: string, spec: RecordFieldSpec<T>): RecordF
 // @public
 export interface RecordFieldHandle<T> {
     read(record: ModDataRecord): T;
+    set(ref: RecordRef, next: T, options?: RecordWriteOptions): Result<null>;
+    update(ref: RecordRef, change: (current: T) => T | undefined, options?: RecordWriteOptions): Result<null>;
     with<R extends ModDataRecord>(record: R, next: T): R;
 }
 
@@ -787,6 +843,27 @@ export interface RecordFieldSpec<T> {
     empty: T;
     legacy?: readonly string[];
     normalize?: (stored: unknown, legacy: Readonly<Record<string, unknown>>, from: string | null) => T;
+}
+
+// @public
+export type RecordRef = {
+    kind: 'message';
+    charId: string;
+    messageId: string;
+} | {
+    kind: 'post';
+    charId: string;
+    postId: string;
+} | {
+    kind: 'comment';
+    charId: string;
+    postId: string;
+    commentId: string;
+};
+
+// @public
+export interface RecordWriteOptions {
+    run?: object;
 }
 
 // @public
@@ -842,6 +919,11 @@ export interface ResolvedSave {
 export function retrySilently(call: string, error: AppError, spent: number, options?: SilentRetryOptions): Promise<boolean>;
 
 // @public
+export function rosterIds(options?: {
+    alumni?: boolean;
+}): readonly string[];
+
+// @public
 export const rowLift: TargetAndTransition;
 
 // @public (undocumented)
@@ -852,6 +934,11 @@ export function runStale(run: object): boolean;
 
 // @public
 export function safePoint(): ManualSaveOffer;
+
+// @public
+export function saveChanges(modId: string, options?: {
+    run?: object;
+}): Promise<Result<'written' | 'deferred'>>;
 
 // @public
 export interface SaveChoice extends WayOn {
@@ -884,6 +971,9 @@ export interface SaveFieldSpec<T> {
 
 // @public
 export function sayInScene(modId: string, text: string, options?: SceneLineOptions): boolean;
+
+// @public
+export const sceneActive: () => boolean;
 
 // @public
 export interface SceneCall {
@@ -1193,6 +1283,9 @@ export interface SlotSettled {
 export function spaced(lines: readonly string[]): string[];
 
 // @public
+export function spriteUrl(charId: string, value: SpriteRef, version?: number, staged?: boolean): string;
+
+// @public
 export function submitAction(action: string, gift?: boolean, preset?: Verdict,
 planId?: string,
 sceneEvents?: TurnSnapshot['sceneEvents'],
@@ -1202,10 +1295,57 @@ answeredReminder?: string, activity?: SlotActivityOffer): Promise<void>;
 export function subscribeCanRenderLocalImages(onChange: () => void): () => void;
 
 // @public
+export const subscribeCharacter: (id: string, onChange: () => void) => () => void;
+
+// @public
+export const subscribeCharacterInfo: (id: string, onChange: () => void) => () => void;
+
+// @public
+export const subscribeClock: (onChange: () => void) => () => void;
+
+// @public
+export const subscribeConversation: (id: string, onChange: () => void) => () => void;
+
+// @public
+export const subscribeFeed: (id: string, onChange: () => void) => () => void;
+
+// @public
+export const subscribeFeedReadThrough: (onChange: () => void) => () => void;
+
+// @public
+export function subscribeImageApiConfigured(onChange: () => void): () => void;
+
+// @public
+export function subscribeLocalImageSource(onChange: () => void): () => void;
+
+// @public
 export function subscribeNoNsfwImages(onChange: () => void): () => void;
 
 // @public
+export const subscribeNpcRelationships: (onChange: () => void) => () => void;
+
+// @public
 export function subscribePhoneView(onChange: () => void): () => void;
+
+// @public
+export const subscribePlayerProfilePicture: (onChange: () => void) => () => void;
+
+// @public
+export const subscribePlayerStats: (onChange: () => void) => () => void;
+
+// @public
+export const subscribeProfileImageUrl: (id: string, onChange: () => void) => () => void;
+
+// @public
+export const subscribeReaderPromptText: (onChange: () => void) => () => void;
+
+// @public
+export function subscribeRosterIds(onChange: () => void, options?: {
+    alumni?: boolean;
+}): () => void;
+
+// @public
+export const subscribeSceneActive: (onChange: () => void) => () => void;
 
 // @public
 export function takeTurnFromReply(): boolean;
@@ -1296,6 +1436,9 @@ export interface TitleTabProps {
 }
 
 // @public
+export function toggleFeedLike(charId: string, postId: string): void;
+
+// @public
 export const toggleLift: TargetAndTransition;
 
 // @public
@@ -1351,10 +1494,32 @@ export interface UpdatesTab {
 export function useBareMessage(text: string): boolean;
 
 // @public
+export const useCharacter: (id: string) => Readonly<Character> | undefined;
+
+// @public
+export const useCharacterInfo: (id: string) => Readonly<CharInfo> | undefined;
+
+// @public
+export const useClock: () => Readonly<{
+    date: number;
+    time: TimeSlot;
+    season: Season;
+}> | undefined;
+
+// @public
+export const useConversation: (id: string) => Readonly<Conversation> | undefined;
+
+// @public
 export function useDismissLayer(onDismiss: () => void, active: boolean): void;
 
 // @public
 export function useEmojiTool(): boolean;
+
+// @public
+export const useFeed: (id: string) => readonly Readonly<SocialPost>[];
+
+// @public
+export const useFeedReadThrough: () => number | undefined;
 
 // @public
 export function useGameFacts(): {
@@ -1362,8 +1527,14 @@ export function useGameFacts(): {
     readerName: string;
 };
 
+// @public (undocumented)
+export function useImageApiConfigured(): boolean;
+
 // @public
 export function useLessNsfwText(): boolean;
+
+// @public (undocumented)
+export function useLocalImageSource(): 'managed' | 'external' | null;
 
 // @public
 export function useModalShell(onClose: () => void, sound?: 'panel' | 'phone' | 'none', primary?: () => void): ModalShell;
@@ -1378,7 +1549,30 @@ export function useModOption(modId: string, optionId: string): boolean;
 export function useNoNsfwImages(): boolean;
 
 // @public
+export const useNpcRelationships: () => Readonly<NpcRelationshipMap> | undefined;
+
+// @public
+export const usePlayerProfilePicture: () => string | null;
+
+// @public
+export const usePlayerStats: () => Readonly<PlayerStats> | undefined;
+
+// @public
+export const useProfileImageUrl: (id: string) => string | undefined;
+
+// @public
+export const useReaderPromptText: () => string | undefined;
+
+// @public
+export function useRosterIds(options?: {
+    alumni?: boolean;
+}): readonly string[];
+
+// @public
 export function useSafePoint(): ManualSaveOffer;
+
+// @public
+export const useSceneActive: () => boolean;
 
 // @public
 export function useSceneInput(layout: SceneInputLayout | null): void;

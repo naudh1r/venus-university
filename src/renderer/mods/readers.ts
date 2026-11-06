@@ -10,6 +10,8 @@ import { comfyAvailable, useSetupStore } from '../stores/setupStore'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { useGrabBagStore } from '../stores/grabBagStore'
 import { FEED_HANDLE_BAG, FEED_HANDLE_POOL, FEED_EMOJI_BAG, FEED_EMOJI } from '../prompts/feedRandoms'
+import { pictureKeySet } from '@shared/settingsRules'
+import { comfySourceOf } from '@shared/comfyModels'
 
 /**
  * The player has Less NSFW text on: the game's own writing is toned down, and a mod's should be.
@@ -77,6 +79,44 @@ export function subscribeNoNsfwImages(onChange: () => void): () => void {
 /** The image rule for a component, following changes to the player's settings. */
 export function useNoNsfwImages(): boolean {
   return useSyncExternalStore(subscribeNoNsfwImages, noNsfwImages, noNsfwImages)
+}
+
+/** Whether the selected image API has credentials configured, not a connectivity check. */
+export function imageApiConfigured(): boolean {
+  const settings = useSettingsStore.getState().settings
+  return !!settings && !!pictureKeySet(settings)
+}
+
+/** Fires only when the image API's configured/not-configured answer changes. */
+export function subscribeImageApiConfigured(onChange: () => void): () => void {
+  let before = imageApiConfigured()
+  return useSettingsStore.subscribe(() => {
+    const next = imageApiConfigured()
+    if (next !== before) { before = next; onChange() }
+  })
+}
+
+export function useImageApiConfigured(): boolean {
+  return useSyncExternalStore(subscribeImageApiConfigured, imageApiConfigured, imageApiConfigured)
+}
+
+/** Selected local rendering source, or null until settings load; no address or secrets. */
+export function localImageSource(): 'managed' | 'external' | null {
+  const settings = useSettingsStore.getState().settings
+  return settings ? comfySourceOf(settings) : null
+}
+
+/** Fires only when the selected source changes, independently of setup readiness. */
+export function subscribeLocalImageSource(onChange: () => void): () => void {
+  let before = localImageSource()
+  return useSettingsStore.subscribe(() => {
+    const next = localImageSource()
+    if (next !== before) { before = next; onChange() }
+  })
+}
+
+export function useLocalImageSource(): 'managed' | 'external' | null {
+  return useSyncExternalStore(subscribeLocalImageSource, localImageSource, localImageSource)
 }
 
 /** Local image generation as core gates it, including external ComfyUI and the browser build. */
