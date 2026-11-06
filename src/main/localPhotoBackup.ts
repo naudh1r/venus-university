@@ -135,4 +135,10 @@ export const photoBackupPart: BackupPart = {
   }
 }
 
-requiredBackupPart('photo-feature', photoBackupPart)
+let registered = false
+
+export function registerPhotoBackup(): void {
+  if (registered) return
+  requiredBackupPart('photo-feature', photoBackupPart)
+  registered = true
+}

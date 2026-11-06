@@ -289,7 +289,7 @@ export type BodyScope = 'sprite' | 'nude' | 'cg' | 'photo'
 export function bodyAppearance(character: Character, scope: BodyScope): string[] {
   const body = bodyOf(character)
   if (!body) return [...character.baseAppearance]
-  const kept = character.baseAppearance.filter((tag) => !ANY_BREAST_TAG.test(tag))
+  const kept = character.baseAppearance.filter((tag) => !ANY_BREAST_TAG.test(tag) && !BODY_ONLY_TAGS.has(tag))
   const breasts = body.breasts ?? appearanceBreasts(character.baseAppearance)
   const tags = [breasts, weightedBuild(body.build, scope)]
   if (scope !== 'photo') tags.push(body.hipsThighs)

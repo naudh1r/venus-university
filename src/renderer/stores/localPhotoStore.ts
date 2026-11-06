@@ -1,20 +1,8 @@
 import { explicitPhotosAllowed, photoGenerationOn } from '../../shared/photoSwitches'
 import type { ChatPhoto } from '../../shared/photoTypes'
-import { useGameStore } from './gameStore'
-import { writeAutosave } from './loop/saves'
-import { loopState } from './loop/state'
-import { sceneInProgress } from './loop/stream'
-import { canRenderLocalImages, noNsfwImages } from '@vx/modkit/renderer'
-
-/**
- * The photo feature's writes into the game store, and the one question about whether a picture
- * can exist at all.
- *
- * Both writes would sit more naturally as actions on `gameStore` — in the build this was ported
- * from they were. They live out here because neither closes over anything but `set`: a Zustand
- * store's `setState` is callable from outside, so the same immutable updater works from a file
- * the store has never heard of, and `gameStore.ts` needs no edit at all.
- */
+import { canRenderLocalImages, noNsfwImages, conversation, feed, currentRun,
+  saveChanges, type RecordWriteOptions } from '@vx/modkit/renderer'
+import { messagePhoto, postPhoto } from './photoRecords'
 
 /**
  * Whether a picture can be drawn at all, as the game answers it for its own art: the player's
@@ -40,77 +28,30 @@ export function noExplicitPhotos(): boolean {
   return !explicitPhotosAllowed(noNsfwImages())
 }
 
-/**
- * Hangs a picture on one of her texts, or takes it off again. The same shape the render reports:
- * pending while it draws, a file when it lands, failed when nothing arrives.
- */
-export function setMessagePhoto(charId: string, messageId: string, photo: ChatPhoto | null): void {
-  useGameStore.setState((state) => {
-    const chat = state.bunnyboard.conversations[charId]
-    if (!chat) return {}
-    const at = chat.messages.findIndex((message) => message.id === messageId)
-    // Same-object return for a message that is no longer there: a thread cleared under a render
-    // is not a thread to patch.
-    if (at < 0) return {}
-    const messages = [...chat.messages]
-    const { photo: _dropped, ...rest } = messages[at]
-    messages[at] = photo ? { ...rest, photo } : rest
-    return {
-      bunnyboard: {
-        ...state.bunnyboard,
-        conversations: { ...state.bunnyboard.conversations, [charId]: { ...chat, messages } }
-      }
-    }
-  })
+
+/** Publishes only Photo's slice; a vanished record or departed run is left untouched. */
+export function setMessagePhoto(charId: string, messageId: string, photo: ChatPhoto | null,
+  options: RecordWriteOptions = { run: currentRun() }) {
+  return messagePhoto.set({ kind: 'message', charId, messageId }, photo, options)
 }
 
-/**
- * Every picture name the save points at for her, on her thread and on her feed, whether or not
- * the picture ever reached disk. A new picture is never given one of these.
- */
+/** Every reserved picture name, including pending renders, on her thread and feed. */
 export function photoNamesInSave(charId: string): string[] {
-  const game = useGameStore.getState()
-  const onThread = game.bunnyboard.conversations[charId]?.messages ?? []
-  const onFeed = game.charInfo[charId]?.feed ?? []
-  return [...onThread, ...onFeed].flatMap((item) => (item.photo?.file ? [item.photo.file] : []))
+  return [
+    ...(conversation(charId)?.messages ?? []).map(item => messagePhoto.read(item)),
+    ...feed(charId).map(item => postPhoto.read(item))
+  ].flatMap(photo => photo?.file ? [photo.file] : [])
 }
 
-/** The same, for a picture attached to one of her posts on the feed. */
-export function setFeedPostPhoto(charId: string, postId: string, photo: ChatPhoto | null): void {
-  useGameStore.setState((state) => {
-    const info = state.charInfo[charId]
-    const feed = info?.feed
-    if (!feed) return {}
-    const at = feed.findIndex((post) => post.id === postId)
-    // A post the feed no longer carries is not a post to patch.
-    if (at < 0) return {}
-    const posts = [...feed]
-    const { photo: _dropped, ...rest } = posts[at]
-    posts[at] = photo ? { ...rest, photo } : rest
-    return { charInfo: { ...state.charInfo, [charId]: { ...info, feed: posts } } }
-  })
+/** Publishes a post's attachment without replacing native post fields. */
+export function setFeedPostPhoto(charId: string, postId: string, photo: ChatPhoto | null,
+  options: RecordWriteOptions = { run: currentRun() }) {
+  return postPhoto.set({ kind: 'post', charId, postId }, photo, options)
 }
 
-/**
- * Writes the save as soon as a picture settles, rather than leaving it for the next slot.
- *
- * A render lands between saves — she is texted from the phone, which is open for whole slots at
- * a time — so without this the picture reaches disk only when the loop next writes for its own
- * reasons. Close the game before that and the bubble comes back pending forever, pointing at a
- * file that is sitting right there. `settlePendingPhotos` exists to clean that up on load; this
- * is what stops it happening.
- *
- * The same shape `bankTextLedger` uses for the other thing texting changes between slots: the
- * autosave records the last decision point, so nothing half-streamed is written. Mid-stream it
- * does nothing and lets the loop's own imminent write carry the picture — a save is taken from
- * the store, which already has it. Manual saves need nothing here for the same reason.
- */
-export function savePhotoState(): void {
-  void savePhotoStateAwaitable()
-}
+/** Arrival persists now, or travels with the loop's next save while a scene is playing. */
+export function savePhotoState(): void { void savePhotoStateAwaitable() }
 
-/** Settles the queued autosave, or returns immediately when the scene owns the save point. */
-export async function savePhotoStateAwaitable(): Promise<void> {
-  if (sceneInProgress() && !useGameStore.getState().awaitingInput) return
-  await writeAutosave(loopState.decisionSave)
+export async function savePhotoStateAwaitable(run = currentRun()): Promise<void> {
+  await saveChanges('photo-feature', { run })
 }

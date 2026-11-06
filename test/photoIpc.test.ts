@@ -1,31 +1,30 @@
 import { access, mkdir, mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import type { IpcMainInvokeEvent } from 'electron'
+import type { InvokeContext } from '@vx/modkit/main'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { character } from './fixtures'
 
 let root = ''
-const mocks = vi.hoisted(() => ({ render: vi.fn() }))
+const mocks = vi.hoisted(() => ({ render: vi.fn(), send: vi.fn() }))
 vi.mock('electron', () => ({
-  app: { isPackaged: false, getAppPath: () => root, getPath: () => root }
+  app: { isPackaged: false, getAppPath: () => root, getPath: () => root },
+  BrowserWindow: { getAllWindows: () => [{ isDestroyed: () => false, webContents: { send: mocks.send } }] }
 }))
 vi.mock('@vx/modkit/main', async original => ({
   ...await original<typeof import('@vx/modkit/main')>(), renderComfyImage: mocks.render
 }))
-const { registerPhotoIpc } = await import('../src/main/photoIpc')
+const { photoInvocations } = await import('../src/main/photoIpc')
 const girl = character({ charId: 'photo-cancel-test' })
 const file = 'sarah_chat_001.png'
 const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
-const handlers = new Map<string, (...args: unknown[]) => Promise<unknown>>()
-registerPhotoIpc((channel, handler) => { handlers.set(channel, handler as never) })
-const sender = { isDestroyed: () => false, send: vi.fn() }
-const event = { sender } as unknown as IpcMainInvokeEvent
-const generate = (id = '1', seed = 1) => handlers.get('comfy:generatePhoto')!(
+const handlers = photoInvocations()
+const event: InvokeContext = { id: 'photo-feature', signal: new AbortController().signal }
+const generate = (id = '1', seed = 1) => handlers.generate(
   event, id, girl, 'everyday', 'At the cafe', file, { seed }
-)
+) as Promise<string>
 const drop = (options?: { cancelOnly?: boolean; replacement?: string }) =>
-  handlers.get('comfy:dropPhoto')!(event, '1', girl.charId, file, options)
+  handlers.drop(event, '1', girl.charId, file, options) as Promise<void>
 const exists = (id = '1') => access(join(root, 'data', 'saves', id,
   'mod-data', 'photo-feature', girl.charId, file)).then(() => true, () => false)
 let finish: ((bytes: Uint8Array) => void) | undefined
@@ -36,7 +35,7 @@ beforeEach(async () => {
   for (const pid of ['1', '2']) await mkdir(join(root, 'data', 'saves', pid), { recursive: true })
   finish = undefined
   signal = undefined
-  sender.send.mockReset()
+  mocks.send.mockReset()
   mocks.render.mockReset().mockImplementationOnce(async (_owner, _request, options) => {
     signal = options.signal
     return new Promise<Uint8Array>(resolve => { finish = resolve })
@@ -92,10 +91,10 @@ it('forwards early render progress from the hook to the requesting window', asyn
     return PNG
   })
   await generate()
-  expect(sender.send).toHaveBeenCalledWith('jobs:progress', expect.objectContaining({
+  expect(mocks.send).toHaveBeenCalledWith('jobs:progress', expect.objectContaining({
     group: girl.charId, key: `photo:1:${file}`, status: 'running', step: 'Rendering'
   }))
-  expect(sender.send).toHaveBeenCalledWith('jobs:progress', expect.objectContaining({ status: 'done' }))
+  expect(mocks.send).toHaveBeenCalledWith('jobs:progress', expect.objectContaining({ status: 'done' }))
 })
 
 it('cancels a lead before it submits the graph to the kit', async () => {

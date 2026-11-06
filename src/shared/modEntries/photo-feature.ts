@@ -2,7 +2,7 @@ import type { ModDef, registerImagePromptDraft } from '@vx/modkit/shared'
 import { bodyAppearance, bodyNegative, gateBody, withBodyTags } from '../characterBody'
 import { PHOTO_FEATURE_MOD, photoSwitches } from '../photoSwitches'
 
-const mod: ModDef = { ...PHOTO_FEATURE_MOD, id: 'photo-feature', version: '1.7.1' }
+const mod: ModDef = { ...PHOTO_FEATURE_MOD, id: 'photo-feature', version: '1.7.1', hooks: ['invoke', 'renderer:invoke'] }
 export default mod
 
 /** Registers her body details for sprite, CG and editor prompts after the catalogue loads. */

@@ -37,8 +37,8 @@ it.each([true, false])('defers Photo registration until the renderer boots, kit 
 
 it.each([true, false])('defers Photo registration until main boots, kit first: %s', async first => {
   const parts = await fresh(first)
-  const { registerPhotoIpc } = await import('../src/main/photoIpc')
+  const { photoInvocations } = await import('../src/main/photoIpc')
   expect(parts().appearance).not.toContain('petite')
-  registerPhotoIpc(vi.fn())
+  photoInvocations()
   expect(parts().appearance).toContain('petite')
 })

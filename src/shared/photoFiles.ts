@@ -105,15 +105,7 @@ export function nextPhotoIndex(
   return highest + 1
 }
 
-/**
- * The host every photo URL carries. It is a constant rather than the playthrough because a
- * scheme registered `standard` has its host canonicalized like a web host, and a save id is
- * all digits — which Chromium reads as an IPv4 address, overflows, and rejects as an invalid
- * URL before any request is made. Everything that identifies the picture lives in the path.
- */
-const PHOTO_HOST = 'photos'
-
-/** The URL the renderer draws a photo from. */
+/** Builds the route from a stored name, never stores a full URL in a record. */
 export function photoUrl(playthroughId: string, charId: string, file: string): string {
-  return `playimg://${PHOTO_HOST}/${playthroughId}/${charId}/${file}`
+  return `vxmod://photo-feature/@/photos/${playthroughId}/${charId}/${file}`
 }

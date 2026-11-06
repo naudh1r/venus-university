@@ -1,18 +1,4 @@
-import type { Result, Character } from '@vx/modkit/shared'
-
-/**
- * What the photo feature adds to the save's shapes, added from outside them.
- *
- * Every field here could have been written into `types.ts` beside the interface it belongs to,
- * and in the build this was ported from it was. It is declared here instead because this
- * feature lives alongside a codebase it does not own: the upstream build is synced in whole
- * files, and a field added inside `types.ts` is a line that has to be found and re-inserted by
- * hand on every sync. An interface is open, so the same field can be declared from here and
- * mean exactly the same thing to the compiler — and a sync that overwrites `types.ts` carries
- * nothing away with it.
- *
- * The augmentations apply to the whole program because the project includes `src`.
- */
+import type { ModSlice } from '@vx/modkit/shared'
 
 /** The maximum length of each player-edited prompt sent with a redraw. */
 export const PHOTO_PROMPT_LIMIT = 8000
@@ -76,16 +62,6 @@ export interface ChatPhoto {
 }
 
 declare module './types' {
-  interface ChatMessage {
-    /** The picture this message carries, if it carries one. */
-    photo?: ChatPhoto
-  }
-
-  interface SocialPost {
-    /** The picture attached to the post. */
-    photo?: ChatPhoto
-  }
-
   interface TextingResponse {
     /** She attaches a picture to this reply. What it may show is `photoGate`'s to decide. */
     sendPhoto?: boolean
@@ -100,91 +76,25 @@ declare module './types' {
 
 }
 
-/**
- * The three channels the renderer calls, on `api.photo`.
- *
- * Declared from this folder rather than beside the implementation in `preload/photoApi.ts`
- * because `src/shared` is the only tree both `tsconfig.node.json` and `tsconfig.web.json`
- * include — the renderer cannot see a declaration made in `src/preload`, and `api.d.ts`'s own
- * `comfy` key is an inline literal that merging cannot reach.
- */
-declare module '../preload/api' {
-  interface VenusUniversityApi {
-    photo: {
-      /**
-       * The name the next picture of `kind` will land under, settled before it is drawn so the
-       * bubble waiting for it carries that name into the save immediately. `inSave` is every
-       * name the save already points at for her, which is never handed out again.
-       */
-      reserveName: (
-        playthroughId: string,
-        character: Character,
-        kind: string,
-        inSave: readonly string[]
-      ) => Promise<Result<string>>
-      /**
-       * Whether a picture a bubble is still waiting for is on disk after all. Asked on load: a
-       * render can finish after the save that was waiting for it was written.
-       */
-      landed: (playthroughId: string, charId: string, file: string) => Promise<Result<boolean>>
-      /** The bytes of a picture on disk, whichever of PNG or WebP it is under. */
-      read: (playthroughId: string, charId: string, file: string) => Promise<Result<Uint8Array>>
-      /** The recorded prompt, or a current build; rebuilding retains a recorded seed. */
-      info: (
-        playthroughId: string,
-        character: Character,
-        friend: Character | undefined,
-        tier: string,
-        scene: string,
-        file: string,
-        rebuild?: boolean
-      ) => Promise<Result<PhotoInfo>>
-      /** Cancels one render, retires a replacement, or removes an unused picture. */
-      drop: (
-        playthroughId: string,
-        charId: string,
-        file: string,
-        options?: { cancelOnly?: boolean; replacement?: string }
-      ) => Promise<Result<void>>
-      /** Keeps the WebP encoded from a picture that landed as PNG, and drops the PNG. */
-      storeWebp: (
-        playthroughId: string,
-        charId: string,
-        file: string,
-        bytes: Uint8Array
-      ) => Promise<Result<void>>
-      /**
-       * Copies the pictures `charIds` sent in one playthrough into another, for a semester
-       * continued from the one before: its carried threads and feeds point at them. With no
-       * `charIds`, every girl who sent any.
-       */
-      carry: (
-        fromPlaythroughId: string,
-        toPlaythroughId: string,
-        charIds?: string[]
-      ) => Promise<Result<void>>
-      /**
-       * Resolves with the file name when the queued render finishes. `tier` has already been
-       * settled by `photoGate`; nothing downstream re-opens it.
-       */
-      generate: (
-        playthroughId: string,
-        character: Character,
-        tier: string,
-        photoPrompt: string,
-        file: string,
-        options?: PhotoRenderOptions
-      ) => Promise<Result<string>>
-      /** {@link generate} for a picture of her with `friend` beside her, in her own folder. */
-      generateDuo: (
-        playthroughId: string,
-        character: Character,
-        friend: Character,
-        tier: string,
-        photoPrompt: string,
-        file: string,
-        options?: PhotoRenderOptions
-      ) => Promise<Result<string>>
-    }
+
+/** Validates the attachment without changing a save or discarding its optional state. */
+export function normalizePhoto(stored: unknown, legacy: Readonly<Record<string, unknown>>): ChatPhoto | null {
+  const raw = stored !== undefined ? stored : legacy.photo
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const value = raw as Record<string, unknown>
+  if (typeof value.tier !== 'string') return null
+  const photo: ChatPhoto = { tier: value.tier }
+  for (const key of ['scene', 'file', 'with'] as const) {
+    if (typeof value[key] === 'string') photo[key] = value[key]
   }
+  for (const key of ['held', 'pending', 'failed'] as const) {
+    if (value[key] === true) photo[key] = true
+  }
+  if (typeof value.outAt === 'number' && Number.isFinite(value.outAt)) photo.outAt = value.outAt
+  return photo
+}
+
+/** Shared visibility reads the same payload as the renderer's record handles. */
+export function savedPhoto(record: { ex?: Record<string, ModSlice> }): ChatPhoto | null {
+  return normalizePhoto(record.ex?.['photo-feature']?.data, record as Readonly<Record<string, unknown>>)
 }

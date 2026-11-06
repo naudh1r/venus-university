@@ -1,3 +1,4 @@
+import { photoInvoke } from '../stores/photoInvoke'
 import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -180,8 +181,7 @@ function PhotoInfoModal({
   }, [info, host, id])
   useEffect(() => {
     let active = true
-    void window.api.photo
-      .info(playthroughId, character, friend, photo.tier, photo.scene ?? '', photo.file)
+    void photoInvoke('info', [playthroughId, character, friend, photo.tier, photo.scene ?? '', photo.file])
       .then((result) => {
         if (!active) return
         if (result.ok) {
@@ -208,15 +208,7 @@ function PhotoInfoModal({
     setBusy(true)
     setError('')
     try {
-      const result = await window.api.photo.info(
-        playthroughId,
-        character,
-        friend,
-        photo.tier,
-        photo.scene ?? '',
-        photo.file,
-        true
-      )
+      const result = await photoInvoke('info', [playthroughId, character, friend, photo.tier, photo.scene ?? '', photo.file, true])
       if (result.ok) {
         refitFields.current = true
         setInfo(result.data)

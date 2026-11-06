@@ -227,6 +227,17 @@ describe('with no body', () => {
 })
 
 describe('bodyAppearance', () => {
+  it('replaces body tags already named by the appearance in every scope', () => {
+    const girl = her({ build: 'curvy' })
+    girl.baseAppearance = ['long_hair', 'curvy', 'wide_hips']
+    for (const scope of ['sprite', 'nude', 'cg', 'photo'] as const) {
+      const tags = bodyAppearance(girl, scope)
+      expect(tags.filter(tag => tag.includes('curvy'))).toEqual(
+        [scope === 'sprite' || scope === 'nude' ? '(curvy:1.1)' : 'curvy'])
+      expect(tags).not.toContain('wide_hips')
+    }
+  })
+
   const body: CharacterBody = {
     build: 'curvy',
     breasts: 'medium_breasts',

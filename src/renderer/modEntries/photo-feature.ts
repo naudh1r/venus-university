@@ -1,3 +1,4 @@
+import { photoInvoke } from '../stores/photoInvoke'
 import { registerImagePromptDraft } from '@vx/modkit/shared'
 import { registerPhotoDraft } from '../../shared/modEntries/photo-feature'
 import { reachOf, rollAudienceLikes } from '../../shared/postAudience'
@@ -31,7 +32,8 @@ import {
   fileGroupPhoto,
   withGroupPhotoRequest
 } from '../stores/photoGroup'
-import { useGameStore } from '../stores/gameStore'
+import { character, gameFacts } from '@vx/modkit/renderer'
+import { postPhoto } from '../stores/photoRecords'
 import { registerTermFiles } from '@vx/modkit/shared'
 import { ownsPostComments, registerHooks } from '@vx/modkit/renderer'
 import { BODY_EDITOR_FIELD, writeBody } from '../views/bodyFields'
@@ -117,7 +119,7 @@ registerHooks(PHOTO_FEATURE, {
     photoStub(
       message,
       (text) => text,
-      (charId) => useGameStore.getState().characters[charId]?.firstName
+      (charId) => character(charId)?.firstName
     ),
 
   characterFromDraft: (draft, { baseAppearance }) =>
@@ -175,15 +177,14 @@ registerHooks(PHOTO_FEATURE, {
     }
     if (!shot) return
     // A post she took a picture for is filed held, and comes out once the picture exists.
-    holdPostPhoto(filing.charId, filing.post, shot, nudge)
-    filing.held = true
+    filing.post = holdPostPhoto(filing.charId, filing.post, shot, nudge)
     filing.featured = true
   },
 
   postLikes: (ask) => {
     if (ask.kind === 'ending') return postLikes(ask.author)
     if (ask.kind === 'stranger') return strangerLikes(ask.author)
-    const playthroughId = ask.playthroughId ?? useGameStore.getState().playthroughId
+    const playthroughId = ask.playthroughId ?? gameFacts().playthroughId
     return rollAudienceLikes({
       reach: reachOf(playthroughId, ask.author, ask.character),
       friends: ask.friends,
@@ -192,7 +193,7 @@ registerHooks(PHOTO_FEATURE, {
   },
 
   postVisible: postIsOut,
-  postOutAt: (post) => post.photo?.outAt,
+  postOutAt: (post) => postPhoto.read(post)?.outAt,
 
   // Strangers' replies under a post, while no mod ahead of it in the list draws them instead.
   postComments: { View: PhotoComments },
@@ -205,6 +206,6 @@ registerHooks(PHOTO_FEATURE, {
 // are files in the old one's folder, copied across as they are, PNG or WebP. Like the carried
 // fields this runs with the mod off too, so switching it off at the wrong time loses nothing.
 registerTermFiles(PHOTO_FEATURE, async ({ from, to }) => {
-  const result = await window.api.photo.carry(from, to)
+  const result = await photoInvoke('carry', [from, to])
   if (!result.ok) throw Error(result.error.message)
 })

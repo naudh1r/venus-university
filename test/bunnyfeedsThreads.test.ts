@@ -41,6 +41,7 @@ describe('feed thread picture context', () => {
     { with: 'other', present: false, name: undefined }
   ])('passes the companion name for $with with character present: $present', async (test) => {
     useGameStore.setState({
+      playthroughId: '1',
       date: 2,
       time: 0,
       chars: ['poster'],
@@ -57,7 +58,7 @@ describe('feed thread picture context', () => {
               date: 2,
               time: 0,
               likes: 0,
-              photo: { tier: 'sfw', scene: 'her and her friend at the stadium', with: test.with },
+              ...{ photo: { tier: 'sfw', scene: 'her and her friend at the stadium', with: test.with } },
               comments: [
                 { id: 'mine', player: true, handle: 'you', emoji: '', text: 'Who is that?', at: 4 }
               ]
@@ -76,6 +77,29 @@ describe('feed thread picture context', () => {
     if (test.name) expect(post.pictureWith).toBe(test.name)
     else expect(post).not.toHaveProperty('pictureWith')
   })
+
+  it('gives old and sliced pictures the same prompt and kit companion lookup', async () => {
+    const photo = { tier: 'everyday', scene: 'With her friend at the stadium', with: 'other' }
+    for (const present of [true, false]) {
+      const results: unknown[] = []
+      for (const attachment of [{ photo }, { ex: { 'photo-feature': { v: '1.7.1', data: photo } } }]) {
+        vi.mocked(buildFeedThreadsPrompt).mockClear()
+        useGameStore.setState({ playthroughId: '1', date: 2, time: 0, chars: ['poster'],
+          characters: { poster: character({ charId: 'poster' }),
+            ...(present ? { other: character({ charId: 'other', firstName: 'Lia' }) } : {}) },
+          charInfo: { poster: charInfo({ feed: [{ id: 'post', text: 'At the stadium',
+            date: 2, time: 0, likes: 0, ...attachment,
+            comments: [{ id: 'mine', player: true, handle: 'you', emoji: '', text: 'Who?', at: 4 }] }] }) }
+        })
+        await armFeedThreads()
+        const post = vi.mocked(buildFeedThreadsPrompt).mock.calls.at(-1)![0].threads[0].post
+        results.push({ picture: post.picture, pictureWith: post.pictureWith })
+      }
+      expect(results[1]).toEqual(results[0])
+      expect(results[0]).toEqual({ picture: photo.scene, pictureWith: present ? 'Lia' : undefined })
+    }
+  })
+
 })
 
 /** Filing a reply spends only the identity pieces it does not already have. */
