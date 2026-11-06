@@ -1,15 +1,20 @@
 import { globalSlotOf } from './jobs'
-import type { TimeSlot } from './types'
+import type { ModSlice, TimeSlot } from './types'
 
 /**
  * The replies under a post on the feed. The game draws none of its own: a mod writes them and
  * draws them (`postComments` in the hooks), and the game keeps their shape, when each one turns
- * up, and moves them with the post when New Game+ carries her feed on. A mod adds its own fields
- * to `PostComment` by declaration merging.
+ * up, and moves them with the post when New Game+ carries her feed on. A mod keeps its own fields
+ * on a comment in its slice.
  */
 
 /** One reply under a post. */
 export interface PostComment {
+  /**
+   * What mods keep with this comment, keyed by the mod's id. Core never reads inside a slice and
+   * writes each one back as read; every value is plain JSON.
+   */
+  ex?: Record<string, ModSlice>
   /** crypto.randomUUID(); the list key. */
   id: string
   handle: string

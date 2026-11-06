@@ -2,6 +2,7 @@
  * The bridge for the window: every type and function of core's `src/renderer` that the kit hands
  * a mod, re-exported here and nowhere else in the kit (see `shared.ts`).
  */
+export { spriteUrl } from '../../../../src/renderer/stores/characterStore'
 export type { PromptState } from '../../../../src/renderer/prompts/scenePrompt'
 export type { SlotIntroInput } from '../../../../src/renderer/prompts/slotIntroPrompt'
 export type { TextingPromptState } from '../../../../src/renderer/prompts/textingPrompt'
@@ -94,6 +95,8 @@ export { FEED_EMOJI, FEED_EMOJI_BAG, FEED_HANDLE_BAG, FEED_HANDLE_POOL } from '.
 
 export { bunnybotSays } from '../../../../src/renderer/mods/bunnybot'
 export { invoke } from '../../../../src/renderer/mods/invoke'
+export { addMemory, addPostComments, toggleFeedLike } from '../../../../src/renderer/mods/records'
+export { saveChanges } from '../../../../src/renderer/stores/loop/saves'
 
 export { Lightbox } from '../../../../src/renderer/components/Lightbox'
 export { relationshipLines } from '../../../../src/renderer/prompts/relationship'
@@ -119,3 +122,45 @@ export {
   drawFeedHandles,
   drawFeedEmoji
 } from '../../../../src/renderer/mods/readers'
+
+export {
+  character,
+  useCharacter,
+  subscribeCharacter,
+  characterInfo,
+  useCharacterInfo,
+  subscribeCharacterInfo,
+  rosterIds,
+  subscribeRosterIds,
+  useRosterIds,
+  conversation,
+  useConversation,
+  subscribeConversation,
+  feed,
+  useFeed,
+  subscribeFeed,
+  npcRelationships,
+  useNpcRelationships,
+  subscribeNpcRelationships,
+  clock,
+  useClock,
+  subscribeClock,
+  playerStats,
+  usePlayerStats,
+  subscribePlayerStats,
+  playerProfilePicture,
+  usePlayerProfilePicture,
+  subscribePlayerProfilePicture,
+  feedReadThrough,
+  useFeedReadThrough,
+  subscribeFeedReadThrough,
+  sceneActive,
+  useSceneActive,
+  subscribeSceneActive,
+  readerPromptText,
+  useReaderPromptText,
+  subscribeReaderPromptText,
+  useProfileImageUrl,
+  profileImageUrl,
+  subscribeProfileImageUrl
+} from '../../../../src/renderer/mods/gameReaders'

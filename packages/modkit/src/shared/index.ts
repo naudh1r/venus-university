@@ -6,6 +6,7 @@ export type {
   CharacterTrait,
   CharacterTraitDefinition,
   CharInfo,
+  Conversation,
   ClassCatalogEdits,
   ClassCatalogKey,
   CharMemory,
