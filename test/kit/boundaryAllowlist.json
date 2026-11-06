@@ -182,7 +182,6 @@
   "src/renderer/stores/breakthrough.ts -> @shared/relationship",
   "src/renderer/stores/breakthrough.ts -> @shared/talentAbilities",
   "src/renderer/stores/breakthrough.ts -> @shared/talentAbilityState",
-  "src/renderer/stores/bunnyfeedsThreads.ts -> ./gameStore",
   "src/renderer/stores/echoAssignments.ts -> ./gameStore",
   "src/renderer/stores/localPhotoStore.ts -> ./gameStore",
   "src/renderer/stores/localPhotoStore.ts -> ./loop/saves",

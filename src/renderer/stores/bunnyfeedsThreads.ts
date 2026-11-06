@@ -25,6 +25,7 @@ import {
   type ThreadLine
 } from '../prompts/bunnyfeedsPrompt'
 import {
+  character,
   drawFeedHandles,
   drawFeedEmoji,
   FEED_EMOJI,
@@ -46,7 +47,6 @@ import {
 import { markCommented } from './bunnyfeedsVisit'
 import { joiningFriendOf, replierOf, type Replier } from './bunnyfeedsReplies'
 import { fileDueFeedMemories, holdFeedMemories } from './bunnyfeedsMemory'
-import { useGameStore } from './gameStore'
 import { readBunnyfeedsContext } from './bunnyfeedsReadContext'
 import { commentData, postData, threadWork } from './bunnyfeedsData'
 
@@ -607,7 +607,7 @@ function pictureOf(post: object): { picture?: string; pictureWith?: string } {
   const photo = (post as { photo?: { scene?: unknown; with?: unknown } }).photo
   if (typeof photo?.scene !== 'string' || !photo.scene.trim()) return {}
   const other =
-    typeof photo.with === 'string' ? useGameStore.getState().characters[photo.with] : undefined
+    typeof photo.with === 'string' ? character(photo.with) : undefined
   return {
     picture: photo.scene,
     ...(other ? { pictureWith: other.firstName } : {})
