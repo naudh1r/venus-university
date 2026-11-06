@@ -213,6 +213,11 @@ export interface Conversation {
     charId: string;
     declined?: number;
     ex?: Record<string, ModSlice>;
+    exTextBase?: {
+        replyTo: string;
+        summary: string | null;
+        regenerable?: boolean;
+    };
     // (undocumented)
     messages: ChatMessage[];
     pendingHangout?: {
