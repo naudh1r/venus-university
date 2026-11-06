@@ -7,6 +7,7 @@ import { normalizeEcho } from '@shared/echo'
 import { MODS } from '@shared/mods'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { useModsStore } from '../src/renderer/stores/modsStore'
+import { useSettingsStore } from '../src/renderer/stores/settingsStore'
 import { resetLoopState } from '../src/renderer/stores/loop/state'
 import { screenSlot, subscribeHookRules } from '../src/renderer/mods/hooks'
 import { ModSlot } from '../src/renderer/mods/ModSlot'
@@ -60,6 +61,7 @@ beforeEach(() => {
   useGameStore.getState().reset()
   resetLoopState()
   switches(true, false)
+  useSettingsStore.setState({ settings: null })
   useGameStore.setState({
     playthroughId: 'echo-screen-test', chars: ['a', 'b'],
     characters: { a: character({ charId: 'a' }), b: character({ charId: 'b' }) },
@@ -79,6 +81,22 @@ afterEach(() => { vi.restoreAllMocks(); useGameStore.getState().reset(); resetLo
 afterAll(restoreApi)
 
 describe('Echo screen contributions', () => {
+  it.each([false, true])('keeps the API configuration hint tied to the native credential answer (%s)', configured => {
+    useSettingsStore.setState({ settings: { apiProvider: 'gemini', apiKeySet: configured } as never })
+    const html = renderToStaticMarkup(createElement(EchoPanel, { hidden: false, theme: 'day' }))
+    expect(html.includes('Add an Image API key in Settings for automatic first-time artwork')).toBe(!configured)
+  })
+
+  it.each(['managed', 'external'] as const)('keeps local artwork guidance and model installation scoped to %s', source => {
+    stubApi({ jobs: { onProgress: () => () => {} }, echo: { installLocalModels: async () => ({ ok: true, data: null }) } })
+    useModsStore.setState({ switches: { on: { echo: true }, options: { 'echo:megaten-art': true } } })
+    useSettingsStore.setState({ settings: { apiProvider: 'gemini', apiKeySet: false, comfySource: source } as never })
+    const html = renderToStaticMarkup(createElement(EchoPanel, { hidden: false, theme: 'day' }))
+    expect(html.includes('Your own ComfyUI server is selected.')).toBe(source === 'external')
+    expect(html.includes('Install local art models</button>')).toBe(source === 'managed')
+    expect(html).not.toContain('Add an Image API key in Settings for automatic first-time artwork')
+  })
+
   it.each([false, true])('keeps stage and gallery independent of Photo Feature (photos = %s)', async photos => {
     switches(true, photos)
     expect(MODS.find(mod => mod.id === 'echo')?.requires ?? []).not.toContain('photo-feature')
