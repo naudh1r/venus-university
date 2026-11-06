@@ -1,4 +1,3 @@
-import './fixtures/maestroModelKit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { restoreApi, stubApi } from './fixtures'
 

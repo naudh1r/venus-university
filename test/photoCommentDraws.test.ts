@@ -1,11 +1,11 @@
-import './fixtures/maestroModelKit'
 import { afterEach, expect, it, vi } from 'vitest'
 import { restoreApi, stubApi } from './fixtures'
-import { useGameStore } from '../src/renderer/stores/gameStore'
-import { useGrabBagStore } from '../src/renderer/stores/grabBagStore'
-import { FEED_EMOJI_BAG, FEED_HANDLE_BAG } from '../src/renderer/prompts/feedRandoms'
-import { setPhotoSwitches } from '../src/shared/photoSwitches'
-import { rollComments } from '../src/renderer/stores/photoComments'
+stubApi({ jobs: { onProgress: () => () => {} } })
+const { useGameStore } = await import('../src/renderer/stores/gameStore')
+const { useGrabBagStore } = await import('../src/renderer/stores/grabBagStore')
+const { FEED_EMOJI_BAG, FEED_HANDLE_BAG } = await import('../src/renderer/prompts/feedRandoms')
+const { setPhotoSwitches } = await import('../src/shared/photoSwitches')
+const { rollComments } = await import('../src/renderer/stores/photoComments')
 
 afterEach(() => {
   vi.restoreAllMocks()

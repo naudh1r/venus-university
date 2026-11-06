@@ -1,3 +1,4 @@
+import './fixtures/photoRecordKit'
 import { savedPhoto } from '../src/shared/photoTypes'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { postIsOut } from '../src/shared/heldPosts'
