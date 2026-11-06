@@ -27,7 +27,7 @@ import {
   type PhotoRenderOptions,
   type PhotoSidecar
 } from '../../shared/photoTypes'
-import { photoSwitches } from '../../shared/photoSwitches'
+import { photoSwitches, PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 import { isPhotoTier, type PhotoTier } from '../../shared/photoGate'
 import { buildDuoPhotoPrompt, buildPhotoPrompt } from '../../shared/photoPrompt'
 import {
@@ -396,7 +396,7 @@ async function renderPhotoImage(
     const check = (): void => {
       if (signal.aborted) throw appError('CANCELLED', 'Generation was cancelled.')
     }
-    const bytes = await renderComfyImage('photo-feature', request, {
+    const bytes = await renderComfyImage(PHOTO_FEATURE_ID, request, {
       signal,
       onProgress: options.onProgress
     })

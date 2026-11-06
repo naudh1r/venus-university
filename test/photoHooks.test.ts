@@ -52,7 +52,7 @@ const HOOKS: readonly {
 }[] = [
   {
     file: 'src/renderer/index.html',
-    needs: ['playimg:'],
+    needs: ['vxmod:'],
     why: 'the CSP names every scheme an image may load from; without it every photo is blocked'
   },
   {
@@ -64,31 +64,6 @@ const HOOKS: readonly {
     file: 'src/renderer/stores/feedView.ts',
     needs: ['if (!post || !postVisible(post)) continue'],
     why: 'a teaser with a picture shows before the picture exists'
-  },
-  {
-    file: 'src/main/imageProtocols.ts',
-    needs: ['PHOTO_SCHEME'],
-    why: 'a second registerSchemesAsPrivileged replaces the first, so playimg joins this one'
-  },
-  {
-    file: 'src/main/index.ts',
-    needs: ['handlePhotoProtocol()'],
-    why: 'nothing serves the photo folder otherwise'
-  },
-  {
-    file: 'src/main/ipc.ts',
-    needs: ['registerPhotoIpc(handle)'],
-    why: 'the three photo channels are registered from here'
-  },
-  {
-    file: 'src/preload/index.ts',
-    needs: ['...photoApi'],
-    why: 'the renderer reaches the channels through api.photo'
-  },
-  {
-    file: 'src/web/bridge.ts',
-    needs: ['...photoBridge'],
-    why: 'the browser build answers the same three calls, with refusals'
   },
   {
     file: 'src/shared/imagePrompt.ts',

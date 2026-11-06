@@ -113,13 +113,13 @@ describe('photoUrl', () => {
    */
   it('keeps the numeric save id out of the host', () => {
     const host = new URL(url).hostname
-    expect(host).toBe('photos')
+    expect(host).toBe('photo-feature')
     expect(() => new URL(`http://${host}/x`)).not.toThrow()
   })
 
   it('carries the playthrough, the character and the file in the path', () => {
     expect(new URL(url).pathname).toBe(
-      '/1790092788936/79dd2743-3541-4172-9ac9-c42c485aa5cc/photo_1_a1b2c3d4.png'
+      '/@/photos/1790092788936/79dd2743-3541-4172-9ac9-c42c485aa5cc/photo_1_a1b2c3d4.png'
     )
   })
 })

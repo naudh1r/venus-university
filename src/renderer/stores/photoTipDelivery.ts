@@ -5,11 +5,12 @@ import {
   DM_PHOTO_TIP_MARK,
   FEED_PHOTO_TIP_MARK
 } from '../prompts/photoTips'
-import { useGameStore } from './gameStore'
+import { character } from '@vx/modkit/renderer'
+import { PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 
 /** BunnyBot's DM photo tip, the first time a girl sends the reader a picture. */
 export function tellAboutDmPhotos(firstName: string): void {
-  bunnybotSays('photo-feature', bunnybotDmPhotoTexts(firstName), { once: DM_PHOTO_TIP_MARK })
+  bunnybotSays(PHOTO_FEATURE_ID, bunnybotDmPhotoTexts(firstName), { once: DM_PHOTO_TIP_MARK })
 }
 
 /**
@@ -17,7 +18,7 @@ export function tellAboutDmPhotos(firstName: string): void {
  * whoever posted it, a contact or a stranger the feed was filled out with.
  */
 export function tellAboutFeedPhotos(charId: string): void {
-  const firstName = useGameStore.getState().characters[charId]?.firstName
+  const firstName = character(charId)?.firstName
   if (!firstName) return
-  bunnybotSays('photo-feature', bunnybotFeedPhotoTexts(firstName), { once: FEED_PHOTO_TIP_MARK })
+  bunnybotSays(PHOTO_FEATURE_ID, bunnybotFeedPhotoTexts(firstName), { once: FEED_PHOTO_TIP_MARK })
 }

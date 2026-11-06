@@ -1,3 +1,4 @@
+import { messagePhoto } from '../stores/photoRecords'
 import { photoFeatureOn } from '../../shared/photoSwitches'
 import {
   allowedPhotoTier,
@@ -49,9 +50,9 @@ export function photoStub(
   // Who the friend in it is called, from her charId; absent, she is left unnamed.
   nameOf: (charId: string) => string | undefined = () => undefined
 ): string {
-  const scene = message.photo?.scene?.trim()
+  const scene = messagePhoto.read(message)?.scene?.trim()
   if (!scene) return ''
-  const friend = message.photo?.with ? nameOf(message.photo.with) : undefined
+  const friend = messagePhoto.read(message)?.with ? nameOf(messagePhoto.read(message)!.with!) : undefined
   return ` [attached a photo${friend ? ` with ${friend}` : ''}: ${flatText(withoutDorm(scene))}]`
 }
 

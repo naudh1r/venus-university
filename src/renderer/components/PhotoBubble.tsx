@@ -5,7 +5,8 @@ import { photoUrl } from '../../shared/photoFiles'
 import { photoGenerationOn } from '../../shared/photoSwitches'
 import type { ChatPhoto, PhotoRenderOptions } from '../../shared/photoTypes'
 import { useExplicitBlocked, usePhotoSwitches, usePhotosVisible } from '../stores/photoSwitchHooks'
-import { useGameStore } from '../stores/gameStore'
+import { useCharacter, useGameFacts } from '@vx/modkit/renderer'
+import { messagePhoto } from '../stores/photoRecords'
 import { redrawPostPhoto, rerollPostPhoto } from '../stores/photoPost'
 import { tellAboutFeedPhotos } from '../stores/photoTipDelivery'
 import { redrawMessagePhoto, rerollMessagePhoto } from '../stores/photoTurn'
@@ -86,9 +87,9 @@ export function MessagePhoto({
   onMissing?: () => void
   onRedraw?: (options: PhotoRenderOptions) => void
 }): JSX.Element | null {
-  const playthroughId = useGameStore((s) => s.playthroughId)
-  const character = useGameStore((s) => s.characters[charId])
-  const friend = useGameStore((s) => photo.with ? s.characters[photo.with] : undefined)
+  const playthroughId = useGameFacts().playthroughId
+  const character = useCharacter(charId)
+  const friend = useCharacter(photo.with ?? '')
   const redraw = usePhotoRedraw(photoRedrawKey(playthroughId, charId, photo.file))
   const [opened, setShown] = useState(photo.tier !== 'explicit')
   // A picture the renderer cannot load says so, rather than collapsing to nothing and leaving
@@ -326,6 +327,7 @@ export function PhotoLightboxHost(): JSX.Element | null {
 
 /** A message's picture, in a bubble of its own after her words; nothing for a message without one. */
 export function MessagePhotoAttachment({ message }: { message: ChatMessage }): JSX.Element | null {
-  if (!message.photo || message.sender === 'system') return null
-  return <MessagePhotoBubble photo={message.photo} sender={message.sender} messageId={message.id} />
+  const photo = messagePhoto.read(message)
+  if (!photo || message.sender === 'system') return null
+  return <MessagePhotoBubble photo={photo} sender={message.sender} messageId={message.id} />
 }

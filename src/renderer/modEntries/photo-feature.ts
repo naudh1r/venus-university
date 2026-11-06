@@ -1,3 +1,4 @@
+import { photoInvoke } from '../stores/photoInvoke'
 import { registerImagePromptDraft } from '@vx/modkit/shared'
 import { registerPhotoDraft } from '../../shared/modEntries/photo-feature'
 import { reachOf, rollAudienceLikes } from '../../shared/postAudience'
@@ -31,23 +32,24 @@ import {
   fileGroupPhoto,
   withGroupPhotoRequest
 } from '../stores/photoGroup'
-import { useGameStore } from '../stores/gameStore'
+import { character, gameFacts } from '@vx/modkit/renderer'
+import { postPhoto } from '../stores/photoRecords'
 import { registerTermFiles } from '@vx/modkit/shared'
 import { ownsPostComments, registerHooks } from '@vx/modkit/renderer'
 import { BODY_EDITOR_FIELD, writeBody } from '../views/bodyFields'
 import { PhotoComments, PhotoPostPicture } from '../components/PhotoPostSpots'
 import { MessagePhotoAttachment, PhotoLightboxHost } from '../components/PhotoBubble'
 import { GalleryPanel, galleryShown, PostPhotoExtra } from '../views/ContactGallery'
+import { PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 
 registerPhotoDraft(registerImagePromptDraft)
 
-const PHOTO_FEATURE = 'photo-feature'
 
 /**
  * Photo Feature, plugged into the game through its hooks. Everything it adds to the game's own
  * files is here; the game only asks. The mods store skips it while it is off.
  */
-registerHooks(PHOTO_FEATURE, {
+registerHooks(PHOTO_FEATURE_ID, {
   // A picture opened at full size, over the phone.
   phoneOverlay: PhotoLightboxHost,
   // Her picture in a bubble of its own after a message's words.
@@ -87,13 +89,13 @@ registerHooks(PHOTO_FEATURE, {
       // The replies are asked for only while Photo Feature is the mod drawing them.
       lines: () => [
         ...postPhotoLines(canSendPhotos()),
-        ...(ownsPostComments(PHOTO_FEATURE) ? postCommentLines(true) : [])
+        ...(ownsPostComments(PHOTO_FEATURE_ID) ? postCommentLines(true) : [])
       ],
       fields: () =>
-        ownsPostComments(PHOTO_FEATURE)
+        ownsPostComments(PHOTO_FEATURE_ID)
           ? POST_PHOTO_SCHEMA_FIELD
           : { image: POST_PHOTO_SCHEMA_FIELD.image },
-      required: () => (ownsPostComments(PHOTO_FEATURE) ? POST_PHOTO_SCHEMA_REQUIRED : ['image'])
+      required: () => (ownsPostComments(PHOTO_FEATURE_ID) ? POST_PHOTO_SCHEMA_REQUIRED : ['image'])
     },
     // What each poster owns, for a post whose picture has her in it.
     'slot-poster': {
@@ -117,7 +119,7 @@ registerHooks(PHOTO_FEATURE, {
     photoStub(
       message,
       (text) => text,
-      (charId) => useGameStore.getState().characters[charId]?.firstName
+      (charId) => character(charId)?.firstName
     ),
 
   characterFromDraft: (draft, { baseAppearance }) =>
@@ -164,7 +166,7 @@ registerHooks(PHOTO_FEATURE, {
       typeof reply.groupWith === 'string' ? reply.groupWith : feedFriendFor(filing.charId)
     )
     // Another mod drawing the replies has filed its own already.
-    const comments = ownsPostComments(PHOTO_FEATURE)
+    const comments = ownsPostComments(PHOTO_FEATURE_ID)
       ? rollComments(filing.charId, reply.comments as string[] | undefined, shot?.shot.tier)
       : (filing.post.comments ?? [])
     filing.post = {
@@ -175,15 +177,14 @@ registerHooks(PHOTO_FEATURE, {
     }
     if (!shot) return
     // A post she took a picture for is filed held, and comes out once the picture exists.
-    holdPostPhoto(filing.charId, filing.post, shot, nudge)
-    filing.held = true
+    filing.post = holdPostPhoto(filing.charId, filing.post, shot, nudge)
     filing.featured = true
   },
 
   postLikes: (ask) => {
     if (ask.kind === 'ending') return postLikes(ask.author)
     if (ask.kind === 'stranger') return strangerLikes(ask.author)
-    const playthroughId = ask.playthroughId ?? useGameStore.getState().playthroughId
+    const playthroughId = ask.playthroughId ?? gameFacts().playthroughId
     return rollAudienceLikes({
       reach: reachOf(playthroughId, ask.author, ask.character),
       friends: ask.friends,
@@ -192,7 +193,7 @@ registerHooks(PHOTO_FEATURE, {
   },
 
   postVisible: postIsOut,
-  postOutAt: (post) => post.photo?.outAt,
+  postOutAt: (post) => postPhoto.read(post)?.outAt,
 
   // Strangers' replies under a post, while no mod ahead of it in the list draws them instead.
   postComments: { View: PhotoComments },
@@ -204,7 +205,7 @@ registerHooks(PHOTO_FEATURE, {
 // A continued semester carries her threads and feed into a new playthrough; the pictures on them
 // are files in the old one's folder, copied across as they are, PNG or WebP. Like the carried
 // fields this runs with the mod off too, so switching it off at the wrong time loses nothing.
-registerTermFiles(PHOTO_FEATURE, async ({ from, to }) => {
-  const result = await window.api.photo.carry(from, to)
+registerTermFiles(PHOTO_FEATURE_ID, async ({ from, to }) => {
+  const result = await photoInvoke('carry', [from, to])
   if (!result.ok) throw Error(result.error.message)
 })

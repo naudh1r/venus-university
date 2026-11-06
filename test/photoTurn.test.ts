@@ -1,4 +1,5 @@
-import './fixtures/maestroModelKit'
+import { savedPhoto } from '../src/shared/photoTypes'
+import { photoCalls } from './fixtures/photoCalls'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChatMessage, Result } from '@shared/types'
 import { character, charactersById, charInfo, restoreApi, stubApi } from './fixtures'
@@ -34,13 +35,15 @@ function messages(): ChatMessage[] {
   return useGameStore.getState().bunnyboard.conversations.a.messages
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   controller = new AbortController()
   useGameStore.getState().reset()
+  const { useModsStore } = await import('../src/renderer/stores/modsStore')
+  useModsStore.setState({ switches: { on: { 'photo-feature': true }, options: {} } })
   setPhotoSwitches({ on: true, photos: true, explicit: true, webp: false })
   useSettingsStore.setState({ settings: { comfyDeferred: false } as never })
   useSetupStore.setState({ status: { comfyReady: true } as never })
-  useGameStore.setState(s => ({ playthroughId: '1', date: 0, time: 0,
+  useGameStore.setState(s => ({ playthroughId: '1', chars: ['a'], date: 0, time: 0,
     characters: charactersById(girl), charInfo: { a: charInfo({ flags: { ...charInfo().flags,
       gaveContactInfo: true, hasCrush: true } }) },
     bunnyboard: { ...s.bunnyboard, conversations: { a: { charId: 'a', unread: 0, summary: null,
@@ -52,7 +55,7 @@ beforeEach(() => {
   drop.mockReset().mockResolvedValue({ ok: true, data: undefined })
   mocks.render.mockReset().mockResolvedValue({ ok: true, data: 'sarah_chat_002.png' })
     .mockImplementationOnce(() => new Promise<Result<string>>(resolve => { finish = resolve }))
-  stubApi({ jobs: { onProgress: () => () => {} }, photo: { reserveName: reserve, drop } })
+  stubApi({ jobs: { onProgress: () => () => {} }, ...photoCalls({ reserveName: reserve, drop }) })
 })
 afterEach(() => {
   turn.clearEarlyPhotos()
@@ -84,11 +87,11 @@ describe('an early DM photo while the reply is still being written', () => {
           ...(outcome === 'no-photo' ? { sendPhoto: false } : {})
         }, true)
       }
-      expect(messages().some(message => message.photo?.file === earlyFile)).toBe(false)
+      expect(messages().some(message => savedPhoto(message ?? {})?.file === earlyFile)).toBe(false)
       expect(drop.mock.calls.every(call => call[3]?.cancelOnly)).toBe(true)
       finish({ ok: true, data: earlyFile })
       await vi.waitFor(() => expect(drop).toHaveBeenCalledWith('1', 'a', earlyFile))
-      expect(messages().some(message => message.photo?.file === earlyFile)).toBe(false)
+      expect(messages().some(message => savedPhoto(message ?? {})?.file === earlyFile)).toBe(false)
     }
   )
 
@@ -97,13 +100,13 @@ describe('an early DM photo while the reply is still being written', () => {
     await vi.waitFor(() => expect(mocks.render).toHaveBeenCalledOnce())
     reply()
     await turn.sendPhoto('a', girl, lead, true)
-    expect(messages().at(-1)?.photo).toMatchObject({ file: earlyFile, pending: true })
+    expect(savedPhoto(messages().at(-1) ?? {})).toMatchObject({ file: earlyFile, pending: true })
     controller.abort()
     expect(drop).not.toHaveBeenCalled()
     expect(reserve).toHaveBeenCalledOnce()
     expect(mocks.render).toHaveBeenCalledOnce()
     finish({ ok: true, data: earlyFile })
-    await vi.waitFor(() => expect(messages().at(-1)?.photo).toEqual({
+    await vi.waitFor(() => expect(savedPhoto(messages().at(-1) ?? {})).toEqual({
       file: earlyFile, tier: 'everyday', scene: lead.photoPrompt
     }))
     expect(drop).not.toHaveBeenCalled()
@@ -129,6 +132,6 @@ it('cannot attach a lead aborted while its name reservation is pending', async (
   controller.abort()
   reserveName({ ok: true, data: earlyFile })
   await sending
-  expect(messages().some(message => message.photo)).toBe(false)
+  expect(messages().some(message => savedPhoto(message ?? {}))).toBe(false)
   expect(mocks.render).not.toHaveBeenCalled()
 })

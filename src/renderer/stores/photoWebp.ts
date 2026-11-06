@@ -1,3 +1,4 @@
+import { photoInvoke } from './photoInvoke'
 import { isWebpPhoto, WEBP_QUALITY } from '../../shared/photoFiles'
 import type { PhotoRenderOptions } from '../../shared/photoTypes'
 import type { Result, Character } from '@vx/modkit/shared'
@@ -24,15 +25,15 @@ export async function renderPhoto(
   options?: PhotoRenderOptions
 ): Promise<Result<string>> {
   const result = friend
-    ? await window.api.photo.generateDuo(playthroughId, character, friend, tier, scene, file, options)
-    : await window.api.photo.generate(playthroughId, character, tier, scene, file, options)
+    ? await photoInvoke('generateDuo', [playthroughId, character, friend, tier, scene, file, options])
+    : await photoInvoke('generate', [playthroughId, character, tier, scene, file, options])
   if (result.ok && isWebpPhoto(file)) await encodeWebp(playthroughId, character.charId, file)
   return result
 }
 
 async function encodeWebp(playthroughId: string, charId: string, file: string): Promise<void> {
   try {
-    const png = await window.api.photo.read(playthroughId, charId, file)
+    const png = await photoInvoke('read', [playthroughId, charId, file])
     if (!png.ok) throw new Error(`could not read it back: ${png.error.code}`)
     const blob = new Blob([new Uint8Array(png.data)], { type: 'image/png' })
     const bitmap = await createImageBitmap(blob)
@@ -43,7 +44,7 @@ async function encodeWebp(playthroughId: string, charId: string, file: string): 
     // A browser that cannot encode WebP answers with a PNG instead of failing.
     if (webp.type !== 'image/webp') throw new Error(`the encoder gave ${webp.type}`)
     const bytes = new Uint8Array(await webp.arrayBuffer())
-    const stored = await window.api.photo.storeWebp(playthroughId, charId, file, bytes)
+    const stored = await photoInvoke('storeWebp', [playthroughId, charId, file, bytes])
     if (!stored.ok) throw new Error(`${stored.error.code}: ${stored.error.message}`)
   } catch (error) {
     console.warn(`[photo] kept ${file} as PNG: ${String(error)}`)

@@ -23,7 +23,8 @@ import {
   EyeOffIcon
 } from '@vx/modkit/renderer'
 import { useExplicitBlocked, usePhotosVisible } from '../stores/photoSwitchHooks'
-import { useGameStore } from '../stores/gameStore'
+import { useCharacter, useGameFacts, useConversation, useFeed } from '@vx/modkit/renderer'
+import { messagePhoto, postPhoto } from '../stores/photoRecords'
 import { EchoPanel } from './EchoPanel'
 import { photosVisible } from '../../shared/photoSwitches'
 import '../vu_styles/ContactGallery.css'
@@ -64,7 +65,7 @@ const SHOT_FILTERS: readonly { key: ShotFilter; label: string }[] = [
  * Whether a picture finished: it has its name, and is neither still being drawn nor failed. A
  * name is given before the render starts, so having one says nothing about a file on disk.
  */
-function landed(photo: ChatPhoto | undefined): photo is ChatPhoto & { file: string } {
+function landed(photo: ChatPhoto | null | undefined): photo is ChatPhoto & { file: string } {
   return Boolean(photo?.file) && !photo?.pending && !photo?.failed
 }
 
@@ -88,8 +89,8 @@ function Shot({
   from: ShotSource
 }): JSX.Element | null {
   const tier = photo.tier
-  const character = useGameStore((s) => s.characters[charId])
-  const friend = useGameStore((s) => photo.with ? s.characters[photo.with] : undefined)
+  const character = useCharacter(charId)
+  const friend = useCharacter(photo.with ?? '')
   const redraw = usePhotoRedraw(photoRedrawKey(playthroughId, charId, file))
   const [opened, setShown] = useState(tier !== 'explicit')
   // An undressed picture while they are forbidden stays covered, and cannot be opened.
@@ -180,42 +181,44 @@ export function GalleryPanel({ charId, isContact, theme }: ContactTabProps): JSX
   const [filter, setFilter] = useState<ShotFilter>('all')
   const visible = usePhotosVisible()
   const echoOn = useModOn('echo')
-  const playthroughId = useGameStore((s) => s.playthroughId)
-  const conversation = useGameStore((s) => s.bunnyboard.conversations[charId])
-  const feed = useGameStore((s) => s.charInfo[charId]?.feed)
+  const playthroughId = useGameFacts().playthroughId
+  const conversation = useConversation(charId)
+  const feed = useFeed(charId)
 
   // The thread's newest first, then merged with her posts by the slot each was sent in. The sort
   // is stable, so two pictures from one slot keep the order they arrived in.
-  const sent: GalleryShot[] = [...(conversation?.messages ?? [])].reverse().flatMap((message) =>
-    landed(message.photo)
+  const sent: GalleryShot[] = [...(conversation?.messages ?? [])].reverse().flatMap((message) => {
+    const photo = messagePhoto.read(message)
+    return landed(photo)
       ? [
           {
             id: message.id,
             itemId: message.id,
-            photo: message.photo,
-            file: message.photo.file,
+            photo,
+            file: photo.file,
             from: 'dm' as const,
             date: message.date,
             time: message.time
           }
         ]
       : []
-  )
-  const posted: GalleryShot[] = (feed ?? []).filter(postIsOut).flatMap((post) =>
-    landed(post.photo)
+  })
+  const posted: GalleryShot[] = (feed ?? []).filter(postIsOut).flatMap((post) => {
+    const photo = postPhoto.read(post)
+    return landed(photo)
       ? [
           {
             id: `post:${post.id}`,
             itemId: post.id,
-            photo: post.photo,
-            file: post.photo.file,
+            photo,
+            file: photo.file,
             from: 'feed' as const,
             date: post.date,
             time: post.time
           }
         ]
       : []
-  )
+  })
   // One tile per picture: an older bubble can point at the same file as a newer one, when a
   // save carried over without its pictures let the name be given out again. The newest is the
   // one the picture was drawn for.
@@ -291,9 +294,9 @@ export function PostPhotoLink({
   photo
 }: {
   charId: string
-  photo: ChatPhoto | undefined
+  photo: ChatPhoto | null | undefined
 }): JSX.Element | null {
-  const playthroughId = useGameStore((s) => s.playthroughId)
+  const playthroughId = useGameFacts().playthroughId
   const visible = usePhotosVisible()
   if (!visible || !playthroughId || !photo?.file) return null
   const src = photoUrl(playthroughId, charId, photo.file)
@@ -322,11 +325,12 @@ export function galleryShown(): boolean {
 
 /** The photo pill beside a post's like on her contact page, after a space. */
 export function PostPhotoExtra({ charId, post }: { charId: string; post: SocialPost }): JSX.Element | null {
-  if (!post.photo?.file) return null
+  const photo = postPhoto.read(post)
+  if (!photo?.file) return null
   return (
     <>
       {' '}
-      <PostPhotoLink charId={charId} photo={post.photo} />
+      <PostPhotoLink charId={charId} photo={photo} />
     </>
   )
 }

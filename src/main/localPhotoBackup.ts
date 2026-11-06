@@ -11,6 +11,7 @@ import {
   copyPhotoFile, forgetPhotoMoves, getPhotoPath, getPhotosRoot, isPhotoImage, legacyPhotosRoot, movePhotoFiles,
   photoCharacters, photoFileRendering, photoNames, readPhotoSidecar
 } from './photoFiles'
+import { PHOTO_FEATURE_ID } from '../shared/photoSwitches'
 
 /** Photo's required share of a backup, including its older companion archives. */
 
@@ -135,4 +136,10 @@ export const photoBackupPart: BackupPart = {
   }
 }
 
-requiredBackupPart('photo-feature', photoBackupPart)
+let registered = false
+
+export function registerPhotoBackup(): void {
+  if (registered) return
+  requiredBackupPart(PHOTO_FEATURE_ID, photoBackupPart)
+  registered = true
+}

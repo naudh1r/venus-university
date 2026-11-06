@@ -1,8 +1,10 @@
+import { messagePhoto } from './photoRecords'
+import { photoInvoke } from './photoInvoke'
 import { redrawPhoto, RENDER_PATIENCE_MS } from './photoRedraw'
 import { allowedPhotoTier, isPhotoTier, settlePhoto } from '../../shared/photoGate'
 import { affectionFor, type Character, type TextingResponse, type Result } from '@vx/modkit/shared'
 import type { ChatPhoto, PhotoRenderOptions } from '../../shared/photoTypes'
-import { useGameStore } from './gameStore'
+import { photoGame } from './photoGame'
 import {
   canSendPhotos,
   noExplicitPhotos,
@@ -19,7 +21,7 @@ type PhotoReply = Pick<TextingResponse, 'sendPhoto' | 'photoPrompt' | 'photoTier
 
 /** Settles the same photo gate before or after her texts arrive. */
 function settleReplyPhoto(charId: string, character: Character, data: PhotoReply) {
-  const game = useGameStore.getState()
+  const game = photoGame()
   const info = game.charInfo[charId]
 
   return settlePhoto({
@@ -43,7 +45,7 @@ interface EarlyPhoto {
   tier: string
   scene: string
   playthroughId: string
-  loads: number
+  run: object
   ready: Promise<Result<string>>
   render: Promise<Result<string>>
   result?: Result<string>
@@ -55,8 +57,8 @@ const earlyPhotos = new Map<string, EarlyPhoto>()
 
 /** Whether this render still belongs to the loaded game. */
 function earlyIsLive(early: EarlyPhoto): boolean {
-  const game = useGameStore.getState()
-  return game.playthroughId === early.playthroughId && game.loads === early.loads
+  const game = photoGame()
+  return game.playthroughId === early.playthroughId && game.run === early.run
 }
 
 /** Disposes an unattached render after it settles, leaving any referenced picture alone. */
@@ -65,21 +67,20 @@ function discardEarlyPhoto(early: EarlyPhoto): void {
   early.discarded = true
   early.release()
   if (early.file) {
-    void window.api.photo
-      .drop(early.playthroughId, early.charId, early.file, { cancelOnly: true })
+    void photoInvoke('drop', [early.playthroughId, early.charId, early.file, { cancelOnly: true }])
       .catch((error) => console.warn('[photo] could not cancel an early photo:', error))
   }
   if (earlyPhotos.get(early.charId) === early) earlyPhotos.delete(early.charId)
   void early.render
     .then(async () => {
       if (!early.file) return
-      const game = useGameStore.getState()
+      const game = photoGame()
       if (
         game.playthroughId === early.playthroughId &&
         photoNamesInSave(early.charId).includes(early.file)
       )
         return
-      const dropped = await window.api.photo.drop(early.playthroughId, early.charId, early.file)
+      const dropped = await photoInvoke('drop', [early.playthroughId, early.charId, early.file])
       if (!dropped.ok) console.warn('[photo] could not drop an unused early photo:', dropped.error)
     })
     .catch((error) => console.warn('[photo] could not clean up an early photo:', error))
@@ -106,7 +107,7 @@ export function startDmPhoto(
     photoTier: typeof lead.photoTier === 'string' ? lead.photoTier : undefined
   }
   const verdict = settleReplyPhoto(charId, character, data)
-  const game = useGameStore.getState()
+  const game = photoGame()
   if (!verdict.send || !game.playthroughId) return
   const cancelled: Result<string> = {
     ok: false,
@@ -120,7 +121,7 @@ export function startDmPhoto(
     tier: verdict.tier,
     scene: data.photoPrompt.trim(),
     playthroughId: game.playthroughId,
-    loads: game.loads,
+    run: game.run,
     release: () => signal.removeEventListener('abort', abort),
     ready: Promise.resolve(cancelled),
     render: Promise.resolve(cancelled),
@@ -130,8 +131,7 @@ export function startDmPhoto(
   const abort = (): void => discardEarlyPhoto(early)
   signal.addEventListener('abort', abort, { once: true })
   earlyPhotos.set(charId, early)
-  early.ready = window.api.photo
-    .reserveName(early.playthroughId, character, 'chat', photoNamesInSave(charId))
+  early.ready = photoInvoke('reserveName', [early.playthroughId, character, 'chat', photoNamesInSave(charId)])
     .then((named) => {
       if (named.ok) early.file = named.data
       return named
@@ -173,7 +173,7 @@ export async function sendPhoto(
 ): Promise<void> {
   const early = useEarly ? earlyPhotos.get(charId) : undefined
   if (early) earlyPhotos.delete(charId)
-  const game = useGameStore.getState()
+  const game = photoGame()
   const verdict = settleReplyPhoto(charId, character, data)
   if (
     early &&
@@ -203,9 +203,9 @@ export async function sendPhoto(
 
   if (early && !early.discarded) {
     const named = await early.ready
-    const now = useGameStore.getState()
+    const now = photoGame()
     const message = now.bunnyboard.conversations[charId]?.messages.find((one) => one.id === last.id)
-    if (early.discarded || !earlyIsLive(early) || !message || message.photo || !canSendPhotos()) {
+    if (early.discarded || !earlyIsLive(early) || !message || messagePhoto.read(message) || !canSendPhotos()) {
       discardEarlyPhoto(early)
       return
     }
@@ -228,27 +228,22 @@ export async function sendPhoto(
 
   // The name before the picture, so the bubble carries it into the save whatever the render does
   // next. A bubble saved without one can never be told what landed, and spins for good.
-  const named = await window.api.photo.reserveName(
-    playthroughId,
-    character,
-    'chat',
-    photoNamesInSave(charId)
-  )
+  const named = await photoInvoke('reserveName', [playthroughId, character, 'chat', photoNamesInSave(charId)])
   if (!named.ok) {
     console.warn(`[texting] no name for her photo: ${named.error.code}`, named.error.message)
     return
   }
   const file = named.data
   // A replacement, load, or disabled Photo Feature can overtake the asynchronous reservation.
-  const live = useGameStore.getState()
+  const live = photoGame()
   const held = live.bunnyboard.conversations[charId]?.messages.find(
     (message) => message.id === last.id
   )
   if (
     live.playthroughId !== playthroughId ||
-    live.loads !== game.loads ||
+    live.run !== game.run ||
     !held ||
-    held.photo ||
+    messagePhoto.read(held) ||
     !canSendPhotos()
   )
     return
@@ -272,8 +267,9 @@ const drawing = new Set<string>()
 
 /** One text's picture as it stands, or null where the text or its picture has gone. */
 function messagePhotoOf(charId: string, messageId: string): ChatPhoto | null {
-  const chat = useGameStore.getState().bunnyboard.conversations[charId]
-  return chat?.messages.find((message) => message.id === messageId)?.photo ?? null
+  const chat = photoGame().bunnyboard.conversations[charId]
+  const message = chat?.messages.find((message) => message.id === messageId)
+  return message ? messagePhoto.read(message) : null
 }
 
 /**
@@ -290,7 +286,7 @@ function drawMessagePhoto(
   messageId: string,
   started?: Promise<Result<string>>
 ): void {
-  const game = useGameStore.getState()
+  const game = photoGame()
   const playthroughId = game.playthroughId
   const character = game.characters[charId]
   const photo = messagePhotoOf(charId, messageId)
@@ -304,10 +300,10 @@ function drawMessagePhoto(
   // The save may have moved on under a render: a photo from a playthrough the player has left
   // belongs to nothing.
   const live = (): boolean => {
-    const now = useGameStore.getState()
+    const now = photoGame()
     return (
       now.playthroughId === playthroughId &&
-      now.loads === game.loads &&
+      now.run === game.run &&
       messagePhotoOf(charId, messageId)?.file === file
     )
   }
@@ -369,7 +365,7 @@ export async function redrawMessagePhoto(
   messageId: string,
   options: PhotoRenderOptions
 ): Promise<void> {
-  const game = useGameStore.getState()
+  const game = photoGame()
   const playthroughId = game.playthroughId
   const character = game.characters[charId]
   if (!playthroughId || !character || !canSendPhotos()) return
@@ -383,11 +379,11 @@ export async function redrawMessagePhoto(
       read: () => messagePhotoOf(charId, messageId),
       write: async (next) => {
         setMessagePhoto(charId, messageId, next)
-        await savePhotoStateAwaitable()
+        await savePhotoStateAwaitable(game.run)
       },
       live: () => {
-        const now = useGameStore.getState()
-        return now.playthroughId === playthroughId && now.loads === game.loads
+        const now = photoGame()
+        return now.playthroughId === playthroughId && now.run === game.run
       },
       inSave: () => photoNamesInSave(charId)
     },

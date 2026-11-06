@@ -1,4 +1,5 @@
-import './fixtures/maestroModelKit'
+import { savedPhoto } from '../src/shared/photoTypes'
+import { photoCalls } from './fixtures/photoCalls'
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -10,7 +11,11 @@ const mocks = vi.hoisted(() => ({ save: vi.fn(), render: vi.fn() }))
 vi.mock('electron', () => ({
   app: { isPackaged: false, getAppPath: () => root, getPath: () => root }
 }))
-vi.mock('../src/renderer/stores/loop/saves', () => ({ writeAutosave: mocks.save }))
+vi.mock('../src/renderer/stores/loop/saves', () => ({ writeAutosave: mocks.save, saveChanges: async () => {
+  const { useGameStore } = await import('../src/renderer/stores/gameStore')
+  const game = useGameStore.getState()
+  if (game.currentSceneTranscript.length && !game.awaitingInput) return { ok: true, data: 'deferred' }
+  await mocks.save(); return { ok: true, data: 'written' } } }))
 vi.mock('../src/renderer/stores/photoWebp', () => ({ renderPhoto: mocks.render }))
 vi.mock('../src/renderer/stores/photoTipDelivery', () => ({ tellAboutDmPhotos: vi.fn() }))
 stubApi({ jobs: { onProgress: () => () => {} } })
@@ -33,10 +38,12 @@ beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'photo-redraw-'))
   await mkdir(join(run(), 'mod-data', 'photo-feature', 'a'), { recursive: true })
   useGameStore.getState().reset()
+  const { useModsStore } = await import('../src/renderer/stores/modsStore')
+  useModsStore.setState({ switches: { on: { 'photo-feature': true }, options: {} } })
   setPhotoSwitches({ on: true, photos: true, explicit: true, webp: false })
   useSettingsStore.setState({ settings: { comfyDeferred: false } as never })
   useSetupStore.setState({ status: { comfyReady: true } as never })
-  useGameStore.setState({ playthroughId: '1', characters: charactersById(girl) })
+  useGameStore.setState({ playthroughId: '1', chars: ['a'], characters: charactersById(girl) })
   mocks.save.mockReset().mockImplementation(async () => {
     await writeFile(join(run(), 'autosave.json'), JSON.stringify({ photo: { file: currentFile() } }))
   })
@@ -66,22 +73,22 @@ for (const kind of ['chat', 'bunnyboard'] as const) {
         } } }
       }))
       currentFile = () => kind === 'chat'
-        ? useGameStore.getState().bunnyboard.conversations.a.messages[0].photo!.file!
-        : useGameStore.getState().charInfo.a.feed![0].photo!.file!
+        ? savedPhoto(useGameStore.getState().bunnyboard.conversations.a.messages[0] ?? {})!.file!
+        : savedPhoto(useGameStore.getState().charInfo.a.feed![0] ?? {})!.file!
       redraw = () => kind === 'chat'
         ? redrawMessagePhoto('a', 'reply', {})
         : redrawPostPhoto('a', 'post', {})
       await writeFile(image(oldFile), 'old picture')
       await mocks.save()
       mocks.save.mockClear()
-      stubApi({ jobs: { onProgress: () => () => {} }, photo: {
+      stubApi({ jobs: { onProgress: () => () => {} }, ...photoCalls({
         reserveName: async () => ({ ok: true, data: newFile }),
         drop: async (id, charId, file, options) => {
           if (options?.replacement) await retirePhoto(id, charId, file, options.replacement)
           else await dropPhoto(id, charId, file)
           return { ok: true, data: undefined }
         }
-      } })
+      }) })
     })
 
     it('keeps the old picture through a scene and removes it after the next written save', async () => {

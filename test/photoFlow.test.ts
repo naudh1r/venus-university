@@ -1,3 +1,5 @@
+import { savedPhoto } from '../src/shared/photoTypes'
+import { photoCalls } from './fixtures/photoCalls'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Character, Result } from '@shared/types'
 import { character, restoreApi, stubApi } from './fixtures'
@@ -99,13 +101,12 @@ async function loaded(): Promise<{
   await import('../src/renderer/mods')
   await photosSwitched(true)
   useGameStore.setState({
-    playthroughId: '1',
+    playthroughId: '1', chars: ['c1'],
     characters: { c1: { charId: 'c1', firstName: 'Gwen' } } as never,
     charInfo: {}
   })
   const photoOf = (postId = 'p1'): Record<string, unknown> | undefined =>
-    useGameStore.getState().charInfo.c1?.feed?.find((one) => one.id === postId)
-      ?.photo as unknown as Record<string, unknown> | undefined
+    savedPhoto(useGameStore.getState().charInfo.c1?.feed?.find((one) => one.id === postId) ?? {}) as unknown as Record<string, unknown> | undefined
   return { useGameStore, post, photoOf }
 }
 
@@ -114,7 +115,7 @@ describe('a post that carries a picture', () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: api.reserve, generate: api.generate }
+      ...photoCalls({ reserveName: api.reserve, generate: api.generate })
     })
     const { post } = await loaded()
     await photosSwitched(false)
@@ -127,14 +128,14 @@ describe('a post that carries a picture', () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: api.reserve, generate: api.generate, landed: notLanded }
+      ...photoCalls({ reserveName: api.reserve, generate: api.generate, landed: notLanded })
     })
     const { useGameStore, post, photoOf } = await loaded()
     const { postIsOut } = await import('../src/shared/heldPosts')
     const { contactFeedPosts } = await import('../src/renderer/stores/feedView')
     const { written, prepared } = heldPost()
 
-    post.holdPostPhoto('c1', written, prepared, () => {})
+    useGameStore.getState().appendFeedPost('c1', post.holdPostPhoto('c1', written, prepared, () => {}))
     expect(photoOf()).toEqual({
       tier: 'everyday',
       scene: 'on the grass',
@@ -159,11 +160,11 @@ describe('the held render', () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: api.reserve, generate: api.generate, landed: notLanded }
+      ...photoCalls({ reserveName: api.reserve, generate: api.generate, landed: notLanded })
     })
-    const { post } = await loaded()
+    const { useGameStore, post } = await loaded()
     const { written, prepared } = heldPost()
-    post.holdPostPhoto('c1', written, prepared, () => {})
+    useGameStore.getState().appendFeedPost('c1', post.holdPostPhoto('c1', written, prepared, () => {}))
 
     // `submitAction` calls this on every turn of a scene, not only the first.
     post.startHeldPostPhoto()
@@ -185,14 +186,14 @@ describe('the held render', () => {
     )
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+      ...photoCalls({ reserveName: vi.fn<ReserveName>(), generate, landed: notLanded }),
       saves
     })
-    const { post, photoOf } = await loaded()
+    const { useGameStore, post, photoOf } = await loaded()
     const one = heldPost('p1')
     const two = heldPost('p2')
-    post.holdPostPhoto('c1', one.written, one.prepared, () => {})
-    post.holdPostPhoto('c1', two.written, two.prepared, () => {})
+    useGameStore.getState().appendFeedPost('c1', post.holdPostPhoto('c1', one.written, one.prepared, () => {}))
+    useGameStore.getState().appendFeedPost('c1', post.holdPostPhoto('c1', two.written, two.prepared, () => {}))
 
     post.startHeldPostPhoto()
     await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(1))
@@ -215,11 +216,11 @@ describe('the held render', () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: api.reserve, generate: api.generate, landed: notLanded }
+      ...photoCalls({ reserveName: api.reserve, generate: api.generate, landed: notLanded })
     })
     const first = await loaded()
     const { written, prepared } = heldPost()
-    first.post.holdPostPhoto('c1', written, prepared, () => {})
+    first.useGameStore.getState().appendFeedPost('c1', first.post.holdPostPhoto('c1', written, prepared, () => {}))
     const charInfo = first.useGameStore.getState().charInfo
 
     // A reload: every module fresh, the save's feed all that is left.
@@ -235,16 +236,16 @@ describe('the held render', () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: {
+      ...photoCalls({
         reserveName: api.reserve,
         generate: api.generate,
         landed: vi.fn<Landed>(async () => ({ ok: true, data: true }))
-      },
+      }),
       saves
     })
-    const { post, photoOf } = await loaded()
+    const { useGameStore, post, photoOf } = await loaded()
     const { written, prepared } = heldPost()
-    post.holdPostPhoto('c1', written, prepared, () => {})
+    useGameStore.getState().appendFeedPost('c1', post.holdPostPhoto('c1', written, prepared, () => {}))
     post.startHeldPostPhoto()
     await vi.waitFor(() => expect(photoOf()?.held).toBeUndefined())
     expect(api.generate).not.toHaveBeenCalled()
@@ -254,7 +255,7 @@ describe('the held render', () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: api.reserve, generate: api.generate, landed: notLanded }
+      ...photoCalls({ reserveName: api.reserve, generate: api.generate, landed: notLanded })
     })
     const { post } = await loaded()
     post.startHeldPostPhoto()
@@ -268,11 +269,11 @@ describe('photos switched off', () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: api.reserve, generate: api.generate, landed: notLanded }
+      ...photoCalls({ reserveName: api.reserve, generate: api.generate, landed: notLanded })
     })
-    const { post, photoOf } = await loaded()
+    const { useGameStore, post, photoOf } = await loaded()
     const { written, prepared } = heldPost()
-    post.holdPostPhoto('c1', written, prepared, () => {})
+    useGameStore.getState().appendFeedPost('c1', post.holdPostPhoto('c1', written, prepared, () => {}))
 
     await photosSwitched(false)
     post.startHeldPostPhoto()
@@ -289,12 +290,12 @@ describe('photos switched off', () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: api.reserve, generate: api.generate, landed: notLanded }
+      ...photoCalls({ reserveName: api.reserve, generate: api.generate, landed: notLanded })
     })
     const { useGameStore, post, photoOf } = await loaded()
     useGameStore.getState().appendFeedPost('c1', {
       ...heldPost().written,
-      photo: { tier: 'everyday', scene: 'on the grass', file: 'gwen_p1.png', failed: true }
+      ...{ photo: { tier: 'everyday', scene: 'on the grass', file: 'gwen_p1.png', failed: true } }
     })
     await photosSwitched(false)
     post.rerollPostPhoto('c1', 'p1')
@@ -312,12 +313,12 @@ describe('a picture that does not come', () => {
     }))
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+      ...photoCalls({ reserveName: vi.fn<ReserveName>(), generate, landed: notLanded }),
       saves
     })
-    const { post, photoOf } = await loaded()
+    const { useGameStore, post, photoOf } = await loaded()
     const { written, prepared } = heldPost()
-    post.holdPostPhoto('c1', written, prepared, () => {})
+    useGameStore.getState().appendFeedPost('c1', post.holdPostPhoto('c1', written, prepared, () => {}))
     post.startHeldPostPhoto()
     await vi.waitFor(() => expect(photoOf()?.failed).toBe(true))
     expect(photoOf()?.held).toBeUndefined()
@@ -337,12 +338,12 @@ describe('a picture that does not come', () => {
       )
       stubApi({
         jobs: { onProgress: () => () => {} },
-        photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+        ...photoCalls({ reserveName: vi.fn<ReserveName>(), generate, landed: notLanded }),
         saves
       })
-      const { post, photoOf } = await loaded()
+      const { useGameStore, post, photoOf } = await loaded()
       const { written, prepared } = heldPost()
-      post.holdPostPhoto('c1', written, prepared, () => {})
+      useGameStore.getState().appendFeedPost('c1', post.holdPostPhoto('c1', written, prepared, () => {}))
       post.startHeldPostPhoto()
       await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(1))
 
@@ -368,12 +369,12 @@ describe('a picture that does not come', () => {
     )
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+      ...photoCalls({ reserveName: vi.fn<ReserveName>(), generate, landed: notLanded }),
       saves
     })
-    const { post, photoOf } = await loaded()
+    const { useGameStore, post, photoOf } = await loaded()
     const { written, prepared } = heldPost()
-    post.holdPostPhoto('c1', written, prepared, () => {})
+    useGameStore.getState().appendFeedPost('c1', post.holdPostPhoto('c1', written, prepared, () => {}))
     post.startHeldPostPhoto()
     await vi.waitFor(() => expect(photoOf()?.failed).toBe(true))
 
@@ -398,7 +399,7 @@ describe('a picture on a text that does not come', () => {
     const turn = await import('../src/renderer/stores/photoTurn')
     await photosSwitched(true)
     useGameStore.setState({
-      playthroughId: '1',
+      playthroughId: '1', chars: ['c1'],
       characters: { c1: { charId: 'c1', firstName: 'Gwen' } } as never,
       bunnyboard: {
         ...useGameStore.getState().bunnyboard,
@@ -413,7 +414,7 @@ describe('a picture on a text that does not come', () => {
       } as never
     })
     const photoOf = (): Record<string, unknown> | undefined =>
-      useGameStore.getState().bunnyboard.conversations.c1?.messages[0]?.photo as unknown as
+      savedPhoto(useGameStore.getState().bunnyboard.conversations.c1?.messages[0] ?? {}) as unknown as
         | Record<string, unknown>
         | undefined
     return { turn, photoOf }
@@ -430,7 +431,7 @@ describe('a picture on a text that does not come', () => {
     const generate = vi.fn<GeneratePhoto>(async () => ({ ok: true, data: 'done' }))
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+      ...photoCalls({ reserveName: vi.fn<ReserveName>(), generate, landed: notLanded }),
       saves
     })
     const { turn, photoOf } = await thread(failed)
@@ -453,7 +454,7 @@ describe('a picture on a text that does not come', () => {
     }))
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+      ...photoCalls({ reserveName: vi.fn<ReserveName>(), generate, landed: notLanded }),
       saves
     })
     const { turn, photoOf } = await thread(failed)
@@ -474,7 +475,7 @@ describe('a picture on a text that does not come', () => {
       )
       stubApi({
         jobs: { onProgress: () => () => {} },
-        photo: { reserveName: vi.fn<ReserveName>(), generate, landed: notLanded },
+        ...photoCalls({ reserveName: vi.fn<ReserveName>(), generate, landed: notLanded }),
         saves
       })
       const { turn, photoOf } = await thread(failed)
@@ -503,11 +504,11 @@ describe("BunnyBot's photo tip", () => {
     const api = pendingRender()
     stubApi({
       jobs: { onProgress: () => () => {} },
-      photo: {
+      ...photoCalls({
         reserveName: vi.fn<ReserveName>(async () => ({ ok: true, data: 'gwen_chat_001.png' })),
         generate: api.generate,
         landed: notLanded
-      },
+      }),
       saves
     })
     const { useGameStore } = await import('../src/renderer/stores/gameStore')
@@ -517,7 +518,7 @@ describe("BunnyBot's photo tip", () => {
     const gwen = { charId: 'c1', firstName: 'Gwen' } as never
     useGameStore.setState({
       bunnybotThrough: 99,
-      playthroughId: '1',
+      playthroughId: '1', chars: ['c1'],
       characters: { c1: gwen },
       charInfo: { c1: { flags: { gaveContactInfo: true }, memories: [] } } as never,
       bunnyboard: {
@@ -575,6 +576,7 @@ describe("BunnyBot's feed photo tip", () => {
       )
 
     useGameStore.setState({
+      playthroughId: '1', chars: ['c1', 'c2'],
       characters: { c1: { firstName: 'Mini' }, c2: { firstName: 'April' } } as never,
       bunnybotThrough: 0
     })

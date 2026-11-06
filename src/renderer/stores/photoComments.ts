@@ -2,9 +2,8 @@ import { rollPostLikes, npcFriendsOf, globalSlotOf, type PostComment } from '@vx
 import { photoFeatureOn } from '../../shared/photoSwitches'
 import type { PhotoTier } from '../../shared/photoGate'
 import { reachOf, rollAudienceLikes, rollCrowdCount } from '../../shared/postAudience'
-import { FEED_EMOJI, FEED_HANDLE_POOL } from '@vx/modkit/renderer'
-import { useGameStore } from './gameStore'
-import { drawFeedHandles, drawFeedEmoji } from '@vx/modkit/renderer'
+import { photoGame } from './photoGame'
+import { drawFeedEmoji, drawFeedHandles, FEED_EMOJI, FEED_HANDLE_POOL } from '@vx/modkit/renderer'
 
 /**
  * Dresses the replies the model wrote for one post: a handle, an emoji for a face, and the slot
@@ -27,7 +26,7 @@ export function rollComments(
   // Off, the mod writes no comments; a post files as the game alone would file it.
   if (lines.length === 0 || !photoFeatureOn()) return []
 
-  const game = useGameStore.getState()
+  const game = photoGame()
   const reach = reachOf(game.playthroughId, charId, game.characters[charId])
   const count = Math.min(lines.length, rollCrowdCount({ photoTier, reach }))
   if (count === 0) return []
@@ -53,7 +52,7 @@ export function rollComments(
  * she is actually close to.
  */
 export function postLikes(charId: string, photoTier: PhotoTier = 'none'): number {
-  const game = useGameStore.getState()
+  const game = photoGame()
   // Off, likes are the game's own: her friends and a few more.
   if (!photoFeatureOn()) {
     return rollPostLikes(npcFriendsOf(game.npcRelationships, charId, game.chars).length)
@@ -69,7 +68,7 @@ export function postLikes(charId: string, photoTier: PhotoTier = 'none'): number
 export function strangerLikes(handle: string): number {
   // Off, the game's own roll for a stranger: nobody she is close to, and a handful more.
   if (!photoFeatureOn()) return rollPostLikes(0)
-  const game = useGameStore.getState()
+  const game = photoGame()
   return rollAudienceLikes({
     reach: reachOf(game.playthroughId, handle, undefined),
     friends: 0,

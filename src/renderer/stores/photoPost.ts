@@ -1,8 +1,10 @@
+import { postPhoto } from './photoRecords'
+import { photoInvoke } from './photoInvoke'
 import { redrawPhoto, RENDER_PATIENCE_MS } from './photoRedraw'
 import { allowedPostTier, settlePhoto, type PhotoTier } from '../../shared/photoGate'
 import type { ChatPhoto, PhotoRenderOptions } from '../../shared/photoTypes'
 import type { SocialPost } from '@vx/modkit/shared'
-import { useGameStore } from './gameStore'
+import { photoGame } from './photoGame'
 import {
   canSendPhotos,
   photoNamesInSave,
@@ -49,15 +51,10 @@ function settlePostPhoto(image: string | undefined): { tier: PhotoTier; scene: s
 
 /** The name the post's picture will land under, settled before the post is filed. */
 async function reservePostPhotoName(charId: string): Promise<string | null> {
-  const game = useGameStore.getState()
+  const game = photoGame()
   const character = game.characters[charId]
   if (!character || !game.playthroughId) return null
-  const result = await window.api.photo.reserveName(
-    game.playthroughId,
-    character,
-    'bunnyboard',
-    photoNamesInSave(charId)
-  )
+  const result = await photoInvoke('reserveName', [game.playthroughId, character, 'bunnyboard', photoNamesInSave(charId)])
   if (result.ok) return result.data
   console.warn(`[feed] no name for a post's picture: ${result.error.code}`, result.error.message)
   return null
@@ -97,7 +94,7 @@ export async function preparePostPhoto(
   if (!file) return null
   // A friend is in it only in everyday clothes or swimwear: past that is hers alone to post.
   const dressed = shot.tier === 'everyday' || (shot.tier === 'suggestive' && SWIMWEAR.test(shot.scene))
-  const friend = friendId && dressed ? useGameStore.getState().characters[friendId] : undefined
+  const friend = friendId && dressed ? photoGame().characters[friendId] : undefined
   if (friendId && !friend) console.log('[photo] the friend is left out of a picture past everyday clothes')
   return { shot, file, ...(friend ? { with: friend.charId } : {}) }
 }
@@ -116,22 +113,16 @@ let nudgeOf: ((charId: string) => void) | null = null
  * something, in this slot or a later one.
  */
 export function holdPostPhoto(
-  charId: string,
+  _charId: string,
   written: SocialPost,
   prepared: PreparedPostPhoto,
   nudge: (charId: string) => void
-): void {
+): SocialPost {
   nudgeOf = nudge
   const { tier, scene } = prepared.shot
-  useGameStore.getState().appendFeedPost(charId, {
-    ...written,
-    photo: {
-      tier,
-      scene,
-      file: prepared.file,
-      held: true,
-      ...(prepared.with ? { with: prepared.with } : {})
-    }
+  return postPhoto.with(written, {
+    tier, scene, file: prepared.file, held: true,
+    ...(prepared.with ? { with: prepared.with } : {})
   })
 }
 
@@ -157,8 +148,8 @@ function keyOf(playthroughId: string, postId: string): string {
 
 /** One post's picture as it stands, or null where the post or its picture has gone. */
 function photoOf(charId: string, postId: string): ChatPhoto | null {
-  const post = useGameStore.getState().charInfo[charId]?.feed?.find((one) => one.id === postId)
-  return post?.photo ?? null
+  const post = photoGame().charInfo[charId]?.feed?.find((one) => one.id === postId)
+  return post ? postPhoto.read(post) : null
 }
 
 /**
@@ -168,9 +159,10 @@ function photoOf(charId: string, postId: string): ChatPhoto | null {
 function settle(charId: string, postId: string, photo: ChatPhoto): void {
   const before = photoOf(charId, postId)
   if (!before) return
-  setFeedPostPhoto(charId, postId, before.held ? { ...photo, outAt: Date.now() } : photo)
+  const changed = setFeedPostPhoto(charId, postId, before.held ? { ...photo, outAt: Date.now() } : photo)
+  if (!changed.ok) return
   if (before.held) {
-    const flags = useGameStore.getState().charInfo[charId]?.flags
+    const flags = photoGame().charInfo[charId]?.flags
     if (flags?.gaveContactInfo && !flags.blocked) nudgeOf?.(charId)
   }
   // The post changed after the slot save was written, so it goes to disk on its own.
@@ -187,7 +179,7 @@ function settle(charId: string, postId: string, photo: ChatPhoto): void {
  * still finds its frame.
  */
 async function drawPostPhoto(charId: string, postId: string): Promise<void> {
-  const game = useGameStore.getState()
+  const game = photoGame()
   const playthroughId = game.playthroughId
   const character = game.characters[charId]
   const photo = photoOf(charId, postId)
@@ -197,11 +189,11 @@ async function drawPostPhoto(charId: string, postId: string): Promise<void> {
   const { tier, scene, file } = photo
   const drawn: ChatPhoto = { tier, scene, file, ...(photo.with ? { with: photo.with } : {}) }
   const friend = photo.with ? game.characters[photo.with] : undefined
-  const live = (): boolean => useGameStore.getState().playthroughId === playthroughId
+  const live = (): boolean => photoGame().playthroughId === playthroughId && photoGame().run === game.run
 
   // A render can finish after the save that was waiting on it was written: the picture is on disk
   // and the save still says held. Found, it only has to be let out.
-  const landed = await window.api.photo.landed(playthroughId, charId, file)
+  const landed = await photoInvoke('landed', [playthroughId, charId, file])
   if (!live()) return
   if (landed.ok && landed.data) {
     settle(charId, postId, drawn)
@@ -272,14 +264,14 @@ function enqueue(charId: string, postId: string): void {
  * here, so a post held over a reload or into the next slot is picked up the same way.
  */
 export function startHeldPostPhoto(): void {
-  const game = useGameStore.getState()
+  const game = photoGame()
   const playthroughId = game.playthroughId
   if (!playthroughId) return
   // Photos switched off: every held post stays held, in the save and off the feed, and is drawn
   // the first time the reader commits to something after they are switched back on.
   if (!canSendPhotos()) return
   const held = Object.entries(game.charInfo).flatMap(([charId, info]) =>
-    (info?.feed ?? []).filter((post) => post.photo?.held).map((post) => ({ charId, post }))
+    (info?.feed ?? []).filter((post) => postPhoto.read(post)?.held).map((post) => ({ charId, post }))
   )
   held.sort((a, b) => a.post.date - b.post.date || a.post.time - b.post.time)
   for (const { charId, post } of held) {
@@ -297,7 +289,7 @@ export function startHeldPostPhoto(): void {
  * is in fact still going, the frame only waits for it rather than asking for a second.
  */
 export function rerollPostPhoto(charId: string, postId: string): void {
-  const game = useGameStore.getState()
+  const game = photoGame()
   const photo = photoOf(charId, postId)
   if (!game.playthroughId || !photo?.file || !photo.scene || !canSendPhotos()) return
   const { tier, scene, file } = photo
@@ -318,7 +310,7 @@ export async function redrawPostPhoto(
   postId: string,
   options: PhotoRenderOptions
 ): Promise<void> {
-  const game = useGameStore.getState()
+  const game = photoGame()
   const playthroughId = game.playthroughId
   const character = game.characters[charId]
   if (!playthroughId || !character || !canSendPhotos()) return
@@ -331,11 +323,11 @@ export async function redrawPostPhoto(
     read: () => photoOf(charId, postId),
     write: async (next) => {
       setFeedPostPhoto(charId, postId, next)
-      await savePhotoStateAwaitable()
+      await savePhotoStateAwaitable(game.run)
     },
     live: () => {
-      const now = useGameStore.getState()
-      return now.playthroughId === playthroughId && now.loads === game.loads
+      const now = photoGame()
+      return now.playthroughId === playthroughId && now.run === game.run
     },
     inSave: () => photoNamesInSave(charId)
   }, options)

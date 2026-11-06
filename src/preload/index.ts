@@ -1,6 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { VenusUniversityApi } from './api'
-import { photoApi } from './photoApi'
 
 /**
  * The bridge implementation; every method's contract is documented on {@link VenusUniversityApi}
@@ -33,7 +32,6 @@ const api: VenusUniversityApi = {
     read: key => ipcRenderer.invoke('soundtracks:read', key),
     cleanup: () => ipcRenderer.invoke('soundtracks:cleanup')
   },
-  ...photoApi,
   assets: {
     getPoseManifest: () => ipcRenderer.invoke('assets:getPoseManifest'),
     getQuickstart: () => ipcRenderer.invoke('assets:getQuickstart'),

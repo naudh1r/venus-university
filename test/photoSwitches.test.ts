@@ -1,3 +1,5 @@
+import './fixtures/photoRecordKit'
+import { savedPhoto } from '../src/shared/photoTypes'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { postIsOut } from '../src/shared/heldPosts'
 import {
@@ -61,7 +63,7 @@ describe('photo switches', () => {
   it('show a post still waiting for its picture while off, without touching it', () => {
     setPhotoSwitches({ on: false })
     expect(postIsOut(held)).toBe(true)
-    expect(held.photo?.held).toBe(true)
+    expect(savedPhoto(held ?? {})?.held).toBe(true)
     setPhotoSwitches({ on: true })
     expect(postIsOut(held)).toBe(false)
   })

@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from 'motion/react'
 import { hashString, shownComments } from '@vx/modkit/shared'
 import { type PostCommentsProps, type PostPictureProps, noteIn } from '@vx/modkit/renderer'
 import { photoFriendHandle } from '../../shared/photoDuo'
-import { useGameStore } from '../stores/gameStore'
+import { useFeed, useGameFacts, useNpcRelationships, useCharacterInfo, useClock } from '@vx/modkit/renderer'
+import { postPhoto } from '../stores/photoRecords'
 import { usePhotosVisible } from '../stores/photoSwitchHooks'
 import { photoRedrawKey, usePhotoRedraw } from '../stores/photoRedraw'
 import { PostPhoto } from './PhotoBubble'
@@ -16,14 +17,14 @@ import '../vu_styles/PostComments.css'
 
 /** Her picture under the post's text, read off the post itself. */
 export function PhotoPostPicture({ charId, postId }: PostPictureProps): JSX.Element | null {
-  const photo = useGameStore(
-    (s) => s.charInfo[charId]?.feed?.find((post) => post.id === postId)?.photo
-  )
-  const playthroughId = useGameStore((s) => s.playthroughId)
+  const post = useFeed(charId).find(post => post.id === postId)
+  const photo = post ? postPhoto.read(post) : null
+  const playthroughId = useGameFacts().playthroughId
   const redraw = usePhotoRedraw(photoRedrawKey(playthroughId, charId, photo?.file))
-  const handle = useGameStore((s) =>
-    photoFriendHandle(s.npcRelationships, charId, photo?.with, s.charInfo)
-  )
+  const relationships = useNpcRelationships()
+  const friend = useCharacterInfo(photo?.with ?? '')
+  const handle = photoFriendHandle(relationships ?? {}, charId, photo?.with,
+    photo?.with && friend ? { [photo.with]: friend } : {})
   const visible = usePhotosVisible()
   const [tagShown, setTagShown] = useState(false)
   const tagId = useId()
@@ -108,8 +109,7 @@ export function PhotoPostPicture({ charId, postId }: PostPictureProps): JSX.Elem
  * every time she comments without anything being stored about her.
  */
 export function PhotoComments({ comments }: PostCommentsProps): JSX.Element | null {
-  const date = useGameStore((s) => s.date)
-  const time = useGameStore((s) => s.time)
+  const { date = 0, time = 0 } = useClock() ?? {}
   const visible = usePhotosVisible()
   const said = shownComments(comments, date, time)
   // The mod's comments, hidden with the rest of it while it is off unless the player keeps them.
