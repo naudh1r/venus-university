@@ -1,11 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildFeedThreadsPrompt } from '../src/renderer/prompts/bunnyfeedsPrompt'
 import { armFeedThreads } from '../src/renderer/stores/bunnyfeedsThreads'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { useGrabBagStore } from '../src/renderer/stores/grabBagStore'
 import { FEED_HANDLE_BAG, FEED_EMOJI_BAG } from '../src/renderer/prompts/feedRandoms'
+import { useModsStore } from '../src/renderer/stores/modsStore'
+import { writesSettled } from '../src/renderer/stores/loop/saves'
+import { charKeyOf } from '@vx/modkit/shared'
 import { resetLoopState } from '../src/renderer/stores/loop/state'
-import { character, charInfo, restoreApi, stubApi } from './fixtures'
+import { character, restoreApi, stubApi } from './fixtures'
+import { legacyCharInfo as charInfo } from './bunnyfeedsFixtures'
 
 // The thread call needs no generation-job subscription.
 vi.mock('../src/renderer/stores/jobStore', () => ({ useJobStore: {} }))
@@ -17,16 +21,24 @@ vi.mock('../src/renderer/stores/loop/promptState', () => ({
   reader: () => ''
 }))
 
+beforeAll(async () => {
+  await import('../src/renderer/modEntries/bunnyfeeds')
+})
+
 beforeEach(() => {
   useGameStore.getState().reset()
   resetLoopState()
+  useGameStore.setState({ playthroughId: 'one' })
+  useModsStore.setState({ switches: { on: { bunnyfeeds: true }, options: {} } })
   vi.clearAllMocks()
   stubApi({
-    llm: { completeFeedThreads: async () => ({ ok: true, data: { replies: [], memories: [] } }) }
+    llm: { completeMod: async () => ({ ok: true, data: { replies: [], memories: [] } }) },
+    saves: { autosave: async () => ({ ok: true, data: {} as never }) }
   })
 })
 
-afterEach(() => {
+afterEach(async () => {
+  await writesSettled()
   vi.restoreAllMocks()
   useGameStore.getState().reset()
   resetLoopState()
@@ -108,10 +120,11 @@ describe('feed thread identity draws', () => {
         })
       }
     })
-    stubApi({ llm: { completeFeedThreads: async () => ({
+    stubApi({ llm: { completeMod: async () => ({
       ok: true,
-      data: { replies: [{ to: 'c2', from, text: 'answer' }], memories: [] }
-    }) } })
+      data: { replies: [{ to: 'c2', from: from === 'poster'
+        ? charKeyOf(character().firstName, character().lastName) : from, text: 'answer' }], memories: [] }
+    }) }, saves: { autosave: async () => ({ ok: true, data: {} as never }) } })
 
     await armFeedThreads()
 

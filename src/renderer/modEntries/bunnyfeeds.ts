@@ -1,4 +1,4 @@
-import { BUNNYFEEDS, carriedThread } from '../../shared/bunnyfeeds'
+import { BUNNYFEEDS } from '../../shared/bunnyfeeds'
 import {
   globalSlotOf,
   registerPostCarry,
@@ -32,7 +32,8 @@ import {
 import { feedStatusLines, fileDueFeedMemories, textLedgerFeedLines } from '../stores/bunnyfeedsMemory'
 import { takeCommented } from '../stores/bunnyfeedsVisit'
 import { settleFeedReadMark, unreadFeedNotesOf } from '../stores/bunnyfeedsNotes'
-import { useGameStore } from '../stores/gameStore'
+import { readBunnyfeedsContext } from '../stores/bunnyfeedsReadContext'
+import { carriedThread, commentData } from '../stores/bunnyfeedsData'
 
 // Loaded on first draw, so registering the mod pulls in no screen code.
 const screens = (): Promise<typeof import('../components/BunnyfeedsThread')> =>
@@ -85,7 +86,7 @@ const RECENT_POSTS = 2
  * she answered: so a girl he talks to knows what she posted and what he wrote under it.
  */
 function recentPostLines(characters: readonly Character[]): string[] {
-  const { charInfo, date, time, calendar } = useGameStore.getState()
+  const { charInfo, date, time, calendar } = readBunnyfeedsContext()
   return characters.flatMap((character) => {
     const posts = (charInfo[character.charId]?.feed ?? [])
       .filter(postVisible)
@@ -98,13 +99,13 @@ function recentPostLines(characters: readonly Character[]): string[] {
         const said = shownComments(post.comments, date, time)
         const hers = said.filter(
           (one) =>
-            one.charId === character.charId &&
-            said.some((his) => his.player && his.id === one.replyTo)
+            commentData.read(one).charId === character.charId &&
+            said.some((his) => commentData.read(his).player && his.id === commentData.read(one).replyTo)
         )
         // Only what she has answered where everyone can see: a comment still waiting on her
         // answer is one she has not read yet, in texts or in person either.
-        const answered = new Set(hers.map((one) => one.replyTo))
-        const his = said.filter((one) => one.player && answered.has(one.id))
+        const answered = new Set(hers.map((one) => commentData.read(one).replyTo))
+        const his = said.filter((one) => commentData.read(one).player && answered.has(one.id))
         return [
           `- ${formatShortGameDate(post.date, calendar.season)}: "${post.text}"`,
           ...his.map((one) => `  The reader commented: "${one.text}"`),
@@ -155,7 +156,7 @@ registerHooks(BUNNYFEEDS, {
   // The roster girls who may reply under each of the slot's posts, described in their own voices.
   requests: {
     'slot-intro': (request, { input }) => {
-      const { npcRelationships } = useGameStore.getState()
+      const { npcRelationships } = readBunnyfeedsContext()
       const repliers = replierBlock(
         input.posters.map(({ character }) => ({
           character,
@@ -196,7 +197,7 @@ registerHooks(BUNNYFEEDS, {
   // Held memories whose answers show next slot are filed now, so the boundary save carries them;
   // then whatever the phone-close call never answered is asked for.
   slotSettled: () => {
-    const { date, time } = useGameStore.getState()
+    const { date, time } = readBunnyfeedsContext()
     fileDueFeedMemories(globalSlotOf(date, time) + 1)
     void threads().then((module) => module.armFeedThreads('next'))
   },
@@ -219,7 +220,7 @@ registerHooks(BUNNYFEEDS, {
     View: FeedPreviewView,
     Action: CommentPillView,
     // His own, a roster girl's, and every reply: comments only Bunnyfeeds writes.
-    claims: (comment) => Boolean(comment.player || comment.charId || comment.replyTo)
+    claims: (comment) => Boolean(commentData.read(comment).player || commentData.read(comment).charId || commentData.read(comment).replyTo)
   },
 
   // What each choice of followers' faces looks like, under the choice on the Mods screen.

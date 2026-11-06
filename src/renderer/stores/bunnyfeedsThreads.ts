@@ -1,15 +1,14 @@
 import {
-  type CharInfo,
   type PostComment,
   type SocialPost,
   type StructuredRequest,
   messageOf,
   globalSlotOf,
-  charKeyOf,
-  type MemoryType
+  charKeyOf
 } from '@vx/modkit/shared'
 import {
-  threadWork,
+  BUNNYFEEDS,
+  BUNNY_MEMORY_TYPES as MEMORY_TYPES,
   type FeedThreadsResponse,
   type HeldFeedMemory,
   type ThreadWork
@@ -32,16 +31,24 @@ import {
   FEED_HANDLE_POOL,
   SETTING,
   hasTexted,
-  retrySilently
+  retrySilently,
+  completeStructured,
+  cancelCalls,
+  modState,
+  currentRun,
+  runStale,
+  saveChanges,
+  addPostComments,
+  ownsPostComments,
+  lessNsfwText,
+  readerPromptText
 } from '@vx/modkit/renderer'
 import { markCommented } from './bunnyfeedsVisit'
 import { joiningFriendOf, replierOf, type Replier } from './bunnyfeedsReplies'
 import { fileDueFeedMemories, holdFeedMemories } from './bunnyfeedsMemory'
 import { useGameStore } from './gameStore'
-import { lessNsfwTextNow, reader } from './loop/promptState'
-import { writeAutosave } from './loop/saves'
-import { currentRun, loopState, runStale, LOOP_LLM_GROUP } from './loop/state'
-import { sceneInProgress } from './loop/stream'
+import { readBunnyfeedsContext } from './bunnyfeedsReadContext'
+import { commentData, postData, threadWork } from './bunnyfeedsData'
 
 /**
  * The feed's comment threads: once a slot, one call answers whatever was said under her posts
@@ -50,8 +57,6 @@ import { sceneInProgress } from './loop/stream'
 
 /** The most posts one call answers; the rest wait a slot, the reader's first in line. */
 const MAX_THREADS = 8
-
-const MEMORY_TYPES: readonly MemoryType[] = ['loved', 'liked', 'disliked', 'hated']
 
 /** The reader's own name on a comment he left. */
 const PLAYER_HANDLE = 'you'
@@ -77,11 +82,11 @@ interface Joiners {
 
 /** Every post the thread call owes something to as of global slot `now`, the reader's first. */
 function owedThreads(now: number): Owed[] {
-  const game = useGameStore.getState()
+  const game = readBunnyfeedsContext()
   const owed: Owed[] = []
   for (const charId of game.chars) {
     for (const post of game.charInfo[charId]?.feed ?? []) {
-      const work = threadWork(post.comments, charId, post.threadedThrough, now)
+      const work = threadWork(post.comments, charId, postData.read(post).threadedThrough, now)
       if (work) owed.push({ charId, post, work })
     }
   }
@@ -92,7 +97,7 @@ function owedThreads(now: number): Owed[] {
 
 /** A post's repliers with each girl in `charIds` added, once each and never the poster. */
 function withGirls(repliers: Replier[], charIds: readonly string[], posterId: string): Replier[] {
-  const { npcRelationships } = useGameStore.getState()
+  const { npcRelationships } = readBunnyfeedsContext()
   const listed = new Set(repliers.map(({ character }) => character.charId))
   const added: Replier[] = []
   for (const charId of charIds) {
@@ -115,42 +120,71 @@ function addressedBy(
   shown: readonly PostComment[],
   posterId: string
 ): Array<{ charId?: string; handle: string }> {
-  const others = shown.filter((one) => !one.player && one.charId !== posterId)
-  const under = others.find((one) => one.id === mine.replyTo)
+  const others = shown.filter((one) => !commentData.read(one).player && commentData.read(one).charId !== posterId)
+  const under = others.find((one) => one.id === commentData.read(mine).replyTo)
   const named = others.filter((one) =>
     new RegExp(`(^|\\s)@${one.handle.replace(/\./g, '\\.')}(?![\\w.])`).test(mine.text)
   )
   const seen = new Set<string>()
   return [...(under ? [under] : []), ...named].flatMap((one) => {
-    const key = one.charId ?? `@${one.handle}`
+    const key = commentData.read(one).charId ?? `@${one.handle}`
     if (seen.has(key)) return []
     seen.add(key)
-    return [{ ...(one.charId ? { charId: one.charId } : {}), handle: one.handle }]
+    const { charId } = commentData.read(one)
+    return [{ ...(charId ? { charId } : {}), handle: one.handle }]
   })
 }
 
 /** Who said a comment, worded for the thread block. */
 function whoSaid(comment: PostComment, posterId: string): string {
-  const game = useGameStore.getState()
-  if (comment.player) return 'the reader'
-  const character = comment.charId ? game.characters[comment.charId] : undefined
+  const game = readBunnyfeedsContext()
+  const data = commentData.read(comment)
+  if (data.player) return 'the reader'
+  const character = data.charId ? game.characters[data.charId] : undefined
   if (!character) return `@${comment.handle} (a follower)`
   const key = charKeyOf(character.firstName, character.lastName)
-  return comment.charId === posterId
+  return data.charId === posterId
     ? `${character.firstName} (the poster)`
     : `${character.firstName} ("${key}")`
 }
 
+/** One thread call and any backoff sleeps that must end when its game is left. */
+interface PendingCall {
+  done: boolean
+  sleepers: Set<() => void>
+}
+
+const THREAD_GROUP = 'threads'
+const pendingCall = modState<PendingCall | null>(BUNNYFEEDS, { initial: null, lifetime: 'game' })
+let previousCall: PendingCall | null = null
+pendingCall.subscribe(call => {
+  const previous = previousCall
+  previousCall = call
+  if (call !== null || !previous || previous.done) return
+  previous.sleepers.forEach(cancel => cancel())
+  void cancelCalls(BUNNYFEEDS, THREAD_GROUP).catch(() => {})
+})
+
+/** Both the run token and the game-lifetime call must still belong to this request. */
+function callStale(run: object, pending: PendingCall): boolean {
+  return runStale(run) || pendingCall.get() !== pending
+}
+
 /** Sends the prompt, re-sending itself quietly for as long as its budget lasts. */
-async function send(request: StructuredRequest, run: object): Promise<FeedThreadsResponse | null> {
+async function send(
+  request: StructuredRequest, run: object, pending: PendingCall
+): Promise<FeedThreadsResponse | null> {
   for (let spent = 0; ; spent++) {
-    const result = await window.api.llm.completeFeedThreads(request, LOOP_LLM_GROUP)
-    if (runStale(run)) return null
+    const result = await completeStructured<FeedThreadsResponse>(BUNNYFEEDS, request, { group: THREAD_GROUP })
+    if (callStale(run, pending)) return null
     if (result.ok) return result.data
     const again = await retrySilently('feed threads', result.error, spent, {
-      onSleep: (cancel) => loopState.parkedWaiters.push(cancel)
+      onSleep: (cancel) => {
+        pending.sleepers.add(cancel)
+        if (callStale(run, pending)) cancel()
+      }
     })
-    if (runStale(run)) return null
+    if (callStale(run, pending)) return null
     if (!again) {
       console.warn('[feed] no thread replies:', result.error.message)
       return null
@@ -181,7 +215,8 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
     askAgain = true
     return
   }
-  const game = useGameStore.getState()
+  const game = readBunnyfeedsContext()
+  if (!game.playthroughId) return
   const now = globalSlotOf(game.date, game.time)
   const owed = owedThreads(now)
   if (owed.length === 0) return
@@ -209,7 +244,7 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
     // Who joins this round besides her: rolled here, so the model is told who rather than handed
     // a crowd. A thread winding down hears only from the girls he tagged.
     const open = work.player.length > 0 && !work.windingDown
-    const tagged = work.player.flatMap((one) => (one.tags ?? []).filter((id) => id !== charId))
+    const tagged = work.player.flatMap((one) => (commentData.read(one).tags ?? []).filter((id) => id !== charId))
     const friend = open ? joiningFriendOf(charId, game.npcRelationships) : null
     const answersBack: Array<{ ref: string; who: string }> = []
     const girlsBack: string[] = []
@@ -252,8 +287,8 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
       ref: refOf.get(comment.id) ?? '',
       who: whoSaid(comment, charId),
       text: comment.text,
-      ...(comment.replyTo && refOf.has(comment.replyTo)
-        ? { replyTo: refOf.get(comment.replyTo) }
+      ...(commentData.read(comment).replyTo && refOf.has(commentData.read(comment).replyTo ?? '')
+        ? { replyTo: refOf.get(commentData.read(comment).replyTo ?? '') }
         : {})
     }))
     threads.push({
@@ -281,7 +316,7 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
         return replier ? [{ ref, replier }] : []
       }),
       tagged: work.player.flatMap((one) =>
-        (one.tags ?? []).flatMap((tagged) => {
+        (commentData.read(one).tags ?? []).flatMap((tagged) => {
           const girl = game.characters[tagged]
           return girl && tagged !== charId
             ? [{ ref: refOf.get(one.id) ?? '', name: girl.firstName }]
@@ -296,27 +331,32 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
     {
       playthroughId: game.playthroughId ?? 'unsaved',
       stats: game.stats,
-      lessNsfwText: lessNsfwTextNow(),
+      lessNsfwText: lessNsfwText(),
       date: game.date,
       season: game.calendar.season,
       threads
     },
     SETTING,
-    reader()
+    readerPromptText() ?? ''
   )
 
   const run = currentRun()
   out = true
+  const pending: PendingCall = { done: false, sleepers: new Set() }
+  pendingCall.set(pending)
   try {
-    const reply = await send(request, run)
-    if (runStale(run) || !reply) return
-    fileReplies(reply, owed, byRef, postByRef, joiners, now, showAt === 'next' ? now + 1 : now)
-    saveThreads()
+    const reply = await send(request, run, pending)
+    if (callStale(run, pending) || !reply) return
+    if (fileReplies(reply, owed, byRef, postByRef, joiners, now,
+      showAt === 'next' ? now + 1 : now, run)) saveThreads(run)
   } catch (err) {
     console.warn('[feed] no thread replies:', messageOf(err))
   } finally {
+    const sameGame = !callStale(run, pending)
+    pending.done = true
+    if (pendingCall.get() === pending) pendingCall.set(null)
     out = false
-    if (!runStale(run)) {
+    if (sameGame) {
       if (askAgain) {
         askAgain = false
         void armFeedThreads('next')
@@ -331,9 +371,12 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
  * autosave records the last decision point, so nothing half-streamed is written; mid-stream the
  * loop's own imminent write carries them.
  */
-function saveThreads(): void {
-  if (sceneInProgress() && !useGameStore.getState().awaitingInput) return
-  void writeAutosave(loopState.decisionSave)
+function saveThreads(run: object): void {
+  void saveChanges(BUNNYFEEDS, { run }).then(result => {
+    if (!result.ok && !['MOD_WRITE_STALE', 'MOD_WRITE_OFF', 'MOD_WRITE_NO_GAME'].includes(result.error.code)) {
+      console.warn('[bunnyfeeds] replies could not be saved:', result.error.message)
+    }
+  })
 }
 
 /**
@@ -348,12 +391,19 @@ function fileReplies(
   postByRef: ReadonlyMap<string, Owed>,
   joiners: ReadonlyMap<string, Joiners>,
   now: number,
-  shownAt: number
-): void {
-  const game = useGameStore.getState()
+  shownAt: number,
+  run: object
+): boolean {
+  const game = readBunnyfeedsContext()
+  if (!ownsPostComments(BUNNYFEEDS) || runStale(run)) return false
+  owed = owed.filter(({ charId, post }) =>
+    game.charInfo[charId]?.feed?.some(current => current.id === post.id)
+  )
+  if (owed.length === 0) return false
   const filed = new Map<string, PostComment[]>()
   // Girls other than the poster who answered him here, met or not; each keeps a memory too.
   const answeredHim = new Set<string>()
+  const answeredAt: Array<{ postId: string; charId: string; posterId: string }> = []
   // Whose post each girl's memory happened under: the first post she was owed or answered on.
   const posterOf = new Map<string, string>()
   const capLeft = new Map<string, number>(owed.map(({ post, work }) => [post.id, work.othersLeft]))
@@ -384,7 +434,10 @@ function fileReplies(
     // A follower answering him back is named by her handle, and keeps the face she had.
     const back = from.startsWith('@')
       ? (entry.post.comments ?? []).find(
-          (said) => !said.charId && !said.player && said.handle === from.slice(1)
+          (said) => {
+            const data = commentData.read(said)
+            return !data.charId && !data.player && said.handle === from.slice(1)
+          }
         )
       : undefined
     const letIn = joiners.get(entry.post.id)
@@ -392,14 +445,14 @@ function fileReplies(
     if (fromId === posterId) {
       // She answers what is owed under her own post; she does not comment on it.
       if (!comment || !owedIds.has(comment.id)) continue
-      if (!comment.player) {
+      if (!commentData.read(comment).player) {
         const left = capLeft.get(entry.post.id) ?? 0
         if (left <= 0) continue
         capLeft.set(entry.post.id, left - 1)
       }
     } else {
       // Nobody answers themselves, only who the round let in speaks, and each of them once.
-      if (comment && fromId && comment.charId === fromId) continue
+      if (comment && fromId && commentData.read(comment).charId === fromId) continue
       const speaker = `${entry.post.id}:${fromId ?? back?.handle ?? ''}`
       if (fromId) {
         if (!letIn?.girls.has(fromId) || spoke.has(speaker)) continue
@@ -414,46 +467,48 @@ function fileReplies(
     }
 
     const list = filed.get(entry.post.id) ?? []
-    list.push(
-      fromId
-        ? {
-            id: crypto.randomUUID(),
-            charId: fromId,
-            handle: game.charInfo[fromId]?.handle ?? strangerHandle(),
-            emoji: '',
-            text,
-            ...(comment ? { replyTo: comment.id } : {}),
-            at: shownAt
-          }
-        : {
-            id: crypto.randomUUID(),
-            handle: back?.handle ?? strangerHandle(),
-            emoji:
-              back?.emoji ??
-              drawFeedEmoji(1)[0] ??
-              FEED_EMOJI[0],
-            text,
-            ...(comment ? { replyTo: comment.id } : {}),
-            at: shownAt
-          }
-    )
+    list.push(commentData.with<PostComment>({
+      id: crypto.randomUUID(),
+      handle: fromId
+        ? game.charInfo[fromId]?.handle ?? strangerHandle()
+        : back?.handle ?? strangerHandle(),
+      emoji: fromId ? '' : back?.emoji ?? drawFeedEmoji(1)[0] ?? FEED_EMOJI[0],
+      text,
+      at: shownAt
+    }, {
+      ...(fromId ? { charId: fromId } : {}),
+      ...(comment ? { replyTo: comment.id } : {})
+    }))
     filed.set(entry.post.id, list)
     const known = fromId ? game.charInfo[fromId] : undefined
     if (
-      comment?.player &&
+      (comment ? commentData.read(comment).player : undefined) &&
       fromId &&
       fromId !== posterId &&
       known
     ) {
-      answeredHim.add(fromId)
-      if (!posterOf.has(fromId)) posterOf.set(fromId, posterId)
+      answeredAt.push({ postId: entry.post.id, charId: fromId, posterId })
     }
   }
 
+  const accepted = new Set<string>()
   for (const { charId, post } of owed) {
     const comments = filed.get(post.id)
-    if (comments) addComments(charId, post.id, comments)
-    patchPost(charId, post.id, (one) => ({ ...one, threadedThrough: now }))
+    if (comments && !addComments(charId, post.id, comments, run).ok) continue
+    for (const old of post.comments ?? []) {
+      commentData.update({ kind: 'comment', charId, postId: post.id, commentId: old.id },
+        data => data, { run })
+    }
+    const progress = postData.update({ kind: 'post', charId, postId: post.id },
+      data => ({ ...data, threadedThrough: now }), { run })
+    if (progress.ok) accepted.add(post.id)
+  }
+  owed = owed.filter(({ post }) => accepted.has(post.id))
+  if (owed.length === 0) return false
+  for (const answer of answeredAt) {
+    if (!accepted.has(answer.postId)) continue
+    answeredHim.add(answer.charId)
+    if (!posterOf.has(answer.charId)) posterOf.set(answer.charId, answer.posterId)
   }
 
   for (const { charId, work } of owed) {
@@ -487,14 +542,15 @@ function fileReplies(
   }
 
   // Held with the answers: the slot they show in files them, so she remembers what is on the feed.
-  if (owed[0]) holdFeedMemories(owed[0].charId, owed[0].post.id, held)
-  if (shownAt <= now) fileDueFeedMemories(now)
+  if (owed[0]) holdFeedMemories(owed[0].charId, owed[0].post.id, held, run)
+  if (shownAt <= now) fileDueFeedMemories(now, run)
 
   const replies = [...filed.values()].reduce((total, list) => total + list.length, 0)
   console.log(
     `[bunnyfeeds] answered ${owed.length} post(s): ${replies} repl${replies === 1 ? 'y' : 'ies'}, ` +
       (remembered.length > 0 ? `memory for ${remembered.join(', ')}` : 'no memory')
   )
+  return true
 }
 
 /**
@@ -520,35 +576,27 @@ export function leavePlayerComment(
 ): void {
   const trimmed = text.trim()
   if (!trimmed) return
-  const game = useGameStore.getState()
-  addComments(charId, postId, [
-    {
-      id: crypto.randomUUID(),
-      player: true,
-      handle: PLAYER_HANDLE,
-      emoji: '',
-      text: trimmed,
-      ...(replyTo ? { replyTo } : {}),
-      ...(tags.length > 0 ? { tags: [...tags] } : {}),
-      at: globalSlotOf(game.date, game.time)
-    }
-  ])
-  markCommented()
-}
-
-/** One of her posts, changed in place; inert for a post that is not there. */
-function patchPost(charId: string, postId: string, next: (post: SocialPost) => SocialPost): void {
-  useGameStore.setState((state) => {
-    const info: CharInfo | undefined = state.charInfo[charId]
-    if (!info?.feed?.some((post) => post.id === postId)) return {}
-    const feed = info.feed.map((post) => (post.id === postId ? next(post) : post))
-    return { charInfo: { ...state.charInfo, [charId]: { ...info, feed } } }
+  const game = readBunnyfeedsContext()
+  if (!game.playthroughId) return
+  const comment = commentData.with<PostComment>({
+    id: crypto.randomUUID(),
+    handle: PLAYER_HANDLE,
+    emoji: '',
+    text: trimmed,
+    at: globalSlotOf(game.date, game.time)
+  }, {
+    player: true,
+    ...(replyTo ? { replyTo } : {}),
+    ...(tags.length > 0 ? { tags: [...tags] } : {})
   })
+  if (addComments(charId, postId, [comment], currentRun()).ok) markCommented()
 }
 
-/** Adds comments under one of her posts. */
-function addComments(charId: string, postId: string, comments: readonly PostComment[]): void {
-  patchPost(charId, postId, (post) => ({ ...post, comments: [...(post.comments ?? []), ...comments] }))
+/** Adds native comments with the kit's ownership, target and run checks. */
+function addComments(
+  charId: string, postId: string, comments: readonly PostComment[], run: object
+) {
+  return addPostComments(BUNNYFEEDS, { charId, postId }, comments, { run })
 }
 
 /**

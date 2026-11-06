@@ -95,6 +95,10 @@ on them, from any mod that puts one there, get threads like any other post.
 - After New Game+ the count starts over with the new semester: last semester's replies are still
   listed, as read.
 
+## 1.1.4
+
+- Your older comments and replies are kept; Bunnyfeeds reads and saves through the mod kit now.
+
 ## 1.1.3
 
 - **Replies are saved when they arrive**: closing the game right after the girls answer no
@@ -162,22 +166,22 @@ Bunnyfeeds makes **one extra AI call** of its own, to your usual model, on top o
 | File | What it is |
 | --- | --- |
 | `src/shared/modEntries/bunnyfeeds.ts` | The entry: anytime, off by default, no requirements. |
-| `src/shared/bunnyfeeds.ts` | The optional fields it adds to comments and posts, the thread call's reply shape, and `threadWork`, what a thread still owes. |
+| `src/shared/bunnyfeeds.ts` | Its private comment and post shapes, memory kinds and the thread call's reply shape. |
+| `src/renderer/stores/bunnyfeedsData.ts` | Comment and post `recordField` handles, the root `saveField` read mark, thread and notification calculations, and semester carry. |
+| `src/renderer/stores/bunnyfeedsReadContext.ts` | A stable view made from the kit's character, state, conversation, roster, clock and player readers, with narrow subscriptions for the views. |
 | `src/renderer/modEntries/bunnyfeeds.ts` | Registers the hooks, the post comments it draws among them. |
 | `src/renderer/prompts/bunnyfeedsPrompt.ts` | The slot opening's reply lines, the replier block, the thread call's prompt and the texting bookkeeping's note. |
 | `src/renderer/stores/bunnyfeedsReplies.ts` | Who may reply under a post, and how the slot opening's replies are filed. |
 | `src/shared/bunnyfeedsCrowd.ts` | How many answer a post (her following, and whether it carries a picture), and the rolls for who joins a thread. |
-| `src/renderer/stores/bunnyfeedsThreads.ts` | The thread call: what is owed, sending when a post he commented on is closed (or the phone, or the slot turns), filing the answers. |
-| `src/renderer/stores/bunnyfeedsMemory.ts` | Feed memories: held until the answers show, filed, announced in the closing; and the texting bookkeeping's note. |
+| `src/renderer/stores/bunnyfeedsThreads.ts` | The thread call through `completeStructured`, run fences and owned cancellation; `addPostComments`, record updates and `saveChanges` file its answers. Only `pictureOf` still reads the game store for the companion's name. |
+| `src/renderer/stores/bunnyfeedsMemory.ts` | Post slices hold pending memories; `addMemory` replaces owned ones and adopts the same legacy feed endings. Kit mod/option readers gate announcements and the texting note. |
 | `src/renderer/stores/bunnyfeedsVisit.ts` | Whether he commented during this phone visit. |
-| `src/renderer/components/BunnyfeedsThread.tsx`, `vu_styles/Bunnyfeeds.css` | The feed preview, the comment pill, the post view with its thread, the comment box and the @ list. |
+| `src/renderer/components/BunnyfeedsThread.tsx`, `vu_styles/Bunnyfeeds.css` | The feed preview, post view and comment box; kit snapshots, `useProfileImageUrl`, `useSceneActive` and `toggleFeedLike` supply the game's data and actions. |
 | `src/renderer/components/BunnyfeedsNotifications.tsx` | Notifications, the page beside the feed. |
 | `src/renderer/components/BunnyfeedsFaces.tsx` | Followers' faces, drawn off the handle in the style the Mods screen picked, and that choice's preview (`optionPreviews`). |
-| `src/renderer/stores/bunnyfeedsNotes.ts` | The replies off the feed, the unread count, and marking them read. |
-| `src/main/ipc.ts`, `src/preload/*`, `src/web/bridge.ts` | The `llm:completeFeedThreads` channel (direct edit). |
-| `src/renderer/prompts/textLedgerPrompt.ts` | One line adding `textLedgerFeedLines` (direct edit). |
-| `src/renderer/stores/gameLoop.ts` | One line adding `feedStatusLines` to the closing's memories (direct edit). |
-| `test/bunnyfeeds.test.ts` | `threadWork`, `carriedThread`, `feedNotes`, `unreadFeedNotes` and the rolls for who joins. |
+| `src/renderer/stores/bunnyfeedsNotes.ts` | The root read mark, comment-slice read updates and unread count; `feedReadThrough` seeds only the legacy marker migration. |
+| `src/main/ipc.ts`, `src/preload/*`, `src/web/bridge.ts` | The older `llm:completeFeedThreads` channel remains in the host (direct edit); thread calls now use the kit's `completeStructured`. |
+| `test/bunnyfeeds*.test.ts` | Thread and notification calculations, draws, reply triggers, old-save round trips, save timing and refused writes. |
 
 It uses nothing of any other mod: only the game's places on a post (`postComments`,
 `PostPicture`) and the post's `comments` field, both the game's own.
@@ -195,10 +199,9 @@ It uses nothing of any other mod: only the game's places on a post (`postComment
   data, draws more. So replies are never asked for twice.
 - The post view draws the post's picture through the game's `PostPicture`, whichever mod draws it,
   and the thread call is told what a picture shows where a mod described one on the post.
-- Two direct edits, where no hook exists: `textLedgerPrompt.ts` adds `textLedgerFeedLines`, telling
-  the end-of-slot texting bookkeeping that comments under her posts are the feed's, so talk about a
-  post in her DMs is not filed as something said over text; `gameLoop.ts` adds `feedStatusLines` to
-  the closing's memories. Both do nothing while the mod is off.
+- The `text-ledger` prompt hook adds `textLedgerFeedLines`, so a post talked about in DMs is not
+  filed as something said over text. `slotStatusLines` adds the feed-memory announcements to the
+  closing. Both do nothing while the mod is off.
 - `requests['slot-intro']` adds the replier block. `prompts.dm` and `prompts.scene` add her two
   newest posts with his comments and her answers. `slotSettled` sends whatever is still owed.
   `gameEntered` drops a visit not yet sent.
@@ -211,20 +214,28 @@ It uses nothing of any other mod: only the game's places on a post (`postComment
 
 ### Save fields
 
-All optional, so a save without the mod loads as before, and switching it off keeps them: `charId`,
-`player`, `replyTo`, `tags` and `read` on a comment; `threadedThrough` and `heldMemories` on a
-post; `feedReadThrough` on the Bunnyboard. A reply counts as read when it carries `read` (marked or
-opened from Notifications) or arrived no later than `feedReadThrough` (Mark all as read). A save
-without `feedReadThrough` gets one at the slot it is entered in, so replies from before 1.1.0 start
-read. A
-memory the thread call writes waits in `heldMemories` until the slot its answers show, and is filed
-into her memories as the slot before it settles, so it arrives with the answers. What she made of
-his comments is one of her ordinary memories, ending ", on her post" or ", under <name>'s post",
-which is how the next one finds and replaces it.
+Comments stay in the game's own `comments` list. Bunnyfeeds keeps `charId`, `player`, `replyTo`,
+`tags` and `read` in each comment's `ex.bunnyfeeds` slice, and `threadedThrough` and `heldMemories`
+in the post's slice. The saved slices carry the mod's version. A root `ex.bunnyfeeds` slice
+keeps `readThrough`, the last slot covered by Mark all as read.
 
-Comments live in the game's own `comments` field on a post, so New Game+ moves them with the post;
-`carriedThread` moves `threadedThrough` and the held memories the same way, and `read` rides on its
-comment. `feedReadThrough` is not moved: New Game+ keeps the Bunnyboard as it was, and `gameEntered` brings a mark ahead of the
-clock down to now, so the new semester's replies count as unread. A comment with none of
-its fields reads as a stranger's. While Bunnyfeeds is off, a mod drawing comments in its place
-leaves out the ones only Bunnyfeeds writes; they stay saved and come back with it.
+Older comments and posts read the same way through their record handles. When one is next
+written, its old keys move into the slice, with the native fields and other mods' slices kept.
+The old board-wide `feedReadThrough` seeds the root read mark once; the old key is left alone.
+A save without a mark starts read through the slot it is entered in, as before, so older
+notifications do not suddenly become unread.
+
+A reply is read when its slice says `read`, or its arrival slot is covered by `readThrough`.
+Marking one read updates that comment; Mark all as read updates the root mark. Both go out with
+the next save. A reply round calls `saveChanges` as soon as its answers are filed: written
+outside a scene, or carried by the loop's next save while a line is playing.
+
+A thread's memory waits on its post until the replies show. It is then added to her native
+memories, where the game reads it. Each new feed memory replaces the marked feed memory before
+it; on an older save it also adopts the unmarked memory with the same feed ending used before
+the switch. Her other memories stay as they are.
+
+New Game+ moves native comment arrival slots with their post. `carriedThread` moves thread
+progress and held-memory slots through the post handle; comment data stays with each comment.
+The root read mark is carried unchanged, then brought down to the new clock on entry if it was
+ahead, so this semester's replies count as unread. Switching Bunnyfeeds off keeps all its data.
