@@ -47,7 +47,15 @@ export { sceneField } from './sceneField'
 export type { SceneFieldHandle, SceneFieldSpec } from './sceneField'
 export { modState } from './modState'
 export type { ModStateHandle, ModStateSpec } from './modState'
-export type { ModDataRecord, RecordFieldHandle, RecordFieldSpec, SaveFieldHandle, SaveFieldSpec } from './saveField'
+export type {
+  ModDataRecord,
+  RecordFieldHandle,
+  RecordFieldSpec,
+  RecordRef,
+  RecordWriteOptions,
+  SaveFieldHandle,
+  SaveFieldSpec
+} from './saveField'
 export type {
   CheckFieldProps,
   ConfirmModalProps,
@@ -163,6 +171,7 @@ export {
 export { bunnybotSays } from '../bridge/renderer'
 export { boxParts, dropTransientLines, reachTurn, readerSaysInScene, sayInScene } from '../bridge/renderer'
 export { invoke } from '../bridge/renderer'
+export { addMemory, addPostComments, saveChanges, toggleFeedLike } from '../bridge/renderer'
 
 export { Lightbox, memoryLines, profileLines, relationshipLines, spaced, spriteUrl } from '../bridge/renderer'
 export type { RelationshipMedium, RelationshipProgress } from '../bridge/renderer'
@@ -186,4 +195,46 @@ export {
   drawFeedHandles,
   drawFeedEmoji,
   modOptionOn
+} from '../bridge/renderer'
+
+export {
+  character,
+  useCharacter,
+  subscribeCharacter,
+  characterInfo,
+  useCharacterInfo,
+  subscribeCharacterInfo,
+  rosterIds,
+  subscribeRosterIds,
+  useRosterIds,
+  conversation,
+  useConversation,
+  subscribeConversation,
+  feed,
+  useFeed,
+  subscribeFeed,
+  npcRelationships,
+  useNpcRelationships,
+  subscribeNpcRelationships,
+  clock,
+  useClock,
+  subscribeClock,
+  playerStats,
+  usePlayerStats,
+  subscribePlayerStats,
+  playerProfilePicture,
+  usePlayerProfilePicture,
+  subscribePlayerProfilePicture,
+  feedReadThrough,
+  useFeedReadThrough,
+  subscribeFeedReadThrough,
+  sceneActive,
+  useSceneActive,
+  subscribeSceneActive,
+  readerPromptText,
+  useReaderPromptText,
+  subscribeReaderPromptText,
+  useProfileImageUrl,
+  profileImageUrl,
+  subscribeProfileImageUrl
 } from '../bridge/renderer'

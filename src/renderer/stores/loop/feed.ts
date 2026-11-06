@@ -115,7 +115,8 @@ async function filePost(
     const now = useGameStore.getState()
     now.appendFeedPost(charId, filing.post)
     const flags = now.charInfo[charId]?.flags
-    if (flags?.gaveContactInfo && !flags.blocked) nudgeFirstContactPost(charId)
+    // A post a mod keeps off the feed for now is nothing to point him at yet; the mod nudges when it shows.
+    if (flags?.gaveContactInfo && !flags.blocked && postVisible(filing.post)) nudgeFirstContactPost(charId)
   }
   return { charId, id, featured: filing.featured }
 }
