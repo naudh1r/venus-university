@@ -164,3 +164,6 @@ export {
   profileImageUrl,
   subscribeProfileImageUrl
 } from '../../../../src/renderer/mods/gameReaders'
+
+export { scene, useScene, subscribeScene, holdTurn } from '../../../../src/renderer/mods/sceneView'
+export type { SceneView, SceneViewLine, ScriptedSlot } from '../../../../src/renderer/mods/sceneView'
