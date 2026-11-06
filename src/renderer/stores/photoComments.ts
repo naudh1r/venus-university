@@ -2,9 +2,8 @@ import { rollPostLikes, npcFriendsOf, globalSlotOf, type PostComment } from '@vx
 import { photoFeatureOn } from '../../shared/photoSwitches'
 import type { PhotoTier } from '../../shared/photoGate'
 import { reachOf, rollAudienceLikes, rollCrowdCount } from '../../shared/postAudience'
-import { FEED_EMOJI, FEED_HANDLE_POOL } from '@vx/modkit/renderer'
 import { photoGame } from './photoGame'
-import { drawFeedHandles, drawFeedEmoji } from '@vx/modkit/renderer'
+import { drawFeedEmoji, drawFeedHandles, FEED_EMOJI, FEED_HANDLE_POOL } from '@vx/modkit/renderer'
 
 /**
  * Dresses the replies the model wrote for one post: a handle, an emoji for a face, and the slot

@@ -1,6 +1,7 @@
 import { invoke } from '@vx/modkit/renderer'
 import type { Result, Character } from '@vx/modkit/shared'
 import type { PhotoInfo, PhotoRenderOptions } from '../../shared/photoTypes'
+import { PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 
 export type PhotoCalls = {
       /**
@@ -81,7 +82,7 @@ export type PhotoCalls = {
 
 /** Retains Photo's browser answers through the shared invocation path. */
 export async function photoInvoke<K extends keyof PhotoCalls>(name: K, args: Parameters<PhotoCalls[K]>): Promise<Awaited<ReturnType<PhotoCalls[K]>>> {
-  const result = await invoke<unknown>('photo-feature', name.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase()), args)
+  const result = await invoke<unknown>(PHOTO_FEATURE_ID, name.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase()), args)
   if (result.ok || result.error.code !== 'DESKTOP_ONLY') return result as Awaited<ReturnType<PhotoCalls[K]>>
   if (name === 'carry') return { ok: true, data: undefined } as Awaited<ReturnType<PhotoCalls[K]>>
   return { ok: false, error: { ...result.error,

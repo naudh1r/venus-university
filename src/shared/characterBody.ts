@@ -1,4 +1,5 @@
 import type { PromptEdit, Character } from '@vx/modkit/shared'
+import { PHOTO_FEATURE_ID } from './photoSwitches'
 
 /**
  * Her body, as five picks from fixed pools.
@@ -24,7 +25,7 @@ export interface CharacterBody {
 /** Her stored body, with the old top-level field as a fallback. */
 export function bodyOf(character: Character): CharacterBody | undefined {
   // Shared and main read the slice directly; recordField belongs to the window's kit.
-  const stored = character.ex?.['photo-feature']?.data
+  const stored = character.ex?.[PHOTO_FEATURE_ID]?.data
   return stored === undefined
     ? (character as Character & { body?: CharacterBody }).body
     : (stored as CharacterBody)
@@ -266,11 +267,11 @@ export function gateBody(character: Character, on: boolean): Character {
   const ex = { ...character.ex }
   // This is only the character a prompt sees; the stored record is never changed.
   if (on) {
-    ex['photo-feature'] = {
-      v: character.ex?.['photo-feature']?.v ?? '0.0.0',
+    ex[PHOTO_FEATURE_ID] = {
+      v: character.ex?.[PHOTO_FEATURE_ID]?.v ?? '0.0.0',
       data: cleanBody(bodyOf(character)) ?? {}
     }
-  } else delete ex['photo-feature']
+  } else delete ex[PHOTO_FEATURE_ID]
   return { ...rest, ex }
 }
 

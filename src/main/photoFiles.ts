@@ -6,12 +6,13 @@ import { SAFE_CHAR_ID, assertSafeCharId, assertSafePlaythroughId, appError } fro
 import { isPhotoFile, isPhotoSidecar, pngPhotoOf } from '../shared/photoFiles'
 import { isPhotoTier } from '../shared/photoGate'
 import type { PhotoSidecar } from '../shared/photoTypes'
+import { PHOTO_FEATURE_ID } from '../shared/photoSwitches'
 
 /** Photo's own files, and the per-character folders older builds left beside native photos. */
 
 /** The playthrough's Photo-owned data root. */
 export function getPhotosRoot(pid: string): string {
-  return modDataPath('photo-feature', pid)
+  return modDataPath(PHOTO_FEATURE_ID, pid)
 }
 
 /**
@@ -22,9 +23,9 @@ export function getPhotosRoot(pid: string): string {
 export function photoPlaythroughPath(pid: string): string {
   assertSafePlaythroughId(pid)
   try {
-    return join(modDataPath('photo-feature', pid), '..', '..')
+    return join(modDataPath(PHOTO_FEATURE_ID, pid), '..', '..')
   } catch {
-    return join(modDataPath('photo-feature'), '..', '..', 'saves', pid)
+    return join(modDataPath(PHOTO_FEATURE_ID), '..', '..', 'saves', pid)
   }
 }
 

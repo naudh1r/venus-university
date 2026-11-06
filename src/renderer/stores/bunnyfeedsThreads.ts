@@ -562,8 +562,8 @@ function pictureOf(post: object): { picture?: string; pictureWith?: string } {
     photo?: { scene?: unknown; with?: unknown }
   }
   const slice = record.ex?.['photo-feature']
-  // Photo 1.7.1 stores ChatPhoto (or an explicitly cleared null) as the slice's data.
-  const photo = (slice && typeof slice.v === 'string' && /^1\./.test(slice.v) && slice.data !== undefined
+  // Photo keeps its picture (or an explicitly cleared null) as its slice's data.
+  const photo = (slice && slice.data !== undefined
     ? slice.data : record.photo) as { scene?: unknown; with?: unknown } | null | undefined
   if (typeof photo?.scene !== 'string' || !photo.scene.trim()) return {}
   const other =

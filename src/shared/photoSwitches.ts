@@ -114,12 +114,15 @@ export function loaderOptionId(loader: PhotoLoader): string {
   return `loader-${loader}`
 }
 
+/** Photo Feature's mod id, as saves, slices and calls name it. */
+export const PHOTO_FEATURE_ID = 'photo-feature'
+
 /**
  * The mod as a mods screen lists it: what a build with one needs to register it. The ids are
  * written to disk there, so they never change once shipped.
  */
 export const PHOTO_FEATURE_MOD = {
-  id: 'photo-feature',
+  id: PHOTO_FEATURE_ID,
   name: 'Photo Feature',
   author: 'naudh1r',
   scope: 'anytime' as const,

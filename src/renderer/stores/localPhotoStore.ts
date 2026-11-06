@@ -1,4 +1,4 @@
-import { explicitPhotosAllowed, photoGenerationOn } from '../../shared/photoSwitches'
+import { explicitPhotosAllowed, photoGenerationOn, PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 import type { ChatPhoto } from '../../shared/photoTypes'
 import { canRenderLocalImages, noNsfwImages, conversation, feed, currentRun,
   saveChanges, type RecordWriteOptions } from '@vx/modkit/renderer'
@@ -53,5 +53,5 @@ export function setFeedPostPhoto(charId: string, postId: string, photo: ChatPhot
 export function savePhotoState(): void { void savePhotoStateAwaitable() }
 
 export async function savePhotoStateAwaitable(run = currentRun()): Promise<void> {
-  await saveChanges('photo-feature', { run })
+  await saveChanges(PHOTO_FEATURE_ID, { run })
 }

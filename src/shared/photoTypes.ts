@@ -1,4 +1,5 @@
 import type { ModSlice } from '@vx/modkit/shared'
+import { PHOTO_FEATURE_ID } from './photoSwitches'
 
 /** The maximum length of each player-edited prompt sent with a redraw. */
 export const PHOTO_PROMPT_LIMIT = 8000
@@ -96,5 +97,5 @@ export function normalizePhoto(stored: unknown, legacy: Readonly<Record<string, 
 
 /** Shared visibility reads the same payload as the renderer's record handles. */
 export function savedPhoto(record: { ex?: Record<string, ModSlice> }): ChatPhoto | null {
-  return normalizePhoto(record.ex?.['photo-feature']?.data, record as Readonly<Record<string, unknown>>)
+  return normalizePhoto(record.ex?.[PHOTO_FEATURE_ID]?.data, record as Readonly<Record<string, unknown>>)
 }
