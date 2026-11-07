@@ -962,7 +962,7 @@ optionGroups: [{ id: 'loader', label: 'Loading animation', hint: 'The animation 
 | `packages/modkit/src/shared/manifest.ts`, `range.ts` | Reading `vxmod.json`, and the version-range subset. |
 | `test/mods.test.ts` | The rules, tested against a list with every shape of mod. |
 | `test/mods/` | The loader's tests, on the fixture mods under `test/fixtures/mods/`. `npm run test:electron`, after a build, runs them in the real app. |
-| `test/kit/` | The kit's own checks: a mod file imports only the kit (`boundary.test.ts`), the hook table and the kit's surface agree with the code (`contract.test.ts`), and the per-hook compatibility check (`compat.test.ts`). |
+| `test/kit/` | The kit's own checks: a mod file imports only the kit and no game file imports a mod's (`boundary.test.ts`), the hook table and the kit's surface agree with the code (`contract.test.ts`), and the per-hook compatibility check (`compat.test.ts`). |
 
 ## A rule in shared code
 
