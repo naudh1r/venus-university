@@ -117,7 +117,7 @@ describe('a new playthrough', () => {
   it('names the playthrough mods that are on, and no others', () => {
     expect(playthroughMods(NO_SWITCHES, LIST)).toEqual(['places', 'work'])
     expect(playthroughMods(withMod(NO_SWITCHES, 'places', false), LIST)).toEqual([])
-    expect(playthroughMods(NO_SWITCHES)).toEqual([])
+    expect(playthroughMods(NO_SWITCHES, [])).toEqual([])
   })
 
   it('keeps the version of every mod that is on, of either scope', () => {
@@ -128,7 +128,7 @@ describe('a new playthrough', () => {
       free: '1.0.0',
       quiet: '1.0.0'
     })
-    expect(playthroughModVersions(NO_SWITCHES)).toEqual({})
+    expect(playthroughModVersions(NO_SWITCHES, [])).toEqual({})
   })
 })
 

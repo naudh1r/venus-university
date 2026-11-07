@@ -58,16 +58,21 @@ describe('MODS with the installed mods', () => {
   it('lists them with the in-repo ones, sorted by id, for every status', async () => {
     await import('../../src/renderer/installedMods')
     const { MODS, modOn, NO_SWITCHES } = await import('@shared/mods')
-    expect(MODS.map((mod) => mod.id)).toEqual(['apple', 'lib', 'user', 'zebra'])
+    // Beside whatever in-repo mods the build has (none on core), in one list sorted by id.
+    const ids = MODS.map((mod) => mod.id)
+    expect(ids).toEqual(expect.arrayContaining(['apple', 'lib', 'user', 'zebra']))
+    expect(ids).toEqual([...ids].sort())
     expect(modOn(NO_SWITCHES, 'apple')).toBe(true)
     expect(modOn(NO_SWITCHES, 'zebra')).toBe(true)
   })
 
   it('makes the installed part what a table read again carries, leaving the build\'s own entries', async () => {
     const { MODS, installMods, modById, setInstalledMods } = await import('@shared/mods')
+    const builtIn = [...MODS]
     installMods([def('apple'), def('zebra'), def('user')])
-    setInstalledMods([def('zebra', { defaultOn: false }), def('mango'), def('apple', { defaultOn: false })], ['apple'])
-    expect(MODS.map((mod) => mod.id)).toEqual(['apple', 'mango', 'zebra'])
+    setInstalledMods([def('zebra', { defaultOn: false }), def('mango'), def('apple', { defaultOn: false })], [...builtIn.map((mod) => mod.id), 'apple'])
+    expect(MODS.map((mod) => mod.id)).toEqual([...builtIn.map((mod) => mod.id), 'apple', 'mango', 'zebra'].sort())
+    for (const mod of builtIn) expect(modById(mod.id)).toBe(mod)
     expect(modById('zebra')?.defaultOn).toBe(false)
     expect(modById('apple')?.defaultOn).toBe(true)
   })
