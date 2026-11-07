@@ -7,5 +7,6 @@ import type { ModSet } from './boundaryScan'
  * files, and a mod has moved out when its entry here is gone.
  */
 export const MOD_FILES: Record<string, ModSet> = {
-  'scene-notes': { globs: ['src/shared/sceneNotes.ts', 'src/renderer/sceneNotes/**'] }
+  'scene-notes': { globs: ['src/shared/sceneNotes.ts', 'src/renderer/sceneNotes/**'] },
+  'study-room': { globs: ['src/shared/studyRoom.ts', 'src/renderer/studyRoom/**'] }
 }
