@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "mods": {
+    "photo-feature": {
+      "1.7.1": {
+        "source": "https://github.com/venus-extracurriculars/build",
+        "sha256": "",
+        "approved": true,
+        "installedAt": "2026-11-07T00:00:00Z"
+      }
+    }
+  }
+}

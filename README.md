@@ -45,6 +45,32 @@ The allowlist told the truth: what it said was left is exactly what kept the bun
 4. **The manifest repeats the `ModDef`:** name, version, blurb, options, `offNote`. Generating one from the other keeps them in step.
 5. **Small:** `sharedModOn`'s doc comment says main has no binding, but `modsService.ts` binds it, and Photo's fix relies on that.
 
+## Try it
+
+The three releases I tested are in [`releases/`](releases), with an `installed.json` standing in for the installer. They're test builds only:
+- Photo's `EchoPanel` is stubbed out, since Echo isn't on `core`.
+- `installed.json` approves Photo's `main.js` by hand. Without it, Photo needs `allowUnreviewedMain: true` in `settings.json`.
+- Bunnyfeeds needs #281 (`replacingUnmarked`), so until #281 is in `core`, use `core` with #281 merged in.
+
+In PowerShell, from a checkout of `core` with #281 (this folder's zips downloaded into `$z`):
+
+```powershell
+npm install
+npm --prefix packages/modkit install
+# if `npm run dev` says "Electron uninstall": node node_modules\electron\install.js
+
+$z = "$HOME\Downloads"
+New-Item -ItemType Directory -Force data\mods | Out-Null
+Expand-Archive "$z\emoji-extended-1.0.0.zip" data\mods\emoji-extended\1.0.0 -Force
+Expand-Archive "$z\bunnyfeeds-1.1.4.zip"     data\mods\bunnyfeeds\1.1.4 -Force
+Expand-Archive "$z\photo-feature-1.7.1.zip"  data\mods\photo-feature\1.7.1 -Force
+Copy-Item "$z\installed.json" data\mods\installed.json
+
+npm run dev
+```
+
+Then switch the three on under **Mods**. Copy `settings.json` from another checkout first if you want your AI key and ComfyUI setup.
+
 ## Suggestions
 
 - **`vxmod build`:** generate `vxmod.json` from the `ModDef`, derive `hooks` from what the bundles actually use, and refuse to build when a game file ends up in the bundle. The throwaway script does most of that: [`vxbuild.mjs`](vxbuild.mjs), if it's a useful start.
