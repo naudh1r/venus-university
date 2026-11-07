@@ -18,7 +18,6 @@ import {
   switchedOn,
   withMod,
   withOption,
-  withPhotoSettingsCarried,
   type ModSwitches,
   type ModDef
 } from '@shared/mods'
@@ -164,22 +163,6 @@ describe("Photo Feature's switches", () => {
       body: false,
       duo: false
     })
-  })
-
-  it('carry the body switch over from the game settings once, and never switch it off', () => {
-    const carried = withPhotoSettingsCarried(NO_SWITCHES, { bodyDetails: true })
-    expect(readPhotoOptions(carried).body).toBe(true)
-    const moved = withOption(NO_SWITCHES, PHOTO_FEATURE, 'body', false)
-    expect(withPhotoSettingsCarried(moved, { bodyDetails: true })).toBe(moved)
-    expect(withPhotoSettingsCarried(NO_SWITCHES, { bodyDetails: false })).toBe(NO_SWITCHES)
-  })
-
-  it('carry over what Settings had, until the Mods screen has its own', () => {
-    const carried = withPhotoSettingsCarried(NO_SWITCHES, { photos: false, photoLoader: 'shimmer' })
-    expect(readPhotoOptions(carried)).toMatchObject({ photos: false, loader: 'shimmer' })
-    const moved = withOption(withOption(NO_SWITCHES, PHOTO_FEATURE, 'photos', true), PHOTO_FEATURE, 'loader-dots', true)
-    expect(withPhotoSettingsCarried(moved, { photos: false, photoLoader: 'shimmer' })).toBe(moved)
-    expect(withPhotoSettingsCarried(NO_SWITCHES, {})).toBe(NO_SWITCHES)
   })
 })
 

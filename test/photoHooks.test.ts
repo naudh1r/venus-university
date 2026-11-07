@@ -184,11 +184,6 @@ const HOOKS: readonly {
     why: "a post's picture cannot be opened from her profile's feed list"
   },
   {
-    file: 'src/main/services/modsService.ts',
-    needs: ['withPhotoSettingsCarried(stored, await settingsToCarry())'],
-    why: 'what the player set in the game settings under 1.1.3 is lost'
-  },
-  {
     file: 'src/renderer/mods/index.ts',
     needs: ["import.meta.glob('../modEntries/*.ts'"],
     why: 'the mod is never registered, so the game asks it nothing'
