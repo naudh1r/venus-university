@@ -51,4 +51,4 @@ The allowlist told the truth: what it said was left is exactly what kept the bun
 - **The installer:** `unpack.ts` already does the safe unpack; what's missing is writing `installed.json` (hash, source, approval).
 - **A reverse check:** a test that no game file imports a mod's file, to catch case 1 before it ships.
 
-Happy to help with any of these.
+The build here was only a test build to see whether the mods hold up, not a proposal for how `vxmod build` should work. If you have other ideas for any of this, go with them; happy to help either way.
