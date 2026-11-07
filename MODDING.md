@@ -1,10 +1,5 @@
 # Mods in this build
 
-Mods can type their own job and location catalogues with `import type { JobDef, LocationDef }
-from '@vx/modkit/shared'`. These are the game's existing definition types, not copies.
-The import is erased at runtime and does not register a catalogue or load native jobs or
-locations. Existing hook registration and mod on/off rules still control whether entries act.
-
 ### Character sprite URLs
 
 Renderer mods can import `spriteUrl(charId, sprite, version?, staged?)` from
@@ -414,6 +409,9 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
   opening bytes name, and a character's own LoRA pick. `BACKUP_ZIP_LIMITS` is the game's archive cap.
 - `DORM_IDS`, `dormLabel`, `LOCATIONS` and `NARRATIVE_LOCATIONS` (`shared`): the dorm and place
   vocabulary; `customOutfitSlotsIn` and `outfitTagsFor` read her own wardrobe.
+  Use `import type { JobDef, LocationDef } from '@vx/modkit/shared'` to type a mod's own
+  job and location catalogues. TypeScript erases the import. The mod registers its entries
+  through the usual hooks.
 - `affectionFor`, `dispositionOf`, `dedupedMemoriesFor`, `emptyFlags` and `relationshipTagOf`
   (`shared`) read the relationship a prompt describes. `areNpcFriends`, `npcFriendsOf`, `npcPairOf`
   and `zoneOf` read the relationships between characters from the map the caller supplies.
