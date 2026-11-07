@@ -132,7 +132,7 @@ export function ModsBrowse({
                   }}
                 >
                   <div className="vu-mods-store-cover-wrap">
-                    <Cover mod={mod} />
+                    <Cover mod={mod} place={mods.indexOf(mod)} />
                     {sticker && (
                       <span
                         className={`vu-sticker${sticker === 'Update' ? ' vu-sticker--accent' : ''}`}
@@ -158,10 +158,10 @@ export function ModsBrowse({
               {...gestures(false, lift, press)}
               onClick={() => setSelectedId(null)}
             >
-              ← Browse
+              ← All mods
             </motion.button>
             <div className="vu-mods-store-scroll">
-              <Cover mod={selected} banner />
+              <Cover mod={selected} place={mods.indexOf(selected)} banner />
               <header className="vu-mods-store-header">
                 <div>
                   <h3 className="vu-mods-detail-name">{selected.name}</h3>
@@ -301,20 +301,44 @@ export function ModsBrowse({
   )
 }
 
-function Cover({ mod, banner = false }: { mod: CatalogMod; banner?: boolean }): JSX.Element {
+function Cover({ mod, place, banner = false }: { mod: CatalogMod; place: number; banner?: boolean }): JSX.Element {
   const [failed, setFailed] = useState(false)
   const seed = [...mod.id].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 0)
+  // Without art, a mod's cover is its initials on the calendar's tones in turn, so neighbours differ.
+  const tone = COVER_TONES[Math.max(place, 0) % COVER_TONES.length]
   return (
     <div
       className={`vu-mods-store-cover${banner ? ' vu-mods-store-cover--banner' : ''}`}
       style={
         {
-          '--cover-angle': `${seed % 360}deg`,
-          '--cover-stop': `${30 + (seed % 35)}%`
+          '--cover-tone': `var(${tone})`,
+          '--cover-angle': `${seed % 360}deg`
         } as CSSProperties
       }
     >
-      {mod.coverData && !failed ? <img src={mod.coverData} alt="" onError={() => setFailed(true)} /> : <span>{mod.name}</span>}
+      {mod.coverData && !failed ? (
+        <img src={mod.coverData} alt="" onError={() => setFailed(true)} />
+      ) : (
+        <span aria-hidden="true">{initialsOf(mod.name)}</span>
+      )}
     </div>
   )
+}
+
+/** The tones a cover without art is drawn in. */
+const COVER_TONES = [
+  '--vu-cat-plans-tone',
+  '--vu-cat-occasion-tone',
+  '--vu-cat-class-tone',
+  '--vu-cat-work-tone'
+] as const
+
+/** A name's initials for its cover: "Photo Feature" is PF, "Bunnyfeeds" is B. */
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((word) => [...word][0].toUpperCase())
+    .join('')
 }
