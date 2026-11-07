@@ -2212,6 +2212,7 @@ export function GameView(): JSX.Element {
           calendarBadge={calendarBadge}
           bunnyboardBadge={bunnyboardBadge}
           railDead={false}
+          createdScene={created}
           modButtons={!created && !replaying}
           onCalendar={() => setPanel({ kind: 'calendar' })}
           onBunnyboard={() => useBunnyboardStore.getState().openApp()}

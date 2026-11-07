@@ -35,6 +35,7 @@ export default defineConfig({
     }
   },
   preload: {
+    build:{rollupOptions:{input:{index:resolve("src/preload/index.ts"),modSurface:resolve("src/preload/modSurface.ts")}}},
     resolve: {
       alias: {
         '@shared': resolve('src/shared'),

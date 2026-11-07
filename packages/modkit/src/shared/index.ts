@@ -124,3 +124,5 @@ export {
   DEFAULT_PLAYER_STATS,
 } from '../bridge/shared'
 export type { CharFlags, CustomOutfitSlot, Season, NpcRelationshipMap } from '../bridge/shared'
+
+export type { DesktopSurfaceBridge } from '../bridge/shared'

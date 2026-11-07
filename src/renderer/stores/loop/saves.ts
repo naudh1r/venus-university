@@ -85,17 +85,27 @@ export async function writesSettled(): Promise<void> {
   }
 }
 
+/** Hold a decision point for a deferred write. Only the last retained turn is serialized. */
+export function prepareAutosave(scene: SceneState | null): () => Promise<void> {
+  const snapshot = useGameStore.getState()
+  const run = currentRun()
+  return () => {
+    if (runStale(run) || useGameStore.getState().loads !== snapshot.loads) return Promise.resolve()
+    return writeAutosave(scene, undefined, snapshot)
+  }
+}
+
 /**
  * Overwrites the autosave, recording `scene` in place of what is on screen now. The save is taken
  * as the write's turn comes, and the stage picture is drawn off `scene` after it. `onWritten` is
  * told how the write went, and not at all where it was skipped.
  */
-export function writeAutosave(scene: SceneState | null, onWritten?: (result: Result<null>) => void): Promise<void> {
+export function writeAutosave(scene: SceneState | null, onWritten?: (result: Result<null>) => void, snapshot?: ReturnType<typeof useGameStore.getState>): Promise<void> {
   return queueWrite(async () => {
-    const game = useGameStore.getState()
+    const game = snapshot ?? useGameStore.getState()
     const playthroughId = game.playthroughId
     if (!playthroughId) return
-    const draft: SaveDraft = { ...game.toGameSave(), scene }
+    const draft: SaveDraft = { ...game.toGameSave(game), scene }
 
     const thumbnail = scene ? await composeStageThumbnail(scene) : null
     const result = await window.api.saves.autosave(

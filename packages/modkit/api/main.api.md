@@ -4,6 +4,9 @@
 
 ```ts
 
+import { BrowserWindow } from 'electron';
+import { BrowserWindowConstructorOptions } from 'electron';
+
 // @public
 export interface BackupPart {
     export(context: BackupPartContext): Promise<BackupPartExport>;
@@ -91,6 +94,12 @@ export interface ComfyRenderRequest {
 }
 
 // @public
+export function completeModStructured<T>(request: StructuredRequest, signal: AbortSignal, lowLatency?: boolean): Promise<T>;
+
+// @public
+export function createDesktopSurface(owner: string, options: Omit<BrowserWindowConstructorOptions, 'webPreferences'>): BrowserWindow;
+
+// @public
 export function extractZip(archivePath: string, destDir: string, limits?: {
     maxEntries: number;
     maxTotalBytes: number;
@@ -108,6 +117,9 @@ export interface FinalRequestPlan {
     request: StructuredRequest;
     sampling?: Partial<Pick<Settings, SamplingKey>>;
 }
+
+// @public
+export function hasExpressionArt(id: string, expression: Emotion): Promise<boolean>;
 
 // @public
 export interface InvokeContext {

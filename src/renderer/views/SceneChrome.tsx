@@ -53,6 +53,8 @@ import {
 import '../vu_styles/Scene.css'
 
 export interface SceneChromeProps {
+  /** Scene Creator has no Calendar; scene tools arrive with Settings there. */
+  createdScene?: boolean
   /** The slot's own half of the day, not the hour the screen is being read at. */
   theme: ScreenTheme
   date: number
@@ -422,7 +424,7 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
           <play.Seat
             key={modId}
             Seat={RailSeat}
-            visible={!dark && shown.has('calendar')}
+            visible={!dark && shown.has(props.createdScene ? 'settings' : 'calendar')}
             open={() => props.onModPanel(modId)}
           />
         ))}

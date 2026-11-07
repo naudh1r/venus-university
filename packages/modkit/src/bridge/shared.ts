@@ -88,3 +88,5 @@ export {
   PROMPT_PARTS,
   SCENE_TEXT_IDS
 } from '@shared/promptText'
+
+export type { DesktopSurfaceBridge } from '../../../../src/shared/desktopSurface'

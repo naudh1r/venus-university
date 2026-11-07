@@ -362,7 +362,15 @@ export interface PostPictureProps {
   postId: string
 }
 
+/** A source-scoped relationship change extracted from the current scene. */
+export type SceneLedgerEntry =
+  | { kind: 'memory'; value: NonNullable<LedgerResponse['memories']>[number] }
+  | { kind: 'event'; value: NonNullable<LedgerResponse['events']>[number] }
+  | { kind: 'act'; value: NonNullable<LedgerResponse['acts']>[number] }
+
 export interface ModHooks {
+  /** Return false to omit this scene row before projection and settlement. */
+  keepSceneLedgerEntry?: (entry: Readonly<SceneLedgerEntry>) => boolean
   /**
    * Captured synchronously when core builds a prompt's state, before asynchronous request work.
    * Return a structured-cloneable value (or undefined to omit it). Core copies the value into
@@ -1139,6 +1147,18 @@ export function modRequest<S extends keyof RequestSpots>(spot: S, ctx: RequestSp
     if (extend) next = extend(next, ctx)
   }
   return next
+}
+
+export function filterSceneLedger(ledger: LedgerResponse): LedgerResponse {
+  const filters = active().flatMap(hooks => hooks.keepSceneLedgerEntry ? [hooks.keepSceneLedgerEntry] : [])
+  if (!filters.length) return ledger
+  const keep = (entry: SceneLedgerEntry) => filters.every(filter => filter(entry) !== false)
+  return {
+    ...ledger,
+    ...(ledger.memories && { memories: ledger.memories.filter(value => keep({kind: 'memory', value})) }),
+    ...(ledger.events && { events: ledger.events.filter(value => keep({kind: 'event', value})) }),
+    ...(ledger.acts && { acts: ledger.acts.filter(value => keep({kind: 'act', value})) })
+  }
 }
 
 export function slotSettled(ctx: SlotSettled): void {
