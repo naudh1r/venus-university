@@ -8,7 +8,7 @@ import {
 } from '../../shared/characterDynamics'
 import { fullNameOf, type Character } from '@vx/modkit/shared'
 import { gestures, lift, panelUnderTab, press, quietLift, quietPress, veilIn, useModalShell, SelectField, TextField, TitleTab } from '@vx/modkit/renderer'
-import { spriteUrl } from '../stores/characterStore'
+import { spriteUrl } from '@vx/modkit/renderer'
 import type { ScreenTheme } from '@vx/modkit/renderer'
 import '../vu_styles/CharacterDynamics.css'
 
