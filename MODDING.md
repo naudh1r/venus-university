@@ -791,10 +791,12 @@ A mod adds to two lists the game owns, so that everything that reads them sees w
   a comment's own fields (`id`, `handle`, `emoji`, `text`, `at`) and the mod's slice in `ex`, its
   `id` one no comment of the post has. A mod's own fields go in its slice, written with its
   `recordField`'s `with` before the comment is added and with `set` after.
-- `addMemory(id, charId, memory, { replacing, run })` adds a memory of hers, where the prompts, her
-  affection and the memory list read memories. It is a memory's own `date`, `type` and `desc`,
+- `addMemory(id, charId, memory, { replacing, replacingUnmarked, run })` adds a memory of hers, where the
+  prompts, her affection and the memory list read memories. It is a memory's own `date`, `type` and `desc`,
   marked as the mod's: it carries the mod's slice, an empty one where it brings none. `replacing`
   picks which of her memories the mod marked before go in its place; no other memory is asked.
+  `replacingUnmarked` can also remove memories with no slices (absent, empty or not an object `ex`), for migrating older
+  saves. Unmarked memories include the game's own, so match only what the mod wrote before its switch.
 
 `toggleFeedLike(charId, postId)` is the reader's like on her post, put on or taken off as the heart
 on a post in the game does.

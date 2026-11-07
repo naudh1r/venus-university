@@ -19,6 +19,7 @@ import { Variants } from 'motion/react';
 // @public
 export function addMemory(modId: string, charId: string, memory: CharMemory, options?: RecordWriteOptions & {
     replacing?: (memory: Readonly<CharMemory>) => boolean;
+    replacingUnmarked?: (memory: Readonly<CharMemory>) => boolean;
 }): Result<null>;
 
 // @public
