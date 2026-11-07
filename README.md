@@ -2,6 +2,14 @@
 
 I built three of my mods as installed releases and ran them on a plain `core` build, to see whether "kit-only" holds outside the repo before anyone builds `vxmod build` or the installer. Short version: it holds, the loader did its job, and the test turned up a few things the build tool will need to handle.
 
+## Verdict
+
+**Kit-only works:** three mods run as installed releases on plain `core`, with no game code in their bundles. **What's missing before mods can ship as installs is tooling, not the kit:**
+- a `vxmod build` that generates `vxmod.json`, the `hooks` list above all, from the code
+- the installer that writes `installed.json`
+
+Without the build tool, every author writes the hooks list by hand, and a missing name only shows when that feature is first used.
+
 ## What I did
 
 - **Base:** `core` + #281 (`addMemory`'s `replacingUnmarked`, which Bunnyfeeds needs). No mods built in.
