@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- `addMemory` accepts `adopting` to replace unmarked memories a mod wrote before its switch.
+- `addMemory` accepts `replacingUnmarked` to replace unmarked memories a mod wrote before its switch.
 
 - Renderer exports native `spriteUrl` for character sprites, including cache versions and
   staging, through the game's desktop/web image resolver.
