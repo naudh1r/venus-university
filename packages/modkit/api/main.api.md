@@ -125,6 +125,7 @@ export function hasExpressionArt(id: string, expression: Emotion): Promise<boole
 export interface InvokeContext {
     // (undocumented)
     readonly id: string;
+    readonly senderId: number;
     // (undocumented)
     readonly signal: AbortSignal;
 }

@@ -11,7 +11,8 @@
   `keepSceneLedgerEntry` can veto a scene result before it is combined with text messages.
 - Desktop mods can open a sandboxed window with `createDesktopSurface`, check for
   expression art, and send a cancellable structured request to the configured provider.
-  The auxiliary page communicates through its mod's channel namespace.
+  The auxiliary page communicates through its mod's channel namespace. A main invoke
+  handler can use its host-provided `senderId` to associate a surface with the calling window.
 
 - `addMemory` accepts `replacingUnmarked` to replace unmarked memories a mod wrote before its switch.
 - `scene()`, `useScene(select)` and `subscribeScene` read the scene on screen, in a playthrough,
