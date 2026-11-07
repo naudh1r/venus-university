@@ -12,7 +12,7 @@ const { useGameStore } = await import('../src/renderer/stores/gameStore')
 const { useSettingsStore } = await import('../src/renderer/stores/settingsStore')
 const { useSetupStore } = await import('../src/renderer/stores/setupStore')
 const local = await import('../src/renderer/stores/localPhotoStore')
-const { setPhotoSwitches } = await import('../src/shared/photoSwitches')
+const { setRendererPhotoSwitches } = await import('./fixtures/photoSwitchState')
 const turn = await import('../src/renderer/stores/photoTurn')
 const girl = character({ charId: 'a' })
 const earlyFile = 'sarah_chat_001.png'
@@ -40,7 +40,7 @@ beforeEach(async () => {
   useGameStore.getState().reset()
   const { useModsStore } = await import('../src/renderer/stores/modsStore')
   useModsStore.setState({ switches: { on: { 'photo-feature': true }, options: {} } })
-  setPhotoSwitches({ on: true, photos: true, explicit: true, webp: false })
+  setRendererPhotoSwitches({ on: true, photos: true, explicit: true, webp: false })
   useSettingsStore.setState({ settings: { comfyDeferred: false } as never })
   useSetupStore.setState({ status: { comfyReady: true } as never })
   useGameStore.setState(s => ({ playthroughId: '1', chars: ['a'], date: 0, time: 0,
@@ -73,7 +73,7 @@ describe('an early DM photo while the reply is still being written', () => {
         expect(drop).toHaveBeenCalledWith('1', 'a', earlyFile, { cancelOnly: true })
       }
       if (outcome === 'load') useGameStore.setState(s => ({ loads: s.loads + 1 }))
-      if (outcome === 'switched-off') setPhotoSwitches({ on: false })
+      if (outcome === 'switched-off') setRendererPhotoSwitches({ on: false })
       if (outcome === 'blocked') useGameStore.setState(s => ({ charInfo: {
         a: { ...s.charInfo.a, flags: { ...s.charInfo.a.flags, blocked: true } }
       } }))

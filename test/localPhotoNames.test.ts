@@ -17,7 +17,10 @@ vi.mock('electron', () => ({
 const { carryPhotos, photoLanded, reservePhotoName, storeWebpPhoto } = await import(
   '../src/main/services/localPhotoService'
 )
-const { setPhotoSwitches } = await import('../src/shared/photoSwitches')
+const { setModSwitches, getModSwitches } = await import('../src/main/services/modsService')
+const { withOption } = await import('../src/shared/mods')
+const { photoMainEntry } = await import('../src/main/modEntries/photo-feature')
+photoMainEntry()
 
 const PNG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
 const KEPT = Buffer.concat([PNG, Buffer.from('kept')])
@@ -29,7 +32,7 @@ beforeEach(async () => {
   for (const pid of ['100', '200', '300', '301', '400', '401', '500', '501']) {
     await mkdir(join(root, 'data', 'saves', pid), { recursive: true })
   }
-  setPhotoSwitches({ webp: false })
+  await setModSwitches(withOption(await getModSwitches(), 'photo-feature', 'webp', false))
 })
 
 afterEach(async () => {
@@ -81,7 +84,7 @@ async function exists(path: string): Promise<boolean> {
 describe('photos saved as WebP', () => {
   const folder = (): string => join(root, 'data', 'saves', '400', 'mod-data', 'photo-feature', 'april-1')
 
-  beforeEach(() => setPhotoSwitches({ webp: true }))
+  beforeEach(async () => setModSwitches(withOption(await getModSwitches(), 'photo-feature', 'webp', true)))
 
   it('names a new picture as WebP, counting the PNGs already there', async () => {
     await mkdir(folder(), { recursive: true })

@@ -184,11 +184,6 @@ const HOOKS: readonly {
     why: "a post's picture cannot be opened from her profile's feed list"
   },
   {
-    file: 'src/renderer/stores/modsStore.ts',
-    needs: ['setPhotoSwitches(photoSwitchesOf(switches))'],
-    why: 'the Mods screen cannot turn photographs off or pick how a photo waits'
-  },
-  {
     file: 'src/main/services/modsService.ts',
     needs: ['withPhotoSettingsCarried(stored, await settingsToCarry())'],
     why: 'what the player set in the game settings under 1.1.3 is lost'

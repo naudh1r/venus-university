@@ -1,5 +1,5 @@
 import { PHOTO_LOADERS, photoLoaderOf } from './photoLoader'
-import { loaderOptionId, type PhotoSwitches } from './photoSwitches'
+import { loaderOptionId } from './photoSwitches'
 import type { PlaythroughRecord } from './types'
 
 /**
@@ -324,26 +324,6 @@ export interface ModPlaythroughFields {
    * recorded their versions.
    */
   modVersions?: Record<string, string>
-}
-
-/**
- * Photo Feature's switches as this build's Mods screen has them: the mod's own module reads
- * these wherever it acts, so the build only has to hand them over (`setPhotoSwitches`), in main
- * when the switches are read or written and in the renderer whenever one moves.
- */
-export function photoSwitchesOf(switches: ModSwitches): PhotoSwitches {
-  const loader =
-    PHOTO_LOADERS.find((l) => optionOn(switches, PHOTO_FEATURE, loaderOptionId(l.value)))?.value ??
-    'bunny'
-  return {
-    on: modOn(switches, PHOTO_FEATURE),
-    photos: optionOn(switches, PHOTO_FEATURE, 'photos'),
-    explicit: optionOn(switches, PHOTO_FEATURE, 'explicit'),
-    webp: optionOn(switches, PHOTO_FEATURE, 'webp'),
-    body: optionOn(switches, PHOTO_FEATURE, 'body'),
-    duo: optionOn(switches, PHOTO_FEATURE, 'duo'),
-    loader
-  }
 }
 
 /**

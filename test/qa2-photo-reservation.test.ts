@@ -2,7 +2,7 @@ import { savedPhoto } from '../src/shared/photoTypes'
 import { photoCalls } from './fixtures/photoCalls'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { ChatMessage, Result } from '@shared/types'
-import { setPhotoSwitches } from '@shared/photoSwitches'
+import { setRendererPhotoSwitches } from './fixtures/photoSwitchState'
 stubApi({ jobs: { onProgress: () => () => {} } })
 const { useGameStore } = await import('../src/renderer/stores/gameStore')
 const { sendPhoto } = await import('../src/renderer/stores/photoTurn')
@@ -20,7 +20,7 @@ it.each(['replacement', 'reload', 'disabled'] as const)('never renders a photo w
   const message: ChatMessage = { id: 'first', sender: 'contact', text: 'My coffee.', date: 0, time: 0 }
   useGameStore.setState(s => ({ playthroughId: '123', chars: ['a'], characters: { a: girl }, charInfo: { a: charInfo({ flags: { ...charInfo().flags, gaveContactInfo: true } }) },
     bunnyboard: { ...s.bunnyboard, conversations: { a: { charId: 'a', unread: 0, summary: null, messages: [message] } } } }))
-  setPhotoSwitches({ photos: true })
+  setRendererPhotoSwitches({ photos: true })
   const allowed = vi.spyOn(localPhoto, 'canSendPhotos').mockReturnValue(true)
   let finish!: (value: Result<string>) => void
   const reserve = vi.fn(() => new Promise<Result<string>>(resolve => { finish = resolve }))

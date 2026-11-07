@@ -1,6 +1,6 @@
 import { registerPhotoBackup } from './localPhotoBackup'
 import { registerImagePromptDraft } from '@vx/modkit/shared'
-import { registerPhotoDraft } from '../shared/modEntries/photo-feature'
+import { registerPhotoDraft } from '../shared/photoDraft'
 import { BrowserWindow } from 'electron'
 import type { InvokeContext, InvokeHandler } from '@vx/modkit/main'
 import type { PhotoRenderOptions } from '../shared/photoTypes'

@@ -81,10 +81,10 @@ async function photosSwitched(on: boolean): Promise<void> {
   const { useSettingsStore } = await import('../src/renderer/stores/settingsStore')
   const { useSetupStore } = await import('../src/renderer/stores/setupStore')
   const { useModsStore } = await import('../src/renderer/stores/modsStore')
-  const { setPhotoSwitches } = await import('../src/shared/photoSwitches')
+  const { setRendererPhotoSwitches } = await import('./fixtures/photoSwitchState')
   // The mod itself is off until switched on; the option is what these tests move.
   useModsStore.setState({ switches: { on: { 'photo-feature': true }, options: {} } })
-  setPhotoSwitches({ photos: on })
+  setRendererPhotoSwitches({ photos: on })
   useSettingsStore.setState({ settings: { comfyDeferred: false } as never })
   useSetupStore.setState({ status: { comfyReady: true } as never })
 }

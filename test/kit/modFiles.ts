@@ -163,7 +163,7 @@ export const MOD_FILES: Record<string, ModSet> = {
   },
   'photo-feature': {
     globs: [
-      'src/shared/photo{Body,Duo,Files,Framing,Gate,Loader,Pose,Prompt,Switches,Types,Wardrobe,Words}.ts',
+      'src/shared/photo{Body,Definition,Draft,Duo,Files,Framing,Gate,Loader,Pose,Prompt,Switches,Types,Wardrobe,Words}.ts',
       'src/shared/characterBody.ts',
       'src/shared/heldPosts.ts',
       'src/shared/postAudience.ts',

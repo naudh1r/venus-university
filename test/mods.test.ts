@@ -1,3 +1,5 @@
+import { bindRendererPhotoReader, useModsStore } from './fixtures/photoSwitchState'
+import { photoSwitches } from '../src/shared/photoSwitches'
 import { describe, expect, it } from 'vitest'
 import {
   BUILD,
@@ -11,15 +13,21 @@ import {
   NO_SWITCHES,
   optionOn,
   PHOTO_FEATURE,
-  photoSwitchesOf,
   playthroughModVersions,
   playthroughMods,
   switchedOn,
   withMod,
   withOption,
   withPhotoSettingsCarried,
+  type ModSwitches,
   type ModDef
 } from '@shared/mods'
+
+function readPhotoOptions(switches: ModSwitches) {
+  useModsStore.setState({ switches })
+  bindRendererPhotoReader()
+  return photoSwitches()
+}
 
 const base = { author: 'a', version: '1.0.0', blurb: '' }
 
@@ -131,7 +139,7 @@ describe('options', () => {
 
 describe("Photo Feature's switches", () => {
   it('are off, generating, and the bunny until touched', () => {
-    expect(photoSwitchesOf(NO_SWITCHES)).toEqual({
+    expect(readPhotoOptions(NO_SWITCHES)).toEqual({
       on: false,
       photos: true,
       explicit: true,
@@ -147,7 +155,7 @@ describe("Photo Feature's switches", () => {
     switches = withOption(switches, PHOTO_FEATURE, 'photos', false)
     switches = withOption(switches, PHOTO_FEATURE, 'loader-dots', true)
     switches = withOption(switches, PHOTO_FEATURE, 'webp', false)
-    expect(photoSwitchesOf(switches)).toEqual({
+    expect(readPhotoOptions(switches)).toEqual({
       on: false,
       photos: false,
       explicit: true,
@@ -160,7 +168,7 @@ describe("Photo Feature's switches", () => {
 
   it('carry the body switch over from the game settings once, and never switch it off', () => {
     const carried = withPhotoSettingsCarried(NO_SWITCHES, { bodyDetails: true })
-    expect(photoSwitchesOf(carried).body).toBe(true)
+    expect(readPhotoOptions(carried).body).toBe(true)
     const moved = withOption(NO_SWITCHES, PHOTO_FEATURE, 'body', false)
     expect(withPhotoSettingsCarried(moved, { bodyDetails: true })).toBe(moved)
     expect(withPhotoSettingsCarried(NO_SWITCHES, { bodyDetails: false })).toBe(NO_SWITCHES)
@@ -168,7 +176,7 @@ describe("Photo Feature's switches", () => {
 
   it('carry over what Settings had, until the Mods screen has its own', () => {
     const carried = withPhotoSettingsCarried(NO_SWITCHES, { photos: false, photoLoader: 'shimmer' })
-    expect(photoSwitchesOf(carried)).toMatchObject({ photos: false, loader: 'shimmer' })
+    expect(readPhotoOptions(carried)).toMatchObject({ photos: false, loader: 'shimmer' })
     const moved = withOption(withOption(NO_SWITCHES, PHOTO_FEATURE, 'photos', true), PHOTO_FEATURE, 'loader-dots', true)
     expect(withPhotoSettingsCarried(moved, { photos: false, photoLoader: 'shimmer' })).toBe(moved)
     expect(withPhotoSettingsCarried(NO_SWITCHES, {})).toBe(NO_SWITCHES)

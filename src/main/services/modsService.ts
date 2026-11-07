@@ -4,14 +4,12 @@ import {
   modOn,
   optionOn,
   NO_SWITCHES,
-  photoSwitchesOf,
   withPhotoSettingsCarried,
   type ModSwitches
 } from '@shared/mods'
 import { EMPTY_SESSION, isRunning, type ModSessionTable } from '@shared/modSession'
 import type { Manifest } from '@vx/modkit/host/shared'
 import { setSharedModRules } from '@shared/modRules'
-import { setPhotoSwitches } from '@shared/photoSwitches'
 import { getDataPath, getModsPath, getSettingsPath } from '../paths'
 import { readValidatedJson, writeAtomicJson } from './jsonFile'
 
@@ -77,8 +75,6 @@ export async function getModSwitches(): Promise<ModSwitches> {
   const switches = withPhotoSettingsCarried(stored, await settingsToCarry())
   // Carried once and kept here: the game's next settings save drops what it does not know.
   if (switches !== stored) await setModSwitches(switches)
-  // Main's own copy of Photo Feature's switches, for the renders it draws (body details).
-  setPhotoSwitches(photoSwitchesOf(switches))
   known = cleanSwitches(switches)
   return known
 }
@@ -91,7 +87,6 @@ export async function setModSwitches(switches: ModSwitches): Promise<void> {
     { schemaVersion: SCHEMA_VERSION, ...cleanSwitches(switches) },
     { code: 'MODS_UNWRITABLE', message: 'Could not save mods.json.' }
   )
-  setPhotoSwitches(photoSwitchesOf(switches))
   known = cleanSwitches(switches)
 }
 

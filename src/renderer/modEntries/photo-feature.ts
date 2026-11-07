@@ -1,6 +1,6 @@
 import { photoInvoke } from '../stores/photoInvoke'
 import { registerImagePromptDraft } from '@vx/modkit/shared'
-import { registerPhotoDraft } from '../../shared/modEntries/photo-feature'
+import { registerPhotoDraft } from '../../shared/photoDraft'
 import { reachOf, rollAudienceLikes } from '../../shared/postAudience'
 import { postIsOut } from '../../shared/heldPosts'
 import {
@@ -32,7 +32,7 @@ import {
   fileGroupPhoto,
   withGroupPhotoRequest
 } from '../stores/photoGroup'
-import { character, gameFacts } from '@vx/modkit/renderer'
+import { character, gameFacts, modOptionOn } from '@vx/modkit/renderer'
 import { postPhoto } from '../stores/photoRecords'
 import { registerTermFiles } from '@vx/modkit/shared'
 import { ownsPostComments, registerHooks } from '@vx/modkit/renderer'
@@ -40,8 +40,9 @@ import { BODY_EDITOR_FIELD, writeBody } from '../views/bodyFields'
 import { PhotoComments, PhotoPostPicture } from '../components/PhotoPostSpots'
 import { MessagePhotoAttachment, PhotoLightboxHost } from '../components/PhotoBubble'
 import { GalleryPanel, galleryShown, PostPhotoExtra } from '../views/ContactGallery'
-import { PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
+import { PHOTO_FEATURE_ID, bindPhotoOptionReader } from '../../shared/photoSwitches'
 
+bindPhotoOptionReader(option => modOptionOn(PHOTO_FEATURE_ID, option))
 registerPhotoDraft(registerImagePromptDraft)
 
 

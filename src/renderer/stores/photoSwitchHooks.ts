@@ -1,17 +1,24 @@
-import { useSyncExternalStore } from 'react'
 import {
   explicitPhotosAllowed,
   photoSwitches,
   photosVisible,
-  setPhotoSwitches,
-  subscribePhotoSwitches,
+  PHOTO_FEATURE_ID,
   type PhotoSwitches
 } from '../../shared/photoSwitches'
-import { useNoNsfwImages } from '@vx/modkit/renderer'
+import { useModOn, useModOption, useNoNsfwImages } from '@vx/modkit/renderer'
 
 /** Photo Feature's switches in a component, which redraws when one moves. */
 export function usePhotoSwitches(): PhotoSwitches {
-  return useSyncExternalStore(subscribePhotoSwitches, photoSwitches, photoSwitches)
+  useModOn(PHOTO_FEATURE_ID)
+  useModOption(PHOTO_FEATURE_ID, 'photos')
+  useModOption(PHOTO_FEATURE_ID, 'explicit')
+  useModOption(PHOTO_FEATURE_ID, 'webp')
+  useModOption(PHOTO_FEATURE_ID, 'body')
+  useModOption(PHOTO_FEATURE_ID, 'duo')
+  useModOption(PHOTO_FEATURE_ID, 'loader-bunny')
+  useModOption(PHOTO_FEATURE_ID, 'loader-shimmer')
+  useModOption(PHOTO_FEATURE_ID, 'loader-dots')
+  return photoSwitches()
 }
 
 /** Whether what the mod has already made is on screen: always while it is on. */
@@ -26,15 +33,4 @@ export function usePhotosVisible(): boolean {
 export function useExplicitBlocked(): boolean {
   const noNsfw = useNoNsfwImages()
   return !explicitPhotosAllowed(noNsfw, usePhotoSwitches())
-}
-
-/**
- * The switches from the developer console, for trying what a mods screen would do on a build that
- * has none: `photoSwitches.set({ on: false })`, `photoSwitches.get()`. The console only opens in
- * a development run, so a player never reaches it. Main keeps its own copy, so renders still draw
- * body details from here; everything on screen and in the prompts follows.
- */
-;(globalThis as { photoSwitches?: unknown }).photoSwitches = {
-  set: setPhotoSwitches,
-  get: photoSwitches
 }

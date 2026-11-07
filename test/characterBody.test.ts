@@ -15,18 +15,16 @@ import {
   type CharacterBody
 } from '../src/shared/characterBody'
 import { cgSetDraft, spriteDraft } from '../src/shared/imagePrompt'
-import { setSharedModRules } from '../src/shared/modRules'
-import { setPhotoSwitches } from '../src/shared/photoSwitches'
+import { setRendererPhotoSwitches } from './fixtures/photoSwitchState'
 import { registerImagePromptDraft } from '@vx/modkit/shared'
-import { registerPhotoDraft } from '../src/shared/modEntries/photo-feature'
+import { registerPhotoDraft } from '../src/shared/photoDraft'
 // Register after the shared catalogue has loaded, as each process does at startup.
 import '../src/shared/mods'
 
 registerPhotoDraft(registerImagePromptDraft)
 
 // Photo Feature on, with body details, as the drafts below are read.
-setSharedModRules(() => true)
-setPhotoSwitches({ on: true, body: true })
+setRendererPhotoSwitches({ on: true, body: true })
 import { buildPhotoPrompt, buildDuoPhotoPrompt } from '../src/shared/photoPrompt'
 import type { Character } from '../src/shared/types'
 import { character } from './fixtures'
@@ -215,14 +213,14 @@ describe('gateBody', () => {
 /** The dev's prompts, untouched while the switch is off. */
 describe('with no body', () => {
   it("writes the dev's sprite and CG prompts exactly as they were", () => {
-    setPhotoSwitches({ body: false })
+    setRendererPhotoSwitches({ body: false })
     const plain = her()
     const sprite = spriteDraft(plain, ['standing'], 'nude')
     expect(sprite.appearance).toEqual(plain.baseAppearance)
     expect(sprite.negative).not.toContain('loli')
     expect(cgSetDraft(plain).appearance).toEqual(plain.baseAppearance)
     expect(bodyAppearance(plain, 'photo')).toEqual(plain.baseAppearance)
-    setPhotoSwitches({ body: true })
+    setRendererPhotoSwitches({ body: true })
   })
 })
 
@@ -397,7 +395,7 @@ describe('body storage', () => {
     const legacy = her(body)
     const slotted = { ...her(), ex: { 'photo-feature': { v: '1.6.0', data: body } } }
     for (const on of [false, true]) {
-      setPhotoSwitches({ body: on })
+      setRendererPhotoSwitches({ body: on })
       expect(spriteDraft(slotted, ['standing'], 'nude')).toEqual(spriteDraft(legacy, ['standing'], 'nude'))
       expect(cgSetDraft(slotted)).toEqual(cgSetDraft(legacy))
       const old = gateBody(legacy, on)
@@ -409,6 +407,6 @@ describe('body storage', () => {
         buildDuoPhotoPrompt(old, old, 'explicit', 'naked, sitting together on her bed')
       )
     }
-    setPhotoSwitches({ body: true })
+    setRendererPhotoSwitches({ body: true })
   })
 })

@@ -1,6 +1,6 @@
-import './fixtures/photoRecordKit'
+import { setRendererPhotoSwitches } from './fixtures/photoSwitchState'
 import { savedPhoto } from '../src/shared/photoTypes'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { postIsOut } from '../src/shared/heldPosts'
 import {
   DEFAULT_PHOTO_SWITCHES,
@@ -10,15 +10,15 @@ import {
   photoGenerationOn,
   photoSwitches,
   photosVisible,
-  setPhotoSwitches,
-  subscribePhotoSwitches
+  bindPhotoOptionReader
 } from '../src/shared/photoSwitches'
 import { postCommentLines } from '../src/renderer/prompts/photoBrief'
 import type { SocialPost } from '../src/shared/types'
 
 /** Photo Feature's own switches, as the Mods screen sets them. */
 
-afterEach(() => setPhotoSwitches(DEFAULT_PHOTO_SWITCHES))
+beforeEach(() => setRendererPhotoSwitches(DEFAULT_PHOTO_SWITCHES))
+afterEach(() => setRendererPhotoSwitches(DEFAULT_PHOTO_SWITCHES))
 
 const held: SocialPost = {
   id: 'p1',
@@ -31,6 +31,7 @@ const held: SocialPost = {
 
 describe('photo switches', () => {
   it('leave the mod fully on before anything sets them', () => {
+    bindPhotoOptionReader(null)
     expect(photoFeatureOn()).toBe(true)
     expect(photoGenerationOn()).toBe(true)
     expect(photoSwitches().loader).toBe('bunny')
@@ -41,14 +42,14 @@ describe('photo switches', () => {
   })
 
   it('hide what exists while off', () => {
-    setPhotoSwitches({ on: false })
+    setRendererPhotoSwitches({ on: false })
     expect(photoFeatureOn()).toBe(false)
     expect(photosVisible()).toBe(false)
     expect(photoGenerationOn()).toBe(false)
   })
 
   it('keep what exists on screen with photo generation off, and make nothing new', () => {
-    setPhotoSwitches({ photos: false })
+    setRendererPhotoSwitches({ photos: false })
     expect(photoFeatureOn()).toBe(true)
     expect(photosVisible()).toBe(true)
     expect(photoGenerationOn()).toBe(false)
@@ -61,32 +62,18 @@ describe('photo switches', () => {
   })
 
   it('show a post still waiting for its picture while off, without touching it', () => {
-    setPhotoSwitches({ on: false })
+    setRendererPhotoSwitches({ on: false })
     expect(postIsOut(held)).toBe(true)
     expect(savedPhoto(held ?? {})?.held).toBe(true)
-    setPhotoSwitches({ on: true })
+    setRendererPhotoSwitches({ on: true })
     expect(postIsOut(held)).toBe(false)
   })
 
   it('tell the slot opening to write no comments while off', () => {
     expect(postCommentLines(true).length).toBeGreaterThan(1)
     expect(postCommentLines(false)).toEqual(['Leave "comments" empty on every post.'])
-    setPhotoSwitches({ on: false })
+    setRendererPhotoSwitches({ on: false })
     expect(postCommentLines()).toEqual(['Leave "comments" empty on every post.'])
-  })
-
-  it('tell whoever is listening only when something moved', () => {
-    const heard = vi.fn()
-    const stop = subscribePhotoSwitches(heard)
-    setPhotoSwitches({ on: true })
-    expect(heard).not.toHaveBeenCalled()
-    const before = photoSwitches()
-    setPhotoSwitches({ explicit: false })
-    expect(heard).toHaveBeenCalledTimes(1)
-    expect(photoSwitches()).not.toBe(before)
-    stop()
-    setPhotoSwitches({ explicit: true })
-    expect(heard).toHaveBeenCalledTimes(1)
   })
 
   it('describe itself for a mods screen with options whose defaults match this build', () => {
