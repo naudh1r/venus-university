@@ -1,4 +1,5 @@
 import sceneNotes from './scene-notes'
+import screenCompanion from './screen-companion'
 import type { InvokeHandler } from '../mods/invoke'
 import type { RouteHandler } from '../mods/loader'
 
@@ -14,5 +15,6 @@ interface MainEntry {
  * Keep setup inside the function: the loader catches a throw and switches off only its mod.
  */
 export const BUILT_IN_MAIN_ENTRIES: Readonly<Record<string, () => MainEntry>> = {
-  'scene-notes': sceneNotes
+  'scene-notes': sceneNotes,
+  'screen-companion': screenCompanion
 }

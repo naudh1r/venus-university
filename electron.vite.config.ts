@@ -50,7 +50,10 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        input: resolve('src/renderer/index.html')
+        input: {
+          index: resolve('src/renderer/index.html'),
+          screenCompanion: resolve('src/renderer/screenCompanion.html')
+        }
       }
     },
     resolve: {
