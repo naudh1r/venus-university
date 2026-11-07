@@ -17,6 +17,7 @@ import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
 import { modDetail, optionPreview } from '../mods/hooks'
 import { isWebBuild } from '../platform'
+import { ModsBrowse } from './ModsBrowse'
 import { ModsAuthorsFold } from './ModsAuthorsFold'
 import { notRunningLine, useModSessionStore } from '../stores/modSessionStore'
 import { useModsStore } from '../stores/modsStore'
@@ -114,6 +115,7 @@ export interface ModWarning {
  * menu of a game or a break.
  */
 export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalProps): JSX.Element | null {
+  const [tab, setTab] = useState<'installed' | 'browse'>('installed')
   const closeModal = useUiStore((s) => s.closeModal)
   const close = onClose ?? ((): void => closeModal('mods'))
   const [asking, setAsking] = useState<{ change: ModChange; warning: ModWarning } | null>(null)
@@ -186,6 +188,13 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
           </span>
         </header>
 
+        {!isWebBuild() && <div className="vu-mods-tabs" role="tablist" aria-label="Mods">
+          {(['installed', 'browse'] as const).map((name) => <motion.button key={name} id={`mods-tab-${name}`}
+            role="tab" aria-selected={tab === name} className="vu-btn vu-btn--quiet"
+            {...gestures(false, lift, press)} onClick={() => setTab(name)}>{name === 'installed' ? 'Installed' : 'Browse'}</motion.button>)}
+        </div>}
+        {!isWebBuild() && <ModsBrowse theme={theme} active={tab === 'browse'} />}
+        <div className="vu-mods-installed" hidden={tab !== 'installed'}>
         <div className="vu-mods-panes">
           {listed.length === 0 && unreadable.length === 0 && (
             <p id="mods-none" className="vu-mods-blurb">
@@ -382,6 +391,7 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
 
         {/* The browser build installs nothing, so it has no folders to load from. */}
         {!isWebBuild() && <ModsAuthorsFold />}
+        </div>
 
         <div className="vu-foot">
           <motion.button

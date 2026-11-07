@@ -172,6 +172,9 @@ export function buildApi(): VenusUniversityApi {
       set: (bags) => result('save the grab bags', () => writeGrabBags(bags))
     },
     mods: {
+      catalog: () => desktopOnly('mod catalogue'),
+      catalogInstalled: () => desktopOnly('mod catalogue'),
+      installRelease: () => desktopOnly('mod install'),
       invokeStart: () => desktopOnly('mod.invoke'),
       invokeResult: () => desktopOnly('mod.invoke'),
       invokeCancel: () => desktopOnly('mod.invokeCancel'),

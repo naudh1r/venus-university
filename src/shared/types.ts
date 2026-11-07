@@ -2469,6 +2469,8 @@ export interface Settings {
    * whatever `lessNsfwText` says. Absent is the shipped persona.
    */
   scenePersona?: string
+  /** Hand-edited catalogue address; absent uses the prototype test catalogue. */
+  modCatalogUrl?: string
   /**
    * Folders a mod author loads a mod from as it is built, each holding an unzipped release.
    * **Written by main** from the Mods screen's "For mod authors" fold, not by a settings patch,

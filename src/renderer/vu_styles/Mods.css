@@ -433,3 +433,14 @@
   flex: 1;
   min-width: 0;
 }
+
+/* The catalogue uses the Installed pane's paper, type and palette. */
+.vu-mods-tabs { display: flex; gap: 10px; }
+.vu-mods-tabs [aria-selected='true'] { background: var(--vu-tint); color: var(--vu-accent); }
+.vu-mods-installed, .vu-mods-browse { display: flex; flex: 1; flex-direction: column; gap: 12px; min-height: 0; }
+.vu-mods-installed[hidden], .vu-mods-browse[hidden] { display: none; }
+.vu-mods-catalog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 10px; overflow: hidden auto; padding-right: 6px; }
+.vu-mods-catalog-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; padding: 16px; border: 2px solid transparent; border-radius: 14px; background: var(--vu-recessed); color: var(--vu-text); text-align: left; }
+.vu-mods-catalog-tile[data-selected='true'] { border-color: var(--vu-accent); }
+.vu-mods-catalog-excerpt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.vu-mods-changes { margin: 6px 0 0; padding-left: 18px; color: var(--vu-text-body); font: 500 14px var(--font-body); line-height: 1.45; }

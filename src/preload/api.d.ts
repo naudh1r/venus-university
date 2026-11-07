@@ -1,3 +1,4 @@
+import type { CatalogMod } from '@shared/modCatalog'
 import type { ApplicationDraft, Application, KeptApplication } from '@shared/application'
 import type { ClassifierPromptRequest, ClassifierVerdict } from '@shared/classifier'
 import type { ComfyModelLists, ComfyModelRole, ComfyProbe } from '@shared/comfyModels'
@@ -108,6 +109,9 @@ export interface VenusUniversityApi {
     set: (bags: GrabBags) => Promise<Result<void>>
   }
   mods: {
+    catalog: () => Promise<Result<CatalogMod[]>>
+    catalogInstalled: () => Promise<Result<CatalogMod[]>>
+    installRelease: (id: string, version: string, approved: boolean) => Promise<Result<void>>
     /** The invoke handshake uses one channel; request ids are made in main. */
     invokeStart: (modId: string, name: string, args: unknown[]) => Promise<Result<string>>
     invokeResult: (modId: string, requestId: string) => Promise<Result<unknown>>
