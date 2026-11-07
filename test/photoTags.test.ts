@@ -16,6 +16,10 @@ import { describe, expect, it } from 'vitest'
 
 /** Danbooru vocabulary checked against the API or the catalog cited beside its entries. */
 const VERIFIED = new Set([
+  // Checked against the published Danbooru catalog cited below.
+  'one_eye_closed',
+  'finger_in_own_mouth',
+  'lower_body',
   'holding_panties',
   'holding_bra',
   'no_panties',

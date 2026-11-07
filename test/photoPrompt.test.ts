@@ -176,11 +176,11 @@ describe('the clothes she is moving aside', () => {
         'clothes_pull',
         'breasts_out',
         '(ivory_sweater:1.2)',
-        'plaid_skirt',
         'partially_undressed'
       ])
     )
     expect(tags).not.toContain('hand_on_own_hip')
+    expect(tags).not.toContain('plaid_skirt')
     expect(positive).not.toContain('everyday clothes')
     expect(positive).toContain('pulling down the neckline with both hands to bare both breasts')
     expect(positive.indexOf('ivory_sweater')).toBeLessThan(positive.indexOf('partially_undressed'))

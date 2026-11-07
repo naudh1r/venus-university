@@ -92,10 +92,11 @@ const SPREAD_CUES = [
 /** Anything about her behind puts it in shot the same way. */
 const REAR_CUES = ['spreading her ass', 'spreading her cheeks', 'holding her cheeks apart']
 
-/** What a shot from the waist up, or of her face, leaves in it. */
+/** Which body regions remain within an explicit crop. */
 const FRAMED_SEEN: Partial<Record<Framing, readonly Region[]>> = {
   face: [],
-  waist: ['bust', 'nipples']
+  waist: ['bust', 'nipples'],
+  lower: ['pubic', 'hipsThighs', 'buttocks']
 }
 
 /**
@@ -110,8 +111,8 @@ function seenIn(caption: string, framing: Framing | null): Set<Region> {
 
   if (saysAny(text, SPREAD_CUES)) seen.add('pubic')
   if (saysAny(text, REAR_CUES)) seen.add('buttocks')
-  // A face alone has nothing of her body in it, not even the middle of her.
-  if (framing !== 'face') for (const field of ALWAYS_SEEN) seen.add(field)
+  // Neither a face-only nor a waist-down crop includes the middle of her.
+  if (framing !== 'face' && framing !== 'lower') for (const field of ALWAYS_SEEN) seen.add(field)
   return seen
 }
 

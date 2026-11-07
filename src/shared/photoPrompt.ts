@@ -2,7 +2,7 @@ import type { PhotoTier } from './photoGate'
 import { DORM_IDS, dormLabel, LOCATIONS, NARRATIVE_LOCATIONS, type Character } from '@vx/modkit/shared'
 import { bodyAppearance, bodyNegative, bodyOf } from './characterBody'
 import { bodyTagsFor, describesNothingOn, partialExposureIn, type PartialPhotoExposure } from './photoBody'
-import { framingInTags, framingOf } from './photoFraming'
+import { framingInTags, framingOf, type Framing } from './photoFraming'
 import {
   PHOTO_CLAUSE_END,
   photoPose,
@@ -15,7 +15,12 @@ import {
 // and pulls in what they import — so the feature brings its own types rather than relying on a
 // tsconfig line, which would be one more thing to re-add on a sync.
 import type {} from './photoTypes'
-import { photoWardrobe, photoWardrobeNames, photoWardrobeFromGarment } from './photoWardrobe'
+import {
+  photoWardrobe,
+  photoWardrobeNames,
+  photoWardrobeFromGarment,
+  filterPhotoWardrobe
+} from './photoWardrobe'
 import { says, saysAny } from './photoWords'
 
 /**
@@ -475,7 +480,7 @@ export function buildPhotoPrompt(
   // wears it, not her undressing, and the tags pulled the picture towards it.
   if (tier === 'everyday') pose.tags = pose.tags.filter((tag) => !EVERYDAY_DROPS.has(tag))
   // Her body as far as the shot reaches: a selfie from the waist up names no hips.
-  const selected = wardrobeForPhoto(character, tier, scene, dressed)
+  const selected = wardrobeForPhoto(character, tier, scene, dressed, framingInTags(pose.tags))
   const body = bodyTagsFor(
     bodyOf(character), scene, bare, framingInTags(pose.tags), selected.exposure
   )
@@ -524,7 +529,8 @@ function wardrobeForPhoto(
   character: Character,
   tier: PhotoTier,
   scene: string,
-  captionDressesHer: boolean
+  captionDressesHer: boolean,
+  framing: Framing | null = framingOf(scene)
 ): { tags: readonly string[]; names: readonly string[]; exposure?: PartialPhotoExposure } {
   const bare = tier === 'explicit'
   const named = photoWardrobeNames(character, scene)
@@ -541,10 +547,11 @@ function wardrobeForPhoto(
         ? (photoWardrobeFromGarment(character, scene) ?? [])
         : []
   const exposure = partial ? partialExposureIn(scene, reveals, outfit) : undefined
+  const visibleOutfit = filterPhotoWardrobe(outfit, scene, framing)
   const tags = bare
     ? partial
       ? [
-          ...outfit,
+          ...visibleOutfit,
           'partially_undressed',
           ...reveals,
           ...(exposure?.upper ? ['breasts_out'] : []),
@@ -552,7 +559,7 @@ function wardrobeForPhoto(
           BARE_POSITIVE
         ]
       : ['nude', 'completely_nude', BARE_POSITIVE]
-    : [...outfit, ...(tier === 'suggestive' ? suggestiveReveals(scene) : [])]
+    : [...visibleOutfit, ...(tier === 'suggestive' ? suggestiveReveals(scene) : [])]
   return { tags: [...new Set(tags)], names, exposure }
 }
 

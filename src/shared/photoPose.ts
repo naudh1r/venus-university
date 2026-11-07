@@ -36,12 +36,29 @@ function firstMatch(text: string, table: readonly Rule[]): Rule | null {
   return table.find((rule) => fires(text, rule.cues)) ?? null
 }
 
+const SIDE_LYING_CUES = [
+  'on her side',
+  'side lying',
+  'lounging sideways',
+  'lying sideways',
+  'on one elbow',
+  'propped on her elbow'
+]
+
+const CHIN_REST_CUES = ['chin on', 'chin in her hand', 'propping her chin', 'resting her chin']
+const FINGERS_IN_MOUTH_CUES = [
+  'finger in her mouth',
+  'fingers in her mouth',
+  'fingers into her mouth',
+  'fingers pressed into her mouth'
+]
+
 /** How she is framed and standing with her clothes on. */
 const DRESSED_POSITIONS: readonly Rule[] = [
   { cues: ['close-up', 'close up'], tags: ['close-up', 'upper_body', 'hand_up'] },
   { cues: ['face shot', 'face only', 'just her face'], tags: ['close-up', 'portrait'] },
   { cues: ['on her stomach', 'face down', 'prone'], tags: ['lying', 'on_stomach'] },
-  { cues: ['on her side', 'side lying'], tags: ['lying', 'on_side'] },
+  { cues: SIDE_LYING_CUES, tags: ['lying', 'on_side'] },
   { cues: ['on her back', 'lying back'], tags: ['lying', 'on_back'] },
   {
     cues: ['lying', 'laying', 'on the bed', 'on bed', 'on the floor', 'on the grass'],
@@ -62,11 +79,11 @@ const DRESSED_POSITIONS: readonly Rule[] = [
 const FACING: readonly Rule[] = [
   {
     cues: ['looking back', 'glancing back', 'over her shoulder'],
-    tags: ['looking_back', 'from_behind', 'hand_on_own_hip']
+    tags: ['looking_back', 'from_behind']
   },
   {
     cues: ['from behind', 'back view', 'rear view', 'back turned'],
-    tags: ['from_behind', 'hand_on_own_hip']
+    tags: ['from_behind']
   },
   // `from_side` alone was drawn facing three-quarters on; `profile` is what turns her.
   {
@@ -103,8 +120,8 @@ const BARE_POSITIONS: readonly Rule[] = [
     tags: ['lying', 'on_stomach', 'solo', 'head_rest']
   },
   {
-    cues: ['on her side', 'lying on her side', 'side lying'],
-    tags: ['on_side', 'solo', 'head_rest']
+    cues: SIDE_LYING_CUES,
+    tags: ['lying', 'on_side', 'solo', 'head_rest']
   },
   { cues: ['squatting', 'squat'], tags: ['squatting', 'solo', 'spread_legs', 'hand_on_own_thigh'] },
   { cues: ['on her knees', 'kneeling'], tags: ['kneeling', 'solo', 'hands_on_own_thighs'] },
@@ -153,6 +170,17 @@ const PLACEMENT_TAGS: ReadonlySet<string> = new Set([
 
 /** Direct descriptions of her occupied hands, including the ones removed from mirror prose. */
 const OCCUPIED_HAND_CUES = [
+  'one hand',
+  'both hands',
+  'her hand',
+  'fingers',
+  'palm',
+  'propping',
+  'resting her chin',
+  'on the handle',
+  'hand resting on',
+  'pulled down',
+  ...FINGERS_IN_MOUTH_CUES,
   'dangling',
   'dangles',
   'swinging',
@@ -291,7 +319,8 @@ const HAND_ACTIONS: readonly ActionRule[] = [
   {
     cues: [
       'squeezing her breasts',
-      'cupping her breasts',
+      'cupping her breast',
+      'cupping the underside',
       'cupping herself',
       'groping',
       'fondling',
@@ -388,7 +417,11 @@ const FREE_HAND_GESTURES: readonly GestureRule[] = [
   { cues: ['biting her nail', 'biting her nails', 'biting her fingernail'], tags: ['nail_biting'] },
   { cues: ['biting her finger'], tags: ['biting_own_finger'] },
   {
-    cues: ['hand on her chin', 'chin on her hand', 'chin in her hand'],
+    cues: CHIN_REST_CUES,
+    tags: ['head_rest']
+  },
+  {
+    cues: ['hand on her chin'],
     tags: ['hand_on_own_chin']
   },
   { cues: ['hand over her heart', 'hand on her heart'], tags: ['hand_on_own_chest'] },
@@ -528,7 +561,11 @@ const NIPPLE_VERBS = [
 
 /** The explicit hand actions the caption names, with at most two hands occupied. */
 function handActionsOf(text: string): readonly ActionRule[] {
-  const matched = HAND_ACTIONS.filter((action) => fires(text, action.cues)).slice(0, 2)
+  // Fingers in her mouth do not imply the unrelated two-finger action.
+  const actionText = saysAny(text, FINGERS_IN_MOUTH_CUES)
+    ? text.replace(/\btwo fingers\b/g, '')
+    : text
+  const matched = HAND_ACTIONS.filter((action) => fires(actionText, action.cues)).slice(0, 2)
   const looseNipples = matched.length === 0 && says(text, 'nipple') && saysAny(text, NIPPLE_VERBS)
   return looseNipples ? [BREAST_ACTION] : matched
 }
@@ -541,12 +578,18 @@ const VAGUE_TOUCH: Rule = {
 
 /** Everything else the words carry. These stack: each one that fires is added. */
 const MODIFIERS: readonly Rule[] = [
+  { cues: ['wink', 'winking'], tags: ['one_eye_closed'] },
+  { cues: FINGERS_IN_MOUTH_CUES, tags: ['finger_in_own_mouth'] },
+  { cues: ['lifting the hem', 'lifting her skirt'], tags: ['skirt_lift'] },
   {
     cues: [
       'lifting her skirt',
       'skirt up',
       'panties aside',
       'pulling down her panties',
+      'pulled down',
+      'pulling down',
+      'tugging down',
       'taking off her bra',
       'unbuttoning',
       'unzipping',
@@ -630,6 +673,9 @@ const DRESSED_MODIFIERS: ReadonlySet<string> = new Set([
   'from_below',
   'from_above',
   'undressing',
+  'skirt_lift',
+  'one_eye_closed',
+  'finger_in_own_mouth',
   'seductive_smile',
   'arched_back',
   'blush',
@@ -827,7 +873,7 @@ const CLOSE_CUES = ['close-up', 'close up', 'upper body', 'waist up', 'face shot
 /** How she is lying, read off the caption whichever row framed it. */
 const LYING_CUES: readonly (readonly [string, readonly string[]])[] = [
   ['on_stomach', ['on her stomach', 'face down', 'prone']],
-  ['on_side', ['on her side', 'side lying']],
+  ['on_side', SIDE_LYING_CUES],
   ['on_back', ['on her back', 'lying back']]
 ]
 
@@ -837,14 +883,17 @@ const LYING_CUES: readonly (readonly [string, readonly string[]])[] = [
  * replaces that default at the end.
  */
 function closeLying(text: string, tags: readonly string[]): string[] | null {
-  if (!saysAny(text, CLOSE_CUES)) return null
+  const framing = framingOf(text)
+  if (!saysAny(text, CLOSE_CUES) && framing !== 'waist' && framing !== 'lower') return null
   const lying = LYING_CUES.find(([, cues]) => saysAny(text, cues))?.[0]
   if (!lying) return null
   const kept = tags.filter(
     (tag) =>
       !FRAMING_TAGS.has(tag) && tag !== 'hand_up' && !LYING_CUES.some(([pose]) => pose === tag)
   )
-  const frame = lying === 'on_stomach' ? 'upper_body' : '(upper_body:1.3)'
+  const frame = framing === 'lower'
+    ? 'lower_body'
+    : lying === 'on_stomach' ? 'upper_body' : '(upper_body:1.3)'
   return [...new Set(['lying', lying, frame, ...kept])]
 }
 
@@ -920,8 +969,7 @@ export function withoutCameraHold(scene: string): string {
 }
 
 /**
- * One hand placement at most: her position's own, the first one in. Turned away, from behind,
- * adds a hand on her hip of its own, and bent over with her hands on her knees that made two.
+ * One default hand placement at most: her position's own, the first one in.
  */
 function onePlacement(tags: readonly string[]): string[] {
   const first = tags.find((tag) => PLACEMENT_TAGS.has(tag))
