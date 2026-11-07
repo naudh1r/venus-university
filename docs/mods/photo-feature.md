@@ -133,6 +133,8 @@ If a photo stays PNG while WebP is on, look in `data/app.log` for a `[photo] kep
 
 - Your photos are kept in Photo Feature's own folder now; older ones move there when you
   next view that playthrough's photos.
+- Coming straight from the standalone 1.1.3, set its options again in **Mods**: what it kept in
+  the game's settings is no longer brought over.
 
 ## 1.7.0
 
@@ -266,17 +268,20 @@ How the mod plugs into the shared mod system. The system itself is in `MODDING.m
 
 ### Switches
 
-It is `anytime`, and it checks its own switch: the mod keeps its switches in
-`src/shared/photoSwitches.ts` and asks there wherever it acts, so the build only hands them
-over. That is three places:
+It is `anytime`, and it checks its own switch: `src/shared/photoSwitches.ts` answers whether the
+mod is on and where each option stands, and everywhere the mod acts asks there. It reads them from
+the kit when asked, so the game hands it nothing:
 
-- `photoSwitchesOf(switches)` in `mods.ts` turns the Mods screen's switches into the mod's own.
-- `modsStore.ts` passes them to `setPhotoSwitches` at boot and whenever a switch moves.
-- `modsService.ts` does the same in main, when the switches are read or written. Main keeps its
-  own copy because body details are drawn there.
+- Whether it is on: `sharedModOn`, which both sides bind.
+- Its options: the `modOptionOn` of the side it runs on. Shared code cannot import either side's
+  kit, so each entry plugs its own in with `bindPhotoOptionReader` (the renderer's in
+  `src/renderer/modEntries/photo-feature.ts`, main's in `src/main/modEntries/photo-feature.ts`).
+  Main needs them because body details are drawn there.
+- In components, `usePhotoSwitches` draws again when a switch moves, through `useModOn` and
+  `useModOption`.
 
 Its entry, `src/shared/modEntries/photo-feature.ts`, is `PHOTO_FEATURE_MOD` from
-`photoSwitches.ts` with the version added, so its name, text and options come from the mod.
+`photoDefinition.ts` with the version added, so its name, text and options come from the mod.
 Body details reach the game's sprite and CG prompts through an image-prompt draft. It is
 registered once the mod catalogue has loaded, by the renderer entry and by Photo's main
 startup, since both draw prompts; registering while the catalogue loads would find the kit
@@ -297,14 +302,12 @@ options:
   of PNG. Off, they are saved as PNG. Photos already saved stay as they are.
 - **Loading animation**: a group of three, Bunny hop, Dot shimmer and Typing dots.
 
-These used to be in the game's Settings, and the body switch in the game's `settings.json`.
-`modsService.ts` reads a player's old choice straight off that file once
-(`withPhotoSettingsCarried`) and keeps it in `mods.json`. Photo Feature reads nothing else of the
-game's settings but "No NSFW images", which it obeys and never changes.
+Photo Feature reads nothing of the game's settings but "No NSFW images", which it obeys and never
+changes.
 
 Option ids are written to disk, so they never change: `photos`, `explicit`, `body`, `webp`,
-`loader-bunny`, `loader-shimmer`, `loader-dots`. `test/photoHooks.test.ts` fails if the handover in `modsStore.ts`
-or `modsService.ts` goes missing.
+`loader-bunny`, `loader-shimmer`, `loader-dots`. `test/photoSwitchReaders.test.ts` and
+`test/photoMainSwitchReaders.test.ts` read each of them on both sides.
 
 ### WebP photos
 
