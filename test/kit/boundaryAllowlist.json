@@ -223,7 +223,6 @@
   "src/renderer/views/BreakthroughPanel.tsx -> ./ReckoningModal",
   "src/renderer/views/BreakthroughPanel.tsx -> @shared/echo",
   "src/renderer/views/BreakthroughPanel.tsx -> @shared/echoBreakthrough",
-  "src/renderer/views/CharacterDynamicsModal.tsx -> ../stores/characterStore",
   "src/renderer/views/ContactGallery.tsx -> ./EchoPanel",
   "src/renderer/views/EchoPanel.tsx -> ../components/EchoNotice",
   "src/renderer/views/EchoPanel.tsx -> ../components/EchoSwitchDialog",

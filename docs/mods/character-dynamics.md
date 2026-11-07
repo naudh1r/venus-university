@@ -1,5 +1,10 @@
 # Character Dynamics
 
+The setup screen gets its neutral-sprite URL through `@vx/modkit/renderer`'s native
+`spriteUrl`, preserving the game's active image resolver. It no longer imports the
+character store for portraits. This is a sprite URL, not the player's reader profile image;
+roster selection, setup choices and save normalization are unchanged.
+
 One optional Venus Extracurriculars mod, with one setup screen for two independent choices:
 
 - **Starting relationship:** Ex-girlfriend, Resentful, Rival, or Antagonist. Each girl assigned a relationship requires her own explanation, up to 1,200 characters. This establishes background, not a permanent mood or a reward in stats.
