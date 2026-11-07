@@ -25,7 +25,7 @@ function fileFeedMemory(
 ): Result<null> {
   const onFeed = (memory: Readonly<CharMemory>): boolean => FEED_MEMORY_END.test(memory.desc)
   return addMemory(BUNNYFEEDS, charId, { ...entry, desc: `${entry.desc}${where}` }, {
-    run, replacing: onFeed, adopting: onFeed
+    run, replacing: onFeed, replacingUnmarked: onFeed
   })
 }
 
