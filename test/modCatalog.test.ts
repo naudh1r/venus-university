@@ -203,3 +203,44 @@ describe('install and update file protection', () => {
     expect(await readdir(root)).toEqual([])
   })
 })
+
+describe('store catalogue fields', () => {
+  it('drops bad changelog items and an unsafe cover without dropping the mod', () => {
+    const mod = index().mods[0]
+    const [parsed] = parseCatalog(
+      {
+        schemaVersion: 1,
+        mods: [
+          {
+            ...mod,
+            cover: 'http://example.com/image.png',
+            changelog: [
+              null,
+              { version: 'bad', changes: [] },
+              { version: '0.9.0', changes: ['Older release'] },
+              { version: '0.8.0', changes: [7] }
+            ]
+          }
+        ]
+      },
+      () => {}
+    )
+    expect(parsed.cover).toBeUndefined()
+    expect(parsed.changelog).toEqual([{ version: '0.9.0', changes: ['Older release'] }])
+  })
+  it('keeps an https cover and history without requiring a downloadable release', () => {
+    const mod = index().mods[0]
+    const [parsed] = parseCatalog({
+      schemaVersion: 1,
+      mods: [
+        {
+          ...mod,
+          cover: 'https://example.com/cover.webp',
+          changelog: [{ version: '0.1.0', changes: ['First release'] }]
+        }
+      ]
+    })
+    expect(parsed.cover).toBe('https://example.com/cover.webp')
+    expect(parsed.changelog[0].version).toBe('0.1.0')
+  })
+})

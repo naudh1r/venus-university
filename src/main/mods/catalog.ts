@@ -2,6 +2,7 @@ import { MOD_ID_RULE, RESERVED_MOD_IDS, parseManifest } from '@vx/modkit/host/sh
 import { KIT_VERSION } from '../../../packages/modkit/src/shared/version'
 import { parseRange, parseVersion, satisfies } from '../../../packages/modkit/src/shared/range'
 import type { CatalogMod, CatalogRelease } from '@shared/modCatalog'
+import { imageTypeOf } from '@shared/imageBytes'
 import { appError } from '@shared/errors'
 import { randomUUID } from 'crypto'
 import { existsSync } from 'fs'
@@ -91,6 +92,19 @@ export function parseCatalog(
         })
       }
       if (!releases.length) throw new Error('no valid releases')
+      const changelog: CatalogMod['changelog'] = []
+      if (Array.isArray(entry.changelog))
+        for (const item of entry.changelog) {
+          if (
+            object(item) &&
+            text(item.version) &&
+            parseVersion(item.version) &&
+            Array.isArray(item.changes) &&
+            item.changes.every(text)
+          )
+            changelog.push({ version: item.version, changes: [...item.changes] as string[] })
+          else log(`[mods catalogue] dropped a changelog entry of ${entry.id}`)
+        }
       mods.push({
         id: entry.id,
         name: entry.name,
@@ -98,6 +112,8 @@ export function parseCatalog(
         blurb: entry.blurb,
         source: entry.source,
         releases,
+        changelog,
+        ...(https(entry.cover) ? { cover: entry.cover } : {}),
         installedVersion: null
       })
     } catch (error) {
@@ -126,6 +142,35 @@ export class ModCatalog {
       throw new Error(`Could not fetch the mod catalogue (HTTP ${response.status}).`)
     if (!https(response.url)) throw new Error('The mod catalogue address must use https.')
     this.mods = parseCatalog(await response.json())
+    await Promise.all(
+      this.mods.map(async (mod) => {
+        if (!mod.cover) return
+        try {
+          const response = await fetch(mod.cover, { signal: AbortSignal.timeout(10_000) })
+          if (!response.ok || !https(response.url) || !response.body) return
+          const reader = response.body.getReader()
+          const chunks: Uint8Array[] = []
+          let size = 0
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              size += value.length
+              if (size > 1_000_000) return
+              chunks.push(value)
+            }
+          } finally {
+            await reader.cancel()
+          }
+          const bytes = Buffer.concat(chunks)
+          // The same signature sniffer behind the kit's sniffImageFile.
+          const type = imageTypeOf(bytes)
+          if (type) mod.coverData = `data:${type};base64,${bytes.toString('base64')}`
+        } catch {
+          /* A cover never prevents browsing. */
+        }
+      })
+    )
     return this.list()
   }
 

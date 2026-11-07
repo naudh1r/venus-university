@@ -17,6 +17,9 @@ export interface CatalogMod {
   author: string
   blurb: string
   source: string
+  cover?: string
+  coverData?: string
+  changelog: { version: string; changes: string[] }[]
   releases: CatalogRelease[]
   installedVersion: string | null
 }

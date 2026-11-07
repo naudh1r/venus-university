@@ -115,6 +115,7 @@ export interface ModWarning {
  * menu of a game or a break.
  */
 export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalProps): JSX.Element | null {
+  const [browseModId, setBrowseModId] = useState<string | null>(null)
   const [tab, setTab] = useState<'installed' | 'browse'>('installed')
   const closeModal = useUiStore((s) => s.closeModal)
   const close = onClose ?? ((): void => closeModal('mods'))
@@ -145,7 +146,10 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
   const sessionOf = (id: string): ModSessionEntry | undefined => sessionRow(table, id)
   const [selectedId, setSelectedId] = useState(listed[0]?.id ?? null)
 
-  const { host, overlayProps } = useModalShell(close)
+  const { host, overlayProps } = useModalShell(() => {
+    if (tab === 'browse' && browseModId) setBrowseModId(null)
+    else close()
+  })
   if (!host) return null
 
   const selected = listed.find((mod) => mod.id === selectedId) ?? null
@@ -193,7 +197,7 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
             role="tab" aria-selected={tab === name} className="vu-btn vu-btn--quiet"
             {...gestures(false, lift, press)} onClick={() => setTab(name)}>{name === 'installed' ? 'Installed' : 'Browse'}</motion.button>)}
         </div>}
-        {!isWebBuild() && <ModsBrowse theme={theme} active={tab === 'browse'} />}
+        {!isWebBuild() && <ModsBrowse theme={theme} active={tab === 'browse'} selectedId={browseModId} setSelectedId={setBrowseModId} />}
         <div className="vu-mods-installed" hidden={tab !== 'installed'}>
         <div className="vu-mods-panes">
           {listed.length === 0 && unreadable.length === 0 && (

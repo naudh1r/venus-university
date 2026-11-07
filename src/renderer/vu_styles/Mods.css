@@ -444,3 +444,21 @@
 .vu-mods-catalog-tile[data-selected='true'] { border-color: var(--vu-accent); }
 .vu-mods-catalog-excerpt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .vu-mods-changes { margin: 6px 0 0; padding-left: 18px; color: var(--vu-text-body); font: 500 14px var(--font-body); line-height: 1.45; }
+
+.vu-mods-store-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; overflow: hidden auto; padding: 12px; margin: -12px; align-content: start; }
+.vu-mods-store-tile { min-width: 0; padding: 0; border: 0; border-radius: 18px; background: var(--vu-recessed); color: var(--vu-text); text-align: left; }
+.vu-mods-store-cover-wrap { position: relative; }
+.vu-mods-store-cover-wrap .vu-sticker { position: absolute; top: 12px; right: -6px; }
+.vu-mods-store-cover { display: flex; align-items: center; justify-content: center; aspect-ratio: 16 / 9; border-radius: 18px; overflow: hidden; background: linear-gradient(var(--cover-angle), var(--vu-tint), var(--vu-recessed) var(--cover-stop), var(--vu-surface)); }
+.vu-mods-store-cover span { padding: 24px; color: var(--vu-accent); font: 400 32px/1.1 var(--font-display); text-align: center; }
+.vu-mods-store-cover img { width: 100%; height: 100%; object-fit: cover; }
+.vu-mods-store-caption { display: flex; flex-direction: column; gap: 8px; padding: 18px; }
+.vu-mods-store-excerpt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.vu-mods-store-page { display: flex; flex: 1; flex-direction: column; gap: 12px; min-height: 0; }
+.vu-mods-store-page > button { align-self: flex-start; }
+.vu-mods-store-scroll { overflow: hidden auto; padding: 0 12px 18px 0; display: flex; flex-direction: column; gap: 24px; }
+.vu-mods-store-cover--banner { aspect-ratio: auto; height: 180px; flex: none; }
+.vu-mods-store-cover--banner span { font-size: 48px; }
+.vu-mods-store-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+.vu-mods-store-action { max-width: 320px; display: flex; align-items: flex-end; flex-direction: column; gap: 10px; }
+.vu-mods-store-scroll section { display: flex; flex-direction: column; gap: 12px; }
