@@ -133,8 +133,6 @@ If a photo stays PNG while WebP is on, look in `data/app.log` for a `[photo] kep
 
 - Your photos are kept in Photo Feature's own folder now; older ones move there when you
   next view that playthrough's photos.
-- Coming straight from the standalone 1.1.3, set its options again in **Mods**: what it kept in
-  the game's settings is no longer brought over.
 
 ## 1.7.0
 
