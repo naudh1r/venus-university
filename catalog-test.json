@@ -1,0 +1,235 @@
+{
+  "schemaVersion": 1,
+  "name": "naudh1r's test catalogue",
+  "mods": [
+    {
+      "id": "emoji-extended",
+      "name": "Emoji Extended",
+      "author": "naudh1r",
+      "blurb": "Every emoji on the phone, not just eight. A smiley beside the box opens them all in tabs, with search, the ones you used last first and a skin tone for hands and people. Emoji in texts and posts stand a size up from the words, and a text of nothing but a few is drawn big. No AI calls.",
+      "source": "https://github.com/venus-extracurriculars/build",
+      "releases": [
+        {
+          "version": "1.0.1",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/emoji-extended-1.0.1.zip",
+          "sha256": "cc6ea48d49081f6375727c2c280026e5fd1ac62fcf369d01cb7b28b13d0b1f33",
+          "kit": "0.7.0",
+          "game": ">=0.7.0",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-07",
+          "changes": [
+            "A test release with no changes, for trying an update."
+          ]
+        },
+        {
+          "version": "1.0.0",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/emoji-extended-1.0.0.zip",
+          "sha256": "336b41489905eb560f61499e336858aeca715c33ebf89f0b6734479db1a74b8e",
+          "kit": "0.7.0",
+          "game": ">=0.7.0",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-07",
+          "changes": [
+            "The panel: every emoji in tabs, search, the ones you used last first and one skin tone for every hand and person, beside the phone's box and any mod's that takes the game's emoji tool.",
+            "Emoji in texts, posts and comments a size up from the words, and a message of one to three drawn big."
+          ]
+        }
+      ],
+      "changelog": [
+        {
+          "version": "1.0.1",
+          "changes": [
+            "A test release with no changes, for trying an update."
+          ]
+        },
+        {
+          "version": "1.0.0",
+          "changes": [
+            "The panel: every emoji in tabs, search, the ones you used last first and one skin tone for every hand and person, beside the phone's box and any mod's that takes the game's emoji tool.",
+            "Emoji in texts, posts and comments a size up from the words, and a message of one to three drawn big."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bunnyfeeds",
+      "name": "Bunnyfeeds",
+      "author": "naudh1r",
+      "blurb": "Comment on your friends' posts on Bunnyboard. She replies in her own words, her friends and other students join the conversation, and she remembers what you said. Girls also comment on each other's posts, and Notifications under Updates lists every answer to you. Costs a little extra AI each time you close the phone after commenting; just scrolling is free.",
+      "source": "https://github.com/venus-extracurriculars/build",
+      "releases": [
+        {
+          "version": "1.1.4",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/bunnyfeeds-1.1.4.zip",
+          "sha256": "83f8e15ef2b8f2b47730a3245a83f83caa8ca34f9f942f397c6b310e85f5a6c4",
+          "kit": "0.7.0",
+          "game": ">=0.7.0",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-07",
+          "changes": [
+            "Your older comments and replies are kept; Bunnyfeeds reads and saves through the mod kit now."
+          ]
+        }
+      ],
+      "changelog": [
+        {
+          "version": "1.1.4",
+          "changes": [
+            "Your older comments and replies are kept; Bunnyfeeds reads and saves through the mod kit now."
+          ]
+        },
+        {
+          "version": "1.1.3",
+          "changes": [
+            "Replies are saved when they arrive: closing the game right after the girls answer no longer loses their replies."
+          ]
+        },
+        {
+          "version": "1.1.2",
+          "changes": [
+            "Who is in her picture: she no longer calls the girl beside her a friend when the two aren't."
+          ]
+        },
+        {
+          "version": "1.1.1",
+          "changes": [
+            "Who is in her picture: with Photo Feature's 2 girls 1 photo on, she knows who is beside her when you ask in the comments, whether or not the two are friends."
+          ]
+        },
+        {
+          "version": "1.1.0",
+          "changes": [
+            "Who comments, reworked: only her friends join on their own, rolled each time (a friend you share most often), anybody else only where you tag her; tagging her enemy reads as such; the people you answer directly answer back; strangers are her followers, with a public feed's whole range of tones; and a girl who replies to you, or whom you answer and who stays quiet, remembers it even before you meet.",
+            "Busier feed, nothing written for nothing: how many people reply under each of the slot's new posts is rolled before it is written, a count for words and one for a picture, and the call writes exactly that many, where it used to write a few and the game kept fewer. The count is her followers; a friend named under the post replies on top of them, so the two mix. Posts draw more too: about a reply under a typical girl's post of words where most had none, two under her picture, and a lively thread under a popular girl's.",
+            "Faces: every face is an archway, ringed in the accent at list size and plain in comments; other students get a face drawn off their handle in place of an emoji, Gradient, Identicon, Shapes, Monogram or Mixed (one of the four per student, kept), chosen in the Mods screen with a preview.",
+            "Emoji: the comment well takes the game's emoji tool, and posts and comments are drawn through its sent text, so with Emoji Extended on the well has its panel and a comment of nothing but a few emoji is drawn big.",
+            "Notifications: a page beside the feed in Updates listing every answer to your comments, with an unread count on its title and on the rail, each opening its post at the reply, and Mark as read on each one or all at once. No AI calls."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "photo-feature",
+      "name": "Photo Feature",
+      "author": "naudh1r",
+      "blurb": "The girls send photos in their DMs and post them on their feeds, with comments from the rest of campus. Adds a gallery to each contact and optional body details for characters. Separate from the game's own Photos tab, where you make pictures yourself. Needs ComfyUI to draw the pictures, the game's own or yours.",
+      "source": "https://github.com/venus-extracurriculars/build",
+      "releases": [
+        {
+          "version": "1.7.1",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/photo-feature-1.7.1.zip",
+          "sha256": "374efa5a3f0bf49f3b677a90fdc3957ed5afd161463027cf99c889157b3a742c",
+          "kit": "0.7.0",
+          "game": ">=0.7.0",
+          "main": true,
+          "reviewed": false,
+          "released": "2026-11-07",
+          "changes": [
+            "Your older photos stay with their texts and posts, including pictures still waiting to appear and photos of two girls.",
+            "A body tag her appearance already names is no longer doubled in sprites or CGs.",
+            "Your photos are kept in Photo Feature's own folder now; older ones move there when you next view that playthrough's photos."
+          ]
+        }
+      ],
+      "changelog": [
+        {
+          "version": "1.7.1",
+          "changes": [
+            "Your older photos stay with their texts and posts, including pictures still waiting to appear and photos of two girls.",
+            "A body tag her appearance already names is no longer doubled in sprites or CGs.",
+            "Your photos are kept in Photo Feature's own folder now; older ones move there when you next view that playthrough's photos."
+          ]
+        },
+        {
+          "version": "1.7.0",
+          "changes": [
+            "More than selfies: her photos can be from earlier or taken by a friend, closer or wider, from different angles, in what she wore that day, and with her hands on what she's doing — a guitar, a book, a game.",
+            "Keep the place: photos keep the place she described, and no longer put the name of her outfit into the picture's prompt once her own tags dress her.",
+            "See what drew a photo: hover it and open the info icon for its prompt, negative, seed and LoRA. Photos taken before 1.7.0 show a rebuilt prompt and no seed.",
+            "Redraw a photo: edit its prompts, or Rebuild them from her current tags first, and draw it again with the same seed or a new one. The new picture replaces it once it lands, and the old one is kept until a save has the new one. If it fails, the old one stays and says so for a few seconds. Nothing she said changes.",
+            "A head start on her photo: it starts drawing as soon as she decides to send it, while she's still typing. It arrives on her last text as before."
+          ]
+        },
+        {
+          "version": "1.6.0",
+          "changes": [
+            "Her friend tagged in the picture: a person icon on a photo of two girls shows her friend's `@handle` when tapped, only while the two are friends with each other. Tap it again, or tap elsewhere on the picture, to hide her tag.",
+            "No enemy pairs: a scene's group photo leaves enemy pairs out. Acquaintances can still be in one together; if no pair is left, no group photo is asked for.",
+            "Her own LoRA in her photos: a LoRA set under her Generation settings is used in her solo photos too, as in her sprites. Photos of two girls stay as they were.",
+            "Body details kept with the mod: her build, chest, hips, backside and hair are saved in Photo Feature's own place on her, rather than as a field of the game's. Her pictures don't change, and a character made before keeps hers: it moves over the first time she is saved. An older Photo Feature reading a character saved by 1.6.0 finds no body details on her."
+          ]
+        },
+        {
+          "version": "1.5.0",
+          "changes": [
+            "Fixed: a post waiting on its picture came out under the posts its slot already showed, as if it were older. It now goes on top when it comes out.",
+            "2 girls 1 photo (experimental): a scene with two or more of the girls brings a photo of two of them, never more, that one of them posts, off by default. The scene's first call writes it, so the two are girls you are with, and its picture is drawn under that scene. Now and then a girl's own post is a picture with one of her friends too.",
+            "Food colours in her own tags: a colour named after a food in her outfit tags is said plainly, as it already was in captions: Lia's `cream_…_sweater` drew cream on her lip and a hand at her mouth, and is now `ivory_…_sweater`."
+          ]
+        },
+        {
+          "version": "1.4.2",
+          "changes": [
+            "No more \"dorm\" in a picture: Gemini refused to answer a thread where an undressed picture was remembered as taken \"on her dorm bed\". She is told to call it her room, and a picture already written that way is read back without the word (\"on her bed\")."
+          ]
+        },
+        {
+          "version": "1.4.1",
+          "changes": [
+            "Selfies keep their whole description: a selfie that mentioned the camera while she held something else (\"holding a mug with both hands and smiling at the camera\") lost everything after the comma. Only the words about holding the phone are dropped now.",
+            "Both hands full: a selfie where she holds something with both hands is drawn as a photo somebody took, instead of with an arm reaching out of the picture.",
+            "No more coloured legs: stockings and leggings in colours from her hair or the scene, often on one leg only, came from the photo's own list of legwear to avoid. That list is gone.",
+            "No smudge between her legs: sitting in a short skirt, or undressed, sometimes drew a smear between her legs, caused by the photo's own refusals of `pantyshot` and of censoring. Both are gone; nothing is censored and nothing more shows than before.",
+            "Topless and bottomless mean half: \"topless in her skirt\" no longer draws what is under the skirt, and \"in just her crop top, nothing on below\" keeps the crop top on.",
+            "Her hands where she leans: leaning back on her hands or on all fours no longer adds a hand on her thigh or hip as well.",
+            "Her top keeps its colour: in dark or neon-lit scenes a pink or white top could come out black.",
+            "Her own clothes on the feed: posts with a picture now know her wardrobe, and both DMs and posts are told not to put her in an oversized knit sweater she does not own."
+          ]
+        },
+        {
+          "version": "1.4.0",
+          "changes": [
+            "Photos when she texts first: a girl who texts you just to talk (new in 0.5.0) can send a picture with it when it fits, a selfie in bed with her cold or something she wants to show you. The same limits as her other DMs apply.",
+            "Comments survive New Game+: comments on posts carried into the next semester show as they did, instead of staying hidden until the new semester caught up with the old dates."
+          ]
+        },
+        {
+          "version": "1.3.0",
+          "changes": [
+            "Comments and pictures go through the game's own places on a post: the game now keeps a post's comments and draws whatever a mod puts there. Another mod can draw the comments in place of Photo Feature's stranger comments; when none does, comments work exactly as in 1.2.0.",
+            "Off by default: like every mod on the build, it starts off. Turn it on in Mods; nothing it made is lost while it is off."
+          ]
+        },
+        {
+          "version": "1.2.0",
+          "changes": [
+            "New: \"Save photos as WebP\" option. Body details moved into the Mods menu too, so the mod keeps nothing in the game's own settings; your old choice carries over. All Photo Feature settings are in the Mods menu. Its description now says it is separate from the game's own Photos tab.",
+            "Selfies: no phone or camera in her hand, her arm goes out of frame. Mirror selfies show the phone. Selfies lying down, from below and from above work. A peace sign is fine unless she is holding something. Mirror selfies keep her hands to the phone; anything else she held was drawn wrong.",
+            "Styles: she picks a selfie, a mirror selfie or a photo somebody took, whichever fits, so not every photo is a selfie. Feed posts can also be candid shots.",
+            "Photos: framing follows what she describes. From above, from below, side view and from behind work. Holding a drink, book or food no longer grows an extra hand. Lying poses stay in close-ups. Explicit photos where she is still partly dressed no longer go fully nude. One hand placement per photo. Sitting cross-legged is drawn cross-legged. Everyday photos no longer show undressing, or cleavage unless her outfit shows it.",
+            "Colours and words: legwear she was not given stays off her legs, in any colour. Colours named after food are drawn as colours. A drink is no longer splashed over her, a bubble tea shop no longer hands her a cup, and no camera turns up in her hands.",
+            "Sprites: petite and curvy builds show up more on character sprites.",
+            "Fixes: the eye icon on hidden photos was dark in the day theme."
+          ]
+        }
+      ],
+      "screenshots": [
+        {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/test-shots/shot1.jpg",
+          "caption": "Stand-in: the Mods screen"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/test-shots/shot2.jpg",
+          "caption": "Stand-in: a changelog"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/test-shots/missing.jpg",
+          "caption": "Missing on purpose"
+        }
+      ]
+    }
+  ]
+}
