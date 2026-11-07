@@ -18,6 +18,8 @@ const view = await import('../../src/renderer/mods/sceneView')
 const { useGameStore: game } = await import('../../src/renderer/stores/gameStore')
 const { replyRowOfferOf } = await import('../../src/renderer/stores/loop/playback')
 const { resetLoopState } = await import('../../src/renderer/stores/loop/state')
+const { GRADUATION_DATE } = await import('../../src/renderer/prompts/occasions')
+const { isGraduationSlot } = await import('../../src/renderer/prompts/graduation')
 
 function def(id: string, extra: Partial<ModDef> = {}): ModDef {
   return { id, name: id, author: 'test', version: '1.0.0', scope: 'anytime', defaultOn: true, blurb: '', ...extra }
@@ -79,9 +81,38 @@ describe('the scene view', () => {
     expect(next.lines).toBe(first!.lines)
   })
 
-  it('is null without a playthrough', () => {
-    game.setState({ playthroughId: null })
+  it('is null on the menu', () => {
+    game.getState().reset()
     expect(view.scene()).toBeNull()
+  })
+
+  it('reads a created scene, which has no playthrough, and lets a mod hold its turn', () => {
+    const ana = game.getState().characters.a
+    // Set on graduation morning: a created scene only shares the date, so it is not scripted.
+    game.getState().loadCreatedScene(
+      { setup: {} as never },
+      { date: GRADUATION_DATE, time: 0, chars: ['a'] } as never,
+      { a: ana }
+    )
+    const key = Object.keys(game.getState().charKeyToId).find((one) => game.getState().charKeyToId[one] === 'a')!
+    game.setState({ cast: ['a'], currentSceneTranscript: [line(key, 'Hi.')], awaitingInput: true })
+    expect(game.getState().playthroughId).toBeNull()
+    expect(isGraduationSlot(game.getState().date, game.getState().time)).toBe(true)
+    const scene = view.scene()!
+    expect(scene).toMatchObject({ created: true, replay: false, scripted: null, atTurn: true, cast: ['a'] })
+    expect(scene.lines).toEqual([{ speaker: 'a', text: 'Hi.' }])
+    expect(code(view.holdTurn('scene-mod'))).toBeNull()
+  })
+
+  it('reads a calendar replay, which has no playthrough and never hands back the turn', () => {
+    const ana = game.getState().characters.a
+    game.getState().loadReplay({ date: 3, time: 1, chars: ['a'], charKeyToId: { ANA: 'a' } } as never, { a: ana })
+    game.setState({ cast: ['a'], currentSceneTranscript: [line('ANA', 'Again.')] })
+    expect(game.getState().playthroughId).toBeNull()
+    const scene = view.scene()!
+    expect(scene).toMatchObject({ created: false, replay: true, scripted: null, atTurn: false })
+    expect(scene.lines).toEqual([{ speaker: 'a', text: 'Again.' }])
+    expect(code(view.holdTurn('scene-mod'))).toBe('MOD_WRITE_WAIT')
   })
 
   it.each([

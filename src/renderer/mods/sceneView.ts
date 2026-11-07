@@ -58,7 +58,10 @@ export interface SceneView {
   readonly replay: boolean
   /** An exam is being sat in the scene. */
   readonly quiz: boolean
-  /** The orientation's or the graduation's slot, which the game writes end to end; else null. */
+  /**
+   * The orientation's or the graduation's slot, which the game writes end to end; else null, and
+   * always null in a created scene or a replay.
+   */
   readonly scripted: ScriptedSlot | null
   /** A turn is being taken, or something holds the turn. */
   readonly busy: boolean
@@ -134,7 +137,14 @@ const backgroundOf = memo((log: readonly SceneLine[]): string | null => {
 })
 const activityOf = memo((activity: SlotActivity) => frozen(structuredClone(activity)))
 
+/** A scene the screen can hold: the playthrough's, a created scene or a replay; none on the menu. */
+function onScreen(game: Game): boolean {
+  return game.playthroughId !== null || game.createdScene !== null || game.replaying !== null
+}
+
+/** Only the playthrough's own slots are scripted: a created scene or a replay merely shares a date. */
 function scriptedOf(game: Game): ScriptedSlot | null {
+  if (game.createdScene || game.replaying) return null
   if (isOrientationSlot(game.date, game.time, game.semesterIndex)) return 'orientation'
   return isGraduationSlot(game.date, game.time) ? 'graduation' : null
 }
@@ -178,14 +188,14 @@ function sameView(a: SceneView, b: SceneView): boolean {
 }
 
 /**
- * The scene on screen, or null without a loaded playthrough. The same object comes back until
- * something in it changes. @since 0.8.0
+ * The scene on screen: the playthrough's, a created scene's or a replay's; null on the menu. The
+ * same object comes back until something in it changes. @since 0.8.0
  */
 export function scene(): SceneView | null {
   const game = useGameStore.getState()
   if (last?.game === game) return last.view
   let view: SceneView | null = null
-  if (game.playthroughId) {
+  if (onScreen(game)) {
     const next = viewOf(game)
     view = last?.view && sameView(last.view, next) ? last.view : Object.freeze(next)
   }
@@ -235,14 +245,14 @@ function refused(code: string, message: string): Result<never> {
 /**
  * Holds the reader's turn while a mod settles something of its own, as the game holds it while a
  * turn is taken: the scene reads as busy, and no turn, hangout or autosave starts. Taken only at
- * the reader's own turn. The release it returns gives the turn back, once; after the game is left
- * it does nothing. Refused with `MOD_WRITE_OFF`, `MOD_WRITE_NO_GAME` or, away from his turn,
+ * the reader's own turn, in the playthrough or a created scene. The release it returns gives the
+ * turn back, once; after the scene is left it does nothing. Refused with `MOD_WRITE_OFF`, `MOD_WRITE_NO_GAME` or, away from his turn,
  * `MOD_WRITE_WAIT`. @since 0.8.0
  */
 export function holdTurn(modId: string): Result<() => void> {
   if (!modIsOn(modId, loopState.record)) return refused('MOD_WRITE_OFF', 'That mod is off.')
   const game = useGameStore.getState()
-  if (!game.playthroughId) return refused('MOD_WRITE_NO_GAME', 'There is no game to hold.')
+  if (!onScreen(game)) return refused('MOD_WRITE_NO_GAME', 'There is no scene to hold.')
   if (!game.awaitingInput || game.busy || game.pendingLines.length > 0) {
     return refused('MOD_WRITE_WAIT', 'The reader is not at his turn.')
   }

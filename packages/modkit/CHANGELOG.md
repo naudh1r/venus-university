@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- `scene()`, `useScene(select)` and `subscribeScene` read the scene on screen as a frozen
-  `SceneView` the kit defines: who is in it, its lines with speakers by id, where it is, what the
+- `scene()`, `useScene(select)` and `subscribeScene` read the scene on screen, in a playthrough,
+  a created scene or a replay, as a frozen `SceneView` the kit defines: who is in it, its lines with speakers by id, where it is, what the
   slot is, and the game's own answers on the turn. `holdTurn(id)` holds the reader's turn while
   a mod settles something, and its release gives the turn back once.
 

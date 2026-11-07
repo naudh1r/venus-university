@@ -1251,23 +1251,26 @@ the kit defines, never the game's store:
   no longer knows among it.
 - **Where it is:** `location` as the game noted it, and `background`, the one playback has reached.
 - **What the slot is:** `classCode`, `jobId`, `projectClass`, the slot `activity`, and `created`,
-  `replay`, `quiz`, and `scripted` for the orientation's or the graduation's slot.
+  `replay`, `quiz`, and `scripted` for the orientation's or the graduation's slot, which is never
+  a created scene or a replay.
 - **Where the turn stands:** `atTurn`, `canInterject`, `busy`, `failed`, `ending`, `resolved` and
   `over`. These are the game's own answers: `atTurn` is his turn with nothing left to read,
   `canInterject` the interjection row's offer. A mod never puts them together from the store.
 
-Everything in it is frozen, and the same view comes back until something in it changes; it is
-`null` without a game. `useScene` renders again when what `select` picks changes, compared with
+Everything in it is frozen, and the same view comes back until something in it changes. There is
+a view in a playthrough, a created scene and a replay, though the last two have no playthrough;
+it is `null` on the menu. `useScene` renders again when what `select` picks changes, compared with
 `Object.is`, so pick values or the view's own arrays rather than building new ones. The view grows
 by request: ask for a fact it lacks rather than reading the store.
 
 A panel that settles something of its own at the reader's turn, such as saving a game's result
 before the scene is told it, holds the turn with `holdTurn(id)`, declared as `renderer:holdTurn`.
 While it is held the scene is busy: no turn, hangout or autosave starts, and `atTurn` is false.
-It is taken only at his turn, and refused otherwise with `MOD_WRITE_WAIT`, with `MOD_WRITE_OFF`
-for a mod that is off, and with `MOD_WRITE_NO_GAME` without a game. The result's `data` is the
-release: call it when the work is done, failed or not. It gives the turn back once; a second
-call, or one after the game was left, does nothing.
+It is taken only at his turn, in a playthrough or a created scene (a replay never hands him the
+turn), and refused otherwise with `MOD_WRITE_WAIT`, with `MOD_WRITE_OFF` for a mod that is off,
+and with `MOD_WRITE_NO_GAME` on the menu. The result's `data` is the release: call it when the
+work is done, failed or not. It gives the turn back once; a second call, or one after the scene
+was left, does nothing.
 
 A hook point is added where mods actually meet, not ahead of need. Once mods use one, it stays
 as it is: renaming it or changing what it passes breaks them. A change that is needed goes in
