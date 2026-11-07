@@ -50,11 +50,13 @@ The allowlist told the truth: what it said was left is exactly what kept the bun
 The three releases I tested are in [`releases/`](releases), with an `installed.json` standing in for the installer. They're test builds only:
 - Photo's `EchoPanel` is stubbed out, since Echo isn't on `core`.
 - `installed.json` approves Photo's `main.js` by hand. Without it, Photo needs `allowUnreviewedMain: true` in `settings.json`.
-- Bunnyfeeds needs #281 (`replacingUnmarked`), so until #281 is in `core`, use `core` with #281 merged in.
+- Bunnyfeeds needs #281 (`replacingUnmarked`). #281's branch is `core` plus #281, so use that until #281 is in `core`; after that, plain `core`.
 
-In PowerShell, from a checkout of `core` with #281 (this folder's zips downloaded into `$z`):
+In PowerShell, with this folder's zips and `installed.json` downloaded into `$z`:
 
 ```powershell
+git fetch origin pull/281/head:test/standalone
+git checkout test/standalone
 npm install
 npm --prefix packages/modkit install
 # if `npm run dev` says "Electron uninstall": node node_modules\electron\install.js
