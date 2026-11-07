@@ -1,4 +1,4 @@
-import { appError } from './errors'
+import { appError } from '@vx/modkit/shared'
 import {
   assertSoundtrackBytes, assertSoundtrackDuration, assertSoundtrackKey, prepareSoundtrackSnapshot,
   readSoundtrackMap, SOUNDTRACK_FILE, soundtrackExtension,
