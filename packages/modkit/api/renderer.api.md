@@ -659,6 +659,9 @@ export const profileImageUrl: (id: string) => string | undefined;
 export function profileLines(character: Character, flags: CharFlags, castSize?: number): string[];
 
 // @public
+export function profileUrl(charId: string, version?: number, staged?: boolean): string;
+
+// @public
 export const PROMPT_BLOCKS: readonly PromptBlock[];
 
 // @public
@@ -1630,6 +1633,9 @@ export function useScenePersona(): string | undefined;
 
 // @public
 export function useSfxGain(): number;
+
+// @public
+export function useSpriteVersion(charId: string | null | undefined): number;
 
 // @public
 export function useViewingThread(): string | null;
