@@ -114,6 +114,7 @@ export function parseCatalog(
         releases,
         changelog,
         ...(https(entry.cover) ? { cover: entry.cover } : {}),
+        ...screenshotsOf(entry.id, entry.screenshots, log),
         installedVersion: null
       })
     } catch (error) {
@@ -121,6 +122,60 @@ export function parseCatalog(
     }
   }
   return mods
+}
+
+/** The most screenshots a mod's page shows. */
+export const MAX_SCREENSHOTS = 8
+
+/** A mod's screenshots: https images with an optional caption, the bad ones dropped, at most eight. */
+function screenshotsOf(
+  id: string,
+  raw: unknown,
+  log: (line: string) => void
+): { screenshots?: { url: string; caption?: string }[] } {
+  if (raw === undefined) return {}
+  if (!Array.isArray(raw)) {
+    log(`[mods catalogue] dropped the screenshots of ${id}: not a list`)
+    return {}
+  }
+  const shots: { url: string; caption?: string }[] = []
+  for (const item of raw) {
+    if (!object(item) || !https(item.url) || (item.caption !== undefined && !text(item.caption))) {
+      log(`[mods catalogue] dropped a screenshot of ${id}`)
+      continue
+    }
+    if (shots.length === MAX_SCREENSHOTS) break
+    shots.push({ url: item.url, ...(item.caption !== undefined ? { caption: item.caption as string } : {}) })
+  }
+  return shots.length ? { screenshots: shots } : {}
+}
+
+/** An image at an https address as a data URL, or null when it fails, is not an image or is over 1 MB. */
+async function imageData(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+    if (!response.ok || !https(response.url) || !response.body) return null
+    const reader = response.body.getReader()
+    const chunks: Uint8Array[] = []
+    let size = 0
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        size += value.length
+        if (size > 1_000_000) return null
+        chunks.push(value)
+      }
+    } finally {
+      await reader.cancel()
+    }
+    const bytes = Buffer.concat(chunks)
+    // The same signature sniffer behind the kit's sniffImageFile.
+    const type = imageTypeOf(bytes)
+    return type ? `data:${type};base64,${bytes.toString('base64')}` : null
+  } catch {
+    return null
+  }
 }
 
 /** One owner for the last index and a serialized install queue, including record updates. */
@@ -142,33 +197,18 @@ export class ModCatalog {
       throw new Error(`Could not fetch the mod catalogue (HTTP ${response.status}).`)
     if (!https(response.url)) throw new Error('The mod catalogue address must use https.')
     this.mods = parseCatalog(await response.json())
+    // Pictures never prevent browsing: one that fails is left out, a cover falls back to initials.
     await Promise.all(
       this.mods.map(async (mod) => {
-        if (!mod.cover) return
-        try {
-          const response = await fetch(mod.cover, { signal: AbortSignal.timeout(10_000) })
-          if (!response.ok || !https(response.url) || !response.body) return
-          const reader = response.body.getReader()
-          const chunks: Uint8Array[] = []
-          let size = 0
-          try {
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) break
-              size += value.length
-              if (size > 1_000_000) return
-              chunks.push(value)
-            }
-          } finally {
-            await reader.cancel()
-          }
-          const bytes = Buffer.concat(chunks)
-          // The same signature sniffer behind the kit's sniffImageFile.
-          const type = imageTypeOf(bytes)
-          if (type) mod.coverData = `data:${type};base64,${bytes.toString('base64')}`
-        } catch {
-          /* A cover never prevents browsing. */
-        }
+        const [cover, shots] = await Promise.all([
+          mod.cover ? imageData(mod.cover) : Promise.resolve(null),
+          Promise.all((mod.screenshots ?? []).map(async (shot) => ({ shot, src: await imageData(shot.url) })))
+        ])
+        if (cover) mod.coverData = cover
+        const fetched = shots.flatMap(({ shot, src }) =>
+          src ? [{ src, ...(shot.caption ? { caption: shot.caption } : {}) }] : []
+        )
+        if (fetched.length) mod.screenshotData = fetched
       })
     )
     return this.list()

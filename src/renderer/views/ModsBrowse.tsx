@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'motion/react'
 import type { CatalogMod, CatalogRelease } from '@shared/modCatalog'
 import { SelectField } from '../components/SelectField'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { Lightbox } from '../components/Lightbox'
+import { useDismissLayer } from '../components/useModalShell'
 import { gestures, lift, press, cardLift } from './motion'
 
 /** Kept mounted while tabs change so an install and its result stay visible. */
@@ -27,6 +29,9 @@ export function ModsBrowse({
   const [restart, setRestart] = useState(false)
   const [operationId, setOperationId] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
+  // The screenshot open at full size; Escape closes it before the page.
+  const [viewing, setViewing] = useState<string | null>(null)
+  useDismissLayer(() => setViewing(null), viewing !== null)
 
   async function load(): Promise<void> {
     setLoading(true)
@@ -230,6 +235,26 @@ export function ModsBrowse({
                   </div>
                 </div>
               )}
+              {selected.screenshotData && (
+                <section>
+                  <h4 className="vu-mods-label">Screenshots</h4>
+                  <div className="vu-mods-store-shots">
+                    {selected.screenshotData.map((shot, i) => (
+                      <figure key={i} className="vu-mods-store-shot">
+                        <motion.button
+                          type="button"
+                          aria-label={shot.caption ?? `Screenshot ${i + 1}`}
+                          {...gestures(false, cardLift, press)}
+                          onClick={() => setViewing(shot.src)}
+                        >
+                          <img src={shot.src} alt="" />
+                        </motion.button>
+                        {shot.caption && <figcaption className="vu-mods-about">{shot.caption}</figcaption>}
+                      </figure>
+                    ))}
+                  </div>
+                </section>
+              )}
               <section>
                 <h4 className="vu-mods-label">About</h4>
                 <p className="vu-mods-blurb">{selected.blurb}</p>
@@ -297,6 +322,7 @@ export function ModsBrowse({
           />
         )}
       </AnimatePresence>
+      <AnimatePresence>{viewing && <Lightbox key="shot" src={viewing} onClose={() => setViewing(null)} />}</AnimatePresence>
     </>
   )
 }

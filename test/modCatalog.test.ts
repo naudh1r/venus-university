@@ -243,4 +243,28 @@ describe('store catalogue fields', () => {
     expect(parsed.cover).toBe('https://example.com/cover.webp')
     expect(parsed.changelog[0].version).toBe('0.1.0')
   })
+  it('keeps https screenshots with their captions, drops the rest, and stops at eight', () => {
+    const mod = index().mods[0]
+    const shot = (n: number) => ({ url: `https://example.com/${n}.png`, caption: `Shot ${n}` })
+    const [parsed] = parseCatalog(
+      {
+        schemaVersion: 1,
+        mods: [
+          {
+            ...mod,
+            screenshots: [
+              { url: 'http://example.com/plain.png' },
+              { url: 'https://example.com/bare.png' },
+              { url: 'https://example.com/blank.png', caption: '' },
+              ...Array.from({ length: 9 }, (_, n) => shot(n))
+            ]
+          }
+        ]
+      },
+      () => {}
+    )
+    expect(parsed.screenshots).toHaveLength(8)
+    expect(parsed.screenshots?.[0]).toEqual({ url: 'https://example.com/bare.png' })
+    expect(parsed.screenshots?.[1]).toEqual(shot(0))
+  })
 })
