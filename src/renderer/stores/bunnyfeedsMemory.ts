@@ -24,8 +24,13 @@ function fileFeedMemory(
   charId: string, entry: CharMemory, where: string, run: object
 ): Result<null> {
   const onFeed = (memory: Readonly<CharMemory>): boolean => FEED_MEMORY_END.test(memory.desc)
+  // Once she has a memory marked as Bunnyfeeds', unmarked ones are the game's own and stay.
+  const migrated = (readBunnyfeedsContext().charInfo[charId]?.memories ?? []).some(memory => {
+    const ex: unknown = memory.ex
+    return !!ex && typeof ex === 'object' && Object.hasOwn(ex, BUNNYFEEDS)
+  })
   return addMemory(BUNNYFEEDS, charId, { ...entry, desc: `${entry.desc}${where}` }, {
-    run, replacing: onFeed, replacingUnmarked: onFeed
+    run, replacing: onFeed, ...(migrated ? {} : { replacingUnmarked: onFeed })
   })
 }
 

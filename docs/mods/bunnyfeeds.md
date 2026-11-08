@@ -98,6 +98,8 @@ on them, from any mod that puts one there, get threads like any other post.
 ## 1.1.4
 
 - Your older comments and replies are kept; Bunnyfeeds reads and saves through the mod kit now.
+- **Saves don't go back**: once a save is played on 1.1.4, an older Bunnyfeeds reads your
+  comments as strangers' and has the girls answer them again.
 
 ## 1.1.3
 

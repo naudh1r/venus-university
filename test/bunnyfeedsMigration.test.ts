@@ -3,7 +3,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import type { SaveDraft } from '@shared/types'
-import type { GameSave, Result, StructuredRequest } from '@vx/modkit/shared'
+import type { CharMemory, GameSave, Result, StructuredRequest } from '@vx/modkit/shared'
 import { charKeyOf } from '@vx/modkit/shared'
 import { character, playthroughRecord, restoreApi, sceneLines, stubApi } from './fixtures'
 import { legacyCharInfo, type LegacyBunnyPost } from './bunnyfeedsFixtures'
@@ -229,6 +229,20 @@ describe('old Bunnyfeeds saves', () => {
     expect(game.getState().charInfo.friend.memories).toHaveLength(1)
     expect(data.postData.read(game.getState().charInfo.poster.feed![0]).heldMemories)
       .toBeUndefined()
+  })
+
+  it('stops replacing unmarked memories once she has a Bunnyfeeds one', () => {
+    const marked: CharMemory = { date: 1, type: 'liked', desc: 'An earlier exchange, on her post',
+      ex: { bunnyfeeds: { v: '1.1.4', data: null } } }
+    const texted: CharMemory = { date: 1, type: 'liked', desc: 'She texted late, on Bunnyboard' }
+    const info = game.getState().charInfo.friend
+    game.setState({ charInfo: { ...game.getState().charInfo,
+      friend: { ...info, memories: [marked, texted] } } })
+    memory.fileDueFeedMemories(6)
+    const descs = game.getState().charInfo.friend.memories.map(one => one.desc)
+    expect(descs).toContain(texted.desc)
+    expect(descs).not.toContain(marked.desc)
+    expect(descs).toHaveLength(2)
   })
 
   it('normalizes malformed metadata and gives an explicit slice priority over legacy keys', () => {

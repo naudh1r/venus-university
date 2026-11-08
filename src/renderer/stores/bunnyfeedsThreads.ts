@@ -217,6 +217,8 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
   }
   const game = readBunnyfeedsContext()
   if (!game.playthroughId) return
+  // Another mod owns post comments: an answer could not be filed, so none is asked for.
+  if (!ownsPostComments(BUNNYFEEDS)) return
   const now = globalSlotOf(game.date, game.time)
   const owed = owedThreads(now)
   if (owed.length === 0) return
