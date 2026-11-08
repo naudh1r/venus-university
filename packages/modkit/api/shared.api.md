@@ -257,7 +257,7 @@ export interface DesktopSurfaceBridge {
     // (undocumented)
     invoke<T>(method: string, ...args: unknown[]): Promise<T>;
     // (undocumented)
-    on<T>(method: string, listener: (value: T) => void): () => void;
+    on<T extends unknown[]>(method: string, listener: (...values: T) => void): () => void;
 }
 
 // @public

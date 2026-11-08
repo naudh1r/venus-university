@@ -15,6 +15,7 @@ import { isOrientationSlot } from '../prompts/introScript'
 import { isGraduationSlot } from '../prompts/graduation'
 import { boxFits } from '../views/boxRows'
 import { useUiStore } from '../stores/uiStore'
+import { ownsTurnHold } from './sceneView'
 
 type Game = ReturnType<typeof useGameStore.getState>
 function present(game: Game, id: string): boolean {
@@ -23,10 +24,10 @@ function present(game: Game, id: string): boolean {
 }
 
 /** Whether a native scene is accepting an exchange already displayed outside its dialogue box. */
-export function canRecordSceneTurn(): boolean {
+export function canRecordSceneTurn(modId?: string): boolean {
   const g = useGameStore.getState()
   return Boolean((g.playthroughId || g.createdScene) && !g.createdScene?.over && !g.activeGameOver && g.currentSceneTranscript.length &&
-    g.awaitingInput && !g.busy && !g.streaming && !g.pendingLines.length && !g.sceneEnding && !g.endingInFlight &&
+    g.awaitingInput && (!g.busy || !!modId && ownsTurnHold(modId)) && !g.streaming && !g.pendingLines.length && !g.sceneEnding && !g.endingInFlight &&
     !g.replaying && !g.sceneQuiz && !g.sceneActivity && !sceneInputHeld() &&
     (g.createdScene || (!isOrientationSlot(g.date,g.time,g.semesterIndex) && !isGraduationSlot(g.date,g.time))) &&
     g.cast.some(id => present(g, id)))
@@ -67,6 +68,7 @@ export function sceneExchangeContext(): SceneExchangeContext {
 }
 
 export interface ExternalSceneTurn {
+  /** Positive monotonically increasing identity within this exchange. */
   id: number
   participants: readonly string[]
   actions: readonly string[]
@@ -74,15 +76,19 @@ export interface ExternalSceneTurn {
   deferSave?: boolean
 }
 export interface SceneExchange {
+  /** Whether this handle still belongs to the loaded enabled scene. */
   current(): boolean
+  /** Append a validated turn once. Synchronous reentry is refused. */
   append(turn: ExternalSceneTurn): boolean
+  /** Request persistence of the last retained story decision. */
   flush(): void
+  /** Stop accepting turns and flush any retained decision. */
   close(): void
 }
 
 /** Bind display, retries and autosaving to one native decision point, including Creator. */
 export function openSceneExchange(modId: string): SceneExchange | null {
-  if (!modIsOn(modId, loopState.record) || !canRecordSceneTurn()) return null
+  if (!modIsOn(modId, loopState.record) || !canRecordSceneTurn(modId)) return null
   const origin = useGameStore.getState(), run = currentRun()
   let transcript = origin.currentSceneTranscript, log = origin.sceneLog
   let closed = false, applying = false, lastId = 0
@@ -101,10 +107,10 @@ export function openSceneExchange(modId: string): SceneExchange | null {
     return !closed && !runStale(run) && modIsOn(modId, loopState.record) && (applying ||
       (g.playthroughId === origin.playthroughId && g.date === origin.date && g.time === origin.time &&
       g.loads === origin.loads && g.createdScene === origin.createdScene && g.cast === origin.cast &&
-      g.currentSceneTranscript === transcript && g.sceneLog === log && canRecordSceneTurn()))
+      g.currentSceneTranscript === transcript && g.sceneLog === log && canRecordSceneTurn(modId)))
   }
   return {current,flush,close() {closed = true; flush()},append(turn) {
-    if (!current() || !Number.isSafeInteger(turn.id) || turn.id < 1 || turn.id < lastId) return false
+    if (applying || !current() || !Number.isSafeInteger(turn.id) || turn.id < 1 || turn.id < lastId) return false
     if (turn.id === lastId) return true
     const g = useGameStore.getState()
     if (!turn.participants.length || new Set(turn.participants).size !== turn.participants.length ||
@@ -137,4 +143,5 @@ export function openSceneExchange(modId: string): SceneExchange | null {
   }}
 }
 
+/** Whether the host supports the restricted auxiliary-window bridge. */
 export function hasDesktopSurfaces(): boolean {return typeof window !== 'undefined' && Boolean(window.api) && window.api.platform !== 'web'}
