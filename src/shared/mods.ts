@@ -70,8 +70,6 @@ export interface ModDef {
   library?: boolean
 }
 
-export const PHOTO_FEATURE = 'photo-feature'
-
 /**
  * Each mod's entry, found rather than listed: every file in `src/shared/modEntries/`, named for
  * the mod's id, whose default export is its {@link ModDef}. Nothing here names a mod, so two

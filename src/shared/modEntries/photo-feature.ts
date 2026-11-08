@@ -5,10 +5,7 @@ const mod: ModDef = {
   ...PHOTO_FEATURE_MOD,
   id: PHOTO_FEATURE_ID,
   version: '1.7.1',
-  hooks: [
-    'invoke', 'renderer:invoke', 'shared:sharedModOn',
-    'renderer:modOptionOn', 'renderer:useModOn', 'renderer:useModOption',
-    'main:modOptionOn'
-  ]
+  // A built-in mod only acts on `invoke`; an installed release's manifest lists everything.
+  hooks: ['invoke']
 }
 export default mod

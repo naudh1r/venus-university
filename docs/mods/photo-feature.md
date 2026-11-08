@@ -130,7 +130,6 @@ If a photo stays PNG while WebP is on, look in `data/app.log` for a `[photo] kep
 - Your older photos stay with their texts and posts, including pictures still waiting to appear
   and photos of two girls.
 - A body tag her appearance already names is no longer doubled in sprites or CGs.
-
 - Your photos are kept in Photo Feature's own folder now; older ones move there when you
   next view that playthrough's photos.
 

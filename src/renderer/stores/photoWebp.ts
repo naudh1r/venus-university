@@ -8,7 +8,7 @@ import type { Result, Character } from '@vx/modkit/shared'
  *
  * ComfyUI only saves PNG, and main has no image encoder, so the renderer does it with
  * Chromium's own: main reads it the PNG that just landed, it encodes that, and hands the bytes
- * back to be kept in its place. The bytes come over IPC rather than from `playimg://`: the
+ * back to be kept in its place. The bytes come over IPC rather than from the mod's protocol: the
  * page's policy refuses that fetch, and a canvas drawn from another origin cannot be encoded.
  *
  * A failed encode is not a failed photo: the PNG stays, and every reader takes whichever of the
