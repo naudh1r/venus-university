@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import { TALENTS, TALENT_TREES, talentBalance, talentRank, talentEffect, talentPrerequisitesMet, spentTalents, type TalentTree } from '../../shared/campusTalents'
-import { MODS, modOn } from '@shared/mods'
+import { modById, modOn } from '@vx/modkit/shared'
 import { readBondFraction } from '../../shared/talentBondPoints'
 import { PERSONAL_GROWTH } from '../../shared/talentTrading'
 import { STAT_LABELS } from '@shared/playerStats'
@@ -30,6 +30,10 @@ const TREE_TABS = [
   ...TALENT_TREES.filter(t=>t.id==='echoes')
 ]
 
+function modName(id: string): string {
+  return modById(id)?.name ?? id
+}
+
 export function TalentPanel({theme,onClose}:{theme:ScreenTheme;onClose:()=>void}) {
   const game=useGameStore(), s=game.exTalents
   const enabled=useModOn('campus-talents'), switches=useModsStore(s=>s.switches)
@@ -46,7 +50,7 @@ export function TalentPanel({theme,onClose}:{theme:ScreenTheme;onClose:()=>void}
   useEffect(()=>{contentRef.current?.scrollTo({top:0})},[selected,rank])
   const missing=(d:typeof def):string=>{
     const dependency=d.requires?.find(id=>!modOn(switches,id))
-    if(dependency)return `Requires ${MODS.find(m=>m.id===dependency)?.name??dependency}`
+    if(dependency)return `Requires ${modName(dependency)}`
     const parent=d.prerequisites?.find(p=>talentRank(s,p.id)<p.rank)
     if(parent)return `Requires ${TALENTS.find(x=>x.id===parent.id)!.name} rank ${parent.rank}`
     return talentPrerequisitesMet(s,d)?'':d.capstone?'Max one second-row skill':'Learn one required skill first'
@@ -117,7 +121,10 @@ export function TalentPanel({theme,onClose}:{theme:ScreenTheme;onClose:()=>void}
         <aside className="vu-talents-detail-wrap" aria-label="Selected skill"><div ref={contentRef} className="vu-talents-details">
           <div className="vu-talents-detail-heading"><TalentArtwork skill={def.id}/><div><span className="vu-talents-detail-label">{def.capstone?'Special ability':`${def.chain} · Skill`}</span>
           <h2>{def.name}</h2></div></div><p className="vu-talents-detail-copy">{def.id===PERSONAL_GROWTH&&rank?'Spend BP on a chosen stat: 10 BP to recover recorded break losses; otherwise 25 BP below 60 or 40 BP from 60 to 100.':def.description}</p>
-          {def.id===PERSONAL_GROWTH&&<TalentTrainingControls safe={safe} act={act}/>}
+          {def.id===PERSONAL_GROWTH&&<TalentTrainingControls
+            safe={safe} talents={s} stats={game.stats} term={game.semesterIndex} date={game.date}
+            onTrain={stat => { void act({train: stat}) }}
+          />}
           {!!def.prerequisitesAny?.length&&!(def.shared&&rank)&&<div className="vu-talents-unlock"><strong>{def.capstone||def.shared?'Fully upgrade any one second-row skill:':'Learn any one of these skills:'}</strong><ul>{def.prerequisitesAny.map(p=><li key={p.id} data-ready={talentRank(s,p.id)>=p.rank}>{TALENTS.find(d=>d.id===p.id)!.name} <span>{Math.min(talentRank(s,p.id),p.rank)}/{p.rank}</span></li>)}</ul></div>}
           <TalentAbilityControls key={selected} skill={selected} safe={safe} act={act} onClose={onClose}/>
         {(def.id==='reserve'||def.id==='interest')&&<div className="vu-talents-savings"><div><strong>Savings</strong><span>Wallet {formatMoney(game.money)} · Savings <b data-testid="savings-balance">{formatMoney(s.reserve)}</b></span><small>{bank?`${def.id==='interest'?`Interest earned: ${formatMoney(s.interestEarned)}. `:''}Savings stay separate from your wallet and debt limit.`:'Learn Rainy Day Fund to open your savings pocket.'}</small></div>
@@ -125,7 +132,7 @@ export function TalentPanel({theme,onClose}:{theme:ScreenTheme;onClose:()=>void}
           <motion.button type="button" className="vu-pill" disabled={!transferReady} {...gestures(!transferReady,quietLift,quietPress)} onClick={()=>void act({transfer:Number(amount)})}>Deposit</motion.button>
           <motion.button type="button" className="vu-pill" disabled={!transferReady} {...gestures(!transferReady,quietLift,quietPress)} onClick={()=>void act({transfer:-Number(amount)})}>Withdraw</motion.button>
         </div>}
-        {!!def.requires?.length&&<p className="vu-talents-integration">Requires {def.requires.map(id=>MODS.find(m=>m.id===id)?.name??id).join(' and ')} to be enabled.</p>}
+        {!!def.requires?.length&&<p className="vu-talents-integration">Requires {def.requires.map(modName).join(' and ')} to be enabled.</p>}
         {def.notes?.map(note=><p key={note} className="vu-talents-integration">{note}</p>)}
         </div><div className="vu-scroll-fade"/></aside>
       </div>
