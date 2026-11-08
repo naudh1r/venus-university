@@ -25,6 +25,14 @@ function fixture() {
 afterEach(() => vi.useRealTimers())
 
 describe('custom soundtrack storage', () => {
+  it('registers its original switch when storage loads before the mod catalogue', async () => {
+    vi.resetModules()
+    const { SOUNDTRACK_DEF, SOUNDTRACK_MOD } = await import('@shared/soundtracks')
+    const { modById } = await import('@vx/modkit/shared')
+    expect(modById(SOUNDTRACK_MOD)).toBe(SOUNDTRACK_DEF)
+    expect(SOUNDTRACK_DEF).toMatchObject({ id: 'custom-soundtracks', scope: 'anytime', defaultOn: true })
+  })
+
   it('assigns the dungeon without changing question or victory tracks',async()=>{
     const {library,add}=fixture()
     await add('reckoning');await add('reckoning_victory')
