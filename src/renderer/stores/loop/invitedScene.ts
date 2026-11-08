@@ -1,7 +1,7 @@
 import {coverSceneOpening} from '../slotCrossing'
 import { currentRun, loopState, runStale } from './state'
 import {playerActs} from '../../mods/hooks'
-import {stageCast,promptState,reader} from './promptState'
+import {applyCast,promptState,reader} from './promptState'
 import {armSceneRecords} from './jobs'
 import {castCharactersOf} from './cast'
 import {buildScenePrompt} from '../../prompts/scenePrompt'
@@ -20,7 +20,7 @@ export async function enterInvitedScene(modId: string, partner: string, action: 
  game.setInputDraft('');game.setAwaitingInput(false);game.setBusy(true);playerActs()
  loopState.turnStartedAt=performance.now();game.setStreaming(true);game.setWaitingForLine(true)
  try{
-  await stageCast([partner])
+  await applyCast([partner])
   if(runStale(run))return
   initialize()
   armSceneRecords();useGameStore.getState().logPlayerAction(action,false)
