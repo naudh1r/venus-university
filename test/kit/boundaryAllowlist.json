@@ -326,9 +326,7 @@
   "src/shared/talentMemories.ts -> ./echo",
   "src/shared/talentPerks.ts -> ./academics",
   "src/shared/talentTrading.ts -> ./playerStats",
-  "src/shared/textRegeneration.ts -> ./types",
   "src/shared/venusWhisper.ts -> ./locations",
-  "src/shared/venusWhisper.ts -> ./npcRelationships",
   "src/shared/venusWhisper.ts -> ./types",
   "src/shared/whisperIdentity.ts -> ./relationship"
 ]
