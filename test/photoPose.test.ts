@@ -771,6 +771,10 @@ describe('captioned hands replace position fillers', () => {
     ['one hand cupping the underside of her breast, sitting', true, ['grabbing_own_breast']],
     ['both hands spreading her thighs, sitting', false, []],
     ['leaning over a cart, hands on the handle', false, []],
+    ['leaning on the railing, both forearms resting on the rail', false, ['leaning_on_object']],
+    ['leaning on the counter, elbows on the counter', false, ['leaning_on_object']],
+    ['leaning over her desk, hands flat on the desk', false, ['leaning_on_object']],
+    ['leaning against a parked car, hands on the car door', false, ['standing']],
     ['one hand resting on a basket, standing', false, []],
     ['camisole pulled down with one hand, standing', true, ['clothes_pull']],
     ['glancing back over one shoulder', false, ['looking_back', 'from_behind']]

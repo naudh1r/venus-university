@@ -165,6 +165,7 @@ const VERIFIED = new Set([
   'kneeling',
   'knees_up',
   'leaning_forward',
+  'leaning_on_object',
   'legs_up',
   'looking_at_viewer',
   'looking_back',

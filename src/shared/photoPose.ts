@@ -69,8 +69,14 @@ const DRESSED_POSITIONS: readonly Rule[] = [
     tags: ['sitting', 'cowboy_shot', 'hands_on_lap']
   },
   { cues: ['kneeling', 'crouching'], tags: ['kneeling', 'hands_on_own_thighs'] },
-  { cues: ['leaning over', 'leaning forward'], tags: ['leaning_forward', 'hand_on_own_chin'] },
-  { cues: ['leaning against', 'leaning on'], tags: ['against_wall', 'crossed_arms'] },
+  // A wall keeps her arms folded. Anything else she leans on has her on her feet with her hands
+  // on it: drawn as a wall, she sat on the counter or the railing's step instead.
+  { cues: ['against the wall', 'against a wall'], tags: ['against_wall', 'crossed_arms'] },
+  {
+    cues: ['leaning over', 'leaning against', 'leaning on'],
+    tags: ['standing', 'leaning_forward', 'leaning_on_object']
+  },
+  { cues: ['leaning forward'], tags: ['leaning_forward', 'hand_on_own_chin'] },
   { cues: ['standing', 'walking'], tags: ['standing', 'cowboy_shot', 'hand_on_own_hip'] },
   { cues: ['stretching', 'reaching up'], tags: ['standing', 'arms_up', 'armpits'] }
 ]
@@ -235,6 +241,12 @@ const OCCUPIED_HAND_CUES = [
   'tucking her hair',
   'fixing her hair',
   // Her hands on what she is leaning on: a hand on her hip or her thighs beside them is a third.
+  'hands on',
+  'hands flat',
+  'hands resting',
+  'elbows on',
+  'elbows resting',
+  'forearms',
   'on her hands',
   'hands behind her',
   'on her elbows',
