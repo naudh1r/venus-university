@@ -3,7 +3,6 @@ import type { BaseWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { handleImageProtocols, registerImageSchemes } from './imageProtocols'
-import { handlePhotoProtocol } from './photoProtocol'
 import { registerIpcHandlers } from './ipc'
 import { installConsoleLog } from './logFile'
 import { modScheme } from './mods/protocol'
@@ -225,7 +224,6 @@ app
     electronApp.setAppUserModelId(APP_ID)
 
     handleImageProtocols()
-    handlePhotoProtocol()
     handleModSession()
 
     app.on('browser-window-created', (_, window) => {

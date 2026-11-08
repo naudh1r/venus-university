@@ -1,4 +1,5 @@
 import './fixtures/maestroModelKit'
+import { savedPhoto } from '../src/shared/photoTypes'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { GameSave, Result, SaveDraft, StructuredRequest, TextingResponse } from '@shared/types'
 import { useGameStore } from '../src/renderer/stores/gameStore'
@@ -40,7 +41,7 @@ it.each(['accepted', 'failed-save', 'load-during-save', 'new-hangout', 'blocked'
   await vi.advanceTimersByTimeAsync(60_000); await sent
   expect(sendPhoto).toHaveBeenCalledOnce()
   expect(sendPhoto).toHaveBeenCalledWith('a', game().characters.a, expect.objectContaining({ sendPhoto: false }), true)
-  expect(game().bunnyboard.conversations.a.messages.at(-1)?.photo).toBeUndefined()
+  expect(savedPhoto(game().bunnyboard.conversations.a.messages.at(-1) ?? {})).toBeNull()
   vi.mocked(sendPhoto).mockClear()
   const original = game().bunnyboard.conversations.a
   if (outcome === 'new-hangout') vi.spyOn(window.api.llm, 'classifyHangout').mockResolvedValueOnce({ ok: true, data: { playerAsked: true, characterOffered: false, description: 'Meet now.' } })

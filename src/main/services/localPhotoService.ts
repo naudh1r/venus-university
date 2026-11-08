@@ -27,7 +27,7 @@ import {
   type PhotoRenderOptions,
   type PhotoSidecar
 } from '../../shared/photoTypes'
-import { photoSwitches } from '../../shared/photoSwitches'
+import { photoSwitches, PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 import { isPhotoTier, type PhotoTier } from '../../shared/photoGate'
 import { buildDuoPhotoPrompt, buildPhotoPrompt } from '../../shared/photoPrompt'
 import {
@@ -138,7 +138,7 @@ export async function photoLanded(
 
 /**
  * The bytes of a picture that just landed, for the renderer to encode as WebP: the page may not
- * fetch `playimg://`, and a picture drawn from it would taint the canvas it is encoded on.
+ * fetch the mod's own protocol, and a picture drawn from it would taint the canvas it is encoded on.
  */
 export async function readPhotoBytes(
   playthroughId: string,
@@ -311,7 +311,7 @@ export async function generatePhoto(
   // On disk now, so the folder itself says the name is taken.
   reservedPhotoNames.get(getPhotosPath(playthroughId, character.charId))?.delete(file)
 
-  // The name, not the path: the message carries it and `playimg://` resolves it.
+  // The name, not the path: the message carries it and the mod's protocol resolves it.
   return file
 }
 
@@ -396,7 +396,7 @@ async function renderPhotoImage(
     const check = (): void => {
       if (signal.aborted) throw appError('CANCELLED', 'Generation was cancelled.')
     }
-    const bytes = await renderComfyImage('photo-feature', request, {
+    const bytes = await renderComfyImage(PHOTO_FEATURE_ID, request, {
       signal,
       onProgress: options.onProgress
     })

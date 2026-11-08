@@ -15,6 +15,7 @@ import {
 import { usePhotoSwitches } from '../stores/photoSwitchHooks'
 import { gestures, quietLift, quietPress, recordField, type EditorField } from '@vx/modkit/renderer'
 import '../vu_styles/BodyFields.css'
+import { PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 
 /**
  * Her body in the character editor: her build, picked from the pool, and the rest drawn to fit it
@@ -42,7 +43,7 @@ function noneLabel(field: BodyField, baseAppearance: readonly string[]): string 
 }
 
 /** Her body on a character, moved from the old key when the character is written. */
-export const PHOTO_BODY_FIELD = recordField<CharacterBody>('photo-feature', {
+export const PHOTO_BODY_FIELD = recordField<CharacterBody>(PHOTO_FEATURE_ID, {
   empty: {},
   legacy: ['body'],
   normalize: (stored, legacy) => cleanBody(stored === undefined ? legacy.body : stored) ?? {}

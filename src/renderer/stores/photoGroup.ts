@@ -1,6 +1,7 @@
+import { postPhoto } from './photoRecords'
 import { npcFriendsOf, type Character, type StructuredRequest, type TimeSlot } from '@vx/modkit/shared'
 import { groupPhotoPair, type GroupPhotoPair } from '../../shared/photoDuo'
-import { duoPhotosOn } from '../../shared/photoSwitches'
+import { duoPhotosOn, PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 import {
   ownsPostComments,
   promptFields,
@@ -10,11 +11,10 @@ import {
   type SceneReplied
 } from '@vx/modkit/renderer'
 import { postCommentLines, postPhotoLines } from '../prompts/photoBrief'
-import { useGameStore } from './gameStore'
+import { photoGame } from './photoGame'
 import { canSendPhotos } from './localPhotoStore'
 import { startHeldPostPhoto } from './photoPost'
 
-const PHOTO_FEATURE = 'photo-feature'
 
 /**
  * The group photo: two of the girls in the scene the reader just committed to, posted by one of
@@ -37,21 +37,21 @@ let asked: AskedGroupPhoto | null = null
 let settledSlot: string | null = null
 
 function slotKey(): string | null {
-  const { playthroughId, date, time } = useGameStore.getState()
+  const { playthroughId, date, time } = photoGame()
   return playthroughId ? `${playthroughId}:${date}:${time}` : null
 }
 
 /** Whether a group photo is already on somebody's feed this slot, as a reload finds the save. */
 function postedThisSlot(): boolean {
-  const { charInfo, date, time } = useGameStore.getState()
+  const { charInfo, date, time } = photoGame()
   return Object.values(charInfo).some((info) =>
-    (info?.feed ?? []).some((post) => post.date === date && post.time === time && post.photo?.with)
+    (info?.feed ?? []).some((post) => post.date === date && post.time === time && postPhoto.read(post)?.with)
   )
 }
 
 /** The rules for a post's other fields, such as its comments, from whichever mod asks for them. */
 function postFieldLines(): string[] {
-  if (ownsPostComments(PHOTO_FEATURE)) return postCommentLines(true)
+  if (ownsPostComments(PHOTO_FEATURE_ID)) return postCommentLines(true)
   // Her own picture lines are for a picture of one girl, so only the other mods' are kept.
   const own = new Set(postPhotoLines(true))
   return promptLines('slot-posts', {}).filter((line) => !own.has(line))
@@ -87,11 +87,11 @@ export function withGroupPhotoRequest(
   }
   const ids = cast.map((girl) => girl.charId)
   if (!asked || asked.slot !== slot || !ids.includes(asked.poster) || !ids.includes(asked.friend)) {
-    const pair = groupPhotoPair(ids, useGameStore.getState().npcRelationships)
+    const pair = groupPhotoPair(ids, photoGame().npcRelationships)
     asked = pair ? { ...pair, slot } : null
     if (!asked) return request
   }
-  const characters = useGameStore.getState().characters
+  const characters = photoGame().characters
   const poster = characters[asked.poster]
   const friend = characters[asked.friend]
   if (!poster || !friend) return request
@@ -144,7 +144,7 @@ export function fileGroupPhoto({ reply }: SceneReplied): void {
     console.log('[photo] the scene wrote no group photo')
     return
   }
-  const game = useGameStore.getState()
+  const game = photoGame()
   const char = Object.keys(game.charKeyToId).find((key) => game.charKeyToId[key] === waiting.poster)
   if (!char) return
   void fileLatePost({ ...written, char, text, image, groupWith: waiting.friend } as {
@@ -166,11 +166,11 @@ let feedFriends: { slot: string; rolled: Set<string>; pairs: Map<string, string>
  */
 function feedFriendOf(character: Character, date: number, time: TimeSlot): Character | null {
   if (!duoPhotosOn() || !canSendPhotos()) return null
-  const { playthroughId } = useGameStore.getState()
+  const { playthroughId } = photoGame()
   if (!playthroughId) return null
   const slot = `${playthroughId}:${date}:${time}`
   if (feedFriends?.slot !== slot) feedFriends = { slot, rolled: new Set(), pairs: new Map() }
-  const game = useGameStore.getState()
+  const game = photoGame()
   const known = feedFriends.pairs.get(character.charId)
   if (feedFriends.rolled.has(character.charId)) return known ? (game.characters[known] ?? null) : null
   feedFriends.rolled.add(character.charId)

@@ -1,11 +1,11 @@
-import './fixtures/maestroModelKit'
 import { afterEach, expect, it, vi } from 'vitest'
 import { restoreApi, stubApi } from './fixtures'
-import { useGameStore } from '../src/renderer/stores/gameStore'
-import { useGrabBagStore } from '../src/renderer/stores/grabBagStore'
-import { FEED_EMOJI_BAG, FEED_HANDLE_BAG } from '../src/renderer/prompts/feedRandoms'
-import { setPhotoSwitches } from '../src/shared/photoSwitches'
-import { rollComments } from '../src/renderer/stores/photoComments'
+stubApi({ jobs: { onProgress: () => () => {} } })
+const { useGameStore } = await import('../src/renderer/stores/gameStore')
+const { useGrabBagStore } = await import('../src/renderer/stores/grabBagStore')
+const { FEED_EMOJI_BAG, FEED_HANDLE_BAG } = await import('../src/renderer/prompts/feedRandoms')
+const { setRendererPhotoSwitches } = await import('./fixtures/photoSwitchState')
+const { rollComments } = await import('../src/renderer/stores/photoComments')
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -14,7 +14,7 @@ afterEach(() => {
 
 it('draws a handle then a face for every kept comment, in the written order', () => {
   stubApi({ jobs: { onProgress: () => () => {} } })
-  setPhotoSwitches({ on: true })
+  setRendererPhotoSwitches({ on: true })
   useGameStore.setState({ playthroughId: 'one', date: 2, time: 0 })
   vi.spyOn(Math, 'random').mockReturnValue(0.99)
   const draw = vi.spyOn(useGrabBagStore.getState(), 'drawMany')

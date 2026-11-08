@@ -5,7 +5,6 @@ import { SAFE_CHAR_ID } from '@shared/characterRules'
 import { BG_VARIANTS, customBackgroundFileName, isSafeBgName } from '@shared/customBackgrounds'
 import { getCharacterImagePath, getCustomBackgroundImagePath } from './paths'
 import { imagePath } from './services/imageFiles'
-import { PHOTO_SCHEME } from './photoProtocol'
 
 /** Disk-backed image URLs: the host is the charId and the path is the image's own. */
 const CHAR_SCHEME = 'charimg'
@@ -30,9 +29,6 @@ export function registerImageSchemes(extra: readonly CustomScheme[] = []): void 
       scheme,
       privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true }
     })),
-    // A second `registerSchemesAsPrivileged` replaces the first, so `playimg://` is
-    // privileged from here rather than registering itself.
-    PHOTO_SCHEME,
     ...extra
   ])
 }

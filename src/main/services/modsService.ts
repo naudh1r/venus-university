@@ -1,18 +1,15 @@
-import { mkdir, readFile } from 'fs/promises'
+import { mkdir } from 'fs/promises'
 import {
   cleanSwitches,
   modOn,
   optionOn,
   NO_SWITCHES,
-  photoSwitchesOf,
-  withPhotoSettingsCarried,
   type ModSwitches
 } from '@shared/mods'
 import { EMPTY_SESSION, isRunning, type ModSessionTable } from '@shared/modSession'
 import type { Manifest } from '@vx/modkit/host/shared'
 import { setSharedModRules } from '@shared/modRules'
-import { setPhotoSwitches } from '@shared/photoSwitches'
-import { getDataPath, getModsPath, getSettingsPath } from '../paths'
+import { getDataPath, getModsPath } from '../paths'
 import { readValidatedJson, writeAtomicJson } from './jsonFile'
 
 /** Schema version this build reads and writes. */
@@ -73,13 +70,7 @@ export async function getModSwitches(): Promise<ModSwitches> {
     required: { schemaVersion: true },
     onMissing: () => ({ schemaVersion: SCHEMA_VERSION, ...NO_SWITCHES })
   })
-  const stored = cleanSwitches(file)
-  const switches = withPhotoSettingsCarried(stored, await settingsToCarry())
-  // Carried once and kept here: the game's next settings save drops what it does not know.
-  if (switches !== stored) await setModSwitches(switches)
-  // Main's own copy of Photo Feature's switches, for the renders it draws (body details).
-  setPhotoSwitches(photoSwitchesOf(switches))
-  known = cleanSwitches(switches)
+  known = cleanSwitches(file)
   return known
 }
 
@@ -91,21 +82,5 @@ export async function setModSwitches(switches: ModSwitches): Promise<void> {
     { schemaVersion: SCHEMA_VERSION, ...cleanSwitches(switches) },
     { code: 'MODS_UNWRITABLE', message: 'Could not save mods.json.' }
   )
-  setPhotoSwitches(photoSwitchesOf(switches))
   known = cleanSwitches(switches)
-}
-
-/**
- * What 1.1.3 left in the game's `settings.json` for Photo Feature, read straight off the file:
- * the game's settings no longer know these keys. None where the file cannot be read.
- */
-async function settingsToCarry(): Promise<Record<string, unknown>> {
-  try {
-    const raw: unknown = JSON.parse(await readFile(getSettingsPath(), 'utf-8'))
-    if (!raw || typeof raw !== 'object') return {}
-    const { photos, photoLoader, bodyDetails } = raw as Record<string, unknown>
-    return { photos, photoLoader, bodyDetails }
-  } catch {
-    return {}
-  }
 }

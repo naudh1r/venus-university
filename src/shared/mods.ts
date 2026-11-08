@@ -1,5 +1,3 @@
-import { PHOTO_LOADERS, photoLoaderOf } from './photoLoader'
-import { loaderOptionId, type PhotoSwitches } from './photoSwitches'
 import type { PlaythroughRecord } from './types'
 
 /**
@@ -71,8 +69,6 @@ export interface ModDef {
    */
   library?: boolean
 }
-
-export const PHOTO_FEATURE = 'photo-feature'
 
 /**
  * Each mod's entry, found rather than listed: every file in `src/shared/modEntries/`, named for
@@ -324,56 +320,4 @@ export interface ModPlaythroughFields {
    * recorded their versions.
    */
   modVersions?: Record<string, string>
-}
-
-/**
- * Photo Feature's switches as this build's Mods screen has them: the mod's own module reads
- * these wherever it acts, so the build only has to hand them over (`setPhotoSwitches`), in main
- * when the switches are read or written and in the renderer whenever one moves.
- */
-export function photoSwitchesOf(switches: ModSwitches): PhotoSwitches {
-  const loader =
-    PHOTO_LOADERS.find((l) => optionOn(switches, PHOTO_FEATURE, loaderOptionId(l.value)))?.value ??
-    'bunny'
-  return {
-    on: modOn(switches, PHOTO_FEATURE),
-    photos: optionOn(switches, PHOTO_FEATURE, 'photos'),
-    explicit: optionOn(switches, PHOTO_FEATURE, 'explicit'),
-    webp: optionOn(switches, PHOTO_FEATURE, 'webp'),
-    body: optionOn(switches, PHOTO_FEATURE, 'body'),
-    duo: optionOn(switches, PHOTO_FEATURE, 'duo'),
-    loader
-  }
-}
-
-/**
- * Photo Feature's options for a player who set them in the game's settings, where 1.1.3 kept
- * them: "No DM and feed photos", "Loading animation" and the body switch. Read only where the
- * Mods screen has never stored them, so what he picked there carries over once; the mods
- * service then writes them to `mods.json`, and the game's settings are never read for them again.
- */
-export function withPhotoSettingsCarried(
-  switches: ModSwitches,
-  settings: { photos?: unknown; photoLoader?: unknown; bodyDetails?: unknown }
-): ModSwitches {
-  let carried = switches
-  if (settings.photos === false && !(optionKey(PHOTO_FEATURE, 'photos') in switches.options)) {
-    carried = withOption(carried, PHOTO_FEATURE, 'photos', false)
-  }
-  const loaderKeys = PHOTO_LOADERS.map((l) => optionKey(PHOTO_FEATURE, loaderOptionId(l.value)))
-  if (
-    typeof settings.photoLoader === 'string' &&
-    !loaderKeys.some((key) => key in switches.options)
-  ) {
-    carried = withOption(
-      carried,
-      PHOTO_FEATURE,
-      loaderOptionId(photoLoaderOf(settings.photoLoader)),
-      true
-    )
-  }
-  if (settings.bodyDetails === true && !(optionKey(PHOTO_FEATURE, 'body') in switches.options)) {
-    carried = withOption(carried, PHOTO_FEATURE, 'body', true)
-  }
-  return carried
 }
