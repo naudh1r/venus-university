@@ -10,8 +10,8 @@ import { echoBreakthroughAbility, ECHO_BREAKTHROUGH_OPTION } from '../../shared/
 import { fullNameOf, type Character } from '@vx/modkit/shared'
 import { useGameStore } from '../stores/gameStore'
 import { useModsStore } from '../stores/modsStore'
-import { useModOn, modIsOn, useImageApiConfigured, useLocalImageSource } from '@vx/modkit/renderer'
-import { manualSaveOffer, writeEcho } from '../stores/loop/saves'
+import { useModOn, modIsOn, useImageApiConfigured, useLocalImageSource, useSafePoint } from '@vx/modkit/renderer'
+import { writeEcho } from '../stores/loop/saves'
 import { ensureEchoes } from '../stores/echoAssignments'
 import { useDismissLayer } from '@vx/modkit/renderer'
 import { EchoNotice } from '../components/EchoNotice'
@@ -211,7 +211,8 @@ export function EchoPanel({hidden,gallery=false,owner,onClose,setup,theme}: {hid
   const matches = ids.filter(id => matchingEcho(state,id))
   const competitors = ids.filter(id => echoAffinity(state,id)==='competing')
   const missing = ['player',...ids].filter(id => !(id === 'player' ? state.player : state.girls[id])?.art)
-  const safe = !!setup || (manualSaveOffer() === 'open' && !game.sceneEnding)
+  const saveOffer = useSafePoint()
+  const safe = !!setup || (saveOffer === 'open' && !game.sceneEnding)
   const namePending=editedName.trim()!==(identity?.name??'')
   const creaturePending=editedCreatureType.trim()!==creature.type||editedDescription.trim()!==creature.description
   useEffect(()=>{

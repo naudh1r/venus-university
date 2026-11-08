@@ -832,7 +832,7 @@ export function PromptStudioModal({ theme, onClose }: PromptStudioModalProps): J
           <TitleTab>Prompt Studio</TitleTab>
 
           {/* The tabs stand in the panel's round end, as Settings' do. */}
-          <div className="vu-palette vu-settings-tabs vu-studio-tabs" role="tablist" aria-label="Prompt Studio">
+          <div className="vu-palette vu-palette--column vu-settings-tabs vu-studio-tabs" role="tablist" aria-label="Prompt Studio">
             {tabs.map((entry) => {
               const on = shown.id === entry.id
               return (

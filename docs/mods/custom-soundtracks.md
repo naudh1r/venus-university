@@ -1,5 +1,9 @@
 # Custom soundtracks
 
+## 1.1.1
+
+Storage validation now uses the public mod kit's error and result contracts. The shared catalogue owns the soundtrack switch definition so storage can load through the kit at startup.
+
 Custom soundtracks is a self-contained, default-on `anytime` mod, ID `custom-soundtracks`.
 It needs the shared Mods framework, but does not depend on renaming, Plot Twist, Story Memory,
 SQLite, City Life, or any particular character or save. This guide describes the current community source implementation, including Echo encounter cues.
