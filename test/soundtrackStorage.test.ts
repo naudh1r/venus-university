@@ -75,7 +75,7 @@ it.each([5, 6, 7])('upgrades browser storage v%s without changing existing rows'
   await old.put('log', 'existing data', 'log'); old.close()
   const { database } = await import('../src/web/db/open')
   const db = await database()
-  expect(db.version).toBe(13)
+  expect(db.version).toBe(14)
   expect(await db.get('scenes', 'scene')).toEqual({ title: 'A saved scene' })
   expect(await db.get('replays', ['playthrough', 'replay'])).toEqual({ title: 'A saved replay' })
   expect(await db.get('log', 'log')).toBe('existing data')

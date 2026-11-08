@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Character } from '@shared/types'
+import { SHIPPED_DEFAULT_TAGS as TAGS } from '@shared/defaultTags'
 import { character } from './fixtures'
 
 /** What mods add to sprite and CG drafts: in order, only while on, and her own negatives last. */
@@ -45,10 +46,10 @@ describe('mods in a sprite or CG draft', () => {
       draft: (parts) => ({ appearance: [...parts.appearance, 'off'], negative: parts.negative })
     })
 
-    const sprite = prompt.spriteDraft(her, [], 'nude')
+    const sprite = prompt.spriteDraft(her, [], 'nude', TAGS)
     expect(sprite.appearance).toEqual(['red_hair', 'first', 'second'])
     expect(sprite.negative.slice(-2)).toEqual(['first_no', 'hers'])
-    const cgs = prompt.cgSetDraft(her)
+    const cgs = prompt.cgSetDraft(her, TAGS)
     expect(cgs.appearance).toEqual(['red_hair', 'first', 'second'])
     expect(cgs.negative.slice(-2)).toEqual(['first_no', 'hers'])
     expect(kinds).toEqual(['nude', 'cg'])
@@ -66,13 +67,13 @@ describe('mods in a sprite or CG draft', () => {
       regen: (kept, _draft, isOn) => (told.push(['off', isOn]), { ...kept, negative: [] })
     })
 
-    const draft = prompt.cgSetDraft(her)
-    const kept = regen.withRegenTags(draft, { kind: 'cgs', appearance: ['kept'] })
+    const draft = prompt.cgSetDraft(her, TAGS)
+    const kept = regen.withRegenTags(draft, { kind: 'cgs', appearance: ['kept'] }, TAGS)
     expect(told).toEqual([['first', true], ['off', false]])
     if (kept.kind !== 'cgs') throw new Error('a CG set edit')
     expect(kept.appearance).toEqual(['kept'])
     expect(kept.negative).toEqual([])
     // Nothing remembered: the draft as it is, with nobody asked.
-    expect(regen.withRegenTags(draft, undefined)).toBe(draft)
+    expect(regen.withRegenTags(draft, undefined, TAGS)).toBe(draft)
   })
 })

@@ -794,6 +794,7 @@ export interface PromptState {
     stats?: PlayerStats;
     // (undocumented)
     storyMemory?: StorySnapshot;
+    subjectTags?: readonly string[];
     textEdits?: TextEditSet;
     textedWith?: readonly string[];
     textingSummaries?: Record<string, string[]>;

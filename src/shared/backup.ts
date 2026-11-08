@@ -17,6 +17,7 @@ import { MOD_ID_RULE } from '@vx/modkit/host/shared'
 import { validateRecord, type ValidateRecordOptions } from './jsonValidate'
 import { readLorebookRecord, type LorebookRecord } from './lorebookRecord'
 import { PHOTO_META_READ, type PhotoMeta } from './photos'
+import { isProfileFrame, type ProfileFrame } from './profilePicture'
 import { REPLAY_ID, replayIdsOf, validateReplay, type SlotReplay } from './replays'
 import { classifySaveId, readApplicationRecord, ENROLLMENT_READ, RECORD_READ, SAVE_READ, SAFE_NUMERIC_ID } from './saveRules'
 import { validateSavedScene, type SavedScene } from './sceneCreator'
@@ -44,6 +45,7 @@ export const CHARACTERS_DIR = 'characters'
 const ENDING_ART_DIR = 'endingArt'
 const SEMESTER_ENDING_ART_DIR = 'semesterEndingArt'
 const PROFILE_PICTURES_DIR = 'profilePictures'
+const PROFILE_SOURCES_DIR = 'profileSources'
 const PHOTOS_DIR = 'photos'
 const BACKGROUNDS_DIR = 'backgrounds'
 
@@ -53,6 +55,7 @@ const CORE_DIRS = [
   ENDING_ART_DIR,
   SEMESTER_ENDING_ART_DIR,
   PROFILE_PICTURES_DIR,
+  PROFILE_SOURCES_DIR,
   PHOTOS_DIR,
   BACKGROUNDS_DIR,
   MOD_PARTS_DIR,
@@ -128,6 +131,11 @@ export interface BackupFile {
   semesterEndingArt?: SemesterPicture[]
   /** The playthroughs whose profile picture is in the zip; absent in backups from before it. */
   profilePictures?: string[]
+  /**
+   * The frame of each playthrough's full profile picture, by playthrough id, the pictures in the
+   * zip; absent in backups from before them.
+   */
+  profileSources?: Record<string, ProfileFrame>
   /** Every Bunnyboard photo in the zip; absent in backups from before it. */
   photos?: BackupPhoto[]
   /** The player's own backgrounds, their pictures in the zip; absent in backups from before them. */
@@ -156,6 +164,7 @@ const BACKUP_KEYS: Record<Exclude<keyof BackupFile, 'exMusic'>, true> = {
   endingArt: true,
   semesterEndingArt: true,
   profilePictures: true,
+  profileSources: true,
   photos: true,
   backgrounds: true,
   scenes: true,
@@ -346,9 +355,35 @@ export function semesterPicturesFromBackup(record: BackupFile): SemesterPicture[
   })
 }
 
-/** Where one playthrough's profile picture sits; the PNG bytes keep no extension. */
+/** Where one playthrough's profile picture sits; the bytes keep no extension. */
 export function profilePictureEntry(playthroughId: string): string {
   return `${PROFILE_PICTURES_DIR}/${playthroughId}`
+}
+
+/** Where the full picture that crop was cut from sits; the bytes keep no extension. */
+export function profileSourceEntry(playthroughId: string): string {
+  return `${PROFILE_SOURCES_DIR}/${playthroughId}`
+}
+
+/**
+ * The full profile pictures' frames a backup carries, each under an id that can name a path;
+ * refuses the backup before anything is written.
+ */
+export function profileSourcesFromBackup(record: BackupFile): Record<string, ProfileFrame> {
+  const carried: unknown = record.profileSources ?? {}
+  if (typeof carried !== 'object' || carried === null || Array.isArray(carried)) {
+    throw appError(BACKUP_READ.malformed.code, BACKUP_READ.malformed.message, 'profileSources')
+  }
+  for (const [playthroughId, frame] of Object.entries(carried)) {
+    if (!SAFE_NUMERIC_ID.test(playthroughId) || !isProfileFrame(frame)) {
+      throw appError(
+        BACKUP_READ.malformed.code,
+        BACKUP_READ.malformed.message,
+        `profileSources[${playthroughId}]`
+      )
+    }
+  }
+  return carried as Record<string, ProfileFrame>
 }
 
 /** Where one photo's picture sits; the bytes keep no extension, like the other pictures. */
@@ -411,6 +446,7 @@ export function classifyBackupEntry(name: string): 'record' | 'image' | 'audio' 
   if (isPlaythroughPicture(name, ENDING_ART_DIR)) return 'image'
   if (isPicturePair(name, SEMESTER_ENDING_ART_DIR)) return 'image'
   if (isPlaythroughPicture(name, PROFILE_PICTURES_DIR)) return 'image'
+  if (isPlaythroughPicture(name, PROFILE_SOURCES_DIR)) return 'image'
   if (isPicturePair(name, PHOTOS_DIR)) return 'image'
   if (isBackgroundPicture(name)) return 'image'
   if (modPartEntryOf(name)) return 'file'

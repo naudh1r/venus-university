@@ -95,6 +95,7 @@ import {
 } from './spriteBreath'
 import {
   abandonClassify,
+  abandonCreatedOpening,
   abandonEndingCall,
   abandonTurn,
   advance,
@@ -109,10 +110,12 @@ import {
   lastIntroPromptText,
   lastScenePromptText,
   lastTurnAuthored,
+  lastTurnCreated,
   leaveCreatedScene,
   leaveForNextSemester,
   leaveToMenu,
   manualSaveOffer,
+  milestonesOffer,
   quitToDesktop,
   relax,
   retryClassify,
@@ -618,6 +621,10 @@ export function GameView(): JSX.Element {
   const cgReady = useGameStore((s) => s.cgReady)
   const customCgReady = useGameStore((s) => s.customCgReady)
   const noNsfwImages = useSettingsStore(noNsfwImagesOf)
+  const pictureInScenes = useSettingsStore(
+    (s) => s.settings?.showProfilePictureInScenes === true
+  )
+  const profilePicture = useGameStore((s) => s.profilePicture)
   const charKeyToId = useGameStore((s) => s.charKeyToId)
   const characters = useGameStore((s) => s.characters)
   const currentLine = useGameStore((s) => s.currentLine)
@@ -734,6 +741,8 @@ export function GameView(): JSX.Element {
   useEffect(() => {
     if (panelGone) closePanel()
   }, [panelGone])
+  /** What waits on the failed turn's modal to finish leaving: a created scene's way out. */
+  const afterTurnFailure = useRef<(() => void) | null>(null)
   /**
    * The glyphs a gift threw off her, until the last of them has faded. Armed `waiting` when the
    * present is handed over and raised on the line her reply opens with, so what they answer is
@@ -961,6 +970,43 @@ export function GameView(): JSX.Element {
     setMenuTheme(leftIn)
     setView('sceneCreator')
     endCrossing()
+  }
+
+  /**
+   * A created scene whose opening failed, given up on: back to the creator its draft is still
+   * on, or to the menu with Settings open. It leaves once the failure modal has faded, under the
+   * cover still down for the opening, or under one of its own where the stage was already
+   * revealed; nothing is written.
+   */
+  function leaveFailedOpening(to: 'creator' | 'settings'): void {
+    // A modal already answered is on its way out.
+    if (!useGameStore.getState().turnError) return
+    const leftIn = half
+    const arrive = (): void => {
+      if (to === 'creator') {
+        void arriveAtCreator(leftIn)
+        return
+      }
+      void (async () => {
+        await leaveCreatedScene()
+        // Ahead of the modal, which reads the hour once as it mounts.
+        setMenuTheme(leftIn)
+        setView('mainMenu')
+        useUiStore.getState().openModal('settings')
+        endCrossing()
+      })()
+    }
+    afterTurnFailure.current = () => {
+      const phase = useCrossingStore.getState().phase
+      if (phase === 'closing' || phase === 'holding') {
+        coverSwap(arrive)
+        return
+      }
+      cancelCrossing()
+      beginCrossing(undefined, menuCrossing(leftIn))
+      coverSwap(arrive)
+    }
+    abandonCreatedOpening()
   }
 
   /**
@@ -2188,6 +2234,8 @@ export function GameView(): JSX.Element {
           speakerName={speaker}
           speakerCharId={speakingCharId}
           speakerVersion={speakingCharId ? (spriteVersions[speakingCharId] ?? 0) : 0}
+          readerPicture={pictureInScenes && profilePicture ? profilePicture : undefined}
+          narrated={currentLine?.speaker === ''}
           text={text}
           marks={currentLine?.status?.marks}
           revealed={revealed}
@@ -2491,6 +2539,8 @@ export function GameView(): JSX.Element {
               useBunnyboardStore.getState().closeApp()
               setPanel({ kind: 'jobs' })
             }}
+            // Save Game's gate, dead through a scene as the calendar's Replay is.
+            milestonesOffer={milestonesOffer()}
           />
         )}
       </AnimatePresence>
@@ -2580,12 +2630,17 @@ export function GameView(): JSX.Element {
               permanentDetail
               extraText={turnPromptEditable() ? 'Edit prompt' : undefined}
               onExtra={() => setPanel({ kind: 'editPrompt', source: 'turn' })}
+              // A created scene's failed opening is given up on by leaving the scene.
               onSettings={() => {
+                if (lastTurnCreated()) {
+                  leaveFailedOpening('settings')
+                  return
+                }
                 abandonTurn()
                 setPanel({ kind: 'appSettings' })
               }}
               onRetry={retryTurn}
-              onAbandon={abandonTurn}
+              onAbandon={() => (lastTurnCreated() ? leaveFailedOpening('creator') : abandonTurn())}
             />
           ))}
       </AnimatePresence>

@@ -29,7 +29,7 @@ it('adds 0.7 applications to VE v12 without losing saves, art, presets or music'
   old.close()
   const { database } = await import('../src/web/db/open')
   const db = await database()
-  expect(db.version).toBe(13)
+  expect(db.version).toBe(14)
   expect(db.objectStoreNames.contains('applications')).toBe(true)
   for (const [store, key, value] of rows) {
     const saved = await (db as any).get(store, key)
