@@ -1,5 +1,9 @@
 # Campus Talents
 
+## 0.4.16
+
+Personal Growth reads quiz, class, project and job restrictions through the public scene hook. Skill Trees reads dependency names through the public mod catalogue, including installed entries.
+
 Campus Talents adds a **Skill trees** button beside Echoes, during a scene and on the between-scene screen. It uses the game's theme and scales with the stage. Enable Campus Talents in Mods. Charm, Heart, Brain, Body and Money work independently of other mods. Echoes skills require Echo, and spirit skills also require Breakthrough. The catalog contains 43 skills: six trees with 36 numerical skills and six tree abilities, plus the shared Personal Growth ability.
 
 The ending's crush check and next opening account for the new scene's Charm and Echo affection bonuses, including eligible Anticipation. This is a preview of the saved award: it does not pay BP or consume an ability early. Bonus amounts and skill prices are unchanged. A crush outcome already banked in an older mid-ending save is preserved rather than rerolled.
