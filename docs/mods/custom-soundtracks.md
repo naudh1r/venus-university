@@ -51,7 +51,7 @@ existing transaction integration and legacy export format while accepting the ne
 
 | File | Responsibility |
 | --- | --- |
-| `src/shared/soundtracks.ts` | Mod definition, thirteen slots, bridge types, limits, legacy map parsing, backup integrity |
+| `src/shared/soundtracks.ts` | Thirteen slots, bridge types, limits, legacy map parsing, backup integrity |
 | `src/shared/soundtrackLibrary.ts` | Serialized mutations, temporary selection tokens, shared native/web rules |
 | `src/shared/modEntries/custom-soundtracks.ts` | Registers the independent switch, without `requires` |
 | `src/renderer/modEntries/custom-soundtracks.ts`, `views/SoundtrackSettings.tsx` | Registers the settings contribution and owns its button/panel state |
@@ -231,7 +231,9 @@ telemetry or AI calls.
 
 ## Framework registration
 
-- `src/shared/modEntries/custom-soundtracks.ts` supplies its existing mod definition.
+- `src/shared/modEntries/custom-soundtracks.ts` owns the switch definition. The catalogue can
+  load it before the storage code imports the kit. Soundtrack validation and storage use
+  the public `shared:appError` capability and the kit's `Result` type.
 - `src/renderer/modEntries/custom-soundtracks.ts` supplies the `settingsSection` contribution.
 - `src/main/services/soundtrackService.ts` registers its mod-owned adapter through
   `requiredBackupPart`. A future standalone manifest must declare `main:requiredBackupPart`;
