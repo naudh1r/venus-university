@@ -139,6 +139,14 @@ describe('a picture of two', () => {
     }
   })
 
+  it('gives each girl the gesture the caption gives her', () => {
+    const prompts = buildDuoPhotoPrompt(risa, ana, 'everyday', 'Me and Ana in a booth, me flashing a peace sign while Ana gives a thumbs up')
+    expect(prompts.left).toMatch(/\bv\b/)
+    expect(prompts.left).not.toContain('thumbs_up')
+    expect(prompts.right).toContain('thumbs_up')
+    expect(prompts.right).not.toMatch(/\bv\b/)
+  })
+
   it('gives a selfie room for her arm, and a photo somebody took the waist-up shot', () => {
     expect(buildDuoPhotoPrompt(risa, ana, 'everyday', 'A selfie of me and Ana at the park').scene).toContain('cowboy_shot')
     expect(buildDuoPhotoPrompt(risa, ana, 'everyday', 'A photo of me and Ana at the park').scene).toContain('(upper_body:1.3)')

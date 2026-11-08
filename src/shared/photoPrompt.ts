@@ -758,13 +758,33 @@ const DUO_EXPRESSIONS: readonly [RegExp, readonly string[]][] = [
   [/\btongue/i, ['tongue_out']],
   [/\bsleepy|\bdrowsy|\byawn/i, ['sleepy']],
   [/\bsmirk/i, ['smirk']],
-  [/\bsmil/i, ['smile']]
+  [/\bsmil/i, ['smile']],
+  [/\beyes closed|\bclosed eyes|\bclosing her eyes/i, ['closed_eyes']],
+  [/\bhead tilt|\btilts? her head|\btilting her head/i, ['head_tilt']]
+]
+
+/**
+ * The hands a caption gives one of them, by the same split as her face. Each held to its own half
+ * in testing; a gesture said for both is drawn on both.
+ */
+const DUO_GESTURES: readonly [RegExp, readonly string[]][] = [
+  [/\bpeace sign|\bv sign/i, ['v']],
+  [/\bthumbs? up/i, ['thumbs_up']],
+  [/\bhand on her cheek|\bhand to her cheek|\bcheek in her hand|\bresting a hand on her cheek/i, ['hand_on_own_cheek']],
+  [/\bheart with her hands|\bheart hands|\bhand heart/i, ['heart_hands']],
+  [/\bwaving|\bwaves\b/i, ['waving']],
+  [/\barms crossed|\bcrossed arms|\bcrossing her arms/i, ['crossed_arms']]
 ]
 
 /** The faces one stretch of caption names, or none. */
 function facesIn(text: string): string[] {
   const said = DUO_EXPRESSIONS.filter(([words]) => words.test(text)).flatMap(([, tags]) => tags)
   return said.length > 0 ? [...new Set(said)] : []
+}
+
+/** The gestures one stretch of caption names, or none. */
+function gesturesIn(text: string): string[] {
+  return [...new Set(DUO_GESTURES.filter(([words]) => words.test(text)).flatMap(([, tags]) => tags))]
 }
 
 function withBlush(faces: readonly string[], text: string): string[] {
@@ -775,24 +795,26 @@ function withBlush(faces: readonly string[], text: string): string[] {
 const FRIEND_CLAUSE = /([^,.;]*?)\s*\b(?:while|and|as|with|but)\s+her friend\b([^,.;]*)/gi
 
 /**
- * Each girl's face, left (hers) and right (her friend's). A caption that gives her friend a face
- * of her own, "her smiling softly while her friend grins", is split there; otherwise both carry
- * whatever the caption names, and a smile where it names none.
+ * Each girl's face and hands, left (hers) and right (her friend's). A caption that gives her
+ * friend a face or a gesture of her own, "her smiling softly while her friend grins", is split
+ * there; otherwise both carry whatever the caption names, and a smile where it names none.
  */
 function duoExpressions(text: string): { left: string[]; right: string[] } {
   // "Her and her friend sitting…" opens most captions; the clause that gives her friend a face is
   // the one that splits them.
-  const clause = [...text.matchAll(FRIEND_CLAUSE)].find((one) => facesIn(one[2]).length > 0)
+  const own = (part: string): string[] => [...facesIn(part), ...gesturesIn(part)]
+  const clause = [...text.matchAll(FRIEND_CLAUSE)].find((one) => own(one[2]).length > 0)
   if (clause) {
-    const theirs = facesIn(clause[2])
     const rest = text.replace(clause[2], '')
     const hers = facesIn(clause[1]).length > 0 ? facesIn(clause[1]) : facesIn(rest)
+    const hands = gesturesIn(clause[1]).length > 0 ? gesturesIn(clause[1]) : gesturesIn(rest)
+    const theirs = facesIn(clause[2])
     return {
-      left: withBlush(hers.length > 0 ? hers : ['smile'], clause[1]),
-      right: withBlush(theirs, clause[2])
+      left: withBlush([...(hers.length > 0 ? hers : ['smile']), ...hands], clause[1]),
+      right: withBlush([...(theirs.length > 0 ? theirs : ['smile']), ...gesturesIn(clause[2])], clause[2])
     }
   }
-  const both = withBlush(facesIn(text).length > 0 ? facesIn(text) : ['smile'], text)
+  const both = withBlush([...(facesIn(text).length > 0 ? facesIn(text) : ['smile']), ...gesturesIn(text)], text)
   return { left: both, right: both }
 }
 
