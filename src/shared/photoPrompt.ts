@@ -820,7 +820,7 @@ const DUO_POSTURE: ReadonlySet<string> = new Set([
 ])
 
 /** Where the two of them are drawn, from what the caption asks for. */
-function duoFraming(text: string): { tags: string[]; scene: string[] } {
+function duoFraming(text: string, armOut = false): { tags: string[]; scene: string[] } {
   if (saysAny(text, ['from behind', 'back view', 'backs to', 'looking back', 'over her shoulder'])) {
     // Each half turns on its own, and one of them faced the camera unless both were told.
     return {
@@ -831,6 +831,10 @@ function duoFraming(text: string): { tags: string[]; scene: string[] } {
   // A close-up needed the framing weighted in both halves before either was drawn close.
   if (framingOf(text) === 'face') {
     return { tags: ['(close-up:1.3)', '(portrait:1.3)'], scene: [] }
+  }
+  // A held-out arm needs room: waist up cropped it out of the picture. A close-up stays close.
+  if (armOut && !saysAny(text, ['close-up', 'close up', 'closeup'])) {
+    return { tags: ['cowboy_shot'], scene: ['same height'] }
   }
   // Waist up, always: a whole-body shot of two drew one of them smaller, as if a step behind,
   // and her legs folded to fit her half.
@@ -916,16 +920,16 @@ export function buildDuoPhotoPrompt(
 
   const pose = photoPose(scene, tier)
   const posture = pose.tags.filter((tag) => DUO_POSTURE.has(tag))
-  const framing = duoFraming(text)
-
   // Selfies: the phone is hers, and only her half reaches for it.
   const selfie = says(text, 'selfie')
   const mirror = selfie && says(text, 'mirror')
   const lying = posture.includes('lying')
+  const armOut = selfie && !mirror && !lying
+  const framing = duoFraming(text, armOut)
   const holds = mirror
     ? ['holding_phone']
-    : selfie && !lying
-      ? ['selfie', 'outstretched_arm']
+    : armOut
+      ? ['selfie', '(outstretched_arm:1.3)', 'foreshortening']
       : []
   const phoneNegative = selfie && !mirror ? ['phone', 'cellphone', 'smartphone', 'holding_phone'] : []
 

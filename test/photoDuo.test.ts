@@ -139,6 +139,11 @@ describe('a picture of two', () => {
     }
   })
 
+  it('gives a selfie room for her arm, and a photo somebody took the waist-up shot', () => {
+    expect(buildDuoPhotoPrompt(risa, ana, 'everyday', 'A selfie of me and Ana at the park').scene).toContain('cowboy_shot')
+    expect(buildDuoPhotoPrompt(risa, ana, 'everyday', 'A photo of me and Ana at the park').scene).toContain('(upper_body:1.3)')
+  })
+
   it('gives the phone to the girl who sent it alone', () => {
     const prompts = buildDuoPhotoPrompt(risa, ana, 'everyday', 'A selfie of me and Ana at the park')
     expect(prompts.left).toContain('outstretched_arm')
