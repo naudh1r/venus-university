@@ -794,6 +794,7 @@ export interface JobDef {
     };
     pay: number;
     requires: Partial<Record<StatKey, StatTier>>;
+    requiresSkills?: readonly JobSkillRequirement[];
     // (undocumented)
     title: string;
     workplaceKey: string;
