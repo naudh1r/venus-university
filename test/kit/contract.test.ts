@@ -93,6 +93,13 @@ describe('the entry points', () => {
     expect(rendererKit.modOptionOn).toBe(mods.modOptionOn)
   })
 
+  it('re-exports the scene view and the turn hold as the native functions', async () => {
+    const native = await import('../../src/renderer/mods/sceneView')
+    for (const name of ['scene', 'useScene', 'subscribeScene', 'holdTurn'] as const) {
+      expect(rendererKit[name], name).toBe(native[name])
+    }
+  })
+
   it('re-exports the native lightbox and prompt helpers without wrappers', async () => {
     const characters = await import('../../src/renderer/stores/characterStore')
     expect(rendererKit.spriteUrl).toBe(characters.spriteUrl)
