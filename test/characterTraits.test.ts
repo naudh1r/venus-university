@@ -14,6 +14,7 @@ import { traitOptions } from '../src/renderer/views/characterFields'
 import { TagSelect } from '../src/renderer/components/TagSelect'
 import { buildCharacterPrompt, draftToCharacter, type CharacterDraft } from '../src/renderer/prompts/characterPrompt'
 import { buildCharacterCard } from '../src/renderer/prompts/characterCard'
+import { SUBJECT_TAGS } from '@shared/defaultTags'
 import { character } from './fixtures'
 
 const cleanups: (() => void)[] = []
@@ -26,7 +27,7 @@ function request(traits = generatedCharacterTraits()) {
   return buildCharacterPrompt('Sarah', 'Rose', '', poses, 'seed', false, undefined, traits)
 }
 function parse(values: string[], traits = generatedCharacterTraits()) {
-  return draftToCharacter(character(), { traits: values } as CharacterDraft, poses, traits).traits
+  return draftToCharacter(character(), { traits: values } as CharacterDraft, poses, SUBJECT_TAGS, traits).traits
 }
 
 describe('character trait registration', () => {
@@ -118,7 +119,7 @@ describe('character trait registration', () => {
     expect(traitTone('Missing Trait')).toBe('sample')
     dispose()
     expect(read.traits).toEqual(who.traits)
-    const card = buildCharacterCard(read, new Date(0)).v2.data.description
+    const card = buildCharacterCard(read, new Date(0), SUBJECT_TAGS).v2.data.description
     expect(card).toContain('Missing Trait')
     expect(card).not.toContain('undefined')
   })

@@ -8,5 +8,5 @@ export function desktopChannel(owner: string, method: string): string {
 /** Available as window.modSurface only in a host-created auxiliary window. */
 export interface DesktopSurfaceBridge {
   invoke<T>(method: string, ...args: unknown[]): Promise<T>
-  on<T>(method: string, listener: (value: T) => void): () => void
+  on<T extends unknown[]>(method: string, listener: (...values: T) => void): () => void
 }

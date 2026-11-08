@@ -5,11 +5,12 @@ import { isOrientationSlot } from '../prompts/introScript'
 import { isGraduationSlot } from '../prompts/graduation'
 import { modIsOn } from '../stores/modsStore'
 import { currentRun, loopState, runStale } from '../stores/loop/state'
+import { manualSaveOffer } from '../stores/loop/saves'
 
 /** True between ordinary playable scenes, while the reader can start an encounter. */
 export function canInviteToScene(): boolean {
   const g = useGameStore.getState()
-  return Boolean(g.playthroughId && !g.activeGameOver && !g.createdScene && !g.replaying && !g.busy && !g.streaming &&
+  return Boolean(manualSaveOffer() === 'open' && g.playthroughId && !g.activeGameOver && !g.createdScene && !g.replaying && !g.busy && !g.streaming &&
     !g.sceneEnding && !g.endingInFlight && !sceneActiveOf(g) && !isOrientationSlot(g.date,g.time,g.semesterIndex) &&
     !isGraduationSlot(g.date,g.time))
 }
@@ -17,7 +18,7 @@ export function canInviteToScene(): boolean {
 /** Apply the native timetable, resting, group and event rules to the current slot. */
 export function freeForInvitation(id: string): boolean {
   const g = useGameStore.getState()
-  return Boolean(g.playthroughId && g.chars.includes(id) && g.charInfo[id] &&
+  return Boolean(g.playthroughId && g.chars.includes(id) && g.charInfo[id]?.nameKnown &&
     !charUnavailableNow(id) && !isHomebound(g.charInfo[id],g.date,g.time) && !charOverlayGroupNow(id) &&
     !g.events.some(event => event.date === g.date && event.time === g.time && event.charIds.includes(id)))
 }

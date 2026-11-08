@@ -64,7 +64,7 @@ export function cancelCalls(modId: string, group: string): Promise<void>;
 export function canInviteToScene(): boolean;
 
 // @public
-export function canRecordSceneTurn(): boolean;
+export function canRecordSceneTurn(modId?: string): boolean;
 
 // @public
 export function canRenderLocalImages(): boolean;
@@ -244,7 +244,6 @@ export interface ExternalSceneTurn {
     actions: readonly string[];
     // (undocumented)
     deferSave?: boolean;
-    // (undocumented)
     id: number;
     // (undocumented)
     lines: readonly {
@@ -340,7 +339,7 @@ export function gestures(dead: boolean, hover: TargetAndTransition, tap: TargetA
     'data-lift'?: '';
 };
 
-// @public (undocumented)
+// @public
 export function hasDesktopSurfaces(): boolean;
 
 // @public
@@ -349,7 +348,7 @@ export function hasTexted(conversation: Conversation | undefined): boolean;
 // @public
 export function HeartIcon(input?: MarkProps): JSX.Element;
 
-// @public
+// @public (undocumented)
 export function holdTurn(modId: string): Result<() => void>;
 
 // @public
@@ -820,6 +819,7 @@ export interface PromptState {
     slotRumor?: LoreRumor;
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
+    subjectTags?: readonly string[];
     textEdits?: TextEditSet;
     textedWith?: readonly string[];
     textingSummaries?: Record<string, string[]>;
@@ -1039,13 +1039,9 @@ export interface SceneDividerProps {
 
 // @public (undocumented)
 export interface SceneExchange {
-    // (undocumented)
     append(turn: ExternalSceneTurn): boolean;
-    // (undocumented)
     close(): void;
-    // (undocumented)
     current(): boolean;
-    // (undocumented)
     flush(): void;
 }
 
@@ -1130,6 +1126,7 @@ export interface ScenePanelProps {
 
 // @public
 export interface ScenePlay {
+    creator?: boolean;
     // (undocumented)
     Panel: ComponentType<ScenePanelProps>;
     // (undocumented)

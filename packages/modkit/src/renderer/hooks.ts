@@ -251,6 +251,8 @@ export interface GameModalProps {
  * exactly as behind the game's own panels.
  */
 export interface ScenePlay {
+  /** Opt in to showing this seat and panel in Scene Creator. Defaults to story scenes only. */
+  creator?: boolean
   Seat: ComponentType<SceneSeatProps>
   Panel: ComponentType<ScenePanelProps>
 }
@@ -362,7 +364,7 @@ export interface PostPictureProps {
   postId: string
 }
 
-/** A source-scoped relationship change extracted from the current scene. */
+/** One extracted row from the current scene ledger. */
 export type SceneLedgerEntry =
   | { kind: 'memory'; value: NonNullable<LedgerResponse['memories']>[number] }
   | { kind: 'event'; value: NonNullable<LedgerResponse['events']>[number] }
@@ -1152,7 +1154,16 @@ export function modRequest<S extends keyof RequestSpots>(spot: S, ctx: RequestSp
 export function filterSceneLedger(ledger: LedgerResponse): LedgerResponse {
   const filters = active().flatMap(hooks => hooks.keepSceneLedgerEntry ? [hooks.keepSceneLedgerEntry] : [])
   if (!filters.length) return ledger
-  const keep = (entry: SceneLedgerEntry) => filters.every(filter => filter(entry) !== false)
+  const freeze = (value: unknown): void => {
+    if (!value || typeof value !== 'object') return
+    for (const child of Object.values(value)) freeze(child)
+    Object.freeze(value)
+  }
+  const keep = (entry: SceneLedgerEntry) => {
+    const copy = structuredClone(entry)
+    freeze(copy)
+    return filters.every(filter => filter(copy) !== false)
+  }
   return {
     ...ledger,
     ...(ledger.memories && { memories: ledger.memories.filter(value => keep({kind: 'memory', value})) }),

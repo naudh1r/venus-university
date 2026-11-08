@@ -94,6 +94,8 @@ export function TransparencyFixModal({
   /* Paint that has never been saved is work, and work is not thrown away on a stray click
      outside — the Edit modal's own rule for its form. */
   const requestClose = (): void => {
+    // A save under way cannot be taken back, so the panel stays until it ends.
+    if (saving) return
     if (dirty) setDiscarding(true)
     else onClose()
   }
@@ -143,7 +145,8 @@ export function TransparencyFixModal({
                 id="fix-cancel"
                 className="vu-btn vu-btn--quiet"
                 type="button"
-                {...gestures(false, quietLift, quietPress)}
+                disabled={saving}
+                {...gestures(saving, quietLift, quietPress)}
                 onClick={requestClose}
               >
                 Cancel
