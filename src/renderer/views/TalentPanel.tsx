@@ -10,8 +10,8 @@ import { TalentTrainingControls } from './TalentTrainingControls'
 import { formatMoney } from '@shared/money'
 import { useGameStore } from '../stores/gameStore'
 import { useModsStore } from '../stores/modsStore'
-import { useModOn } from '@vx/modkit/renderer'
-import { manualSaveOffer, writeTalentChange } from '../stores/loop/saves'
+import { useModOn, useSafePoint } from '@vx/modkit/renderer'
+import { writeTalentChange } from '../stores/loop/saves'
 import { ensureTalents } from '../modEntries/campus-talents'
 import { gestures, lift, press, quietLift, quietPress, rowLift, rowPress, toggleLift, veilIn, panelUnderTab, useModalShell, TitleTab } from '@vx/modkit/renderer'
 import { CharmIcon, TalentIcon } from './TalentIcon'
@@ -40,7 +40,8 @@ export function TalentPanel({theme,onClose}:{theme:ScreenTheme;onClose:()=>void}
   const {host,overlayProps}=useModalShell(()=>{if(!writing.current)onClose()})
   useEffect(()=>{ensureTalents()},[])
   const same=owner.current.id===game.playthroughId&&owner.current.loads===game.loads
-  const safe=enabled&&same&&manualSaveOffer()==='open'&&!pending&&!game.sceneEnding&&!game.statusShown
+  const saveOffer = useSafePoint()
+  const safe=enabled&&same&&saveOffer==='open'&&!pending&&!game.sceneEnding&&!game.statusShown
   const balance=talentBalance(s), def=TALENTS.find(d=>d.id===selected)!, rank=talentRank(s,selected), cost=def.costs[rank]
   const bondProgress=(readBondFraction(s.bpFraction)??0)*100
   useEffect(()=>{contentRef.current?.scrollTo({top:0})},[selected,rank])
