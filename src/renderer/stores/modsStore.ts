@@ -10,12 +10,10 @@ import {
   modOn,
   NO_SWITCHES,
   optionOn,
-  photoSwitchesOf,
   withMod,
   withOption,
   type ModSwitches
 } from '@shared/mods'
-import { setPhotoSwitches } from '@shared/photoSwitches'
 import type { PlaythroughRecord } from '@shared/types'
 import { setHookRules } from '../mods/hooks'
 import { loopState, subscribeLoopRecord } from './loop/state'
@@ -94,8 +92,6 @@ export const useModsStore = create<ModsStoreState>((set, get) => {
  */
 function tellSharedRules(switches: ModSwitches): void {
   setEchoBonusEnabled(modOn(switches, 'echo'))
-  // Photo Feature reads its own switches; this hands them over.
-  setPhotoSwitches(photoSwitchesOf(switches))
 }
 tellSharedRules(useModsStore.getState().switches)
 useModsStore.subscribe((state) => tellSharedRules(state.switches))

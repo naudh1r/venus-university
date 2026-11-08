@@ -1,4 +1,7 @@
-import { useGameStore } from './gameStore'
+import { runStale } from '@vx/modkit/renderer'
+import { messagePhoto, postPhoto } from './photoRecords'
+import { photoInvoke } from './photoInvoke'
+import { photoGame } from './photoGame'
 import { savePhotoState, setFeedPostPhoto, setMessagePhoto } from './localPhotoStore'
 
 /**
@@ -11,7 +14,7 @@ import { savePhotoState, setFeedPostPhoto, setMessagePhoto } from './localPhotoS
  * to look for — so it asks, and takes the answer either way.
  */
 export async function settlePendingPhotos(): Promise<void> {
-  const game = useGameStore.getState()
+  const game = photoGame()
   const playthroughId = game.playthroughId
   if (!playthroughId) return
   let settled = false
@@ -19,14 +22,14 @@ export async function settlePendingPhotos(): Promise<void> {
   // A picture on a post on somebody's feed.
   for (const charId of Object.keys(game.charInfo)) {
     for (const post of game.charInfo[charId]?.feed ?? []) {
-      const photo = post.photo
+      const photo = postPhoto.read(post)
       if (!photo?.pending) continue
       // A bubble from before pictures were named cannot be looked for; it stops waiting.
       const landed = photo.file
-        ? await window.api.photo.landed(playthroughId, charId, photo.file)
+        ? await photoInvoke('landed', [playthroughId, charId, photo.file])
         : { ok: true as const, data: false }
       const found = landed.ok && landed.data
-      if (useGameStore.getState().playthroughId !== playthroughId) return
+      if (runStale(game.run) || photoGame().playthroughId !== playthroughId) return
       setFeedPostPhoto(charId, post.id, {
         tier: photo.tier,
         scene: photo.scene,
@@ -46,13 +49,13 @@ export async function settlePendingPhotos(): Promise<void> {
   // The same race on a thread: she sent the picture, the render outlived the save.
   for (const [charId, thread] of Object.entries(game.bunnyboard.conversations)) {
     for (const message of thread?.messages ?? []) {
-      const photo = message.photo
+      const photo = messagePhoto.read(message)
       if (!photo?.pending) continue
       const landed = photo.file
-        ? await window.api.photo.landed(playthroughId, charId, photo.file)
+        ? await photoInvoke('landed', [playthroughId, charId, photo.file])
         : { ok: true as const, data: false }
       const found = landed.ok && landed.data
-      if (useGameStore.getState().playthroughId !== playthroughId) return
+      if (runStale(game.run) || photoGame().playthroughId !== playthroughId) return
       setMessagePhoto(charId, message.id, {
         tier: photo.tier,
         scene: photo.scene,

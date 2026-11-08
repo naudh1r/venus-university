@@ -55,7 +55,6 @@ import {
 } from '@shared/types'
 import { truncate } from '@shared/errors'
 import type { VenusUniversityApi } from '../preload/api'
-import { photoBridge } from './photoBridge'
 import { imageBlob } from './blob'
 import { DESKTOP_ONLY_NOTE } from '../renderer/platform'
 import { exportBackup, importBackup } from './backup'
@@ -183,7 +182,6 @@ export function buildApi(): VenusUniversityApi {
       read: key => result('read a custom soundtrack', () => soundtrackLibrary.read(key)),
       cleanup: () => result('clean up imported music', () => soundtrackLibrary.cleanup())
     },
-    ...photoBridge,
     assets: {
       getPoseManifest: () => result('read the poses', getPoseManifest),
       getQuickstart: () => result('read the quickstart', getQuickstart),

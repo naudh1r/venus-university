@@ -1,3 +1,4 @@
+import { photoInvoke } from './photoInvoke'
 import { useSyncExternalStore } from 'react'
 import type { Character } from '@vx/modkit/shared'
 import type { PhotoKind } from '../../shared/photoFiles'
@@ -84,7 +85,8 @@ interface RedrawTarget {
   friend?: Character
   kind: PhotoKind
   read: () => ChatPhoto | null
-  write: (photo: ChatPhoto) => Promise<void>
+  /** False when the write was refused, the mod being off among other reasons. */
+  write: (photo: ChatPhoto) => Promise<boolean>
   live: () => boolean
   inSave: () => readonly string[]
 }
@@ -115,7 +117,7 @@ export async function redrawPhoto(
   let settled = false
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    const named = await window.api.photo.reserveName(playthroughId, character, kind, inSave())
+    const named = await photoInvoke('reserveName', [playthroughId, character, kind, inSave()])
     if (!named.ok) throw new Error(`${named.error.code}: ${named.error.message}`)
     if (!live() || read()?.file !== oldFile || !photoGenerationOn()) return
     const newFile = named.data
@@ -135,12 +137,12 @@ export async function redrawPhoto(
     )
     if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
     const now = read()
-    const replace = live() && now?.file === oldFile
-    if (replace) await write({ ...now, file: newFile })
+    // A refused write leaves the old photo in place, so the new render is the one dropped.
+    const replace = live() && now?.file === oldFile && await write({ ...now, file: newFile })
     // A render overtaken by a load, replacement or deleted photo belongs to nothing.
     const dropped = replace
-      ? await window.api.photo.drop(playthroughId, charId, oldFile, { replacement: newFile })
-      : await window.api.photo.drop(playthroughId, charId, newFile)
+      ? await photoInvoke('drop', [playthroughId, charId, oldFile, { replacement: newFile }])
+      : await photoInvoke('drop', [playthroughId, charId, newFile])
     if (!dropped.ok) {
       console.warn(`[photo] could not drop ${replace ? oldFile : newFile}:`, dropped.error.message)
     }

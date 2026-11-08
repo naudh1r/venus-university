@@ -23,7 +23,7 @@ vi.mock('@vx/modkit/main', async original => {
 })
 const files = await import('../src/main/photoFiles')
 const service = await import('../src/main/services/localPhotoService')
-const { handlePhotoProtocol } = await import('../src/main/photoProtocol')
+const { photoRoute } = await import('../src/main/photoProtocol')
 const PNG = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), Buffer.alloc(24)])
 const info = { schemaVersion: 1, seed: 41, tier: 'everyday', positive: 'At the cafe', negative: 'bad hands' }
 const image = 'lia_chat_001.png', sidecar = 'lia_chat_001.json'
@@ -71,8 +71,7 @@ it('serves the legacy photo while a move fails, then resumes without a done flag
   await put(old(image), PNG)
   await put(old(sidecar), JSON.stringify(info))
   mocks.copy.mockRejectedValue(new Error('Copy interrupted'))
-  handlePhotoProtocol()
-  const response = await mocks.route(new Request(`playimg://photo/100/lia/${image}`)) as Response
+  const response = await photoRoute(new Request(`vxmod://photo-feature/@/photos/100/lia/${image}`)) as Response
   expect(response.status).toBe(200)
   expect(Buffer.from(await response.arrayBuffer())).toEqual(PNG)
   expect(await exists(old(image))).toBe(true)

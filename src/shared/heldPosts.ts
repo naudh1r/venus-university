@@ -1,3 +1,4 @@
+import { savedPhoto } from './photoTypes'
 import { photoFeatureOn } from './photoSwitches'
 import type { SocialPost } from '@vx/modkit/shared'
 
@@ -13,5 +14,5 @@ import type { SocialPost } from '@vx/modkit/shared'
 export function postIsOut(post: SocialPost): boolean {
   // Off, nothing will draw the picture it waits for, so it is read as the words it is; the save
   // still holds it back, and with the mod on again it waits for its picture once more.
-  return post.photo?.held !== true || !photoFeatureOn()
+  return savedPhoto(post)?.held !== true || !photoFeatureOn()
 }

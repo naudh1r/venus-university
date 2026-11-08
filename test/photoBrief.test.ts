@@ -1,3 +1,4 @@
+import './fixtures/photoRecordKit'
 import { describe, expect, it } from 'vitest'
 import { photoLines } from '../src/renderer/prompts/photoBrief'
 import type { CharFlags } from '@shared/types'
