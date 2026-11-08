@@ -27,7 +27,7 @@ const { ContactPage } = await import('../src/renderer/views/ContactPage')
 const dispose: (() => void)[] = []
 const traits = ['High Standards', 'Guest Trait']
 const drawContact = () => renderToStaticMarkup(createElement(MotionConfig, { isStatic: true },
-  createElement(ContactPage, { charId: 'a', theme: 'day' })))
+  createElement(ContactPage, { charId: 'a', theme: 'day', milestonesOffer: 'none' })))
 afterAll(restoreApi)
 
 beforeEach(() => {

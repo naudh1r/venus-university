@@ -90,7 +90,7 @@ export interface Character {
     pose: string;
     preferredStat: StatKey;
     profileCrop?: ProfileCrop;
-    regenTags?: Partial<Record<RegenTarget, PromptEdit>>;
+    regenTags?: Partial<Record<RegenTarget, KeptEdit>>;
     roomPrompt: string;
     // (undocumented)
     schemaVersion: 3;
@@ -104,10 +104,7 @@ export interface Character {
 }
 
 // @public
-export function characterLoraOf(character: Pick<Character, 'lora'>): {
-    name: string;
-    weight: number;
-} | null;
+export function characterLoraOf(character: Pick<Character, 'lora'>): DrawnLora | null;
 
 // @public
 export type CharacterTrait = NativeCharacterTrait | (string & {});
@@ -910,6 +907,7 @@ export const NARRATIVE_LOCATIONS: readonly LocationDef[];
 export interface NativeGameSave {
     addedClasses: Record<string, AddedClass>;
     bio?: string;
+    breakupsOwed?: BreakupOwed[];
     bunnyboard: BunnyboardState;
     // (undocumented)
     bunnybotContactIntroSent: boolean;
