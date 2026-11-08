@@ -238,3 +238,6 @@ export {
   profileImageUrl,
   subscribeProfileImageUrl
 } from '../bridge/renderer'
+
+export { scene, useScene, subscribeScene, holdTurn } from '../bridge/renderer'
+export type { SceneView, SceneViewLine, ScriptedSlot } from '../bridge/renderer'

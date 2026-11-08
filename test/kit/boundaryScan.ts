@@ -1,4 +1,4 @@
-import { globSync, readFileSync, statSync } from 'fs'
+import { existsSync, globSync, readFileSync, statSync } from 'fs'
 import { builtinModules } from 'module'
 import { posix } from 'path'
 
@@ -7,7 +7,8 @@ import { posix } from 'path'
  * past what a mod may touch. A mod file may import the kit's entry for its side (and `shared`),
  * React and `motion` in the window, Node and Electron in the main process, its own mod's files,
  * the files of a mod it requires, and any other package (bundled with it). Nothing else of the
- * game: not `@shared`, not a path into `src/`, not the kit's host side.
+ * game: not `@shared`, not a path into `src/`, not the kit's host side. The other way round, no
+ * game file imports a mod's file, except core's registries loading the entries.
  */
 
 export type Side = 'shared' | 'renderer' | 'main' | 'preload'
@@ -103,11 +104,13 @@ function files(root: string, globs: readonly string[]): string[] {
     .filter((file) => statSync(posix.join(root, file)).isFile())
 }
 
-/** The entry files of `src/shared/modEntries` and `src/renderer/modEntries`, by mod id. */
+/** The entry files of `src/{shared,renderer,main}/modEntries`, by mod id; `index.ts` is core's. */
 export function entryMods(root: string): Record<string, ModSet> {
   const mods: Record<string, { globs: string[]; requires: string[] }> = {}
-  for (const file of files(root, ['src/shared/modEntries/*.ts', 'src/renderer/modEntries/*.ts'])) {
+  const entries = files(root, ['src/shared/modEntries/*.ts', 'src/renderer/modEntries/*.ts', 'src/main/modEntries/*.ts'])
+  for (const file of entries) {
     const id = posix.basename(file, '.ts')
+    if (id === 'index') continue
     const mod = (mods[id] ??= { globs: [], requires: [] })
     mod.globs.push(file)
     // The entry's `requires`, read off the text so no mod's code is loaded.
@@ -117,21 +120,27 @@ export function entryMods(root: string): Record<string, ModSet> {
   return mods
 }
 
-/** Scans every file of every mod, each against what its own mod may import. */
-export function scanMods(root: string, mods: Record<string, ModSet>): ScanResult {
+/** Each mod file's owner, by repo-relative path. */
+function ownerMap(root: string, mods: Record<string, ModSet>): Map<string, string> {
   const owner = new Map<string, string>()
   for (const [id, mod] of Object.entries(mods)) {
     for (const file of files(root, mod.globs)) owner.set(file, id)
   }
-  /**
-   * The mods an import reaches, `undefined` standing for a file no mod owns: a file's owner, every
-   * owner among the files a glob matches, or for a folder (or a glob matching nothing) the owner of
-   * whatever is under it.
-   */
-  const ownersOf = (target: string): (string | undefined)[] => {
+  return owner
+}
+
+/**
+ * The mods an import reaches, `undefined` standing for a file no mod owns: a file's owner (none for
+ * a file of the game's), every owner among the files a glob matches, or for a folder (or a glob
+ * matching nothing) the owner of whatever is under it.
+ */
+function reach(root: string, owner: ReadonlyMap<string, string>): (target: string) => (string | undefined)[] {
+  return (target) => {
     for (const suffix of RESOLVED) {
-      const found = owner.get(target + suffix)
+      const file = target + suffix
+      const found = owner.get(file)
       if (found) return [found]
+      if (existsSync(posix.join(root, file)) && statSync(posix.join(root, file)).isFile()) return [undefined]
     }
     const star = target.indexOf('*')
     if (star !== -1) {
@@ -144,7 +153,12 @@ export function scanMods(root: string, mods: Record<string, ModSet>): ScanResult
     for (const [file, id] of owner) if (file.startsWith(`${dir}/`)) return [id]
     return [undefined]
   }
+}
 
+/** Scans every file of every mod, each against what its own mod may import. */
+export function scanMods(root: string, mods: Record<string, ModSet>): ScanResult {
+  const owner = ownerMap(root, mods)
+  const ownersOf = reach(root, owner)
   const scanned: string[] = []
   const violations: Violation[] = []
   const required: RequiredImport[] = []
@@ -198,6 +212,44 @@ export function scanMods(root: string, mods: Record<string, ModSet>): ScanResult
     }
   }
   return { files: scanned.sort(), violations, required }
+}
+
+/** Where the game's own code is: everything under `src/`, and the kit. */
+export const GAME_FILES = ['src/**', 'packages/modkit/src/**']
+
+/** The files through which core finds its in-repo mods. Each may import mods' entries. */
+export const REGISTRIES = ['src/shared/mods.ts', 'src/renderer/mods/index.ts', 'src/main/modEntries/index.ts']
+
+/**
+ * The boundary from the game's side: no game file imports a mod's file, so nothing of the game
+ * changes or breaks when a mod moves out. Core finds its in-repo mods only through its registries,
+ * which may import a mod's entry (a file in a `modEntries` folder) and nothing else of it.
+ */
+export function scanGame(
+  root: string,
+  mods: Record<string, ModSet>,
+  game: readonly string[] = GAME_FILES,
+  registries: readonly string[] = REGISTRIES
+): ScanResult {
+  const owner = ownerMap(root, mods)
+  const ownersOf = reach(root, owner)
+  const scanned: string[] = []
+  const violations: Violation[] = []
+  for (const file of files(root, game)) {
+    if (!CODE.test(file) || owner.has(file)) continue
+    scanned.push(file)
+    for (const specifier of importsOf(readFileSync(posix.join(root, file), 'utf8'))) {
+      let target: string
+      if (specifier.startsWith('.')) target = posix.normalize(posix.join(posix.dirname(file), specifier))
+      else if (specifier.startsWith('@shared/')) target = `src/shared/${specifier.slice('@shared/'.length)}`
+      else continue
+      if (registries.includes(file) && /(^|\/)modEntries\/[^/]+$/.test(target)) continue
+      for (const mod of new Set(ownersOf(target))) {
+        if (mod !== undefined) violations.push({ file, specifier, reason: `imports mod \`${mod}\`` })
+      }
+    }
+  }
+  return { files: scanned.sort(), violations, required: [] }
 }
 
 /**

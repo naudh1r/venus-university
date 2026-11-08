@@ -242,6 +242,8 @@ function memoryRefusal(memory: unknown, modId: string): string | null {
  * Adds a memory of hers, where every prompt, her affection and the memory list read memories,
  * marked as the mod's: it carries the mod's slice, an empty one where it brings none. `replacing`
  * picks which of her memories the mod marked before go in its place; no other memory is asked.
+ * `replacingUnmarked` picks, the same way, from memories with no slices, for migrating older saves. These include
+ * the game's own memories, so it must match only what the mod wrote before its switch.
  * Refused with `MOD_WRITE_INVALID` for a memory that is not one, `MOD_WRITE_GONE` where she is
  * not in the game, and as a record write is.
  */
@@ -249,7 +251,10 @@ export function addMemory(
   modId: string,
   charId: string,
   memory: CharMemory,
-  options: RecordWriteOptions & { replacing?: (memory: Readonly<CharMemory>) => boolean } = {}
+  options: RecordWriteOptions & {
+    replacing?: (memory: Readonly<CharMemory>) => boolean
+    replacingUnmarked?: (memory: Readonly<CharMemory>) => boolean
+  } = {}
 ): Result<null> {
   try {
     const refusal = writeRefusal(modId, options.run)
@@ -262,14 +267,21 @@ export function addMemory(
     const state = useGameStore.getState()
     if (!Object.hasOwn(state.charInfo, charId)) return refused('MOD_WRITE_GONE', 'She is not in the game.')
     const memories = state.charInfo[charId].memories
-    const replacing = options.replacing
-    const kept = replacing
-      ? memories.filter((one) => !(one.ex !== undefined && Object.hasOwn(one.ex, modId) && replacing(one)))
+    const { replacing, replacingUnmarked } = options
+    const kept = replacing || replacingUnmarked
+      ? memories.filter((one) => {
+          // A damaged save's `ex` that is not an object holds no slices.
+          const ex: unknown = one.ex
+          const slices = ex && typeof ex === 'object' ? ex : {}
+          if (Object.hasOwn(slices, modId)) return !replacing?.(one)
+          if (Object.keys(slices).length === 0) return !replacingUnmarked?.(one)
+          return true
+        })
       : memories
     let outcome = refused('MOD_WRITE_STALE', STALE_MESSAGE)
     useGameStore.setState((now) => {
       const info = now.charInfo[charId]
-      // `replacing` ran in between: memories it changed are not the ones it was asked about.
+      // A matcher ran in between: memories it changed are not the ones it was asked about.
       if (info?.memories !== memories) return {}
       outcome = DONE
       return { charInfo: { ...now.charInfo, [charId]: { ...info, memories: [...kept, copy] } } }

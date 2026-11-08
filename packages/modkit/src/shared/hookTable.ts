@@ -199,6 +199,12 @@ export const KIT_APIS = [
   'renderer:profileImageUrl',
   'renderer:subscribeProfileImageUrl',
 
+  // The scene on screen as a read-only view, and a mod's hold on the turn, since: '0.8.0'.
+  'renderer:scene',
+  'renderer:useScene',
+  'renderer:subscribeScene',
+  'renderer:holdTurn',
+
   'shared:SAFE_CHAR_ID',
   'shared:assertSafeCharId',
   'shared:SAFE_NUMERIC_ID',

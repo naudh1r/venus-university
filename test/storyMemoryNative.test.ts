@@ -1,3 +1,6 @@
+import { withOption } from '@shared/mods'
+import { STORY_MEMORY_LIGHT_OPTION } from '@shared/storyMemory'
+import { useModsStore } from '../src/renderer/stores/modsStore'
 import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
@@ -13,7 +16,7 @@ import { withNativeStoryRecall, withStoryExtraction } from '../src/renderer/prom
 import { recapLore } from '../src/renderer/prompts/recaps'
 import { buildScenePrompt, buildContinuationPrompt, buildClosingPrompt, buildSoloPrompt, type PromptState } from '../src/renderer/prompts/scenePrompt'
 import { buildTextingPrompt } from '../src/renderer/prompts/textingPrompt'
-import { setHookRules } from '../src/renderer/mods/hooks'
+import { modRequest, setHookRules } from '../src/renderer/mods/hooks'
 import '../src/renderer/modEntries/story-memory'
 import { character, charInfo } from './fixtures'
 
@@ -188,6 +191,23 @@ describe('real native prompt builders', () => {
       lessNsfwText: false, memoryBudgets: DEFAULT_MEMORY_BUDGETS, history,
       cgReady: {}, customCgReady: {}, outfitReady: {}, roomReady: {} }
   }
+  it('reads ledger mode at dispatch, including override removal, without changing stored facts', () => {
+    const before = useModsStore.getState().switches, s = state(), snapshot = structuredClone(s.storyMemory)
+    const native = { ...request(), schema: { name: 'ledger', schema: { properties: {}, required: [] } } }
+    const check = (mode: 'standard' | 'light') => {
+      expect(modRequest('ledger', { state: s, charKeys: [] }, native))
+        .toEqual(withStoryExtraction(native, s.storyMemory, [], { mode, cast: [] }))
+      expect(s.storyMemory).toEqual(snapshot)
+    }
+    try {
+      useModsStore.setState({ switches: { on: {}, options: {} } }); check('standard')
+      useModsStore.setState({ switches: withOption(useModsStore.getState().switches, 'story-memory', STORY_MEMORY_LIGHT_OPTION, true) }); check('light')
+      useModsStore.setState({ switches: withOption(useModsStore.getState().switches, 'story-memory', STORY_MEMORY_LIGHT_OPTION, false) }); check('standard')
+      useModsStore.setState({ switches: { on: {}, options: {} } }); check('standard')
+      setHookRules({ isOn: () => false, order: () => 0 })
+      expect(modRequest('ledger', { state: s, charKeys: [] }, native)).toBe(native)
+    } finally { useModsStore.setState({ switches: before }) }
+  })
   it('recognizes native recall in opening, continuation, closing, solo and text requests', () => {
     const s = state(), action = 'Remember last night?'
     const native = [

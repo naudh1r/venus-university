@@ -1,12 +1,10 @@
 // Carry registration follows catalogue loading and runs even while switched off.
 import '../../shared/storyMemoryCarry'
 import { acceptStoryFacts, recallPayload, STORY_MEMORY_LIGHT_OPTION } from '../../shared/storyMemory'
-import { optionOn } from '@vx/modkit/shared'
-import { useModsStore } from '../stores/modsStore'
 import { withNativeStoryRecall, withStoryExtraction } from '../prompts/storyMemoryPrompt'
 import { currentStorySnapshot } from '../stores/storyMemory'
 import { useGameStore } from '../stores/gameStore'
-import { registerHooks } from '@vx/modkit/renderer'
+import { modOptionOn, registerHooks } from '@vx/modkit/renderer'
 import { createElement, lazy, Suspense } from 'react'
 import type { GameModalProps, ScreenSlotProps } from '@vx/modkit/renderer'
 
@@ -25,7 +23,7 @@ registerHooks('story-memory', {
     dm: (request, { character, state, newMessage }) => withNativeStoryRecall(
       request, state.storyMemory ?? currentStorySnapshot(), [character.charId], newMessage, state.calendar.season),
     ledger: (request, { state, charKeys }) => withStoryExtraction(request, state.storyMemory, charKeys, {
-      mode: optionOn(useModsStore.getState().switches, 'story-memory', STORY_MEMORY_LIGHT_OPTION) ? 'light' : 'standard',
+      mode: modOptionOn('story-memory', STORY_MEMORY_LIGHT_OPTION) ? 'light' : 'standard',
       cast: charKeys.flatMap(key => {
         const id = useGameStore.getState().charKeyToId[key]
         return id ? [id] : []

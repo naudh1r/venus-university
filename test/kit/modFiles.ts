@@ -1,10 +1,11 @@
 import type { ModSet } from './boundaryScan'
 
 /**
- * Each in-repo mod's files beyond its two entries, by id: globs from the repo's root, and the mods
- * it requires where its entry does not say. The boundary test holds every file listed here to the
- * kit. On `core` there are no mods and this is empty; on `main` each author lists their own mod's
- * files, and a mod has moved out when its entry here is gone.
+ * Each in-repo mod's files beyond its entries, by id: globs from the repo's root, and the mods it
+ * requires where its entry does not say. The boundary test holds every file listed here to the
+ * kit, and keeps the game's own files from importing them. On `core` there are no mods and this
+ * is empty; on `main` each author lists their own mod's files, and a mod has moved out when its
+ * entry here is gone.
  *
  * A file two mods share is listed under the one the other requires (City Life), or split by what
  * each entry registers (the [MK] packs' games).
