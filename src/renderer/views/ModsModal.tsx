@@ -43,7 +43,8 @@ function scopeWords(mod: ModDef): string {
 
 /** Where a mod came from, in a word for its tag. */
 function originWords(session: ModSessionEntry | undefined): string {
-  if (!session) return 'built in'
+  // A built-in with a main entry has a session row too, with no folder of its own.
+  if (!session || !session.folder) return 'built in'
   return session.dev ? 'from folder' : 'installed'
 }
 
