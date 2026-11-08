@@ -457,6 +457,9 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
   opening bytes name, and a character's own LoRA pick. `BACKUP_ZIP_LIMITS` is the game's archive cap.
 - `DORM_IDS`, `dormLabel`, `LOCATIONS` and `NARRATIVE_LOCATIONS` (`shared`): the dorm and place
   vocabulary; `customOutfitSlotsIn` and `outfitTagsFor` read her own wardrobe.
+  Use `import type { JobDef, LocationDef } from '@vx/modkit/shared'` to type a mod's own
+  job and location catalogues. TypeScript erases the import. The mod registers its entries
+  through the usual hooks.
 - `affectionFor`, `dispositionOf`, `dedupedMemoriesFor`, `emptyFlags` and `relationshipTagOf`
   (`shared`) read the relationship a prompt describes. `areNpcFriends`, `npcFriendsOf`, `npcPairOf`
   and `zoneOf` read the relationships between characters from the map the caller supplies.
@@ -1012,7 +1015,7 @@ optionGroups: [{ id: 'loader', label: 'Loading animation', hint: 'The animation 
 | `packages/modkit/src/shared/manifest.ts`, `range.ts` | Reading `vxmod.json`, and the version-range subset. |
 | `test/mods.test.ts` | The rules, tested against a list with every shape of mod. |
 | `test/mods/` | The loader's tests, on the fixture mods under `test/fixtures/mods/`. `npm run test:electron`, after a build, runs them in the real app. |
-| `test/kit/` | The kit's own checks: a mod file imports only the kit (`boundary.test.ts`), the hook table and the kit's surface agree with the code (`contract.test.ts`), and the per-hook compatibility check (`compat.test.ts`). |
+| `test/kit/` | The kit's own checks: a mod file imports only the kit and no game file imports a mod's (`boundary.test.ts`), the hook table and the kit's surface agree with the code (`contract.test.ts`), and the per-hook compatibility check (`compat.test.ts`). |
 
 ## A rule in shared code
 

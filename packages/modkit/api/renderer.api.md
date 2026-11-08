@@ -819,6 +819,7 @@ export interface PromptState {
     slotRumor?: LoreRumor;
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
+    subjectTags?: readonly string[];
     textEdits?: TextEditSet;
     textedWith?: readonly string[];
     textingSummaries?: Record<string, string[]>;

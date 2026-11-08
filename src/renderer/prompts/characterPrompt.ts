@@ -1,5 +1,5 @@
 import { characterFromDraft, promptFields, promptLines, promptRequired } from '../mods/hooks'
-import { SUBJECT_TAGS } from '@shared/characterRules'
+import { withoutSubjectTags } from '@shared/defaultTags'
 import { EMOTIONS } from '@shared/emotions'
 import {
   BREAST_SIZES,
@@ -460,13 +460,15 @@ function cleanTags(values: readonly string[] | undefined): string[] {
 }
 
 /**
- * Flattens a draft into `Character`. Tags pass through as written (Appendix A); only `pose`
- * is checked, since a pose with no skeleton file cannot render.
+ * Flattens a draft into `Character`, her appearance opening on `subject`, the subject tags in
+ * force. Tags pass through as written (Appendix A); only `pose` is checked, since a pose with no
+ * skeleton file cannot render.
  */
 export function draftToCharacter(
   base: Character,
   draft: CharacterDraft,
   poses: PoseManifest,
+  subject: readonly string[],
   traits: readonly CharacterTraitDefinition[] = generatedCharacterTraits()
 ): Character {
   const poseKeys = poseKeysOf(poses)
@@ -474,7 +476,7 @@ export function draftToCharacter(
 
   // The app supplies the subject tags; the model is never asked for them.
   const baseAppearance = [
-    ...SUBJECT_TAGS,
+    ...subject,
     ...cleanTags([
       colorTag(a.hairColor, a.hairShade, 'hair'),
       colorTag(a.eyeColor, a.eyeShade, 'eyes'),
@@ -558,8 +560,11 @@ function uniqueCategories(values: string[] | undefined): GiftCategory[] {
   return [...new Set((values ?? []).filter(isGiftCategory))]
 }
 
-/** Fields the Generate modal treats as required before a character can render. */
-export function missingRequiredFields(character: Character): string[] {
+/**
+ * Fields the Generate modal treats as required before a character can render; an appearance
+ * holding nothing but subject tags, the build's or `subject`, is missing.
+ */
+export function missingRequiredFields(character: Character, subject: readonly string[]): string[] {
   const missing: string[] = []
   if (!character.firstName) missing.push('first name')
   if (!character.lastName) missing.push('last name')
@@ -577,7 +582,7 @@ export function missingRequiredFields(character: Character): string[] {
   // Only the liked half: an empty `disliked` is an ordinary answer.
   if (character.giftPreferences.liked.length === 0) missing.push('gift preferences')
   if (!character.pose) missing.push('pose')
-  if (character.baseAppearance.every((tag) => SUBJECT_TAGS.includes(tag))) {
+  if (withoutSubjectTags(character.baseAppearance, subject).length === 0) {
     missing.push('appearance')
   }
   if (character.outfit.length === 0) missing.push('outfit')

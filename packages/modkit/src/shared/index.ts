@@ -18,6 +18,8 @@ export type {
   ImagePromptDraft,
   ImagePromptKind,
   ImagePromptParts,
+  JobDef,
+  LocationDef,
   LedgerResponse,
   LedgerStats,
   MemoryType,
