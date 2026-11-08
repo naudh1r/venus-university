@@ -62,6 +62,17 @@ describe('a picture of two', () => {
     expect(prompts.negative).not.toMatch(/\b2girls\b|multiple_girls/)
   })
 
+  it('gives each girl the face the caption gives her, and both the same where it splits none', () => {
+    const split = buildDuoPhotoPrompt(risa, ana, 'everyday', 'Me and Ana in a cafe booth, me smiling softly while Ana grins widely')
+    expect(split.left).toMatch(/\bsmile\b/)
+    expect(split.left).not.toMatch(/\bgrin\b/)
+    expect(split.right).toMatch(/\bgrin\b/)
+    expect(split.right).not.toMatch(/\bsmile\b/)
+    const shared = buildDuoPhotoPrompt(risa, ana, 'everyday', 'Me and Ana in a cafe booth, both laughing')
+    expect(shared.left).toMatch(/\blaughing\b/)
+    expect(shared.right).toMatch(/\blaughing\b/)
+  })
+
   it.each([
     ['everyday clothes', 'pink_top', 'brown_sweater'],
     ['PE kit', 'gym_uniform', 'gym_uniform'],

@@ -761,9 +761,39 @@ const DUO_EXPRESSIONS: readonly [RegExp, readonly string[]][] = [
   [/\bsmil/i, ['smile']]
 ]
 
-function duoExpression(text: string): string[] {
+/** The faces one stretch of caption names, or none. */
+function facesIn(text: string): string[] {
   const said = DUO_EXPRESSIONS.filter(([words]) => words.test(text)).flatMap(([, tags]) => tags)
-  return [...new Set(said.length > 0 ? said : ['smile']), ...(/\bblush/i.test(text) ? ['blush'] : [])]
+  return said.length > 0 ? [...new Set(said)] : []
+}
+
+function withBlush(faces: readonly string[], text: string): string[] {
+  return [...faces, ...(/\bblush/i.test(text) ? ['blush'] : [])]
+}
+
+/** "Her …" and "… her friend …" joined in one clause: each girl's own words. */
+const FRIEND_CLAUSE = /([^,.;]*?)\s*\b(?:while|and|as|with|but)\s+her friend\b([^,.;]*)/gi
+
+/**
+ * Each girl's face, left (hers) and right (her friend's). A caption that gives her friend a face
+ * of her own, "her smiling softly while her friend grins", is split there; otherwise both carry
+ * whatever the caption names, and a smile where it names none.
+ */
+function duoExpressions(text: string): { left: string[]; right: string[] } {
+  // "Her and her friend sitting…" opens most captions; the clause that gives her friend a face is
+  // the one that splits them.
+  const clause = [...text.matchAll(FRIEND_CLAUSE)].find((one) => facesIn(one[2]).length > 0)
+  if (clause) {
+    const theirs = facesIn(clause[2])
+    const rest = text.replace(clause[2], '')
+    const hers = facesIn(clause[1]).length > 0 ? facesIn(clause[1]) : facesIn(rest)
+    return {
+      left: withBlush(hers.length > 0 ? hers : ['smile'], clause[1]),
+      right: withBlush(theirs, clause[2])
+    }
+  }
+  const both = withBlush(facesIn(text).length > 0 ? facesIn(text) : ['smile'], text)
+  return { left: both, right: both }
 }
 
 /**
@@ -900,9 +930,9 @@ export function buildDuoPhotoPrompt(
   const phoneNegative = selfie && !mirror ? ['phone', 'cellphone', 'smartphone', 'holding_phone'] : []
 
   const shared = [...framing.tags]
-  const faces = duoExpression(text)
-  const left = duoHalf(sender, tier, scene, posture, [...faces, ...shared, ...holds])
-  const right = duoHalf(friend, tier, scene, posture, [...faces, ...shared])
+  const faces = duoExpressions(text)
+  const left = duoHalf(sender, tier, scene, posture, [...faces.left, ...shared, ...holds])
+  const right = duoHalf(friend, tier, scene, posture, [...faces.right, ...shared])
   const dressedScene = withoutOutfitName(scene, [...left.names, ...right.names])
   // A selfie lying down did not hold for two, so it is said as the photo it is drawn as.
   const sentence = lookingAtViewer(
