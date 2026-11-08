@@ -185,6 +185,82 @@ describe('addMemory', () => {
     ])
   })
 
+  // A damaged save can hold an `ex` that is not an object; it counts as unmarked.
+  it.each([undefined, {}, null, 'x'])('replaces matching unmarked memories with ex %j', (ex) => {
+    const legacy = { ...memory('legacy'), ex: ex as CharMemory['ex'] }
+    const kept = memory('core')
+    useGameStore.setState({ charInfo: { girl: charInfo({ memories: [legacy, kept] }) } })
+    const replacingUnmarked = vi.fn((one: Readonly<CharMemory>) => one.desc === 'legacy')
+
+    expect(kit.addMemory('rec-writer', 'girl', memory('new'), { replacingUnmarked }))
+      .toEqual({ ok: true, data: null })
+
+    expect(replacingUnmarked.mock.calls.map(([one]) => one)).toEqual([legacy, kept])
+    expect(hers()).toEqual([
+      kept,
+      { ...memory('new'), ex: { 'rec-writer': { v: '1.2.0', data: null } } }
+    ])
+  })
+
+  it('never offers memories with any slice to replacingUnmarked', () => {
+    const own = { ...memory('own'), ex: { 'rec-writer': { v: '1', data: null } } }
+    const foreign = { ...memory('foreign'), ex: other }
+    useGameStore.setState({ charInfo: { girl: charInfo({ memories: [own, foreign] }) } })
+    const replacingUnmarked = vi.fn(() => true)
+
+    expect(kit.addMemory('rec-writer', 'girl', memory('new'), { replacingUnmarked }))
+      .toEqual({ ok: true, data: null })
+
+    expect(replacingUnmarked).not.toHaveBeenCalled()
+    expect(hers().slice(0, 2)).toEqual([own, foreign])
+  })
+
+  it('replaces owned and unmarked memories in one write, with separate matchers', () => {
+    const legacy = memory('legacy')
+    const kept = memory('core')
+    const own = { ...memory('own'), ex: { 'rec-writer': { v: '1', data: null } } }
+    const foreign = { ...memory('foreign'), ex: other }
+    useGameStore.setState({
+      charInfo: { girl: charInfo({ memories: [legacy, kept, own, foreign] }) }
+    })
+    const replacing = vi.fn(() => true)
+    const replacingUnmarked = vi.fn((one: Readonly<CharMemory>) => one.desc === 'legacy')
+    const changed = vi.fn()
+    const stop = useGameStore.subscribe(changed)
+
+    const result = kit.addMemory('rec-writer', 'girl', memory('new'), { replacing, replacingUnmarked })
+    stop()
+
+    expect(result).toEqual({ ok: true, data: null })
+    expect(replacing.mock.calls).toEqual([[own]])
+    expect(replacingUnmarked.mock.calls.map(([one]) => one)).toEqual([legacy, kept])
+    expect(changed).toHaveBeenCalledOnce()
+    expect(hers()).toEqual([
+      kept, foreign,
+      { ...memory('new'), ex: { 'rec-writer': { v: '1.2.0', data: null } } }
+    ])
+  })
+
+  it('refuses a stale unmarked replacement without overwriting the matcher\'s change', () => {
+    const legacy = memory('legacy')
+    useGameStore.setState({ charInfo: { girl: charInfo({ memories: [legacy] }) } })
+    let changed: ReturnType<typeof useGameStore.getState> | undefined
+    const replacingUnmarked = () => {
+      const info = useGameStore.getState().charInfo.girl
+      useGameStore.setState({
+        charInfo: { girl: { ...info, memories: [...info.memories, memory('concurrent')] } }
+      })
+      changed = useGameStore.getState()
+      return true
+    }
+
+    expect(code(kit.addMemory('rec-writer', 'girl', memory('new'), { replacingUnmarked })))
+      .toBe('MOD_WRITE_STALE')
+    expect(useGameStore.getState()).toEqual(changed)
+    expect(useGameStore.getState().charInfo).toBe(changed?.charInfo)
+    expect(hers()).toEqual([legacy, memory('concurrent')])
+  })
+
   it.each([
     ['MOD_WRITE_INVALID', 'rec-writer', 'girl', { ...memory('x'), type: 'adored' }],
     ['MOD_WRITE_INVALID', 'rec-writer', 'girl', { ...memory('x'), breakDays: 2 }],

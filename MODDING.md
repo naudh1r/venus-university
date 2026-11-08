@@ -791,10 +791,12 @@ A mod adds to two lists the game owns, so that everything that reads them sees w
   a comment's own fields (`id`, `handle`, `emoji`, `text`, `at`) and the mod's slice in `ex`, its
   `id` one no comment of the post has. A mod's own fields go in its slice, written with its
   `recordField`'s `with` before the comment is added and with `set` after.
-- `addMemory(id, charId, memory, { replacing, run })` adds a memory of hers, where the prompts, her
-  affection and the memory list read memories. It is a memory's own `date`, `type` and `desc`,
+- `addMemory(id, charId, memory, { replacing, replacingUnmarked, run })` adds a memory of hers, where the
+  prompts, her affection and the memory list read memories. It is a memory's own `date`, `type` and `desc`,
   marked as the mod's: it carries the mod's slice, an empty one where it brings none. `replacing`
   picks which of her memories the mod marked before go in its place; no other memory is asked.
+  `replacingUnmarked` can also remove memories with no slices (absent, empty or not an object `ex`), for migrating older
+  saves. Unmarked memories include the game's own, so match only what the mod wrote before its switch.
 
 `toggleFeedLike(charId, postId)` is the reader's like on her post, put on or taken off as the heart
 on a post in the game does.
@@ -962,7 +964,7 @@ optionGroups: [{ id: 'loader', label: 'Loading animation', hint: 'The animation 
 | `packages/modkit/src/shared/manifest.ts`, `range.ts` | Reading `vxmod.json`, and the version-range subset. |
 | `test/mods.test.ts` | The rules, tested against a list with every shape of mod. |
 | `test/mods/` | The loader's tests, on the fixture mods under `test/fixtures/mods/`. `npm run test:electron`, after a build, runs them in the real app. |
-| `test/kit/` | The kit's own checks: a mod file imports only the kit (`boundary.test.ts`), the hook table and the kit's surface agree with the code (`contract.test.ts`), and the per-hook compatibility check (`compat.test.ts`). |
+| `test/kit/` | The kit's own checks: a mod file imports only the kit and no game file imports a mod's (`boundary.test.ts`), the hook table and the kit's surface agree with the code (`contract.test.ts`), and the per-hook compatibility check (`compat.test.ts`). |
 
 ## A rule in shared code
 
@@ -1239,6 +1241,38 @@ and the queue, wherever they have got to, and leaves every other line. A box sho
 on the last line kept, and a gift stays on the action that handed it over. Nothing written to disk
 holds one, whether a save, a calendar replay or a Scene Creator saved scene: a reload never
 brings back a line the mod could no longer take back.
+
+A panel reads the scene with `scene()` from `@vx/modkit/renderer`, `useScene(select)` in a
+component and `subscribeScene(onChange, select?)` in plain code, declared as `renderer:scene`,
+`renderer:useScene` and `renderer:subscribeScene`. They answer a `SceneView`, a read-only view
+the kit defines, never the game's store:
+- **Who is in it:** `cast`, `present` (the cast less whoever has left) and `stage`, who stands
+  in each portrait place, all by id.
+- **What has been said:** `lines`, including lines still to be read, and `line`, the one on the
+  box. A line's `speaker` is `READER_SPEAKER`, her id, or `''` for narration, a speaker the game
+  no longer knows among it.
+- **Where it is:** `location` as the game noted it, and `background`, the one playback has reached.
+- **What the slot is:** `classCode`, `jobId`, `projectClass`, the slot `activity`, and `created`,
+  `replay`, `quiz`, and `scripted` for the orientation's or the graduation's slot, which is never
+  a created scene or a replay.
+- **Where the turn stands:** `atTurn`, `canInterject`, `busy`, `failed`, `ending`, `resolved` and
+  `over`. These are the game's own answers: `atTurn` is his turn with nothing left to read,
+  `canInterject` the interjection row's offer. A mod never puts them together from the store.
+
+Everything in it is frozen, and the same view comes back until something in it changes. There is
+a view in a playthrough, a created scene and a replay, though the last two have no playthrough;
+it is `null` on the menu. `useScene` renders again when what `select` picks changes, compared with
+`Object.is`, so pick values or the view's own arrays rather than building new ones. The view grows
+by request: ask for a fact it lacks rather than reading the store.
+
+A panel that settles something of its own at the reader's turn, such as saving a game's result
+before the scene is told it, holds the turn with `holdTurn(id)`, declared as `renderer:holdTurn`.
+While it is held the scene is busy: no turn, hangout or autosave starts, and `atTurn` is false.
+It is taken only at his turn, in a playthrough or a created scene (a replay never hands him the
+turn), and refused otherwise with `MOD_WRITE_WAIT`, with `MOD_WRITE_OFF` for a mod that is off,
+and with `MOD_WRITE_NO_GAME` on the menu. The result's `data` is the release: call it when the
+work is done, failed or not. It gives the turn back once; a second call, or one after the scene
+was left, does nothing.
 
 A hook point is added where mods actually meet, not ahead of need. Once mods use one, it stays
 as it is: renaming it or changing what it passes breaks them. A change that is needed goes in
