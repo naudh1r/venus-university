@@ -117,8 +117,6 @@ const api: VenusUniversityApi = {
     completeIntro: (request, group) => ipcRenderer.invoke('llm:completeIntro', request, group),
     completeEndingPosts: (request, group) =>
       ipcRenderer.invoke('llm:completeEndingPosts', request, group),
-    completeFeedThreads: (request, group) =>
-      ipcRenderer.invoke('llm:completeFeedThreads', request, group),
     completeTexting: (request, group) =>
       ipcRenderer.invoke('llm:completeTexting', request, group),
     onSceneDelta: (listener) => {
