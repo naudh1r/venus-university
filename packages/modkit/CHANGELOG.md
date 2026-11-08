@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Shared exports the native `JobDef` and `LocationDef` types for mod-owned catalogues.
+  These are erased type exports; no native catalogue values or runtime APIs are exposed.
+
 - `addMemory` accepts `replacingUnmarked` to replace unmarked memories a mod wrote before its switch.
 - `scene()`, `useScene(select)` and `subscribeScene` read the scene on screen, in a playthrough,
   a created scene or a replay, as a frozen `SceneView` the kit defines: who is in it, its lines with speakers by id, where it is, what the
