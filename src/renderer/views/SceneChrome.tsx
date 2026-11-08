@@ -77,6 +77,10 @@ export interface SceneChromeProps {
   speakerName: string
   speakerCharId: string | undefined
   speakerVersion: number
+  /** The reader's own picture, where the settings show it on narrated lines. */
+  readerPicture: string | undefined
+  /** The line on screen is the narrator's. */
+  narrated: boolean
   text: string
   /** Runs of that line drawn in a colour of their own — a status message's. */
   marks?: readonly TextMark[]
@@ -420,7 +424,7 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
         )}
         {/* The mods' own seats, each deciding for itself whether it stands. They arrive on the
             rail with the Calendar, the last of the game's own gated seats, hence its reveal. */}
-        {scenePlays().map(({ modId, play }) => (
+        {scenePlays().filter(({play}) => !props.createdScene || play.creator).map(({ modId, play }) => (
           <play.Seat
             key={modId}
             Seat={RailSeat}
@@ -447,6 +451,8 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
         speakerName={props.speakerName}
         speakerCharId={props.speakerCharId}
         speakerVersion={props.speakerVersion}
+        readerPicture={props.readerPicture}
+        narrated={props.narrated}
         text={props.text}
         marks={props.marks}
         revealed={props.revealed}

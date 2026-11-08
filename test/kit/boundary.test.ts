@@ -1,12 +1,13 @@
 import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { describe, expect, it } from 'vitest'
-import { entryMods, importsOf, scanKit, scanMods, type ModSet } from './boundaryScan'
+import { entryMods, importsOf, scanGame, scanKit, scanMods, type ModSet } from './boundaryScan'
 import { MOD_FILES } from './modFiles'
 
 /**
  * The import boundary: a mod file imports only the kit, React, `motion`, its own code and the
- * mods it requires. Proved on fixture mods, then held over the in-repo mods and the kit itself.
+ * mods it requires, and no game file imports a mod's. Proved on fixture mods, then held over the
+ * in-repo mods and the kit itself.
  */
 
 const ROOT = resolve(__dirname, '../..')
@@ -19,6 +20,26 @@ const fixtureMods: Record<string, ModSet> = {
 }
 
 const line = ({ file, specifier }: { file: string; specifier: string }): string => `${file} -> ${specifier}`
+
+/** Today's in-repo mods: each entry's files, with what `MOD_FILES` lists. */
+function inRepoMods(): Record<string, ModSet> {
+  // The entries' own `requires` win over the map's, which is for a mod whose entry is elsewhere.
+  const mods: Record<string, ModSet> = { ...MOD_FILES }
+  for (const [id, entry] of Object.entries(entryMods(ROOT))) {
+    const listed = mods[id]
+    mods[id] = {
+      globs: [...(listed?.globs ?? []), ...entry.globs],
+      requires: entry.requires?.length ? entry.requires : listed?.requires
+    }
+  }
+  return mods
+}
+
+/** An allowlist the integrate branch into `main` writes with every violation of the day; absent on core. */
+function allowlist(name: string): string[] {
+  const file = resolve(__dirname, name)
+  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : []
+}
 
 describe('importsOf', () => {
   it('finds every form of import, and none in a comment', () => {
@@ -100,20 +121,36 @@ describe('the import boundary', () => {
   })
 
   it("holds today's in-repo mods to the kit, beyond the allowlist", () => {
-    // The entries' own `requires` win over the map's, which is for a mod whose entry is elsewhere.
-    const entries = entryMods(ROOT)
-    const mods: Record<string, ModSet> = { ...MOD_FILES }
-    for (const [id, entry] of Object.entries(entries)) {
-      const listed = mods[id]
-      mods[id] = {
-        globs: [...(listed?.globs ?? []), ...entry.globs],
-        requires: entry.requires?.length ? entry.requires : listed?.requires
-      }
-    }
-    const found = scanMods(ROOT, mods).violations.map(line).sort()
-    // Written by the integrate branch into `main` with every violation of the day; absent on core.
-    const allowlistFile = resolve(__dirname, 'boundaryAllowlist.json')
-    const allowed: string[] = existsSync(allowlistFile) ? JSON.parse(readFileSync(allowlistFile, 'utf8')) : []
+    const found = scanMods(ROOT, inRepoMods()).violations.map(line).sort()
+    const allowed = allowlist('boundaryAllowlist.json')
+    expect(found.filter((one) => !allowed.includes(one)), 'new violations').toEqual([])
+    expect(allowed.filter((one) => !found.includes(one)), 'allowlist entries that no longer violate').toEqual([])
+  })
+
+  it("names each game file that imports a mod's, sparing the registries' entries", () => {
+    const base = 'test/fixtures/kit-boundary-reverse'
+    const { files, violations } = scanGame(
+      ROOT,
+      { alpha: { globs: [`${base}/modEntries/alpha.ts`, `${base}/alpha/**`] } },
+      [`${base}/**`],
+      [`${base}/game/registry.ts`, `${base}/modEntries/index.ts`]
+    )
+    expect(files).toEqual([
+      `${base}/game/caller.ts`,
+      `${base}/game/helper.ts`,
+      `${base}/game/registry.ts`,
+      `${base}/modEntries/index.ts`
+    ])
+    expect(violations.map((one) => `${line(one)}: ${one.reason}`)).toEqual([
+      `${base}/game/caller.ts -> ../alpha/state: imports mod \`alpha\``,
+      `${base}/game/caller.ts -> ../modEntries/alpha: imports mod \`alpha\``,
+      `${base}/game/registry.ts -> ../alpha/state: imports mod \`alpha\``
+    ])
+  })
+
+  it("keeps the game off today's in-repo mods, beyond the allowlist", () => {
+    const found = scanGame(ROOT, inRepoMods()).violations.map(line).sort()
+    const allowed = allowlist('gameAllowlist.json')
     expect(found.filter((one) => !allowed.includes(one)), 'new violations').toEqual([])
     expect(allowed.filter((one) => !found.includes(one)), 'allowlist entries that no longer violate').toEqual([])
   })

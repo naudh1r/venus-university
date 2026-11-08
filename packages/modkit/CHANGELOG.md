@@ -13,6 +13,8 @@
   expression art, and send a cancellable structured request to the configured provider.
   The auxiliary page communicates through its mod's channel namespace. A main invoke
   handler can use its host-provided `senderId` to associate a surface with the calling window.
+- Shared exports the native `JobDef` and `LocationDef` types for mod-owned catalogues.
+  These are erased type exports; no native catalogue values or runtime APIs are exposed.
 
 - `addMemory` accepts `replacingUnmarked` to replace unmarked memories a mod wrote before its switch.
 - `scene()`, `useScene(select)` and `subscribeScene` read the scene on screen, in a playthrough,
