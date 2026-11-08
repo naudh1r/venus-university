@@ -19,6 +19,7 @@ import { Variants } from 'motion/react';
 // @public
 export function addMemory(modId: string, charId: string, memory: CharMemory, options?: RecordWriteOptions & {
     replacing?: (memory: Readonly<CharMemory>) => boolean;
+    replacingUnmarked?: (memory: Readonly<CharMemory>) => boolean;
 }): Result<null>;
 
 // @public
@@ -317,6 +318,9 @@ export function hasTexted(conversation: Conversation | undefined): boolean;
 
 // @public
 export function HeartIcon(input?: MarkProps): JSX.Element;
+
+// @public
+export function holdTurn(modId: string): Result<() => void>;
 
 // @public
 export function imageApiConfigured(): boolean;
@@ -980,6 +984,9 @@ export interface SaveFieldSpec<T> {
 export function sayInScene(modId: string, text: string, options?: SceneLineOptions): boolean;
 
 // @public
+export function scene(): SceneView | null;
+
+// @public
 export const sceneActive: () => boolean;
 
 // @public
@@ -1091,6 +1098,39 @@ export interface SceneStatSettlement {
     ledger: LedgerStats | undefined;
 }
 
+// @public
+export interface SceneView {
+    readonly active: boolean;
+    readonly activity: Readonly<SlotActivity> | null;
+    readonly atTurn: boolean;
+    readonly background: string | null;
+    readonly busy: boolean;
+    readonly canInterject: boolean;
+    readonly cast: readonly string[];
+    readonly classCode: string | null;
+    readonly created: boolean;
+    readonly ending: boolean;
+    readonly failed: boolean;
+    readonly jobId: string | null;
+    readonly line: SceneViewLine | null;
+    readonly lines: readonly SceneViewLine[];
+    readonly location: string | null;
+    readonly over: boolean;
+    readonly present: readonly string[];
+    readonly projectClass: string | null;
+    readonly quiz: boolean;
+    readonly replay: boolean;
+    readonly resolved: boolean;
+    readonly scripted: ScriptedSlot | null;
+    readonly stage: readonly (string | null)[];
+}
+
+// @public
+export interface SceneViewLine {
+    readonly speaker: string;
+    readonly text: string;
+}
+
 // @public (undocumented)
 export type ScreenSlot = keyof ScreenSlotProps;
 
@@ -1182,6 +1222,9 @@ export interface ScreenSlotProps {
 
 // @public
 export type ScreenTheme = 'day' | 'night';
+
+// @public
+export type ScriptedSlot = 'orientation' | 'graduation';
 
 // @public
 export function SelectField(input: SelectFieldProps): JSX.Element;
@@ -1354,6 +1397,9 @@ export const subscribeReaderPromptText: (onChange: () => void) => () => void;
 export function subscribeRosterIds(onChange: () => void, options?: {
     alumni?: boolean;
 }): () => void;
+
+// @public
+export function subscribeScene<T>(onChange: () => void, select?: (view: SceneView | null) => T): () => void;
 
 // @public
 export const subscribeSceneActive: (onChange: () => void) => () => void;
@@ -1587,6 +1633,9 @@ export function useRosterIds(options?: {
 
 // @public
 export function useSafePoint(): ManualSaveOffer;
+
+// @public
+export function useScene<T>(select: (view: SceneView | null) => T): T;
 
 // @public
 export const useSceneActive: () => boolean;
