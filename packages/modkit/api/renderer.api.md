@@ -769,6 +769,8 @@ export interface PromptState {
     backFromBreak?: readonly string[];
     backgrounds: BackgroundSets;
     bg: string | null;
+    // (undocumented)
+    breakthrough?: BreakthroughState;
     calendar: SemesterCalendar;
     cgReady: Record<string, boolean>;
     charInfo: Record<string, CharInfo>;
@@ -783,6 +785,10 @@ export interface PromptState {
     droppedNotices?: readonly DroppedNotice[];
     emotions: Record<string, SpriteRef>;
     ex?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    exCharacterDynamics?: CharacterDynamics;
+    // (undocumented)
+    exReckoning?: ReckoningState;
     farewell?: {
         firstName: string;
         forAWhile: boolean;
@@ -819,6 +825,8 @@ export interface PromptState {
     slotRumor?: LoreRumor;
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
+    // (undocumented)
+    storyMemory?: StorySnapshot;
     subjectTags?: readonly string[];
     textEdits?: TextEditSet;
     textedWith?: readonly string[];
@@ -1174,6 +1182,9 @@ export interface SceneStatSettlement {
 }
 
 // @public
+export function sceneSuggestionsPaused(): boolean;
+
+// @public
 export interface SceneView {
     readonly active: boolean;
     readonly activity: Readonly<SlotActivity> | null;
@@ -1345,6 +1356,9 @@ export interface SentTextSpot {
 }
 
 // @public
+export function setSceneSuggestionsPaused(modId: string, active: boolean): void;
+
+// @public
 export const SETTING = "VENUS UNIVERSITY (VU)\nMotto: Concordia et Prosperitas | Founded 2014 by Frederic Thorne | 6k Student Population.\n\nVenus University is a private megacampus built to maximize social connection. It admits students by a controversial lottery draw and funds a robust financial aid program off a seemingly bottomless endowment. The campus blends classical and ultra-modern architecture and walls itself off from the noisy city with lush gardens. Towering statues of Roman gods mark it: Venus in the quad, Jupiter at the North Entrance, Pluto at the South. Roads are paved with colored stone for navigation and purpose-built to be long and winding. The two major roads are the Gold Road, which links Jupiter and Pluto, and the Rose Road, which passes Venus and links the academic and residential areas. \"Meet me where Gold crosses Rose\" was cemented in national lingo by a romance film shot here called \"Love Between Gods\".\n\nCampus: Venus Quad (Concord Fountain), Agora (food court, study pods), Pino-Cola Lounge (games, study desks), Kendall Library, Whitman Greenhouse, Thorne Auditorium (concert hall, practice rooms, recording studios), Palaestra Stadium (gym, pool, turf, track).\nHousing: Elysium Village (upperclassmen townhouses), Lowrises 1 to 5 (anyone). All rooms are single-occupancy with shared facilities: no roommates.\nStudent government: VSA, split into CAPC (decor, plants) and SEB (events, mixers).\nSocial App: Bunnyboard.\n\nVERIDAN, USA\nRiver City (the Silk River) | Always Spring | 300k Population | Transit: The Loop electric tram.\n\nNineteenth-century textile money built Veridan, but its mills died in the 1970s and it coasted downhill until Thorne planted VU here in 2014, triggering an investment boom that delighted some longtime residents and enraged others. Sheltered by the river valley, it sits in a near-perpetual spring that meteorologists still can't explain properly.\n\nDistricts: Stanchion Street ($), Downtown ($$), Promenade ($$$).\nStanchion: BTB Arcade, Stalestein Bar (and stage), Hotel DREAMS (love hotel), Freights Books & Records, Pastel Palace (sweets), CuteTea, Eastern Buffet.\nDowntown: Green Hill Park, Lotterdale Market, Reserve Bank Cafe, Bobby's Diner, SpringMart, Fast Eats, Pier 44 Amusement Park.\nPromenade: Riverside Mall, Aquarium at Riverside, Future Cinema, Selkie Beach, Club Apogee, Lumiere Fusion (fine dining), Veridan Museum of Art.";
 
 // @public
@@ -1370,6 +1384,8 @@ export interface SlotIntroInput {
     backOnCampus?: number;
     breakups: readonly IntroBreakup[];
     date: number;
+    // (undocumented)
+    exCharacterDynamics?: CharacterDynamics;
     globalTextEdits?: TextEdits<GlobalTextId>;
     homecomingVisitor?: string;
     leavers: readonly IntroLeaver[];
@@ -1386,6 +1402,8 @@ export interface SlotIntroInput {
     secretBudget?: number;
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
+    // (undocumented)
+    storyMemory?: StorySnapshot;
     time: TimeSlot;
     visitors: readonly IntroVisitor[];
     weather?: readonly Weather[];
@@ -1481,6 +1499,9 @@ export function subscribeScene<T>(onChange: () => void, select?: (view: SceneVie
 // @public
 export const subscribeSceneActive: (onChange: () => void) => () => void;
 
+// @public
+export function subscribeSceneSuggestionsPaused(listener: () => void): () => void;
+
 // @public (undocumented)
 export function subscribeSceneTurns(listener: () => void): () => void;
 
@@ -1492,6 +1513,7 @@ export function TextEditModal(input: TextEditModalProps): JSX.Element | null;
 
 // @public (undocumented)
 export interface TextEditModalProps {
+    allowEmpty?: boolean;
     discardMessage: string;
     id: string;
     // (undocumented)
@@ -1536,6 +1558,7 @@ export interface TextFieldProps {
 
 // @public
 export interface TextingPromptState {
+    breakthrough?: BreakthroughState;
     calendar: SemesterCalendar;
     charCompanions?: NpcCompanions;
     charHaunt?: Haunt | null;
@@ -1545,6 +1568,8 @@ export interface TextingPromptState {
     classRosters: Readonly<Record<string, ClassRoster>>;
     // (undocumented)
     date: number;
+    // (undocumented)
+    exCharacterDynamics?: CharacterDynamics;
     globalTextEdits?: TextEdits<GlobalTextId>;
     history: GameHistory;
     historyLimit?: number;
@@ -1558,6 +1583,8 @@ export interface TextingPromptState {
     secretBudget?: number;
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
+    // (undocumented)
+    storyMemory?: StorySnapshot;
     // (undocumented)
     time: TimeSlot;
     upcomingPlans?: Record<string, string[]>;
@@ -1719,6 +1746,9 @@ export function useSceneInput(layout: SceneInputLayout | null): void;
 
 // @public
 export function useScenePersona(): string | undefined;
+
+// @public
+export function useSceneSuggestionsPaused(): boolean;
 
 // @public
 export function useSfxGain(): number;
