@@ -6,9 +6,10 @@ const area = { x: 0, y: 0, width: 1920, height: 1080 }
 class Window extends EventEmitter {
   dead = false
   visible = false
+  throttled = true
   parent: Window | null
   bounds = { ...area }
-  webContents = Object.assign(new EventEmitter(), { id: 1, send: vi.fn(), setZoomFactor: vi.fn() })
+  webContents = Object.assign(new EventEmitter(), { id: 1, send: vi.fn(), setZoomFactor: vi.fn(), getBackgroundThrottling: () => this.throttled, setBackgroundThrottling: (value: boolean) => { this.throttled = value } })
   constructor(public options: Record<string, any> = {}) { super(); this.parent = options.parent ?? null }
   setParentWindow(parent: Window | null) { this.parent = parent }
   getParentWindow() { return this.parent }
@@ -71,6 +72,18 @@ it('labels an unknown scene participant without exposing her name in selectors o
   expect(await companionCharacters()).toEqual([{ charId: 'girl', name: 'Unknown character 1', onScreen: false }])
   await previewCompanion('girl', 'neutral')
   expect(companionState().members[0].name).toBe('Unknown character 1')
+})
+
+it('keeps Creator acknowledgements responsive in the background and restores the prior timer policy', () => {
+  const owner = mocks.windows[0]
+  expect(owner.throttled).toBe(false)
+  closeCompanion()
+  expect(owner.throttled).toBe(true)
+  owner.throttled = false
+  openCompanion(owner, JSON.stringify({ ...JSON.parse(context), scene: { kind: 'creator' } }), 'creator-fixture')
+  expect(owner.throttled).toBe(false)
+  closeCompanion()
+  expect(owner.throttled).toBe(false)
 })
 
 it.each(['The API key was rejected.', 'This model does not support images.'])('preserves provider error: %s', async message => {
