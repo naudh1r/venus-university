@@ -176,11 +176,11 @@ describe('the clothes she is moving aside', () => {
         'clothes_pull',
         'breasts_out',
         '(ivory_sweater:1.2)',
-        'plaid_skirt',
         'partially_undressed'
       ])
     )
     expect(tags).not.toContain('hand_on_own_hip')
+    expect(tags).not.toContain('plaid_skirt')
     expect(positive).not.toContain('everyday clothes')
     expect(positive).toContain('pulling down the neckline with both hands to bare both breasts')
     expect(positive.indexOf('ivory_sweater')).toBeLessThan(positive.indexOf('partially_undressed'))
@@ -347,6 +347,28 @@ describe('the half a partly undressed photo bares', () => {
     expect(tags).not.toContain('nipples')
     expect(tags).not.toContain('breasts_out')
     expect(positive).toContain('her lavender pleated mini skirt hitched up')
+  })
+
+  it('frames a close-up of her face on her face, dressed only at the neckline', () => {
+    const face = buildPhotoPrompt(girl, 'everyday', 'A close-up of her face at a cafe, smiling.').positive
+    expect(face).toContain('face_focus')
+    expect(face).not.toMatch(/upper_body|hand_up|skirt/)
+    const close = buildPhotoPrompt(girl, 'everyday', 'A close-up photo of her at a cafe, smiling.').positive
+    expect(close).not.toContain('face_focus')
+  })
+
+  it('bares only her lower half when she is naked from the waist down', () => {
+    const tags = tagsOf(
+      buildPhotoPrompt(
+        girl,
+        'explicit',
+        'Standing, naked from the waist down in just her bandeau top, pulling up the back of her shorts.'
+      ).positive
+    )
+    expect(tags).toContain('bottomless')
+    expect(tags).not.toContain('completely_nude')
+    expect(tags).not.toContain('nipples')
+    expect(tags).not.toContain('breasts_out')
   })
 
   it('bares only her upper half when she pulls down her top', () => {
