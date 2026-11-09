@@ -81,6 +81,11 @@ export function sessionRow(table: ModSessionTable, id: string): ModSessionEntry 
   return table.mods.find((mod) => mod.id === id && mod.def !== null)
 }
 
+/** A built-in's row: the build's own, with no manifest and no folder. */
+export function isBuiltInRow(row: ModSessionEntry): boolean {
+  return row.manifest === null && row.folder === ''
+}
+
 /**
  * Whether a mod's code is running this session: true for one the table does not hold (an in-repo
  * one), else only while its row is `loaded` and nothing stopped every installed mod.
@@ -88,8 +93,8 @@ export function sessionRow(table: ModSessionTable, id: string): ModSessionEntry 
 export function isRunning(table: ModSessionTable, id: string): boolean {
   const row = sessionRow(table, id)
   if (!row) return true
-  // A built-in's row (no manifest, no folder) is the build's own: only its own status counts.
-  if (row.manifest === null && row.folder === '') return row.status === 'loaded'
+  // A built-in's row is the build's own: only its own status counts.
+  if (isBuiltInRow(row)) return row.status === 'loaded'
   return row.status === 'loaded' && table.loaderError === null && table.safeStart === null
 }
 
