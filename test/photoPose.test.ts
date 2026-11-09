@@ -503,6 +503,11 @@ describe('a selfie', () => {
     expect(pose.negative).not.toContain('v')
   })
 
+  it('takes a mirror she only stands near as part of the room, not the picture', () => {
+    expect(posePhotoTags('standing angled away from the full-length mirror, looking back', true)).not.toContain('mirror')
+    expect(posePhotoTags('posing in the mirror of her room', false)).toContain('mirror')
+  })
+
   it('shows the phone in a mirror selfie', () => {
     const pose = photoPose('a mirror selfie in her new coat', 'everyday')
     expect(pose.tags).toEqual(expect.arrayContaining(['mirror', 'holding_phone']))

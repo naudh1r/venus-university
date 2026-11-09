@@ -640,8 +640,9 @@ const MODIFIERS: readonly Rule[] = [
     cues: ['at the camera', 'at the phone', 'looking at viewer', 'eye contact', 'staring at'],
     tags: ['looking_at_viewer']
   },
-  // No `reflection`: in play it drew the girl in the glass as a second girl beside her.
-  { cues: ['mirror'], tags: ['mirror'] },
+  // A picture taken in the mirror; a mirror she is only near ("angled away from the mirror")
+  // filled the glass with somebody else. No `reflection`: it drew a second girl beside her.
+  { cues: ['in the mirror', 'mirror shot', 'mirror photo', 'mirror pic'], tags: ['mirror'] },
   // Where the camera is: a caption that says how low or high it was asks for the angle.
   {
     cues: [

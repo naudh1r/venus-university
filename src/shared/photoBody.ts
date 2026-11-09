@@ -223,9 +223,12 @@ const TOP_BARE_CUES = [
 /** Words that bare her bottom half, whatever is still on above it. */
 const BOTTOM_BARE_CUES = ['bottomless', 'no bottoms', 'no panties', 'without panties', 'pantiless']
 
-/** "Nothing on below": her bottom half, said in the words for all of her. */
+/**
+ * "Nothing on below", "naked from the waist down": her bottom half, said in the words for all of
+ * her. Her top stays on.
+ */
 const NOTHING_BELOW =
-  /\bnothing\s+(?:on\s+)?(?:below|underneath|under\s+it|down\s+there|on\s+the\s+bottom|from\s+the\s+waist\s+down)\b/
+  /\b(?:nothing\s+(?:on\s+)?(?:below|underneath|under\s+it|down\s+there|on\s+the\s+bottom|from\s+the\s+waist\s+down)|(?:naked|nude|bare)\s+(?:from\s+the\s+waist\s+down|below\s+the\s+waist))\b/
 
 /** What each half is. */
 const TOP_HALF: readonly Region[] = ['bust', 'nipples']
@@ -277,6 +280,19 @@ export interface PartialPhotoExposure {
 }
 
 /** Reveal tags settle the bare half; an unrecognised reveal retains the usual coverage. */
+const TOP_GARMENT_WORDS = ['neckline', 'shirt', 'top', 'sweater', 'blouse', 'hoodie', 'dress']
+const BOTTOM_GARMENT_WORDS = ['shorts', 'skirt', 'pants', 'jeans', 'panties', 'leggings', 'trousers']
+
+/**
+ * Whether what she pulls is her top: the garment named in the pull's own clause. "Pulling up her
+ * shorts" beside "in just her bandeau top" bared her chest when any top in the caption counted.
+ */
+function pullsHerTop(text: string): boolean {
+  return [...text.matchAll(/\b(?:pull|tug)\w*\b([^,.;]*)/g)].some(
+    ([, clause]) => saysAny(clause, TOP_GARMENT_WORDS) && !saysAny(clause, BOTTOM_GARMENT_WORDS)
+  )
+}
+
 export function partialExposureIn(
   caption: string,
   reveals: readonly string[],
@@ -286,8 +302,7 @@ export function partialExposureIn(
   const text = caption.toLowerCase()
   const upper =
     reveals.some((tag) => ['breasts_out', 'shirt_lift', 'bra_lift', 'bra_pull'].includes(tag)) ||
-    (reveals.includes('clothes_pull') &&
-      saysAny(text, ['neckline', 'shirt', 'top', 'sweater', 'blouse', 'hoodie', 'dress'])) ||
+    (reveals.includes('clothes_pull') && pullsHerTop(text)) ||
     saysAny(text, TOP_BARE_CUES)
   const lower =
     reveals.some((tag) =>

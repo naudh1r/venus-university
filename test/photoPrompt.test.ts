@@ -349,6 +349,20 @@ describe('the half a partly undressed photo bares', () => {
     expect(positive).toContain('her lavender pleated mini skirt hitched up')
   })
 
+  it('bares only her lower half when she is naked from the waist down', () => {
+    const tags = tagsOf(
+      buildPhotoPrompt(
+        girl,
+        'explicit',
+        'Standing, naked from the waist down in just her bandeau top, pulling up the back of her shorts.'
+      ).positive
+    )
+    expect(tags).toContain('bottomless')
+    expect(tags).not.toContain('completely_nude')
+    expect(tags).not.toContain('nipples')
+    expect(tags).not.toContain('breasts_out')
+  })
+
   it('bares only her upper half when she pulls down her top', () => {
     const tags = tagsOf(
       buildPhotoPrompt(girl, 'explicit', 'Standing, pulling down her top to bare her breasts.')
