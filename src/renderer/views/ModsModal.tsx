@@ -11,7 +11,7 @@ import {
   type ModDef,
   type ModSwitches
 } from '@shared/mods'
-import { sessionRow, type ModSessionEntry } from '@shared/modSession'
+import { isBuiltInRow, sessionRow, type ModSessionEntry } from '@shared/modSession'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
@@ -43,8 +43,8 @@ function scopeWords(mod: ModDef): string {
 
 /** Where a mod came from, in a word for its tag. */
 function originWords(session: ModSessionEntry | undefined): string {
-  // A built-in with a main entry has a session row too, with no folder of its own.
-  if (!session || !session.folder) return 'built in'
+  // A built-in with a main entry has a session row too.
+  if (!session || isBuiltInRow(session)) return 'built in'
   return session.dev ? 'from folder' : 'installed'
 }
 
