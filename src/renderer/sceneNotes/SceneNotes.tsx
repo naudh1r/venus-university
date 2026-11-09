@@ -17,12 +17,16 @@ export function SceneNotes({ theme, onClose }: GameModalProps): JSX.Element | nu
   const [busy, setBusy] = useState(false), [error, setError] = useState('')
   const [run] = useState(currentRun)
   const shell = useModalShell(onClose)
-  async function save() {
+  async function apply(document: ReturnType<typeof readSceneNotes>) {
     if (runStale(run)) { onClose(); return }
     setBusy(true)
-    const result = await saveSceneNotes(document)
-    setBusy(false)
-    if (result.ok) onClose(); else setError(result.error.message)
+    try {
+      const result = await saveSceneNotes(document)
+      if (runStale(run)) return
+      if (result.ok) { setDocument(document); setError('') }
+      else setError(result.error.message)
+    } catch (err) { setError((err as Error).message) }
+    finally { setBusy(false) }
   }
   if (!shell.host) return null
   return createPortal(<motion.div className="vu-veil" data-theme={theme} variants={veilIn} initial="hidden" animate="shown" exit="gone" {...shell.overlayProps}>
@@ -37,15 +41,15 @@ export function SceneNotes({ theme, onClose }: GameModalProps): JSX.Element | nu
               if (file.size > DOCUMENT_LIMIT) throw Error('Choose a file up to 2 MB.')
               const next = readSceneDocument(file.name, new Uint8Array(await file.arrayBuffer()))
               if (runStale(run)) return
-              setDocument(next); setError('')
+              await apply(next)
             } catch (err) { setError((err as Error).message) }
             finally { setBusy(false) }
           }}/></label>
-          {document && <p role="status"><b>{document.name}</b><button disabled={busy} onClick={() => setDocument(null)}>Remove</button></p>}
+          {document && <p role="status"><b>{document.name}</b> · Active in this scene<button disabled={busy} onClick={() => void apply(null)}>Remove</button></p>}
           <p>The full document is shared with everyone in this scene and used automatically when sharing your laptop.</p>
         </div>
         {error && <p role="alert" className="study-error">{error}</p>}
-        <div className="study-actions"><button disabled={busy} onClick={() => void save()}>Use these notes</button></div>
+        <div className="study-actions"><button disabled={busy} onClick={onClose}>Done</button></div>
         <small className="study-disclosure">Your document goes to your configured AI provider with the conversation.</small>
       </div>
     </motion.section>
