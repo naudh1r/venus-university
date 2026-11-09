@@ -4,7 +4,7 @@ const mod: ModDef = {
   id: 'bunnyfeeds',
   name: 'Bunnyfeeds',
   author: 'naudh1r',
-  version: '1.1.3',
+  version: '1.1.5',
   scope: 'anytime',
   defaultOn: false,
   blurb:

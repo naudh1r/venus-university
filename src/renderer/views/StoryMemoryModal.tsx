@@ -14,8 +14,8 @@ import {
 } from '../../shared/storyMemory'
 import { gestures, lift, press, quietLift, quietPress, panelUnderTab, veilIn, useModalShell, TitleTab } from '@vx/modkit/renderer'
 import { useGameStore } from '../stores/gameStore'
-import { useModOn } from '@vx/modkit/renderer'
-import { manualSaveOffer, writeStoryMemory } from '../stores/loop/saves'
+import { useModOn, useSafePoint } from '@vx/modkit/renderer'
+import { writeStoryMemory } from '../stores/loop/saves'
 import { inspectCurrentStoryMemory } from '../stores/storyMemory'
 import '../vu_styles/StoryMemory.css'
 import { termOriginLabel } from '@shared/termOrigin'
@@ -43,7 +43,8 @@ export function StoryMemoryModal({
     else onClose()
   }
   const { host, overlayProps } = useModalShell(close)
-  const blocked = busy || !on || game.sceneEnding || manualSaveOffer() !== 'open'
+  const saveOffer = useSafePoint()
+  const blocked = busy || !on || game.sceneEnding || saveOffer !== 'open'
   const snapshot = useMemo(() => {
     const store = normalizeStoryMemory(game.exStoryMemory)
     if (hidden) {

@@ -50,9 +50,10 @@ export function photoStub(
   // Who the friend in it is called, from her charId; absent, she is left unnamed.
   nameOf: (charId: string) => string | undefined = () => undefined
 ): string {
-  const scene = messagePhoto.read(message)?.scene?.trim()
+  const photo = messagePhoto.read(message)
+  const scene = photo?.scene?.trim()
   if (!scene) return ''
-  const friend = messagePhoto.read(message)?.with ? nameOf(messagePhoto.read(message)!.with!) : undefined
+  const friend = photo?.with ? nameOf(photo.with) : undefined
   return ` [attached a photo${friend ? ` with ${friend}` : ''}: ${flatText(withoutDorm(scene))}]`
 }
 

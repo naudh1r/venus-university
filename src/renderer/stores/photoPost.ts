@@ -322,8 +322,9 @@ export async function redrawPostPhoto(
     kind: 'bunnyboard',
     read: () => photoOf(charId, postId),
     write: async (next) => {
-      setFeedPostPhoto(charId, postId, next)
+      if (!setFeedPostPhoto(charId, postId, next).ok) return false
       await savePhotoStateAwaitable(game.run)
+      return true
     },
     live: () => {
       const now = photoGame()

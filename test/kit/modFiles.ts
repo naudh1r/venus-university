@@ -229,6 +229,15 @@ export const MOD_FILES: Record<string, ModSet> = {
       'src/renderer/vu_styles/StoryMemory.css'
     ]
   },
+  'story-assistant': {
+    globs: [
+      'src/shared/storyAssistant.ts',
+      'src/renderer/prompts/storyAssistantPrompt.ts',
+      'src/renderer/stores/storyAssistant.ts',
+      'src/renderer/views/StoryAssistant*',
+      'src/renderer/vu_styles/StoryAssistant.css'
+    ]
+  },
   'text-regeneration': {
     globs: ['src/shared/textRegeneration.ts', 'src/renderer/components/TextRegenerate.tsx', 'src/renderer/vu_styles/TextRegenerate.css']
   },
