@@ -19,7 +19,7 @@ vi.mock('@vx/modkit/renderer', async () => {
   const {saveField}=await import('../packages/modkit/src/renderer/saveField')
   const {sceneField}=await import('../packages/modkit/src/renderer/sceneField')
   const scene = () => { const game = useGameStore.getState(); return { lines: game.currentSceneTranscript, created: Boolean(game.createdScene), replay: Boolean(game.replaying), ending: game.sceneEnding } }
-  return { hasDesktopSurfaces:()=>true, sceneExchangeContext:()=>nativeExchange.sceneExchangeContext(),
+  return { setSceneSuggestionsPaused:vi.fn(),hasDesktopSurfaces:()=>true, sceneExchangeContext:()=>nativeExchange.sceneExchangeContext(),
     openSceneExchange:(id:string)=>nativeExchange.openSceneExchange(id),canRecordSceneTurn:()=>nativeExchange.canRecordSceneTurn(),
     subscribeSceneTurns:(f:()=>void)=>nativeExchange.subscribeSceneTurns(f), showError: vi.fn(), scene, spriteUrl: (id: string, emotion: string) => 'test-sprite:' + id + '/' + emotion, modIsOn:()=>true,currentRun, runStale, isOrientationSlot, isGraduationSlot,saveField,sceneField }
 })

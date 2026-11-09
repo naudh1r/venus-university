@@ -1,8 +1,8 @@
 import { BrowserWindow, ipcMain, webContents } from 'electron'
 import { ownsCompanionScene } from '../screenCompanion'
 import {modIsOn,type InvokeHandler} from '@vx/modkit/main'
-import { appError } from '@vx/modkit/shared'
 import {companionError, type Emotion} from '../../shared/screenCompanion'
+import { appError } from '@vx/modkit/shared'
 import type {CompanionMode,CompanionVoicePatch} from '../../shared/screenCompanion'
 import {captureFrameCompanion,messageSizeCompanion,rapidCompanion,companionCheckpoint,pointingCompanion,companionDocument,acknowledgeCompanion,assertCompanionSender,cancelCompanionTranscription,captureCompanionDesktop,closeCompanion,commentCompanion,companionAudioDone,companionCharacters,companionSources,companionState,configureCompanion,detachCompanion,dictateCompanion,microphoneCompanion,modeCompanion,muteCompanion,openCompanion,pauseCompanion,pauseCompanionConversation,previewCompanion,showCompanionChat,showCompanionControls,startCompanion,takeCompanionTurn,transcribeCompanion,voiceCompanion} from '../screenCompanion'
 let initialized=false
@@ -63,7 +63,8 @@ export default function screenCompanionMain() {
     },
     poll: ({ senderId }, id) => ({
       turn: ownsCompanionScene(senderId, id) ? takeCompanionTurn(String(id)) : null,
-      checkpoint: companionCheckpoint()
+      checkpoint: companionCheckpoint(),
+      sharing: ownsCompanionScene(senderId, id) && companionState().sharing
     }),
     detach: ({ senderId }, id) => {
       const sender = webContents.fromId(senderId)

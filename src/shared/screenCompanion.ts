@@ -51,7 +51,7 @@ export interface CompanionTurn {
   lines: CompanionLine[]
   rapid?: boolean
 }
-export interface CompanionPoll { turn: CompanionTurn | null; checkpoint: number }
+export interface CompanionPoll { turn: CompanionTurn | null; checkpoint: number; sharing: boolean }
 export interface CompanionFrameRequest { id: number; sourceId: string; width: number; height: number }
 
 /** Validate every speaker before a group reply can change any part of a saved scene. */
@@ -89,7 +89,7 @@ export interface GameCompanionApi {
   document(sceneId: string, document: import('./sceneNotes').SceneDocument | null, gameContext: string): Promise<Result<void>>
   detach(sceneId: string): Promise<Result<void>>
   acknowledge(sceneId: string, id: number, accepted: boolean): Promise<Result<void>>
-  onTurn(listener: (turn: CompanionTurn) => void, checkpoint?: () => void): () => void
+  onTurn(listener: (turn: CompanionTurn) => void, checkpoint?: () => void, sharing?: (active: boolean) => void): () => void
 }
 export interface CompanionState {
   /** The reference shared with every activity mode for this laptop session. */

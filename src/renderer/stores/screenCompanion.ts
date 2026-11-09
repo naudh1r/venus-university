@@ -44,7 +44,7 @@ export async function openScreenCompanion(): Promise<void> {
         deferSave:Boolean(turn.rapid && !actions.length)})
     }
     void api.acknowledge(sceneId,turn.id,accepted)
-  }, exchange.flush)
+  }, exchange.flush, active => setSceneSuggestionsPaused('screen-companion', active))
   let document=readSceneNotes()
   const offStore=subscribeSceneTurns(()=>{
     if(!exchange.current()){close();return}
