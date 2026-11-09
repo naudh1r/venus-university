@@ -23,10 +23,10 @@ import {
   subscribePhoneView,
   useBareMessage
 } from '@vx/modkit/renderer'
-import { profileUrl, useSpriteVersion } from '../stores/characterStore'
-import { useGameStore } from '../stores/gameStore'
+import { useProfileImageUrl, useSceneActive, toggleFeedLike, isGraduationSlot } from '@vx/modkit/renderer'
+import { commentData } from '../stores/bunnyfeedsData'
+import { useBunnyfeedsContext } from '../stores/bunnyfeedsReadContext'
 import { leavePlayerComment } from '../stores/bunnyfeedsThreads'
-import { epilogueOf, sceneActiveOf } from '../stores/textingLoop'
 import { FollowerFace } from './BunnyfeedsFaces'
 import { armFeedThreads } from '../stores/bunnyfeedsThreads'
 import { takeCommented } from '../stores/bunnyfeedsVisit'
@@ -45,6 +45,12 @@ export const usePostView = create<{
   show: (open: OpenPost | null) => void
 }>((set) => ({ open: null, show: (open) => set({ open }) }))
 
+/** Closing a commented post ends that visit and asks for its replies. */
+export function closePostView(): void {
+  usePostView.getState().show(null)
+  if (takeCommented()) void armFeedThreads('next')
+}
+
 // The phone closing takes the post view with it, so it is not waiting there next time.
 let wasPhoneOpen = phoneOpen()
 subscribePhoneView(() => {
@@ -61,15 +67,21 @@ function grouped(said: readonly PostComment[]): {
   const byId = new Map(said.map((one) => [one.id, one]))
   const rootOf = (one: PostComment): string => {
     let at = one
-    for (let hops = 0; at.replyTo && byId.has(at.replyTo) && hops < said.length; hops++) {
-      at = byId.get(at.replyTo) as PostComment
+    for (let hops = 0; hops < said.length; hops++) {
+      const replyTo = commentData.read(at).replyTo
+      const parent = replyTo ? byId.get(replyTo) : undefined
+      if (!parent) break
+      at = parent
     }
     return at.id
   }
-  const roots = said.filter((one) => !one.replyTo || !byId.has(one.replyTo))
+  const roots = said.filter((one) => {
+    const replyTo = commentData.read(one).replyTo
+    return !replyTo || !byId.has(replyTo)
+  })
   const repliesTo = new Map<string, PostComment[]>()
   for (const one of said) {
-    if (!one.replyTo || !byId.has(one.replyTo)) continue
+    if (!commentData.read(one).replyTo || !byId.has(commentData.read(one).replyTo ?? '')) continue
     const root = rootOf(one)
     repliesTo.set(root, [...(repliesTo.get(root) ?? []), one])
   }
@@ -78,16 +90,16 @@ function grouped(said: readonly PostComment[]): {
 
 /** The comments that have arrived under a post, read off the clock. */
 function useShown(comments: readonly PostComment[]): PostComment[] {
-  const date = useGameStore((s) => s.date)
-  const time = useGameStore((s) => s.time)
+  const date = useBunnyfeedsContext((s) => s.date)
+  const time = useBunnyfeedsContext((s) => s.time)
   return shownComments(comments, date, time)
 }
 
 /** Whether he may write under this post: a contact's own, outside the epilogue and any scene. */
 function useCanComment({ charId, postId, stranger }: PostCommentsProps): boolean {
-  const epilogue = useGameStore(epilogueOf)
+  const epilogue = useBunnyfeedsContext(s => isGraduationSlot(s.date, s.time))
   // Closed exactly when texting is, so the phone answers the same everywhere.
-  const sceneActive = useGameStore(sceneActiveOf)
+  const sceneActive = useSceneActive()
   return Boolean(charId && postId && !stranger && !epilogue && !sceneActive)
 }
 
@@ -100,7 +112,7 @@ export function FeedPreview(props: PostCommentsProps): JSX.Element | null {
   const show = usePostView((s) => s.show)
   if (said.length === 0 || !props.charId || !props.postId) return null
   const { roots, repliesTo } = grouped(said)
-  const preview = [...roots].reverse().find((one) => one.player) ?? roots[roots.length - 1]
+  const preview = [...roots].reverse().find((one) => commentData.read(one).player) ?? roots[roots.length - 1]
   const replies = repliesTo.get(preview.id)?.length ?? 0
   const open = (): void => show({ charId: props.charId ?? '', postId: props.postId ?? '' })
 
@@ -161,7 +173,7 @@ export function CommentPill(props: PostCommentsProps): JSX.Element | null {
 /** The open post's full view, for a screen that lists posts without drawing them. */
 export function PostViewHost(): JSX.Element | null {
   const open = usePostView((s) => s.open)
-  const info = useGameStore((s) => (open ? s.charInfo[open.charId] : undefined))
+  const info = useBunnyfeedsContext((s) => (open ? s.charInfo[open.charId] : undefined))
   const post = info?.feed?.find((one) => one.id === open?.postId)
   if (!open || !post) return null
   return (
@@ -189,26 +201,25 @@ function BubbleIcon(): JSX.Element {
  */
 function PostView(props: PostCommentsProps & { charId: string; postId: string }): JSX.Element | null {
   const { charId, postId } = props
-  const show = usePostView((s) => s.show)
   const focusId = usePostView((s) => s.open?.commentId)
-  const character = useGameStore((s) => s.characters[charId])
-  const handle = useGameStore((s) => s.charInfo[charId]?.handle)
-  const post = useGameStore((s) => s.charInfo[charId]?.feed?.find((one) => one.id === postId))
-  const season = useGameStore((s) => s.calendar.season)
+  const character = useBunnyfeedsContext((s) => s.characters[charId])
+  const handle = useBunnyfeedsContext((s) => s.charInfo[charId]?.handle)
+  const post = useBunnyfeedsContext((s) => s.charInfo[charId]?.feed?.find((one) => one.id === postId))
+  const season = useBunnyfeedsContext((s) => s.calendar.season)
   const canComment = useCanComment(props)
-  const sceneActive = useGameStore(sceneActiveOf)
+  const sceneActive = useSceneActive()
   // The reply open in the thread, held here so the post's own box steps aside in the same render.
   const [replying, setReplying] = useState<Replying | null>(null)
   // Over the whole screen, as a photo opens: the phone's veil is the layer it lies on.
   const veil = document.querySelector('.vu-bb')?.parentElement
   if (!veil || !character || !post) return null
 
-  const commented = (post.comments ?? []).some((one) => one.player && !one.replyTo)
+  const commented = (post.comments ?? []).some((one) => {
+    const data = commentData.read(one)
+    return data.player && !data.replyTo
+  })
 
-  const close = (): void => {
-    show(null)
-    if (takeCommented()) void armFeedThreads('next')
-  }
+  const close = closePostView
 
   return createPortal(
     <motion.div
@@ -263,7 +274,7 @@ function PostView(props: PostCommentsProps & { charId: string; postId: string })
             type="button"
             aria-pressed={Boolean(post.liked)}
             {...gestures(false, quietLift, quietPress)}
-            onClick={() => useGameStore.getState().toggleFeedLike(charId, postId)}
+            onClick={() => toggleFeedLike(charId, postId)}
           >
             <HeartIcon />
             {post.likes + (post.liked ? 1 : 0)}
@@ -359,8 +370,9 @@ function Thread({
   const byId = new Map(said.map((one) => [one.id, one]))
   // Whom a reply answers, named by the game off its target: his own carry the @ he typed.
   const toOf = (one: PostComment): string | undefined => {
-    const target = one.player || !one.replyTo ? undefined : byId.get(one.replyTo)
-    return target ? (target.player ? reader : `@${target.handle}`) : undefined
+    const data = commentData.read(one)
+    const target = data.player || !data.replyTo ? undefined : byId.get(data.replyTo)
+    return target ? (commentData.read(target).player ? reader : `@${target.handle}`) : undefined
   }
 
   return (
@@ -368,7 +380,7 @@ function Thread({
       {roots.map((root) => {
         const replies = repliesTo.get(root.id) ?? []
         const answering = replying?.root === root
-        const open = root.player || unfolded.has(root.id) || answering
+        const open = commentData.read(root).player || unfolded.has(root.id) || answering
         return (
           <li className="vu-bf-comment-group" key={root.id}>
             <CommentRow
@@ -395,7 +407,7 @@ function Thread({
                       to={toOf(one)}
                       focused={one.id === focusId}
                       onReply={
-                        canComment && !one.player
+                        canComment && !commentData.read(one).player
                           ? () => setReplying({ root, to: one })
                           : undefined
                       }
@@ -450,7 +462,7 @@ function CommentRow({
       <CommentFace comment={comment} />
       <span className="vu-bf-comment-said">
         <span className="vu-bf-comment-who vu-bf-comment-who--over">
-          {comment.player ? reader : `@${comment.handle}`}
+          {commentData.read(comment).player ? reader : `@${comment.handle}`}
         </span>
         {to && <span className="vu-bf-comment-mention">{to} </span>}
         {/* A comment of nothing but a few emoji is drawn whole, big where a mod draws it so. */}
@@ -484,7 +496,7 @@ function CommentRow({
 
 /** The reader on the feed, who has no handle: his first name in one. */
 function useReaderHandle(): string {
-  const first = useGameStore((s) => s.playerFirstName)
+  const first = useBunnyfeedsContext((s) => s.playerFirstName)
   const handle = first.toLowerCase().replace(/[^\w.]/g, '')
   return handle ? `@${handle}` : 'you'
 }
@@ -503,7 +515,7 @@ function archOf(size: FaceSize, kind?: 'follower' | 'player'): string {
 
 /** The reader's own picture from his Profile tab, or the word "you" while he has none. */
 function PlayerFace({ size = 'sm' }: { size?: FaceSize }): JSX.Element {
-  const picture = useGameStore((s) => s.profilePicture)
+  const picture = useBunnyfeedsContext((s) => s.profilePicture)
   return picture ? (
     <span className={archOf(size)} aria-hidden>
       <span className="vu-crop">
@@ -519,11 +531,11 @@ function PlayerFace({ size = 'sm' }: { size?: FaceSize }): JSX.Element {
 
 /** A roster girl's profile picture in her archway. */
 export function RosterFace({ charId, size = 'sm' }: { charId: string; size?: FaceSize }): JSX.Element {
-  const version = useSpriteVersion(charId)
+  const url = useProfileImageUrl(charId)
   return (
     <span className={archOf(size)} aria-hidden>
       <span className="vu-crop">
-        <img className="vu-crop-img" src={profileUrl(charId, version)} alt="" />
+        <img className="vu-crop-img" src={url} alt="" />
       </span>
     </span>
   )
@@ -537,11 +549,12 @@ export function CommentFace({
   comment,
   size = 'sm'
 }: {
-  comment: Pick<PostComment, 'charId' | 'player' | 'handle'>
+  comment: PostComment
   size?: FaceSize
 }): JSX.Element {
-  if (comment.charId) return <RosterFace charId={comment.charId} size={size} />
-  if (comment.player) return <PlayerFace size={size} />
+  const data = commentData.read(comment)
+  if (data.charId) return <RosterFace charId={data.charId} size={size} />
+  if (data.player) return <PlayerFace size={size} />
   return (
     <FollowerFace handle={comment.handle} className={archOf(size, 'follower')} />
   )
@@ -577,7 +590,7 @@ function CommentField({
   onSend: (text: string, tags: string[]) => void
 }): JSX.Element {
   // A reply to somebody else opens addressed to her, the way a feed's Reply does.
-  const opening = replyTo && !replyTo.player ? `@${replyTo.handle} ` : ''
+  const opening = replyTo && !commentData.read(replyTo).player ? `@${replyTo.handle} ` : ''
   const [draft, setDraft] = useState(opening)
   const [caret, setCaret] = useState(opening.length)
   const [active, setActive] = useState(0)
@@ -588,9 +601,9 @@ function CommentField({
   useEffect(() => {
     input.current?.setSelectionRange(opening.length, opening.length)
   }, [opening])
-  const chars = useGameStore((s) => s.chars)
-  const characters = useGameStore((s) => s.characters)
-  const charInfo = useGameStore((s) => s.charInfo)
+  const chars = useBunnyfeedsContext((s) => s.chars)
+  const characters = useBunnyfeedsContext((s) => s.characters)
+  const charInfo = useBunnyfeedsContext((s) => s.charInfo)
 
   // Every contact but the poster, who answers him anyway.
   const taggable = useMemo<Taggable[]>(
@@ -645,7 +658,8 @@ function CommentField({
   const send = (): void => {
     if (!draft.trim()) return
     // The contact a reply opened addressed to counts as tagged, as one picked from the list does.
-    const opened = taggable.find((one) => one.charId === replyTo?.charId)
+    const replyCharId = replyTo ? commentData.read(replyTo).charId : undefined
+    const opened = taggable.find((one) => one.charId === replyCharId)
     const chosen = opened && !picked.includes(opened) ? [...picked, opened] : picked
     // A tag counts only while its handle is still in the words being sent.
     const tags = chosen
@@ -660,7 +674,7 @@ function CommentField({
     <div className="vu-bf-comment-compose">
       {replyTo && (
         <div className="vu-bf-comment-replying">
-          <span>{replyTo.player ? 'Adding to your thread' : `Replying to @${replyTo.handle}`}</span>
+          <span>{commentData.read(replyTo).player ? 'Adding to your thread' : `Replying to @${replyTo.handle}`}</span>
           {onCancel && (
             <motion.button
               type="button"

@@ -156,6 +156,12 @@ registerHooks(PHOTO_FEATURE_ID, {
     void settlePendingPhotos()
   },
 
+  // Switched back on mid-game: a render that landed while it was off could not be written, so its
+  // bubble is still waiting.
+  switchedOn: ({ atBoot }) => {
+    if (!atBoot) void settlePendingPhotos()
+  },
+
   fileFeedPost: async (filing, { nudge }) => {
     const reply = filing.reply as { image?: string; groupWith?: unknown; comments?: unknown }
     // Awaited: the picture's name has to be in the post the slot save is about to write down.

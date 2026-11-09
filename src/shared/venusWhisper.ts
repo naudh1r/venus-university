@@ -1,5 +1,5 @@
 import { locationLabel } from './locations'
-import type { NpcRelationshipMap } from './npcRelationships'
+import type { NpcRelationshipMap } from '@vx/modkit/shared'
 import { charKeyOf, fullNameOf, type Character, type CharInfo, type ClassEntry, type TimeSlot } from './types'
 
 export const VENUS_WHISPER_MOD = 'venus-whisper'

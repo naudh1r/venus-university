@@ -1,7 +1,8 @@
 import { useMemo, useState, type JSX } from 'react'
 import { motion } from 'motion/react'
 import { slotFromId, fullNameOf, type Season } from '@vx/modkit/shared'
-import { feedNoteUnread, type FeedNote } from '../../shared/bunnyfeeds'
+import type { FeedNote } from '../../shared/bunnyfeeds'
+import { commentData, feedNoteUnread, unreadFeedNotes } from '../stores/bunnyfeedsData'
 import {
   FEED_PAGE,
   formatNumericGameDate,
@@ -15,12 +16,12 @@ import {
   slideInQuick,
   SentText
 } from '@vx/modkit/renderer'
-import { useGameStore } from '../stores/gameStore'
+import { useBunnyfeedsContext } from '../stores/bunnyfeedsReadContext'
 import {
   feedNotesOf,
   markAllFeedNotesRead,
   markFeedNoteRead,
-  unreadFeedNotesOf
+  useFeedReadMark
 } from '../stores/bunnyfeedsNotes'
 import { CommentFace, PostViewHost, usePostView } from './BunnyfeedsThread'
 import '../vu_styles/Bunnyfeeds.css'
@@ -42,15 +43,15 @@ function dayHeading(day: number, today: number, season: Season): string {
  * to mark it read where it stands.
  */
 export function FeedNotificationsPage(): JSX.Element {
-  const charInfo = useGameStore((s) => s.charInfo)
-  const date = useGameStore((s) => s.date)
-  const time = useGameStore((s) => s.time)
+  const charInfo = useBunnyfeedsContext((s) => s.charInfo)
+  const date = useBunnyfeedsContext((s) => s.date)
+  const time = useBunnyfeedsContext((s) => s.time)
   const notes = useMemo(() => feedNotesOf({ charInfo, date, time }), [charInfo, date, time])
   // How much of the list is mounted: a page, and one more per click of Load more, as the feed.
   const [pages, setPages] = useState(1)
   const more = pages * FEED_PAGE < notes.length
-  const readThrough = useGameStore((s) => s.bunnyboard.feedReadThrough)
-  const season = useGameStore((s) => s.calendar.season)
+  const readThrough = useFeedReadMark()
+  const season = useBunnyfeedsContext((s) => s.calendar.season)
   // The rows mounted, cut into days, newest first as they already are.
   const days = useMemo(() => {
     const cut: Array<{ day: number; notes: FeedNote[] }> = []
@@ -104,7 +105,9 @@ export function FeedNotificationsPage(): JSX.Element {
 
 /** Over the list while any reply is unread: every one marked read at once. */
 export function MarkAllFeedNotes(): JSX.Element | null {
-  const unread = useGameStore(unreadFeedNotesOf)
+  const readThrough = useFeedReadMark()
+  const notes = useBunnyfeedsContext(feedNotesOf)
+  const unread = unreadFeedNotes(notes, readThrough)
   if (unread === 0) return null
   return (
     <motion.button
@@ -125,13 +128,13 @@ export function MarkAllFeedNotes(): JSX.Element | null {
 function NoteRow({ note, unread }: { note: FeedNote; unread: boolean }): JSX.Element {
   const { comment, kind } = note
   // A girl he has not learned the name of is her handle here, as she is in the thread.
-  const character = useGameStore((s) =>
-    comment.charId && s.charInfo[comment.charId]?.nameKnown
-      ? s.characters[comment.charId]
+  const character = useBunnyfeedsContext((s) =>
+    commentData.read(comment).charId && s.charInfo[commentData.read(comment).charId ?? '']?.nameKnown
+      ? s.characters[commentData.read(comment).charId ?? '']
       : undefined
   )
   // The post's girl, named the same way: her first name once he knows it, else her handle.
-  const poster = useGameStore((s) =>
+  const poster = useBunnyfeedsContext((s) =>
     s.charInfo[note.posterId]?.nameKnown
       ? s.characters[note.posterId]?.firstName
       : `@${s.charInfo[note.posterId]?.handle ?? ''}`

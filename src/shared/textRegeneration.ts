@@ -1,4 +1,4 @@
-import type { ChatMessage, Conversation, TextingResponse, TimeSlot } from './types'
+import type { ChatMessage, Conversation, TextingResponse, TimeSlot } from '@vx/modkit/shared'
 
 export const TEXT_REGENERATION_MOD = 'text-regeneration'
 

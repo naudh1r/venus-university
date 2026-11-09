@@ -1,3 +1,4 @@
+import { PHOTO_FEATURE_ID } from '../src/shared/photoDefinition'
 import { bindRendererPhotoReader, useModsStore } from './fixtures/photoSwitchState'
 import { photoSwitches } from '../src/shared/photoSwitches'
 import { describe, expect, it } from 'vitest'
@@ -12,7 +13,6 @@ import {
   modsOn,
   NO_SWITCHES,
   optionOn,
-  PHOTO_FEATURE,
   playthroughModVersions,
   playthroughMods,
   switchedOn,
@@ -150,10 +150,10 @@ describe("Photo Feature's switches", () => {
   })
 
   it('follow the Mods screen', () => {
-    let switches = withMod(NO_SWITCHES, PHOTO_FEATURE, false)
-    switches = withOption(switches, PHOTO_FEATURE, 'photos', false)
-    switches = withOption(switches, PHOTO_FEATURE, 'loader-dots', true)
-    switches = withOption(switches, PHOTO_FEATURE, 'webp', false)
+    let switches = withMod(NO_SWITCHES, PHOTO_FEATURE_ID, false)
+    switches = withOption(switches, PHOTO_FEATURE_ID, 'photos', false)
+    switches = withOption(switches, PHOTO_FEATURE_ID, 'loader-dots', true)
+    switches = withOption(switches, PHOTO_FEATURE_ID, 'webp', false)
     expect(readPhotoOptions(switches)).toEqual({
       on: false,
       photos: false,

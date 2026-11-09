@@ -1,56 +1,60 @@
-import { feedNotes, unreadFeedNotes, type FeedNote } from '../../shared/bunnyfeeds'
-import { globalSlotOf, type CharInfo } from '@vx/modkit/shared'
-import { postVisible } from '@vx/modkit/renderer'
-import { useGameStore } from './gameStore'
+import { useSyncExternalStore } from 'react'
+import { globalSlotOf } from '@vx/modkit/shared'
+import { feedReadThrough, subscribeFeedReadThrough, postVisible } from '@vx/modkit/renderer'
+import type { FeedNote } from '../../shared/bunnyfeeds'
+import { commentData, feedData, feedNotes, unreadFeedNotes } from './bunnyfeedsData'
+import { readBunnyfeedsContext, type BunnyfeedsContext } from './bunnyfeedsReadContext'
 
-type GameState = ReturnType<typeof useGameStore.getState>
+/** The own read mark, falling back to the old board key until it has been migrated. */
+export function feedReadMark(): number | undefined {
+  const own = feedData.read().readThrough
+  if (own !== undefined) return own
+  const legacy = feedReadThrough()
+  return Number.isSafeInteger(legacy) ? legacy : undefined
+}
+
+/** Follows the own marker and the legacy fallback while an old save is entered. */
+export function useFeedReadMark(): number | undefined {
+  feedData.use()
+  return useSyncExternalStore(subscribeFeedReadThrough, feedReadMark, feedReadMark)
+}
 
 /** Every reply to the reader under a post the feed shows, newest first. */
-export function feedNotesOf(state: Pick<GameState, 'charInfo' | 'date' | 'time'>): FeedNote[] {
+export function feedNotesOf(
+  state: Pick<BunnyfeedsContext, 'charInfo' | 'date' | 'time'> = readBunnyfeedsContext()
+): FeedNote[] {
   const posts = Object.entries(state.charInfo).flatMap(([posterId, info]) =>
-    (info.feed ?? []).filter(postVisible).map((post) => ({ posterId, post }))
+    (info.feed ?? []).filter(postVisible).map(post => ({ posterId, post }))
   )
   return feedNotes(posts, globalSlotOf(state.date, state.time))
 }
 
 /** How many replies to him he has yet to read. */
-export function unreadFeedNotesOf(state: GameState): number {
-  return unreadFeedNotes(feedNotesOf(state), state.bunnyboard.feedReadThrough)
+export function unreadFeedNotesOf(): number {
+  return unreadFeedNotes(feedNotesOf(), feedReadMark())
 }
 
-/** One reply marked read, on the post it was left under; inert once it is gone. */
+/** Marks one live comment through its own slice; a deleted target is an inert refusal. */
 export function markFeedNoteRead(note: FeedNote): void {
-  useGameStore.setState((state) => {
-    const info: CharInfo | undefined = state.charInfo[note.posterId]
-    const post = info?.feed?.find((one) => one.id === note.postId)
-    if (!info?.feed || !post?.comments?.some((one) => one.id === note.comment.id && !one.read)) {
-      return {}
-    }
-    const comments = post.comments.map((one) =>
-      one.id === note.comment.id ? { ...one, read: true as const } : one
-    )
-    const feed = info.feed.map((one) => (one.id === post.id ? { ...one, comments } : one))
-    return { charInfo: { ...state.charInfo, [note.posterId]: { ...info, feed } } }
-  })
+  commentData.update({
+    kind: 'comment', charId: note.posterId, postId: note.postId, commentId: note.comment.id
+  }, data => data.read ? undefined : { ...data, read: true })
 }
 
 /** Every reply that has arrived by now marked read at once. */
 export function markAllFeedNotesRead(): void {
-  useGameStore.setState((state) => ({
-    bunnyboard: { ...state.bunnyboard, feedReadThrough: globalSlotOf(state.date, state.time) }
-  }))
+  const game = readBunnyfeedsContext()
+  if (!game.playthroughId) return
+  feedData.set({ readThrough: globalSlotOf(game.date, game.time) })
 }
 
-/**
- * Settles the read mark as a game is entered: a save without one (from before Notifications)
- * reads everything so far as read, and a mark from a later clock, as after New Game+ moves the
- * feed back a semester, comes down to now so the new semester's replies count again.
- */
+/** Seeds the own marker on entry, and clamps a marker carried from a later semester clock. */
 export function settleFeedReadMark(): void {
-  useGameStore.setState((state) => {
-    const mark = state.bunnyboard.feedReadThrough
-    const now = globalSlotOf(state.date, state.time)
-    if (mark !== undefined && mark <= now) return {}
-    return { bunnyboard: { ...state.bunnyboard, feedReadThrough: now } }
-  })
+  const game = readBunnyfeedsContext()
+  if (!game.playthroughId) return
+  const own = feedData.read().readThrough
+  const mark = feedReadMark()
+  const now = globalSlotOf(game.date, game.time)
+  if (own !== undefined && own <= now) return
+  feedData.set({ readThrough: mark !== undefined && mark <= now ? mark : now })
 }

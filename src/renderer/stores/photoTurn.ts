@@ -378,8 +378,9 @@ export async function redrawMessagePhoto(
       kind: 'chat',
       read: () => messagePhotoOf(charId, messageId),
       write: async (next) => {
-        setMessagePhoto(charId, messageId, next)
+        if (!setMessagePhoto(charId, messageId, next).ok) return false
         await savePhotoStateAwaitable(game.run)
+        return true
       },
       live: () => {
         const now = photoGame()
