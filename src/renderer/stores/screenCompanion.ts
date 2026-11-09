@@ -1,7 +1,7 @@
 import { hasDesktopSurfaces, canRecordSceneTurn, modIsOn, openSceneExchange, sceneExchangeContext, subscribeSceneTurns, showError, spriteUrl } from '@vx/modkit/renderer'
 import { appError } from '@vx/modkit/shared'
 import { readSceneNotes, notesConversationScope } from '../sceneNotes/state'
-import { EMOTIONS, validCompanionLines, validCompanionParticipants } from '../../shared/screenCompanion'
+import { companionCharacterName, EMOTIONS, validCompanionLines, validCompanionParticipants } from '../../shared/screenCompanion'
 import { companionGameApi } from '../screenCompanionHook'
 
 let reopen: (() => Promise<void>) | undefined
@@ -33,7 +33,8 @@ export async function openScreenCompanion(): Promise<void> {
     if(exchange.current() && (turn.referenceRevision??'')===notesConversationScope().revision &&
        validCompanionParticipants(turn.participants) && validCompanionLines(turn.lines,turn.participants) &&
        typeof turn.invitation==='boolean' && typeof turn.message==='string' && turn.message.length<=2000) {
-      const names = turn.invitation ? new Map(sceneExchangeContext().people.map(p=>[p.id,p.profile.firstName])) : null
+      const view = turn.invitation ? sceneExchangeContext() : null
+      const names = view ? new Map(view.people.map((p,index)=>[p.id,companionCharacterName(p.profile, view.scene.kind === 'creator' || p.relationship.nameKnown === true,index)])) : null
       const invited = turn.participants.map(id=>names?.get(id)??'')
       const label = invited.length>1 ? invited.slice(0,-1).join(', ')+' and '+invited.at(-1) : invited[0]
       const actions = [turn.invitation ? `I open my laptop and share its screen with ${label}.` : '',turn.message].filter(Boolean)

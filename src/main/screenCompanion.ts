@@ -7,7 +7,7 @@ import {mkdir,writeFile} from 'node:fs/promises'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, powerMonitor, screen, type WebContents } from 'electron'
 import { join } from 'path'
 import { appError } from '@vx/modkit/shared'
-import { companionError, isEmotion, EMOTIONS, type Emotion } from '../shared/screenCompanion'
+import { companionCharacterName, companionError, isEmotion, EMOTIONS, type Emotion } from '../shared/screenCompanion'
 import { createDesktopSurface, completeModStructured, hasExpressionArt } from '@vx/modkit/main'
 import { companionOverlayLayout, rapidFps, rapidCallout, companionReactionDelay, COMPANION_MODES, DEFAULT_COMPANION_VOICE, validCompanionLines, validCompanionParticipants, type CompanionLine, type CompanionVoicePatch, type CompanionVoiceSettings, type CompanionMode, type CompanionState, type CompanionTurn } from '../shared/screenCompanion'
 import { getCompanionVoice, saveCompanionVoice, transcribeCompanionAudio, synthesizeCompanionSpeech, onVoiceSettings } from './services/companionVoice'
@@ -96,6 +96,9 @@ function makeWindow(mode: 'controls' | 'overlay' | 'chat', slot = 0): BrowserWin
     alwaysOnTop: bodyOnly || quick, show: false,
 
   })
+  // Keep the host's owner-close/mod-disable cleanup, without native child-window
+  // behavior tying the desktop companion to the game's minimize/stacking state.
+  win.setParentWindow(null)
   // The companion must not appear inside the screen image she is looking at.
   win.setContentProtection(true)
   win.setMenuBarVisibility(false)
@@ -431,9 +434,9 @@ export async function companionCharacters(): Promise<{ charId: string; name: str
   if (!known.size) return []
   const onScreen = Array.isArray(parsed.onScreen) ? parsed.onScreen : []
   const profiles = parsed.profiles as Record<string,Profile> | undefined
-  return [...known].flatMap(id=>{
+  return [...known].flatMap((id,index)=>{
     const p=profiles?.[id]
-    return p?.charId===id ? [{charId:id,name:[p.firstName,p.lastName].join(' '),onScreen:onScreen.includes(id)}] : []
+    return p?.charId===id ? [{charId:id,name:companionCharacterName(p, parsed.scene?.kind === 'creator' || parsed.characters[id]?.nameKnown === true, index),onScreen:onScreen.includes(id)}] : []
   })
 }
 
@@ -457,7 +460,7 @@ async function chooseCharacters(value: string[] | string, current: number): Prom
   if (state.members.map(m => m.charId).join(',') !== ids.join(',')) { history = []; invited = false }
   characters = next
   const sprites = JSON.parse(context).sprites ?? {}
-  const members = next.map(person => ({ sprites: sprites[person.charId], charId: person.charId, name: `${person.firstName} ${person.lastName}`, emotion: 'neutral' as const, text: '', sequence: 0 }))
+  const members = next.map(person => ({ sprites: sprites[person.charId], charId: person.charId, name: available.find(row => row.charId === person.charId)!.name, emotion: 'neutral' as const, text: '', sequence: 0 }))
   state = { ...state, members, charId: '', name: '', emotion: 'neutral', text: '' }
   overlays.forEach((win, index) => { if (members[index]) win.showInactive(); else win.hide() })
   broadcast()
@@ -530,7 +533,8 @@ async function reactToScreen(current: number, message = ''): Promise<void> {
   controller = new AbortController()
   const activeController = controller
   const signal = activeController.signal
-  const timeout = setTimeout(() => activeController.abort(), 60000)
+  let timedOut = false
+  const timeout = setTimeout(() => { timedOut = true; activeController.abort() }, 60000)
   const startedAt = Date.now(), rapid = rapidFps(state.mode, state.interval)
   broadcast()
   try {
@@ -589,7 +593,7 @@ async function reactToScreen(current: number, message = ''): Promise<void> {
     if (current === epoch) {
       const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : 'Screen reaction failed. Check your vision-capable writer model in Settings.'
       pauseCompanion()
-      state = { ...state, error: signal.aborted ? 'The reaction timed out. Sharing is paused.' : message }
+      state = { ...state, error: timedOut ? 'The reaction timed out. Sharing is paused.' : message }
     }
   } finally {
     clearTimeout(timeout)
