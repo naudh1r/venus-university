@@ -1191,6 +1191,8 @@ export function photoPose(caption: string, tier: PhotoTier): PhotoPose {
   }
   // The mirror's phone hand is added after the activity has settled her free hand.
   tags = [...new Set(tags)]
+  // Seen from behind, a mirror holds a second girl facing the other way: the glass goes.
+  if (!mirror && tags.includes('from_behind')) tags = tags.filter((tag) => tag !== 'mirror')
   // A camera lying about in the picture turned up beside a photo nobody took as a selfie too.
   const noCamera = saysAny(text, CAMERA_CUES) ? [] : ['camera']
   const freeHand = activity && gesture ? activity.tags : []
