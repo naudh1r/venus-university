@@ -3,7 +3,6 @@ import { appError } from '@vx/modkit/shared'
 import { readSceneNotes, notesConversationScope } from '../sceneNotes/state'
 import { companionCharacterName, EMOTIONS, validCompanionLines, validCompanionParticipants } from '../../shared/screenCompanion'
 import { companionGameApi } from '../screenCompanionHook'
-import { setSceneSuggestionsPaused } from '@vx/modkit/renderer'
 
 let reopen: (() => Promise<void>) | undefined
 export function canShareLaptop(): boolean {
@@ -63,7 +62,6 @@ export async function openScreenCompanion(): Promise<void> {
   function close(){
     if(closed)return
     closed=true
-    setSceneSuggestionsPaused('screen-companion', false)
     reopen=undefined;offTurn();offStore();exchange!.close();void api.detach(sceneId)
   }
   reopen=async()=>{
