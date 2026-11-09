@@ -51,6 +51,7 @@ export {
   setPanelOpener,
   settleSceneStats,
   slotActivityAvailable,
+  filterSceneLedger,
   slotSettled,
   slotStatusLines,
   statActivities,

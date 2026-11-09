@@ -17,6 +17,13 @@ const SCHEMA_VERSION = 1
  * answers off whatever its switch, as the window's rule has it.
  */
 let known: ModSwitches = NO_SWITCHES
+const switchListeners = new Set<() => void>()
+
+/** Watch main's effective switch updates for host-owned resource cleanup. */
+export function subscribeModSwitches(listener: () => void): () => void {
+  switchListeners.add(listener)
+  return () => { switchListeners.delete(listener) }
+}
 /** The session table as main holds it; until the loader binds it, nothing is installed. */
 let session: () => ModSessionTable = () => EMPTY_SESSION
 setSharedModRules((modId) => isRunning(session(), modId) && modOn(known, modId))
@@ -65,6 +72,7 @@ export async function getModSwitches(): Promise<ModSwitches> {
     onMissing: () => ({ schemaVersion: SCHEMA_VERSION, ...NO_SWITCHES })
   })
   known = cleanSwitches(file)
+  for (const listener of [...switchListeners]) listener()
   return known
 }
 
@@ -77,4 +85,5 @@ export async function setModSwitches(switches: ModSwitches): Promise<void> {
     { code: 'MODS_UNWRITABLE', message: 'Could not save mods.json.' }
   )
   known = cleanSwitches(switches)
+  for (const listener of [...switchListeners]) listener()
 }

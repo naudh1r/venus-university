@@ -9,6 +9,8 @@ import type { ModSessionTable } from '@shared/modSession'
 export interface InvokeContext {
   readonly id: string
   readonly signal: AbortSignal
+  /** Electron webContents ID supplied by the host for the renderer that made this call. */
+  readonly senderId: number
 }
 
 /** One named function exported by a trusted main.js. */
@@ -120,7 +122,7 @@ export class ModInvocations {
           Promise.resolve().then(() => {
             if (signal.aborted) throw cancelled()
             const handler = call.handler
-            return handler(Object.freeze({ id, signal }), ...call.args)
+            return handler(Object.freeze({ id, signal, senderId: call.owner }), ...call.args)
           }).then(
             (value) => signal.aborted ? reject(cancelled()) : resolve(value),
             (error: unknown) => signal.aborted ? reject(cancelled()) : reject(error)
