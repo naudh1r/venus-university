@@ -25,7 +25,6 @@ import {
   type ThreadLine
 } from '../prompts/bunnyfeedsPrompt'
 import {
-  character,
   drawFeedHandles,
   drawFeedEmoji,
   FEED_EMOJI,
@@ -48,6 +47,7 @@ import { markCommented } from './bunnyfeedsVisit'
 import { joiningFriendOf, replierOf, type Replier } from './bunnyfeedsReplies'
 import { fileDueFeedMemories, holdFeedMemories } from './bunnyfeedsMemory'
 import { readBunnyfeedsContext } from './bunnyfeedsReadContext'
+import { pictureOf } from './bunnyfeedsPicture'
 import { commentData, postData, threadWork } from './bunnyfeedsData'
 
 /**
@@ -599,26 +599,4 @@ function addComments(
   charId: string, postId: string, comments: readonly PostComment[], run: object
 ) {
   return addPostComments(BUNNYFEEDS, { charId, postId }, comments, { run })
-}
-
-/**
- * What the picture on a post shows, where another mod put one there and described it: read off
- * the post as plain data, so the thread can answer the picture without that mod being installed.
- */
-function pictureOf(post: object): { picture?: string; pictureWith?: string } {
-  const record = post as {
-    ex?: Record<string, { v?: unknown; data?: unknown }>
-    photo?: { scene?: unknown; with?: unknown }
-  }
-  const slice = record.ex?.['photo-feature']
-  // Photo keeps its picture (or an explicitly cleared null) as its slice's data.
-  const photo = (slice && slice.data !== undefined
-    ? slice.data : record.photo) as { scene?: unknown; with?: unknown } | null | undefined
-  if (typeof photo?.scene !== 'string' || !photo.scene.trim()) return {}
-  const other =
-    typeof photo.with === 'string' ? character(photo.with) : undefined
-  return {
-    picture: photo.scene,
-    ...(other ? { pictureWith: other.firstName } : {})
-  }
 }

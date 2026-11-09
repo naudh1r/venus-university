@@ -34,6 +34,7 @@ import { takeCommented } from '../stores/bunnyfeedsVisit'
 import { settleFeedReadMark, unreadFeedNotesOf } from '../stores/bunnyfeedsNotes'
 import { readBunnyfeedsContext } from '../stores/bunnyfeedsReadContext'
 import { carriedThread, commentData } from '../stores/bunnyfeedsData'
+import { pictureOf } from '../stores/bunnyfeedsPicture'
 
 // Loaded on first draw, so registering the mod pulls in no screen code.
 const screens = (): Promise<typeof import('../components/BunnyfeedsThread')> =>
@@ -82,8 +83,9 @@ function CommentPillView(props: PostCommentsProps): ReturnType<typeof createElem
 const RECENT_POSTS = 2
 
 /**
- * Her newest posts as the feed shows them, and under each what the reader said there and what
- * she answered: so a girl he talks to knows what she posted and what he wrote under it.
+ * Her newest posts as the feed shows them, with the picture on each, and under each what the
+ * reader said there and what she answered: so a girl he talks to knows what she posted and what
+ * he wrote under it.
  */
 function recentPostLines(characters: readonly Character[]): string[] {
   const { charInfo, date, time, calendar } = readBunnyfeedsContext()
@@ -106,8 +108,11 @@ function recentPostLines(characters: readonly Character[]): string[] {
         // answer is one she has not read yet, in texts or in person either.
         const answered = new Set(hers.map((one) => commentData.read(one).replyTo))
         const his = said.filter((one) => commentData.read(one).player && answered.has(one.id))
+        const { picture, pictureWith } = pictureOf(post)
         return [
           `- ${formatShortGameDate(post.date, calendar.season)}: "${post.text}"`,
+          // The picture on it, where one is showing: she knows what she posted, not just its words.
+          ...(picture ? [`  With a photo of her${pictureWith ? ` and ${pictureWith}` : ''}: ${picture}`] : []),
           ...his.map((one) => `  The reader commented: "${one.text}"`),
           ...hers.map((one) => `  ${name} answered him: "${one.text}"`)
         ]

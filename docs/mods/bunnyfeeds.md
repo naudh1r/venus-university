@@ -95,6 +95,12 @@ on them, from any mod that puts one there, get threads like any other post.
 - After New Game+ the count starts over with the new semester: last semester's replies are still
   listed, as read.
 
+## 1.1.5
+
+- **Her own photos**: when you text or meet her, she knows what the picture on her latest posts
+  showed, not just what she wrote.
+- Replies no longer talk about a picture that never appeared on the post.
+
 ## 1.1.4
 
 - Your older comments and replies are kept; Bunnyfeeds reads and saves through the mod kit now.
@@ -175,7 +181,8 @@ Bunnyfeeds makes **one extra AI call** of its own, to your usual model, on top o
 | `src/renderer/prompts/bunnyfeedsPrompt.ts` | The slot opening's reply lines, the replier block, the thread call's prompt and the texting bookkeeping's note. |
 | `src/renderer/stores/bunnyfeedsReplies.ts` | Who may reply under a post, and how the slot opening's replies are filed. |
 | `src/shared/bunnyfeedsCrowd.ts` | How many answer a post (her following, and whether it carries a picture), and the rolls for who joins a thread. |
-| `src/renderer/stores/bunnyfeedsThreads.ts` | The thread call through `completeStructured`, run fences and owned cancellation; `addPostComments`, record updates and `saveChanges` file its answers. `pictureOf` names the friend in a post's picture with the kit's `character`. |
+| `src/renderer/stores/bunnyfeedsThreads.ts` | The thread call through `completeStructured`, run fences and owned cancellation; `addPostComments`, record updates and `saveChanges` file its answers. |
+| `src/renderer/stores/bunnyfeedsPicture.ts` | `pictureOf`: the picture on a post, read off Photo Feature's slice as plain data, only while Photo is on and the picture is showing; it names the friend in it with the kit's `character`. Threads and the scene and DM lines both use it. |
 | `src/renderer/stores/bunnyfeedsMemory.ts` | Post slices hold pending memories; `addMemory` replaces owned ones and adopts the same legacy feed endings. Kit mod/option readers gate announcements and the texting note. |
 | `src/renderer/stores/bunnyfeedsVisit.ts` | Whether he commented during this phone visit. |
 | `src/renderer/components/BunnyfeedsThread.tsx`, `vu_styles/Bunnyfeeds.css` | The feed preview, post view and comment box; kit snapshots, `useProfileImageUrl`, `useSceneActive` and `toggleFeedLike` supply the game's data and actions. |
