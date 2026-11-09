@@ -1,4 +1,4 @@
-.vu-study-room {
+.vu-shared-document {
   --paper-offset: 8px 7px;
   --paper-shadow: var(--vu-panel-shadow);
   position: relative;
@@ -11,7 +11,7 @@
   color: var(--vu-text);
   font-family: var(--font-body);
 }
-.vu-study-room > .vu-tab {
+.vu-shared-document > .vu-tab {
   top: -28px;
   left: 24px;
   right: auto;
@@ -20,7 +20,7 @@
   font-size: 26px;
   white-space: normal;
 }
-.vu-study-room .study-close {
+.vu-shared-document .shared-document-close {
   position: absolute;
   right: 16px;
   top: 12px;
@@ -29,7 +29,7 @@
   padding: 0;
   font-size: 22px;
 }
-.study-work {
+.shared-document-work {
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -37,19 +37,8 @@
   overflow: auto;
   padding: 3px;
 }
-.vu-study-room label { display: flex; flex-direction: column; gap: 7px; font-weight: 600; }
-.vu-study-room textarea, .vu-study-room select {
-  font: 17px var(--font-body);
-  color: var(--vu-text);
-  background: var(--vu-field-bg, var(--vu-surface));
-  border: 2px solid var(--vu-text-muted);
-  border-radius: 16px 0;
-  padding: 10px 12px;
-  resize: vertical;
-  min-width: 0;
-}
-.vu-study-room option { background: var(--vu-surface); }
-.vu-study-room button {
+.vu-shared-document label { display: flex; flex-direction: column; gap: 7px; font-weight: 600; }
+.vu-shared-document button {
   font: 15px var(--font-body);
   padding: 10px 18px;
   border: 0;
@@ -58,21 +47,17 @@
   border-radius: 24px 0;
   cursor: pointer;
 }
-.vu-study-room button:disabled { opacity: .4; cursor: default; }
-.vu-study-room :is(button,input):focus-visible { outline: 3px solid var(--vu-text); outline-offset: 3px; }
-.vu-study-room :is(select,textarea):focus-visible {
-  outline: none;
-  border-color: var(--vu-accent);
-}
-.study-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.study-notes { font-size: 14px; border-top: 1px solid var(--vu-border); padding-top: 14px; }
-.study-notes input { font: 14px var(--font-body); max-width: 100%; }
-.study-notes p { margin: 7px 0 0; }
-.study-notes b { overflow-wrap: anywhere; }
-.study-notes button { padding: 4px 10px; margin-left: 10px; }
-.study-notes small, .study-disclosure { font-weight: 400; color: var(--vu-text-muted); font-size: 12px; line-height: 1.4; }
-.study-error { color: var(--vu-text); font-weight: bold; margin: 0; }
-.study-notes input::file-selector-button {
+.vu-shared-document button:disabled { opacity: .4; cursor: default; }
+.vu-shared-document :is(button,input):focus-visible { outline: 3px solid var(--vu-text); outline-offset: 3px; }
+.shared-document-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.shared-document-notes { font-size: 14px; border-top: 1px solid var(--vu-border); padding-top: 14px; }
+.shared-document-notes input { font: 14px var(--font-body); max-width: 100%; }
+.shared-document-notes p { margin: 7px 0 0; }
+.shared-document-notes b { overflow-wrap: anywhere; }
+.shared-document-notes button { padding: 4px 10px; margin-left: 10px; }
+.shared-document-notes small, .shared-document-disclosure { font-weight: 400; color: var(--vu-text-muted); font-size: 12px; line-height: 1.4; }
+.shared-document-error { color: var(--vu-text); font-weight: bold; margin: 0; }
+.shared-document-notes input::file-selector-button {
   font: inherit;
   padding: 7px 13px;
   margin-right: 10px;

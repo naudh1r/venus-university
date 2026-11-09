@@ -1,6 +1,6 @@
 import { companionFrame, receiveCompanionFrame, stopCompanionCapture } from './services/companionCapture'
 import { watchCompanionMoveHandles } from './services/companionMoveHandle'
-import { CURRENT_DOCUMENT_RULE } from '../shared/sceneNotes'
+import { CURRENT_DOCUMENT_RULE, DOCUMENT_LIMIT, DOCUMENT_LIMIT_LABEL } from '../shared/sceneNotes'
 import { companionPoint } from '../shared/companionPointer'
 import { pointerSource, pointCompanion, clearCompanionPointer, closeCompanionPointer } from './services/companionPointer'
 import {mkdir,writeFile} from 'node:fs/promises'
@@ -35,7 +35,7 @@ let resumeAfterStop = false
 let epoch = 0
 let documentReference:{name:string;text:string}|undefined
 export function companionDocument(name:string,text:string,gameContext?:unknown):void {
-  if(typeof name!=='string'||typeof text!=='string'||name.length>250||Buffer.byteLength(text,'utf8')>2000000||text.includes('\0')||(text&&!/\.(md|txt)$/i.test(name)))throw appError('COMPANION_DOCUMENT','Choose a text or Markdown document up to 2 MB.')
+  if(typeof name!=='string'||typeof text!=='string'||name.length>250||Buffer.byteLength(text,'utf8')>DOCUMENT_LIMIT||text.includes('\0')||(text&&!/\.(md|txt)$/i.test(name)))throw appError('COMPANION_DOCUMENT',`Choose a text or Markdown document up to ${DOCUMENT_LIMIT_LABEL}.`)
   const next=text?{name,text}:undefined
   const changed=documentReference?.name!==next?.name||documentReference?.text!==next?.text
   if(typeof gameContext==='string')context=gameContext

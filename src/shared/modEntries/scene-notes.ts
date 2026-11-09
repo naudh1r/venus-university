@@ -1,6 +1,6 @@
 import type { ModDef } from '@vx/modkit/shared'
 const mod: ModDef = {
-  id: 'scene-notes', name: 'Scene Notes', author: 'Community', version: '0.1.0',
+  id: 'scene-notes', name: 'Scene Notes', author: 'Maestro Leeds', version: '0.1.0',
   library: true, scope: 'anytime', defaultOn: true,
   hooks: [
     'gameModals',
@@ -8,7 +8,6 @@ const mod: ModDef = {
     'sceneField',
     'promptState.scene',
     'prompts.scene',
-    'requests.scene',
     'renderer:TitleTab',
     'renderer:currentRun',
     'renderer:openPanel',
