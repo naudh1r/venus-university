@@ -1,9 +1,9 @@
 import type { Character, Emotion, OutfitSet, Position } from './types'
 import { customCgTagsFor, withAfterTag } from './customCgs'
+import type { DefaultTags } from './defaultTags'
 import { draftedParts } from './imagePromptDrafts'
 import { negativeTagsFor, outfitTagsFor } from './outfits'
 import {
-  CG_BASE_PROMPT,
   customCgSlotOf,
   isAfterPosition,
   isStockPosition,
@@ -20,30 +20,10 @@ import { EXPRESSION_EYES, EXPRESSION_MOUTH } from './tags'
 const SIDEWAYS_GLANCE: (typeof EXPRESSION_EYES)[number] = 'sideways_glance'
 const LOOKING_AT_VIEWER: (typeof EXPRESSION_EYES)[number] = 'looking_at_viewer'
 
-/** Quality tag preamble, lowercase with underscores like every booru tag. */
-const QUALITY_TAGS: readonly string[] = ['masterpiece', 'best_quality', 'very_aesthetic']
-
-/** Composition preamble: standing full-body figure on a removable white background. */
-const BASE_TAGS: readonly string[] = [
-  'solo',
-  'full_body',
-  'standing',
-  'simple_background',
-  'white_background'
-]
-
-/** Shared negative, reused by every sampling and detailer stage. */
-const NEGATIVE_TAGS: readonly string[] = [
-  'worst_quality',
-  'bad_quality',
-  'lowres',
-  'holding',
-  'backlighting',
-  'cum'
-]
-
-/** The CG negative: quality tags only. */
-const CG_NEGATIVE_TAGS: readonly string[] = ['worst_quality', 'bad_quality', 'lowres']
+/** One group's tags in order, a tag listed twice kept where it first stands. */
+function unique(tags: readonly string[]): string[] {
+  return tags.filter((tag, i) => tags.indexOf(tag) === i)
+}
 
 /** Splits one of the comma-joined tag lists `positions.ts` holds back into its tags. */
 function tagsOf(list: string): string[] {
@@ -86,29 +66,49 @@ function neutralTags(tags: readonly string[]): string[] {
   return dropped.includes(LOOKING_AT_VIEWER) ? dropped : [...dropped, LOOKING_AT_VIEWER]
 }
 
+/**
+ * The part of a sprite or CG edit's two shared groups the default tags make up, at the front of
+ * each; null for an expression, which has neither group.
+ */
+export function defaultsOfGroups(
+  kind: PromptEdit['kind'],
+  tags: DefaultTags
+): { base: string[]; negative: string[] } | null {
+  if (kind === 'expression') return null
+  if (kind === 'sprite') {
+    return {
+      base: unique([...tags.quality, ...tags.sprite]),
+      negative: unique([...tags.negative, ...tags.spriteNegative])
+    }
+  }
+  return { base: unique([...tags.quality, ...tags.cg]), negative: unique([...tags.negative]) }
+}
+
 /** The groups one sprite render is drawn from; `set` is null for the default wardrobe. */
 export function spriteDraft(
   character: Character,
   poseTags: readonly string[],
-  set: OutfitSet | null
+  set: OutfitSet | null,
+  tags: DefaultTags
 ): Extract<PromptEdit, { kind: 'sprite' }> {
-  // Her appearance and the shared and set negatives, with whatever the mods that are on add.
+  const defaults = defaultsOfGroups('sprite', tags)
+  // Her appearance and the default and set negatives, with whatever the mods that are on add.
   const { appearance, negative } = draftedParts(
     {
       appearance: [...character.baseAppearance],
-      negative: [...NEGATIVE_TAGS, ...(set ? negativeTagsFor(set) : [])]
+      negative: [...(defaults?.negative ?? []), ...(set ? negativeTagsFor(set) : [])]
     },
     { character, kind: set === 'nude' ? 'nude' : 'sprite' }
   )
   return {
     kind: 'sprite',
     set,
-    base: [...QUALITY_TAGS, ...BASE_TAGS],
+    base: [...(defaults?.base ?? [])],
     appearance,
     outfit: set === null ? [...character.outfit] : [...outfitTagsFor(character, set)],
     pose: [...poseTags],
-    // Her own negatives come last, after the shared ones, the set's own and the mods'.
-    negative: [...negative, ...(character.negativeTags ?? [])]
+    // Her own negatives come last, after the default ones, the set's own and the mods'.
+    negative: unique([...negative, ...(character.negativeTags ?? [])])
   }
 }
 
@@ -127,16 +127,20 @@ export function expressionDraft(
 }
 
 /** The groups every one of a character's CGs shares, whichever position it is in. */
-export function cgSetDraft(character: Character): Extract<PromptEdit, { kind: 'cgs' }> {
+export function cgSetDraft(
+  character: Character,
+  tags: DefaultTags
+): Extract<PromptEdit, { kind: 'cgs' }> {
+  const defaults = defaultsOfGroups('cgs', tags)
   const { appearance, negative } = draftedParts(
-    { appearance: [...character.baseAppearance], negative: [...CG_NEGATIVE_TAGS] },
+    { appearance: [...character.baseAppearance], negative: [...(defaults?.negative ?? [])] },
     { character, kind: 'cg' }
   )
   return {
     kind: 'cgs',
-    base: [...QUALITY_TAGS, ...tagsOf(CG_BASE_PROMPT)],
+    base: [...(defaults?.base ?? [])],
     appearance,
-    negative: [...negative, ...(character.negativeTags ?? [])]
+    negative: unique([...negative, ...(character.negativeTags ?? [])])
   }
 }
 
@@ -161,9 +165,10 @@ function cgPositionTags(character: Character, position: Position): string[] {
 /** The groups one CG is drawn from: what her CGs share, plus the position and the face it wears. */
 export function cgDraft(
   character: Character,
-  position: Position
+  position: Position,
+  tags: DefaultTags
 ): Extract<PromptEdit, { kind: 'cg' }> {
-  const { base, appearance, negative } = cgSetDraft(character)
+  const { base, appearance, negative } = cgSetDraft(character, tags)
   return {
     kind: 'cg',
     base,
@@ -209,9 +214,10 @@ export function buildImagePrompt(
   character: Character,
   poseTags: readonly string[],
   emotion: Emotion,
+  tags: DefaultTags,
   edit?: PromptEdit
 ): ImagePrompts {
-  const draft = spriteDraft(character, poseTags, null)
+  const draft = spriteDraft(character, poseTags, null, tags)
 
   // A face pass prompts with her main outfit whichever wardrobe the sprite is of, so only the
   // default set's edit reaches the outfit group.
@@ -236,9 +242,10 @@ export function buildImagePrompt(
 export function buildBasePrompt(
   character: Character,
   poseTags: readonly string[],
+  tags: DefaultTags,
   edit?: PromptEdit
 ): ImagePrompts {
-  const draft = spriteDraft(character, poseTags, null)
+  const draft = spriteDraft(character, poseTags, null, tags)
   const groups = edit?.kind === 'sprite' ? edit : draft
 
   return { positive: spritePositive(groups, []), negative: groups.negative.join(', ') }
@@ -266,9 +273,10 @@ export function buildCgPrompt(
   character: Character,
   position: Position,
   poseTags: readonly string[],
+  tags: DefaultTags,
   edit?: PromptEdit
 ): CgPrompts {
-  const draft = cgDraft(character, position)
+  const draft = cgDraft(character, position, tags)
   const groups =
     edit?.kind === 'cg'
       ? edit
@@ -282,7 +290,7 @@ export function buildCgPrompt(
   // The detailer repaints the face on a sprite frame, so its base group is the sprite preamble
   // and never the CG one.
   const detailerPositive = spritePositive(
-    { ...spriteDraft(character, poseTags, null), appearance: groups.appearance },
+    { ...spriteDraft(character, poseTags, null, tags), appearance: groups.appearance },
     [
       ...groups.position.filter((tag) => CG_FACE_TAGS.includes(tag)),
       ...groups.expression,
@@ -310,9 +318,10 @@ export function buildOutfitBasePrompt(
   character: Character,
   poseTags: readonly string[],
   set: OutfitSet,
+  tags: DefaultTags,
   edit?: PromptEdit
 ): OutfitPrompts {
-  const draft = spriteDraft(character, poseTags, set)
+  const draft = spriteDraft(character, poseTags, set, tags)
   const groups = edit?.kind === 'sprite' ? edit : draft
 
   return { positive: spritePositive(groups, []), negative: groups.negative.join(', ') }

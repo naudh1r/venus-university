@@ -27,3 +27,7 @@ export type { InvokeContext, InvokeHandler } from '../../../../src/main/mods/inv
 
 export { renderComfyImage } from '../../../../src/main/services/comfyService'
 export type { ComfyRenderRequest } from '../../../../src/main/services/comfyService'
+
+export { createDesktopSurface } from '../../../../src/main/mods/desktopSurface'
+
+export { completeModStructured, hasExpressionArt } from '../../../../src/main/mods/structuredRequest'

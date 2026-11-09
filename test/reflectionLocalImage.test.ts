@@ -1,3 +1,4 @@
+import { SHIPPED_DEFAULT_TAGS } from '@shared/defaultTags'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import sharp from 'sharp'
 import type { Character } from '@shared/types'
@@ -11,7 +12,7 @@ import { generateLocalReflection } from '../src/main/services/reflectionLocalIma
 
 const character = { baseAppearance: ['brown_hair', 'blue_eyes'], negativeTags: [], lora: { name: 'portrait.safetensors', weight: 0.8 } } as unknown as Character
 const reference = () => sharp({ create: { width: 24, height: 40, channels: 4, background: { r: 70, g: 90, b: 100, alpha: 0 } } }).png().toBuffer()
-const target: ComfyTarget = { source: 'external', baseUrl: 'http://127.0.0.1:8189', picks: { checkpoint: 'my-model.safetensors' }, loraWeight: 0.7 }
+const target: ComfyTarget = { source: 'external', baseUrl: 'http://127.0.0.1:8189', picks: { checkpoint: 'my-model.safetensors' }, loraWeight: 0.7, tags: SHIPPED_DEFAULT_TAGS }
 
 beforeEach(() => {
   vi.resetAllMocks()

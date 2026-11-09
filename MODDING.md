@@ -1,5 +1,53 @@
 # Mods in this build
 
+## Invited scenes, exchanges and auxiliary windows
+
+`canInviteToScene()` requires the native safe point between ordinary scenes.
+`freeForInvitation(id)` requires a known character who passes timetable, home,
+group and event rules. `subscribeInvitations(listener)` watches state changes;
+callbacks may also run for unrelated updates.
+
+`startInvitedScene(modId, id, action, initialize, eligible?)` rechecks all gates
+after loading the native entry. It uses the normal cast setup, including phone
+settlement and waiting secrets, and runs initialize before the opening prompt.
+It settles after the opening turn; native failure UI handles failures and retry,
+so resolution alone does not prove successful model generation.
+
+`canRecordSceneTurn(modId?)` checks a settled scene turn. Its owner may append
+while its own `holdTurn(modId)` is active; other owners stay blocked.
+`sceneExchangeContext()` supplies a detached participant and scene snapshot.
+`subscribeSceneTurns(listener)` watches scene and input changes.
+`openSceneExchange(modId)` returns null when unavailable. The returned handle
+checks its load, run, scene and switch through current(). append(turn) accepts
+positive increasing IDs and validates participants, emotions and text limits.
+Repeating a completed ID is idempotent; synchronous reentry is refused.
+Story turns can defer a save for fifteen seconds. flush() and close() request
+the retained write, which a newer successful save may supersede. Creator turns
+stay local. Release the caller's hold after success, cancellation or failure.
+
+`keepSceneLedgerEntry(entry)` can omit an extracted memory, event or act before
+settlement. Predicates receive a frozen detached row and must not mutate it.
+The hook covers the current scene. Set scenePlay.creator to true to opt a seat
+into Scene Creator; the default supports story scenes.
+
+`hasDesktopSurfaces()` reports desktop support. On main,
+`createDesktopSurface(owner, options)` requires a registered enabled mod and a
+live game window. The surface is a sandboxed child with context isolation,
+no Node integration and the host's restricted preload. It is destroyed with
+its parent or when its owner switches off. Handle closed to stop requests,
+captures, audio and mod-installed handlers.
+
+The child's `DesktopSurfaceBridge`, exposed as window.modSurface, offers
+invoke(method, ...args) and on(method, listener). Channels are owner-prefixed.
+Listeners receive all emitted values and return an unsubscribe function.
+Main handlers must validate sender identity and inputs. A supplied owner ID
+does not authenticate a caller.
+
+`completeModStructured(request, signal, lowLatency?)` uses the configured
+provider without exposing credentials. Abort the signal at teardown; the
+optional flag selects minimal thinking. `hasExpressionArt(id, expression)`
+uses the native checked character-image reader.
+
 ### Character sprite URLs
 
 Renderer mods can import `spriteUrl(charId, sprite, version?, staged?)` from
@@ -409,6 +457,9 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
   opening bytes name, and a character's own LoRA pick. `BACKUP_ZIP_LIMITS` is the game's archive cap.
 - `DORM_IDS`, `dormLabel`, `LOCATIONS` and `NARRATIVE_LOCATIONS` (`shared`): the dorm and place
   vocabulary; `customOutfitSlotsIn` and `outfitTagsFor` read her own wardrobe.
+  Use `import type { JobDef, LocationDef } from '@vx/modkit/shared'` to type a mod's own
+  job and location catalogues. TypeScript erases the import. The mod registers its entries
+  through the usual hooks.
 - `affectionFor`, `dispositionOf`, `dedupedMemoriesFor`, `emptyFlags` and `relationshipTagOf`
   (`shared`) read the relationship a prompt describes. `areNpcFriends`, `npcFriendsOf`, `npcPairOf`
   and `zoneOf` read the relationships between characters from the map the caller supplies.

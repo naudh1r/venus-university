@@ -7,7 +7,7 @@ import { affectionOf } from '@shared/relationship'
 import { carryModFields } from '@shared/modCarry'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { useModsStore } from '../src/renderer/stores/modsStore'
-import { writeEcho, writesSettled } from '../src/renderer/stores/loop/saves'
+import { prepareAutosave, writeEcho, writesSettled } from '../src/renderer/stores/loop/saves'
 import { resetLoopState } from '../src/renderer/stores/loop/state'
 import { ensureEchoes } from '../src/renderer/stores/echoAssignments'
 import '../src/renderer/modEntries/echo'
@@ -248,6 +248,16 @@ describe('Editable Echo creature design',()=>{
     for(const v of ['Armored wolf','Long legs, copper armor, and a sly smile.','Frostfang','icy crystalline details','Daylark','Avoid chibi proportions','without making it stern or grim'])expect(prompt).toContain(v)
     expect(prompt).not.toContain(ECHO_MOTIFS[identity.motif])
     expect(suggestEchoName(next,'a','fixed seed')).toBe(suggestEchoName(matching(),'a','fixed seed','','Armored wolf'))
+  })
+  it('keeps a committed edit when a scene exchange flushes an older decision', async () => {
+    const autosave = vi.spyOn(window.api.saves, 'autosave')
+    const flush = prepareAutosave(null)
+    const previous = game().exEcho
+    const next = editEchoCreature(previous, 'a', 'Copper stag', 'Swept antlers.')
+    await writeEcho(next, previous, () => true)
+    await flush()
+    expect(autosave).toHaveBeenCalledOnce()
+    expect(autosave.mock.calls[0][1].exEcho?.girls.a.creature).toEqual(next.girls.a.creature)
   })
   it('saves design changes through the native queue and leaves state alone on failure',async()=>{
     const before=game().exEcho,next=editEchoCreature(before,'a','Copper stag','Swept antlers and a curious expression.')

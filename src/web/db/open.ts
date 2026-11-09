@@ -6,6 +6,7 @@ import type { BgVariant, CustomBackground } from '@shared/customBackgrounds'
 import { appError, messageOf } from '@shared/errors'
 import type { LorebookRecord } from '@shared/lorebookRecord'
 import type { PhotoMeta } from '@shared/photos'
+import type { ProfileFrame } from '@shared/profilePicture'
 import type { SlotReplay } from '@shared/replays'
 import type { SavedScene } from '@shared/sceneCreator'
 import type { SoundtrackMap } from '@shared/soundtracks'
@@ -39,6 +40,12 @@ export interface StoredPhoto {
   meta?: PhotoMeta
 }
 
+/** The full picture a reader's crop was cut from, and the frame it was cut through. */
+interface StoredProfileSource {
+  image: Blob
+  frame: ProfileFrame
+}
+
 /** One of the player's own backgrounds: its record and its pictures, written as one row. */
 export interface StoredBackground {
   record: CustomBackground
@@ -60,6 +67,7 @@ export interface VenusUniversityDb extends DBSchema {
   saves: { key: [string, string]; value: GameSave; indexes: { byDate: [string, number] } }
   endingArt: { key: string; value: Blob }
   profilePictures: { key: string; value: Blob }
+  profileSources: { key: string; value: StoredProfileSource }
   photos: { key: [string, string]; value: StoredPhoto }
   characters: { key: string; value: Character }
   charFiles: { key: [string, string]; value: CharFile }
@@ -99,11 +107,12 @@ const STORES = [
   'presets',
   'studioPrompts',
   'lorebooks',
-  'applications'
+  'applications',
+  'profileSources'
 ] as const
 
-// 13 adds unfinished New Game applications while preserving every existing mod store.
-const DB_VERSION = 13
+// 14 adds profile sources while retaining the existing VE stores.
+const DB_VERSION = 14
 
 let opened: Promise<IDBPDatabase<VenusUniversityDb>> | null = null
 

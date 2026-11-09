@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { SUBJECT_TAGS } from '@shared/defaultTags'
 import type { PoseManifest } from '@shared/types'
 import {
   draftToCharacter,
@@ -17,7 +18,7 @@ const POSES: PoseManifest = {
 }
 
 it('does not assign the opt-in Godlike trait from an AI character draft', () => {
-  const result = draftToCharacter(character(), draft({ traits: ['Godlike', 'High Standards'] }), POSES)
+  const result = draftToCharacter(character(), draft({ traits: ['Godlike', 'High Standards'] }), POSES, SUBJECT_TAGS)
   expect(result.traits).toEqual(['High Standards'])
 })
 
@@ -77,7 +78,7 @@ function draft(over: Partial<CharacterDraft> = {}): CharacterDraft {
 }
 
 const flatten = (over: Partial<CharacterDraft> = {}) =>
-  draftToCharacter(character(), draft(over), POSES)
+  draftToCharacter(character(), draft(over), POSES, SUBJECT_TAGS)
 
 describe('draftToCharacter', () => {
   /** A value nothing branches on is not a preference — the `traits` rule. */
@@ -106,7 +107,7 @@ describe('draftToCharacter', () => {
       pose: '',
       brief: { prompt: 'a baker', namesAreSuggestions: false, options: {}, reference: true }
     })
-    expect('brief' in draftToCharacter(base, draft(), POSES)).toBe(false)
+    expect('brief' in draftToCharacter(base, draft(), POSES, SUBJECT_TAGS)).toBe(false)
   })
 
   it('never lets one category sit on both lists', () => {
@@ -122,6 +123,6 @@ describe('missingRequiredFields', () => {
    */
   it('refuses a character with nothing she would be glad to receive', () => {
     const filled = flatten({ giftPreferences: { liked: [], disliked: ['edgy'] } })
-    expect(missingRequiredFields(filled)).toContain('gift preferences')
+    expect(missingRequiredFields(filled, SUBJECT_TAGS)).toContain('gift preferences')
   })
 })

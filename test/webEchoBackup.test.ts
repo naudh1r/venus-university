@@ -25,7 +25,7 @@ it('upgrades version 8 without losing settings or existing records', async () =>
   await old.put('settings', { marker: 'keep' }, 'settings'); await old.put('playthroughs', { name: 'Keep this run' }, '123'); old.close()
   const { database } = await import('../src/web/db/open')
   const db = await database()
-  expect(db.version).toBe(13)
+  expect(db.version).toBe(14)
   expect(await db.get('settings', 'settings')).toEqual({ marker: 'keep' })
   expect(await db.get('playthroughs', '123')).toEqual({ name: 'Keep this run' })
   expect(await db.count('echoArt')).toBe(0); db.close()

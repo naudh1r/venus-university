@@ -7,7 +7,7 @@ import { isOrientationSlot } from '../prompts/introScript'
 import { useGameStore } from '../stores/gameStore'
 import { replyRowOfferOf } from '../stores/loop/playback'
 import { currentRun, loopState, runStale } from '../stores/loop/state'
-import { modIsOn } from '../stores/modsStore'
+import { modIsOn, useModsStore } from '../stores/modsStore'
 import { sceneActiveOf } from '../stores/textingLoop'
 
 /**
@@ -242,6 +242,17 @@ function refused(code: string, message: string): Result<never> {
   return { ok: false, error: appError(code, message) }
 }
 
+let turnHold: { modId: string; run: object; game: Game } | null = null
+
+/** Internal ownership check for an exchange waiting on its own model call. */
+export function ownsTurnHold(modId: string): boolean {
+  const game = useGameStore.getState()
+  return Boolean(turnHold && turnHold.modId === modId && !runStale(turnHold.run) &&
+    turnHold.game.loads === game.loads && turnHold.game.playthroughId === game.playthroughId &&
+    turnHold.game.createdScene === game.createdScene && turnHold.game.cast === game.cast &&
+    modIsOn(modId, loopState.record))
+}
+
 /**
  * Holds the reader's turn while a mod settles something of its own, as the game holds it while a
  * turn is taken: the scene reads as busy, and no turn, hangout or autosave starts. Taken only at
@@ -257,12 +268,22 @@ export function holdTurn(modId: string): Result<() => void> {
     return refused('MOD_WRITE_WAIT', 'The reader is not at his turn.')
   }
   const run = currentRun()
+  const token = { modId, run, game }
+  turnHold = token
   useGameStore.setState({ busy: true })
   let held = true
   const release = (): void => {
     if (!held) return
     held = false
-    if (!runStale(run)) useGameStore.setState({ busy: false })
+    const live = useGameStore.getState()
+    const current = !runStale(run) && game.loads === live.loads &&
+      game.playthroughId === live.playthroughId && game.createdScene === live.createdScene && game.cast === live.cast
+    if (turnHold === token) turnHold = null
+    if (current && !runStale(run)) useGameStore.setState({ busy: false })
+    stop()
   }
+  const stop = useModsStore.subscribe(() => {
+    if (!modIsOn(modId, loopState.record)) release()
+  })
   return { ok: true, data: release }
 }

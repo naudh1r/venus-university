@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Renderer mods can check a partner's current availability with `freeForInvitation`
+  and start a native encounter with `startInvitedScene`. The host checks availability
+  again before entry and initializes the mod's scene data before the first prompt.
+- `openSceneExchange` records dialogue already displayed by a mod during a story or
+  Creator scene. The handle belongs to that decision point. A repeated turn ID is
+  acknowledged once, and deferred story saves cannot overwrite a newly loaded game.
+  `keepSceneLedgerEntry` can veto a scene result before it is combined with text messages.
+- Desktop mods can open a sandboxed window with `createDesktopSurface`, check for
+  expression art, and send a cancellable structured request to the configured provider.
+  The auxiliary page communicates through its mod's channel namespace. A main invoke
+  handler can use its host-provided `senderId` to associate a surface with the calling window.
+- Shared exports the native `JobDef` and `LocationDef` types for mod-owned catalogues.
+  These are erased type exports; no native catalogue values or runtime APIs are exposed.
+
 - `addMemory` accepts `replacingUnmarked` to replace unmarked memories a mod wrote before its switch.
 - `scene()`, `useScene(select)` and `subscribeScene` read the scene on screen, in a playthrough,
   a created scene or a replay, as a frozen `SceneView` the kit defines: who is in it, its lines with speakers by id, where it is, what the
