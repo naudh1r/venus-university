@@ -484,8 +484,14 @@ export function buildPhotoPrompt(
   const body = bodyTagsFor(
     bodyOf(character), scene, bare, framingInTags(pose.tags), selected.exposure
   )
-  const wardrobe = plainColours(selected.tags.map(heldColour).join(', '))
   const caption = withoutOutfitName(scene, selected.names)
+
+  // A close-up of her face: her outfit pulled the camera back to show it, so only her top stays,
+  // unweighted, to keep her dressed at the neckline.
+  const face = !bare && saysAny(scene.toLowerCase(), FACE_SHOT_CUES)
+  const shown = face ? faceShotTags(pose.tags) : pose.tags
+  const worn = face ? selected.tags.slice(0, 1).map(withoutWeight) : selected.tags
+  const wardrobe = plainColours((face ? worn : worn.map(heldColour)).join(', '))
 
   // Her appearance, with her build and her chest in it while the body switch is on. It opens on
   // the subject tag where she has one, so the base does not say it a second time.
@@ -493,19 +499,19 @@ export function buildPhotoPrompt(
   const base = appearance.includes('1girl') ? PHOTO_BASE.replace('1girl, ', '') : PHOTO_BASE
 
   // Read off everything the picture will be told she wears, her own tags and outfit included.
-  const worn = `${appearance.join(' ')} ${wardrobe} ${scene}`
+  const told = `${appearance.join(' ')} ${wardrobe} ${scene}`
 
   const positive = [
     `${PHOTO_QUALITY}, ${base}`,
     appearance.join(', '),
-    body.join(', '),
+    face ? '' : body.join(', '),
     wardrobe,
     // The sentence's own full stop would sit in front of the tags that follow it.
     [
       lookingAtViewer(
         withoutSelfieWord(withoutHeldObject(withoutCameraHold(withoutWhoTookIt(caption))))
       ).replace(/[.!?]+$/, ''),
-      pose.tags.join(', ')
+      shown.join(', ')
     ]
       .filter((part) => part.length > 0)
       .join(', ')
@@ -515,13 +521,60 @@ export function buildPhotoPrompt(
 
   const negative = [
     PHOTO_NEGATIVE,
-    ...(bare ? [] : dressedNegative(worn.toLowerCase().replace(/_/g, ' '), tier === 'everyday')),
+    ...(bare ? [] : dressedNegative(told.toLowerCase().replace(/_/g, ' '), tier === 'everyday')),
     ...SPILL_NEGATIVE.filter(([, said]) => !said.test(scene.toLowerCase())).map(([tag]) => tag),
     ...pose.negative,
     ...bodyNegative(character),
     ...(character.negativeTags ?? [])
   ].join(', ')
   return { positive, negative }
+}
+
+/** A caption asking for her face itself, filling the picture; a plain "close-up" is not one. */
+const FACE_SHOT_CUES = [
+  'close-up of her face',
+  'close up of her face',
+  'closeup of her face',
+  'close-up selfie of her face',
+  'her face up close',
+  'face shot',
+  'face only',
+  'just her face',
+  'headshot',
+  'her face filling'
+]
+
+/** Where the rest of the photo would put her body, her arms and the camera, out of a face shot. */
+const NOT_IN_A_FACE_SHOT: ReadonlySet<string> = new Set([
+  'close-up',
+  'portrait',
+  'upper_body',
+  '(upper_body:1.3)',
+  'cowboy_shot',
+  'full_body',
+  'lower_body',
+  'outstretched_arm',
+  '(outstretched_arm:1.2)',
+  'foreshortening',
+  'hand_up',
+  'hands_on_lap',
+  'hand_on_own_hip',
+  'hands_on_own_thighs',
+  'arms_at_sides'
+])
+
+/** A face shot's tags: her face, her look and her gesture, framed as close as same-seed checks held. */
+function faceShotTags(tags: readonly string[]): string[] {
+  return [
+    ...tags.filter((tag) => !NOT_IN_A_FACE_SHOT.has(tag)),
+    '(close-up:1.4)',
+    '(portrait:1.3)',
+    'face_focus'
+  ]
+}
+
+function withoutWeight(tag: string): string {
+  return tag.replace(/^\((.*):[\d.]+\)$/, '$1')
 }
 
 /** Her set and the reveal it carries, with names removed only when their tags were supplied. */

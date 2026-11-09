@@ -168,6 +168,7 @@ const VERIFIED = new Set([
   'kneeling',
   'knees_up',
   'leaning_forward',
+  'face_focus',
   'dog',
   'cat',
   'petting',
