@@ -2,6 +2,8 @@ import { beforeEach, expect, it, vi } from 'vitest'
 const state = vi.hoisted(() => ({ field: null as any, game: { currentSceneTranscript: [] as any[], createdScene: {} as any }, legacy: null as any }))
 vi.mock('@vx/modkit/renderer', () => ({ scene: () => ({lines:state.game.currentSceneTranscript,created:Boolean(state.game.createdScene)}), sceneField: () => ({ read: () => state.field, set: (v: unknown) => { state.field = v } }) }))
 vi.mock('../src/renderer/sceneNotes/host', () => ({ legacyNotes: () => state.legacy, notesAvailable: () => true }))
+vi.mock('@vx/modkit/shared', () => ({ sharedModOn: vi.fn(() => true) }))
+import { sharedModOn } from '@vx/modkit/shared'
 import { saveSceneNotes, readSceneNotes, readStoredSceneNotes, notesConversationScope, sceneNotesHooks } from '../src/renderer/sceneNotes/state'
 beforeEach(() => { state.field = null; state.legacy = null; state.game = { currentSceneTranscript: [{ speaker: 'girl', text: 'Old discussion.' }], createdScene: {} } })
 
@@ -30,6 +32,19 @@ function promptLines() {
   return sceneNotesHooks.prompts!.scene!.lines!({ state: { ex: { 'scene-notes': notes } } } as any)
 }
 
+it('refuses a pending upload or removal when the last parent is switched off', async () => {
+  const active = { name: 'current.txt', text: 'Keep this.' }
+  await saveSceneNotes(active)
+  vi.mocked(sharedModOn).mockReturnValue(false)
+  try {
+    expect((await saveSceneNotes(null)).ok).toBe(false)
+    expect((await saveSceneNotes({ name: 'later.md', text: 'New.' })).ok).toBe(false)
+    expect(readStoredSceneNotes()).toEqual(active)
+  } finally {
+    vi.mocked(sharedModOn).mockReturnValue(true)
+  }
+})
+
 it('only contributes mod lines, leaving core in charge of the summary, named transcript, window and retry', async () => {
   expect(promptLines()).toEqual([])
   await saveSceneNotes({ name: 'notes.md', text: 'Old document.' })
@@ -51,7 +66,7 @@ it('adds one removal notice and keeps the old upload out after reload', async ()
 })
 
 it.each(['library', 'study preview'])('retains an oversized %s document in the save and withholds it from consumers', async source => {
-  const large = { name: 'old.md', text: 'é'.repeat(256_001) }
+  const large = { name: 'old.md', text: 'Ã©'.repeat(256_001) }
   if (source === 'library') state.field = { document: large }
   else state.legacy = large
   expect(readStoredSceneNotes()).toEqual(large)
