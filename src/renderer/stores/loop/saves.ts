@@ -69,11 +69,11 @@ function setManualWriting(next: boolean): void {
  * Runs `write` once every write queued before it has settled — and not at all when the stay it
  * was queued in has been left by then, so it never lands in the next game's files.
  */
-function queueWrite(write: () => Promise<void>): Promise<void> {
+function queueWrite(write: (run: object) => Promise<void>): Promise<void> {
   const run = currentRun()
   const guarded = async (): Promise<void> => {
     if (runStale(run)) return
-    await write()
+    await write(run)
   }
   pending += 1
   writeChain = writeChain.then(guarded, guarded).finally(() => {
@@ -93,7 +93,7 @@ export async function persistRegeneratedConversation(
 ): Promise<Result<null>> {
   let outcome: Result<null> = { ok: false, error: appError('TEXT_REGEN_STALE', 'The game changed. Your original reply was kept.') }
   try {
-    await queueWrite(async () => {
+    await queueWrite(async (run) => {
       if (!isCurrent()) return
       const game = useGameStore.getState()
       if (!game.playthroughId || sceneActiveOf(game)) return
@@ -102,6 +102,7 @@ export async function persistRegeneratedConversation(
         bunnyboard: { ...game.bunnyboard, conversations: { ...game.bunnyboard.conversations, [charId]: next } }
       }
       const result = await window.api.saves.autosave(game.playthroughId, draft)
+      if (result.ok) recordSavedEdit(game, run)
       if (!isCurrent()) return
       if (!result.ok) { outcome = result; return }
       useGameStore.setState(s => ({ bunnyboard: { ...s.bunnyboard, conversations: {
@@ -123,28 +124,70 @@ export async function writesSettled(): Promise<void> {
   }
 }
 
+// Captures and ordinary autosaves get their order when requested. A later decision
+// supersedes an older capture only after its write succeeds.
+let nextAutosaveOrder = 0
+let lastSavedOrder = 0
+function recordSavedEdit(game: ReturnType<typeof useGameStore.getState>, run: object): void {
+  const live = useGameStore.getState()
+  if (!runStale(run) && live.playthroughId === game.playthroughId && live.loads === game.loads) {
+    lastSavedOrder = ++nextAutosaveOrder
+  }
+}
+
+interface DeferredAutosave {
+  game: ReturnType<typeof useGameStore.getState>
+  run: object
+  order: number
+}
+
+function superseded(point?: DeferredAutosave): boolean {
+  if (!point) return false
+  const live = useGameStore.getState()
+  return (
+    point.order <= lastSavedOrder ||
+    runStale(point.run) ||
+    point.game.loads !== live.loads ||
+    point.game.playthroughId !== live.playthroughId
+  )
+}
+
+/** Hold a decision point for a deferred write. Only the last retained turn is serialized. */
+export function prepareAutosave(scene: SceneState | null): () => Promise<void> {
+  const point = { game: useGameStore.getState(), run: currentRun(), order: ++nextAutosaveOrder }
+  return () => writeAutosave(scene, undefined, point)
+}
+
 /**
  * Overwrites the autosave, recording `scene` in place of what is on screen now. The save is taken
  * as the write's turn comes, and the stage picture is drawn off `scene` after it. `onWritten` is
  * told how the write went, and not at all where it was skipped.
  */
-export function writeAutosave(scene: SceneState | null, onWritten?: (result: Result<null>) => void): Promise<void> {
+export function writeAutosave(
+  scene: SceneState | null,
+  onWritten?: (result: Result<null>) => void,
+  point?: DeferredAutosave
+): Promise<void> {
+  const order = point?.order ?? ++nextAutosaveOrder
   return queueWrite(async () => {
-    const game = useGameStore.getState()
+    if (superseded(point)) return
+    const game = point?.game ?? useGameStore.getState()
     const playthroughId = game.playthroughId
     if (!playthroughId) return
-    const draft: SaveDraft = { ...game.toGameSave(), scene,
+    const draft: SaveDraft = { ...game.toGameSave(game), scene,
       // Project discarded outcomes and their recorded charges onto the same decision point.
       ...reconcileTalentBreakthrough(game, scene?.transcript ?? [],
         scene && !game.replaying && !game.createdScene ? game.currentSceneTranscript : undefined)
     }
 
     const thumbnail = scene ? await composeStageThumbnail(scene) : null
+    if (superseded(point)) return
     const result = await window.api.saves.autosave(
       playthroughId,
       thumbnail ? { ...draft, thumbnail } : draft
     )
-    if (!result.ok) reportWriteFailure(result.error)
+    if (result.ok) lastSavedOrder = Math.max(lastSavedOrder, order)
+    else reportWriteFailure(result.error)
     onWritten?.(result.ok ? { ok: true, data: null } : { ok: false, error: result.error })
   })
 }
@@ -431,6 +474,21 @@ export function replayOfferOf(
 }
 
 /**
+ * What a contact page's Edit milestones offers: Save Game's offers, or dead for as long as a scene
+ * is on, whose ending reads her flags and banks what it rolled off them for the boundary.
+ */
+export function milestonesOffer(): ReplayOffer {
+  return replayOfferOf(manualSaveOffer(), sceneActiveOf(useGameStore.getState()), false)
+}
+
+/** What a hover raises over a control dead on one of these offers, or null where it is live. */
+export function offerNoteOf(offer: ReplayOffer): string | null {
+  if (offer === 'scene') return 'Unavailable in scenes'
+  if (offer === 'waiting') return 'Waiting for LLM response'
+  return null
+}
+
+/**
  * What a manual save taken now records, read in one go: the status sequence's base inside it,
  * the goodbye menu as between scenes, and otherwise the scene on screen on its line. Null when
  * there is nothing a load could be put back onto.
@@ -490,13 +548,14 @@ export async function writeWhisper(next: VenusWhisper, previous: VenusWhisper, a
   let written = false
   setManualWriting(true)
   try {
-    await queueWrite(async () => {
+    await queueWrite(async (run) => {
       if (!current() || saveOffer(false) !== 'open') return
       const now = useGameStore.getState()
       const draft = manualSaveDraft() ?? (!sceneActiveOf(now) ? { ...now.toGameSave(), scene: null } : null)
       if (!draft || !now.playthroughId) throw Error('No safe save point is available.')
       const saved = normalizeWhisper(next)
       const result = await window.api.saves.autosave(now.playthroughId, { ...draft, exVenusWhisper: saved })
+      if (result.ok) recordSavedEdit(now, run)
       if (!result.ok) throw Error(result.error.message)
       if (!current()) return
       if (loopState.statusBase) loopState.statusBase = { ...loopState.statusBase, exVenusWhisper: saved }
@@ -520,9 +579,10 @@ export async function writeStoryMemory(next: StoryMemory, expected: { playthroug
   let written = false
   setManualWriting(true)
   try {
-    await queueWrite(async () => {
+    await queueWrite(async (run) => {
       if (!fresh()) return
       const result = await window.api.saves.autosave(expected.playthroughId, { ...draft, exStoryMemory: memory })
+      if (result.ok) recordSavedEdit(game, run)
       if (!result.ok) throw Error(result.error.message)
       written = true
       if (fresh()) useGameStore.setState({ exStoryMemory: memory })
@@ -534,13 +594,14 @@ export async function writeStoryMemory(next: StoryMemory, expected: { playthroug
 /** Cache a spectator scene without ever inserting it into canonical history or memories. */
 export async function persistMeanwhileScene(scene: MeanwhileScene, isCurrent: () => boolean): Promise<void> {
   let completed = false
-  await queueWrite(async () => {
+  await queueWrite(async (run) => {
     if (!isCurrent() || manualSaveOffer() !== 'open') return
     const game = useGameStore.getState()
     const draft = manualSaveDraft() ?? (!sceneActiveOf(game) ? { ...game.toGameSave(), scene: null } : null)
     if (!draft || !game.playthroughId) throw Error('No safe save point is available yet.')
     const next = withMeanwhile(game.exNpcWatch,scene)
     const result = await window.api.saves.autosave(game.playthroughId,{ ...draft, exNpcWatch: next })
+      if (result.ok) recordSavedEdit(game, run)
     if (!result.ok) throw Error(result.error.message)
     if (!isCurrent()) return
     useGameStore.setState({ exNpcWatch: next })
@@ -564,13 +625,14 @@ export async function writeEcho(next: EchoState, previous: EchoState, active: ()
   let written = false
   setManualWriting(true)
   try {
-    await queueWrite(async () => {
+    await queueWrite(async (run) => {
       if (!current() || saveOffer(false) !== 'open') return
       const now = useGameStore.getState()
       const draft = manualSaveDraft() ?? (!sceneActiveOf(now) ? { ...now.toGameSave(), scene: null } : null)
       if (!draft || !now.playthroughId) throw Error('No safe save point is available.')
       assertEchoEdit(now.exEcho, saved)
       const result = await window.api.saves.autosave(now.playthroughId, { ...draft, exEcho: saved })
+      if (result.ok) recordSavedEdit(now, run)
       if (!result.ok) throw Error(result.error.message)
       // Closing the editor cannot undo an acknowledged write. A different loaded game still wins.
       if (!ownsGame()) return
@@ -596,7 +658,7 @@ export async function writeTalentChange(action: TalentChange): Promise<void> {
   let written=false
   setManualWriting(true)
   try {
-    await queueWrite(async()=>{
+    await queueWrite(async (run) =>{
       if (!available() || saveOffer(false)!=='open') return
       const now=useGameStore.getState()
       const draft=manualSaveDraft() ?? (!sceneActiveOf(now)?{...now.toGameSave(),scene:null}:null)
@@ -615,6 +677,7 @@ export async function writeTalentChange(action: TalentChange): Promise<void> {
         exTalents=trained.talents; stats=trained.stats
       } else exTalents=applyTalentChoice(now,exTalents,action)
       const result=await window.api.saves.autosave(now.playthroughId,{...draft,exTalents,money,stats})
+      if (result.ok) recordSavedEdit(now, run)
       if (!result.ok) throw Error(result.error.message)
       if (!available()) return
       if (loopState.statusBase) loopState.statusBase={...loopState.statusBase,exTalents,money,stats}
@@ -660,7 +723,7 @@ export async function writeReckoningChange(
   let written = false
   setManualWriting(true)
   try {
-    await queueWrite(async () => {
+    await queueWrite(async (run) => {
       if (!current() || saveOffer(false) !== 'open') return
       const now = useGameStore.getState()
       const draft = manualSaveDraft() ?? (!sceneActiveOf(now) ? { ...now.toGameSave(), scene: null } : null)
@@ -676,6 +739,7 @@ export async function writeReckoningChange(
           }
         : draft.scene
       const result = await window.api.saves.autosave(now.playthroughId, { ...draft, ...patch, scene })
+      if (result.ok) recordSavedEdit(now, run)
       if (!result.ok) throw Error(result.error.message)
       if (!current()) return
       if (loopState.statusBase) loopState.statusBase = { ...loopState.statusBase, ...patch }
@@ -791,6 +855,8 @@ export async function writeModSlices(
         }
         outcome = { ok: true, data: null }
         if (!sameGame()) return
+        // A capture taken before this transaction committed still has the old mod values.
+        lastSavedOrder = ++nextAutosaveOrder
         useGameStore.setState((state) => ({ modValues: { ...state.modValues, ...next } }))
         if (loopState.statusBase) loopState.statusBase = withModValues(loopState.statusBase, next)
       })

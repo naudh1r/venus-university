@@ -1,4 +1,4 @@
-import { promptTextEdits, exercisedStats, projectSlotMemories, settleSceneStats, slotActivityAvailable, slotSettled, slotStatusLines, statFloor } from '../mods/hooks'
+import { filterSceneLedger, promptTextEdits, exercisedStats, projectSlotMemories, settleSceneStats, slotActivityAvailable, slotSettled, slotStatusLines, statFloor } from '../mods/hooks'
 import { withSlotActivityPrompt } from '../prompts/slotActivity'
 import { talentProjectWork } from '@shared/talentPerks'
 import { canContinueReckoning, pendingReckoningAftermath } from './reckoning'
@@ -1362,6 +1362,7 @@ function dispatchTurn(snapshot: TurnSnapshot): void {
   else if (snapshot.created) void startCreatedOpening()
   else if (snapshot.intro) void startOrientationScene()
   else if (snapshot.farewell) void startFarewellScene(snapshot.farewell)
+  else if (snapshot.retryInvitation) snapshot.retryInvitation(snapshot.action)
   else if (snapshot.charId)
     void startHangoutScene(snapshot.charId, snapshot.action, snapshot.preset, snapshot.sceneEvents)
   else {
@@ -1395,6 +1396,11 @@ export function retryTurn(): void {
  */
 export function lastTurnAuthored(): boolean {
   return loopState.lastTurn !== null && authoredTurn(loopState.lastTurn)
+}
+
+/** Whether the failed turn is a created scene's opening, given up on by leaving the scene. */
+export function lastTurnCreated(): boolean {
+  return loopState.lastTurn?.created === true
 }
 
 /** The `user` message of the last scene call — what the edit-prompt modal opens. */
@@ -1446,6 +1452,14 @@ export function abandonTurn(): void {
   // off and the landing the reader is rewording on is revealed again. A no-op mid-scene,
   // where no cover was raised at all.
   revealSceneOpening()
+}
+
+/**
+ * Gives up on a created scene's failed opening, and on the scene with it: nothing goes back to
+ * the box and the cover stays down, for the view to leave under.
+ */
+export function abandonCreatedOpening(): void {
+  useGameStore.getState().setTurnError(null)
 }
 
 /**
@@ -1504,15 +1518,6 @@ export async function submitAction(
   const game = useGameStore.getState()
   if (game.busy || !game.awaitingInput) return
   if (activity && !slotActivityAvailable(activity)) return
-
-  // A created scene's opening, typed again after its first send was refused or abandoned: it
-  // goes the way its first send went, to the cast the setup settled, never to the classifier.
-  if (game.createdScene && game.currentSceneTranscript.length === 0 && !gift) {
-    if (!raw) return
-    game.setCreatedPrompt(raw)
-    void startCreatedOpening()
-    return
-  }
 
   // Taken before anything is mutated; the *raw* text is what a rewind hands back.
   loopState.lastTurn = {
@@ -1959,7 +1964,7 @@ async function runEnding(goodbye: boolean): Promise<void> {
   if (!closed || ledger === null || textLedger === null) return
 
   // The recap is the scene's summary, filed before the opening reads it and never banked.
-  const { summary, ...books } = ledger
+  const { summary, ...books } = filterSceneLedger(ledger)
   const live = useGameStore.getState()
   if (summary?.trim()) live.setSceneSummary(summary.trim(), live.currentSceneTranscript.length)
 
@@ -1995,13 +2000,27 @@ async function runEnding(goodbye: boolean): Promise<void> {
 }
 
 /**
- * The lovers the finished scene left for somebody else, for the opening that writes their
- * breakup texts. Off the projection, which is where the dump has happened.
+ * The lovers left for somebody else whose breakup texts the next opening writes: the finished
+ * scene's, off the projection, which is where the dump has happened, then those a relationship
+ * set by hand left, unless she is his lover again by now.
  */
+function breakupsAheadOf(projected: ProjectedLedger): ProjectedLedger['breakups'] {
+  const owed = useGameStore
+    .getState()
+    .breakupsOwed.filter(({ charId }) => !projected.charInfo[charId]?.flags?.isLover)
+  const seen = new Set<string>()
+  return [...projected.breakups, ...owed].filter(({ charId }) => {
+    if (seen.has(charId)) return false
+    seen.add(charId)
+    return true
+  })
+}
+
+/** The lovers {@link breakupsAheadOf} names, as the opening that writes their texts reads them. */
 function introBreakupsOf(projected: ProjectedLedger): IntroBreakup[] {
   const game = useGameStore.getState()
   const breakups: IntroBreakup[] = []
-  for (const { charId, forCharId } of projected.breakups) {
+  for (const { charId, forCharId } of breakupsAheadOf(projected)) {
     const info = projected.charInfo[charId]
     const character = game.characters[charId]
     const forFirstName = game.characters[forCharId]?.firstName
@@ -2081,7 +2100,7 @@ async function fetchEndingOpening(
     date,
     time,
     charInfo,
-    new Set(projected.breakups.map(({ charId }) => charId))
+    new Set(breakupsAheadOf(projected).map(({ charId }) => charId))
   )
 
   const view: PostLedgerView = {
@@ -3021,6 +3040,8 @@ async function crossSlotBoundary(): Promise<void> {
   // the game-over path, which banks nothing.
   const banked = loopState.bankedOpening
   if (banked) {
+    // The opening banked here was written with every breakup owed so far.
+    useGameStore.getState().clearBreakupsOwed()
     applyRumorPass(banked.rumorPass)
     applyCrushSettle(banked.crushes)
     // Before the map is stored: what is recorded is the difference between the two.
@@ -3369,6 +3390,8 @@ export async function enterReplay(
 
   const live = useGameStore.getState()
   live.loadReplay({ ...replayStayOf(held, replay), ...earlier }, held.characters)
+  // The stay holds no playthrough of its own, and the box still shows the reader's picture.
+  void loadProfilePicture(held.save.playthroughId)
   const cast = [...replay.cast]
   live.restoreScene({
     ...openingScene(replayLinesOf(replay.transcript)),
@@ -3457,5 +3480,5 @@ export { speakerNameOf }
 export { abandonClassify, retryClassify } from './loop/classify'
 export { submitQuizAnswer } from './loop/exams'
 export { relax } from './loop/relax'
-export { manualSaveOffer, writeManualSave } from './loop/saves'
+export { manualSaveOffer, milestonesOffer, offerNoteOf, writeManualSave } from './loop/saves'
 export type { ManualSaveOffer } from './loop/saves'

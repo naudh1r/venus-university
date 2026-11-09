@@ -19,7 +19,7 @@ const girl = character({ charId: 'photo-cancel-test' })
 const file = 'sarah_chat_001.png'
 const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
 const handlers = photoInvocations()
-const event: InvokeContext = { id: 'photo-feature', signal: new AbortController().signal }
+const event: InvokeContext = { id: 'photo-feature', senderId: 1, signal: new AbortController().signal }
 const generate = (id = '1', seed = 1) => handlers.generate(
   event, id, girl, 'everyday', 'At the cafe', file, { seed }
 ) as Promise<string>

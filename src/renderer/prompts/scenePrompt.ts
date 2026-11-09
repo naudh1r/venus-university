@@ -1,7 +1,7 @@
 import type { CharacterDynamics } from '@shared/characterDynamics'
 import type { PromptPart, PromptPartId, SceneSpot, SceneSpotTag, TextEditSet } from '@shared/promptText'
 import { modRequest, promptLines } from '../mods/hooks'
-import { SUBJECT_TAGS } from '@shared/characterRules'
+import { withoutSubjectTags } from '@shared/defaultTags'
 import { slotFullLabel, yearLabel } from '@shared/classes'
 import { dormClause } from '@shared/dorms'
 import { EMOTIONS } from '@shared/emotions'
@@ -374,6 +374,8 @@ export interface PromptState {
   scenePersona?: string
   /** The edits a mod hands the text blocks: the scene ones and the global ones; absent when none is supplied. */
   textEdits?: TextEditSet
+  /** The subject tags the settings name; absent is the shipped ones alone. */
+  subjectTags?: readonly string[]
   /** How many memories per character the cast block carries, by cast size. */
   memoryBudgets: Required<MemoryBudgets>
   /** How many of her told secrets each entry carries; absent is the default. */
@@ -613,7 +615,7 @@ function castBlock(
 
     // Appearance and main outfit as their booru tags.
     // The subject tags are the renderer's, and say nothing to the writer.
-    const appearance = character.baseAppearance.filter((tag) => !SUBJECT_TAGS.includes(tag))
+    const appearance = withoutSubjectTags(character.baseAppearance, state.subjectTags ?? [])
     if (appearance.length > 0) {
       lines.push(`Appearance: ${appearance.join(', ')}`)
     }

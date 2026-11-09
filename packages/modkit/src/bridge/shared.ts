@@ -3,6 +3,8 @@
  * that the kit hands a mod is re-exported here, so a change to any of them shows in the kit's
  * API report, and nothing else in the kit reaches core (the boundary test checks).
  */
+export type { JobDef } from '../../../../src/shared/jobs'
+export type { LocationDef } from '../../../../src/shared/locations'
 export type {
   AppError,
   BunnyboardState,
@@ -88,3 +90,5 @@ export {
   PROMPT_PARTS,
   SCENE_TEXT_IDS
 } from '@shared/promptText'
+
+export type { DesktopSurfaceBridge } from '../../../../src/shared/desktopSurface'
