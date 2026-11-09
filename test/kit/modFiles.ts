@@ -11,6 +11,7 @@ import type { ModSet } from './boundaryScan'
  * each entry registers (the [MK] packs' games).
  */
 export const MOD_FILES: Record<string, ModSet> = {
+  'scene-notes': { globs: ['src/shared/sceneNotes.ts', 'src/renderer/sceneNotes/**'] },
   breakthrough: {
     globs: [
       'src/shared/breakthrough*.ts',
