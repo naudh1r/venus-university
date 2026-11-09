@@ -56,3 +56,7 @@ export function useSceneInput(layout: SceneInputLayout | null): void {
     useSceneInputStore.setState({ layout: { open, height } })
   }, [holder, open, height])
 }
+
+export const subscribeSceneInput = (listener: () => void) => useSceneInputStore.subscribe(listener)
+/** Native external-turn gate while a panel owns the scene input. */
+export function sceneInputHeld():boolean{return useSceneInputStore.getState().holder!==null}

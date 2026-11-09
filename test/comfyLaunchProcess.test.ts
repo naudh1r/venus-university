@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import { createHash } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ComfyTarget } from '../src/main/services/comfyService'
+import { SHIPPED_DEFAULT_TAGS } from '@shared/defaultTags'
 
 const mocks = vi.hoisted(() => ({
   spawn: vi.fn(), open: vi.fn(() => 17), close: vi.fn(), fetch: vi.fn()
@@ -30,7 +31,7 @@ vi.mock('../src/main/services/processTree', () => ({
 vi.mock('@shared/retry', () => ({ sleep: async () => {} }))
 
 const managed: ComfyTarget = {
-  source: 'managed', baseUrl: 'http://127.0.0.1:8188', picks: undefined, loraWeight: 1
+  source: 'managed', baseUrl: 'http://127.0.0.1:8188', picks: undefined, loraWeight: 1, tags: SHIPPED_DEFAULT_TAGS
 }
 // Assertions must not print the host's environment if they fail.
 function environmentHash(env: NodeJS.ProcessEnv): string {

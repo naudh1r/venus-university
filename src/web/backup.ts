@@ -17,6 +17,8 @@ import {
   namedReplays,
   photoEntry,
   profilePictureEntry,
+  profileSourceEntry,
+  profileSourcesFromBackup,
   replaysFromBackup,
   scenesFromBackup,
   semesterEndingArtEntry,
@@ -41,6 +43,7 @@ import { imageTypeOf } from '@shared/imageBytes'
 import { validateRecord } from '@shared/jsonValidate'
 import { readLorebookRecord, type LorebookRecord } from '@shared/lorebookRecord'
 import { assertSafePhotoId } from '@shared/photos'
+import type { ProfileFrame } from '@shared/profilePicture'
 import { validateReplay } from '@shared/replays'
 import { validateSavedScene, type SavedScene } from '@shared/sceneCreator'
 import { readApplicationRecord, SAFE_NUMERIC_ID } from '@shared/saveRules'
@@ -128,6 +131,16 @@ export async function exportBackup(): Promise<string> {
       if (!imageTypeOf(bytes)) continue
       profilePictures.push(key)
       files[profilePictureEntry(key)] = bytes
+    }
+
+    const profileSources: Record<string, ProfileFrame> = {}
+    for (const key of await db.getAllKeys('profileSources')) {
+      const source = await db.get('profileSources', key)
+      if (!source) continue
+      const bytes = await bytesOf(source.image)
+      if (!imageTypeOf(bytes)) continue
+      profileSources[key] = source.frame
+      files[profileSourceEntry(key)] = bytes
     }
 
     const photos: BackupPhoto[] = []
@@ -225,6 +238,7 @@ export async function exportBackup(): Promise<string> {
       endingArt,
       ...(semesterEndingArt.length > 0 ? { semesterEndingArt } : {}),
       profilePictures,
+      ...(Object.keys(profileSources).length > 0 ? { profileSources } : {}),
       photos,
       backgrounds,
       scenes,
@@ -285,6 +299,7 @@ export async function importBackup(): Promise<boolean> {
   const lorebooks = lorebooksFromBackup(record)
   const applications = applicationsFromBackup(record)
   const semesterPictures = semesterPicturesFromBackup(record)
+  const profileSources = profileSourcesFromBackup(record)
   // Nothing the backup does not name is written: an entry naming a path of its own choosing
   // would put a file where this build never looks for one.
   const updatedAt = Date.now()
@@ -299,6 +314,7 @@ export async function importBackup(): Promise<boolean> {
         'saves',
         'endingArt',
         'profilePictures',
+        'profileSources',
         'photos',
         'characters',
         'charFiles',
@@ -372,6 +388,16 @@ export async function importBackup(): Promise<boolean> {
         const bytes = entries[profilePictureEntry(playthroughId)]
         if (bytes && SAFE_NUMERIC_ID.test(playthroughId)) {
           await pictures.put(imageBlob(bytes), playthroughId)
+        }
+      }
+
+      const sources = tx.objectStore('profileSources')
+      await sources.clear()
+      for (const [playthroughId, frame] of Object.entries(profileSources)) {
+        const bytes = entries[profileSourceEntry(playthroughId)]
+        // A full picture goes back only beside a playthrough the backup restores.
+        if (bytes && Object.hasOwn(record.playthroughs, playthroughId)) {
+          await sources.put({ image: imageBlob(bytes), frame }, playthroughId)
         }
       }
 

@@ -61,6 +61,12 @@ export function BunnyMark(): JSX.Element;
 export function cancelCalls(modId: string, group: string): Promise<void>;
 
 // @public
+export function canInviteToScene(): boolean;
+
+// @public
+export function canRecordSceneTurn(modId?: string): boolean;
+
+// @public
 export function canRenderLocalImages(): boolean;
 
 // @public
@@ -232,6 +238,23 @@ export interface EndingChoice extends WayOn {
     label: string;
 }
 
+// @public (undocumented)
+export interface ExternalSceneTurn {
+    // (undocumented)
+    actions: readonly string[];
+    // (undocumented)
+    deferSave?: boolean;
+    id: number;
+    // (undocumented)
+    lines: readonly {
+        charId: string;
+        emotion: Emotion;
+        text: string;
+    }[];
+    // (undocumented)
+    participants: readonly string[];
+}
+
 // @public
 export function EyeIcon(input: {
     size: number;
@@ -280,6 +303,9 @@ export function formatNumericGameDate(date: number, season: Season): string;
 export function formatShortGameDate(date: number, season: Season): string;
 
 // @public
+export function freeForInvitation(id: string): boolean;
+
+// @public
 export function gameFacts(): {
     playthroughId: string | null;
     readerName: string;
@@ -312,6 +338,9 @@ export function gestures(dead: boolean, hover: TargetAndTransition, tap: TargetA
     whileFocus: TargetAndTransition;
     'data-lift'?: '';
 };
+
+// @public
+export function hasDesktopSurfaces(): boolean;
 
 // @public
 export function hasTexted(conversation: Conversation | undefined): boolean;
@@ -468,6 +497,7 @@ export interface ModHooks {
     gameEntered?: () => void;
     gameMenuEntry?: ComponentType<ScreenSlotProps['gameMenuEntry']>;
     gameModals?: Record<string, ComponentType<GameModalProps>>;
+    keepSceneLedgerEntry?: (entry: Readonly<SceneLedgerEntry>) => boolean;
     landingTool?: ComponentType<ScreenSlotProps['landingTool']>;
     mapOverlay?: ComponentType<ScreenSlotProps['mapOverlay']>;
     messageAttachment?: ComponentType<ScreenSlotProps['messageAttachment']>;
@@ -575,6 +605,9 @@ export function objectSchema(name: string, required: readonly string[], properti
 
 // @public
 export function openPanel(id: string, arg?: string): boolean;
+
+// @public
+export function openSceneExchange(modId: string): SceneExchange | null;
 
 // @public
 export interface OptionPreviewProps {
@@ -789,6 +822,7 @@ export interface PromptState {
     slotRumor?: LoreRumor;
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
+    subjectTags?: readonly string[];
     textEdits?: TextEditSet;
     textedWith?: readonly string[];
     textingSummaries?: Record<string, string[]>;
@@ -1006,6 +1040,42 @@ export interface SceneDividerProps {
     word: DividerWord;
 }
 
+// @public (undocumented)
+export interface SceneExchange {
+    append(turn: ExternalSceneTurn): boolean;
+    close(): void;
+    current(): boolean;
+    flush(): void;
+}
+
+// @public (undocumented)
+export interface SceneExchangeContext {
+    // (undocumented)
+    onScreen: (string | null)[];
+    // (undocumented)
+    people: Array<{
+        id: string;
+        profile: Pick<Character, 'charId' | 'firstName' | 'lastName' | 'personality' | 'behavior' | 'backstory' | 'likes' | 'dislikes'>;
+        relationship: Pick<CharInfo, 'memories' | 'flags' | 'nameKnown' | 'notes'> & {
+            disposition?: Disposition;
+        };
+    }>;
+    // (undocumented)
+    reader: string;
+    // (undocumented)
+    scene: {
+        kind: 'creator' | 'story';
+        location: string | null;
+        summary: string | null;
+        readerBio: string;
+        premise?: string;
+        relationships?: NpcRelationshipMap;
+    };
+}
+
+// @public
+export function sceneExchangeContext(): SceneExchangeContext;
+
 // @public
 export function sceneField<T>(modId: string, spec: SceneFieldSpec<T>): SceneFieldHandle<T>;
 
@@ -1032,6 +1102,18 @@ export interface SceneInputLayout {
 }
 
 // @public
+export type SceneLedgerEntry = {
+    kind: 'memory';
+    value: NonNullable<LedgerResponse['memories']>[number];
+} | {
+    kind: 'event';
+    value: NonNullable<LedgerResponse['events']>[number];
+} | {
+    kind: 'act';
+    value: NonNullable<LedgerResponse['acts']>[number];
+};
+
+// @public
 export interface SceneLineOptions {
     charId?: string;
     expression?: Emotion;
@@ -1047,6 +1129,7 @@ export interface ScenePanelProps {
 
 // @public
 export interface ScenePlay {
+    creator?: boolean;
     // (undocumented)
     Panel: ComponentType<ScenePanelProps>;
     // (undocumented)
@@ -1331,6 +1414,9 @@ export function spaced(lines: readonly string[]): string[];
 export function spriteUrl(charId: string, value: SpriteRef, version?: number, staged?: boolean): string;
 
 // @public
+export function startInvitedScene(modId: string, id: string, action: string, initialize: () => void, eligible?: () => boolean): Promise<void>;
+
+// @public
 export function submitAction(action: string, gift?: boolean, preset?: Verdict,
 planId?: string,
 sceneEvents?: TurnSnapshot['sceneEvents'],
@@ -1359,6 +1445,9 @@ export const subscribeFeedReadThrough: (onChange: () => void) => () => void;
 
 // @public
 export function subscribeImageApiConfigured(onChange: () => void): () => void;
+
+// @public
+export function subscribeInvitations(listener: () => void): () => void;
 
 // @public
 export function subscribeLocalImageSource(onChange: () => void): () => void;
@@ -1394,6 +1483,9 @@ export function subscribeScene<T>(onChange: () => void, select?: (view: SceneVie
 
 // @public
 export const subscribeSceneActive: (onChange: () => void) => () => void;
+
+// @public (undocumented)
+export function subscribeSceneTurns(listener: () => void): () => void;
 
 // @public
 export function takeTurnFromReply(): boolean;

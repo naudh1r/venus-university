@@ -85,24 +85,60 @@ export async function writesSettled(): Promise<void> {
   }
 }
 
+// Captures and ordinary autosaves get their order when requested. A later decision
+// supersedes an older capture only after its write succeeds.
+let nextAutosaveOrder = 0
+let lastSavedOrder = 0
+
+interface DeferredAutosave {
+  game: ReturnType<typeof useGameStore.getState>
+  run: object
+  order: number
+}
+
+function superseded(point?: DeferredAutosave): boolean {
+  if (!point) return false
+  const live = useGameStore.getState()
+  return (
+    point.order <= lastSavedOrder ||
+    runStale(point.run) ||
+    point.game.loads !== live.loads ||
+    point.game.playthroughId !== live.playthroughId
+  )
+}
+
+/** Hold a decision point for a deferred write. Only the last retained turn is serialized. */
+export function prepareAutosave(scene: SceneState | null): () => Promise<void> {
+  const point = { game: useGameStore.getState(), run: currentRun(), order: ++nextAutosaveOrder }
+  return () => writeAutosave(scene, undefined, point)
+}
+
 /**
  * Overwrites the autosave, recording `scene` in place of what is on screen now. The save is taken
  * as the write's turn comes, and the stage picture is drawn off `scene` after it. `onWritten` is
  * told how the write went, and not at all where it was skipped.
  */
-export function writeAutosave(scene: SceneState | null, onWritten?: (result: Result<null>) => void): Promise<void> {
+export function writeAutosave(
+  scene: SceneState | null,
+  onWritten?: (result: Result<null>) => void,
+  point?: DeferredAutosave
+): Promise<void> {
+  const order = point?.order ?? ++nextAutosaveOrder
   return queueWrite(async () => {
-    const game = useGameStore.getState()
+    if (superseded(point)) return
+    const game = point?.game ?? useGameStore.getState()
     const playthroughId = game.playthroughId
     if (!playthroughId) return
-    const draft: SaveDraft = { ...game.toGameSave(), scene }
+    const draft: SaveDraft = { ...game.toGameSave(game), scene }
 
     const thumbnail = scene ? await composeStageThumbnail(scene) : null
+    if (superseded(point)) return
     const result = await window.api.saves.autosave(
       playthroughId,
       thumbnail ? { ...draft, thumbnail } : draft
     )
-    if (!result.ok) reportWriteFailure(result.error)
+    if (result.ok) lastSavedOrder = Math.max(lastSavedOrder, order)
+    else reportWriteFailure(result.error)
     onWritten?.(result.ok ? { ok: true, data: null } : { ok: false, error: result.error })
   })
 }
@@ -389,6 +425,21 @@ export function replayOfferOf(
 }
 
 /**
+ * What a contact page's Edit milestones offers: Save Game's offers, or dead for as long as a scene
+ * is on, whose ending reads her flags and banks what it rolled off them for the boundary.
+ */
+export function milestonesOffer(): ReplayOffer {
+  return replayOfferOf(manualSaveOffer(), sceneActiveOf(useGameStore.getState()), false)
+}
+
+/** What a hover raises over a control dead on one of these offers, or null where it is live. */
+export function offerNoteOf(offer: ReplayOffer): string | null {
+  if (offer === 'scene') return 'Unavailable in scenes'
+  if (offer === 'waiting') return 'Waiting for LLM response'
+  return null
+}
+
+/**
  * What a manual save taken now records, read in one go: the status sequence's base inside it,
  * the goodbye menu as between scenes, and otherwise the scene on screen on its line. Null when
  * there is nothing a load could be put back onto.
@@ -524,6 +575,8 @@ export async function writeModSlices(
         }
         outcome = { ok: true, data: null }
         if (!sameGame()) return
+        // A capture taken before this transaction committed still has the old mod values.
+        lastSavedOrder = ++nextAutosaveOrder
         useGameStore.setState((state) => ({ modValues: { ...state.modValues, ...next } }))
         if (loopState.statusBase) loopState.statusBase = withModValues(loopState.statusBase, next)
       })
