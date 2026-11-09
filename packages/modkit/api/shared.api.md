@@ -156,8 +156,6 @@ export interface CharMemory {
     date: number;
     // (undocumented)
     desc: string;
-    echoAffinity?: 'matching' | 'competing';
-    echoBoosted?: boolean;
     ex?: Record<string, ModSlice>;
     // (undocumented)
     type: MemoryType;
@@ -169,7 +167,6 @@ export interface ChatMessage {
     error?: boolean;
     everydayAsk?: EverydayAsk;
     ex?: Record<string, ModSlice>;
-    exReplyTo?: string;
     id: string;
     invite?: true;
     inviteKind?: InviteKind;
@@ -210,11 +207,6 @@ export interface Conversation {
     charId: string;
     declined?: number;
     ex?: Record<string, ModSlice>;
-    exTextBase?: {
-        replyTo: string;
-        summary: string | null;
-        regenerable?: boolean;
-    };
     // (undocumented)
     messages: ChatMessage[];
     pendingHangout?: {
@@ -291,14 +283,6 @@ export type GameOverReason = 'debt' | 'expulsion' | 'gameComplete' | 'endingDebt
 
 // @public
 export interface GameSave extends NativeGameSave {
-    // (undocumented)
-    exBreakthrough?: BreakthroughState;
-    exCharacterDynamics?: CharacterDynamics;
-    // (undocumented)
-    exEcho?: EchoState;
-    exNpcWatch?: MeanwhileStore;
-    exReckoning?: ReckoningState;
-    exStoryMemory?: StoryMemory;
 }
 
 // @public
@@ -808,7 +792,6 @@ export interface JobDef {
     };
     pay: number;
     requires: Partial<Record<StatKey, StatTier>>;
-    requiresSkills?: readonly JobSkillRequirement[];
     // (undocumented)
     title: string;
     workplaceKey: string;
@@ -838,7 +821,6 @@ export interface LedgerResponse {
         event: RelationshipEvent;
     }>;
     expelled?: boolean;
-    exStoryFacts?: unknown;
     memories?: Array<{
         charKey: string;
         type: MemoryType;
@@ -1353,7 +1335,6 @@ export interface StructuredRequest {
         name: string;
         schema: Record<string, unknown>;
     };
-    storyMemory?: StoryRecallRequest;
     // (undocumented)
     system: string;
     // (undocumented)
