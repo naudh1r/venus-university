@@ -1,12 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type { BunnyCommentData } from '../src/shared/bunnyfeeds'
+import { MAX_POSTER_REPLIES, WRAP_UP_AFTER } from '../src/shared/bunnyfeeds'
+vi.mock('../src/renderer/stores/jobStore', () => ({ useJobStore: {} }))
 import {
   carriedThread,
   feedNotes,
   unreadFeedNotes,
-  MAX_POSTER_REPLIES,
   threadWork,
-  WRAP_UP_AFTER
-} from '../src/shared/bunnyfeeds'
+  postData
+} from '../src/renderer/stores/bunnyfeedsData'
 import {
   followerChance,
   pickJoiningFriend,
@@ -18,7 +20,7 @@ import type { PostComment } from '../src/shared/postComments'
 
 /** What the once-a-slot thread call still owes a post, read off the comments alone. */
 describe('threadWork', () => {
-  const comment = (id: string, at: number, extra: Partial<PostComment> = {}): PostComment => ({
+  const comment = (id: string, at: number, extra: Partial<PostComment & BunnyCommentData> = {}): PostComment => ({
     id,
     handle: 'someone',
     emoji: '',
@@ -64,22 +66,23 @@ describe('carriedThread', () => {
     const post = {
       id: 'p',
       text: 'hi',
+      likes: 0,
       date: 90,
       time: 1,
       threadedThrough: globalSlotOf(90, 1),
       heldMemories: [{ charId: 'her', at: globalSlotOf(91, 0), type: 'liked', desc: 'the reader' }]
     } as SocialPost
     const carried = carriedThread(post, 100)
-    expect(carried.threadedThrough).toBe(globalSlotOf(-10, 1))
-    expect(carried.heldMemories?.[0]).toMatchObject({ at: globalSlotOf(-9, 0), desc: 'the reader' })
+    expect(postData.read(carried).threadedThrough).toBe(globalSlotOf(-10, 1))
+    expect(postData.read(carried).heldMemories?.[0]).toMatchObject({ at: globalSlotOf(-9, 0), desc: 'the reader' })
     expect(carried.date).toBe(90)
-    expect(post.threadedThrough).toBe(globalSlotOf(90, 1))
+    expect(postData.read(post).threadedThrough).toBe(globalSlotOf(90, 1))
   })
 })
 
 /** The replies Notifications lists, and how many of them he has yet to read. */
 describe('feedNotes', () => {
-  const comment = (id: string, at: number, extra: Partial<PostComment> = {}): PostComment => ({
+  const comment = (id: string, at: number, extra: Partial<PostComment & BunnyCommentData> = {}): PostComment => ({
     id,
     handle: 'someone',
     emoji: '',

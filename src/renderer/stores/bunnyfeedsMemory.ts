@@ -1,8 +1,9 @@
 import { BUNNYFEEDS, type HeldFeedMemory } from '../../shared/bunnyfeeds'
-import { memoryStatusLine, type CharMemory, type SceneLine } from '@vx/modkit/shared'
-import { modIsOn, modOptionOn } from '@vx/modkit/renderer'
+import { memoryStatusLine, type CharMemory, type Result, type SceneLine } from '@vx/modkit/shared'
+import { addMemory, currentRun, modIsOn, modOptionOn } from '@vx/modkit/renderer'
 import { TEXT_LEDGER_FEED_LINES } from '../prompts/bunnyfeedsPrompt'
-import { UNKNOWN_NAME, useGameStore } from './gameStore'
+import { commentData, postData } from './bunnyfeedsData'
+import { readBunnyfeedsContext } from './bunnyfeedsReadContext'
 
 /** Where a held memory without a poster says it happened, as earlier test builds wrote it. */
 const FEED_MEMORY_TAG = ', on the feed'
@@ -14,102 +15,94 @@ const FEED_MEMORY_END = /, (on the feed|on Bunnyboard|on her post|under [^,]+'s 
 function whereTag(charId: string, posterId: string | undefined): string {
   if (!posterId) return FEED_MEMORY_TAG
   if (posterId === charId) return ', on her post'
-  const poster = useGameStore.getState().characters[posterId]
+  const poster = readBunnyfeedsContext().characters[posterId]
   return poster ? `, under ${poster.firstName}'s post` : FEED_MEMORY_TAG
 }
 
-/**
- * Files what his comments left her with as one of her own memories, replacing the last one the
- * feed left her: one at a time, the newest winning, as her texting memory does.
- */
-function fileFeedMemory(charId: string, entry: CharMemory, where: string): void {
-  const store = useGameStore.getState()
-  const previous = store.charInfo[charId]?.memories.find((one) => FEED_MEMORY_END.test(one.desc))
-  if (previous) store.replaceMemory(charId, previous, null)
-  store.recordMemory(charId, { ...entry, desc: `${entry.desc}${where}` })
-}
-
-/** Keeps a thread's memories on one of its posts until the slot its answers show. */
-export function holdFeedMemories(
-  posterId: string,
-  postId: string,
-  memories: readonly HeldFeedMemory[]
-): void {
-  if (memories.length === 0) return
-  useGameStore.setState((state) => {
-    const info = state.charInfo[posterId]
-    if (!info?.feed?.some((post) => post.id === postId)) return {}
-    const feed = info.feed.map((post) =>
-      post.id === postId
-        ? { ...post, heldMemories: [...(post.heldMemories ?? []), ...memories] }
-        : post
-    )
-    return { charInfo: { ...state.charInfo, [posterId]: { ...info, feed } } }
+/** Publishes the newest feed memory, including replacement of its unmarked legacy predecessor. */
+function fileFeedMemory(
+  charId: string, entry: CharMemory, where: string, run: object
+): Result<null> {
+  const onFeed = (memory: Readonly<CharMemory>): boolean => FEED_MEMORY_END.test(memory.desc)
+  // Once she has a memory marked as Bunnyfeeds', unmarked ones are the game's own and stay.
+  const migrated = (readBunnyfeedsContext().charInfo[charId]?.memories ?? []).some(memory => {
+    const ex: unknown = memory.ex
+    return !!ex && typeof ex === 'object' && Object.hasOwn(ex, BUNNYFEEDS)
+  })
+  return addMemory(BUNNYFEEDS, charId, { ...entry, desc: `${entry.desc}${where}` }, {
+    run, replacing: onFeed, ...(migrated ? {} : { replacingUnmarked: onFeed })
   })
 }
 
-/** Files every held memory whose answers show by global slot `through`, dated today. */
-export function fileDueFeedMemories(through: number): void {
-  const game = useGameStore.getState()
-  const due: HeldFeedMemory[] = []
-  for (const charId of game.chars) {
-    const feed = game.charInfo[charId]?.feed
-    if (!feed?.some((post) => post.heldMemories?.some((one) => one.at <= through))) continue
-    for (const post of feed) due.push(...(post.heldMemories ?? []).filter((one) => one.at <= through))
-    useGameStore.setState((state) => {
-      const info = state.charInfo[charId]
-      if (!info?.feed) return {}
-      const kept = info.feed.map((post) => {
-        const left = (post.heldMemories ?? []).filter((one) => one.at > through)
-        if (left.length === (post.heldMemories ?? []).length) return post
-        const { heldMemories: _, ...rest } = post
-        return left.length > 0 ? { ...rest, heldMemories: left } : rest
-      })
-      return { charInfo: { ...state.charInfo, [charId]: { ...info, feed: kept } } }
-    })
-  }
-  const { date } = useGameStore.getState()
-  for (const { charId, type, desc, posterId } of due) {
-    fileFeedMemory(charId, { date, type, desc }, whereTag(charId, posterId))
+/** Keeps a thread's memories on one post until the slot its answers show. */
+export function holdFeedMemories(
+  posterId: string,
+  postId: string,
+  memories: readonly HeldFeedMemory[],
+  run: object = currentRun()
+): Result<null> {
+  if (memories.length === 0) return { ok: true, data: null }
+  return postData.update({ kind: 'post', charId: posterId, postId }, data => ({
+    ...data, heldMemories: [...(data.heldMemories ?? []), ...memories]
+  }), { run })
+}
+
+/** Identifies one pending memory after a reader supplied a detached copy. */
+function sameHeld(a: HeldFeedMemory, b: HeldFeedMemory): boolean {
+  return a.charId === b.charId && a.at === b.at && a.type === b.type &&
+    a.desc === b.desc && a.posterId === b.posterId
+}
+
+/** Files due memories and removes each held entry only after its native memory write succeeds. */
+export function fileDueFeedMemories(through: number, run: object = currentRun()): void {
+  const game = readBunnyfeedsContext()
+  for (const posterId of game.chars) {
+    for (const post of game.charInfo[posterId]?.feed ?? []) {
+      const due = (postData.read(post).heldMemories ?? []).filter(one => one.at <= through)
+      for (const one of due) {
+        const result = fileFeedMemory(one.charId, {
+          date: game.date, type: one.type, desc: one.desc
+        }, whereTag(one.charId, one.posterId), run)
+        if (!result.ok) continue
+        postData.update({ kind: 'post', charId: posterId, postId: post.id }, data => {
+          const held = data.heldMemories ?? []
+          const at = held.findIndex(entry => sameHeld(entry, one))
+          if (at < 0) return undefined
+          const left = held.filter((_, index) => index !== at)
+          const { heldMemories: _done, ...rest } = data
+          return left.length ? { ...rest, heldMemories: left } : rest
+        }, { run })
+      }
+    }
   }
 }
 
-/** Every memory held for global slot `through` or before, not yet filed. */
+/** Every memory held for this global slot or before, not yet filed. */
 function dueFeedMemories(through: number): HeldFeedMemory[] {
-  const game = useGameStore.getState()
-  return game.chars.flatMap((charId) =>
-    (game.charInfo[charId]?.feed ?? []).flatMap((post) =>
-      (post.heldMemories ?? []).filter((one) => one.at <= through)
-    )
-  )
+  const game = readBunnyfeedsContext()
+  return game.chars.flatMap(charId => (game.charInfo[charId]?.feed ?? []).flatMap(post =>
+    (postData.read(post).heldMemories ?? []).filter(one => one.at <= through)
+  ))
 }
 
-/**
- * The closing's lines for the feed memories the slot after this one files, in the words the
- * closing gives every other memory; none while Bunnyfeeds is off.
- */
+/** The closing's feed-memory announcements, with the same names and words as native memories. */
 export function feedStatusLines(through: number): SceneLine[] {
-  if (!modIsOn(BUNNYFEEDS)) return []
-  if (!modOptionOn(BUNNYFEEDS, 'announce')) return []
-  const game = useGameStore.getState()
+  if (!modIsOn(BUNNYFEEDS) || !modOptionOn(BUNNYFEEDS, 'announce')) return []
+  const game = readBunnyfeedsContext()
   return dueFeedMemories(through).map(({ charId, type, desc, posterId }) => {
     const character = game.characters[charId]
-    const name =
-      character && game.charInfo[charId]?.nameKnown ? character.firstName : UNKNOWN_NAME
+    const name = character && game.charInfo[charId]?.nameKnown ? character.firstName : '???'
     return memoryStatusLine(name, { type, desc: `${desc}${whereTag(charId, posterId)}` })
   })
 }
 
-/**
- * What the texting bookkeeping is told while Bunnyfeeds is on and a girl he texted has his
- * comments under her posts: the feed is not the texts.
- */
+/** The texting ledger's note when one of the girls has player comments under her posts. */
 export function textLedgerFeedLines(charKeys: readonly string[]): string[] {
   if (!modIsOn(BUNNYFEEDS)) return []
-  const { charKeyToId, charInfo } = useGameStore.getState()
-  const commented = charKeys.some((key) =>
-    (charInfo[charKeyToId[key] ?? '']?.feed ?? []).some((post) =>
-      (post.comments ?? []).some((one) => one.player)
+  const { charKeyToId, charInfo } = readBunnyfeedsContext()
+  const commented = charKeys.some(key =>
+    (charInfo[charKeyToId[key] ?? '']?.feed ?? []).some(post =>
+      (post.comments ?? []).some(one => commentData.read(one).player)
     )
   )
   return commented ? [...TEXT_LEDGER_FEED_LINES, ''] : []
