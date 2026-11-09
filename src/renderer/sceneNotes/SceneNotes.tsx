@@ -2,9 +2,9 @@ import { useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import { openPanel, useModalShell, TitleTab, veilIn, panelUnderTab, currentRun, runStale, useScene, type SceneSeatProps, type GameModalProps } from '@vx/modkit/renderer'
-import { SCENE_NOTES, DOCUMENT_LIMIT, readSceneDocument } from '../../shared/sceneNotes'
-import { notesAvailable, useNotesAvailable } from './host'
-import { readSceneNotes, saveSceneNotes } from './state'
+import { SCENE_NOTES, DOCUMENT_LIMIT, readSceneDocument, type SceneDocument } from '../../shared/sceneNotes'
+import { legacyNotes, notesAvailable, useNotesAvailable } from './host'
+import { sceneNotes, saveSceneNotes } from './state'
 import './style.css'
 export const NotesIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 5v15M3 4c4-1 7 0 9 2 2-2 5-3 9-2v14c-4-1-7 0-9 2-2-2-5-3-9-2Z"/></svg>
 export function NotesSeat({ Seat, visible }: SceneSeatProps) {
@@ -13,18 +13,18 @@ export function NotesSeat({ Seat, visible }: SceneSeatProps) {
   return <Seat label="Scene notes" state={!available || !visible ? 'gone' : dead ? 'dim' : 'shown'} onClick={() => { if (!dead && notesAvailable()) openPanel(SCENE_NOTES) }}><NotesIcon/></Seat>
 }
 export function SceneNotes({ theme, onClose }: GameModalProps): JSX.Element | null {
-  const [document, setDocument] = useState(readSceneNotes)
+  const stored = sceneNotes.use()
+  const document = stored ? stored.document : legacyNotes()
   const [busy, setBusy] = useState(false), [error, setError] = useState('')
   const [run] = useState(currentRun)
   const shell = useModalShell(onClose)
-  async function apply(document: ReturnType<typeof readSceneNotes>) {
+  async function apply(next: SceneDocument | null) {
     if (runStale(run)) { onClose(); return }
     setBusy(true)
     try {
-      const result = await saveSceneNotes(document)
+      const result = await saveSceneNotes(next)
       if (runStale(run)) return
-      if (result.ok) { setDocument(document); setError('') }
-      else setError(result.error.message)
+      setError(result.ok ? '' : `Could not save the notes change. ${result.error.message}`)
     } catch (err) { setError((err as Error).message) }
     finally { setBusy(false) }
   }
