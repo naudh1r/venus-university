@@ -30,13 +30,29 @@ const CHAT_WORDING: EndpointWording = {
   service: 'chat completions endpoint'
 }
 
+/**
+ * Where routers put a reasoning model's thinking: `reasoning` on most, `reasoning_content` on
+ * DeepSeek, vLLM, llama.cpp and older router paths.
+ */
+interface ReasoningFields {
+  reasoning?: unknown
+  reasoning_content?: unknown
+}
+
+/** The reasoning prose a message or delta carried; empty when it carried none as a string. */
+function reasoningTextOf(fields: ReasoningFields | undefined): string {
+  if (typeof fields?.reasoning === 'string') return fields.reasoning
+  if (typeof fields?.reasoning_content === 'string') return fields.reasoning_content
+  return ''
+}
+
 /** Minimal shape of one chat completion, whole or streamed. */
 interface OpenAiResponse {
   // `delta` carries a streamed chunk and `message` a whole reply; `choices` is empty on the
   // usage-only chunk that closes a stream.
   choices?: Array<{
-    message?: { content?: unknown; refusal?: string }
-    delta?: { content?: unknown }
+    message?: { content?: unknown; refusal?: string } & ReasoningFields
+    delta?: { content?: unknown } & ReasoningFields
     finish_reason?: string | null
     error?: OpenAiError
   }>
@@ -298,6 +314,14 @@ export const openaiAdapter: LlmAdapter = {
     return textOf(choice?.message?.content)
   },
 
+  reasoningOf(rawBody: string): string {
+    try {
+      return reasoningTextOf((JSON.parse(rawBody) as OpenAiResponse | null)?.choices?.[0]?.message)
+    } catch {
+      return ''
+    }
+  },
+
   deltaOf(payload: string, label: string): StreamDelta {
     let parsed: OpenAiResponse
     try {
@@ -311,9 +335,16 @@ export const openaiAdapter: LlmAdapter = {
     const choice = parsed.choices?.[0]
     const finishReason = choice?.finish_reason ?? undefined
     if (finishReason) assertFinished(finishReason, choice?.error, label)
-    // Reasoning fields ride the same delta and are prose, never part of the answer.
     const text = typeof choice?.delta?.content === 'string' ? choice.delta.content : ''
-    return { text, finished: Boolean(finishReason), finishReason, usage: usageOf(parsed.usage) }
+    // Reasoning rides the same delta and is prose, never part of the answer.
+    const reasoning = reasoningTextOf(choice?.delta)
+    return {
+      text,
+      ...(reasoning ? { reasoning } : {}),
+      finished: Boolean(finishReason),
+      finishReason,
+      usage: usageOf(parsed.usage)
+    }
   },
 
   // The sentinel every chat-completions stream ends with.

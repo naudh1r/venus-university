@@ -1,5 +1,11 @@
 import { mkdir } from 'fs/promises'
-import { cleanSwitches, modOn, optionOn, NO_SWITCHES, type ModSwitches } from '@shared/mods'
+import {
+  cleanSwitches,
+  modOn,
+  optionOn,
+  NO_SWITCHES,
+  type ModSwitches
+} from '@shared/mods'
 import { EMPTY_SESSION, isRunning, type ModSessionTable } from '@shared/modSession'
 import type { Manifest } from '@vx/modkit/host/shared'
 import { setSharedModRules } from '@shared/modRules'

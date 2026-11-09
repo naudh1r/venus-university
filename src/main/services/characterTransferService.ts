@@ -101,6 +101,8 @@ async function adoptModParts(
   }
 }
 
+import { readPortableReflection, writePortableReflection, removePortableReflection, validatePortableReflection, type PortableReflection } from './reflectionStorage'
+
 /** Moving one character between installs, as a zip in the shared package format. */
 
 /** Zips one character's folder to `targetPath`, minus staging and with a manifest. */
@@ -118,9 +120,11 @@ export async function exportCharacter(charId: string, targetPath: string): Promi
       message: 'Could not write the character into the export.'
     })
 
+    const reflection = await readPortableReflection(charId)
     const mods = await exportModParts(charId, stagingDir)
-    const manifest: CharacterManifest = {
+    const manifest = {
       ...buildManifest(character, new Date().toISOString()),
+      ...(reflection ? { exReflection: reflection } : {}),
       ...(Object.keys(mods).length > 0 ? { mods } : {})
     }
     await writeAtomicJson(join(stagingDir, MANIFEST_NAME), manifest, {
@@ -177,7 +181,8 @@ async function adoptFolder(
   tempDir: string,
   character: Character,
   code: string,
-  verb: string
+  verb: string,
+  reflection?: PortableReflection | null
 ): Promise<Character> {
   // The other write path stamps in `writeCharacter`.
   const adopted = adoptStamp(character, Date.now())
@@ -188,8 +193,10 @@ async function adoptFolder(
 
   try {
     await mkdir(getCharactersPath(), { recursive: true })
+    if (reflection) await writePortableReflection(adopted.charId, reflection)
     await rename(tempDir, getCharacterPath(adopted.charId))
   } catch (err) {
+    if (reflection) await removePortableReflection(adopted.charId).catch(() => {})
     throw appError(code, `Could not add the ${verb} character.`, messageOf(err))
   }
 
@@ -213,7 +220,7 @@ export async function duplicateCharacter(charId: string): Promise<Character> {
 
     // The id is minted here, never read off the copied file.
     const copy: Character = { ...character, charId: randomId() }
-    const adopted = await adoptFolder(tempDir, copy, 'DUPLICATE_FAILED', 'duplicated')
+    const adopted = await adoptFolder(tempDir, copy, 'DUPLICATE_FAILED', 'duplicated', await readPortableReflection(charId))
     const parts = characterTransferParts()
     await adoptModParts(adopted.charId, (modId) => parts.get(modId)!.duplicate(charId, adopted.charId), 'DUPLICATE_FAILED', 'duplicated')
     return adopted
@@ -278,7 +285,8 @@ export async function importCharacter(archivePath: string): Promise<Character> {
 
     await checkExtractedContent(tempDir, classifyImportEntry, 'export')
 
-    const manifest = await readManifest(tempDir)
+    const manifest = await readManifest(tempDir) as CharacterManifest & { exReflection?: unknown }
+    const reflection = manifest.exReflection === undefined ? null : validatePortableReflection(manifest.exReflection)
     const legacy = unknownManifestKeys(manifest)
 
     const charId = randomId()
@@ -320,7 +328,7 @@ export async function importCharacter(archivePath: string): Promise<Character> {
       }
     }
 
-    const adopted = await adoptFolder(tempDir, character, 'IMPORT_FAILED', 'imported')
+    const adopted = await adoptFolder(tempDir, character, 'IMPORT_FAILED', 'imported', reflection)
     await adoptModParts(
       adopted.charId,
       (modId) => parts.get(modId)!.adopt(adopted.charId, manifestModJson(manifest, modId), dirOf(modId), legacy),

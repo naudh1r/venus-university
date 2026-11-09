@@ -1,3 +1,5 @@
+import { prepareStoryRequest, inspectStoryMemory } from './storyMemory'
+import * as echo from './echoArtwork'
 import type { ClassifierPromptRequest, ClassifierVerdict } from '@shared/classifier'
 import { base64ToBytes } from '@shared/base64'
 import { appError, toAppError } from '@shared/errors'
@@ -12,7 +14,7 @@ import { cancelGroup, cancelKeys, runAbortable } from '@shared/jobQueue'
 import { LINEUP_MIME_TYPE } from '@shared/lineup'
 import { classifyCloud } from '@shared/llm/cloudClassifier'
 import { generateImage, generatePhoto } from '@shared/llm/cloudImage'
-import { completeStructured, type StructuredRequest } from '@shared/llm/cloudLlm'
+import { completeStructured as completeCloudStructured, type StructuredRequest } from '@shared/llm/cloudLlm'
 import { cancelModCalls, completeModRequest } from '@shared/llm/modCall'
 import {
   listImageModels,
@@ -68,7 +70,11 @@ import * as replays from './db/replays'
 import * as saves from './db/saves'
 import * as scenes from './db/scenes'
 import { readGrabBags, writeGrabBags } from './db/grabbags'
+import * as presets from './presets'
+import { readStudioPrompts, writeStudioPrompts } from './studioPrompts'
+import { pickStudioBackup, saveStudioBackup } from './studioBackup'
 import { readModSwitches, writeModSwitches } from './mods'
+import { soundtrackLibrary, pickSoundtrack } from './soundtracks'
 import { EMPTY_SESSION } from '@shared/modSession'
 import { getPoseManifest, getQuickstart, readAudio } from './assets'
 import { offerDownload } from './download'
@@ -158,6 +164,23 @@ async function generateEndingArt(
 export function buildApi(): VenusUniversityApi {
   return {
     platform: 'web',
+    echo: {
+      generate: request => result('generate Echo artwork', () => echo.generateEchoArt(request)),
+      cancel: id => result('cancel Echo artwork', () => echo.cancelEchoArt(id)),
+      upload: () => result('upload Echo artwork', echo.uploadEchoArt),
+      read: id => result('read Echo artwork', () => echo.readEchoArt(id)),
+      export: (id, name) => result('download Echo artwork', () => echo.exportEchoArt(id, name))
+    },
+    storyMemory: { inspect: (payload) => result('inspect story recall', () => inspectStoryMemory(payload)) },
+    soundtracks: {
+      list: () => result('list custom soundtracks', () => soundtrackLibrary.list()),
+      pick: () => result('choose an audio file', pickSoundtrack),
+      commit: (key, token, duration) => result('save a custom soundtrack', () => soundtrackLibrary.commit(key, token, duration, 0)),
+      remove: key => result('restore the original soundtrack', () => soundtrackLibrary.remove(key)),
+      loop: (key, value) => result('set soundtrack looping', () => soundtrackLibrary.loop(key, value)),
+      read: key => result('read a custom soundtrack', () => soundtrackLibrary.read(key)),
+      cleanup: () => result('clean up imported music', () => soundtrackLibrary.cleanup())
+    },
     assets: {
       getPoseManifest: () => result('read the poses', getPoseManifest),
       getQuickstart: () => result('read the quickstart', getQuickstart),
@@ -170,6 +193,22 @@ export function buildApi(): VenusUniversityApi {
     grabBags: {
       get: () => result('read the grab bags', readGrabBags),
       set: (bags) => result('save the grab bags', () => writeGrabBags(bags))
+    },
+    studioBackup: {
+      save: (name, text) => result('save the backup', () => saveStudioBackup(name, text)),
+      pick: () => result('read the backup', pickStudioBackup)
+    },
+    studioPrompts: {
+      get: () => result('read the studio prompts', readStudioPrompts),
+      set: (record) => result('save the studio prompts', () => writeStudioPrompts(record))
+    },
+    presets: {
+      list: () => result('read the presets', presets.listPresets),
+      get: (id) => result('read the preset', () => presets.getPreset(id)),
+      save: (preset) => result('save the preset', () => presets.savePreset(preset)),
+      delete: (id) => result('delete the preset', () => presets.deletePreset(id)),
+      setActive: (id) => result('choose the preset', () => presets.setActivePreset(id)),
+      import: () => result('import the preset', presets.importPreset)
     },
     mods: {
       invokeStart: () => desktopOnly('mod.invoke'),
@@ -585,4 +624,12 @@ export function buildApi(): VenusUniversityApi {
         result('delete the replay', () => replays.deleteReplay(playthroughId, replayId))
     }
   }
+}
+
+/**
+ * Sends one structured request with the story recall prepended; the fields only this app reads
+ * never reach the provider, and no mod reshapes the call in the browser build.
+ */
+async function completeStructured<T>(request: StructuredRequest, signal?: AbortSignal, onDelta?: (delta: string) => void): Promise<T> {
+  return completeCloudStructured<T>(await prepareStoryRequest(request), signal, onDelta)
 }

@@ -1,3 +1,4 @@
+import { locationAvailable } from '@shared/cityLife'
 import { studentsOf } from '@shared/classes'
 import { dormBuildingOf } from '@shared/dorms'
 import {
@@ -81,7 +82,9 @@ export function rollNpcOverlayNow(
   // A spot shut this half of the day, or open-air under rain, is never drawn for an outing.
   const sky = weatherAt(game.weather, date, time)
   const spots = OUTING_LOCATIONS.filter(
-    (id) => isLocationOpen(id, shiftSlotOf(shiftWeekdayOf(date), time)) && !isRainedOut(id, sky)
+    (id) =>
+      locationAvailable(id) &&
+      isLocationOpen(id, shiftSlotOf(shiftWeekdayOf(date), time)) && !isRainedOut(id, sky)
   )
   return rollNpcOverlay(date, time, window, chars, spots)
 }

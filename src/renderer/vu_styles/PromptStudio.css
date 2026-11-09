@@ -1,0 +1,248 @@
+/* Prompt Studio and the small panels it opens: the Settings panel's chassis (`Settings.css`)
+   with a page of rows in each tab, and a form frame for the block, name, import and variable
+   panels. Imported from the view modules, never from index.css.
+
+   The veil, the palette, the fields, the checkbox, the pills, the rows and the foot are
+   base.css's. */
+
+/* Tabs of one word each, so the palette's buttons stand shorter than Settings' icon-over-word. */
+.vu-studio-tabs {
+  left: 96px;
+  width: 168px;
+}
+
+.vu-studio-tabs .vu-palette-btn {
+  height: 62px;
+  font-size: 14px;
+}
+
+/* A page: its lead line over the rows, which scroll inside it. */
+.vu-studio-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* A macro's name on the Glossary page, written as the preset writes it. */
+.vu-studio-macro {
+  font-family: var(--font-mono);
+}
+
+/* The preset a page is changing: a mono label, then its name. */
+.vu-studio-current {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+}
+
+.vu-studio-current-name {
+  overflow: hidden;
+  color: var(--vu-text);
+  font: 700 20px/1.3 var(--font-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-studio-intro {
+  margin: 0;
+  color: var(--vu-text-body);
+  font: 500 16px/1.5 var(--font-body);
+}
+
+/* The rows, the thing that scrolls: padding for the swell a pill lifts into, and room at the
+   foot for the fade. */
+.vu-studio-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 4px 6px 34px;
+  overflow: hidden auto;
+}
+
+/* The pills that act on the whole list, at its head. */
+.vu-studio-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* A heading and the rows under it, one call's blocks on the New Game page. */
+.vu-studio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* A list row with room for a second line under its name, and its tools at the end. */
+.vu-studio-row {
+  align-items: center;
+  gap: 16px;
+  min-height: 74px;
+}
+
+/* A row whose text a main block has taken over reads as set aside. */
+.vu-studio-row--replaced .vu-studio-body {
+  opacity: 0.55;
+}
+
+.vu-studio-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.vu-studio-name {
+  color: var(--vu-text);
+  font: 700 16px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.vu-studio-name--mono {
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+/* What a row says about itself under its name: a source, a hint, a reason. */
+.vu-studio-meta,
+.vu-studio-note {
+  color: var(--vu-text-muted);
+  font: 500 14px/1.45 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+/* A variable's value, held to two lines. */
+.vu-studio-value {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--vu-text-body);
+  font: 500 14px/1.45 var(--font-body);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* A state word: mono, uppercase, letterspaced. */
+.vu-studio-tag {
+  flex: none;
+  color: var(--vu-accent);
+  font: 700 12px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.vu-studio-tag--warn {
+  color: var(--vu-warn);
+}
+
+.vu-studio-tools {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* A Blocks row starts with its grip, which sits nearer the steps than the gap between parts. */
+.vu-studio-row--block {
+  padding-left: 18px;
+}
+
+/* The grip a Blocks row is dragged by, the whole height of the row; a touch on it drags the row, not the page. */
+.vu-studio-grip {
+  display: flex;
+  flex: none;
+  align-items: center;
+  align-self: stretch;
+  margin-right: -8px;
+  color: var(--vu-text-muted);
+  touch-action: none;
+}
+
+/* The two steps that move a row, held at the width of both so the rows' names line up. */
+.vu-studio-moves {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  justify-content: flex-start;
+  width: 88px;
+}
+
+/* Where the step up would stand on the first row, so the steps stay in their columns. */
+.vu-studio-gap {
+  flex: none;
+  width: 40px;
+}
+
+/* The down chevron turned over for the step up. */
+.vu-studio-up svg {
+  rotate: 180deg;
+}
+
+/* A request as the writer would read it: the box scrolls its own text. */
+.vu-studio-preview {
+  min-height: 320px;
+  overflow: hidden auto;
+  resize: none;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* The form frame of the small panels. */
+.vu-studio-form {
+  --paper-offset: 12px 11px;
+  --paper-tilt: -1.2deg;
+  --paper-shadow: var(--vu-panel-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: min(720px, 100% - 60px);
+  max-height: calc(100% - 100px);
+  padding: 78px 56px 28px 100px;
+  border-radius: 120px 0 0 120px;
+  color: var(--vu-text);
+  font-family: var(--font-body);
+}
+
+/* The block and import panels hold more. */
+.vu-studio-form--wide {
+  width: min(1100px, 100% - 60px);
+}
+
+/* The fields scroll inside the panel, the foot staying put. */
+.vu-studio-form-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+  padding: 4px 6px;
+  overflow: hidden auto;
+}
+
+/* Two fields side by side. */
+.vu-studio-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.vu-studio-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 22px;
+  color: var(--vu-text-body);
+  font: 500 14px/1.45 var(--font-body);
+}

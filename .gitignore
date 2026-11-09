@@ -25,3 +25,9 @@ release
 
 # TS incremental build info
 *.tsbuildinfo
+
+# Rebuildable local story-memory indexes
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm

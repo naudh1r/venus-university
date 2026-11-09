@@ -1,3 +1,5 @@
+import { CITY_LIFE_JOBS } from './cityLifeCatalog'
+import { jobAvailable } from './cityLife'
 import type { ClassSlot, JobState, ShiftSlot, TimeSlot } from './types'
 import { formatSlot, packSlot, WEEKDAY_NAMES } from './classes'
 import { isLocationOpen } from './locations'
@@ -123,6 +125,11 @@ type CoreJobMessageKind =
  */
 export type JobMessageKind = CoreJobMessageKind | 'holiday' | 'summer' | 'winter'
 
+/** An optional player qualification. NPC professions do not use player talent ranks. */
+export interface JobSkillRequirement { id: string; label: string; rank: number }
+/** Only ranks whose supplying mod is active may be supplied here. Missing ranks fail closed. */
+export type JobSkillRanks = Readonly<Record<string, number>>
+
 /** One opening on the jobs board. */
 export interface JobDef {
   /** Stable id; what `JobState.jobId`, `jobsClosed` and the boss thread key off. */
@@ -150,6 +157,8 @@ export interface JobDef {
   hours: readonly ShiftSlot[]
   /** The minimum tier per stat. An absent key is no requirement. */
   requires: Partial<Record<StatKey, StatTier>>
+  /** Additional qualifications for player hiring, separate from access to the venue. */
+  requiresSkills?: readonly JobSkillRequirement[]
   /**
    * What a shift can pay: one entry is rolled when the shift is cast, and every stat it names
    * moves a point.
@@ -176,6 +185,7 @@ export interface JobDef {
 
 /** Every opening in the game, in board order, which is pay order. */
 export const JOB_CATALOG: readonly JobDef[] = [
+  ...CITY_LIFE_JOBS,
   {
     id: 'fast_eats',
     title: 'Crew Member',
@@ -497,6 +507,11 @@ We're prioritizing people who can start immediately.`,
   }
 ]
 
+/** Openings a new assignment or application may choose, sorted by pay. */
+export function availableJobs(): readonly JobDef[] {
+  return JOB_CATALOG.filter(def => jobAvailable(def.id)).sort((a,b) => a.pay-b.pay)
+}
+
 /** The catalog entry for an id, or `undefined` for a job that no longer exists. */
 export function jobDefOf(jobId: string): JobDef | undefined {
   return JOB_CATALOG.find((def) => def.id === jobId)
@@ -515,7 +530,7 @@ export const CLOSURES_PER_JOB = 2
 /** Rolls each all-hours employer's two closed slots for a playthrough. */
 export function rollJobClosures(playerSchedule: Record<number, string>): Record<string, ShiftSlot[]> {
   const closures: Record<string, ShiftSlot[]> = {}
-  for (const def of JOB_CATALOG) {
+  for (const def of availableJobs()) {
     if (def.hours.length < SHIFT_SLOTS.length) continue
     const pool = def.hours.filter((slot) => {
       const classSlot = classSlotForShift(slot)
@@ -630,9 +645,14 @@ export function shiftRecordOf(
   }
 }
 
-/** Whether the reader's stats clear every requirement `def` names. */
-export function meetsRequirements(stats: PlayerStats, def: JobDef): boolean {
-  return unmetRequirements(stats, def).length === 0
+/** Player skill qualifications still missing; disabled or absent supplying mods expose no ranks. */
+export function unmetSkillRequirements(def: JobDef, activeRanks: JobSkillRanks = {}): readonly JobSkillRequirement[] {
+  return (def.requiresSkills ?? []).filter(r => !Number.isFinite(activeRanks[r.id]) || activeRanks[r.id] < r.rank)
+}
+
+/** Whether the reader clears every stat and player skill qualification. */
+export function meetsRequirements(stats: PlayerStats, def: JobDef, activeRanks: JobSkillRanks = {}): boolean {
+  return unmetRequirements(stats, def).length === 0 && unmetSkillRequirements(def, activeRanks).length === 0
 }
 
 /**

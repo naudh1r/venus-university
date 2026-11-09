@@ -1,7 +1,7 @@
 import { appError } from './errors'
 import { assertSafeId, validateRecord } from './jsonValidate'
 import { pairKeyOf, type NpcRelationshipMap } from './npcRelationships'
-import { STAT_KEYS, type StatKey, type StatTier, pointsForTier, type PlayerStats } from './playerStats'
+import { type StatKey, type StartingStatTier, statsForStartingTiers, type PlayerStats } from './playerStats'
 import { affectionOfDisposition, emptyFlags, type Disposition } from './relationship'
 import { hasTrait } from './traits'
 import type { CharFlags, Character, OutfitLock, SceneGift, SceneLine, TimeSlot } from './types'
@@ -49,7 +49,7 @@ export const SCENE_DISPOSITIONS: readonly Disposition[] = [
 export interface SceneReader {
   firstName: string
   lastName: string
-  tiers: Record<StatKey, StatTier>
+  tiers: Record<StatKey, StartingStatTier>
   bio: string
 }
 
@@ -318,9 +318,7 @@ export function weatherTableOf(date: number, time: TimeSlot, weather: Weather): 
 
 /** The reader's stats as points, each tier at the fewest points that buy it. */
 export function statsOfReader(reader: Pick<SceneReader, 'tiers'>): PlayerStats {
-  const stats = {} as PlayerStats
-  for (const key of STAT_KEYS) stats[key] = pointsForTier(reader.tiers[key])
-  return stats
+  return statsForStartingTiers(reader.tiers)
 }
 
 /** Whether Start can be pressed: somebody is cast and the opening says something. */

@@ -1,3 +1,5 @@
+import { finishBreakthrough } from '../breakthrough'
+import { finishReckoningAftermath, settleUnspokenVoice } from '../reckoning'
 import { activityEnding } from '@shared/slotActivity'
 import { appError, isPermanent, messageOf } from '@shared/errors'
 import type { AppError, Character } from '@shared/types'
@@ -59,6 +61,7 @@ function rewindAuthoredTurn(snapshot: TurnSnapshot): void {
  * marks a failure of the scene call itself, the one call whose prompt the editor can resend.
  */
 export function failTurn(error: AppError, snapshot: TurnSnapshot, sceneCall = false): void {
+  finishBreakthrough(snapshot.breakthrough?.id, true)
   const game = useGameStore.getState()
   const authored = authoredTurn(snapshot)
   if (authored) rewindAuthoredTurn(snapshot)
@@ -215,6 +218,9 @@ export async function runSceneTurn(
 
   // `end_scene` is stashed until playback reaches the last line; a solo scene is over
   // after its one turn.
+  finishBreakthrough(snapshot.breakthrough?.id, false, result.data.lines, result.data.at)
+  finishReckoningAftermath(snapshot.reckoning)
+  if(!snapshot.reckoning)settleUnspokenVoice()
   const activity = useGameStore.getState().sceneActivity
   const ending = activityEnding(activity, solo || result.data.end)
   useGameStore.getState().setSceneEnding(ending)

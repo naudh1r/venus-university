@@ -1,0 +1,29 @@
+.vu-unspoken-voice{position:absolute;inset:0;z-index:18;pointer-events:none;overflow:hidden;visibility:hidden}
+.vu-unspoken-voice[data-placed]{visibility:visible}
+.vu-unspoken-field{position:absolute;inset:0}
+.vu-unspoken-words{position:absolute;left:0;top:0;width:640px;margin:0;color:#fff1d6;font:400 clamp(18px,min(2.3vw,3.5vh),32px)/1.5 var(--font-display);text-align:center;overflow-wrap:anywhere;text-shadow:0 2px 12px #100a20,0 0 3px #100a20;opacity:0}
+.vu-unspoken-voice[data-placed] .vu-unspoken-words{animation:vu-whisper-fade var(--voice-duration) ease both}
+.vu-unspoken-words[data-long]{font-size:clamp(14px,min(1.9vw,2.9vh),26px)}
+.vu-unspoken-double{display:none;position:absolute;inset:0;color:#e6acc9;pointer-events:none}
+.vu-unspoken-voice[data-glitch][data-placed] .vu-unspoken-double{display:block;animation:vu-whisper-split 1s steps(1,end) both}
+.vu-unspoken-voice[data-glitch][data-placed] .vu-unspoken-double:last-child{color:#f8dfa1;animation-direction:reverse}
+.vu-unspoken-voice[data-glitch][data-placed]::before,.vu-unspoken-voice[data-glitch][data-placed]::after{content:"";position:absolute;inset:0;pointer-events:none;animation:vu-whisper-screen 1s steps(1,end) both}
+.vu-unspoken-voice[data-glitch][data-placed]::before{backdrop-filter:contrast(1.18) saturate(.75);background:linear-gradient(transparent 13%,#b492be26 13%,#b492be26 15%,transparent 15%,transparent 34%,#11102135 34%,#11102135 39%,transparent 39%,transparent 65%,#f4d8ac1a 65%,#f4d8ac1a 68%,transparent 68%,transparent 87%,#11102130 87%,#11102130 90%,transparent 90%)}
+.vu-unspoken-voice[data-glitch][data-placed]::after{background:repeating-linear-gradient(transparent 0 5px,#eadcf015 6px 7px);mix-blend-mode:screen}
+@keyframes vu-whisper-fade{0%{opacity:0}10%{opacity:.48}72%{opacity:.48}100%{opacity:0}}
+@keyframes vu-whisper-split{0%,100%{opacity:0;transform:translateX(0);clip-path:inset(0 0 100%)}12%,24%{opacity:.65;transform:translateX(-7px);clip-path:inset(15% 0 61%)}25%,48%{opacity:.2;transform:translateX(3px);clip-path:inset(64% 0 15%)}49%,62%{opacity:0}63%,78%{opacity:.55;transform:translateX(6px);clip-path:inset(42% 0 37%)}79%,99%{opacity:.2;transform:translateX(-2px);clip-path:inset(8% 0 79%)}}
+@keyframes vu-whisper-screen{0%,100%{opacity:0;transform:translateX(0)}13%,30%{opacity:.7;transform:translateX(2px)}31%,59%{opacity:.2;transform:translateX(-2px)}60%,77%{opacity:.55;transform:translateX(1px)}78%,99%{opacity:.15;transform:translateX(0)}}
+/* The whole game surface shifts and changes color briefly, including scenery and UI. */
+:is(.vu-stage,.vu-dungeon)[data-unspoken-glitch]{animation:vu-whisper-stage 1s steps(1,end) both;will-change:filter,translate}
+@keyframes vu-whisper-stage{0%,100%{translate:0 0;filter:none}12%,25%{translate:-5px 1px;filter:contrast(1.18) saturate(.7) hue-rotate(-8deg)}26%,46%{translate:4px -1px;filter:contrast(1.08) saturate(.9)}47%,61%{translate:-2px 0;filter:contrast(1.12) hue-rotate(7deg)}62%,78%{translate:3px 1px;filter:contrast(1.16) saturate(.75)}79%,94%{translate:-1px 0;filter:contrast(1.04)}95%,99%{translate:0 0;filter:none}}
+@media(prefers-reduced-motion:reduce){.vu-unspoken-voice::before,.vu-unspoken-voice::after,.vu-unspoken-double{display:none!important}.vu-unspoken-voice[data-placed] .vu-unspoken-words{animation:none;opacity:.48}:is(.vu-stage,.vu-dungeon)[data-unspoken-glitch]{animation:none;filter:none;translate:0 0}}
+
+/* Link opening is a single stronger distortion, with no words or input interception. */
+.vu-unspoken-link-glitch{position:absolute;inset:0;z-index:90;pointer-events:none;overflow:hidden;animation:vu-link-burst 1.2s steps(1,end) both;background:repeating-linear-gradient(transparent 0 4px,#0b071d55 5px 8px);box-shadow:inset 0 0 130px 30px #13091ccc}
+.vu-unspoken-link-glitch i{position:absolute;inset:9% -2% 69%;backdrop-filter:contrast(1.6) saturate(.35) hue-rotate(35deg);background:linear-gradient(90deg,#d99bdc44,#09071688,#d3c18533);transform:translateX(18px);border-block:2px solid #d7aec866}
+.vu-unspoken-link-glitch i:nth-child(2){inset:43% -2% 45%;transform:translateX(-22px);backdrop-filter:contrast(1.4) hue-rotate(-35deg)}
+.vu-unspoken-link-glitch i:nth-child(3){inset:76% -2% 12%;transform:translateX(12px);background:#130b2544}
+.vu-stage[data-unspoken-link-glitch]{animation:vu-link-stage 1.2s steps(1,end) both;will-change:filter,translate}
+@keyframes vu-link-burst{0%,100%{opacity:0}5%,22%{opacity:.9}23%,49%{opacity:.45}50%,69%{opacity:.75}70%,86%{opacity:.3}87%,99%{opacity:.1}}
+@keyframes vu-link-stage{0%,100%{translate:0 0;filter:none}5%,22%{translate:-10px 3px;filter:contrast(1.45) saturate(.4) hue-rotate(-18deg)}23%,49%{translate:8px -2px;filter:contrast(1.2) saturate(.7) hue-rotate(14deg)}50%,69%{translate:-6px 1px;filter:contrast(1.35) saturate(.5)}70%,86%{translate:3px -1px;filter:contrast(1.1)}87%,99%{translate:0 0;filter:none}}
+@media(prefers-reduced-motion:reduce){.vu-unspoken-link-glitch{display:none}.vu-stage[data-unspoken-link-glitch]{animation:none;filter:none;translate:0 0}}

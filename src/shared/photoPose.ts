@@ -1,0 +1,1049 @@
+import { FRAMING_TAGS, framingOf, framingTags, FULL_BODY_CUES } from './photoFraming'
+import { says, saysAny } from './photoWords'
+import type { PhotoTier } from './photoGate'
+
+/**
+ * Composition tags read off the sentence she wrote.
+ *
+ * A checkpoint draws what it is told in its own language, and prose is not that language: a
+ * picture asked for in English comes out as a guess. So the caption is read for what it says
+ * about her body, and answered in tags — a position, what her hands are doing, and whatever
+ * modifiers the words carry.
+ *
+ * The rule that earns its keep is the last one: a hand doing something takes the hands away
+ * from everything else. Two placements in one prompt is how a picture ends up with three arms.
+ */
+
+/** A table row: the words that fire it, and the tags it contributes. */
+interface Rule {
+  readonly cues: readonly string[] | RegExp
+  readonly tags: readonly string[]
+}
+
+/** An action her hands are doing, and the way she would be lying to do it. */
+interface ActionRule extends Rule {
+  /** Used only when the caption said nothing about her position. */
+  readonly implies?: readonly string[]
+}
+
+/** Whether any of `cues` appears in the caption, which is already lowercased. */
+function fires(text: string, cues: readonly string[] | RegExp): boolean {
+  return cues instanceof RegExp ? cues.test(text) : saysAny(text, cues)
+}
+
+/** The first row whose cues appear, or null. Order is precedence: specific before general. */
+function firstMatch(text: string, table: readonly Rule[]): Rule | null {
+  return table.find((rule) => fires(text, rule.cues)) ?? null
+}
+
+/** How she is framed and standing with her clothes on. */
+const DRESSED_POSITIONS: readonly Rule[] = [
+  { cues: ['close-up', 'close up'], tags: ['close-up', 'upper_body', 'hand_up'] },
+  { cues: ['face shot', 'face only', 'just her face'], tags: ['close-up', 'portrait'] },
+  { cues: ['on her stomach', 'face down', 'prone'], tags: ['lying', 'on_stomach'] },
+  { cues: ['on her side', 'side lying'], tags: ['lying', 'on_side'] },
+  { cues: ['on her back', 'lying back'], tags: ['lying', 'on_back'] },
+  {
+    cues: ['lying', 'laying', 'on the bed', 'on bed', 'on the floor', 'on the grass'],
+    tags: ['lying', 'arms_at_sides']
+  },
+  {
+    cues: ['sitting', 'seated', 'cross-legged', 'on the chair', 'on the couch', 'on a bench'],
+    tags: ['sitting', 'cowboy_shot', 'hands_on_lap']
+  },
+  { cues: ['kneeling', 'crouching'], tags: ['kneeling', 'hands_on_own_thighs'] },
+  { cues: ['leaning over', 'leaning forward'], tags: ['leaning_forward', 'hand_on_own_chin'] },
+  { cues: ['leaning against', 'leaning on'], tags: ['against_wall', 'crossed_arms'] },
+  { cues: ['standing', 'walking'], tags: ['standing', 'cowboy_shot', 'hand_on_own_hip'] },
+  { cues: ['stretching', 'reaching up'], tags: ['standing', 'arms_up', 'armpits'] }
+]
+
+/** Which way she is turned, and whether she is looking at whoever holds the phone. */
+const FACING: readonly Rule[] = [
+  {
+    cues: ['looking back', 'glancing back', 'over her shoulder'],
+    tags: ['looking_back', 'from_behind', 'hand_on_own_hip']
+  },
+  {
+    cues: ['from behind', 'back view', 'rear view', 'back turned'],
+    tags: ['from_behind', 'hand_on_own_hip']
+  },
+  // `from_side` alone was drawn facing three-quarters on; `profile` is what turns her.
+  {
+    cues: ['from the side', 'side view', 'in profile', 'side profile', 'profile shot'],
+    tags: ['from_side', 'profile']
+  }
+]
+
+/** How she is lying or standing with nothing on. First match wins; they are exclusive. */
+const BARE_POSITIONS: readonly Rule[] = [
+  {
+    cues: ['on all fours', 'all fours', 'hands and knees'],
+    tags: ['all_fours', 'solo']
+  },
+  {
+    cues: ['bent over', 'bending over', 'bent forward'],
+    tags: ['bent_over', 'solo', 'hands_on_own_knees']
+  },
+  { cues: ['from behind'], tags: ['from_behind', 'solo', 'ass_focus'] },
+  {
+    cues: ['legs up', 'legs in the air', 'legs raised', 'knees to her chest', 'ankles up'],
+    tags: ['lying', 'on_back', 'solo', 'legs_up', 'knees_up']
+  },
+  {
+    cues: ['spread eagle', 'spread-eagle', 'splayed out'],
+    tags: ['lying', 'on_back', 'solo', 'spread_legs']
+  },
+  {
+    cues: ['on her back', 'onto her back', 'lying on her back', 'lying back', 'on back'],
+    tags: ['lying', 'on_back', 'solo', 'arms_up']
+  },
+  {
+    cues: ['on her stomach', 'face down', 'lying on her stomach', 'prone'],
+    tags: ['lying', 'on_stomach', 'solo', 'head_rest']
+  },
+  {
+    cues: ['on her side', 'lying on her side', 'side lying'],
+    tags: ['on_side', 'solo', 'head_rest']
+  },
+  { cues: ['squatting', 'squat'], tags: ['squatting', 'solo', 'spread_legs', 'hand_on_own_thigh'] },
+  { cues: ['on her knees', 'kneeling'], tags: ['kneeling', 'solo', 'hands_on_own_thighs'] },
+  {
+    cues: ['against the wall', 'against wall'],
+    tags: ['against_wall', 'solo', 'arms_at_sides']
+  },
+  {
+    cues: ['sitting on the bed', 'sitting on her bed'],
+    tags: ['sitting', 'on_bed', 'solo', 'hands_on_lap']
+  },
+  {
+    cues: ['sitting', 'seated', 'cross-legged'],
+    tags: ['sitting', 'solo', 'spread_legs', 'hands_on_own_thighs']
+  },
+  { cues: ['standing'], tags: ['standing', 'solo', 'hand_on_own_hip', 'cowboy_shot'] },
+  // Lowest priority: whatever the dressed pass would have said, kept consistent with it.
+  {
+    cues: ['lying', 'laying', 'on the bed', 'on bed', 'on the floor'],
+    tags: ['lying', 'solo', 'arms_at_sides']
+  }
+]
+
+/** Nothing on, and nothing said about how she is lying. */
+const BARE_POSITION_DEFAULT: readonly string[] = ['standing', 'solo', 'hand_on_own_hip']
+
+/**
+ * Every tag above that places a hand or an arm. When an action below fires, all of these are
+ * struck out first: the action owns her hands, and a second placement beside it is the tag
+ * that grows the extra limb. Tags about her body rather than her arms are deliberately absent.
+ */
+const PLACEMENT_TAGS: ReadonlySet<string> = new Set([
+  'hand_on_own_hip',
+  'hands_on_own_thighs',
+  'hand_on_own_thigh',
+  'hands_on_lap',
+  'hands_on_own_knees',
+  'hands_on_own_ass',
+  'head_rest',
+  'arms_at_sides',
+  'arms_up',
+  'hand_up',
+  'hand_on_own_chin',
+  'crossed_arms'
+])
+
+/** Direct descriptions of her occupied hands, including the ones removed from mirror prose. */
+const OCCUPIED_HAND_CUES = [
+  'dangling',
+  'dangles',
+  'swinging',
+  'twirling',
+  'hanging from her finger',
+  'holding up her panties',
+  'holding up her bra',
+  'toying',
+  'fiddling',
+  'touching',
+  'adjusting',
+  'pulling',
+  'pulling down',
+  'pulling up',
+  'tugging',
+  'lifting',
+  'lowering',
+  'unbuttoning',
+  'unzipping',
+  'slipping off',
+  'sliding off',
+  'peeling off',
+  'holding up her top',
+  'holding up her skirt',
+  'holding up her shirt',
+  'holding',
+  'holds',
+  'clutching',
+  'carrying',
+  'sipping',
+  'drinking',
+  'eating',
+  'taking a bite',
+  'reading',
+  'waving',
+  'hugging',
+  'cradling',
+  'playing with her hair',
+  'resting on her hand',
+  'cheek on her hand',
+  'chin on her hand',
+  'chin in her hand',
+  'propped',
+  'biting',
+  'bites',
+  'in hand',
+  'in her hand',
+  'in one hand',
+  'glass of',
+  'cup of',
+  'mug of',
+  'tucking her hair',
+  'fixing her hair',
+  // Her hands on what she is leaning on: a hand on her hip or her thighs beside them is a third.
+  'on her hands',
+  'hands behind her',
+  'on her elbows',
+  'all fours',
+  'hands and knees'
+]
+
+/**
+ * An activity or its object owns her hands too. These cues strike placements; the activity
+ * table supplies action tags without adding a second cup or meal beside the prose.
+ */
+const BUSY_HAND_CUES = [
+  ...OCCUPIED_HAND_CUES,
+  'playing',
+  'strumming',
+  'practising',
+  'practicing',
+  'typing',
+  'writing',
+  'drawing',
+  'sketching',
+  'painting',
+  'texting',
+  'scrolling',
+  'cooking',
+  'stirring',
+  'brushing',
+  'applying',
+  'tying',
+  'fixing',
+  'knitting',
+  'sewing',
+  'holding up',
+  'showing off',
+  'pointing',
+  'guitar',
+  'ukulele',
+  'violin',
+  'cello',
+  'bass',
+  'keyboard',
+  'piano',
+  'flute',
+  'microphone',
+  'mic',
+  'singing',
+  // The activity rows below also own her hands when the caption uses these words.
+  'studying',
+  'doing homework',
+  'on her laptop',
+  'gaming',
+  'controller',
+  'handheld console',
+  'handheld game console',
+  'cuddling'
+]
+
+/** What her hands are doing. Up to two fire — she has two of them. */
+const HAND_ACTIONS: readonly ActionRule[] = [
+  {
+    cues: [
+      'touching herself',
+      'playing with herself',
+      'fingering',
+      'fingers herself',
+      'finger herself',
+      'rubbing herself',
+      'hand between her legs',
+      'fingers inside',
+      'masturbat*',
+      'pleasuring herself',
+      'rubbing her clit',
+      'playing with her clit',
+      'two fingers',
+      'slips a finger',
+      'slides a finger',
+      'working her fingers'
+    ],
+    tags: ['masturbation', 'fingering', 'between_legs'],
+    implies: ['lying', 'on_back', 'solo', 'spread_legs']
+  },
+  {
+    cues: [
+      'squeezing her breasts',
+      'cupping her breasts',
+      'cupping herself',
+      'groping',
+      'fondling',
+      'grabbing her breasts',
+      'playing with her nipples',
+      'pinching her nipple',
+      'tweaking her nipple',
+      'hand on her breast',
+      'hands on her breasts'
+    ],
+    tags: ['grabbing_own_breast']
+  },
+  {
+    cues: [
+      'spreading her pussy',
+      'spreading herself open',
+      'holding herself open',
+      'spreading her lips',
+      'pulling herself open'
+    ],
+    tags: ['spread_pussy', 'pussy', 'spread_legs'],
+    implies: ['lying', 'on_back', 'solo', 'spread_legs']
+  },
+  {
+    cues: [
+      'spreading her ass',
+      'spreading her cheeks',
+      'holding her cheeks apart',
+      'grabbing her ass'
+    ],
+    tags: ['grabbing_own_ass', 'ass_focus'],
+    implies: ['bent_over', 'solo']
+  },
+  {
+    cues: ['dildo', 'toy inside her', 'fucking herself with'],
+    tags: ['sex_toy', 'dildo', 'vaginal_object_insertion'],
+    implies: ['lying', 'on_back', 'solo', 'spread_legs']
+  },
+  {
+    cues: ['vibrator', 'magic wand', 'vibe on her'],
+    tags: ['vibrator', 'sex_toy', 'clitoris'],
+    implies: ['sitting', 'solo', 'spread_legs']
+  }
+]
+
+/** A caption may need both an object and an action to name the activity. */
+interface ActivityRule extends ActionRule {
+  readonly needs?: readonly string[]
+}
+
+const PLAYING_INSTRUMENT = ['playing', 'strumming', 'practising', 'practicing']
+
+interface GestureRule extends ActivityRule {
+  readonly covering?: boolean
+  readonly twoHanded?: boolean
+}
+
+/**
+ * The `selfie` tag adds a peace sign on its own, which is a selfie's own gesture: kept, unless
+ * her free hand is holding something, where it would be a third hand. Asked for, always kept.
+ */
+const PEACE_CUES = ['peace sign', 'v sign', 'v-sign', 'flashing a v']
+
+/** A garment in her hand, in either order, including a short relative clause. */
+function heldClothing(garment: string): RegExp {
+  const gap = "(?:\\s+(?!over\\b|under\\b|with\\b|and\\b|while\\b)[a-z'’-]+){0,4}?\\s+"
+  const hold = '(?:holding(?: up)?|dangling|dangles|swinging|twirling|hanging)'
+  return new RegExp(`\\b${hold}\\b${gap}${garment}\\b|\\b${garment}\\b${gap}${hold}\\b`)
+}
+
+/** Everyday gestures, with covering reserved for the suggestive and explicit tiers. */
+const FREE_HAND_GESTURES: readonly GestureRule[] = [
+  { cues: ['waving'], tags: ['waving'] },
+  { cues: ['pointing'], tags: ['pointing'] },
+  { cues: heldClothing('panties'), tags: ['holding_panties'] },
+  { cues: heldClothing('bra'), tags: ['holding_bra'] },
+  {
+    cues: /\b(?:toying with|touching|adjusting|fiddling with)(?:\s+[a-z'’-]+){0,3}\s+(?:chokers?|necklaces?)\b/,
+    tags: ['hand_on_own_neck']
+  },
+  {
+    cues: /\b(?:playing with|twirling|tucking)(?:\s+[a-z'’-]+){0,3}\s+hair\b|\brunning (?:a |her )?hand through (?:her )?hair\b/,
+    tags: ['hand_in_own_hair']
+  },
+  {
+    cues: /\bhand on (?:her |own )?cheek\b|\bcheek (?:resting )?on (?:her )?hand\b/,
+    tags: ['hand_on_own_cheek']
+  },
+  { cues: ['hand on her face', 'hand on own face'], tags: ['hand_on_own_face'] },
+  {
+    cues: ['finger to her lips', 'finger to her mouth', 'finger on her lips'],
+    tags: ['finger_to_mouth']
+  },
+  { cues: ['biting her nail', 'biting her nails', 'biting her fingernail'], tags: ['nail_biting'] },
+  { cues: ['biting her finger'], tags: ['biting_own_finger'] },
+  {
+    cues: ['hand on her chin', 'chin on her hand', 'chin in her hand'],
+    tags: ['hand_on_own_chin']
+  },
+  { cues: ['hand over her heart', 'hand on her heart'], tags: ['hand_on_own_chest'] },
+  {
+    cues: /\b(?:tugging)(?:\s+[a-z'’-]+){0,3}\s+(?:hems?|sleeves?)\b|\badjusting (?:her |own )?clothes\b/,
+    tags: ['adjusting_clothes']
+  },
+  { cues: ['blowing a kiss', 'blowing him a kiss'], tags: ['blowing_kiss'] },
+  {
+    cues: ['heart with her hands', 'heart with both hands'],
+    tags: ['heart_hands'],
+    twoHanded: true
+  },
+  {
+    cues: ['hands behind her back', 'arms behind her back'],
+    tags: ['arms_behind_back'],
+    twoHanded: true
+  },
+  {
+    cues: ['covering her chest', 'covering her breasts'],
+    tags: ['covering_breasts'],
+    covering: true
+  },
+  {
+    cues: ['covering her crotch', 'covering her pussy', 'covering herself'],
+    tags: ['covering_crotch'],
+    covering: true
+  },
+  { cues: PEACE_CUES, tags: ['v'] }
+]
+
+const FREE_HAND_TAGS: ReadonlySet<string> = new Set(FREE_HAND_GESTURES.flatMap((row) => row.tags))
+const TWO_HANDED_GESTURES: ReadonlySet<string> = new Set(
+  FREE_HAND_GESTURES.filter((row) => row.twoHanded).flatMap((row) => row.tags)
+)
+
+/** One activity, most specific first. Its action owns the object unless it has no action tag. */
+const ACTIVITIES: readonly ActivityRule[] = [
+  { cues: ['playing with her hair'], tags: ['hand_in_own_hair'] },
+  { cues: ['guitar'], needs: PLAYING_INSTRUMENT, tags: ['playing_guitar', 'holding_instrument'] },
+  {
+    cues: ['ukulele'],
+    needs: PLAYING_INSTRUMENT,
+    tags: ['playing_instrument', 'holding_instrument', 'ukulele']
+  },
+  {
+    cues: ['bass'],
+    needs: PLAYING_INSTRUMENT,
+    tags: ['playing_bass_guitar', 'holding_instrument']
+  },
+  {
+    cues: ['violin'],
+    needs: PLAYING_INSTRUMENT,
+    tags: ['playing_instrument', 'holding_instrument', 'violin']
+  },
+  { cues: ['guitar'], tags: ['holding_instrument', 'guitar'] },
+  { cues: ['ukulele'], tags: ['holding_instrument', 'ukulele'] },
+  { cues: ['bass'], tags: ['holding_instrument', 'bass_guitar'] },
+  { cues: ['violin'], tags: ['holding_instrument', 'violin'] },
+  { cues: ['cello'], tags: ['holding_instrument', 'cello'] },
+  { cues: ['flute'], tags: ['holding_instrument', 'flute'] },
+  { cues: ['piano'], tags: ['playing_piano'], implies: ['sitting'] },
+  { cues: ['keyboard'], tags: ['keyboard_(instrument)'], implies: ['sitting'] },
+  {
+    cues: ['microphone', 'mic', 'singing'],
+    needs: ['singing'],
+    tags: ['holding_microphone', 'singing']
+  },
+  { cues: ['microphone', 'mic'], tags: ['holding_microphone'] },
+  { cues: ['reading'], needs: ['book'], tags: ['reading', 'holding_book'] },
+  { cues: ['reading'], tags: ['reading'] },
+  { cues: ['typing', 'on her laptop'], tags: ['typing', 'laptop'] },
+  { cues: ['writing', 'studying', 'doing homework'], tags: ['writing', 'holding_pen'] },
+  { cues: ['drawing', 'sketching'], tags: ['drawing_(action)', 'holding_pencil'] },
+  {
+    cues: ['painting'],
+    needs: ['picture', 'canvas', 'portrait', 'landscape', 'easel'],
+    tags: ['painting_(action)', 'holding_paintbrush']
+  },
+  {
+    cues: ['handheld console', 'handheld game console'],
+    tags: ['playing_games', 'handheld_game_console']
+  },
+  {
+    cues: ['playing games', 'playing a game', 'playing video games', 'gaming', 'controller'],
+    tags: ['playing_games', 'holding_controller']
+  },
+  { cues: ['eating'], tags: ['eating'] },
+  { cues: ['drinking', 'sipping'], tags: ['drinking'] },
+  { cues: ['cooking', 'stirring'], tags: ['cooking'] },
+  { cues: ['knitting'], tags: ['knitting'] },
+  { cues: ['brushing her hair', 'brushing hair'], tags: ['brushing_hair'] },
+  { cues: ['applying makeup', 'applying lipstick'], tags: ['applying_makeup'] },
+  {
+    cues: ['hugging', 'cuddling'],
+    needs: ['plush', 'plushie', 'pillow'],
+    tags: ['hugging_object']
+  }
+]
+
+/** A mirror takes only a gesture; other shots first match their activity. */
+function activityOf(text: string, mirror: boolean, coveringAllowed: boolean): ActivityRule | null {
+  const gesture =
+    FREE_HAND_GESTURES.find((row) => (!row.covering || coveringAllowed) && fires(text, row.cues)) ??
+    null
+  if (mirror) return gesture
+  const activity = ACTIVITIES.find(
+    (row) => fires(text, row.cues) && (!row.needs || fires(text, row.needs))
+  )
+  return activity && !activity.tags.some((tag) => FREE_HAND_TAGS.has(tag)) ? activity : gesture
+}
+
+/** An angle or framing alone has not said whether she is sitting or standing. */
+function hasPosition(text: string): boolean {
+  return [...DRESSED_POSITIONS, ...BARE_POSITIONS].some(
+    (row) =>
+      fires(text, row.cues) &&
+      row.tags.some((tag) => !FRAMING_TAGS.has(tag) && !PLACEMENT_TAGS.has(tag) && tag !== 'solo')
+  )
+}
+
+/** Where the breast row sits, for the loose nipple phrasing below. */
+const BREAST_ACTION = HAND_ACTIONS[1]
+
+/** Nipple play written around the noun instead of at it: "teasing her stiff nipples". */
+const NIPPLE_VERBS = [
+  'play*',
+  'teas*',
+  'pinch*',
+  'tweak*',
+  'roll*',
+  'squeez*',
+  'tug*',
+  'rub*',
+  'flick*'
+]
+
+/** The explicit hand actions the caption names, with at most two hands occupied. */
+function handActionsOf(text: string): readonly ActionRule[] {
+  const matched = HAND_ACTIONS.filter((action) => fires(text, action.cues)).slice(0, 2)
+  const looseNipples = matched.length === 0 && says(text, 'nipple') && saysAny(text, NIPPLE_VERBS)
+  return looseNipples ? [BREAST_ACTION] : matched
+}
+
+/** No action matched, but her hands are clearly on herself somewhere. */
+const VAGUE_TOUCH: Rule = {
+  cues: ['touching', 'hand on', 'caressing'],
+  tags: ['hand_on_own_chest']
+}
+
+/** Everything else the words carry. These stack: each one that fires is added. */
+const MODIFIERS: readonly Rule[] = [
+  {
+    cues: [
+      'lifting her skirt',
+      'skirt up',
+      'panties aside',
+      'pulling down her panties',
+      'taking off her bra',
+      'unbuttoning',
+      'unzipping',
+      'sliding off',
+      'slipping off',
+      'lifting her shirt',
+      'lifting her top'
+    ],
+    tags: ['undressing', 'clothes_pull']
+  },
+  {
+    cues: [
+      'finger in her mouth',
+      'sucking her finger',
+      'biting her lip',
+      'tongue out',
+      'licking her lips',
+      'blowing a kiss',
+      'come-hither'
+    ],
+    tags: ['seductive_smile']
+  },
+  {
+    cues: ['orgasm', 'climax', 'cumming', 'ahegao', 'ecstasy', 'eyes rolled', 'trembling with'],
+    tags: ['orgasm', 'open_mouth', 'rolling_eyes']
+  },
+  { cues: ['squirt', 'gushing', 'female ejaculation'], tags: ['female_ejaculation'] },
+  {
+    cues: ['spread legs', 'legs apart', 'legs open', 'thighs spread', 'legs spread'],
+    tags: ['spread_legs']
+  },
+  { cues: ['arching', 'arched back', 'arches her back'], tags: ['arched_back'] },
+  { cues: ['soaking wet', 'dripping', 'soaked'], tags: ['wet', 'sweat'] },
+  { cues: ['blushing', 'red cheeks', 'flushed', 'cheeks pink', 'cheeks red'], tags: ['blush'] },
+  {
+    cues: ['at the camera', 'at the phone', 'looking at viewer', 'eye contact', 'staring at'],
+    tags: ['looking_at_viewer']
+  },
+  { cues: ['mirror'], tags: ['mirror', 'reflection'] },
+  // Where the camera is: a caption that says how low or high it was asks for the angle.
+  {
+    cues: [
+      'from below',
+      'low angle',
+      "worm's-eye",
+      'worms-eye',
+      'from under',
+      'shot low',
+      'shot from low',
+      'looking up at her',
+      'angled up',
+      'camera low',
+      'phone low'
+    ],
+    tags: ['from_below']
+  },
+  {
+    cues: [
+      'from above',
+      'high angle',
+      'overhead shot',
+      'overhead',
+      "bird's-eye",
+      'birds-eye',
+      'shot from above',
+      'looking down at her',
+      'angled down',
+      'camera high',
+      'phone high',
+      'held up high'
+    ],
+    tags: ['from_above']
+  }
+]
+
+/**
+ * The modifiers a dressed picture may still carry, keyed by each row's first tag: her face,
+ * the shot, and clothes coming off are all things a photo with clothes in it can show.
+ */
+const DRESSED_MODIFIERS: ReadonlySet<string> = new Set([
+  'from_below',
+  'from_above',
+  'undressing',
+  'seductive_smile',
+  'arched_back',
+  'blush',
+  'looking_at_viewer',
+  'mirror'
+])
+
+/** The tags {@link posePhotoTags} gives, before what her legs are doing is settled. */
+function poseTagsOf(caption: string, bare: boolean): string[] {
+  const text = caption.toLowerCase()
+  const tags: string[] = []
+
+  const dressed = firstMatch(text, DRESSED_POSITIONS)
+  const facing = firstMatch(text, FACING)
+
+  if (!bare) {
+    if (dressed) tags.push(...dressed.tags)
+    if (facing) tags.push(...facing.tags)
+    for (const modifier of MODIFIERS) {
+      if (DRESSED_MODIFIERS.has(modifier.tags[0]) && fires(text, modifier.cues)) {
+        tags.push(...modifier.tags)
+      }
+    }
+    return onePlacement([...new Set(tags)])
+  }
+
+  const position = firstMatch(text, BARE_POSITIONS)
+
+  const hands = handActionsOf(text)
+
+  // One position and never two: the undressed table's, else where the caption put her in the
+  // dressed one's words ("on the couch"), else the one her hands imply, else standing. Taking the
+  // dressed row as well as another is how a picture came out both sitting and lying on her back.
+  const implied = hands.find((action) => action.implies)?.implies
+  tags.push(...(position?.tags ?? dressed?.tags ?? implied ?? BARE_POSITION_DEFAULT))
+  if (facing) tags.push(...facing.tags)
+
+  for (const modifier of MODIFIERS) {
+    if (fires(text, modifier.cues)) tags.push(...modifier.tags)
+  }
+
+  if (hands.length > 0) {
+    // The action owns her hands: every placement collected so far is struck out first.
+    const kept = tags.filter((tag) => !PLACEMENT_TAGS.has(tag))
+    return [...new Set([...kept, ...hands.flatMap((action) => action.tags)])]
+  }
+  // Only where nothing has placed her hands yet: "a hand on her hip" is a placement, not a touch.
+  if (!tags.some((tag) => PLACEMENT_TAGS.has(tag)) && fires(text, VAGUE_TOUCH.cues)) {
+    tags.push(...VAGUE_TOUCH.tags)
+  }
+
+  return onePlacement([...new Set(tags)])
+}
+
+/** The photo's tags, and what its negative has to keep out of it. */
+export interface PhotoPose {
+  tags: string[]
+  negative: string[]
+}
+
+/** A phone held at arm's length is never in its own picture; a mirror is where it shows. */
+const PHONE_NEGATIVE = ['phone', 'cellphone', 'smartphone', 'holding_phone']
+
+/**
+ * Kept out of a selfie too: without it the checkpoint puts a camera in her free hand, which
+ * the same-seed tests never showed only because they all had it in the negative. Allowed where
+ * the caption gives her one.
+ */
+const CAMERA_CUES = ['holding a camera', 'her camera', 'a camera in', 'film camera', 'polaroid']
+
+/** Both her hands on one thing. */
+const BOTH_HANDS_CUES = ['both hands', 'two hands', 'both of her hands', 'two-handed']
+
+/** Both her hands on something she holds, so neither is free for a phone. */
+function handsFull(text: string): boolean {
+  return (
+    (saysAny(text, BOTH_HANDS_CUES) && saysAny(text, BUSY_HAND_CUES)) ||
+    FREE_HAND_GESTURES.some((row) => row.twoHanded && fires(text, row.cues))
+  )
+}
+
+/**
+ * A selfie her hands are both too full to take, said as the photo it is drawn as. The word
+ * alone put her free arm out of frame on most seeds, whatever the negative refused; "photo" left
+ * it on the table.
+ */
+export function withoutSelfieWord(scene: string): string {
+  const text = scene.toLowerCase()
+  if (says(text, 'mirror') || !handsFull(text)) return scene
+  return scene.replace(/\bselfie\b/gi, (word) => (word[0] === 'S' ? 'Photo' : 'photo'))
+}
+
+
+/**
+ * A selfie, as tested on the checkpoint (same seed, one change at a time). Her own arm holds the
+ * camera, so it reaches out of the picture and the phone stays out of it; how she is lying
+ * decides which tags carry that, since the plain ones fail in some poses:
+ * - on her stomach the camera stays in front of her face, and `from_above` is ignored;
+ * - on her side `outstretched_arm` draws an open palm at the lens, where `selfie` from above
+ *   draws the arm going out of frame;
+ * - a whole-body shot loses the `selfie` tag, which pulls the camera in close.
+ * Lying down, she is drawn from the waist up unless the caption asks for all of her: the arm
+ * only reaches that far. A mirror selfie is the one picture with the phone in it.
+ */
+function selfieShot(
+  text: string,
+  tags: readonly string[],
+  freeHand: readonly string[]
+): PhotoPose | null {
+  if (!says(text, 'selfie')) return null
+  const has = (tag: string): boolean => tags.includes(tag)
+  if (says(text, 'mirror')) {
+    // Her back to a mirror drew her twice, the reflection facing the other way: the mirror
+    // shows her front, whichever way the caption turned her.
+    const turned = new Set(['from_behind', 'looking_back', 'from_side', 'profile'])
+    const [hand, ...otherHands] = handActionsOf(text)
+    const otherHandTags = new Set(
+      hand ? otherHands.flatMap((action) => action.tags).filter((tag) => !hand.tags.includes(tag)) : []
+    )
+    const kept = tags.filter(
+      (tag) =>
+        !FRAMING_TAGS.has(tag) &&
+        !turned.has(tag) &&
+        !TWO_HANDED_GESTURES.has(tag) &&
+        !otherHandTags.has(tag) &&
+        !(has('spread_pussy') && (tag === 'spread_legs' || tag.startsWith('(spread_legs:')))
+    )
+    // Her whole body in the glass, unless the caption framed it closer: "a close mirror selfie".
+    const framing = framingOf(text)
+    const frame = framing
+      ? [...framingTags(framing)]
+      : says(text, 'close') || says(text, 'close-up')
+        ? []
+        : ['full_body']
+    const add = ['mirror', 'reflection', 'holding_phone', ...frame]
+    return { tags: [...new Set([...kept, ...add])], negative: ['dual_wielding'] }
+  }
+  const bodyHand = handActionsOf(text).some((action) => tags.includes(action.tags[0]))
+  const peace =
+    !bodyHand && (freeHand.includes('v') || (freeHand.length === 0 && saysAny(text, PEACE_CUES)))
+  const camera = saysAny(text, CAMERA_CUES) ? [] : ['camera']
+  // Both hands on what she holds leave none for the phone: drawn as a picture somebody else
+  // took, or a timer, rather than with an arm out of frame she does not have.
+  if (handsFull(text)) {
+    return {
+      tags: [...tags],
+      negative: [...lyingNegative(tags), ...PHONE_NEGATIVE, ...camera, 'selfie', 'outstretched_arm']
+    }
+  }
+  // The arm holding the phone is not also on her hip.
+  const kept = tags.filter(
+    (tag) => !FRAMING_TAGS.has(tag) && (!PLACEMENT_TAGS.has(tag) || freeHand.includes(tag))
+  )
+  const busy = !peace && saysAny(text, BUSY_HAND_CUES)
+  const negative = [...PHONE_NEGATIVE, ...camera, ...(busy ? ['v'] : [])]
+  // `from_below` alone left a selfie at eye level; her looking down into the phone held low
+  // is what moved the camera under her.
+  const low = has('from_below') ? ['looking_down'] : []
+  const shot = (add: string[], extra: string[] = []): PhotoPose => ({
+    tags: [...new Set([...kept, ...add, ...low, ...(peace ? ['v'] : [])])],
+    negative: [...negative, ...extra]
+  })
+  const whole = saysAny(text, FULL_BODY_CUES)
+  if (has('on_stomach')) {
+    const rest = kept.filter((tag) => tag !== 'on_stomach' && tag !== 'from_above')
+    const legs = whole ? ['(legs_up:1.1)'] : ['upper_body']
+    return {
+      tags: [...new Set(['(on_stomach:1.2)', ...legs, ...rest, 'outstretched_arm'])],
+      negative: [...negative, 'on_back']
+    }
+  }
+  if (has('on_side')) {
+    return shot(['selfie', 'from_above', ...(whole ? [] : ['upper_body'])], [
+      'on_back',
+      'on_stomach',
+      'open_hand',
+      'spread_fingers',
+      'reaching_towards_viewer'
+    ])
+  }
+  if (has('on_back') && !whole) {
+    return shot(['selfie', 'from_above', 'outstretched_arm', 'upper_body'], ['on_stomach'])
+  }
+  if (whole || has('lying') || has('sitting')) {
+    // From above, as tested; a caption that asked for it from below keeps that instead.
+    const angle = has('from_below') ? [] : ['from_above', 'looking_up']
+    return shot(['full_body', ...angle, '(outstretched_arm:1.2)', 'foreshortening'])
+  }
+  return shot(['selfie', 'upper_body', 'outstretched_arm', 'foreshortening'])
+}
+
+/** A caption asking for her from the waist up, or closer. */
+const CLOSE_CUES = ['close-up', 'close up', 'upper body', 'waist up', 'face shot', 'just her face']
+
+/** How she is lying, read off the caption whichever row framed it. */
+const LYING_CUES: readonly (readonly [string, readonly string[]])[] = [
+  ['on_stomach', ['on her stomach', 'face down', 'prone']],
+  ['on_side', ['on her side', 'side lying']],
+  ['on_back', ['on her back', 'lying back']]
+]
+
+/**
+ * Her lying down, kept when the close-up row wins. A close shot defaults to weighted upper
+ * body on her back or side, plain upper body on her stomach; the caption's explicit framing
+ * replaces that default at the end.
+ */
+function closeLying(text: string, tags: readonly string[]): string[] | null {
+  if (!saysAny(text, CLOSE_CUES)) return null
+  const lying = LYING_CUES.find(([, cues]) => saysAny(text, cues))?.[0]
+  if (!lying) return null
+  const kept = tags.filter(
+    (tag) =>
+      !FRAMING_TAGS.has(tag) && tag !== 'hand_up' && !LYING_CUES.some(([pose]) => pose === tag)
+  )
+  const frame = lying === 'on_stomach' ? 'upper_body' : '(upper_body:1.3)'
+  return [...new Set(['lying', lying, frame, ...kept])]
+}
+
+/**
+ * The framing the caption names, in place of the one her position came with: "standing" alone
+ * is shot from the thighs up, "standing, full body" is not.
+ */
+function withFraming(text: string, tags: readonly string[]): string[] {
+  const framing = framingOf(text)
+  if (!framing) return [...tags]
+  const kept = tags.filter((tag) => !FRAMING_TAGS.has(tag))
+  return [...new Set([...kept, ...framingTags(framing)])]
+}
+
+/** How she is lying, kept from turning into one of the other two. */
+function lyingNegative(tags: readonly string[]): string[] {
+  if (tags.includes('on_stomach')) return ['on_back']
+  if (tags.includes('on_side')) return ['on_back', 'on_stomach']
+  if (tags.includes('on_back')) return ['on_stomach']
+  return []
+}
+
+/** The phone or camera taking the picture, and what a hand does with it. */
+const DEVICE = '(?:camera|phone|cellphone|smartphone)'
+const HOLD_VERB =
+  '(?:hold\\w*|held|rais\\w*|angl\\w*|aim\\w*|lift\\w*|tilt\\w*|grip\\w*|clutch\\w*|extend\\w*)'
+/** Where the hand puts it: "up", "low", "above her head", "at arm's length". */
+const HOLD_WHERE =
+  '(?:\\s+(?:up|out|down|low|high|overhead|close|away|above\\s+her(?:\\s+(?:head|face))?|' +
+  "in\\s+front\\s+of\\s+her(?:\\s+face)?|at\\s+arm['’]?s\\s+length|" +
+  `(?:with\\s+)?(?:one|her)\\s+(?:free\\s+|other\\s+)?(?:hand|arm)|and\\s+${HOLD_VERB}))*`
+/**
+ * The hand on the device: the verb before it ("holding her phone up high") or after it ("camera
+ * held low"), at most three words apart. Words saying where she looks — "smiling at the camera"
+ * — are never between the two, so a gaze is not taken for a grip.
+ */
+const NEAR = "(?:\\s+(?!at\\b|to\\b|into\\b|toward\\b|towards\\b)[\\w'’-]+){0,3}?"
+const CAMERA_HOLD = new RegExp(
+  '(?:\\s*\\b(?:with|and)\\b)?\\s*(?:\\b(?:one|her)\\s+(?:hand|arm)\\s+)?' +
+    `(?:\\b${HOLD_VERB}\\b${NEAR}\\s+${DEVICE}\\b|` +
+    `(?:\\b(?:her|the|a|my)\\s+)?\\b${DEVICE}\\s+${HOLD_VERB}\\b)${HOLD_WHERE}`,
+  'gi'
+)
+
+/**
+ * Her selfie's sentence without how she holds the phone. The model reads "holding the camera
+ * low" as a camera to draw in her hand, and the sentence outweighs any negative; the angle in
+ * those words has already been read off into `from_below` or `from_above` by then. Only that
+ * phrase goes: the rest of its clause — a mug in her hands, her smile — is the picture. Only an
+ * ordinary selfie: a mirror selfie shows the phone, and a caption that gives her a camera of
+ * her own keeps it.
+ */
+export function withoutCameraHold(scene: string): string {
+  const text = scene.toLowerCase()
+  if (!says(text, 'selfie') || says(text, 'mirror') || saysAny(text, CAMERA_CUES)) return scene
+  // Clauses at even places, the joints between them at odd ones.
+  const pieces = scene.split(/(,|;|\s+while\s+|\s+as\s+)/)
+  let out = ''
+  for (let i = 0; i < pieces.length; i += 2) {
+    const part = pieces[i]
+      .replace(CAMERA_HOLD, '')
+      .trim()
+      .replace(/^(?:and|with)\s+/i, '')
+    // A clause the phone was all of goes, with the joint in front of it.
+    if (part.length === 0 || /^[.!?]+$/.test(part)) {
+      if (i === pieces.length - 1) out = out.replace(/[,;]?\s*$/, part)
+      continue
+    }
+    const joint = pieces[i - 1]?.trim() ?? ''
+    out += out.length === 0 ? part : /^[,;]$/.test(joint) ? `${joint} ${part}` : ` ${joint} ${part}`
+  }
+  return out.replace(/\s+([,;.])/g, '$1').replace(/\s{2,}/g, ' ').trim()
+}
+
+/**
+ * One hand placement at most: her position's own, the first one in. Turned away, from behind,
+ * adds a hand on her hip of its own, and bent over with her hands on her knees that made two.
+ */
+function onePlacement(tags: readonly string[]): string[] {
+  const first = tags.find((tag) => PLACEMENT_TAGS.has(tag))
+  return tags.filter((tag) => !PLACEMENT_TAGS.has(tag) || tag === first)
+}
+
+/** A place or a new clause after an action belongs to the picture, not the held object. */
+export const PHOTO_CLAUSE_END =
+  '(?=\\s+(?:beside|next to|in front of|near|against|under|outside|inside|' +
+  'while|as|with her)\\b|[,.;]|$)'
+
+/**
+ * A mirror selfie's sentence without what her other hand holds. One hand is on the phone, and
+ * the checkpoint never put anything in the other: "a glass in hand", "holding a glass in her
+ * free hand" and `holding_cup` all left the glass on the bed or in her lap. A gesture with that
+ * hand (on her hip, a peace sign) holds nothing and stays; so does the phone she holds.
+ */
+export function withoutHeldObject(scene: string): string {
+  if (!says(scene.toLowerCase(), 'mirror')) return scene
+  const verb = '(?:holding|clutching|carrying|cradling|sipping|drinking)'
+  const hand = 'in\\s+(?:her\\s+|one\\s+|her\\s+free\\s+|her\\s+other\\s+)?hand'
+  // "with a glass of pink drink in hand", "holding a coffee in her other hand"
+  const held = new RegExp(
+    `\\s*,?\\s*\\b(?:with|${verb})\\s+(?:a|an|her|the|some|one)?\\s*` +
+      `(?:(?!${PHOTO_CLAUSE_END})[^,.;])*?\\b${hand}\\b`,
+    'gi'
+  )
+  // "holding an iced coffee beside the arcade cabinets": the cabinets stay.
+  const holding = new RegExp(`\\s*,?\\s*\\b${verb}\\s+[^,.;]*?${PHOTO_CLAUSE_END}`, 'gi')
+  return scene
+    .replace(held, (part) => (/\b(?:phone|camera)\b/i.test(part) ? part : ''))
+    .replace(holding, (part) => (/\b(?:phone|camera)\b/i.test(part) ? part : ''))
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;])/g, '$1')
+    .trim()
+}
+
+/** A picture she is not posing for, so she is not looking into it. */
+const CANDID_CUES = [
+  'candid',
+  'not looking',
+  "isn't looking",
+  'is not looking',
+  'looking away',
+  'unaware',
+  "doesn't notice",
+  'does not notice',
+  'not posing',
+  "isn't posing"
+]
+
+/** Sitting cross-legged: `indian_style`, which crossed her legs on two seeds of three. */
+const CROSS_LEGGED_CUES = ['cross-legged', 'cross legged', 'criss-cross', 'legs folded under']
+
+/** Legs held together, which no position may open: the caption's word over the position's. */
+const CROSSED_CUES = [
+  'legs crossed',
+  'crossed legs',
+  'crosses her legs',
+  'crossing her legs',
+  'legs tightly crossed',
+  'thighs pressed together',
+  'knees together'
+]
+
+/**
+ * Turns one caption into composition tags. `bare` opens the second half of the vocabulary —
+ * the positions and actions that only make sense with nothing on — and is decided by the gate,
+ * never by anything read here.
+ */
+export function posePhotoTags(caption: string, bare: boolean): string[] {
+  return photoPose(caption, bare ? 'explicit' : 'everyday').tags
+}
+
+/** {@link posePhotoTags}, with the negative tags the shot needs beside them. */
+export function photoPose(caption: string, tier: PhotoTier): PhotoPose {
+  const bare = tier === 'explicit'
+  const text = caption.toLowerCase()
+  let tags = poseTagsOf(caption, bare)
+  const mirror = says(text, 'mirror') && says(text, 'selfie')
+  const bodyAction = bare && handActionsOf(text).length > 0
+  let activity = activityOf(text, mirror, tier !== 'everyday')
+  const gesture = activity?.tags.some((tag) => FREE_HAND_TAGS.has(tag)) ?? false
+  if (bodyAction && gesture) activity = null
+  if (activity) {
+    // Existing body actions keep their position; a piano only supplies one where none was said.
+    if (activity.implies && !hasPosition(text) && !bodyAction) {
+      tags = tags.filter((tag) => tag !== 'standing')
+      tags.push(...activity.implies)
+    }
+  }
+  // Caught unawares: "not looking at the camera" says "at the camera" too, which is the wrong way.
+  if (saysAny(text, CANDID_CUES)) {
+    tags = [...new Set([...tags.filter((tag) => tag !== 'looking_at_viewer'), 'looking_away'])]
+  }
+  // Sitting with her legs folded under her, which `sitting` alone drew with her legs out in front.
+  if (saysAny(text, CROSS_LEGGED_CUES)) tags = [...new Set([...tags, 'indian_style'])]
+  // A position's default spread, or one her hands imply, never overrules legs she has crossed.
+  if (saysAny(text, CROSSED_CUES)) {
+    tags = [...new Set([...tags.filter((tag) => tag !== 'spread_legs'), 'crossed_legs'])]
+  }
+  // Turned to face the camera, she is not side on any more: the profile goes.
+  if (tags.includes('looking_at_viewer')) tags = tags.filter((tag) => tag !== 'profile')
+  const lying = closeLying(text, tags)
+  tags = lying ?? withFraming(text, tags)
+  const busy = saysAny(text, mirror ? OCCUPIED_HAND_CUES : BUSY_HAND_CUES)
+  if (activity || busy) {
+    tags = tags.filter((tag) => !PLACEMENT_TAGS.has(tag))
+  }
+  if (activity) {
+    if (gesture) tags = tags.filter((tag) => !VAGUE_TOUCH.tags.includes(tag))
+    tags.push(...activity.tags)
+  }
+  // The mirror's phone hand is added after the activity has settled her free hand.
+  tags = [...new Set(tags)]
+  // A camera lying about in the picture turned up beside a photo nobody took as a selfie too.
+  const noCamera = saysAny(text, CAMERA_CUES) ? [] : ['camera']
+  const freeHand = activity && gesture ? activity.tags : []
+  const pose = selfieShot(text, tags, freeHand) ?? {
+    tags,
+    negative: [...lyingNegative(tags), ...noCamera]
+  }
+  // A caption's framing wins over the defaults for a selfie or a close shot lying down.
+  return { ...pose, tags: withFraming(text, pose.tags) }
+}

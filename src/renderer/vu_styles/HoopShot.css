@@ -1,0 +1,424 @@
+/* Hoop Shot: the reader's cabinet whole (the hoop and the ball, the power meter under them, the
+   score, the clock, his run and the button) beside each girl's cabinet in short. Drawn on the
+   mini-game board; the button is base.css's. The frame loop places the marker, the band, the
+   hoop and the ball in the air. */
+
+.vu-hoopshot {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  width: 100%;
+  min-width: 0;
+}
+
+.vu-hoopshot-cabinet {
+  display: flex;
+  flex: 0 1 470px;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* The court: 400 by 250, as HoopShot.tsx draws it, with whatever is said over it. */
+.vu-hoopshot-court {
+  position: relative;
+  align-self: center;
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 400 / 250;
+}
+
+.vu-hoopshot-view {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.vu-hoopshot-back {
+  fill: var(--vu-recessed);
+  stroke: var(--vu-border);
+  stroke-width: 3;
+}
+
+.vu-hoopshot-rail {
+  stroke: var(--vu-text-muted);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 2 9;
+  opacity: 0;
+}
+
+.vu-hoopshot-rail[data-live] {
+  opacity: 0.8;
+}
+
+.vu-hoopshot-board {
+  fill: var(--vu-surface);
+  stroke: var(--vu-text);
+  stroke-width: 3;
+}
+
+.vu-hoopshot-square {
+  fill: none;
+  stroke: var(--vu-text-muted);
+  stroke-width: 2.5;
+}
+
+.vu-hoopshot-net {
+  fill: none;
+  stroke: var(--vu-text-muted);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.vu-hoopshot-rim {
+  fill: none;
+  stroke: var(--vu-accent);
+  stroke-width: 4.5;
+}
+
+.vu-hoopshot-rack {
+  stroke: var(--vu-border);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+/* The ball: the accent, seamed in the ink, so it reads as one in either theme. */
+.vu-hoopshot-held {
+  visibility: hidden;
+}
+
+.vu-hoopshot-held[data-live] {
+  visibility: visible;
+}
+
+.vu-hoopshot-held circle,
+.vu-hoopshot-ball {
+  fill: var(--vu-accent);
+  stroke: var(--vu-accent-shadow);
+  stroke-width: 2.5;
+}
+
+.vu-hoopshot-held path {
+  fill: none;
+  stroke: var(--vu-accent-shadow);
+  stroke-width: 1.6;
+}
+
+.vu-hoopshot-ball {
+  visibility: hidden;
+  pointer-events: none;
+  will-change: cx, cy, r, opacity;
+}
+
+.vu-hoopshot[data-phase='over'] .vu-hoopshot-ball {
+  display: none;
+}
+
+/* How the last shot came out, said in a word and a mark at the foot of the court. */
+.vu-hoopshot-call {
+  position: absolute;
+  bottom: 14px;
+  left: 18px;
+  color: var(--vu-text-muted);
+  font: 700 15px var(--font-mono);
+}
+
+.vu-hoopshot-call[data-made] {
+  color: var(--vu-good);
+}
+
+/* What a basket is worth once the hoop slides. */
+.vu-hoopshot-three {
+  position: absolute;
+  right: 18px;
+  bottom: 12px;
+  padding: 2px 10px;
+  border: 2px solid var(--vu-accent);
+  border-radius: 999px;
+  color: var(--vu-text);
+  font: 700 13px var(--font-mono);
+}
+
+/* The count-in, over the court. */
+.vu-hoopshot-count {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  color: var(--vu-text);
+  font: 400 96px var(--font-display);
+  line-height: 1;
+  translate: -50% -50%;
+  pointer-events: none;
+}
+
+/* Before the round, and while it is stopped: a card over the court. */
+.vu-hoopshot-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 300px;
+  max-width: calc(100% - 32px);
+  padding: 16px 20px 18px;
+  border: 3.5px solid var(--vu-border);
+  border-radius: 20px;
+  background: var(--vu-surface);
+  box-sizing: border-box;
+  translate: -50% -50%;
+  text-align: center;
+}
+
+.vu-hoopshot-how {
+  margin: 0;
+  color: var(--vu-text-body);
+  font: 500 14px var(--font-body);
+  line-height: 1.45;
+}
+
+.vu-hoopshot-terms {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 700 11px var(--font-mono);
+  line-height: 1.5;
+}
+
+.vu-hoopshot-paused {
+  margin: 0;
+  color: var(--vu-text);
+  font: 400 30px var(--font-display);
+}
+
+.vu-hoopshot[data-phase='over'] .vu-hoopshot-view {
+  opacity: 0.5;
+}
+
+/* Away: the cabinet is covered, so nothing can be read off a hoop or a meter standing still. */
+.vu-hoopshot[data-paused] .vu-hoopshot-view,
+.vu-hoopshot[data-paused] .vu-hoopshot-call,
+.vu-hoopshot[data-paused] .vu-hoopshot-three,
+.vu-hoopshot[data-paused] .vu-hoopshot-band,
+.vu-hoopshot[data-paused] .vu-hoopshot-marker {
+  visibility: hidden;
+}
+
+/* The power meter: a recessed rail, the band a ball finds the rim in, the stretch of it that
+   drops clean, and the marker that never stops. */
+.vu-hoopshot-meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vu-hoopshot-meter[data-waiting] {
+  opacity: 0.6;
+}
+
+.vu-hoopshot-end {
+  flex: none;
+  width: 38px;
+  color: var(--vu-text-muted);
+  font: 700 11px var(--font-mono);
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.vu-hoopshot-track {
+  position: relative;
+  flex: 1;
+  height: 26px;
+  border: 2.5px solid var(--vu-border);
+  border-radius: 999px;
+  background: var(--vu-recessed);
+  overflow: hidden;
+}
+
+.vu-hoopshot-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  background: var(--vu-tint);
+  box-shadow: inset 2px 0 0 var(--vu-text-muted), inset -2px 0 0 var(--vu-text-muted);
+  will-change: left;
+}
+
+.vu-hoopshot-sweet {
+  height: 100%;
+  background: var(--vu-accent);
+}
+
+.vu-hoopshot-marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 0;
+  width: 5px;
+  margin-left: -2.5px;
+  border-radius: 3px;
+  background: var(--vu-text);
+  box-shadow: 0 0 0 1.5px var(--vu-surface);
+  will-change: left;
+}
+
+/* The cabinet's displays and the button, in a line. */
+.vu-hoopshot-desk {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.vu-hoopshot-read {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 62px;
+}
+
+.vu-hoopshot-read--wide {
+  flex: 1;
+  min-width: 0;
+}
+
+.vu-hoopshot-label {
+  color: var(--vu-text-muted);
+  font: 700 11px var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.vu-hoopshot-score,
+.vu-hoopshot-clock {
+  color: var(--vu-text);
+  font: 700 32px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+/* The last seconds: the clock is underlined as well as tinted. */
+.vu-hoopshot-clock[data-last] {
+  color: var(--vu-danger);
+  text-decoration: underline;
+}
+
+.vu-hoopshot-run {
+  overflow: hidden;
+  color: var(--vu-text-body);
+  font: 700 14px var(--font-mono);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* On fire: said in words, and set on the accent. */
+.vu-hoopshot-run[data-fire] {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--vu-accent);
+  color: var(--vu-accent-ink);
+  box-sizing: border-box;
+}
+
+.vu-hoopshot-shoot {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 150px;
+}
+
+.vu-hoopshot-shoot .vu-btn {
+  width: 100%;
+}
+
+.vu-hoopshot-shoot .vu-btn[data-waiting] {
+  opacity: 0.55;
+}
+
+.vu-hoopshot-hint {
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-body);
+  white-space: nowrap;
+}
+
+/* The girls' cabinets, one over the next: who, her score, her last ball and her run. */
+.vu-hoopshot-row {
+  display: flex;
+  flex: 0 1 300px;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.vu-hoopshot-hers {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px 12px;
+  border-radius: 16px;
+  background: var(--vu-recessed);
+  box-shadow: inset 4px 0 0 transparent;
+}
+
+/* Whoever is in front: said in a word, and barred in the accent. */
+.vu-hoopshot-hers[data-leads] {
+  box-shadow: inset 4px 0 0 var(--vu-accent);
+}
+
+.vu-hoopshot-side {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+}
+
+.vu-hoopshot-side--count {
+  flex: none;
+  align-items: flex-end;
+}
+
+.vu-hoopshot-who {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--vu-text);
+  font: 400 22px var(--font-display);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-hoopshot-last {
+  color: var(--vu-text-muted);
+  font: 700 14px var(--font-mono);
+  white-space: nowrap;
+}
+
+.vu-hoopshot-last[data-made] {
+  color: var(--vu-good);
+}
+
+/* Three cabinets are a tall column: each is drawn a little tighter. */
+.vu-hoopshot-row[data-seats='3'] {
+  gap: 8px;
+}
+
+.vu-hoopshot-row[data-seats='3'] .vu-hoopshot-hers {
+  padding: 7px 14px 8px;
+}
+
+.vu-hoopshot-row[data-seats='3'] .vu-hoopshot-score {
+  font-size: 26px;
+}

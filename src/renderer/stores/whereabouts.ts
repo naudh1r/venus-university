@@ -1,3 +1,4 @@
+import { locationAvailable } from '@shared/cityLife'
 import {
   dormGroupBlurb,
   dormGroupLabel,
@@ -287,6 +288,7 @@ export function mapFillers(shownKeys: readonly string[], count: number): Section
 
   const open = [...LOCATIONS, ...NARRATIVE_LOCATIONS]
     .map((def) => def.id)
+    .filter(locationAvailable)
     .filter((id) => isLocationOpen(id, slot) && !placeClosedOn(id, on, game.calendar))
     .map(placeSection)
     .filter((section) => !shownKeys.includes(section.placeKey))

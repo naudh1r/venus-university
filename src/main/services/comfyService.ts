@@ -1251,8 +1251,18 @@ function logJob(spec: GenerationSpec): void {
 /**
  * The submit-wait-save pipeline every render shares; callers stage their own input
  * files first.
+ *
+ * Exported for `localPhotoService`, which renders a texted photograph on the same pipeline but keeps
+ * its own graph, node map and folder. That is the whole of what the photo feature asks of this
+ * file: one keyword, so a sync that overwrites it costs one keyword to put back.
  */
-async function runGenerationJob(spec: GenerationSpec, options: RunOptions): Promise<string> {
+/**
+ * Exported for the mods that render on the same pipeline with their own graph, node map and
+ * folder (Photo Feature's texted photographs, Echo's portraits). A caller that names no target
+ * runs on the one the settings name now.
+ */
+export async function runGenerationJob(spec: GenerationSpec, jobOptions: JobOptions): Promise<string> {
+  const options = await runOptionsOf(jobOptions)
   try {
     return await runGraph(spec, options)
   } catch (err) {

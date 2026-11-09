@@ -17,6 +17,11 @@ const POSES: PoseManifest = {
   standing: { tags: ['standing'], description: 'standing upright, arms at her sides' }
 }
 
+it('does not assign the opt-in Godlike trait from an AI character draft', () => {
+  const result = draftToCharacter(character(), draft({ traits: ['Godlike', 'High Standards'] }), POSES, SUBJECT_TAGS)
+  expect(result.traits).toEqual(['High Standards'])
+})
+
 function draft(over: Partial<CharacterDraft> = {}): CharacterDraft {
   return {
     firstName: 'Sarah',

@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { expect, it, vi } from 'vitest'
 
 it('does not file an old slot post after a delayed hook outlives its loaded game', async () => {

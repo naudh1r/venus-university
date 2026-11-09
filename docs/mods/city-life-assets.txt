@@ -1,0 +1,9 @@
+City Life mod content
+
+You may use, copy, modify and redistribute the mod source and included generated backgrounds, with this notice and attribution to the City Life community mod. Modified redistributions should identify their changes and must not imply endorsement by the original game creator.
+
+This permission covers only the mod materials included here. The original Venus University game, its code, characters, artwork, executable and trademarks are not included and remain subject to their respective licenses and owners. Obtain the game separately from its author. No affiliation or endorsement is claimed.
+
+The mod is provided as-is, without warranty. Keep backups of your game and saves.
+
+Source-port adaptation: catalogs, switches, schedule integration and tests are adapted for the extracurriculars-core framework. The original six venue backgrounds are generated images from the City Life community mod. The two Dance Studio backgrounds and their thumbnails were generated for this expansion using the built-in OpenAI image-generation tool. See dance-studio-art.md for prompts.

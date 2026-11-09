@@ -51,13 +51,15 @@ export default defineConfig({
     }
   },
   renderer: {
+    publicDir: resolve('assets/echo-public'),
+    worker: { format: 'es' },
     root: resolve('src/renderer'),
     define: {
       __APP_VERSION__: JSON.stringify(version)
     },
     build: {
       rollupOptions: {
-        input: resolve('src/renderer/index.html')
+        input: { index: resolve('src/renderer/index.html'), echoCutout: resolve('src/renderer/echoCutout.html') }
       }
     },
     resolve: {

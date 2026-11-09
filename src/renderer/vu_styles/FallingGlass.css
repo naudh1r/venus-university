@@ -1,0 +1,4 @@
+.vu-falling-glass{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:3}
+.vu-falling-glass polygon{fill:#f4e5d616;stroke:#f7e8c9;stroke-opacity:.7;stroke-width:.8;vector-effect:non-scaling-stroke;animation:vu-glass-fall 1.9s var(--glass-delay) cubic-bezier(.42,.02,.8,.46) both;transform-box:view-box}
+@keyframes vu-glass-fall{0%{transform:translate(0,0) rotate(0deg);opacity:.9}9%{transform:translate(calc(var(--glass-drift)*.06),3px) rotate(0deg);opacity:1}72%{opacity:.8}100%{transform:translate(var(--glass-drift),110vh) rotate(var(--glass-turn));opacity:0}}
+@media(prefers-reduced-motion:reduce){.vu-falling-glass{display:none}}

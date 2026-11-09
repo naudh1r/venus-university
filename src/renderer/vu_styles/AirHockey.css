@@ -1,0 +1,136 @@
+/* Air hockey: the table from above, her end at the top and the reader's at the bottom, with the
+   score to one side and what is being played to the other. Drawn on the mini-game board. */
+
+.vu-airhockey {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 30px;
+}
+
+/* The table is a container: a bordered rectangle, recessed, the play drawn inside it. */
+.vu-airhockey-table {
+  flex: none;
+  border: 3.5px solid var(--vu-border);
+  border-radius: 16px;
+  background: var(--vu-recessed);
+  box-shadow: 6px 6px 0 var(--vu-panel-shadow);
+  overflow: hidden;
+  line-height: 0;
+  position: relative;
+}
+
+/* He is looking elsewhere, or being counted back in: the table dimmed under a word or a number,
+   the puck still to be seen where it stopped. */
+.vu-airhockey-table--held .vu-airhockey-field {
+  opacity: 0.4;
+}
+
+.vu-airhockey-held {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--vu-text);
+  font: 400 44px var(--font-display);
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Sized in the table's own units: a pointer is read through this box, whatever the stage's scale. */
+.vu-airhockey-field {
+  display: block;
+  width: 300px;
+  height: 400px;
+  touch-action: none;
+  user-select: none;
+}
+
+.vu-airhockey-line {
+  fill: none;
+  stroke: var(--vu-text-muted);
+  stroke-width: 2;
+  opacity: 0.55;
+}
+
+.vu-airhockey-mouth {
+  fill: var(--vu-accent);
+}
+
+/* The reader's mallet in the accent, hers on the surface: told apart by more than their ends. */
+.vu-airhockey-mallet > circle {
+  fill: var(--vu-accent);
+  stroke: var(--vu-border);
+  stroke-width: 3;
+}
+
+.vu-airhockey-mallet--hers > circle {
+  fill: var(--vu-surface);
+}
+
+.vu-airhockey-mallet > .vu-airhockey-knob {
+  fill: var(--vu-accent-ink);
+  stroke-width: 2;
+}
+
+.vu-airhockey-mallet--hers > .vu-airhockey-knob {
+  fill: var(--vu-text-muted);
+}
+
+.vu-airhockey-puck {
+  fill: var(--vu-text);
+  stroke: var(--vu-surface);
+  stroke-width: 2;
+}
+
+/* Either side of the table: her score at her end and the reader's at his. */
+.vu-airhockey-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 170px;
+  padding: 10px 0;
+  text-align: right;
+}
+
+.vu-airhockey-score {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+
+.vu-airhockey-who {
+  color: var(--vu-text-muted);
+  font: 700 13px var(--font-mono);
+}
+
+.vu-airhockey-goals {
+  color: var(--vu-text);
+  font: 400 64px var(--font-display);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.vu-airhockey-score--mine .vu-airhockey-goals {
+  color: var(--vu-accent);
+}
+
+.vu-airhockey-side--notes {
+  justify-content: center;
+  gap: 10px;
+  text-align: left;
+}
+
+.vu-airhockey-note {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+}
+
+.vu-airhockey-note--state {
+  color: var(--vu-text);
+  font-size: 15px;
+}

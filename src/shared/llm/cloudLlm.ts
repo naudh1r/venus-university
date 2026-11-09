@@ -42,14 +42,16 @@ const IGNORED_LINE_WARNINGS = 5
 /**
  * Drains an SSE body, forwarding deltas while buffering partial lines; malformed frames are
  * skipped but adapter-recognized failures propagate, and each frame's token count reaches
- * `onUsage` even when the frame itself fails.
+ * `onUsage` even when the frame itself fails. Reasoning prose goes to `onReasoning` alone,
+ * never into `content`.
  */
 export async function readStream(
   response: Response,
   adapter: LlmAdapter,
   label: string,
   onDelta: (delta: string) => void,
-  onUsage?: (generated: number) => void
+  onUsage?: (generated: number) => void,
+  onReasoning?: (reasoning: string) => void
 ): Promise<StreamResult> {
   const result: StreamResult = { content: '', finished: false, skipped: 0, ignored: 0 }
 
@@ -86,6 +88,7 @@ export async function readStream(
       }
       // Usage can ride a frame that names no finish reason, so it is taken from any frame.
       if (delta.usage) result.usage = delta.usage
+      if (delta.reasoning) onReasoning?.(delta.reasoning)
       if (delta.text) {
         result.content += delta.text
         onDelta(delta.text)
@@ -274,6 +277,13 @@ export async function completeStructured<T>(
     const elapsed = startClock()
     // The reply's output tokens, thinking included, once any part of it has reported them.
     let generated: number | undefined
+    // The reply's reasoning prose, logged once ahead of the reply, or on the way out of a failure.
+    let reasoning = ''
+    const logReasoning = (): void => {
+      if (!reasoning) return
+      console.log(`[llm] ← reasoning (${reasoning.length} chars):`, reasoning)
+      reasoning = ''
+    }
     const response = await sendCall(call, adapter, log, elapsed, signal)
 
     // A reply that fails past this point was still billed, so its count is reported on every exit.
@@ -297,6 +307,9 @@ export async function completeStructured<T>(
             onDelta as (delta: string) => void,
             (n) => {
               generated = n
+            },
+            (text) => {
+              reasoning += text
             }
           )
         } catch (err) {
@@ -362,6 +375,7 @@ export async function completeStructured<T>(
           throw err
         }
         generated = adapter.generatedTokensOf(raw)
+        reasoning = adapter.reasoningOf?.(raw) ?? ''
         content = adapter.contentOf(raw, provider.label)
       }
 
@@ -374,12 +388,14 @@ export async function completeStructured<T>(
           withSkipNote(truncate(raw, 2000), skipped, ignored)
         )
       }
+      logReasoning()
       console.log(
         `[llm] ← ${log.what} (${content.length} chars, ${responseMs}ms${downgrade}${outcome}):`,
         content
       )
       return content
     } finally {
+      logReasoning()
       if (generated !== undefined) reportGeneratedTokens(generated)
     }
   }

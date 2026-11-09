@@ -1,3 +1,8 @@
+import type { ReckoningState } from './reckoning'
+import type { EchoState } from './echo'
+import type { StoryMemory, StoryRecallRequest } from './storyMemory'
+import type { BreakthroughState } from './breakthrough'
+import type { MeanwhileStore } from './meanwhile'
 /** Shared on-disk schema and IPC result types. */
 
 // Type-only, so the import cycles erase: most of these modules import back from here.
@@ -54,6 +59,8 @@ export const MAX_LOG_RECORD_CHARS = 32 * 1024
  * structured cloud call carries from the renderer's prompt builders to the adapters.
  */
 export interface StructuredRequest {
+  /** Local-only recall snapshot; stripped before the provider request. */
+  storyMemory?: StoryRecallRequest
   system: string
   user: string
   /** JSON Schema the reply is constrained to. */
@@ -502,6 +509,10 @@ export const READER_SPEAKER = 'reader'
 
 /** A single remembered event, rendered as `"<Name> <type> that <desc>"`. */
 export interface CharMemory {
+  /** Echo v1 compatibility: a matching bond amplified this positive memory. */
+  echoBoosted?: boolean
+  /** Echo: affinity at the time this positive memory was earned. */
+  echoAffinity?: 'matching' | 'competing'
   /**
    * What mods keep with this memory, keyed by the mod's id. Core never reads inside a slice and
    * writes each one back as read; every value is plain JSON.
@@ -988,6 +999,8 @@ export type InviteKind = (typeof INVITE_KINDS)[number]
 
 /** One Bunnyboard text message. */
 export interface ChatMessage {
+  /** Optional response grouping retained by the Text Regeneration mod. */
+  exReplyTo?: string
   /**
    * What mods keep with this message, keyed by the mod's id. Core never reads inside a slice and
    * writes each one back as read; every value is plain JSON.
@@ -1017,6 +1030,8 @@ export interface ChatMessage {
 
 /** One Bunnyboard conversation with a contact, keyed by her charId. */
 export interface Conversation {
+  /** Summary before the last generated reply; retained while its mod is disabled. */
+  exTextBase?: { replyTo: string; summary: string | null; regenerable?: boolean }
   charId: string
   /**
    * What mods keep with this conversation, keyed by the mod's id. Core never reads inside a slice and
@@ -1745,7 +1760,18 @@ export interface NativeGameSave {
 }
 
 /** The on-disk save: core's fields, plus the optional ones mods declare on it from their own modules. */
-export interface GameSave extends NativeGameSave {}
+export interface GameSave extends NativeGameSave {
+  /** Optional Story Memory facts and corrections, carried with this save. */
+  exStoryMemory?: StoryMemory
+  /** Optional, character-specific spirit and committed outcomes. */
+  exReckoning?: ReckoningState
+  exEcho?: EchoState
+  exBreakthrough?: BreakthroughState
+  /** Optional, noncanonical spectator conversations. */
+  exNpcWatch?: MeanwhileStore
+  /** Character Dynamics: fixed setup choices retained by every save. */
+  exCharacterDynamics?: import('./characterDynamics').CharacterDynamics
+}
 
 /** One employer the reader has left: the raises he had taken, and how it ended. */
 export interface FormerJob {
@@ -2182,6 +2208,14 @@ export interface ModSceneFields {}
 
 /** A whole semester with the reader beside it, as the screen that generated it hands it over. */
 export type EnrollmentDraft = QuickstartBundle & ModEnrollmentFields & {
+  /** Per-playthrough choices used for this semester's generation, including an explicit empty list. */
+  mods?: string[]
+  /** The same setup survives leaving the registrar before Finalize. */
+  exCharacterDynamics?: import('./characterDynamics').CharacterDynamics
+  /** The setup switch is fixed once this enrollment starts, even when choices are empty. */
+  exCharacterDynamicsEnabled?: boolean
+  /** Accepted Echo setup, retained if the next semester's opening save needs a retry. */
+  exEcho?: EchoState
   playerFirstName: string
   playerLastName: string
   stats: PlayerStats
@@ -2650,6 +2684,8 @@ export interface SceneResponse {
  * which milestones were passed, what the hour did for the reader, and what he agreed to later.
  */
 export interface LedgerResponse {
+  /** Untrusted optional extraction, validated against scene evidence at the boundary. */
+  exStoryFacts?: unknown
   /** Both cast-scoped arrays are absent for a solo scene, whose schema omits them. */
   memories?: Array<{ charKey: string; type: MemoryType; desc: string }>
   events?: Array<{ charKey: string; event: RelationshipEvent }>

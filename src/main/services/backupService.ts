@@ -1,3 +1,4 @@
+import { backupReflections, prepareReflectionRestore } from './reflectionStorage'
 import { mkdir, readdir, readFile, rename, rm, utimes, writeFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
 import {
@@ -121,6 +122,7 @@ import {
   saveIdsOf
 } from './saveService'
 import { getRendererSettings, getSettings, replaceSettings } from './settingsService'
+import { backupEchoArtwork, prepareEchoArtworkRestore } from './echoArtworkBackup'
 
 /** The data folder as one backup zip, and one backup zip back over the data folder. */
 
@@ -441,6 +443,8 @@ export async function exportBackup(targetPath: string): Promise<void> {
     const mods = await backupModParts(scratch, Object.keys(playthroughs))
 
     const record: BackupFile = {
+      exReflections: await backupReflections(),
+      exEchoArt: await backupEchoArtwork(scratch),
       schemaVersion: BACKUP_SCHEMA_VERSION,
       settings,
       grabbags,
@@ -861,6 +865,8 @@ export async function importBackup(archivePath: string): Promise<void> {
     await checkExtractedContent(scratch, classifyBackupEntry, 'backup')
     const record = await readBackupRecord(scratch)
     preflightBackup(record)
+    const restoreReflections = prepareReflectionRestore(record.exReflections)
+    const restoreEchoArtwork = await prepareEchoArtworkRestore(scratch, record.exEchoArt)
 
     // Everything the record says is checked before anything here is written. The stored keys,
     // the dev switches and the ComfyUI build stay, being this install's own.
@@ -889,6 +895,8 @@ export async function importBackup(archivePath: string): Promise<void> {
         applications,
         profileSources
       )
+      await restoreEchoArtwork()
+      await restoreReflections()
       await replaceSettings(settings)
       await setGrabBags(record.grabbags)
       await restoreCharacters(scratch, record)

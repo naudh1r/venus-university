@@ -1,0 +1,52 @@
+.vu-dynamics {
+  --paper-shadow: var(--vu-panel-shadow);
+  --paper-tilt: -0.8deg;
+  width: min(1320px, 100% - 80px);
+  height: min(880px, 100% - 100px);
+  padding: 40px 34px 26px;
+  border-radius: 52px 0 0 52px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.vu-dynamics-intro { padding-right: 310px; }
+.vu-dynamics-intro h2 { margin: 0 0 8px; color: var(--vu-accent); font: 400 28px var(--font-display); }
+.vu-dynamics-intro p { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--vu-text-body); }
+.vu-dynamics-body { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; flex: 1; min-height: 0; }
+.vu-dynamics-palette { display: flex; flex-direction: column; min-height: 0; padding: 6px 0 0; }
+.vu-dynamics-palette h3 { margin: 0; font: 400 19px var(--font-display); }
+.vu-dynamics-palette p { margin: 8px 0 16px; color: var(--vu-text-muted); font-size: 13px; line-height: 1.5; }
+.vu-dynamics-palette > h3, .vu-dynamics-palette > p, .vu-dynamics-palette > .vu-field { margin-left: 8px; margin-right: 12px; }
+.vu-dynamics-palette .vu-input { min-width: 0; padding: 10px 14px; font-size: 14px; }
+.vu-dynamics-tag-count { margin: 10px 12px 8px 8px; color: var(--vu-text-muted); font: 400 11px var(--font-mono); }
+.vu-dynamics-tags { display: flex; flex-direction: column; gap: 9px; min-height: 0; overflow: hidden auto; padding: 6px 12px 8px 8px; }
+.vu-dynamics-tag { display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 11px 14px; border: 2px solid var(--vu-border); border-radius: 15px; background: var(--vu-recessed); color: var(--vu-text); text-align: left; }
+.vu-dynamics-tag strong { font-size: 14px; }
+.vu-dynamics-tag span { color: var(--vu-text-muted); font: 400 12.5px/1.4 var(--font-body); }
+.vu-dynamics-tag[aria-pressed='true'] { border-color: var(--vu-accent); background: var(--vu-tint); }
+.vu-dynamics-roster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; align-items: start; gap: 16px; overflow: hidden auto; padding: 4px 12px 16px 4px; }
+.vu-dynamics-card { display: flex; flex-direction: column; gap: 18px; min-width: 0; padding: 18px; border: 2px solid var(--vu-border); border-radius: 20px; background: var(--vu-recessed); }
+.vu-dynamics-card[data-drop='true'] { border-color: var(--vu-accent); background: var(--vu-tint); }
+.vu-dynamics-girl { display: flex; gap: 14px; align-items: center; }
+.vu-dynamics-girl h3 { margin: 0; font: 700 17px/1.3 var(--font-body); overflow-wrap: anywhere; }
+.vu-dynamics-girl p { margin: 6px 0 0; color: var(--vu-text-muted); font: 400 11px/1.5 var(--font-mono); }
+.vu-dynamics-portrait { flex: none; width: 60px; height: 72px; }
+.vu-dynamics-portrait .vu-crop { width: 100%; height: 100%; }
+.vu-dynamics-portrait img { width: 100%; height: 145%; object-fit: cover; object-position: top; }
+.vu-dynamics-card .vu-input { font-size: 14px; padding: 12px 16px; }
+.vu-dynamics-card .vu-field-hint { font-size: 13px; }
+.vu-dynamics-card .vu-input--multiline { min-height: 104px; max-height: 160px; resize: vertical; }
+.vu-dynamics-reason[data-invalid='true'] .vu-input { border-color: var(--vu-warn); }
+.vu-dynamics-reason-note { margin: 6px 0 0; color: var(--vu-text-muted); font: 400 11px/1.4 var(--font-mono); }
+.vu-dynamics-dropzone { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-height: 95px; padding: 14px; border: 2px dashed var(--vu-border); border-radius: 15px; background: var(--vu-surface); }
+.vu-dynamics-dropzone p { margin: 0; color: var(--vu-text-muted); font: italic 400 13px/1.5 var(--font-body); }
+.vu-dynamics-assigned { display: flex; flex-wrap: wrap; gap: 7px; }
+.vu-dynamics-assigned-tag { display: flex; align-items: center; gap: 6px; padding: 6px 8px 6px 12px; border-radius: 20px; background: var(--vu-tint); color: var(--vu-text); font: 700 11px var(--font-mono); }
+.vu-dynamics-assigned-tag .vu-square { width: 23px; height: 23px; font-size: 16px; }
+.vu-dynamics-history { display: flex; flex-direction: column; gap: 8px; }
+.vu-dynamics-history strong { font-size: 14px; }
+.vu-dynamics-history p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; color: var(--vu-text-body); }
+.vu-dynamics-footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.vu-dynamics-summary span { font: 700 12px var(--font-mono); }
+.vu-dynamics-summary p { margin: 7px 0 0; font-size: 13px; color: var(--vu-text-muted); }
+.vu-dynamics-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
