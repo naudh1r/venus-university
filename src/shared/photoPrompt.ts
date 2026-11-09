@@ -977,7 +977,7 @@ export function buildDuoPhotoPrompt(
     sentence,
     'side by side',
     ...framing.scene,
-    ...(mirror ? ['mirror', 'reflection'] : []),
+    ...(mirror ? ['mirror'] : []),
     ...shared
   ]
 

@@ -640,7 +640,8 @@ const MODIFIERS: readonly Rule[] = [
     cues: ['at the camera', 'at the phone', 'looking at viewer', 'eye contact', 'staring at'],
     tags: ['looking_at_viewer']
   },
-  { cues: ['mirror'], tags: ['mirror', 'reflection'] },
+  // No `reflection`: in play it drew the girl in the glass as a second girl beside her.
+  { cues: ['mirror'], tags: ['mirror'] },
   // Where the camera is: a caption that says how low or high it was asks for the angle.
   {
     cues: [
@@ -822,7 +823,7 @@ function selfieShot(
       : says(text, 'close') || says(text, 'close-up')
         ? []
         : ['full_body']
-    const add = ['mirror', 'reflection', 'holding_phone', ...frame]
+    const add = ['mirror', 'holding_phone', ...frame]
     return { tags: [...new Set([...kept, ...add])], negative: ['dual_wielding'] }
   }
   const bodyHand = handActionsOf(text).some((action) => tags.includes(action.tags[0]))

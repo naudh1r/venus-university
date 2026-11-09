@@ -505,7 +505,8 @@ describe('a selfie', () => {
 
   it('shows the phone in a mirror selfie', () => {
     const pose = photoPose('a mirror selfie in her new coat', 'everyday')
-    expect(pose.tags).toEqual(expect.arrayContaining(['mirror', 'reflection', 'holding_phone']))
+    expect(pose.tags).toEqual(expect.arrayContaining(['mirror', 'holding_phone']))
+    expect(pose.tags).not.toContain('reflection')
     expect(pose.negative).toEqual(['dual_wielding'])
   })
 
