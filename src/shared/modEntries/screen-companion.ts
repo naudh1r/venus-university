@@ -1,5 +1,5 @@
 import type {ModDef} from '@vx/modkit/shared'
-const mod:ModDef={id:'screen-companion',name:'Share Your Laptop',author:'Community',version:'0.1.0',hooks: [
+const mod:ModDef={id:'screen-companion',name:'Share Your Laptop',author: 'Maestro Leeds',version:'0.1.0',hooks: [
     'invoke',
     'scenePlay',
     'main:completeModStructured',
