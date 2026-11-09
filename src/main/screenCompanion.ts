@@ -202,6 +202,7 @@ export function closeCompanion(): void {
 }
 
 export function pauseCompanion(): void {
+  screenshotController?.abort()
   shareStartsAt = 0
   checkpoint++; stopCompanionCapture(panel)
   clearCompanionPointer()
@@ -250,7 +251,7 @@ export function pointingCompanion(enabled: boolean): void {
 export function pauseCompanionConversation(paused: boolean): void {
   if (typeof paused !== 'boolean' || !state.sharing) throw appError('COMPANION_PAUSED', 'Start sharing before pausing or resuming chat.')
   if (paused === state.conversationPaused) return
-  state = { ...state, conversationPaused: paused }
+  state = { ...state, conversationPaused: paused, startingIn: 0 }
   if (paused) {
     checkpoint++; stopCompanionCapture(panel)
     clearCompanionPointer()
@@ -259,6 +260,7 @@ export function pauseCompanionConversation(paused: boolean): void {
     clearTimeout(timer)
     controller?.abort()
     stopSpeech()
+    pendingDelivery = null
     pendingTurn?.resolve(false)
     pendingTurn = null
   } else if (state.busy) resumeAfterStop = true
@@ -547,10 +549,23 @@ export function commentCompanion(text: string): void {
   void reactToScreen(epoch, text.trim())
 }
 
+// Some providers and native lookups finish after cancellation. Release the
+// current reaction immediately and leave any late result with its own request.
+async function waitForReaction<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  let abort!: () => void
+  const stopped = new Promise<never>((_, reject) => {
+    abort = () => reject(signal.reason)
+    if (signal.aborted) abort()
+    else signal.addEventListener('abort', abort, { once: true })
+  })
+  try { return await Promise.race([work, stopped]) }
+  finally { signal.removeEventListener('abort', abort) }
+}
+
 async function reactToScreen(current: number, message = ''): Promise<void> {
   if (current !== epoch || !state.sharing || state.conversationPaused || state.busy || !characters.length) return
   if (Date.now() < shareStartsAt) { startAfterCountdown(current); return }
-  state = { ...state, busy: true }
+  state = { ...state, busy: true, startingIn: 0 }
   controller = new AbortController()
   const activeController = controller
   const signal = activeController.signal
@@ -565,7 +580,7 @@ async function reactToScreen(current: number, message = ''): Promise<void> {
     if (current !== epoch || signal.aborted) return
     // Window geometry can be slow on Windows: resolve alongside inference in Rapid mode.
     const targetSourceTask = state.pointing ? pointerSource(source).catch(() => null) : Promise.resolve(null)
-    const targetSource = rapid ? null : await targetSourceTask
+    const targetSource = rapid ? null : await waitForReaction(targetSourceTask, signal)
     if (current !== epoch || signal.aborted) return
     let referenceRevision = ''
     try { referenceRevision = JSON.parse(context).referenceRevision ?? '' } catch { /* Older contexts have no reference revision. */ }
@@ -578,7 +593,7 @@ async function reactToScreen(current: number, message = ''): Promise<void> {
     // The profile and local game context are not repeated in the app log.
     request.logFrom = request.user.length
     if (rapid) request.system += '\nRAPID FPS REPLIES override the usual exchange length: return zero or ONE line from rapidSpeaker, 3–8 words, one short sentence, at most 72 characters. One actionable callout and one useful point at most. When it refers to a clearly visible location, include that point immediately; otherwise point=null. Never guess a location. Never write a multi-person exchange in this mode.'
-    const reply = await completeModStructured<{lines:CompanionLine[]}>(request,signal,rapid)
+    const reply = await waitForReaction(completeModStructured<{lines:CompanionLine[]}>(request,signal,rapid), signal)
     clearTimeout(timeout)
     if (current !== epoch || signal.aborted) return
     if (!reply || !validCompanionLines(reply.lines, state.members.map(member => member.charId))) throw appError('COMPANION_REPLY', 'The model returned an invalid conversation. Try sharing again with a vision-capable model.')
@@ -640,31 +655,36 @@ function modeInstructions(): string {
   }
 }
 
-let captureInProgress=false
+let screenshotController: AbortController | null = null
 export async function captureCompanionDesktop(delaySeconds=5):Promise<string>{
- if(captureInProgress)throw Error('A desktop screenshot is already being taken.')
+ if(screenshotController)throw Error('A desktop screenshot is already being taken.')
  const visible=overlays.filter(win=>!win.isDestroyed()&&win.isVisible())
  if(!visible.length)throw Error('Show a character overlay before taking this screenshot.')
- captureInProgress=true
- const controlsVisible=Boolean(panel&&!panel.isDestroyed()&&panel.isVisible())
- const chatVisible=Boolean(chat&&!chat.isDestroyed()&&chat.isVisible())
+ const capture = new AbortController()
+ screenshotController = capture
+ const controls = panel?.isVisible() ? panel : null
+ const conversation = chat?.isVisible() ? chat : null
  try{
-  panel?.hide();chat?.hide()
-  await new Promise(resolve=>setTimeout(resolve,Math.max(3,Math.min(15,Number(delaySeconds)||5))*1000))
+  controls?.hide();conversation?.hide()
+  await dwell(Math.max(3,Math.min(15,Number(delaySeconds)||5))*1000, capture.signal)
+  capture.signal.throwIfAborted()
   for(const win of visible)win.setContentProtection(false)
-  await new Promise(resolve=>setTimeout(resolve,350))
+  await dwell(350, capture.signal)
+  capture.signal.throwIfAborted()
   const display=screen.getPrimaryDisplay()
   const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:Math.round(display.size.width*display.scaleFactor),height:Math.round(display.size.height*display.scaleFactor)}})
+  capture.signal.throwIfAborted()
   const source=sources.find(s=>s.display_id===String(display.id))??sources[0]
   if(!source||source.thumbnail.isEmpty())throw Error('Could not capture the desktop.')
   const folder=join(app.getPath('pictures'),'Venus University','Screenshots');await mkdir(folder,{recursive:true})
+  capture.signal.throwIfAborted()
   const file=join(folder,'desktop-character-overlay-'+Date.now()+'.png')
   await writeFile(file,source.thumbnail.toPNG())
   return file
  }finally{
   for(const win of visible)if(!win.isDestroyed())win.setContentProtection(true)
-  if(controlsVisible&&panel&&!panel.isDestroyed())panel.showInactive()
-  if(chatVisible&&chat&&!chat.isDestroyed())chat.showInactive()
-  captureInProgress=false
+  if(controls&&!controls.isDestroyed())controls.showInactive()
+  if(conversation&&!conversation.isDestroyed())conversation.showInactive()
+  screenshotController = null
  }
 }
