@@ -2594,8 +2594,15 @@ export function GameView(): JSX.Element {
 
       {/* The player's turn failed; the scene behind it is already rewound to before Go.
           Two shapes, on whose words the action was: the reader's own are his to reword,
-          and an authored premise stays private, with its failed prompt editable after a refusal. */}
-      <AnimatePresence>
+          and an authored premise stays private, with its failed prompt editable after a refusal.
+          A created scene is only left once the modal has gone, so leaving does not cut its fade short. */}
+      <AnimatePresence
+        onExitComplete={() => {
+          const leave = afterTurnFailure.current
+          afterTurnFailure.current = null
+          leave?.()
+        }}
+      >
         {turnFailed &&
           turnError &&
           (authoredFailure ? (
