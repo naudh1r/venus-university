@@ -8,7 +8,6 @@ const mod: ModDef = {
     'sceneField',
     'promptState.scene',
     'prompts.scene',
-    'requests.scene',
     'renderer:TitleTab',
     'renderer:currentRun',
     'renderer:openPanel',
