@@ -4,7 +4,7 @@ import { MODS } from '@shared/mods'
 import { BUILT_IN_MAIN_ENTRIES } from '../modEntries'
 import { checkCompat, hookNameKind, modDefOf, parseManifest } from '@vx/modkit/host/shared'
 import { satisfies } from '../../../packages/modkit/src/shared/range'
-import { isRunning, modFileUrl, type ModSessionEntry, type ModSessionTable, type ModStatus, type SafeStart } from '@shared/modSession'
+import { isBuiltInRow, isRunning, modFileUrl, type ModSessionEntry, type ModSessionTable, type ModStatus, type SafeStart } from '@shared/modSession'
 import { findInstalledMods, readInstalled } from './layout'
 import { orderMods, type OrderInput } from './order'
 import { requireMain as requireMainFile, UndeclaredApiError, type MainContext } from './require'
@@ -175,7 +175,7 @@ function builtInCandidates(input: LoaderInput): Candidate[] {
 
 /** A built-in's own row: part of the build, with no manifest and no folder. */
 function isBuiltIn(candidate: Candidate): boolean {
-  return candidate.entry.manifest === null && candidate.entry.folder === '' && candidate.entry.def !== null
+  return isBuiltInRow(candidate.entry) && candidate.entry.def !== null
 }
 
 /** Every folder's candidate: the installed mods, then the developer folders, one entry per id. */

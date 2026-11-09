@@ -58,6 +58,13 @@ The URL uses the game's active image resolver, including browser builds; do not 
 `staged` selects the editor's staged files. This does not check that an image exists,
 load a character, or grant file-write access. It is separate from the reader's profile image.
 
+For a saved speaker ID, `profileUrl(id, version?, staged?)` resolves the square character
+portrait even if the current game has no roster entry for that ID. The asset can be
+missing, so keep the image's fallback. In a component, pass `useSpriteVersion(id)` to
+`profileUrl` or `spriteUrl` to refresh after the character's images change. A missing ID
+or one with no refreshes has version zero. Installed manifests declare `renderer:profileUrl`
+and `renderer:useSpriteVersion` when using those exports.
+
 This is how the community mods share one build: every mod's code is always in the game, and a
 switch decides whether it acts. Players turn mods on and off from **Mods** on the main menu;
 nothing is chosen at install time.

@@ -347,6 +347,8 @@ export const KIT_APIS = [
   'renderer:useNoNsfwImages',
   'renderer:imageApiConfigured',
   'renderer:spriteUrl',
+  'renderer:profileUrl',
+  'renderer:useSpriteVersion',
   'renderer:subscribeImageApiConfigured',
   'renderer:useImageApiConfigured',
   'renderer:localImageSource',
