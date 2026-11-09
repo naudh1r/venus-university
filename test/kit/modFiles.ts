@@ -11,7 +11,6 @@ import type { ModSet } from './boundaryScan'
  * each entry registers (the [MK] packs' games).
  */
 export const MOD_FILES: Record<string, ModSet> = {
-  'study-room': { globs: ['src/shared/studyRoom.ts', 'src/renderer/studyRoom/**'] },
   'scene-notes': { globs: ['src/shared/sceneNotes.ts', 'src/renderer/sceneNotes/**'] },
   breakthrough: {
     globs: [
@@ -240,6 +239,7 @@ export const MOD_FILES: Record<string, ModSet> = {
       'src/renderer/vu_styles/StoryAssistant.css'
     ]
   },
+  'study-room': { globs: ['src/shared/studyRoom.ts', 'src/renderer/studyRoom/**'] },
   'text-regeneration': {
     globs: ['src/shared/textRegeneration.ts', 'src/renderer/components/TextRegenerate.tsx', 'src/renderer/vu_styles/TextRegenerate.css']
   },
