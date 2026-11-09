@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { character, charInfo, restoreApi, stubApi } from '../fixtures'
 import type { SaveDraft } from '../../src/shared/types'
-import { useGameStore } from '../../src/renderer/stores/gameStore'
-import { resetLoopState } from '../../src/renderer/stores/loop/state'
-import { writesSettled } from '../../src/renderer/stores/loop/saves'
-import { canRecordSceneTurn, openSceneExchange, sceneExchangeContext } from '../../src/renderer/mods/sceneExchange'
 
 vi.mock('../../src/renderer/stores/modsStore', async original => ({ ...await original<object>(), modIsOn: () => true }))
+// Main's bundled mods also import renderer bridges; initialize the synthetic host first.
+stubApi({ jobs: { onProgress: () => () => {} } })
+const { useGameStore } = await import('../../src/renderer/stores/gameStore')
+const { resetLoopState } = await import('../../src/renderer/stores/loop/state')
+const { writesSettled } = await import('../../src/renderer/stores/loop/saves')
+const { canRecordSceneTurn, openSceneExchange, sceneExchangeContext } = await import('../../src/renderer/mods/sceneExchange')
 beforeEach(() => {
   useGameStore.getState().reset(); resetLoopState()
   const girl = character({ charId: 'unmet', firstName: 'Unmet', lastName: 'Fixture' })
