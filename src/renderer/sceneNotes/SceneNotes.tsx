@@ -45,7 +45,7 @@ export function SceneNotes({ theme, onClose }: GameModalProps): JSX.Element | nu
             } catch (err) { setError((err as Error).message) }
             finally { setBusy(false) }
           }}/></label>
-          {document && <p role="status"><b>{document.name}</b>{fitsDocumentLimit(document) && " · Active in this scene"}<button disabled={busy} onClick={() => void apply(null)}>Remove</button></p>}
+          {document && <p role="status"><b>{document.name}</b>{fitsDocumentLimit(document) && " Â· Active in this scene"}<button disabled={busy} onClick={() => void apply(null)}>Remove</button></p>}
           {document && (fitsDocumentLimit(document)
             ? <small>Roughly {Math.ceil(document.text.length / 4).toLocaleString()} tokens per request. The count varies by model and language.</small>
             : <p role="status">This saved document exceeds {DOCUMENT_LIMIT_LABEL}. It stays in your save. Choose a smaller file to share it again.</p>)}
