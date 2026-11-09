@@ -348,7 +348,7 @@ export function hasTexted(conversation: Conversation | undefined): boolean;
 // @public
 export function HeartIcon(input?: MarkProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export function holdTurn(modId: string): Result<() => void>;
 
 // @public
