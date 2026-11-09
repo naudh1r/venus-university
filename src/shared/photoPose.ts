@@ -60,14 +60,13 @@ const DRESSED_POSITIONS: readonly Rule[] = [
   { cues: ['on her stomach', 'face down', 'prone'], tags: ['lying', 'on_stomach'] },
   { cues: SIDE_LYING_CUES, tags: ['lying', 'on_side'] },
   { cues: ['on her back', 'lying back'], tags: ['lying', 'on_back'] },
-  {
-    cues: ['lying', 'laying', 'on the bed', 'on bed', 'on the floor', 'on the grass'],
-    tags: ['lying', 'arms_at_sides']
-  },
+  { cues: ['lying', 'laying'], tags: ['lying', 'arms_at_sides'] },
   {
     cues: ['sitting', 'seated', 'cross-legged', 'on the chair', 'on the couch', 'on a bench'],
     tags: ['sitting', 'cowboy_shot', 'hands_on_lap']
   },
+  // Where she is, with nothing said of how: lying. "Sitting on the grass" is the row above.
+  { cues: ['on the bed', 'on bed', 'on the floor', 'on the grass'], tags: ['lying', 'arms_at_sides'] },
   { cues: ['kneeling', 'crouching'], tags: ['kneeling', 'hands_on_own_thighs'] },
   // A wall keeps her arms folded. Anything else she leans on has her on her feet with her hands
   // on it: drawn as a wall, she sat on the counter or the railing's step instead.
@@ -442,6 +441,8 @@ const FREE_HAND_GESTURES: readonly GestureRule[] = [
     tags: ['adjusting_clothes']
   },
   { cues: ['blowing a kiss', 'blowing him a kiss'], tags: ['blowing_kiss'] },
+  // Said in words only, a thumbs up on a selfie became a second outstretched arm.
+  { cues: ['thumbs up', 'thumbs-up'], tags: ['thumbs_up'] },
   {
     cues: ['heart with her hands', 'heart with both hands'],
     tags: ['heart_hands'],
@@ -906,7 +907,9 @@ function selfieShot(
     return shot(['selfie', 'from_above', 'outstretched_arm', 'upper_body'], ['on_stomach'])
   }
   if (whole || has('lying') || has('sitting')) {
-    // From above, as tested; a caption that asked for it from below keeps that instead.
+    // From above, as tested; a caption that asked for it from below keeps that instead, and one
+    // from the side keeps that alone: both angles at once stretched out her other arm too.
+    if (has('from_side')) return shot(['(outstretched_arm:1.2)', 'foreshortening'])
     const angle = has('from_below') ? [] : ['from_above', 'looking_up']
     return shot(['full_body', ...angle, '(outstretched_arm:1.2)', 'foreshortening'])
   }
