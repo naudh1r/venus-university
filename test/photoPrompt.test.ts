@@ -190,6 +190,8 @@ describe('the clothes she is moving aside', () => {
     ['pulling down her top to show her breasts', ['clothes_pull', 'breasts_out']],
     ['her shirt pulled down, her breasts exposed', ['clothes_pull', 'breasts_out']],
     ['pulling down her dress to bare both breasts', ['clothes_pull', 'breasts_out']],
+    ['her neckline pulled down for the picture', ['clothes_pull', 'breasts_out']],
+    ['pulling down her neckline', ['clothes_pull', 'breasts_out']],
     ['lifting her sweater, exposing her breasts', ['shirt_lift', 'breasts_out']],
     ['her shirt lifted, showing underboob', ['shirt_lift', 'underboob']],
     ['lifting her skirt', ['skirt_lift']],

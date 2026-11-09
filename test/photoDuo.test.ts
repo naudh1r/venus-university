@@ -62,6 +62,19 @@ describe('a picture of two', () => {
     expect(prompts.negative).not.toMatch(/\b2girls\b|multiple_girls/)
   })
 
+  it('keeps "her and her friend" together, and splits only at a later contrast', () => {
+    const both = buildDuoPhotoPrompt(risa, ana, 'everyday', 'Her and her friend both winking at the camera.')
+    expect(both.left).toMatch(/\bone_eye_closed\b/)
+    expect(both.right).toMatch(/\bone_eye_closed\b/)
+    const later = buildDuoPhotoPrompt(
+      risa, ana, 'everyday', 'Her and her friend at the cafe with her waving while her friend winks.'
+    )
+    expect(later.left).toMatch(/\bwaving\b/)
+    expect(later.left).not.toMatch(/\bone_eye_closed\b/)
+    expect(later.right).toMatch(/\bone_eye_closed\b/)
+    expect(later.right).not.toMatch(/\bwaving\b/)
+  })
+
   it('gives each girl the face the caption gives her, and both the same where it splits none', () => {
     const split = buildDuoPhotoPrompt(risa, ana, 'everyday', 'Me and Ana in a cafe booth, me smiling softly while Ana grins widely')
     expect(split.left).toMatch(/\bsmile\b/)

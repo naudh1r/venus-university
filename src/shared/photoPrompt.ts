@@ -878,9 +878,12 @@ function duoExpressions(text: string): { left: string[]; right: string[] } {
     ...gesturesIn(part),
     ...(/\bblush/i.test(part) ? ['blush'] : [])
   ]
-  const clause = [...text.matchAll(FRIEND_CLAUSE)].find((one) => own(one[2]).length > 0)
+  // "Her and her friend" is the two of them together, not a split: only a later "while her
+  // friend …" gives her friend words of her own.
+  const shared = text.replace(/(^|[,.;]\s*)(?:her|she)\s+and\s+her friend\b/gi, '$1both')
+  const clause = [...shared.matchAll(FRIEND_CLAUSE)].find((one) => own(one[2]).length > 0)
   if (clause) {
-    const rest = text.replace(clause[2], '')
+    const rest = shared.replace(clause[2], '')
     const hers = facesIn(clause[1]).length > 0 ? facesIn(clause[1]) : facesIn(rest)
     const hands = gesturesIn(clause[1]).length > 0 ? gesturesIn(clause[1]) : gesturesIn(rest)
     const theirs = facesIn(clause[2])

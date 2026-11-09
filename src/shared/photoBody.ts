@@ -284,12 +284,16 @@ const TOP_GARMENT_WORDS = ['neckline', 'shirt', 'top', 'sweater', 'blouse', 'hoo
 const BOTTOM_GARMENT_WORDS = ['shorts', 'skirt', 'pants', 'jeans', 'panties', 'leggings', 'trousers']
 
 /**
- * Whether what she pulls is her top: the garment named in the pull's own clause. "Pulling up her
- * shorts" beside "in just her bandeau top" bared her chest when any top in the caption counted.
+ * Whether what she pulls is her top: the garment named in the pull's own clause, on either side of
+ * the verb ("pulling down her neckline", "her neckline pulled down"). "Pulling up her shorts"
+ * beside "in just her bandeau top" bared her chest when any top in the caption counted.
  */
 function pullsHerTop(text: string): boolean {
-  return [...text.matchAll(/\b(?:pull|tug)\w*\b([^,.;]*)/g)].some(
-    ([, clause]) => saysAny(clause, TOP_GARMENT_WORDS) && !saysAny(clause, BOTTOM_GARMENT_WORDS)
+  return text.split(/[,.;]/).some(
+    (clause) =>
+      /\b(?:pull|tug)\w*/.test(clause) &&
+      saysAny(clause, TOP_GARMENT_WORDS) &&
+      !saysAny(clause, BOTTOM_GARMENT_WORDS)
   )
 }
 
