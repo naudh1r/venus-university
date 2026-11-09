@@ -834,7 +834,8 @@ const DUO_EXPRESSIONS: readonly [RegExp, readonly string[]][] = [
 /**
  * The hands a caption gives one of them, by the same split as her face. Each held to its own half
  * in testing; a gesture said for both is drawn on both. Not `head_rest`: tagged, her elbow came
- * into her friend's half and the two of them merged; the sentence alone draws her chin on her hand.
+ * into her friend's half and the two of them merged. Untagged, her chin on her hand is mostly left
+ * out of the picture, which is the lesser fault.
  */
 const DUO_GESTURES: readonly [RegExp, readonly string[]][] = [
   [/\bpeace sign|\bv sign/i, ['v']],

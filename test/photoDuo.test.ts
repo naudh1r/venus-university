@@ -147,7 +147,7 @@ describe('a picture of two', () => {
     expect(prompts.right).not.toMatch(/\bv\b/)
   })
 
-  it('splits a blush and a blown kiss to the girl the caption gives them, and leaves her chin to the sentence', () => {
+  it('splits a blush and a blown kiss to the girl the caption gives them, and leaves her chin untagged', () => {
     const blush = buildDuoPhotoPrompt(risa, ana, 'everyday', 'Me and Ana on my bed, me giving a thumbs up while Ana blushes')
     expect(blush.right).toContain('blush')
     expect(blush.right).not.toContain('thumbs_up')
