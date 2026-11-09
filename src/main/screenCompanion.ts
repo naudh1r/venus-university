@@ -18,6 +18,7 @@ let panel: BrowserWindow | null = null
 let overlays: BrowserWindow[] = []
 let chat: BrowserWindow | null = null
 let ownerWindow: BrowserWindow | null = null
+let restoreOwnerTiming: (() => void) | undefined
 let offVoiceSettings: (() => void) | undefined
 let checkpoint = 0
 let selectedSource: { id: string; display_id: string } | null = null
@@ -139,6 +140,10 @@ export function openCompanion(owner: BrowserWindow | null, gameContext = '', sce
   }
   if (panel) closeCompanion()
   ownerWindow = owner
+  const throttled = owner.webContents.getBackgroundThrottling()
+  owner.webContents.setBackgroundThrottling(false)
+  // Replies are acknowledged by this renderer even when the game is minimized.
+  restoreOwnerTiming = () => { if (!owner.isDestroyed()) owner.webContents.setBackgroundThrottling(throttled) }
   context = gameContext
   state = { ...state, sceneId, sceneKind, contextRevision: state.contextRevision + 1 }
   invited = false
@@ -170,6 +175,7 @@ export function openCompanion(owner: BrowserWindow | null, gameContext = '', sce
 }
 
 export function closeCompanion(): void {
+  restoreOwnerTiming?.(); restoreOwnerTiming = undefined
   stopMoveHandles?.(); stopMoveHandles = undefined
   closeCompanionPointer()
   pendingDelivery=null;documentReference=undefined
