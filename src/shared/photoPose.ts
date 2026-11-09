@@ -379,7 +379,15 @@ const HAND_ACTIONS: readonly ActionRule[] = [
       'spreading her ass',
       'spreading her cheeks',
       'holding her cheeks apart',
-      'grabbing her ass'
+      'grabbing her ass',
+      'spread her ass',
+      'spread her cheeks',
+      'spread her buttocks',
+      'spread her bare buttocks',
+      'spreading her buttocks',
+      'buttocks apart',
+      'buttocks wide apart',
+      'buttock cheek'
     ],
     tags: ['grabbing_own_ass', 'ass_focus'],
     implies: ['bent_over', 'solo']
