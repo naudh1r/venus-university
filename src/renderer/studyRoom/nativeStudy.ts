@@ -1,8 +1,12 @@
 import {clock, currentRun, runStale, saveField, sceneField, type ModHooks} from '@vx/modkit/renderer'
 import {STUDY_MOD} from '../../shared/studyRoom'
 import {SCENE_NOTES} from '../../shared/sceneNotes'
+import { setSceneSuggestionsPaused, subscribeSceneTurns } from '@vx/modkit/renderer'
 export interface NativeStudy {partner:string;topic:string;document:{name:string;sections:string[]}|null;section:number;declined:boolean}
 export const studyScene=sceneField<NativeStudy|null>(STUDY_MOD,{empty:null})
+const syncSuggestions = () => setSceneSuggestionsPaused(STUDY_MOD, Boolean(studyScene.read()))
+subscribeSceneTurns(syncSuggestions)
+syncSuggestions()
 type Refusals = { date: number; time: number; partners: string[] }
 const refusals = saveField<Refusals | null>(STUDY_MOD, { empty: null })
 
