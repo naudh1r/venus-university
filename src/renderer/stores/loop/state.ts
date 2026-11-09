@@ -1,3 +1,4 @@
+import type { BreakthroughPending } from '@shared/breakthrough'
 import type {
   BankedOpening,
   Character,
@@ -26,6 +27,10 @@ import type { MemoryAnswer } from './memoryEdit'
  * base the reply's autosave is composed onto.
  */
 export interface TurnSnapshot {
+  /** Private post-Reckoning scene continuation; never a spoken reader action. */
+  reckoning?: string
+  /** The paid intent, retained for a retry after its failed attempt refunded it. */
+  breakthrough?: BreakthroughPending
   scene: SceneState | null
   action: string
   /** The agreed hangout this turn is, so a retry replays it as one. */
@@ -57,7 +62,7 @@ export interface TurnSnapshot {
  * premise and a goodbye's. Neither is a sentence he can be handed back.
  */
 export function authoredTurn(snapshot: TurnSnapshot): boolean {
-  return Boolean(snapshot.intro || snapshot.farewell)
+  return Boolean(snapshot.intro || snapshot.farewell || snapshot.reckoning)
 }
 
 /**

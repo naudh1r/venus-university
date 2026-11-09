@@ -1,0 +1,323 @@
+/* Skee-Ball: the alley from above, the power meter standing beside it, and the scores with the
+   one button a roll is made with. Drawn on the mini-game board; the button is base.css's. */
+
+.vu-skeeball {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 22px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* The alley: the cabinet, the ramp at the bottom and the board of rings at the top. */
+.vu-skeeball-alley {
+  flex: none;
+  width: 240px;
+  height: 431px;
+  cursor: pointer;
+}
+
+.vu-skeeball-cabinet {
+  fill: var(--vu-border);
+}
+
+.vu-skeeball-ramp {
+  fill: var(--vu-recessed);
+  opacity: 0.7;
+}
+
+.vu-skeeball-board {
+  fill: var(--vu-recessed);
+}
+
+.vu-skeeball-lip {
+  stroke: var(--vu-text-muted);
+  stroke-width: 0.35;
+}
+
+/* The gutter every missed ball runs down to. */
+.vu-skeeball-gutter {
+  fill: var(--vu-surface);
+  stroke: var(--vu-text-muted);
+  stroke-width: 0.14;
+}
+
+/* A ring is a hole with a raised rim: the surface, ringed, with what it pays written in it. */
+.vu-skeeball-ring circle {
+  fill: var(--vu-surface);
+  stroke: var(--vu-text);
+  stroke-width: 0.3;
+}
+
+/* The corner pockets: small, and ringed twice as heavily. */
+.vu-skeeball-ring[data-corner] circle {
+  stroke: var(--vu-accent);
+  stroke-width: 0.42;
+}
+
+.vu-skeeball-value {
+  fill: var(--vu-text-muted);
+  font: 700 1.9px var(--font-mono);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.vu-skeeball-ring[data-corner] .vu-skeeball-value {
+  fill: var(--vu-text);
+}
+
+/* The reader's marks, shown only while his roll is being made. */
+.vu-skeeball-line,
+.vu-skeeball-spot {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.vu-skeeball-line[data-live],
+.vu-skeeball-spot[data-live] {
+  visibility: visible;
+}
+
+.vu-skeeball-line {
+  stroke: var(--vu-accent);
+  stroke-width: 0.16;
+  stroke-dasharray: 0.7 0.5;
+  opacity: 0.8;
+}
+
+.vu-skeeball-spot {
+  fill: none;
+  stroke: var(--vu-text);
+  stroke-width: 0.22;
+}
+
+.vu-skeeball-ball {
+  fill: var(--vu-accent);
+  stroke: var(--vu-accent-shadow);
+  stroke-width: 0.14;
+  pointer-events: none;
+}
+
+/* What the ball scored, popping up over where it came down. */
+.vu-skeeball-pop {
+  fill: var(--vu-text);
+  stroke: var(--vu-surface);
+  stroke-width: 0.5;
+  paint-order: stroke;
+  font: 400 4.6px var(--font-display);
+  text-anchor: middle;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: vu-skeeball-pop 0.32s ease-out;
+}
+
+.vu-skeeball-paused {
+  fill: var(--vu-text-muted);
+  stroke: var(--vu-surface);
+  stroke-width: 0.4;
+  paint-order: stroke;
+  font: 500 2.6px var(--font-body);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.vu-skeeball-pop[data-still] {
+  animation: none;
+}
+
+@keyframes vu-skeeball-pop {
+  from {
+    opacity: 0;
+    transform: translateY(1.6px) scale(0.5);
+  }
+}
+
+/* The power meter: a track the mark rises and falls on, each ring's height marked beside it. */
+.vu-skeeball-meter {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 58px;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+/* The meter under the hand. */
+.vu-skeeball-meter[data-live] {
+  opacity: 1;
+}
+
+.vu-skeeball-meterlabel {
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+}
+
+.vu-skeeball-track {
+  position: relative;
+  width: 16px;
+  height: 340px;
+  border-radius: 999px;
+  background: var(--vu-recessed);
+}
+
+.vu-skeeball-tick {
+  position: absolute;
+  left: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 0;
+  color: var(--vu-text-muted);
+  font: 700 11px var(--font-mono);
+  line-height: 0;
+}
+
+.vu-skeeball-tick::before {
+  width: 6px;
+  height: 2px;
+  background: var(--vu-text-muted);
+  content: '';
+}
+
+.vu-skeeball-mark {
+  position: absolute;
+  right: -3px;
+  bottom: 0;
+  left: -3px;
+  height: 8px;
+  margin-bottom: -4px;
+  border-radius: 4px;
+  background: var(--vu-accent);
+}
+
+.vu-skeeball-side {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+  min-width: 0;
+}
+
+/* The scores: a column a ball, and the total at the end. */
+.vu-skeeball-sheet {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 4px;
+  table-layout: fixed;
+  color: var(--vu-text);
+  font: 700 15px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.vu-skeeball-sheet thead th {
+  color: var(--vu-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.vu-skeeball-sheet th:first-child {
+  width: 112px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-skeeball-sheet th:last-child,
+.vu-skeeball-sheet td:last-child {
+  width: 64px;
+}
+
+/* Whoever is up is named in full ink on a tinted plate, an accent bar at its leading edge. */
+.vu-skeeball-sheet tbody th {
+  padding: 0 6px;
+  border-radius: 10px;
+  box-shadow: inset 3px 0 0 transparent;
+  color: var(--vu-text-muted);
+  font: 400 19px var(--font-display);
+}
+
+.vu-skeeball-sheet tr[data-up] th {
+  background: var(--vu-tint);
+  box-shadow: inset 3px 0 0 var(--vu-accent);
+  color: var(--vu-text);
+}
+
+.vu-skeeball-sheet td {
+  padding: 8px 2px;
+  border-radius: 10px;
+  background: var(--vu-recessed);
+  text-align: center;
+}
+
+/* A full rack of nine: narrower figures, so the sheet keeps to its side of the board. */
+.vu-skeeball-sheet[data-tight] {
+  border-spacing: 3px 4px;
+  font-size: 13px;
+}
+
+/* The ball being rolled, and a ball in a corner pocket. */
+.vu-skeeball-sheet td[data-now] {
+  background: var(--vu-tint);
+}
+
+.vu-skeeball-sheet td[data-top] {
+  box-shadow: inset 0 0 0 2px var(--vu-accent);
+}
+
+.vu-skeeball-sheet .vu-skeeball-total {
+  background: none;
+  font-size: 19px;
+}
+
+.vu-skeeball-roll {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 6px 0;
+}
+
+.vu-skeeball-roll > button {
+  min-width: 220px;
+  transform-origin: center;
+}
+
+.vu-skeeball-hint {
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-body);
+}
+
+/* Her turn, a ball on its way, or the game over: the roll stands back. */
+.vu-skeeball-roll[data-waiting] {
+  opacity: 0.35;
+}
+
+.vu-skeeball-meter[data-waiting] {
+  opacity: 0.35;
+}
+
+/* The game over: the roll stands back, and the result under it is read in full. */
+.vu-skeeball-roll[data-over] {
+  opacity: 1;
+}
+
+.vu-skeeball-roll[data-over] > button {
+  opacity: 0.35;
+}
+
+.vu-skeeball-roll[data-over] .vu-skeeball-hint {
+  color: var(--vu-text);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vu-skeeball-pop {
+    animation: none;
+  }
+}

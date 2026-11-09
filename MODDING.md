@@ -1021,7 +1021,7 @@ optionGroups: [{ id: 'loader', label: 'Loading animation', hint: 'The animation 
 
 Shared code holds no switches. Where a rule there has to follow one, give the rule a flag with
 a setter, and set it from `modsStore.ts` at boot and whenever a switch moves
-(`useModsStore.subscribe`). Continuing Semesters does this for its seniors option.
+(`useModsStore.subscribe`). Echo does this for its bonus, and Photo Feature for its switches.
 
 ## Sprite and CG prompt drafts
 
@@ -1205,7 +1205,7 @@ else names it.
 | `messageAttachment` | `BunnyboardModal.tsx` | Draw a component after a phone message's text bubble, or alone where the message has no text. Props: `message` |
 | `contactPostExtra` | `ContactPage.tsx` | Draw a component beside a post's like, in the feed on her contact page. Props: `charId`, `post` |
 | `contactTab` | `ContactPage.tsx` | Add a reading of her beside Profile on her contact page: a tab, and a panel drawn in place of her cards |
-| `advancedSettingsEntry` | `SettingsAdvancedTab.tsx` | Draw a component on the Advanced tab of app settings, under its own controls. Props: `theme`, `busy` (a backup or restore is running) |
+| `advancedSettingsEntry` | `SettingsAdvancedTab.tsx` | Draw a component on the Advanced tab of app settings, after Upload custom BG and Edit system prompt. Props: `theme`, `busy` (a backup or restore is running) |
 | `promptText` | `loop/promptState.ts`, `textingLoop.ts`, `applicationStore.ts` and the other stores that build a request | Rewrite the game's own prompt text and the class call's pool sizes; one mod at a time |
 | `sceneCall` | `loop/stream.ts` | Tag a scene call as it goes out, for the mod's request hook in main |
 | `sceneReplyLanded` | `loop/stream.ts`, `loop/turn.ts` | Read every scene call's reply once it has landed, the closing's included, with what main handed back |

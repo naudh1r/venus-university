@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { emptyFlags } from '@shared/relationship'
 import type { CalendarEvent, CharInfo } from '@shared/types'

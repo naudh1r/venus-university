@@ -157,6 +157,9 @@ export interface ColdPassInput {
   reader: ColdHolder
   /** The reader's Body tier, 0 to 5. */
   bodyTier: number
+  /** Optional player-only modifiers. Omitted values preserve native odds. */
+  readerCatchFactor?: number
+  readerMildBonus?: number
   /** Who was together in the slot; {@link COLD_READER} stands for the reader. */
   contacts: readonly ColdContact[]
 }
@@ -206,9 +209,9 @@ export function coldPassOf(input: ColdPassInput, rand: () => number = Math.rando
   const holderOf = (id: string): ColdHolder =>
     (id === COLD_READER ? input.reader : input.girls[id]) ?? {}
   const catchFactor = (id: string): number =>
-    id === COLD_READER ? (COLD_BODY_CATCH[input.bodyTier] ?? 1) : 1
+    id === COLD_READER ? (COLD_BODY_CATCH[input.bodyTier] ?? 1) * Math.max(.55, Math.min(1, input.readerCatchFactor ?? 1)) : 1
   const mildChance = (id: string): number =>
-    COLD_MILD_CHANCE + (id === COLD_READER ? (COLD_BODY_MILD[input.bodyTier] ?? 0) : 0)
+    Math.min(1, COLD_MILD_CHANCE + (id === COLD_READER ? (COLD_BODY_MILD[input.bodyTier] ?? 0) + Math.max(0, Math.min(.2, input.readerMildBonus ?? 0)) : 0))
 
   const caught = new Map<string, ColdCase>()
   const catches = (id: string, strain: number, fromReader: boolean): void => {

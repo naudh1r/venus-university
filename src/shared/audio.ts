@@ -65,6 +65,9 @@ const VOICE_JITTER = { semitones: 0.6, db: 1 }
 
 /** The mix. Every file the app can play, keyed by the name the code asks for. */
 export const AUDIO_FILES = {
+  reckoning_dungeon: { path: 'community/reckoning/reckoning_rise_from_the_dark.mp3', group: 'music', loop: true, trimDb: -9 },
+  reckoning: { path: 'community/reckoning/reckoning_breakthrough.mp3', group: 'music', loop: true, trimDb: -9 },
+  reckoning_victory: { path: 'community/reckoning/reckoning_bloom.mp3', group: 'music', loop: false, trimDb: -9 },
   title: { path: 'music/title.ogg', group: 'music', loop: false, trimDb: -3 },
   landing_day: { path: 'music/landing_day.ogg', group: 'music', loop: true, trimDb: -9 },
   landing_night: { path: 'music/landing_night.ogg', group: 'music', loop: true, trimDb: -9 },

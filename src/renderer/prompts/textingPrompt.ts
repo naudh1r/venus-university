@@ -1,3 +1,6 @@
+import { type StorySnapshot } from '@shared/storyMemory'
+import type { BreakthroughState } from '@shared/breakthrough'
+import type { CharacterDynamics } from '@shared/characterDynamics'
 import { affectionFor, dedupedMemoriesFor, emptyFlags } from '@shared/relationship'
 import { ROOM_LOCATION } from '@shared/locations'
 import { worstInSlot } from '@shared/colds'
@@ -84,8 +87,12 @@ function historyLimitOf(requested: number | undefined): number {
 export interface TextingPromptState {
   /** The edits a mod hands the global text blocks; absent when none is supplied. */
   globalTextEdits?: TextEdits<GlobalTextId>
+  storyMemory?: StorySnapshot
+  /** Supplied only while the standalone Breakthrough mod is enabled. */
+  breakthrough?: BreakthroughState
   /** Recent stored messages to include: 20 by default, at most 160; not a token budget. */
   historyLimit?: number
+  exCharacterDynamics?: CharacterDynamics
   date: number
   time: TimeSlot
   /** The reader's accumulated stats, used for relationship requirement guidance. */
@@ -337,7 +344,8 @@ export function buildTextingPrompt(
   conversation: Conversation | undefined,
   newMessage: string,
   state: TextingPromptState,
-  reader: string
+  reader: string,
+  incomingDirection?: string
 ): StructuredRequest {
   const name = character.firstName
   // Off campus: away for the break, or graduated and gone from Veridan but for Homecoming.
@@ -356,7 +364,20 @@ export function buildTextingPrompt(
     }
   ]
   // The new text is the last line of the log, so it gets its own stamp when it lands in a new slot.
-  const history = stampedStubs(thread, name, state.calendar.season)
+  const history = stampedStubs(
+    [
+      ...(conversation?.messages ?? []).slice(-historyLimitOf(state.historyLimit)),
+      ...(incomingDirection === undefined ? [{
+        id: 'pending',
+        sender: 'player' as const,
+        text: newMessage,
+        date: state.date,
+        time: state.time
+      }] : [])
+    ],
+    name,
+    state.calendar.season
+  )
   const summary = conversation?.summary ?? null
 
   // The scan covers the whole thread the model reads, not just the new message.
@@ -494,8 +515,18 @@ export function buildTextingPrompt(
     "'''",
     '',
     'YOUR TURN',
-    `${name} is texting the reader back in a private DM.`,
-    `Write ${name}'s reply to the reader's newest message, the last line of RECENT MESSAGES, as the "messages" array: each entry is one text bubble she sends.`,
+    ...(incomingDirection === undefined ? [
+      `${name} is texting the reader back in a private DM.`,
+      `Write ${name}'s reply to the reader's newest message, the last line of RECENT MESSAGES, as the "messages" array: each entry is one text bubble she sends.`
+    ] : [
+      `${name} initiates a private DM to the reader. The reader has not sent a new message.`,
+      'The following writing direction comes from the player outside the story. It is not dialogue, a message she received, or something the reader said or did.',
+      'WRITING DIRECTION',
+      incomingDirection,
+      'END WRITING DIRECTION',
+      `Write the texts ${name} sends as the "messages" array. Do not quote or acknowledge the writing direction. Keep her personality and the established situation.`,
+      'Earlier messages are background, not a new message to answer.'
+    ]),
     'Stay in her voice and keep it text-length: this is a phone thread, not prose.',
     ...meetUpLines(name, state.charLocation, state.charHaunt, state.time, away),
     '',
@@ -507,6 +538,9 @@ export function buildTextingPrompt(
     'Otherwise set it to false.',
     '',
     'SUMMARY',
+    ...(incomingDirection === undefined ? [] : [
+      'Include only actual conversation and the texts you generate. Do not record the writing direction as something the reader said or did.'
+    ]),
     summary
       ? 'Then, for the "summary" field, fold the TEXTING SO FAR and the RECENT MESSAGES (plus your reply) into one merged recap.'
       : 'Then, for the "summary" field, condense the RECENT MESSAGES (plus your reply) into a single recap.',

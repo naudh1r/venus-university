@@ -1,4 +1,6 @@
+import { echoMultiplier } from './echo'
 import { blocksNewRomance, missingRomanceStatOf, romanceMinimumsOf } from './romanceRequirements'
+import { talentHeartMultiplier } from './talentPerks'
 import { likedPostBonus, likedPostWindowOf } from './feed'
 import { RELATIONSHIP_SHARE, STAT_SHARE } from './odds'
 import {
@@ -280,7 +282,10 @@ export function affectionOf(memories: readonly CharMemory[], today: number): num
   for (const entry of memories) {
     const points = POINTS[entry.type]
     if (points === undefined) continue
-    total += points * weightFor(Math.max(0, today - entry.date - (entry.breakDays ?? 0)))
+    total +=
+      points *
+      weightFor(Math.max(0, today - entry.date - (entry.breakDays ?? 0))) *
+      echoMultiplier(entry) * talentHeartMultiplier(entry)
   }
   return total
 }

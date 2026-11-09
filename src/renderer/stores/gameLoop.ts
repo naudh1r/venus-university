@@ -1,5 +1,12 @@
 import { filterSceneLedger, promptTextEdits, exercisedStats, projectSlotMemories, settleSceneStats, slotActivityAvailable, slotSettled, slotStatusLines, statFloor } from '../mods/hooks'
 import { withSlotActivityPrompt } from '../prompts/slotActivity'
+import { talentProjectWork } from '@shared/talentPerks'
+import { canContinueReckoning, pendingReckoningAftermath } from './reckoning'
+import { withReckoningAftermath } from '../prompts/reckoningPrompt'
+import { dynamicFor, dynamicsKnowsReader } from '@shared/characterDynamics'
+import { fullNameOf } from '@shared/types'
+import { currentStorySnapshot } from './storyMemory'
+import { finishBreakthrough, rearmBreakthrough, withBreakthrough } from './breakthrough'
 import { GAME_OVER_SCENES, gameCompleteSceneOf, gameOverReasonOf } from '@shared/gameOver'
 import { earnLine, spendLine, spentOf } from '@shared/money'
 import { appError, messageOf } from '@shared/errors'
@@ -52,6 +59,7 @@ import {
   introScrollLines,
   isOrientationSlot,
   isTutorialSlot,
+  orientationAcquaintancePremise,
   orientationPremise,
   tutorialLines
 } from '../prompts/introScript'
@@ -222,7 +230,7 @@ import { sceneEventsFor } from './loop/sceneEvents'
 import { liveView, withCrushes, withRumorPass, type PostLedgerView } from './loop/ledgerView'
 import { registerLoopHooks } from './loop/hooks'
 import { buildOrFail, failTurn, runSceneTurn } from './loop/turn'
-import { armSceneRecords, sceneRecordsOf, settleShifts } from './loop/jobs'
+import { armSceneRecords, lockShiftPay, sceneRecordsOf, settleShifts } from './loop/jobs'
 import {
   composeMeeting,
   kindLabel,
@@ -590,7 +598,9 @@ async function startOrientationScene(): Promise<void> {
   }
   const picked = pool.length > 0 ? anyOf(pool) : null
   const cast = picked ? [picked] : []
-  const action = orientationPremise({
+  const action = picked && dynamicsKnowsReader(game.exCharacterDynamics, picked)
+    ? orientationAcquaintancePremise(game.characters[picked]?.firstName ?? 'she', !freshman(picked))
+    : orientationPremise({
     firstName: (picked && game.characters[picked]?.firstName) || 'she',
     freshman: picked === null || freshman(picked),
     met: picked !== null && met(picked),
@@ -1103,13 +1113,15 @@ async function fetchSlotIntro(
     () =>
       buildSlotIntroPrompt(
         {
+          storyMemory: currentStorySnapshot(),
+          exCharacterDynamics: game.exCharacterDynamics,
+          globalTextEdits: promptTextEdits()?.global,
           playthroughId: game.playthroughId ?? 'unsaved',
           date,
           time,
           stats: game.stats,
           opening,
           lessNsfwText: lessNsfwTextNow(),
-          globalTextEdits: promptTextEdits()?.global,
           secretBudget: secretBudgetNow(),
           recent: recentSummaries(date, time, pendingSummary),
           askers,
@@ -1346,7 +1358,8 @@ function settlePlans(
 
 /** Re-runs a rewound turn down the path it came from. */
 function dispatchTurn(snapshot: TurnSnapshot): void {
-  if (snapshot.created) void startCreatedOpening()
+  if (snapshot.reckoning) void submitReckoningAftermath()
+  else if (snapshot.created) void startCreatedOpening()
   else if (snapshot.intro) void startOrientationScene()
   else if (snapshot.farewell) void startFarewellScene(snapshot.farewell)
   else if (snapshot.retryInvitation) snapshot.retryInvitation(snapshot.action)
@@ -1373,6 +1386,7 @@ export function retryTurn(): void {
   game.setTurnError(null)
   // `failTurn` left this false; `submitAction` refuses to run without it.
   game.setAwaitingInput(true)
+  rearmBreakthrough(loopState.lastTurn.breakthrough)
   dispatchTurn(loopState.lastTurn)
 }
 
@@ -1509,6 +1523,7 @@ export async function submitAction(
   loopState.lastTurn = {
     scene: game.captureScene(),
     action: raw,
+    ...(game.exBreakthrough.pending ? { breakthrough: { ...game.exBreakthrough.pending } } : {}),
     ...(gift ? { gift } : {}),
     ...(activity ? { activity } : {}),
     ...(preset ? { preset } : {}),
@@ -1608,7 +1623,9 @@ export async function submitAction(
   // A solo scene opens and closes in this one call, so it is never a continuation.
   const solo = (!isContinuation || Boolean(useGameStore.getState().sceneActivity)) && plan.cast.length === 0
 
-  const request = buildOrFail(snapshot, () => buildTurnRequest(plan.sceneAction, castCharacters, isContinuation, solo))
+  const request = buildOrFail(snapshot, () =>
+    withBreakthrough(buildTurnRequest(plan.sceneAction, castCharacters, isContinuation, solo), castCharacters, solo)
+  )
   if (!request) return
   // Only the call that opens a scene repairs a forgotten entrance.
   await runSceneTurn(
@@ -1618,6 +1635,21 @@ export async function submitAction(
     castCharacters,
     solo
   )
+}
+
+/** A private, saved direction resumes the current scene once after a Reckoning victory. */
+export async function submitReckoningAftermath():Promise<void> {
+  const game=useGameStore.getState()
+  if(!canContinueReckoning(game))return
+  const after=pendingReckoningAftermath(game)!,target=game.characters[after.charId]
+  const growth=dynamicFor(game.exCharacterDynamics,after.charId).growth!
+  const snapshot:TurnSnapshot={scene:game.captureScene(),action:'',reckoning:after.id}
+  loopState.lastTurn=snapshot
+  game.setAwaitingInput(false);game.setBusy(true);game.setStreaming(true);game.setWaitingForLine(true)
+  loopState.turnStartedAt=performance.now()
+  const cast=presentCastOf(game.cast)
+  const request=withReckoningAftermath(buildTurnRequest('Continue the present moment without new reader speech.',cast,true,false),fullNameOf(target),growth)
+  await runSceneTurn(streamScene(request),snapshot,game.cast,cast,false)
 }
 
 /** What the casting step decided: who is in the scene and what it reads. */
@@ -2443,7 +2475,7 @@ function projectStatusLines(): string[] {
   const period = projectPeriodOf(entry, game.date, game.calendar)
   if (!period) return []
   // The session being reported is not banked until the boundary, so it is counted in here.
-  const worked = workedOn(game.classRecords[loopState.projectWork.code], loopState.projectWork.exam) + 1
+  const worked = workedOn(game.classRecords[loopState.projectWork.code], loopState.projectWork.exam) + talentProjectWork(game.exTalents, game.time, {term:game.semesterIndex,date:game.date,...loopState.projectWork})
   return [projectProgressLine(entry.name, projectProgress(worked, period.needed))]
 }
 
@@ -2665,6 +2697,7 @@ export function rewriteLine(at: number, text: string): boolean {
 
 /** Aborts the live scene call; the lines it already delivered stay where they are. */
 function abortSceneCall(): void {
+  finishBreakthrough(loopState.lastTurn?.breakthrough?.id, true)
   loopState.sceneCall = null
   void window.api.jobs.cancelGroup(SCENE_LLM_GROUP)
 }
@@ -2794,7 +2827,7 @@ function showStatusLines(): boolean {
   game.setStatusShown(true)
   // Money lands here, so the balance moves as the line reporting it is read.
   // `game` is the pre-spend snapshot, which is what the card counts *from*.
-  const shift = loopState.jobShift
+  const shift = lockShiftPay()
   const spent = shift ? 0 : spentOf(loopState.pendingLedgerResult?.spent)
   if (shift) game.spendMoney(-shift.pay)
   else if (spent > 0) game.spendMoney(spent)
@@ -2947,7 +2980,7 @@ async function crossSlotBoundary(): Promise<void> {
   useGameStore.getState().applyStatDeltas(deltas)
   // `workedSlots` is what stops the next `settleShifts` striking a shift he turned up to.
   if (loopState.jobShift) {
-    const shift = loopState.jobShift
+    const shift = lockShiftPay()!
     loopState.jobShift = null
     const raised = useGameStore.getState().recordShiftWorked(shift.slotId, shift.pay)
     const jobId = useGameStore.getState().job?.jobId

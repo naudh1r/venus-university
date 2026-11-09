@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AppError } from '@shared/types'
 import { useGameStore } from '../src/renderer/stores/gameStore'
@@ -63,6 +64,25 @@ afterEach(() => {
 })
 
 describe('a failed turn hands back only words the reader owns', () => {
+  it.each(['LLM_HTTP', 'LLM_BLOCKED'])('keeps the Reckoning aftermath queued after %s without exposing a private cue',async(code)=>{
+    const after={id:'won',charId:'a',date:7,time:0}
+    const game=useGameStore.getState()
+    useGameStore.setState({exReckoning:{version:1,active:null,aftermath:after},currentSceneTranscript:sceneLines('A quiet moment.'),waitingForLine:true})
+    const snapshot:TurnSnapshot={scene:game.captureScene(),action:'',reckoning:'won'}
+    await runSceneTurn(failed(code),snapshot,[],[],false)
+    expect(useGameStore.getState().exReckoning.aftermath).toEqual(after)
+    expect(useGameStore.getState().inputDraft).toBe('')
+    expect(useGameStore.getState().waitingForLine).toBe(true)
+    expect(useGameStore.getState().turnError?.code).toBe(code)
+    expect(dispatchTurn).not.toHaveBeenCalled()
+  })
+  it('clears only the matching Reckoning aftermath after a successful scene continuation',async()=>{
+    useGameStore.setState({exReckoning:{version:1,active:null,aftermath:{id:'won',charId:'a',date:7,time:0}}})
+    const result:SceneCall=Promise.resolve({ok:true,data:{lines:sceneLines('She smiles, feeling lighter.'),summary:null,end:false,applied:false,at:0,reply:{lines:[]}}})
+    await runSceneTurn(result,{scene:null,action:'',reckoning:'won'},[],[],false)
+    expect(useGameStore.getState().exReckoning.aftermath).toBeUndefined()
+    expect(useGameStore.getState().currentSceneTranscript.some(l=>l.text.includes('feeling lighter'))).toBe(true)
+  })
   it('leaves the box empty when the action was an authored premise', async () => {
     const snapshot = readingTheScroll()
     // Permanently refused, which is the branch that opens the box on a typed turn.

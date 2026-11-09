@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SlotReplay } from '@shared/replays'
 import { READER_SPEAKER, type GameSave, type Result, type SceneState } from '@shared/types'
@@ -51,6 +52,8 @@ async function roundTrip(): Promise<void> {
 beforeEach(() => {
   resetLoopState()
   stubApi({
+    // Mods are on here, so an unversioned game is told so and remembered.
+    mods: { unversionedSeen: vi.fn(async (): Promise<Result<void>> => ({ ok: true, data: undefined })) },
     jobs: { cancelGroup: vi.fn(async (): Promise<Result<void>> => ({ ok: true, data: undefined })) },
     saves: {
       readProfilePicture: vi.fn(

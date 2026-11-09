@@ -1,3 +1,4 @@
+import { availableLocationMenu } from '@shared/cityLife'
 import { memo, useMemo, useState, type JSX, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { classGroupLabel, isCourse, type ClassKind } from '@shared/academics'
@@ -8,7 +9,7 @@ import type {
   StartResult
 } from '@shared/application'
 import { DORM_IDS, dormLabel, type DormId } from '@shared/dorms'
-import { JOB_CATALOG } from '@shared/jobs'
+import { availableJobs } from '@shared/jobs'
 import { ACTIVITY_LOCATIONS, FUN_LOCATIONS, MEAL_LOCATIONS, STUDY_LOCATIONS } from '@shared/locations'
 import { DISPOSITION_LABELS } from '@shared/relationship'
 import { fullNameOf, type Character, type ClassEntry, type Season } from '@shared/types'
@@ -461,7 +462,7 @@ const NewcomerPane = memo(function NewcomerPane({
             value={job === null ? 'none' : (job.jobId ?? '')}
             options={[
               { value: 'none', label: 'No job' },
-              ...JOB_CATALOG.map((def) => ({ value: def.id, label: `${def.employer}, ${def.title}` }))
+              ...availableJobs().map((def) => ({ value: def.id, label: `${def.employer}, ${def.title}` }))
             ]}
             onChange={(value) => {
               if (value === 'none') set({ job: null })
@@ -490,21 +491,21 @@ const NewcomerPane = memo(function NewcomerPane({
               id="final-study"
               label="Studies at"
               value={study ?? 'none'}
-              options={[{ value: 'none', label: 'Her room' }, ...placeOptions(STUDY_LOCATIONS)]}
+              options={[{ value: 'none', label: 'Her room' }, ...placeOptions(availableLocationMenu(STUDY_LOCATIONS))]}
               onChange={(value) => set({ study: value === 'none' ? null : value })}
             />
             <SelectField
               id="final-meal"
               label="Eats out at"
               value={meal ?? 'none'}
-              options={[{ value: 'none', label: 'Nowhere' }, ...placeOptions(MEAL_LOCATIONS)]}
+              options={[{ value: 'none', label: 'Nowhere' }, ...placeOptions(availableLocationMenu(MEAL_LOCATIONS))]}
               onChange={(value) => set({ meal: value === 'none' ? null : value })}
             />
             <SelectField
               id="final-fun"
               label="Goes out to"
               value={fun[0] ?? 'none'}
-              options={[{ value: 'none', label: 'Nowhere' }, ...placeOptions(FUN_LOCATIONS)]}
+              options={[{ value: 'none', label: 'Nowhere' }, ...placeOptions(availableLocationMenu(FUN_LOCATIONS))]}
               onChange={(value) => {
                 if (value === 'none') set({ fun: [] })
                 else set({ fun: fun[1] && fun[1] !== value ? [value, fun[1]] : [value] })
@@ -514,7 +515,7 @@ const NewcomerPane = memo(function NewcomerPane({
               id="final-fun-second"
               label="And to"
               value={fun[1] ?? ''}
-              options={withBlank(fun.length > 0 ? placeOptions(FUN_LOCATIONS, fun[0]) : [], 'Nowhere else')}
+              options={withBlank(fun.length > 0 ? placeOptions(availableLocationMenu(FUN_LOCATIONS), fun[0]) : [], 'Nowhere else')}
               disabled={fun.length === 0}
               onChange={(value) => {
                 if (fun.length === 0) return
@@ -525,7 +526,7 @@ const NewcomerPane = memo(function NewcomerPane({
               id="final-activity"
               label="Weekly activity at"
               value={activity === null ? 'none' : (activity.location ?? '')}
-              options={[{ value: 'none', label: 'None' }, ...placeOptions(ACTIVITY_LOCATIONS)]}
+              options={[{ value: 'none', label: 'None' }, ...placeOptions(availableLocationMenu(ACTIVITY_LOCATIONS))]}
               onChange={(value) => {
                 if (value === 'none') {
                   set({ activity: null })

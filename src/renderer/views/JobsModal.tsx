@@ -7,7 +7,7 @@ import { formatMoney } from '@shared/money'
 import {
   classSlotForShift,
   globalSlotOf,
-  JOB_CATALOG,
+  availableJobs,
   jobDefOf,
   MAX_RAISES,
   MAX_STRIKES,
@@ -17,6 +17,7 @@ import {
   requirementLabel,
   shiftSlotOf,
   unmetStatKeys,
+  unmetSkillRequirements,
   WEEK_COLUMNS,
   WEEK_DAY_HEADERS,
   type JobDef
@@ -26,6 +27,7 @@ import type { ShiftSlot } from '@shared/types'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
 import { useGameStore } from '../stores/gameStore'
+import { useModOn } from '../stores/modsStore'
 import { deliverBossMessage } from '../stores/textingLoop'
 import type { ScreenTheme } from './clockTheme'
 import {
@@ -126,12 +128,16 @@ function RequirementChip({
 /** What an opening asks for, read against what he has. */
 function Requirements({ def }: { def: JobDef }): JSX.Element {
   const stats = useGameStore((s) => s.stats)
+  const talents = useGameStore(s => s.exTalents)
+  const talentsOn = useModOn('campus-talents')
+  const missingSkills = unmetSkillRequirements(def, talentsOn ? talents.ranks : {})
   const entries = Object.entries(def.requires) as [StatKey, StatTier][]
-  if (entries.length === 0) {
+  if (entries.length === 0 && !def.requiresSkills?.length) {
     return <span className="vu-jobs-req">No requirements</span>
   }
   return (
     <>
+      {def.requiresSkills?.map(skill => <span key={skill.id} className={`vu-jobs-req${missingSkills.includes(skill) ? ' vu-jobs-req--short' : ''}`}>{skill.label}</span>)}
       {entries.map(([stat, tier]) => (
         <RequirementChip key={stat} stat={stat} tier={tier} met={tierOf(stats[stat]) >= tier} />
       ))}
@@ -249,20 +255,24 @@ function listOf(words: readonly string[]): string {
 }
 
 /** The unemployed view: every opening still on the board, and one application. */
-function BoardView({ onClose }: { onClose: () => void }): JSX.Element {
+export function BoardView({ onClose }: { onClose: () => void }): JSX.Element {
   const jobsClosed = useGameStore((s) => s.jobsClosed)
   const jobClosures = useGameStore((s) => s.jobClosures)
   const stats = useGameStore((s) => s.stats)
   const date = useGameStore((s) => s.date)
   const time = useGameStore((s) => s.time)
 
-  const open = JOB_CATALOG.filter((def) => !jobsClosed.includes(def.id))
+  const talents = useGameStore(s => s.exTalents)
+  const talentsOn = useModOn('campus-talents')
+  const open = availableJobs().filter((def) => !jobsClosed.includes(def.id))
   const [selectedId, setSelectedId] = useState<string | null>(open[0]?.id ?? null)
   const [shifts, setShifts] = useState<ShiftSlot[]>([])
 
   const selected = open.find((def) => def.id === selectedId) ?? null
   const offered = selected ? offeredShifts(selected, jobClosures) : []
   const short = selected ? unmetStatKeys(stats, selected) : []
+  const skillShort = selected ? unmetSkillRequirements(selected, talentsOn ? talents.ranks : {}) : []
+  const unqualified = short.length > 0 || skillShort.length > 0
 
   /** Selecting a different opening drops the shifts picked for the last one. */
   function select(id: string): void {
@@ -273,7 +283,7 @@ function BoardView({ onClose }: { onClose: () => void }): JSX.Element {
   function toggle(slot: ShiftSlot): void {
     // What the employer offers, and whether he qualifies at all, are checked here, whatever
     // the tile allows.
-    if (short.length > 0 || !offered.includes(slot)) return
+    if (unqualified || !offered.includes(slot)) return
     setShifts((current) =>
       current.includes(slot) ? current.filter((s) => s !== slot) : [...current, slot]
     )
@@ -284,13 +294,13 @@ function BoardView({ onClose }: { onClose: () => void }): JSX.Element {
     // Read before the hire, which is what makes him a returning hand rather than a new one.
     const returning = useGameStore.getState().formerJobs[selected.id] !== undefined
     // `settledThrough` is the slot he accepted in, so no earlier shift is judged.
-    useGameStore.getState().takeJob(selected.id, shifts, globalSlotOf(date, time))
+    if (!useGameStore.getState().takeJob(selected.id, shifts, globalSlotOf(date, time))) return
     deliverBossMessage(selected.id, returning ? 'welcomeBack' : 'intro')
   }
 
   // Two things hold the answer down: not qualifying, which the line above the week states in
   // words, and no hour picked, which the week itself shows. The answer says neither.
-  const cannotApply = short.length > 0 || shifts.length === 0
+  const cannotApply = unqualified || shifts.length === 0
 
   return (
     <>
@@ -334,13 +344,14 @@ function BoardView({ onClose }: { onClose: () => void }): JSX.Element {
                   here.
                 </p>
               )}
+              {skillShort.length > 0 && <p className="vu-jobs-short">Requires {skillShort.map(s => s.label).join(' and ')}. {talentsOn ? 'Learn the required ranks in Skill trees.' : 'Enable Campus Talents and learn the required ranks in Skill trees.'} The studio is open to visitors at every rank.</p>}
               <div className="vu-jobs-shifts">
                 <h3 className="vu-jobs-head">Select shifts</h3>
                 <ShiftWeek
                   shifts={shifts}
                   offered={offered}
                   onToggle={toggle}
-                  disabled={short.length > 0}
+                  disabled={unqualified}
                 />
               </div>
             </>

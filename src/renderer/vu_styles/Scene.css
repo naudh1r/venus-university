@@ -117,7 +117,7 @@
 
 /* ---- the rail ------------------------------------------------------------- */
 
-/* Three buttons, bottom right. **BunnyMap and BunnyShop are not here**: a scene is not where
+/* App tabs, bottom right, with optional mod entries. **BunnyMap and BunnyShop are not here**: a scene is not where
    either is opened — the landing keeps them. */
 .vu-scene-rail {
   position: absolute;

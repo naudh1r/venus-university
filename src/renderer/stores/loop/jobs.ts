@@ -1,3 +1,5 @@
+import { talentPay } from '@shared/campusTalents'
+import { modIsOn } from '../modsStore'
 import { kindOf, type ExamPeriod } from '@shared/academics'
 import {
   globalSlotOf,
@@ -120,6 +122,20 @@ export function sceneRecordsOf(
     projectWork:
       typeof project === 'object' && project?.code === scene?.projectClass ? project : null
   }
+}
+
+const paidShifts = new WeakSet<JobShift>()
+/** Quote current perks until money moves, then keep the paid amount for the work ledger. */
+export function payableShift(shift:JobShift|null):JobShift|null {
+  const game=useGameStore.getState()
+  return shift&&!paidShifts.has(shift)&&modIsOn('campus-talents')&&game.playthroughId&&!game.createdScene&&!game.replaying
+    ? {...shift,pay:talentPay(game.exTalents,shift.pay,game.job?.streak??0)} : shift
+}
+export function lockShiftPay():JobShift|null {
+  const shift=payableShift(loopState.jobShift)
+  if(shift)paidShifts.add(shift)
+  loopState.jobShift=shift
+  return shift
 }
 
 /** Arms both records off the scene the store holds, the way a reload derives them. */

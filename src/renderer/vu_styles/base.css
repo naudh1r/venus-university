@@ -1130,6 +1130,22 @@ body {
   line-height: 1;
 }
 
+/* Optional trait accent; readable in both the cream and dark themes. */
+.vu-chip-tag[data-tone="gold"],
+.vu-contact-chip[data-tone="gold"],
+.vu-chips-picker option[data-tone="gold"] {
+  color: #442808;
+  background: linear-gradient(135deg, #f8e7ac, #dfb957);
+  box-shadow: inset 0 0 0 1.5px #a77926;
+}
+.vu-chip-tag[data-tone="gold"] .vu-chip-x { color: #442808; }
+.vu-chip-tag[data-tone="gold"] .vu-chip-x:hover { color: #6f310a; }
+.vu-chip-tag[data-tone="gold"] .vu-chip-x:focus-visible {
+  outline: 2px solid #442808;
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+
 .vu-chips-draft {
   flex: 1;
   min-width: 90px;

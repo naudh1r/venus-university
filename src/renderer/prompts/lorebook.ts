@@ -1,3 +1,5 @@
+import { locationAvailable } from '@shared/cityLife'
+import { CITY_LIFE_LORE } from './cityLifeLore'
 /**
  * The lorebook: world detail injected only when a turn actually mentions it. The shipped
  * entries are authored here — Venus University and Veridan are already always-on in
@@ -53,6 +55,7 @@ export interface BookEntry extends LoreEntry {
 }
 
 export const LOREBOOK: readonly ShippedLoreEntry[] = [
+  ...CITY_LIFE_LORE,
   {
     ref: 'vsa',
     keys: ['VSA', 'student association', 'CAPC', 'SEB', 'student organization', 'student government'],
@@ -305,6 +308,11 @@ function entryPattern(entry: LoreEntry): RegExp {
   return pattern
 }
 
+/** What an opening may introduce, restricted to the current playthrough's locations. */
+export function availableLore(): readonly LoreEntry[] {
+  return LOREBOOK.filter(entry => !entry.id || locationAvailable(entry.id))
+}
+
 /**
  * The narration from the first sentence naming `entry`'s place to the end of it — what's
  * actually happening there often lands in a later sentence — or null where nothing names it.
@@ -321,7 +329,7 @@ export function rumorSentenceFor(entry: LoreEntry, lines: readonly string[]): st
  * so `bar` cannot pull in a barn.
  */
 function matchLore(book: readonly BookEntry[], scanned: string): BookEntry[] {
-  return book.filter((entry) => entryPattern(entry).test(scanned))
+  return book.filter((entry) => (!entry.id || locationAvailable(entry.id)) && entryPattern(entry).test(scanned))
 }
 
 /**
@@ -360,7 +368,7 @@ export const SHIPPED_BOOK: readonly BookEntry[] = effectiveLorebook(null)
 export function placeEntryOf(book: readonly BookEntry[], id: string): BookEntry | null {
   const wanted = id.trim().toLowerCase()
   if (!wanted) return null
-  return book.find((entry) => entry.id === wanted) ?? null
+  return locationAvailable(wanted) ? book.find((entry) => entry.id === wanted) ?? null : null
 }
 
 /** An entry's description on one line, its line breaks folded into spaces. */
@@ -655,7 +663,7 @@ export function classLore(scanned: string, view: ClassLoreView): string[] {
 export function loreEntryById(id: string): LoreEntry | null {
   const wanted = id.trim().toLowerCase()
   if (!wanted) return null
-  return LOREBOOK.find((entry) => entry.id === wanted) ?? null
+  return locationAvailable(wanted) ? LOREBOOK.find((entry) => entry.id === wanted) ?? null : null
 }
 
 /** Grab bag id for the slot opening's SOMEWHERE TO GO draw off the shipped entries. */
@@ -668,7 +676,7 @@ export function loreKeyOf(entry: BookEntry): string {
 
 /** What SOMEWHERE TO GO is drawn from: the shipped entries, as the player has them. */
 export function rumorPoolOf(book: readonly BookEntry[]): BookEntry[] {
-  return book.filter((entry) => !entry.custom)
+  return book.filter((entry) => !entry.custom && (!entry.id || locationAvailable(entry.id)))
 }
 
 /** What the slot's opening put about somewhere, ready to ride that place's entry. */

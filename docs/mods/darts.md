@@ -1,0 +1,327 @@
+# Darts
+
+Darts is a PC mini-game in **[Nd] Arcade & Bar Games** by naudh1r. Play solo against
+the house, team up with one or two girls, or compete in a 301 Rival Match. The board
+fills the game screen while keeping the current Venus scene behind it. Dialogue and
+character expressions use the scene's own text box and sprites.
+
+This guide describes the Darts integration on Venus University **0.5.0** with the
+Extracurriculars mini-games framework, including the updated NPC precision balance.
+
+## Where to play
+
+Enable **Mini-games**, **[Nd] Arcade & Bar Games**, and its **Darts** game switch in Mods.
+Darts is available at:
+
+- BTB Arcade
+- Stalestein Bar
+- Pino-Cola Lounge
+
+Start or continue a scene with an NPC at one of these venues. Open the existing
+mini-games HUD button to choose Darts, participants and options, or agree to a game
+through scene dialogue. A narrator-launched game needs agreement from both the player
+and at least one NPC. A suggestion alone does not start the match.
+
+To play solo, choose **Play alone** in the HUD while an NPC is present in the scene.
+That NPC remains a bystander and does not throw. Darts does not create a separate,
+ongoing scene without NPCs; the base game's normal scene-ending rules still apply.
+
+When narration moves to a new venue during a scene, the games on offer follow the
+location the player has actually reached. An unread destination or a cosmetic
+background override does not unlock games early.
+
+## Mouse-only controls
+
+The match can be played entirely with the mouse.
+
+| Action | Mouse control |
+| --- | --- |
+| Place your aim | Move the mouse over the dartboard. |
+| Lock your aim | Hold the left mouse button on the board. The ellipse appears and its dot starts moving. |
+| Throw | Release the left mouse button when the dot is where you want the dart to land. |
+| Hand over to the NPCs | Click **Change turn** when it becomes available. |
+| Start your next visit | Click **My turn** when it becomes available. |
+| Check scoring | Click **Score Guide**, then **Back to the board** to close it. |
+| Adjust sound effects | Use the base game’s Sound Effects volume setting; Darts follows it live. |
+| Leave an unfinished match | Use the framework's **Walk away** button. |
+
+Holding locks the ellipse at the chosen aim; moving the mouse afterwards does not drag
+it around. Release timing selects the landing point at the moving dot. Player throws
+do not receive a separate NPC-style accuracy roll. The ellipse and dot appear only
+while holding; aim indicators are hidden during NPC turns. Losing focus cancels a held
+aim, and automatic NPC throws wait while the game window is away.
+
+Each visit has up to three darts. The score panel starts with three dart icons and
+replaces each one with its hit label and points after landing. Earlier darts in the
+same visit become silhouettes; holding to aim also turns existing landed darts into
+silhouettes. The board clears when the next participant's visit starts.
+
+## Scoring
+
+| Region | Points |
+| --- | --- |
+| Single | The sector number |
+| Double: narrow outer ring | Twice the sector number |
+| Triple: narrow middle ring | Three times the sector number |
+| Outer bull | 25 |
+| Inner bull | 50 |
+| Outside the scoring board | 0 |
+
+Countdown modes use **straight-out**: reach exactly zero on any scoring region to check out.
+A double is not required. Going below zero is a **bust**: all points from that visit
+are cancelled, its opening balance is restored, and the visit ends immediately.
+
+## Game modes
+
+### Beat the House
+
+Count down from **301, 501 or 701**; the default is **501**. With NPC teammates,
+everyone subtracts from the same team balance.
+
+| Participants | Turn order | Visits available |
+| --- | --- | --- |
+| Solo | Player | Five player visits, up to 15 darts |
+| Player + one girl | Player → girl → player → girl → player | Three player visits and two NPC visits |
+| Player + two girls | Player → first girl → second girl → repeat, ending with the player | Three player visits and two visits per NPC |
+
+Reaching zero wins immediately. If the last visit ends with points remaining, the house
+wins. During solo play, **Next round** starts each new visit. Solo uses Beat the House; modes that require companions show their participant
+requirements when selected without them.
+
+### 301 Rival Match
+
+Play against **one or two girls**. Every participant starts with a separate **301**
+balance and gets up to three visits, alternating player, first girl and second girl
+where present. The first checkout wins immediately. If nobody checks out, the lowest
+remaining balance wins; equal lowest balances draw. The house starting-score option
+does not change Rival Match's 301 starting balance.
+
+### Player vs Girls Team
+
+Exactly two girls share a countdown balance against your separate balance. Choose
+301, 501 or 701. Turn order is girl 1 → girl 2 → player for three rounds, with
+three darts per visit. Exact zero wins immediately; otherwise the lower balance
+wins at the round limit. A bust cancels only that visit. The girls deliberately
+have twice as many darts: this is a 1-vs-2 challenge.
+
+### Chase the Leader
+
+Three players: you and two girls. Choose three quick rounds or nine full rounds;
+each participant leads equally often. The leader sets a three-dart total. Each
+challenger who matches or beats it earns one point. The leader earns one point
+only if both challengers fail. Highest points wins; tied leaders share first place.
+
+### Precision Duel
+
+One girl with cached Darts skill tier **4 or higher**. Both players face the same
+five seeded targets: two doubles, two triples and one bullseye, in shuffled order.
+Three darts each per target. Only the exact number and ring count; every correct
+hit earns one point. Most points wins.
+
+### Exact Total
+
+One girl with cached Darts skill tier **3 or higher**. Five shared, seeded totals
+above 20, each reachable in one double, triple or bullseye, or several singles.
+Use up to three darts per target. A successful finish beats a failure; fewer darts
+wins the target. Overshooting resets the accumulated total to zero without refunding
+used darts. Equal successful finishes award both players one point; two failures
+award neither. Most target wins takes the match.
+
+New modes require the stated companion count and tier. An unavailable selection
+explains the requirement and offers eligible modes; it does not bypass the gate.
+These modes have separate scoring ledgers. Existing Beat the House and Rival Match
+rules remain unchanged. Solo still has five visits for every starting balance.
+
+## NPC skill
+
+The first time each NPC plays Darts in a playthrough, the framework asks the model to
+judge overall skill **1–5**, a short playing style, and three personality-based biases
+**−2 to +2**. That single judgment uses personality, traits, likes and backstory.
+
+The engine converts that judgment into three independent stats from **0–100**:
+
+| Stat | Effect on throws |
+| --- | --- |
+| Accuracy | Higher values make the landing group tighter around the chosen target. |
+| Consistency | Higher values reduce variation in spread between throws. |
+| Composure | Higher values reduce extra spread near checkout or in late visits. |
+
+These stats are not portions of a shared 100-point total. A small, repeatable variation
+comes from NPC identity. Skill and biases are cached per **playthrough + NPC + game**
+in the application's local storage; the final stats are derived when a match starts.
+Later matches reuse the judgment. Starting a new playthrough allows a new judgment.
+Clearing application storage or transferring only a save does not carry this cache.
+There is currently no automatic skill growth or in-game skill inspector.
+
+High-skill NPCs now group their throws more tightly, including under pressure, while
+still being able to miss. The engine chooses targets from the remaining score, plans
+possible checkouts and varies high-score targets. It then rolls seeded drift from the
+three stats. The model does not decide points or landing coordinates.
+
+If the skill call fails, the current attempt uses level 3 with neutral biases; the
+framework can try the judgment again next time.
+
+## Dialogue and turn pacing
+
+After the player's visit ends, the engine plans the upcoming NPC throws before asking
+the model for dialogue and expressions. With two girls, both consecutive NPC visits
+are included in **one batch call**, rather than a call for every dart or girl.
+
+The model sees the player's last visit and the planned NPC results. It writes reactions
+for those exact moments: character banter, encouragement, teasing, rivalry or nerves,
+with scores mentioned when natural. It must not reveal later results early or change
+the engine's results. Invalid or unavailable responses use fallback dialogue.
+
+| Dialogue setting | Automatic companion dialogue |
+| --- | --- |
+| Quiet | No companion reaction calls or unsolicited speech |
+| Some | An intro and up to one selected impact reaction per NPC visit |
+| Lots | An intro, reactions after each non-final hit, and a closing if the match continues |
+
+For Some and Lots, the first intro is shown before **Change turn** unlocks. After the
+player clicks it, the NPC pauses briefly, throws, and the score and LED effects respond
+at impact. Her bound reaction and expression appear about **350 ms after landing**.
+Each reaction finishes before the next throw; another brief pause separates the girls.
+**My turn** becomes available only after the whole NPC block and its dialogue finish.
+Native reader-paced settings and text overflow sequencing remain in effect.
+
+A full, non-Quiet Beat the House team match normally needs up to **two companion batch calls**;
+an early checkout can reduce that. New modes batch consecutive NPC visits until control
+returns to the player; call count follows that mode’s turn order. First-time skill judgments, optional player chat
+and the narrator's result response are separate calls. Solo has no NPC skill or
+companion reaction calls. Quiet still permits first-time NPC skill judgment and the
+framework's normal result narration.
+
+The normal scene's "What do you do?" input is hidden during a match, including solo.
+Its unsent draft is kept and returns when the mini-game closes.
+
+Optional table chat opens on hover and stays open while typing. Sending puts it away.
+New dialogue closes a hover-only peek without interrupting a focused draft. The text
+box adjusts for multiline input. Required answers in other mini-games, such as Truth
+or Dare, stay visible.
+
+## Presentation and results
+
+Throw and impact animations, dartboard LED patterns, animated score changes, hit sounds
+and win/loss feedback accompany the match. The score guide overlays the board with a
+blurred backdrop. Darts follows the game's global SFX volume live, including zero; it has no separate mute switch. The game's
+Reduce Motion setting shortens animation and timing.
+
+When a match with NPC participants ends, the framework hands its actual outcome and
+throw account to the narrator. Narration starts **after** the settled result rather
+than staging the final throw again. Solo results are added to the scene and supplied
+with the next player turn, following normal framework behavior. Walking away reports
+an unfinished match. Darts adds no fixed stat reward; ordinary scene bookkeeping
+handles any relationship or player-stat consequences.
+
+An active match is temporary and does not resume after reloading. Finish it before
+closing if you want a completed result. Updating the precision balance does not require
+resetting cached NPC skill; start a new match to use the updated throw plans.
+
+The Arcade & Bar Games pack defaults on and requires the Mini-games framework. Turning the framework off disables Darts; with the framework on, Darts is available unless its pack is explicitly switched off. Existing saved mod preferences are respected.
+
+## Rendering and startup
+
+Darts reuses fixed-size board texture layers and dart images between games. Canvas
+redraws stop while the board is unchanged or covered by its score guide, and resume
+for mouse aim, throws, impact effects and resizing. The frame callback still checks
+for visual changes; pointer timing and animation speed are unchanged.
+
+NPC skill loading belongs to the Mini-games framework. A first game with an NPC
+can still wait for that AI judgment before the board appears; this rendering
+optimization does not change the framework or its skill cache.
+
+## Artwork, audio and licensing
+
+Dart artwork was contributed by **naudh1r**. The images are AI-generated or adapted
+from AI-generated artwork and models. For the multi-angle views, an AI-generated dart
+image was used as a reference to generate a 3D model in **[Meshy](https://www.meshy.ai/)**.
+Screenshots were captured from the required angles and edited into game sprites.
+
+| Asset | Source and permission |
+| --- | --- |
+| `src/assets/darts/dart-hud-side.png` | Separately AI-generated 2D artwork contributed by naudh1r for inclusion and redistribution with Venus Extracurriculars. |
+| `src/assets/darts/darts-eye-level.png` | Multi-angle sprite artwork prepared by naudh1r using AI artwork and Meshy model views; provided under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). |
+| `src/assets/darts/darts-meshy-views.png` | Screenshots of a Meshy-generated dart model, captured and adapted by naudh1r; provided under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). |
+
+**Attribution for the model-derived sprites:** Dart model created by naudh1r using
+Meshy — CC BY 4.0. Screenshots captured and edited into game sprites by naudh1r.
+Adaptations include cropping, background removal, sprite-sheet layout and colour
+variations where applicable. Retain this attribution and the licence link when
+redistributing or adapting the CC BY 4.0 assets.
+
+These contributed images are **not Venus Dev assets**. Their
+[directory-specific asset notice](../../src/assets/darts/LICENSE.md) identifies the
+separate permissions that apply to these three files, rather than the repository-wide
+Venus Dev attribution. The game's AGPL code licence does not replace these permissions.
+Meshy's output licence does not grant rights to unrelated third-party material.
+See [Meshy's ownership guidance](https://help.meshy.ai/en/articles/10137554-what-is-the-ownership-of-the-generated-models)
+and [terms of service](https://www.meshy.ai/terms-of-use).
+
+All Darts sound effects are synthesized at runtime by the game's audio code;
+there are no bundled third-party Darts sound recordings.
+
+## Turn pacing
+
+In solo play, **Next round** collects the previous visit's darts and starts the next
+three throws. With companions, **Change turn** hands over and **My turn** returns
+the board to you. While companion dialogue is being prepared, the status reads
+**Preparing next turn…**.
+
+Quiet and Some allow at least 1.5 seconds from a silent NPC landing to the next
+throw. This includes the existing score/LED pause rather than adding another
+1.5 seconds. Lots, spoken reactions and play-by-play retain their existing pacing.
+No preset dialogue is added; the number of reactions per mode is unchanged.
+
+## Mode information on the board
+
+The active mode appears below the Darts title at the top left. Click its name to
+expand or collapse the mode rules. Rules stay in the left column; the scoreboard
+stays on the right and character dialogue stays in the scene box below. The board
+uses the remaining space while the information is open. Close the info to resume
+aiming. This control is unavailable during an active throw or NPC turn.
+
+## Control guide and debug reports
+
+**Score Guide** and **Control** are equal-width buttons below the scoreboard's turn
+button. Control opens the same board-area overlay and blur as Score Guide, with
+mouse instructions: move to aim, hold left click to lock the ellipse, then release
+at the moving white dot. Aiming is blocked while either guide is open. Close with
+**Back to the board**. Mode-specific rules remain in the left dropdown.
+
+Participant names and their larger scores are centred in equal columns. The left
+rules and right scoreboard use equal screen gutters. The primary turn button stays
+inside the scoreboard. **Walk away** is a styled game action beneath it; it still
+uses the framework's existing unfinished-match reporting.
+
+**Copy bug report is hidden by default in Darts only.** The report functionality
+is retained for debugging. To show the button for the current app session, open
+Developer Tools and run this in the console:
+
+```js
+document.documentElement.dataset.dartsDebug = 'true'
+```
+
+Hide it again with:
+
+```js
+delete document.documentElement.dataset.dartsDebug
+```
+
+Reloading also hides it again. This visual debug flag does not change game rules,
+NPC skills or other mini-games. The visible report button keeps its normal copy action.
+
+Both guide overlays are inset from the board area to clear the dialogue. Their
+**Back to the board** button sits at the bottom right. **SECTOR 20** labels the sample sector, centred vertically between the overlay's top
+and the diagram's visible top rim; it is not a screen title. Control has no title. Walk
+away keeps a light background and red text, including while hovered or pressed.
+
+The turn button stays visible throughout the match. It shows **You’re playing**,
+the active girl's name while she plays, preparation status, or match complete. It
+is disabled in these states. **Change turn**, **My turn** and solo **Next round**
+become clickable only at the existing handover points, after dialogue has finished.
+Preparation status appears only on the turn button. Final win/draw/loss text uses
+the reserved status row above that button, without adding a footer below the guides.
+**Next time.** appears for a completed loss, never as the result of an interrupted match.
+The guide buttons sit below a separate gap. Back buttons have additional right and
+bottom clearance. Walk away uses the same offset paper shadow as the other game buttons.

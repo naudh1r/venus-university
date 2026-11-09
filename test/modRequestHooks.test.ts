@@ -1,6 +1,25 @@
 import { expect, it, vi } from 'vitest'
 import type { StructuredRequest } from '@shared/types'
 import type { RequestSpots, SlotSettled } from '../src/renderer/mods/hooks'
+import { charInfo } from './fixtures'
+
+it('composes pure memory projections in mod order and excludes disabled mods', async () => {
+  vi.resetModules()
+  const hooks = await import('../src/renderer/mods/hooks')
+  hooks.setHookRules({ isOn: id => id !== 'off', order: id => ['first', 'second', 'off'].indexOf(id) })
+  const ctx = { closingCast: [] } as unknown as import('../src/renderer/mods/hooks').SlotMemoryProjection
+  const original = { a: charInfo() }, seen: string[] = []
+  hooks.registerHooks('second', { projectSlotMemories: (received, map) => {
+    expect(received).toBe(ctx); expect(map.a.nameKnown).toBe(true); seen.push('second'); return { ...map, a: { ...map.a, year: 2 } }
+  } })
+  hooks.registerHooks('first', { projectSlotMemories: (_, map) => { seen.push('first'); return { ...map, a: { ...map.a, nameKnown: true } } } })
+  const disabled = vi.fn(() => { throw Error('Disabled projection ran') })
+  hooks.registerHooks('off', { projectSlotMemories: disabled })
+  expect(hooks.projectSlotMemories(ctx, original).a).toMatchObject({ nameKnown: true, year: 2 })
+  expect(original.a.nameKnown).toBe(false)
+  expect(seen).toEqual(['first', 'second'])
+  expect(disabled).not.toHaveBeenCalled()
+})
 
 it('composes enabled request extensions in list order without losing earlier fields', async () => {
   vi.resetModules()
@@ -42,5 +61,6 @@ it('excludes disabled and duplicate phone pages while protecting native tabs', a
   hooks.registerHooks('second', { bunnyboardPage: page })
   hooks.registerHooks('off', { bunnyboardPage: { ...page, id: 'hidden' } })
   hooks.registerHooks('native', { bunnyboardPage: { ...page, id: 'chats' } })
+  hooks.registerHooks('lorebook-extension', { bunnyboardPage: { ...page, id: 'lorebook' } })
   expect(hooks.bunnyboardPages()).toEqual([page])
 })

@@ -95,11 +95,10 @@
   color: var(--vu-stat-heart);
 }
 
-/* The tier by name and never by points: a number on screen is a number to grind. */
+/* Rank titles only, including the four optional challenge ranks. */
 .vu-who-stat-tier {
   color: var(--vu-text);
   font: 700 15px var(--font-mono);
   letter-spacing: 0.06em;
   text-align: center;
 }
-

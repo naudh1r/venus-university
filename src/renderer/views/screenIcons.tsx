@@ -473,6 +473,9 @@ export function CalendarIcon(): JSX.Element {
   )
 }
 
+// Kept for existing consumers such as Campus Talents' Echoes tree.
+export { EchoIcon } from './EchoIcon'
+
 /** BunnyShop's own mark: a shopping bag. */
 export function ShopIcon(): JSX.Element {
   return (

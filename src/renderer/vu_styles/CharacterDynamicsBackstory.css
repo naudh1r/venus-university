@@ -1,0 +1,31 @@
+.vu-dynamics-backstory-link { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 14px; }
+.vu-dynamics-backstory-link > span { color: var(--vu-text-muted); font: 400 11px/1.5 var(--font-mono); }
+.vu-dynamics-details {
+  --paper-shadow: var(--vu-panel-shadow);
+  --paper-offset: 12px 11px;
+  --paper-tilt: -0.8deg;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: min(940px, 100% - 80px);
+  max-height: calc(100% - 120px);
+  padding: 76px 48px 30px 76px;
+  border-radius: 100px 0 0 100px;
+}
+.vu-dynamics-details-head > span { color: var(--vu-text-muted); font: 700 11px var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; }
+.vu-dynamics-details-head h2 { margin: 10px 0; color: var(--vu-accent); font: 400 30px/1.3 var(--font-display); overflow-wrap: anywhere; }
+.vu-dynamics-details-head > p { margin: 0; color: var(--vu-text-muted); font-size: 14px; line-height: 1.5; }
+.vu-dynamics-details-scroll { min-height: 0; overflow: hidden auto; padding: 2px 14px 4px 0; overflow-wrap: anywhere; }
+.vu-dynamics-details-scroll h3 { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; font: 700 12px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; }
+.vu-dynamics-starting-background { padding: 22px 24px; border-left: 3px solid var(--vu-accent); border-radius: 0 20px 20px 0; background: var(--vu-recessed); }
+.vu-dynamics-starting-background h3 { color: var(--vu-text-muted); }
+.vu-dynamics-starting-background strong { display: inline-block; padding: 6px 14px; border-radius: 999px; background: var(--vu-tint); color: var(--vu-accent); font-size: 14px; }
+.vu-dynamics-starting-background p { margin: 12px 0 0; color: var(--vu-text-body); font-size: 16px; line-height: 1.6; white-space: pre-wrap; }
+.vu-dynamics-starting-background + .vu-dynamics-details-traits { margin-top: 26px; }
+.vu-dynamics-details-traits h3 { margin-bottom: 6px; }
+.vu-dynamics-details-traits h3 > span { color: var(--vu-accent); }
+.vu-dynamics-details-traits > p { margin: 0 0 16px; color: var(--vu-text-muted); font-size: 14px; }
+.vu-dynamics-details-traits ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.vu-dynamics-details-traits li { padding: 16px 18px; border: 1.5px solid var(--vu-border); border-radius: 18px; background: var(--vu-recessed); }
+.vu-dynamics-details-traits h4 { margin: 0 0 7px; color: var(--vu-accent); font-size: 16px; }
+.vu-dynamics-details-traits li p { margin: 0; color: var(--vu-text-body); font-size: 14px; line-height: 1.5; }
