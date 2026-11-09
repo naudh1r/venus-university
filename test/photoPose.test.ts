@@ -319,6 +319,14 @@ describe('undressing hands', () => {
       expect.arrayContaining(['spread_pussy', 'spread_legs'])
     )
   })
+
+  it('reads her thighs pulled back and her fingers parting her folds', () => {
+    const tags = posePhotoTags(
+      'In her bedroom, lying on her back completely nude with her thighs pulled back toward her chest, using her fingers to part her wet pink folds wide open',
+      true
+    )
+    expect(tags).toEqual(expect.arrayContaining(['legs_up', 'spread_pussy']))
+  })
 })
 
 describe('her free hand', () => {
@@ -844,4 +852,10 @@ describe('captioned hands replace position fillers', () => {
       }
     }
   )
+
+  it('leaves the mirror out of a picture of her from behind', () => {
+    const tags = posePhotoTags('Naked in her room in the mirror, from behind, looking back', true)
+    expect(tags).toContain('from_behind')
+    expect(tags).not.toContain('mirror')
+  })
 })

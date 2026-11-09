@@ -112,7 +112,17 @@ const BARE_POSITIONS: readonly Rule[] = [
   },
   { cues: ['from behind'], tags: ['from_behind', 'solo', 'ass_focus'] },
   {
-    cues: ['legs up', 'legs in the air', 'legs raised', 'knees to her chest', 'ankles up'],
+    cues: [
+      'legs up',
+      'legs in the air',
+      'legs raised',
+      'knees to her chest',
+      'knees toward her chest',
+      'thighs pulled back',
+      'legs pulled back',
+      'knees pulled back',
+      'ankles up'
+    ],
     tags: ['lying', 'on_back', 'solo', 'legs_up', 'knees_up']
   },
   {
@@ -353,7 +363,13 @@ const HAND_ACTIONS: readonly ActionRule[] = [
       'spreading herself open',
       'holding herself open',
       'spreading her lips',
-      'pulling herself open'
+      'pulling herself open',
+      'part her folds',
+      'parting her folds',
+      'parts her folds',
+      'spreading her folds',
+      'folds wide',
+      'folds open'
     ],
     tags: ['spread_pussy', 'pussy', 'spread_legs'],
     implies: ['lying', 'on_back', 'solo', 'spread_legs']
@@ -1175,6 +1191,8 @@ export function photoPose(caption: string, tier: PhotoTier): PhotoPose {
   }
   // The mirror's phone hand is added after the activity has settled her free hand.
   tags = [...new Set(tags)]
+  // Seen from behind, a mirror holds a second girl facing the other way: the glass goes.
+  if (!mirror && tags.includes('from_behind')) tags = tags.filter((tag) => tag !== 'mirror')
   // A camera lying about in the picture turned up beside a photo nobody took as a selfie too.
   const noCamera = saysAny(text, CAMERA_CUES) ? [] : ['camera']
   const freeHand = activity && gesture ? activity.tags : []
