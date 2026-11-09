@@ -858,4 +858,12 @@ describe('captioned hands replace position fillers', () => {
     expect(tags).toContain('from_behind')
     expect(tags).not.toContain('mirror')
   })
+
+  it('reads her hands spreading her buttocks', () => {
+    const tags = posePhotoTags(
+      'In her bedroom, kneeling on the mattress completely nude, using both hands to spread her bare buttocks wide apart, from behind',
+      true
+    )
+    expect(tags).toEqual(expect.arrayContaining(['spread_ass', 'grabbing_own_ass', 'kneeling']))
+  })
 })

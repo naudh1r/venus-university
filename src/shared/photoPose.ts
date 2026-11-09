@@ -375,12 +375,25 @@ const HAND_ACTIONS: readonly ActionRule[] = [
     implies: ['lying', 'on_back', 'solo', 'spread_legs']
   },
   {
+    // Both hands on her cheeks pulling them apart; the grab alone drew one hand resting there.
     cues: [
       'spreading her ass',
       'spreading her cheeks',
       'holding her cheeks apart',
-      'grabbing her ass'
+      'spread her ass',
+      'spread her cheeks',
+      'spread her buttocks',
+      'spread her bare buttocks',
+      'spreading her buttocks',
+      'buttocks apart',
+      'buttocks wide apart',
+      'buttock cheek'
     ],
+    tags: ['spread_ass', 'grabbing_own_ass', 'ass_focus', 'pussy'],
+    implies: ['bent_over', 'solo']
+  },
+  {
+    cues: ['grabbing her ass'],
     tags: ['grabbing_own_ass', 'ass_focus'],
     implies: ['bent_over', 'solo']
   },
@@ -1191,6 +1204,10 @@ export function photoPose(caption: string, tier: PhotoTier): PhotoPose {
   }
   // The mirror's phone hand is added after the activity has settled her free hand.
   tags = [...new Set(tags)]
+  // From behind wins her position, so kneeling, which kept her up off her heels, is added back.
+  if (tags.includes('from_behind') && saysAny(text, ['kneeling', 'on her knees'])) {
+    tags = [...new Set([...tags, 'kneeling'])]
+  }
   // Seen from behind, a mirror holds a second girl facing the other way: the glass goes.
   if (!mirror && tags.includes('from_behind')) tags = tags.filter((tag) => tag !== 'mirror')
   // A camera lying about in the picture turned up beside a photo nobody took as a selfie too.
