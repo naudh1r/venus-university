@@ -945,6 +945,17 @@ function duoFraming(text: string, armOut = false): { tags: string[]; scene: stri
   }
 }
 
+/**
+ * A dress said without its length. Beside a friend in a top, "long dress" drew her down to the
+ * thighs while her friend stopped at the waist, as if a step behind.
+ */
+function waistUpDress(tag: string): string {
+  if (!/dress|gown/i.test(tag)) return tag
+  return tag
+    .replace(/(?<![a-z])(?:long|maxi|floor[-_ ]length|ankle[-_ ]length)[-_ ]?/gi, '')
+    .replace(/([(_ ])[-_ ]+/g, '$1')
+}
+
 /** One girl's half: who she is, what of her the shot shows, and what she wears. */
 function duoHalf(
   girl: Character,
@@ -962,6 +973,7 @@ function duoHalf(
   )
   const wardrobe = selected.tags
     .filter((tag) => bare || !BELOW_WAIST.test(tag))
+    .map((tag) => (bare ? tag : waistUpDress(tag)))
     .map(heldColour)
   return {
     prompt: plainColours(

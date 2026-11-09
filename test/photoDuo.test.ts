@@ -159,6 +159,14 @@ describe('a picture of two', () => {
     expect(chin.scene).toContain('chin on her hand')
   })
 
+  it('says a long dress without its length in a picture of two', () => {
+    const gown = { ...ana, outfit: ['dark blue strapless tube top long dress', 'black_maxi_dress'] }
+    const prompts = buildDuoPhotoPrompt(risa, gown, 'everyday', 'Me and Ana on the rooftop')
+    expect(prompts.right).toContain('dark blue strapless tube top dress')
+    expect(prompts.right).toContain('black_dress')
+    expect(prompts.right).not.toMatch(/long dress|maxi/)
+  })
+
   it('leaves her swimsuit bottom out of a picture of two from the waist up', () => {
     const swim = { ...risa, swimOutfit: ['green_bikini_top', 'tie_side_bikini_bottom'] }
     const prompts = buildDuoPhotoPrompt(swim, ana, 'everyday', 'Me and Ana at the pool in our swimsuits')
