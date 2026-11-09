@@ -539,10 +539,6 @@ const ACTIVITIES: readonly ActivityRule[] = [
     cues: ['playing games', 'playing a game', 'playing video games', 'gaming', 'controller'],
     tags: ['playing_games', 'holding_controller']
   },
-  // A drink she only holds: without `holding_cup` the cup floated at her mouth with both her arms
-  // at her sides. One she drinks keeps `drinking` alone below: the cup tag beside it drew a second
-  // cup. Mirror selfies never reach this table, and a cup there was left on the bed.
-  { cues: ['holding', 'clutching', 'carrying'], needs: HELD_DRINKS, tags: ['holding_cup'] },
   { cues: ['eating'], tags: ['eating'] },
   { cues: ['drinking', 'sipping'], tags: ['drinking'] },
   { cues: ['cooking', 'stirring'], tags: ['cooking'] },
