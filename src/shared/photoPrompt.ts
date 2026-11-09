@@ -501,6 +501,14 @@ export function buildPhotoPrompt(
   // Read off everything the picture will be told she wears, her own tags and outfit included.
   const told = `${appearance.join(' ')} ${wardrobe} ${scene}`
 
+  // A pose tag her clothes already carry, "clothes_pull" from a pulled neckline, is said once.
+  const earlier = new Set(
+    [...appearance, ...(face ? [] : body), ...wardrobe.split(/,\s*/)].map((tag) =>
+      tag.replace(/^\(|:[\d.]+\)$/g, '').trim()
+    )
+  )
+  const posed = shown.filter((tag) => !earlier.has(tag))
+
   const positive = [
     `${PHOTO_QUALITY}, ${base}`,
     appearance.join(', '),
@@ -511,7 +519,7 @@ export function buildPhotoPrompt(
       lookingAtViewer(
         withoutSelfieWord(withoutHeldObject(withoutCameraHold(withoutWhoTookIt(caption))))
       ).replace(/[.!?]+$/, ''),
-      shown.join(', ')
+      posed.join(', ')
     ]
       .filter((part) => part.length > 0)
       .join(', ')
@@ -878,9 +886,14 @@ function duoExpressions(text: string): { left: string[]; right: string[] } {
     ...gesturesIn(part),
     ...(/\bblush/i.test(part) ? ['blush'] : [])
   ]
-  const clause = [...text.matchAll(FRIEND_CLAUSE)].find((one) => own(one[2]).length > 0)
+  // "Her and her friend", "a photo of me and her friend": the two of them together wherever it
+  // stands, not a split. Only a later "while her friend …" gives her friend words of her own.
+  const shared = text
+    .replace(/\b(?:her|she|me|i)\s+and\s+her friend\b/gi, 'both')
+    .replace(/\bher friend\s+and\s+(?:her|me|i)\b/gi, 'both')
+  const clause = [...shared.matchAll(FRIEND_CLAUSE)].find((one) => own(one[2]).length > 0)
   if (clause) {
-    const rest = text.replace(clause[2], '')
+    const rest = shared.replace(clause[2], '')
     const hers = facesIn(clause[1]).length > 0 ? facesIn(clause[1]) : facesIn(rest)
     const hands = gesturesIn(clause[1]).length > 0 ? gesturesIn(clause[1]) : gesturesIn(rest)
     const theirs = facesIn(clause[2])

@@ -190,6 +190,9 @@ describe('the clothes she is moving aside', () => {
     ['pulling down her top to show her breasts', ['clothes_pull', 'breasts_out']],
     ['her shirt pulled down, her breasts exposed', ['clothes_pull', 'breasts_out']],
     ['pulling down her dress to bare both breasts', ['clothes_pull', 'breasts_out']],
+    ['her neckline pulled down for the picture', ['clothes_pull', 'breasts_out']],
+    ['pulling down her neckline', ['clothes_pull', 'breasts_out']],
+    ['wearing jeans with her neckline pulled down for the picture', ['clothes_pull', 'breasts_out']],
     ['lifting her sweater, exposing her breasts', ['shirt_lift', 'breasts_out']],
     ['her shirt lifted, showing underboob', ['shirt_lift', 'underboob']],
     ['lifting her skirt', ['skirt_lift']],
@@ -205,6 +208,8 @@ describe('the clothes she is moving aside', () => {
   ])('names the explicit reveal in %s', (action, expected) => {
     const { positive } = buildPhotoPrompt(girl, 'explicit', `In her everyday clothes, ${action}.`)
     expect(tagsOf(positive)).toEqual(expect.arrayContaining(expected))
+    // Each reveal is said once, even where the pose reads the same pull as her clothes do.
+    for (const tag of expected) expect(tagsOf(positive).filter((one) => one === tag)).toHaveLength(1)
     if (expected.includes('panty_pull')) expect(tagsOf(positive)).not.toContain('panties_aside')
     if (expected.includes('bra_pull')) expect(tagsOf(positive)).not.toContain('bra_lift')
   })
