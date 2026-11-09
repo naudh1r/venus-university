@@ -112,7 +112,17 @@ const BARE_POSITIONS: readonly Rule[] = [
   },
   { cues: ['from behind'], tags: ['from_behind', 'solo', 'ass_focus'] },
   {
-    cues: ['legs up', 'legs in the air', 'legs raised', 'knees to her chest', 'ankles up'],
+    cues: [
+      'legs up',
+      'legs in the air',
+      'legs raised',
+      'knees to her chest',
+      'knees toward her chest',
+      'thighs pulled back',
+      'legs pulled back',
+      'knees pulled back',
+      'ankles up'
+    ],
     tags: ['lying', 'on_back', 'solo', 'legs_up', 'knees_up']
   },
   {
@@ -353,7 +363,13 @@ const HAND_ACTIONS: readonly ActionRule[] = [
       'spreading herself open',
       'holding herself open',
       'spreading her lips',
-      'pulling herself open'
+      'pulling herself open',
+      'part her folds',
+      'parting her folds',
+      'parts her folds',
+      'spreading her folds',
+      'folds wide',
+      'folds open'
     ],
     tags: ['spread_pussy', 'pussy', 'spread_legs'],
     implies: ['lying', 'on_back', 'solo', 'spread_legs']

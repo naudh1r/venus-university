@@ -319,6 +319,14 @@ describe('undressing hands', () => {
       expect.arrayContaining(['spread_pussy', 'spread_legs'])
     )
   })
+
+  it('reads her thighs pulled back and her fingers parting her folds', () => {
+    const tags = posePhotoTags(
+      'In her bedroom, lying on her back completely nude with her thighs pulled back toward her chest, using her fingers to part her wet pink folds wide open',
+      true
+    )
+    expect(tags).toEqual(expect.arrayContaining(['legs_up', 'spread_pussy']))
+  })
 })
 
 describe('her free hand', () => {
