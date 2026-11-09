@@ -49,7 +49,7 @@ vi.mock('../src/main/services/companionMoveHandle', () => ({ watchCompanionMoveH
 vi.mock('../src/main/services/companionDictation', () => ({ openWindowsDictation: vi.fn() }))
 vi.mock('../src/main/services/companionVoice', () => ({ getCompanionVoice: async () => ({}), onVoiceSettings: () => () => {}, saveCompanionVoice: vi.fn(), transcribeCompanionAudio: vi.fn(), synthesizeCompanionSpeech: vi.fn() }))
 
-const { openCompanion, closeCompanion, companionState, companionCharacters, previewCompanion, startCompanion, pauseCompanion } = await import('../src/main/screenCompanion')
+const { openCompanion, closeCompanion, companionState, companionCharacters, companionDocument, previewCompanion, startCompanion, pauseCompanion } = await import('../src/main/screenCompanion')
 const context = JSON.stringify({ scene: { kind: 'story' }, profiles: { girl: { charId: 'girl', firstName: 'Synthetic', lastName: 'Participant' } }, characters: { girl: {} }, sprites: { girl: { neutral: 'fixture' } } })
 beforeEach(() => {
   vi.useFakeTimers(); mocks.windows = [new Window()]; mocks.complete.mockReset(); mocks.frame.mockReset()
@@ -76,30 +76,58 @@ it('labels an unknown scene participant without exposing her name in selectors o
 it.each(['The API key was rejected.', 'This model does not support images.'])('preserves provider error: %s', async message => {
   mocks.complete.mockRejectedValue(new Error(message))
   await startCompanion('girl', 'screen:fixture', 20)
-  await vi.advanceTimersByTimeAsync(0)
+  await vi.advanceTimersByTimeAsync(3000)
   expect(companionState()).toMatchObject({ sharing: false, busy: false, error: message })
 })
 
 it('preserves the capture failure instead of reporting a model timeout', async () => {
   mocks.frame.mockRejectedValue(new Error('The selected window was closed.'))
   await startCompanion('girl', 'screen:fixture', 20)
-  await vi.advanceTimersByTimeAsync(0)
+  await vi.advanceTimersByTimeAsync(3000)
   expect(companionState().error).toBe('The selected window was closed.')
   expect(mocks.complete).not.toHaveBeenCalled()
+})
+
+it('includes the complete current uploaded reference in the vision request', async () => {
+  companionDocument('reference.txt', 'CURRENT SYNTHETIC REFERENCE CONTENT')
+  mocks.complete.mockRejectedValue(new Error('Synthetic provider stop.'))
+  await startCompanion('girl', 'screen:fixture', 20)
+  await vi.advanceTimersByTimeAsync(3000)
+  expect(JSON.parse(mocks.complete.mock.calls[0][0].user).documentReference).toEqual({ name: 'reference.txt', text: 'CURRENT SYNTHETIC REFERENCE CONTENT' })
 })
 
 it('reports a timeout only when the reaction deadline actually fires', async () => {
   mocks.complete.mockImplementation((_request, signal: AbortSignal) => new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error('Request aborted.')), { once: true })))
   await startCompanion('girl', 'screen:fixture', 20)
-  await vi.advanceTimersByTimeAsync(60001)
+  await vi.advanceTimersByTimeAsync(63001)
   expect(companionState()).toMatchObject({ sharing: false, busy: false, error: 'The reaction timed out. Sharing is paused.' })
 })
 
 it('does not show a timeout when the player pauses an in-flight reaction', async () => {
   mocks.complete.mockImplementation((_request, signal: AbortSignal) => new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error('Request aborted.')), { once: true })))
   await startCompanion('girl', 'screen:fixture', 20)
-  await vi.advanceTimersByTimeAsync(0)
+  await vi.advanceTimersByTimeAsync(3000)
   pauseCompanion()
   await vi.advanceTimersByTimeAsync(60001)
   expect(companionState()).toMatchObject({ sharing: false, busy: false, error: '' })
+})
+
+it('does not capture or infer until three seconds after starting, and can cancel the countdown', async () => {
+  mocks.complete.mockRejectedValue(new Error('Synthetic stop.'))
+  await startCompanion('girl', 'screen:fixture', 20)
+  expect(companionState().startingIn).toBe(3)
+  await vi.advanceTimersByTimeAsync(1000)
+  expect(companionState().startingIn).toBe(2)
+  await vi.advanceTimersByTimeAsync(1999)
+  expect(mocks.frame).not.toHaveBeenCalled()
+  expect(mocks.complete).not.toHaveBeenCalled()
+  pauseCompanion()
+  await vi.advanceTimersByTimeAsync(10000)
+  expect(mocks.frame).not.toHaveBeenCalled()
+  await startCompanion('girl', 'screen:fixture', 20)
+  await vi.advanceTimersByTimeAsync(2999)
+  expect(mocks.frame).not.toHaveBeenCalled()
+  await vi.advanceTimersByTimeAsync(1)
+  expect(mocks.frame).toHaveBeenCalledTimes(1)
+  expect(mocks.complete).toHaveBeenCalledTimes(1)
 })

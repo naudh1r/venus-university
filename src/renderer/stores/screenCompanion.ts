@@ -3,6 +3,7 @@ import { appError } from '@vx/modkit/shared'
 import { readSceneNotes, notesConversationScope } from '../sceneNotes/state'
 import { companionCharacterName, EMOTIONS, validCompanionLines, validCompanionParticipants } from '../../shared/screenCompanion'
 import { companionGameApi } from '../screenCompanionHook'
+import { setSceneSuggestionsPaused } from '@vx/modkit/renderer'
 
 let reopen: (() => Promise<void>) | undefined
 export function canShareLaptop(): boolean {
@@ -17,6 +18,7 @@ export async function openScreenCompanion(): Promise<void> {
     return
   }
   const sceneId = crypto.randomUUID(), api = companionGameApi(sceneId)
+  let closed = false
   function context() {
     const view = sceneExchangeContext(), scope = notesConversationScope()
     return JSON.stringify({
@@ -49,14 +51,24 @@ export async function openScreenCompanion(): Promise<void> {
     const next=readSceneNotes()
     if(next!==document){
       document=next
-      void api.document(sceneId,next,context()).then(r=>{if(!r.ok)showError(r.error)})
+      void api.document(sceneId,next,context()).then(r=>{
+        if(closed || !exchange.current())return
+        if(!r.ok){
+          if(r.error.code==='COMPANION_SCENE_ENDED'){close();return}
+          showError(r.error)
+        }
+      })
     }
   })
   function close(){
+    if(closed)return
+    closed=true
+    setSceneSuggestionsPaused('screen-companion', false)
     reopen=undefined;offTurn();offStore();exchange!.close();void api.detach(sceneId)
   }
   reopen=async()=>{
     const result=await api.open(context(),sceneId,readSceneNotes())
+    if(closed)return
     if(!result.ok){close();showError(result.error)}
   }
   await reopen()

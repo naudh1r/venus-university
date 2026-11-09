@@ -95,6 +95,8 @@ export interface CompanionState {
   /** The reference shared with every activity mode for this laptop session. */
   documentName?: string
   sharing: boolean
+  /** Seconds until the first screen capture; zero once sharing is underway. */
+  startingIn?: number
   conversationPaused: boolean
   pointing: boolean
   busy: boolean

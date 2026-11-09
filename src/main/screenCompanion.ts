@@ -30,6 +30,7 @@ let pendingTurn: { id: number; resolve: (accepted: boolean) => void } | null = n
 let turnSequence = 0
 let invited = false
 let timer: ReturnType<typeof setTimeout> | undefined
+let shareStartsAt = 0
 let controller: AbortController | null = null
 let resumeAfterStop = false
 let epoch = 0
@@ -195,6 +196,7 @@ export function closeCompanion(): void {
 }
 
 export function pauseCompanion(): void {
+  shareStartsAt = 0
   checkpoint++; stopCompanionCapture(panel)
   clearCompanionPointer()
   pendingDelivery=null
@@ -207,7 +209,7 @@ export function pauseCompanion(): void {
   cancelCompanionInput()
   pendingTurn?.resolve(false)
   pendingTurn = null
-  state = { ...state, sharing: false }
+  state = { ...state, sharing: false, startingIn: 0 }
   broadcast()
 }
 
@@ -512,15 +514,27 @@ export async function startCompanion(charIds: string[] | string, sourceId: strin
     if (current !== epoch) return
     selectedSource = { id: source.id, display_id: source.display_id }
     if (state.mode === 'fps' && interval !== 1) regularFpsInterval = interval
-    state = { ...state, sharing: true, conversationPaused: false, error: '', sourceId, sourceName: source.name, interval }
+    shareStartsAt = Date.now() + 3000
+    state = { ...state, sharing: true, startingIn: 3, conversationPaused: false, error: '', sourceId, sourceName: source.name, interval }
     configureCompanion(state.size, state.clickThrough, true)
   } finally { state = { ...state, busy: false }; broadcast() }
-  if (current === epoch && state.sharing) void reactToScreen(current)
+  if (current === epoch && state.sharing) startAfterCountdown(current)
+}
+
+function startAfterCountdown(current: number): void {
+  if (current !== epoch || !state.sharing || state.conversationPaused) return
+  const remaining = Math.max(0, shareStartsAt - Date.now())
+  state = { ...state, startingIn: Math.ceil(remaining / 1000) }
+  broadcast()
+  clearTimeout(timer)
+  if (remaining > 0) timer = setTimeout(() => startAfterCountdown(current), Math.min(1000, remaining))
+  else void reactToScreen(current)
 }
 
 export function commentCompanion(text: string): void {
   if (typeof text !== 'string' || !text.trim() || text.length > 2000) throw appError('COMPANION_TEXT', 'Write a message of up to 2,000 characters.')
   if (!state.sharing) throw appError('COMPANION_PAUSED', 'Start sharing before sending a message.')
+  if (Date.now() < shareStartsAt) throw appError('COMPANION_STARTING', 'Wait for the sharing countdown before sending. Your draft is kept.')
   if (state.conversationPaused) throw appError('COMPANION_PAUSED', 'Resume chat before sending. Your draft can wait here.')
   if (state.busy) throw appError('COMPANION_BUSY', 'Wait for the current conversation before sending.')
   clearTimeout(timer)
@@ -529,6 +543,7 @@ export function commentCompanion(text: string): void {
 
 async function reactToScreen(current: number, message = ''): Promise<void> {
   if (current !== epoch || !state.sharing || state.conversationPaused || state.busy || !characters.length) return
+  if (Date.now() < shareStartsAt) { startAfterCountdown(current); return }
   state = { ...state, busy: true }
   controller = new AbortController()
   const activeController = controller
