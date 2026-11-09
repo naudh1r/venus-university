@@ -917,6 +917,12 @@ const DUO_POSTURE: ReadonlySet<string> = new Set([
 ])
 
 /** Where the two of them are drawn, from what the caption asks for. */
+/**
+ * Room asked between the two of them: without it they met and merged in the middle. Not for a
+ * close-up, which had no room to give and drew them cheek to cheek either way.
+ */
+const DUO_ROOM = ['with a little space between them', 'each in her own space']
+
 function duoFraming(text: string, armOut = false): { tags: string[]; scene: string[] } {
   if (saysAny(text, ['from behind', 'back view', 'backs to', 'looking back', 'over her shoulder'])) {
     // Each half turns on its own, and one of them faced the camera unless both were told.
@@ -939,10 +945,7 @@ function duoFraming(text: string, armOut = false): { tags: string[]; scene: stri
   if (saysAny(text, ['close-up', 'close up', 'closeup'])) {
     return { tags: ['(upper_body:1.3)'], scene: ['same height'] }
   }
-  return {
-    tags: ['upper_body'],
-    scene: ['with a little space between them', 'each in her own space', 'same height']
-  }
+  return { tags: ['upper_body'], scene: [...DUO_ROOM, 'same height'] }
 }
 
 /**
