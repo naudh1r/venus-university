@@ -649,7 +649,7 @@ describe('a character body in Photo’s record slice', () => {
     const value = field.read(old)
     const saved = JSON.parse(JSON.stringify({ ...old, ...hooks.editorWrites(old, () => value) }))
     expect(saved).not.toHaveProperty('body')
-    expect(saved.ex['photo-feature']).toEqual({ v: '1.7.1', data: { build: 'petite' } })
+    expect(saved.ex['photo-feature']).toEqual({ v: '1.7.2', data: { build: 'petite' } })
     expect(saved.ex.other).toEqual(old.ex.other)
     expect(bodyOf(saved)).toEqual({ build: 'petite' })
     expect(old).toEqual(before)
@@ -674,7 +674,7 @@ describe('a character body in Photo’s record slice', () => {
     )))
     expect(written).not.toHaveProperty('body')
     expect(written.ex['photo-feature']).toMatchObject({
-      v: '1.7.1', data: { build: 'toned', breasts: 'large_breasts' }
+      v: '1.7.2', data: { build: 'toned', breasts: 'large_breasts' }
     })
   })
 })
