@@ -2,7 +2,7 @@ import type { PhotoTier } from './photoGate'
 import { DORM_IDS, dormLabel, LOCATIONS, NARRATIVE_LOCATIONS, type Character } from '@vx/modkit/shared'
 import { bodyAppearance, bodyNegative, bodyOf } from './characterBody'
 import { bodyTagsFor, describesNothingOn, partialExposureIn, type PartialPhotoExposure } from './photoBody'
-import { framingInTags, framingOf } from './photoFraming'
+import { framingInTags, framingOf, type Framing } from './photoFraming'
 import {
   PHOTO_CLAUSE_END,
   photoPose,
@@ -15,7 +15,12 @@ import {
 // and pulls in what they import — so the feature brings its own types rather than relying on a
 // tsconfig line, which would be one more thing to re-add on a sync.
 import type {} from './photoTypes'
-import { photoWardrobe, photoWardrobeNames, photoWardrobeFromGarment } from './photoWardrobe'
+import {
+  photoWardrobe,
+  photoWardrobeNames,
+  photoWardrobeFromGarment,
+  filterPhotoWardrobe
+} from './photoWardrobe'
 import { says, saysAny } from './photoWords'
 
 /**
@@ -475,12 +480,18 @@ export function buildPhotoPrompt(
   // wears it, not her undressing, and the tags pulled the picture towards it.
   if (tier === 'everyday') pose.tags = pose.tags.filter((tag) => !EVERYDAY_DROPS.has(tag))
   // Her body as far as the shot reaches: a selfie from the waist up names no hips.
-  const selected = wardrobeForPhoto(character, tier, scene, dressed)
+  const selected = wardrobeForPhoto(character, tier, scene, dressed, framingInTags(pose.tags))
   const body = bodyTagsFor(
     bodyOf(character), scene, bare, framingInTags(pose.tags), selected.exposure
   )
-  const wardrobe = plainColours(selected.tags.map(heldColour).join(', '))
   const caption = withoutOutfitName(scene, selected.names)
+
+  // A close-up of her face: her outfit pulled the camera back to show it, so only her top stays,
+  // unweighted, to keep her dressed at the neckline.
+  const face = !bare && saysAny(scene.toLowerCase(), FACE_SHOT_CUES)
+  const shown = face ? faceShotTags(pose.tags) : pose.tags
+  const worn = face ? faceShotTop(selected.tags) : selected.tags
+  const wardrobe = plainColours((face ? worn : worn.map(heldColour)).join(', '))
 
   // Her appearance, with her build and her chest in it while the body switch is on. It opens on
   // the subject tag where she has one, so the base does not say it a second time.
@@ -488,19 +499,19 @@ export function buildPhotoPrompt(
   const base = appearance.includes('1girl') ? PHOTO_BASE.replace('1girl, ', '') : PHOTO_BASE
 
   // Read off everything the picture will be told she wears, her own tags and outfit included.
-  const worn = `${appearance.join(' ')} ${wardrobe} ${scene}`
+  const told = `${appearance.join(' ')} ${wardrobe} ${scene}`
 
   const positive = [
     `${PHOTO_QUALITY}, ${base}`,
     appearance.join(', '),
-    body.join(', '),
+    face ? '' : body.join(', '),
     wardrobe,
     // The sentence's own full stop would sit in front of the tags that follow it.
     [
       lookingAtViewer(
         withoutSelfieWord(withoutHeldObject(withoutCameraHold(withoutWhoTookIt(caption))))
       ).replace(/[.!?]+$/, ''),
-      pose.tags.join(', ')
+      shown.join(', ')
     ]
       .filter((part) => part.length > 0)
       .join(', ')
@@ -510,7 +521,7 @@ export function buildPhotoPrompt(
 
   const negative = [
     PHOTO_NEGATIVE,
-    ...(bare ? [] : dressedNegative(worn.toLowerCase().replace(/_/g, ' '), tier === 'everyday')),
+    ...(bare ? [] : dressedNegative(told.toLowerCase().replace(/_/g, ' '), tier === 'everyday')),
     ...SPILL_NEGATIVE.filter(([, said]) => !said.test(scene.toLowerCase())).map(([tag]) => tag),
     ...pose.negative,
     ...bodyNegative(character),
@@ -519,12 +530,73 @@ export function buildPhotoPrompt(
   return { positive, negative }
 }
 
+/** A caption asking for her face itself, filling the picture; a plain "close-up" is not one. */
+const FACE_SHOT_CUES = [
+  'close-up of her face',
+  'close up of her face',
+  'closeup of her face',
+  'close-up selfie of her face',
+  'her face up close',
+  'face shot',
+  'face only',
+  'just her face',
+  'headshot',
+  'her face filling'
+]
+
+/** Where the rest of the photo would put her body, her arms and the camera, out of a face shot. */
+const NOT_IN_A_FACE_SHOT: ReadonlySet<string> = new Set([
+  'close-up',
+  'portrait',
+  'upper_body',
+  '(upper_body:1.3)',
+  'cowboy_shot',
+  'full_body',
+  'lower_body',
+  'outstretched_arm',
+  '(outstretched_arm:1.2)',
+  'foreshortening',
+  'hand_up',
+  'hands_on_lap',
+  'hand_on_own_hip',
+  'hands_on_own_thighs',
+  'arms_at_sides'
+])
+
+/** A face shot's tags: her face, her look and her gesture, framed as close as same-seed checks held. */
+function faceShotTags(tags: readonly string[]): string[] {
+  return [
+    ...tags.filter((tag) => !NOT_IN_A_FACE_SHOT.has(tag)),
+    '(close-up:1.4)',
+    '(portrait:1.3)',
+    'face_focus'
+  ]
+}
+
+/**
+ * The one garment a face shot keeps: what she wears at her neckline, under any jacket or
+ * cardigan, unweighted. Her first outfit tag was as often a belt, a choker or `bare_shoulders`.
+ */
+function faceShotTop(outfit: readonly string[]): string[] {
+  const plain = outfit.map(withoutWeight)
+  const tops = plain.filter((tag) => TOP_GARMENT.test(tag))
+  const under = tops.find((tag) => !/cardigan|hoodie/.test(tag))
+  const over = plain.find((tag) => /jacket|blazer|coat|cardigan|hoodie/.test(tag))
+  const top = under ?? tops[0] ?? over
+  return top ? [top] : []
+}
+
+function withoutWeight(tag: string): string {
+  return tag.replace(/^\((.*):[\d.]+\)$/, '$1')
+}
+
 /** Her set and the reveal it carries, with names removed only when their tags were supplied. */
 function wardrobeForPhoto(
   character: Character,
   tier: PhotoTier,
   scene: string,
-  captionDressesHer: boolean
+  captionDressesHer: boolean,
+  framing: Framing | null = framingOf(scene)
 ): { tags: readonly string[]; names: readonly string[]; exposure?: PartialPhotoExposure } {
   const bare = tier === 'explicit'
   const named = photoWardrobeNames(character, scene)
@@ -541,10 +613,11 @@ function wardrobeForPhoto(
         ? (photoWardrobeFromGarment(character, scene) ?? [])
         : []
   const exposure = partial ? partialExposureIn(scene, reveals, outfit) : undefined
+  const visibleOutfit = filterPhotoWardrobe(outfit, scene, framing)
   const tags = bare
     ? partial
       ? [
-          ...outfit,
+          ...visibleOutfit,
           'partially_undressed',
           ...reveals,
           ...(exposure?.upper ? ['breasts_out'] : []),
@@ -552,7 +625,7 @@ function wardrobeForPhoto(
           BARE_POSITIVE
         ]
       : ['nude', 'completely_nude', BARE_POSITIVE]
-    : [...outfit, ...(tier === 'suggestive' ? suggestiveReveals(scene) : [])]
+    : [...visibleOutfit, ...(tier === 'suggestive' ? suggestiveReveals(scene) : [])]
   return { tags: [...new Set(tags)], names, exposure }
 }
 
@@ -715,7 +788,9 @@ export interface DuoPhotoPrompts {
  * on the wrong girl, so a picture of two is drawn with them side by side and the words go.
  */
 const TOUCHING = new RegExp(
-  '\\s*,?\\s*\\b(?:hugg\\w*|hugs?|cuddl\\w*|snuggl\\w*|embrac\\w*|kiss\\w*|holding hands|hand in hand|' +
+  // A kiss she blows at the camera touches nobody, and goes to her half as a gesture.
+  '\\s*,?\\s*\\b(?:hugg\\w*|hugs?|cuddl\\w*|snuggl\\w*|embrac\\w*|(?<!blowing a |blows a )kiss\\w*|' +
+    'holding hands|hand in hand|' +
     'arm in arm|arms? (?:around|linked|wrapped)|leaning (?:on|against) (?:each other|her)|' +
     'cheek to cheek|head on (?:her|each other)\\S*\\s+shoulder)' +
     `[^,.;]*?(?=\\s+and\\s|${PHOTO_CLAUSE_END})`,
@@ -751,12 +826,71 @@ const DUO_EXPRESSIONS: readonly [RegExp, readonly string[]][] = [
   [/\btongue/i, ['tongue_out']],
   [/\bsleepy|\bdrowsy|\byawn/i, ['sleepy']],
   [/\bsmirk/i, ['smirk']],
-  [/\bsmil/i, ['smile']]
+  [/\bsmil/i, ['smile']],
+  [/\beyes closed|\bclosed eyes|\bclosing her eyes/i, ['closed_eyes']],
+  [/\bhead tilt|\btilts? her head|\btilting her head/i, ['head_tilt']]
 ]
 
-function duoExpression(text: string): string[] {
+/**
+ * The hands a caption gives one of them, by the same split as her face. Each held to its own half
+ * in testing; a gesture said for both is drawn on both. Not `head_rest`: tagged, her elbow came
+ * into her friend's half and the two of them merged. Untagged, her chin on her hand is mostly left
+ * out of the picture, which is the lesser fault.
+ */
+const DUO_GESTURES: readonly [RegExp, readonly string[]][] = [
+  [/\bpeace sign|\bv sign/i, ['v']],
+  [/\bthumbs? up/i, ['thumbs_up']],
+  [/\bhand on her cheek|\bhand to her cheek|\bcheek in her hand|\bresting a hand on her cheek/i, ['hand_on_own_cheek']],
+  [/\bheart with her hands|\bheart hands|\bhand heart/i, ['heart_hands']],
+  [/\bwaving|\bwaves\b/i, ['waving']],
+  [/\barms crossed|\bcrossed arms|\bcrossing her arms/i, ['crossed_arms']],
+  [/\bblow(?:s|ing) a kiss/i, ['blowing_kiss']]
+]
+
+/** The faces one stretch of caption names, or none. */
+function facesIn(text: string): string[] {
   const said = DUO_EXPRESSIONS.filter(([words]) => words.test(text)).flatMap(([, tags]) => tags)
-  return [...new Set(said.length > 0 ? said : ['smile']), ...(/\bblush/i.test(text) ? ['blush'] : [])]
+  return said.length > 0 ? [...new Set(said)] : []
+}
+
+/** The gestures one stretch of caption names, or none. */
+function gesturesIn(text: string): string[] {
+  return [...new Set(DUO_GESTURES.filter(([words]) => words.test(text)).flatMap(([, tags]) => tags))]
+}
+
+function withBlush(faces: readonly string[], text: string): string[] {
+  return [...faces, ...(/\bblush/i.test(text) ? ['blush'] : [])]
+}
+
+/** "Her …" and "… her friend …" joined in one clause: each girl's own words. */
+const FRIEND_CLAUSE = /([^,.;]*?)\s*\b(?:while|and|as|with|but)\s+her friend\b([^,.;]*)/gi
+
+/**
+ * Each girl's face and hands, left (hers) and right (her friend's). A caption that gives her
+ * friend a face or a gesture of her own, "her smiling softly while her friend grins", is split
+ * there; otherwise both carry whatever the caption names, and a smile where it names none.
+ */
+function duoExpressions(text: string): { left: string[]; right: string[] } {
+  // "Her and her friend sitting…" opens most captions; the clause that gives her friend a face is
+  // the one that splits them.
+  const own = (part: string): string[] => [
+    ...facesIn(part),
+    ...gesturesIn(part),
+    ...(/\bblush/i.test(part) ? ['blush'] : [])
+  ]
+  const clause = [...text.matchAll(FRIEND_CLAUSE)].find((one) => own(one[2]).length > 0)
+  if (clause) {
+    const rest = text.replace(clause[2], '')
+    const hers = facesIn(clause[1]).length > 0 ? facesIn(clause[1]) : facesIn(rest)
+    const hands = gesturesIn(clause[1]).length > 0 ? gesturesIn(clause[1]) : gesturesIn(rest)
+    const theirs = facesIn(clause[2])
+    return {
+      left: withBlush([...(hers.length > 0 ? hers : ['smile']), ...hands], clause[1]),
+      right: withBlush([...(theirs.length > 0 ? theirs : ['smile']), ...gesturesIn(clause[2])], clause[2])
+    }
+  }
+  const both = withBlush([...(facesIn(text).length > 0 ? facesIn(text) : ['smile']), ...gesturesIn(text)], text)
+  return { left: both, right: both }
 }
 
 /**
@@ -764,7 +898,7 @@ function duoExpression(text: string): string[] {
  * or a belt in either half drew both of them down to the hips, where their sides met and fused.
  */
 const BELOW_WAIST =
-  /(?:thigh[_\s-]?high|socks?|stockings?|pantyhose|tights|legwear|leggings|shoes|sneakers|boots|heels|loafers|sandals|mary_janes|skirt|jeans|pants|trousers|shorts|buruma|bloomers|belt|^navel$|^midriff$|^thighs$|^bare_legs$)/i
+  /(?:thigh[_\s-]?high|socks?|stockings?|pantyhose|tights|legwear|leggings|shoes|sneakers|boots|heels|loafers|sandals|mary_janes|skirt|jeans|pants|trousers|shorts|bottoms?|buruma|bloomers|belt|^navel$|^midriff$|^thighs$|^bare_legs$)/i
 
 /** How each half may hold herself: her pose, never a hand placement or a framing. */
 const DUO_POSTURE: ReadonlySet<string> = new Set([
@@ -783,7 +917,10 @@ const DUO_POSTURE: ReadonlySet<string> = new Set([
 ])
 
 /** Where the two of them are drawn, from what the caption asks for. */
-function duoFraming(text: string): { tags: string[]; scene: string[] } {
+/** Room asked between the two of them: without it they met and merged in the middle. */
+const DUO_ROOM = ['with a little space between them', 'each in her own space']
+
+function duoFraming(text: string, armOut = false): { tags: string[]; scene: string[] } {
   if (saysAny(text, ['from behind', 'back view', 'backs to', 'looking back', 'over her shoulder'])) {
     // Each half turns on its own, and one of them faced the camera unless both were told.
     return {
@@ -793,11 +930,30 @@ function duoFraming(text: string): { tags: string[]; scene: string[] } {
   }
   // A close-up needed the framing weighted in both halves before either was drawn close.
   if (framingOf(text) === 'face') {
-    return { tags: ['(close-up:1.3)', '(portrait:1.3)'], scene: [] }
+    return { tags: ['(close-up:1.3)', '(portrait:1.3)'], scene: DUO_ROOM }
+  }
+  // A held-out arm needs room: waist up cropped it out of the picture. A close-up stays close.
+  if (armOut && !saysAny(text, ['close-up', 'close up', 'closeup'])) {
+    return { tags: ['cowboy_shot'], scene: ['same height'] }
   }
   // Waist up, always: a whole-body shot of two drew one of them smaller, as if a step behind,
-  // and her legs folded to fit her half.
-  return { tags: ['(upper_body:1.3)'], scene: ['same height'] }
+  // and her legs folded to fit her half. A close-up keeps the weighted framing; any other shot
+  // takes it plain with room asked between them, since weighted they met and merged in the middle.
+  if (saysAny(text, ['close-up', 'close up', 'closeup'])) {
+    return { tags: ['(upper_body:1.3)'], scene: [...DUO_ROOM, 'same height'] }
+  }
+  return { tags: ['upper_body'], scene: [...DUO_ROOM, 'same height'] }
+}
+
+/**
+ * A dress said without its length. Beside a friend in a top, "long dress" drew her down to the
+ * thighs while her friend stopped at the waist, as if a step behind.
+ */
+function waistUpDress(tag: string): string {
+  if (!/dress|gown/i.test(tag)) return tag
+  return tag
+    .replace(/(?<![a-z])(?:long|maxi|floor[-_ ]length|ankle[-_ ]length)[-_ ]?/gi, '')
+    .replace(/([(_ ])[-_ ]+/g, '$1')
 }
 
 /** One girl's half: who she is, what of her the shot shows, and what she wears. */
@@ -817,6 +973,7 @@ function duoHalf(
   )
   const wardrobe = selected.tags
     .filter((tag) => bare || !BELOW_WAIST.test(tag))
+    .map((tag) => (bare ? tag : waistUpDress(tag)))
     .map(heldColour)
   return {
     prompt: plainColours(
@@ -879,23 +1036,23 @@ export function buildDuoPhotoPrompt(
 
   const pose = photoPose(scene, tier)
   const posture = pose.tags.filter((tag) => DUO_POSTURE.has(tag))
-  const framing = duoFraming(text)
-
   // Selfies: the phone is hers, and only her half reaches for it.
   const selfie = says(text, 'selfie')
   const mirror = selfie && says(text, 'mirror')
   const lying = posture.includes('lying')
+  const armOut = selfie && !mirror && !lying
+  const framing = duoFraming(text, armOut)
   const holds = mirror
     ? ['holding_phone']
-    : selfie && !lying
-      ? ['selfie', 'outstretched_arm']
+    : armOut
+      ? ['selfie', '(outstretched_arm:1.3)', 'foreshortening']
       : []
   const phoneNegative = selfie && !mirror ? ['phone', 'cellphone', 'smartphone', 'holding_phone'] : []
 
   const shared = [...framing.tags]
-  const faces = duoExpression(text)
-  const left = duoHalf(sender, tier, scene, posture, [...faces, ...shared, ...holds])
-  const right = duoHalf(friend, tier, scene, posture, [...faces, ...shared])
+  const faces = duoExpressions(text)
+  const left = duoHalf(sender, tier, scene, posture, [...faces.left, ...shared, ...holds])
+  const right = duoHalf(friend, tier, scene, posture, [...faces.right, ...shared])
   const dressedScene = withoutOutfitName(scene, [...left.names, ...right.names])
   // A selfie lying down did not hold for two, so it is said as the photo it is drawn as.
   const sentence = lookingAtViewer(
@@ -914,7 +1071,7 @@ export function buildDuoPhotoPrompt(
     sentence,
     'side by side',
     ...framing.scene,
-    ...(mirror ? ['mirror', 'reflection'] : []),
+    ...(mirror ? ['mirror'] : []),
     ...shared
   ]
 

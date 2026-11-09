@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { bodyTagsFor, partialExposureIn } from '../src/shared/photoBody'
-import { framingOf } from '../src/shared/photoFraming'
+import { framingOf, framingInTags } from '../src/shared/photoFraming'
 import { photoPose, posePhotoTags } from '../src/shared/photoPose'
 
 describe('the framing a caption names', () => {
@@ -136,5 +136,37 @@ describe('partial exposure and the parts in shot', () => {
       partialExposureIn('Her skirt lifted, panties aside', ['skirt_lift', 'panties_aside'])
         ?.bottomless
     ).toBe(false)
+  })
+})
+
+describe('lower and hyphenated waist framing', () => {
+  it.each([
+    ['waist down', 'lower', 'lower_body'],
+    ['from the waist down', 'lower', 'lower_body'],
+    ['hips down', 'lower', 'lower_body'],
+    ['waist-up', 'waist', '(upper_body:1.3)'],
+    ['waist-high', 'waist', '(upper_body:1.3)']
+  ] as const)('frames %s in the requested direction', (caption, framing, tag) => {
+    expect(framingOf(caption)).toBe(framing)
+    for (const position of ['standing', 'lying on her side', 'a selfie lying on her side', 'a close-up selfie lying on her side']) {
+      const tags = photoPose(`${position}, ${caption}`, 'everyday').tags
+      expect(tags).toContain(tag)
+      expect(framingInTags(tags)).toBe(framing)
+      expect(tags).not.toContain('cowboy_shot')
+      if (position.includes('lying')) expect(tags).toEqual(expect.arrayContaining(['lying', 'on_side']))
+      if (framing === 'lower') {
+        expect(tags).not.toContain('upper_body')
+        expect(tags).not.toContain('(upper_body:1.3)')
+      }
+    }
+  })
+
+  it('leaves the upper body out of a lower-body shot even while lying down', () => {
+    const body = { build: 'curvy', breasts: 'large_breasts', hipsThighs: 'wide_hips' }
+    const tags = bodyTagsFor(body, 'lying on her back, from the waist down', true, 'lower')
+    expect(tags).toContain('wide_hips')
+    expect(tags).not.toContain('nipples')
+    expect(tags).not.toContain('navel')
+    expect(tags).not.toContain('cleavage')
   })
 })

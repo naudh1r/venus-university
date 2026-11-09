@@ -102,7 +102,10 @@ opening is written (`[photo] X's post this slot is a picture with Y`).
   as `node 50` and `node 51`.
 
 Still being tuned: now and then a face, an outfit or a colour comes out wrong, and close-ups and
-from-behind shots hold less well than plain ones. Pictures from below are drawn at eye level.
+from-behind shots hold less well than plain ones. Pictures from below are drawn at eye level. The
+two can still meet in the middle, most often in swimsuits, where nothing marks where one ends, and
+a girl in a long dress beside one in a top is sometimes drawn further down, as if a step behind.
+Her chin on her hand is left to the sentence and mostly not drawn: tagged, her elbow merged them.
 
 ## Where photos are kept
 

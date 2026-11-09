@@ -346,7 +346,7 @@ describe('her free hand', () => {
     ['biting her finger', 'biting_own_finger'],
     ['biting her nail', 'nail_biting'],
     ['a hand on her chin', 'hand_on_own_chin'],
-    ['chin on her hand', 'hand_on_own_chin'],
+    ['chin on her hand', 'head_rest'],
     ['a hand over her heart', 'hand_on_own_chest'],
     ['tugging her hem', 'adjusting_clothes'],
     ['tugging her sleeve', 'adjusting_clothes'],
@@ -503,9 +503,45 @@ describe('a selfie', () => {
     expect(pose.negative).not.toContain('v')
   })
 
+  it('reads a lying selfie from the side, with a thumbs up, as one angle and her own gesture', () => {
+    const tags = posePhotoTags('a selfie lying on her bed, giving a thumbs up, from the side', false)
+    expect(tags).toEqual(expect.arrayContaining(['from_side', '(thumbs_up:1.2)']))
+    expect(tags).not.toContain('from_above')
+  })
+
+  it('names what her hands do for knitting, gaming and a cat on her lap', () => {
+    expect(posePhotoTags('knitting a scarf in an armchair', false)).toEqual(
+      expect.arrayContaining(['knitting_needles', 'yarn'])
+    )
+    expect(posePhotoTags('playing a video game with a controller', false)).toContain('game_controller')
+    const cat = posePhotoTags('sitting on her bed, petting a cat curled up on her lap', false)
+    expect(cat).toContain('cat_on_lap')
+    expect(cat).not.toContain('hands_on_lap')
+  })
+
+  it('sits her on the grass when the caption says sitting', () => {
+    expect(posePhotoTags('sitting on the grass on the campus lawn', false)).toContain('sitting')
+    expect(posePhotoTags('sitting on the grass on the campus lawn', false)).not.toContain('lying')
+    expect(posePhotoTags('on the grass in the park, smiling', false)).toContain('lying')
+  })
+
+  it('draws a selfie with two things in her hands as a photo', () => {
+    const tags = posePhotoTags('a selfie under an umbrella, eating a crepe', false)
+    expect(tags).not.toContain('selfie')
+    expect(tags.join(' ')).not.toContain('outstretched_arm')
+    const one = posePhotoTags('a selfie standing by the drinks fridge, holding an ice cream cone', false)
+    expect(one).toContain('selfie')
+  })
+
+  it('takes a mirror she only stands near as part of the room, not the picture', () => {
+    expect(posePhotoTags('standing angled away from the full-length mirror, looking back', true)).not.toContain('mirror')
+    expect(posePhotoTags('posing in the mirror of her room', false)).toContain('mirror')
+  })
+
   it('shows the phone in a mirror selfie', () => {
     const pose = photoPose('a mirror selfie in her new coat', 'everyday')
-    expect(pose.tags).toEqual(expect.arrayContaining(['mirror', 'reflection', 'holding_phone']))
+    expect(pose.tags).toEqual(expect.arrayContaining(['mirror', 'holding_phone']))
+    expect(pose.tags).not.toContain('reflection')
     expect(pose.negative).toEqual(['dual_wielding'])
   })
 
@@ -638,9 +674,9 @@ describe('which way the camera sees her', () => {
 })
 
 describe('her hands, one placement at a time', () => {
-  it('keeps a hand on her hip a placement, not a touch on her chest too', () => {
+  it('leaves a captioned hand on her hip to the sentence', () => {
     const tags = posePhotoTags('a naked mirror selfie in the bathroom, one hand on her hip', true)
-    expect(tags).toContain('hand_on_own_hip')
+    expect(tags).not.toContain('hand_on_own_hip')
     expect(tags).not.toContain('hand_on_own_chest')
   })
 
@@ -760,4 +796,52 @@ describe('angles named for where the camera is', () => {
   ])('reads %s', (caption, angle) => {
     expect(photoPose(caption, 'everyday').tags).toContain(angle)
   })
+})
+
+describe('captioned hands replace position fillers', () => {
+  it.each([
+    ['resting her chin on one hand, sitting', false, ['head_rest']],
+    ['propping her chin on one hand, sitting', false, ['head_rest']],
+    ['ribbon around her neck with both hands, kneeling', false, []],
+    ['two fingers pressed into her mouth, kneeling', true, ['finger_in_own_mouth']],
+    ['one hand cupping the underside of her breast, sitting', true, ['grabbing_own_breast']],
+    ['both hands spreading her thighs, sitting', false, []],
+    ['leaning over a cart, hands on the handle', false, []],
+    ['leaning on the railing, both forearms resting on the rail', false, ['leaning_on_object']],
+    ['leaning on the counter, elbows on the counter', false, ['leaning_on_object']],
+    ['leaning over her desk, hands flat on the desk', false, ['leaning_on_object']],
+    ['leaning against a parked car, hands on the car door', false, ['standing']],
+    ['one hand resting on a basket, standing', false, []],
+    ['camisole pulled down with one hand, standing', true, ['clothes_pull']],
+    ['glancing back over one shoulder', false, ['looking_back', 'from_behind']]
+  ])('%s', (caption, bare, actions) => {
+    const tags = posePhotoTags(caption, bare)
+    expect(tags).toEqual(expect.arrayContaining(actions))
+    for (const filler of [
+      'hands_on_lap', 'hands_on_own_thighs', 'hand_on_own_hip', 'hand_on_own_chin'
+    ]) expect(tags).not.toContain(filler)
+    if (caption.includes('mouth')) expect(tags).not.toContain('fingering')
+  })
+
+  it.each([
+    ['cupping her breast, sitting', true, 'grabbing_own_breast'],
+    ['fingers in her mouth, kneeling', true, 'finger_in_own_mouth'],
+    ['fingers into her mouth, kneeling', true, 'finger_in_own_mouth'],
+    ['pulling down her camisole with one hand', false, 'clothes_pull'],
+    ['tugging down her camisole with one hand', false, 'clothes_pull'],
+    ['lifting the hem with one hand', false, 'skirt_lift'],
+    ['lifting her skirt with one hand', false, 'skirt_lift'],
+    ['winking at the camera', false, 'one_eye_closed'],
+    ['a playful wink', false, 'one_eye_closed']
+  ])('reads the action in %s', (caption, bare, tag) => {
+    expect(posePhotoTags(caption, bare)).toContain(tag)
+  })
+
+  it.each(['lounging sideways', 'lying sideways', 'on one elbow', 'propped on her elbow'])(
+    'keeps %s on her side across tiers', (caption) => {
+      for (const bare of [false, true]) {
+        expect(posePhotoTags(caption, bare)).toEqual(expect.arrayContaining(['lying', 'on_side']))
+      }
+    }
+  )
 })
