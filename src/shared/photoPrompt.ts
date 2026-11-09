@@ -898,7 +898,7 @@ function duoExpressions(text: string): { left: string[]; right: string[] } {
  * or a belt in either half drew both of them down to the hips, where their sides met and fused.
  */
 const BELOW_WAIST =
-  /(?:thigh[_\s-]?high|socks?|stockings?|pantyhose|tights|legwear|leggings|shoes|sneakers|boots|heels|loafers|sandals|mary_janes|skirt|jeans|pants|trousers|shorts|buruma|bloomers|belt|^navel$|^midriff$|^thighs$|^bare_legs$)/i
+  /(?:thigh[_\s-]?high|socks?|stockings?|pantyhose|tights|legwear|leggings|shoes|sneakers|boots|heels|loafers|sandals|mary_janes|skirt|jeans|pants|trousers|shorts|bottoms?|buruma|bloomers|belt|^navel$|^midriff$|^thighs$|^bare_legs$)/i
 
 /** How each half may hold herself: her pose, never a hand placement or a framing. */
 const DUO_POSTURE: ReadonlySet<string> = new Set([
@@ -934,8 +934,15 @@ function duoFraming(text: string, armOut = false): { tags: string[]; scene: stri
     return { tags: ['cowboy_shot'], scene: ['same height'] }
   }
   // Waist up, always: a whole-body shot of two drew one of them smaller, as if a step behind,
-  // and her legs folded to fit her half.
-  return { tags: ['(upper_body:1.3)'], scene: ['same height'] }
+  // and her legs folded to fit her half. A close-up keeps the weighted framing; any other shot
+  // takes it plain with room asked between them, since weighted they met and merged in the middle.
+  if (saysAny(text, ['close-up', 'close up', 'closeup'])) {
+    return { tags: ['(upper_body:1.3)'], scene: ['same height'] }
+  }
+  return {
+    tags: ['upper_body'],
+    scene: ['with a little space between them', 'each in her own space', 'same height']
+  }
 }
 
 /** One girl's half: who she is, what of her the shot shows, and what she wears. */

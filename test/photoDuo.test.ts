@@ -159,9 +159,19 @@ describe('a picture of two', () => {
     expect(chin.scene).toContain('chin on her hand')
   })
 
+  it('leaves her swimsuit bottom out of a picture of two from the waist up', () => {
+    const swim = { ...risa, swimOutfit: ['green_bikini_top', 'tie_side_bikini_bottom'] }
+    const prompts = buildDuoPhotoPrompt(swim, ana, 'everyday', 'Me and Ana at the pool in our swimsuits')
+    expect(prompts.left).toContain('green_bikini_top')
+    expect(prompts.left).not.toContain('bikini_bottom')
+  })
+
   it('gives a selfie room for her arm, and a photo somebody took the waist-up shot', () => {
     expect(buildDuoPhotoPrompt(risa, ana, 'everyday', 'A selfie of me and Ana at the park').scene).toContain('cowboy_shot')
-    expect(buildDuoPhotoPrompt(risa, ana, 'everyday', 'A photo of me and Ana at the park').scene).toContain('(upper_body:1.3)')
+    const photo = buildDuoPhotoPrompt(risa, ana, 'everyday', 'A photo of me and Ana at the park')
+    expect(photo.scene).toContain('upper_body')
+    expect(photo.scene).toContain('a little space between them')
+    expect(photo.scene).not.toContain('(upper_body:1.3)')
   })
 
   it('gives the phone to the girl who sent it alone', () => {
