@@ -490,7 +490,7 @@ export function buildPhotoPrompt(
   // unweighted, to keep her dressed at the neckline.
   const face = !bare && saysAny(scene.toLowerCase(), FACE_SHOT_CUES)
   const shown = face ? faceShotTags(pose.tags) : pose.tags
-  const worn = face ? selected.tags.slice(0, 1).map(withoutWeight) : selected.tags
+  const worn = face ? faceShotTop(selected.tags) : selected.tags
   const wardrobe = plainColours((face ? worn : worn.map(heldColour)).join(', '))
 
   // Her appearance, with her build and her chest in it while the body switch is on. It opens on
@@ -571,6 +571,19 @@ function faceShotTags(tags: readonly string[]): string[] {
     '(portrait:1.3)',
     'face_focus'
   ]
+}
+
+/**
+ * The one garment a face shot keeps: what she wears at her neckline, under any jacket or
+ * cardigan, unweighted. Her first outfit tag was as often a belt, a choker or `bare_shoulders`.
+ */
+function faceShotTop(outfit: readonly string[]): string[] {
+  const plain = outfit.map(withoutWeight)
+  const tops = plain.filter((tag) => TOP_GARMENT.test(tag))
+  const under = tops.find((tag) => !/cardigan|hoodie/.test(tag))
+  const over = plain.find((tag) => /jacket|blazer|coat|cardigan|hoodie/.test(tag))
+  const top = under ?? tops[0] ?? over
+  return top ? [top] : []
 }
 
 function withoutWeight(tag: string): string {
