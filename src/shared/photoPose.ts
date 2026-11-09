@@ -66,7 +66,10 @@ const DRESSED_POSITIONS: readonly Rule[] = [
     tags: ['sitting', 'cowboy_shot', 'hands_on_lap']
   },
   // Where she is, with nothing said of how: lying. "Sitting on the grass" is the row above.
-  { cues: ['on the bed', 'on bed', 'on the floor', 'on the grass'], tags: ['lying', 'arms_at_sides'] },
+  {
+    cues: ['on the bed', 'on bed', 'on the floor', 'on the grass'],
+    tags: ['lying', 'arms_at_sides']
+  },
   { cues: ['kneeling', 'crouching'], tags: ['kneeling', 'hands_on_own_thighs'] },
   // A wall keeps her arms folded. Anything else she leans on has her on her feet with her hands
   // on it: drawn as a wall, she sat on the counter or the railing's step instead.
@@ -538,12 +541,24 @@ const ACTIVITIES: readonly ActivityRule[] = [
   },
   {
     cues: ['playing games', 'playing a game', 'playing video games', 'gaming', 'controller'],
-    tags: ['playing_games', 'holding_controller']
+    tags: ['playing_games', 'holding_controller', 'game_controller']
   },
   { cues: ['eating'], tags: ['eating'] },
   { cues: ['drinking', 'sipping'], tags: ['drinking'] },
   { cues: ['cooking', 'stirring'], tags: ['cooking'] },
-  { cues: ['knitting'], tags: ['knitting'] },
+  // The bare action drew a scarf she wears, with nothing in her hands.
+  { cues: ['knitting'], tags: ['knitting', 'knitting_needles', 'yarn'] },
+  // Said in words only, the cat sat beside her and the dog looked over her shoulder.
+  {
+    cues: ['cat on her lap', 'cat curled up on her lap', 'cat in her lap'],
+    tags: ['cat_on_lap', 'petting', 'cat']
+  },
+  { cues: ['petting a cat', 'stroking a cat', 'petting her cat'], tags: ['petting', 'cat'] },
+  {
+    cues: ['petting a dog', 'petting a big', 'petting a small', 'petting her dog'],
+    needs: ['dog', 'puppy'],
+    tags: ['petting', 'dog']
+  },
   { cues: ['brushing her hair', 'brushing hair'], tags: ['brushing_hair'] },
   { cues: ['applying makeup', 'applying lipstick'], tags: ['applying_makeup'] },
   {

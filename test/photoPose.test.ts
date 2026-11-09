@@ -509,6 +509,16 @@ describe('a selfie', () => {
     expect(tags).not.toContain('from_above')
   })
 
+  it('names what her hands do for knitting, gaming and a cat on her lap', () => {
+    expect(posePhotoTags('knitting a scarf in an armchair', false)).toEqual(
+      expect.arrayContaining(['knitting_needles', 'yarn'])
+    )
+    expect(posePhotoTags('playing a video game with a controller', false)).toContain('game_controller')
+    const cat = posePhotoTags('sitting on her bed, petting a cat curled up on her lap', false)
+    expect(cat).toContain('cat_on_lap')
+    expect(cat).not.toContain('hands_on_lap')
+  })
+
   it('sits her on the grass when the caption says sitting', () => {
     expect(posePhotoTags('sitting on the grass on the campus lawn', false)).toContain('sitting')
     expect(posePhotoTags('sitting on the grass on the campus lawn', false)).not.toContain('lying')
