@@ -242,13 +242,6 @@ function refused(code: string, message: string): Result<never> {
   return { ok: false, error: appError(code, message) }
 }
 
-/**
- * Holds the reader's turn while a mod settles something of its own, as the game holds it while a
- * turn is taken: the scene reads as busy, and no turn, hangout or autosave starts. Taken only at
- * the reader's own turn, in the playthrough or a created scene. The release it returns gives the
- * turn back, once; after the scene is left it does nothing. Refused with `MOD_WRITE_OFF`, `MOD_WRITE_NO_GAME` or, away from his turn,
- * `MOD_WRITE_WAIT`. @since 0.8.0
- */
 let turnHold: { modId: string; run: object; game: Game } | null = null
 
 /** Internal ownership check for an exchange waiting on its own model call. */
@@ -260,6 +253,13 @@ export function ownsTurnHold(modId: string): boolean {
     modIsOn(modId, loopState.record))
 }
 
+/**
+ * Holds the reader's turn while a mod settles something of its own, as the game holds it while a
+ * turn is taken: the scene reads as busy, and no turn, hangout or autosave starts. Taken only at
+ * the reader's own turn, in the playthrough or a created scene. The release it returns gives the
+ * turn back, once; after the scene is left it does nothing. Refused with `MOD_WRITE_OFF`, `MOD_WRITE_NO_GAME` or, away from his turn,
+ * `MOD_WRITE_WAIT`. @since 0.8.0
+ */
 export function holdTurn(modId: string): Result<() => void> {
   if (!modIsOn(modId, loopState.record)) return refused('MOD_WRITE_OFF', 'That mod is off.')
   const game = useGameStore.getState()
