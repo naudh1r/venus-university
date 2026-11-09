@@ -1,4 +1,4 @@
-import { promptTextEdits, exercisedStats, projectSlotMemories, settleSceneStats, slotActivityAvailable, slotSettled, slotStatusLines, statFloor } from '../mods/hooks'
+import { filterSceneLedger, promptTextEdits, exercisedStats, projectSlotMemories, settleSceneStats, slotActivityAvailable, slotSettled, slotStatusLines, statFloor } from '../mods/hooks'
 import { withSlotActivityPrompt } from '../prompts/slotActivity'
 import { talentProjectWork } from '@shared/talentPerks'
 import { canContinueReckoning, pendingReckoningAftermath } from './reckoning'
@@ -1362,6 +1362,7 @@ function dispatchTurn(snapshot: TurnSnapshot): void {
   else if (snapshot.created) void startCreatedOpening()
   else if (snapshot.intro) void startOrientationScene()
   else if (snapshot.farewell) void startFarewellScene(snapshot.farewell)
+  else if (snapshot.retryInvitation) snapshot.retryInvitation(snapshot.action)
   else if (snapshot.charId)
     void startHangoutScene(snapshot.charId, snapshot.action, snapshot.preset, snapshot.sceneEvents)
   else {
@@ -1963,7 +1964,7 @@ async function runEnding(goodbye: boolean): Promise<void> {
   if (!closed || ledger === null || textLedger === null) return
 
   // The recap is the scene's summary, filed before the opening reads it and never banked.
-  const { summary, ...books } = ledger
+  const { summary, ...books } = filterSceneLedger(ledger)
   const live = useGameStore.getState()
   if (summary?.trim()) live.setSceneSummary(summary.trim(), live.currentSceneTranscript.length)
 

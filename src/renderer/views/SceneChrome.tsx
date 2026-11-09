@@ -53,6 +53,8 @@ import {
 import '../vu_styles/Scene.css'
 
 export interface SceneChromeProps {
+  /** Scene Creator has no Calendar; scene tools arrive with Settings there. */
+  createdScene?: boolean
   /** The slot's own half of the day, not the hour the screen is being read at. */
   theme: ScreenTheme
   date: number
@@ -422,11 +424,11 @@ export function SceneChrome(props: SceneChromeProps): JSX.Element {
         )}
         {/* The mods' own seats, each deciding for itself whether it stands. They arrive on the
             rail with the Calendar, the last of the game's own gated seats, hence its reveal. */}
-        {scenePlays().map(({ modId, play }) => (
+        {scenePlays().filter(({play}) => !props.createdScene || play.creator).map(({ modId, play }) => (
           <play.Seat
             key={modId}
             Seat={RailSeat}
-            visible={!dark && shown.has('calendar')}
+            visible={!dark && shown.has(props.createdScene ? 'settings' : 'calendar')}
             open={() => props.onModPanel(modId)}
           />
         ))}

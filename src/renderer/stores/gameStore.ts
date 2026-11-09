@@ -1312,7 +1312,7 @@ interface GameStoreState {
   /** Banks one answer: advances the index and counts it if it was right. */
   answerQuiz: (correct: boolean) => void
   /** Projects the persistable subset of state into a `GameSave`-shaped object. */
-  toGameSave: () => Omit<GameSave, 'playthroughId' | 'saveId' | 'saveDate'>
+  toGameSave: (snapshot?: GameStoreState) => Omit<GameSave, 'playthroughId' | 'saveId' | 'saveDate'>
 }
 
 /** Builds the derived charKey → charId map from a set of resolved characters. */
@@ -3442,8 +3442,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         : {}
     ),
 
-  toGameSave: () => {
-    const state = get()
+  toGameSave: (state = get()) => {
     return {
       // First, so a key core owns always wins; a save with nothing foreign adds nothing here.
       ...state.saveRest,

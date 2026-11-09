@@ -12,7 +12,7 @@ import { playthroughRecord, restoreApi, sceneLines, stubApi } from './fixtures'
 stubApi({ jobs: { onProgress: () => () => {} } })
 // The kit entry loads the stores, which read the bridge stubbed above, so it loads after it.
 const kit = await import('@vx/modkit/renderer')
-const { manualSaveOffer, writeAutosave, writeManualSave, writeModSlices, writesSettled } = await import(
+const { manualSaveOffer, prepareAutosave, writeAutosave, writeManualSave, writeModSlices, writesSettled } = await import(
   '../src/renderer/stores/loop/saves'
 )
 const { loopState, resetLoopState } = await import('../src/renderer/stores/loop/state')
@@ -121,6 +121,19 @@ describe('writeModSlices refusals', () => {
 })
 
 describe('writeModSlices', () => {
+  it('keeps a committed mod field when an earlier scene decision flushes late', async () => {
+    const { autosave, draft } = stubAutosave()
+    useGameStore.setState({ modValues: { 'writer-mod': { count: 1 } } })
+    const flush = prepareAutosave(null)
+
+    expect((await kit.writeModField('writer-mod', { count: 2 })).ok).toBe(true)
+    await flush()
+
+    expect(autosave).toHaveBeenCalledOnce()
+    expect(draft(0).ex?.['writer-mod']?.data).toEqual({ count: 2 })
+    expect(useGameStore.getState().modValues['writer-mod']).toEqual({ count: 2 })
+  })
+
   it('lands behind the write queued before it, keeps the base slices, and changes the value only once on disk', async () => {
     const { held, release } = gate()
     const { autosave, order, draft } = stubAutosave(saved, held)
