@@ -1,4 +1,5 @@
 import { scene, sceneField, type ModHooks } from '@vx/modkit/renderer'
+import { sharedModOn } from '@vx/modkit/shared'
 import { DOCUMENT_SIZE_ERROR, fitsDocumentLimit, SCENE_NOTES, sceneDocumentLines, type SceneDocument } from '../../shared/sceneNotes'
 import { legacyNotes, notesAvailable } from './host'
 export const sceneNotes = sceneField<{ document: SceneDocument | null; historyStart?: number; revision?: string } | null>(SCENE_NOTES, { empty: null })
@@ -12,6 +13,7 @@ export function readSceneNotes(): SceneDocument | null {
   return document && fitsDocumentLimit(document) ? document : null
 }
 export async function saveSceneNotes(document: SceneDocument | null) {
+  if (!sharedModOn(SCENE_NOTES)) return { ok: false as const, error: { code: 'NOTES_DISABLED', message: 'Enable a mod that uses Shared document before changing it.' } }
   if (!notesAvailable()) return { ok: false as const, error: { code: 'NOTES_NO_SCENE', message: 'Open notes while a scene is active.' } }
   if (document && !fitsDocumentLimit(document)) return { ok: false as const, error: { code: 'NOTES_TOO_LARGE', message: DOCUMENT_SIZE_ERROR } }
   const previous = readStoredSceneNotes(), saved = sceneNotes.read()

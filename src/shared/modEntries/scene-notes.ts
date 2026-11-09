@@ -6,6 +6,7 @@ const mod: ModDef = {
     'gameModals',
     'scenePlay',
     'sceneField',
+    'shared:sharedModOn',
     'promptState.scene',
     'prompts.scene',
     'renderer:TitleTab',
