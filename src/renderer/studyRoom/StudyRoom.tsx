@@ -6,7 +6,7 @@ import {STUDY_MOD} from '../../shared/studyRoom'
 import {studyLanding,useStudyLanding,useStudyContacts} from './host'
 import {eligible} from './session'
 import {startNativeStudy} from './nativeHost'
-import '../sceneNotes/style.css'
+import './style.css'
 const Icon=()=> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 5v15M3 4c4-1 7 0 9 2 2-2 5-3 9-2v14c-4-1-7 0-9 2-2-2-5-3-9-2Z"/></svg>
 export function StudyRail({Tool,visible}:ScreenSlotProps['landingTool']):JSX.Element{
  const allowed=useStudyLanding()

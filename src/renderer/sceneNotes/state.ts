@@ -1,14 +1,20 @@
 import { scene, sceneField, type ModHooks } from '@vx/modkit/renderer'
-import { SCENE_NOTES, CURRENT_DOCUMENT_RULE, sceneDocumentLines, type SceneDocument } from '../../shared/sceneNotes'
+import { DOCUMENT_SIZE_ERROR, fitsDocumentLimit, SCENE_NOTES, sceneDocumentLines, type SceneDocument } from '../../shared/sceneNotes'
 import { legacyNotes, notesAvailable } from './host'
 export const sceneNotes = sceneField<{ document: SceneDocument | null; historyStart?: number; revision?: string } | null>(SCENE_NOTES, { empty: null })
-export function readSceneNotes(): SceneDocument | null {
+export function readStoredSceneNotes(): SceneDocument | null {
   const saved = sceneNotes.read()
   return saved ? saved.document : legacyNotes()
 }
+/** The document available to scene prompts and laptop sessions. */
+export function readSceneNotes(): SceneDocument | null {
+  const document = readStoredSceneNotes()
+  return document && fitsDocumentLimit(document) ? document : null
+}
 export async function saveSceneNotes(document: SceneDocument | null) {
   if (!notesAvailable()) return { ok: false as const, error: { code: 'NOTES_NO_SCENE', message: 'Open notes while a scene is active.' } }
-  const previous = readSceneNotes(), saved = sceneNotes.read()
+  if (document && !fitsDocumentLimit(document)) return { ok: false as const, error: { code: 'NOTES_TOO_LARGE', message: DOCUMENT_SIZE_ERROR } }
+  const previous = readStoredSceneNotes(), saved = sceneNotes.read()
   const changed = previous?.name !== document?.name || previous?.text !== document?.text
   const historyStart = changed && (previous || saved?.historyStart !== undefined)
     ? (scene()?.lines.length ?? 0) : saved?.historyStart
@@ -26,24 +32,25 @@ export function notesConversationScope() {
     replaced: saved?.historyStart !== undefined,
     transcript: (view?.lines ?? []).slice(saved?.historyStart ?? 0) }
 }
-interface NotesPromptState { document: SceneDocument | null; scope: ReturnType<typeof notesConversationScope> }
-export const sceneNotesHooks: Pick<ModHooks, 'promptState' | 'prompts' | 'requests'> = {
-  promptState: { scene: () => ({ document: readSceneNotes(), scope: notesConversationScope() }) },
-  prompts: { scene: { lines: ({ state }) => sceneDocumentLines((state.ex?.[SCENE_NOTES] as NotesPromptState | undefined)?.document ?? null) } },
-  requests: { scene: (request, { state }) => {
+interface NotesPromptState {
+  document: SceneDocument | null
+  unavailable: boolean
+}
+
+export const sceneNotesHooks: Pick<ModHooks, 'promptState' | 'prompts'> = {
+  promptState: { scene: (): NotesPromptState => {
+    const stored = readStoredSceneNotes()
+    if (stored && fitsDocumentLimit(stored)) return { document: stored, unavailable: false }
+    return {
+      document: null,
+      unavailable: Boolean(stored || sceneNotes.read()?.historyStart !== undefined)
+    }
+  } },
+  prompts: { scene: { lines: ({ state }) => {
     const notes = state.ex?.[SCENE_NOTES] as NotesPromptState | undefined
-    if (!notes || (!notes.document && !notes.scope.replaced)) return request
-    let user = request.user
-    // Use the builder's typed blocks; preserve the saved log and the current reader action.
-    const parts = request.parts?.map(part => {
-      if (!notes.scope.replaced || part.role !== 'user' || !['storySoFar', 'sceneSoFar'].includes(part.id)) return part
-      const text = part.id === 'storySoFar'
-        ? 'The previous document has been replaced. Its earlier study discussion is no longer reference material.'
-        : 'CONVERSATION SINCE DOCUMENT REPLACEMENT\n' + JSON.stringify(notes.scope.transcript.map(({ speaker, text }) => ({ speaker, text })))
-      user = user.replace(part.text, text)
-      return { ...part, text }
-    })
-    const instruction = notes.document ? CURRENT_DOCUMENT_RULE : 'The reader removed the document. No uploaded document is currently available; do not use previous uploads as reference material.'
-    return { ...request, parts, user, system: request.system + '\n\n' + instruction }
-  } }
+    if (notes?.document) return sceneDocumentLines(notes.document)
+    return notes?.unavailable
+      ? ['No uploaded document is currently available. Do not use previous uploads or their discussion as reference material.']
+      : []
+  } } }
 }
