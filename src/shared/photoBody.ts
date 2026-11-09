@@ -284,17 +284,27 @@ const TOP_GARMENT_WORDS = ['neckline', 'shirt', 'top', 'sweater', 'blouse', 'hoo
 const BOTTOM_GARMENT_WORDS = ['shorts', 'skirt', 'pants', 'jeans', 'panties', 'leggings', 'trousers']
 
 /**
- * Whether what she pulls is her top: the garment named in the pull's own clause, on either side of
- * the verb ("pulling down her neckline", "her neckline pulled down"). "Pulling up her shorts"
- * beside "in just her bandeau top" bared her chest when any top in the caption counted.
+ * Whether what she pulls is her top: the garment nearest the pull in its own clause, on either
+ * side of the verb ("pulling down her neckline", "her neckline pulled down"). Jeans she is wearing
+ * in the same clause leave a pulled neckline a pulled neckline; "pulling up her shorts" beside "in
+ * just her bandeau top" still pulls the shorts.
  */
 function pullsHerTop(text: string): boolean {
-  return text.split(/[,.;]/).some(
-    (clause) =>
-      /\b(?:pull|tug)\w*/.test(clause) &&
-      saysAny(clause, TOP_GARMENT_WORDS) &&
-      !saysAny(clause, BOTTOM_GARMENT_WORDS)
-  )
+  return text.split(/[,.;]/).some((clause) => {
+    const words = clause.split(/\s+/).filter(Boolean)
+    const garments = words.flatMap((word, at) =>
+      saysAny(word, TOP_GARMENT_WORDS) ? [{ at, top: true }]
+        : saysAny(word, BOTTOM_GARMENT_WORDS) ? [{ at, top: false }] : []
+    )
+    return words.some((word, at) => {
+      if (!/^(?:pull|tug)/.test(word)) return false
+      const nearest = garments.reduce<{ at: number; top: boolean } | undefined>(
+        (best, one) => (!best || Math.abs(one.at - at) < Math.abs(best.at - at) ? one : best),
+        undefined
+      )
+      return nearest?.top === true
+    })
+  })
 }
 
 export function partialExposureIn(

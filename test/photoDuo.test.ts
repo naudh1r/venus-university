@@ -75,6 +75,24 @@ describe('a picture of two', () => {
     expect(later.right).not.toMatch(/\bwaving\b/)
   })
 
+  it.each([
+    'A photo of her and her friend both winking at the camera.',
+    'A selfie of me and Ana both winking at the camera.'
+  ])('keeps the two of them together wherever the caption names them: %s', (caption) => {
+    const both = buildDuoPhotoPrompt(risa, ana, 'everyday', caption)
+    expect(both.left).toMatch(/\bone_eye_closed\b/)
+    expect(both.right).toMatch(/\bone_eye_closed\b/)
+  })
+
+  it('splits a prefixed caption at its later contrast', () => {
+    const later = buildDuoPhotoPrompt(
+      risa, ana, 'everyday', 'A photo of her and her friend at the cafe with her waving while her friend winks.'
+    )
+    expect(later.left).toMatch(/\bwaving\b/)
+    expect(later.right).toMatch(/\bone_eye_closed\b/)
+    expect(later.right).not.toMatch(/\bwaving\b/)
+  })
+
   it('gives each girl the face the caption gives her, and both the same where it splits none', () => {
     const split = buildDuoPhotoPrompt(risa, ana, 'everyday', 'Me and Ana in a cafe booth, me smiling softly while Ana grins widely')
     expect(split.left).toMatch(/\bsmile\b/)
