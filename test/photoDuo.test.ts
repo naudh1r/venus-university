@@ -147,7 +147,7 @@ describe('a picture of two', () => {
     expect(prompts.right).not.toMatch(/\bv\b/)
   })
 
-  it('splits a blush, a chin on her hand and a blown kiss to the girl the caption gives them', () => {
+  it('splits a blush and a blown kiss to the girl the caption gives them, and leaves her chin to the sentence', () => {
     const blush = buildDuoPhotoPrompt(risa, ana, 'everyday', 'Me and Ana on my bed, me giving a thumbs up while Ana blushes')
     expect(blush.right).toContain('blush')
     expect(blush.right).not.toContain('thumbs_up')
@@ -155,7 +155,8 @@ describe('a picture of two', () => {
     expect(kiss.scene).toContain('blowing a kiss')
     expect(kiss.left).toContain('blowing_kiss')
     const chin = buildDuoPhotoPrompt(risa, ana, 'everyday', 'Her and Ana in a booth, her with her chin on her hand while Ana pouts')
-    expect(chin.left).toContain('head_rest')
+    expect(chin.left).not.toContain('head_rest')
+    expect(chin.scene).toContain('chin on her hand')
   })
 
   it('gives a selfie room for her arm, and a photo somebody took the waist-up shot', () => {
