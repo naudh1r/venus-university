@@ -788,7 +788,9 @@ export interface DuoPhotoPrompts {
  * on the wrong girl, so a picture of two is drawn with them side by side and the words go.
  */
 const TOUCHING = new RegExp(
-  '\\s*,?\\s*\\b(?:hugg\\w*|hugs?|cuddl\\w*|snuggl\\w*|embrac\\w*|kiss\\w*|holding hands|hand in hand|' +
+  // A kiss she blows at the camera touches nobody, and goes to her half as a gesture.
+  '\\s*,?\\s*\\b(?:hugg\\w*|hugs?|cuddl\\w*|snuggl\\w*|embrac\\w*|(?<!blowing a |blows a )kiss\\w*|' +
+    'holding hands|hand in hand|' +
     'arm in arm|arms? (?:around|linked|wrapped)|leaning (?:on|against) (?:each other|her)|' +
     'cheek to cheek|head on (?:her|each other)\\S*\\s+shoulder)' +
     `[^,.;]*?(?=\\s+and\\s|${PHOTO_CLAUSE_END})`,
@@ -839,7 +841,9 @@ const DUO_GESTURES: readonly [RegExp, readonly string[]][] = [
   [/\bhand on her cheek|\bhand to her cheek|\bcheek in her hand|\bresting a hand on her cheek/i, ['hand_on_own_cheek']],
   [/\bheart with her hands|\bheart hands|\bhand heart/i, ['heart_hands']],
   [/\bwaving|\bwaves\b/i, ['waving']],
-  [/\barms crossed|\bcrossed arms|\bcrossing her arms/i, ['crossed_arms']]
+  [/\barms crossed|\bcrossed arms|\bcrossing her arms/i, ['crossed_arms']],
+  [/\bchin on her hand|\bchin in her hand|\bresting her chin/i, ['head_rest']],
+  [/\bblow(?:s|ing) a kiss/i, ['blowing_kiss']]
 ]
 
 /** The faces one stretch of caption names, or none. */
@@ -868,7 +872,11 @@ const FRIEND_CLAUSE = /([^,.;]*?)\s*\b(?:while|and|as|with|but)\s+her friend\b([
 function duoExpressions(text: string): { left: string[]; right: string[] } {
   // "Her and her friend sitting…" opens most captions; the clause that gives her friend a face is
   // the one that splits them.
-  const own = (part: string): string[] => [...facesIn(part), ...gesturesIn(part)]
+  const own = (part: string): string[] => [
+    ...facesIn(part),
+    ...gesturesIn(part),
+    ...(/\bblush/i.test(part) ? ['blush'] : [])
+  ]
   const clause = [...text.matchAll(FRIEND_CLAUSE)].find((one) => own(one[2]).length > 0)
   if (clause) {
     const rest = text.replace(clause[2], '')
