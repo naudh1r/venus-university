@@ -1,3 +1,4 @@
+import { CHALLENGE_TIERS, type ChallengeStatTier } from './startingChallenge'
 /**
  * The player-stat vocabulary: three stats that accumulate points and tier up. Points
  * are stored; a tier is always derived. This module owns the arithmetic and every word said
@@ -19,6 +20,9 @@ export interface PlayerStats {
 
 /** Tier 0 is the floor, tier 5 the ceiling. */
 export type StatTier = 0 | 1 | 2 | 3 | 4 | 5
+
+/** Extra start/display tiers do not renumber native job and attraction requirements. */
+export type StartingStatTier = ChallengeStatTier | StatTier
 
 /** Every stat key, in the order the status panel lists them. */
 export const STAT_KEYS: readonly StatKey[] = ['brain', 'body', 'heart']
@@ -105,7 +109,7 @@ export const DEFAULT_PLAYER_STATS: PlayerStats = { brain: 0, body: 0, heart: 0 }
 /** The tier an untouched row of New Game's selector keeps, and the one every default is. */
 export const STARTING_TIER: StatTier = 1
 
-/** The floor of that selector, and of the scale itself: no stat is ever below its points. */
+/** The floor of the native tier selector; challenge starts may hold points below it. */
 export const MIN_TIER: StatTier = 0
 
 /** The ceiling of that selector, and of the scale itself. */
@@ -123,6 +127,19 @@ export function statsForTiers(tiers: Record<StatKey, StatTier>): PlayerStats {
     body: pointsForTier(tiers.body),
     heart: pointsForTier(tiers.heart)
   }
+}
+
+export function pointsForStartingTier(tier: StartingStatTier): number {
+  return tier < 0 ? CHALLENGE_TIERS[tier as ChallengeStatTier].points : pointsForTier(tier as StatTier)
+}
+
+export function statsForStartingTiers(tiers: Record<StatKey, StartingStatTier>): PlayerStats {
+  return { brain: pointsForStartingTier(tiers.brain), body: pointsForStartingTier(tiers.body), heart: pointsForStartingTier(tiers.heart) }
+}
+
+/** Display actual recovery milestones below the native mechanical floor tier. */
+export function displayedTierOf(points: number): StartingStatTier {
+  return points < -80 ? -4 : points < -60 ? -3 : points < -30 ? -2 : points < -15 ? -1 : tierOf(points)
 }
 
 /** The tier `points` buys: the highest threshold it reaches, clamped both ends. */
@@ -144,11 +161,17 @@ export function tierNameOf(tier: StatTier): string {
 
 /** The tier `points` buys, by display name. */
 export function tierName(points: number): string {
+  const tier = displayedTierOf(points)
+  if (tier < 0) return CHALLENGE_TIERS[tier as ChallengeStatTier].name
   return tierNameOf(tierOf(points))
 }
 
 /** The fewest points that buy the tier above the one `points` buys; the ceiling's own at the top. */
 export function nextTierPoints(points: number): number {
+  if (points < -80) return -80
+  if (points < -60) return -60
+  if (points < -30) return -30
+  if (points < -15) return -15
   return pointsForTier(Math.min(tierOf(points) + 1, MAX_TIER) as StatTier)
 }
 
@@ -186,7 +209,13 @@ export function statsLowestFirst(stats: PlayerStats): StatKey[] {
 function describeStats(stats: PlayerStats, lead: string, rest: string): string {
   const ordered = statsLowestFirst(stats)
   const clauses = ordered.map((key, i) => {
-    const phrase = STAT_PHRASES[key][tierOf(stats[key])]
+    const lowPhrases = {
+      brain: ['struggling with even basic reasoning', 'finding even simple decisions difficult', 'struggling badly to think things through', 'struggling to think things through'],
+      body: ['struggling with even light physical effort', 'very weak and tiring after small efforts', 'extremely weak and easily exhausted', 'very weak and out of shape'],
+      heart: ['finding even simple conversations overwhelming', 'severely lacking social confidence', 'struggling badly with social situations', 'struggling to connect with others']
+    }
+    const tier = displayedTierOf(stats[key])
+    const phrase = tier < 0 ? lowPhrases[key][tier + 4] : STAT_PHRASES[key][tier]
     return [i === 0 ? lead : rest, phrase].filter(Boolean).join(' ')
   })
 
@@ -342,7 +371,7 @@ function withGradeOutcome(
  */
 export function tierUps(before: PlayerStats, deltas: PlayerStats, floorOf?: StatFloor): StatKey[] {
   const after = applyStatDeltas(before, deltas, floorOf)
-  return STAT_KEYS.filter((key) => tierOf(after[key]) > tierOf(before[key]))
+  return STAT_KEYS.filter((key) => displayedTierOf(after[key]) > displayedTierOf(before[key]))
 }
 
 /**

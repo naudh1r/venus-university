@@ -1,0 +1,380 @@
+/* Swim Race: the clock over the water, a lane to each swimmer with ropes between, and under it
+   the reader's deck: his air, the stroke guide, and the three things he can do. Drawn on the
+   mini-game board; the buttons are base.css's. The frame loop hands each lane `--at` and
+   `--face`, and the root `--air` and `--beat`. */
+
+.vu-swimrace {
+  --air: 1;
+  --beat: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  width: 100%;
+  color: var(--vu-text);
+}
+
+/* The distance, the clock in the middle, and the starter's call. */
+.vu-swimrace-head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.vu-swimrace-distance {
+  color: var(--vu-text-muted);
+  font: 700 13px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.vu-swimrace-clock {
+  font: 700 34px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.vu-swimrace-call {
+  justify-self: end;
+  color: var(--vu-accent);
+  font: 400 22px var(--font-display);
+  white-space: pre;
+}
+
+/* The water: a recessed container, the lanes stacked in it. */
+.vu-swimrace-water {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 3.5px solid var(--vu-border);
+  border-radius: 18px;
+  background: var(--vu-recessed);
+}
+
+.vu-swimrace-lane {
+  --at: 0;
+  --face: 1;
+  display: grid;
+  grid-template-columns: 120px 1fr 132px;
+  align-items: center;
+  gap: 14px;
+  height: 62px;
+  padding: 0 14px;
+}
+
+/* A lane rope: floats strung along the line between two lanes. */
+.vu-swimrace-lane + .vu-swimrace-lane {
+  background: repeating-linear-gradient(
+      90deg,
+      var(--vu-border) 0 14px,
+      transparent 14px 22px,
+      var(--vu-accent) 22px 36px,
+      transparent 36px 44px
+    )
+    top left / 100% 4px no-repeat;
+}
+
+.vu-swimrace-name {
+  overflow: hidden;
+  font: 400 21px var(--font-display);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-swimrace-lane[data-mine] .vu-swimrace-name {
+  color: var(--vu-accent);
+}
+
+/* The length itself, wall to wall. The swimmer's own width is kept clear at each end. */
+.vu-swimrace-track {
+  position: relative;
+  height: 100%;
+  margin: 0 32px;
+  border-inline: 4px solid var(--vu-border);
+}
+
+/* Where a turn can be called, at each wall, and the last of it where it is perfect. Only the
+   reader's lane shows them. */
+.vu-swimrace-zone {
+  display: none;
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  width: var(--zone);
+  border-radius: 6px;
+  opacity: 0.28;
+}
+
+.vu-swimrace-lane[data-mine] .vu-swimrace-zone {
+  display: block;
+}
+
+.vu-swimrace-zone--far {
+  right: 0;
+  background: linear-gradient(270deg, var(--vu-accent) 0 var(--sweet-share), var(--vu-text-muted) var(--sweet-share) 100%);
+}
+
+.vu-swimrace-zone--near {
+  left: 0;
+  background: linear-gradient(90deg, var(--vu-accent) 0 var(--sweet-share), var(--vu-text-muted) var(--sweet-share) 100%);
+}
+
+.vu-swimrace-zone {
+  --sweet-share: 22.5%;
+}
+
+/* The swimmer, carried along the track by `--at` and facing the way she swims. */
+.vu-swimrace-swimmer {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--at) * 100%);
+  width: 64px;
+  height: 24px;
+  margin: -12px 0 0 -32px;
+  color: var(--vu-text);
+  transform: scaleX(var(--face));
+}
+
+.vu-swimrace-lane[data-mine] .vu-swimrace-swimmer {
+  color: var(--vu-accent);
+}
+
+.vu-swimrace-swimmer svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.vu-swimrace-arm,
+.vu-swimrace-wake {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.vu-swimrace-wake {
+  stroke-width: 2;
+  opacity: 0.45;
+}
+
+/* A lane's board: the place, the length she is on or her time, and a word on her last turn. */
+.vu-swimrace-tally {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  align-items: baseline;
+  column-gap: 8px;
+  font: 700 15px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+}
+
+.vu-swimrace-place {
+  color: var(--vu-accent);
+}
+
+.vu-swimrace-word {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-body);
+  text-overflow: ellipsis;
+}
+
+/* With one or two lanes the water is shorter than what is said over it before the start: it
+   stands tall enough for the whole card until the marks are taken. */
+.vu-swimrace-water:has(.vu-swimrace-over) {
+  min-height: 220px;
+}
+
+/* Over the water before the start and while the window is away. */
+.vu-swimrace-over {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 12px 40px;
+  background: var(--vu-surface);
+  text-align: center;
+}
+
+.vu-swimrace-how {
+  max-width: 720px;
+  margin: 0;
+  color: var(--vu-text-body);
+  font: 500 15px var(--font-body);
+  line-height: 1.55;
+}
+
+.vu-swimrace-how kbd {
+  padding: 1px 6px;
+  border: 2px solid var(--vu-border);
+  border-radius: 6px;
+  color: var(--vu-text);
+  font: 700 12px var(--font-mono);
+}
+
+.vu-swimrace-paused {
+  margin: 0;
+  font: 400 30px var(--font-display);
+}
+
+/* The reader's deck. Before the whistle and after the touch it stands back, in its place. */
+.vu-swimrace-deck {
+  display: grid;
+  grid-template-columns: 1fr 1fr 130px;
+  align-items: end;
+  gap: 14px 22px;
+}
+
+.vu-swimrace-deck[data-waiting] {
+  opacity: 0.35;
+}
+
+.vu-swimrace-gauge {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.vu-swimrace-label {
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Air: a recessed rail filled from the left. Running short it is drawn in the plain text
+   colour and blinks; gasping it is empty and hatched. */
+.vu-swimrace-air,
+.vu-swimrace-rhythm {
+  position: relative;
+  height: 26px;
+  overflow: hidden;
+  border: 3px solid var(--vu-border);
+  border-radius: 999px;
+  background: var(--vu-recessed);
+}
+
+.vu-swimrace-airfill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--vu-accent);
+  transform: scaleX(var(--air));
+  transform-origin: left center;
+}
+
+.vu-swimrace[data-low] .vu-swimrace-airfill {
+  animation: vu-swimrace-short 0.4s steps(2, jump-none) infinite;
+}
+
+.vu-swimrace[data-gasping] .vu-swimrace-air {
+  background: repeating-linear-gradient(135deg, var(--vu-text-muted) 0 6px, transparent 6px 12px);
+}
+
+/* Said as well as shown. */
+.vu-swimrace[data-low] .vu-swimrace-label--air::after {
+  content: ' · low';
+  color: var(--vu-text);
+}
+
+.vu-swimrace[data-gasping] .vu-swimrace-label--air::after {
+  content: ' · gasping';
+  color: var(--vu-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vu-swimrace[data-low] .vu-swimrace-airfill {
+    animation: none;
+  }
+}
+
+@keyframes vu-swimrace-short {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.35;
+  }
+}
+
+/* The stroke guide: one stroke from left to right, the first half the pull and the second the
+   glide. The mark sets off as a pull begins and should reach the far end as the next one does. */
+.vu-swimrace-rhythm {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.vu-swimrace-half {
+  display: grid;
+  place-items: center;
+  color: var(--vu-text-muted);
+  font: 700 11px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.vu-swimrace-half--pull {
+  border-right: 3px solid var(--vu-border);
+  background: var(--vu-surface);
+  color: var(--vu-text);
+}
+
+.vu-swimrace-beat {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--beat) * (100% - 10px));
+  width: 10px;
+  border-radius: 999px;
+  background: var(--vu-text-muted);
+}
+
+.vu-swimrace[data-pulling] .vu-swimrace-beat {
+  background: var(--vu-accent);
+}
+
+/* What the last stroke, breath or turn was, in a word. */
+.vu-swimrace-feel {
+  align-self: center;
+  color: var(--vu-accent);
+  font: 400 20px var(--font-display);
+  text-align: center;
+  white-space: pre;
+}
+
+.vu-swimrace-keys {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  padding: 0 12px 8px 0;
+}
+
+.vu-swimrace-key {
+  min-width: 150px;
+  touch-action: none;
+  user-select: none;
+}
+
+/* The turn is there to be called: its button says so. */
+.vu-swimrace[data-turn] .vu-swimrace-key--turn {
+  color: var(--vu-accent);
+  border-color: var(--vu-accent);
+  border-style: dashed;
+}
+
+.vu-swimrace[data-low] .vu-swimrace-key--breath,
+.vu-swimrace[data-pulling] .vu-swimrace-key--stroke {
+  color: var(--vu-accent);
+  border-color: var(--vu-accent);
+}

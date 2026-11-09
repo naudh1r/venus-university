@@ -1,3 +1,5 @@
+import { enrollmentMods } from '@shared/enrollmentMods'
+import { useModsStore } from './modsStore'
 import { useMemo } from 'react'
 import { create } from 'zustand'
 import {
@@ -840,6 +842,7 @@ export function openApplication(
   kept = playthroughId !== undefined
 ): Promise<void> {
   leaveApplication()
+  draft = { ...draft, mods: draft.mods ?? enrollmentMods(undefined, useModsStore.getState().switches) }
   stay = {}
   const k: Keeping = {
     kept,
@@ -974,6 +977,7 @@ export async function beginNextApplication(
   const opened = openApplication(
     {
       screen: 'setting',
+      mods: [...(record.mods ?? [])],
       season,
       chars: handoff.continuing.filter((charId) => characters[charId] !== undefined),
       plan: planOf(season, fixedEdits),

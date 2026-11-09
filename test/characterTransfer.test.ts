@@ -34,12 +34,14 @@ const {
   stripWrapper
 } = await import('../src/shared/characterTransfer')
 const { createZip, extractZip } = await import('../src/main/services/archiveService')
+const { readPortableReflection, writePortableReflection } = await import('../src/main/services/reflectionStorage')
 const {
   getCharacterCgsPath,
   getCharacterExpressionsPath,
   getCharacterFilePath,
   getCharacterPath,
   getCharactersPath,
+  getDataPath,
   getCharacterStagingPath,
   getStagedExpressionsPath,
   getTempPath
@@ -86,6 +88,60 @@ async function seedCharacter(extension = '.png'): Promise<Character> {
 function archivePath(name = 'export.zip'): string {
   return join(root, name)
 }
+
+it('retains the Godlike tag through character ZIP export, import and duplication', async () => {
+  const original = await seedCharacter()
+  await writeCharacter({ ...original, traits: ['Godlike', 'High Standards'] })
+  const archive = archivePath('godlike.zip')
+  await exportCharacter(original.charId, archive)
+  const imported = await importCharacter(archive)
+  const duplicate = await duplicateCharacter(original.charId)
+  expect(imported.traits).toEqual(['Godlike', 'High Standards'])
+  expect(duplicate.traits).toEqual(['Godlike', 'High Standards'])
+})
+
+it('carries reflection artwork and placement through ZIP import and duplication with mods off', async () => {
+ const girl = await seedCharacter(), stage = { x: -18, y: 9, scale: 1.25 }
+ await writeFile(join(getDataPath(),'mods.json'),JSON.stringify({schemaVersion:1,on:{reckoning:false,echo:false,breakthrough:false},options:{}}))
+ const reflection = { version: 1, image: `data:image/png;base64,${Buffer.from(PNG_BYTES).toString('base64')}`, stage }
+ await writePortableReflection(girl.charId, reflection)
+ const zip = archivePath('reflection.zip'); await exportCharacter(girl.charId, zip)
+ const entries = unzipSync(new Uint8Array(await readFile(zip)))
+ // The stock importer accepts the same entries and ignores optional manifest fields.
+ expect(Object.keys(entries).filter(name => classifyImportEntry(name) === 'reject')).toEqual([])
+ const manifest = JSON.parse(new TextDecoder().decode(entries[MANIFEST_NAME]))
+ expect(checkManifest(manifest).format).toBe('venus-university-character')
+ expect(manifest.exReflection).toEqual(reflection)
+ expect(JSON.parse(new TextDecoder().decode(entries['character.json']))).not.toHaveProperty('exReflection')
+ const imported = await importCharacter(zip), copy = await duplicateCharacter(girl.charId)
+ for (const arrived of [imported, copy]) {
+  expect(arrived.charId).not.toBe(girl.charId)
+  expect(await readPortableReflection(arrived.charId)).toEqual(reflection)
+  expect(arrived.personality).toBe(girl.personality)
+ }
+})
+
+it('reads legacy reflection files without changing them, then carries them in a character ZIP', async () => {
+ const girl=await seedCharacter(), dir=join(getDataPath(),'echoes','reflections'), art='ac34b11d-3333-4333-8333-333333333333'
+ await mkdir(dir,{recursive:true});await mkdir(join(getDataPath(),'echoes','art'),{recursive:true})
+ await writeFile(join(getDataPath(),'echoes','art',`${art}.png`),PNG_BYTES)
+ await writeFile(join(dir,`${girl.charId}.json`),JSON.stringify({art}))
+ await writeFile(join(dir,`${girl.charId}.stage.json`),JSON.stringify({x:8,y:-5,scale:.8}))
+ const expected=await readPortableReflection(girl.charId), zip=archivePath('legacy-reflection.zip')
+ await exportCharacter(girl.charId,zip);const imported=await importCharacter(zip)
+ expect(await readPortableReflection(imported.charId)).toEqual(expected)
+ expect(await readdir(dir)).not.toContain(`${girl.charId}.portable.json`)
+ expect(JSON.parse(await readFile(join(dir,`${girl.charId}.json`),'utf8'))).toEqual({art})
+})
+
+it('rejects malformed reflection metadata before adopting any character', async () => {
+ const zip = await zipOf('bad-reflection', async dir => {
+  await writeFile(join(dir, 'character.json'), JSON.stringify(portableCharacter()))
+  await writeFile(join(dir, MANIFEST_NAME), JSON.stringify(manifest({ exReflection: { version: 1, image: 'file:///private', stage: {x:0,y:0,scale:1} } })))
+ })
+ await expect(importCharacter(zip)).rejects.toThrow('Invalid reflection image')
+ expect(await readdir(getCharactersPath()).catch(() => [])).toEqual([])
+})
 
 /** Unpacks an archive to a scratch folder and lists what is at its root. */
 async function unpack(archive: string, name: string): Promise<string> {

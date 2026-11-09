@@ -260,8 +260,8 @@ describe('mergePatch — the optional switches', () => {
   })
 })
 
-describe('mergePatch — the sampling fields, memory budgets and scene persona', () => {
-  it('carries all six, and leaves an absent one absent', () => {
+describe('mergePatch — the sampling fields, memory budgets, scene persona and prompt blocks', () => {
+  it('carries all seven, and leaves an absent one absent', () => {
     const next = mergePatch(
       settings(),
       settingsPatch({

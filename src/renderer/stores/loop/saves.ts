@@ -1,4 +1,17 @@
+import { payableShift } from './jobs'
+import { TALENTS, buyTalent, transferSavings, normalizeTalents } from '@shared/campusTalents'
+import { applyTalentChoice, type TalentChange } from '../talentActions'
+import { buyTraining } from '@shared/talentTrading'
+import { normalizeReckoning, type ReckoningState } from '@shared/reckoning'
+import type { CharacterDynamics } from '@shared/characterDynamics'
+import { assertEchoEdit, normalizeEcho, type EchoState } from '@shared/echo'
+import { normalizeStoryMemory, type StoryMemory } from '@shared/storyMemory'
 import { appError, toAppError } from '@shared/errors'
+import { modIsOn } from '../modsStore'
+import { normalizeWhisper, VENUS_WHISPER_MOD, type VenusWhisper } from '@shared/venusWhisper'
+import { reconcileTalentBreakthrough } from '@shared/talentAbilities'
+import { withMeanwhile, type MeanwhileScene } from '@shared/meanwhile'
+import type { Conversation } from '@shared/types'
 import { modById } from '@shared/mods'
 import { modSceneWith, savedModScene } from '@shared/modScene'
 import { gameOverReasonOf, type GameOverReason } from '@shared/gameOver'
@@ -16,7 +29,6 @@ import { bindModWrites, bindSceneFieldSaves, saveFields, writeModSlices as slice
 import { isGraduationSlot } from '../../prompts/graduation'
 import { useBunnyboardStore } from '../bunnyboardStore'
 import { PORTRAIT_SLOTS, savedSceneRecords, useGameStore } from '../gameStore'
-import { modIsOn } from '../modsStore'
 import { lastReaderIndexOf } from '../stageStep'
 import { sceneActiveOf, textingUnsettled } from '../textingLoop'
 import { useUiStore } from '../uiStore'
@@ -57,11 +69,11 @@ function setManualWriting(next: boolean): void {
  * Runs `write` once every write queued before it has settled — and not at all when the stay it
  * was queued in has been left by then, so it never lands in the next game's files.
  */
-function queueWrite(write: () => Promise<void>): Promise<void> {
+function queueWrite(write: (run: object) => Promise<void>): Promise<void> {
   const run = currentRun()
   const guarded = async (): Promise<void> => {
     if (runStale(run)) return
-    await write()
+    await write(run)
   }
   pending += 1
   writeChain = writeChain.then(guarded, guarded).finally(() => {
@@ -73,6 +85,33 @@ function queueWrite(write: () => Promise<void>): Promise<void> {
 /** True while a save write is still queued or in flight. */
 export function writesPending(): boolean {
   return pending > 0
+}
+
+/** Persist a replacement before exposing it to scene prompts, in the native save write lane. */
+export async function persistRegeneratedConversation(
+  charId: string, conversation: Conversation, isCurrent: () => boolean
+): Promise<Result<null>> {
+  let outcome: Result<null> = { ok: false, error: appError('TEXT_REGEN_STALE', 'The game changed. Your original reply was kept.') }
+  try {
+    await queueWrite(async (run) => {
+      if (!isCurrent()) return
+      const game = useGameStore.getState()
+      if (!game.playthroughId || sceneActiveOf(game)) return
+      const next = { ...conversation, unread: game.bunnyboard.conversations[charId].unread }
+      const draft = { ...game.toGameSave(), scene: null,
+        bunnyboard: { ...game.bunnyboard, conversations: { ...game.bunnyboard.conversations, [charId]: next } }
+      }
+      const result = await window.api.saves.autosave(game.playthroughId, draft)
+      if (result.ok) recordSavedEdit(game, run)
+      if (!isCurrent()) return
+      if (!result.ok) { outcome = result; return }
+      useGameStore.setState(s => ({ bunnyboard: { ...s.bunnyboard, conversations: {
+        ...s.bunnyboard.conversations, [charId]: { ...next, unread: s.bunnyboard.conversations[charId].unread }
+      } } }))
+      outcome = { ok: true, data: null }
+    })
+  } catch (error) { outcome = { ok: false, error: toAppError(error, 'SAVE_WRITE_FAILED') } }
+  return outcome
 }
 
 /** Resolves once every write queued so far, and any queued behind them meanwhile, has settled. */
@@ -89,6 +128,12 @@ export async function writesSettled(): Promise<void> {
 // supersedes an older capture only after its write succeeds.
 let nextAutosaveOrder = 0
 let lastSavedOrder = 0
+function recordSavedEdit(game: ReturnType<typeof useGameStore.getState>, run: object): void {
+  const live = useGameStore.getState()
+  if (!runStale(run) && live.playthroughId === game.playthroughId && live.loads === game.loads) {
+    lastSavedOrder = ++nextAutosaveOrder
+  }
+}
 
 interface DeferredAutosave {
   game: ReturnType<typeof useGameStore.getState>
@@ -129,7 +174,11 @@ export function writeAutosave(
     const game = point?.game ?? useGameStore.getState()
     const playthroughId = game.playthroughId
     if (!playthroughId) return
-    const draft: SaveDraft = { ...game.toGameSave(game), scene }
+    const draft: SaveDraft = { ...game.toGameSave(game), scene,
+      // Project discarded outcomes and their recorded charges onto the same decision point.
+      ...reconcileTalentBreakthrough(game, scene?.transcript ?? [],
+        scene && !game.replaying && !game.createdScene ? game.currentSceneTranscript : undefined)
+    }
 
     const thumbnail = scene ? await composeStageThumbnail(scene) : null
     if (superseded(point)) return
@@ -351,7 +400,7 @@ export function endingGameOver(): GameOverReason | null {
   const game = useGameStore.getState()
   const ledger = loopState.pendingLedgerResult
   if (!ledger) return null
-  const shift = loopState.jobShift
+  const shift = payableShift(loopState.jobShift)
   const money = game.statusShown
     ? game.money
     : shift
@@ -485,6 +534,237 @@ export async function writeManualSave(slot: number): Promise<boolean> {
     setManualWriting(false)
   }
   return saved
+}
+
+/** Newsletter edits join the native save lane, preserving the current scene checkpoint. */
+export async function writeWhisper(next: VenusWhisper, previous: VenusWhisper, active: () => boolean): Promise<void> {
+  const start = useGameStore.getState()
+  const current = (): boolean => {
+    const now = useGameStore.getState()
+    return active() && modIsOn(VENUS_WHISPER_MOD) && now.playthroughId === start.playthroughId && now.loads === start.loads &&
+      now.exVenusWhisper === previous && now.date === start.date && now.time === start.time && !now.sceneEnding
+  }
+  if (!current() || manualSaveOffer() !== 'open') throw Error('Wait for a safe save point.')
+  let written = false
+  setManualWriting(true)
+  try {
+    await queueWrite(async (run) => {
+      if (!current() || saveOffer(false) !== 'open') return
+      const now = useGameStore.getState()
+      const draft = manualSaveDraft() ?? (!sceneActiveOf(now) ? { ...now.toGameSave(), scene: null } : null)
+      if (!draft || !now.playthroughId) throw Error('No safe save point is available.')
+      const saved = normalizeWhisper(next)
+      const result = await window.api.saves.autosave(now.playthroughId, { ...draft, exVenusWhisper: saved })
+      if (result.ok) recordSavedEdit(now, run)
+      if (!result.ok) throw Error(result.error.message)
+      if (!current()) return
+      if (loopState.statusBase) loopState.statusBase = { ...loopState.statusBase, exVenusWhisper: saved }
+      useGameStore.setState({ exVenusWhisper: saved })
+      written = true
+    })
+    if (!written) throw Error('The game changed. Reopen the newsletter.')
+  } finally { setManualWriting(false) }
+}
+
+/** The edit joins the game's write lane; disk succeeds before visible state is changed. */
+export async function writeStoryMemory(next: StoryMemory, expected: { playthroughId: string; loads: number; previous: StoryMemory }): Promise<void> {
+  const game = useGameStore.getState()
+  const fresh = (): boolean => {
+    const live = useGameStore.getState()
+    return live.playthroughId === expected.playthroughId && live.loads === expected.loads && live.exStoryMemory === expected.previous && modIsOn('story-memory')
+  }
+  if (!fresh() || manualSaveOffer() !== 'open' || game.sceneEnding) throw Error('Wait until narration and messages have finished before editing memory.')
+  const draft = manualSaveDraft() ?? { ...game.toGameSave(), scene: null }
+  const memory = normalizeStoryMemory(next)
+  let written = false
+  setManualWriting(true)
+  try {
+    await queueWrite(async (run) => {
+      if (!fresh()) return
+      const result = await window.api.saves.autosave(expected.playthroughId, { ...draft, exStoryMemory: memory })
+      if (result.ok) recordSavedEdit(game, run)
+      if (!result.ok) throw Error(result.error.message)
+      written = true
+      if (fresh()) useGameStore.setState({ exStoryMemory: memory })
+    })
+    if (!written) throw Error('The playthrough changed. Reopen Story Memory to edit this save.')
+  } finally { setManualWriting(false) }
+}
+
+/** Cache a spectator scene without ever inserting it into canonical history or memories. */
+export async function persistMeanwhileScene(scene: MeanwhileScene, isCurrent: () => boolean): Promise<void> {
+  let completed = false
+  await queueWrite(async (run) => {
+    if (!isCurrent() || manualSaveOffer() !== 'open') return
+    const game = useGameStore.getState()
+    const draft = manualSaveDraft() ?? (!sceneActiveOf(game) ? { ...game.toGameSave(), scene: null } : null)
+    if (!draft || !game.playthroughId) throw Error('No safe save point is available yet.')
+    const next = withMeanwhile(game.exNpcWatch,scene)
+    const result = await window.api.saves.autosave(game.playthroughId,{ ...draft, exNpcWatch: next })
+      if (result.ok) recordSavedEdit(game, run)
+    if (!result.ok) throw Error(result.error.message)
+    if (!isCurrent()) return
+    useGameStore.setState({ exNpcWatch: next })
+    completed = true
+  })
+  if (!completed) throw Error('The game changed. Reopen Meanwhile to view saved conversations.')
+}
+
+/** Echo edits share the native save queue and reject stale playthroughs. */
+export async function writeEcho(next: EchoState, previous: EchoState, active: () => boolean): Promise<void> {
+  const start = useGameStore.getState()
+  const ownsGame = (): boolean => {
+    const now = useGameStore.getState()
+    return now.playthroughId === start.playthroughId && now.loads === start.loads &&
+      now.exEcho === previous && now.date === start.date && now.time === start.time && !now.sceneEnding
+  }
+  const current = (): boolean => active() && modIsOn('echo') && ownsGame()
+  if (!current() || manualSaveOffer() !== 'open') throw Error('Wait for a safe save point.')
+  const saved = normalizeEcho(next)
+  assertEchoEdit(previous, saved)
+  let written = false
+  setManualWriting(true)
+  try {
+    await queueWrite(async (run) => {
+      if (!current() || saveOffer(false) !== 'open') return
+      const now = useGameStore.getState()
+      const draft = manualSaveDraft() ?? (!sceneActiveOf(now) ? { ...now.toGameSave(), scene: null } : null)
+      if (!draft || !now.playthroughId) throw Error('No safe save point is available.')
+      assertEchoEdit(now.exEcho, saved)
+      const result = await window.api.saves.autosave(now.playthroughId, { ...draft, exEcho: saved })
+      if (result.ok) recordSavedEdit(now, run)
+      if (!result.ok) throw Error(result.error.message)
+      // Closing the editor cannot undo an acknowledged write. A different loaded game still wins.
+      if (!ownsGame()) return
+      if (loopState.statusBase) loopState.statusBase = { ...loopState.statusBase, exEcho: saved }
+      useGameStore.setState({ exEcho: saved })
+      written = true
+    })
+    if (!written) throw Error('The game changed. Reopen the Echo.')
+  } finally {
+    setManualWriting(false)
+  }
+}
+
+/** Purchases and savings join the native queue; a failed write spends nothing. */
+export async function writeTalentChange(action: TalentChange): Promise<void> {
+  const start=useGameStore.getState()
+  const owns=():boolean=>{
+    const now=useGameStore.getState()
+    return now.playthroughId===start.playthroughId && now.loads===start.loads && now.date===start.date && now.time===start.time && now.semesterIndex===start.semesterIndex && now.stats===start.stats && now.exTalents===start.exTalents && now.money===start.money && now.charInfo===start.charInfo && now.classRecords===start.classRecords && now.currentSceneTranscript===start.currentSceneTranscript
+  }
+  const available=():boolean=>owns() && modIsOn('campus-talents') && !start.replaying && !start.createdScene && !start.sceneEnding && !start.statusShown
+  if (!available() || manualSaveOffer()!=='open') throw Error('Wait until the scene or messages have finished before spending points.')
+  let written=false
+  setManualWriting(true)
+  try {
+    await queueWrite(async (run) =>{
+      if (!available() || saveOffer(false)!=='open') return
+      const now=useGameStore.getState()
+      const draft=manualSaveDraft() ?? (!sceneActiveOf(now)?{...now.toGameSave(),scene:null}:null)
+      if (!draft || !now.playthroughId) throw Error('No safe save point is available.')
+      let exTalents=normalizeTalents(now.exTalents), money=now.money, stats=now.stats
+      if ('skill' in action) {
+        exTalents=buyTalent(exTalents,action.skill,modIsOn)
+        if ((TALENTS.find(d=>d.id===action.skill)?.effects?.savingsRate?.length??0)>0) exTalents={...exTalents,savingsDay:now.date,savingsSeen:now.date,savingsTerm:now.semesterIndex,reserveFloor:exTalents.reserve}
+      } else if ('transfer' in action) {
+        const moved=transferSavings(exTalents,money,action.transfer)
+        exTalents=moved.talents; money=moved.money
+        if (now.exTalents.reserve===0) exTalents={...exTalents,savingsDay:now.date,savingsSeen:now.date,savingsTerm:now.semesterIndex,reserveFloor:exTalents.reserve}
+      } else if ('train' in action) {
+        if (now.sceneQuiz || now.sceneClass!==null || now.sceneProject!==null || now.sceneJob!==null) throw Error('Finish the class, project or work scene before training.')
+        const trained=buyTraining(exTalents,stats,action.train,now.semesterIndex,now.date)
+        exTalents=trained.talents; stats=trained.stats
+      } else exTalents=applyTalentChoice(now,exTalents,action)
+      const result=await window.api.saves.autosave(now.playthroughId,{...draft,exTalents,money,stats})
+      if (result.ok) recordSavedEdit(now, run)
+      if (!result.ok) throw Error(result.error.message)
+      if (!available()) return
+      if (loopState.statusBase) loopState.statusBase={...loopState.statusBase,exTalents,money,stats}
+      useGameStore.setState({exTalents,money,stats})
+      written=true
+    })
+    if (!written) throw Error('The game changed. Reopen Skill trees and try again.')
+  } finally { setManualWriting(false) }
+}
+
+/** One atomic save holds the spirit charge, round progress and earned Character Dynamics tag. */
+export async function writeReckoningChange(
+  next: ReckoningState,
+  previous: ReckoningState,
+  charge: 0 | 100,
+  charId: string,
+  dynamics: CharacterDynamics | undefined,
+  active: () => boolean,
+  sceneBeat?: SceneLine[]
+): Promise<void> {
+  const start = useGameStore.getState()
+  const meterBefore = start.exBreakthrough
+  const current = (): boolean => {
+    const now = useGameStore.getState()
+    return active() && now.exReckoning === previous && now.exBreakthrough === meterBefore &&
+      now.exCharacterDynamics === start.exCharacterDynamics && now.playthroughId === start.playthroughId &&
+      now.loads === start.loads && !now.sceneEnding
+  }
+  if (!current() || manualSaveOffer() !== 'open') throw Error('Wait for a safe save point.')
+  const saved = normalizeReckoning(next)
+  if (next.active && !saved.active) throw Error('The encounter could not be saved.')
+  if (next.dungeon && !saved.dungeon) throw Error('The dungeon could not be saved.')
+  const meter = meterBefore.meters[charId] ?? 0
+  if (charge && meter < charge) throw Error('This encounter needs 100 spirit.')
+  const breakthrough = charge
+    ? { ...meterBefore, meters: { ...meterBefore.meters, [charId]: meter - charge } }
+    : meterBefore
+  const patch = {
+    exReckoning: saved,
+    exBreakthrough: breakthrough,
+    ...(dynamics ? { exCharacterDynamics: dynamics } : {})
+  }
+  let written = false
+  setManualWriting(true)
+  try {
+    await queueWrite(async (run) => {
+      if (!current() || saveOffer(false) !== 'open') return
+      const now = useGameStore.getState()
+      const draft = manualSaveDraft() ?? (!sceneActiveOf(now) ? { ...now.toGameSave(), scene: null } : null)
+      if (!draft || !now.playthroughId) throw Error('No safe save point is available.')
+      const scene = sceneBeat?.length && draft.scene
+        ? {
+            ...draft.scene,
+            transcript: [...now.currentSceneTranscript, ...sceneBeat],
+            sceneLog: [...now.sceneLog, sceneBeat[0]],
+            currentLine: sceneBeat[0],
+            pendingLines: sceneBeat.slice(1),
+            resumeOnLine: true as const
+          }
+        : draft.scene
+      const result = await window.api.saves.autosave(now.playthroughId, { ...draft, ...patch, scene })
+      if (result.ok) recordSavedEdit(now, run)
+      if (!result.ok) throw Error(result.error.message)
+      if (!current()) return
+      if (loopState.statusBase) loopState.statusBase = { ...loopState.statusBase, ...patch }
+      // Quit/switch-save writes this held checkpoint. Preserve the paid link's
+      // unread lines there too, without marking them as already advanced.
+      if (sceneBeat?.length && scene) loopState.decisionSave = scene
+      useGameStore.setState({
+        ...patch,
+        ...(sceneBeat?.length && scene
+          ? {
+              currentSceneTranscript: scene.transcript,
+              sceneLog: scene.sceneLog,
+              currentLine: scene.currentLine,
+              pendingLines: scene.pendingLines,
+              awaitingInput: false,
+              reread: 0
+            }
+          : {})
+      })
+      written = true
+    })
+    if (!written) throw Error('The game changed; reopen the encounter.')
+  } finally {
+    setManualWriting(false)
+  }
 }
 
 /** What a mod writing its save data said it edited from, by id. */

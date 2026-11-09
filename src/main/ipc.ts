@@ -1,3 +1,20 @@
+import { resetReflectionPortrait, uploadReflectionPortrait, generateReflectionPortrait, readReflectionPortrait, readReflectionStage, saveReflectionStage, generateEchoArt, cancelEchoArt, uploadEchoArt, readEchoArt, installLocalEchoModels } from './services/echoService'
+import { writeFile } from 'fs/promises'
+import type { EchoArtRequest } from '@shared/echo'
+import { prepareStoryRequest, inspectStoryMemory } from './services/storyMemoryService'
+import {
+  deletePreset,
+  getPreset,
+  importPresetFromFile,
+  listPresets,
+  savePreset,
+  setActivePreset
+} from './services/presetsService'
+import type { Preset } from '@shared/presets/types'
+import type { StudioPrompts } from '@shared/presets/studioPrompts'
+import { getStudioPrompts, setStudioPrompts } from './services/studioPromptsService'
+import { readStudioBackupFile, saveStudioBackup } from './services/studioBackupService'
+import type { StoryRecallRequest } from '@shared/storyMemory'
 import {
   app,
   BrowserWindow,
@@ -112,6 +129,7 @@ import {
   saveExportFile
 } from './services/characterTransferService'
 import { exportBackup, importBackup } from './services/backupService'
+import { soundtrackLibrary, pickSoundtrack } from './services/soundtrackService'
 import {
   addCustomBackground,
   listCustomBackgrounds,
@@ -134,7 +152,7 @@ import {
 } from './services/comfyService'
 import { classifyCloud } from '@shared/llm/cloudClassifier'
 import { generatePhoto } from '@shared/llm/cloudImage'
-import { completeStructured, type StructuredRequest } from '@shared/llm/cloudLlm'
+import type { StructuredRequest } from '@shared/llm/cloudLlm'
 import { completeWithFinalRequest } from './services/finalRequest'
 import { cancelModCalls, completeModRequest } from '@shared/llm/modCall'
 import {
@@ -286,6 +304,48 @@ async function enqueueComfyJob<T>(
 
 /** Registers every IPC channel; keep this, preload and the d.ts in sync. */
 export function registerIpcHandlers(): void {
+  handle('echo:reflectionExport',async(event,charId:string)=>{
+    const data=await readReflectionPortrait(charId)
+    if(!data)throw Error('Generate or upload an Unheard Soul portrait first.')
+    const character=await getCharacter(charId)
+    const stem=`${character.firstName}-${character.lastName}`.replace(/[^A-Za-z0-9._ -]/g,'_').slice(0,80)
+    const {canceled,filePath}=await showSaveDialogFor(event,{title:'Download Unheard Soul image',defaultPath:`Unheard-Soul-${stem}.png`,filters:[{name:'PNG image',extensions:['png']}]})
+    if(canceled||!filePath)return null
+    await writeFile(filePath,Buffer.from(data.slice(data.indexOf(',')+1),'base64'))
+    return filePath
+  })
+  handle('echo:reflectionUpload',async(event,charId:string)=>{
+    const picked=await showOpenDialogFor(event,{title:'Choose Unheard Soul artwork',properties:['openFile'],filters:[{name:'Images',extensions:['png','jpg','jpeg','webp']}]})
+    return picked.canceled||!picked.filePaths[0]?null:uploadReflectionPortrait(charId,picked.filePaths[0])
+  })
+  handle('echo:reflectionReset',(_event,charId:string)=>resetReflectionPortrait(charId))
+  handle('echo:reflectionRead',(_event,charId:string)=>readReflectionPortrait(charId))
+  handle('echo:reflectionStageRead',(_event,charId:string)=>readReflectionStage(charId))
+  handle('echo:reflectionStageSave',(_event,charId:string,stage:unknown)=>saveReflectionStage(charId,stage))
+  handle('echo:reflectionGenerate',(event,charId:string,id:string,source:unknown)=>generateReflectionPortrait(charId,id,event.sender.id,source))
+  handle('echo:generate',(event,request: EchoArtRequest) => generateEchoArt(request,event.sender.id))
+  handle('echo:installLocalModels', (event, id: string) => installLocalEchoModels(id, event.sender.id))
+  handle('echo:cancel',(event,id: string) => cancelEchoArt(id,event.sender.id))
+  handle('echo:read',(_event,id: string,generated?: boolean) => readEchoArt(id,generated))
+  handle('echo:export',async (event,id:string,name:string,generated:boolean) => {
+    if(typeof name!=='string')throw Error('Invalid Echo name.')
+    // Read through the same cleanup path as the preview; preserve its PNG alpha.
+    // The renderer supplies an artwork id, never a filesystem path or arbitrary bytes.
+    const data=await readEchoArt(id,generated)
+    if(!data)throw Error('This Echo artwork is missing. Generate or upload an image first.')
+    const stem=name.replace(/[<>:"/\\|?*\x00-\x1f]/g,'').trim().slice(0,60)||'artwork'
+    const {canceled,filePath}=await showSaveDialogFor(event,{
+      title:'Download Echo image',defaultPath:`Echo-${stem}.png`,
+      filters:[{name:'PNG image',extensions:['png']}]
+    })
+    if(canceled||!filePath)return null
+    await writeFile(filePath,Buffer.from(data.slice(data.indexOf(',')+1),'base64'))
+    return filePath
+  })
+  handle('echo:upload',async event => {
+    const picked = await showOpenDialogFor(event,{ title:'Choose Echo artwork', properties:['openFile'], filters:[{name:'Images',extensions:['png','jpg','jpeg','webp']}] })
+    return picked.canceled || !picked.filePaths[0] ? null : uploadEchoArt(picked.filePaths[0])
+  })
   // The key the cloud calls need never leaves main; the transport reads it through this port.
   useSettingsSource(getSettings)
   // Fixed channel: jobs can outlive their original `invoke`, so broadcast progress.
@@ -333,9 +393,51 @@ export function registerIpcHandlers(): void {
     }
     return next
   })
+  // Prompt Studio's presets. Import reads a file the player picks and keeps nothing; a dismissed
+  // dialog resolves `null`.
+  handle('presets:list', () => listPresets())
+  handle('presets:get', (_event, id: string) => getPreset(id))
+  handle('presets:save', (_event, preset: Preset) => savePreset(preset))
+  handle('presets:delete', (_event, id: string) => deletePreset(id))
+  handle('presets:setActive', (_event, id: string) => setActivePreset(id))
+  // The section backups: a file saved where the native dialog points, and one picked to restore
+  // from; a dismissed dialog resolves `null`.
+  handle('studioBackup:save', async (event, name: string, text: string) => {
+    const { canceled, filePath } = await showSaveDialogFor(event, {
+      title: 'Back up Prompt Studio',
+      defaultPath: name,
+      filters: [{ name: 'Prompt Studio backup', extensions: ['json'] }]
+    })
+    if (canceled || filePath === undefined || filePath === '') return null
+
+    await saveStudioBackup(filePath, text)
+    return filePath
+  })
+  handle('studioBackup:pick', async (event) => {
+    const { canceled, filePaths } = await showOpenDialogFor(event, {
+      title: 'Restore Prompt Studio',
+      filters: [{ name: 'Prompt Studio backup', extensions: ['json'] }],
+      properties: ['openFile']
+    })
+    if (canceled || filePaths.length === 0) return null
+    return readStudioBackupFile(filePaths[0])
+  })
+  handle('studioPrompts:get', () => getStudioPrompts())
+  handle('studioPrompts:set', (_event, record: StudioPrompts) => setStudioPrompts(record))
+  handle('presets:import', async (event) => {
+    const { canceled, filePaths } = await showOpenDialogFor(event, {
+      title: 'Import a preset',
+      filters: [{ name: 'Preset', extensions: ['json', 'marinara'] }],
+      properties: ['openFile']
+    })
+    if (canceled || filePaths.length === 0) return null
+    return importPresetFromFile(filePaths[0])
+  })
+
   // The grab bags' set-aside keys, read once at boot and written behind every draw.
   handle('grabBags:get', () => getGrabBags())
   handle('grabBags:set', (_event, bags: GrabBags) => setGrabBags(bags))
+  handle('storyMemory:inspect', (_event, payload: StoryRecallRequest) => inspectStoryMemory(payload))
   handle('mods:get', () => getModSwitches())
   handle('mods:set', (_event, switches: ModSwitches) => setModSwitches(switches))
   // The installed mods' session: the table, the host shims' names, a mod the window could not load.
@@ -404,6 +506,21 @@ export function registerIpcHandlers(): void {
 
   // The mix names a file; the renderer cannot read /assets, so the bytes come over the bridge.
   handle('assets:readAudio', (_event, file: string) => readAudio(file))
+  handle('soundtracks:list', () => soundtrackLibrary.list())
+  handle('soundtracks:read', (_event, key: string) => soundtrackLibrary.read(key))
+  handle('soundtracks:remove', (_event, key: string) => soundtrackLibrary.remove(key))
+  handle('soundtracks:loop', (_event, key: string, value: boolean) => soundtrackLibrary.loop(key, value))
+  handle('soundtracks:cleanup', () => soundtrackLibrary.cleanup())
+  handle('soundtracks:commit', (event, key: string, token: string, duration: number) =>
+    soundtrackLibrary.commit(key, token, duration, event.sender.id))
+  handle('soundtracks:pick', async event => {
+    soundtrackLibrary.cancelPick()
+    const picked = await showOpenDialogFor(event, {
+      title: 'Choose a replacement music track', properties: ['openFile'],
+      filters: [{ name: 'Music', extensions: ['mp3', 'ogg', 'wav'] }]
+    })
+    return picked.canceled || !picked.filePaths[0] ? null : pickSoundtrack(picked.filePaths[0], event.sender.id)
+  })
 
   // Unqueued; the streamed deltas are preview-only and the invoke result is the
   // authoritative one. `group` is the loop's own; every delta carries the call's `stream`.
@@ -411,7 +528,7 @@ export function registerIpcHandlers(): void {
     'llm:completeScene',
     (event, request: StructuredRequest, group: string, stream: string) =>
       runAbortable(group, (signal) =>
-        completeWithFinalRequest<SceneResponse>(request, signal, (delta) =>
+        completeStructured<SceneResponse>(request, signal, (delta) =>
           event.sender.send('llm:sceneDelta', stream, delta)
         )
       )
@@ -419,24 +536,24 @@ export function registerIpcHandlers(): void {
 
   // The end-of-scene bookkeeping call: no deltas, its own schema.
   handle('llm:completeLedger', (_event, request: StructuredRequest, group: string) =>
-    runAbortable(group, (signal) => completeWithFinalRequest<LedgerResponse>(request, signal))
+    runAbortable(group, (signal) => completeStructured<LedgerResponse>(request, signal))
   )
 
   // The slot-opening narration: no deltas, its own schema.
   handle('llm:completeIntro', (_event, request: StructuredRequest, group: string) =>
-    runAbortable(group, (signal) => completeWithFinalRequest<SlotIntroResponse>(request, signal))
+    runAbortable(group, (signal) => completeStructured<SlotIntroResponse>(request, signal))
   )
 
   // The epilogue's status updates: one call for the whole week after graduation.
   handle('llm:completeEndingPosts', (_event, request: StructuredRequest, group: string) =>
-    runAbortable(group, (signal) => completeWithFinalRequest<EndingPostsResponse>(request, signal))
+    runAbortable(group, (signal) => completeStructured<EndingPostsResponse>(request, signal))
   )
 
   // A Bunnyboard texting turn, streamed. Several can stream at once, so every
   // delta carries its `group` to say whose text it is.
   handle('llm:completeTexting', (event, request: StructuredRequest, group: string) =>
     runAbortable(group, (signal) =>
-      completeWithFinalRequest<TextingResponse>(request, signal, (delta) =>
+      completeStructured<TextingResponse>(request, signal, (delta) =>
         event.sender.send('llm:textingDelta', group, delta)
       )
     )
@@ -444,7 +561,7 @@ export function registerIpcHandlers(): void {
 
   // The hangout classifier, run on the reply the texting call just wrote.
   handle('llm:classifyHangout', (_event, request: StructuredRequest) =>
-    completeWithFinalRequest<HangoutClassifierResponse>(request)
+    completeStructured<HangoutClassifierResponse>(request)
   )
 
   // A mod's own structured call: one channel for every mod, sent the way every call here is and
@@ -767,7 +884,7 @@ export function registerIpcHandlers(): void {
 
   // Unqueued; `group` lets character deletion abort it.
   handle('llm:generateCharacter', (_event, request: StructuredRequest, group: string) =>
-    runAbortable(group, (signal) => completeWithFinalRequest(request, signal))
+    runAbortable(group, (signal) => completeStructured(request, signal))
   )
 
   // The scene classifier call: structured, unstreamed.
@@ -779,26 +896,26 @@ export function registerIpcHandlers(): void {
 
   // The one-shot class-catalog call; `group` is the New Game start's.
   handle('llm:generateClasses', (_event, request: StructuredRequest, group: string) =>
-    runAbortable(group, (signal) => completeWithFinalRequest(request, signal))
+    runAbortable(group, (signal) => completeStructured(request, signal))
   )
 
   // The student-profile call, the second of New Game's one-shots, on the same terms.
   handle('llm:generateProfiles', (_event, request: StructuredRequest, group: string) =>
-    runAbortable(group, (signal) => completeWithFinalRequest(request, signal))
+    runAbortable(group, (signal) => completeStructured(request, signal))
   )
 
   // The third one-shot New Game call, on the same terms.
   handle('llm:generateOccasions', (_event, request: StructuredRequest, group: string) =>
-    runAbortable(group, (signal) => completeWithFinalRequest(request, signal))
+    runAbortable(group, (signal) => completeStructured(request, signal))
   )
 
   // The roster's secrets, the fourth one-shot, on the same terms.
   handle('llm:generateSecrets', (_event, request: StructuredRequest, group: string) =>
-    runAbortable(group, (signal) => completeWithFinalRequest(request, signal))
+    runAbortable(group, (signal) => completeStructured(request, signal))
   )
 
   // The exam-question call: structured, unstreamed, no group.
-  handle('llm:generateQuiz', (_event, request: StructuredRequest) => completeWithFinalRequest(request))
+  handle('llm:generateQuiz', (_event, request: StructuredRequest) => completeStructured(request))
 
   // The model ids a custom endpoint lists, falling back to the stored key for that origin.
   handle('llm:listModels', async (_event, endpointUrl: string, apiKey?: string) => {
@@ -1052,4 +1169,12 @@ export function registerIpcHandlers(): void {
 async function openFolder(path: string, message: string): Promise<void> {
   const failure = await shell.openPath(path)
   if (failure !== '') throw appError('OPEN_FOLDER_FAILED', message, failure)
+}
+
+/**
+ * Sends one structured request: the story recall is prepended, and a mod's final request hook
+ * then has its say. The fields only this app reads never reach the provider.
+ */
+async function completeStructured<T>(request: StructuredRequest, signal?: AbortSignal, onDelta?: (delta: string) => void): Promise<T> {
+  return completeWithFinalRequest<T>(await prepareStoryRequest(request), signal, onDelta)
 }

@@ -1,3 +1,4 @@
+import { availableLocationMenu, jobAvailable } from '@shared/cityLife'
 import {
   charKeyOf,
   fullNameOf,
@@ -16,7 +17,7 @@ import {
   type ProfileField
 } from '@shared/application'
 import { DORM_IDS, FALLBACK_DORM, isDorm, type DormId } from '@shared/dorms'
-import { JOB_CATALOG, jobDefOf } from '@shared/jobs'
+import { availableJobs, jobDefOf } from '@shared/jobs'
 import {
   ACTIVITY_LOCATIONS,
   FUN_LOCATIONS,
@@ -156,7 +157,7 @@ function profileSystem(setting: string, textEdits?: TextEdits<GlobalTextId>): st
 
 /** Her job, and the employers she may hold one at. */
 function workLines(): string[] {
-  const employers = JOB_CATALOG.map((def) => `${def.id} — ${def.employer}, ${def.title}: ${def.blurb}`)
+  const employers = availableJobs().map((def) => `${def.id} — ${def.employer}, ${def.title}: ${def.blurb}`)
   return [
     'PART-TIME WORK',
     'If the student works a part-time job, you can describe it as follows:',
@@ -180,16 +181,16 @@ function hauntLines(textEdits?: TextEdits<GlobalTextId>): string[] {
     newGameText(textEdits, 'newgame.profiles.freeTime'),
     '',
     'STUDY LOCATIONS',
-    ...locationMenuLines(STUDY_LOCATIONS),
+    ...locationMenuLines(availableLocationMenu(STUDY_LOCATIONS)),
     '',
     'FUN LOCATIONS',
-    ...locationMenuLines(FUN_LOCATIONS),
+    ...locationMenuLines(availableLocationMenu(FUN_LOCATIONS)),
     '',
     'MEAL LOCATIONS',
-    ...locationMenuLines(MEAL_LOCATIONS),
+    ...locationMenuLines(availableLocationMenu(MEAL_LOCATIONS)),
     '',
     'ACTIVITY LOCATIONS',
-    ...locationMenuLines(ACTIVITY_LOCATIONS),
+    ...locationMenuLines(availableLocationMenu(ACTIVITY_LOCATIONS)),
     ''
   ]
 }
@@ -299,15 +300,15 @@ function newStudentProperties(posts: boolean, plans: boolean): Record<string, un
     majorClassesTaken: intField(1, 3),
     // Closed like `job`: the dorm list is code, identical in every save.
     dorm: { type: 'string', enum: [...DORM_IDS] },
-    job: { type: 'string', enum: ['', ...JOB_CATALOG.map((def) => def.id)] },
+    job: { type: 'string', enum: ['', ...availableJobs().map((def) => def.id)] },
     jobShifts: intField(0, MAX_NPC_SHIFTS),
     homeSlots: intField(MIN_HOME_SLOTS, MAX_HOME_SLOTS),
     // Closed for `job`'s reason; `''` is legal in the two optional ones and is the ordinary answer.
-    study: { type: 'string', enum: ['', ...Object.keys(STUDY_LOCATIONS)] },
+    study: { type: 'string', enum: ['', ...Object.keys(availableLocationMenu(STUDY_LOCATIONS))] },
     fun: {
       type: 'array',
       maxItems: MAX_FUN_LOCATIONS,
-      items: { type: 'string', enum: [...Object.keys(FUN_LOCATIONS)] }
+      items: { type: 'string', enum: [...Object.keys(availableLocationMenu(FUN_LOCATIONS))] }
     },
     // Her own phrase, unlike the closed menus: the place it happens at rides `activityLocation`.
     activity: { type: 'string' },
@@ -316,8 +317,8 @@ function newStudentProperties(posts: boolean, plans: boolean): Record<string, un
       ? { winterPosts: { type: 'array', maxItems: MAX_WINTER_POSTS, items: { type: 'string' } } }
       : {}),
     ...(plans ? { springBreakPlans: { type: 'string' } } : {}),
-    activityLocation: { type: 'string', enum: ['', ...Object.keys(ACTIVITY_LOCATIONS)] },
-    meal: { type: 'string', enum: ['', ...Object.keys(MEAL_LOCATIONS)] }
+    activityLocation: { type: 'string', enum: ['', ...Object.keys(availableLocationMenu(ACTIVITY_LOCATIONS))] },
+    meal: { type: 'string', enum: ['', ...Object.keys(availableLocationMenu(MEAL_LOCATIONS))] }
   }
 }
 
@@ -652,7 +653,7 @@ function validatedProfile(
 ): CharProfileDraft {
   const { posts = true, plans = true } = opts
   const job = (profile.job ?? '').trim()
-  const known = job !== '' && Boolean(jobDefOf(job))
+  const known = job !== '' && Boolean(jobDefOf(job)) && jobAvailable(job)
   if (job !== '' && !known) {
     console.warn(`[profiles] ${key} was given the unknown employer "${job}"; leaving her jobless.`)
   }
@@ -668,7 +669,7 @@ function validatedProfile(
   const menuKey = (menu: Record<string, string>, value: unknown, field: string): string => {
     const raw = typeof value === 'string' ? value.trim() : ''
     if (raw === '') return ''
-    if (locationForKey(menu, raw) === null) {
+    if (locationForKey(availableLocationMenu(menu), raw) === null) {
       console.warn(`[profiles] ${key} ${field} was the unknown location "${raw}"; dropping it.`)
       return ''
     }

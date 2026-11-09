@@ -1,3 +1,4 @@
+import { ReflectionPortraitControl } from '../components/ReflectionPortrait'
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { editorFields, editorWrites } from '../mods/hooks'
@@ -1195,6 +1196,7 @@ export function EditCharacterModal({
           <TitleTab>Edit character</TitleTab>
 
           <div className="vu-edit-images">
+            <ReflectionPortraitControl charId={charId} name={name} theme={theme} height={character.height}/>
             <ModSlot slot="editCharacterImages" props={{ charId, name, theme, height: character.height }} />
             <div className="vu-edit-wardrobes">
               {WARDROBES.map(({ target, set, title }) => (

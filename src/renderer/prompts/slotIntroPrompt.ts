@@ -1,3 +1,4 @@
+import type { CharacterDynamics } from '@shared/characterDynamics'
 import { modRequest, promptFields, promptLines, promptRequired } from '../mods/hooks'
 import type { ExamPeriod } from '@shared/academics'
 import { yearLabel } from '@shared/classes'
@@ -208,6 +209,8 @@ export interface IntroPoster {
 
 /** Everything the builder reads; assembled by the loop, which owns the store. */
 export interface SlotIntroInput {
+  storyMemory?: import('@shared/storyMemory').StorySnapshot
+  exCharacterDynamics?: CharacterDynamics
   /** The cloud-LLM cache key — the playthrough, exactly as the scene calls use it. */
   playthroughId: string
   /** Today, for weighting the askers' memories. */

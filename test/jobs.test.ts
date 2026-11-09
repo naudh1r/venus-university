@@ -10,6 +10,7 @@ import {
   rollFreshmanJobStart,
   rollJobClosures,
   JOB_CATALOG,
+  availableJobs,
   jobDefForChat,
   jobDefOf,
   bossChatIdOf,
@@ -79,7 +80,7 @@ describe('rollJobClosures', () => {
     // Randomised, so it is asserted over a run rather than once.
     for (let i = 0; i < 60; i++) {
       const closures = rollJobClosures(schedule)
-      for (const def of JOB_CATALOG) {
+      for (const def of availableJobs()) {
         const closed = closures[def.id]
         if (def.hours.length < SHIFT_SLOTS.length) {
           expect(closed).toBeUndefined()

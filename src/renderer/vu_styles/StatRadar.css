@@ -107,6 +107,12 @@
   font: 700 19px/1 var(--font-body);
 }
 
+/* Longer challenge names must fit both lower badges and the rank-up crossfade. */
+.vu-radar-badge--deep-challenge .vu-radar-tier {
+  max-width: 120px;
+  line-height: 1.1;
+}
+
 /* The figure and, smaller still on its baseline, the threshold that buys the next tier. */
 .vu-radar-figure {
   display: flex;

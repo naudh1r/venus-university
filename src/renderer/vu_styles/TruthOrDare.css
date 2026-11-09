@@ -1,0 +1,129 @@
+/* Truth or Dare: the scorecard. The tally, one line of what is wanted now, what was put to the
+   reader while he answers it, how the last turn went, and the buttons that apply. Drawn on the mini-game table, as small
+   as that comes to; the buttons are base.css's. Everything said is on the dialogue box;
+   what is only seen, a dare done, is on the card too. */
+
+.vu-tod {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 380px;
+}
+
+/* Everyone at the table in seat order, each with their points. */
+.vu-tod-tally {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vu-tod-seat {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 14px;
+  border: 2.5px solid var(--vu-border);
+  border-radius: 999px;
+  background: var(--vu-surface);
+  color: var(--vu-text-body);
+  font: 700 13px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Whose turn it is: the seat filled in the accent. */
+.vu-tod-seat[data-turn] {
+  background: var(--vu-accent);
+  color: var(--vu-accent-ink);
+}
+
+.vu-tod-seatname {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* What is happening and what is wanted now: one line, quiet while a line is only being read. */
+.vu-tod-state {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 700 14px/1.4 var(--font-mono);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.vu-tod-state[data-out] {
+  color: var(--vu-text);
+}
+
+/* What was put to the reader, kept in sight while he answers it: a few lines at the most. */
+.vu-tod-kept {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  margin: 0;
+  overflow: hidden;
+  padding: 0 4px;
+  color: var(--vu-text-body);
+  font: 500 13px/1.45 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+/* How the last turn went: a dare as she did it, a turn backed out of. A few lines at the most. */
+.vu-tod-called {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  margin: 0;
+  overflow: hidden;
+  padding: 0 4px;
+  color: var(--vu-text-body);
+  font: 500 13px/1.45 var(--font-body);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.vu-tod-kind {
+  margin-right: 8px;
+  color: var(--vu-accent);
+  font: 700 12px var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.vu-tod-picks {
+  display: flex;
+  justify-content: center;
+  gap: 26px;
+  padding: 0 12px 8px 0;
+}
+
+.vu-tod-picks > button {
+  transform-origin: center;
+}
+
+.vu-tod-ideas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A stock question or dare to send as it stands. */
+.vu-tod-idea {
+  width: 100%;
+  padding: 6px 14px;
+  border: 2px dashed var(--vu-border);
+  border-radius: 14px;
+  background: none;
+  color: var(--vu-text-body);
+  font: 500 13px/1.4 var(--font-body);
+  text-align: left;
+  cursor: pointer;
+}

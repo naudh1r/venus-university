@@ -9,10 +9,12 @@ import {
   npcRelationshipsOf,
   pairsOver,
   SCENE_DISPOSITIONS,
+  statsOfReader,
   validateSavedScene,
   weatherTableOf,
   withMilestone,
   type SavedScene,
+  type SceneReader,
   type SceneMilestones
 } from '@shared/sceneCreator'
 import { weatherAt } from '@shared/weather'
@@ -125,6 +127,18 @@ describe('a saved scene is refused rather than half-read', () => {
 
   it('reads one whole', () => {
     expect(validateSavedScene(JSON.parse(JSON.stringify(scene)), 'x').id).toBe(scene.id)
+  })
+
+  it.each<[SceneReader['tiers'], { brain: number; body: number; heart: number }]>([
+    [{ brain: -4, body: -3, heart: -2 }, { brain: -100, body: -80, heart: -60 }],
+    [{ brain: -1, body: 0, heart: 5 }, { brain: -30, body: -15, heart: 100 }],
+    [{ brain: 1, body: 2, heart: 3 }, { brain: 0, body: 15, heart: 35 }],
+    [{ brain: 4, body: 5, heart: 0 }, { brain: 60, body: 100, heart: -15 }]
+  ])('preserves mixed starting ranks through saving and replay: %j', (tiers, stats) => {
+    const setup = { ...scene.setup, reader: { ...scene.setup.reader, tiers } }
+    const reread = validateSavedScene(JSON.parse(JSON.stringify({ ...scene, setup })), 'scene.json')
+    expect(statsOfReader(setup.reader)).toEqual(stats)
+    expect(statsOfReader(reread.setup.reader)).toEqual(stats)
   })
 
   it('refuses a missing field, a bad id and a bad setup', () => {

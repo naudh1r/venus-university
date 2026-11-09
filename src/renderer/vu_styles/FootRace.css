@@ -1,0 +1,270 @@
+/* Foot Race: the starter's call and the clock across the top; under them the lanes, one runner
+   each, with the quarter posts; and at the foot the reader's two feet either side of his pace
+   and his stamina. Drawn on the mini-game board; the buttons are base.css's. The frame loop
+   places the runners and writes the clock, the places and the two meters. */
+
+.vu-footrace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* The distance, the starter's call and the clock. */
+.vu-footrace-head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: baseline;
+  color: var(--vu-text);
+}
+
+.vu-footrace-distance {
+  color: var(--vu-text-muted);
+  font: 700 18px var(--font-mono);
+}
+
+.vu-footrace-call {
+  min-height: 46px;
+  font: 400 38px var(--font-display);
+  line-height: 46px;
+  white-space: pre;
+}
+
+.vu-footrace[data-phase='running'] .vu-footrace-call,
+.vu-footrace[data-phase='recall'] .vu-footrace-call {
+  color: var(--vu-accent);
+}
+
+.vu-footrace-clock {
+  justify-self: end;
+  font: 700 30px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The lanes: a name, the run, and the place or the time. */
+.vu-footrace-track {
+  --name: 132px;
+  --place: 132px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 26px 0 4px;
+}
+
+/* The quarter posts' words, over the run and on its own measure. */
+.vu-footrace-posts {
+  position: absolute;
+  top: 0;
+  right: calc(var(--place) + 34px);
+  left: calc(var(--name) + 34px);
+  height: 20px;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+}
+
+.vu-footrace-posts > span {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.vu-footrace-lane {
+  display: grid;
+  grid-template-columns: var(--name) 1fr var(--place);
+  gap: 12px;
+  align-items: center;
+}
+
+.vu-footrace-name {
+  overflow: hidden;
+  color: var(--vu-text-body);
+  font: 400 22px var(--font-display);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-footrace-lane[data-you] .vu-footrace-name {
+  color: var(--vu-text);
+}
+
+/* The run: a recessed strip, room at each end for the runner's own width, the line at the far one. */
+.vu-footrace-run {
+  position: relative;
+  height: 54px;
+  margin: 0 22px;
+  border-radius: 12px;
+  background: var(--vu-recessed);
+  box-shadow:
+    -22px 0 0 var(--vu-recessed),
+    22px 0 0 var(--vu-recessed);
+  border-right: 4px solid var(--vu-text);
+  border-left: 4px solid var(--vu-border);
+}
+
+.vu-footrace-post {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--vu-border);
+  opacity: 0.5;
+}
+
+/* A runner: a numbered bib on the surface, the reader's filled in the accent. */
+.vu-footrace-runner {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: -18px 0 0 -18px;
+  border: 3.5px solid var(--vu-border);
+  border-radius: 50%;
+  background: var(--vu-surface);
+  color: var(--vu-text);
+  font: 700 15px var(--font-mono);
+}
+
+.vu-footrace-lane[data-you] .vu-footrace-runner {
+  border-color: var(--vu-accent);
+  background: var(--vu-accent);
+  color: var(--vu-accent-ink);
+  box-shadow: 3px 3px 0 var(--vu-accent-shadow);
+}
+
+.vu-footrace-place {
+  color: var(--vu-text);
+  font: 700 17px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The card over the lanes before the race, and while the window is away. */
+.vu-footrace-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 520px;
+  max-width: 90%;
+  padding: 20px 24px 24px;
+  border: 3.5px solid var(--vu-border);
+  border-radius: 22px;
+  background: var(--vu-surface);
+  translate: -50% -50%;
+  text-align: center;
+}
+
+.vu-footrace-how {
+  max-width: 560px;
+  margin: 0;
+  color: var(--vu-text-body);
+  font: 500 16px var(--font-body);
+  line-height: 1.5;
+}
+
+.vu-footrace-paused {
+  margin: 0;
+  color: var(--vu-text);
+  font: 400 36px var(--font-display);
+}
+
+/* The reader's feet, and between them how hard he is going and what he has left. */
+.vu-footrace-foot {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  justify-content: center;
+  margin-top: auto;
+  padding: 0 12px 8px 0;
+}
+
+.vu-footrace-foot > button {
+  flex: none;
+  min-width: 150px;
+  transform-origin: center;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.vu-footrace-foot[inert] {
+  opacity: 0.35;
+}
+
+.vu-footrace-meters {
+  display: flex;
+  flex: 0 1 460px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vu-footrace-meter {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.vu-footrace-label {
+  color: var(--vu-text-muted);
+  font: 700 13px var(--font-mono);
+  text-align: right;
+}
+
+.vu-footrace-rail {
+  position: relative;
+  height: 18px;
+  overflow: hidden;
+  border: 2.5px solid var(--vu-border);
+  border-radius: 999px;
+  background: var(--vu-recessed);
+}
+
+/* The pace that gets him round: a band on the rail, and the needle that should sit in it. */
+.vu-footrace-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--vu-accent);
+  opacity: 0.35;
+}
+
+.vu-footrace-needle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6px;
+  margin-left: -3px;
+  border-radius: 3px;
+  background: var(--vu-text);
+}
+
+.vu-footrace-tank {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--vu-good);
+  transform-origin: left center;
+}
+
+.vu-footrace-tank[data-spent] {
+  background: var(--vu-danger);
+}
+
+.vu-footrace-note {
+  min-height: 18px;
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 700 13px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}

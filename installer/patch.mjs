@@ -30,8 +30,8 @@ process.noAsar = true
 const HERE = dirname(fileURLToPath(import.meta.url))
 const PAYLOAD = join(HERE, 'payload')
 const EXE = 'Venus University.exe'
-/** Files the packed app keeps outside `app.asar`, as electron-builder was told to. */
-const UNPACK = '**/node_modules/7zip-bin/**'
+/** Keep native executables, Sharp and its libraries on disk, matching the desktop package. */
+const UNPACK = '**/node_modules/{7zip-bin,sharp,@img}/**'
 
 const expected = JSON.parse(await readFile(join(PAYLOAD, 'expected.json'), 'utf8'))
 const NAME = expected.build

@@ -90,6 +90,9 @@ export const rowLift: TargetAndTransition = {
 
 export const rowPress: TargetAndTransition = { scale: 0.98, transition: PRESS }
 
+/** A row of a reordered list sliding to its new place, under the dragged one or after a drop. */
+export const rowReorder: Transition = PRESS
+
 /**
  * A quiet card that **expands** under the cursor as well as tinting — the Bunnyboard's contacts.
  * Reduced motion drops a transform outright, so scale alone would show nothing under it.

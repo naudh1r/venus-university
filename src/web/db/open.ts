@@ -9,7 +9,10 @@ import type { PhotoMeta } from '@shared/photos'
 import type { ProfileFrame } from '@shared/profilePicture'
 import type { SlotReplay } from '@shared/replays'
 import type { SavedScene } from '@shared/sceneCreator'
+import type { SoundtrackMap } from '@shared/soundtracks'
 import type { Character, GameSave, GrabBags, Settings } from '@shared/types'
+import type { StudioPrompts } from '@shared/presets/studioPrompts'
+import type { StoredPresets } from './presets'
 
 /**
  * The browser build's whole disk: one IndexedDB database, one store per kind of file the
@@ -54,6 +57,10 @@ export interface StoredBackground {
  * playthrough and write time, so the newest of one playthrough is found without reading the rest.
  */
 export interface VenusUniversityDb extends DBSchema {
+  echoArt: { key: string; value: Blob }
+  echoSources: { key: string; value: Blob }
+  soundtrackMeta: { key: 'tracks'; value: SoundtrackMap }
+  soundtrackFiles: { key: string; value: Blob }
   settings: { key: 'settings'; value: StoredSettings }
   grabbags: { key: 'grabbags'; value: GrabBags }
   playthroughs: { key: string; value: PlaythroughRow }
@@ -68,6 +75,8 @@ export interface VenusUniversityDb extends DBSchema {
   backgrounds: { key: string; value: StoredBackground }
   scenes: { key: string; value: SavedScene }
   replays: { key: [string, string]; value: SlotReplay }
+  presets: { key: 'presets'; value: StoredPresets }
+  studioPrompts: { key: 'studioPrompts'; value: StudioPrompts }
   lorebooks: { key: string; value: LorebookRecord }
   applications: { key: string; value: Application }
 }
@@ -78,6 +87,10 @@ export interface VenusUniversityDb extends DBSchema {
  * what is missing, so a database already here gains it and keeps everything it holds.
  */
 const STORES = [
+  'echoArt',
+  'echoSources',
+  'soundtrackMeta',
+  'soundtrackFiles',
   'settings',
   'grabbags',
   'playthroughs',
@@ -91,12 +104,15 @@ const STORES = [
   'backgrounds',
   'scenes',
   'replays',
+  'presets',
+  'studioPrompts',
   'lorebooks',
   'applications',
   'profileSources'
 ] as const
 
-const DB_VERSION = 10
+// 14 adds profile sources while retaining the existing VE stores.
+const DB_VERSION = 14
 
 let opened: Promise<IDBPDatabase<VenusUniversityDb>> | null = null
 

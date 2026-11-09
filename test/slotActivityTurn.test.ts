@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { resetLoopState } from '../src/renderer/stores/loop/state'

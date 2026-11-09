@@ -83,8 +83,9 @@ export interface PreviewSink {
 }
 
 /**
- * What one scene call comes back with, resolved. `reply` is the reply as the model wrote it, for
- * the mods that asked it for fields of their own.
+ * What one scene call comes back with, resolved; `at` is the transcript length the call was
+ * made at, which is what the reply's summary covers up to (Breakthrough reads it). `reply` is the
+ * reply as the model wrote it, for the mods that asked it for fields of their own.
  */
 export type SceneCall = Promise<
   | {
@@ -94,6 +95,7 @@ export type SceneCall = Promise<
         summary: string | null
         end: boolean
         applied: boolean
+        at: number
         reply: SceneResponse
         /** Which scene call this was, where its builder named one. */
         spot?: SceneSpotTag
@@ -152,6 +154,8 @@ export async function streamScene(
   // abandons it from that moment.
   const mine = {}
   loopState.sceneCall = mine
+  // The transcript this call answers, which its summary covers up to.
+  const at = useGameStore.getState().currentSceneTranscript.length
   // What this call's deltas are tagged with: an abandoned call's still in flight reach every
   // listener, the next call's included.
   const stream = `scene-${++streamCount}`
@@ -277,9 +281,7 @@ export async function streamScene(
   const { lines, summary, end } = sanitizeScene(result.data, options)
 
   // A prefetch still holding its lines has nothing to reconcile; Begin appends the reply whole.
-  if (sink && !sink.live) {
-    return { ok: true, data: { lines, summary, end, applied: false, reply: result.data, spot } }
-  }
+  if (sink && !sink.live) return { ok: true, data: { lines, summary, end, applied: false, at, reply: result.data, spot } }
 
   const game = useGameStore.getState()
 
@@ -308,7 +310,7 @@ export async function streamScene(
   // The lines are on the transcript now, and the autosave that pays for the reply is still to come.
   if (!abandoned()) landScene(result.data, spot, lines.length)
 
-  return { ok: true, data: { lines, summary, end, applied: true, reply: result.data, spot } }
+  return { ok: true, data: { lines, summary, end, applied: true, at, reply: result.data, spot } }
 }
 
 /** Hands playback back to a player parked on the spinner at the end of the queue. */

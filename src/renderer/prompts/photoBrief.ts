@@ -1,0 +1,260 @@
+import { messagePhoto } from '../stores/photoRecords'
+import { photoFeatureOn } from '../../shared/photoSwitches'
+import {
+  allowedPhotoTier,
+  PHOTO_TIERS,
+  photoReasonOf,
+  type PhotoReason,
+  type PhotoTier
+} from '../../shared/photoGate'
+import { affectionFor, type Character, type CharInfo, type ChatMessage } from '@vx/modkit/shared'
+import { wardrobeLine } from '../../shared/photoWardrobe'
+import type { TextingPromptState } from '@vx/modkit/renderer'
+
+/**
+ * What she is told she may photograph, what the thread remembers of the pictures she has already
+ * sent, and the three reply fields that carry one.
+ *
+ * All of it lives here rather than inside `textingPrompt`, which keeps four hook lines: the rules
+ * block, the history stub, and the schema's two spreads. The two state fields below are declared
+ * from here too, so `TextingPromptState` needs no edit.
+ */
+
+declare module './textingPrompt' {
+  interface TextingPromptState {
+    /**
+     * Whether a picture can be drawn at all: the local renderer is optional, and absent on the
+     * web. Absent here reads as no renderer, so a caller that has not thought about it gets a
+     * thread with no photos in it rather than one that offers pictures it cannot deliver.
+     */
+    canRenderImages?: boolean
+    /** The player's switch: with it on, no picture of her is ever undressed. */
+    noNsfwImages?: boolean
+  }
+}
+
+/** "Dorm" read back beside an undressed picture gets the next reply refused, so it is her room. */
+function withoutDorm(scene: string): string {
+  return scene
+    .replace(/\bdorm(itory)?\s+(room|bed)\b/gi, '$2')
+    .replace(/\bdorm(itory)?\b/gi, 'room')
+}
+
+/**
+ * The picture that went with a text, as the thread remembers it. Written beside her words so the
+ * next turn knows she sent one and what was in it — otherwise every photo is new to her.
+ */
+export function photoStub(
+  message: ChatMessage,
+  flatText: (text: string) => string,
+  // Who the friend in it is called, from her charId; absent, she is left unnamed.
+  nameOf: (charId: string) => string | undefined = () => undefined
+): string {
+  const photo = messagePhoto.read(message)
+  const scene = photo?.scene?.trim()
+  if (!scene) return ''
+  const friend = photo?.with ? nameOf(photo.with) : undefined
+  return ` [attached a photo${friend ? ` with ${friend}` : ''}: ${flatText(withoutDorm(scene))}]`
+}
+
+/**
+ * What she may attach to this reply, and what she must not. The tier is the gate's, decided from
+ * the save before this call: the prompt is told what she would send, never asked to judge it, and
+ * what comes back is read again on the way in.
+ */
+export function photoLines(
+  character: Character,
+  info: CharInfo | undefined,
+  state: Pick<TextingPromptState, 'date' | 'canRenderImages' | 'noNsfwImages'>,
+  occasion: PhotoOccasion = 'reply'
+): string[] {
+  // Settled from the save before she is asked anything, and read again when the reply lands.
+  const tier: PhotoTier = allowedPhotoTier({
+    flags: info?.flags,
+    affection: affectionFor(info, state.date, character),
+    traits: character.traits,
+    noNsfwImages: state.noNsfwImages === true,
+    canRender: state.canRenderImages === true
+  })
+
+  if (tier === 'none') {
+    // Nothing is said about photos at all: an instruction not to send one is an idea to send one.
+    return []
+  }
+
+  // Two briefs, and she reads only hers: how an undressed picture is captioned, and why she would
+  // send one, are said only to a girl who may.
+  return tier === 'explicit'
+    ? intimateBrief(character, photoReasonOf(info?.flags, character.traits) ?? 'crush', occasion)
+    : normalBrief(character, tier, occasion)
+}
+
+/** What her picture goes with: her answer to him, or texts she sends him first. */
+export type PhotoOccasion = 'reply' | 'reachOut'
+
+/** An everyday or a suggestive picture: what she will send, and the rules every picture keeps. */
+function normalBrief(
+  character: Character,
+  tier: 'everyday' | 'suggestive',
+  occasion: PhotoOccasion
+): string[] {
+  const name = character.firstName
+  return [
+    ...opening(name, occasion),
+    tier === 'suggestive'
+      ? `${name} will send a flirty one — what she is wearing, a swimsuit, underwear — but nothing more than that. Nothing undressed.`
+      : `${name} only sends ordinary pictures: where she is, what she is eating, her outfit, something that made her laugh. Nothing flirty, nothing undressed.`,
+    ...captioning(character, occasion),
+    ...keeping(name, occasion)
+  ]
+}
+
+/**
+ * An undressed picture. Why she would send one is said as what is true of the two of them, since
+ * a model told she has slept with somebody she has not writes the history in: what they have
+ * done, or who she is, or that she is into him and it is her own decision.
+ */
+function intimateBrief(
+  character: Character,
+  reason: PhotoReason,
+  occasion: PhotoOccasion
+): string[] {
+  const name = character.firstName
+  return [
+    ...opening(name, occasion),
+    `${name} will send anything of herself, undressed included. ${INTIMATE_REASON[reason]}`,
+    ...captioning(character, occasion),
+    // The gate has already allowed this; a caption that will not say it renders a picture that
+    // does not show it, and the tease is read as the whole of what she sent.
+    `So a picture of ${name} undressed is captioned as one, in plain words: what is bare, what she is doing, what the shot shows. Coy wording is a coy picture — "the top of a shirt" is a photograph of a shirt.`,
+    `Write it as she would, not as a catalogue: she is sending this to ${reason === 'intimate' ? 'somebody she has slept with' : "somebody she's into"}, and she knows what she is doing.`,
+    ...keeping(name, occasion)
+  ]
+}
+
+/** Why an undressed picture is hers to send, in the order `photoReasonOf` settles it. */
+const INTIMATE_REASON: Readonly<Record<PhotoReason, string>> = {
+  intimate: 'She has already been that far with him, so nothing is being asked for the first time.',
+  promiscuous:
+    "This is nothing new for her: she sends pictures like this to people she's into, and he has her number.",
+  crush:
+    "She's into him, but they haven't been together. Sending one is her own decision, and not a small one: she does it when she wants to, never because he pushed."
+}
+
+/** Both briefs open the same way. */
+function opening(name: string, occasion: PhotoOccasion): string[] {
+  return [
+    'PHOTOS',
+    occasion === 'reply'
+      ? `${name} can attach one picture to this reply. Set "sendPhoto" and describe it in "photoPrompt".`
+      : `${name} can attach one picture to these texts. Set "sendPhoto" in her entry and describe it in "photoPrompt".`
+  ]
+}
+
+/** When a picture is worth sending, how it is captioned, and what it is. Both briefs. */
+function captioning(character: Character, occasion: PhotoOccasion): string[] {
+  const name = character.firstName
+  return [
+    occasion === 'reply'
+      ? 'A picture is worth sending when the conversation is already about one — she offers it, or he asked and she wants to. Most replies are just words: set "sendPhoto" false and leave "photoPrompt" empty.'
+      : 'A picture is worth sending when it is part of what she is texting about, and she would rather show him than tell him. Most texts like these are just words: set "sendPhoto" false and leave "photoPrompt" empty.',
+    `Write "photoPrompt" as what the picture shows, the way ${name} would caption it to herself. One sentence, and a full one: start with where she is, then what she is doing, what she is wearing, how she is sitting or lying or standing, what her hands are doing, where she is looking, how close the shot is — her face, from the waist up, from the knees up, or head to toe — and the angle if it isn't straight on: from above, from below, from the side, or from behind — from behind only if somebody else took it, or in a mirror.`,
+    // A friend behind the camera is listed first.
+    'It can be one a friend took of her, or one from earlier — today, a weekend, a trip, a night out. A selfie is for showing him right now.',
+    'A mirror selfie only where there would be a mirror: her room, a bathroom, a changing room.',
+    'What is not written is not drawn. A caption that says only "a photo of me" gets a picture of nobody in particular.',
+    wardrobeLine(character),
+    'Then set "photoTier" to what that picture is, which is a separate question from whether she would send it: "everyday" for one with nothing on show, "suggestive" for underwear, swimwear or a towel, "explicit" for one where any part of her usually covered is not. Judge the picture you described, not the words you described it in — a caption that never says a word for it can still be a picture of one. "none" where there is no picture.'
+  ]
+}
+
+/** What every picture keeps to, whatever it shows. Both briefs close on it. */
+function keeping(name: string, occasion: PhotoOccasion): string[] {
+  return [
+    // Not every picture is a selfie: somebody else may have taken it, or a timer, so the phone is
+    // in it only where it would be.
+    "Describe the picture itself: how she looks in it, not how it was taken or sent. A phone only appears in it when it's a mirror selfie.",
+    // The renderer draws one girl and nobody else, and the gate refuses a caption that says otherwise.
+    `${name} is the only person in the picture. Whoever took it stays behind the camera: nobody else is in it, touching her, or doing anything with her.`,
+    'Name nobody and nowhere: not herself, not the reader, not a building or a place on the map. A picture cannot show a name. "her room", "a lecture hall", "the cafe" — what it looks like, never what it is called. Her own room is "her room" or "her bedroom", never a dorm.',
+    'Her texts should read like somebody who just sent that picture. Do not describe it in them.',
+    // The slot's opening sums her thread up rather than quoting it, so only a reply is told where
+    // her pictures are written.
+    occasion === 'reply'
+      ? 'Any picture she has already sent is written into RECENT MESSAGES beside the text it came with. She knows what she sent him and would not send the same one twice, or the same kind of shot every time.'
+      : 'She knows what she has already sent him and would not send the same picture twice, or the same kind of shot every time.',
+    ''
+  ]
+}
+
+/** The reply fields a photo needs, spread into `textingSchema`'s required list. */
+export const PHOTO_SCHEMA_REQUIRED = ['sendPhoto', 'photoPrompt', 'photoTier'] as const
+
+/** The same three as schema properties, spread into `textingSchema`'s property map. */
+export const PHOTO_SCHEMA_FIELDS: Record<string, unknown> = {
+  sendPhoto: { type: 'boolean' },
+  photoPrompt: { type: 'string' },
+  // What she says the picture is. Required and answered "none" where there is no picture, since
+  // an optional field is one a model leaves out.
+  photoTier: { type: 'string', enum: [...PHOTO_TIERS] }
+}
+
+/**
+ * What a picture on a feed post may be, told to the slot-intro call.
+ *
+ * Flat, because a post is public: `allowedPostTier` caps every one of them at the same place
+ * whoever is posting, so unlike the thread's brief there is nothing here to read off a save.
+ * Returned empty when no picture can be drawn at all, since an instruction not to attach one is
+ * an idea to attach one.
+ */
+export function postPhotoLines(canRenderImages: boolean): string[] {
+  // The field is in the schema either way, which is fixed so the call stays cacheable, so it
+  // is told it is empty rather than left to guess: unexplained, it comes back as file names.
+  if (!canRenderImages) return ['Leave "image" empty on every post: nobody posts a picture today.']
+  return [
+    'A post may carry a picture of her. Describe it in "image" — what the photograph shows, the way she would caption it to herself. One sentence, and a full one: start with where she is, then what she is doing, what she is wearing, how she is standing or sitting, how close the shot is — her face, from the waist up, from the knees up, or head to toe — and the angle if it isn’t straight on: from above, from below, from the side, or from behind — from behind only if somebody else took it, or in a mirror. Leave "image" empty on a post that is just words, which most of them are.',
+    'What she owns is listed under her name above.',
+    'It can be one a friend took of her, a candid one where she is not posing, or one from earlier — today, a weekend, a trip, a night out. A selfie is for showing her year right now.',
+    'A mirror selfie only where there would be a mirror: her room, a bathroom, a changing room.',
+    'What is not written is not drawn: "a photo of me" gets a picture of nobody in particular.',
+    'Her whole year sees this, so it is an ordinary picture or a flirty one at most — what she is wearing, a day out, a swimsuit. Never anything undressed, whatever she might send one person in a message.',
+    'Name nobody and nowhere: a picture cannot show a name. "her room", "the quad", "a cafe" — what it looks like, never what it is called.',
+    'She is the only person in the picture, unless her entry says it is a picture with a friend.',
+    'The post’s own "text" should read like somebody who just posted that picture, without describing it.'
+  ]
+}
+
+/**
+ * One poster's wardrobe, under her name in the slot's opening, so the picture on her post has her
+ * in her own clothes rather than ones the model reaches for. Nothing where no picture is drawn.
+ */
+export function posterPhotoLines(character: Character, canRenderImages: boolean): string[] {
+  return canRenderImages ? [`  ${wardrobeLine(character)}`] : []
+}
+
+/**
+ * The replies under a post, which the model writes because a canned line cannot answer what she
+ * actually posted. How many are kept is rolled against how many girls she is close to; this only
+ * has to supply enough of them, and the right kind.
+ */
+export function postCommentLines(on: boolean = photoFeatureOn()): string[] {
+  // The field is in the schema either way, so the call stays cacheable; off, it is told empty.
+  if (!on) return ['Leave "comments" empty on every post.']
+  return [
+    'Each post also carries "comments": what other students replied underneath it, in their own voices — up to five, and an empty array on the posts nobody answers, which is most of them. A post with a picture draws more than one without.',
+    'They are strangers from the four thousand this campus holds, not the characters above: they do not know her, they are not the reader, and none of them may be named. No handles and no @s — just what each one said.',
+    'They answer the post they are under. A reply to a picture is a reply to that picture; one under a picture with skin in it reads like a public feed at its least charming, which is strangers being obvious at somebody who did not ask.'
+  ]
+}
+
+/** The fields a post's picture and its replies need, spread into the slot-intro schema. */
+export const POST_PHOTO_SCHEMA_FIELD: Record<string, unknown> = {
+  image: { type: 'string' },
+  comments: { type: 'array', items: { type: 'string' } }
+}
+
+/**
+ * Both are **required and answered empty**, never omitted: a field a model may leave out is a
+ * field it leaves out, and `image` decides whether a picture happens at all.
+ */
+export const POST_PHOTO_SCHEMA_REQUIRED = ['image', 'comments'] as const

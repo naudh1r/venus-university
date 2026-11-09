@@ -1,0 +1,26 @@
+/* The tab and footer stay outside the scrolling body, so every control stays reachable. */
+.vu-soundtracks {
+  --paper-offset: 12px 11px;
+  --paper-tilt: -1.2deg;
+  --paper-shadow: var(--vu-panel-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: min(960px, 100% - 80px);
+  max-height: calc(100% - 100px);
+  padding: 84px 44px 26px 72px;
+  border-radius: 120px 0 0 120px;
+  color: var(--vu-text);
+  font-family: var(--font-body);
+}
+.vu-soundtracks-body { min-height: 0; overflow: hidden auto; padding: 6px 22px 12px 18px; scrollbar-gutter: stable; }
+.vu-soundtracks-body p { margin: 0 0 18px; line-height: 1.5; }
+.vu-soundtracks-intro { font-family: var(--font-display); font-size: 25px; }
+.vu-soundtracks-cue { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 0 0 22px; padding: 14px 18px; background: var(--vu-recessed); border-radius: 18px; }
+.vu-soundtracks-cue > span { font-family: var(--font-mono); text-transform: uppercase; font-size: 13px; letter-spacing: .08em; }
+.vu-soundtracks-fields { display: grid; gap: 20px; border: 0; padding: 0; margin: 0 0 20px; min-width: 0; }
+.vu-soundtracks-file { display: grid; gap: 8px; overflow-wrap: anywhere; }
+.vu-soundtracks-actions { display: flex; gap: 16px 24px; flex-wrap: wrap; }
+.vu-soundtracks-help { font-size: 15px; }
+.vu-soundtracks-status { min-height: 24px; overflow-wrap: anywhere; }
+.vu-soundtracks > .vu-foot { flex: none; }

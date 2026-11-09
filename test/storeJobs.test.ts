@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { describe, expect, it } from 'vitest'
 import {
   bossChatIdOf,

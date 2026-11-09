@@ -1,9 +1,21 @@
-import { blocksNewRomance } from '@shared/romanceRequirements'
+import { readStartingChallenge, type StartingChallenge } from '@shared/startingChallenge'
+import { talentProjectWork } from '@shared/talentPerks'
+import { completeEureka, reconcileTalentBreakthrough } from '@shared/talentAbilities'
+
+import { normalizeTalents, talentsEnabled, talentPrice, type TalentState } from '@shared/campusTalents'
+import { normalizeReckoning, rebaseReckoning, rewindReckoning, type ReckoningState } from '@shared/reckoning'
+import { normalizeEcho, type EchoState } from '@shared/echo'
+import { normalizeStoryMemory, type StoryMemory } from '@shared/storyMemory'
+import { normalizeWhisper, type VenusWhisper } from '@shared/venusWhisper'
+import { normalizeBreakthrough, reconcileBreakthrough, type BreakthroughState } from '@shared/breakthrough'
+import { normalizeMeanwhile, type MeanwhileStore } from '@shared/meanwhile'
+import { readCharacterDynamics, type CharacterDynamics } from '@shared/characterDynamics'
 import { savedModScene } from '@shared/modScene'
 import { sceneCut, statFloor } from '../mods/hooks'
 import { bindGameBoundary, bindSaveFieldStore, bindSceneFieldStore, readModSlices, writeModSlices } from '@vx/modkit/host/renderer'
 import { useModSessionStore } from './modSessionStore'
 import { create } from 'zustand'
+import { blocksNewRomance } from '@shared/romanceRequirements'
 import {
   affectionFor,
   emptyFlags,
@@ -79,7 +91,8 @@ import {
 import { canDose, withColdCaught, withDose } from '@shared/colds'
 import type { GameOverReason } from '@shared/gameOver'
 import type { Weather } from '@shared/weather'
-import { globalSlotOf, MAX_RAISES, newJobState, RAISE_EVERY } from '@shared/jobs'
+import { classSlotForShift, globalSlotOf, jobDefOf, meetsRequirements, offeredShifts, MAX_RAISES, newJobState, RAISE_EVERY } from '@shared/jobs'
+import { jobAvailable } from '@shared/cityLife'
 import type { ExamPeriod } from '@shared/academics'
 import type { DatingPassOutcome } from '@shared/dating'
 import { withMilestonesEdited, type EditMilestones } from '@shared/milestoneEdit'
@@ -317,7 +330,10 @@ const SAVE_KEYS: Record<keyof NativeGameSave, true> & Partial<Record<keyof GameS
   endingArtWanted: true,
   scene: true,
   thumbnail: true,
-  ex: true
+  ex: true,
+  // Fields the in-repo mods write only when set: owned here, so a cleared one is not brought back as read.
+  exCharacterDynamics: true,
+  exStartingChallenge: true
 }
 
 /**
@@ -412,6 +428,12 @@ function sceneKindFields(scene: SceneKind | null | undefined) {
  * `gameLoop.ts` drives this store imperatively outside React.
  */
 interface GameStoreState {
+  exReckoning: ReckoningState
+  exStartingChallenge: StartingChallenge | undefined
+  exTalents: TalentState
+  exEcho: EchoState
+  exBreakthrough: BreakthroughState
+  breakthroughFlash: { id: string; playthroughId: string; name: string; echoAspect?: import('@shared/echoBreakthrough').EchoBreakthroughAspect } | null
   /** The activity this scene was committed to on the landing, or null. */
   sceneActivity: import('@shared/slotActivity').SlotActivity | null
   /** What mods keep with the scene being played, saved with it as `mods`. */
@@ -442,6 +464,8 @@ interface GameStoreState {
    * opened from is held in memory; `over` once its last line has turned. Null in a game.
    */
   replaying: { over?: true } | null
+  /** Immutable mod choices read from the playthrough record, never duplicated into slot saves. */
+  playthroughMods: readonly string[]
   date: number
   time: TimeSlot
   /** The save's semester, a key of the record's semesters; null in the first. */
@@ -472,6 +496,7 @@ interface GameStoreState {
    * Persisted; blank where he wrote nothing.
    */
   bio: string
+  exCharacterDynamics?: CharacterDynamics
   /**
    * Lifetime counts about the reader — money earned, kisses, nights, shifts worked, moved only
    * in boundary passes so a replay credits each of them once — and the output tokens the cloud
@@ -487,6 +512,7 @@ interface GameStoreState {
    */
   playerSchedule: Record<number, string>
   /** The playthrough log — every finished scene's summary, by day and slot. Persisted. */
+  exStoryMemory: StoryMemory
   history: GameHistory
   /** The replay of each finished scene this save can play, by day and slot. Persisted. */
   replays: GameReplays
@@ -541,7 +567,9 @@ interface GameStoreState {
   /** Classes the reader added at add/drop, keyed by code. Persisted. */
   addedClasses: Record<string, AddedClass>
   /** What the roster thinks of each other, keyed by `pairKeyOf`. Persisted. */
+  exVenusWhisper: VenusWhisper
   npcRelationships: NpcRelationshipMap
+  exNpcWatch: MeanwhileStore
   /** The first time each pair of them became friends, oldest first. Persisted. */
   npcFriendships: NpcFriendship[]
   /** Who is with whom this slot, stamped with the slot it describes. Persisted. */
@@ -1160,7 +1188,7 @@ interface GameStoreState {
    * The reader was hired. `settledThrough` is the slot he accepted in. An employer he worked
    * for before takes him back on the raises he left with and a clean record.
    */
-  takeJob: (jobId: string, shifts: readonly ShiftSlot[], settledThrough: number) => void
+  takeJob: (jobId: string, shifts: readonly ShiftSlot[], settledThrough: number) => boolean
   /** Credits one worked shift and pays for it. Returns whether the streak just bought a raise. */
   recordShiftWorked: (slotId: number, pay: number) => boolean
   /** Records a missed shift: one strike, and the raise streak back to zero. */
@@ -1665,12 +1693,19 @@ function nextLineFields(
 }
 
 const initialState = {
+  exReckoning: normalizeReckoning(),
+  exStartingChallenge: undefined,
+  exTalents: normalizeTalents(),
+  exEcho: normalizeEcho(),
+  exBreakthrough: normalizeBreakthrough(),
+  breakthroughFlash: null as GameStoreState['breakthroughFlash'],
   saveRest: {} as Record<string, unknown>,
   modData: {} as Record<string, ModSlice>,
   modValues: {} as Record<string, unknown>,
   playthroughId: null,
   createdScene: null as CreatedScene | null,
   replaying: null as { over?: true } | null,
+  playthroughMods: [] as readonly string[],
   date: 0,
   time: 0 as TimeSlot,
   semesterId: null as string | null,
@@ -1683,10 +1718,12 @@ const initialState = {
   stats: DEFAULT_PLAYER_STATS,
   money: STARTING_MONEY,
   bio: '',
+  exCharacterDynamics: undefined as CharacterDynamics | undefined,
   tallies: emptyTallies(),
   charInfo: {} as Record<string, CharInfo>,
   classes: {} as Record<string, ClassEntry>,
   playerSchedule: {} as Record<number, string>,
+  exStoryMemory: normalizeStoryMemory(undefined),
   history: {} as GameHistory,
   replays: {} as GameReplays,
   bunnyboard: emptyBunnyboard(),
@@ -1717,7 +1754,9 @@ const initialState = {
   bunnybotDeferred: [] as BunnybotHandover[],
   droppedClasses: {} as Record<string, DroppedClass>,
   addedClasses: {} as Record<string, AddedClass>,
+  exVenusWhisper: normalizeWhisper(null),
   npcRelationships: {} as NpcRelationshipMap,
+  exNpcWatch: normalizeMeanwhile(null),
   npcFriendships: [] as NpcFriendship[],
   npcOverlay: null as NpcSlotOverlay | null,
   slotRumor: null as SlotRumor | null,
@@ -1811,10 +1850,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     })
     const saveRest = restOf(save, SAVE_KEYS)
     for (const key of mods.consumed) delete saveRest[key]
+    // Character Dynamics' pre-release key, read into `exCharacterDynamics` below and not written back.
+    delete saveRest.characterDynamics
     set({
       ...initialState,
       loads: get().loads + 1,
       playthroughId: save.playthroughId,
+      playthroughMods: record.mods ?? [],
       date: save.date,
       time: save.time,
       semesterId: semester.id ?? null,
@@ -1830,6 +1872,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       // Both are younger than the save format, so a playthrough started before them loads blank,
       // and a save written before a tally loads that tally at zero.
       bio: save.bio ?? '',
+      exCharacterDynamics: readCharacterDynamics(save),
       tallies: { ...emptyTallies(), ...save.tallies },
       // The two halves rejoined; a save entry with no profile falls back to the blank one,
       // which is what a charId the record never knew about would land on.
@@ -1841,6 +1884,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       ),
       classes: semester.classes,
       playerSchedule: save.playerSchedule,
+      exStoryMemory: normalizeStoryMemory(save.exStoryMemory),
+      exReckoning: normalizeReckoning(save.exReckoning),
+      exStartingChallenge: readStartingChallenge(save.exStartingChallenge),
+      exTalents: normalizeTalents(save.exTalents),
+      exEcho: normalizeEcho(save.exEcho),
+      exBreakthrough: normalizeBreakthrough(save.exBreakthrough, true),
       history: save.history,
       // Younger than the save format: a save from before it keeps none.
       replays: save.replays ?? {},
@@ -1872,7 +1921,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       bunnybotDeferred: save.bunnybotDeferred,
       droppedClasses: save.droppedClasses,
       addedClasses: save.addedClasses,
+      exVenusWhisper: normalizeWhisper(save.exVenusWhisper),
       npcRelationships: save.npcRelationships,
+      exNpcWatch: normalizeMeanwhile(save.exNpcWatch),
       npcFriendships: save.npcFriendships ?? [],
       npcOverlay: save.npcOverlay,
       slotRumor: save.slotRumor ?? null,
@@ -2066,7 +2117,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   restoreScene: (scene) =>
-    set({
+    set((state) => ({
+      ...reconcileTalentBreakthrough(state, scene?.transcript ?? [],
+        scene && !state.replaying && !state.createdScene ? state.currentSceneTranscript : undefined),
       pendingLines: scene ? [...scene.pendingLines] : [],
       cast: scene ? [...scene.cast] : [],
       ...sceneKindFields(scene),
@@ -2097,7 +2150,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       currentLine: scene?.currentLine ?? null,
       // Nothing ahead of a restored line counts as read.
       reread: 0
-    }),
+    })),
 
   setStatusModal: (modal) => set({ statusModal: modal }),
 
@@ -2115,6 +2168,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       const queued = Math.min(count, state.pendingLines.length)
       const pendingLines = state.pendingLines.slice(0, state.pendingLines.length - queued)
       const dropped = {
+        exBreakthrough: reconcileBreakthrough(state.exBreakthrough, transcript.slice(0, kept), state.date, state.time),
         currentSceneTranscript: transcript.slice(0, kept),
         pendingLines,
         // The beats still ahead that were read before are only those left on the queue.
@@ -2184,8 +2238,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     let length = 0
     set((state) => {
       const kept = cutLengthOf(state)
+      const reconciled = reconcileTalentBreakthrough(state, state.currentSceneTranscript.slice(0, kept),
+        !state.replaying && !state.createdScene ? state.currentSceneTranscript : undefined)
       length = kept
       return {
+        ...reconciled,
+        ...rewindReckoning({...state,...reconciled},kept),
         currentSceneTranscript: state.currentSceneTranscript.slice(0, kept),
         pendingLines: [],
         reread: 0,
@@ -2204,11 +2262,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       const transcript = state.currentSceneTranscript
       const last = transcript.length - 1
       if (last < 0 || transcript[last].speaker !== READER_SPEAKER) return {}
-      const log = state.sceneLog
+      const kept = transcript.slice(0, last)
       length = last
+      const reconciled = reconcileTalentBreakthrough(state, kept,
+        !state.replaying && !state.createdScene ? transcript : undefined)
       return {
-        currentSceneTranscript: transcript.slice(0, last),
-        sceneLog: log[log.length - 1]?.speaker === READER_SPEAKER ? log.slice(0, -1) : log,
+        ...reconciled,
+        ...rewindReckoning({ ...state, ...reconciled }, last),
+        currentSceneTranscript: kept,
+        sceneLog: state.sceneLog.at(-1)?.speaker === READER_SPEAKER ? state.sceneLog.slice(0, -1) : state.sceneLog,
         ...summariesWithin(state.sceneSummaries, last),
         ...giftsWithin(state, last)
       }
@@ -2284,6 +2346,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       // files the whole recap.
       ...(mirrored
         ? {
+            exReckoning: rebaseReckoning(state, transcript.map((line, i) => (i === tAt ? edited : line))),
+            exBreakthrough: reconcileBreakthrough(state.exBreakthrough, transcript.map((line, i) => (i === tAt ? edited : line)), state.date, state.time),
             currentSceneTranscript: transcript.map((line, i) => (i === tAt ? edited : line)),
             ...(state.sceneEnding
               ? { endingEditAt: Math.min(state.endingEditAt ?? tAt, tAt) }
@@ -2464,7 +2528,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       inventory: withItem(state.inventory, { itemId }),
       // No affordability check: buying past the debt floor ends the playthrough at the next
       // slot opening, or on the epilogue's next button.
-      money: state.money - price
+      money: state.money - (talentsEnabled() && state.playthroughId && !state.replaying && !state.createdScene ? talentPrice(state.exTalents,price) : price),
+      ...(talentsEnabled() && state.playthroughId && !state.replaying && !state.createdScene ? {exTalents:{...state.exTalents,purchases:state.exTalents.purchases+1}} : {})
     })),
 
   giftItem: (charId, pick) => {
@@ -3053,13 +3118,26 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       return { events }
     }),
 
-  takeJob: (jobId, shifts, settledThrough) =>
-    set((state) => ({
-      job: {
-        ...newJobState(jobId, [...shifts], settledThrough),
-        raises: state.formerJobs[jobId]?.raises ?? 0
-      }
-    })),
+  takeJob: (jobId, shifts, settledThrough) => {
+    const state = get(), def = jobDefOf(jobId)
+    // Talent-gated employers verify again here; a stale UI or direct call cannot bypass hiring.
+    // Keep the existing native employment/restore behavior for all other jobs.
+    if (def?.requiresSkills?.length) {
+      const ranks = talentsEnabled() ? state.exTalents.ranks : {}
+      const hours = offeredShifts(def, state.jobClosures)
+      if (!jobAvailable(jobId) || state.job || state.jobsClosed.includes(jobId) ||
+          !meetsRequirements(state.stats, def, ranks) || !shifts.length ||
+          new Set(shifts).size !== shifts.length || shifts.some(slot => {
+            const classSlot = classSlotForShift(slot)
+            return !hours.includes(slot) || classSlot !== null && !!state.playerSchedule[classSlot]
+          })) return false
+    }
+    set({job: {
+      ...newJobState(jobId, [...shifts], settledThrough),
+      raises: state.formerJobs[jobId]?.raises ?? 0
+    }})
+    return true
+  },
 
   recordShiftWorked: (slotId, pay) => {
     const { job, tallies } = get()
@@ -3151,8 +3229,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       const project = record[key] ?? { sessions: [] }
       if (project.sessions.some((session) => session.date === date && session.time === time))
         return {}
-      const session = { date, time, ...(summary ? { summary } : {}) }
+      const units = state.replaying || state.createdScene ? 1 : talentProjectWork(state.exTalents, time, {term:state.semesterIndex,date,code,exam})
+      const session = { date, time, ...(units > 1 ? { talentWorkUnits: units } : {}), ...(summary ? { summary } : {}) }
       return {
+        ...(units === 3 ? {exTalents:completeEureka(state.exTalents,state.semesterIndex,date,code,exam)} : {}),
         classRecords: {
           ...state.classRecords,
           [code]: {
@@ -3371,6 +3451,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       stats: state.stats,
       money: state.money,
       bio: state.bio,
+      ...(state.exCharacterDynamics ? { exCharacterDynamics: structuredClone(state.exCharacterDynamics) } : {}),
       tallies: state.tallies,
       date: state.date,
       time: state.time,
@@ -3379,6 +3460,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         Object.entries(state.charInfo).map(([charId, info]) => [charId, charStateOf(info)])
       ),
       playerSchedule: state.playerSchedule,
+      exStoryMemory: normalizeStoryMemory(state.exStoryMemory),
+      exReckoning: normalizeReckoning(state.exReckoning),
+      ...(state.exStartingChallenge ? { exStartingChallenge: state.exStartingChallenge } : {}),
+      exTalents: normalizeTalents(state.exTalents),
+      exEcho: normalizeEcho(state.exEcho),
+      exBreakthrough: normalizeBreakthrough(state.exBreakthrough),
       history: state.history,
       // Omitted while it names none, as an absent optional is.
       ...(Object.keys(state.replays).length > 0 ? { replays: state.replays } : {}),
@@ -3406,7 +3493,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       bunnybotDeferred: state.bunnybotDeferred,
       droppedClasses: state.droppedClasses,
       addedClasses: state.addedClasses,
+      exVenusWhisper: normalizeWhisper(state.exVenusWhisper),
       npcRelationships: state.npcRelationships,
+      exNpcWatch: normalizeMeanwhile(state.exNpcWatch),
       npcFriendships: state.npcFriendships,
       occasionsDeclined: state.occasionsDeclined,
       npcOverlay: state.npcOverlay,

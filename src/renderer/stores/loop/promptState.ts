@@ -1,5 +1,9 @@
-import { kindOf } from '@shared/academics'
+import { currentStorySnapshot } from '../storyMemory'
+import { BREAKTHROUGH_MOD } from '@shared/breakthrough'
+import { cityLifeBackgrounds } from '@shared/cityLife'
 import { slotFullLabel, studentsOf } from '@shared/classes'
+import { modIsOn } from '../modsStore'
+import { kindOf } from '@shared/academics'
 import { globalSlotOf, jobDefOf, slotFromId } from '@shared/jobs'
 import type { PlayerStats } from '@shared/playerStats'
 import { STOCK_POSITIONS } from '@shared/positions'
@@ -439,13 +443,17 @@ export function promptState(): PromptState {
     : null
 
   return {
+    exReckoning: modIsOn('reckoning')&&!game.replaying&&!game.createdScene?game.exReckoning:undefined,
+    storyMemory: currentStorySnapshot(),
     playthroughId: game.playthroughId ?? 'unsaved',
+    breakthrough: modIsOn(BREAKTHROUGH_MOD) ? game.exBreakthrough : undefined,
     date: game.date,
     time: game.time,
     ex: promptStateParts('scene'),
-    backgrounds: useAssetStore.getState().backgrounds,
+    backgrounds: cityLifeBackgrounds(useAssetStore.getState().backgrounds),
     lorebook: lorebookNow(),
     charInfo: game.charInfo,
+    exCharacterDynamics: game.exCharacterDynamics,
     npcRelationships: game.npcRelationships,
     // Everyone the scene is not carrying — `game.cast`, not the departed-filtered list, or a
     // character who walked out comes back as a lorebook paragraph — graduates included.

@@ -1,0 +1,133 @@
+.vu-story-memory {
+  width: 1220px;
+  max-width: calc(100% - 100px);
+  height: 900px;
+  max-height: calc(100% - 100px);
+  padding: 110px 52px 30px;
+  border-radius: 90px 28px 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.vu-story-memory-intro {
+  margin: 0;
+  max-width: 920px;
+}
+.vu-story-memory-reading {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--vu-text-muted);
+  letter-spacing: 1px;
+  margin: 0;
+}
+.vu-story-memory-grid {
+  display: grid;
+  grid-template-columns: 350px minmax(0, 1fr);
+  gap: 32px;
+  flex: 1;
+  min-height: 0;
+}
+.vu-story-memory-browser {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 12px;
+}
+.vu-story-memory-list {
+  overflow: hidden auto;
+  min-height: 0;
+  flex: 1;
+  padding: 12px 20px 20px 10px;
+  margin-left: -10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.vu-story-memory-row {
+  text-align: left;
+  padding: 16px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--vu-recessed);
+  color: var(--vu-text);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: none;
+}
+.vu-story-memory-row > span:last-child {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.vu-story-memory-row[aria-pressed='true'] {
+  background: var(--vu-tint);
+}
+.vu-story-memory-detail {
+  overflow: hidden auto;
+  min-height: 0;
+  padding: 10px 24px 28px 10px;
+  background: var(--vu-recessed);
+  border-radius: 24px;
+}
+.vu-story-memory-detail h2,
+.vu-story-memory-empty h2 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  margin: 8px 0 22px;
+}
+.vu-story-memory-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.vu-story-memory-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 18px 0;
+}
+.vu-story-memory textarea {
+  min-height: 140px;
+  max-height: 240px;
+}
+.vu-story-memory-knowers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 16px 0;
+}
+.vu-story-memory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 24px;
+}
+.vu-story-memory-empty {
+  padding: 22px;
+}
+.vu-story-memory .vu-foot-stack {
+  flex: none;
+}
+
+.vu-story-memory {
+  color: var(--vu-text);
+  font: 18px var(--font-body);
+  --paper-shadow: var(--vu-panel-shadow);
+}
+.vu-story-memory-row {
+  font: 18px var(--font-body);
+  cursor: pointer;
+}
+.vu-story-memory .vu-field-label {
+  font-size: 14px;
+}
+.vu-story-memory .vu-input,
+.vu-story-memory .vu-select {
+  font-size: 18px;
+  padding: 12px 20px;
+}
+.vu-story-memory .vu-check {
+  font-size: 17px;
+}

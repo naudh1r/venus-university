@@ -52,6 +52,7 @@ vi.mock('fs/promises', async (actual) => {
 })
 
 const { exportBackup, importBackup } = await import('../src/main/services/backupService')
+const { readPortableReflection, writePortableReflection, removePortableReflection } = await import('../src/main/services/reflectionStorage')
 const { createCharacter, getCharacter, readCharacterImage, writeCharacter } = await import(
   '../src/main/services/characterService'
 )
@@ -236,6 +237,17 @@ async function entriesOf(archive: string): Promise<Record<string, Uint8Array>> {
 }
 
 describe('exportBackup', () => {
+  it('restores custom and shipped-character reflections and positions without enabling mods', async () => {
+    const { archive, character } = await seedAndExport()
+    await writeFile(join(getDataPath(),'mods.json'),JSON.stringify({schemaVersion:1,on:{reckoning:false,echo:false,breakthrough:false},options:{}}))
+    const reflection = {version:1,image:`data:image/png;base64,${Buffer.from(PNG_BYTES).toString('base64')}`,stage:{x:-12,y:6,scale:1.2}}
+    for (const id of [character.charId,'pregen-nina']) await writePortableReflection(id,reflection)
+    await exportBackup(archive)
+    for (const id of [character.charId,'pregen-nina']) await removePortableReflection(id)
+    await importBackup(archive)
+    for (const id of [character.charId,'pregen-nina']) expect(await readPortableReflection(id)).toEqual(reflection)
+    expect((await getCharacter(character.charId)).personality).toBe(character.personality)
+  })
   it('carries every save, character image and setting the data folder holds', async () => {
     const { archive, playthroughId, saveIds, character } = await seedAndExport()
     const entries = await entriesOf(archive)
@@ -834,4 +846,35 @@ describe('replaysFromBackup', () => {
       expect.objectContaining({ code: 'BACKUP_MALFORMED' })
     )
   })
+})
+
+const ECHO_ID = 'fdc99b1a-bd3b-41ca-897f-757b3bf983c3'
+const ECHO_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64')
+it('round-trips global Echo art even when Echo is switched off', async () => {
+  await seedSettings()
+  await seedPlaythrough()
+  const art = join(getDataPath(), 'echoes', 'art', `${ECHO_ID}.png`)
+  await mkdir(dirname(art), { recursive: true }); await writeFile(art, ECHO_PNG)
+  const target = join(root, 'echo-backup.zip')
+  await exportBackup(target)
+  const zip = unzipSync(await readFile(target))
+  expect(zip[`echoes/art/${ECHO_ID}.png`]).toEqual(new Uint8Array(ECHO_PNG))
+  const saved = JSON.parse(new TextDecoder().decode(zip[BACKUP_NAME]))
+  expect(saved.exEchoArt).toEqual([ECHO_ID])
+  await rm(art)
+  await importBackup(target)
+  expect(await readFile(art)).toEqual(ECHO_PNG)
+})
+it('refuses conflicting Echo artwork before touching settings or saves', async () => {
+  await seedSettings({ apiKey: 'local-only-secret' })
+  await seedPlaythrough()
+  const art = join(getDataPath(), 'echoes', 'art', `${ECHO_ID}.png`)
+  await mkdir(dirname(art), { recursive: true }); await writeFile(art, ECHO_PNG)
+  const target = join(root, 'echo-conflict.zip'); await exportBackup(target)
+  const different = Buffer.from(ECHO_PNG); different[different.length - 1] ^= 1
+  await writeFile(art, different)
+  const before = await readFile(getSettingsPath())
+  await expect(importBackup(target)).rejects.toThrow('different image')
+  expect(await readFile(getSettingsPath())).toEqual(before)
+  expect(await readFile(art)).toEqual(different)
 })

@@ -392,7 +392,20 @@ export const useSaveStore = create<SaveStoreState>((set, get) => ({
       return null
     }
 
-    const enrollment = result.data
+    let enrollment = result.data
+    if (enrollment.continued) {
+      // A registration belongs to its existing playthrough, whose mod choices stay fixed.
+      const listed = await window.api.saves.list(playthrough.playthroughId)
+      if (!listed.ok) {
+        useUiStore.getState().showError(listed.error)
+        return null
+      }
+      if (!listed.data.record) {
+        if (listed.data.error) useUiStore.getState().showError(listed.data.error)
+        return null
+      }
+      enrollment = { ...enrollment, mods: [...(listed.data.record.mods ?? [])] }
+    }
     const resolved = get().characters
     const alumni = enrollment.continued?.alumni ?? []
     return {

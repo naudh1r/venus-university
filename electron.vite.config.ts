@@ -51,16 +51,15 @@ export default defineConfig({
     }
   },
   renderer: {
+    publicDir: resolve('assets/echo-public'),
+    worker: { format: 'es' },
     root: resolve('src/renderer'),
     define: {
       __APP_VERSION__: JSON.stringify(version)
     },
     build: {
       rollupOptions: {
-        input: {
-          index: resolve('src/renderer/index.html'),
-          screenCompanion: resolve('src/renderer/screenCompanion.html')
-        }
+        input: { index: resolve('src/renderer/index.html'), echoCutout: resolve('src/renderer/echoCutout.html'), screenCompanion: resolve('src/renderer/screenCompanion.html') }
       }
     },
     resolve: {

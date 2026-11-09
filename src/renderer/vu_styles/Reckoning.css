@@ -1,0 +1,63 @@
+.vu-reckoning-entry{border-top:1px solid currentColor;margin-top:14px;padding-top:12px}.vu-reckoning-entry>strong{color:var(--vu-accent)}
+.vu-reckoning-veil{position:fixed;inset:0;z-index:1200;isolation:isolate;overflow:hidden;background:#100e18e8;display:grid;place-items:center;padding:22px;color:#fff7e6}
+/* Keep the live question and draft mounted beneath the ordinary game menus (z-index 100). */
+.vu-reckoning-veil[data-covered]{z-index:61}
+.vu-reckoning-header-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.vu-reckoning{position:relative;z-index:1;isolation:isolate;display:flex;flex-direction:column;width:min(1180px,96vw);height:min(980px,calc(100dvh - 44px));min-height:0;overflow:hidden;background:#201a2b;border:1px solid #a58b55;box-shadow:0 24px 100px #0009;font-family:var(--font-body,sans-serif)}
+.vu-reckoning>header{display:flex;justify-content:space-between;align-items:start;padding:25px 36px 12px;z-index:2}.vu-reckoning h1{font-family:var(--font-display,Georgia,serif);font-size:30px;line-height:1.05;margin:5px 0}.vu-reckoning small{color:#e6c677;letter-spacing:.16em;text-transform:uppercase;font-size:11px;font-weight:700}.vu-reckoning-close{color:#eed8a0;background:transparent;border:1px solid #c7af7b80;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:25px}
+.vu-reckoning-portrait{position:absolute;inset:7% 0 0 40%;z-index:-3;opacity:.24;transition:opacity .9s}.vu-reckoning-portrait img{width:100%;height:100%;object-fit:contain;object-position:bottom;filter:invert(1) hue-rotate(170deg);transition:filter 1.3s}
+.vu-reckoning-portrait[data-restored]{opacity:.45}.vu-reckoning-portrait[data-restored] img{filter:none}
+.vu-reckoning-light{position:absolute;inset:0;z-index:-2;pointer-events:none;background:radial-gradient(ellipse at 78% 8%,#f1d67f55,transparent 60%),linear-gradient(130deg,transparent 20%,#f8d27925 45%,transparent 80%);opacity:var(--reckoning-light);transition:opacity 1.3s}
+.vu-reckoning-glass{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;overflow:visible}.vu-reckoning-glass path{fill:none;stroke:#fff9d6;stroke-width:1.2;opacity:.65;vector-effect:non-scaling-stroke}.vu-reckoning-glass .vu-reckoning-glint{stroke:#ffe3a4;stroke-width:10;opacity:.17;filter:blur(6px)}.vu-reckoning-glass g{animation:reckoning-break 1.2s ease-out both}
+@keyframes reckoning-break{0%{opacity:0;transform:scale(.98)}30%{opacity:1;filter:drop-shadow(0 0 9px #ffe3a4)}100%{opacity:1;transform:scale(1)}}
+.vu-reckoning-rounds{display:flex;gap:35px;list-style:none;margin:6px auto 14px;padding:0;z-index:2}.vu-reckoning-rounds li{display:flex;gap:8px;align-items:center;color:#91867a;font-size:23px}.vu-reckoning-rounds li span{font-size:12px}.vu-reckoning-rounds li[data-done=true]{color:#f5d787;text-shadow:0 0 15px #ffdd794d}
+.vu-reckoning main{flex:1;overflow:auto;padding:12px 40px 20px;text-align:center;min-height:0;z-index:2;--reckoning-text-scale:1;overflow-wrap:anywhere;scrollbar-gutter:stable both-edges}.vu-reckoning h2{font-family:var(--font-display,Georgia,serif);font-size:clamp(22px,calc(32px * var(--reckoning-text-scale,1)),32px);line-height:1.22;margin:12px auto 18px;color:#efcf86;text-wrap:balance;max-width:980px;text-shadow:0 2px 15px #090711}
+.vu-reckoning p{font-size:max(14px,calc(16px * var(--reckoning-text-scale,1)));line-height:1.5;max-width:960px;margin:14px auto;color:#eee3d6}.vu-reckoning .vu-reckoning-challenge{font-family:var(--font-display,Georgia,serif);font-size:max(18px,calc(24px * var(--reckoning-text-scale,1)));line-height:1.4;color:#fffaf1;text-shadow:0 2px 13px #090711;white-space:pre-wrap}.vu-reckoning .vu-reckoning-feedback{color:#d6c293;font-size:14px}.vu-reckoning .vu-reckoning-note{font-size:12px;color:#baadb9}.vu-reckoning .vu-reckoning-earned{background:#171320c4;border:1px solid #d5b97580;padding:14px 22px;max-width:960px;margin:18px auto 5px}.vu-reckoning h3{font-family:var(--font-display,Georgia,serif);font-size:max(22px,calc(27px * var(--reckoning-text-scale,1)));color:#f5d787;margin:8px 0}
+.vu-reckoning>footer{z-index:2;padding:16px 36px 24px;background:#171320de;border-top:1px solid #b59d633f}.vu-reckoning>footer p{font-size:13px;margin:0 0 12px}.vu-reckoning [role=alert]{color:#ffbfb3}.vu-reckoning label{display:block;font-size:13px;color:#e6cf9d}.vu-reckoning textarea{display:block;box-sizing:border-box;width:100%;resize:vertical;max-height:180px;padding:12px;margin:8px 0 12px;background:#2b2434;border:1px solid #baa17199;color:#fff9ee;font:inherit;font-size:16px;border-radius:4px}.vu-reckoning textarea:focus{outline:2px solid #ebc36f;outline-offset:2px}.vu-reckoning textarea::placeholder{color:#b4a8b9}
+.vu-reckoning form>div,.vu-reckoning-footer-actions{display:flex;justify-content:flex-end;align-items:center;gap:14px}.vu-reckoning form>div>span{font-size:12px;color:#bbaeae;margin-right:auto}.vu-reckoning-primary,.vu-reckoning-secondary{border:1px solid #e4c580;padding:11px 22px;border-radius:0 999px 999px 0;font:inherit;font-size:14px;cursor:pointer}.vu-reckoning-primary{background:#ecd092;color:#271d2f;font-weight:700;box-shadow:5px 5px 0 #0d0916}.vu-reckoning-secondary{background:transparent;color:#eadabc}.vu-reckoning button:disabled{opacity:.45;cursor:default}.vu-reckoning button:focus-visible{outline:2px solid white;outline-offset:4px}
+.vu-dynamics-earned{border:1px solid var(--vu-accent);padding:20px;margin-bottom:20px}.vu-dynamics-earned>strong{font-family:var(--font-display,Georgia,serif);font-size:24px;color:var(--vu-accent)}.vu-dynamics-earned li{margin:10px 0}
+.vu-reckoning .vu-reckoning-private{font:italic 13px/1.4 var(--font-body);text-align:left;color:#dbc895;margin:8px 0 0;max-width:860px}
+.vu-reckoning-echo{position:absolute;inset:0;z-index:0;pointer-events:none;animation:reckoning-echo-arrive 1.7s ease-out both}
+.vu-reckoning-thought,.vu-reckoning-resolved{animation:reckoning-reveal .5s ease-out both}
+@keyframes reckoning-echo-arrive{from{opacity:0;filter:blur(14px)}to{opacity:1;filter:blur(0)}}
+.vu-reckoning-victory{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.vu-reckoning-dawn{position:absolute;inset:-50%;background:radial-gradient(ellipse,#fff3cd88 0,#e6b65230 25%,transparent 55%);animation:reckoning-dawn 2.3s ease-out both}
+@keyframes reckoning-dawn{0%{opacity:0;transform:scale(.25)}22%{opacity:1}100%{opacity:.25;transform:scale(1.2)}}
+.vu-reckoning[data-cleared="3"]{border-color:#f3d78e;box-shadow:0 0 60px #d9b34c40,0 24px 100px #0009}
+.vu-reckoning[data-cleared="3"] .vu-reckoning-glass{animation:reckoning-glass-release .3s ease-out both}
+@keyframes reckoning-glass-release{from{opacity:1}to{opacity:0}}
+.vu-reckoning[data-cleared="3"] .vu-reckoning-outcome>h2{animation:reckoning-reveal .9s .2s ease-out both;text-shadow:0 0 24px #f2ca6866}
+.vu-reckoning[data-cleared="3"] .vu-reckoning-earned{animation:reckoning-reveal 1s .65s ease-out both;border-color:#f2d790;background:linear-gradient(135deg,#60472d66,#21182cd9)}
+@keyframes reckoning-reveal{from{opacity:0;transform:translateY(15px) scale(.97)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.vu-reckoning-echo,.vu-reckoning-thought,.vu-reckoning-resolved,.vu-reckoning[data-cleared="3"] .vu-reckoning-glass,.vu-reckoning[data-cleared="3"] .vu-reckoning-outcome>h2,.vu-reckoning[data-cleared="3"] .vu-reckoning-earned{animation:none}.vu-reckoning-victory{display:none}.vu-reckoning[data-cleared="3"] .vu-reckoning-glass{opacity:.15}}
+@media(max-height:760px){.vu-reckoning>header{padding:14px 28px 6px}.vu-reckoning h1{font-size:26px}.vu-reckoning-rounds{margin:2px auto 6px}.vu-reckoning>footer{padding:10px 28px 16px}.vu-reckoning textarea{max-height:120px;padding:8px;margin:6px 0 8px}}
+@media(max-width:700px){.vu-reckoning-veil{padding:6px}.vu-reckoning{width:100%;height:calc(100dvh - 12px)}.vu-reckoning>header{padding:16px 20px 8px}.vu-reckoning main{padding:8px 20px 18px}.vu-reckoning>footer{padding:15px 18px}.vu-reckoning form>div{flex-wrap:wrap}.vu-reckoning form>div>span{flex-basis:100%}.vu-reckoning-portrait{inset:10% -12% 0 15%}}
+@media(prefers-reduced-motion:reduce){.vu-reckoning-glass g{animation:none}.vu-reckoning-portrait,.vu-reckoning-portrait img,.vu-reckoning-light{transition:none}}
+
+/* Brief bursts with stronger separation; only the read-only thought moves, never the answer form. */
+.vu-reckoning-interference{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden;contain:strict}
+.vu-reckoning-interference i{position:absolute;left:0;top:14%;width:31%;height:3px;background:linear-gradient(90deg,transparent,#d6adcf 15%,#f0d7a2 80%,transparent);opacity:0;animation:reckoning-static 7s linear infinite}
+.vu-reckoning-interference i:nth-child(2){left:66%;top:27%;width:34%;height:1px}
+.vu-reckoning-interference i:nth-child(3){left:3%;top:67%;width:8%;height:15px;background:repeating-linear-gradient(0deg,#dfc592 0 1px,transparent 1px 5px)}
+.vu-reckoning-interference i:nth-child(4){left:93%;top:88%;width:5%;height:12px;background:repeating-linear-gradient(90deg,#d6adcf 0 2px,transparent 2px 7px)}
+.vu-reckoning-interference i:nth-child(n+5){animation-delay:3.2s}
+.vu-reckoning-interference i:nth-child(5){left:0;top:41%;width:18%;height:1px}
+.vu-reckoning-interference i:nth-child(6){left:71%;top:61%;width:29%;height:2px}
+.vu-reckoning-interference i:nth-child(7){left:87%;top:9%;width:6%;height:11px;background:repeating-linear-gradient(0deg,#d6adcf 0 1px,transparent 1px 4px)}
+.vu-reckoning-interference i:nth-child(8){left:1%;top:93%;width:7%;height:1px}
+.vu-reckoning-veil[data-glitching] .vu-reckoning-thought>h2{animation:reckoning-text-glitch 7s linear infinite}
+.vu-reckoning-veil[data-glitching] .vu-reckoning-thought>.vu-reckoning-challenge{animation:reckoning-text-glitch 7s 3.2s linear infinite}
+@keyframes reckoning-static{0%,48%,52%,100%{opacity:0;transform:none}48.4%,50%{opacity:.38;transform:translateX(12px)}51%{opacity:.22;transform:translateX(-7px)}}
+@keyframes reckoning-text-glitch{0%,48%,52%,100%{transform:none;text-shadow:0 2px 13px #090711}48.4%,50%{transform:translateX(1.3px) skewX(.4deg);text-shadow:3px 0 #cc92b7aa,-3px 0 #a4cbcc88}51%{transform:translateX(-1px);text-shadow:-2px 0 #cc92b788,2px 0 #e5c980aa}}
+@media(prefers-reduced-motion:reduce){.vu-reckoning-interference{display:none}.vu-reckoning-veil[data-glitching] .vu-reckoning-thought>h2,.vu-reckoning-veil[data-glitching] .vu-reckoning-thought>.vu-reckoning-challenge{animation:none}}
+
+.vu-reckoning-portrait[data-custom] img{filter:none}
+/* Question and reward framing stays fixed, independent of dungeon staging. */
+.vu-reckoning .vu-reckoning-portrait{inset:0}
+.vu-reckoning-portrait img.vu-reflection-stage-image{position:absolute;height:85%;width:55%;right:9%;bottom:0;object-position:center bottom;transform-origin:50% 100%}
+
+/* Mirror the player’s current placement without overwriting her ordinary Echo settings. */
+.vu-reckoning-echo--girl.echo-reflection-stage .echo-aura{left:auto;right:calc(9.4% + var(--echo-x,0%));transform:translateX(50%) scale(var(--echo-scale,1))}
+
+/* The longer encounter title stays clear of the close control. */
+.vu-reckoning>header>div{min-width:0}.vu-reckoning h1{font-size:clamp(22px,2.4vw,34px);line-height:1.15;text-wrap:balance}

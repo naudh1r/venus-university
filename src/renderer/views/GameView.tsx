@@ -1,3 +1,9 @@
+import { ensureTalents } from '../modEntries/campus-talents'
+import { UnspokenLinkGlitch } from './UnspokenLinkGlitch'
+import { ReckoningModal } from './ReckoningModal'
+import { ReckoningDungeonView } from './ReckoningDungeon'
+import { dungeonVisible } from '../stores/reckoningDungeon'
+import { ensureEchoes } from '../stores/echoAssignments'
 import { useModsStore } from '../stores/modsStore'
 import { slotActivityAvailable } from '../mods/hooks'
 import { finishSlotActivity, resumeSlotActivity } from '../stores/slotActivity'
@@ -67,6 +73,7 @@ import {
 } from '../stores/characterStore'
 import { LandingChrome, type LandingRow } from './LandingChrome'
 import { SceneChrome } from './SceneChrome'
+import { BreakthroughPanel, BreakthroughFlourish } from './BreakthroughPanel'
 import { DialogueBox } from './Dialogue'
 import {
   breatheCg,
@@ -210,6 +217,7 @@ import { modPanelGone } from './modPanelOwner'
 import { ModSlot } from '../mods/ModSlot'
 import { currentRun, runStale } from '../stores/loop/state'
 import { ModsModal } from './ModsModal'
+import { useModOn } from '../stores/modsStore'
 import { LoadGameModal } from './LoadGameModal'
 import { MilestoneModal } from './MilestoneModal'
 import { RankUpModal } from './RankUpModal'
@@ -293,6 +301,7 @@ type OpenPanel =
   | { kind: 'appSettings' }
   | { kind: 'controls' }
   | { kind: 'mods' }
+  | { kind: 'reckoning'; charId: string }
   /** A mod's own panel over the scene, opened from its seat on the rail. */
   | { kind: 'modPanel'; modId: string }
   /** A mod's panel by its id, opened with the kit's `openPanel`, with what it was handed. */
@@ -589,6 +598,8 @@ function InterruptEndingModal({
 
 /** Game View: renders `gameStore`; `gameLoop.ts` owns state changes. */
 export function GameView(): JSX.Element {
+  const talentsOn = useModOn('campus-talents')
+  const echoOn = useModOn('echo')
   const sceneInput = useSceneInputLayout()
   const bg = useGameStore((s) => s.bg)
   const time = useGameStore((s) => s.time)
@@ -596,6 +607,9 @@ export function GameView(): JSX.Element {
   const season = useGameStore((s) => s.calendar.season)
   const semesterIndex = useGameStore((s) => s.semesterIndex)
   const playthroughId = useGameStore((s) => s.playthroughId)
+  const echoLoads = useGameStore((s) => s.loads)
+  useEffect(() => { if (echoOn && playthroughId) ensureEchoes() }, [echoOn, playthroughId, echoLoads])
+  useEffect(() => { if (talentsOn && playthroughId) ensureTalents() }, [talentsOn, playthroughId, echoLoads])
   const slots = useGameStore((s) => s.slots)
   const emotions = useGameStore((s) => s.emotions)
   const flipped = useGameStore((s) => s.flipped)
@@ -713,6 +727,7 @@ export function GameView(): JSX.Element {
 
   const [action, setAction] = useState('')
   const [panel, setPanel] = useState<OpenPanel | null>(null)
+  const dungeonOpen=useGameStore(dungeonVisible)
   const closePanel = (): void => setPanel(null)
   // A mod opens its panels here, as arms of this view's own, for as long as the view is up.
   useEffect(() => setPanelOpener((id, arg) => setPanel({ kind: 'gameModal', id, arg })), [])
@@ -1384,7 +1399,7 @@ export function GameView(): JSX.Element {
 
   useEffect(() => {
     // The scene chrome holds the line until the box that will hold it has arrived.
-    if (!text || typeHeld) return
+    if (!text || typeHeld || dungeonOpen) return
     // A line a cut landed is said whole again here, after the commit: a tick of the interval
     // is computed against the count last rendered, which a reset made in render can trail, and
     // a cut to a longer line would otherwise type out its tail.
@@ -1402,7 +1417,7 @@ export function GameView(): JSX.Element {
       })
     }, REVEAL_MS)
     return () => clearInterval(timer)
-  }, [currentLine, text, typeHeld, cutLanded])
+  }, [currentLine, text, typeHeld, cutLanded, dungeonOpen])
 
   /**
    * The voice under the typewriter: a blip on every third letter or digit, at the pitch of
@@ -1412,7 +1427,7 @@ export function GameView(): JSX.Element {
   useEffect(() => {
     const before = revealedBefore.current
     revealedBefore.current = revealed
-    if (revealed !== before + 1 || !VOICED.test(text[revealed - 1] ?? '')) return
+    if (dungeonOpen || revealed !== before + 1 || !VOICED.test(text[revealed - 1] ?? '')) return
     let voiced = 0
     for (const character of text.slice(0, revealed)) if (VOICED.test(character)) voiced += 1
     if (voiced % 3 !== 0) return
@@ -1423,7 +1438,7 @@ export function GameView(): JSX.Element {
     }
     const semitones = pitchSemitonesOf(speaking.voicePitch ?? VOICE_PITCH_DEFAULT, VOICE_RANGE)
     useAudioStore.getState().play('voice', { semitones })
-  }, [revealed, text, speakingCharId, characters])
+  }, [revealed, text, speakingCharId, characters, dungeonOpen])
 
   // What the glyphs come off her with. The burst is raised during render and render plays
   // nothing, so the sound is the commit that raised it — once per gift, on the burst's own key.
@@ -1530,7 +1545,7 @@ export function GameView(): JSX.Element {
    * right-click below from advancing, submitting or stepping behind one.
    */
   const blockedBefore = Boolean(
-    statusModal ||
+    dungeonOpen || statusModal ||
       memoryEdit ||
       turnFailed ||
       classifierError ||
@@ -2182,6 +2197,9 @@ export function GameView(): JSX.Element {
           arrow — the hand is the dialogue box's, which is the thing a click is *aimed* at. */}
       <div className="vu-stage-advance" onClick={onAdvanceClick} />
 
+      <BreakthroughPanel onReckoning={charId => setPanel({kind:'reckoning',charId})} hidden={!sceneMode || cinematic || covered || uiHidden || !rowShown}
+        blocked={blocked || !!quizRow || (interjectRow ? interjectRow !== 'open' : !awaitingInput)} />
+      {!covered && !uiHidden && <BreakthroughFlourish />}
       <ModSlot
         slot="stageLayer"
         props={{
@@ -2577,8 +2595,8 @@ export function GameView(): JSX.Element {
 
       {/* The player's turn failed; the scene behind it is already rewound to before Go.
           Two shapes, on whose words the action was: the reader's own are his to reword,
-          and an authored premise is only ever re-sent. A created scene is only left once it has
-          gone: the modal is this view's, and leaving would cut its fade short. */}
+          and an authored premise stays private, with its failed prompt editable after a refusal.
+          A created scene is only left once the modal has gone, so leaving does not cut its fade short. */}
       <AnimatePresence
         onExitComplete={() => {
           const leave = afterTurnFailure.current
@@ -2600,6 +2618,8 @@ export function GameView(): JSX.Element {
               lockOut
               title="Couldn't continue the scene"
               retryMessage={`You can try again, or return to the main menu. ${AUTHORED_ABANDON_HINT}`}
+              extraText="Manually edit prompt"
+              onExtra={() => setPanel({ kind: 'editPrompt', source: 'turn' })}
               onRetry={retryTurn}
               onAbandon={() => toMenu()}
             />
@@ -2892,7 +2912,13 @@ export function GameView(): JSX.Element {
         {panel?.kind === 'saveGame' && (
           <SaveGameModal key="save-game" theme={half} onClose={closePanel} />
         )}
-
+        <UnspokenLinkGlitch key="unspoken-link-glitch" hidden={blocked||covered||uiHidden||cinematic}/>
+        <ReckoningDungeonView
+          key="reckoning-dungeon-view"
+          onOptions={() => setPanel({ kind: 'settings' })}
+          covered={panel !== null || covered}
+        />
+        {panel?.kind === 'reckoning' && <ReckoningModal key={`reckoning-${panel.charId}`} charId={panel.charId} onClose={closePanel} />}
         <ModSlot
           key="mod-panel-layer"
           slot="panelLayer"

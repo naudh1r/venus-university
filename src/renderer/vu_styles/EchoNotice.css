@@ -1,0 +1,11 @@
+.echo-dialog .echo-notice-link{display:inline;padding:0;border:0;border-radius:0;background:transparent;color:var(--vu-accent);font:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.echo-dialog .echo-notice-link:hover{background:transparent;color:var(--vu-text)}
+.echo-notice-dialog{box-sizing:border-box;width:min(850px,94vw);max-width:94vw;height:min(720px,86dvh);max-height:86dvh;padding:0;border:1px solid var(--vu-border);border-radius:16px;background:var(--vu-surface);color:var(--vu-text);font:14px/1.6 var(--font-body)}
+.echo-notice-dialog[open]{display:flex;flex-direction:column}
+.echo-notice-dialog::backdrop{background:#140e1ecc}
+.echo-notice-dialog header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 22px;border-bottom:1px solid var(--vu-border)}
+.echo-notice-dialog h2{margin:0;font:24px var(--font-display)}
+.echo-notice-dialog header button{flex-shrink:0}
+.echo-notice-dialog pre{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:20px 24px;font:inherit;user-select:text}
+.echo-notice-dialog :focus-visible{outline:2px solid var(--vu-accent);outline-offset:-3px}
+@media(max-width:480px){.echo-notice-dialog header{padding:12px;gap:8px}.echo-notice-dialog h2{font-size:20px}.echo-notice-dialog pre{padding:16px}}

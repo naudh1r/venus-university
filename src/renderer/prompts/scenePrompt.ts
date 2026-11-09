@@ -1,3 +1,4 @@
+import type { CharacterDynamics } from '@shared/characterDynamics'
 import type { PromptPart, PromptPartId, SceneSpot, SceneSpotTag, TextEditSet } from '@shared/promptText'
 import { modRequest, promptLines } from '../mods/hooks'
 import { withoutSubjectTags } from '@shared/defaultTags'
@@ -175,6 +176,10 @@ export interface ProjectSceneContext {
 
 /** Everything the builders read out of `gameStore`. */
 export interface PromptState {
+  exReckoning?: import('@shared/reckoning').ReckoningState
+  storyMemory?: import('@shared/storyMemory').StorySnapshot
+  breakthrough?: import('@shared/breakthrough').BreakthroughState
+  exCharacterDynamics?: CharacterDynamics
   /** The cloud-LLM cache key: the playthrough id, never the save's. */
   playthroughId: string
   date: number

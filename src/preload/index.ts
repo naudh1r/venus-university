@@ -7,6 +7,31 @@ import type { VenusUniversityApi } from './api'
  */
 const api: VenusUniversityApi = {
   platform: 'desktop',
+  echo: {
+    reflectionReset: charId=>ipcRenderer.invoke('echo:reflectionReset',charId),
+    reflectionExport: charId=>ipcRenderer.invoke('echo:reflectionExport',charId),
+    reflectionUpload: charId=>ipcRenderer.invoke('echo:reflectionUpload',charId),
+    reflectionRead: charId=>ipcRenderer.invoke('echo:reflectionRead',charId),
+    reflectionStageRead: charId=>ipcRenderer.invoke('echo:reflectionStageRead',charId),
+    reflectionStageSave: (charId,stage)=>ipcRenderer.invoke('echo:reflectionStageSave',charId,stage),
+    reflectionGenerate: (charId,id,source)=>ipcRenderer.invoke('echo:reflectionGenerate',charId,id,source),
+    installLocalModels: id => ipcRenderer.invoke('echo:installLocalModels', id),
+    generate: request => ipcRenderer.invoke('echo:generate',request),
+    cancel: id => ipcRenderer.invoke('echo:cancel',id),
+    upload: () => ipcRenderer.invoke('echo:upload'),
+    read: (id,generated) => ipcRenderer.invoke('echo:read',id,generated),
+    export: (id,name,generated) => ipcRenderer.invoke('echo:export',id,name,generated)
+  },
+  storyMemory: { inspect: (payload) => ipcRenderer.invoke('storyMemory:inspect', payload) },
+  soundtracks: {
+    list: () => ipcRenderer.invoke('soundtracks:list'),
+    pick: () => ipcRenderer.invoke('soundtracks:pick'),
+    commit: (key, token, duration) => ipcRenderer.invoke('soundtracks:commit', key, token, duration),
+    remove: key => ipcRenderer.invoke('soundtracks:remove', key),
+    loop: (key, value) => ipcRenderer.invoke('soundtracks:loop', key, value),
+    read: key => ipcRenderer.invoke('soundtracks:read', key),
+    cleanup: () => ipcRenderer.invoke('soundtracks:cleanup')
+  },
   assets: {
     getPoseManifest: () => ipcRenderer.invoke('assets:getPoseManifest'),
     getQuickstart: () => ipcRenderer.invoke('assets:getQuickstart'),
@@ -19,6 +44,22 @@ const api: VenusUniversityApi = {
   grabBags: {
     get: () => ipcRenderer.invoke('grabBags:get'),
     set: (bags) => ipcRenderer.invoke('grabBags:set', bags)
+  },
+  studioBackup: {
+    save: (name, text) => ipcRenderer.invoke('studioBackup:save', name, text),
+    pick: () => ipcRenderer.invoke('studioBackup:pick')
+  },
+  studioPrompts: {
+    get: () => ipcRenderer.invoke('studioPrompts:get'),
+    set: (record) => ipcRenderer.invoke('studioPrompts:set', record)
+  },
+  presets: {
+    list: () => ipcRenderer.invoke('presets:list'),
+    get: (id) => ipcRenderer.invoke('presets:get', id),
+    save: (preset) => ipcRenderer.invoke('presets:save', preset),
+    delete: (id) => ipcRenderer.invoke('presets:delete', id),
+    setActive: (id) => ipcRenderer.invoke('presets:setActive', id),
+    import: () => ipcRenderer.invoke('presets:import')
   },
   mods: {
     invokeStart: (id, name, args) => ipcRenderer.invoke('mod:invoke', id, { kind: 'start', name, args }),

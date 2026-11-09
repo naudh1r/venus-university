@@ -23,6 +23,8 @@ export interface TextEditModalProps {
   stored: string
   /** What Reset to default puts back in the well. */
   shipped: string
+  /** Lets an empty well be saved, for a text whose shipped text is empty. */
+  allowEmpty?: boolean
   /** Keeps the well's text, its trailing whitespace taken off; true where it was kept. */
   save: (value: string) => boolean | Promise<boolean>
   onClose: () => void
@@ -41,6 +43,7 @@ export function TextEditModal({
   discardMessage,
   stored,
   shipped,
+  allowEmpty = false,
   save,
   onClose
 }: TextEditModalProps): JSX.Element | null {
@@ -51,7 +54,7 @@ export function TextEditModal({
   const [closing, setClosing] = useState(false)
 
   const atDefault = text === shipped
-  const empty = text.trim().length === 0
+  const empty = !allowEmpty && text.trim().length === 0
 
   async function handleSave(): Promise<void> {
     if (saving.current || empty) return
