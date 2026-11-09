@@ -917,10 +917,7 @@ const DUO_POSTURE: ReadonlySet<string> = new Set([
 ])
 
 /** Where the two of them are drawn, from what the caption asks for. */
-/**
- * Room asked between the two of them: without it they met and merged in the middle. Not for a
- * close-up, which had no room to give and drew them cheek to cheek either way.
- */
+/** Room asked between the two of them: without it they met and merged in the middle. */
 const DUO_ROOM = ['with a little space between them', 'each in her own space']
 
 function duoFraming(text: string, armOut = false): { tags: string[]; scene: string[] } {
@@ -933,7 +930,7 @@ function duoFraming(text: string, armOut = false): { tags: string[]; scene: stri
   }
   // A close-up needed the framing weighted in both halves before either was drawn close.
   if (framingOf(text) === 'face') {
-    return { tags: ['(close-up:1.3)', '(portrait:1.3)'], scene: [] }
+    return { tags: ['(close-up:1.3)', '(portrait:1.3)'], scene: DUO_ROOM }
   }
   // A held-out arm needs room: waist up cropped it out of the picture. A close-up stays close.
   if (armOut && !saysAny(text, ['close-up', 'close up', 'closeup'])) {
@@ -943,7 +940,7 @@ function duoFraming(text: string, armOut = false): { tags: string[]; scene: stri
   // and her legs folded to fit her half. A close-up keeps the weighted framing; any other shot
   // takes it plain with room asked between them, since weighted they met and merged in the middle.
   if (saysAny(text, ['close-up', 'close up', 'closeup'])) {
-    return { tags: ['(upper_body:1.3)'], scene: ['same height'] }
+    return { tags: ['(upper_body:1.3)'], scene: [...DUO_ROOM, 'same height'] }
   }
   return { tags: ['upper_body'], scene: [...DUO_ROOM, 'same height'] }
 }

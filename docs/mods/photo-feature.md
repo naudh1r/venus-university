@@ -105,7 +105,6 @@ Still being tuned: now and then a face, an outfit or a colour comes out wrong, a
 from-behind shots hold less well than plain ones. Pictures from below are drawn at eye level. The
 two can still meet in the middle, most often in swimsuits, where nothing marks where one ends, and
 a girl in a long dress beside one in a top is sometimes drawn further down, as if a step behind.
-A close-up of the two is drawn cheek to cheek.
 Her chin on her hand is left to the sentence and mostly not drawn: tagged, her elbow merged them.
 
 ## Where photos are kept
