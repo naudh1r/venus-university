@@ -73,6 +73,7 @@ const VERIFIED = new Set([
   'singing',
   'reading',
   'holding_book',
+  'holding_cup',
   'typing',
   'laptop',
   'writing',

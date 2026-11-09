@@ -470,6 +470,24 @@ const TWO_HANDED_GESTURES: ReadonlySet<string> = new Set(
   FREE_HAND_GESTURES.filter((row) => row.twoHanded).flatMap((row) => row.tags)
 )
 
+/** A drink in her hand, by what it is or what it comes in. */
+const HELD_DRINKS = [
+  'bubble tea',
+  'boba',
+  'coffee',
+  'latte',
+  'tea',
+  'cup',
+  'mug',
+  'can of',
+  'soda',
+  'juice',
+  'smoothie',
+  'milkshake',
+  'frappe',
+  'drink'
+]
+
 /** One activity, most specific first. Its action owns the object unless it has no action tag. */
 const ACTIVITIES: readonly ActivityRule[] = [
   { cues: ['playing with her hair'], tags: ['hand_in_own_hair'] },
@@ -521,6 +539,10 @@ const ACTIVITIES: readonly ActivityRule[] = [
     cues: ['playing games', 'playing a game', 'playing video games', 'gaming', 'controller'],
     tags: ['playing_games', 'holding_controller']
   },
+  // A drink she only holds: without `holding_cup` the cup floated at her mouth with both her arms
+  // at her sides. One she drinks keeps `drinking` alone below: the cup tag beside it drew a second
+  // cup. Mirror selfies never reach this table, and a cup there was left on the bed.
+  { cues: ['holding', 'clutching', 'carrying'], needs: HELD_DRINKS, tags: ['holding_cup'] },
   { cues: ['eating'], tags: ['eating'] },
   { cues: ['drinking', 'sipping'], tags: ['drinking'] },
   { cues: ['cooking', 'stirring'], tags: ['cooking'] },
@@ -763,10 +785,24 @@ const CAMERA_CUES = ['holding a camera', 'her camera', 'a camera in', 'film came
 /** Both her hands on one thing. */
 const BOTH_HANDS_CUES = ['both hands', 'two hands', 'both of her hands', 'two-handed']
 
+/**
+ * Things she holds one in each hand. Two of them leave no hand for a phone: a selfie under an
+ * umbrella with a crepe grew a third arm, or left the umbrella floating.
+ */
+const ONE_HAND_THINGS: readonly (readonly string[])[] = [
+  ['umbrella'],
+  HELD_DRINKS,
+  ['crepe', 'sandwich', 'burger', 'ice cream', 'cone', 'onigiri', 'taiyaki', 'hot dog', 'snack'],
+  ['bouquet', 'flowers'],
+  ['paperback', 'book', 'magazine'],
+  ['shopping bag', 'tote']
+]
+
 /** Both her hands on something she holds, so neither is free for a phone. */
 function handsFull(text: string): boolean {
   return (
     (saysAny(text, BOTH_HANDS_CUES) && saysAny(text, BUSY_HAND_CUES)) ||
+    ONE_HAND_THINGS.filter((things) => saysAny(text, things)).length >= 2 ||
     FREE_HAND_GESTURES.some((row) => row.twoHanded && fires(text, row.cues))
   )
 }

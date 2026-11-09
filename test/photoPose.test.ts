@@ -503,6 +503,18 @@ describe('a selfie', () => {
     expect(pose.negative).not.toContain('v')
   })
 
+  it('puts a named drink in her hand, but never in a mirror selfie', () => {
+    expect(posePhotoTags('standing at the bus stop, holding a bubble tea', false)).toContain('holding_cup')
+    expect(posePhotoTags('on a park bench, sipping from a can of soda', false)).not.toContain('holding_cup')
+    expect(posePhotoTags('a mirror selfie holding a bubble tea', false)).not.toContain('holding_cup')
+  })
+
+  it('draws a selfie with two things in her hands as a photo', () => {
+    const tags = posePhotoTags('a selfie under an umbrella, eating a crepe', false)
+    expect(tags).not.toContain('selfie')
+    expect(tags.join(' ')).not.toContain('outstretched_arm')
+  })
+
   it('takes a mirror she only stands near as part of the room, not the picture', () => {
     expect(posePhotoTags('standing angled away from the full-length mirror, looking back', true)).not.toContain('mirror')
     expect(posePhotoTags('posing in the mirror of her room', false)).toContain('mirror')
