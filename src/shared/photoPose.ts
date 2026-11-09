@@ -810,11 +810,34 @@ const ONE_HAND_THINGS: readonly (readonly string[])[] = [
   ['shopping bag', 'tote']
 ]
 
+/** The clauses where something is in her hands: "by the drinks fridge" is not one. */
+function heldIn(text: string): string {
+  return text
+    .split(/[,.;]/)
+    .filter((clause) =>
+      saysAny(clause, [
+        'holding',
+        'holds',
+        'carrying',
+        'clutching',
+        'eating',
+        'sipping',
+        'drinking',
+        'under an umbrella',
+        'under her umbrella',
+        'in her arms',
+        'in her hand',
+        'in one hand'
+      ])
+    )
+    .join(',')
+}
+
 /** Both her hands on something she holds, so neither is free for a phone. */
 function handsFull(text: string): boolean {
   return (
     (saysAny(text, BOTH_HANDS_CUES) && saysAny(text, BUSY_HAND_CUES)) ||
-    ONE_HAND_THINGS.filter((things) => saysAny(text, things)).length >= 2 ||
+    ONE_HAND_THINGS.filter((things) => saysAny(heldIn(text), things)).length >= 2 ||
     FREE_HAND_GESTURES.some((row) => row.twoHanded && fires(text, row.cues))
   )
 }
@@ -896,8 +919,11 @@ function selfieShot(
   // `from_below` alone left a selfie at eye level; her looking down into the phone held low
   // is what moved the camera under her.
   const low = has('from_below') ? ['looking_down'] : []
+  // A thumbs up at the weight of the arm out to the phone was drawn on that arm, as if she held
+  // the phone with it.
+  const held = kept.map((tag) => (tag === 'thumbs_up' ? '(thumbs_up:1.2)' : tag))
   const shot = (add: string[], extra: string[] = []): PhotoPose => ({
-    tags: [...new Set([...kept, ...add, ...low, ...(peace ? ['v'] : [])])],
+    tags: [...new Set([...held, ...add, ...low, ...(peace ? ['v'] : [])])],
     negative: [...negative, ...extra]
   })
   const whole = saysAny(text, FULL_BODY_CUES)

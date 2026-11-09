@@ -505,7 +505,7 @@ describe('a selfie', () => {
 
   it('reads a lying selfie from the side, with a thumbs up, as one angle and her own gesture', () => {
     const tags = posePhotoTags('a selfie lying on her bed, giving a thumbs up, from the side', false)
-    expect(tags).toEqual(expect.arrayContaining(['from_side', 'thumbs_up']))
+    expect(tags).toEqual(expect.arrayContaining(['from_side', '(thumbs_up:1.2)']))
     expect(tags).not.toContain('from_above')
   })
 
@@ -529,6 +529,8 @@ describe('a selfie', () => {
     const tags = posePhotoTags('a selfie under an umbrella, eating a crepe', false)
     expect(tags).not.toContain('selfie')
     expect(tags.join(' ')).not.toContain('outstretched_arm')
+    const one = posePhotoTags('a selfie standing by the drinks fridge, holding an ice cream cone', false)
+    expect(one).toContain('selfie')
   })
 
   it('takes a mirror she only stands near as part of the room, not the picture', () => {
