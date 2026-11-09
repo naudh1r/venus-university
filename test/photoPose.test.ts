@@ -864,6 +864,6 @@ describe('captioned hands replace position fillers', () => {
       'In her bedroom, kneeling on the mattress completely nude, using both hands to spread her bare buttocks wide apart, from behind',
       true
     )
-    expect(tags).toContain('grabbing_own_ass')
+    expect(tags).toEqual(expect.arrayContaining(['spread_ass', 'grabbing_own_ass', 'kneeling']))
   })
 })

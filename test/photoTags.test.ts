@@ -212,6 +212,7 @@ const VERIFIED = new Set([
   'sitting',
   'solo',
   'speech_bubble',
+  'spread_ass',
   'spread_legs',
   'spread_pussy',
   'squatting',
