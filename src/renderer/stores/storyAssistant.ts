@@ -11,6 +11,7 @@ import {
   modState,
   useModOption
 } from '@vx/modkit/renderer'
+import { sceneSuggestionsPaused, useSceneSuggestionsPaused, subscribeSceneSuggestionsPaused } from '@vx/modkit/renderer'
 import {
   affectionFor,
   dedupedMemoriesFor,
@@ -71,7 +72,9 @@ function assistantSeatOf(s: GameState): AssistantSeat {
 
 /** {@link assistantSeatOf} for a component, kept current as the game moves. */
 export function useAssistantSeat(): AssistantSeat {
-  return useGameStore(assistantSeatOf)
+  const paused = useSceneSuggestionsPaused()
+  const seat = useGameStore(assistantSeatOf)
+  return paused ? 'gone' : seat
 }
 
 /** Whether the scene has lines on it yet. */
@@ -182,18 +185,20 @@ function assistantNowOf(state: AssistantState, game: GameState): AssistantNow {
 
 /** {@link AssistantNow} as the stores stand this moment. */
 export function assistantNow(): AssistantNow {
+  if (sceneSuggestionsPaused()) return { read: null, asking: null, failed: null }
   return assistantNowOf(assistant.get(), useGameStore.getState())
 }
 
 /** {@link AssistantNow} for a component, kept current as either store moves. */
 export function useAssistantNow(): AssistantNow {
+  const paused = useSceneSuggestionsPaused()
   const state = assistant.use()
   // Each a field of its own, so the hook answers to the scene moving and nothing else.
   useGameStore((s) => s.currentSceneTranscript)
   useGameStore((s) => s.sceneSummaries)
   useGameStore((s) => s.loads)
   useGameStore((s) => s.playthroughId)
-  return assistantNowOf(state, useGameStore.getState())
+  return paused ? { read: null, asking: null, failed: null } : assistantNowOf(state, useGameStore.getState())
 }
 
 /** Cancels the call still out, if any; its answer is then dropped unseen. */
@@ -203,22 +208,31 @@ function cancelAssistant(): void {
   if (assistant.get().asking) assistant.set({ ...assistant.get(), asking: null })
 }
 
+// Cancellation is synchronous with activity start, even with no assistant panel mounted.
+subscribeSceneSuggestionsPaused(() => {
+  if (!sceneSuggestionsPaused()) return
+  cancelAssistant()
+  assistant.set({ read: null, asking: null, failed: null })
+})
+
 /**
  * Cancels a read under way that the scene has moved past, and leaving the game cancels any: for
  * whatever stands over the stage for as long as the assistant is on.
  */
 export function useAssistantCancels(): void {
+  const paused = useSceneSuggestionsPaused()
   const transcript = useGameStore((s) => s.currentSceneTranscript)
   const marks = useGameStore((s) => s.sceneSummaries)
   const loads = useGameStore((s) => s.loads)
   const playthroughId = useGameStore((s) => s.playthroughId)
   useEffect(() => cancelAssistant, [])
   useEffect(() => {
+    if (paused) { cancelAssistant(); assistant.set({ read: null, asking: null, failed: null }); return }
     if (out === null) return
     // A reset state has no read under way, though its call may still be out.
     const { asking } = assistant.get()
     if (!asking || !samePoint(asking.point, pointOf(useGameStore.getState()))) cancelAssistant()
-  }, [transcript, marks, loads, playthroughId])
+  }, [transcript, marks, loads, playthroughId, paused])
 }
 
 /** How many earlier slots are carried whatever they were about. */
@@ -340,6 +354,7 @@ let asks = 0
  */
 export async function askAssistant(question: string, choices: ChoiceCount): Promise<void> {
   cancelAssistant()
+  if (sceneSuggestionsPaused()) { assistant.set({ read: null, asking: null, failed: null }); return }
   const point = pointOf(useGameStore.getState())
   const asked = question.trim()
   const group = `read-${++asks}`
@@ -355,7 +370,7 @@ export async function askAssistant(question: string, choices: ChoiceCount): Prom
   const result = await completeStructured<unknown>(STORY_ASSISTANT, request, { group })
   if (out === group) out = null
   if (assistant.get().asking?.group !== group) return
-  if (!samePoint(point, pointOf(useGameStore.getState()))) {
+  if (sceneSuggestionsPaused() || !samePoint(point, pointOf(useGameStore.getState()))) {
     assistant.set({ ...assistant.get(), asking: null })
     return
   }
