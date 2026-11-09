@@ -20,6 +20,7 @@ class Window extends EventEmitter {
   hide() { this.visible = false; this.emit('hide') }
   focus() {}
   isFocused() { return false }
+  isVisible() { return this.visible }
   getBounds() { return this.bounds }
   setBounds(bounds: typeof area) { this.bounds = bounds }
   setContentProtection() {}
@@ -31,7 +32,7 @@ class Window extends EventEmitter {
 }
 vi.mock('electron', () => ({
   app: {}, BrowserWindow: Window,
-  screen: { getPrimaryDisplay: () => ({ workArea: area }), getDisplayMatching: () => ({ workArea: area }) },
+  screen: { getPrimaryDisplay: () => ({ workArea: area, size: area, scaleFactor: 1 }), getDisplayMatching: () => ({ workArea: area }) },
   powerMonitor: new EventEmitter(), globalShortcut: { register: () => true, unregister: vi.fn() },
   desktopCapturer: { getSources: async () => [{ id: 'screen:fixture', display_id: '1', name: 'Synthetic source' }] }
 }))
@@ -50,7 +51,11 @@ vi.mock('../src/main/services/companionMoveHandle', () => ({ watchCompanionMoveH
 vi.mock('../src/main/services/companionDictation', () => ({ openWindowsDictation: vi.fn() }))
 vi.mock('../src/main/services/companionVoice', () => ({ getCompanionVoice: async () => ({}), onVoiceSettings: () => () => {}, saveCompanionVoice: vi.fn(), transcribeCompanionAudio: vi.fn(), synthesizeCompanionSpeech: vi.fn() }))
 
-const { openCompanion, closeCompanion, companionState, companionCharacters, companionDocument, previewCompanion, startCompanion, pauseCompanion } = await import('../src/main/screenCompanion')
+const {
+  openCompanion, closeCompanion, companionState, companionCharacters, companionDocument,
+  previewCompanion, startCompanion, pauseCompanion, pauseCompanionConversation,
+  takeCompanionTurn, captureCompanionDesktop, acknowledgeCompanion
+} = await import('../src/main/screenCompanion')
 const context = JSON.stringify({ scene: { kind: 'story' }, profiles: { girl: { charId: 'girl', firstName: 'Synthetic', lastName: 'Participant' } }, characters: { girl: {} }, sprites: { girl: { neutral: 'fixture' } } })
 beforeEach(() => {
   vi.useFakeTimers(); mocks.windows = [new Window()]; mocks.complete.mockReset(); mocks.frame.mockReset()
@@ -143,4 +148,67 @@ it('does not capture or infer until three seconds after starting, and can cancel
   await vi.advanceTimersByTimeAsync(1)
   expect(mocks.frame).toHaveBeenCalledTimes(1)
   expect(mocks.complete).toHaveBeenCalledTimes(1)
+})
+
+it('withdraws an unacknowledged reply when chat pauses, then delivers a fresh Creator turn on resume', async () => {
+  openCompanion(mocks.windows[0], JSON.stringify({ ...JSON.parse(context), scene: { kind: 'creator' } }), 'creator')
+  const line = { charId: 'girl', emotion: 'happy', text: 'That changed.' }
+  mocks.complete.mockResolvedValue({ lines: [line] })
+  await startCompanion('girl', 'screen:fixture', 5)
+  await vi.advanceTimersByTimeAsync(3000)
+  const first = takeCompanionTurn('creator')!
+  expect(first.lines).toEqual([expect.objectContaining(line)])
+  pauseCompanionConversation(true)
+  expect(takeCompanionTurn('creator')).toBeNull()
+  pauseCompanionConversation(false)
+  await vi.advanceTimersByTimeAsync(1)
+  const fresh = takeCompanionTurn('creator')!
+  expect(fresh.id).toBeGreaterThan(first.id)
+  acknowledgeCompanion(mocks.windows[0].webContents, 'creator', first.id, true)
+  expect(takeCompanionTurn('creator')).toBe(fresh)
+  acknowledgeCompanion(mocks.windows[0].webContents, 'creator', fresh.id, true)
+  await vi.advanceTimersByTimeAsync(1)
+  expect(companionState().text).toBe(line.text)
+})
+
+it('clears an elapsed countdown when chat resumes after its start time', async () => {
+  mocks.complete.mockResolvedValue({ lines: [] })
+  await startCompanion('girl', 'screen:fixture', 5)
+  await vi.advanceTimersByTimeAsync(1000)
+  pauseCompanionConversation(true)
+  await vi.advanceTimersByTimeAsync(5000)
+  expect(mocks.frame).not.toHaveBeenCalled()
+  pauseCompanionConversation(false)
+  await vi.advanceTimersByTimeAsync(1)
+  expect(mocks.frame).toHaveBeenCalledTimes(1)
+  expect(companionState().startingIn).toBe(0)
+})
+
+it('releases a timed-out provider call even if it ignores cancellation and later answers', async () => {
+  let finish!: (reply: unknown) => void
+  mocks.complete.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  await startCompanion('girl', 'screen:fixture', 5)
+  await vi.advanceTimersByTimeAsync(63000)
+  try {
+    expect(companionState()).toMatchObject({ busy: false, sharing: false, error: 'The reaction timed out. Sharing is paused.' })
+  } finally {
+    finish({ lines: [] })
+    await vi.advanceTimersByTimeAsync(10000)
+  }
+  expect(takeCompanionTurn('fixture-scene')).toBeNull()
+  expect(mocks.frame).toHaveBeenCalledTimes(1)
+})
+
+it('cancels a souvenir screenshot when its session closes during the exposure delay', async () => {
+  const { desktopCapturer } = await import('electron')
+  const sources = vi.spyOn(desktopCapturer, 'getSources').mockRejectedValue(new Error('Unexpected desktop access'))
+  try {
+    await previewCompanion('girl', 'neutral')
+    const capture = captureCompanionDesktop(3).catch(error => error)
+    await vi.advanceTimersByTimeAsync(3000)
+    closeCompanion()
+    await vi.advanceTimersByTimeAsync(350)
+    expect(sources).not.toHaveBeenCalled()
+    expect(await capture).toBeInstanceOf(Error)
+  } finally { sources.mockRestore() }
 })
