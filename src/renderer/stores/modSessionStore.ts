@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { modById, MODS } from '@shared/mods'
-import { isRunning, sessionRow, type ModSessionEntry, type ModSessionTable, type ModStatus } from '@shared/modSession'
+import { isBuiltInRow, isRunning, sessionRow, type ModSessionEntry, type ModSessionTable, type ModStatus } from '@shared/modSession'
 import type { PlaythroughRecord } from '@shared/types'
 import { startTable } from '../installedMods'
 
@@ -96,9 +96,9 @@ export const useModSessionStore = create<ModSessionState>((set, get) => ({
 
   running: (id) => {
     const { table, shiftStart } = get()
-    if (!sessionRow(table, id)) return true
-    const builtIn = table.mods.some((mod) => mod.id === id && mod.manifest === null && mod.folder === '')
-    return isRunning(table, id) && (!shiftStart || builtIn)
+    const row = sessionRow(table, id)
+    if (!row) return true
+    return isRunning(table, id) && (!shiftStart || isBuiltInRow(row))
   },
 
   markFailed: (id, status, message) => {

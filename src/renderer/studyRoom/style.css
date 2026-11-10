@@ -1,0 +1,67 @@
+.vu-study-room {
+  --paper-offset: 8px 7px;
+  --paper-shadow: var(--vu-panel-shadow);
+  position: relative;
+  width: min(650px, 100% - 32px);
+  max-height: calc(100% - 64px);
+  padding: 58px 30px 26px;
+  border-radius: 42px 0 0 42px;
+  display: flex;
+  flex-direction: column;
+  color: var(--vu-text);
+  font-family: var(--font-body);
+}
+.vu-study-room > .vu-tab {
+  top: -28px;
+  left: 24px;
+  right: auto;
+  max-width: calc(100% - 104px);
+  padding: 12px 26px 12px 32px;
+  font-size: 26px;
+  white-space: normal;
+}
+.vu-study-room .study-close {
+  position: absolute;
+  right: 16px;
+  top: 12px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 22px;
+}
+.vu-study-room .study-work {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+  overflow: auto;
+  padding: 3px;
+}
+.vu-study-room label { display: flex; flex-direction: column; gap: 7px; font-weight: 600; }
+.vu-study-room textarea, .vu-study-room select {
+  font: 17px var(--font-body);
+  color: var(--vu-text);
+  background: var(--vu-field-bg, var(--vu-surface));
+  border: 2px solid var(--vu-text-muted);
+  border-radius: 16px 0;
+  padding: 10px 12px;
+  resize: vertical;
+  min-width: 0;
+}
+.vu-study-room option { background: var(--vu-surface); }
+.vu-study-room button {
+  font: 15px var(--font-body);
+  padding: 10px 18px;
+  border: 0;
+  color: var(--vu-accent-ink);
+  background: var(--vu-accent);
+  border-radius: 24px 0;
+  cursor: pointer;
+}
+.vu-study-room button:disabled { opacity: .4; cursor: default; }
+.vu-study-room :is(button,input):focus-visible { outline: 3px solid var(--vu-text); outline-offset: 3px; }
+.vu-study-room :is(select,textarea):focus-visible {
+  outline: none;
+  border-color: var(--vu-accent);
+}
+.vu-study-room .study-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }

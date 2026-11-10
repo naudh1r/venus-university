@@ -1,8 +1,10 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 const state = vi.hoisted(() => ({ field: null as any, game: { currentSceneTranscript: [] as any[], createdScene: {} as any }, legacy: null as any }))
 vi.mock('@vx/modkit/renderer', () => ({ scene: () => ({lines:state.game.currentSceneTranscript,created:Boolean(state.game.createdScene)}), sceneField: () => ({ read: () => state.field, set: (v: unknown) => { state.field = v } }) }))
-vi.mock('../src/renderer/sceneNotes/host', () => ({ legacyNotes: () => state.legacy, notesAvailable: () => true, useNotesHost: { getState: () => state.game } }))
-import { saveSceneNotes, readSceneNotes, notesConversationScope, sceneNotesHooks } from '../src/renderer/sceneNotes/state'
+vi.mock('../src/renderer/sceneNotes/host', () => ({ legacyNotes: () => state.legacy, notesAvailable: () => true }))
+vi.mock('@vx/modkit/shared', () => ({ sharedModOn: vi.fn(() => true) }))
+import { sharedModOn } from '@vx/modkit/shared'
+import { saveSceneNotes, readSceneNotes, readStoredSceneNotes, notesConversationScope, sceneNotesHooks } from '../src/renderer/sceneNotes/state'
 beforeEach(() => { state.field = null; state.legacy = null; state.game = { currentSceneTranscript: [{ speaker: 'girl', text: 'Old discussion.' }], createdScene: {} } })
 
 it('starts a new document scope even when a replacement has the same filename, without deleting the log', async () => {
@@ -24,29 +26,56 @@ it('starts a new document scope even when a replacement has the same filename, w
   expect(notesConversationScope().transcript).toHaveLength(1)
 })
 
-it('excludes old summaries and dialogue from the next AI request while preserving the new question and character context', async () => {
-  state.legacy = { name: 'old.txt', text: 'Old document.' }
-  await saveSceneNotes({ name: 'new.txt', text: 'New document.' })
-  state.game.currentSceneTranscript.push({ speaker: 'reader', text: 'A new discussion.' })
+
+function promptLines() {
   const notes = sceneNotesHooks.promptState!.scene!()
-  const request = { system: 'Keep her personality.', user: 'Character facts.\nOld summary.\nOld discussion.\nExplain the new file.',
-    parts: [{ id: 'storySoFar', role: 'user', text: 'Old summary.' }, { id: 'sceneSoFar', role: 'user', text: 'Old discussion.' }], schema: {} } as any
-  const next = sceneNotesHooks.requests!.scene!(request, { state: { ex: { 'scene-notes': notes } } } as any)
-  expect(next.user).not.toContain('Old summary.')
-  expect(next.user).not.toContain('Old discussion.')
-  expect(next.user).toContain('A new discussion.')
-  expect(next.user).toContain('Character facts.')
-  expect(next.user).toContain('Explain the new file.')
-  expect(next.system).toContain('ONLY active document source')
-  expect(request.user).toContain('Old discussion.')
+  return sceneNotesHooks.prompts!.scene!.lines!({ state: { ex: { 'scene-notes': notes } } } as any)
+}
+
+it('refuses a pending upload or removal when the last parent is switched off', async () => {
+  const active = { name: 'current.txt', text: 'Keep this.' }
+  await saveSceneNotes(active)
+  vi.mocked(sharedModOn).mockReturnValue(false)
+  try {
+    expect((await saveSceneNotes(null)).ok).toBe(false)
+    expect((await saveSceneNotes({ name: 'later.md', text: 'New.' })).ok).toBe(false)
+    expect(readStoredSceneNotes()).toEqual(active)
+  } finally {
+    vi.mocked(sharedModOn).mockReturnValue(true)
+  }
 })
 
-it('keeps removed uploads out of future context and does not restore legacy notes', async () => {
+it('only contributes mod lines, leaving core in charge of the summary, named transcript, window and retry', async () => {
+  expect(promptLines()).toEqual([])
+  await saveSceneNotes({ name: 'notes.md', text: 'Old document.' })
+  await saveSceneNotes({ name: 'notes.md', text: '# New document\nLiteral $& and $$.' })
+  expect(sceneNotesHooks).not.toHaveProperty('requests')
+  const prompt = promptLines().join('\n')
+  expect(prompt.split('ONLY active document source')).toHaveLength(2)
+  expect(prompt).toContain('> # New document\n> Literal $& and $$.')
+  expect(prompt).not.toContain('Old document.')
+})
+
+it('adds one removal notice and keeps the old upload out after reload', async () => {
   state.legacy = { name: 'old.md', text: 'Old material.' }
   await saveSceneNotes(null)
+  state.field = JSON.parse(JSON.stringify(state.field))
   expect(readSceneNotes()).toBeNull()
   expect(notesConversationScope().replaced).toBe(true)
-  const notes = sceneNotesHooks.promptState!.scene!()
-  const next = sceneNotesHooks.requests!.scene!({ system: '', user: '', schema: {} } as any, { state: { ex: { 'scene-notes': notes } } } as any)
-  expect(next.system).toContain('No uploaded document is currently available')
+  expect(promptLines()).toEqual([expect.stringContaining('No uploaded document is currently available')])
+})
+
+it.each(['library', 'study preview'])('retains an oversized %s document in the save and withholds it from consumers', async source => {
+  const large = { name: 'old.md', text: 'é'.repeat(256_001) }
+  if (source === 'library') state.field = { document: large }
+  else state.legacy = large
+  expect(readStoredSceneNotes()).toEqual(large)
+  expect(readSceneNotes()).toBeNull()
+  expect(promptLines()).toEqual([expect.stringContaining('No uploaded document is currently available')])
+  expect((await saveSceneNotes(large)).ok).toBe(false)
+  expect(readStoredSceneNotes()).toEqual(large)
+  const small = { name: 'new.md', text: 'Replacement.' }
+  await saveSceneNotes(small)
+  expect(readSceneNotes()).toEqual(small)
+  expect(promptLines().join('\n')).toContain('Replacement.')
 })

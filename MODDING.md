@@ -48,6 +48,28 @@ provider without exposing credentials. Abort the signal at teardown; the
 optional flag selects minimal thinking. `hasExpressionArt(id, expression)`
 uses the native checked character-image reader.
 
+### Pausing optional scene suggestions
+
+An activity such as studying or screen sharing can call `setSceneSuggestionsPaused(modId, true)`
+when it starts. Each mod owns one pause. Call `setSceneSuggestionsPaused(modId, false)` on
+stop, cancellation, failure and switch-off. Other mods can still hold their own pauses.
+Use your own manifest ID. The loader checks the ID during a mod's renderer entry import.
+At runtime callers supply their own ID, as they do for `holdTurn`.
+
+The pause is kept in memory for the current game and expires on load or exit. A mod that
+is off is ignored. An unreleased pause can take effect again if the mod is switched on in
+the same game. A playthrough-scoped mod follows the selection stored in the loaded record.
+
+Optional scene suggestion providers can read `sceneSuggestionsPaused()` before requesting
+or displaying suggestions. Components use `useSceneSuggestionsPaused()`. Outside React,
+read the initial value and use `subscribeSceneSuggestionsPaused(listener)` to follow changes.
+The listener runs only when the combined boolean changes and the returned function unsubscribes.
+Normal scene input stays available throughout.
+
+An installed mod lists each renderer API it uses in its manifest's `hooks` array.
+`renderer:setSceneSuggestionsPaused`, `renderer:sceneSuggestionsPaused`,
+`renderer:useSceneSuggestionsPaused` and `renderer:subscribeSceneSuggestionsPaused`.
+
 ### Character sprite URLs
 
 Renderer mods can import `spriteUrl(charId, sprite, version?, staged?)` from
@@ -57,6 +79,13 @@ The URL uses the game's active image resolver, including browser builds; do not 
 `charimg://` URLs yourself. `version` busts the image cache after a regeneration and
 `staged` selects the editor's staged files. This does not check that an image exists,
 load a character, or grant file-write access. It is separate from the reader's profile image.
+
+For a saved speaker ID, `profileUrl(id, version?, staged?)` resolves the square character
+portrait even if the current game has no roster entry for that ID. The asset can be
+missing, so keep the image's fallback. In a component, pass `useSpriteVersion(id)` to
+`profileUrl` or `spriteUrl` to refresh after the character's images change. A missing ID
+or one with no refreshes has version zero. Installed manifests declare `renderer:profileUrl`
+and `renderer:useSpriteVersion` when using those exports.
 
 This is how the community mods share one build: every mod's code is always in the game, and a
 switch decides whether it acts. Players turn mods on and off from **Mods** on the main menu;

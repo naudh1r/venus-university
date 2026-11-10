@@ -1,6 +1,6 @@
 # Photo Feature
 
-An unofficial mod for Venus University by **naudh1r**. Version **1.7.1**, for the game's 0.7.0.
+An unofficial mod for Venus University by **naudh1r**. Version **1.7.2**, for the game's 0.7.0.
 
 The girls send you photos in their DMs and post them on their feeds, with comments from the rest
 of campus. Each contact gets a gallery, and characters can get optional body details. Photos are
@@ -43,8 +43,8 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
    save and your settings. She cannot go past it.
 4. The mod turns her sentence into the photo prompt. It keeps the sentence and adds tags it
    reads off it:
-   - **Pose and framing**: standing, sitting, lying on her back, side or stomach; close-up,
-     waist up, knees up, full body; from above, from below, from behind, side view.
+   - **Pose and framing**: standing, sitting, lying on her back, side or stomach; her face,
+     close-up, waist up, knees up, full body; from above, from below, from behind, side view.
    - **Style**: a selfie, a mirror selfie, or a photo somebody took of her; on the feed also a
      candid one where she is not posing.
    - **Selfies**: her arm reaches out of the picture and no phone is drawn. A mirror selfie
@@ -102,7 +102,10 @@ opening is written (`[photo] X's post this slot is a picture with Y`).
   as `node 50` and `node 51`.
 
 Still being tuned: now and then a face, an outfit or a colour comes out wrong, and close-ups and
-from-behind shots hold less well than plain ones. Pictures from below are drawn at eye level.
+from-behind shots hold less well than plain ones. Pictures from below are drawn at eye level. The
+two can still meet in the middle, most often in swimsuits, where nothing marks where one ends, and
+a girl in a long dress beside one in a top is sometimes drawn further down, as if a step behind.
+Her chin on her hand is left to the sentence and mostly not drawn: tagged, her elbow merged them.
 
 ## Where photos are kept
 
@@ -124,6 +127,17 @@ is kept once the scene next saves, at its next choice or its end: quit before th
 you had before comes back.
 
 If a photo stays PNG while WebP is on, look in `data/app.log` for a `[photo] kept ... as PNG:` line.
+
+## 1.7.2
+
+- **Closer to her sentence**: her photos follow what she wrote more closely: how she sits, leans
+  or lies, what her hands are doing, and what she holds, one thing at most.
+- **Her face up close**: a new shot, a close-up of her face, for her look rather than her outfit
+  or the place.
+- **Mirror selfies**: drawn as the picture she took, without a second her in the glass. A photo of
+  her from behind has no mirror in it.
+- **Photos of two girls**: each has her own face and hands, with a little room between them, and
+  the shot is sometimes a selfie, sometimes a photo somebody took.
 
 ## 1.7.1
 
