@@ -229,6 +229,7 @@ const VERIFIED = new Set([
   'white_background',
   'wide_hips',
   'ok_sign',
+  'middle_finger',
   'salute',
   'finger_gun',
   'double_v',

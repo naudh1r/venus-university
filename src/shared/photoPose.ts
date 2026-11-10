@@ -446,13 +446,17 @@ function heldClothing(garment: string): RegExp {
 
 /** Everyday gestures, with covering reserved for the suggestive and explicit tiers. */
 const FREE_HAND_GESTURES: readonly GestureRule[] = [
-  // Each drew as named on a same-seed check. Not `middle_finger` (drawn as a peace sign),
-  // `finger_frame`, `crossed_fingers`, `index_finger_raised` or `beckoning` (hands at her chin),
+  // Each drew as named on a same-seed check. Not `finger_frame`, `crossed_fingers`, `index_finger_raised` or `beckoning` (hands at her chin),
   // `\\m/` (horns on her head) or `bunny_pose` (bunny ears on her head).
   {
     cues: ['double peace', 'two peace signs', 'peace signs', 'peace sign with both hands', 'double v'],
     tags: ['double_v'],
     twoHanded: true
+  },
+  // Plain at the end held on three seeds of three; once on one seed it went to both hands.
+  {
+    cues: ['flipping off', 'flips off', 'flipping the bird', 'giving the finger', 'middle finger', 'flipping him off'],
+    tags: ['middle_finger']
   },
   { cues: ['ok sign', 'okay sign', 'ok gesture', 'okay gesture', 'an ok with'], tags: ['ok_sign'] },
   { cues: ['salute', 'saluting', 'salutes'], tags: ['salute'] },
