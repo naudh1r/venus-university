@@ -3,7 +3,8 @@ const state=vi.hoisted(()=>({field:null as any,game:{} as any,values:{} as Recor
 vi.mock('@vx/modkit/renderer',async()=>({
  saveField:(await import('../packages/modkit/src/renderer/saveField')).saveField,
  sceneField:()=>({read:()=>state.field,set:(v:unknown)=>{state.field=v}}),
- clock:()=>state.game,currentRun:()=>state.run,runStale:(run:number)=>run!==state.run
+ clock:()=>state.game,currentRun:()=>state.run,runStale:(run:number)=>run!==state.run,
+ setSceneSuggestionsPaused:vi.fn(),subscribeSceneTurns:()=>()=>{}
 }))
 import {bindSaveFieldStore,readModSlices,writeModSlices} from '../packages/modkit/src/renderer/saveField'
 import {filterSceneLedger,registerHooks,setHookRules} from '../packages/modkit/src/renderer/hooks'
