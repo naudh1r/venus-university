@@ -9,7 +9,7 @@ import { saysAny } from './photoWords'
  * `upper_body` was ignored standing or sitting and only `(upper_body:1.3)` framed her from the
  * waist; plain `full_body` stays as it is, since weighting it drew her small, flat and younger.
  */
-export type Framing = 'face' | 'waist' | 'knees' | 'full'
+export type Framing = 'face' | 'lower' | 'waist' | 'knees' | 'full'
 
 const CLOSE_UP = ['close-up', 'closeup', 'close up']
 const MEDIUM_CLOSE_UP = ['medium close-up', 'medium close up']
@@ -22,9 +22,15 @@ const FRAMINGS: readonly { framing: Framing; cues: readonly string[]; tags: read
       tags: ['close-up', 'portrait']
     },
     {
+      framing: 'lower',
+      cues: ['waist down', 'from the waist down', 'hips down'],
+      tags: ['lower_body']
+    },
+    {
       framing: 'waist',
       cues: [
-        'waist up', 'from the waist', 'upper body', 'chest up', 'bust shot', 'shoulders up',
+        'waist up', 'waist-up', 'waist-high', 'from the waist', 'upper body',
+        'chest up', 'bust shot', 'shoulders up',
         'medium shot', 'half body', 'half-body', ...MEDIUM_CLOSE_UP
       ],
       tags: ['(upper_body:1.3)']
@@ -56,6 +62,9 @@ const FRAMINGS: readonly { framing: Framing; cues: readonly string[]; tags: read
 /** The framing the caption asks for, closest first, or null where it names none. */
 export function framingOf(caption: string): Framing | null {
   const text = caption.toLowerCase()
+  // A lower crop is explicit even when the caption also calls it a close-up.
+  const lower = FRAMINGS.find((row) => row.framing === 'lower')
+  if (lower && saysAny(text, lower.cues)) return lower.framing
   // A medium close-up includes her chest; a phone at arm's length does too.
   if (
     saysAny(text, MEDIUM_CLOSE_UP) ||
@@ -86,6 +95,7 @@ export const FRAMING_TAGS: ReadonlySet<string> = new Set([
 
 /** The framing a finished set of pose tags draws, for a caption that never said one. */
 export function framingInTags(tags: readonly string[]): Framing | null {
+  if (tags.includes('lower_body')) return 'lower'
   if (tags.includes('portrait')) return 'face'
   if (tags.includes('full_body')) return 'full'
   if (tags.some((tag) => tag === 'upper_body' || tag.startsWith('(upper_body:'))) return 'waist'

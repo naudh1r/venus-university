@@ -19,8 +19,8 @@ import { ownsTurnHold } from './sceneView'
 
 type Game = ReturnType<typeof useGameStore.getState>
 function present(game: Game, id: string): boolean {
-  return Boolean(game.cast.includes(id) && !game.departed.includes(id) && game.characters[id]?.pose &&
-    (game.createdScene || game.charInfo[id]?.nameKnown))
+  // Scene presence, not whether the reader has learned her name, permits an exchange.
+  return Boolean(game.cast.includes(id) && !game.departed.includes(id) && game.characters[id]?.pose)
 }
 
 /** Whether a native scene is accepting an exchange already displayed outside its dialogue box. */

@@ -176,3 +176,38 @@ describe('a set identified by one of its garments', () => {
     expect(photoWardrobeFromGarment(girl, 'A yellow scarf and a plain raincoat')).toBeNull()
   })
 })
+
+describe('only the wardrobe still worn and in shot', () => {
+  const girl = {
+    ...mina,
+    outfit: ['white_blouse', '(blue_jacket:1.2)', 'pleated_skirt', 'thighs', 'brown_shoes']
+  } as Character
+
+  it('removes the garment the caption takes off, keeping the rest of her set', () => {
+    for (const removal of [
+      'without her jacket', 'jacket off', 'jacket draped over a chair',
+      'took off her jacket', 'discarded jacket'
+    ]) {
+      const positive = buildPhotoPrompt(girl, 'everyday', `In her everyday clothes, ${removal}`).positive
+      expect(positive).not.toContain('blue_jacket')
+      expect(positive).toContain('white_blouse')
+      expect(positive).toContain('pleated_skirt')
+    }
+    const positive = buildPhotoPrompt(girl, 'everyday', 'Standing without her jacket').positive
+    expect(positive).not.toContain('blue_jacket')
+    expect(positive).toContain('white_blouse')
+  })
+
+  it('drops shoes and lower garments from upper-body shots, keeping them in lower shots', () => {
+    for (const framing of ['waist-up', 'just her face', 'a selfie']) {
+      const positive = buildPhotoPrompt(girl, 'everyday', `In her everyday clothes, ${framing}`).positive
+      expect(positive).toContain('white_blouse')
+      expect(positive).not.toContain('brown_shoes')
+      expect(positive).not.toContain('pleated_skirt')
+      expect(positive).not.toMatch(/\bthighs\b/)
+    }
+    const lower = buildPhotoPrompt(girl, 'everyday', 'In her everyday clothes, waist down').positive
+    expect(lower).toContain('brown_shoes')
+    expect(lower).toContain('pleated_skirt')
+  })
+})
