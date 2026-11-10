@@ -3,6 +3,10 @@ import type { Result } from '@vx/modkit/shared'
 import { appError } from '@vx/modkit/shared'
 export const EMOTIONS = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'embarrassed', 'aroused'] as const
 export type Emotion = (typeof EMOTIONS)[number]
+/** Preserve unknown identities in the selector, overlays and invitation text. */
+export function companionCharacterName(person: { firstName: string; lastName: string }, known: boolean, index: number): string {
+  return known ? `${person.firstName} ${person.lastName}`.trim() : `Unknown character ${index + 1}`
+}
 export const isEmotion = (value: unknown): value is Emotion => EMOTIONS.some(emotion => emotion === value)
 export function companionError(value: unknown) {
   if (value && typeof value === 'object' && 'code' in value && 'message' in value &&
@@ -91,6 +95,8 @@ export interface CompanionState {
   /** The reference shared with every activity mode for this laptop session. */
   documentName?: string
   sharing: boolean
+  /** Seconds until the first screen capture; zero once sharing is underway. */
+  startingIn?: number
   conversationPaused: boolean
   pointing: boolean
   busy: boolean

@@ -7,7 +7,7 @@ import {mkdir,writeFile} from 'node:fs/promises'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, powerMonitor, screen, type WebContents } from 'electron'
 import { join } from 'path'
 import { appError } from '@vx/modkit/shared'
-import { companionError, isEmotion, EMOTIONS, type Emotion } from '../shared/screenCompanion'
+import { companionCharacterName, companionError, isEmotion, EMOTIONS, type Emotion } from '../shared/screenCompanion'
 import { createDesktopSurface, completeModStructured, hasExpressionArt } from '@vx/modkit/main'
 import { companionOverlayLayout, rapidFps, rapidCallout, companionReactionDelay, COMPANION_MODES, DEFAULT_COMPANION_VOICE, validCompanionLines, validCompanionParticipants, type CompanionLine, type CompanionVoicePatch, type CompanionVoiceSettings, type CompanionMode, type CompanionState, type CompanionTurn } from '../shared/screenCompanion'
 import { getCompanionVoice, saveCompanionVoice, transcribeCompanionAudio, synthesizeCompanionSpeech, onVoiceSettings } from './services/companionVoice'
@@ -18,6 +18,7 @@ let panel: BrowserWindow | null = null
 let overlays: BrowserWindow[] = []
 let chat: BrowserWindow | null = null
 let ownerWindow: BrowserWindow | null = null
+let restoreOwnerTiming: (() => void) | undefined
 let offVoiceSettings: (() => void) | undefined
 let checkpoint = 0
 let selectedSource: { id: string; display_id: string } | null = null
@@ -30,6 +31,7 @@ let pendingTurn: { id: number; resolve: (accepted: boolean) => void } | null = n
 let turnSequence = 0
 let invited = false
 let timer: ReturnType<typeof setTimeout> | undefined
+let shareStartsAt = 0
 let controller: AbortController | null = null
 let resumeAfterStop = false
 let epoch = 0
@@ -96,6 +98,9 @@ function makeWindow(mode: 'controls' | 'overlay' | 'chat', slot = 0): BrowserWin
     alwaysOnTop: bodyOnly || quick, show: false,
 
   })
+  // Keep the host's owner-close/mod-disable cleanup, without native child-window
+  // behavior tying the desktop companion to the game's minimize/stacking state.
+  win.setParentWindow(null)
   // The companion must not appear inside the screen image she is looking at.
   win.setContentProtection(true)
   win.setMenuBarVisibility(false)
@@ -135,6 +140,10 @@ export function openCompanion(owner: BrowserWindow | null, gameContext = '', sce
   }
   if (panel) closeCompanion()
   ownerWindow = owner
+  const throttled = owner.webContents.getBackgroundThrottling()
+  owner.webContents.setBackgroundThrottling(false)
+  // Replies are acknowledged by this renderer even when the game is minimized.
+  restoreOwnerTiming = () => { if (!owner.isDestroyed()) owner.webContents.setBackgroundThrottling(throttled) }
   context = gameContext
   state = { ...state, sceneId, sceneKind, contextRevision: state.contextRevision + 1 }
   invited = false
@@ -166,6 +175,7 @@ export function openCompanion(owner: BrowserWindow | null, gameContext = '', sce
 }
 
 export function closeCompanion(): void {
+  restoreOwnerTiming?.(); restoreOwnerTiming = undefined
   stopMoveHandles?.(); stopMoveHandles = undefined
   closeCompanionPointer()
   pendingDelivery=null;documentReference=undefined
@@ -192,6 +202,8 @@ export function closeCompanion(): void {
 }
 
 export function pauseCompanion(): void {
+  screenshotController?.abort()
+  shareStartsAt = 0
   checkpoint++; stopCompanionCapture(panel)
   clearCompanionPointer()
   pendingDelivery=null
@@ -204,7 +216,7 @@ export function pauseCompanion(): void {
   cancelCompanionInput()
   pendingTurn?.resolve(false)
   pendingTurn = null
-  state = { ...state, sharing: false }
+  state = { ...state, sharing: false, startingIn: 0 }
   broadcast()
 }
 
@@ -239,7 +251,7 @@ export function pointingCompanion(enabled: boolean): void {
 export function pauseCompanionConversation(paused: boolean): void {
   if (typeof paused !== 'boolean' || !state.sharing) throw appError('COMPANION_PAUSED', 'Start sharing before pausing or resuming chat.')
   if (paused === state.conversationPaused) return
-  state = { ...state, conversationPaused: paused }
+  state = { ...state, conversationPaused: paused, startingIn: 0 }
   if (paused) {
     checkpoint++; stopCompanionCapture(panel)
     clearCompanionPointer()
@@ -248,6 +260,7 @@ export function pauseCompanionConversation(paused: boolean): void {
     clearTimeout(timer)
     controller?.abort()
     stopSpeech()
+    pendingDelivery = null
     pendingTurn?.resolve(false)
     pendingTurn = null
   } else if (state.busy) resumeAfterStop = true
@@ -431,9 +444,9 @@ export async function companionCharacters(): Promise<{ charId: string; name: str
   if (!known.size) return []
   const onScreen = Array.isArray(parsed.onScreen) ? parsed.onScreen : []
   const profiles = parsed.profiles as Record<string,Profile> | undefined
-  return [...known].flatMap(id=>{
+  return [...known].flatMap((id,index)=>{
     const p=profiles?.[id]
-    return p?.charId===id ? [{charId:id,name:[p.firstName,p.lastName].join(' '),onScreen:onScreen.includes(id)}] : []
+    return p?.charId===id ? [{charId:id,name:companionCharacterName(p, parsed.scene?.kind === 'creator' || parsed.characters[id]?.nameKnown === true, index),onScreen:onScreen.includes(id)}] : []
   })
 }
 
@@ -457,7 +470,7 @@ async function chooseCharacters(value: string[] | string, current: number): Prom
   if (state.members.map(m => m.charId).join(',') !== ids.join(',')) { history = []; invited = false }
   characters = next
   const sprites = JSON.parse(context).sprites ?? {}
-  const members = next.map(person => ({ sprites: sprites[person.charId], charId: person.charId, name: `${person.firstName} ${person.lastName}`, emotion: 'neutral' as const, text: '', sequence: 0 }))
+  const members = next.map(person => ({ sprites: sprites[person.charId], charId: person.charId, name: available.find(row => row.charId === person.charId)!.name, emotion: 'neutral' as const, text: '', sequence: 0 }))
   state = { ...state, members, charId: '', name: '', emotion: 'neutral', text: '' }
   overlays.forEach((win, index) => { if (members[index]) win.showInactive(); else win.hide() })
   broadcast()
@@ -509,28 +522,55 @@ export async function startCompanion(charIds: string[] | string, sourceId: strin
     if (current !== epoch) return
     selectedSource = { id: source.id, display_id: source.display_id }
     if (state.mode === 'fps' && interval !== 1) regularFpsInterval = interval
-    state = { ...state, sharing: true, conversationPaused: false, error: '', sourceId, sourceName: source.name, interval }
+    shareStartsAt = Date.now() + 3000
+    state = { ...state, sharing: true, startingIn: 3, conversationPaused: false, error: '', sourceId, sourceName: source.name, interval }
     configureCompanion(state.size, state.clickThrough, true)
   } finally { state = { ...state, busy: false }; broadcast() }
-  if (current === epoch && state.sharing) void reactToScreen(current)
+  if (current === epoch && state.sharing) startAfterCountdown(current)
+}
+
+function startAfterCountdown(current: number): void {
+  if (current !== epoch || !state.sharing || state.conversationPaused) return
+  const remaining = Math.max(0, shareStartsAt - Date.now())
+  state = { ...state, startingIn: Math.ceil(remaining / 1000) }
+  broadcast()
+  clearTimeout(timer)
+  if (remaining > 0) timer = setTimeout(() => startAfterCountdown(current), Math.min(1000, remaining))
+  else void reactToScreen(current)
 }
 
 export function commentCompanion(text: string): void {
   if (typeof text !== 'string' || !text.trim() || text.length > 2000) throw appError('COMPANION_TEXT', 'Write a message of up to 2,000 characters.')
   if (!state.sharing) throw appError('COMPANION_PAUSED', 'Start sharing before sending a message.')
+  if (Date.now() < shareStartsAt) throw appError('COMPANION_STARTING', 'Wait for the sharing countdown before sending. Your draft is kept.')
   if (state.conversationPaused) throw appError('COMPANION_PAUSED', 'Resume chat before sending. Your draft can wait here.')
   if (state.busy) throw appError('COMPANION_BUSY', 'Wait for the current conversation before sending.')
   clearTimeout(timer)
   void reactToScreen(epoch, text.trim())
 }
 
+// Some providers and native lookups finish after cancellation. Release the
+// current reaction immediately and leave any late result with its own request.
+async function waitForReaction<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  let abort!: () => void
+  const stopped = new Promise<never>((_, reject) => {
+    abort = () => reject(signal.reason)
+    if (signal.aborted) abort()
+    else signal.addEventListener('abort', abort, { once: true })
+  })
+  try { return await Promise.race([work, stopped]) }
+  finally { signal.removeEventListener('abort', abort) }
+}
+
 async function reactToScreen(current: number, message = ''): Promise<void> {
   if (current !== epoch || !state.sharing || state.conversationPaused || state.busy || !characters.length) return
-  state = { ...state, busy: true }
+  if (Date.now() < shareStartsAt) { startAfterCountdown(current); return }
+  state = { ...state, busy: true, startingIn: 0 }
   controller = new AbortController()
   const activeController = controller
   const signal = activeController.signal
-  const timeout = setTimeout(() => activeController.abort(), 60000)
+  let timedOut = false
+  const timeout = setTimeout(() => { timedOut = true; activeController.abort() }, 60000)
   const startedAt = Date.now(), rapid = rapidFps(state.mode, state.interval)
   broadcast()
   try {
@@ -540,7 +580,7 @@ async function reactToScreen(current: number, message = ''): Promise<void> {
     if (current !== epoch || signal.aborted) return
     // Window geometry can be slow on Windows: resolve alongside inference in Rapid mode.
     const targetSourceTask = state.pointing ? pointerSource(source).catch(() => null) : Promise.resolve(null)
-    const targetSource = rapid ? null : await targetSourceTask
+    const targetSource = rapid ? null : await waitForReaction(targetSourceTask, signal)
     if (current !== epoch || signal.aborted) return
     let referenceRevision = ''
     try { referenceRevision = JSON.parse(context).referenceRevision ?? '' } catch { /* Older contexts have no reference revision. */ }
@@ -553,7 +593,7 @@ async function reactToScreen(current: number, message = ''): Promise<void> {
     // The profile and local game context are not repeated in the app log.
     request.logFrom = request.user.length
     if (rapid) request.system += '\nRAPID FPS REPLIES override the usual exchange length: return zero or ONE line from rapidSpeaker, 3–8 words, one short sentence, at most 72 characters. One actionable callout and one useful point at most. When it refers to a clearly visible location, include that point immediately; otherwise point=null. Never guess a location. Never write a multi-person exchange in this mode.'
-    const reply = await completeModStructured<{lines:CompanionLine[]}>(request,signal,rapid)
+    const reply = await waitForReaction(completeModStructured<{lines:CompanionLine[]}>(request,signal,rapid), signal)
     clearTimeout(timeout)
     if (current !== epoch || signal.aborted) return
     if (!reply || !validCompanionLines(reply.lines, state.members.map(member => member.charId))) throw appError('COMPANION_REPLY', 'The model returned an invalid conversation. Try sharing again with a vision-capable model.')
@@ -589,7 +629,7 @@ async function reactToScreen(current: number, message = ''): Promise<void> {
     if (current === epoch) {
       const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : 'Screen reaction failed. Check your vision-capable writer model in Settings.'
       pauseCompanion()
-      state = { ...state, error: signal.aborted ? 'The reaction timed out. Sharing is paused.' : message }
+      state = { ...state, error: timedOut ? 'The reaction timed out. Sharing is paused.' : message }
     }
   } finally {
     clearTimeout(timeout)
@@ -615,31 +655,36 @@ function modeInstructions(): string {
   }
 }
 
-let captureInProgress=false
+let screenshotController: AbortController | null = null
 export async function captureCompanionDesktop(delaySeconds=5):Promise<string>{
- if(captureInProgress)throw Error('A desktop screenshot is already being taken.')
+ if(screenshotController)throw Error('A desktop screenshot is already being taken.')
  const visible=overlays.filter(win=>!win.isDestroyed()&&win.isVisible())
  if(!visible.length)throw Error('Show a character overlay before taking this screenshot.')
- captureInProgress=true
- const controlsVisible=Boolean(panel&&!panel.isDestroyed()&&panel.isVisible())
- const chatVisible=Boolean(chat&&!chat.isDestroyed()&&chat.isVisible())
+ const capture = new AbortController()
+ screenshotController = capture
+ const controls = panel?.isVisible() ? panel : null
+ const conversation = chat?.isVisible() ? chat : null
  try{
-  panel?.hide();chat?.hide()
-  await new Promise(resolve=>setTimeout(resolve,Math.max(3,Math.min(15,Number(delaySeconds)||5))*1000))
+  controls?.hide();conversation?.hide()
+  await dwell(Math.max(3,Math.min(15,Number(delaySeconds)||5))*1000, capture.signal)
+  capture.signal.throwIfAborted()
   for(const win of visible)win.setContentProtection(false)
-  await new Promise(resolve=>setTimeout(resolve,350))
+  await dwell(350, capture.signal)
+  capture.signal.throwIfAborted()
   const display=screen.getPrimaryDisplay()
   const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:Math.round(display.size.width*display.scaleFactor),height:Math.round(display.size.height*display.scaleFactor)}})
+  capture.signal.throwIfAborted()
   const source=sources.find(s=>s.display_id===String(display.id))??sources[0]
   if(!source||source.thumbnail.isEmpty())throw Error('Could not capture the desktop.')
   const folder=join(app.getPath('pictures'),'Venus University','Screenshots');await mkdir(folder,{recursive:true})
+  capture.signal.throwIfAborted()
   const file=join(folder,'desktop-character-overlay-'+Date.now()+'.png')
   await writeFile(file,source.thumbnail.toPNG())
   return file
  }finally{
   for(const win of visible)if(!win.isDestroyed())win.setContentProtection(true)
-  if(controlsVisible&&panel&&!panel.isDestroyed())panel.showInactive()
-  if(chatVisible&&chat&&!chat.isDestroyed())chat.showInactive()
-  captureInProgress=false
+  if(controls&&!controls.isDestroyed())controls.showInactive()
+  if(conversation&&!conversation.isDestroyed())conversation.showInactive()
+  screenshotController = null
  }
 }

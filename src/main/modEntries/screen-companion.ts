@@ -1,6 +1,7 @@
 import { BrowserWindow, ipcMain, webContents } from 'electron'
 import { ownsCompanionScene } from '../screenCompanion'
 import {modIsOn,type InvokeHandler} from '@vx/modkit/main'
+import { appError } from '@vx/modkit/shared'
 import {companionError, type Emotion} from '../../shared/screenCompanion'
 import type {CompanionMode,CompanionVoicePatch} from '../../shared/screenCompanion'
 import {captureFrameCompanion,messageSizeCompanion,rapidCompanion,companionCheckpoint,pointingCompanion,companionDocument,acknowledgeCompanion,assertCompanionSender,cancelCompanionTranscription,captureCompanionDesktop,closeCompanion,commentCompanion,companionAudioDone,companionCharacters,companionSources,companionState,configureCompanion,detachCompanion,dictateCompanion,microphoneCompanion,modeCompanion,muteCompanion,openCompanion,pauseCompanion,pauseCompanionConversation,previewCompanion,showCompanionChat,showCompanionControls,startCompanion,takeCompanionTurn,transcribeCompanion,voiceCompanion} from '../screenCompanion'
@@ -42,7 +43,7 @@ function initialize(){if(initialized)return;initialized=true
  },500);timer.unref()
 }
 function syncDocument(id:unknown,document:unknown,context?:unknown){
- if(companionState().sceneId!==id)throw Error('That laptop session has ended.')
+ if(companionState().sceneId!==id)throw appError('COMPANION_SCENE_ENDED','That laptop session has ended.')
  if(document===null||document===undefined){companionDocument('','',context);return}
  const doc=document as {name:string;text:string}
  companionDocument(doc.name,doc.text,context)
@@ -57,7 +58,7 @@ export default function screenCompanionMain() {
       syncDocument(id, document, context)
     },
     document: ({ senderId }, id, document, context) => {
-      if (!ownsCompanionScene(senderId, id)) throw Error('That laptop session has ended.')
+      if (!ownsCompanionScene(senderId, id)) throw appError('COMPANION_SCENE_ENDED','That laptop session has ended.')
       syncDocument(id, document, context)
     },
     poll: ({ senderId }, id) => ({

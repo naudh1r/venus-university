@@ -232,6 +232,7 @@ function Companion(): JSX.Element {
         if (sharing) await unwrap(api.pause())
         else { await unwrap(api.mode(mode, coachingContext)); await unwrap(api.start(charIds, sourceId, interval)) }
         })}>{sharing ? 'Pause sharing' : 'Start sharing'} <span aria-hidden="true">{sharing ? 'Ⅱ' : '↗'}</span></button>
+        {Boolean(state?.startingIn) && <p role="status">Sharing starts in {state!.startingIn}… Switch to the screen or window you want to share.</p>}
       </div>
     </footer>
   </main>

@@ -1,7 +1,7 @@
 import { hasDesktopSurfaces, canRecordSceneTurn, modIsOn, openSceneExchange, sceneExchangeContext, subscribeSceneTurns, showError, spriteUrl } from '@vx/modkit/renderer'
 import { appError } from '@vx/modkit/shared'
 import { readSceneNotes, notesConversationScope } from '../sceneNotes/state'
-import { EMOTIONS, validCompanionLines, validCompanionParticipants } from '../../shared/screenCompanion'
+import { companionCharacterName, EMOTIONS, validCompanionLines, validCompanionParticipants } from '../../shared/screenCompanion'
 import { companionGameApi } from '../screenCompanionHook'
 
 let reopen: (() => Promise<void>) | undefined
@@ -17,6 +17,7 @@ export async function openScreenCompanion(): Promise<void> {
     return
   }
   const sceneId = crypto.randomUUID(), api = companionGameApi(sceneId)
+  let closed = false
   function context() {
     const view = sceneExchangeContext(), scope = notesConversationScope()
     return JSON.stringify({
@@ -33,7 +34,8 @@ export async function openScreenCompanion(): Promise<void> {
     if(exchange.current() && (turn.referenceRevision??'')===notesConversationScope().revision &&
        validCompanionParticipants(turn.participants) && validCompanionLines(turn.lines,turn.participants) &&
        typeof turn.invitation==='boolean' && typeof turn.message==='string' && turn.message.length<=2000) {
-      const names = turn.invitation ? new Map(sceneExchangeContext().people.map(p=>[p.id,p.profile.firstName])) : null
+      const view = turn.invitation ? sceneExchangeContext() : null
+      const names = view ? new Map(view.people.map((p,index)=>[p.id,companionCharacterName(p.profile, view.scene.kind === 'creator' || p.relationship.nameKnown === true,index)])) : null
       const invited = turn.participants.map(id=>names?.get(id)??'')
       const label = invited.length>1 ? invited.slice(0,-1).join(', ')+' and '+invited.at(-1) : invited[0]
       const actions = [turn.invitation ? `I open my laptop and share its screen with ${label}.` : '',turn.message].filter(Boolean)
@@ -48,14 +50,23 @@ export async function openScreenCompanion(): Promise<void> {
     const next=readSceneNotes()
     if(next!==document){
       document=next
-      void api.document(sceneId,next,context()).then(r=>{if(!r.ok)showError(r.error)})
+      void api.document(sceneId,next,context()).then(r=>{
+        if(closed || !exchange.current())return
+        if(!r.ok){
+          if(r.error.code==='COMPANION_SCENE_ENDED'){close();return}
+          showError(r.error)
+        }
+      })
     }
   })
   function close(){
+    if(closed)return
+    closed=true
     reopen=undefined;offTurn();offStore();exchange!.close();void api.detach(sceneId)
   }
   reopen=async()=>{
     const result=await api.open(context(),sceneId,readSceneNotes())
+    if(closed)return
     if(!result.ok){close();showError(result.error)}
   }
   await reopen()

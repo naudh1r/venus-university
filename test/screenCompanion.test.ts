@@ -2,7 +2,7 @@ import * as nativeExchange from '../src/renderer/mods/sceneExchange'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { CompanionTurn } from '@shared/screenCompanion'
 import { defaultMilestones, type SavedScene, type SceneSetup } from '@shared/sceneCreator'
-import { READER_SPEAKER, type SaveDraft, type GameSave } from '@shared/types'
+import { READER_SPEAKER, type SaveDraft, type GameSave, type Result } from '@shared/types'
 import { buildCharKeyToId, useGameStore } from '../src/renderer/stores/gameStore'
 import { canShareLaptop, openScreenCompanion } from '../src/renderer/stores/screenCompanion'
 import { sceneNotes, notesConversationScope } from '../src/renderer/sceneNotes/state'
@@ -29,11 +29,11 @@ vi.mock('../src/renderer/screenCompanionHook',()=>({companionGameApi:()=>({open,
 let receive: (turn: CompanionTurn) => void
 let flushCheckpoint: (() => void) | undefined
 let sceneId: string
-const open = vi.fn(async (_context: string, id?: string) => { sceneId = id!; return { ok: true as const, data: undefined } })
+const open = vi.fn(async (_context: string, id?: string, _document?: unknown) => { sceneId = id!; return { ok: true as const, data: undefined } })
 const saveScene = vi.fn(async (_scene: SavedScene) => ({ ok: true as const, data: undefined }))
 const acknowledge = vi.fn(async (_sceneId: string, _id: number, _accepted: boolean) => ({ ok: true as const, data: undefined }))
 const detach = vi.fn(async () => ({ ok: true as const, data: undefined }))
-const syncDocument = vi.fn(async (_id: string, _document: unknown, _context: string) => ({ ok: true as const, data: undefined }))
+const syncDocument = vi.fn(async (_id: string, _document: unknown, _context: string): Promise<Result<void>> => ({ ok: true, data: undefined }))
 const autosave = vi.fn(async (_id: string, _draft: SaveDraft) => ({ ok: true as const, data: {} as GameSave }))
 
 beforeEach(() => {
@@ -278,6 +278,33 @@ it('allows a story study scene with passive Prompt Studio rollback history', asy
  expect(canShareLaptop()).toBe(true)
  await openScreenCompanion()
  expect(open).toHaveBeenCalled()
+})
+
+it('drops a late document-sync failure after the old laptop session has closed', async () => {
+  const { showError } = await import('@vx/modkit/renderer')
+  let finish!: (result: Result<void>) => void
+  syncDocument.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  await openScreenCompanion()
+  sceneNotes.set({ document: { name: 'current.txt', text: 'Current reference.' } })
+  expect(syncDocument).toHaveBeenCalledTimes(1)
+  useGameStore.getState().reset()
+  finish({ ok: false, error: { code: 'COMPANION_SCENE_ENDED', message: 'That laptop session has ended.' } })
+  await Promise.resolve()
+  expect(showError).not.toHaveBeenCalled()
+})
+
+it('retires an ended backend session silently and reopens with the current document', async () => {
+  const { showError } = await import('@vx/modkit/renderer')
+  syncDocument.mockResolvedValueOnce({ ok: false, error: { code: 'COMPANION_SCENE_ENDED', message: 'That laptop session has ended.' } })
+  await openScreenCompanion()
+  const oldId = sceneId
+  const document = { name: 'current.txt', text: 'Current reference.' }
+  sceneNotes.set({ document })
+  await Promise.resolve()
+  expect(showError).not.toHaveBeenCalled()
+  await openScreenCompanion()
+  expect(sceneId).not.toBe(oldId)
+  expect(open.mock.calls.at(-1)?.[2]).toEqual(document)
 })
 
 it('coalesces many rapid callouts into one checkpoint save without losing dialogue', async () => {
