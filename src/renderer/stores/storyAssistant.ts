@@ -9,7 +9,10 @@ import {
   isOrientationSlot,
   lessNsfwText,
   modState,
-  useModOption
+  sceneSuggestionsPaused,
+  subscribeSceneSuggestionsPaused,
+  useModOption,
+  useSceneSuggestionsPaused
 } from '@vx/modkit/renderer'
 import {
   affectionFor,
@@ -71,7 +74,9 @@ function assistantSeatOf(s: GameState): AssistantSeat {
 
 /** {@link assistantSeatOf} for a component, kept current as the game moves. */
 export function useAssistantSeat(): AssistantSeat {
-  return useGameStore(assistantSeatOf)
+  const paused = useSceneSuggestionsPaused()
+  const seat = useGameStore(assistantSeatOf)
+  return paused ? 'gone' : seat
 }
 
 /** Whether the scene has lines on it yet. */
@@ -160,9 +165,11 @@ interface AssistantState {
   failed: { point: ScenePoint; question: string; group: string; message: string } | null
 }
 
+const EMPTY_ASSISTANT = Object.freeze({ read: null, asking: null, failed: null })
+
 /** Story Assistant's state; nothing of it is saved, and a game entered or left starts it over. */
 const assistant = modState<AssistantState>(STORY_ASSISTANT, {
-  initial: { read: null, asking: null, failed: null },
+  initial: EMPTY_ASSISTANT,
   lifetime: 'game'
 })
 
@@ -182,18 +189,20 @@ function assistantNowOf(state: AssistantState, game: GameState): AssistantNow {
 
 /** {@link AssistantNow} as the stores stand this moment. */
 export function assistantNow(): AssistantNow {
+  if (sceneSuggestionsPaused()) return EMPTY_ASSISTANT
   return assistantNowOf(assistant.get(), useGameStore.getState())
 }
 
 /** {@link AssistantNow} for a component, kept current as either store moves. */
 export function useAssistantNow(): AssistantNow {
+  const paused = useSceneSuggestionsPaused()
   const state = assistant.use()
   // Each a field of its own, so the hook answers to the scene moving and nothing else.
   useGameStore((s) => s.currentSceneTranscript)
   useGameStore((s) => s.sceneSummaries)
   useGameStore((s) => s.loads)
   useGameStore((s) => s.playthroughId)
-  return assistantNowOf(state, useGameStore.getState())
+  return paused ? EMPTY_ASSISTANT : assistantNowOf(state, useGameStore.getState())
 }
 
 /** Cancels the call still out, if any; its answer is then dropped unseen. */
@@ -202,6 +211,11 @@ function cancelAssistant(): void {
   out = null
   if (assistant.get().asking) assistant.set({ ...assistant.get(), asking: null })
 }
+
+// Cancellation is synchronous with activity start, even with no assistant panel mounted.
+subscribeSceneSuggestionsPaused(() => {
+  if (sceneSuggestionsPaused()) cancelAssistant()
+})
 
 /**
  * Cancels a read under way that the scene has moved past, and leaving the game cancels any: for
@@ -339,6 +353,7 @@ let asks = 0
  * the scene has moved, or after a later ask, is dropped unseen.
  */
 export async function askAssistant(question: string, choices: ChoiceCount): Promise<void> {
+  if (sceneSuggestionsPaused()) return
   cancelAssistant()
   const point = pointOf(useGameStore.getState())
   const asked = question.trim()
