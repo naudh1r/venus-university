@@ -92,10 +92,11 @@ const SPREAD_CUES = [
 /** Anything about her behind puts it in shot the same way. */
 const REAR_CUES = ['spreading her ass', 'spreading her cheeks', 'holding her cheeks apart']
 
-/** What a shot from the waist up, or of her face, leaves in it. */
+/** Which body regions remain within an explicit crop. */
 const FRAMED_SEEN: Partial<Record<Framing, readonly Region[]>> = {
   face: [],
-  waist: ['bust', 'nipples']
+  waist: ['bust', 'nipples'],
+  lower: ['pubic', 'hipsThighs', 'buttocks']
 }
 
 /**
@@ -110,8 +111,8 @@ function seenIn(caption: string, framing: Framing | null): Set<Region> {
 
   if (saysAny(text, SPREAD_CUES)) seen.add('pubic')
   if (saysAny(text, REAR_CUES)) seen.add('buttocks')
-  // A face alone has nothing of her body in it, not even the middle of her.
-  if (framing !== 'face') for (const field of ALWAYS_SEEN) seen.add(field)
+  // Neither a face-only nor a waist-down crop includes the middle of her.
+  if (framing !== 'face' && framing !== 'lower') for (const field of ALWAYS_SEEN) seen.add(field)
   return seen
 }
 
@@ -222,9 +223,12 @@ const TOP_BARE_CUES = [
 /** Words that bare her bottom half, whatever is still on above it. */
 const BOTTOM_BARE_CUES = ['bottomless', 'no bottoms', 'no panties', 'without panties', 'pantiless']
 
-/** "Nothing on below": her bottom half, said in the words for all of her. */
+/**
+ * "Nothing on below", "naked from the waist down": her bottom half, said in the words for all of
+ * her. Her top stays on.
+ */
 const NOTHING_BELOW =
-  /\bnothing\s+(?:on\s+)?(?:below|underneath|under\s+it|down\s+there|on\s+the\s+bottom|from\s+the\s+waist\s+down)\b/
+  /\b(?:nothing\s+(?:on\s+)?(?:below|underneath|under\s+it|down\s+there|on\s+the\s+bottom|from\s+the\s+waist\s+down)|(?:naked|nude|bare)\s+(?:from\s+the\s+waist\s+down|below\s+the\s+waist))\b/
 
 /** What each half is. */
 const TOP_HALF: readonly Region[] = ['bust', 'nipples']
@@ -276,6 +280,33 @@ export interface PartialPhotoExposure {
 }
 
 /** Reveal tags settle the bare half; an unrecognised reveal retains the usual coverage. */
+const TOP_GARMENT_WORDS = ['neckline', 'shirt', 'top', 'sweater', 'blouse', 'hoodie', 'dress']
+const BOTTOM_GARMENT_WORDS = ['shorts', 'skirt', 'pants', 'jeans', 'panties', 'leggings', 'trousers']
+
+/**
+ * Whether what she pulls is her top: the garment nearest the pull in its own clause, on either
+ * side of the verb ("pulling down her neckline", "her neckline pulled down"). Jeans she is wearing
+ * in the same clause leave a pulled neckline a pulled neckline; "pulling up her shorts" beside "in
+ * just her bandeau top" still pulls the shorts.
+ */
+function pullsHerTop(text: string): boolean {
+  return text.split(/[,.;]/).some((clause) => {
+    const words = clause.split(/\s+/).filter(Boolean)
+    const garments = words.flatMap((word, at) =>
+      saysAny(word, TOP_GARMENT_WORDS) ? [{ at, top: true }]
+        : saysAny(word, BOTTOM_GARMENT_WORDS) ? [{ at, top: false }] : []
+    )
+    return words.some((word, at) => {
+      if (!/^(?:pull|tug)/.test(word)) return false
+      const nearest = garments.reduce<{ at: number; top: boolean } | undefined>(
+        (best, one) => (!best || Math.abs(one.at - at) < Math.abs(best.at - at) ? one : best),
+        undefined
+      )
+      return nearest?.top === true
+    })
+  })
+}
+
 export function partialExposureIn(
   caption: string,
   reveals: readonly string[],
@@ -285,8 +316,7 @@ export function partialExposureIn(
   const text = caption.toLowerCase()
   const upper =
     reveals.some((tag) => ['breasts_out', 'shirt_lift', 'bra_lift', 'bra_pull'].includes(tag)) ||
-    (reveals.includes('clothes_pull') &&
-      saysAny(text, ['neckline', 'shirt', 'top', 'sweater', 'blouse', 'hoodie', 'dress'])) ||
+    (reveals.includes('clothes_pull') && pullsHerTop(text)) ||
     saysAny(text, TOP_BARE_CUES)
   const lower =
     reveals.some((tag) =>

@@ -5,6 +5,7 @@ import {
   type Character
 } from '@vx/modkit/shared'
 import { says, saysAny } from './photoWords'
+import { framingOf, type Framing } from './photoFraming'
 
 /**
  * Which of her own wardrobes a photograph shows.
@@ -121,7 +122,12 @@ export function photoWardrobe(
   const named = namedWardrobe(character, text)
   if (named) return named.tags
 
-  if (captionDressesHer) return null
+  if (captionDressesHer) {
+    const removed = removedGarments(character.outfit, text)
+    const remaining = removed.reduce((words, noun) => words.replace(removalPattern(noun), ''), text)
+    if (removed.length === 0 || saysAny(remaining, GARMENT_NOUNS)) return null
+    return character.outfit
+  }
   if (swimwearAllowed && saysAny(text, SWIM_PLACES)) return outfitTagsFor(character, 'swim')
   if (saysAny(text, PE_PLACES)) return outfitTagsFor(character, 'pe')
   return character.outfit
@@ -212,6 +218,48 @@ export function photoWardrobeFromGarment(
     }
   }
   return null
+}
+
+/** Garment nouns identify the same item across its colour and style tags. */
+const FOOTWEAR = ['shoes', 'boots', 'loafers', 'heels', 'sneakers', 'sandals']
+const LOWER_GARMENTS = [
+  'skirt', 'shorts', 'jeans', 'pants', 'trousers', 'leggings',
+  'thighhighs', 'thigh highs', 'stockings', 'socks', ...FOOTWEAR
+]
+const REMOVABLE_GARMENTS = [...GARMENT_NOUNS, ...LOWER_GARMENTS]
+
+/** A garment removed from her, rather than merely shifted while she wears it. */
+function removalPattern(noun: string): RegExp {
+  const garment = `${noun}(?:s|es)?\\b`
+  const description = "(?:\\s+(?!(?:and|with|in|wearing)\\b)[a-z'’-]+){0,3}?\\s+"
+  const off = 'off(?!\\s+(?:(?:one|of|her|the|a)\\s+){0,4}shoulders?\\b)'
+  return new RegExp(
+    `\\b(?:without|took off|discarded)${description}${garment}|` +
+      `\\b${garment}\\s+(?:(?:is|was)\\s+)?(?:${off}|draped over)\\b`,
+    'g'
+  )
+}
+
+function removedGarments(tags: readonly string[], text: string): string[] {
+  const outfit = garmentWords(tags.join(' '))
+  return REMOVABLE_GARMENTS.filter(
+    (noun) => says(outfit, noun) && removalPattern(noun).test(text)
+  )
+}
+
+/** Only clothes still worn and within the shot contribute outfit tags. */
+export function filterPhotoWardrobe(
+  tags: readonly string[],
+  caption: string,
+  framing: Framing | null = framingOf(caption)
+): readonly string[] {
+  const removed = removedGarments(tags, caption.toLowerCase())
+  const upper = framing === 'waist' || framing === 'face'
+  return tags.filter((tag) => {
+    const words = garmentWords(tag)
+    if (saysAny(words, removed)) return false
+    return !upper || (!saysAny(words, LOWER_GARMENTS) && !says(words, 'thighs'))
+  })
 }
 
 /** A wardrobe's tags as words a caption can use: `pink_cardigan` is "pink cardigan". */

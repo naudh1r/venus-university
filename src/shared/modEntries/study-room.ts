@@ -1,5 +1,5 @@
 import type {ModDef} from '@vx/modkit/shared'
-const mod:ModDef={id:'study-room',name:'Study Together',author:'Community',version:'0.1.0',hooks: [
+const mod:ModDef={id:'study-room',name:'Study Together',author: 'Maestro Leeds',version:'0.1.0',hooks: [
     'saveField',
     'renderer:setSceneSuggestionsPaused',
     'renderer:subscribeSceneTurns',

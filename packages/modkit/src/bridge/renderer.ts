@@ -2,7 +2,7 @@
  * The bridge for the window: every type and function of core's `src/renderer` that the kit hands
  * a mod, re-exported here and nowhere else in the kit (see `shared.ts`).
  */
-export { spriteUrl } from '../../../../src/renderer/stores/characterStore'
+export { profileUrl, spriteUrl, useSpriteVersion } from '../../../../src/renderer/stores/characterStore'
 export type { PromptState } from '../../../../src/renderer/prompts/scenePrompt'
 export type { SlotIntroInput } from '../../../../src/renderer/prompts/slotIntroPrompt'
 export type { TextingPromptState } from '../../../../src/renderer/prompts/textingPrompt'
@@ -172,3 +172,4 @@ export { canInviteToScene, freeForInvitation, subscribeInvitations, startInvited
 
 export { hasDesktopSurfaces, canRecordSceneTurn, openSceneExchange, sceneExchangeContext, subscribeSceneTurns } from '../../../../src/renderer/mods/sceneExchange'
 export type { ExternalSceneTurn, SceneExchange, SceneExchangeContext } from '../../../../src/renderer/mods/sceneExchange'
+export { setSceneSuggestionsPaused, sceneSuggestionsPaused, useSceneSuggestionsPaused, subscribeSceneSuggestionsPaused } from '../../../../src/renderer/mods/sceneSuggestions'

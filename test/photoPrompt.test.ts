@@ -176,11 +176,11 @@ describe('the clothes she is moving aside', () => {
         'clothes_pull',
         'breasts_out',
         '(ivory_sweater:1.2)',
-        'plaid_skirt',
         'partially_undressed'
       ])
     )
     expect(tags).not.toContain('hand_on_own_hip')
+    expect(tags).not.toContain('plaid_skirt')
     expect(positive).not.toContain('everyday clothes')
     expect(positive).toContain('pulling down the neckline with both hands to bare both breasts')
     expect(positive.indexOf('ivory_sweater')).toBeLessThan(positive.indexOf('partially_undressed'))
@@ -190,6 +190,9 @@ describe('the clothes she is moving aside', () => {
     ['pulling down her top to show her breasts', ['clothes_pull', 'breasts_out']],
     ['her shirt pulled down, her breasts exposed', ['clothes_pull', 'breasts_out']],
     ['pulling down her dress to bare both breasts', ['clothes_pull', 'breasts_out']],
+    ['her neckline pulled down for the picture', ['clothes_pull', 'breasts_out']],
+    ['pulling down her neckline', ['clothes_pull', 'breasts_out']],
+    ['wearing jeans with her neckline pulled down for the picture', ['clothes_pull', 'breasts_out']],
     ['lifting her sweater, exposing her breasts', ['shirt_lift', 'breasts_out']],
     ['her shirt lifted, showing underboob', ['shirt_lift', 'underboob']],
     ['lifting her skirt', ['skirt_lift']],
@@ -205,6 +208,8 @@ describe('the clothes she is moving aside', () => {
   ])('names the explicit reveal in %s', (action, expected) => {
     const { positive } = buildPhotoPrompt(girl, 'explicit', `In her everyday clothes, ${action}.`)
     expect(tagsOf(positive)).toEqual(expect.arrayContaining(expected))
+    // Each reveal is said once, even where the pose reads the same pull as her clothes do.
+    for (const tag of expected) expect(tagsOf(positive).filter((one) => one === tag)).toHaveLength(1)
     if (expected.includes('panty_pull')) expect(tagsOf(positive)).not.toContain('panties_aside')
     if (expected.includes('bra_pull')) expect(tagsOf(positive)).not.toContain('bra_lift')
   })
@@ -347,6 +352,28 @@ describe('the half a partly undressed photo bares', () => {
     expect(tags).not.toContain('nipples')
     expect(tags).not.toContain('breasts_out')
     expect(positive).toContain('her lavender pleated mini skirt hitched up')
+  })
+
+  it('frames a close-up of her face on her face, dressed only at the neckline', () => {
+    const face = buildPhotoPrompt(girl, 'everyday', 'A close-up of her face at a cafe, smiling.').positive
+    expect(face).toContain('face_focus')
+    expect(face).not.toMatch(/upper_body|hand_up|skirt/)
+    const close = buildPhotoPrompt(girl, 'everyday', 'A close-up photo of her at a cafe, smiling.').positive
+    expect(close).not.toContain('face_focus')
+  })
+
+  it('bares only her lower half when she is naked from the waist down', () => {
+    const tags = tagsOf(
+      buildPhotoPrompt(
+        girl,
+        'explicit',
+        'Standing, naked from the waist down in just her bandeau top, pulling up the back of her shorts.'
+      ).positive
+    )
+    expect(tags).toContain('bottomless')
+    expect(tags).not.toContain('completely_nude')
+    expect(tags).not.toContain('nipples')
+    expect(tags).not.toContain('breasts_out')
   })
 
   it('bares only her upper half when she pulls down her top', () => {
