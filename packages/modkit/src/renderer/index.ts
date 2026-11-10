@@ -174,7 +174,8 @@ export { boxParts, dropTransientLines, reachTurn, readerSaysInScene, sayInScene 
 export { invoke } from '../bridge/renderer'
 export { addMemory, addPostComments, saveChanges, toggleFeedLike } from '../bridge/renderer'
 
-export { Lightbox, memoryLines, profileLines, relationshipLines, spaced, spriteUrl } from '../bridge/renderer'
+export { Lightbox, memoryLines, profileLines, relationshipLines, spaced } from '../bridge/renderer'
+export { profileUrl, spriteUrl, useSpriteVersion } from '../bridge/renderer'
 export type { RelationshipMedium, RelationshipProgress } from '../bridge/renderer'
 
 export {
@@ -247,3 +248,4 @@ export { canInviteToScene, freeForInvitation, subscribeInvitations, startInvited
 
 export { hasDesktopSurfaces, canRecordSceneTurn, openSceneExchange, sceneExchangeContext, subscribeSceneTurns } from '../bridge/renderer'
 export type { ExternalSceneTurn, SceneExchange, SceneExchangeContext } from '../bridge/renderer'
+export { setSceneSuggestionsPaused, sceneSuggestionsPaused, useSceneSuggestionsPaused, subscribeSceneSuggestionsPaused } from '../bridge/renderer'
