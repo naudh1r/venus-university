@@ -5,5 +5,14 @@ export function companionGameApi(sceneId:string):GameCompanionApi{return {
  document:(id,document,context)=>invoke('screen-companion','document',[id,document,context]),
  detach:id=>invoke('screen-companion','detach',[id]),
  acknowledge:(id,turn,accepted)=>invoke('screen-companion','ack',[id,turn,accepted]),
- onTurn:(listener,checkpoint)=>{let active=true,pending=false,lastCheckpoint:number|undefined;const timer=setInterval(()=>{if(!active||pending||!modIsOn('screen-companion'))return;pending=true;void invoke<CompanionPoll>('screen-companion','poll',[sceneId]).then(r=>{if(active&&r.ok){if(lastCheckpoint!==undefined&&lastCheckpoint!==r.data.checkpoint)checkpoint?.();lastCheckpoint=r.data.checkpoint;if(r.data.turn)listener(r.data.turn)}}).finally(()=>{pending=false})},200);return()=>{active=false;clearInterval(timer)}}
+ onTurn:(listener,checkpoint,sharing)=>{let active=true,pending=false,lastCheckpoint:number|undefined;const timer=setInterval(()=>{
+  if(!active||pending)return
+  if(!modIsOn('screen-companion')){sharing?.(false);return}
+  pending=true
+  void invoke<CompanionPoll>('screen-companion','poll',[sceneId]).then(r=>{
+   if(!active)return
+   sharing?.(r.ok && r.data.sharing === true)
+   if(r.ok){if(lastCheckpoint!==undefined&&lastCheckpoint!==r.data.checkpoint)checkpoint?.();lastCheckpoint=r.data.checkpoint;if(r.data.turn)listener(r.data.turn)}
+  }).catch(()=>{if(active)sharing?.(false)}).finally(()=>{pending=false})
+ },200);return()=>{active=false;clearInterval(timer);sharing?.(false)}}
 }}
