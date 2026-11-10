@@ -846,7 +846,7 @@ const DUO_EXPRESSIONS: readonly [RegExp, readonly string[]][] = [
  * out of the picture, which is the lesser fault.
  */
 const DUO_GESTURES: readonly [RegExp, readonly string[]][] = [
-  [/\bpeace sign|\bv sign/i, ['v']],
+  [/\bpeace sign|\bv sign|\btwo fingers (?:up|raised)|\braising two fingers/i, ['v']],
   [/\bthumbs? up/i, ['thumbs_up']],
   [/\bhand on her cheek|\bhand to her cheek|\bcheek in her hand|\bresting a hand on her cheek/i, ['hand_on_own_cheek']],
   [/\bheart with her hands|\bheart hands|\bhand heart/i, ['heart_hands']],
@@ -889,17 +889,51 @@ function duoExpressions(text: string): { left: string[]; right: string[] } {
   // "Her and her friend", "a photo of me and her friend": the two of them together wherever it
   // stands, not a split. Only a later "while her friend …" gives her friend words of her own.
   const shared = text
-    .replace(/\b(?:her|she|me|i)\s+and\s+her friend\b/gi, 'both')
-    .replace(/\bher friend\s+and\s+(?:her|me|i)\b/gi, 'both')
-  const clause = [...shared.matchAll(FRIEND_CLAUSE)].find((one) => own(one[2]).length > 0)
+    .replace(/\b(?:her|she|me|i)\s+and\s+her friend\b/gi, 'the two of them')
+    .replace(/\bher friend\s+and\s+(?:her|me|i)\b/gi, 'the two of them')
+  // "her friend gives an awkward, shy smile", "her friend, cheeks red, grins": the short runs
+  // after a comma still describe her friend, up to two, as long as they name nobody else.
+  const clauses = [...shared.matchAll(FRIEND_CLAUSE)].map((one) => {
+    let theirs = one[2]
+    let after = shared.slice((one.index ?? 0) + one[0].length)
+    for (let step = 0; step < 2 && own(theirs).length === 0; step++) {
+      const next = /^,([^,.;]*)/.exec(after)?.[1]
+      if (next === undefined || next.trim().split(/\s+/).length > 3) break
+      if (/\b(?:her|she|both|they|them|me|i)\b/i.test(next)) break
+      theirs = `${theirs},${next}`
+      after = after.slice(next.length + 1)
+    }
+    return { hers: one[1], theirs }
+  })
+  // Either one's own words split them: "her waving while her friend gives a shy look".
+  const clause = clauses.find((one) => own(one.theirs).length > 0 || own(one.hers).length > 0)
   if (clause) {
-    const rest = shared.replace(clause[2], '')
-    const hers = facesIn(clause[1]).length > 0 ? facesIn(clause[1]) : facesIn(rest)
-    const hands = gesturesIn(clause[1]).length > 0 ? gesturesIn(clause[1]) : gesturesIn(rest)
-    const theirs = facesIn(clause[2])
+    const rest = shared.replace(clause.theirs, '')
+    // "…, both laughing" and "her and her friend laughing…" are said of the two of them, whoever
+    // else has words of her own; the latter only up to where one of them is singled out.
+    const together = rest
+      .split(/[,.;]/)
+      .map((part) =>
+        /\bboth\b/i.test(part)
+          ? part
+          : /\bthe two of them\b/i.test(part)
+            ? part.split(/\b(?:with|while|her|me|i)\b/i)[0]
+            : ''
+      )
+      .join(',')
+    const hers = facesIn(clause.hers).length > 0 ? facesIn(clause.hers) : facesIn(rest)
+    const hands = gesturesIn(clause.hers).length > 0 ? gesturesIn(clause.hers) : gesturesIn(rest)
+    const theirs = [...new Set([...facesIn(clause.theirs), ...facesIn(together)])]
+    const mine = [...new Set([...hers, ...facesIn(together)])]
     return {
-      left: withBlush([...(hers.length > 0 ? hers : ['smile']), ...hands], clause[1]),
-      right: withBlush([...(theirs.length > 0 ? theirs : ['smile']), ...gesturesIn(clause[2])], clause[2])
+      left: withBlush([...(mine.length > 0 ? mine : ['smile']), ...hands], clause.hers),
+      right: withBlush(
+        [
+          ...(theirs.length > 0 ? theirs : ['smile']),
+          ...new Set([...gesturesIn(clause.theirs), ...gesturesIn(together)])
+        ],
+        clause.theirs
+      )
     }
   }
   const both = withBlush([...(facesIn(text).length > 0 ? facesIn(text) : ['smile']), ...gesturesIn(text)], text)
