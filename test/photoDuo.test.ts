@@ -84,6 +84,23 @@ describe('a picture of two', () => {
     expect(both.right).toMatch(/\bone_eye_closed\b/)
   })
 
+  it("reads her friend's face past a comma, and keeps what both of them do", () => {
+    const shy = buildDuoPhotoPrompt(
+      risa, ana, 'suggestive',
+      'Her and her friend at the pool, with her winking while her friend gives an awkward, shy smile, side by side.'
+    )
+    expect(shy.left).toMatch(/\bone_eye_closed\b/)
+    expect(shy.right).toMatch(/\bsmile\b/)
+    expect(shy.right).not.toMatch(/\bone_eye_closed\b/)
+    const laughing = buildDuoPhotoPrompt(
+      risa, ana, 'everyday', 'Her and her friend at the cafe, her pouting while her friend looks away, both laughing.'
+    )
+    expect(laughing.left).toMatch(/\bpout\b/)
+    expect(laughing.left).toMatch(/\blaughing\b/)
+    expect(laughing.right).toMatch(/\blaughing\b/)
+    expect(laughing.right).not.toMatch(/\bpout\b/)
+  })
+
   it('splits a prefixed caption at its later contrast', () => {
     const later = buildDuoPhotoPrompt(
       risa, ana, 'everyday', 'A photo of her and her friend at the cafe with her waving while her friend winks.'
