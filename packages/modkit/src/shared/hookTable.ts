@@ -205,6 +205,10 @@ export const KIT_APIS = [
   'renderer:useScene',
   'renderer:subscribeScene',
   'renderer:holdTurn',
+  'renderer:setSceneSuggestionsPaused',
+  'renderer:sceneSuggestionsPaused',
+  'renderer:useSceneSuggestionsPaused',
+  'renderer:subscribeSceneSuggestionsPaused',
 
   'shared:SAFE_CHAR_ID',
   'shared:assertSafeCharId',
