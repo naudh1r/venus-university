@@ -425,7 +425,17 @@ interface GestureRule extends ActivityRule {
  * The `selfie` tag adds a peace sign on its own, which is a selfie's own gesture: kept, unless
  * her free hand is holding something, where it would be a third hand. Asked for, always kept.
  */
-const PEACE_CUES = ['peace sign', 'v sign', 'v-sign', 'flashing a v']
+const PEACE_CUES = [
+  'peace sign',
+  'peace-sign',
+  'v sign',
+  'v-sign',
+  'flashing a v',
+  'two fingers up',
+  'two fingers raised',
+  'raising two fingers',
+  'holding up two fingers'
+]
 
 /** A garment in her hand, in either order, including a short relative clause. */
 function heldClothing(garment: string): RegExp {
@@ -436,7 +446,85 @@ function heldClothing(garment: string): RegExp {
 
 /** Everyday gestures, with covering reserved for the suggestive and explicit tiers. */
 const FREE_HAND_GESTURES: readonly GestureRule[] = [
-  { cues: ['waving'], tags: ['waving'] },
+  // Each drew as named on a same-seed check. Not `middle_finger` (drawn as a peace sign),
+  // `finger_frame`, `crossed_fingers`, `index_finger_raised` or `beckoning` (hands at her chin),
+  // `\\m/` (horns on her head) or `bunny_pose` (bunny ears on her head).
+  {
+    cues: ['double peace', 'two peace signs', 'peace signs', 'peace sign with both hands', 'double v'],
+    tags: ['double_v'],
+    twoHanded: true
+  },
+  { cues: ['ok sign', 'okay sign', 'ok gesture', 'okay gesture', 'an ok with'], tags: ['ok_sign'] },
+  { cues: ['salute', 'saluting', 'salutes'], tags: ['salute'] },
+  { cues: ['finger gun', 'finger guns', 'finger-gun', 'finger pistol'], tags: ['finger_gun'] },
+  {
+    cues: ['cat claws', 'claw pose', 'claws with her hands', 'cat paws', 'paws with her hands'],
+    tags: ['claw_pose'],
+    twoHanded: true
+  },
+  {
+    cues: [
+      'pointing at the camera',
+      'pointing at the viewer',
+      'pointing at the lens',
+      'pointing at you',
+      'points at the camera',
+      'pointing straight at'
+    ],
+    tags: ['pointing_at_viewer']
+  },
+  {
+    cues: ['pointing at herself', 'pointing to herself', 'points at herself', 'pointing at her own face'],
+    tags: ['pointing_at_self']
+  },
+  { cues: ['shushing', 'shush', 'hushing'], tags: ['shushing'] },
+  {
+    cues: ['covering her mouth', 'covers her mouth', 'hand over her mouth', 'hiding her mouth'],
+    tags: ['covering_own_mouth']
+  },
+  { cues: ['facepalm', 'facepalming', 'face palm', 'face-palming'], tags: ['facepalm'] },
+  {
+    cues: [
+      'hands on her cheeks',
+      'both hands on her cheeks',
+      'cheeks in her hands',
+      'cupping her cheeks',
+      'cupping her face',
+      'squishing her cheeks'
+    ],
+    tags: ['hands_on_own_cheeks'],
+    twoHanded: true
+  },
+  {
+    cues: [
+      'reaching out to the camera',
+      'reaching toward the camera',
+      'reaching towards the camera',
+      'reaching for the camera',
+      'reaching out to the viewer',
+      'reaching out to you'
+    ],
+    tags: ['reaching_towards_viewer']
+  },
+  {
+    cues: ['fist pump', 'fist-pump', 'pumping her fist', 'pumps her fist', 'fist in the air', 'raising a fist'],
+    tags: ['fist_pump']
+  },
+  { cues: ['shrugging', 'shrugs at', 'a little shrug'], tags: ['shrugging'], twoHanded: true },
+  {
+    cues: ['arms in the air', 'arms raised', 'raising both arms', 'throwing her arms up', 'throws her arms up', 'hands in the air'],
+    tags: ['arms_up'],
+    twoHanded: true
+  },
+  {
+    cues: ['hands on her hips', 'hands on hips', 'hands planted on her hips', 'akimbo'],
+    tags: ['hands_on_own_hips'],
+    twoHanded: true
+  },
+  {
+    cues: ['waving', 'waves at', 'waves hello', 'waves to', 'a little wave', 'a small wave', 'gives a wave'],
+    tags: ['waving']
+  },
   { cues: ['pointing'], tags: ['pointing'] },
   { cues: heldClothing('panties'), tags: ['holding_panties'] },
   { cues: heldClothing('bra'), tags: ['holding_bra'] },
