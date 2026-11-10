@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Activities can call `setSceneSuggestionsPaused` to pause optional scene suggestions for
+  the loaded game. Providers can query `sceneSuggestionsPaused`, render from
+  `useSceneSuggestionsPaused` or observe boolean changes with `subscribeSceneSuggestionsPaused`.
+  A pause is ignored while its mod is off and expires on load or exit.
 - Renderer mods can check a partner's current availability with `freeForInvitation`
   and start a native encounter with `startInvitedScene`. The host checks availability
   again before entry and initializes the mod's scene data before the first prompt.
