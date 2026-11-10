@@ -288,7 +288,6 @@
   "src/shared/breakthrough.ts -> ./termOrigin",
   "src/shared/campusTalents.ts -> ./modRules",
   "src/shared/campusTalents.ts -> ./playerStats",
-  "src/shared/cityLife.ts -> ./types",
   "src/shared/continuedModSetup.ts -> ./echoSetup",
   "src/shared/continuedModSetup.ts -> ./types",
   "src/shared/echo.ts -> ./campusTalents",

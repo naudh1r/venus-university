@@ -1,4 +1,4 @@
-import type { BackgroundSets } from './types'
+import type { BackgroundSets } from '@vx/modkit/shared'
 
 export const CITY_LIFE_LOCATIONS_MOD = 'city-life-locations'
 export const CITY_LIFE_JOBS_MOD = 'city-life-jobs'
