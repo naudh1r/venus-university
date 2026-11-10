@@ -59,7 +59,7 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        input: { index: resolve('src/renderer/index.html'), echoCutout: resolve('src/renderer/echoCutout.html') }
+        input: { index: resolve('src/renderer/index.html'), echoCutout: resolve('src/renderer/echoCutout.html'), screenCompanion: resolve('src/renderer/screenCompanion.html') }
       }
     },
     resolve: {

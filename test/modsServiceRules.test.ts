@@ -60,6 +60,7 @@ describe('shared rules in main', () => {
     expect(modSession().mods.map((mod) => [mod.id, mod.status])).toEqual([
       ['photo-feature', 'loaded'],
       ['scene-notes', 'loaded'],
+      ['screen-companion', 'loaded'],
       ['broken', 'failed'],
       ['hello-mod', 'loaded']
     ])
