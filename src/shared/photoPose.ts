@@ -54,6 +54,9 @@ const FINGERS_IN_MOUTH_CUES = [
 ]
 
 /** How she is framed and standing with her clothes on. */
+/** Against a wall of any kind: "the tiled wall", "a brick wall". */
+const AGAINST_A_WALL = /\bagainst (?:the |a )?(?:[a-z-]+ )?wall\b/
+
 const DRESSED_POSITIONS: readonly Rule[] = [
   { cues: ['close-up', 'close up'], tags: ['close-up', 'upper_body', 'hand_up'] },
   { cues: ['face shot', 'face only', 'just her face'], tags: ['close-up', 'portrait'] },
@@ -73,7 +76,7 @@ const DRESSED_POSITIONS: readonly Rule[] = [
   { cues: ['kneeling', 'crouching'], tags: ['kneeling', 'hands_on_own_thighs'] },
   // A wall keeps her arms folded. Anything else she leans on has her on her feet with her hands
   // on it: drawn as a wall, she sat on the counter or the railing's step instead.
-  { cues: ['against the wall', 'against a wall'], tags: ['against_wall', 'crossed_arms'] },
+  { cues: AGAINST_A_WALL, tags: ['against_wall', 'crossed_arms'] },
   {
     cues: ['leaning over', 'leaning against', 'leaning on'],
     tags: ['standing', 'leaning_forward', 'leaning_on_object']
@@ -144,7 +147,7 @@ const BARE_POSITIONS: readonly Rule[] = [
   { cues: ['squatting', 'squat'], tags: ['squatting', 'solo', 'spread_legs', 'hand_on_own_thigh'] },
   { cues: ['on her knees', 'kneeling'], tags: ['kneeling', 'solo', 'hands_on_own_thighs'] },
   {
-    cues: ['against the wall', 'against wall'],
+    cues: AGAINST_A_WALL,
     tags: ['against_wall', 'solo', 'arms_at_sides']
   },
   {
@@ -852,6 +855,14 @@ const DRESSED_MODIFIERS: ReadonlySet<string> = new Set([
   'mirror'
 ])
 
+/** Words that place her body somewhere, whether or not a position row knows the phrase. */
+const POSE_WORDS =
+  /\b(?:ly(?:ing)?|lies|lay(?:ing|s)?|kneel\w*|knelt|sit\w*|sat|seated|squat\w*|crouch\w*|curl\w*|sprawl\w*|bent|bend\w*|straddl\w*|recline\w*|reclining|propped|perched|on all fours|on (?:her|the) (?:bed|couch|sofa|floor|sheets|mattress|desk|counter|knees|back|side|stomach))\b/
+
+function saysPose(text: string): boolean {
+  return POSE_WORDS.test(text)
+}
+
 /** The tags {@link posePhotoTags} gives, before what her legs are doing is settled. */
 function poseTagsOf(caption: string, bare: boolean): string[] {
   const text = caption.toLowerCase()
@@ -879,7 +890,10 @@ function poseTagsOf(caption: string, bare: boolean): string[] {
   // dressed one's words ("on the couch"), else the one her hands imply, else standing. Taking the
   // dressed row as well as another is how a picture came out both sitting and lying on her back.
   const implied = hands.find((action) => action.implies)?.implies
-  tags.push(...(position?.tags ?? dressed?.tags ?? implied ?? BARE_POSITION_DEFAULT))
+  // Standing only where the caption says nothing of how she is placed: forced over words it does
+  // not know ("curled up on the sheets"), it drew her upright against her own sentence.
+  const fallback = saysPose(text) ? ['solo'] : BARE_POSITION_DEFAULT
+  tags.push(...(position?.tags ?? dressed?.tags ?? implied ?? fallback))
   if (facing) tags.push(...facing.tags)
 
   for (const modifier of MODIFIERS) {
@@ -1311,4 +1325,29 @@ export function photoPose(caption: string, tier: PhotoTier): PhotoPose {
   }
   // A caption's framing wins over the defaults for a selfie or a close shot lying down.
   return { ...pose, tags: withFraming(text, pose.tags) }
+}
+
+/** Words that give her hands something to do. */
+const HAND_WORDS = /\b(?:hands?|fingers?|fist|palm|arms?|thumbs?)\b/
+
+/**
+ * The parts of a caption the tags could not read: "pose" where none of the position rows knew
+ * how she is placed, "hands" where her hands are said to do something no rule knew. Logged so the
+ * rules can be widened from what the captions actually say.
+ */
+export function unreadPhotoParts(caption: string, tier: PhotoTier): string[] {
+  const text = caption.toLowerCase()
+  const unread: string[] = []
+  const placed =
+    firstMatch(text, DRESSED_POSITIONS) ??
+    (tier === 'explicit' ? firstMatch(text, BARE_POSITIONS) : null) ??
+    handActionsOf(text).find((action) => action.implies)
+  if (!placed && (tier === 'explicit' || saysPose(text))) unread.push('pose')
+  const handled =
+    handActionsOf(text).length > 0 ||
+    activityOf(text, says(text, 'mirror') && says(text, 'selfie'), tier !== 'everyday') !== null ||
+    heldIn(text) !== '' ||
+    says(text, 'selfie')
+  if (HAND_WORDS.test(text) && !handled) unread.push('hands')
+  return unread
 }

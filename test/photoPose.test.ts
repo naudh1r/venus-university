@@ -866,4 +866,15 @@ describe('captioned hands replace position fillers', () => {
     )
     expect(tags).toEqual(expect.arrayContaining(['spread_ass', 'grabbing_own_ass', 'kneeling']))
   })
+
+  it("reads a cue's other verb forms, but not a one-word cue's", () => {
+    expect(posePhotoTags('She flipped off the camera with a grin.', false)).toContain('middle_finger')
+    expect(posePhotoTags('She leans over the counter, smiling.', false)).toContain('leaning_on_object')
+    expect(posePhotoTags('At the beach with the waves behind her, smiling.', false)).not.toContain('waving')
+  })
+
+  it('leaves standing out of a bare picture whose caption places her in words it does not know', () => {
+    expect(posePhotoTags('Curled up on the sheets completely nude, smiling sleepily.', true)).not.toContain('standing')
+    expect(posePhotoTags('Completely nude in her room, smiling at the camera.', true)).toContain('standing')
+  })
 })
