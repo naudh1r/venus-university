@@ -18,6 +18,10 @@ replay, a created scene, the orientation, the graduation epilogue, and a scene o
 reached its ending. It stands down while a panel, a modal or a failure is over the scene, behind
 a crossing and while the interface is hidden.
 
+Study Together and active screen sharing also pause suggestions. A pause cancels a read in
+progress. If the scene stays at the same point, the last answer or its **Retry** button
+returns when the last pause ends. A new line retires the old answer as usual.
+
 The rail carries a speech-bubble seat too, live on the reader's turn and dim while a reply is
 still arriving or being read. It opens a panel that shows the same read: **Ask about the scene**
 takes a question in place of the general read, **Ask** sends it, **Read again** asks for a fresh

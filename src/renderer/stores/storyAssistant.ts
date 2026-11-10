@@ -9,9 +9,11 @@ import {
   isOrientationSlot,
   lessNsfwText,
   modState,
-  useModOption
+  sceneSuggestionsPaused,
+  subscribeSceneSuggestionsPaused,
+  useModOption,
+  useSceneSuggestionsPaused
 } from '@vx/modkit/renderer'
-import { sceneSuggestionsPaused, useSceneSuggestionsPaused, subscribeSceneSuggestionsPaused } from '@vx/modkit/renderer'
 import {
   affectionFor,
   dedupedMemoriesFor,
@@ -163,9 +165,11 @@ interface AssistantState {
   failed: { point: ScenePoint; question: string; group: string; message: string } | null
 }
 
+const EMPTY_ASSISTANT = Object.freeze({ read: null, asking: null, failed: null })
+
 /** Story Assistant's state; nothing of it is saved, and a game entered or left starts it over. */
 const assistant = modState<AssistantState>(STORY_ASSISTANT, {
-  initial: { read: null, asking: null, failed: null },
+  initial: EMPTY_ASSISTANT,
   lifetime: 'game'
 })
 
@@ -185,7 +189,7 @@ function assistantNowOf(state: AssistantState, game: GameState): AssistantNow {
 
 /** {@link AssistantNow} as the stores stand this moment. */
 export function assistantNow(): AssistantNow {
-  if (sceneSuggestionsPaused()) return { read: null, asking: null, failed: null }
+  if (sceneSuggestionsPaused()) return EMPTY_ASSISTANT
   return assistantNowOf(assistant.get(), useGameStore.getState())
 }
 
@@ -198,7 +202,7 @@ export function useAssistantNow(): AssistantNow {
   useGameStore((s) => s.sceneSummaries)
   useGameStore((s) => s.loads)
   useGameStore((s) => s.playthroughId)
-  return paused ? { read: null, asking: null, failed: null } : assistantNowOf(state, useGameStore.getState())
+  return paused ? EMPTY_ASSISTANT : assistantNowOf(state, useGameStore.getState())
 }
 
 /** Cancels the call still out, if any; its answer is then dropped unseen. */
@@ -210,9 +214,7 @@ function cancelAssistant(): void {
 
 // Cancellation is synchronous with activity start, even with no assistant panel mounted.
 subscribeSceneSuggestionsPaused(() => {
-  if (!sceneSuggestionsPaused()) return
-  cancelAssistant()
-  assistant.set({ read: null, asking: null, failed: null })
+  if (sceneSuggestionsPaused()) cancelAssistant()
 })
 
 /**
@@ -220,19 +222,17 @@ subscribeSceneSuggestionsPaused(() => {
  * whatever stands over the stage for as long as the assistant is on.
  */
 export function useAssistantCancels(): void {
-  const paused = useSceneSuggestionsPaused()
   const transcript = useGameStore((s) => s.currentSceneTranscript)
   const marks = useGameStore((s) => s.sceneSummaries)
   const loads = useGameStore((s) => s.loads)
   const playthroughId = useGameStore((s) => s.playthroughId)
   useEffect(() => cancelAssistant, [])
   useEffect(() => {
-    if (paused) { cancelAssistant(); assistant.set({ read: null, asking: null, failed: null }); return }
     if (out === null) return
     // A reset state has no read under way, though its call may still be out.
     const { asking } = assistant.get()
     if (!asking || !samePoint(asking.point, pointOf(useGameStore.getState()))) cancelAssistant()
-  }, [transcript, marks, loads, playthroughId, paused])
+  }, [transcript, marks, loads, playthroughId])
 }
 
 /** How many earlier slots are carried whatever they were about. */
@@ -353,8 +353,8 @@ let asks = 0
  * the scene has moved, or after a later ask, is dropped unseen.
  */
 export async function askAssistant(question: string, choices: ChoiceCount): Promise<void> {
+  if (sceneSuggestionsPaused()) return
   cancelAssistant()
-  if (sceneSuggestionsPaused()) { assistant.set({ read: null, asking: null, failed: null }); return }
   const point = pointOf(useGameStore.getState())
   const asked = question.trim()
   const group = `read-${++asks}`
@@ -370,7 +370,7 @@ export async function askAssistant(question: string, choices: ChoiceCount): Prom
   const result = await completeStructured<unknown>(STORY_ASSISTANT, request, { group })
   if (out === group) out = null
   if (assistant.get().asking?.group !== group) return
-  if (sceneSuggestionsPaused() || !samePoint(point, pointOf(useGameStore.getState()))) {
+  if (!samePoint(point, pointOf(useGameStore.getState()))) {
     assistant.set({ ...assistant.get(), asking: null })
     return
   }
