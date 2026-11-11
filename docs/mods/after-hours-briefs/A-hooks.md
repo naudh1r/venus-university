@@ -1,6 +1,6 @@
 # Brief A — core hooks `hangoutVerdict` and `chatsHeader`
 
-**Repo:** `naudh1r/venus-university` · **branch:** `hooks/after-hours` (already on the org's `main`
+Superseded rules: see `README.md` beside this brief. **Repo:** `naudh1r/venus-university` · **branch:** `hooks/after-hours` (already on the org's `main`
 b4ccf40c, `venus-extracurriculars/build`). Fetch the org's `main` first; if it has moved, merge it into
 `hooks/after-hours` before starting. Do not touch `mod/after-hours`. Push only to `origin`
 (`naudh1r/venus-university`), never to `venus-extracurriculars/build`. Open no pull request.
