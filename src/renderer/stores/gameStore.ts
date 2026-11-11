@@ -1,3 +1,4 @@
+import type { HeldInterlude } from '../mods/interlude'
 import { readStartingChallenge, type StartingChallenge } from '@shared/startingChallenge'
 import { talentProjectWork } from '@shared/talentPerks'
 import { completeEureka, reconcileTalentBreakthrough } from '@shared/talentAbilities'
@@ -453,6 +454,8 @@ interface GameStoreState {
    * included. Written back under the values below.
    */
   modData: Record<string, ModSlice>
+  /** The slot opening held on the landing; never written into a save. */
+  interlude: HeldInterlude | null
   /** The value of each registered mod the loaded save held data for, by id, as its field read it. */
   modValues: Record<string, unknown>
   /** The playthrough being played; every save this session writes goes into it. */
@@ -1701,6 +1704,7 @@ const initialState = {
   breakthroughFlash: null as GameStoreState['breakthroughFlash'],
   saveRest: {} as Record<string, unknown>,
   modData: {} as Record<string, ModSlice>,
+  interlude: null as HeldInterlude | null,
   modValues: {} as Record<string, unknown>,
   playthroughId: null,
   createdScene: null as CreatedScene | null,
@@ -2043,6 +2047,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   captureScene: () => {
     const state = get()
+    if (state.interlude) return null
     // Nothing on screen, nothing written, nothing queued: the slot has not opened yet. Not keyed
     // on the cast alone — a solo scene has none.
     if (
@@ -2883,7 +2888,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set((state) =>
       patchConversation(state, charId, (chat) => ({
         ...chat,
-        messages: [...chat.messages, message],
+        messages: [...chat.messages, state.interlude?.now.clock === 'late-night'
+          ? { ...message, date: state.date, time: state.time, late: true as const } : message],
         unread: chat.unread + unreadDelta
       }))
     ),

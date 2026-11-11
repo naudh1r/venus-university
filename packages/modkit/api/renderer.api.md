@@ -369,6 +369,50 @@ export function holdTurn(modId: string): Result<() => void>;
 export function imageApiConfigured(): boolean;
 
 // @public
+export interface Interlude {
+    // (undocumented)
+    clock?: 'late-night';
+    // (undocumented)
+    lines: readonly string[];
+    // (undocumented)
+    rows: readonly InterludeRow[];
+}
+
+// @public
+export interface InterludeCtx {
+    // (undocumented)
+    from: {
+        date: number;
+        time: TimeSlot;
+    };
+    // (undocumented)
+    semesterIndex: number;
+    // (undocumented)
+    to: {
+        date: number;
+        time: TimeSlot;
+    };
+}
+
+// @public
+export function interludeNow(): InterludeNow | null;
+
+// @public
+export interface InterludeRow {
+    // (undocumented)
+    confirm?: {
+        title: string;
+        message: string;
+        confirmText: string;
+        cancelText: string;
+    };
+    // (undocumented)
+    label: string;
+    // (undocumented)
+    onPick?: () => void;
+}
+
+// @public
 export function invoke<T>(modId: string, name: string, args: unknown[], options?: {
     signal?: AbortSignal;
 }): Promise<Result<T>>;
@@ -539,6 +583,10 @@ export interface ModHooks {
     };
     promptText?: PromptTextSpot;
     railButton?: ComponentType<ScreenSlotProps['railButton']>;
+    relaxLabel?: (ctx: {
+        date: number;
+        time: TimeSlot;
+    }) => string | undefined;
     requests?: {
         [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest;
     };
@@ -559,6 +607,7 @@ export interface ModHooks {
     settingsSection?: ComponentType<ScreenSlotProps['settingsSection']>;
     settleSceneStats?: (resolved: SceneStats, settlement: SceneStatSettlement) => SceneStats;
     slotActivityAvailable?: (offer: SlotActivityOffer) => boolean;
+    slotInterlude?: (ctx: InterludeCtx) => Interlude | null;
     slotSettled?: (ctx: SlotSettled) => void;
     slotStatusLines?: (ctx: {
         nextSlot: number;
@@ -1597,6 +1646,10 @@ export interface TextingPromptState {
     history: GameHistory;
     historyLimit?: number;
     homecomingVisitor?: string;
+    lateNight?: {
+        date: number;
+        time: TimeSlot;
+    };
     lorebook: readonly BookEntry[];
     memoryBudget: number;
     npcRelationships: NpcRelationshipMap;
@@ -1716,6 +1769,9 @@ export function useGameFacts(): {
 
 // @public (undocumented)
 export function useImageApiConfigured(): boolean;
+
+// @public
+export function useInterludeNow(): InterludeNow | null;
 
 // @public
 export function useLessNsfwText(): boolean;

@@ -78,6 +78,7 @@ import { coldStageAt, isSymptomatic } from '@shared/colds'
 import {
   buildHangoutClassifierPrompt,
   normalizeHangout,
+  type HangoutClassifierState,
   type HangoutVerdict
 } from '../prompts/hangoutClassifierPrompt'
 import { buildTextingPrompt, unansweredReachOuts } from '../prompts/textingPrompt'
@@ -200,7 +201,7 @@ export function sceneActiveOf(state: {
  * Bunnyboard can subscribe to it.
  */
 export function epilogueOf(state: { date: number; time: TimeSlot }): boolean {
-  return isGraduationSlot(state.date, state.time)
+  return !('interlude' in state && state.interlude) && isGraduationSlot(state.date, state.time)
 }
 
 /**
@@ -240,7 +241,8 @@ function chatMessage(sender: ChatSender, text: string, error = false): ChatMessa
     sender,
     text,
     date: game.date,
-    time: game.time
+    time: game.time,
+    ...(game.interlude?.now.clock === 'late-night' ? { late: true as const } : {})
   }
   if (error) message.error = true
   return message
@@ -538,7 +540,7 @@ export async function sendIncomingMessage(charId: string, direction: string): Pr
   const ui = useBunnyboardStore.getState()
   if (
     !modIsOn(INCOMING_TEXTS) || sceneActiveOf(game) || epilogueOf(game) ||
-    charBusyNow(charId) || game.charInfo[charId]?.flags.blocked ||
+    (game.interlude?.now.clock !== 'late-night' && charBusyNow(charId)) || game.charInfo[charId]?.flags.blocked ||
     !game.bunnyboard.conversations[charId] || ui.armedHangout ||
     ui.busyCharIds.includes(charId) || failedTurns.has(charId)
   ) return
@@ -756,6 +758,7 @@ function textingState(game: ReturnType<typeof useGameStore.getState>, charId: st
   return {
     date: game.date,
     time: game.time,
+    ...(game.interlude?.now.clock === 'late-night' ? { lateNight: game.interlude.now.from } : {}),
     storyMemory: currentStorySnapshot(),
     stats: game.stats,
     breakthrough: modIsOn(BREAKTHROUGH_MOD) ? game.exBreakthrough : undefined,
@@ -835,7 +838,7 @@ export async function regenerateTextReply(charId: string, commit: (
     const verdict = await window.api.llm.classifyHangout(buildHangoutClassifierPrompt(
       character.firstName, prior.messages, target.sent,
       replacement.messages.map(text => chatMessage('contact', text)),
-      { date: game.date, time: game.time, weather: game.weather, season: game.calendar.season }
+      hangoutClockOf(game)
     ))
     check()
     if (!verdict.ok) throw Error('The plan check failed. Your original reply was kept.')
@@ -940,6 +943,18 @@ export function abandonHangoutClassify(): void {
   hangoutGate.answer(false)
 }
 
+/** The clock and weather every hangout classification reads, including a regenerated reply. */
+function hangoutClockOf(game: ReturnType<typeof useGameStore.getState>): HangoutClassifierState {
+  const from = game.interlude?.now.clock === 'late-night' ? game.interlude.now.from : null
+  return {
+    date: from?.date ?? game.date,
+    time: from?.time ?? game.time,
+    season: game.calendar.season,
+    weather: game.weather,
+    ...(from ? { late: true } : {})
+  }
+}
+
 /**
  * Asks the hangout classifier whether the exchange that just happened was somebody proposing to
  * meet up right now.
@@ -959,7 +974,7 @@ async function classifyHangout(
     conversation?.messages ?? [],
     sent,
     replies.map((text) => chatMessage('contact', text)),
-    { date: game.date, time: game.time, season: game.calendar.season, weather: game.weather }
+    hangoutClockOf(game)
   )
 
   for (;;) {

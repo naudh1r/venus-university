@@ -227,3 +227,24 @@ export function revealSceneOpening(): void {
   openingCover = false
   endCrossing()
 }
+
+/** Covers the held landing before the clock's slot opens, without advancing it. */
+export async function coverInterludeOpening(): Promise<void> {
+  const game = useGameStore.getState()
+  const held = game.interlude
+  if (!held) return
+  beginCrossing(undefined, {
+    from: slotHalf(held.now.from.time),
+    to: slotHalf(game.time),
+    splash: slotStampOf(game.date, game.time, game.calendar, slotWeather(game.weather, game.date, game.time, game.graduationSeen))
+  })
+  await untilPhase(phase => phase === 'holding' || phase === 'idle')
+}
+
+/** Reveals a held boundary in the finished slot's theme without announcing the new slot. */
+export function showInterludeLanding(from: { date: number; time: TimeSlot }): void {
+  const crossing = useCrossingStore.getState()
+  if (crossing.phase === 'idle') return
+  const to = slotHalf(from.time)
+  useCrossingStore.setState({ to, fade: crossing.from !== null && crossing.from !== to, splash: null })
+}

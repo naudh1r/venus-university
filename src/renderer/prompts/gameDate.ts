@@ -1,4 +1,4 @@
-import type { CharJob, Season, TimeSlot } from '@shared/types'
+import type { CharJob, ChatMessage, Season, TimeSlot } from '@shared/types'
 import { shiftSlotOf } from '@shared/jobs'
 
 /**
@@ -235,4 +235,11 @@ export function formatRelativeSlot(
   if (days > 1) return `${days} days ago`
   if (days === -1) return time === 1 ? 'tomorrow night' : 'tomorrow'
   return `in ${-days} days`
+}
+
+/** Prints the slot a text was sent in, including the late night before its stored slot. */
+export function formatMessageSlot(message: Pick<ChatMessage, 'date' | 'time' | 'late'>, season: Season): string {
+  if (!message.late) return formatChatDivider(message.date, message.time, season)
+  const from = prevSlot(message.date, message.time)
+  return `${formatShortGameDate(from.date, season)}, late night`
 }

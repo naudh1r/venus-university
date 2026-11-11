@@ -29,7 +29,7 @@ function relaxLine(time: TimeSlot): string {
 export async function relax(): Promise<void> {
   const run = currentRun()
   const game = useGameStore.getState()
-  if (game.busy || !game.awaitingInput || sceneInProgress()) return
+  if (game.interlude || game.busy || !game.awaitingInput || sceneInProgress()) return
   if (game.createdScene || game.replaying || game.activeGameOver !== null) return
   if (isGraduationSlot(game.date, game.time)) return
 

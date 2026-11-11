@@ -1,4 +1,4 @@
-import { statActivities } from '../mods/hooks'
+import { relaxLabel, statActivities } from '../mods/hooks'
 import type { SlotActivityOffer } from '@shared/slotActivity'
 import { kindOf } from '@shared/academics'
 import { jobDefOf } from '@shared/jobs'
@@ -182,9 +182,10 @@ export const RELAX_KEY = 'relax'
 
 /** The row that spends the slot doing nothing, last under the rest. */
 export function relaxAction(time: TimeSlot): SlotAction {
+  const game = useGameStore.getState()
   return {
     key: RELAX_KEY,
-    text: time === 0 ? 'Relax (Skip to tonight)' : 'Relax (Skip to tomorrow)',
+    text: relaxLabel({ date: game.date, time }) ?? (time === 0 ? 'Relax (Skip to tonight)' : 'Relax (Skip to tomorrow)'),
     tone: 'idle',
     verdict: null
   }

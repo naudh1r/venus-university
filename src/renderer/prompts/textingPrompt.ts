@@ -23,8 +23,9 @@ import {
 import { DEFAULT_PLAYER_STATS, type PlayerStats } from '@shared/playerStats'
 import type { Weather } from '@shared/weather'
 import {
-  formatChatDivider,
+  formatMessageSlot,
   formatDateBanner,
+  formatGameDate,
   formatRelativeSlot,
   formatSemesterProgress
 } from './gameDate'
@@ -95,6 +96,8 @@ export interface TextingPromptState {
   exCharacterDynamics?: CharacterDynamics
   date: number
   time: TimeSlot
+  /** The night the held boundary displays, while texts keep the current slot. */
+  lateNight?: { date: number; time: TimeSlot }
   /** The reader's accumulated stats, used for relationship requirement guidance. */
   stats?: PlayerStats
   /**
@@ -182,7 +185,7 @@ export function stampedStubs(
   const lines: string[] = []
   let stamped: string | null = null
   for (const message of window) {
-    const stamp = formatChatDivider(message.date, message.time, season)
+    const stamp = formatMessageSlot(message, season)
     if (stamp !== stamped) {
       lines.push(`[${stamp}]`)
       stamped = stamp
@@ -360,7 +363,8 @@ export function buildTextingPrompt(
       sender: 'player',
       text: newMessage,
       date: state.date,
-      time: state.time
+      time: state.time,
+      ...(state.lateNight ? { late: true as const } : {})
     }
   ]
   // The new text is the last line of the log, so it gets its own stamp when it lands in a new slot.
@@ -500,12 +504,14 @@ export function buildTextingPrompt(
     ...characterBlock,
     '',
     'NOW',
-    `It is ${formatDateBanner(state.date, state.time, state.calendar.season)}`,
+    state.lateNight ? `It is late on ${formatGameDate(state.lateNight.date, state.calendar.season)} night`
+      : `It is ${formatDateBanner(state.date, state.time, state.calendar.season)}`,
     formatSemesterProgress(state.date),
     // Texting happens before the slot's scene; without this she treats the day as over.
-    state.time === 0 ? 'Morning classes are starting soon.' : 'Night classes are starting soon.',
-    ...(state.weather ? weatherLines(state.weather, state.date, state.time) : []),
-    ...whereSheIs(name, state.charLocation, state.charCompanions, state.charHaunt, state.time),
+    ...(state.lateNight ? [] : [state.time === 0 ? 'Morning classes are starting soon.' : 'Night classes are starting soon.']),
+    ...(state.weather ? weatherLines(state.weather, state.lateNight?.date ?? state.date, state.lateNight?.time ?? state.time) : []),
+    ...(state.lateNight ? [`${name} is ${info?.pursuing !== undefined ? 'at home' : 'in her dorm room'} for the night.`]
+      : whereSheIs(name, state.charLocation, state.charCompanions, state.charHaunt, state.time)),
     '',
     ...lore,
     ...(summary ? ['TEXTING SO FAR', '"' + summary + '"', ''] : []),
@@ -528,7 +534,7 @@ export function buildTextingPrompt(
       'Earlier messages are background, not a new message to answer.'
     ]),
     'Stay in her voice and keep it text-length: this is a phone thread, not prose.',
-    ...meetUpLines(name, state.charLocation, state.charHaunt, state.time, away),
+    ...(state.lateNight ? [] : meetUpLines(name, state.charLocation, state.charHaunt, state.time, away)),
     '',
     ...promptLines('dm', { character, info, state }),
     'BLOCKING',

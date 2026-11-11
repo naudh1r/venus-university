@@ -54,7 +54,7 @@ import { sickInSlot, withGiftDoses, worstInSlot } from '@shared/colds'
 import { LAST_SEMESTER, semesterOf } from '@shared/semesters'
 import type { SavedScene, SceneSetup } from '@shared/sceneCreator'
 import type { SlotReplay } from '@shared/replays'
-import { formatGameDate, formatSlotOpening, nextSlot, shiftWeekdayOf } from '../prompts/gameDate'
+import { formatGameDate, formatSlotOpening, nextSlot, prevSlot, shiftWeekdayOf } from '../prompts/gameDate'
 import {
   introScrollLines,
   isOrientationSlot,
@@ -130,7 +130,7 @@ import {
   type ReplayStayFields,
   type SceneKind
 } from './gameStore'
-import { gameEntered, playerActs } from '../mods/hooks'
+import { gameEntered, playerActs, slotInterlude } from '../mods/hooks'
 import { useCharacterStore } from './characterStore'
 import { castOf, useSaveStore } from './saveStore'
 import {
@@ -152,10 +152,12 @@ import { answerCrossing, cancelCrossing, endCrossing, markCrossingWait } from '.
 import {
   adoptSceneOpening,
   coverGoodbyesCrossing,
+  coverInterludeOpening,
   coverSceneOpening,
   coverSlotCrossing,
   revealSceneOpening,
-  revealSlot
+  revealSlot,
+  showInterludeLanding
 } from './slotCrossing'
 import {
   charCommitmentAt,
@@ -365,7 +367,7 @@ function breakDecayLines(): SceneLine[] {
 }
 
 /** Opens a slot: the transition, the narration, and the action prompt. */
-async function beginSlot(): Promise<void> {
+async function beginSlot(released = false): Promise<void> {
   const run = currentRun()
   // The opening is the first prompt a stay can build, so it waits on the playthrough's lorebook.
   await lorebookLoaded()
@@ -392,6 +394,59 @@ async function beginSlot(): Promise<void> {
     // an ending, but a save loaded straight into one arrives under the entry crossing's.
     void revealSlot()
     return
+  }
+
+  // The hold precedes every effect of the new slot and is rebuilt on each loaded entry.
+  if (!released) {
+    const ctx = {
+      from: prevSlot(state.date, state.time),
+      to: { date: state.date, time: state.time },
+      semesterIndex: state.semesterIndex
+    }
+    const held = slotInterlude(ctx)
+    if (held) {
+      state.clearStage()
+      state.clearSceneTranscript()
+      state.setCast([])
+      state.clearSceneGifts()
+      state.setSceneQuiz(null)
+      state.setSceneEnding(false)
+      state.setAwaitingInput(false)
+      let picked = false
+      const now = Object.freeze({
+        ...ctx,
+        from: Object.freeze({ ...ctx.from }),
+        to: Object.freeze({ ...ctx.to }),
+        owner: held.owner,
+        ...(held.interlude.clock ? { clock: held.interlude.clock } : {})
+      })
+      /** Records one confirmed choice and covers the held landing before opening the slot. */
+      const pick = (index: number): void => {
+        const row = held.interlude.rows[index]
+        if (!row || picked || runStale(run) || useGameStore.getState().interlude?.now !== now) return
+        picked = true
+        try {
+          row.onPick?.()
+        } catch (error) {
+          console.warn(`[mods] ${held.owner}: interlude row failed`, error)
+        }
+        if (runStale(run)) return
+        state.setAwaitingInput(false)
+        void coverInterludeOpening().then(() => {
+          if (runStale(run)) return
+          useGameStore.setState({ interlude: null })
+          useGameStore.getState().clearStage()
+          void beginSlot(true)
+        })
+      }
+      useGameStore.setState({ interlude: { now, interlude: held.interlude, pick } })
+      showInterludeLanding(ctx.from)
+      state.appendPendingLines(held.interlude.lines.map(text => ({ speaker: '', text })))
+      state.setWaitingForLine(false)
+      advance()
+      void revealSlot()
+      return
+    }
   }
 
   // Graduation morning, which is the last slot the game opens.
@@ -1516,7 +1571,7 @@ export async function submitAction(
   const trimmed = raw || KEEP_GOING
 
   const game = useGameStore.getState()
-  if (game.busy || !game.awaitingInput) return
+  if (game.interlude || game.busy || !game.awaitingInput) return
   if (activity && !slotActivityAvailable(activity)) return
 
   // Taken before anything is mutated; the *raw* text is what a rewind hands back.
@@ -2575,6 +2630,11 @@ export function advance(): void {
 
   if (ending) {
     void crossSlotBoundary()
+    return
+  }
+
+  if (game.interlude) {
+    game.setAwaitingInput(true)
     return
   }
 
