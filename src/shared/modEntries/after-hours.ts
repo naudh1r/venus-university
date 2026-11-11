@@ -1,6 +1,6 @@
 import type { ModDef } from '@vx/modkit/shared'
 import { AFTER_HOURS_MOD } from '../afterHours'
-import { afterHoursText } from '../../renderer/mods/afterHoursText'
+import { afterHoursText } from '../afterHoursText'
 
 const mod: ModDef = {
   id: AFTER_HOURS_MOD,

@@ -31,6 +31,6 @@ A Busy status for Bunnyboard, so girls don't ask you out in chats you start.
 | `src/shared/afterHours.ts` | Defines the saved status and the invitation rule |
 | `src/renderer/modEntries/after-hours.ts` | Loads the renderer hooks |
 | `src/renderer/mods/afterHours.tsx` | Keeps the save field, draws the chip and registers the hooks |
-| `src/renderer/mods/afterHoursText.ts` | Holds the labels, catalogue copy and DM prompt line |
+| `src/shared/afterHoursText.ts` | Holds the labels, catalogue copy and DM prompt line |
 | `src/renderer/vu_styles/AfterHours.css` | Dresses the chip and its hover hint |
 | `test/afterHours.test.ts` | Checks invitation decisions and saved-data normalization |

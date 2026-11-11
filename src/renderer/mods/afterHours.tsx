@@ -15,7 +15,7 @@ import {
   type ScreenSlotProps
 } from '@vx/modkit/renderer'
 import { AFTER_HOURS_MOD, busyDrops, normalize, type AfterHours } from '../../shared/afterHours'
-import { afterHoursText, busyPrompt } from './afterHoursText'
+import { afterHoursText, busyPrompt } from '../../shared/afterHoursText'
 import '../vu_styles/AfterHours.css'
 
 const status = saveField<AfterHours>(AFTER_HOURS_MOD, { empty: { busy: false }, normalize })

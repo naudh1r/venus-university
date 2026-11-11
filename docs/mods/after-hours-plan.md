@@ -167,7 +167,7 @@ Draws a component in the DM screen's left header, above the chat list. Props: `t
 | `src/renderer/modEntries/after-hours.ts` | `registerHooks('after-hours', …)` |
 | `src/shared/afterHours.ts` | Pure rules: `nightOwed`, `busyDrops`, the save shape, `normalize`, `carry` |
 | `src/renderer/mods/afterHours.tsx` | The field, the hooks, the status chip, the interlude specs |
-| `src/renderer/mods/afterHoursText.ts` | Every authored line and label |
+| `src/shared/afterHoursText.ts` | Every authored line and label (shared: the entry reads its labels) |
 | `src/renderer/vu_styles/AfterHours.css` | The chip's look |
 | `docs/mods/after-hours.md` | The mod's guide |
 | `test/kit/modFiles.ts` | One entry: `'after-hours': { globs: ['src/shared/afterHours*.ts', 'src/renderer/mods/afterHours*', 'src/renderer/vu_styles/AfterHours.css'] }` |
