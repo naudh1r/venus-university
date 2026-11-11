@@ -86,6 +86,13 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.8.0
+
+- `hangoutVerdict` lets renderer mods change or drop a texting classifier verdict, with who
+  started the slot's thread and whether the exchange answers her standing invitation.
+  Renderer exports `HangoutVerdict` and `HangoutVerdictCtx`.
+- `chatsHeader` draws beside the Chats title, handed the phone's day or night theme.
+
 ## 0.7.0
 
 - Startup readers have a ten-second wait limit per mod. A timeout names the mod in a warning

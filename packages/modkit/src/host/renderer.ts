@@ -21,6 +21,7 @@ export {
   exercisedStats,
   fileFeedPost,
   gameEntered,
+  hangoutVerdict,
   gameModal,
   modDetail,
   modRequest,

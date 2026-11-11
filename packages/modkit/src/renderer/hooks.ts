@@ -2,6 +2,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { checkCompat, hookNamesOf } from '../shared/compat'
 import { declaredHooksNow, refusedAsForeign } from './attribution'
 import type { StructuredRequest, LedgerResponse } from '../bridge/shared'
+import type { HangoutVerdict } from '../bridge/renderer'
 import type { PromptState } from '../bridge/renderer'
 import type { SlotIntroInput } from '../bridge/renderer'
 import type { useGameStore } from '../bridge/renderer'
@@ -36,6 +37,15 @@ import type { ClassCatalogEdits, SceneSpotTag, TextEditSet } from '../bridge/sha
  * No imports at run time, so any file of the game can ask here without a circle of imports;
  * whether a mod is on is handed in by the mods store ({@link setHookRules}).
  */
+
+/** The thread and invitation behind a texting classifier's verdict. */
+export interface HangoutVerdictCtx {
+  charId: string
+  /** Who sent the first text of this slot's thread: the reader, or her (a reach-out, an invitation, a reply). */
+  startedBy: 'reader' | 'her'
+  /** The exchange answers an invitation of hers still standing. */
+  answeringInvite: boolean
+}
 
 /** What each prompt hands the mods adding to it. */
 export interface PromptSpots {
@@ -447,6 +457,8 @@ export interface ModHooks {
     lead: Readonly<Record<string, unknown>>
     signal: AbortSignal
   }) => void
+  /** Change or drop the texting classifier's verdict before it arms a hangout or raises an invitation. */
+  hangoutVerdict?: (verdict: HangoutVerdict | null, ctx: HangoutVerdictCtx) => HangoutVerdict | null
   /** After her reply in a DM has landed. */
   afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void
   /** After a scene reply has landed and its lines are on the transcript. */
@@ -520,6 +532,8 @@ export interface ModHooks {
   phoneOverlay?: ComponentType<ScreenSlotProps['phoneOverlay']>
   /** Below a person's message history, before the native composer. Not drawn for bot threads. */
   conversationFoot?: ComponentType<ScreenSlotProps['conversationFoot']>
+  /** Drawn beside the Chats title while the conversation list is showing. */
+  chatsHeader?: ComponentType<ScreenSlotProps['chatsHeader']>
   /** Drawn on the map, under the places and above its foot. */
   mapOverlay?: ComponentType<ScreenSlotProps['mapOverlay']>
   /** Drawn on the Photos page, under the grid of photos. */
@@ -571,6 +585,7 @@ export interface ScreenSlotProps {
   }
   portraitOverlay: { charId: string }
   phoneOverlay: Record<string, never>
+  chatsHeader: { theme: 'day' | 'night' }
   conversationFoot: {
     /** The open person's conversation key. The contribution remounts when the thread changes. */
     charId: string
@@ -925,6 +940,19 @@ export function sceneCallTags(ctx: SceneCall): Readonly<Record<string, unknown>>
     }
   }
   return Object.freeze(tags)
+}
+
+/** Hands the verdict to each enabled mod in turn; a failed handler leaves the last result intact. */
+export function hangoutVerdict(verdict: HangoutVerdict | null, ctx: HangoutVerdictCtx): HangoutVerdict | null {
+  for (const { modId, hooks } of activeEntries()) {
+    if (!hooks.hangoutVerdict) continue
+    try {
+      verdict = hooks.hangoutVerdict(verdict, ctx)
+    } catch (error) {
+      console.warn(`[mods] ${modId}: hangoutVerdict failed`, error)
+    }
+  }
+  return verdict
 }
 
 /** Tells each enabled mod that a scene reply has landed. */

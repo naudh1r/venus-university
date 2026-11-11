@@ -440,7 +440,7 @@ export function BunnyboardModal({
                     is what takes a back button out of the thread's own header. */}
                 {tab === 'chats' && (
                   <>
-                    <ChatList />
+                    <ChatList theme={theme} />
                     {viewingCharId ? (
                       <ConversationView
                         key={viewingCharId}
@@ -614,7 +614,7 @@ function BusyLed({ busy }: { busy: boolean }): JSX.Element {
 }
 
 /** The Chats tab's conversation list, which stands beside the open thread rather than under it. */
-function ChatList(): JSX.Element {
+function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
   const bunnyboard = useGameStore((s) => s.bunnyboard)
   const characters = useGameStore((s) => s.characters)
   const date = useGameStore((s) => s.date)
@@ -642,6 +642,7 @@ function ChatList(): JSX.Element {
     <div className="vu-bb-side">
       <div className="vu-title vu-bb-title">
         <h2 className="vu-title-text">Chats</h2>
+        <ModSlot slot="chatsHeader" props={{ theme }} />
       </div>
 
       {conversations.length === 0 ? (
