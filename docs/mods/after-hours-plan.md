@@ -28,7 +28,11 @@ references are to b4ccf40c.
    DMs and Bunnyfeeds comments. The girls know it is late and everyone is in their dorms. No limit, no cost.
 2. **Night visit (v2).** At night, any contact may invite him over, or he may ask her, to **her room or
    his**. Agreed → **Begin night visit** → a full normal scene in that room, with its own ledger,
-   memories, rumors and colds. It ends when they fall asleep.
+   memories, rumors and colds. It ends when they fall asleep. At most one visit a night: once it ends,
+   however it ends, the night is over.
+   - **If it ends badly** (a fight, she throws him out, he storms off, she leaves, a curveball): no
+     aftermath and no night screen again. The morning opens as normal in his room, and its narration
+     tells what happened last night.
 3. **Aftermath (v2).** Morning, in the room they slept in. Waking-up lines from the morning's opening call
    (no extra call). Phone open. Rows:
    - in her room: **Stay with {Name}** (only if she is free this slot) · **Head back to your room**
@@ -100,7 +104,9 @@ interface Interlude {
 - A bonus scene plays and ends like any scene: ledger, texting ledger, closing, status lines, memory
   question, rumor/crush/cold passes. Its boundary applies everything but **does not call `advanceSlot`**.
   It **re-fetches the next opening**, because the banked one predates the night. Then it writes the
-  boundary save and enters `beginSlot` again, where the interlude hook is asked anew.
+  boundary save and enters `beginSlot` again, where the interlude hook is asked anew (the mod answers the
+  aftermath, or nothing after a visit that ended badly, so the morning opens as normal).
+- A reload in the middle of a bonus scene resumes that scene, as for any scene.
 - `slotSettled`, `slotStatusLines` and `projectSlotMemories` get `bonus: true` in their context, so mods
   that count once per slot (Venus Whisper, Bunnyfeeds, Meanwhile) can tell it apart.
 - No replay is kept for it.
@@ -162,7 +168,8 @@ Every import is `@vx/modkit/*`, React or the mod's own files.
 
 ### Kit APIs used
 `registerHooks`, `saveField`, `useModOption`/`optionOn`, `modIsOn`, `prompts.dm`, `prompts['text-ledger']`,
-`requests['slot-intro']` (v2: the aftermath lines field), `slotSettled` (records an evening night act),
+`requests.ledger` (v2: did they spend the night, and where), `requests['slot-intro']` (v2: the aftermath
+lines field, or the line saying the visit ended badly), `slotSettled` (records an evening night act),
 `currentRun`/`runStale`, `lessNsfwText`, `freeForInvitation`, `startInvitedScene`, plus H1–H4 and H6.
 
 ### Save data (`saveField('after-hours')`)
@@ -170,7 +177,7 @@ Every import is `@vx/modkit/*`, React or the mod's own files.
 { busy: boolean
   nightDone?: number      // global slot of the morning whose night was ended
   eveningNight?: number   // global slot of an evening whose ledger reported a night together
-  visit?: { charId: string; place: 'hers' | 'his'; morning: number } }  // v2: the aftermath owed
+  visit?: { charId: string; place: 'hers' | 'his'; morning: number; stayed?: boolean } }  // v2
 ```
 - `carry`: returns undefined, so the next semester starts empty: Online, nothing owed.
 - `set()` before a row is released, so the write the morning already makes carries it.
@@ -190,8 +197,12 @@ Every import is `@vx/modkit/*`, React or the mod's own files.
 - **Night `onHangout` (v2):** keeps a verdict when her reply's mod field `nightVisit` (added through
   `prompts.dm`) is `'hers'` or `'his'`. 1.1.0 has no `onHangout`, so every verdict at night is dropped.
 - **Busy at night:** her new asks are dropped the same way. His asks still arm a visit.
-- **Aftermath:** `visit` set when Begin night visit is pressed; shown when the next interlude finds it
-  for that morning; cleared when a row is picked.
+- **Aftermath:** `visit` set when Begin night visit is pressed. At the visit's `slotSettled`
+  (`bonus: true`) the mod reads its ledger field `stayedOver` into `visit.stayed` and sets `nightDone`.
+  The next interlude shows the aftermath only when `visit.stayed`; cleared when a row is picked.
+- **A visit that ended badly:** `visit.stayed` false. No interlude; the morning opening's request gets one
+  line through `requests['slot-intro']`: the reader's visit to {Name}'s room (or hers to his) last night
+  ended badly and he spent the night in his own room; open on him waking up there after it.
 
 ---
 
