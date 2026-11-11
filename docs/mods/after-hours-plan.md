@@ -86,7 +86,8 @@ interface Interlude {
   onHangout?: (verdict: HangoutVerdict, ctx: HangoutCtx) => { place: string } | null  // see H2
 }
 ```
-- **When:** in `beginSlot` (`gameLoop.ts:368`), after the game-over, graduation and orientation branches.
+- **When:** in `beginSlot` (`gameLoop.ts:368`), after the game-over branch and **before** the graduation
+  branch (the night before graduation is a normal night), and after the orientation branch.
   Core claims or fetches the opening first (so `openingFields` is there), then holds. Spring break,
   Homecoming, friend requests, shifts, grades, bot messages, feed rolls, the overlay, the opening's lines
   and its deliveries all happen **after** a row is picked. Asked again on every entry of a slot save, so a
@@ -189,7 +190,9 @@ lines field, or the line saying the visit ended badly), `slotSettled` (records a
 - **`nightOwed(to, from, data, flags)`** (pure): true when `to.time === 0`, `from` is the evening before
   it, `data.nightDone !== globalSlot(to)`, `data.eveningNight !== globalSlot(from)`, `to` is not the
   semester's first slot or the tutorial slot, and the `night` option is on. The night before graduation
-  morning is still open (the owner wants it treated as special).
+  morning is a normal night, visits included.
+- **Graduation morning after a visit:** the aftermath offers only **Head back to your room** (there is no
+  normal morning to stay through); its transition line leads into the ceremony as the game plays it today.
 - **Evening that already ended in a night together:** no night interlude (he is not in his room).
   `eveningNight` is set at `slotSettled` from the ledger's acts.
 - **`busyDrops(verdict, ctx, busy)`** (pure): `busy && verdict?.initiatedBy === 'contact' &&
