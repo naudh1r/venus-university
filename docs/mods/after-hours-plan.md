@@ -260,11 +260,11 @@ Each brief ends with: `npm run typecheck`, `npm test`, zero new allowlist lines,
 
 ---
 
-## 10. Open points to settle with other authors
+## 10. Follow-ups outside this mod
 
-- **Bunnyfeeds:** answers to a comment made at night are stamped "for the next slot", so they would show
-  in the evening. Bunnyfeeds should read `interludeNow()` and stamp them for `to`. That is its author's
-  change.
+- **Bunnyfeeds (the owner's mod; a compatibility patch later, separate from this mod):** answers to a
+  comment made at night are stamped "for the next slot", so they would show in the evening. The patch has
+  Bunnyfeeds read `interludeNow()` and stamp them for `to`. After Hours itself does not touch Bunnyfeeds.
 - **Night posts (settled):** no round of their own. Posts arrive with whatever slot is current, as
   they do today: the morning's posts come with the morning's opening, after the night or the aftermath
   ends. No hook is needed for them.
