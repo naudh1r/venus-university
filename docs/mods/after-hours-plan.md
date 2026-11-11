@@ -242,10 +242,10 @@ and take it easy, doing nothing in particular. Before you know it, it's time for
   cancel "Never mind"
 - **Status chip:** `Online` / `Busy`, hover hint: "Busy: girls won't ask you to meet up in chats you start."
 - **Prompt lines** (`prompts.dm`):
-  - Busy: "The reader has set his Bunnyboard status to Busy: he would rather stay in his room for now.
-    {Name} can see it, so she does not ask him to meet up right now. Making plans for another time is
-    fine. If he asks to meet up right now anyway, she can react to that the way she would, such as
-    pointing out that he said he was busy."
+  - Busy (the AI never hears of a "Busy status"; Busy is the player's word): "In the background: the
+    reader is staying in for now, so {Name} does not suggest meeting up right now. Making plans for
+    another time is fine. It is not something she talks about." Any invite that slips through is
+    still dropped.
   - Night: "It is late at night, and students are expected to be in their own dorms. Both are in their
     rooms. Neither of them can go anywhere else tonight except one of their two rooms."
     (0.2.0: "…and neither of them can go anywhere tonight.")

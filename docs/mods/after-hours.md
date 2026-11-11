@@ -15,8 +15,8 @@ A Busy status for Bunnyboard, so girls don't ask you out in chats you start.
   If the model still writes an invitation, it opens no Yes/No footer and arms no hangout.
 - Her invitations and reach-outs at slot changes still work normally, including the
   Yes/No footer. Answering an invitation she already had standing is unchanged.
-- You can still ask her to meet up yourself. She can see your Busy status and may
-  point it out. Plans for another time work as before.
+- You can still ask her to meet up yourself. She is not told you are Busy, only to leave
+  the asking to you, so she doesn't make a topic of it. Plans for another time work as before.
 - The status lasts until you switch it, and is kept with your save. A new semester
   starts **Online**.
 - Switching the mod or its option off hides the chip and lets girls ask you out again.

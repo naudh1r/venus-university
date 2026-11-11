@@ -9,7 +9,7 @@ export const afterHoursText = {
   hint: "Busy: girls won't ask you to meet up in chats you start."
 }
 
-/** Tells her what the reader's Busy status means for this exchange. */
+/** Keeps her from suggesting a meet-up while the reader is Busy, without making it a topic. */
 export function busyPrompt(name: string): string {
-  return `The reader has set his Bunnyboard status to Busy: he would rather stay in his room for now. ${name} can see it, so she does not ask him to meet up right now. Making plans for another time is fine. If he asks to meet up right now anyway, she can react to that the way she would, such as pointing out that he said he was busy.`
+  return `In the background: the reader is staying in for now, so ${name} does not suggest meeting up right now. Making plans for another time is fine. It is not something she talks about.`
 }
