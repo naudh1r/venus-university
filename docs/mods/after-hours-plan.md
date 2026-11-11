@@ -1,8 +1,8 @@
 # After Hours — plan
 
 Mod id `after-hours` · name **After Hours** · author Naudh1r · scope `anytime`
-Built on the org's `main` (`venus-extracurriculars/build`) as `mod/after-hours` in the fork
-`naudh1r/venus-university`; nothing goes to the org repository until the owner opens the pull request. Hooks-only:
+Built in the fork `naudh1r/venus-university` on the org's `main` (`venus-extracurriculars/build`): the core
+hooks on `hooks/after-hours`, the mod on `mod/after-hours` above it (section 2). Nothing goes to the org. Hooks-only:
 **zero** new lines in `test/kit/boundaryAllowlist.json`. **Base every brief on `venus-extracurriculars/build` `main` at b4ccf40c (kit 0.7.0) or newer**, not on the
 fork's `main`, which lags. Fetch it first and re-check each line reference below against it. All line
 references are to b4ccf40c.
@@ -50,17 +50,25 @@ End the day, Head back and Start the day all lead into the same morning write th
 
 | Version | Contents | Waits on core hooks |
 | --- | --- | --- |
-| **1.0.0** | Busy status | H4, H6 |
-| **1.1.0** | The night (no visits: every "right now" verdict at night is dropped) | H1, H3 |
-| **2.0.0** | Night visit, aftermath, Stay, Head back | H1 (scene rows, place), H2 |
+| **0.1.0** | Busy status | H4, H6 |
+| **0.2.0** | The night (no visits: every "right now" verdict at night is dropped) | H1, H3 |
+| **0.3.0** | Night visit, aftermath, Stay, Head back | H1 (scene rows, place), H2 |
 
-Each version ships on its own once its hooks are in `core`. 1.0.0 needs the two smallest hooks.
+Pre-release numbers: each is built and tested in the fork; 1.0.0 is for when the owner decides the mod
+is ready. 0.1.0 needs the two smallest hooks.
+
+### Branches (all in `naudh1r/venus-university`; nothing goes to the org until the owner decides)
+- `hooks/after-hours`: the new core hooks, on the org's `main`, in core's own files and the kit's style,
+  so they could be offered to core as they are.
+- `mod/after-hours`: the mod, on top of `hooks/after-hours`. Hooks-only: zero new boundary entries.
+- When the org's `main` moves: update `hooks/after-hours` first, then the mod on top.
+- Order: hook group A (H4, H6) → 0.1.0 → group B (H1, H3) → 0.2.0 → group C (H2, H1's scene rows) → 0.3.0.
 
 ---
 
-## 3. Core hook requests for morrowkiln
+## 3. Core hooks (built on `hooks/after-hours`)
 
-Ready to paste. Each says what, when, signature, and why the mod cannot do without it.
+Each says what, when, signature, and why the mod cannot do without it.
 
 ### H1 — `slotInterlude` (renderer, `first`)
 **What:** before a slot opens, one mod may hold it and show an interlude: its own background, lines and
@@ -142,7 +150,7 @@ hangoutVerdict?: (
 ### H5 — no longer needed
 Kit 0.7.0 has `freeForInvitation(id)` and `startInvitedScene(modId, id, action, initialize, eligible)`.
 `freeForInvitation` reads the current slot, which during the aftermath is already the morning, so it
-answers "is she free this morning". The 2.0.0 brief checks whether `startInvitedScene` can place the scene
+answers "is she free this morning". The 0.3.0 brief checks whether `startInvitedScene` can place the scene
 in her room; if it cannot, **Stay with {Name}** uses H1's `scene` row instead.
 
 ### H6 — `chatsHeader` (renderer, `slot`)
@@ -198,7 +206,7 @@ lines field, or the line saying the visit ended badly), `slotSettled` (records a
 - **`busyDrops(verdict, ctx, busy)`** (pure): `busy && verdict?.initiatedBy === 'contact' &&
   ctx.startedBy === 'reader' && !ctx.answeringInvite`.
 - **Night `onHangout` (v2):** keeps a verdict when her reply's mod field `nightVisit` (added through
-  `prompts.dm`) is `'hers'` or `'his'`. 1.1.0 has no `onHangout`, so every verdict at night is dropped.
+  `prompts.dm`) is `'hers'` or `'his'`. 0.2.0 has no `onHangout`, so every verdict at night is dropped.
 - **Busy at night:** her new asks are dropped the same way. His asks still arm a visit.
 - **Aftermath:** `visit` set when Begin night visit is pressed. At the visit's `slotSettled`
   (`bonus: true`) the mod reads its ledger field `stayedOver` into `visit.stayed` and sets `nightDone`.
@@ -238,7 +246,7 @@ and take it easy, doing nothing in particular. Before you know it, it's time for
     pointing out that he said he was busy."
   - Night: "It is late at night, and students are expected to be in their own dorms. Both are in their
     rooms. Neither of them can go anywhere else tonight except one of their two rooms."
-    (1.1.0: "…and neither of them can go anywhere tonight.")
+    (0.2.0: "…and neither of them can go anywhere tonight.")
 
 ---
 
@@ -256,12 +264,12 @@ Nothing for prompt wording, labels or the chip. Everything else is checked by ha
 
 ## 8. Codex briefs (written in full once each hook set lands, against its real signatures)
 
-1. **1.0.0 Busy:** the entry, the field, the chip on `chatsHeader`, `hangoutVerdict` with `busyDrops`,
+1. **0.1.0 Busy:** the entry, the field, the chip on `chatsHeader`, `hangoutVerdict` with `busyDrops`,
    the Busy prompt line, the tests for `busyDrops` and the field, the docs page, the `modFiles.ts` entry.
-2. **1.1.0 Night:** `slotInterlude` with the night spec and `clock: 'late-night'`, `nightOwed`, the
+2. **0.2.0 Night:** `slotInterlude` with the night spec and `clock: 'late-night'`, `nightOwed`, the
    `slotSettled` night-act record, the night prompt line and a texting-ledger line ("these texts were
    sent late at night from the dorms"), the tests for `nightOwed`, docs.
-3. **2.0.0 Visit:** the `nightVisit` DM field, `onHangout`, the aftermath field on `requests['slot-intro']`,
+3. **0.3.0 Visit:** the `nightVisit` DM field, `onHangout`, the aftermath field on `requests['slot-intro']`,
    the aftermath interlude and its rows, the Head back pool, docs.
 
 Each brief ends with: `npm run typecheck`, `npm test`, zero new allowlist lines, one commit as
