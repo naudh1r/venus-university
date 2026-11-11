@@ -1,0 +1,55 @@
+/* The title keeps its original layout whenever the status is absent. */
+.vu-bb-title:has(> .vu-after-hours-status) {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  z-index: 1;
+}
+
+.vu-after-hours-status {
+  position: relative;
+  flex: none;
+}
+
+.vu-after-hours-chip {
+  min-width: 112px;
+  justify-content: center;
+  padding: 9px 14px;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.vu-after-hours-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--vu-good);
+}
+
+.vu-after-hours-chip[aria-pressed='true'] .vu-after-hours-dot {
+  background: var(--vu-warn);
+}
+
+/* The status explains itself in a quiet pill under the pointer, clear of the title. */
+.vu-after-hours-hint {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1;
+  width: 290px;
+  margin-top: 12px;
+  padding: 8px 16px;
+  border: 2px solid var(--vu-border);
+  border-radius: 20px;
+  background: var(--vu-surface);
+  color: var(--vu-text-body);
+  font: 700 12px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}

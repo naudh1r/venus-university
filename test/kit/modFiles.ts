@@ -11,6 +11,7 @@ import type { ModSet } from './boundaryScan'
  * each entry registers (the [MK] packs' games).
  */
 export const MOD_FILES: Record<string, ModSet> = {
+  'after-hours': { globs: ['src/shared/afterHours*.ts', 'src/renderer/mods/afterHours*', 'src/renderer/vu_styles/AfterHours.css'] },
   'screen-companion': {
     globs: [
       'src/shared/screenCompanion.ts', 'src/shared/companionPointer.ts',
