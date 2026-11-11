@@ -5,7 +5,7 @@ export const AFTER_HOURS_MOD = 'after-hours'
 export const afterHoursText = {
   name: 'After Hours',
   blurb: 'A Busy status for the phone, and a night in your room after the evening to text before you sleep.',
-  offNote: 'Switching it off keeps your status; girls can ask you out again.',
+  offNote: 'Switching it off keeps your status; girls can ask you out again, and the evening goes straight to the morning.',
   option: 'Busy status',
   online: 'Online',
   busy: 'Busy',
