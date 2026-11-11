@@ -13,15 +13,18 @@ references are to b4ccf40c.
 
 ### Busy status (option `busy-status`, default on)
 - A status chip on the left header of the DM screen, above the chat list: **Online** / **Busy**. Always
-  visible while the phone's Chats are open. Click to switch. It stays until the player switches it back.
+  visible while the phone's Chats are open. Click to switch. It stays until the player switches it back, and a new semester starts
+  Online again.
 - **Busy** drops her "meet up right now" invite in a DM **only** when the reader sent the first text of
   that thread this slot, and he is not answering an invitation she has standing.
 - Unchanged while Busy: invitations and reach-outs at slot changes, the Yes/No/Reschedule footer, his own
   asks (she knows he is Busy and may say so), plans for later (filed by the texting ledger). No cost.
 
 ### The night (option `night`, default on)
-1. **Night (his room).** After every evening's boundary, before the morning opens. The landing shows his
-   room at night, one authored line, and one row: **End the day**. No text box, no map Go. The phone is open:
+1. **Night (his room).** After every evening's boundary, before the morning opens, whether the evening
+   was a scene or Relax. The night screen is the normal landing (date, money, stats, his room at night,
+   the phone) with one authored line and **no activity rows**: the only row is **End the day**, which asks
+   to confirm first (section 6). No map Go. Whether the text box stays is still open. The phone is open:
    DMs and Bunnyfeeds comments. The girls know it is late and everyone is in their dorms. No limit, no cost.
 2. **Night visit (v2).** At night, any contact may invite him over, or he may ask her, to **her room or
    his**. Agreed → **Begin night visit** → a full normal scene in that room, with its own ledger,
@@ -169,7 +172,7 @@ Every import is `@vx/modkit/*`, React or the mod's own files.
   eveningNight?: number   // global slot of an evening whose ledger reported a night together
   visit?: { charId: string; place: 'hers' | 'his'; morning: number } }  // v2: the aftermath owed
 ```
-- `carry`: keeps `busy`, drops the rest.
+- `carry`: returns undefined, so the next semester starts empty: Online, nothing owed.
 - `set()` before a row is released, so the write the morning already makes carries it.
 
 ---
@@ -178,7 +181,8 @@ Every import is `@vx/modkit/*`, React or the mod's own files.
 
 - **`nightOwed(to, from, data, flags)`** (pure): true when `to.time === 0`, `from` is the evening before
   it, `data.nightDone !== globalSlot(to)`, `data.eveningNight !== globalSlot(from)`, `to` is not the
-  semester's first slot, the tutorial slot or graduation morning, and the `night` option is on.
+  semester's first slot or the tutorial slot, and the `night` option is on. The night before graduation
+  morning is still open (the owner wants it treated as special).
 - **Evening that already ended in a night together:** no night interlude (he is not in his room).
   `eveningNight` is set at `slotSettled` from the ledger's acts.
 - **`busyDrops(verdict, ctx, busy)`** (pure): `busy && verdict?.initiatedBy === 'contact' &&
@@ -209,6 +213,9 @@ and take it easy, doing nothing in particular. Before you know it, it's time for
     change." / "{Name} has to get to work, so you head back to your room to shower and change."
 - **His room, she leaves:** "{Name} heads off to start her day."
 - **Rows:** `Stay with {Name}` · `Head back to your room` · `Start the day`
+- **End the day confirmation** (`ConfirmModal` from the kit; worded like the game's "Quit your job?"):
+  title "End the day?", message "You'll go to sleep and wake up tomorrow morning.", confirm "Sleep",
+  cancel "Never mind"
 - **Status chip:** `Online` / `Busy`, hover hint: "Busy: girls won't ask you to meet up in chats you start."
 - **Prompt lines** (`prompts.dm`):
   - Busy: "The reader has set his Bunnyboard status to Busy: he would rather stay in his room for now.
@@ -227,7 +234,7 @@ and take it easy, doing nothing in particular. Before you know it, it's time for
   semester's first morning, on graduation morning, or with the option off.
 - `busyDrops`: drops only her new ask in a chat he started; keeps his asks, an answer to a standing
   invitation, and chats she started.
-- The save field: `normalize` keeps the shape of an older slice; `carry` keeps only `busy`.
+- The save field: `normalize` keeps the shape of an older slice; `carry` starts the next semester empty.
 
 Nothing for prompt wording, labels or the chip. Everything else is checked by hand (section 9).
 
