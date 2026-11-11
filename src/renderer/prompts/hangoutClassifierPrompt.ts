@@ -31,6 +31,7 @@ export interface HangoutVerdict {
 export interface HangoutClassifierState {
   date: number
   time: TimeSlot
+  late?: boolean
   /** The semester's season, which names the month. */
   season: Season
   /**
@@ -54,7 +55,7 @@ export function buildHangoutClassifierPrompt(
     'You read one exchange from a text thread and report three things about it.',
     '',
     'NOW',
-    `It is ${formatDateBanner(state.date, state.time, state.season)}`,
+    `It is ${formatDateBanner(state.date, state.time, state.season)}${state.late ? ', late at night' : ''}`,
     ...(state.weather ? weatherLines(state.weather, state.date, state.time) : []),
     '',
     // The instructions below point at these blocks by name.

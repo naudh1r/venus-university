@@ -243,6 +243,7 @@ export function placeDestination(placeKey: string): string | null {
 /** Everyone the player can place this slot, in {@link PLACE_ORDER}. */
 export function knownWhereabouts(date?: number, time?: TimeSlot): Whereabouts[] {
   const game = useGameStore.getState()
+  if (game.interlude) return []
   const on = date ?? game.date
   const half = time ?? game.time
   const slot = shiftSlotOf(shiftWeekdayOf(on), half)

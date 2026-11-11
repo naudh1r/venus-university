@@ -999,6 +999,8 @@ export type InviteKind = (typeof INVITE_KINDS)[number]
 
 /** One Bunnyboard text message. */
 export interface ChatMessage {
+  /** Sent late on the night preceding its stored slot. */
+  late?: true
   /** Optional response grouping retained by the Text Regeneration mod. */
   exReplyTo?: string
   /**

@@ -38,6 +38,27 @@ import type { ClassCatalogEdits, SceneSpotTag, TextEditSet } from '../bridge/sha
  * whether a mod is on is handed in by the mods store ({@link setHookRules}).
  */
 
+/** The boundary a mod may hold before the next slot opens. */
+export interface InterludeCtx {
+  from: { date: number; time: TimeSlot }
+  to: { date: number; time: TimeSlot }
+  semesterIndex: number
+}
+
+/** One way to release a held slot, optionally after the game's confirmation. */
+export interface InterludeRow {
+  label: string
+  confirm?: { title: string; message: string; confirmText: string; cancelText: string }
+  onPick?: () => void
+}
+
+/** Narration and choices on the finished slot's landing. */
+export interface Interlude {
+  lines: readonly string[]
+  rows: readonly InterludeRow[]
+  clock?: 'late-night'
+}
+
 /** The thread and invitation behind a texting classifier's verdict. */
 export interface HangoutVerdictCtx {
   charId: string
@@ -381,6 +402,10 @@ export type SceneLedgerEntry =
   | { kind: 'act'; value: NonNullable<LedgerResponse['acts']>[number] }
 
 export interface ModHooks {
+  /** The first enabled mod to answer holds the slot before any opening effects. */
+  slotInterlude?: (ctx: InterludeCtx) => Interlude | null
+  /** The first label replaces the Relax row's words. */
+  relaxLabel?: (ctx: { date: number; time: TimeSlot }) => string | undefined
   /** Return false to omit this scene row before projection and settlement. */
   keepSceneLedgerEntry?: (entry: Readonly<SceneLedgerEntry>) => boolean
   /**
@@ -940,6 +965,32 @@ export function sceneCallTags(ctx: SceneCall): Readonly<Record<string, unknown>>
     }
   }
   return Object.freeze(tags)
+}
+
+/** Asks enabled mods in list order for a hold before a slot opens. */
+export function slotInterlude(ctx: InterludeCtx): { owner: string; interlude: Interlude } | null {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      const interlude = hooks.slotInterlude?.(ctx)
+      if (interlude) return { owner: modId, interlude }
+    } catch (error) {
+      console.warn(`[mods] ${modId}: slotInterlude failed`, error)
+    }
+  }
+  return null
+}
+
+/** Asks enabled mods for the first replacement of the Relax label. */
+export function relaxLabel(ctx: { date: number; time: TimeSlot }): string | undefined {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      const label = hooks.relaxLabel?.(ctx)
+      if (label !== undefined) return label
+    } catch (error) {
+      console.warn(`[mods] ${modId}: relaxLabel failed`, error)
+    }
+  }
+  return undefined
 }
 
 /** Hands the verdict to each enabled mod in turn; a failed handler leaves the last result intact. */

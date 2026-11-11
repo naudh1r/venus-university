@@ -188,7 +188,8 @@ import {
   goToVerdict,
   RELAX_KEY,
   relaxAction,
-  slotActionsNow
+  slotActionsNow,
+  type SlotAction
 } from '../stores/slotActions'
 import { isWebBuild } from '../platform'
 import { noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
@@ -601,6 +602,8 @@ export function GameView(): JSX.Element {
   const talentsOn = useModOn('campus-talents')
   const echoOn = useModOn('echo')
   const sceneInput = useSceneInputLayout()
+  const interlude = useGameStore(s => s.interlude)
+  const [interludeConfirm, setInterludeConfirm] = useState<number | null>(null)
   const bg = useGameStore((s) => s.bg)
   const time = useGameStore((s) => s.time)
   const date = useGameStore((s) => s.date)
@@ -1166,9 +1169,11 @@ export function GameView(): JSX.Element {
   // The same cache-buster for the speaker's portrait: the player can reframe one mid-playthrough.
   const spriteVersions = useCharacterStore((s) => s.spriteVersion)
   // Which half of the day the layer resolves; the epilogue is always night.
-  const half = isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
+  const shownDate = interlude?.now.from.date ?? date
+  const shownTime = interlude?.now.from.time ?? time
+  const half = interlude ? slotHalf(shownTime) : isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
   // The sky over this slot, which picks the background's render and the mark the chromes wear.
-  const slotSky = slotWeather(weather, date, time, graduationSeen)
+  const slotSky = slotWeather(weather, shownDate, shownTime, interlude ? false : graduationSeen)
   const wet = isWet(slotSky)
   // How the reader's cold stands this slot, where it shows.
   const coldStage = coldStageAt(readerCold ?? undefined, globalSlotOf(date, time))
@@ -1583,9 +1588,9 @@ export function GameView(): JSX.Element {
    * The playthrough's opening owns the screen: nothing on it but the dialogue box,
    * `BASE_REVEAL` and, once the turn is handed back, the input.
    */
-  const cinematic = isOrientationSlot(date, time, semesterIndex)
+  const cinematic = !interlude && isOrientationSlot(date, time, semesterIndex)
   /** The graduation epilogue: an authored screen the reader still reads and types on. */
-  const epilogue = isGraduationSlot(date, time) && !gameOver
+  const epilogue = !interlude && isGraduationSlot(date, time) && !gameOver
   /** A screen the game wrote end to end; each leaves at most `BASE_REVEAL` standing. */
   const authored = cinematic || epilogue || Boolean(gameOver)
   /**
@@ -1823,10 +1828,11 @@ export function GameView(): JSX.Element {
       void finishSlotActivity(slotActivity.owner, slotActivity.id, false, 'The activity is no longer available, so it ended without being completed.')
     }
   }, [slotActivity, busy, awaitingInput, replaying, turnError, sceneEnding, activitySwitches])
-  const slotActions = useMemo(
+  const slotActions = useMemo<SlotAction[]>(
     // A created scene and a replay have no slot, and their landing is never drawn.
-    () => (created || replaying ? [] : [...slotActionsNow(), relaxAction(time)]),
-    [date, time, events, classes, job, playerSchedule, classRecords, calendar, activitySwitches]
+    () => (interlude ? interlude.interlude.rows.map((row, index) => ({ key: `interlude:${index}`, text: row.label, tone: 'idle' as const, verdict: null }))
+      : created || replaying ? [] : [...slotActionsNow(), relaxAction(time)]),
+    [date, time, events, classes, job, playerSchedule, classRecords, calendar, activitySwitches, interlude]
   )
 
   /** The epilogue's own row, in the slot actions' place: a button per goodbye still owed. */
@@ -1857,6 +1863,14 @@ export function GameView(): JSX.Element {
   )
 
   function onSlotAction(index: number): void {
+    if (interlude) {
+      if (busy || blocked || !awaitingInput) return
+      const row = interlude.interlude.rows[index]
+      if (!row) return
+      if (row.confirm) setInterludeConfirm(index)
+      else interlude.pick(index)
+      return
+    }
     /**
      * The epilogue's menu is not a turn: a row is a goodbye scene of its own, and the
      * last one ends the game. Neither is ever routed through `submitAction` — there is no hour
@@ -1907,7 +1921,7 @@ export function GameView(): JSX.Element {
    * runs. Guards on `busy`/`awaitingInput` directly, not `blocked`, which the open map raises.
    */
   function onGoTo(locationId: string, placeLabel: string): void {
-    if (busy || !awaitingInput) return
+    if (interlude || busy || !awaitingInput) return
     closePanel()
     setAction('')
     // The gift's arrangement: the panel closes, then the turn is spent, so the wait is reported
@@ -2294,7 +2308,7 @@ export function GameView(): JSX.Element {
            menu — the same answers, asked a different question. No turn: every answer is a row. */
         <LandingChrome
           theme={half}
-          date={date}
+          date={shownDate}
           season={season}
           night={half === 'night'}
           weather={slotSky}
@@ -2325,7 +2339,7 @@ export function GameView(): JSX.Element {
           inputDead={!awaitingInput}
           inputFocus={!blocked}
           /* The turn is the whole of the test, and the epilogue does not take one. */
-          turnShown={!epilogue && (inputShown || sending)}
+          turnShown={!interlude && !epilogue && (inputShown || sending)}
           /* Which of the screen's own controls this kind of screen hands over. **The
              epilogue's set, whether or not a goodbye call is out**: `shown` reads `sceneActive`,
              which rises the moment the reader presses a row, and the menu he is looking at is
@@ -2413,7 +2427,7 @@ export function GameView(): JSX.Element {
             key="map"
             theme={half}
             onClose={closePanel}
-            onGo={landingSlot && shopReady && !epilogue ? onGoTo : undefined}
+            onGo={landingSlot && shopReady && !epilogue && !interlude ? onGoTo : undefined}
           />
         )}
       </AnimatePresence>
@@ -2980,6 +2994,21 @@ export function GameView(): JSX.Element {
             the reason Settings is. */}
         {panel?.kind === 'feedback' && (
           <FeedbackModal key="feedback" theme={half} onClose={closePanel} />
+        )}
+
+        {interlude && interludeConfirm !== null && interlude.interlude.rows[interludeConfirm]?.confirm && (
+          <ConfirmModal
+            key="interlude-row"
+            id="interlude-row"
+            theme={half}
+            {...interlude.interlude.rows[interludeConfirm].confirm!}
+            onCancel={() => setInterludeConfirm(null)}
+            onConfirm={() => {
+              const index = interludeConfirm
+              setInterludeConfirm(null)
+              interlude.pick(index)
+            }}
+          />
         )}
 
         {panel?.kind === 'leaving' && (

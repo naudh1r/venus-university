@@ -2,6 +2,7 @@
  * The bridge for the window: every type and function of core's `src/renderer` that the kit hands
  * a mod, re-exported here and nowhere else in the kit (see `shared.ts`).
  */
+export { interludeNow, useInterludeNow } from '../../../../src/renderer/mods/interlude'
 export { profileUrl, spriteUrl, useSpriteVersion } from '../../../../src/renderer/stores/characterStore'
 export type { PromptState } from '../../../../src/renderer/prompts/scenePrompt'
 export type { SlotIntroInput } from '../../../../src/renderer/prompts/slotIntroPrompt'

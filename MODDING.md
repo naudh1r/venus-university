@@ -1192,6 +1192,8 @@ else names it.
 | `dmHistoryNote` | `textingPrompt.ts` | Add a note after a DM in the history the prompt quotes |
 | `characterFromDraft` | `characterPrompt.ts` | Fill fields of a generated character from the reply |
 | `dmReplyLead` | `textingLoop.ts` | Read the `lead` fields of her DM reply the moment they have streamed in, before her first text lands. Once per reply, never for one already abandoned. Context includes `signal`: a lead's work ends at `afterDmReply` or at this signal, whichever comes first. Failure, cancellation, blocking, abandonment, load, leaving or scene takeover aborts it; a landed reply does not. Her finished reply stays authoritative |
+| `slotInterlude` | `gameLoop.ts` (`beginSlot`) | Hold the slot opening on the finished slot’s landing with narration and optional confirmed choices |
+| `relaxLabel` | `slotActions.ts` | Replace the Relax row’s label, keeping its behavior |
 | `hangoutVerdict` | `textingLoop.ts` | Change or drop the texting classifier's verdict before a hangout or invitation is filed |
 | `afterDmReply` | `textingLoop.ts` | Act after her reply in a DM has landed |
 | `afterSceneReply` | `loop/turn.ts` | Read a landed scene reply as the model wrote it, fields a mod asked for included. A turn's reply only: a scene's closing reply is not handed over |
@@ -1242,6 +1244,26 @@ else names it.
 | `sceneReplyLanded` | `loop/stream.ts`, `loop/turn.ts` | Read every scene call's reply once it has landed, the closing's included, with what main handed back |
 | `sceneCut` | `gameStore.ts` | Undo what the replies past a cut in the transcript changed |
 | `switchedOn` | `App.tsx` (`boot`), then as a switch or the game's record moves | Read what the mod keeps as it comes on: at boot, waited for before the first screen, and again each time it is switched on |
+
+`slotInterlude(ctx)` is asked once per entry into `beginSlot`, after game-over checks and
+before graduation or any ordinary slot-opening effects. `ctx.from` is the preceding slot;
+`ctx.to` is the clock's current slot, with `semesterIndex` naming its semester. The first
+enabled mod returning an `Interlude` owns the hold. Its `lines` play on the finished slot's
+landing, followed only by its `rows`; there is no action box, gift or map travel, and the map
+lists nobody. Each row opens the slot normally, after the native confirmation when `confirm`
+is present and after calling its optional `onPick` once. The row does not ask the hook again.
+A manual save holds no scene, so loading it asks anew, as loading a boundary save does.
+Leaving the landing writes nothing. Switching the owner off leaves the current hold standing;
+the next slot entry follows the current switches. `interludeNow()` and `useInterludeNow()`
+return the held context, its `owner` and optional `clock`, or null.
+
+With `clock: 'late-night'`, the phone reads as late on `from`: the weather and dorm-room
+whereabouts in her prompt come from that night, classes and work do not shut the composer,
+and presence is hidden. Texts retain `to`'s date and time for the ledger and gain `late: true`;
+their saved marker prints as the preceding night in threads, classifier context and ledger
+blocks, including after the hold ends or the save is loaded. Reach-outs and invitations
+from the new slot arrive only after a row releases it. The stage and room sound use `from`
+for every interlude, regardless of the phone's clock.
 
 `hangoutVerdict(verdict, ctx)` runs after a normal texting reply is classified, before it arms
 a hangout or raises her invitation; a regenerated reply does not ask it. `ctx.charId` names

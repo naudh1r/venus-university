@@ -86,6 +86,14 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.9.0
+
+- `slotInterlude` can hold a slot opening on the finished slot's landing with narration,
+  confirmed choices and a working phone. `interludeNow` and `useInterludeNow` read the hold.
+- A `late-night` clock keeps texts in the new slot's ledger while their stamps, prompts,
+  weather and availability read as late on the preceding night.
+- `relaxLabel` replaces the Relax row's words without changing what it does.
+
 ## 0.8.0
 
 - `hangoutVerdict` lets renderer mods change or drop a texting classifier verdict, with who

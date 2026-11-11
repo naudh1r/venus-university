@@ -43,7 +43,7 @@ import { TextField } from '../components/TextField'
 import { useModalShell } from '../components/useModalShell'
 import { yearLabel } from '@shared/classes'
 import {
-  formatChatDivider,
+  formatMessageSlot,
   formatNumericGameDate,
   formatShortGameDate,
   shiftWeekdayOf,
@@ -1000,8 +1000,9 @@ function ConversationView({
   const bot = identity.bot
   const name = character?.firstName ?? '???'
   // No bot has a timetable.
-  const atWork = !bot && charJobNow(charId) !== null
-  const unavailable = !bot && charBusyNow(charId)
+  const interlude = useGameStore(s => s.interlude)
+  const atWork = !bot && interlude?.now.clock !== 'late-night' && charJobNow(charId) !== null
+  const unavailable = !bot && interlude?.now.clock !== 'late-night' && charBusyNow(charId)
   // Her reply plus the hangout classifier that reads it.
   const busy = useBunnyboardStore((s) => s.busyCharIds.includes(charId))
   // Texts written and waiting out their typing delay.
@@ -1082,7 +1083,7 @@ function ConversationView({
   // A blocked thread says nothing about where she is: the map has dropped her to what he
   // remembers, and the composer under it already says she blocked him. Neither does a screen
   // set sometime after graduation, which pins nobody to an hour.
-  const status = bot || blocked || epilogue ? null : presenceOf(placed, charId, date, time)
+  const status = bot || blocked || epilogue || interlude ? null : presenceOf(placed, charId, date, time)
 
   return (
     <div className="vu-bb-thread">
@@ -1117,18 +1118,17 @@ function ConversationView({
         {messages.map((message, index) => {
           // A divider opens the thread and repeats whenever the slot changes.
           const previous = messages[index - 1]
-          const stamp = formatChatDivider(message.date, message.time, season)
+          const stamp = formatMessageSlot(message, season)
           const divider =
-            !previous || formatChatDivider(previous.date, previous.time, season) !== stamp
+            !previous || formatMessageSlot(previous, season) !== stamp
           return (
             <Fragment key={message.id}>
               {divider && (
-                // The same two readings `formatChatDivider` is built from, glued differently:
-                // that function stays the one thing deciding where a divider goes.
+                // The date and half share the same reading as the prompt's message stamps.
                 <div className="vu-bb-divider">
-                  <span>{formatShortGameDate(message.date, season)}</span>
+                  <span>{stamp.split(', ')[0]}</span>
                   <span className="vu-bb-thread-dot">·</span>
-                  <span>{slotHalf(message.time)}</span>
+                  <span>{stamp.split(', ')[1]}</span>
                 </div>
               )}
               <MessageBubble message={message} />
@@ -1442,6 +1442,7 @@ function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
 
 /** The Friends tab: what expires on top, then who he could ask, then who he has. */
 function FriendsList(): JSX.Element {
+  const interlude = useGameStore(s => s.interlude)
   const bunnyboard = useGameStore((s) => s.bunnyboard)
   const characters = useGameStore((s) => s.characters)
   const charInfo = useGameStore((s) => s.charInfo)
@@ -1564,7 +1565,7 @@ function FriendsList(): JSX.Element {
                   character={character}
                   info={info}
                   tag={relationshipTagOf(info.flags ?? emptyFlags(), affection)}
-                  status={presenceOf(placed.get(charId), charId, date, time)}
+                  status={interlude ? null : presenceOf(placed.get(charId), charId, date, time)}
                   onOpen={() => openPage(charId)}
                 />
               )
@@ -1848,7 +1849,7 @@ function ContactCard({
   character: Character
   info: CharInfo
   tag: string
-  status: Presence
+  status: Presence | null
   onOpen: () => void
 }): JSX.Element {
   const version = useSpriteVersion(charId)
@@ -1871,10 +1872,10 @@ function ContactCard({
           <span className="vu-bb-card-line">
             {yearLabel(info.year)} · {info.major}
           </span>
-          <span className="vu-bb-where">
+          {status && <span className="vu-bb-where">
             <BusyLed busy={status.busy} />
             {status.text}
-          </span>
+          </span>}
         </span>
         <span className="vu-bb-tag" data-tag={tagSlug(tag)}>
           {tag}

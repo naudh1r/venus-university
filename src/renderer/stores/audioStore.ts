@@ -263,7 +263,7 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
     noNsfwImages: noNsfwImagesOf(useSettingsStore.getState())
   })
   const character = cg ? game.characters[cg.charId] : null
-  const epilogue = isEpilogueNight(game.date, game.time, game.graduationSeen)
+  const epilogue = !game.interlude && isEpilogueNight(game.date, game.time, game.graduationSeen)
 
   return {
     gameOver: game.activeGameOver !== null,
@@ -274,9 +274,9 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
     // `busy` is no part of it: the scroll is read while the next call is still out.
     narrating: !inScene && !game.awaitingInput && !game.waitingForLine,
     bg: venueFacts(base),
-    half: epilogue ? 'night' : slotHalf(game.time),
-    weekend: weekendSaturdayOf(game.date) !== null,
-    weather: slotWeather(game.weather, game.date, game.time, game.graduationSeen),
+    half: game.interlude ? slotHalf(game.interlude.now.from.time) : epilogue ? 'night' : slotHalf(game.time),
+    weekend: weekendSaturdayOf(game.interlude?.now.from.date ?? game.date) !== null,
+    weather: slotWeather(game.weather, game.interlude?.now.from.date ?? game.date, game.interlude?.now.from.time ?? game.time, game.interlude ? false : game.graduationSeen),
     epilogue,
     cg:
       cg && character
