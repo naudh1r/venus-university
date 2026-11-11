@@ -34,6 +34,9 @@ the earlier rounds.
    player's screen became the topic of her texts. Prompt lines describe the situation in the fiction
    ("the reader is staying in for now"), say how she behaves, and say when it is background she does not
    talk about.
+7. **Change nothing the brief does not ask for.** Round B also changed how `src/main/paths.ts` checks
+   ComfyUI's output paths; it was unrelated and reverted. If something outside the brief looks wrong or
+   a test fails for an unrelated reason, report it instead of fixing it.
 
 ## Always
 - Read `CLAUDE.md`, `DESIGN_GUIDE.md`, `MODDING.md`, and `UI_STYLE_GUIDE.md` for anything on screen.
