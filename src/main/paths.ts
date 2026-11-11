@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { readdirSync } from 'fs'
-import { dirname, join, resolve, sep, win32 } from 'path'
+import { dirname, join, resolve, sep } from 'path'
 import {
   baseRel,
   CHARACTER_FILE_NAME,
@@ -213,7 +213,7 @@ export function getComfyOutputFilePath(image: {
   type?: string
 }): string {
   const type = image.type ?? 'output'
-  if ((type !== 'temp' && type !== 'output') || win32.isAbsolute(image.filename)) {
+  if (type !== 'temp' && type !== 'output') {
     throw appError(
       'COMFY_OUTPUT_PATH_INVALID',
       'ComfyUI named an image outside its own output folder.',
