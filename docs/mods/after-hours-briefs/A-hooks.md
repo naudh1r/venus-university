@@ -65,7 +65,7 @@ A screen slot in the DM screen's left header, beside the **Chats** title.
   and add a `CHANGELOG.md` entry.
 - Export what a mod imports (the types) from `@vx/modkit/renderer` through `src/bridge/renderer.ts`.
 - Regenerate the API report: `cd packages/modkit && npm install && npm run report`, commit `api/*.api.md`
-  and the rolled-up types, and check `npm run report:check` passes.
+  only (`dist/` is generated and gitignored: never commit it), and check `npm run report:check` passes.
 - `MODDING.md`: a row each in the hook-points table, and a short paragraph under it for
   `hangoutVerdict` (when it is asked, `startedBy`, `answeringInvite`, that `null` drops the verdict).
 
