@@ -5,6 +5,7 @@
 export { profileUrl, spriteUrl, useSpriteVersion } from '../../../../src/renderer/stores/characterStore'
 export type { PromptState } from '../../../../src/renderer/prompts/scenePrompt'
 export type { SlotIntroInput } from '../../../../src/renderer/prompts/slotIntroPrompt'
+export type { HangoutVerdict } from '../../../../src/renderer/prompts/hangoutClassifierPrompt'
 export type { TextingPromptState } from '../../../../src/renderer/prompts/textingPrompt'
 export type { useGameStore } from '../../../../src/renderer/stores/gameStore'
 export type { ManualSaveOffer } from '../../../../src/renderer/stores/gameLoop'

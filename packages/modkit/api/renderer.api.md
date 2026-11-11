@@ -340,6 +340,20 @@ export function gestures(dead: boolean, hover: TargetAndTransition, tap: TargetA
 };
 
 // @public
+export interface HangoutVerdict {
+    description: string;
+    initiatedBy: 'player' | 'contact';
+}
+
+// @public
+export interface HangoutVerdictCtx {
+    answeringInvite: boolean;
+    // (undocumented)
+    charId: string;
+    startedBy: 'reader' | 'her';
+}
+
+// @public
 export function hasDesktopSurfaces(): boolean;
 
 // @public
@@ -473,6 +487,7 @@ export interface ModHooks {
     characterFromDraft?: (draft: Readonly<Record<string, unknown>>, ctx: {
         baseAppearance: readonly string[];
     }) => Partial<Character>;
+    chatsHeader?: ComponentType<ScreenSlotProps['chatsHeader']>;
     contactPostExtra?: ComponentType<ScreenSlotProps['contactPostExtra']>;
     contactTab?: ContactTab;
     conversationFoot?: ComponentType<ScreenSlotProps['conversationFoot']>;
@@ -497,6 +512,7 @@ export interface ModHooks {
     gameEntered?: () => void;
     gameMenuEntry?: ComponentType<ScreenSlotProps['gameMenuEntry']>;
     gameModals?: Record<string, ComponentType<GameModalProps>>;
+    hangoutVerdict?: (verdict: HangoutVerdict | null, ctx: HangoutVerdictCtx) => HangoutVerdict | null;
     keepSceneLedgerEntry?: (entry: Readonly<SceneLedgerEntry>) => boolean;
     landingTool?: ComponentType<ScreenSlotProps['landingTool']>;
     mapOverlay?: ComponentType<ScreenSlotProps['mapOverlay']>;
@@ -1229,6 +1245,10 @@ export interface ScreenSlotProps {
     advancedSettingsEntry: {
         theme: ScreenTheme;
         busy: boolean;
+    };
+    // (undocumented)
+    chatsHeader: {
+        theme: 'day' | 'night';
     };
     // (undocumented)
     contactPostExtra: {

@@ -1,4 +1,5 @@
 /** `@vx/modkit/renderer`: what a mod may import in the window. */
+export type { HangoutVerdict } from '../bridge/renderer'
 export type {
   BunnyboardPage,
   ContactTab,
@@ -9,6 +10,7 @@ export type {
   EndingChoice,
   GameMenuItemProps,
   GameModalProps,
+  HangoutVerdictCtx,
   LandingToolProps,
   LikesAsk,
   ModDetailProps,

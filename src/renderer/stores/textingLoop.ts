@@ -95,7 +95,8 @@ import {
 } from '@shared/types'
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
-import { afterDmReply, afterReachOut, dmReplyLead, promptTextEdits } from '../mods/hooks'
+import { threadStartedBy } from '@shared/textingThread'
+import { afterDmReply, afterReachOut, dmReplyLead, hangoutVerdict, promptTextEdits } from '../mods/hooks'
 import { INCOMING_TEXTS } from '@shared/modEntries/incoming-texts'
 import { lorebookNow } from './lorebookStore'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
@@ -721,7 +722,13 @@ async function runReply(
 
     // An unsolicited text is not an answer to a standing invitation.
     if (!sent && invited) return
-    handleHangout(charId, await classifyHangout(character, conversation, sent, messages))
+    const verdict = await classifyHangout(character, conversation, sent, messages)
+    const game = useGameStore.getState()
+    handleHangout(charId, hangoutVerdict(verdict, {
+      charId,
+      startedBy: threadStartedBy(game.bunnyboard.conversations[charId]?.messages ?? [], game.date, game.time),
+      answeringInvite: sent !== null && invited !== null
+    }))
     if (sent && invited) settleAnsweredInvitation(charId, invited.occasionId)
   } finally {
     abortLead()

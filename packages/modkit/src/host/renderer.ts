@@ -22,6 +22,7 @@ export {
   fileFeedPost,
   gameEntered,
   gameModal,
+  hangoutVerdict,
   modDetail,
   modRequest,
   optionPreview,
