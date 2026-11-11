@@ -1,8 +1,10 @@
 import { useEffect, useId, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
+import { globalSlotOf } from '@vx/modkit/shared'
 import {
   fadeIn,
   gestures,
+  interludeNow,
   modOptionOn,
   quietPress,
   registerHooks,
@@ -14,8 +16,8 @@ import {
   useModOption,
   type ScreenSlotProps
 } from '@vx/modkit/renderer'
-import { AFTER_HOURS_MOD, busyDrops, normalize, type AfterHours } from '../../shared/afterHours'
-import { afterHoursText, busyPrompt } from '../../shared/afterHoursText'
+import { AFTER_HOURS_MOD, busyDrops, nightOwed, normalize, type AfterHours } from '../../shared/afterHours'
+import { afterHoursText, busyPrompt, nightPrompt } from '../../shared/afterHoursText'
 import '../vu_styles/AfterHours.css'
 
 const status = saveField<AfterHours>(AFTER_HOURS_MOD, { empty: { busy: false }, normalize })
@@ -35,7 +37,7 @@ function StatusChip({ theme }: ScreenSlotProps['chatsHeader']): JSX.Element | nu
   /** Saves against the current value so a delayed write cannot replace a newer status. */
   async function toggle(): Promise<void> {
     const expect = status.read()
-    const next = { busy: !expect.busy }
+    const next = { ...expect, busy: !expect.busy }
     if (safePoint() !== 'open') {
       status.set(next)
       return
@@ -89,13 +91,28 @@ function StatusChip({ theme }: ScreenSlotProps['chatsHeader']): JSX.Element | nu
 
 registerHooks(AFTER_HOURS_MOD, {
   chatsHeader: StatusChip,
+  slotInterlude: ({ to }) => {
+    if (!modOptionOn(AFTER_HOURS_MOD, 'night') || !nightOwed(to, status.read())) return null
+    return {
+      lines: [afterHoursText.nightLine],
+      rows: [{
+        label: afterHoursText.endTheDay,
+        confirm: afterHoursText.endTheDayConfirm,
+        onPick: () => status.set({ ...status.read(), nightDone: globalSlotOf(to.date, to.time) })
+      }],
+      clock: 'late-night'
+    }
+  },
   hangoutVerdict: (verdict, ctx) =>
+    interludeNow()?.owner === AFTER_HOURS_MOD ||
     busyDrops(verdict, ctx, modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy) ? null : verdict,
+  relaxLabel: ({ time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? afterHoursText.relax : undefined,
   prompts: {
     dm: {
-      lines: ({ character }) => modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy
-        ? [busyPrompt(character.firstName)]
-        : []
+      lines: ({ character }) => [
+        ...(interludeNow()?.owner === AFTER_HOURS_MOD ? [nightPrompt(character.firstName)] : []),
+        ...(modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy ? [busyPrompt(character.firstName)] : [])
+      ]
     }
   }
 })

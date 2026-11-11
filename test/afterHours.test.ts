@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { busyDrops, normalize } from '../src/shared/afterHours'
+import { busyDrops, nightOwed, normalize } from '../src/shared/afterHours'
 
 describe('Busy invitations', () => {
   const ctx = { startedBy: 'reader' as const, answeringInvite: false }
@@ -33,5 +33,31 @@ describe('saved status', () => {
   it('keeps an explicit Busy or Online status', () => {
     expect(normalize({ busy: true })).toEqual({ busy: true })
     expect(normalize({ busy: false })).toEqual({ busy: false })
+  })
+
+  it('keeps a whole-number completed night alongside the phone status', () => {
+    expect(normalize({ busy: true, nightDone: 14 })).toEqual({ busy: true, nightDone: 14 })
+    expect(normalize({ nightDone: 0 })).toEqual({ busy: false, nightDone: 0 })
+  })
+
+  it('drops malformed completed-night markers', () => {
+    for (const nightDone of [undefined, null, '14', true, 14.5, NaN, Infinity, -Infinity, {}, []]) {
+      expect(normalize({ busy: true, nightDone })).toEqual({ busy: true })
+    }
+  })
+})
+
+describe('the night owed before a morning opens', () => {
+  const morning = { date: 7, time: 0 as const }
+
+  it('is owed after an evening until that night is ended', () => {
+    expect(nightOwed(morning, { busy: false })).toBe(true)
+    expect(nightOwed(morning, { busy: true, nightDone: 12 })).toBe(true)
+    expect(nightOwed(morning, { busy: false, nightDone: 14 })).toBe(false)
+  })
+
+  it('is not owed before an evening or on the first morning of a semester', () => {
+    expect(nightOwed({ date: 7, time: 1 }, { busy: false })).toBe(false)
+    expect(nightOwed({ date: 0, time: 0 }, { busy: false })).toBe(false)
   })
 })
