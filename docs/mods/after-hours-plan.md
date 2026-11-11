@@ -265,7 +265,6 @@ Each brief ends with: `npm run typecheck`, `npm test`, zero new allowlist lines,
 - **Bunnyfeeds:** answers to a comment made at night are stamped "for the next slot", so they would show
   in the evening. Bunnyfeeds should read `interludeNow()` and stamp them for `to`. That is its author's
   change.
-- **Night posts:** posts come from the slot opening. "The night gets its own round" means either the
-  morning opening's posts are delivered at the start of the night (no new posts in the morning), or core
-  adds a posts-only call for the night. The first costs nothing; the second needs one more hook. Ask the
-  owner and morrowkiln.
+- **Night posts (settled):** no round of their own. Posts arrive with whatever slot is current, as
+  they do today: the morning's posts come with the morning's opening, after the night or the aftermath
+  ends. No hook is needed for them.
