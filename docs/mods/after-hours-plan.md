@@ -63,6 +63,8 @@ is ready. 0.1.0 needs the two smallest hooks.
 - `mod/after-hours`: the mod, on top of `hooks/after-hours`. Hooks-only: zero new boundary entries.
 - When the org's `main` moves: update `hooks/after-hours` first, then the mod on top.
 - Order: hook group A (H4, H6) → 0.1.0 → group B (H1, H3) → 0.2.0 → group C (H2, H1's scene rows) → 0.3.0.
+- Once the whole mod is done: package it as an installable mod too (`vxmod.json` listing every hook and
+  kit API it uses, one bundled `renderer.js` with React, `motion` and the kit external), as its own brief.
 
 ---
 
