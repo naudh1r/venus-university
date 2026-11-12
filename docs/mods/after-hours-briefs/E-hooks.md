@@ -42,8 +42,16 @@ When he sends while she is busy and a mod opened the composer:
 - **A block** in a held reply is applied when the reply shows, not before.
 - **A failure** posts the error bubble at once and parks on Retry as today.
 - `afterDmReply` gets `held: { date, time }` in its context for a held reply.
-- Save: held messages are ordinary messages with a later stamp; nothing else is stored. A reload before
-  the slot keeps them hidden; a reload after shows them.
+- **Saving:** held messages are ordinary messages with a later stamp, written by the next save of any kind.
+  A reload before their slot keeps them hidden; a reload after shows them. Leaving from a landing writes
+  nothing, as today, so a text and its held reply that no save took are gone together.
+- **His text waits for her reply:** his message carries `awaitingReply: true` (a new optional field on
+  `ChatMessage`) from when it is sent until her held reply lands, then the field is removed.
+- **Not cancelled by a scene:** starting a scene does not cancel a held reply's call (it is for later
+  anyway); it finishes in the background and goes out with the next save. Leaving the game does cancel it.
+- **Asked again on load:** entering a game whose thread ends on his texts marked `awaitingReply` (the game
+  was left, or saved, while her held reply was still being written) sends her held reply again for them,
+  held until the slot after the one his last text was sent in, or the current slot if that has passed.
 
 ## 3. The kit around it
 `textWhileBusy` row, the `held` field on `afterDmReply`'s context, `heldUntil` on `TextingPromptState`,
