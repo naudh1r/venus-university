@@ -90,9 +90,10 @@
 
 - Bonus boundaries dispatch `bonusSettled` with `bonus: true`; ordinary `slotSettled` has no
   bonus context and never receives bonus scenes. Scene-computation hooks retain their flags.
-- Conversation readers expose only shown messages and notify when the opened clock releases
-  them. Gallery and scene histories use the same projection. Recovery finds waiting texts
-  behind saved errors; semester carry moves held delivery dates with their messages.
+- Core's previews and scene histories leave out messages not shown yet. The conversation readers
+  keep handing out the whole thread; `chatClock()` (renderer) with `messageShown` and
+  `shownMessages` (shared) let a mod that shows messages filter them the same way. Recovery finds
+  waiting texts behind saved errors; semester carry moves held delivery dates with their messages.
 - Shared exports `threadStartedBy`. Morning bonus thumbnails follow the morning stage.
 
 ## 0.13.0

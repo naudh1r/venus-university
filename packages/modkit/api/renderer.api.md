@@ -86,6 +86,12 @@ export const characterInfo: (id: string) => Readonly<CharInfo> | undefined;
 export function charCommitmentAt(charId: string, date?: number, time?: TimeSlot): Commitment | null;
 
 // @public
+export function chatClock(): {
+    date: number;
+    time: TimeSlot;
+} | null;
+
+// @public
 export function CheckField(input: CheckFieldProps): JSX.Element;
 
 // @public (undocumented)

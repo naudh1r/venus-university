@@ -145,6 +145,7 @@ export {
   useNpcRelationships,
   subscribeNpcRelationships,
   clock,
+  chatClock,
   useClock,
   subscribeClock,
   playerStats,
