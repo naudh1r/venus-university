@@ -49,7 +49,7 @@ export const morningText = {
 }
 
 export const visitFieldInstruction = "Set nightVisit to herRoom or hisRoom only for the room they agreed to meet in this exchange; set it to none if they agreed on no visit."
-export const visitLedgerInstruction = 'Set stayedOver to whether they spent the night together in that room. Write wake as two or three short second-person lines of them waking up there next morning, or an empty array when stayedOver is false.'
+export const visitLedgerInstruction = 'Set stayedOver to whether they spent the night together in that room. Write wake as three or four short second-person narration lines that open the next morning: first one or two saying how last night ended between them, then them waking up there. Narration only, no dialogue. Use an empty array when stayedOver is false.'
 export const roomText = (room: 'herRoom' | 'hisRoom'): string => room === 'herRoom' ? 'her room' : 'his room'
 export const visitScenePrompt = (room: 'herRoom' | 'hisRoom'): string => `It is late at night and this visit is in ${roomText(room)}. The scene ends when they fall asleep for the night, or sooner if it goes badly.`
 export const visitMorningPrompt = (name: string, room: 'herRoom' | 'hisRoom'): string => `Last night the reader was with ${name} in ${roomText(room)} (see the latest scene). Open on him in his own room this morning; whatever happened last night is behind him.`

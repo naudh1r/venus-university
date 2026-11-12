@@ -49,7 +49,8 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - At night, either of you can ask to meet in her room or yours. Once you agree, press
   **Begin hangout** to start the visit, or end the day without going.
 - There is one visit per night. It ends when you fall asleep together, or earlier if it goes badly.
-- After sleeping in her room, wake up there with the phone available. Choose **Stay with {Name}**
+- After sleeping in her room, the morning opens there on a few lines of narration: how last night
+  ended between you, then waking up. The phone is available. Choose **Stay with {Name}**
   when she is free for a normal morning scene, or **Head back to your room** to open the usual morning.
   Staying skips the morning's narration; its texts, invitations and posts still arrive.
 - When she has class, work or another reason she cannot stay, only **Head back to your room** appears.
