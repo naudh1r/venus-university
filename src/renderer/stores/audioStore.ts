@@ -1,3 +1,4 @@
+import { chatClockOf, messageShown, type ChatClock } from '@shared/chatVisibility'
 import { SOUNDTRACK_MOD, SOUNDTRACK_LABELS, type SoundtrackKey } from '@shared/soundtracks'
 import { modOn } from '@shared/mods'
 import { useModsStore } from './modsStore'
@@ -294,12 +295,13 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
     loads: game.loads,
     modal: game.statusModal,
     line: game.currentLine,
-    texts: textsOf(game.bunnyboard.conversations),
+    texts: textsOf(game.bunnyboard.conversations, chatClockOf(game)),
     quizRight: game.sceneQuiz?.correct ?? 0
   }
 }
 
 /** The conversations the counts below were taken from, and what they came to. */
+let countedSlot = -1
 let countedFrom: Record<string, Conversation> | null = null
 let counted = { in: 0, out: 0 }
 
@@ -307,18 +309,21 @@ let counted = { in: 0, out: 0 }
  * How many texts have landed and been sent, counted afresh only when the conversations
  * themselves change: the game store moves on every streamed line, and they do not.
  */
-function textsOf(conversations: Record<string, Conversation>): { in: number; out: number } {
-  if (conversations === countedFrom) return counted
+function textsOf(conversations: Record<string, Conversation>, clock: ChatClock): { in: number; out: number } {
+  const slot = clock.date * 2 + clock.time
+  if (conversations === countedFrom && countedSlot === slot) return counted
 
   let landed = 0
   let sent = 0
   for (const conversation of Object.values(conversations)) {
     for (const message of conversation.messages) {
+      if (!messageShown(message, clock)) continue
       if (message.sender === 'contact') landed++
       else if (message.sender === 'player') sent++
     }
   }
 
+  countedSlot = slot
   countedFrom = conversations
   counted = { in: landed, out: sent }
   return counted

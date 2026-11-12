@@ -1794,3 +1794,26 @@ only an explicit player removal drops one. A missing mod never rewrites the card
 See `test/characterTraits.test.ts` for generator/editor separation, import-before-registration,
 pending-request snapshots, duplicate owners, deterministic order, metadata disposal, UI tone
 and hints, and read/edit/export with a missing provider. No particular mod trait ships in core.
+
+
+### Texting during a commitment
+
+`textWhileBusy({ charId, commitment })` is an `any` renderer hook. Any enabled mod returning
+`true` opens only the composer's class/shift gate; scene, block, failed-turn, reply-in-flight
+and epilogue gates still apply. `commitment` is the same `Commitment` as `charCommitmentAt`.
+
+The reader's message is shown immediately. The normal DM call receives `heldUntil` (the next
+slot's date and time) and `commitment` in `TextingPromptState`. Its reply does not stream or
+show typing dots, and is not classified for a hangout. `afterDmReply` receives the held slot
+as `held`. Every contact message appended while the hold stands, including attachments from
+mods, is stamped for that slot. Future messages stay out of the thread, previews, unread
+counts, sounds and the current texting ledger. They appear when that slot's landing or an
+interlude using its clock opens, a late-night hold included. A block in the
+reply takes effect then too. A failure instead posts its error immediately and keeps Retry.
+
+Another text before delivery replaces the held messages and requests one reply covering the
+reader's texts since the hold began. Until that reply lands, his messages have
+`awaitingReply: true`. The messages and hold are saved normally. Loading unfinished player
+texts requests their reply again, for the slot after the last text or the current slot if
+that has passed. Starting a scene leaves held calls running; leaving the game cancels them.
+No save is added merely for leaving a landing.

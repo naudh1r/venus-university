@@ -2,6 +2,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { checkCompat, hookNamesOf } from '../shared/compat'
 import { declaredHooksNow, refusedAsForeign } from './attribution'
 import type { StructuredRequest, LedgerResponse } from '../bridge/shared'
+import type { Commitment } from '../bridge/renderer'
 import type { HangoutVerdict } from '../bridge/renderer'
 import type { PromptState } from '../bridge/renderer'
 import type { SlotIntroInput } from '../bridge/renderer'
@@ -506,8 +507,10 @@ export interface ModHooks {
   }) => void
   /** Change or drop the texting classifier's verdict before it arms a hangout or raises an invitation. */
   hangoutVerdict?: (verdict: HangoutVerdict | null, ctx: HangoutVerdictCtx) => HangoutVerdict | null
+  /** Opens only the timetable gate on her composer. */
+  textWhileBusy?: (ctx: { charId: string; commitment: Commitment }) => boolean
   /** After her reply in a DM has landed. */
-  afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void
+  afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse; held?: { date: number; time: TimeSlot } }) => void
   /** After a scene reply has landed and its lines are on the transcript. */
   afterSceneReply?: (ctx: SceneReplied) => void
   /** A seat on the scene's rail, and the panel it opens over the scene. */
@@ -945,6 +948,7 @@ export function afterDmReply(ctx: {
   charId: string
   character: Character
   reply: TextingResponse
+  held?: { date: number; time: TimeSlot }
 }): void {
   for (const hooks of active()) hooks.afterDmReply?.(ctx)
 }
@@ -1408,4 +1412,16 @@ export function saveNotes(scene: Readonly<ModSceneFields>): string[] {
     const note = hooks.saveNote?.(scene)
     return note ? [note] : []
   })
+}
+
+/** Any enabled mod may open a composer's timetable gate. */
+export function textWhileBusy(ctx: { charId: string; commitment: Commitment }): boolean {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.textWhileBusy?.(ctx) === true) return true
+    } catch (error) {
+      console.warn(`[mods] ${modId}: textWhileBusy failed`, error)
+    }
+  }
+  return false
 }

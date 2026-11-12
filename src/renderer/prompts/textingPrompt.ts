@@ -98,6 +98,9 @@ export interface TextingPromptState {
   time: TimeSlot
   /** The night the held boundary displays, while texts keep the current slot. */
   lateNight?: { date: number; time: TimeSlot }
+  /** The reply is composed now for delivery after this commitment. */
+  heldUntil?: { date: number; time: TimeSlot }
+  commitment?: import('./slotIntroPrompt').Commitment
   /** The reader's accumulated stats, used for relationship requirement guidance. */
   stats?: PlayerStats
   /**
@@ -351,13 +354,18 @@ export function buildTextingPrompt(
   incomingDirection?: string
 ): StructuredRequest {
   const name = character.firstName
+  const firstHeld = conversation?.heldReply?.firstPlayerId
+  const heldIndex = firstHeld ? conversation!.messages.findIndex(message => message.id === firstHeld) : -1
+  const historyLimit = state.heldUntil && heldIndex >= 0
+    ? Math.max(historyLimitOf(state.historyLimit), conversation!.messages.length - heldIndex)
+    : historyLimitOf(state.historyLimit)
   // Off campus: away for the break, or graduated and gone from Veridan but for Homecoming.
   const visiting = state.homecomingVisitor === character.charId
   const away =
     (info?.pursuing !== undefined && !visiting) ||
     isAwayForSpringBreak(state.springBreakAway, character.charId, state.date)
   const thread: ChatMessage[] = [
-    ...(conversation?.messages ?? []).slice(-historyLimitOf(state.historyLimit)),
+    ...(conversation?.messages ?? []).slice(-historyLimit),
     {
       id: 'pending',
       sender: 'player',
@@ -370,7 +378,7 @@ export function buildTextingPrompt(
   // The new text is the last line of the log, so it gets its own stamp when it lands in a new slot.
   const history = stampedStubs(
     [
-      ...(conversation?.messages ?? []).slice(-historyLimitOf(state.historyLimit)),
+      ...(conversation?.messages ?? []).slice(-historyLimit),
       ...(incomingDirection === undefined ? [{
         id: 'pending',
         sender: 'player' as const,
@@ -508,11 +516,12 @@ export function buildTextingPrompt(
       : `It is ${formatDateBanner(state.date, state.time, state.calendar.season)}`,
     formatSemesterProgress(state.date),
     // Texting happens before the slot's scene; without this she treats the day as over.
-    ...(state.lateNight ? [] : [state.time === 0 ? 'Morning classes are starting soon.' : 'Night classes are starting soon.']),
+    ...(state.lateNight || state.heldUntil ? [] : [state.time === 0 ? 'Morning classes are starting soon.' : 'Night classes are starting soon.']),
     ...(state.weather ? weatherLines(state.weather, state.lateNight?.date ?? state.date, state.lateNight?.time ?? state.time) : []),
-    ...(state.lateNight ? [`${name} is ${info?.pursuing !== undefined ? 'at home' : 'in her dorm room'} for the night.`]
+    ...(state.heldUntil ? [] : state.lateNight ? [`${name} is ${info?.pursuing !== undefined ? 'at home' : 'in her dorm room'} for the night.`]
       : whereSheIs(name, state.charLocation, state.charCompanions, state.charHaunt, state.time)),
     '',
+    ...(state.heldUntil ? [`The reader is texting ${name} while she is ${state.commitment?.kind === 'class' ? `in ${state.commitment.name}` : `working at ${state.commitment?.kind === 'shift' ? state.commitment.employer : 'her job'}`}. Write the reply she will send once she is out; she is not answering during her commitment.`] : []),
     ...lore,
     ...(summary ? ['TEXTING SO FAR', '"' + summary + '"', ''] : []),
     'RECENT MESSAGES',

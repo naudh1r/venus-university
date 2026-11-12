@@ -999,6 +999,8 @@ export type InviteKind = (typeof INVITE_KINDS)[number]
 
 /** One Bunnyboard text message. */
 export interface ChatMessage {
+  /** A held reply is still being written for this player text. */
+  awaitingReply?: true
   /** Sent late on the night preceding its stored slot. */
   late?: true
   /** Optional response grouping retained by the Text Regeneration mod. */
@@ -1032,6 +1034,15 @@ export interface ChatMessage {
 
 /** One Bunnyboard conversation with a contact, keyed by her charId. */
 export interface Conversation {
+  /** Pending delivery, including messages appended by mods after the reply. */
+  heldReply?: {
+    until: { date: number; time: TimeSlot }
+    firstPlayerId: string
+    messageIds: string[]
+    opened?: true
+    blocked?: true
+    summary?: string
+  }
   /** Summary before the last generated reply; retained while its mod is disabled. */
   exTextBase?: { replyTo: string; summary: string | null; regenerable?: boolean }
   charId: string

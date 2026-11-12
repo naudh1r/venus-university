@@ -10,6 +10,8 @@ export const afterHoursText = {
   online: 'Online',
   busy: 'Busy',
   hint: "Busy: girls won't ask you to meet up in chats you start.",
+  busyTextsOption: "Text her when she's busy",
+  busyTextsHint: "Text her during class or work; she replies when she's out, in the next half of the day.",
   nightOption: 'The night',
   nightHint: "After the evening, stay up texting, visit each other's rooms, or end the day.",
   nightLine: 'You head back to your room for the night. The hall outside is quiet now.',
@@ -66,4 +68,14 @@ export function morningReturnPrompt(name: string, room: 'herRoom' | 'hisRoom'): 
     ? 'the reader leaves her and gets back to his own room and into the morning'
     : 'she leaves his room and the reader gets into the morning'
   return `Last night the reader was with ${name} in ${roomText(room)}, and they woke up there together (see the latest scenes). Open by telling, in a line or two, how ${departure}, in whatever way fits what happened between them; then the morning as usual.`
+}
+
+/** Her reply catches up after the commitment, without making it a required topic. */
+export function busyTextPrompt(
+  name: string,
+  commitment: { kind: 'class'; name: string } | { kind: 'shift'; employer: string }
+): string {
+  const place = commitment.kind === 'class' ? `in ${commitment.name}` : `at her shift at ${commitment.employer}`
+  const after = commitment.kind === 'class' ? 'class' : 'work'
+  return `${name} is ${place} right now and cannot text. She will read the reader's messages once it is over, in the next half of the day, and the reply you write is the one she sends then: as she would after ${after}, catching up on what he said. It is not something she needs to dwell on unless she wants to.`
 }

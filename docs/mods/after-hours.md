@@ -1,6 +1,6 @@
 # After Hours
 
-## 0.4.0
+## 0.5.0
 
 By **Naudh1r**.
 
@@ -24,6 +24,17 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - Switching the mod or its option off hides the chip and lets girls ask you out again.
   Your saved status stays, ready for when you switch it back on.
 - Changing status costs nothing and makes no extra model call.
+
+### Texting while she's busy
+
+- **Text her when she's busy** is on by default. Her DM box stays open during class or work.
+- Send her a message now; her reply arrives in the next half of the day, as she would send it
+  once she is out. She can mention class or work without having to make a topic of it.
+- Send again before it arrives and one replacement reply catches up on both messages.
+- A late reply never starts an immediate hangout. Plans for another time still work normally.
+- With Photo Feature on, she may include a photo under its own rules. It arrives with her reply.
+- Text her during an evening class and the reply arrives on the night screen, after class.
+- Switch the option off to close her DM box during class and work as usual.
 
 ### The night
 

@@ -24,7 +24,7 @@ import {
 } from '@vx/modkit/renderer'
 import { AFTER_HOURS_MOD, busyDrops, morningInterlude, normalize, type AfterHours, type NightVisit } from '../../shared/afterHours'
 import {
-  afterHoursText, busyPrompt, morningReturnPrompt, morningScenePrompt, morningText, nightPrompt, visitFieldInstruction,
+  afterHoursText, busyPrompt, busyTextPrompt, morningReturnPrompt, morningScenePrompt, morningText, nightPrompt, visitFieldInstruction,
   visitLedgerInstruction, visitMorningPrompt, visitScenePrompt
 } from '../../shared/afterHoursText'
 import '../vu_styles/AfterHours.css'
@@ -123,6 +123,7 @@ function StatusChip({ theme }: ScreenSlotProps['chatsHeader']): JSX.Element | nu
 
 registerHooks(AFTER_HOURS_MOD, {
   chatsHeader: StatusChip,
+  textWhileBusy: () => modOptionOn(AFTER_HOURS_MOD, 'busy-texts'),
   slotInterlude: ({ to }) => {
     if (!modOptionOn(AFTER_HOURS_MOD, 'night')) return null
     const data = status.read()
@@ -224,7 +225,8 @@ registerHooks(AFTER_HOURS_MOD, {
       }
     },
     dm: {
-      lines: ({ character }) => [
+      lines: ({ character, state }) => [
+        ...(state.heldUntil && state.commitment ? [busyTextPrompt(character.firstName, state.commitment)] : []),
         ...(nightHolds() ? [nightPrompt(character.firstName), visitFieldInstruction] : []),
         ...(modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy ? [busyPrompt(character.firstName)] : [])
       ],
