@@ -427,6 +427,11 @@ export interface ModHooks {
   slotInterlude?: (ctx: InterludeCtx) => Interlude | null
   /** The first label replaces the Relax row's words. */
   relaxLabel?: (ctx: { date: number; time: TimeSlot }) => string | undefined
+  /**
+   * Whether the coming slot will be held on the finished one's look, asked when the boundary's
+   * curtain falls so it announces what is shown next. Pure: write nothing.
+   */
+  interludePreview?: (ctx: InterludeCtx) => { at: 'from' | 'to' } | null
   /** Return false to omit this scene row before projection and settlement. */
   keepSceneLedgerEntry?: (entry: Readonly<SceneLedgerEntry>) => boolean
   /**
@@ -1002,6 +1007,19 @@ export function slotInterlude(ctx: InterludeCtx): { owner: string; interlude: In
       if (interlude) return { owner: modId, interlude }
     } catch (error) {
       console.warn(`[mods] ${modId}: slotInterlude failed`, error)
+    }
+  }
+  return null
+}
+
+/** Asks enabled mods, first answer wins, which slot the boundary's curtain should announce. */
+export function interludePreview(ctx: InterludeCtx): { at: 'from' | 'to' } | null {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      const preview = hooks.interludePreview?.(ctx)
+      if (preview) return preview
+    } catch (error) {
+      console.warn(`[mods] ${modId}: interludePreview failed`, error)
     }
   }
   return null

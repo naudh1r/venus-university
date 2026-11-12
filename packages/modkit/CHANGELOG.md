@@ -86,6 +86,12 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.16.0
+
+- `interludePreview(ctx)`: asked when a boundary's curtain falls; a mod that will hold the coming slot
+  on the finished one's look answers `{ at: 'from' }`, and the curtain announces that slot instead of
+  the next. Pure: it writes nothing.
+
 ## 0.15.0
 
 - `TextingPromptState.answeringInvite`: the reader's new text answers an invitation of hers that was

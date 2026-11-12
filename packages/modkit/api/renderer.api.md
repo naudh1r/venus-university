@@ -605,6 +605,9 @@ export interface ModHooks {
     gameMenuEntry?: ComponentType<ScreenSlotProps['gameMenuEntry']>;
     gameModals?: Record<string, ComponentType<GameModalProps>>;
     hangoutVerdict?: (verdict: HangoutVerdict | null, ctx: HangoutVerdictCtx) => HangoutVerdict | null;
+    interludePreview?: (ctx: InterludeCtx) => {
+        at: 'from' | 'to';
+    } | null;
     keepSceneLedgerEntry?: (entry: Readonly<SceneLedgerEntry>) => boolean;
     landingTool?: ComponentType<ScreenSlotProps['landingTool']>;
     mapOverlay?: ComponentType<ScreenSlotProps['mapOverlay']>;
