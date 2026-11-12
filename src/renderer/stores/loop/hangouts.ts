@@ -281,6 +281,8 @@ export async function startRoomScene(
   loopState.jobShift = null
   loopState.projectWork = null
   coverSceneOpening()
+  // Mods are told while a held interlude still stands, so they can tell which hold the scene left.
+  playerActs()
   useGameStore.setState({ interlude: null })
   game.clearStage()
   game.clearSceneTranscript()
@@ -289,7 +291,6 @@ export async function startRoomScene(
   game.setBusy(true)
   game.setStreaming(true)
   game.setWaitingForLine(true)
-  playerActs()
   loopState.turnStartedAt = performance.now()
   const scene = {
     inPublic: false,
