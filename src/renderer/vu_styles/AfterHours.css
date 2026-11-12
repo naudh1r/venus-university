@@ -1,3 +1,8 @@
+/* The title row stands over the list under it, so the status's hint is never painted over. */
+.vu-bb-title:has(> .vu-after-hours-status) {
+  z-index: 3;
+}
+
 /* Seated beside the title rather than in its flow, so the title's tab still covers its word alone. */
 .vu-after-hours-status {
   position: absolute;
@@ -60,9 +65,9 @@
 .vu-after-hours-hint {
   position: absolute;
   top: 100%;
-  left: 0;
+  right: 0;
   z-index: 1;
-  width: 290px;
+  width: 260px;
   margin-top: 12px;
   padding: 8px 16px;
   border: 2px solid var(--vu-border);
