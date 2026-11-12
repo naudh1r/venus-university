@@ -1,6 +1,6 @@
 # After Hours
 
-## 0.5.1
+## 0.5.2
 
 By **Naudh1r**.
 
@@ -39,7 +39,8 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 ### The night
 
 - **The night** option is on by default. After every evening, whether you played a scene
-  or chose Relax, you return to your room before the morning opens.
+  or chose Relax, you return to your room before the morning opens. The curtain between them
+  announces the night, not the morning.
 - The landing stays at night, with one line and one row: **End the day (Skip to tomorrow)**.
   There are no other activity rows, text box or map travel.
 - The phone stays available for texts and Bunnyfeeds comments. Stay up as long as you like;

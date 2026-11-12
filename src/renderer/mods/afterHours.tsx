@@ -125,6 +125,8 @@ function StatusChip({ theme }: ScreenSlotProps['chatsHeader']): JSX.Element | nu
 registerHooks(AFTER_HOURS_MOD, {
   chatsHeader: StatusChip,
   textWhileBusy: () => modOptionOn(AFTER_HOURS_MOD, 'busy-texts'),
+  interludePreview: ({ to }) =>
+    modOptionOn(AFTER_HOURS_MOD, 'night') && morningInterlude(to, status.read(), false, false) === 'night' ? { at: 'from' } : null,
   slotInterlude: ({ to }) => {
     if (!modOptionOn(AFTER_HOURS_MOD, 'night')) return null
     const data = status.read()
