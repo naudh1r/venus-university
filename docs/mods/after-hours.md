@@ -11,8 +11,8 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 ### Busy status
 
 - **After Hours** and its **Busy status** option are on by default in Mods.
-- Open Bunnyboard's **Chats** tab. The status chip beside **Chats** shows **Online** or
-  **Busy**. Click it to switch.
+- Open Bunnyboard's **Chats** tab. Beside **Chats** stands your own card: your picture (or
+  your initial), your name, and a dot with **Online** or **Busy**. Click it to switch.
 - While Busy, a girl won't ask you to meet up right now in a chat you started this slot.
   If the model still writes an invitation, it opens no Yes/No footer and arms no hangout.
 - Her invitations and reach-outs at slot changes still work normally, including the

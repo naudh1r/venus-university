@@ -1,38 +1,59 @@
-/* The title keeps its original layout whenever the status is absent. */
-.vu-bb-title:has(> .vu-after-hours-status) {
+/* Seated beside the title rather than in its flow, so the title's tab still covers its word alone. */
+.vu-after-hours-status {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 30px);
+  translate: 0 -50%;
+}
+
+/* His own reading, drawn as a contact card is at a smaller size: recessed, the archway seated
+   in the round end, his name over the presence line. */
+.vu-after-hours-chip {
   display: flex;
   align-items: center;
-  gap: 20px;
-  z-index: 1;
-}
-
-.vu-after-hours-status {
-  position: relative;
-  flex: none;
-}
-
-.vu-after-hours-chip {
-  min-width: 112px;
-  justify-content: center;
-  padding: 9px 14px;
+  gap: 10px;
+  max-width: 180px;
+  height: 56px;
+  padding: 0 18px 0 6px;
   border: 0;
-  background: none;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
+  border-radius: 999px 0 0 999px;
+  background: var(--vu-recessed);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.vu-after-hours-dot {
-  width: 8px;
-  height: 8px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--vu-good);
+/* Lifted onto the surface tone, as a listed face is, so it reads against the recessed card. */
+.vu-after-hours-face {
+  display: grid;
+  place-items: stretch;
+  overflow: hidden;
 }
 
-.vu-after-hours-chip[aria-pressed='true'] .vu-after-hours-dot {
-  background: var(--vu-warn);
+/* No picture yet: his initial where the picture would stand. */
+.vu-after-hours-face:has(> .vu-after-hours-initial) {
+  place-items: center;
+}
+
+.vu-after-hours-initial {
+  color: var(--vu-text-muted);
+  font: 700 18px var(--font-body);
+}
+
+.vu-after-hours-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vu-after-hours-main .vu-bb-name {
+  font-size: 14px;
+}
+
+.vu-after-hours-main .vu-bb-where {
+  font-size: 12.5px;
 }
 
 /* The status explains itself in a quiet pill under the pointer, clear of the title. */

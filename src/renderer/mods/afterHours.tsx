@@ -11,14 +11,15 @@ import {
   isGraduationSlot,
   modOptionOn,
   modState,
+  quietLift,
   quietPress,
   registerHooks,
   safePoint,
   saveField,
   showError,
-  toggleLift,
   useGameFacts,
   useModOption,
+  usePlayerProfilePicture,
   type InterludeRow,
   type ScreenSlotProps
 } from '@vx/modkit/renderer'
@@ -40,10 +41,11 @@ function nightHolds(): boolean {
 }
 const hintIn = fadeIn(0)
 
-/** The loaded game's status, switched in memory or saved immediately when the game can save. */
+/** His own face, name and status, drawn as the phone draws a contact; a click switches the status. */
 function StatusChip({ theme }: ScreenSlotProps['chatsHeader']): JSX.Element | null {
   const enabled = useModOption(AFTER_HOURS_MOD, 'busy-status')
-  const { playthroughId } = useGameFacts()
+  const { playthroughId, readerName } = useGameFacts()
+  const picture = usePlayerProfilePicture()
   const value = status.use()
   const [writing, setWriting] = useState(false)
   const [hover, setHover] = useState(false)
@@ -77,15 +79,29 @@ function StatusChip({ theme }: ScreenSlotProps['chatsHeader']): JSX.Element | nu
     >
       <motion.button
         type="button"
-        className="vu-paper vu-chip vu-after-hours-chip"
+        className="vu-after-hours-chip"
         aria-pressed={value.busy}
         aria-describedby={hover ? hintId : undefined}
         disabled={writing}
         onClick={() => void toggle()}
-        {...gestures(writing, toggleLift, quietPress)}
+        {...gestures(writing, quietLift, quietPress)}
       >
-        <span className="vu-after-hours-dot" aria-hidden="true" />
-        {value.busy ? afterHoursText.busy : afterHoursText.online}
+        <span className="vu-arch vu-bb-face vu-bb-face--sm vu-after-hours-face">
+          {picture ? (
+            <span className="vu-crop">
+              <img className="vu-crop-img" src={picture} alt="" />
+            </span>
+          ) : (
+            <span className="vu-after-hours-initial" aria-hidden="true">{readerName.charAt(0)}</span>
+          )}
+        </span>
+        <span className="vu-after-hours-main">
+          <span className="vu-bb-name">{readerName}</span>
+          <span className="vu-bb-where">
+            <span className={`vu-bb-led${value.busy ? ' vu-bb-led--busy' : ''}`} aria-hidden="true" />
+            {value.busy ? afterHoursText.busy : afterHoursText.online}
+          </span>
+        </span>
       </motion.button>
       <AnimatePresence>
         {hover && (
