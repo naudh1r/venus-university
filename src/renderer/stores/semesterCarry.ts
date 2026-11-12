@@ -164,12 +164,15 @@ function carriedFeed(feed: readonly SocialPost[], shift: number): SocialPost[] {
     .sort((a, b) => a.date * 2 + a.time - (b.date * 2 + b.time))
 }
 
-/** A thread moved onto the next semester's clock, with nothing of this semester still pending. */
+/** A thread moved onto the next semester's clock, without old invitations or declines. */
 function carriedConversation(conversation: Conversation, shift: number): Conversation {
   const { pendingHangout: _pending, declined: _declined, turnedDown: _turnedDown, ...rest } =
     conversation
   return {
     ...rest,
+    ...(conversation.heldReply ? { heldReply: { ...conversation.heldReply,
+      until: { ...conversation.heldReply.until, date: conversation.heldReply.until.date - shift }
+    } } : {}),
     messages: conversation.messages.map((message) => ({ ...message, date: message.date - shift }))
   }
 }

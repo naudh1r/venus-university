@@ -452,6 +452,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   playerActs: fn('playerActs', undefined, (host) => host.playerActs()),
   gameEntered: fn('gameEntered', undefined, (host) => host.gameEntered()),
   keepSceneLedgerEntry: fn('keepSceneLedgerEntry', true, host => host.filterSceneLedger({memories:[{charKey:'test',type:'liked',desc:'test'}]})),
+  bonusSettled: fn('bonusSettled', undefined, host => host.bonusSettled({ before: never, ledger: null, closingCast: [], bonus: true })),
   slotSettled: fn('slotSettled', undefined, (host) => host.slotSettled(never)),
   slotStatusLines: fn('slotStatusLines', [], (host) => host.slotStatusLines({ nextSlot: 1 })),
   projectSlotMemories: fn('projectSlotMemories', {}, (host) => host.projectSlotMemories(never, {})),
@@ -539,7 +540,8 @@ describe('every hook in the table', () => {
     const payments: unknown[] = []
     rendererKit.registerHooks(id, {
       slotInterlude: () => value,
-      slotSettled: ctx => { received.push(ctx.bonus) },
+      slotSettled: () => { received.push(undefined) },
+      bonusSettled: ctx => { received.push(ctx.bonus) },
       slotStatusLines: ctx => { received.push(ctx.bonus); return [] },
       projectSlotMemories: (ctx, info) => { received.push(ctx.bonus); return info },
       exercisedStats: (ledger, ctx) => { received.push(ctx.bonus); payments.push(ctx.pays); return ledger },
@@ -553,7 +555,8 @@ describe('every hook in the table', () => {
       expect(held?.interlude.rows[0].onPick).toBe(pick)
       for (const bonus of [undefined, true] as const) {
         const flag = bonus ? { bonus } : {}
-        hooksShim.slotSettled({ before: never, ledger: null, closingCast: [], ...flag })
+        if (bonus) hooksShim.bonusSettled({ before: never, ledger: null, closingCast: [], bonus })
+        else hooksShim.slotSettled({ before: never, ledger: null, closingCast: [] })
         hooksShim.slotStatusLines({ nextSlot: 4, ...flag })
         hooksShim.projectSlotMemories({ before: never, closingCast: [], ...flag }, {})
         hooksShim.exercisedStats(undefined, { ...({} as import('@vx/modkit/shared').StatContext), ...flag, ...(bonus ? { pays: false } : {}) })

@@ -1,9 +1,10 @@
 import { useEffect, useId, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { globalSlotOf } from '@vx/modkit/shared'
+import { globalSlotOf, threadStartedBy } from '@vx/modkit/shared'
 import {
   character,
   charCommitmentAt,
+  conversation,
   fadeIn,
   freeForInvitation,
   gestures,
@@ -22,7 +23,7 @@ import {
   usePlayerProfilePicture,
   type ScreenSlotProps
 } from '@vx/modkit/renderer'
-import { AFTER_HOURS_MOD, busyDrops, morningInterlude, normalize, type AfterHours, type NightVisit } from '../../shared/afterHours'
+import { AFTER_HOURS_MOD, busyDrops, busyPromptApplies, morningInterlude, normalize, type AfterHours, type NightVisit } from '../../shared/afterHours'
 import {
   afterHoursText, busyPrompt, busyTextPrompt, morningReturnPrompt, morningScenePrompt, morningText, nightPrompt, visitFieldInstruction,
   visitLedgerInstruction, visitMorningPrompt, visitScenePrompt
@@ -184,9 +185,9 @@ registerHooks(AFTER_HOURS_MOD, {
     status.set({ ...status.read(), visit: { ...agreed, morning } })
     nightState.set({ ...nightState.get(), armed: null })
   },
-  slotSettled: ({ bonus, ledger }) => {
+  bonusSettled: ({ ledger }) => {
     const visit = status.read().visit
-    if (!bonus || !visit || visit.scened || visit.stayed !== undefined) return
+    if (!visit || visit.scened || visit.stayed !== undefined) return
     const fields = ledger as { stayedOver?: unknown } | null
     const stayed = fields?.stayedOver === true
     status.set({ ...status.read(), visit: { ...visit, stayed }, nightDone: visit.morning })
@@ -225,11 +226,19 @@ registerHooks(AFTER_HOURS_MOD, {
       }
     },
     dm: {
-      lines: ({ character, state }) => [
-        ...(state.heldUntil && state.commitment ? [busyTextPrompt(character.firstName, state.commitment)] : []),
-        ...(nightHolds() ? [nightPrompt(character.firstName), visitFieldInstruction] : []),
-        ...(modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy ? [busyPrompt(character.firstName)] : [])
-      ],
+      lines: ({ character, state }) => {
+        const thread = conversation(character.charId)
+        const busy = busyPromptApplies(
+          modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy,
+          threadStartedBy(thread?.messages ?? [], state.date, state.time),
+          state.answeringInvite === true
+        )
+        return [
+          ...(state.heldUntil && state.commitment ? [busyTextPrompt(character.firstName, state.commitment)] : []),
+          ...(nightHolds() ? [nightPrompt(character.firstName), visitFieldInstruction] : []),
+          ...(busy ? [busyPrompt(character.firstName)] : [])
+        ]
+      },
       fields: () => nightHolds() ? { nightVisit: { type: 'string', enum: ['herRoom', 'hisRoom', 'none'] } } : {},
       required: () => nightHolds() ? ['nightVisit'] : []
     }

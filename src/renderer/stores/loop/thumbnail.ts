@@ -195,7 +195,7 @@ export async function composeStageThumbnail(scene: SceneState): Promise<string |
   if (!ctx) return null
 
   // The epilogue's evening is night whatever the clock says, as on the stage itself.
-  const half = scene.bonus ? slotHalf(prevSlot(game.date, game.time).time) : isEpilogueNight(game.date, game.time, game.graduationSeen)
+  const half = scene.bonus ? slotHalf(scene.bonusAt === 'morning' ? game.time : prevSlot(game.date, game.time).time) : isEpilogueNight(game.date, game.time, game.graduationSeen)
     ? 'night'
     : slotHalf(game.time)
 

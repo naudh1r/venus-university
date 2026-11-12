@@ -82,6 +82,9 @@ export {
   registerImagePromptDraft,
   registerRomanceRequirement,
   SCENE_TEXT_IDS,
+  messageShown,
+  shownMessages,
+  threadStartedBy,
   validateRecord
 } from '../bridge/shared'
 export { sharedModOn } from './modRules'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { busyDrops, morningInterlude, nightOwed, normalize } from '../src/shared/afterHours'
+import { busyDrops, busyPromptApplies, morningInterlude, nightOwed, normalize } from '../src/shared/afterHours'
 
 describe('Busy invitations', () => {
   const ctx = { startedBy: 'reader' as const, answeringInvite: false }
@@ -20,6 +20,15 @@ describe('Busy invitations', () => {
     expect(busyDrops(hers, ctx, false)).toBe(false)
     expect(busyDrops({ initiatedBy: 'player' }, ctx, false)).toBe(false)
     expect(busyDrops(null, ctx, false)).toBe(false)
+  })
+})
+
+describe('Busy prompt restrictions', () => {
+  it('applies only in his chat while Busy and outside her standing invitation', () => {
+    expect(busyPromptApplies(true, 'reader', false)).toBe(true)
+    expect(busyPromptApplies(true, 'her', false)).toBe(false)
+    expect(busyPromptApplies(true, 'reader', true)).toBe(false)
+    expect(busyPromptApplies(false, 'reader', false)).toBe(false)
   })
 })
 

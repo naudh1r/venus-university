@@ -1,3 +1,4 @@
+import { chatClockOf } from '@shared/chatVisibility'
 import { useCallback, useSyncExternalStore } from 'react'
 import type {
   Character, CharInfo, Conversation, Season, SocialPost, TimeSlot
@@ -116,6 +117,12 @@ export function useRosterIds(options: { alumni?: boolean } = {}): readonly strin
   const get = useCallback(() => rosterIds({ alumni }), [alumni])
   const follow = useCallback((onChange: () => void) => subscribeRosterIds(onChange, { alumni }), [alumni])
   return useSyncExternalStore(follow, get, get)
+}
+
+/** The slot texts are opened through: a message stamped later is not shown yet. @since 0.14.0 */
+export function chatClock(): { date: number; time: TimeSlot } | null {
+  const game = useGameStore.getState()
+  return game.playthroughId ? chatClockOf(game) : null
 }
 
 const conversations = recordReader<Readonly<Conversation> | undefined>((game, id) =>

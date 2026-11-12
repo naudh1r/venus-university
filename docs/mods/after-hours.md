@@ -1,6 +1,6 @@
 # After Hours
 
-## 0.5.0
+## 0.5.1
 
 By **Naudh1r**.
 
@@ -56,6 +56,8 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   on screen stays until you end the day.
 
 ### Night visits
+
+Other mods that record each slot (Story Memory, Campus Talents and the like) do not see the night visit or the morning-after scene as a slot of their own.
 
 - At night, either of you can ask to meet in her room or yours. Once you agree, press
   **Begin hangout** to start the visit, or end the day without going.

@@ -86,6 +86,22 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.15.0
+
+- `TextingPromptState.answeringInvite`: the reader's new text answers an invitation of hers that was
+  still standing, so a `prompts.dm` hook can tell it apart even though the invitation is cleared as he
+  sends.
+
+## 0.14.0
+
+- Bonus boundaries dispatch `bonusSettled` with `bonus: true`; ordinary `slotSettled` has no
+  bonus context and never receives bonus scenes. Scene-computation hooks retain their flags.
+- Core's previews and scene histories leave out messages not shown yet. The conversation readers
+  keep handing out the whole thread; `chatClock()` (renderer) with `messageShown` and
+  `shownMessages` (shared) let a mod that shows messages filter them the same way. Recovery finds
+  waiting texts behind saved errors; semester carry moves held delivery dates with their messages.
+- Shared exports `threadStartedBy`. Morning bonus thumbnails follow the morning stage.
+
 ## 0.13.0
 
 - `textWhileBusy` can open a character's composer during a class or shift. Her reply is

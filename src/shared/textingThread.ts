@@ -9,3 +9,12 @@ export function threadStartedBy(
   const first = messages.find(message => message.date === date && message.time === time && message.sender !== 'system')
   return first?.sender === 'contact' ? 'her' : 'reader'
 }
+
+/** Finds the latest player turn whose held reply still needs to be written. */
+export function waitingText(messages: readonly ChatMessage[]): ChatMessage | undefined {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]
+    if (message.sender === 'player' && message.awaitingReply === true) return message
+  }
+  return undefined
+}

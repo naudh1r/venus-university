@@ -1,3 +1,4 @@
+import { chatClockOf, shownMessages } from '@shared/chatVisibility'
 import { coldStageAt, isSickWindow } from '@shared/colds'
 import { globalSlotOf, jobDefOf } from '@shared/jobs'
 import { locationDefOf, type LocationDef } from '@shared/locations'
@@ -37,7 +38,7 @@ const PERIOD_DAYS = 2
 function inviteOf(host: string | undefined): EventInvite | null {
   if (!host) return null
   const game = useGameStore.getState()
-  const messages = game.bunnyboard.conversations[host]?.messages ?? []
+  const messages = shownMessages(game.bunnyboard.conversations[host]?.messages ?? [], chatClockOf(game))
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index]
     if (message.date !== game.date || message.time !== game.time) break

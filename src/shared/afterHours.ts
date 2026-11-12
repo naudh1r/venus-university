@@ -45,6 +45,11 @@ export function nightOwed(to: { date: number; time: TimeSlot }, data: AfterHours
   return to.time === 0 && to.date > 0 && data.nightDone !== globalSlotOf(to.date, to.time)
 }
 
+/** Restricts her suggestions only in his chat, outside a standing invitation. */
+export function busyPromptApplies(busy: boolean, startedBy: 'reader' | 'her', answeringInvite: boolean): boolean {
+  return busy && startedBy === 'reader' && !answeringInvite
+}
+
 /** Busy drops her new immediate invitation in a thread the reader opened this slot. */
 export function busyDrops(
   verdict: { initiatedBy: 'player' | 'contact' } | null,
