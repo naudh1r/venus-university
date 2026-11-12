@@ -63,6 +63,16 @@ export interface Interlude {
   clock?: 'late-night'
   /** The held landing's half and room; defaults to the finished slot in his room. */
   look?: { time?: TimeSlot; room?: { kind: 'herRoom' | 'hisRoom'; charId: string } }
+  /** Start this bonus scene at once instead of showing the held landing. */
+  scene?: {
+    charId: string
+    room: 'herRoom' | 'hisRoom'
+    action: string
+    /** Set the scene on the held night or in the opening slot. */
+    at: 'night' | 'morning'
+    /** False keeps memories, events and acts, without stats or money. */
+    pays: boolean
+  }
   /** Routes an agreed DM hangout into a bonus scene, or drops it. */
   onHangout?: (verdict: HangoutVerdict, ctx: HangoutVerdictCtx) => { room: 'herRoom' | 'hisRoom' } | null
 }

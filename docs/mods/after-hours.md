@@ -1,6 +1,6 @@
 # After Hours
 
-## 0.3.0
+## 0.4.0
 
 By **Naudh1r**.
 
@@ -49,16 +49,21 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - At night, either of you can ask to meet in her room or yours. Once you agree, press
   **Begin hangout** to start the visit, or end the day without going.
 - There is one visit per night. It ends when you fall asleep together, or earlier if it goes badly.
-- After sleeping in her room, the morning opens there on a few lines of narration: how last night
-  ended between you, then waking up. The phone is available. Choose **Stay with {Name}**
-  when she is free for a normal morning scene, or **Head back to your room** to open the usual morning.
-  Staying skips the morning's narration; its texts, invitations and posts still arrive.
-- When she has class, work or another reason she cannot stay, only **Head back to your room** appears.
-- After sleeping in your room, **Start the day** lets her leave and opens the usual morning.
-- Graduation morning offers only **Head back to your room**, then the ceremony.
+- After sleeping together, the morning opens on a scene in the room where you woke up. She
+  brings up her plans for the morning, and it ends when one of you has to go or you settle
+  into the morning together. The phone is closed as in any scene. This scene leaves memories
+  but pays no stats or money.
+- Afterward, if you are in her room and she is free, the phone opens with two rows:
+  **Stay with {Name}** for a normal morning scene, or **Head back to your room**.
+  Staying spends the morning with her and skips its opening narration; its texts,
+  invitations and posts still arrive.
+- If she is not free, or you slept in your room, the usual morning opens directly after the scene.
+- Heading back or being sent back uses the morning's own narration to tell how you part and
+  get into the day, in whatever way fits what happened. There is no fixed transition line.
+- Graduation morning goes from the scene straight to the ceremony, with no rows.
 - A visit that ends badly goes straight to the usual morning, whose narration follows what happened.
 - Busy still drops her new asks in chats you started; your own asks can begin a visit.
-- Saves resume a visit in progress or return you to the aftermath after sleeping together.
+- Saves resume a visit or morning-after scene in progress, or return you to the choices afterward.
 
 ## Where the code is
 

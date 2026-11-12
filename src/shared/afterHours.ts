@@ -7,7 +7,7 @@ export interface NightVisit {
   room: 'herRoom' | 'hisRoom'
   morning: number
   stayed?: boolean
-  wake?: string[]
+  scened?: boolean
 }
 
 /** The reader's phone status and the night's visit, if one began. */
@@ -26,13 +26,13 @@ export function normalize(stored: unknown): AfterHours {
     (visit.room === 'herRoom' || visit.room === 'hisRoom') &&
     Number.isInteger(visit.morning) && visit.morning >= 0 && visit.morning % 2 === 0 &&
     (visit.stayed === undefined || typeof visit.stayed === 'boolean') &&
-    (visit.wake === undefined || (Array.isArray(visit.wake) && visit.wake.every(line => typeof line === 'string')))
+    (visit.scened === undefined || typeof visit.scened === 'boolean')
   return {
     ...(validVisit ? {
       visit: {
         charId: visit.charId, room: visit.room, morning: visit.morning,
         ...(visit.stayed !== undefined ? { stayed: visit.stayed } : {}),
-        ...(visit.wake !== undefined ? { wake: [...visit.wake] } : {})
+        ...(visit.scened !== undefined ? { scened: visit.scened } : {})
       }
     } : {}),
     busy: data.busy === true,
@@ -57,14 +57,13 @@ export function busyDrops(
 /** Chooses the hold and whether the morning can be spent with her. */
 export function morningInterlude(
   to: { date: number; time: TimeSlot }, data: AfterHours, free: boolean, graduation: boolean
-): 'night' | 'stay' | 'headBack' | 'startDay' | null {
+): 'night' | 'morningScene' | 'buttons' | null {
   if (to.time !== 0 || to.date <= 0) return null
   const visit = data.visit
   if (visit?.morning === globalSlotOf(to.date, to.time)) {
     if (!visit.stayed) return null
-    if (graduation) return 'headBack'
-    if (visit.room === 'hisRoom') return 'startDay'
-    return free ? 'stay' : 'headBack'
+    if (!visit.scened) return 'morningScene'
+    return !graduation && visit.room === 'herRoom' && free ? 'buttons' : null
   }
   return nightOwed(to, data) ? 'night' : null
 }

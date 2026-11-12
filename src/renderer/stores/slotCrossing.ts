@@ -26,15 +26,15 @@ import { useGameStore } from './gameStore'
  * on a morning slot the clock alone would call day.
  */
 function gameThemeNow(): ScreenTheme {
-  const { date, time, graduationSeen, interlude, sceneBonus } = useGameStore.getState()
+  const { date, time, graduationSeen, interlude, sceneBonus, sceneBonusAt } = useGameStore.getState()
   if (interlude) return slotHalf(interlude.interlude.look?.time ?? interlude.now.from.time)
-  if (sceneBonus) return slotHalf(prevSlot(date, time).time)
+  if (sceneBonus) return slotHalf(sceneBonusAt === 'morning' ? time : prevSlot(date, time).time)
   return isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
 }
 
 /** {@link gameThemeNow} for a save being opened, read off the file instead of the store. */
 function saveTheme(save: GameSave): ScreenTheme {
-  if (save.scene?.bonus) return slotHalf(prevSlot(save.date, save.time).time)
+  if (save.scene?.bonus) return slotHalf(save.scene.bonusAt === 'morning' ? save.time : prevSlot(save.date, save.time).time)
   return isEpilogueNight(save.date, save.time, save.graduationSeen) ? 'night' : slotHalf(save.time)
 }
 

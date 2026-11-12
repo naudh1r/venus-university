@@ -33,23 +33,37 @@ export function nightPrompt(name: string): string {
   return `It is late at night, and students are expected to be in their own dorm rooms by now. ${name} and the reader are both in their rooms. Tonight the only place either could go is the other's room, and only if both want that. It is just the hour, not something to remark on.`
 }
 
-/** The rows and transitions after waking together. */
+/** The choices after waking together and the scenes' opening actions. */
 export const morningText = {
   stay: (name: string) => `Stay with ${name}`,
   headBack: 'Head back to your room',
-  startDay: 'Start the day',
-  chose: (name: string) => [
-    `You say goodbye to ${name} and head back to your room to shower and change.`,
-    `You slip out of ${name}'s room and go back to your own to get cleaned up before the day starts.`
-  ],
-  class: (name: string) => `${name} has to get to class, so you head back to your room to shower and change.`,
-  shift: (name: string) => `${name} has to get to work, so you head back to your room to shower and change.`,
-  leaves: (name: string) => `${name} heads off to start her day.`,
-  action: (name: string) => `You stay with ${name} in her room.`
+  action: (name: string) => `You stay with ${name} in her room.`,
+  wakeAction: (name: string) => `You wake up next to ${name}.`
 }
 
 export const visitFieldInstruction = "Set nightVisit to herRoom or hisRoom only for the room they agreed to meet in this exchange; set it to none if they agreed on no visit."
-export const visitLedgerInstruction = 'Set stayedOver to whether they spent the night together in that room. Write wake as three or four short second-person narration lines that open the next morning: first one or two saying how last night ended between them, then them waking up there. Narration only, no dialogue. Use an empty array when stayedOver is false.'
+export const visitLedgerInstruction = 'Set stayedOver to whether they spent the night together in that room.'
 export const roomText = (room: 'herRoom' | 'hisRoom'): string => room === 'herRoom' ? 'her room' : 'his room'
 export const visitScenePrompt = (room: 'herRoom' | 'hisRoom'): string => `It is late at night and this visit is in ${roomText(room)}. The scene ends when they fall asleep for the night, or sooner if it goes badly.`
 export const visitMorningPrompt = (name: string, room: 'herRoom' | 'hisRoom'): string => `Last night the reader was with ${name} in ${roomText(room)} (see the latest scene). Open on him in his own room this morning; whatever happened last night is behind him.`
+
+/** Her morning commitments shape how waking together ends. */
+export function morningScenePrompt(
+  name: string,
+  room: 'herRoom' | 'hisRoom',
+  commitment: { kind: 'class'; name: string } | { kind: 'shift'; employer: string } | null
+): string {
+  const opening = `It is early morning after the night ${name} and the reader spent together in ${roomText(room)}.`
+  const plans = commitment
+    ? `${name} has ${commitment.kind === 'class' ? commitment.name : `her shift at ${commitment.employer}`} this morning and will need to leave for it soon. The scene ends when one of them has to go.`
+    : `${name} has nothing she has to be at this morning. The scene ends when one of them has to go, or once they settle into the morning together.`
+  return `${opening} ${plans}${room === 'hisRoom' ? ` ${name} will head off to start her day.` : ''}`
+}
+
+/** The ordinary opening narrates their parting after the scenes together. */
+export function morningReturnPrompt(name: string, room: 'herRoom' | 'hisRoom'): string {
+  const departure = room === 'herRoom'
+    ? 'the reader leaves her and gets back to his own room and into the morning'
+    : 'she leaves his room and the reader gets into the morning'
+  return `Last night the reader was with ${name} in ${roomText(room)}, and they woke up there together (see the latest scenes). Open by telling, in a line or two, how ${departure}, in whatever way fits what happened between them; then the morning as usual.`
+}

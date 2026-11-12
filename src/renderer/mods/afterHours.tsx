@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { globalSlotOf, seededRand } from '@vx/modkit/shared'
+import { globalSlotOf } from '@vx/modkit/shared'
 import {
   character,
   charCommitmentAt,
@@ -20,12 +20,11 @@ import {
   useGameFacts,
   useModOption,
   usePlayerProfilePicture,
-  type InterludeRow,
   type ScreenSlotProps
 } from '@vx/modkit/renderer'
 import { AFTER_HOURS_MOD, busyDrops, morningInterlude, normalize, type AfterHours, type NightVisit } from '../../shared/afterHours'
 import {
-  afterHoursText, busyPrompt, morningText, nightPrompt, visitFieldInstruction,
+  afterHoursText, busyPrompt, morningReturnPrompt, morningScenePrompt, morningText, nightPrompt, visitFieldInstruction,
   visitLedgerInstruction, visitMorningPrompt, visitScenePrompt
 } from '../../shared/afterHoursText'
 import '../vu_styles/AfterHours.css'
@@ -129,7 +128,10 @@ registerHooks(AFTER_HOURS_MOD, {
     const data = status.read()
     const visit = data.visit
     const choice = morningInterlude(to, data, Boolean(visit && freeForInvitation(visit.charId)), isGraduationSlot(to.date, to.time))
-    if (!choice) return null
+    if (!choice) {
+      if (visit?.stayed && visit.scened && visit.morning === globalSlotOf(to.date, to.time)) status.set({ ...data, visit: undefined })
+      return null
+    }
     if (choice === 'night') return {
       lines: [afterHoursText.nightLine],
       rows: [{
@@ -150,19 +152,22 @@ registerHooks(AFTER_HOURS_MOD, {
     if (!visit) return null
     const name = character(visit.charId)?.firstName
     if (!name) return null
+    if (choice === 'morningScene') {
+      status.set({ ...data, visit: { ...visit, scened: true } })
+      return {
+        lines: [], rows: [],
+        scene: { charId: visit.charId, room: visit.room, action: morningText.wakeAction(name), at: 'morning', pays: false }
+      }
+    }
     const onPick = (): void => { status.set({ ...status.read(), visit: undefined }) }
-    const commitment = charCommitmentAt(visit.charId)
-    const pool = morningText.chose(name)
-    const headBack = commitment ? morningText[commitment.kind](name) : pool[Math.floor(seededRand(String(visit.morning))() * pool.length)]
-    const rows: InterludeRow[] = []
-    if (choice === 'stay') rows.push({
-      label: morningText.stay(name), onPick,
-      scene: { charId: visit.charId, room: 'herRoom', action: morningText.action(name) }
-    })
-    rows.push(choice === 'startDay'
-      ? { label: morningText.startDay, onPick, lead: [morningText.leaves(name)] }
-      : { label: morningText.headBack, onPick, lead: [visit.room === 'hisRoom' ? morningText.leaves(name) : headBack] })
-    return { look: { time: to.time, room: { kind: visit.room, charId: visit.charId } }, lines: visit.wake ?? [], rows }
+    return {
+      look: { time: to.time, room: { kind: 'herRoom', charId: visit.charId } },
+      lines: [],
+      rows: [
+        { label: morningText.stay(name), onPick, scene: { charId: visit.charId, room: 'herRoom', action: morningText.action(name) } },
+        { label: morningText.headBack, onPick }
+      ]
+    }
   },
   afterDmReply: ({ charId, reply }) => {
     if (!nightHolds()) return
@@ -180,28 +185,29 @@ registerHooks(AFTER_HOURS_MOD, {
   },
   slotSettled: ({ bonus, ledger }) => {
     const visit = status.read().visit
-    if (!bonus || !visit || visit.stayed !== undefined) return
-    const fields = ledger as { stayedOver?: unknown; wake?: unknown } | null
+    if (!bonus || !visit || visit.scened || visit.stayed !== undefined) return
+    const fields = ledger as { stayedOver?: unknown } | null
     const stayed = fields?.stayedOver === true
-    const wake = stayed && Array.isArray(fields?.wake) ? fields.wake.filter((line): line is string => typeof line === 'string') : []
-    status.set({ ...status.read(), visit: { ...visit, stayed, wake }, nightDone: visit.morning })
+    status.set({ ...status.read(), visit: { ...visit, stayed }, nightDone: visit.morning })
   },
   requests: {
     ledger: request => {
       const visit = status.read().visit
-      if (!visit || visit.stayed !== undefined) return request
+      if (!visit || visit.scened || visit.stayed !== undefined) return request
       const schema = request.schema.schema
       return { ...request, user: `${request.user}\n${visitLedgerInstruction}`, schema: { ...request.schema, schema: {
         ...schema,
-        properties: { ...schema.properties as Record<string, unknown>, stayedOver: { type: 'boolean' }, wake: { type: 'array', items: { type: 'string' } } },
-        required: [...((schema.required as string[]) ?? []), 'stayedOver', 'wake']
+        properties: { ...schema.properties as Record<string, unknown>, stayedOver: { type: 'boolean' } },
+        required: [...((schema.required as string[]) ?? []), 'stayedOver']
       } } }
     },
     'slot-intro': (request, { input }) => {
       const visit = status.read().visit
       if (!visit || visit.morning !== globalSlotOf(input.date, input.time)) return request
       const name = character(visit.charId)?.firstName
-      return name ? { ...request, user: `${request.user}\n${visitMorningPrompt(name, visit.room)}` } : request
+      if (!name) return request
+      const line = visit.stayed ? morningReturnPrompt(name, visit.room) : visitMorningPrompt(name, visit.room)
+      return { ...request, user: `${request.user}\n${line}` }
     }
   },
   hangoutVerdict: (verdict, ctx) =>
@@ -211,7 +217,10 @@ registerHooks(AFTER_HOURS_MOD, {
     scene: {
       lines: ({ state }) => {
         const visit = status.read().visit
-        return state.lateNight && visit ? [visitScenePrompt(visit.room)] : []
+        if (!visit) return []
+        if (state.lateNight) return [visitScenePrompt(visit.room)]
+        const name = character(visit.charId)?.firstName
+        return visit.scened && name ? [morningScenePrompt(name, visit.room, charCommitmentAt(visit.charId))] : []
       }
     },
     dm: {

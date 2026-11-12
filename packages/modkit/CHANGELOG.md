@@ -86,6 +86,14 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.12.0
+
+- `Interlude.scene` starts a private bonus scene immediately, with `at: 'night' | 'morning'`
+  choosing its clock and `pays` choosing whether it pays stats and ledger money. Both facts
+  survive saves and rewinds. Non-paying scenes retain memories, events, acts and colds;
+  `StatContext.pays` lets stat hooks distinguish them. Existing visits still run at night
+  and pay normally.
+
 ## 0.11.0
 
 - Renderer mods can read what holds a character in a slot with `charCommitmentAt(charId, date?, time?)`:

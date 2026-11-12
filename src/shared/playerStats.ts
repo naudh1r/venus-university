@@ -234,6 +234,8 @@ export interface ShiftGain {
 export interface StatContext {
   /** A scene played between slots, without moving the clock. */
   bonus?: true
+  /** False leaves this scene without stat rewards or penalties. */
+  pays?: boolean
   /**
    * The scene had no other characters in it: every exercised stat counts, and each pays twice.
    */
@@ -293,6 +295,7 @@ export function resolveStatDeltas(
 ): { deltas: PlayerStats; lines: StatusText[] } {
   const deltas: PlayerStats = { brain: 0, body: 0, heart: 0 }
   const lines: StatusText[] = []
+  if (ctx.pays === false) return { deltas, lines }
 
   // A cold pays nothing for the hour — no shift, no exercise, no attendance — but a grade lands.
   if (ctx.sick) {

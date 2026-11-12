@@ -258,7 +258,7 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
   const host = room ? game.characters[room.charId] : undefined
   const heldBg = room?.kind === 'herRoom' && host && game.roomReady[room.charId] ? roomBgIdOf(host) : SLOT_BG
   const base = game.interlude ? heldBg : game.bgOverride ?? game.bg ?? SLOT_BG
-  const at = game.interlude?.now.from ?? (game.sceneBonus ? prevSlot(game.date, game.time) : game)
+  const at = game.interlude?.now.from ?? (game.sceneBonus && game.sceneBonusAt !== 'morning' ? prevSlot(game.date, game.time) : game)
   const cg = displayedCgOf({
     shown: displaySlotsOf(game.slots, game.stageOverride),
     emotions: game.emotions,
