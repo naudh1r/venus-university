@@ -43,8 +43,8 @@
   align-items: center;
   gap: 12px;
   width: 100%;
-  height: 60px;
-  padding: 0 18px 0 16px;
+  height: 68px;
+  padding: 0 18px 0 22px;
   border: 0;
   border-radius: 999px 0 0 999px;
   background: var(--vu-recessed);
