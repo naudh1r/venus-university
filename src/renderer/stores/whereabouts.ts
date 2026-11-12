@@ -154,7 +154,7 @@ export function awayWhereabouts(charId: string): Whereabouts {
 }
 
 /** The told route: where she actually is, obligations included. */
-function toldWhereabouts(charId: string, date: number, time: TimeSlot): Whereabouts {
+function toldWhereabouts(charId: string, date: number, time: TimeSlot, ownRoom = false): Whereabouts {
   const base = { charId, source: 'told' as const }
 
   // First of everything, on `charHiddenLocationNow`'s own ordering.
@@ -172,6 +172,8 @@ function toldWhereabouts(charId: string, date: number, time: TimeSlot): Whereabo
       onCampus: true
     }
   }
+
+  if (ownRoom) return { ...base, kind: 'room', location: null, ...roomSection(dormOf(charId)) }
 
   const classCode = charClassNow(charId, date, time)
   if (classCode !== null) {
@@ -243,9 +245,10 @@ export function placeDestination(placeKey: string): string | null {
 /** Everyone the player can place this slot, in {@link PLACE_ORDER}. */
 export function knownWhereabouts(date?: number, time?: TimeSlot): Whereabouts[] {
   const game = useGameStore.getState()
-  if (game.interlude) return []
-  const on = date ?? game.date
-  const half = time ?? game.time
+  const night = game.interlude?.now.clock === 'late-night'
+  if (game.interlude && !night) return []
+  const on = game.interlude?.now.from.date ?? date ?? game.date
+  const half = game.interlude?.now.from.time ?? time ?? game.time
   const slot = shiftSlotOf(shiftWeekdayOf(on), half)
 
   const rows: Whereabouts[] = []
@@ -257,11 +260,11 @@ export function knownWhereabouts(date?: number, time?: TimeSlot): Whereabouts[] 
     // A block drops her to the remembered route, not off the map. Not `isContact`
     // (`loop/classify.ts`), which ignores a block.
     if (info.flags?.gaveContactInfo && !info.flags?.blocked) {
-      rows.push(toldWhereabouts(charId, on, half))
+      rows.push(toldWhereabouts(charId, on, half, night))
       continue
     }
 
-    if (!info.metSlots?.includes(slot)) continue
+    if (night || !info.metSlots?.includes(slot)) continue
     const haunt = charStandingHauntAt(charId, on, half)
     if (haunt === null) continue
     rows.push(rememberedWhereabouts(charId, haunt.location))

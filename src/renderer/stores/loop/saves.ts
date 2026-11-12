@@ -311,17 +311,6 @@ export function queuedScene(
   if (mods) scene.mods = mods
   else delete scene.mods
   // Set-or-delete: a scene that is not one of these kinds must carry no key at all.
-  if (game.sceneBonus) {
-    scene.bonus = true
-    scene.bonusAt = game.sceneBonusAt
-    scene.bonusPays = game.sceneBonusPays
-  } else {
-    delete scene.bonus
-    delete scene.bonusAt
-    delete scene.bonusPays
-  }
-  if (game.sceneBonusOpening) scene.bonusOpening = game.sceneBonusOpening
-  else delete scene.bonusOpening
   if (game.sceneActivity) scene.activity = { ...game.sceneActivity }
   else delete scene.activity
   if (game.sceneClass) scene.classCode = game.sceneClass

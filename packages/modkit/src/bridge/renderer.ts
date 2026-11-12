@@ -172,7 +172,6 @@ export { scene, useScene, subscribeScene, holdTurn } from '../../../../src/rende
 export type { SceneView, SceneViewLine, ScriptedSlot } from '../../../../src/renderer/mods/sceneView'
 
 export { canInviteToScene, freeForInvitation, subscribeInvitations, startInvitedScene } from '../../../../src/renderer/mods/sceneInvitations'
-export { charCommitmentAt } from '../../../../src/renderer/stores/timetable'
 export type { Commitment } from '../../../../src/renderer/prompts/slotIntroPrompt'
 
 export { hasDesktopSurfaces, canRecordSceneTurn, openSceneExchange, sceneExchangeContext, subscribeSceneTurns } from '../../../../src/renderer/mods/sceneExchange'

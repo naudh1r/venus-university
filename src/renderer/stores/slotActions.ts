@@ -32,6 +32,8 @@ export interface SlotAction {
   verdict: Verdict | null
   /** The plan this button starts, whose attendees it casts whatever its words name. */
   planId?: string
+  /** Runs before spending this row on Relax. */
+  relaxPick?: () => void
   /** The mod's activity this button commits the slot to. */
   activity?: SlotActivityOffer
 }
@@ -180,7 +182,7 @@ function fillers(count: number): SlotAction[] {
 /** What the Relax row is keyed by, which `relax` answers rather than the classifier. */
 export const RELAX_KEY = 'relax'
 
-/** The row that spends the slot doing nothing, last under the rest. */
+/** The built-in row that spends the slot doing nothing. */
 export function relaxAction(time: TimeSlot): SlotAction {
   const game = useGameStore.getState()
   return {

@@ -14,7 +14,7 @@ import {
   type StagePlacement
 } from '@shared/stageThumb'
 import { allBackgrounds, roomBgIdOf, type SceneState } from '@shared/types'
-import { prevSlot, slotHalf } from '../../prompts/gameDate'
+import { slotHalf } from '../../prompts/gameDate'
 import { isEpilogueNight } from '../../prompts/graduation'
 import { bgThumbUrl, customBackgroundOf, roomOwnerOf, SLOT_BG } from '../../views/bgAssets'
 import { useAssetStore } from '../assetStore'
@@ -195,7 +195,7 @@ export async function composeStageThumbnail(scene: SceneState): Promise<string |
   if (!ctx) return null
 
   // The epilogue's evening is night whatever the clock says, as on the stage itself.
-  const half = scene.bonus ? slotHalf(scene.bonusAt === 'morning' ? game.time : prevSlot(game.date, game.time).time) : isEpilogueNight(game.date, game.time, game.graduationSeen)
+  const half = isEpilogueNight(game.date, game.time, game.graduationSeen)
     ? 'night'
     : slotHalf(game.time)
 

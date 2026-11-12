@@ -428,9 +428,6 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
 - `currentRun()` and `runStale(run)` (`renderer`): the game being played, as a token. Take one
   before an `await`, and after it `runStale(run)` says whether the player has left that game,
   for a new one or the menu, in the meantime; work that outlived its game is dropped.
-- `charCommitmentAt(charId, date?, time?)` (`renderer`): what holds her in a slot, the current one
-  by default: her class (`{ kind: 'class', name }`), her shift (`{ kind: 'shift', employer }`), or
-  `null`. It says why she is busy; `freeForInvitation` says whether she is free.
 - `isOrientationSlot(date, time, semesterIndex)` and `isGraduationSlot(date, time)` (`renderer`):
   the playthrough's first slot, and graduation morning.
 - `lessNsfwText()` and `useLessNsfwText()` (`renderer`): the player has Less NSFW text on, so the
@@ -1195,8 +1192,9 @@ else names it.
 | `dmHistoryNote` | `textingPrompt.ts` | Add a note after a DM in the history the prompt quotes |
 | `characterFromDraft` | `characterPrompt.ts` | Fill fields of a generated character from the reply |
 | `dmReplyLead` | `textingLoop.ts` | Read the `lead` fields of her DM reply the moment they have streamed in, before her first text lands. Once per reply, never for one already abandoned. Context includes `signal`: a lead's work ends at `afterDmReply` or at this signal, whichever comes first. Failure, cancellation, blocking, abandonment, load, leaving or scene takeover aborts it; a landed reply does not. Her finished reply stays authoritative |
-| `slotInterlude` | `gameLoop.ts` (`beginSlot`) | Hold the slot opening on the finished slot’s landing with narration and optional confirmed choices |
+| `slotInterlude` | `gameLoop.ts` (`beginSlot`) | Hold the slot opening on the finished slot’s landing with narration and choices |
 | `relaxLabel` | `slotActions.ts` | Replace the Relax row’s label, keeping its behavior |
+| `relaxRows` | `GameView.tsx` | Add rows under Relax; each calls its handler, then runs the normal Relax flow |
 | `interludePreview` | `slotCrossing.ts` | Say, without writing anything, that the coming slot will be held on the finished one's look, so the boundary's curtain announces that slot (`{ at: 'from' }`) |
 | `hangoutVerdict` | `textingLoop.ts` | Change or drop the texting classifier's verdict before a hangout or invitation is filed |
 | `afterDmReply` | `textingLoop.ts` | Act after her reply in a DM has landed |
@@ -1207,7 +1205,7 @@ else names it.
 | `landingTool` | `LandingChrome.tsx` | Draw a tool in the landing's corner, after the log and before Settings; not on a created scene or a replay. Props: `Tool` (the landing's own tool), `visible` |
 | `gameMenuEntry` | `GameMenuModal.tsx` | Draw an entry in the game menu, after Mods and before Controls. Props: `Item` (the menu's own entry), `saveOffer` (`'open'` where a save can be written now) |
 | `afterReachOut` | `textingLoop.ts` | Act after the texts of a girl texting first have landed |
-| `playerActs` | `gameLoop.ts` (`submitAction`), `loop/hangouts.ts`, `loop/relax.ts` | Act when the reader commits to something: an action, a hangout begun, or Relax. A scene begun from a held interlude tells mods while `interludeNow()` still reads that hold |
+| `playerActs` | `gameLoop.ts` (`submitAction`), `loop/hangouts.ts`, `loop/relax.ts` | Act when the reader commits to something: an action, a hangout begun, or Relax |
 | `gameEntered` | `gameLoop.ts` (`enterGame`) | Act when a game is entered, new or loaded |
 | `fileFeedPost` | `loop/feed.ts` | Change a slot post before it is filed, or file it later itself (`held`) |
 | `postLikes` | `loop/feed.ts`, `NewGameView.tsx` | Decide likes on ending, stranger and winter posts |
@@ -1251,67 +1249,39 @@ else names it.
 
 `slotInterlude(ctx)` is asked once per entry into `beginSlot`, after game-over checks and
 before graduation or any ordinary slot-opening effects. `ctx.from` is the preceding slot;
-`ctx.to` is the clock's current slot, with `semesterIndex` naming its semester. The first
-enabled mod returning an `Interlude` owns the hold. Its `lines` play on the finished slot's
-landing, followed only by its `rows`; there is no action box, gift or map travel, and the map
-lists nobody. Each row opens the slot normally, after the native confirmation when `confirm`
-is present and after calling its optional `onPick` once. The row does not ask the hook again.
+`ctx.to` is the clock's current slot, with `semesterIndex` naming its semester. `ctx.ledger`
+is the finished scene's ledger, as `slotSettled` receives it, or null after Relax or an
+opening with no preceding scene. The first enabled mod returning an `Interlude` owns the
+hold. Its `lines` play on the finished slot's landing, followed only by its `rows`; each
+row has a `label` and an `onPick` called once before the slot opens normally. There is no
+action box, gift or map travel. The row does not ask the hook again.
 A manual save holds no scene, so loading it asks anew, as loading a boundary save does.
-Leaving the landing writes nothing. Switching the owner off leaves the current hold standing;
-the next slot entry follows the current switches. `interludeNow()` and `useInterludeNow()`
-return the held context, its `owner` and optional `clock`, or null.
+`heldOpening` retains the banked morning narration through that reload, without asking for
+it again. Leaving the landing writes nothing. Switching the owner off leaves the current
+hold standing; the next slot entry follows the current switches. `interludeNow()` and
+`useInterludeNow()` return the held context, its `owner` and optional `clock`, or null.
 
-With `clock: 'late-night'`, the phone reads as late on `from`: the weather and dorm-room
-whereabouts in her prompt come from that night, classes and work do not shut the composer,
-and presence is hidden. Texts retain `to`'s date and time for the ledger and gain `late: true`;
-their saved marker prints as the preceding night in threads, classifier context and ledger
-blocks, including after the hold ends or the save is loaded. Reach-outs and invitations
-from the new slot arrive only after a row releases it. The stage and room sound default to `from`,
-regardless of the phone's clock; `look` can choose their half and room.
+With `clock: 'late-night'`, the phone reads as late on `from`: prompt weather and dorm-room
+whereabouts come from that night, and classes and work do not shut the composer. Contacts
+are placed in their own dorm rooms and shown free, with out-of-town and home-sick statuses
+taking precedence. Other interludes show no presence. Texts retain `to`'s date and time for
+the ledger and gain `late: true`; their saved marker prints as the preceding night in
+threads, classifier context and ledger blocks, including after the hold ends or the save
+is loaded. Reach-outs and invitations from the new slot arrive only after a row releases
+it. The stage and room sound use `from`, in the reader's room.
 
-An interlude can set `look: { time?, room?: { kind: 'herRoom' | 'hisRoom', charId } }`.
-The half defaults to `from.time`; the room defaults to his. Her room uses her room render
-with the normal room fallback. The landing, its background and sound use that look.
+`interludePreview(ctx)` is a pure preview asked before the boundary's curtain falls. Return
+`{ at: 'from' }` to announce the finished slot, or add `clock: 'late-night'` to announce it
+as Night with the night mark. It receives the same ledger as the ending, retained through
+ending reloads. The `requests['slot-intro']` context also carries `ledger`: the scene's
+ledger when its ending fetched this opening, null when no scene preceded it.
 
-A row's `lead` is a list of lines played before the opening's own narration. Alternatively,
-`scene: { charId, room: 'herRoom' | 'hisRoom', action }` opens the slot quietly: every settle,
-text, post and fold still happens, then a normal private scene starts with her alone and
-`action` as the reader's action, without a classifier. `lead` and `scene` are exclusive.
+`relaxRows({ date, time })` adds each enabled mod's rows under Relax, in mod order, wherever
+Relax is offered. Rows have a `label` and `onPick`; choosing one calls its handler and runs
+the same Relax line, wait and boundary. A failing row-producing hook is logged and skipped.
 
-`onHangout(verdict, ctx)` is asked after `hangoutVerdict` when an interlude holds. A null
-answer drops the verdict; `{ room: 'herRoom' | 'hisRoom' }` arms the native **Begin hangout**
-button with no normal-scene prefetch. Begin starts a private **bonus scene** with her alone,
-the agreed description as the reader's action, no classifier and no curveball. Its prompts
-read late on `from`, with that night's weather. Its saved scene carries `bonus: true`, so a
-reload, turns, gifts, interjections, rewinds and closing all follow the same scene.
-
-An interlude's own `scene: { charId, room: 'herRoom' | 'hisRoom', action, at, pays }`
-starts a bonus scene immediately under the boundary's curtain, without showing its landing,
-rows or lines. The curtain reveals on the scene's first line. `at: 'night'` uses the held
-night, as a visit from `onHangout` does; `at: 'morning'` uses the opening slot's clock,
-weather and cast commitments, with no `lateNight` in its prompt state. `pays: false` keeps
-memories, events, acts and their passes, including colds, but returns no stat deltas or stat
-lines and applies no ledger money. Stat hooks receive `pays: false` on `StatContext` beside
-`bonus: true`; their awards cannot make this scene pay. Timing and payment are saved with
-the scene and restored on load. Older bonus saves and `onHangout` visits use night timing
-and pay normally.
-
-A bonus ending runs the scene ledger and closing but leaves the texting ledger for the
-real slot's scene. It projects the scene's memories, plans, acts, rumor pass, crushes and
-cold transmission among its participants; it rolls no off-screen encounters, affinities,
-overlay or new cold strain. The opening is fetched again with its existing calendar,
-overlay and invitation picks. The boundary applies its books and passes, asks the memory
-question, calls `bonusSettled`, writes a slot save without advancing the clock or keeping a
-replay, and asks `slotInterlude` anew. A losing bonus scene ends the game normally.
-
-`slotStatusLines`, `projectSlotMemories`, `exercisedStats` and
-`settleSceneStats` receive `bonus: true` in their context on a bonus scene and no flag on an
-ordinary one (`settleSceneStats` also keeps it in its nested `ctx`). A mod counting once per
-slot can leave those bonus scenes out. Register `bonusSettled(ctx)` to settle a bonus
-scene: it receives the usual `SlotSettled` fields and `bonus: true`, synchronously at the
-boundary before its save. `slotSettled` only runs for ordinary slot advances, and its context
-has no `bonus`. A mod registering only `slotSettled` never sees bonus scenes. Story Memory,
-for example, does not record them until it registers `bonusSettled`.
+While any interlude holds, a DM verdict still standing after `hangoutVerdict` is dropped;
+it cannot arm a hangout. Plans for another slot work normally.
 
 `hangoutVerdict(verdict, ctx)` runs after a normal texting reply is classified, before it arms
 a hangout or raises her invitation; a regenerated reply does not ask it. `ctx.charId` names
@@ -1805,7 +1775,8 @@ and hints, and read/edit/export with a missing provider. No particular mod trait
 
 `textWhileBusy({ charId, commitment })` is an `any` renderer hook. Any enabled mod returning
 `true` opens only the composer's class/shift gate; scene, block, failed-turn, reply-in-flight
-and epilogue gates still apply. `commitment` is the same `Commitment` as `charCommitmentAt`.
+and epilogue gates still apply. `commitment` is a `Commitment`: her class (`{ kind: 'class', name }`) or shift
+(`{ kind: 'shift', employer }`).
 
 The reader's message is shown immediately. The normal DM call receives `heldUntil` (the next
 slot's date and time) and `commitment` in `TextingPromptState`. Its reply does not stream or

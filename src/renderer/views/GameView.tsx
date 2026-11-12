@@ -5,7 +5,7 @@ import { ReckoningDungeonView } from './ReckoningDungeon'
 import { dungeonVisible } from '../stores/reckoningDungeon'
 import { ensureEchoes } from '../stores/echoAssignments'
 import { useModsStore } from '../stores/modsStore'
-import { slotActivityAvailable } from '../mods/hooks'
+import { relaxRows, slotActivityAvailable } from '../mods/hooks'
 import { finishSlotActivity, resumeSlotActivity } from '../stores/slotActivity'
 import {
   useEffect,
@@ -46,7 +46,7 @@ import { isProhibited, LlmFailureModal } from '../components/LlmFailureModal'
 import { PhotoFailedModal } from '../components/PhotoFailedModal'
 import { useSceneInputLayout } from '../components/useSceneInput'
 import { typingIn, useWindowKeydown } from '../components/useWindowKeydown'
-import { prevSlot, slotHalf } from '../prompts/gameDate'
+import { slotHalf } from '../prompts/gameDate'
 import { slotWeather } from '../prompts/weather'
 import {
   ALL_REVEALED,
@@ -603,7 +603,6 @@ export function GameView(): JSX.Element {
   const echoOn = useModOn('echo')
   const sceneInput = useSceneInputLayout()
   const interlude = useGameStore(s => s.interlude)
-  const [interludeConfirm, setInterludeConfirm] = useState<number | null>(null)
   const bg = useGameStore((s) => s.bg)
   const time = useGameStore((s) => s.time)
   const date = useGameStore((s) => s.date)
@@ -1157,30 +1156,22 @@ export function GameView(): JSX.Element {
     return map
   }, [characters])
   // Every background the scene may name, which a room id the same as one of them never shadows.
-  const roomReady = useGameStore(s => s.roomReady)
-  const sceneBonus = useGameStore(s => s.sceneBonus)
-  const nightBonus = useGameStore(s => s.sceneBonus && s.sceneBonusAt !== 'morning')
   const backgrounds = useAssetStore((s) => s.backgrounds)
   const listedBgs = useMemo(() => new Set(allBackgrounds(backgrounds)), [backgrounds])
 
   // What the player picked wins the layer, and only the layer: `bg` is still what the scene
   // reports. A game over plays on black, with no background at all.
-  const heldRoom = interlude?.interlude.look?.room
-  const heldCharacter = heldRoom ? characters[heldRoom.charId] : undefined
-  const heldBg = heldRoom?.kind === 'herRoom' && heldCharacter && roomReady[heldRoom.charId] ? roomBgIdOf(heldCharacter) : SLOT_BG
-  const shownBg = interlude ? heldBg : bgOverride ?? bg
+  const shownBg = interlude ? SLOT_BG : bgOverride ?? bg
   const roomCharId = shownBg ? roomOwnerOf(shownBg, roomBgToCharId, listedBgs) : undefined
   // Cache-buster for a room regenerated this session.
   const roomVersion = useSpriteVersion(roomCharId)
   // The same cache-buster for the speaker's portrait: the player can reframe one mid-playthrough.
   const spriteVersions = useCharacterStore((s) => s.spriteVersion)
   // Which half of the day the layer resolves; the epilogue is always night.
-  // A held landing shows the slot its look is set in: the finished one, or the one about to open.
-  const heldAt = interlude && interlude.interlude.look?.time === interlude.now.to.time
-    && interlude.now.to.time !== interlude.now.from.time ? interlude.now.to : interlude?.now.from
-  const shownDate = heldAt?.date ?? (nightBonus ? prevSlot(date, time).date : date)
-  const shownTime = interlude?.interlude.look?.time ?? interlude?.now.from.time ?? (nightBonus ? prevSlot(date, time).time : time)
-  const half = interlude || sceneBonus ? slotHalf(shownTime) : isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
+  // A held landing stays on the finished slot.
+  const shownDate = interlude?.now.from.date ?? date
+  const shownTime = interlude?.now.from.time ?? time
+  const half = interlude ? slotHalf(shownTime) : isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
   // The sky over this slot, which picks the background's render and the mark the chromes wear.
   const slotSky = slotWeather(weather, shownDate, shownTime, interlude ? false : graduationSeen)
   const wet = isWet(slotSky)
@@ -1599,7 +1590,7 @@ export function GameView(): JSX.Element {
    */
   const cinematic = !interlude && isOrientationSlot(date, time, semesterIndex)
   /** The graduation epilogue: an authored screen the reader still reads and types on. */
-  const epilogue = !interlude && !sceneBonus && isGraduationSlot(date, time) && !gameOver
+  const epilogue = !interlude && isGraduationSlot(date, time) && !gameOver
   /** A screen the game wrote end to end; each leaves at most `BASE_REVEAL` standing. */
   const authored = cinematic || epilogue || Boolean(gameOver)
   /**
@@ -1840,7 +1831,7 @@ export function GameView(): JSX.Element {
   const slotActions = useMemo<SlotAction[]>(
     // A created scene and a replay have no slot, and their landing is never drawn.
     () => (interlude ? interlude.interlude.rows.map((row, index) => ({ key: `interlude:${index}`, text: row.label, tone: 'idle' as const, verdict: null }))
-      : created || replaying ? [] : [...slotActionsNow(), relaxAction(time)]),
+      : created || replaying ? [] : [...slotActionsNow(), relaxAction(time), ...relaxRows({ date, time }).map((row, index) => ({ key: `relax:${index}`, text: row.label, tone: 'idle' as const, verdict: null, relaxPick: row.onPick }))]),
     [date, time, events, classes, job, playerSchedule, classRecords, calendar, activitySwitches, interlude]
   )
 
@@ -1876,8 +1867,7 @@ export function GameView(): JSX.Element {
       if (busy || blocked || !awaitingInput) return
       const row = interlude.interlude.rows[index]
       if (!row) return
-      if (row.confirm) setInterludeConfirm(index)
-      else interlude.pick(index)
+      interlude.pick(index)
       return
     }
     /**
@@ -1912,8 +1902,9 @@ export function GameView(): JSX.Element {
     setAction('')
     // Relax spends the hour on nothing: no classifier and no scene, and its wait is reported the
     // same way, the landing standing with Go turning until its line is up.
-    if (chosen.key === RELAX_KEY) {
+    if (chosen.key === RELAX_KEY || chosen.relaxPick) {
       setSending(true)
+      try { chosen.relaxPick?.() } catch (error) { console.warn('[mods] relax row failed', error) }
       void relax()
       return
     }
@@ -3003,21 +2994,6 @@ export function GameView(): JSX.Element {
             the reason Settings is. */}
         {panel?.kind === 'feedback' && (
           <FeedbackModal key="feedback" theme={half} onClose={closePanel} />
-        )}
-
-        {interlude && interludeConfirm !== null && interlude.interlude.rows[interludeConfirm]?.confirm && (
-          <ConfirmModal
-            key="interlude-row"
-            id="interlude-row"
-            theme={half}
-            {...interlude.interlude.rows[interludeConfirm].confirm!}
-            onCancel={() => setInterludeConfirm(null)}
-            onConfirm={() => {
-              const index = interludeConfirm
-              setInterludeConfirm(null)
-              interlude.pick(index)
-            }}
-          />
         )}
 
         {panel?.kind === 'leaving' && (

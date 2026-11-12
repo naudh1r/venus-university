@@ -29,7 +29,7 @@ describe('QA: slot-opening Story Memory must target the characters it writes', (
       ] }) })!
     const input = { storyMemory: snapshot, recent: ['scholarship concern'],
       askers: [{ character: alice }], breakups: [{ character: bob }], posters: [{ character: carol }] } as unknown as SlotIntroInput
-    const payload = modRequest('slot-intro', { input }, { system: 'rules', user: 'Write the slot.', schema: { name: 'slot', schema: {} } }).storyMemory!
+    const payload = modRequest('slot-intro', { input, ledger: null }, { system: 'rules', user: 'Write the slot.', schema: { name: 'slot', schema: {} } }).storyMemory!
     payload.mode = mode
     assertStoryRecall(payload)
     const actual = formatStoryRecall(payload)
@@ -60,7 +60,7 @@ describe('QA: slot-opening Story Memory must target the characters it writes', (
       }] }) })!
     const input = { storyMemory: snapshot, recent: [], askers: [], breakups: [], posters: [],
       [section]: [{ character: alice }] } as unknown as SlotIntroInput
-    const request = modRequest('slot-intro', { input }, { system: 'rules', user: 'Write Alice.',
+    const request = modRequest('slot-intro', { input, ledger: null }, { system: 'rules', user: 'Write Alice.',
       schema: { name: 'slot', schema: {} } })
     const actual = request.storyMemory!
     // Positive control: this same valid save fact is relevant when its author is targeted.
@@ -76,7 +76,7 @@ describe('QA: slot-opening Story Memory must target the characters it writes', (
         knownBy: ['reader', 'a'], public: true, evidence: '', source: 'Player-added correction', supersedes: [], manual: true
       }] }) })!
     const input = { storyMemory: snapshot, recent: [], askers: [{ character: alice }], breakups: [], posters: [] } as unknown as SlotIntroInput
-    const request = modRequest('slot-intro', { input }, { system: 'rules', user: 'Write Alice.',
+    const request = modRequest('slot-intro', { input, ledger: null }, { system: 'rules', user: 'Write Alice.',
       schema: { name: 'slot', schema: {} } })
     const actual = { ...request.storyMemory!, mode: 'light' as const }
     expect(formatStoryRecall({ ...actual, cast: ['a'] }).included).toContain('manual:correction')

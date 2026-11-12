@@ -314,7 +314,7 @@ export function MapModal({ theme, onClose, onGo }: MapModalProps): JSX.Element |
   // A Go leaves with the handler and with the sections, and motion reports no hover ending for a
   // control that unmounts under the cursor, so the hover is dropped with what it names. Keyed on
   // whether there is a handler, not on which: the screen hands down a new closure every render.
-  const canGo = onGo !== undefined
+  const canGo = !interlude && onGo !== undefined
   useEffect(() => {
     setTip(null)
   }, [canGo, shape])
@@ -430,7 +430,7 @@ export function MapModal({ theme, onClose, onGo }: MapModalProps): JSX.Element |
                           </motion.span>
                         ))}
                       </motion.span>
-                      {onGo && destination && (
+                      {canGo && onGo && destination && (
                         <motion.button
                           className="vu-btn vu-btn--primary vu-paper vu-map-go"
                           type="button"

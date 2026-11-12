@@ -83,9 +83,6 @@ export const character: (id: string) => Readonly<Character> | undefined;
 export const characterInfo: (id: string) => Readonly<CharInfo> | undefined;
 
 // @public
-export function charCommitmentAt(charId: string, date?: number, time?: TimeSlot): Commitment | null;
-
-// @public
 export function chatClock(): {
     date: number;
     time: TimeSlot;
@@ -392,25 +389,8 @@ export interface Interlude {
     clock?: 'late-night';
     // (undocumented)
     lines: readonly string[];
-    look?: {
-        time?: TimeSlot;
-        room?: {
-            kind: 'herRoom' | 'hisRoom';
-            charId: string;
-        };
-    };
-    onHangout?: (verdict: HangoutVerdict, ctx: HangoutVerdictCtx) => {
-        room: 'herRoom' | 'hisRoom';
-    } | null;
     // (undocumented)
     rows: readonly InterludeRow[];
-    scene?: {
-        charId: string;
-        room: 'herRoom' | 'hisRoom';
-        action: string;
-        at: 'night' | 'morning';
-        pays: boolean;
-    };
 }
 
 // @public
@@ -420,6 +400,7 @@ export interface InterludeCtx {
         date: number;
         time: TimeSlot;
     };
+    ledger: LedgerResponse | null;
     // (undocumented)
     semesterIndex: number;
     // (undocumented)
@@ -435,22 +416,9 @@ export function interludeNow(): InterludeNow | null;
 // @public
 export interface InterludeRow {
     // (undocumented)
-    confirm?: {
-        title: string;
-        message: string;
-        confirmText: string;
-        cancelText: string;
-    };
-    // (undocumented)
     label: string;
-    lead?: readonly string[];
     // (undocumented)
-    onPick?: () => void;
-    scene?: {
-        charId: string;
-        room: 'herRoom' | 'hisRoom';
-        action: string;
-    };
+    onPick: () => void;
 }
 
 // @public
@@ -571,9 +539,6 @@ export interface ModHooks {
         reply: Readonly<Record<string, unknown>>;
     }) => void;
     afterSceneReply?: (ctx: SceneReplied) => void;
-    bonusSettled?: (ctx: SlotSettled & {
-        bonus: true;
-    }) => void;
     // (undocumented)
     bunnyboardPage?: BunnyboardPage;
     characterFromDraft?: (draft: Readonly<Record<string, unknown>>, ctx: {
@@ -607,6 +572,7 @@ export interface ModHooks {
     hangoutVerdict?: (verdict: HangoutVerdict | null, ctx: HangoutVerdictCtx) => HangoutVerdict | null;
     interludePreview?: (ctx: InterludeCtx) => {
         at: 'from' | 'to';
+        clock?: 'late-night';
     } | null;
     keepSceneLedgerEntry?: (entry: Readonly<SceneLedgerEntry>) => boolean;
     landingTool?: ComponentType<ScreenSlotProps['landingTool']>;
@@ -638,6 +604,13 @@ export interface ModHooks {
         date: number;
         time: TimeSlot;
     }) => string | undefined;
+    relaxRows?: (ctx: {
+        date: number;
+        time: TimeSlot;
+    }) => readonly {
+        label: string;
+        onPick: () => void;
+    }[];
     requests?: {
         [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest;
     };
@@ -662,7 +635,6 @@ export interface ModHooks {
     slotSettled?: (ctx: SlotSettled) => void;
     slotStatusLines?: (ctx: {
         nextSlot: number;
-        bonus?: true;
     }) => readonly SceneLine[];
     stageLayer?: ComponentType<ScreenSlotProps['stageLayer']>;
     statActivities?: (stat: StatKey) => readonly SlotActivityOffer[];
@@ -923,10 +895,6 @@ export interface PromptState {
     history: GameHistory;
     homecomingVisitor?: string;
     jobId: string | null;
-    lateNight?: {
-        date: number;
-        time: TimeSlot;
-    };
     lessNsfwText: boolean;
     lorebook: readonly BookEntry[];
     memoryBudgets: Required<MemoryBudgets>;
@@ -1063,6 +1031,7 @@ export interface RequestSpots {
     // (undocumented)
     'slot-intro': {
         input: SlotIntroInput;
+        ledger: LedgerResponse | null;
     };
     // (undocumented)
     dm: PromptSpots['dm'] & {
@@ -1304,7 +1273,6 @@ export interface SceneStats {
 
 // @public
 export interface SceneStatSettlement {
-    bonus?: true;
     // (undocumented)
     ctx: StatContext;
     ledger: LedgerStats | undefined;
@@ -1543,9 +1511,7 @@ export interface SlotIntroInput {
 }
 
 // @public
-export type SlotMemoryProjection = Pick<SlotSettled, 'before' | 'closingCast'> & {
-    bonus?: true;
-};
+export type SlotMemoryProjection = Pick<SlotSettled, 'before' | 'closingCast'>;
 
 // @public (undocumented)
 export interface SlotSettled {

@@ -129,7 +129,7 @@ it('routes only selected characters into active scene, DM, and slot hooks; old r
   expect(characterDynamicsLines([c], data)).toEqual([])
   const request = { system: 'existing system', user: 'existing mod context', schema: { name: 'test', schema: { type: 'object' } }, cacheKey: 'existing' }
   const input = { exCharacterDynamics: data, askers: [{ character: a }], breakups: [], posters: [{ character: a }, { character: c }] } as unknown as SlotIntroInput
-  const extended = modRequest('slot-intro', { input }, request)
+  const extended = modRequest('slot-intro', { input, ledger: null }, request)
   expect(extended.user).toContain(request.user)
   expect(extended.schema).toBe(request.schema)
   expect(extended.system).toBe(request.system)
@@ -137,5 +137,5 @@ it('routes only selected characters into active scene, DM, and slot hooks; old r
   const globallyEnabled = withMod(NO_SWITCHES, CHARACTER_DYNAMICS_MOD, true)
   setHookRules({ isOn: id => modOn(globallyEnabled, id, playthroughRecord()), order: () => 0 })
   expect(promptLines('scene', { cast: [a], state: scene, query: '' })).toEqual([])
-  expect(modRequest('slot-intro', { input }, request)).toBe(request)
+  expect(modRequest('slot-intro', { input, ledger: null }, request)).toBe(request)
 })

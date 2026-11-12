@@ -1,7 +1,7 @@
 import { semesterCalendarOf, semesterOf, type SemesterCalendar } from '@shared/semesters'
-import type { GameSave, PlaythroughRecord, TimeSlot } from '@shared/types'
+import type { GameSave, LedgerResponse, PlaythroughRecord, TimeSlot } from '@shared/types'
 import type { Weather } from '@shared/weather'
-import { nextSlot, prevSlot, slotHalf } from '../prompts/gameDate'
+import { nextSlot, slotHalf } from '../prompts/gameDate'
 import { GOODBYES_SPLASH, isEpilogueNight } from '../prompts/graduation'
 import { endVacationOf, fixedOccasionIn, GRADUATION_DATE, occasionsAt } from '../prompts/occasions'
 import { slotWeather } from '../prompts/weather'
@@ -27,15 +27,13 @@ import { interludePreview } from '../mods/hooks'
  * on a morning slot the clock alone would call day.
  */
 function gameThemeNow(): ScreenTheme {
-  const { date, time, graduationSeen, interlude, sceneBonus, sceneBonusAt } = useGameStore.getState()
-  if (interlude) return slotHalf(interlude.interlude.look?.time ?? interlude.now.from.time)
-  if (sceneBonus) return slotHalf(sceneBonusAt === 'morning' ? time : prevSlot(date, time).time)
+  const { date, time, graduationSeen, interlude } = useGameStore.getState()
+  if (interlude) return slotHalf(interlude.now.from.time)
   return isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
 }
 
 /** {@link gameThemeNow} for a save being opened, read off the file instead of the store. */
 function saveTheme(save: GameSave): ScreenTheme {
-  if (save.scene?.bonus) return slotHalf(save.scene.bonusAt === 'morning' ? save.time : prevSlot(save.date, save.time).time)
   return isEpilogueNight(save.date, save.time, save.graduationSeen) ? 'night' : slotHalf(save.time)
 }
 
@@ -128,23 +126,24 @@ function untilPhase(done: (phase: string) => boolean): Promise<void> {
  * work. Resolves through idle too, so a refused or torn-down crossing can never strand it. With
  * `ask`, the curtain holds flat once down until the boundary's question is answered.
  */
-export async function coverSlotCrossing(ask = false): Promise<void> {
-  const { date, time, calendar, weather, graduationSeen, sceneBonus, semesterIndex } = useGameStore.getState()
+export async function coverSlotCrossing(ask = false, ledger: LedgerResponse | null = null): Promise<void> {
+  const { date, time, calendar, weather, graduationSeen, semesterIndex } = useGameStore.getState()
   // A slot a mod will hold on the finished one's look is announced as that look.
-  const held = !sceneBonus && interludePreview({ from: { date, time }, to: nextSlot(date, time), semesterIndex })?.at === 'from'
-  const next = sceneBonus || held ? { date, time } : nextSlot(date, time)
+  const preview = interludePreview({ from: { date, time }, to: nextSlot(date, time), semesterIndex, ledger })
+  const held = preview?.at === 'from'
+  const next = held ? { date, time } : nextSlot(date, time)
   // No load is declared: the ending paid for the ledger and for the next slot's opening before
   // the status lines were read, so this cover has a boundary to hide and nothing to wait on.
   // `beginSlot` says otherwise where it finds a call it still owes.
   beginCrossing(undefined, {
     from: gameThemeNow(),
-    to: sceneBonus ? gameThemeNow() : slotHalf(next.time),
-    ...(sceneBonus ? {} : { splash: slotStampOf(
+    to: slotHalf(next.time),
+    splash: { ...slotStampOf(
       next.date,
       next.time,
       calendar,
       slotWeather(weather, next.date, next.time, graduationSeen)
-    ) }),
+    ), ...(held && preview.clock === 'late-night' ? { lateNight: true } : {}) },
     ask
   })
   await untilPhase((phase) => phase === 'holding' || phase === 'idle')
@@ -240,7 +239,7 @@ export async function coverInterludeOpening(): Promise<void> {
   const held = game.interlude
   if (!held) return
   beginCrossing(undefined, {
-    from: slotHalf(held.interlude.look?.time ?? held.now.from.time),
+    from: slotHalf(held.now.from.time),
     to: slotHalf(game.time),
     splash: slotStampOf(game.date, game.time, game.calendar, slotWeather(game.weather, game.date, game.time, game.graduationSeen))
   })

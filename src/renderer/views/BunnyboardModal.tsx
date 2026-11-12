@@ -606,7 +606,7 @@ function presenceOf(
     return { busy: true, text: `In class — ${named ?? placed.classCode}` }
   }
   // A shift reads as a place on the map; on a phone it is worth saying it is work.
-  if (charJobNow(charId, date, time) !== null) {
+  if (useGameStore.getState().interlude?.now.clock !== 'late-night' && charJobNow(charId, date, time) !== null) {
     return { busy: true, text: `Working @ ${placed.placeLabel}` }
   }
   return { busy: false, text: `At ${placed.placeLabel}` }
@@ -1097,7 +1097,7 @@ function ConversationView({
   // A blocked thread says nothing about where she is: the map has dropped her to what he
   // remembers, and the composer under it already says she blocked him. Neither does a screen
   // set sometime after graduation, which pins nobody to an hour.
-  const status = bot || blocked || epilogue || interlude ? null : presenceOf(placed, charId, date, time)
+  const status = bot || blocked || epilogue || (interlude && interlude.now.clock !== 'late-night') ? null : presenceOf(placed, charId, date, time)
 
   return (
     <div className="vu-bb-thread">
@@ -1579,7 +1579,7 @@ function FriendsList(): JSX.Element {
                   character={character}
                   info={info}
                   tag={relationshipTagOf(info.flags ?? emptyFlags(), affection)}
-                  status={interlude ? null : presenceOf(placed.get(charId), charId, date, time)}
+                  status={interlude && interlude.now.clock !== 'late-night' ? null : presenceOf(placed.get(charId), charId, date, time)}
                   onOpen={() => openPage(charId)}
                 />
               )

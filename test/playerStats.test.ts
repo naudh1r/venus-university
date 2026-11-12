@@ -59,13 +59,6 @@ describe('resolveStatDeltas', () => {
 
   const alone = { solo: true, classScene: false, classOutcome: null, jobOutcome: null }
 
-  it('awards no stats or lines for a non-paying bonus, even with exercise or missed class', () => {
-    expect(resolveStatDeltas({ brain: true, body: true, heart: true }, {
-      ...plain, bonus: true, pays: false, solo: true,
-      classOutcome: { stat: 'brain', attended: false }
-    })).toEqual({ deltas: playerStats(0, 0, 0), lines: [] })
-  })
-
   it('pays each exercised stat a point plus the focus bonus, each on its own line', () => {
     const { deltas, lines } = resolveStatDeltas({ brain: true, body: false, heart: true }, alone)
     expect(deltas).toEqual(playerStats(2, 0, 2))

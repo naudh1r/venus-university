@@ -23,7 +23,6 @@ function rewindTurn(snapshot: TurnSnapshot): void {
   const game = useGameStore.getState()
   // The capture covers the slot opening too, so a rejected first action is no special case.
   game.restoreScene(snapshot.scene)
-  if (snapshot.heldInterlude) useGameStore.setState({ interlude: snapshot.heldInterlude })
   // The two scene-kind records follow the scene put back, or a hangout begun afterwards — which
   // has no casting turn to clear them — is paid a wage for somebody else's shift.
   if (!snapshot.scene?.jobId) loopState.jobShift = null

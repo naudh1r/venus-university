@@ -1,6 +1,6 @@
 import { globSync, readFileSync } from 'fs'
 import { resolve } from 'path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as sharedKit from '@vx/modkit/shared'
 import * as mainKit from '@vx/modkit/main'
 import * as hostShared from '@vx/modkit/host/shared'
@@ -443,9 +443,10 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   sceneReplyLanded: fn('sceneReplyLanded', undefined, (host) => host.sceneReplyLanded({ reply: {}, modReply: {}, spot: { spot: 'opening', cast: [] }, at: 0 })),
   textWhileBusy: fn('textWhileBusy', true, host => host.textWhileBusy({ charId: 'c', commitment: { kind: 'class', name: 'Math' } })),
   hangoutVerdict: fn('hangoutVerdict', null, (host) => host.hangoutVerdict(null, { charId: 'c', startedBy: 'her', answeringInvite: false })),
-  slotInterlude: fn('slotInterlude', { lines: [], rows: [] }, host => host.slotInterlude({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0 })),
+  slotInterlude: fn('slotInterlude', { lines: [], rows: [] }, host => host.slotInterlude({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0, ledger: null })),
+  relaxRows: fn('relaxRows', [], host => host.relaxRows({ date: 0, time: 0 })),
   relaxLabel: fn('relaxLabel', 'Rest', host => host.relaxLabel({ date: 0, time: 0 })),
-  interludePreview: fn('interludePreview', { at: 'from' }, host => host.interludePreview({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0 })),
+  interludePreview: fn('interludePreview', { at: 'from' }, host => host.interludePreview({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0, ledger: null })),
   sceneCut: fn('sceneCut', undefined, (host) => host.sceneCut({ length: 0 })),
   switchedOn: fn('switchedOn', undefined, (host) => host.startSwitchedOn()),
   afterSceneReply: fn('afterSceneReply', undefined, (host) => host.afterSceneReply({ reply: {}, cast: [], solo: true, ending: false })),
@@ -453,7 +454,6 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   playerActs: fn('playerActs', undefined, (host) => host.playerActs()),
   gameEntered: fn('gameEntered', undefined, (host) => host.gameEntered()),
   keepSceneLedgerEntry: fn('keepSceneLedgerEntry', true, host => host.filterSceneLedger({memories:[{charKey:'test',type:'liked',desc:'test'}]})),
-  bonusSettled: fn('bonusSettled', undefined, host => host.bonusSettled({ before: never, ledger: null, closingCast: [], bonus: true })),
   slotSettled: fn('slotSettled', undefined, (host) => host.slotSettled(never)),
   slotStatusLines: fn('slotStatusLines', [], (host) => host.slotStatusLines({ nextSlot: 1 })),
   projectSlotMemories: fn('projectSlotMemories', {}, (host) => host.projectSlotMemories(never, {})),
@@ -527,45 +527,22 @@ describe('every hook in the table', () => {
   let on = ''
   hooksShim.setHookRules({ isOn: (id) => id === on, order: () => 0 })
 
-  it('carries interlude room routes and bonus settlement contexts through the kit', () => {
-    const id = 'probe:interlude-fields'
-    const route = () => ({ room: 'herRoom' as const })
-    const pick = () => undefined
-    const value: NonNullable<ReturnType<NonNullable<ModHooks['slotInterlude']>>> = {
-      lines: [], clock: 'late-night', look: { time: 0, room: { kind: 'herRoom', charId: 'c' } },
-      rows: [{ label: 'Open', lead: [], onPick: pick }, { label: 'Scene', scene: { charId: 'c', room: 'hisRoom', action: 'Meet' } }],
-      onHangout: route,
-      scene: { charId: 'c', room: 'herRoom', action: 'Wake', at: 'morning', pays: false }
-    }
-    const received: unknown[] = []
-    const payments: unknown[] = []
-    rendererKit.registerHooks(id, {
-      slotInterlude: () => value,
-      slotSettled: () => { received.push(undefined) },
-      bonusSettled: ctx => { received.push(ctx.bonus) },
-      slotStatusLines: ctx => { received.push(ctx.bonus); return [] },
-      projectSlotMemories: (ctx, info) => { received.push(ctx.bonus); return info },
-      exercisedStats: (ledger, ctx) => { received.push(ctx.bonus); payments.push(ctx.pays); return ledger },
-      settleSceneStats: (stats, ctx) => { received.push(ctx.bonus); return stats }
-    })
-    on = id
+  it('collects enabled Relax rows in mod order and skips a failed hook', () => {
+    const first = { label: 'First', onPick: () => undefined }
+    const second = { label: 'Second', onPick: () => undefined }
+    const ids = ['probe:relax-later', 'probe:relax-failed', 'probe:relax-first', 'probe:relax-off']
+    rendererKit.registerHooks(ids[0], { relaxRows: () => [second] })
+    rendererKit.registerHooks(ids[1], { relaxRows: () => { throw new Error('failed') } })
+    rendererKit.registerHooks(ids[2], { relaxRows: () => [first] })
+    rendererKit.registerHooks(ids[3], { relaxRows: () => [second] })
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    hooksShim.setHookRules({ isOn: id => ids.slice(0, 3).includes(id), order: id => -ids.indexOf(id) })
     try {
-      const held = hooksShim.slotInterlude({ from: { date: 1, time: 1 }, to: { date: 2, time: 0 }, semesterIndex: 0 })
-      expect(held).toEqual({ owner: id, interlude: value })
-      expect(held?.interlude.onHangout).toBe(route)
-      expect(held?.interlude.rows[0].onPick).toBe(pick)
-      for (const bonus of [undefined, true] as const) {
-        const flag = bonus ? { bonus } : {}
-        if (bonus) hooksShim.bonusSettled({ before: never, ledger: null, closingCast: [], bonus })
-        else hooksShim.slotSettled({ before: never, ledger: null, closingCast: [] })
-        hooksShim.slotStatusLines({ nextSlot: 4, ...flag })
-        hooksShim.projectSlotMemories({ before: never, closingCast: [], ...flag }, {})
-        hooksShim.exercisedStats(undefined, { ...({} as import('@vx/modkit/shared').StatContext), ...flag, ...(bonus ? { pays: false } : {}) })
-        hooksShim.settleSceneStats({ deltas: never, lines: [] }, { ledger: undefined, ctx: never, ...flag })
-      }
-      expect(received).toEqual([undefined, undefined, undefined, undefined, undefined, true, true, true, true, true])
-      expect(payments).toEqual([undefined, false])
-    } finally { on = '' }
+      expect(hooksShim.relaxRows({ date: 1, time: 1 })).toEqual([first, second])
+    } finally {
+      warning.mockRestore()
+      hooksShim.setHookRules({ isOn: id => id === on, order: () => 0 })
+    }
   })
 
   for (const row of HOOKS) {
