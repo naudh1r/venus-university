@@ -39,6 +39,7 @@ export {
   projectSlotMemories,
   promptStateParts,
   promptTextEdits,
+  interludePreview,
   relaxLabel,
   saveChoice,
   saveNotes,

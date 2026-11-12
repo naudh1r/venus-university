@@ -445,6 +445,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   hangoutVerdict: fn('hangoutVerdict', null, (host) => host.hangoutVerdict(null, { charId: 'c', startedBy: 'her', answeringInvite: false })),
   slotInterlude: fn('slotInterlude', { lines: [], rows: [] }, host => host.slotInterlude({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0 })),
   relaxLabel: fn('relaxLabel', 'Rest', host => host.relaxLabel({ date: 0, time: 0 })),
+  interludePreview: fn('interludePreview', { at: 'from' }, host => host.interludePreview({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0 })),
   sceneCut: fn('sceneCut', undefined, (host) => host.sceneCut({ length: 0 })),
   switchedOn: fn('switchedOn', undefined, (host) => host.startSwitchedOn()),
   afterSceneReply: fn('afterSceneReply', undefined, (host) => host.afterSceneReply({ reply: {}, cast: [], solo: true, ending: false })),

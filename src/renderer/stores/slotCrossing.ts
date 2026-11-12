@@ -14,6 +14,7 @@ import {
   type SlotStamp
 } from './crossingStore'
 import { useGameStore } from './gameStore'
+import { interludePreview } from '../mods/hooks'
 
 /**
  * The game's own crossings: the slot boundary (curtain up over the boundary's work, announcing
@@ -128,8 +129,10 @@ function untilPhase(done: (phase: string) => boolean): Promise<void> {
  * `ask`, the curtain holds flat once down until the boundary's question is answered.
  */
 export async function coverSlotCrossing(ask = false): Promise<void> {
-  const { date, time, calendar, weather, graduationSeen, sceneBonus } = useGameStore.getState()
-  const next = sceneBonus ? { date, time } : nextSlot(date, time)
+  const { date, time, calendar, weather, graduationSeen, sceneBonus, semesterIndex } = useGameStore.getState()
+  // A slot a mod will hold on the finished one's look is announced as that look.
+  const held = !sceneBonus && interludePreview({ from: { date, time }, to: nextSlot(date, time), semesterIndex })?.at === 'from'
+  const next = sceneBonus || held ? { date, time } : nextSlot(date, time)
   // No load is declared: the ending paid for the ledger and for the next slot's opening before
   // the status lines were read, so this cover has a boundary to hide and nothing to wait on.
   // `beginSlot` says otherwise where it finds a call it still owes.
