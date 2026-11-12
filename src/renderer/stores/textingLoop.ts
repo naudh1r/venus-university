@@ -614,7 +614,8 @@ async function sendText(charId: string, text: string, incoming: boolean): Promis
       game.charInfo[charId],
       conversation,
       incoming ? '' : trimmed,
-      { ...textingState(game, charId), ...(held ? { heldUntil: held, ...(commitment ? { commitment } : {}) } : {}) },
+      { ...textingState(game, charId), ...(held ? { heldUntil: held, ...(commitment ? { commitment } : {}) } : {}),
+        ...(sent && invited ? { answeringInvite: true } : {}) },
       // The same reader block a scene gets, grades and all.
       readerBlockOf(game),
       incoming ? trimmed : undefined

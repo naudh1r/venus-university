@@ -1831,5 +1831,9 @@ first: `shownMessages(messages, chatClock())`, with `messageShown` and `shownMes
 `@vx/modkit/shared` and `chatClock()` from `@vx/modkit/renderer`. Core's own previews, scene histories
 and other thread consumers follow that rule; storage, carry and delivery keep the complete thread.
 
+A `prompts.dm` hook also finds `answeringInvite: true` on the prompt state when the reader's new text
+answers an invitation of hers that was still standing: the invitation itself is cleared as he sends, so
+the thread alone no longer shows it.
+
 `threadStartedBy(messages, date, time)` from `@vx/modkit/shared` returns `'reader'` or `'her'`
 from the first non-system message in that slot, defaulting to the reader for an empty thread.

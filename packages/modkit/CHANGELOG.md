@@ -86,6 +86,12 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.15.0
+
+- `TextingPromptState.answeringInvite`: the reader's new text answers an invitation of hers that was
+  still standing, so a `prompts.dm` hook can tell it apart even though the invitation is cleared as he
+  sends.
+
 ## 0.14.0
 
 - Bonus boundaries dispatch `bonusSettled` with `bonus: true`; ordinary `slotSettled` has no

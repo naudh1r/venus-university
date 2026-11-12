@@ -1690,6 +1690,7 @@ export interface TextFieldProps {
 
 // @public
 export interface TextingPromptState {
+    answeringInvite?: boolean;
     breakthrough?: BreakthroughState;
     calendar: SemesterCalendar;
     charCompanions?: NpcCompanions;
