@@ -86,11 +86,9 @@ function StatusChip({ theme }: ScreenSlotProps['chatsHeader']): JSX.Element | nu
         onClick={() => void toggle()}
         {...gestures(writing, quietLift, quietPress)}
       >
-        <span className="vu-arch vu-bb-face vu-bb-face--sm vu-after-hours-face">
+        <span className="vu-after-hours-face">
           {picture ? (
-            <span className="vu-crop">
-              <img className="vu-crop-img" src={picture} alt="" />
-            </span>
+            <img className="vu-crop-img" src={picture} alt="" />
           ) : (
             <span className="vu-after-hours-initial" aria-hidden="true">{readerName.charAt(0)}</span>
           )}
