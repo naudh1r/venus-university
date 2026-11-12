@@ -1,3 +1,4 @@
+import { picksWithout } from '@shared/openingPicks'
 import { chatClockOf, shownConversation } from '@shared/chatVisibility'
 import { bonusSettled, filterSceneLedger, promptTextEdits, exercisedStats, projectSlotMemories, settleSceneStats, slotActivityAvailable, slotSettled, slotStatusLines, statFloor } from '../mods/hooks'
 import { withSlotActivityPrompt } from '../prompts/slotActivity'
@@ -2244,7 +2245,15 @@ async function fetchEndingOpening(
     useGameStore.getState().sceneSummary,
     npcOverlay,
     view,
-    { group: ENDING_LLM_GROUP, stale: dropped, ...(held?.picks ? { picks: held.picks } : {}) }
+    {
+      group: ENDING_LLM_GROUP,
+      stale: dropped,
+      // The girls the bonus scene spent with him neither invite him nor reach out to him after it.
+      ...(held?.picks ? { picks: picksWithout(held.picks, game.cast.flatMap((charId) => {
+        const girl = game.characters[charId]
+        return girl ? [charKeyOf(girl.firstName, girl.lastName)] : []
+      })) } : {})
+    }
   )
   // An abandoned opening banks nothing, the rolls above included; the player replays the
   // turn.
