@@ -554,6 +554,10 @@ export interface ModHooks {
         charId: string;
         character: Character;
         reply: TextingResponse;
+        held?: {
+            date: number;
+            time: TimeSlot;
+        };
     }) => void;
     afterReachOut?: (ctx: {
         charId: string;
@@ -654,6 +658,10 @@ export interface ModHooks {
     switchedOn?: (ctx: {
         atBoot: boolean;
     }) => void | Promise<void>;
+    textWhileBusy?: (ctx: {
+        charId: string;
+        commitment: Commitment;
+    }) => boolean;
     updatesTab?: UpdatesTab;
 }
 
@@ -1681,10 +1689,16 @@ export interface TextingPromptState {
     classes: Record<string, ClassEntry>;
     classRosters: Readonly<Record<string, ClassRoster>>;
     // (undocumented)
+    commitment?: Commitment;
+    // (undocumented)
     date: number;
     // (undocumented)
     exCharacterDynamics?: CharacterDynamics;
     globalTextEdits?: TextEdits<GlobalTextId>;
+    heldUntil?: {
+        date: number;
+        time: TimeSlot;
+    };
     history: GameHistory;
     historyLimit?: number;
     homecomingVisitor?: string;

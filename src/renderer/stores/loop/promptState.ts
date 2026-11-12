@@ -1,3 +1,4 @@
+import { chatClockOf, messageShown } from '@shared/chatVisibility'
 import { currentStorySnapshot } from '../storyMemory'
 import { BREAKTHROUGH_MOD } from '@shared/breakthrough'
 import { cityLifeBackgrounds } from '@shared/cityLife'
@@ -92,7 +93,7 @@ export function scheduleInput(date: number, time: TimeSlot): SchedulePromptInput
         // Empty for the boss and Venus threads, whose ids are not charIds; the filter drops them.
         charKey: character ? charKeyOf(character.firstName, character.lastName) : '',
         firstName: character?.firstName ?? '',
-        messages: conversation.messages.filter((m) => m.date === date && m.time === time)
+        messages: conversation.messages.filter((m) => m.date === date && m.time === time && messageShown(m, chatClockOf(game)))
       }
     })
     // Nor is a girl who reached out to him and was never answered.
@@ -396,7 +397,7 @@ export function promptState(): PromptState {
     if (!character) continue
     if (hasTexted(conversation)) textedWith.push(charId)
     const lines = composeTextingSummary(
-      conversation,
+      { ...conversation, messages: conversation.messages.filter(message => messageShown(message, chatClockOf(game))) },
       game.charInfo[charId]?.ignoredInvitation === true,
       character.firstName,
       { date: game.date, time: game.time },

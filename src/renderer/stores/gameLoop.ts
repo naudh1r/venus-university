@@ -190,7 +190,10 @@ import {
   pickSlotAskers,
   pickSlotReachOut,
   plannedWith,
+  openChatSlot,
+  releaseHeldReplies,
   resetTextingLoop,
+  resumeHeldReplies,
   resolveFriendRequests,
   rollAskerInvite
 } from './textingLoop'
@@ -449,6 +452,7 @@ async function beginSlot(released = false, row?: InterludeRow): Promise<void> {
         await startRoomScene(scene.charId, scene.room, scene.action, true, loopState.bankedOpening, scene.at, scene.pays)
         return
       }
+      if (held.interlude.clock !== 'late-night') openChatSlot()
       showInterludeLanding({ ...ctx.from, time: held.interlude.look?.time ?? ctx.from.time })
       if (held.interlude.look?.room) await loadCgReady([held.interlude.look.room.charId])
       if (runStale(run)) return
@@ -462,6 +466,7 @@ async function beginSlot(released = false, row?: InterludeRow): Promise<void> {
 
   // Graduation morning, which is the last slot the game opens.
   if (isGraduationSlot(state.date, state.time)) {
+    openChatSlot()
     state.setWaitingForLine(false)
     state.setAwaitingInput(false)
     // The picture and the last status updates, both asked for behind the scroll and every
@@ -493,6 +498,7 @@ async function beginSlot(released = false, row?: InterludeRow): Promise<void> {
 
   // The authored first slot: the arrival scroll, then freshman orientation.
   if (isOrientationSlot(state.date, state.time, state.semesterIndex)) {
+    openChatSlot()
     state.setWaitingForLine(false)
     state.setAwaitingInput(false)
     state.appendPendingLines(introScrollLines(state.stats, state.date))
@@ -592,6 +598,7 @@ async function beginSlot(released = false, row?: InterludeRow): Promise<void> {
   ]
 
   const ready = useGameStore.getState()
+  if (!roomScene) openChatSlot()
   if (!roomScene) ready.appendPendingLines(lines)
   ready.setWaitingForLine(false)
   if (!roomScene) advance()
@@ -3236,7 +3243,10 @@ async function crossSlotBoundary(): Promise<void> {
   const replay = !game.sceneBonus && !over && keepReplay ? slotReplayOf(game.date, game.time) : null
   if (!game.sceneBonus && !over && !keepReplay) useGameStore.getState().dropReplay(game.date, game.time)
 
-  if (!game.sceneBonus) useGameStore.getState().advanceSlot()
+  if (!game.sceneBonus) {
+    useGameStore.setState({ chatShownThrough: { date: game.date, time: game.time } })
+    useGameStore.getState().advanceSlot()
+  }
   // Off the affection the slot about to open reads, so a girl decayed out of a half is caught.
   useGameStore.getState().observeUpperHalves()
   // On the same reading: a secret reached tonight waits for the next scene she is alone in.
@@ -3303,7 +3313,11 @@ export function enterGame(
   void loadProfilePicture()
   // Waited on by the first prompt the stay builds, never by the entry itself.
   void useLorebookStore.getState().load(useGameStore.getState().playthroughId)
+  useGameStore.setState({ chatShownThrough: !save.scene || save.scene.bonus
+    ? prevSlot(save.date, save.time) : { date: save.date, time: save.time } })
   gameEntered()
+  releaseHeldReplies()
+  resumeHeldReplies()
   // The file a slot opening is folded back into: a boundary's own save, never the autosave or a
   // manual one.
   loopState.slotSaveId = isSlotSaveId(save.saveId) ? save.saveId : null

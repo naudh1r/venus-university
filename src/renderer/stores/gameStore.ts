@@ -15,6 +15,7 @@ import { savedModScene } from '@shared/modScene'
 import { sceneCut, statFloor } from '../mods/hooks'
 import { bindGameBoundary, bindSaveFieldStore, bindSceneFieldStore, readModSlices, writeModSlices } from '@vx/modkit/host/renderer'
 import { useModSessionStore } from './modSessionStore'
+import { chatClockOf, messageShown, type ChatClock } from '@shared/chatVisibility'
 import { create } from 'zustand'
 import { blocksNewRomance } from '@shared/romanceRequirements'
 import {
@@ -449,6 +450,8 @@ interface GameStoreState {
   exEcho: EchoState
   exBreakthrough: BreakthroughState
   breakthroughFlash: { id: string; playthroughId: string; name: string; echoAspect?: import('@shared/echoBreakthrough').EchoBreakthroughAspect } | null
+  /** The last slot opened to texts; a boundary can advance the clock before opening it. */
+  chatShownThrough: ChatClock | null
   /** The scene ends back at its held slot without moving the clock. */
   sceneBonus: boolean
   sceneBonusAt: 'night' | 'morning'
@@ -1813,6 +1816,7 @@ const initialState = {
   sceneVisitJob: null as string | null,
   sceneMentions: [] as string[],
   sceneLocation: null as string | null,
+  chatShownThrough: null as ChatClock | null,
   sceneBonus: false,
   sceneBonusAt: 'night' as const,
   sceneBonusPays: true,
@@ -2913,14 +2917,21 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }),
 
   appendChatMessage: (charId, message, unreadDelta) =>
-    set((state) =>
-      patchConversation(state, charId, (chat) => ({
+    set((state) => patchConversation(state, charId, (chat) => {
+      const held = chat.heldReply
+      let stamped = state.interlude?.now.clock === 'late-night'
+        ? { ...message, date: state.date, time: state.time, late: true as const } : message
+      if (held && !held.opened && message.sender === 'contact' && !message.error) {
+        stamped = { ...message, ...held.until }
+        delete stamped.late
+      }
+      return {
         ...chat,
-        messages: [...chat.messages, state.interlude?.now.clock === 'late-night'
-          ? { ...message, date: state.date, time: state.time, late: true as const } : message],
-        unread: chat.unread + unreadDelta
-      }))
-    ),
+        ...(held && !held.opened && message.sender === 'contact' ? { heldReply: { ...held, messageIds: [...held.messageIds, message.id] } } : {}),
+        messages: [...chat.messages, stamped],
+        unread: chat.unread + (messageShown(stamped, chatClockOf(state)) ? unreadDelta : 0)
+      }
+    })),
 
   removeChatMessage: (charId, messageId) =>
     set((state) =>

@@ -71,6 +71,7 @@ export const HOOKS = [
   { name: 'sceneReplyLanded', side: 'renderer', kind: 'event', dispatch: ['sceneReplyLanded'], since: '0.7.0' },
   { name: 'slotInterlude', side: 'renderer', kind: 'first', dispatch: ['slotInterlude'], since: '0.9.0' },
   { name: 'relaxLabel', side: 'renderer', kind: 'first', dispatch: ['relaxLabel'], since: '0.9.0' },
+  { name: 'textWhileBusy', side: 'renderer', kind: 'any', dispatch: ['textWhileBusy'], since: '0.13.0' },
   { name: 'hangoutVerdict', side: 'renderer', kind: 'pipeline', dispatch: ['hangoutVerdict'], since: '0.8.0' },
   { name: 'sceneCut', side: 'renderer', kind: 'event', dispatch: ['sceneCut'], since: '0.7.0' },
   { name: 'switchedOn', side: 'renderer', kind: 'event', dispatch: ['startSwitchedOn'], since: '0.7.0' },

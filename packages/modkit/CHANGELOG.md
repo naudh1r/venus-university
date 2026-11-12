@@ -86,6 +86,13 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.13.0
+
+- `textWhileBusy` can open a character's composer during a class or shift. Her reply is
+  generated immediately for the next slot, hidden until that slot opens, and never classified
+  for a hangout. DM prompts receive `heldUntil` and `commitment`; `afterDmReply` receives `held`.
+  Later message attachments share the hold, and saved unfinished turns resume on load.
+
 ## 0.12.0
 
 - `Interlude.scene` starts a private bonus scene immediately, with `at: 'night' | 'morning'`

@@ -1,3 +1,6 @@
+import { messageShown } from '@shared/chatVisibility'
+import { textWhileBusy } from '../mods/hooks'
+import { charCommitmentAt } from '../stores/timetable'
 import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
 import { useModsStore, useModOn } from '../stores/modsStore'
 import { INCOMING_TEXTS } from '@shared/modEntries/incoming-texts'
@@ -627,7 +630,12 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
   const hiddenOf = useHiddenThreads()
 
   // Newest activity first.
+  const shownClock = useGameStore(s => s.chatShownThrough)
+  const nowDate = useGameStore(s => s.date)
+  const nowTime = useGameStore(s => s.time)
+  const clock = shownClock ?? { date: nowDate, time: nowTime }
   const conversations = Object.values(bunnyboard.conversations)
+    .map(chat => ({ ...chat, messages: chat.messages.filter(message => messageShown(message, clock)) }))
     .filter((conversation) => conversation.messages.length > 0)
     .filter((conversation) => !hiddenOf(conversation.charId))
     .sort((a, b) => {
@@ -994,7 +1002,10 @@ function ConversationView({
   }, [incomingOn, incoming])
   const [scrollBox, setScrollBox] = useState<HTMLDivElement | null>(null)
 
-  const messages = conversation?.messages ?? []
+  const shownClock = useGameStore(s => s.chatShownThrough)
+  const nowDate = useGameStore(s => s.date)
+  const nowTime = useGameStore(s => s.time)
+  const messages = (conversation?.messages ?? []).filter(message => messageShown(message, shownClock ?? { date: nowDate, time: nowTime }))
   const identity = chatIdentityOf(charId, character)
   const boss = jobDefForChat(charId)
   const bot = identity.bot
@@ -1002,7 +1013,9 @@ function ConversationView({
   // No bot has a timetable.
   const interlude = useGameStore(s => s.interlude)
   const atWork = !bot && interlude?.now.clock !== 'late-night' && charJobNow(charId) !== null
-  const unavailable = !bot && interlude?.now.clock !== 'late-night' && charBusyNow(charId)
+  const commitment = !bot ? charCommitmentAt(charId) : null
+  const unavailable = !bot && interlude?.now.clock !== 'late-night' && charBusyNow(charId) &&
+    !(commitment && textWhileBusy({ charId, commitment }))
   // Her reply plus the hangout classifier that reads it.
   const busy = useBunnyboardStore((s) => s.busyCharIds.includes(charId))
   // Texts written and waiting out their typing delay.
