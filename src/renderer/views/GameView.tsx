@@ -1175,7 +1175,10 @@ export function GameView(): JSX.Element {
   // The same cache-buster for the speaker's portrait: the player can reframe one mid-playthrough.
   const spriteVersions = useCharacterStore((s) => s.spriteVersion)
   // Which half of the day the layer resolves; the epilogue is always night.
-  const shownDate = interlude?.now.from.date ?? (nightBonus ? prevSlot(date, time).date : date)
+  // A held landing shows the slot its look is set in: the finished one, or the one about to open.
+  const heldAt = interlude && interlude.interlude.look?.time === interlude.now.to.time
+    && interlude.now.to.time !== interlude.now.from.time ? interlude.now.to : interlude?.now.from
+  const shownDate = heldAt?.date ?? (nightBonus ? prevSlot(date, time).date : date)
   const shownTime = interlude?.interlude.look?.time ?? interlude?.now.from.time ?? (nightBonus ? prevSlot(date, time).time : time)
   const half = interlude || sceneBonus ? slotHalf(shownTime) : isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
   // The sky over this slot, which picks the background's render and the mark the chromes wear.
@@ -2241,7 +2244,7 @@ export function GameView(): JSX.Element {
         <SceneChrome
           inputLayout={sceneInput}
           theme={half}
-          date={date}
+          date={shownDate}
           season={season}
           night={half === 'night'}
           weather={slotSky}
