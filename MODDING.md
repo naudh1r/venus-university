@@ -428,6 +428,9 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
 - `currentRun()` and `runStale(run)` (`renderer`): the game being played, as a token. Take one
   before an `await`, and after it `runStale(run)` says whether the player has left that game,
   for a new one or the menu, in the meantime; work that outlived its game is dropped.
+- `charCommitmentAt(charId, date?, time?)` (`renderer`): what holds her in a slot, the current one
+  by default: her class (`{ kind: 'class', name }`), her shift (`{ kind: 'shift', employer }`), or
+  `null`. It says why she is busy; `freeForInvitation` says whether she is free.
 - `isOrientationSlot(date, time, semesterIndex)` and `isGraduationSlot(date, time)` (`renderer`):
   the playthrough's first slot, and graduation morning.
 - `lessNsfwText()` and `useLessNsfwText()` (`renderer`): the player has Less NSFW text on, so the

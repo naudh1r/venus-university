@@ -83,6 +83,9 @@ export const character: (id: string) => Readonly<Character> | undefined;
 export const characterInfo: (id: string) => Readonly<CharInfo> | undefined;
 
 // @public
+export function charCommitmentAt(charId: string, date?: number, time?: TimeSlot): Commitment | null;
+
+// @public
 export function CheckField(input: CheckFieldProps): JSX.Element;
 
 // @public (undocumented)
@@ -116,6 +119,15 @@ export const clock: () => Readonly<{
 
 // @public (undocumented)
 export function CloseIcon(): JSX.Element;
+
+// @public
+export type Commitment = {
+    kind: 'class';
+    name: string;
+} | {
+    kind: 'shift';
+    employer: string;
+};
 
 // @public
 export function completeStructured<T>(modId: string, request: StructuredRequest, options?: {

@@ -86,6 +86,12 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.11.0
+
+- Renderer mods can read what holds a character in a slot with `charCommitmentAt(charId, date?, time?)`:
+  her class (`{ kind: 'class', name }`), her shift (`{ kind: 'shift', employer }`) or `null`, the
+  current slot when no date and time are given. `freeForInvitation` stays the availability check.
+
 ## 0.10.0
 
 - Interludes can choose their landing's room and half with `look`, prefix the opening with
