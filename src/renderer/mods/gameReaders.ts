@@ -1,3 +1,4 @@
+import { chatClockOf, shownConversation } from '@shared/chatVisibility'
 import { useCallback, useSyncExternalStore } from 'react'
 import type {
   Character, CharInfo, Conversation, Season, SocialPost, TimeSlot
@@ -119,8 +120,8 @@ export function useRosterIds(options: { alumni?: boolean } = {}): readonly strin
 }
 
 const conversations = recordReader<Readonly<Conversation> | undefined>((game, id) =>
-  game.playthroughId ? own(game.bunnyboard.conversations, id) : undefined)
-/** One thread as the loaded game holds it, including its messages. @since 0.8.0 */
+  game.playthroughId ? shownConversation(own(game.bunnyboard.conversations, id), chatClockOf(game)) : undefined)
+/** One thread with only messages shown at the opened chat clock. @since 0.8.0 */
 export const conversation = conversations.read
 /** One thread in a component. @since 0.8.0 */
 export const useConversation = conversations.use

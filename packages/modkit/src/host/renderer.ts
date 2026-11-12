@@ -9,6 +9,7 @@ export {
   afterDmReply,
   afterReachOut,
   afterSceneReply,
+  bonusSettled,
   bunnyboardPages,
   characterFromDraft,
   classCatalogEdits,

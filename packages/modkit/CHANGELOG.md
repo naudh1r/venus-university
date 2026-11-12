@@ -86,6 +86,15 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.14.0
+
+- Bonus boundaries dispatch `bonusSettled` with `bonus: true`; ordinary `slotSettled` has no
+  bonus context and never receives bonus scenes. Scene-computation hooks retain their flags.
+- Conversation readers expose only shown messages and notify when the opened clock releases
+  them. Gallery and scene histories use the same projection. Recovery finds waiting texts
+  behind saved errors; semester carry moves held delivery dates with their messages.
+- Shared exports `threadStartedBy`. Morning bonus thumbnails follow the morning stage.
+
 ## 0.13.0
 
 - `textWhileBusy` can open a character's composer during a class or shift. Her reply is

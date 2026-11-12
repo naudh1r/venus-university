@@ -1,4 +1,4 @@
-import { chatClockOf, messageShown, type ChatClock } from '@shared/chatVisibility'
+import { chatClockOf, shownMessages, type ChatClock } from '@shared/chatVisibility'
 import { SOUNDTRACK_MOD, SOUNDTRACK_LABELS, type SoundtrackKey } from '@shared/soundtracks'
 import { modOn } from '@shared/mods'
 import { useModsStore } from './modsStore'
@@ -316,8 +316,7 @@ function textsOf(conversations: Record<string, Conversation>, clock: ChatClock):
   let landed = 0
   let sent = 0
   for (const conversation of Object.values(conversations)) {
-    for (const message of conversation.messages) {
-      if (!messageShown(message, clock)) continue
+    for (const message of shownMessages(conversation.messages, clock)) {
       if (message.sender === 'contact') landed++
       else if (message.sender === 'player') sent++
     }

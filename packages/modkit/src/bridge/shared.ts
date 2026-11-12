@@ -92,3 +92,5 @@ export {
 } from '@shared/promptText'
 
 export type { DesktopSurfaceBridge } from '../../../../src/shared/desktopSurface'
+
+export { threadStartedBy } from '../../../../src/shared/textingThread'

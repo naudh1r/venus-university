@@ -1,4 +1,5 @@
-import { filterSceneLedger, promptTextEdits, exercisedStats, projectSlotMemories, settleSceneStats, slotActivityAvailable, slotSettled, slotStatusLines, statFloor } from '../mods/hooks'
+import { chatClockOf, shownConversation } from '@shared/chatVisibility'
+import { bonusSettled, filterSceneLedger, promptTextEdits, exercisedStats, projectSlotMemories, settleSceneStats, slotActivityAvailable, slotSettled, slotStatusLines, statFloor } from '../mods/hooks'
 import { withSlotActivityPrompt } from '../prompts/slotActivity'
 import { talentProjectWork } from '@shared/talentPerks'
 import { canContinueReckoning, pendingReckoningAftermath } from './reckoning'
@@ -1031,7 +1032,7 @@ async function fetchSlotIntro(
       charKey,
       character,
       info,
-      texted: hasTexted(game.bunnyboard.conversations[charId]),
+      texted: hasTexted(shownConversation(game.bunnyboard.conversations[charId], chatClockOf(game))),
       ...(plan ? { plan } : {}),
       ...(commitment ? { commitment } : {}),
       // A girl with a plan is writing about that; anybody else is asking him to the occasion.
@@ -1064,7 +1065,7 @@ async function fetchSlotIntro(
       charKey,
       character,
       info,
-      texted: hasTexted(game.bunnyboard.conversations[charId]),
+      texted: hasTexted(shownConversation(game.bunnyboard.conversations[charId], chatClockOf(game))),
       ...(whereabouts
         ? {
             whereabouts: {
@@ -1092,7 +1093,7 @@ async function fetchSlotIntro(
       character,
       info,
       charKey: charKeyOf(character.firstName, character.lastName),
-      texted: hasTexted(game.bunnyboard.conversations[charId])
+      texted: hasTexted(shownConversation(game.bunnyboard.conversations[charId], chatClockOf(game)))
     })
   }
 
@@ -1108,7 +1109,7 @@ async function fetchSlotIntro(
       character,
       info,
       charKey: charKeyOf(character.firstName, character.lastName),
-      texted: hasTexted(game.bunnyboard.conversations[charId])
+      texted: hasTexted(shownConversation(game.bunnyboard.conversations[charId], chatClockOf(game)))
     })
   }
 
@@ -1124,7 +1125,7 @@ async function fetchSlotIntro(
     const character = game.characters[charId]
     const info = view.charInfo[charId]
     if (!character || !info) continue
-    const conversation = game.bunnyboard.conversations[charId]
+    const conversation = shownConversation(game.bunnyboard.conversations[charId], chatClockOf(game))
     const whereabouts = npcWhereaboutsFor(charId, date, time, npcOverlay, view.charInfo)
     reachOuts.push({
       charKey,
@@ -2121,7 +2122,7 @@ function introBreakupsOf(projected: ProjectedLedger): IntroBreakup[] {
       character,
       info,
       charKey: charKeyOf(character.firstName, character.lastName),
-      texted: hasTexted(game.bunnyboard.conversations[charId]),
+      texted: hasTexted(shownConversation(game.bunnyboard.conversations[charId], chatClockOf(game))),
       forFirstName
     })
   }
@@ -3234,7 +3235,9 @@ async function crossSlotBoundary(): Promise<void> {
 
   // Before the clock moves, so each text is stamped with the slot the scene ran in, and before
   // the boundary save, which records them.
-  slotSettled({ before: game, ledger, closingCast: loopState.closingCast ?? [], ...(game.sceneBonus ? { bonus: true as const } : {}) })
+  const settlement = { before: game, ledger, closingCast: loopState.closingCast ?? [] }
+  if (game.sceneBonus) bonusSettled({ ...settlement, bonus: true })
+  else slotSettled(settlement)
   for (const send of owedTexts) send()
 
   // The scene as delivered, for the calendar to replay: read before the clock moves and the scene

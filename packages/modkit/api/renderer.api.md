@@ -565,6 +565,9 @@ export interface ModHooks {
         reply: Readonly<Record<string, unknown>>;
     }) => void;
     afterSceneReply?: (ctx: SceneReplied) => void;
+    bonusSettled?: (ctx: SlotSettled & {
+        bonus: true;
+    }) => void;
     // (undocumented)
     bunnyboardPage?: BunnyboardPage;
     characterFromDraft?: (draft: Readonly<Record<string, unknown>>, ctx: {
@@ -1531,13 +1534,14 @@ export interface SlotIntroInput {
 }
 
 // @public
-export type SlotMemoryProjection = Pick<SlotSettled, 'before' | 'closingCast' | 'bonus'>;
+export type SlotMemoryProjection = Pick<SlotSettled, 'before' | 'closingCast'> & {
+    bonus?: true;
+};
 
 // @public (undocumented)
 export interface SlotSettled {
     // (undocumented)
     before: ReturnType<typeof useGameStore.getState>;
-    bonus?: true;
     // (undocumented)
     closingCast: readonly Character[];
     // (undocumented)

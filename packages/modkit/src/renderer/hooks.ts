@@ -209,15 +209,13 @@ export interface RequestSpots {
 }
 
 export interface SlotSettled {
-  /** This scene leaves the slot clock in place. */
-  bonus?: true
   before: ReturnType<typeof useGameStore.getState>
   ledger: LedgerResponse | null
   closingCast: readonly Character[]
 }
 
 /** A read-only preview of the finished scene, before the crush roll and next opening. */
-export type SlotMemoryProjection = Pick<SlotSettled, 'before' | 'closingCast' | 'bonus'>
+export type SlotMemoryProjection = Pick<SlotSettled, 'before' | 'closingCast'> & { bonus?: true }
 
 /** What a finished scene does to the reader's stats, and the lines that say so. */
 export interface SceneStats {
@@ -458,6 +456,8 @@ export interface ModHooks {
   requests?: { [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest }
   /** After bookkeeping settles, before the clock advances and the boundary save is written. */
   slotSettled?: (ctx: SlotSettled) => void
+  /** A bonus boundary, without advancing the slot. */
+  bonusSettled?: (ctx: SlotSettled & { bonus: true }) => void
   /**
    * Lines in the slot's closing report, after what each girl took away from it, written as the
    * game writes its own (`memoryStatusLine`). `nextSlot` is the global slot about to begin.
@@ -1424,4 +1424,9 @@ export function textWhileBusy(ctx: { charId: string; commitment: Commitment }): 
     }
   }
   return false
+}
+
+/** Bonus scenes keep a separate settlement path from ordinary slot advances. */
+export function bonusSettled(ctx: SlotSettled & { bonus: true }): void {
+  for (const hooks of active()) hooks.bonusSettled?.(ctx)
 }

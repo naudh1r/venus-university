@@ -1,3 +1,4 @@
+import { chatClockOf, shownConversation } from '@shared/chatVisibility'
 import { messageOf } from '@shared/errors'
 import { isGameOver } from '@shared/money'
 import { LAST_SEMESTER } from '@shared/semesters'
@@ -107,7 +108,7 @@ export function armEndingPosts(): void {
       character,
       info,
       charKey,
-      texted: hasTexted(game.bunnyboard.conversations[charId]),
+      texted: hasTexted(shownConversation(game.bunnyboard.conversations[charId], chatClockOf(game))),
       graduating: game.graduating.includes(charId),
       daysAfter: stamp.date - GRADUATION_DATE,
       time: stamp.time

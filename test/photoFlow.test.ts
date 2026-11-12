@@ -408,7 +408,7 @@ describe('a picture on a text that does not come', () => {
             charId: 'c1',
             unread: 0,
             summary: null,
-            messages: [{ id: 'm1', sender: 'contact', text: 'look', photo }]
+            messages: [{ id: 'm1', sender: 'contact', text: 'look', date: 0, time: 0, photo }]
           }
         }
       } as never
@@ -528,7 +528,7 @@ describe("BunnyBot's photo tip", () => {
             charId: 'c1',
             unread: 0,
             summary: null,
-            messages: [{ id: 'm1', sender: 'contact', text: 'look' }]
+            messages: [{ id: 'm1', sender: 'contact', text: 'look', date: 0, time: 0 }]
           }
         }
       } as never
@@ -554,7 +554,7 @@ describe("BunnyBot's photo tip", () => {
           ...useGameStore.getState().bunnyboard.conversations,
           c1: {
             ...chat,
-            messages: [...chat.messages, { id: 'm2', sender: 'contact', text: 'again' } as never]
+            messages: [...chat.messages, { id: 'm2', sender: 'contact', text: 'again', date: 0, time: 0 } as never]
           }
         }
       }

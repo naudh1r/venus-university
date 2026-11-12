@@ -31,6 +31,7 @@ import {
   FEED_HANDLE_POOL,
   SETTING,
   hasTexted,
+  conversation,
   retrySilently,
   completeStructured,
   cancelCalls,
@@ -298,7 +299,7 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
       character,
       info,
       charKey: charKeyOf(character.firstName, character.lastName),
-      texted: hasTexted(game.bunnyboard.conversations[charId]),
+      texted: hasTexted(conversation(charId)),
       post: {
         text: post.text,
         date: post.date,

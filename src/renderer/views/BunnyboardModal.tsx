@@ -1,4 +1,4 @@
-import { messageShown } from '@shared/chatVisibility'
+import { shownConversation, shownMessages } from '@shared/chatVisibility'
 import { textWhileBusy } from '../mods/hooks'
 import { charCommitmentAt } from '../stores/timetable'
 import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
@@ -484,10 +484,11 @@ function useHiddenThreads(): (charId: string) => boolean {
   const date = useGameStore((s) => s.date)
   const time = useGameStore((s) => s.time)
   const sceneActive = useGameStore(sceneActiveOf)
+  const opened = useGameStore(s => s.chatShownThrough)
 
   return (charId) =>
     blockedThreadHidden(
-      conversations[charId],
+      shownConversation(conversations[charId], opened ?? { date, time }),
       charInfo[charId]?.flags?.blocked === true,
       date,
       time,
@@ -635,7 +636,7 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
   const nowTime = useGameStore(s => s.time)
   const clock = shownClock ?? { date: nowDate, time: nowTime }
   const conversations = Object.values(bunnyboard.conversations)
-    .map(chat => ({ ...chat, messages: chat.messages.filter(message => messageShown(message, clock)) }))
+    .map(chat => ({ ...chat, messages: [...shownMessages(chat.messages, clock)] }))
     .filter((conversation) => conversation.messages.length > 0)
     .filter((conversation) => !hiddenOf(conversation.charId))
     .sort((a, b) => {
@@ -1005,7 +1006,7 @@ function ConversationView({
   const shownClock = useGameStore(s => s.chatShownThrough)
   const nowDate = useGameStore(s => s.date)
   const nowTime = useGameStore(s => s.time)
-  const messages = (conversation?.messages ?? []).filter(message => messageShown(message, shownClock ?? { date: nowDate, time: nowTime }))
+  const messages = shownMessages(conversation?.messages ?? [], shownClock ?? { date: nowDate, time: nowTime })
   const identity = chatIdentityOf(charId, character)
   const boss = jobDefForChat(charId)
   const bot = identity.bot
@@ -1608,6 +1609,8 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
   const playerSchedule = useGameStore((s) => s.playerSchedule)
   const calendar = useGameStore((s) => s.calendar)
   const date = useGameStore((s) => s.date)
+  const time = useGameStore((s) => s.time)
+  const opened = useGameStore(s => s.chatShownThrough)
   const finalsScoresShown = useGameStore((s) => s.finalsScoresShown)
   const chars = useGameStore((s) => s.chars)
   const alumni = useGameStore((s) => s.alumni)
@@ -1673,7 +1676,7 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
     )
     const texts = Object.values(conversations).reduce(
       (total, conversation) =>
-        total + conversation.messages.filter((message) => message.sender === 'player').length,
+        total + shownMessages(conversation.messages, opened ?? { date, time }).filter((message) => message.sender === 'player').length,
       0
     )
     return [
@@ -1718,6 +1721,8 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
     classRecords,
     classes,
     conversations,
+    time,
+    opened,
     counts,
     date,
     finalsScoresShown,

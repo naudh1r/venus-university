@@ -1300,13 +1300,17 @@ real slot's scene. It projects the scene's memories, plans, acts, rumor pass, cr
 cold transmission among its participants; it rolls no off-screen encounters, affinities,
 overlay or new cold strain. The opening is fetched again with its existing calendar,
 overlay and invitation picks. The boundary applies its books and passes, asks the memory
-question, calls `slotSettled`, writes a slot save without advancing the clock or keeping a
+question, calls `bonusSettled`, writes a slot save without advancing the clock or keeping a
 replay, and asks `slotInterlude` anew. A losing bonus scene ends the game normally.
 
-`slotSettled`, `slotStatusLines`, `projectSlotMemories`, `exercisedStats` and
+`slotStatusLines`, `projectSlotMemories`, `exercisedStats` and
 `settleSceneStats` receive `bonus: true` in their context on a bonus scene and no flag on an
 ordinary one (`settleSceneStats` also keeps it in its nested `ctx`). A mod counting once per
-slot can leave those bonus scenes out.
+slot can leave those bonus scenes out. Register `bonusSettled(ctx)` to settle a bonus
+scene: it receives the usual `SlotSettled` fields and `bonus: true`, synchronously at the
+boundary before its save. `slotSettled` only runs for ordinary slot advances, and its context
+has no `bonus`. A mod registering only `slotSettled` never sees bonus scenes. Story Memory,
+for example, does not record them until it registers `bonusSettled`.
 
 `hangoutVerdict(verdict, ctx)` runs after a normal texting reply is classified, before it arms
 a hangout or raises her invitation; a regenerated reply does not ask it. `ctx.charId` names
@@ -1817,3 +1821,13 @@ reader's texts since the hold began. Until that reply lands, his messages have
 texts requests their reply again, for the slot after the last text or the current slot if
 that has passed. Starting a scene leaves held calls running; leaving the game cancels them.
 No save is added merely for leaving a landing.
+
+### Shown conversation messages
+
+`conversation`, `useConversation` and `subscribeConversation` expose only a thread's messages
+shown at the opened chat clock. They update when that clock releases a held reply. Gallery,
+previews, scene histories and other thread consumers follow that same visibility rule;
+storage, carry and delivery retain the complete thread.
+
+`threadStartedBy(messages, date, time)` from `@vx/modkit/shared` returns `'reader'` or `'her'`
+from the first non-system message in that slot, defaulting to the reader for an empty thread.

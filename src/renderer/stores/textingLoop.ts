@@ -1,4 +1,4 @@
-import { chatClockOf, messageShown, type ChatClock } from '@shared/chatVisibility'
+import { chatClockOf, messageShown, shownConversation, shownMessages, type ChatClock } from '@shared/chatVisibility'
 import { currentStorySnapshot } from './storyMemory'
 import { BREAKTHROUGH_MOD } from '@shared/breakthrough'
 /**
@@ -97,7 +97,7 @@ import {
 } from '@shared/types'
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
-import { threadStartedBy } from '@shared/textingThread'
+import { threadStartedBy, waitingText } from '@shared/textingThread'
 import { afterDmReply, afterReachOut, dmReplyLead, hangoutVerdict, textWhileBusy, promptTextEdits } from '../mods/hooks'
 import { INCOMING_TEXTS } from '@shared/modEntries/incoming-texts'
 import { lorebookNow } from './lorebookStore'
@@ -600,7 +600,7 @@ async function sendText(charId: string, text: string, incoming: boolean): Promis
     game = useGameStore.getState()
     conversation = { ...game.bunnyboard.conversations[charId], messages: game.bunnyboard.conversations[charId].messages.filter(message => message.id !== sent.id) }
   }
-  if (conversation) conversation = { ...conversation, messages: conversation.messages.filter(message => messageShown(message, chatClockOf(game))) }
+  if (conversation) conversation = { ...conversation, messages: [...shownMessages(conversation.messages, chatClockOf(game))] }
 
   // The composer stays locked from here until the hangout verdict is in.
   useBunnyboardStore.getState().setTextBusy(charId, true)
@@ -783,7 +783,7 @@ async function runReply(
     const game = useGameStore.getState()
     const ctx = {
       charId,
-      startedBy: threadStartedBy(game.bunnyboard.conversations[charId]?.messages ?? [], game.date, game.time),
+      startedBy: threadStartedBy(shownMessages(game.bunnyboard.conversations[charId]?.messages ?? [], chatClockOf(game)), game.date, game.time),
       answeringInvite: sent !== null && invited !== null
     }
     const decided = hangoutVerdict(verdict, ctx)
@@ -1490,7 +1490,7 @@ export function pickOccasionAsker(
   overlay: NpcSlotOverlay | null = null
 ): string | null {
   const game = useGameStore.getState()
-  const conversations = game.bunnyboard.conversations
+  const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => [id, shownConversation(chat, chatClockOf(game))!]))
   const target = globalSlotOf(day, half)
 
   // Everybody the overlay for this slot has spending it with somebody.
@@ -1593,7 +1593,7 @@ export function pickSlotAskers(
   if (booked) return picked
 
   const target = globalSlotOf(day, half)
-  const conversations = game.bunnyboard.conversations
+  const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => [id, shownConversation(chat, chatClockOf(game))!]))
   // One invitation, then a spell of quiet, whoever sent it.
   let newest: number | null = null
   for (const conversation of Object.values(conversations)) {
@@ -1632,7 +1632,7 @@ export function pickSlotReachOut(
   taken: ReadonlySet<string>
 ): string | null {
   const game = useGameStore.getState()
-  const conversations = game.bunnyboard.conversations
+  const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => [id, shownConversation(chat, chatClockOf(game))!]))
   const target = globalSlotOf(date, time)
 
   // One reach-out, then a spell of quiet, whoever sent it.
@@ -1653,7 +1653,7 @@ export function pickSlotReachOut(
     const info = view.charInfo[charId]
     if (!info || !isFeedContact(info)) continue
     // Her thread has to have gone quiet, and longer for every reach-out of hers left unanswered.
-    const gap = reachOutGapSlots(unansweredReachOuts(conversation?.messages ?? []).length)
+    const gap = reachOutGapSlots(unansweredReachOuts(shownMessages(conversation?.messages ?? [], chatClockOf(game))).length)
     if (!askCooldownOver(lastTextSlotOf(conversation), target, gap)) continue
     const chance = reachOutChanceOf(
       info.flags?.isLover ?? false,
@@ -1753,9 +1753,10 @@ function outingsFor(info: CharInfo, date: number, time: TimeSlot, intimate: bool
 
 /** The everyday asks dealt in the round still open, read off every invitation they marked. */
 export function everydayRoundNow(): ReadonlySet<EverydayAsk> {
+  const game = useGameStore.getState()
   const bySlot = new Map<number, EverydayAsk[]>()
   for (const conversation of Object.values(useGameStore.getState().bunnyboard.conversations)) {
-    for (const message of conversation.messages) {
+    for (const message of shownMessages(conversation.messages, chatClockOf(game))) {
       if (message.sender !== 'contact' || !message.everydayAsk) continue
       const slot = globalSlotOf(message.date, message.time)
       bySlot.set(slot, [...(bySlot.get(slot) ?? []), message.everydayAsk])
@@ -2020,22 +2021,24 @@ export function openChatSlot(): void {
 export function resumeHeldReplies(): void {
   const game = useGameStore.getState()
   for (const chat of Object.values(game.bunnyboard.conversations)) {
-    const last = chat.messages.at(-1)
-    if (!last?.awaitingReply || last.sender !== 'player' || inFlight.has(chat.charId)) continue
+    const last = waitingText(chat.messages)
+    if (!last || inFlight.has(chat.charId)) continue
     const character = game.characters[chat.charId]
     if (!character) continue
+    const waitingIndex = chat.messages.indexOf(last)
+    const messages = chat.messages.filter((message, index) => index <= waitingIndex || !message.error || message.sender !== 'system')
     const sentAt = last.late ? prevSlot(last.date, last.time) : last
     const due = nextSlot(sentAt.date, sentAt.time)
     const held = messageShown(due, game) ? { date: game.date, time: game.time } : due
     useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
       ...state.bunnyboard.conversations,
       [chat.charId]: { ...chat,
-        messages: chat.messages.filter(message => !chat.heldReply?.messageIds.includes(message.id)),
+        messages: messages.filter(message => !chat.heldReply?.messageIds.includes(message.id)),
         heldReply: { until: held, firstPlayerId: chat.heldReply?.firstPlayerId ?? last.id, messageIds: [],
           ...(messageShown(held, chatClockOf(game)) ? { opened: true as const } : {})
         } }
     } } }))
-    const conversation = { ...useGameStore.getState().bunnyboard.conversations[chat.charId], messages: chat.messages.filter(message => message.id !== last.id && !chat.heldReply?.messageIds.includes(message.id) && messageShown(message, chatClockOf(game))) }
+    const conversation = { ...useGameStore.getState().bunnyboard.conversations[chat.charId], messages: [...shownMessages(messages.filter(message => message.id !== last.id && !chat.heldReply?.messageIds.includes(message.id)), chatClockOf(game))] }
     const request = buildTextingPrompt(character, game.charInfo[chat.charId], conversation, last.text,
       { ...textingState(game, chat.charId), heldUntil: held, commitment: charCommitmentAt(chat.charId, sentAt.date, sentAt.time) ?? undefined }, readerBlockOf(game))
     useBunnyboardStore.getState().setTextBusy(chat.charId, true)
