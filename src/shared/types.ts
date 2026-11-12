@@ -1285,6 +1285,11 @@ export interface SceneSummaryMark {
 
 /** Mid-scene save/rewind snapshot — of a drained scene or a queued reply. */
 export interface SceneState {
+  /** A full scene between slots whose boundary leaves the clock in place. */
+  bonus?: true
+  /** The opening held before this bonus scene, including its already rolled picks. */
+  bonusOpening?: BankedOpening
+
   /** Optional interactive training chosen before this scene was cast. */
   activity?: import('./slotActivity').SlotActivity
   /** What mods keep with this scene, under fields they declare on `ModSceneFields`. */
@@ -1441,8 +1446,32 @@ export interface SlotRumor {
   sentence: string
 }
 
+/** What a contact's rolled invitation asks the reader to do. */
+export type HangoutInvite =
+  | { kind: 'herRoom' }
+  | { kind: 'hisRoom' }
+  /** An exam in a lecture class the two of them take, and the slot it is sat in. */
+  | { kind: 'study'; className: string; exam: ExamPeriod; date: number; time: TimeSlot }
+  /** A location id off the map. */
+  | { kind: 'outing'; location: string }
+  | { kind: 'everyday'; ask: EverydayAsk }
+
+/** The subject of a contact's unprompted text. */
+export type ReachOutTopic = 'wellbeing' | 'goodNews' | 'badNews' | 'question' | 'sick'
+
+/** The dice already spent on an opening; rewriting its narration keeps these choices. */
+export interface OpeningPicks {
+  posters: string[]
+  askers: string[]
+  invites: Record<string, HangoutInvite | null>
+  reachOut: { charKey: string; topic: ReachOutTopic } | null
+  rumorPlace?: string
+}
+
 /** Everything the slot opening needs, produced once at the previous scene's end. */
 export interface SlotOpening {
+  /** The opening's draws, retained when a bonus scene changes what it narrates. */
+  picks?: OpeningPicks
   /** The narration, as playback lines — the action prompt included. */
   lines: SceneLine[]
   /** The invitations the opening rolled, delivered to the phone at step 1. */
@@ -1552,6 +1581,8 @@ export interface BreakupOwed {
 
 /** On-disk save file — `/data/saves/{playthroughId}/{saveId}.json`. */
 export interface NativeGameSave {
+  /** The unopened slot's paid opening, retained through interludes and their bonus scenes. */
+  heldOpening?: BankedOpening
   schemaVersion: 13
   /**
    * The playthrough this save belongs to. Derived from the containing folder

@@ -374,6 +374,16 @@ export interface Interlude {
     clock?: 'late-night';
     // (undocumented)
     lines: readonly string[];
+    look?: {
+        time?: TimeSlot;
+        room?: {
+            kind: 'herRoom' | 'hisRoom';
+            charId: string;
+        };
+    };
+    onHangout?: (verdict: HangoutVerdict, ctx: HangoutVerdictCtx) => {
+        room: 'herRoom' | 'hisRoom';
+    } | null;
     // (undocumented)
     rows: readonly InterludeRow[];
 }
@@ -408,8 +418,14 @@ export interface InterludeRow {
     };
     // (undocumented)
     label: string;
+    lead?: readonly string[];
     // (undocumented)
     onPick?: () => void;
+    scene?: {
+        charId: string;
+        room: 'herRoom' | 'hisRoom';
+        action: string;
+    };
 }
 
 // @public
@@ -611,6 +627,7 @@ export interface ModHooks {
     slotSettled?: (ctx: SlotSettled) => void;
     slotStatusLines?: (ctx: {
         nextSlot: number;
+        bonus?: true;
     }) => readonly SceneLine[];
     stageLayer?: ComponentType<ScreenSlotProps['stageLayer']>;
     statActivities?: (stat: StatKey) => readonly SlotActivityOffer[];
@@ -867,6 +884,10 @@ export interface PromptState {
     history: GameHistory;
     homecomingVisitor?: string;
     jobId: string | null;
+    lateNight?: {
+        date: number;
+        time: TimeSlot;
+    };
     lessNsfwText: boolean;
     lorebook: readonly BookEntry[];
     memoryBudgets: Required<MemoryBudgets>;
@@ -1244,6 +1265,7 @@ export interface SceneStats {
 
 // @public
 export interface SceneStatSettlement {
+    bonus?: true;
     // (undocumented)
     ctx: StatContext;
     ledger: LedgerStats | undefined;
@@ -1482,12 +1504,13 @@ export interface SlotIntroInput {
 }
 
 // @public
-export type SlotMemoryProjection = Pick<SlotSettled, 'before' | 'closingCast'>;
+export type SlotMemoryProjection = Pick<SlotSettled, 'before' | 'closingCast' | 'bonus'>;
 
 // @public (undocumented)
 export interface SlotSettled {
     // (undocumented)
     before: ReturnType<typeof useGameStore.getState>;
+    bonus?: true;
     // (undocumented)
     closingCast: readonly Character[];
     // (undocumented)

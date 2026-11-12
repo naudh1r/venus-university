@@ -75,6 +75,7 @@ import {
 import {
   formatChatDivider,
   formatDateBanner,
+  formatGameDate,
   formatSemesterProgress,
   formatShortGameDate,
   ordinal
@@ -176,6 +177,8 @@ export interface ProjectSceneContext {
 
 /** Everything the builders read out of `gameStore`. */
 export interface PromptState {
+  /** The held night before the clock's unopened slot. */
+  lateNight?: { date: number; time: TimeSlot }
   exReckoning?: import('@shared/reckoning').ReckoningState
   storyMemory?: import('@shared/storyMemory').StorySnapshot
   breakthrough?: import('@shared/breakthrough').BreakthroughState
@@ -1242,7 +1245,7 @@ function nowBlock(cast: readonly Character[], state: PromptState): string[] {
     ...(state.farewell
       ? farewellNowLines(state.farewell.firstName, state.farewell.forAWhile, state.calendar.season)
       : [
-          `It is ${formatDateBanner(state.date, state.time, state.calendar.season)}`,
+          state.lateNight ? `It is late on ${formatGameDate(state.date, state.calendar.season)} night` : `It is ${formatDateBanner(state.date, state.time, state.calendar.season)}`,
           formatSemesterProgress(state.date),
           ...(state.weather ? weatherLines(state.weather, state.date, state.time) : [])
         ]),

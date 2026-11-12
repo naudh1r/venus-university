@@ -34,7 +34,7 @@ import {
   projectSceneContextOf,
   recapOf
 } from '../../prompts/classProgress'
-import { formatChatDivider, formatGameDate } from '../../prompts/gameDate'
+import { formatChatDivider, formatGameDate, prevSlot } from '../../prompts/gameDate'
 import { firstMeetingAfter, meetingsBefore } from '../../prompts/occasions'
 import {
   slotOptions,
@@ -296,7 +296,8 @@ export function reader(
   },
   at?: { date: number; time: TimeSlot }
 ): string {
-  return readerBlockOf(useGameStore.getState(), view, at)
+  const game = useGameStore.getState()
+  return readerBlockOf(game, view, at ?? (game.sceneBonus ? prevSlot(game.date, game.time) : undefined))
 }
 
 /**
@@ -447,8 +448,7 @@ export function promptState(): PromptState {
     storyMemory: currentStorySnapshot(),
     playthroughId: game.playthroughId ?? 'unsaved',
     breakthrough: modIsOn(BREAKTHROUGH_MOD) ? game.exBreakthrough : undefined,
-    date: game.date,
-    time: game.time,
+    ...(game.sceneBonus ? { ...prevSlot(game.date, game.time), lateNight: prevSlot(game.date, game.time) } : { date: game.date, time: game.time }),
     ex: promptStateParts('scene'),
     backgrounds: cityLifeBackgrounds(useAssetStore.getState().backgrounds),
     lorebook: lorebookNow(),

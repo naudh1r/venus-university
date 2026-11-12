@@ -46,6 +46,7 @@ import {
   type BankedOpening,
   type BankedTextLedger,
   type SlotOpening,
+  type OpeningPicks,
   type StructuredRequest,
   type TimeSlot
 } from '@shared/types'
@@ -85,6 +86,7 @@ import {
   ambientLoreCharacters,
   characterLoreForIds,
   loreKeyOf,
+  loreEntryById,
   RUMOR_PLACE_BAG,
   rumorPoolOf,
   rumorSentenceFor
@@ -130,7 +132,7 @@ import {
   type ReplayStayFields,
   type SceneKind
 } from './gameStore'
-import { gameEntered, playerActs, slotInterlude } from '../mods/hooks'
+import { gameEntered, playerActs, slotInterlude, type InterludeRow } from '../mods/hooks'
 import { useCharacterStore } from './characterStore'
 import { castOf, useSaveStore } from './saveStore'
 import {
@@ -227,7 +229,7 @@ import {
 } from './loop/academics'
 import { applyCrushSettle, rollCrushSettle } from './loop/crushes'
 import { startExam } from './loop/exams'
-import { startHangoutScene } from './loop/hangouts'
+import { startHangoutScene, startRoomScene } from './loop/hangouts'
 import { sceneEventsFor } from './loop/sceneEvents'
 import { liveView, withCrushes, withRumorPass, type PostLedgerView } from './loop/ledgerView'
 import { registerLoopHooks } from './loop/hooks'
@@ -367,12 +369,13 @@ function breakDecayLines(): SceneLine[] {
 }
 
 /** Opens a slot: the transition, the narration, and the action prompt. */
-async function beginSlot(released = false): Promise<void> {
+async function beginSlot(released = false, row?: InterludeRow): Promise<void> {
   const run = currentRun()
   // The opening is the first prompt a stay can build, so it waits on the playthrough's lorebook.
   await lorebookLoaded()
   if (runStale(run)) return
   const state = useGameStore.getState()
+  const roomScene = row?.scene && state.characters[row.scene.charId] ? row.scene : undefined
 
   // The playthrough has ended badly.
   const gameOver = gameOverReasonOf(state)
@@ -436,11 +439,13 @@ async function beginSlot(released = false): Promise<void> {
           if (runStale(run)) return
           useGameStore.setState({ interlude: null })
           useGameStore.getState().clearStage()
-          void beginSlot(true)
+          void beginSlot(true, row)
         })
       }
       useGameStore.setState({ interlude: { now, interlude: held.interlude, pick } })
-      showInterludeLanding(ctx.from)
+      showInterludeLanding({ ...ctx.from, time: held.interlude.look?.time ?? ctx.from.time })
+      if (held.interlude.look?.room) await loadCgReady([held.interlude.look.room.charId])
+      if (runStale(run)) return
       state.appendPendingLines(held.interlude.lines.map(text => ({ speaker: '', text })))
       state.setWaitingForLine(false)
       advance()
@@ -456,6 +461,7 @@ async function beginSlot(released = false): Promise<void> {
     // The picture and the last status updates, both asked for behind the scroll and every
     // goodbye; outside the branch below because a reload lands here too.
     armEpilogue()
+    if (row?.lead) state.appendPendingLines(row.lead.map(text => ({ speaker: '', text })))
     // Queued only: `graduationSeen` is raised where the scroll is read.
     if (!state.graduationSeen) {
       state.appendPendingLines(
@@ -552,6 +558,7 @@ async function beginSlot(released = false): Promise<void> {
         overlay
       ))
   loopState.bankedOpening = null
+  useGameStore.setState({ heldOpening: null })
   // **Nothing was banked, so this slot is waiting on a call**: the curtain is the loading screen,
   // so it is told there is a load to report and stays down over the whole of it — the
   // retry modal included, which opens above it. A banked or authored opening declares nothing
@@ -568,7 +575,8 @@ async function beginSlot(released = false): Promise<void> {
   if (runStale(run)) return
 
   const lines = [
-    // The standing heads the opening.
+    ...(row?.lead ?? []).map(text => ({ speaker: '', text })),
+    // The standing heads the game's opening.
     ...grades.standing.map((text) => ({ speaker: '', text })),
     ...(tutorial ? tutorialLines().map((text) => ({ speaker: '', text })) : opening.lines),
     // What the break cost, after the narration that brought him back.
@@ -578,14 +586,14 @@ async function beginSlot(released = false): Promise<void> {
   ]
 
   const ready = useGameStore.getState()
-  ready.appendPendingLines(lines)
+  if (!roomScene) ready.appendPendingLines(lines)
   ready.setWaitingForLine(false)
-  advance()
+  if (!roomScene) advance()
 
   // The opening is on screen, so the curtain may go — and only now: it is the loading screen,
   // and a slot revealed before its first line had arrived would be a spinner on an empty
   // stage. The reveal is not awaited; nothing below is about what is on screen.
-  void revealSlot()
+  if (!roomScene) void revealSlot()
 
   // What the opening said was going on somewhere, stamped with the slot that said it:
   // set on every path through here, so a slot whose opening drew none also clears the last.
@@ -628,7 +636,12 @@ async function beginSlot(released = false): Promise<void> {
 
   // Folded into the slot-save minted before the call went out, which is the start-of-slot
   // decision point.
-  await foldOpeningIntoSlotSave(lines)
+  await foldOpeningIntoSlotSave(roomScene ? [] : lines)
+  if (runStale(run)) return
+  if (roomScene) {
+    adoptSceneOpening()
+    await startRoomScene(roomScene.charId, roomScene.room, roomScene.action)
+  }
 }
 
 /** The playthrough's first scene, cast and sent without a classifier. */
@@ -939,7 +952,7 @@ async function fetchSlotIntro(
   pendingSummary?: string | null,
   npcOverlay: NpcSlotOverlay | null = null,
   view: PostLedgerView = liveView(),
-  call: { group?: string; stale?: () => boolean } = {}
+  call: { group?: string; stale?: () => boolean; picks?: OpeningPicks } = {}
 ): Promise<SlotOpening | null> {
   const run = currentRun()
   const group = call.group ?? LOOP_LLM_GROUP
@@ -955,7 +968,7 @@ async function fetchSlotIntro(
   // Who posts a status update this slot, as charKeys — the whole roster, strangers included,
   // and every graduate still on his feed.
   const postingKeys = new Set(
-    pickSlotPosters(
+    call.picks?.posters ?? pickSlotPosters(
       [...game.chars, ...game.alumni.filter((charId) => isFeedContact(view.charInfo[charId]))],
       game.characters
     ).flatMap((charId) => {
@@ -968,13 +981,14 @@ async function fetchSlotIntro(
   const occasion = askOccasionFor(date, time, view)
 
   // Who is texting the reader an invitation this slot.
-  const askerKeys = pickSlotAskers(date, time, view)
+  const askerKeys = call.picks ? [...call.picks.askers] : pickSlotAskers(date, time, view)
   // Somebody asks him to the occasion even on a slot the dice picked nobody for.
-  if (occasion && askerKeys.length === 0) {
+  if (!call.picks && occasion && askerKeys.length === 0) {
     const fallback = pickOccasionAsker(date, time, view, npcOverlay)
     if (fallback) askerKeys.push(fallback)
   }
 
+  const invites: OpeningPicks['invites'] = {}
   const askers: IntroAsker[] = []
   // The everyday asks already dealt; each asker's own is dealt before the next one rolls.
   let round = everydayRoundNow()
@@ -990,7 +1004,8 @@ async function fetchSlotIntro(
     // The class or the shift she meets him before or after.
     const commitment = plan ? charCommitmentAt(charId, date, time) : null
     // What she asks for, when it is neither a plan nor the occasion.
-    const invite = plan || occasion ? null : rollAskerInvite(charId, date, time, view, round)
+    const invite = call.picks ? call.picks.invites[charKey] ?? null : plan || occasion ? null : rollAskerInvite(charId, date, time, view, round)
+    invites[charKey] = invite
     if (invite?.kind === 'everyday') {
       round = dealEverydayAsk(round, invite.ask)
       everydayAsks[charKey] = invite.ask
@@ -1089,7 +1104,7 @@ async function fetchSlotIntro(
   const taken = new Set(
     [...askers, ...breakups, ...leavers, ...visitors].map(({ character }) => character.charId)
   )
-  const reachOutKey = pickSlotReachOut(date, time, view, taken)
+  const reachOutKey = call.picks ? call.picks.reachOut?.charKey ?? null : pickSlotReachOut(date, time, view, taken)
   const reachOuts: IntroReachOut[] = []
   for (const charKey of reachOutKey ? [reachOutKey] : []) {
     const charId = game.charKeyToId[charKey]
@@ -1104,7 +1119,7 @@ async function fetchSlotIntro(
       info,
       texted: hasTexted(conversation),
       // A girl in bed with a cold texts about that, whatever the roll would have had her say.
-      topic: worstInSlot(info.cold, globalSlotOf(date, time)) ? 'sick' : rollReachOutTopic(),
+      topic: call.picks?.reachOut?.topic ?? (worstInSlot(info.cold, globalSlotOf(date, time)) ? 'sick' : rollReachOutTopic()),
       // Her thread as a scene in the slot about to open would read it.
       thread: composeTextingSummary(
         conversation,
@@ -1158,7 +1173,7 @@ async function fetchSlotIntro(
   const occasions = occasionsAt(date, time, game.calendar)
   // Drawn before the request, so a retry re-sends the same place and the reply's own sentence
   // about it can be banked.
-  const rumorPlace =
+  const rumorPlace = call.picks ? (call.picks.rumorPlace ? loreEntryById(call.picks.rumorPlace) ?? undefined : undefined) :
     occasions.length === 0 && askers.length === 0
       ? useGrabBagStore.getState().draw(RUMOR_PLACE_BAG, rumorPoolOf(lorebookNow()), loreKeyOf)
       : undefined
@@ -1234,6 +1249,11 @@ async function fetchSlotIntro(
       // an entry that is not a place, or one the narration never named, banks nothing.
       const said = rumorPlace?.id ? rumorSentenceFor(rumorPlace, written) : null
       return {
+        picks: {
+          posters: [...postingKeys], askers: [...askerKeys], invites,
+          reachOut: reachOuts[0] ? { charKey: reachOuts[0].charKey, topic: reachOuts[0].topic } : null,
+          ...(rumorPlace ? { rumorPlace: rumorPlace.id } : {})
+        },
         lines: narrate([opening, ...written]),
         hangouts: reply.hangouts,
         breakups: reply.breakups,
@@ -1418,6 +1438,10 @@ function dispatchTurn(snapshot: TurnSnapshot): void {
   else if (snapshot.intro) void startOrientationScene()
   else if (snapshot.farewell) void startFarewellScene(snapshot.farewell)
   else if (snapshot.retryInvitation) snapshot.retryInvitation(snapshot.action)
+  else if (snapshot.roomScene) {
+    const room = snapshot.roomScene
+    void startRoomScene(room.charId, room.room, snapshot.action, room.bonus === true, room.opening)
+  }
   else if (snapshot.charId)
     void startHangoutScene(snapshot.charId, snapshot.action, snapshot.preset, snapshot.sceneEvents)
   else {
@@ -1989,7 +2013,7 @@ async function runEnding(goodbye: boolean): Promise<void> {
 
   // A goodbye runs the goodbye and nothing else; its one status line is `advance()`'s. So does a
   // created scene, whose screen after the goodbye is the save question.
-  if (isGraduationSlot(game.date, game.time) || game.createdScene) {
+  if ((!game.sceneBonus && isGraduationSlot(game.date, game.time)) || game.createdScene) {
     const closed = goodbye ? await runClosing(dropped) : true
     if (runStale(run) || dropped()) return
     useGameStore.getState().setBusy(false)
@@ -2008,7 +2032,7 @@ async function runEnding(goodbye: boolean): Promise<void> {
   const ledgerCall = startLedger(schedule, dropped, recap)
   // Usually the prefetch fired when the scene started; a resumed scene
   // or a mismatched message set pays for the call here instead.
-  const textLedgerCall = claimTextLedger(game.date, game.time)
+  const textLedgerCall = game.sceneBonus ? Promise.resolve({}) : claimTextLedger(game.date, game.time)
   const closingCall = goodbye ? runClosing(dropped) : Promise.resolve(true)
 
   const [ledger, textLedger, closed] = await Promise.all([ledgerCall, textLedgerCall, closingCall])
@@ -2100,21 +2124,23 @@ async function fetchEndingOpening(
   dropped: () => boolean = () => false
 ): Promise<BankedOpening | null> {
   const game = useGameStore.getState()
-  const { date, time } = nextSlot(game.date, game.time)
+  const bonus = game.sceneBonus
+  const held = bonus ? game.sceneBonusOpening : null
+  const { date, time } = bonus ? game : nextSlot(game.date, game.time)
 
   // The finished scene, folded by value: the boundary owns the real apply, so
   // everything below narrates off a projection and writes nothing.
   const projected = projectLedger(game.charInfo, ledger, game.date)
 
   // The run-ins the affinity settle counts, which are dice and so are rolled once.
-  const groups = rollSlotEncounterGroups()
+  const groups = game.sceneBonus ? [] : rollSlotEncounterGroups()
 
   // The finished slot's settles, banked below for the boundary to apply.
   const rumor = rollRumorPass(ledger, projected.charInfo)
   // Read the earned mod weights before rolling a crush or writing the opening. This
   // is a projection only: rewards and ability use still commit at slotSettled.
   const seen = projectSlotMemories(
-    { before: game, closingCast: loopState.closingCast ?? [] },
+    { before: game, closingCast: loopState.closingCast ?? [], ...(bonus ? { bonus: true as const } : {}) },
     withRumorPass(projected.charInfo, rumor)
   )
   // Safe on the exam prefetch too: a texting-only ledger carries no `stats`, and every other
@@ -2123,7 +2149,7 @@ async function fetchEndingOpening(
   // Rolled against the charInfo the witness pass just left and the post-scene stats, which is
   // what the boundary's fallback would see too.
   const crushes = rollCrushSettle(ledger, seen, stats)
-  const npcRelationships = rollNpcRelationshipSettle(bondedCharIds(ledger), groups)
+  const npcRelationships = bonus ? game.npcRelationships : rollNpcRelationshipSettle(bondedCharIds(ledger), groups)
   // Who caught a cold in the finished slot, off the same run-ins; a cold caught tonight is still
   // incubating in the slot about to open, so the projection below has nothing of it to step.
   const coldPass = rollColdPass(ledger, groups, stats)
@@ -2147,11 +2173,15 @@ async function fetchEndingOpening(
   // Who leaves for spring break, when the slot about to open is the one that settles it: picked
   // off the affection the projection leaves and banked for the boundary to assign, so the texts
   // the opening writes and the pick the save keeps are one answer.
-  const springBreakPick = springBreakPickFor(date, charInfo)
-  const plans = settlePlans(ledger, game.date, game.time, springBreakPick)
+  const springBreakPick = bonus ? held?.springBreakAway ?? null : springBreakPickFor(date, charInfo)
+  const settled = settlePlans(ledger, game.date, game.time, springBreakPick)
+  const plans = bonus && held ? {
+    events: [...held.events.filter(event => !settled.events.some(next => next.id === event.id)), ...settled.events],
+    cancellations: [...held.cancellations, ...settled.cancellations]
+  } : settled
   // Who is back for Homecoming, when the slot about to open is its morning, banked on the same
   // terms; a girl ending it with him tonight is not the one coming back to see him.
-  const homecomingPick = homecomingPickFor(
+  const homecomingPick = bonus ? held?.homecomingVisitor ?? null : homecomingPickFor(
     date,
     time,
     charInfo,
@@ -2168,7 +2198,7 @@ async function fetchEndingOpening(
 
   // Who is out with whom in the slot about to open, off the affinities settled above;
   // banked with the invitations so a reload opens the evening that was paid for.
-  const npcOverlay = rollNpcOverlayNow(date, time, npcRelationships)
+  const npcOverlay = bonus ? held?.npcOverlay ?? game.npcOverlay : rollNpcOverlayNow(date, time, npcRelationships)
 
   // The first night's opening is the authored tutorial and the last morning's the authored
   // graduation: no call, but the plans, overlay and settles are banked either way.
@@ -2200,7 +2230,7 @@ async function fetchEndingOpening(
     useGameStore.getState().sceneSummary,
     npcOverlay,
     view,
-    { group: ENDING_LLM_GROUP, stale: dropped }
+    { group: ENDING_LLM_GROUP, stale: dropped, ...(held?.picks ? { picks: held.picks } : {}) }
   )
   // An abandoned opening banks nothing, the rolls above included; the player replays the
   // turn.
@@ -2445,6 +2475,7 @@ function bankTextLedger(bank: BankedTextLedger): void {
  * final: the composer is closed and the cast step has cancelled every reply in flight.
  */
 function prefetchTextLedger(): void {
+  if (useGameStore.getState().sceneBonus) return
   const game = useGameStore.getState()
   const schedule = scheduleInput(game.date, game.time)
   if (textLedgerCharKeys(schedule).length === 0) {
@@ -2500,25 +2531,27 @@ function claimTextLedger(date: number, time: TimeSlot): Promise<LedgerResponse |
 
 /** What the finished scene did to the reader's stats, and the lines that say so. */
 function resolveScene(): { deltas: PlayerStats; lines: StatusText[] } {
+  const bonus = useGameStore.getState().sceneBonus
   const ctx: StatContext = {
+    ...(bonus ? { bonus: true as const } : {}),
     // Not `closingCast`, which a resumed save has already cleared by this point.
     solo: useGameStore.getState().cast.length === 0,
     // The same fact the ledger's `STATS` section is dropped on: a class that went ahead.
     classScene:
       useGameStore.getState().sceneClass !== null &&
       useGameStore.getState().sceneEvent?.id !== 'classCancelled',
-    classOutcome: classOutcomeNow(),
+    classOutcome: bonus ? null : classOutcomeNow(),
     // On a worked shift, replaces every other source, the ledger's award included.
     jobOutcome: loopState.jobShift ? { gain: loopState.jobShift.gain } : null,
     // Additive, unlike `jobOutcome`.
-    gradeOutcome: gradeOutcomeNow(),
+    gradeOutcome: bonus ? null : gradeOutcomeNow(),
     // Read at the scene's own slot, which a dose taken during it never moves.
     sick: readerSickNow()
   }
   // What the hour exercised, as the mods leave the ledger's verdict, then what that pays, as they
   // leave the game's resolution: a mod changing the exercise never has to undo another's reward.
   const ledger = exercisedStats(loopState.pendingLedgerResult?.stats, ctx)
-  return settleSceneStats(resolveStatDeltas(ledger, ctx), { ledger, ctx })
+  return settleSceneStats(resolveStatDeltas(ledger, ctx), { ledger, ctx, ...(bonus ? { bonus: true as const } : {}) })
 }
 
 /** The status line at the end of a project work session. */
@@ -2593,7 +2626,7 @@ export function advance(): void {
   // A goodbye ends on one line about how she took it, then hands the screen back to the
   // menu.
   const farewell = game.sceneFarewell
-  if (ending && isGraduationSlot(game.date, game.time)) {
+  if (ending && !game.sceneBonus && isGraduationSlot(game.date, game.time)) {
     if (farewell && !game.statusShown) {
       // What a save taken on the status line records: the goodbye's last line, unturned.
       loopState.statusBase = endingSave()
@@ -2640,7 +2673,7 @@ export function advance(): void {
 
   // The ceremony has run out: the epilogue's one drain reaching here with the flag down. It owns
   // the rest of the turn, opening the input itself once its curtain is up.
-  if (isGraduationSlot(game.date, game.time) && !game.graduationSeen) {
+  if (!game.sceneBonus && isGraduationSlot(game.date, game.time) && !game.graduationSeen) {
     void openGoodbyes()
     return
   }
@@ -2929,7 +2962,7 @@ function showStatusLines(): boolean {
         game.sceneTurnedDown
       ),
       // Then what the mods report, such as the memories the next slot files for them.
-      ...slotStatusLines({ nextSlot: globalSlotOf(game.date, game.time) + 1 })
+      ...slotStatusLines({ nextSlot: globalSlotOf(game.date, game.time) + (game.sceneBonus ? 0 : 1), ...(game.sceneBonus ? { bonus: true as const } : {}) })
     ],
     // Milestones last, one screen apiece, the thing the player is left on.
     milestones: projected ? milestoneReports(projected) : []
@@ -3035,7 +3068,7 @@ async function crossSlotBoundary(): Promise<void> {
   const owedTexts: Array<() => void> = []
   if (ledger) applyLedger(ledger)
   // Before the deltas land: an exam is graded on the Brain he walked in with.
-  recordAcademics(ledger)
+  if (!game.sceneBonus) recordAcademics(ledger)
   loopState.projectWork = null
   useGameStore.getState().applyStatDeltas(deltas)
   // `workedSlots` is what stops the next `settleShifts` striking a shift he turned up to.
@@ -3105,8 +3138,10 @@ async function crossSlotBoundary(): Promise<void> {
     applyRumorPass(banked.rumorPass)
     applyCrushSettle(banked.crushes)
     // Before the map is stored: what is recorded is the difference between the two.
-    applyNewFriendships(useGameStore.getState().npcRelationships, banked.npcRelationships)
-    useGameStore.getState().setNpcRelationships(banked.npcRelationships)
+    if (!game.sceneBonus) {
+      applyNewFriendships(useGameStore.getState().npcRelationships, banked.npcRelationships)
+      useGameStore.getState().setNpcRelationships(banked.npcRelationships)
+    }
     // Absent only on an opening banked before colds existed.
     if (banked.coldPass) useGameStore.getState().applyColdPass(banked.coldPass)
 
@@ -3129,7 +3164,7 @@ async function crossSlotBoundary(): Promise<void> {
   }
   // His boss tells him once a cold to stay home, as it first keeps him off work: marked on the
   // cold itself, so the boundary save carries it and a reload does not send it twice.
-  const ahead = nextSlot(game.date, game.time)
+  const ahead = game.sceneBonus ? game : nextSlot(game.date, game.time)
   const readerCold = useGameStore.getState().readerCold
   const bossJob = useGameStore.getState().job?.jobId
   if (
@@ -3154,7 +3189,7 @@ async function crossSlotBoundary(): Promise<void> {
   useGameStore.getState().commitSceneToHistory(game.date, game.time)
   // Stamped with the finishing slot and before the cast clears below: the ask-out roll reads it
   // after a reload. An empty cast is recorded too.
-  useGameStore.getState().recordLastSlotCast()
+  if (!game.sceneBonus) useGameStore.getState().recordLastSlotCast()
 
   // Everything below is on screen while it happens, so the cover goes up first.
   const over = gameOverReasonOf(useGameStore.getState())
@@ -3182,16 +3217,16 @@ async function crossSlotBoundary(): Promise<void> {
 
   // Before the clock moves, so each text is stamped with the slot the scene ran in, and before
   // the boundary save, which records them.
-  slotSettled({ before: game, ledger, closingCast: loopState.closingCast ?? [] })
+  slotSettled({ before: game, ledger, closingCast: loopState.closingCast ?? [], ...(game.sceneBonus ? { bonus: true as const } : {}) })
   for (const send of owedTexts) send()
 
   // The scene as delivered, for the calendar to replay: read before the clock moves and the scene
   // is cleared below, and named on the boundary save by its own write. A game lost here asks
   // nothing and so keeps none.
-  const replay = !over && keepReplay ? slotReplayOf(game.date, game.time) : null
-  if (!over && !keepReplay) useGameStore.getState().dropReplay(game.date, game.time)
+  const replay = !game.sceneBonus && !over && keepReplay ? slotReplayOf(game.date, game.time) : null
+  if (!game.sceneBonus && !over && !keepReplay) useGameStore.getState().dropReplay(game.date, game.time)
 
-  useGameStore.getState().advanceSlot()
+  if (!game.sceneBonus) useGameStore.getState().advanceSlot()
   // Off the affection the slot about to open reads, so a girl decayed out of a half is caught.
   useGameStore.getState().observeUpperHalves()
   // On the same reading: a secret reached tonight waits for the next scene she is alone in.
@@ -3212,6 +3247,7 @@ async function crossSlotBoundary(): Promise<void> {
     void beginSlot()
     return
   }
+  useGameStore.setState({ heldOpening: loopState.bankedOpening })
   void writeSlotSave(replay ?? undefined).then(() => beginSlot())
 }
 
@@ -3262,6 +3298,7 @@ export function enterGame(
   // manual one.
   loopState.slotSaveId = isSlotSaveId(save.saveId) ? save.saveId : null
 
+  loopState.bankedOpening = save.heldOpening ?? null
   if (!save.scene) {
     void beginSlot()
     return
@@ -3277,7 +3314,7 @@ export function enterGame(
   loopState.pendingLedgerResult = save.scene.ledger ?? null
   // The opening the ending already paid for; the boundary replays it, `OLD_ACTION_PROMPT`
   // stripped from its lines too.
-  const banked = save.scene.opening ?? null
+  const banked = save.scene.opening ?? save.scene.bonusOpening ?? null
   loopState.bankedOpening = banked
     ? { ...banked, lines: withoutActionPrompt(banked.lines) }
     : null
@@ -3307,7 +3344,7 @@ export function enterGame(
 
   // A save taken mid-goodbye never runs `beginSlot`, and without this a reload from one loses
   // both the picture and the posts.
-  if (isGraduationSlot(save.date, save.time)) armEpilogue()
+  if (!save.scene.bonus && isGraduationSlot(save.date, save.time)) armEpilogue()
 
   // The scene is on screen: the entry crossing may open on it. Everything below is either
   // a prefetch or a read the player is not waiting on.

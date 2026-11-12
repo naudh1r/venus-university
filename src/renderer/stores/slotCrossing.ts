@@ -1,7 +1,7 @@
 import { semesterCalendarOf, semesterOf, type SemesterCalendar } from '@shared/semesters'
 import type { GameSave, PlaythroughRecord, TimeSlot } from '@shared/types'
 import type { Weather } from '@shared/weather'
-import { nextSlot, slotHalf } from '../prompts/gameDate'
+import { nextSlot, prevSlot, slotHalf } from '../prompts/gameDate'
 import { GOODBYES_SPLASH, isEpilogueNight } from '../prompts/graduation'
 import { endVacationOf, fixedOccasionIn, GRADUATION_DATE, occasionsAt } from '../prompts/occasions'
 import { slotWeather } from '../prompts/weather'
@@ -26,12 +26,15 @@ import { useGameStore } from './gameStore'
  * on a morning slot the clock alone would call day.
  */
 function gameThemeNow(): ScreenTheme {
-  const { date, time, graduationSeen } = useGameStore.getState()
+  const { date, time, graduationSeen, interlude, sceneBonus } = useGameStore.getState()
+  if (interlude) return slotHalf(interlude.interlude.look?.time ?? interlude.now.from.time)
+  if (sceneBonus) return slotHalf(prevSlot(date, time).time)
   return isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
 }
 
 /** {@link gameThemeNow} for a save being opened, read off the file instead of the store. */
 function saveTheme(save: GameSave): ScreenTheme {
+  if (save.scene?.bonus) return slotHalf(prevSlot(save.date, save.time).time)
   return isEpilogueNight(save.date, save.time, save.graduationSeen) ? 'night' : slotHalf(save.time)
 }
 
@@ -125,20 +128,20 @@ function untilPhase(done: (phase: string) => boolean): Promise<void> {
  * `ask`, the curtain holds flat once down until the boundary's question is answered.
  */
 export async function coverSlotCrossing(ask = false): Promise<void> {
-  const { date, time, calendar, weather, graduationSeen } = useGameStore.getState()
-  const next = nextSlot(date, time)
+  const { date, time, calendar, weather, graduationSeen, sceneBonus } = useGameStore.getState()
+  const next = sceneBonus ? { date, time } : nextSlot(date, time)
   // No load is declared: the ending paid for the ledger and for the next slot's opening before
   // the status lines were read, so this cover has a boundary to hide and nothing to wait on.
   // `beginSlot` says otherwise where it finds a call it still owes.
   beginCrossing(undefined, {
-    from: slotHalf(time),
-    to: slotHalf(next.time),
-    splash: slotStampOf(
+    from: gameThemeNow(),
+    to: sceneBonus ? gameThemeNow() : slotHalf(next.time),
+    ...(sceneBonus ? {} : { splash: slotStampOf(
       next.date,
       next.time,
       calendar,
       slotWeather(weather, next.date, next.time, graduationSeen)
-    ),
+    ) }),
     ask
   })
   await untilPhase((phase) => phase === 'holding' || phase === 'idle')
@@ -234,7 +237,7 @@ export async function coverInterludeOpening(): Promise<void> {
   const held = game.interlude
   if (!held) return
   beginCrossing(undefined, {
-    from: slotHalf(held.now.from.time),
+    from: slotHalf(held.interlude.look?.time ?? held.now.from.time),
     to: slotHalf(game.time),
     splash: slotStampOf(game.date, game.time, game.calendar, slotWeather(game.weather, game.date, game.time, game.graduationSeen))
   })

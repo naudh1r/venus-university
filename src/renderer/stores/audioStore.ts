@@ -15,8 +15,8 @@ import {
   volumesOf
 } from '@shared/audio'
 import type { AudioKey, DayHalf, Volumes } from '@shared/audio'
-import type { Conversation, RendererSettings } from '@shared/types'
-import { slotHalf, weekendSaturdayOf } from '../prompts/gameDate'
+import { roomBgIdOf, type Conversation, type RendererSettings } from '@shared/types'
+import { prevSlot, slotHalf, weekendSaturdayOf } from '../prompts/gameDate'
 import { isEpilogueNight } from '../prompts/graduation'
 import { slotWeather } from '../prompts/weather'
 import { SLOT_BG, bgKindOf, customBackgroundOf } from '../views/bgAssets'
@@ -253,7 +253,12 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
 
   const inScene = game.currentSceneTranscript.length > 0 || game.sceneSummary !== null
   // The place on stage: what the player picked wins over what the scene reports, as on the layer.
-  const base = game.bgOverride ?? game.bg ?? SLOT_BG
+  const look = game.interlude?.interlude.look
+  const room = look?.room
+  const host = room ? game.characters[room.charId] : undefined
+  const heldBg = room?.kind === 'herRoom' && host && game.roomReady[room.charId] ? roomBgIdOf(host) : SLOT_BG
+  const base = game.interlude ? heldBg : game.bgOverride ?? game.bg ?? SLOT_BG
+  const at = game.interlude?.now.from ?? (game.sceneBonus ? prevSlot(game.date, game.time) : game)
   const cg = displayedCgOf({
     shown: displaySlotsOf(game.slots, game.stageOverride),
     emotions: game.emotions,
@@ -263,7 +268,7 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
     noNsfwImages: noNsfwImagesOf(useSettingsStore.getState())
   })
   const character = cg ? game.characters[cg.charId] : null
-  const epilogue = !game.interlude && isEpilogueNight(game.date, game.time, game.graduationSeen)
+  const epilogue = !game.interlude && !game.sceneBonus && isEpilogueNight(game.date, game.time, game.graduationSeen)
 
   return {
     gameOver: game.activeGameOver !== null,
@@ -274,9 +279,9 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
     // `busy` is no part of it: the scroll is read while the next call is still out.
     narrating: !inScene && !game.awaitingInput && !game.waitingForLine,
     bg: venueFacts(base),
-    half: game.interlude ? slotHalf(game.interlude.now.from.time) : epilogue ? 'night' : slotHalf(game.time),
-    weekend: weekendSaturdayOf(game.interlude?.now.from.date ?? game.date) !== null,
-    weather: slotWeather(game.weather, game.interlude?.now.from.date ?? game.date, game.interlude?.now.from.time ?? game.time, game.interlude ? false : game.graduationSeen),
+    half: epilogue ? 'night' : slotHalf(look?.time ?? at.time),
+    weekend: weekendSaturdayOf(at.date) !== null,
+    weather: slotWeather(game.weather, at.date, look?.time ?? at.time, game.interlude || game.sceneBonus ? false : game.graduationSeen),
     epilogue,
     cg:
       cg && character

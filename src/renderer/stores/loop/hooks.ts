@@ -30,6 +30,7 @@ interface SlotCycle {
 }
 
 interface HangoutEntry {
+  startRoomScene?: (charId: string, room: 'herRoom' | 'hisRoom', action: string, bonus?: boolean) => Promise<void>
   /** Starts an armed hangout's scene while the player is still reading. */
   prefetchHangoutScene: (charId: string, description: string) => Promise<void>
   /**
@@ -56,7 +57,7 @@ export function registerHangoutEntry(registered: HangoutEntry): void {
  * Throws when unregistered: a module reached without its owner loaded is an import-graph
  * mistake, and a silently dropped `advance()` would strand playback.
  */
-function need<T>(registered: T | null, what: string): T {
+function need<T>(registered: T | null | undefined, what: string): T {
   if (!registered) throw new Error(`[loop] ${what} has not been registered`)
   return registered
 }
@@ -98,4 +99,9 @@ export function startHangoutScene(
   preset?: Verdict
 ): Promise<void> {
   return need(hangoutEntry, 'the hangout entry').startHangoutScene(charId, description, preset)
+}
+
+/** Begins a fixed-room meeting, optionally between slots. */
+export function startRoomScene(charId: string, room: 'herRoom' | 'hisRoom', action: string, bonus = false): Promise<void> {
+  return need(need(hangoutEntry, 'the hangout entry').startRoomScene, 'the private-room entry')(charId, room, action, bonus)
 }

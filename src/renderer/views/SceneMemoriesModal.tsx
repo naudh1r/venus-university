@@ -35,6 +35,7 @@ export function SceneMemoriesModal({
   rows,
   onSave
 }: SceneMemoriesModalProps): JSX.Element | null {
+  const bonus = useGameStore(s => s.sceneBonus)
   const characters = useGameStore((s) => s.characters)
   const charInfo = useGameStore((s) => s.charInfo)
   // Each row opens on the memory the ledger filed, or on a blank sentence where it filed none.
@@ -44,7 +45,7 @@ export function SceneMemoriesModal({
   const [keepReplay, setKeepReplay] = useState(true)
   // The shell reads its close and its primary at the moment either fires, so a dismissal or a
   // key commits the latest drafts.
-  const save = (): void => onSave(drafts, keepReplay)
+  const save = (): void => onSave(drafts, !bonus && keepReplay)
   const { host, overlayProps, primaryProps } = useModalShell(save, 'panel', save)
 
   /** Writes one row's verb or words, leaving the others as they stand. */
@@ -117,14 +118,16 @@ export function SceneMemoriesModal({
           <div className="vu-scroll-fade" />
         </div>
 
-        <div className="vu-memedit-replay">
-          <CheckField
-            id="scene-memories-replay"
-            label="Save replay"
-            checked={keepReplay}
-            onChange={setKeepReplay}
-          />
-        </div>
+        {!bonus && (
+          <div className="vu-memedit-replay">
+            <CheckField
+              id="scene-memories-replay"
+              label="Save replay"
+              checked={keepReplay}
+              onChange={setKeepReplay}
+            />
+          </div>
+        )}
 
         {/* Every row is already an answer, so the foot carries one and no cancel. */}
         <div className="vu-foot">

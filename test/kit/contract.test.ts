@@ -524,6 +524,42 @@ describe('every hook in the table', () => {
   let on = ''
   hooksShim.setHookRules({ isOn: (id) => id === on, order: () => 0 })
 
+  it('carries interlude room routes and bonus settlement contexts through the kit', () => {
+    const id = 'probe:interlude-fields'
+    const route = () => ({ room: 'herRoom' as const })
+    const pick = () => undefined
+    const value: NonNullable<ReturnType<NonNullable<ModHooks['slotInterlude']>>> = {
+      lines: [], clock: 'late-night', look: { time: 0, room: { kind: 'herRoom', charId: 'c' } },
+      rows: [{ label: 'Open', lead: [], onPick: pick }, { label: 'Scene', scene: { charId: 'c', room: 'hisRoom', action: 'Meet' } }],
+      onHangout: route
+    }
+    const received: unknown[] = []
+    rendererKit.registerHooks(id, {
+      slotInterlude: () => value,
+      slotSettled: ctx => { received.push(ctx.bonus) },
+      slotStatusLines: ctx => { received.push(ctx.bonus); return [] },
+      projectSlotMemories: (ctx, info) => { received.push(ctx.bonus); return info },
+      exercisedStats: (ledger, ctx) => { received.push(ctx.bonus); return ledger },
+      settleSceneStats: (stats, ctx) => { received.push(ctx.bonus); return stats }
+    })
+    on = id
+    try {
+      const held = hooksShim.slotInterlude({ from: { date: 1, time: 1 }, to: { date: 2, time: 0 }, semesterIndex: 0 })
+      expect(held).toEqual({ owner: id, interlude: value })
+      expect(held?.interlude.onHangout).toBe(route)
+      expect(held?.interlude.rows[0].onPick).toBe(pick)
+      for (const bonus of [undefined, true] as const) {
+        const flag = bonus ? { bonus } : {}
+        hooksShim.slotSettled({ before: never, ledger: null, closingCast: [], ...flag })
+        hooksShim.slotStatusLines({ nextSlot: 4, ...flag })
+        hooksShim.projectSlotMemories({ before: never, closingCast: [], ...flag }, {})
+        hooksShim.exercisedStats(undefined, { ...({} as import('@vx/modkit/shared').StatContext), ...flag })
+        hooksShim.settleSceneStats({ deltas: never, lines: [] }, { ledger: undefined, ctx: never, ...flag })
+      }
+      expect(received).toEqual([undefined, undefined, undefined, undefined, undefined, true, true, true, true, true])
+    } finally { on = '' }
+  })
+
   for (const row of HOOKS) {
     if (row.side !== 'renderer') continue
     const id = `probe:${row.name}`

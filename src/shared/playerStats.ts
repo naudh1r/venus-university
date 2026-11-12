@@ -232,6 +232,8 @@ export interface ShiftGain {
 
 /** What the app knows about the slot that the ledger does not. */
 export interface StatContext {
+  /** A scene played between slots, without moving the clock. */
+  bonus?: true
   /**
    * The scene had no other characters in it: every exercised stat counts, and each pays twice.
    */
