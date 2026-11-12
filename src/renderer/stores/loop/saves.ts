@@ -510,6 +510,8 @@ export function manualSaveDraft(): SaveDraft | null {
   if (isGraduationSlot(game.date, game.time) && game.graduationSeen && !sceneActiveOf(game)) {
     return { ...game.toGameSave(), scene: null }
   }
+  // A held interlude has no scene: loading the save opens the slot again and lands back on it.
+  if (game.interlude) return { ...game.toGameSave(), scene: null }
   const draft = game.toGameSave()
   if (!draft.scene) return null
   const scene = onLine(draft.scene)
