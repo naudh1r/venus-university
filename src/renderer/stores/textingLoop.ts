@@ -2001,7 +2001,7 @@ export function releaseHeldReplies(): void {
   }
 }
 
-/** A slot's messages become available at its landing, never under a late-night hold. */
+/** A slot's messages become available at its landing, or at an interlude held before it. */
 export function openChatSlot(): void {
   const game = useGameStore.getState()
   const clock = { date: game.date, time: game.time }

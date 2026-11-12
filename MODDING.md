@@ -1808,7 +1808,7 @@ show typing dots, and is not classified for a hangout. `afterDmReply` receives t
 as `held`. Every contact message appended while the hold stands, including attachments from
 mods, is stamped for that slot. Future messages stay out of the thread, previews, unread
 counts, sounds and the current texting ledger. They appear when that slot's landing or an
-interlude using its clock opens; a late-night hold does not release them. A block in the
+interlude using its clock opens, a late-night hold included. A block in the
 reply takes effect then too. A failure instead posts its error immediately and keeps Retry.
 
 Another text before delivery replaces the held messages and requests one reply covering the

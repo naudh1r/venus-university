@@ -452,7 +452,7 @@ async function beginSlot(released = false, row?: InterludeRow): Promise<void> {
         await startRoomScene(scene.charId, scene.room, scene.action, true, loopState.bankedOpening, scene.at, scene.pays)
         return
       }
-      if (held.interlude.clock !== 'late-night') openChatSlot()
+      openChatSlot()
       showInterludeLanding({ ...ctx.from, time: held.interlude.look?.time ?? ctx.from.time })
       if (held.interlude.look?.room) await loadCgReady([held.interlude.look.room.charId])
       if (runStale(run)) return
