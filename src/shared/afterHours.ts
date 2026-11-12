@@ -1,43 +1,30 @@
-import { globalSlotOf, type TimeSlot } from '@vx/modkit/shared'
+import { charKeyOf, globalSlotOf, type Character, type TimeSlot } from '@vx/modkit/shared'
 
 export { AFTER_HOURS_MOD } from './afterHoursText'
 
-export interface NightVisit {
-  charId: string
-  room: 'herRoom' | 'hisRoom'
-  morning: number
-  stayed?: boolean
-  scened?: boolean
-}
-
-/** The reader's phone status and the night's visit, if one began. */
+/** The reader's phone status and the morning whose night has ended. */
 export interface AfterHours {
   busy: boolean
   nightDone?: number
-  visit?: NightVisit
 }
 
-/** Restores the phone status, completed-night marker and a well-formed visit. */
+/** Restores the phone status and completed-night marker. */
 export function normalize(stored: unknown): AfterHours {
   const data = typeof stored === 'object' && stored !== null ? stored as Partial<AfterHours> : {}
-  const visit = data.visit
-  const validVisit = visit && typeof visit === 'object' &&
-    typeof visit.charId === 'string' && visit.charId.trim().length > 0 &&
-    (visit.room === 'herRoom' || visit.room === 'hisRoom') &&
-    Number.isInteger(visit.morning) && visit.morning >= 0 && visit.morning % 2 === 0 &&
-    (visit.stayed === undefined || typeof visit.stayed === 'boolean') &&
-    (visit.scened === undefined || typeof visit.scened === 'boolean')
   return {
-    ...(validVisit ? {
-      visit: {
-        charId: visit.charId, room: visit.room, morning: visit.morning,
-        ...(visit.stayed !== undefined ? { stayed: visit.stayed } : {}),
-        ...(visit.scened !== undefined ? { scened: visit.scened } : {})
-      }
-    } : {}),
     busy: data.busy === true,
     ...(typeof data.nightDone === 'number' && Number.isInteger(data.nightDone) ? { nightDone: data.nightDone } : {})
   }
+}
+
+/** The girl of this cast the ledger says is staying over, in a room they can share. */
+export function stayOverOf(ledger: unknown, cast: readonly Character[]): { girl: Character; room: 'herRoom' | 'hisRoom' } | null {
+  if (!ledger || typeof ledger !== 'object') return null
+  const { stayedOverWith, stayedOverIn } = ledger as { stayedOverWith?: unknown; stayedOverIn?: unknown }
+  if (typeof stayedOverWith !== 'string' || stayedOverWith === 'none' ||
+    (stayedOverIn !== 'herRoom' && stayedOverIn !== 'hisRoom')) return null
+  const girl = cast.find(girl => charKeyOf(girl.firstName, girl.lastName) === stayedOverWith)
+  return girl ? { girl, room: stayedOverIn } : null
 }
 
 /** A morning after an evening still owes its night until that morning's marker is recorded. */
@@ -57,18 +44,4 @@ export function busyDrops(
   busy: boolean
 ): boolean {
   return busy && verdict?.initiatedBy === 'contact' && ctx.startedBy === 'reader' && !ctx.answeringInvite
-}
-
-/** Chooses the hold and whether the morning can be spent with her. */
-export function morningInterlude(
-  to: { date: number; time: TimeSlot }, data: AfterHours, free: boolean, graduation: boolean
-): 'night' | 'morningScene' | 'buttons' | null {
-  if (to.time !== 0 || to.date <= 0) return null
-  const visit = data.visit
-  if (visit?.morning === globalSlotOf(to.date, to.time)) {
-    if (!visit.stayed) return null
-    if (!visit.scened) return 'morningScene'
-    return !graduation && visit.room === 'herRoom' && free ? 'buttons' : null
-  }
-  return nightOwed(to, data) ? 'night' : null
 }

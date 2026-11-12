@@ -1,5 +1,6 @@
 import type { CharacterDynamics } from '@shared/characterDynamics'
 import { modRequest, promptFields, promptLines, promptRequired } from '../mods/hooks'
+import type { ExamPeriod } from '@shared/academics'
 import { yearLabel } from '@shared/classes'
 import { worstInSlot } from '@shared/colds'
 import { globalSlotOf } from '@shared/jobs'
@@ -14,8 +15,7 @@ import {
   type CharInfo,
   type EverydayAsk,
   type Haunt,
-  type HangoutInvite,
-  type ReachOutTopic,
+  type LedgerResponse,
   type Occasion,
   type Season,
   type StructuredRequest,
@@ -48,7 +48,14 @@ import { weatherLines } from './weather'
 export type Commitment = { kind: 'class'; name: string } | { kind: 'shift'; employer: string }
 
 /** What a girl asking him out of nowhere asks him to, when the app rolled her anything. */
-export type { HangoutInvite } from '@shared/types'
+export type HangoutInvite =
+  | { kind: 'herRoom' }
+  | { kind: 'hisRoom' }
+  /** An exam in a lecture class the two of them take, and the slot it is sat in. */
+  | { kind: 'study'; className: string; exam: ExamPeriod; date: number; time: TimeSlot }
+  /** A location id off the map. */
+  | { kind: 'outing'; location: string }
+  | { kind: 'everyday'; ask: EverydayAsk }
 
 /** Each everyday ask as the prompt names it beside her key. */
 const EVERYDAY_ASK_PHRASE: Record<EverydayAsk, string> = {
@@ -151,7 +158,7 @@ export interface IntroVisitor {
 export const REACH_OUT_TOPICS = ['wellbeing', 'goodNews', 'badNews', 'question', 'sick'] as const
 
 /** One of {@link REACH_OUT_TOPICS}. */
-export type { ReachOutTopic } from '@shared/types'
+export type ReachOutTopic = (typeof REACH_OUT_TOPICS)[number]
 
 /** The topics a reach-out is rolled from. */
 export const ROLLED_REACH_OUT_TOPICS: readonly ReachOutTopic[] = [
@@ -630,7 +637,8 @@ function characterBlock(input: SlotIntroInput): string[] {
 export function buildSlotIntroPrompt(
   input: SlotIntroInput,
   setting: string,
-  reader: string
+  reader: string,
+  ledger: LedgerResponse | null = null
 ): StructuredRequest {
   const waking = input.time === 0
   const rumor = rumorBlock(input)
@@ -746,7 +754,7 @@ export function buildSlotIntroPrompt(
         ])
   ].join('\n')
 
-  return modRequest('slot-intro', { input }, {
+  return modRequest('slot-intro', { input, ledger }, {
     system: [
       narrationPersonaFor(input.lessNsfwText, input.globalTextEdits),
       '',

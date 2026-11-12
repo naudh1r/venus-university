@@ -86,6 +86,18 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.17.0
+
+- Interludes are narration and simple choices only. Private-room routes, confirmation and
+  transition fields, bonus scenes and their settlement flags, and the kit's commitment reader
+  are removed. Existing scene saves still load; obsolete bonus fields have no effect.
+- `relaxRows` adds choices under Relax, in mod order, that call their handler before the
+  normal Relax flow.
+- `interludePreview` accepts a late-night clock for the curtain. Its context and the slot-intro
+  request context carry the preceding scene's ledger, or null without a scene.
+- Night holds show contacts in their own dorms, with away and sick statuses taking priority.
+  Manual saves retain the banked opening so a held landing reload keeps its morning narration.
+
 ## 0.16.0
 
 - `interludePreview(ctx)`: asked when a boundary's curtain falls; a mod that will hold the coming slot
@@ -100,13 +112,11 @@
 
 ## 0.14.0
 
-- Bonus boundaries dispatch `bonusSettled` with `bonus: true`; ordinary `slotSettled` has no
-  bonus context and never receives bonus scenes. Scene-computation hooks retain their flags.
 - Core's previews and scene histories leave out messages not shown yet. The conversation readers
   keep handing out the whole thread; `chatClock()` (renderer) with `messageShown` and
   `shownMessages` (shared) let a mod that shows messages filter them the same way. Recovery finds
   waiting texts behind saved errors; semester carry moves held delivery dates with their messages.
-- Shared exports `threadStartedBy`. Morning bonus thumbnails follow the morning stage.
+- Shared exports `threadStartedBy`.
 
 ## 0.13.0
 
@@ -115,36 +125,10 @@
   for a hangout. DM prompts receive `heldUntil` and `commitment`; `afterDmReply` receives `held`.
   Later message attachments share the hold, and saved unfinished turns resume on load.
 
-## 0.12.0
-
-- `Interlude.scene` starts a private bonus scene immediately, with `at: 'night' | 'morning'`
-  choosing its clock and `pays` choosing whether it pays stats and ledger money. Both facts
-  survive saves and rewinds. Non-paying scenes retain memories, events, acts and colds;
-  `StatContext.pays` lets stat hooks distinguish them. Existing visits still run at night
-  and pay normally.
-
-## 0.11.0
-
-- Renderer mods can read what holds a character in a slot with `charCommitmentAt(charId, date?, time?)`:
-  her class (`{ kind: 'class', name }`), her shift (`{ kind: 'shift', employer }`) or `null`, the
-  current slot when no date and time are given. `freeForInvitation` stays the availability check.
-
-## 0.10.0
-
-- Interludes can choose their landing's room and half with `look`, prefix the opening with
-  a row's `lead`, or quietly open the slot and start a private room `scene` without a classifier.
-  A row may have `lead` or `scene`, never both.
-- An interlude's `onHangout` can arm a bonus scene in either private room. It uses normal
-  scene playback, closing and bookkeeping, saves and resumes as a bonus scene, and returns
-  to a newly asked interlude without advancing the clock or consuming the texting ledger.
-  The refreshed opening keeps its previously rolled invitations, calendar picks and overlay.
-- `slotSettled`, `slotStatusLines`, `projectSlotMemories`, `exercisedStats` and `settleSceneStats`
-  receive `bonus: true` for these scenes; it is absent on ordinary scenes.
-
 ## 0.9.0
 
 - `slotInterlude` can hold a slot opening on the finished slot's landing with narration,
-  confirmed choices and a working phone. `interludeNow` and `useInterludeNow` read the hold.
+  choices and a working phone. `interludeNow` and `useInterludeNow` read the hold.
 - A `late-night` clock keeps texts in the new slot's ledger while their stamps, prompts,
   weather and availability read as late on the preceding night.
 - `relaxLabel` replaces the Relax row's words without changing what it does.

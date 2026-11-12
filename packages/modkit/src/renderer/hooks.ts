@@ -44,17 +44,14 @@ export interface InterludeCtx {
   from: { date: number; time: TimeSlot }
   to: { date: number; time: TimeSlot }
   semesterIndex: number
+  /** The finished scene's ledger, or null when no scene preceded this opening. */
+  ledger: LedgerResponse | null
 }
 
-/** One way to release a held slot, optionally after the game's confirmation. */
+/** One way to release a held slot. */
 export interface InterludeRow {
   label: string
-  confirm?: { title: string; message: string; confirmText: string; cancelText: string }
-  onPick?: () => void
-  /** Lines preceding the opening narration; exclusive with `scene`. */
-  lead?: readonly string[]
-  /** Opens the slot without narration, then begins a private scene without classification. */
-  scene?: { charId: string; room: 'herRoom' | 'hisRoom'; action: string }
+  onPick: () => void
 }
 
 /** Narration and choices on the finished slot's landing. */
@@ -62,20 +59,6 @@ export interface Interlude {
   lines: readonly string[]
   rows: readonly InterludeRow[]
   clock?: 'late-night'
-  /** The held landing's half and room; defaults to the finished slot in his room. */
-  look?: { time?: TimeSlot; room?: { kind: 'herRoom' | 'hisRoom'; charId: string } }
-  /** Start this bonus scene at once instead of showing the held landing. */
-  scene?: {
-    charId: string
-    room: 'herRoom' | 'hisRoom'
-    action: string
-    /** Set the scene on the held night or in the opening slot. */
-    at: 'night' | 'morning'
-    /** False keeps memories, events and acts, without stats or money. */
-    pays: boolean
-  }
-  /** Routes an agreed DM hangout into a bonus scene, or drops it. */
-  onHangout?: (verdict: HangoutVerdict, ctx: HangoutVerdictCtx) => { room: 'herRoom' | 'hisRoom' } | null
 }
 
 /** The thread and invitation behind a texting classifier's verdict. */
@@ -205,7 +188,7 @@ export interface RequestSpots {
   scene: PromptSpots['scene']
   dm: PromptSpots['dm'] & { newMessage: string }
   ledger: { state: PromptState; charKeys: readonly string[] }
-  'slot-intro': { input: SlotIntroInput }
+  'slot-intro': { input: SlotIntroInput; ledger: LedgerResponse | null }
 }
 
 export interface SlotSettled {
@@ -215,7 +198,7 @@ export interface SlotSettled {
 }
 
 /** A read-only preview of the finished scene, before the crush roll and next opening. */
-export type SlotMemoryProjection = Pick<SlotSettled, 'before' | 'closingCast'> & { bonus?: true }
+export type SlotMemoryProjection = Pick<SlotSettled, 'before' | 'closingCast'>
 
 /** What a finished scene does to the reader's stats, and the lines that say so. */
 export interface SceneStats {
@@ -225,8 +208,6 @@ export interface SceneStats {
 
 /** What the game resolved a scene's stats from: the ledger's verdict and the scene's facts. */
 export interface SceneStatSettlement {
-  /** This scene leaves the clock in place. */
-  bonus?: true
   /** What the hour exercised, as `exercisedStats` left it. */
   ledger: LedgerStats | undefined
   ctx: StatContext
@@ -427,11 +408,13 @@ export interface ModHooks {
   slotInterlude?: (ctx: InterludeCtx) => Interlude | null
   /** The first label replaces the Relax row's words. */
   relaxLabel?: (ctx: { date: number; time: TimeSlot }) => string | undefined
+  /** Extra choices that call their handler before spending the slot on Relax. */
+  relaxRows?: (ctx: { date: number; time: TimeSlot }) => readonly { label: string; onPick: () => void }[]
   /**
    * Whether the coming slot will be held on the finished one's look, asked when the boundary's
    * curtain falls so it announces what is shown next. Pure: write nothing.
    */
-  interludePreview?: (ctx: InterludeCtx) => { at: 'from' | 'to' } | null
+  interludePreview?: (ctx: InterludeCtx) => { at: 'from' | 'to'; clock?: 'late-night' } | null
   /** Return false to omit this scene row before projection and settlement. */
   keepSceneLedgerEntry?: (entry: Readonly<SceneLedgerEntry>) => boolean
   /**
@@ -461,13 +444,11 @@ export interface ModHooks {
   requests?: { [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest }
   /** After bookkeeping settles, before the clock advances and the boundary save is written. */
   slotSettled?: (ctx: SlotSettled) => void
-  /** A bonus boundary, without advancing the slot. */
-  bonusSettled?: (ctx: SlotSettled & { bonus: true }) => void
   /**
    * Lines in the slot's closing report, after what each girl took away from it, written as the
    * game writes its own (`memoryStatusLine`). `nextSlot` is the global slot about to begin.
    */
-  slotStatusLines?: (ctx: { nextSlot: number; bonus?: true }) => readonly SceneLine[]
+  slotStatusLines?: (ctx: { nextSlot: number }) => readonly SceneLine[]
   /**
    * Apply the same memory weights as settlement to a projection. Must return new values
    * without writing the store, paying rewards, consuming abilities or rolling randomness.
@@ -1003,7 +984,6 @@ export function slotInterlude(ctx: InterludeCtx): { owner: string; interlude: In
   for (const { modId, hooks } of activeEntries()) {
     try {
       const interlude = hooks.slotInterlude?.(ctx)
-      if (interlude?.rows.some(row => row.lead && row.scene)) throw new Error('An interlude row cannot have both lead and scene')
       if (interlude) return { owner: modId, interlude }
     } catch (error) {
       console.warn(`[mods] ${modId}: slotInterlude failed`, error)
@@ -1013,7 +993,7 @@ export function slotInterlude(ctx: InterludeCtx): { owner: string; interlude: In
 }
 
 /** Asks enabled mods, first answer wins, which slot the boundary's curtain should announce. */
-export function interludePreview(ctx: InterludeCtx): { at: 'from' | 'to' } | null {
+export function interludePreview(ctx: InterludeCtx): { at: 'from' | 'to'; clock?: 'late-night' } | null {
   for (const { modId, hooks } of activeEntries()) {
     try {
       const preview = hooks.interludePreview?.(ctx)
@@ -1301,7 +1281,7 @@ export function slotSettled(ctx: SlotSettled): void {
 }
 
 /** Every mod's lines for the slot's closing report, after the girls' memories, in list order. */
-export function slotStatusLines(ctx: { nextSlot: number; bonus?: true }): SceneLine[] {
+export function slotStatusLines(ctx: { nextSlot: number }): SceneLine[] {
   return active().flatMap((hooks) => [...(hooks.slotStatusLines?.(ctx) ?? [])])
 }
 
@@ -1444,7 +1424,15 @@ export function textWhileBusy(ctx: { charId: string; commitment: Commitment }): 
   return false
 }
 
-/** Bonus scenes keep a separate settlement path from ordinary slot advances. */
-export function bonusSettled(ctx: SlotSettled & { bonus: true }): void {
-  for (const hooks of active()) hooks.bonusSettled?.(ctx)
+/** Every enabled mod's extra Relax choices, in mod order. */
+export function relaxRows(ctx: { date: number; time: TimeSlot }): { label: string; onPick: () => void }[] {
+  const rows: { label: string; onPick: () => void }[] = []
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      rows.push(...(hooks.relaxRows?.(ctx) ?? []))
+    } catch (error) {
+      console.warn(`[mods] ${modId}: relaxRows failed`, error)
+    }
+  }
+  return rows
 }

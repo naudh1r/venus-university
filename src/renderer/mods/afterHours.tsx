@@ -3,18 +3,15 @@ import { AnimatePresence, motion } from 'motion/react'
 import { globalSlotOf, threadStartedBy } from '@vx/modkit/shared'
 import {
   character,
-  charCommitmentAt,
   conversation,
   fadeIn,
-  freeForInvitation,
   gestures,
   interludeNow,
-  isGraduationSlot,
   modOptionOn,
-  modState,
   quietLift,
   quietPress,
   registerHooks,
+  rosterIds,
   safePoint,
   saveField,
   showError,
@@ -23,18 +20,21 @@ import {
   usePlayerProfilePicture,
   type ScreenSlotProps
 } from '@vx/modkit/renderer'
-import { AFTER_HOURS_MOD, busyDrops, busyPromptApplies, morningInterlude, normalize, type AfterHours, type NightVisit } from '../../shared/afterHours'
+import { AFTER_HOURS_MOD, busyDrops, busyPromptApplies, nightOwed, normalize, stayOverOf, type AfterHours } from '../../shared/afterHours'
 import {
-  afterHoursText, busyPrompt, busyTextPrompt, morningReturnPrompt, morningScenePrompt, morningText, nightPrompt, visitFieldInstruction,
-  visitLedgerInstruction, visitMorningPrompt, visitScenePrompt
+  afterHoursText, busyPrompt, busyTextPrompt, morningReturnPrompt, nightPrompt,
+  stayOverLedgerInstruction, stayOverPrompt
 } from '../../shared/afterHoursText'
 import '../vu_styles/AfterHours.css'
 
 const status = saveField<AfterHours>(AFTER_HOURS_MOD, { empty: { busy: false }, normalize })
-const nightState = modState<{
-  agreements: Record<string, 'herRoom' | 'hisRoom' | 'none'>
-  armed: Pick<NightVisit, 'charId' | 'room'> | null
-}>(AFTER_HOURS_MOD, { initial: { agreements: {}, armed: null }, lifetime: 'game' })
+/** The loaded roster and graduates whose keys an opening can name. */
+function gameCharacters(): NonNullable<ReturnType<typeof character>>[] {
+  return rosterIds({ alumni: true }).flatMap(id => {
+    const girl = character(id)
+    return girl ? [girl] : []
+  })
+}
 function nightHolds(): boolean {
   const hold = interludeNow()
   return hold?.owner === AFTER_HOURS_MOD && hold.clock === 'late-night'
@@ -125,93 +125,48 @@ function StatusChip({ theme }: ScreenSlotProps['chatsHeader']): JSX.Element | nu
 registerHooks(AFTER_HOURS_MOD, {
   chatsHeader: StatusChip,
   textWhileBusy: () => modOptionOn(AFTER_HOURS_MOD, 'busy-texts'),
-  interludePreview: ({ to }) =>
-    modOptionOn(AFTER_HOURS_MOD, 'night') && morningInterlude(to, status.read(), false, false) === 'night' ? { at: 'from' } : null,
+  interludePreview: ({ to, ledger }) =>
+    modOptionOn(AFTER_HOURS_MOD, 'night') && nightOwed(to, status.read()) && !stayOverOf(ledger, gameCharacters())
+      ? { at: 'from', clock: 'late-night' } : null,
   slotInterlude: ({ to }) => {
-    if (!modOptionOn(AFTER_HOURS_MOD, 'night')) return null
-    const data = status.read()
-    const visit = data.visit
-    const choice = morningInterlude(to, data, Boolean(visit && freeForInvitation(visit.charId)), isGraduationSlot(to.date, to.time))
-    if (!choice) {
-      if (visit?.stayed && visit.scened && visit.morning === globalSlotOf(to.date, to.time)) status.set({ ...data, visit: undefined })
-      return null
-    }
-    if (choice === 'night') return {
+    if (!modOptionOn(AFTER_HOURS_MOD, 'night') || !nightOwed(to, status.read())) return null
+    return {
       lines: [afterHoursText.nightLine],
       rows: [{
-        label: afterHoursText.endTheDay,
-        confirm: afterHoursText.endTheDayConfirm,
-        onPick: () => {
-          nightState.set({ ...nightState.get(), armed: null })
-          status.set({ ...status.read(), visit: undefined, nightDone: globalSlotOf(to.date, to.time) })
-        }
+        label: afterHoursText.sleep,
+        onPick: () => status.set({ ...status.read(), nightDone: globalSlotOf(to.date, to.time) })
       }],
-      clock: 'late-night',
-      onHangout: (_verdict, ctx) => {
-        const room = nightState.get().agreements[ctx.charId]
-        nightState.set({ ...nightState.get(), armed: room === 'herRoom' || room === 'hisRoom' ? { charId: ctx.charId, room } : null })
-        return room === 'herRoom' || room === 'hisRoom' ? { room } : null
-      }
-    }
-    if (!visit) return null
-    const name = character(visit.charId)?.firstName
-    if (!name) return null
-    if (choice === 'morningScene') {
-      status.set({ ...data, visit: { ...visit, scened: true } })
-      return {
-        lines: [], rows: [],
-        scene: { charId: visit.charId, room: visit.room, action: morningText.wakeAction(name), at: 'morning', pays: false }
-      }
-    }
-    const onPick = (): void => { status.set({ ...status.read(), visit: undefined }) }
-    return {
-      look: { time: to.time, room: { kind: 'herRoom', charId: visit.charId } },
-      lines: [],
-      rows: [
-        { label: morningText.stay(name), onPick, scene: { charId: visit.charId, room: 'herRoom', action: morningText.action(name) } },
-        { label: morningText.headBack, onPick }
-      ]
+      clock: 'late-night'
     }
   },
-  afterDmReply: ({ charId, reply }) => {
-    if (!nightHolds()) return
-    const value = (reply as { nightVisit?: unknown }).nightVisit
-    nightState.set({ ...nightState.get(), agreements: { ...nightState.get().agreements, [charId]: value === 'herRoom' || value === 'hisRoom' ? value : 'none' } })
-  },
-  playerActs: () => {
-    const hold = interludeNow()
-    const agreed = nightState.get().armed
-    if (hold?.owner !== AFTER_HOURS_MOD || !agreed) return
-    const morning = globalSlotOf(hold.to.date, hold.to.time)
-    if (status.read().visit?.morning === morning) return
-    status.set({ ...status.read(), visit: { ...agreed, morning } })
-    nightState.set({ ...nightState.get(), armed: null })
-  },
-  bonusSettled: ({ ledger }) => {
-    const visit = status.read().visit
-    if (!visit || visit.scened || visit.stayed !== undefined) return
-    const fields = ledger as { stayedOver?: unknown } | null
-    const stayed = fields?.stayedOver === true
-    status.set({ ...status.read(), visit: { ...visit, stayed }, nightDone: visit.morning })
+  relaxRows: ({ date, time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? [{
+    label: afterHoursText.skipTomorrow,
+    onPick: () => status.set({ ...status.read(), nightDone: globalSlotOf(date, time) + 1 })
+  }] : [],
+  slotSettled: ({ before, ledger, closingCast }) => {
+    if (before.time === 1 && stayOverOf(ledger, closingCast)) {
+      status.set({ ...status.read(), nightDone: globalSlotOf(before.date, before.time) + 1 })
+    }
   },
   requests: {
-    ledger: request => {
-      const visit = status.read().visit
-      if (!visit || visit.scened || visit.stayed !== undefined) return request
+    ledger: (request, { state, charKeys }) => {
+      if (state.time !== 1 || !modOptionOn(AFTER_HOURS_MOD, 'night')) return request
       const schema = request.schema.schema
-      return { ...request, user: `${request.user}\n${visitLedgerInstruction}`, schema: { ...request.schema, schema: {
+      return { ...request, user: `${request.user}\n${stayOverLedgerInstruction}`, schema: { ...request.schema, schema: {
         ...schema,
-        properties: { ...schema.properties as Record<string, unknown>, stayedOver: { type: 'boolean' } },
-        required: [...((schema.required as string[]) ?? []), 'stayedOver']
+        properties: {
+          ...schema.properties as Record<string, unknown>,
+          stayedOverWith: { type: 'string', enum: [...charKeys, 'none'] },
+          stayedOverIn: { type: 'string', enum: ['herRoom', 'hisRoom', 'none'] }
+        },
+        required: [...((schema.required as string[]) ?? []), 'stayedOverWith', 'stayedOverIn']
       } } }
     },
-    'slot-intro': (request, { input }) => {
-      const visit = status.read().visit
-      if (!visit || visit.morning !== globalSlotOf(input.date, input.time)) return request
-      const name = character(visit.charId)?.firstName
-      if (!name) return request
-      const line = visit.stayed ? morningReturnPrompt(name, visit.room) : visitMorningPrompt(name, visit.room)
-      return { ...request, user: `${request.user}\n${line}` }
+    'slot-intro': (request, { input, ledger }) => {
+      if (input.time !== 0) return request
+      const stay = stayOverOf(ledger, gameCharacters())
+      if (!stay) return request
+      return { ...request, user: `${request.user}\n${morningReturnPrompt(stay.girl.firstName, stay.room)}` }
     }
   },
   hangoutVerdict: (verdict, ctx) =>
@@ -219,13 +174,7 @@ registerHooks(AFTER_HOURS_MOD, {
   relaxLabel: ({ time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? afterHoursText.relax : undefined,
   prompts: {
     scene: {
-      lines: ({ state }) => {
-        const visit = status.read().visit
-        if (!visit) return []
-        if (state.lateNight) return [visitScenePrompt(visit.room)]
-        const name = character(visit.charId)?.firstName
-        return visit.scened && name ? [morningScenePrompt(name, visit.room, charCommitmentAt(visit.charId))] : []
-      }
+      lines: ({ state }) => state.time === 1 && modOptionOn(AFTER_HOURS_MOD, 'night') ? [stayOverPrompt] : []
     },
     dm: {
       lines: ({ character, state }) => {
@@ -237,12 +186,10 @@ registerHooks(AFTER_HOURS_MOD, {
         )
         return [
           ...(state.heldUntil && state.commitment ? [busyTextPrompt(character.firstName, state.commitment)] : []),
-          ...(nightHolds() ? [nightPrompt(character.firstName), visitFieldInstruction] : []),
+          ...(nightHolds() ? [nightPrompt(character.firstName)] : []),
           ...(busy ? [busyPrompt(character.firstName)] : [])
         ]
-      },
-      fields: () => nightHolds() ? { nightVisit: { type: 'string', enum: ['herRoom', 'hisRoom', 'none'] } } : {},
-      required: () => nightHolds() ? ['nightVisit'] : []
+      }
     }
   }
 })

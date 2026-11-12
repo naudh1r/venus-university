@@ -10,8 +10,6 @@ export type BunnyboardTab = 'chats' | 'friends' | 'updates' | 'profile' | 'photo
 
 /** An agreed hangout waiting on the player's "Begin hangout". */
 interface ArmedHangout {
-  /** The private room for a bonus scene agreed while an interlude holds. */
-  room?: 'herRoom' | 'hisRoom'
   charId: string
   /** The plan, as the reply described it — the scene's opening action. */
   description: string

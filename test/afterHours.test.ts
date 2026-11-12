@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { busyDrops, busyPromptApplies, morningInterlude, nightOwed, normalize } from '../src/shared/afterHours'
+import { charKeyOf } from '@vx/modkit/shared'
+import { character } from './fixtures'
+import { busyDrops, busyPromptApplies, nightOwed, normalize, stayOverOf } from '../src/shared/afterHours'
 
 describe('Busy invitations', () => {
   const ctx = { startedBy: 'reader' as const, answeringInvite: false }
@@ -49,6 +51,12 @@ describe('saved status', () => {
     expect(normalize({ nightDone: 0 })).toEqual({ busy: false, nightDone: 0 })
   })
 
+  it('drops an old visit while keeping the phone status and completed night', () => {
+    expect(normalize({ busy: true, nightDone: 14, visit: {
+      charId: 'girl', room: 'herRoom', morning: 14, stayed: true, scened: true
+    } })).toEqual({ busy: true, nightDone: 14 })
+  })
+
   it('drops malformed completed-night markers', () => {
     for (const nightDone of [undefined, null, '14', true, 14.5, NaN, Infinity, -Infinity, {}, []]) {
       expect(normalize({ busy: true, nightDone })).toEqual({ busy: true })
@@ -71,71 +79,31 @@ describe('the night owed before a morning opens', () => {
   })
 })
 
-describe('night visit save integrity', () => {
-  const visit = { charId: 'girl', room: 'herRoom', morning: 14 }
+describe('the stay-over named by the ending ledger', () => {
+  const girl = character({ charId: 'girl', firstName: 'Sarah', lastName: 'Adams' })
+  const other = character({ charId: 'other', firstName: 'Mina', lastName: 'Lee' })
+  const key = charKeyOf(girl.firstName, girl.lastName)
 
-  it('restores pending, slept-over and unsuccessful visits without extra fields', () => {
-    for (const extra of [{}, { stayed: true }, { stayed: false }, { stayed: true, scened: true }, { scened: false }]) {
-      expect(normalize({ busy: true, visit: { ...visit, ...extra, other: 1 } })).toEqual({ busy: true, visit: { ...visit, ...extra } })
-    }
-    expect(normalize({ visit: { ...visit, room: 'hisRoom' } }).visit?.room).toBe('hisRoom')
-  })
-
-  it('drops legacy wake data without discarding the visit or its progress', () => {
-    for (const wake of [undefined, [], ['You wake up.'], 'hello', [null]]) {
-      expect(normalize({ visit: { ...visit, stayed: true, scened: true, wake } })).toEqual({
-        busy: false, visit: { ...visit, stayed: true, scened: true }
-      })
-    }
-  })
-
-  it('drops a visit with any malformed field', () => {
-    for (const visit of [null, [], {}, true, 'girl', 14]) expect(normalize({ visit }).visit).toBeUndefined()
-    for (const bad of [null, { charId: '' }, { charId: '  ' }, { charId: 1 }, { room: 'elsewhere' },
-      { morning: '14' }, { morning: 14.5 }, { morning: NaN }, { morning: Infinity },
-      { morning: -2 }, { morning: 15 }, { stayed: 'true' }, { stayed: null }, { scened: 'true' }, { scened: null }, { scened: 1 }]) {
-      expect(normalize({ visit: bad && { ...visit, ...bad } }).visit).toBeUndefined()
-    }
-  })
-})
-
-describe('morning interlude decisions after a night visit', () => {
-  const morning = { date: 7, time: 0 as const }
-  const visit = { charId: 'girl', room: 'herRoom' as const, morning: 14, stayed: true }
-
-  it('holds the night until ended, including the night before graduation', () => {
-    expect(morningInterlude(morning, { busy: false }, true, false)).toBe('night')
-    expect(morningInterlude(morning, { busy: false }, true, true)).toBe('night')
-    expect(morningInterlude(morning, { busy: false, nightDone: 14 }, true, false)).toBeNull()
-  })
-
-  it('plays the morning-after scene once, in either room and before graduation', () => {
+  it('finds a girl of the cast in either room', () => {
     for (const room of ['herRoom', 'hisRoom'] as const) {
-      for (const free of [true, false]) {
-        for (const graduation of [true, false]) {
-          expect(morningInterlude(morning, { busy: false, visit: { ...visit, room } }, free, graduation)).toBe('morningScene')
-          expect(morningInterlude(morning, { busy: false, visit: { ...visit, room, scened: false } }, free, graduation)).toBe('morningScene')
-        }
-      }
+      expect(stayOverOf({ stayedOverWith: key, stayedOverIn: room }, [other, girl])).toEqual({ girl, room })
     }
   })
 
-  it('offers buttons only after the scene in her room when she is free', () => {
-    const data = { busy: false, visit: { ...visit, scened: true } }
-    expect(morningInterlude(morning, data, true, false)).toBe('buttons')
-    expect(morningInterlude(morning, data, false, false)).toBeNull()
-    expect(morningInterlude(morning, { ...data, visit: { ...data.visit, room: 'hisRoom' } }, true, false)).toBeNull()
-    for (const room of ['herRoom', 'hisRoom'] as const) {
-      expect(morningInterlude(morning, { ...data, visit: { ...data.visit, room } }, true, true)).toBeNull()
-    }
+  it('keeps no stay-over when either field says none', () => {
+    expect(stayOverOf({ stayedOverWith: 'none', stayedOverIn: 'herRoom' }, [girl])).toBeNull()
+    expect(stayOverOf({ stayedOverWith: key, stayedOverIn: 'none' }, [girl])).toBeNull()
   })
 
-  it('never offers another night for a begun or failed visit this morning', () => {
-    for (const stayed of [undefined, false]) {
-      expect(morningInterlude(morning, { busy: false, visit: { ...visit, stayed } }, true, false)).toBeNull()
+  it('rejects an unknown key and a girl outside the cast', () => {
+    expect(stayOverOf({ stayedOverWith: 'unknown', stayedOverIn: 'herRoom' }, [girl])).toBeNull()
+    expect(stayOverOf({ stayedOverWith: key, stayedOverIn: 'herRoom' }, [other])).toBeNull()
+  })
+
+  it('keeps no stay-over with missing or malformed fields', () => {
+    for (const ledger of [undefined, null, {}, { stayedOverWith: key }, { stayedOverIn: 'herRoom' },
+      { stayedOverWith: 1, stayedOverIn: 'herRoom' }, { stayedOverWith: key, stayedOverIn: 'elsewhere' }]) {
+      expect(stayOverOf(ledger, [girl])).toBeNull()
     }
-    expect(morningInterlude(morning, { busy: false, visit: { ...visit, morning: 12 } }, true, false)).toBe('night')
-    expect(morningInterlude({ date: 0, time: 0 }, { busy: false }, true, false)).toBeNull()
-    expect(morningInterlude({ date: 7, time: 1 }, { busy: false, visit }, true, false)).toBeNull()
   })
 })

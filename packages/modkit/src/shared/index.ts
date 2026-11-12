@@ -71,6 +71,7 @@ export {
   MAX_TIER,
   memoryStatusLine,
   messageOf,
+  messageShown,
   modById,
   modOn,
   optionKey,
@@ -82,7 +83,6 @@ export {
   registerImagePromptDraft,
   registerRomanceRequirement,
   SCENE_TEXT_IDS,
-  messageShown,
   shownMessages,
   threadStartedBy,
   validateRecord

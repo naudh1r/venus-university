@@ -1,6 +1,6 @@
 # After Hours
 
-## 0.5.2
+## 0.6.0
 
 By **Naudh1r**.
 
@@ -38,55 +38,42 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 
 ### The night
 
-- **The night** option is on by default. After every evening, whether you played a scene
-  or chose Relax, you return to your room before the morning opens. The curtain between them
-  announces the night, not the morning.
-- The landing stays at night, with one line and one row: **End the day (Skip to tomorrow)**.
-  There are no other activity rows, text box or map travel.
-- The phone stays available for texts and Bunnyfeeds comments. Stay up as long as you like;
-  there is no limit or cost.
-- The girls know it is late and everyone is in their own dorm room. You can agree to visit
-  each other's rooms. Plans for another time still work normally.
-- **End the day** asks **End the day?** Choose **Sleep** to open the morning with its
-  usual narration, texts and posts, or **Never mind** to stay up.
-- Evening Relax reads **Relax (Skip to bedtime)** while the option is on.
-- A save taken during the night loads back into it. The night's texts are marked **late night**
-  on the phone and are kept with the morning's texts.
-- The night before graduation comes too; ending it opens the ceremony.
-- Turn **The night** off to skip new nights and keep Relax's usual words. A night already
-  on screen stays until you end the day.
+- **The night** option is on by default. After the evening, the curtain announces **Night**
+  on the same day, and you return to your room before the morning opens.
+- On the evening landing, **Relax (Skip to bedtime)** spends the evening relaxing and opens
+  the night. **Skip to tomorrow**, just below it, relaxes the same way and opens the morning
+  directly.
+- The night landing has the quiet room line and one row: **Sleep**. There is no text box,
+  activity choice or map travel. The phone stays available for texts and Bunnyboard comments.
+- Each contact is in her own room; her chat names her dorm. Nobody goes anywhere tonight,
+  and a DM cannot begin a hangout. Plans for another time still work normally.
+- **Sleep** opens the new-day curtain, then the usual morning narration, texts, posts and
+  landing. There is no confirmation.
+- A reply held until a night you skip arrives on the morning landing instead.
+- A save taken at night loads back into it with the same morning narration waiting. The
+  night's texts are marked **late night** and kept with the morning's texts.
+- The night before graduation comes too; **Sleep** opens the ceremony.
+- Turn **The night** off to keep the evening's own Relax, with no extra row or new night.
+  A night already on screen stays until you sleep.
 
-### Night visits
+### Staying over
 
-Other mods that record each slot (Story Memory, Campus Talents and the like) do not see the night visit or the morning-after scene as a slot of their own.
-
-- At night, either of you can ask to meet in her room or yours. Once you agree, press
-  **Begin hangout** to start the visit, or end the day without going.
-- There is one visit per night. It ends when you fall asleep together, or earlier if it goes badly.
-- After sleeping together, the morning opens on a scene in the room where you woke up. She
-  brings up her plans for the morning, and it ends when one of you has to go or you settle
-  into the morning together. The phone is closed as in any scene. This scene leaves memories
-  but pays no stats or money.
-- Afterward, if you are in her room and she is free, the phone opens with two rows:
-  **Stay with {Name}** for a normal morning scene, or **Head back to your room**.
-  Staying spends the morning with her and skips its opening narration; its texts,
-  invitations and posts still arrive.
-- If she is not free, or you slept in your room, the usual morning opens directly after the scene.
-- Heading back or being sent back uses the morning's own narration to tell how you part and
-  get into the day, in whatever way fits what happened. There is no fixed transition line.
-- Graduation morning goes from the scene straight to the ceremony, with no rows.
-- A visit that ends badly goes straight to the usual morning, whose narration follows what happened.
-- Busy still drops her new asks in chats you started; your own asks can begin a visit.
-- Saves resume a visit or morning-after scene in progress, or return you to the choices afterward.
+- An evening scene in her room or yours can end with you spending the night together, if
+  both of you want it. It is an option, never a goal.
+- The evening ends normally, with its one ledger and memory question. There is no extra
+  scene and no night landing afterward.
+- The new-day curtain opens on the morning where you woke together. Its narration tells
+  how you part and get back into your own morning, in whatever way fits what happened.
+  The game's summary and rumour follow, then the normal landing.
 
 ## Where the code is
 
 | File | What it does |
 | --- | --- |
 | `src/shared/modEntries/after-hours.ts` | Registers the mod and its option |
-| `src/shared/afterHours.ts` | Defines the saved status, visits, completed-night marker and pure invitation/morning rules |
+| `src/shared/afterHours.ts` | Defines the saved status, completed-night marker and pure invitation/stay-over rules |
 | `src/renderer/modEntries/after-hours.ts` | Loads the renderer hooks |
 | `src/renderer/mods/afterHours.tsx` | Keeps the save field, draws the chip and registers the night, invitation, prompt and Relax hooks |
-| `src/shared/afterHoursText.ts` | Holds the labels, confirmation, catalogue copy and DM prompt lines |
+| `src/shared/afterHoursText.ts` | Holds the labels, catalogue copy and prompt lines |
 | `src/renderer/vu_styles/AfterHours.css` | Dresses the chip and its hover hint |
-| `test/afterHours.test.ts` | Checks invitation and morning decisions, nights owed and saved-data normalization |
+| `test/afterHours.test.ts` | Checks invitation and stay-over decisions, nights owed and saved-data normalization |

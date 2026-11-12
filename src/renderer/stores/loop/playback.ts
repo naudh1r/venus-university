@@ -22,7 +22,6 @@ import type { StatusModal } from './statusSteps'
 
 /** The game store fields the playback controls are decided on. */
 export interface PlaybackSlice {
-  sceneBonus?: boolean
   currentSceneTranscript: readonly SceneLine[]
   pendingLines: readonly SceneLine[]
   sceneLog: readonly SceneLine[]
@@ -187,7 +186,7 @@ export function replyRowOfferOf(s: PlaybackSlice): InterjectOffer {
  */
 export function endSceneOpenOf(s: PlaybackSlice): boolean {
   if (!playbackOffered(s) || s.replaying || s.sceneEnding) return false
-  if (!s.sceneBonus && (isOrientationSlot(s.date, s.time, s.semesterIndex) || isGraduationSlot(s.date, s.time))) {
+  if (isOrientationSlot(s.date, s.time, s.semesterIndex) || isGraduationSlot(s.date, s.time)) {
     return false
   }
   if (interjectOfferOf(s) === 'locked') return false
