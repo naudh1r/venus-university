@@ -1,14 +1,38 @@
-/* The title row stands over the list under it, so the status's hint is never painted over. */
+/* With the status in it, the title row spans the column so the status can stand at its far end. The
+   row stands over the list under it, so the status's hint is never painted over. */
 .vu-bb-title:has(> .vu-after-hours-status) {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
   z-index: 3;
 }
 
-/* Seated beside the title rather than in its flow, so the title's tab still covers its word alone. */
-.vu-after-hours-status {
+/* The title's tab, which would now span the whole row, is drawn on its word instead, as base.css
+   draws it on the title. */
+.vu-bb-title:has(> .vu-after-hours-status)::before {
+  content: none;
+}
+
+.vu-bb-title:has(> .vu-after-hours-status) > .vu-title-text {
+  position: relative;
+  isolation: isolate;
+}
+
+.vu-bb-title:has(> .vu-after-hours-status) > .vu-title-text::before {
+  content: '';
   position: absolute;
-  top: 50%;
-  left: calc(100% + 30px);
-  translate: 0 -50%;
+  z-index: -1;
+  inset: -12px -14px -14px 14px;
+  border-radius: 26px;
+  background: var(--vu-highlight);
+  rotate: -4deg;
+}
+
+/* At the far end of the title row. */
+.vu-after-hours-status {
+  position: relative;
+  flex: none;
+  margin-left: auto;
 }
 
 /* His own reading, drawn as a contact card is at a smaller size: recessed, the archway seated
