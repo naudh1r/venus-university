@@ -1,6 +1,6 @@
 # After Hours
 
-## 0.2.0
+## 0.3.0
 
 By **Naudh1r**.
 
@@ -33,8 +33,8 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   There are no other activity rows, text box or map travel.
 - The phone stays available for texts and Bunnyfeeds comments. Stay up as long as you like;
   there is no limit or cost.
-- The girls know it is late and everyone is in their own dorm room. Nobody can meet up
-  tonight, including when you ask. Plans for another time still work normally.
+- The girls know it is late and everyone is in their own dorm room. You can agree to visit
+  each other's rooms. Plans for another time still work normally.
 - **End the day** asks **End the day?** Choose **Sleep** to open the morning with its
   usual narration, texts and posts, or **Never mind** to stay up.
 - Evening Relax reads **Relax (Skip to bedtime)** while the option is on.
@@ -44,14 +44,29 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - Turn **The night** off to skip new nights and keep Relax's usual words. A night already
   on screen stays until you end the day.
 
+### Night visits
+
+- At night, either of you can ask to meet in her room or yours. Once you agree, press
+  **Begin hangout** to start the visit, or end the day without going.
+- There is one visit per night. It ends when you fall asleep together, or earlier if it goes badly.
+- After sleeping in her room, wake up there with the phone available. Choose **Stay with {Name}**
+  when she is free for a normal morning scene, or **Head back to your room** to open the usual morning.
+  Staying skips the morning's narration; its texts, invitations and posts still arrive.
+- When she has class, work or another reason she cannot stay, only **Head back to your room** appears.
+- After sleeping in your room, **Start the day** lets her leave and opens the usual morning.
+- Graduation morning offers only **Head back to your room**, then the ceremony.
+- A visit that ends badly goes straight to the usual morning, whose narration follows what happened.
+- Busy still drops her new asks in chats you started; your own asks can begin a visit.
+- Saves resume a visit in progress or return you to the aftermath after sleeping together.
+
 ## Where the code is
 
 | File | What it does |
 | --- | --- |
 | `src/shared/modEntries/after-hours.ts` | Registers the mod and its option |
-| `src/shared/afterHours.ts` | Defines the saved status, completed-night marker and pure invitation/night rules |
+| `src/shared/afterHours.ts` | Defines the saved status, visits, completed-night marker and pure invitation/morning rules |
 | `src/renderer/modEntries/after-hours.ts` | Loads the renderer hooks |
 | `src/renderer/mods/afterHours.tsx` | Keeps the save field, draws the chip and registers the night, invitation, prompt and Relax hooks |
 | `src/shared/afterHoursText.ts` | Holds the labels, confirmation, catalogue copy and DM prompt lines |
 | `src/renderer/vu_styles/AfterHours.css` | Dresses the chip and its hover hint |
-| `test/afterHours.test.ts` | Checks invitation decisions, nights owed and saved-data normalization |
+| `test/afterHours.test.ts` | Checks invitation and morning decisions, nights owed and saved-data normalization |

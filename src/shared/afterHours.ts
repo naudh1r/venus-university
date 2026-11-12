@@ -2,16 +2,39 @@ import { globalSlotOf, type TimeSlot } from '@vx/modkit/shared'
 
 export { AFTER_HOURS_MOD } from './afterHoursText'
 
-/** The reader's phone status and the last night he ended this semester. */
+export interface NightVisit {
+  charId: string
+  room: 'herRoom' | 'hisRoom'
+  morning: number
+  stayed?: boolean
+  wake?: string[]
+}
+
+/** The reader's phone status and the night's visit, if one began. */
 export interface AfterHours {
   busy: boolean
   nightDone?: number
+  visit?: NightVisit
 }
 
-/** Restores an explicit Busy status and a whole-number completed-night marker. */
+/** Restores the phone status, completed-night marker and a well-formed visit. */
 export function normalize(stored: unknown): AfterHours {
   const data = typeof stored === 'object' && stored !== null ? stored as Partial<AfterHours> : {}
+  const visit = data.visit
+  const validVisit = visit && typeof visit === 'object' &&
+    typeof visit.charId === 'string' && visit.charId.trim().length > 0 &&
+    (visit.room === 'herRoom' || visit.room === 'hisRoom') &&
+    Number.isInteger(visit.morning) && visit.morning >= 0 && visit.morning % 2 === 0 &&
+    (visit.stayed === undefined || typeof visit.stayed === 'boolean') &&
+    (visit.wake === undefined || (Array.isArray(visit.wake) && visit.wake.every(line => typeof line === 'string')))
   return {
+    ...(validVisit ? {
+      visit: {
+        charId: visit.charId, room: visit.room, morning: visit.morning,
+        ...(visit.stayed !== undefined ? { stayed: visit.stayed } : {}),
+        ...(visit.wake !== undefined ? { wake: [...visit.wake] } : {})
+      }
+    } : {}),
     busy: data.busy === true,
     ...(typeof data.nightDone === 'number' && Number.isInteger(data.nightDone) ? { nightDone: data.nightDone } : {})
   }
@@ -29,4 +52,19 @@ export function busyDrops(
   busy: boolean
 ): boolean {
   return busy && verdict?.initiatedBy === 'contact' && ctx.startedBy === 'reader' && !ctx.answeringInvite
+}
+
+/** Chooses the hold and whether the morning can be spent with her. */
+export function morningInterlude(
+  to: { date: number; time: TimeSlot }, data: AfterHours, free: boolean, graduation: boolean
+): 'night' | 'stay' | 'headBack' | 'startDay' | null {
+  if (to.time !== 0 || to.date <= 0) return null
+  const visit = data.visit
+  if (visit?.morning === globalSlotOf(to.date, to.time)) {
+    if (!visit.stayed) return null
+    if (graduation) return 'headBack'
+    if (visit.room === 'hisRoom') return 'startDay'
+    return free ? 'stay' : 'headBack'
+  }
+  return nightOwed(to, data) ? 'night' : null
 }

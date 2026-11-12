@@ -428,6 +428,9 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
 - `currentRun()` and `runStale(run)` (`renderer`): the game being played, as a token. Take one
   before an `await`, and after it `runStale(run)` says whether the player has left that game,
   for a new one or the menu, in the meantime; work that outlived its game is dropped.
+- `charCommitmentAt(charId, date?, time?)` (`renderer`): what holds her in a slot, the current one
+  by default: her class (`{ kind: 'class', name }`), her shift (`{ kind: 'shift', employer }`), or
+  `null`. It says why she is busy; `freeForInvitation` says whether she is free.
 - `isOrientationSlot(date, time, semesterIndex)` and `isGraduationSlot(date, time)` (`renderer`):
   the playthrough's first slot, and graduation morning.
 - `lessNsfwText()` and `useLessNsfwText()` (`renderer`): the player has Less NSFW text on, so the
@@ -1203,7 +1206,7 @@ else names it.
 | `landingTool` | `LandingChrome.tsx` | Draw a tool in the landing's corner, after the log and before Settings; not on a created scene or a replay. Props: `Tool` (the landing's own tool), `visible` |
 | `gameMenuEntry` | `GameMenuModal.tsx` | Draw an entry in the game menu, after Mods and before Controls. Props: `Item` (the menu's own entry), `saveOffer` (`'open'` where a save can be written now) |
 | `afterReachOut` | `textingLoop.ts` | Act after the texts of a girl texting first have landed |
-| `playerActs` | `gameLoop.ts` (`submitAction`), `loop/hangouts.ts`, `loop/relax.ts` | Act when the reader commits to something: an action, a hangout begun, or Relax |
+| `playerActs` | `gameLoop.ts` (`submitAction`), `loop/hangouts.ts`, `loop/relax.ts` | Act when the reader commits to something: an action, a hangout begun, or Relax. A scene begun from a held interlude tells mods while `interludeNow()` still reads that hold |
 | `gameEntered` | `gameLoop.ts` (`enterGame`) | Act when a game is entered, new or loaded |
 | `fileFeedPost` | `loop/feed.ts` | Change a slot post before it is filed, or file it later itself (`held`) |
 | `postLikes` | `loop/feed.ts`, `NewGameView.tsx` | Decide likes on ending, stranger and winter posts |
@@ -1262,8 +1265,37 @@ whereabouts in her prompt come from that night, classes and work do not shut the
 and presence is hidden. Texts retain `to`'s date and time for the ledger and gain `late: true`;
 their saved marker prints as the preceding night in threads, classifier context and ledger
 blocks, including after the hold ends or the save is loaded. Reach-outs and invitations
-from the new slot arrive only after a row releases it. The stage and room sound use `from`
-for every interlude, regardless of the phone's clock.
+from the new slot arrive only after a row releases it. The stage and room sound default to `from`,
+regardless of the phone's clock; `look` can choose their half and room.
+
+An interlude can set `look: { time?, room?: { kind: 'herRoom' | 'hisRoom', charId } }`.
+The half defaults to `from.time`; the room defaults to his. Her room uses her room render
+with the normal room fallback. The landing, its background and sound use that look.
+
+A row's `lead` is a list of lines played before the opening's own narration. Alternatively,
+`scene: { charId, room: 'herRoom' | 'hisRoom', action }` opens the slot quietly: every settle,
+text, post and fold still happens, then a normal private scene starts with her alone and
+`action` as the reader's action, without a classifier. `lead` and `scene` are exclusive.
+
+`onHangout(verdict, ctx)` is asked after `hangoutVerdict` when an interlude holds. A null
+answer drops the verdict; `{ room: 'herRoom' | 'hisRoom' }` arms the native **Begin hangout**
+button with no normal-scene prefetch. Begin starts a private **bonus scene** with her alone,
+the agreed description as the reader's action, no classifier and no curveball. Its prompts
+read late on `from`, with that night's weather. Its saved scene carries `bonus: true`, so a
+reload, turns, gifts, interjections, rewinds and closing all follow the same scene.
+
+A bonus ending runs the scene ledger and closing but leaves the texting ledger for the
+real slot's scene. It projects the scene's memories, plans, acts, rumor pass, crushes and
+cold transmission among its participants; it rolls no off-screen encounters, affinities,
+overlay or new cold strain. The opening is fetched again with its existing calendar,
+overlay and invitation picks. The boundary applies its books and passes, asks the memory
+question, calls `slotSettled`, writes a slot save without advancing the clock or keeping a
+replay, and asks `slotInterlude` anew. A losing bonus scene ends the game normally.
+
+`slotSettled`, `slotStatusLines`, `projectSlotMemories`, `exercisedStats` and
+`settleSceneStats` receive `bonus: true` in their context on a bonus scene and no flag on an
+ordinary one (`settleSceneStats` also keeps it in its nested `ctx`). A mod counting once per
+slot can leave those bonus scenes out.
 
 `hangoutVerdict(verdict, ctx)` runs after a normal texting reply is classified, before it arms
 a hangout or raises her invitation; a regenerated reply does not ask it. `ctx.charId` names

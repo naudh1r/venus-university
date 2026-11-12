@@ -11,7 +11,7 @@ export const afterHoursText = {
   busy: 'Busy',
   hint: "Busy: girls won't ask you to meet up in chats you start.",
   nightOption: 'The night',
-  nightHint: 'After the evening, stay up in your room texting until you end the day.',
+  nightHint: "After the evening, stay up texting, visit each other's rooms, or end the day.",
   nightLine: 'You head back to your room for the night. The hall outside is quiet now.',
   endTheDay: 'End the day (Skip to tomorrow)',
   endTheDayConfirm: {
@@ -30,5 +30,26 @@ export function busyPrompt(name: string): string {
 
 /** Keeps the late-night exchange in their rooms without making the hour a topic. */
 export function nightPrompt(name: string): string {
-  return `It is late at night, and students are expected to be in their own dorm rooms by now. ${name} and the reader are both in their rooms, and neither of them is going anywhere tonight, so she does not suggest meeting up. It is just the hour, not something to remark on.`
+  return `It is late at night, and students are expected to be in their own dorm rooms by now. ${name} and the reader are both in their rooms. Tonight the only place either could go is the other's room, and only if both want that. It is just the hour, not something to remark on.`
 }
+
+/** The rows and transitions after waking together. */
+export const morningText = {
+  stay: (name: string) => `Stay with ${name}`,
+  headBack: 'Head back to your room',
+  startDay: 'Start the day',
+  chose: (name: string) => [
+    `You say goodbye to ${name} and head back to your room to shower and change.`,
+    `You slip out of ${name}'s room and go back to your own to get cleaned up before the day starts.`
+  ],
+  class: (name: string) => `${name} has to get to class, so you head back to your room to shower and change.`,
+  shift: (name: string) => `${name} has to get to work, so you head back to your room to shower and change.`,
+  leaves: (name: string) => `${name} heads off to start her day.`,
+  action: (name: string) => `You stay with ${name} in her room.`
+}
+
+export const visitFieldInstruction = "Set nightVisit to herRoom or hisRoom only for the room they agreed to meet in this exchange; set it to none if they agreed on no visit."
+export const visitLedgerInstruction = 'Set stayedOver to whether they spent the night together in that room. Write wake as two or three short second-person lines of them waking up there next morning, or an empty array when stayedOver is false.'
+export const roomText = (room: 'herRoom' | 'hisRoom'): string => room === 'herRoom' ? 'her room' : 'his room'
+export const visitScenePrompt = (room: 'herRoom' | 'hisRoom'): string => `It is late at night and this visit is in ${roomText(room)}. The scene ends when they fall asleep for the night, or sooner if it goes badly.`
+export const visitMorningPrompt = (name: string, room: 'herRoom' | 'hisRoom'): string => `Last night the reader was with ${name} in ${roomText(room)} (see the latest scene). Open on him in his own room this morning; whatever happened last night is behind him.`

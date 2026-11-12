@@ -56,7 +56,7 @@ export function rollColdPass(
   return coldPassOf({
     slot: globalSlotOf(date, time),
     // Never on the first day of a semester or its last.
-    seedable: date >= 1 && !isGraduationSlot(date, time),
+    seedable: !game.sceneBonus && date >= 1 && !isGraduationSlot(date, time),
     present: game.chars.filter((charId) => !charAwayNow(charId, date)),
     girls: game.charInfo,
     reader: { cold: game.readerCold ?? undefined, coldsHad: game.readerColdsHad },

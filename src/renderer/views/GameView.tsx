@@ -46,7 +46,7 @@ import { isProhibited, LlmFailureModal } from '../components/LlmFailureModal'
 import { PhotoFailedModal } from '../components/PhotoFailedModal'
 import { useSceneInputLayout } from '../components/useSceneInput'
 import { typingIn, useWindowKeydown } from '../components/useWindowKeydown'
-import { slotHalf } from '../prompts/gameDate'
+import { prevSlot, slotHalf } from '../prompts/gameDate'
 import { slotWeather } from '../prompts/weather'
 import {
   ALL_REVEALED,
@@ -1157,21 +1157,26 @@ export function GameView(): JSX.Element {
     return map
   }, [characters])
   // Every background the scene may name, which a room id the same as one of them never shadows.
+  const roomReady = useGameStore(s => s.roomReady)
+  const sceneBonus = useGameStore(s => s.sceneBonus)
   const backgrounds = useAssetStore((s) => s.backgrounds)
   const listedBgs = useMemo(() => new Set(allBackgrounds(backgrounds)), [backgrounds])
 
   // What the player picked wins the layer, and only the layer: `bg` is still what the scene
   // reports. A game over plays on black, with no background at all.
-  const shownBg = bgOverride ?? bg
+  const heldRoom = interlude?.interlude.look?.room
+  const heldCharacter = heldRoom ? characters[heldRoom.charId] : undefined
+  const heldBg = heldRoom?.kind === 'herRoom' && heldCharacter && roomReady[heldRoom.charId] ? roomBgIdOf(heldCharacter) : SLOT_BG
+  const shownBg = interlude ? heldBg : bgOverride ?? bg
   const roomCharId = shownBg ? roomOwnerOf(shownBg, roomBgToCharId, listedBgs) : undefined
   // Cache-buster for a room regenerated this session.
   const roomVersion = useSpriteVersion(roomCharId)
   // The same cache-buster for the speaker's portrait: the player can reframe one mid-playthrough.
   const spriteVersions = useCharacterStore((s) => s.spriteVersion)
   // Which half of the day the layer resolves; the epilogue is always night.
-  const shownDate = interlude?.now.from.date ?? date
-  const shownTime = interlude?.now.from.time ?? time
-  const half = interlude ? slotHalf(shownTime) : isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
+  const shownDate = interlude?.now.from.date ?? (sceneBonus ? prevSlot(date, time).date : date)
+  const shownTime = interlude?.interlude.look?.time ?? interlude?.now.from.time ?? (sceneBonus ? prevSlot(date, time).time : time)
+  const half = interlude || sceneBonus ? slotHalf(shownTime) : isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
   // The sky over this slot, which picks the background's render and the mark the chromes wear.
   const slotSky = slotWeather(weather, shownDate, shownTime, interlude ? false : graduationSeen)
   const wet = isWet(slotSky)
@@ -1590,7 +1595,7 @@ export function GameView(): JSX.Element {
    */
   const cinematic = !interlude && isOrientationSlot(date, time, semesterIndex)
   /** The graduation epilogue: an authored screen the reader still reads and types on. */
-  const epilogue = !interlude && isGraduationSlot(date, time) && !gameOver
+  const epilogue = !interlude && !sceneBonus && isGraduationSlot(date, time) && !gameOver
   /** A screen the game wrote end to end; each leaves at most `BASE_REVEAL` standing. */
   const authored = cinematic || epilogue || Boolean(gameOver)
   /**

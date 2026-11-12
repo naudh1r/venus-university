@@ -86,6 +86,24 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.11.0
+
+- Renderer mods can read what holds a character in a slot with `charCommitmentAt(charId, date?, time?)`:
+  her class (`{ kind: 'class', name }`), her shift (`{ kind: 'shift', employer }`) or `null`, the
+  current slot when no date and time are given. `freeForInvitation` stays the availability check.
+
+## 0.10.0
+
+- Interludes can choose their landing's room and half with `look`, prefix the opening with
+  a row's `lead`, or quietly open the slot and start a private room `scene` without a classifier.
+  A row may have `lead` or `scene`, never both.
+- An interlude's `onHangout` can arm a bonus scene in either private room. It uses normal
+  scene playback, closing and bookkeeping, saves and resumes as a bonus scene, and returns
+  to a newly asked interlude without advancing the clock or consuming the texting ledger.
+  The refreshed opening keeps its previously rolled invitations, calendar picks and overlay.
+- `slotSettled`, `slotStatusLines`, `projectSlotMemories`, `exercisedStats` and `settleSceneStats`
+  receive `bonus: true` for these scenes; it is absent on ordinary scenes.
+
 ## 0.9.0
 
 - `slotInterlude` can hold a slot opening on the finished slot's landing with narration,

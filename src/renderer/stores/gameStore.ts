@@ -221,6 +221,8 @@ export type ReplayStayFields = Pick<
  * classifier verdict decides.
  */
 export interface SceneKind {
+  bonus?: true
+  bonusOpening?: import('@shared/types').BankedOpening
   /** The activity the landing committed the scene to. */
   activity?: import('@shared/slotActivity').SlotActivity
   /** What mods keep with the scene. */
@@ -272,6 +274,7 @@ export interface SceneKind {
  * file carries beyond these is kept as read and written back untouched.
  */
 const SAVE_KEYS: Record<keyof NativeGameSave, true> & Partial<Record<keyof GameSave, true>> = {
+  heldOpening: true,
   schemaVersion: true,
   playthroughId: true,
   semester: true,
@@ -343,6 +346,8 @@ const SAVE_KEYS: Record<keyof NativeGameSave, true> & Partial<Record<keyof GameS
  * and written back untouched.
  */
 const SCENE_KEYS: Record<keyof SceneState, true> = {
+  bonus: true,
+  bonusOpening: true,
   activity: true,
   mods: true,
   cast: true,
@@ -404,6 +409,8 @@ function restOf(record: object | null | undefined, owned: Record<string, true>) 
 /** The scene-kind facts a `set` writes onto the store, unpacked from one verdict. */
 function sceneKindFields(scene: SceneKind | null | undefined) {
   return {
+    sceneBonus: scene?.bonus === true,
+    sceneBonusOpening: scene?.bonusOpening ?? null,
     sceneActivity: scene?.activity ? { ...scene.activity } : null,
     sceneMods: savedModScene(scene?.mods ?? {}) ?? {},
     sceneClass: scene?.classCode ?? null,
@@ -429,12 +436,17 @@ function sceneKindFields(scene: SceneKind | null | undefined) {
  * `gameLoop.ts` drives this store imperatively outside React.
  */
 interface GameStoreState {
+  heldOpening: import('@shared/types').BankedOpening | null
   exReckoning: ReckoningState
   exStartingChallenge: StartingChallenge | undefined
   exTalents: TalentState
   exEcho: EchoState
   exBreakthrough: BreakthroughState
   breakthroughFlash: { id: string; playthroughId: string; name: string; echoAspect?: import('@shared/echoBreakthrough').EchoBreakthroughAspect } | null
+  /** The scene ends back at its held slot without moving the clock. */
+  sceneBonus: boolean
+  /** The opening whose picks the bonus ending preserves. */
+  sceneBonusOpening: import('@shared/types').BankedOpening | null
   /** The activity this scene was committed to on the landing, or null. */
   sceneActivity: import('@shared/slotActivity').SlotActivity | null
   /** What mods keep with the scene being played, saved with it as `mods`. */
@@ -1702,6 +1714,7 @@ const initialState = {
   exEcho: normalizeEcho(),
   exBreakthrough: normalizeBreakthrough(),
   breakthroughFlash: null as GameStoreState['breakthroughFlash'],
+  heldOpening: null,
   saveRest: {} as Record<string, unknown>,
   modData: {} as Record<string, ModSlice>,
   interlude: null as HeldInterlude | null,
@@ -1792,6 +1805,8 @@ const initialState = {
   sceneVisitJob: null as string | null,
   sceneMentions: [] as string[],
   sceneLocation: null as string | null,
+  sceneBonus: false,
+  sceneBonusOpening: null,
   sceneInPublic: true,
   sceneSecret: null as string | null,
   sceneEvent: null as SceneEvent | null,
@@ -1945,6 +1960,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       farewellsDone: save.farewellsDone,
       endingArtWanted: save.endingArtWanted,
       saveRest,
+      heldOpening: save.heldOpening ?? null,
       modData: isModData(save.ex) ? { ...save.ex } : {},
       modValues: mods.values,
       characters,
@@ -2068,6 +2084,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     return {
       // First, so a key core owns always wins.
       ...state.sceneRest,
+      ...(state.sceneBonus ? { bonus: true as const } : {}),
+      ...(state.sceneBonusOpening ? { bonusOpening: state.sceneBonusOpening } : {}),
       ...(state.sceneActivity ? { activity: { ...state.sceneActivity } } : {}),
       ...(mods ? { mods } : {}),
       cast: [...state.cast],
@@ -3452,6 +3470,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     return {
       // First, so a key core owns always wins; a save with nothing foreign adds nothing here.
       ...state.saveRest,
+      ...(state.heldOpening ? { heldOpening: state.heldOpening } : {}),
       schemaVersion: SAVE_SCHEMA_VERSION,
       ...(state.semesterId !== null ? { semester: state.semesterId } : {}),
       stats: state.stats,

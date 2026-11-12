@@ -50,6 +50,10 @@ export interface InterludeRow {
   label: string
   confirm?: { title: string; message: string; confirmText: string; cancelText: string }
   onPick?: () => void
+  /** Lines preceding the opening narration; exclusive with `scene`. */
+  lead?: readonly string[]
+  /** Opens the slot without narration, then begins a private scene without classification. */
+  scene?: { charId: string; room: 'herRoom' | 'hisRoom'; action: string }
 }
 
 /** Narration and choices on the finished slot's landing. */
@@ -57,6 +61,10 @@ export interface Interlude {
   lines: readonly string[]
   rows: readonly InterludeRow[]
   clock?: 'late-night'
+  /** The held landing's half and room; defaults to the finished slot in his room. */
+  look?: { time?: TimeSlot; room?: { kind: 'herRoom' | 'hisRoom'; charId: string } }
+  /** Routes an agreed DM hangout into a bonus scene, or drops it. */
+  onHangout?: (verdict: HangoutVerdict, ctx: HangoutVerdictCtx) => { room: 'herRoom' | 'hisRoom' } | null
 }
 
 /** The thread and invitation behind a texting classifier's verdict. */
@@ -190,13 +198,15 @@ export interface RequestSpots {
 }
 
 export interface SlotSettled {
+  /** This scene leaves the slot clock in place. */
+  bonus?: true
   before: ReturnType<typeof useGameStore.getState>
   ledger: LedgerResponse | null
   closingCast: readonly Character[]
 }
 
 /** A read-only preview of the finished scene, before the crush roll and next opening. */
-export type SlotMemoryProjection = Pick<SlotSettled, 'before' | 'closingCast'>
+export type SlotMemoryProjection = Pick<SlotSettled, 'before' | 'closingCast' | 'bonus'>
 
 /** What a finished scene does to the reader's stats, and the lines that say so. */
 export interface SceneStats {
@@ -206,6 +216,8 @@ export interface SceneStats {
 
 /** What the game resolved a scene's stats from: the ledger's verdict and the scene's facts. */
 export interface SceneStatSettlement {
+  /** This scene leaves the clock in place. */
+  bonus?: true
   /** What the hour exercised, as `exercisedStats` left it. */
   ledger: LedgerStats | undefined
   ctx: StatContext
@@ -439,7 +451,7 @@ export interface ModHooks {
    * Lines in the slot's closing report, after what each girl took away from it, written as the
    * game writes its own (`memoryStatusLine`). `nextSlot` is the global slot about to begin.
    */
-  slotStatusLines?: (ctx: { nextSlot: number }) => readonly SceneLine[]
+  slotStatusLines?: (ctx: { nextSlot: number; bonus?: true }) => readonly SceneLine[]
   /**
    * Apply the same memory weights as settlement to a projection. Must return new values
    * without writing the store, paying rewards, consuming abilities or rolling randomness.
@@ -972,6 +984,7 @@ export function slotInterlude(ctx: InterludeCtx): { owner: string; interlude: In
   for (const { modId, hooks } of activeEntries()) {
     try {
       const interlude = hooks.slotInterlude?.(ctx)
+      if (interlude?.rows.some(row => row.lead && row.scene)) throw new Error('An interlude row cannot have both lead and scene')
       if (interlude) return { owner: modId, interlude }
     } catch (error) {
       console.warn(`[mods] ${modId}: slotInterlude failed`, error)
@@ -1256,7 +1269,7 @@ export function slotSettled(ctx: SlotSettled): void {
 }
 
 /** Every mod's lines for the slot's closing report, after the girls' memories, in list order. */
-export function slotStatusLines(ctx: { nextSlot: number }): SceneLine[] {
+export function slotStatusLines(ctx: { nextSlot: number; bonus?: true }): SceneLine[] {
   return active().flatMap((hooks) => [...(hooks.slotStatusLines?.(ctx) ?? [])])
 }
 

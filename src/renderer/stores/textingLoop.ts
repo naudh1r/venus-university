@@ -100,7 +100,7 @@ import { threadStartedBy } from '@shared/textingThread'
 import { afterDmReply, afterReachOut, dmReplyLead, hangoutVerdict, promptTextEdits } from '../mods/hooks'
 import { INCOMING_TEXTS } from '@shared/modEntries/incoming-texts'
 import { lorebookNow } from './lorebookStore'
-import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
+import { prefetchHangoutScene, startHangoutScene, startRoomScene } from './loop/hooks'
 import { createRetryGate } from './retryGate'
 import { createDmLeadReader, createTextExtractor } from './textingStream'
 import { BOT_REPLY_MS, createTypingPacer, typingDelayFor, type TypingPacer } from './textingPace'
@@ -201,7 +201,7 @@ export function sceneActiveOf(state: {
  * Bunnyboard can subscribe to it.
  */
 export function epilogueOf(state: { date: number; time: TimeSlot }): boolean {
-  return !('interlude' in state && state.interlude) && isGraduationSlot(state.date, state.time)
+  return !('interlude' in state && state.interlude) && !('sceneBonus' in state && state.sceneBonus) && isGraduationSlot(state.date, state.time)
 }
 
 /**
@@ -726,11 +726,23 @@ async function runReply(
     if (!sent && invited) return
     const verdict = await classifyHangout(character, conversation, sent, messages)
     const game = useGameStore.getState()
-    handleHangout(charId, hangoutVerdict(verdict, {
+    const ctx = {
       charId,
       startedBy: threadStartedBy(game.bunnyboard.conversations[charId]?.messages ?? [], game.date, game.time),
       answeringInvite: sent !== null && invited !== null
-    }))
+    }
+    const decided = hangoutVerdict(verdict, ctx)
+    const held = useGameStore.getState().interlude
+    if (held?.interlude.onHangout) {
+      if (decided) {
+        try {
+          const meeting = held.interlude.onHangout(decided, ctx)
+          if (meeting && useGameStore.getState().interlude === held) armHangout(charId, decided.description, meeting.room)
+        } catch (error) {
+          console.warn(`[mods] ${held.now.owner}: interlude hangout failed`, error)
+        }
+      }
+    } else handleHangout(charId, decided)
     if (sent && invited) settleAnsweredInvitation(charId, invited.occasionId)
   } finally {
     abortLead()
@@ -1022,18 +1034,18 @@ function handleHangout(charId: string, hangout: HangoutVerdict | null): void {
  * Puts an agreed hangout behind a "Begin hangout" button and puts that button in front of
  * the player, whichever tab they wandered to.
  */
-function armHangout(charId: string, description: string): void {
+function armHangout(charId: string, description: string, room?: 'herRoom' | 'hisRoom'): void {
   // Both arm paths land here: an invitation raised before she left can be answered after.
   if (charAwayNow(charId)) return
   // He is coming, so whatever she was counting against him is spent.
   useGameStore.getState().resetDeclined(charId)
   const ui = useBunnyboardStore.getState()
-  ui.setArmedHangout({ charId, description })
+  ui.setArmedHangout({ charId, description, ...(room ? { room } : {}) })
   ui.openApp()
   ui.viewChar(charId)
   // The scene starts being written now, behind the reply the player is reading.
   // Never awaited: Begin consumes it if it is there and does the work itself if it is not.
-  void prefetchHangoutScene(charId, description)
+  if (!room) void prefetchHangoutScene(charId, description)
 }
 
 /**
@@ -1044,12 +1056,14 @@ export async function beginHangout(): Promise<void> {
   const armed = useBunnyboardStore.getState().armedHangout
   if (!armed) return
   useBunnyboardStore.getState().setArmedHangout(null)
+  if (armed.room && !useGameStore.getState().interlude) return
   useBunnyboardStore.getState().setLocked(true)
 
   // The game view's own spinner is the loading state from here.
   useBunnyboardStore.getState().closeApp()
   useBunnyboardStore.getState().setLocked(false)
-  await startHangoutScene(armed.charId, armed.description)
+  if (armed.room) await startRoomScene(armed.charId, armed.room, armed.description, true)
+  else await startHangoutScene(armed.charId, armed.description)
 }
 
 /** The line under a meet-up agreed with a girl who has left campus for spring break. */

@@ -399,6 +399,7 @@ export const KIT_APIS = [
   'renderer:saveField',
   'renderer:canInviteToScene',
   'renderer:canRecordSceneTurn',
+  'renderer:charCommitmentAt',
   'renderer:freeForInvitation',
   'renderer:hasDesktopSurfaces',
   'renderer:openSceneExchange',

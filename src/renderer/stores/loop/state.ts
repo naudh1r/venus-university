@@ -35,6 +35,10 @@ export interface TurnSnapshot {
   action: string
   /** The agreed hangout this turn is, so a retry replays it as one. */
   charId?: string
+  /** The landing restored if a bonus opening fails. */
+  heldInterlude?: import('../../mods/interlude').HeldInterlude
+  /** A private scene that bypasses classification, replayed intact on retry. */
+  roomScene?: { charId: string; room: 'herRoom' | 'hisRoom'; bonus?: true; opening?: BankedOpening }
   /** In-memory native invitation retry; never serialized into a save. */
   retryInvitation?: (action: string) => void
   /** This turn handed over a gift; abandoning it hands the item back. */

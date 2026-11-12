@@ -1,11 +1,12 @@
-import type { Character } from '@shared/types'
+import { roomBgIdOf, type BankedOpening, type Character } from '@shared/types'
+import { SLOT_BG } from '../../views/bgAssets'
 import { isTutorialSlot } from '../../prompts/introScript'
 import { buildScenePrompt } from '../../prompts/scenePrompt'
 import { useGameStore } from '../gameStore'
 import { playerActs } from '../../mods/hooks'
 import { settingNow } from '../lorebookStore'
 import { coverSceneOpening } from '../slotCrossing'
-import { plannedWith } from '../textingLoop'
+import { cancelAllTexts, plannedWith } from '../textingLoop'
 import { castCharactersOf, nameOf } from './cast'
 import { planAttendees } from './casting'
 import {
@@ -18,14 +19,14 @@ import {
 import { registerHangoutEntry } from './hooks'
 import { armSceneRecords } from './jobs'
 import { composeMeeting, kindLabel, meetingKindOf } from './meetings'
-import { applyCast, reader, promptState } from './promptState'
+import { applyCast, reader, promptState, secretToTell, stageCast } from './promptState'
 import { sceneEventsFor } from './sceneEvents'
 import { currentRun, loopState, runStale, type TurnSnapshot } from './state'
 import { deliverSceneLines, streamScene, type PreviewSink, type SceneCall } from './stream'
 import { buildOrFail, runSceneTurn } from './turn'
 
 /** An agreed Bunnyboard hangout, from the plan to the scene. */
-registerHangoutEntry({ prefetchHangoutScene, startHangoutScene })
+registerHangoutEntry({ prefetchHangoutScene, startHangoutScene, startRoomScene })
 
 /** An armed hangout's scene, already in flight while the player reads. */
 export interface HangoutPrefetch {
@@ -257,4 +258,59 @@ async function castHangout(
   })
 
   return { cast, action }
+}
+
+/** Starts one private-room scene without classifying an action or rolling a curveball. */
+export async function startRoomScene(
+  charId: string,
+  room: 'herRoom' | 'hisRoom',
+  action: string,
+  bonus = false,
+  opening: BankedOpening | null = loopState.bankedOpening
+): Promise<void> {
+  const run = currentRun()
+  const game = useGameStore.getState()
+  const character = game.characters[charId]
+  if (game.busy || !character) return
+  const snapshot: TurnSnapshot = {
+    scene: game.captureScene(), action,
+    ...(bonus && game.interlude ? { heldInterlude: game.interlude } : {}),
+    roomScene: { charId, room, ...(bonus ? { bonus: true } : {}), ...(opening ? { opening } : {}) }
+  }
+  loopState.lastTurn = snapshot
+  loopState.jobShift = null
+  loopState.projectWork = null
+  coverSceneOpening()
+  // Mods are told while a held interlude still stands, so they can tell which hold the scene left.
+  playerActs()
+  useGameStore.setState({ interlude: null })
+  game.clearStage()
+  game.clearSceneTranscript()
+  game.setInputDraft('')
+  game.setAwaitingInput(false)
+  game.setBusy(true)
+  game.setStreaming(true)
+  game.setWaitingForLine(true)
+  loopState.turnStartedAt = performance.now()
+  const scene = {
+    inPublic: false,
+    location: room === 'herRoom' ? `${character.firstName}'s dorm room` : "the reader's dorm room",
+    ...(bonus ? { bonus: true as const, ...(opening ? { bonusOpening: opening } : {}) } : {})
+  }
+  if (bonus) {
+    cancelAllTexts()
+    const secret = secretToTell([charId])
+    await stageCast([charId], { ...scene, ...(secret ? { secret } : {}) })
+  } else {
+    await applyCast([charId], scene)
+    armSceneRecords()
+  }
+  if (runStale(run)) return
+  const live = useGameStore.getState()
+  live.seedStageBg(room === 'herRoom' && live.roomReady[charId] ? roomBgIdOf(character) : SLOT_BG)
+  live.logPlayerAction(action, false)
+  const cast = castCharactersOf([charId])
+  const request = buildOrFail(snapshot, () => buildScenePrompt(cast, action, promptState(), settingNow(), reader()))
+  if (!request) return
+  await runSceneTurn(streamScene(request, undefined, { forceShowSpeakers: true }), snapshot, [charId], cast, false)
 }

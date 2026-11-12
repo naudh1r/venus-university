@@ -251,6 +251,8 @@ export { scene, useScene, subscribeScene, holdTurn } from '../bridge/renderer'
 export type { SceneView, SceneViewLine, ScriptedSlot } from '../bridge/renderer'
 
 export { canInviteToScene, freeForInvitation, subscribeInvitations, startInvitedScene } from '../bridge/renderer'
+export { charCommitmentAt } from '../bridge/renderer'
+export type { Commitment } from '../bridge/renderer'
 
 export { hasDesktopSurfaces, canRecordSceneTurn, openSceneExchange, sceneExchangeContext, subscribeSceneTurns } from '../bridge/renderer'
 export type { ExternalSceneTurn, SceneExchange, SceneExchangeContext } from '../bridge/renderer'
