@@ -531,15 +531,17 @@ describe('every hook in the table', () => {
     const value: NonNullable<ReturnType<NonNullable<ModHooks['slotInterlude']>>> = {
       lines: [], clock: 'late-night', look: { time: 0, room: { kind: 'herRoom', charId: 'c' } },
       rows: [{ label: 'Open', lead: [], onPick: pick }, { label: 'Scene', scene: { charId: 'c', room: 'hisRoom', action: 'Meet' } }],
-      onHangout: route
+      onHangout: route,
+      scene: { charId: 'c', room: 'herRoom', action: 'Wake', at: 'morning', pays: false }
     }
     const received: unknown[] = []
+    const payments: unknown[] = []
     rendererKit.registerHooks(id, {
       slotInterlude: () => value,
       slotSettled: ctx => { received.push(ctx.bonus) },
       slotStatusLines: ctx => { received.push(ctx.bonus); return [] },
       projectSlotMemories: (ctx, info) => { received.push(ctx.bonus); return info },
-      exercisedStats: (ledger, ctx) => { received.push(ctx.bonus); return ledger },
+      exercisedStats: (ledger, ctx) => { received.push(ctx.bonus); payments.push(ctx.pays); return ledger },
       settleSceneStats: (stats, ctx) => { received.push(ctx.bonus); return stats }
     })
     on = id
@@ -553,10 +555,11 @@ describe('every hook in the table', () => {
         hooksShim.slotSettled({ before: never, ledger: null, closingCast: [], ...flag })
         hooksShim.slotStatusLines({ nextSlot: 4, ...flag })
         hooksShim.projectSlotMemories({ before: never, closingCast: [], ...flag }, {})
-        hooksShim.exercisedStats(undefined, { ...({} as import('@vx/modkit/shared').StatContext), ...flag })
+        hooksShim.exercisedStats(undefined, { ...({} as import('@vx/modkit/shared').StatContext), ...flag, ...(bonus ? { pays: false } : {}) })
         hooksShim.settleSceneStats({ deltas: never, lines: [] }, { ledger: undefined, ctx: never, ...flag })
       }
       expect(received).toEqual([undefined, undefined, undefined, undefined, undefined, true, true, true, true, true])
+      expect(payments).toEqual([undefined, false])
     } finally { on = '' }
   })
 

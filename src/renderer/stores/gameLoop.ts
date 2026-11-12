@@ -443,6 +443,12 @@ async function beginSlot(released = false, row?: InterludeRow): Promise<void> {
         })
       }
       useGameStore.setState({ interlude: { now, interlude: held.interlude, pick } })
+      if (held.interlude.scene) {
+        const scene = held.interlude.scene
+        adoptSceneOpening()
+        await startRoomScene(scene.charId, scene.room, scene.action, true, loopState.bankedOpening, scene.at, scene.pays)
+        return
+      }
       showInterludeLanding({ ...ctx.from, time: held.interlude.look?.time ?? ctx.from.time })
       if (held.interlude.look?.room) await loadCgReady([held.interlude.look.room.charId])
       if (runStale(run)) return
@@ -1440,7 +1446,7 @@ function dispatchTurn(snapshot: TurnSnapshot): void {
   else if (snapshot.retryInvitation) snapshot.retryInvitation(snapshot.action)
   else if (snapshot.roomScene) {
     const room = snapshot.roomScene
-    void startRoomScene(room.charId, room.room, snapshot.action, room.bonus === true, room.opening)
+    void startRoomScene(room.charId, room.room, snapshot.action, room.bonus === true, room.opening, room.at, room.pays)
   }
   else if (snapshot.charId)
     void startHangoutScene(snapshot.charId, snapshot.action, snapshot.preset, snapshot.sceneEvents)
@@ -2531,9 +2537,11 @@ function claimTextLedger(date: number, time: TimeSlot): Promise<LedgerResponse |
 
 /** What the finished scene did to the reader's stats, and the lines that say so. */
 function resolveScene(): { deltas: PlayerStats; lines: StatusText[] } {
-  const bonus = useGameStore.getState().sceneBonus
+  const game = useGameStore.getState()
+  const bonus = game.sceneBonus
+  const pays = !bonus || game.sceneBonusPays
   const ctx: StatContext = {
-    ...(bonus ? { bonus: true as const } : {}),
+    ...(bonus ? { bonus: true as const, pays } : {}),
     // Not `closingCast`, which a resumed save has already cleared by this point.
     solo: useGameStore.getState().cast.length === 0,
     // The same fact the ledger's `STATS` section is dropped on: a class that went ahead.
@@ -2551,7 +2559,8 @@ function resolveScene(): { deltas: PlayerStats; lines: StatusText[] } {
   // What the hour exercised, as the mods leave the ledger's verdict, then what that pays, as they
   // leave the game's resolution: a mod changing the exercise never has to undo another's reward.
   const ledger = exercisedStats(loopState.pendingLedgerResult?.stats, ctx)
-  return settleSceneStats(resolveStatDeltas(ledger, ctx), { ledger, ctx, ...(bonus ? { bonus: true as const } : {}) })
+  const resolved = settleSceneStats(resolveStatDeltas(ledger, ctx), { ledger, ctx, ...(bonus ? { bonus: true as const } : {}) })
+  return pays ? resolved : { deltas: { brain: 0, body: 0, heart: 0 }, lines: [] }
 }
 
 /** The status line at the end of a project work session. */
@@ -2920,8 +2929,9 @@ function showStatusLines(): boolean {
   game.setStatusShown(true)
   // Money lands here, so the balance moves as the line reporting it is read.
   // `game` is the pre-spend snapshot, which is what the card counts *from*.
-  const shift = lockShiftPay()
-  const spent = shift ? 0 : spentOf(loopState.pendingLedgerResult?.spent)
+  const pays = !game.sceneBonus || game.sceneBonusPays
+  const shift = pays ? lockShiftPay() : null
+  const spent = !pays || shift ? 0 : spentOf(loopState.pendingLedgerResult?.spent)
   if (shift) game.spendMoney(-shift.pay)
   else if (spent > 0) game.spendMoney(spent)
   const resolved = resolveScene()

@@ -222,6 +222,8 @@ export type ReplayStayFields = Pick<
  */
 export interface SceneKind {
   bonus?: true
+  bonusAt?: 'night' | 'morning'
+  bonusPays?: boolean
   bonusOpening?: import('@shared/types').BankedOpening
   /** The activity the landing committed the scene to. */
   activity?: import('@shared/slotActivity').SlotActivity
@@ -347,6 +349,8 @@ const SAVE_KEYS: Record<keyof NativeGameSave, true> & Partial<Record<keyof GameS
  */
 const SCENE_KEYS: Record<keyof SceneState, true> = {
   bonus: true,
+  bonusAt: true,
+  bonusPays: true,
   bonusOpening: true,
   activity: true,
   mods: true,
@@ -410,6 +414,8 @@ function restOf(record: object | null | undefined, owned: Record<string, true>) 
 function sceneKindFields(scene: SceneKind | null | undefined) {
   return {
     sceneBonus: scene?.bonus === true,
+    sceneBonusAt: scene?.bonusAt === 'morning' ? 'morning' as const : 'night' as const,
+    sceneBonusPays: scene?.bonusPays !== false,
     sceneBonusOpening: scene?.bonusOpening ?? null,
     sceneActivity: scene?.activity ? { ...scene.activity } : null,
     sceneMods: savedModScene(scene?.mods ?? {}) ?? {},
@@ -445,6 +451,8 @@ interface GameStoreState {
   breakthroughFlash: { id: string; playthroughId: string; name: string; echoAspect?: import('@shared/echoBreakthrough').EchoBreakthroughAspect } | null
   /** The scene ends back at its held slot without moving the clock. */
   sceneBonus: boolean
+  sceneBonusAt: 'night' | 'morning'
+  sceneBonusPays: boolean
   /** The opening whose picks the bonus ending preserves. */
   sceneBonusOpening: import('@shared/types').BankedOpening | null
   /** The activity this scene was committed to on the landing, or null. */
@@ -1806,6 +1814,8 @@ const initialState = {
   sceneMentions: [] as string[],
   sceneLocation: null as string | null,
   sceneBonus: false,
+  sceneBonusAt: 'night' as const,
+  sceneBonusPays: true,
   sceneBonusOpening: null,
   sceneInPublic: true,
   sceneSecret: null as string | null,
@@ -2084,7 +2094,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     return {
       // First, so a key core owns always wins.
       ...state.sceneRest,
-      ...(state.sceneBonus ? { bonus: true as const } : {}),
+      ...(state.sceneBonus ? { bonus: true as const, bonusAt: state.sceneBonusAt, bonusPays: state.sceneBonusPays } : {}),
       ...(state.sceneBonusOpening ? { bonusOpening: state.sceneBonusOpening } : {}),
       ...(state.sceneActivity ? { activity: { ...state.sceneActivity } } : {}),
       ...(mods ? { mods } : {}),

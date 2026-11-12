@@ -1287,6 +1287,8 @@ export interface SceneSummaryMark {
 export interface SceneState {
   /** A full scene between slots whose boundary leaves the clock in place. */
   bonus?: true
+  bonusAt?: 'night' | 'morning'
+  bonusPays?: boolean
   /** The opening held before this bonus scene, including its already rolled picks. */
   bonusOpening?: BankedOpening
 

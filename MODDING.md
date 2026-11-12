@@ -1284,6 +1284,17 @@ the agreed description as the reader's action, no classifier and no curveball. I
 read late on `from`, with that night's weather. Its saved scene carries `bonus: true`, so a
 reload, turns, gifts, interjections, rewinds and closing all follow the same scene.
 
+An interlude's own `scene: { charId, room: 'herRoom' | 'hisRoom', action, at, pays }`
+starts a bonus scene immediately under the boundary's curtain, without showing its landing,
+rows or lines. The curtain reveals on the scene's first line. `at: 'night'` uses the held
+night, as a visit from `onHangout` does; `at: 'morning'` uses the opening slot's clock,
+weather and cast commitments, with no `lateNight` in its prompt state. `pays: false` keeps
+memories, events, acts and their passes, including colds, but returns no stat deltas or stat
+lines and applies no ledger money. Stat hooks receive `pays: false` on `StatContext` beside
+`bonus: true`; their awards cannot make this scene pay. Timing and payment are saved with
+the scene and restored on load. Older bonus saves and `onHangout` visits use night timing
+and pay normally.
+
 A bonus ending runs the scene ledger and closing but leaves the texting ledger for the
 real slot's scene. It projects the scene's memories, plans, acts, rumor pass, crushes and
 cold transmission among its participants; it rolls no off-screen encounters, affinities,

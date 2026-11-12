@@ -398,6 +398,13 @@ export interface Interlude {
     } | null;
     // (undocumented)
     rows: readonly InterludeRow[];
+    scene?: {
+        charId: string;
+        room: 'herRoom' | 'hisRoom';
+        action: string;
+        at: 'night' | 'morning';
+        pays: boolean;
+    };
 }
 
 // @public

@@ -1159,6 +1159,7 @@ export function GameView(): JSX.Element {
   // Every background the scene may name, which a room id the same as one of them never shadows.
   const roomReady = useGameStore(s => s.roomReady)
   const sceneBonus = useGameStore(s => s.sceneBonus)
+  const nightBonus = useGameStore(s => s.sceneBonus && s.sceneBonusAt !== 'morning')
   const backgrounds = useAssetStore((s) => s.backgrounds)
   const listedBgs = useMemo(() => new Set(allBackgrounds(backgrounds)), [backgrounds])
 
@@ -1174,8 +1175,8 @@ export function GameView(): JSX.Element {
   // The same cache-buster for the speaker's portrait: the player can reframe one mid-playthrough.
   const spriteVersions = useCharacterStore((s) => s.spriteVersion)
   // Which half of the day the layer resolves; the epilogue is always night.
-  const shownDate = interlude?.now.from.date ?? (sceneBonus ? prevSlot(date, time).date : date)
-  const shownTime = interlude?.interlude.look?.time ?? interlude?.now.from.time ?? (sceneBonus ? prevSlot(date, time).time : time)
+  const shownDate = interlude?.now.from.date ?? (nightBonus ? prevSlot(date, time).date : date)
+  const shownTime = interlude?.interlude.look?.time ?? interlude?.now.from.time ?? (nightBonus ? prevSlot(date, time).time : time)
   const half = interlude || sceneBonus ? slotHalf(shownTime) : isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
   // The sky over this slot, which picks the background's render and the mark the chromes wear.
   const slotSky = slotWeather(weather, shownDate, shownTime, interlude ? false : graduationSeen)

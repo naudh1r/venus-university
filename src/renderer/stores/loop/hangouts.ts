@@ -266,7 +266,9 @@ export async function startRoomScene(
   room: 'herRoom' | 'hisRoom',
   action: string,
   bonus = false,
-  opening: BankedOpening | null = loopState.bankedOpening
+  opening: BankedOpening | null = loopState.bankedOpening,
+  at: 'night' | 'morning' = 'night',
+  pays = true
 ): Promise<void> {
   const run = currentRun()
   const game = useGameStore.getState()
@@ -275,7 +277,7 @@ export async function startRoomScene(
   const snapshot: TurnSnapshot = {
     scene: game.captureScene(), action,
     ...(bonus && game.interlude ? { heldInterlude: game.interlude } : {}),
-    roomScene: { charId, room, ...(bonus ? { bonus: true } : {}), ...(opening ? { opening } : {}) }
+    roomScene: { charId, room, ...(bonus ? { bonus: true, at, pays } : {}), ...(opening ? { opening } : {}) }
   }
   loopState.lastTurn = snapshot
   loopState.jobShift = null
@@ -295,7 +297,7 @@ export async function startRoomScene(
   const scene = {
     inPublic: false,
     location: room === 'herRoom' ? `${character.firstName}'s dorm room` : "the reader's dorm room",
-    ...(bonus ? { bonus: true as const, ...(opening ? { bonusOpening: opening } : {}) } : {})
+    ...(bonus ? { bonus: true as const, bonusAt: at, bonusPays: pays, ...(opening ? { bonusOpening: opening } : {}) } : {})
   }
   if (bonus) {
     cancelAllTexts()

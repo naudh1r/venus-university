@@ -297,7 +297,7 @@ export function reader(
   at?: { date: number; time: TimeSlot }
 ): string {
   const game = useGameStore.getState()
-  return readerBlockOf(game, view, at ?? (game.sceneBonus ? prevSlot(game.date, game.time) : undefined))
+  return readerBlockOf(game, view, at ?? (game.sceneBonus && game.sceneBonusAt !== 'morning' ? prevSlot(game.date, game.time) : undefined))
 }
 
 /**
@@ -448,7 +448,7 @@ export function promptState(): PromptState {
     storyMemory: currentStorySnapshot(),
     playthroughId: game.playthroughId ?? 'unsaved',
     breakthrough: modIsOn(BREAKTHROUGH_MOD) ? game.exBreakthrough : undefined,
-    ...(game.sceneBonus ? { ...prevSlot(game.date, game.time), lateNight: prevSlot(game.date, game.time) } : { date: game.date, time: game.time }),
+    ...(game.sceneBonus && game.sceneBonusAt !== 'morning' ? { ...prevSlot(game.date, game.time), lateNight: prevSlot(game.date, game.time) } : { date: game.date, time: game.time }),
     ex: promptStateParts('scene'),
     backgrounds: cityLifeBackgrounds(useAssetStore.getState().backgrounds),
     lorebook: lorebookNow(),
