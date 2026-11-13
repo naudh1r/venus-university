@@ -15,7 +15,7 @@ export const afterHoursText = {
   nightOption: 'The night',
   nightHint: 'After the evening, stay up texting before you sleep. An evening in her room or yours can last the night.',
   nightLine: 'You head back to your room for the night. The hall outside is quiet now.',
-  sleep: 'Sleep',
+  goToSleep: 'Go to sleep',
   skipTomorrow: 'Skip to tomorrow',
   relax: 'Relax (Skip to bedtime)'
 }

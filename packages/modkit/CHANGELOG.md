@@ -86,6 +86,13 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.19.0
+
+- Interlude rows can set `card: true` to use a plan card without a category chip.
+  Rows without it remain quiet choices.
+- A held `clock: 'late-night'` interlude labels the landing header Night, on the
+  finished slot's date.
+
 ## 0.18.0
 
 - `hangoutCheck` replaces `hangoutVerdict`: any false answer skips the immediate-meetup

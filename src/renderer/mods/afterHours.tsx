@@ -133,7 +133,8 @@ registerHooks(AFTER_HOURS_MOD, {
     return {
       lines: [afterHoursText.nightLine],
       rows: [{
-        label: afterHoursText.sleep,
+        label: afterHoursText.goToSleep,
+        card: true,
         onPick: () => status.set({ ...status.read(), nightDone: globalSlotOf(to.date, to.time) })
       }],
       clock: 'late-night'

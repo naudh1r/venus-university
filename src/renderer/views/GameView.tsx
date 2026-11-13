@@ -188,8 +188,7 @@ import {
   goToVerdict,
   RELAX_KEY,
   relaxAction,
-  slotActionsNow,
-  type SlotAction
+  slotActionsNow
 } from '../stores/slotActions'
 import { isWebBuild } from '../platform'
 import { noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
@@ -1828,9 +1827,15 @@ export function GameView(): JSX.Element {
       void finishSlotActivity(slotActivity.owner, slotActivity.id, false, 'The activity is no longer available, so it ended without being completed.')
     }
   }, [slotActivity, busy, awaitingInput, replaying, turnError, sceneEnding, activitySwitches])
-  const slotActions = useMemo<SlotAction[]>(
+  const slotActions = useMemo<LandingRow[]>(
     // A created scene and a replay have no slot, and their landing is never drawn.
-    () => (interlude ? interlude.interlude.rows.map((row, index) => ({ key: `interlude:${index}`, text: row.label, tone: 'idle' as const, verdict: null }))
+    () => (interlude ? interlude.interlude.rows.map((row, index) => ({
+      key: `interlude:${index}`,
+      text: row.label,
+      tone: row.card ? 'plan' as const : 'idle' as const,
+      word: row.card ? null : undefined,
+      verdict: null
+    }))
       : created || replaying ? [] : [...slotActionsNow(), relaxAction(time), ...relaxRows({ date, time }).map((row, index) => ({ key: `relax:${index}`, text: row.label, tone: 'idle' as const, verdict: null, relaxPick: row.onPick }))]),
     [date, time, events, classes, job, playerSchedule, classRecords, calendar, activitySwitches, interlude]
   )
@@ -2311,6 +2316,7 @@ export function GameView(): JSX.Element {
           date={shownDate}
           season={season}
           night={half === 'night'}
+          lateNight={interlude?.now.clock === 'late-night'}
           weather={slotSky}
           epilogue={epilogue}
           covered={covered}

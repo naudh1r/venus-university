@@ -401,6 +401,7 @@ export function interludeNow(): InterludeNow | null;
 
 // @public
 export interface InterludeRow {
+    card?: true;
     // (undocumented)
     label: string;
     // (undocumented)

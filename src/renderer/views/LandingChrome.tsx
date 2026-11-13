@@ -90,11 +90,11 @@ const CATEGORY: Record<SlotActionTone, { word: string; mod: string } | null> = {
 }
 
 /**
- * One row in the question column: a slot action plus the goodbye menu's own needs — the face
- * of the girl the row says goodbye to, a chip word for when the tone's own word is wrong, and
- * whether the row is set off from the ones above it by a gap: the way out, after the goodbyes.
+ * One row in the question column: a slot action with an optional face and chip override
+ * (null omits the chip). A row can stand apart from those above it, as the way out does
+ * after the goodbyes.
  */
-export type LandingRow = SlotAction & { faceUrl?: string; word?: string; apart?: boolean }
+export type LandingRow = SlotAction & { faceUrl?: string; word?: string | null; apart?: boolean }
 
 /**
  * How long a column has to be before it stops growing upward and starts scrolling. The goodbye
@@ -109,6 +109,8 @@ export interface LandingChromeProps {
   /** The semester's season, which names the month of the date. */
   season: Season
   night: boolean
+  /** A held late-night landing names the hour while keeping the finished slot's date. */
+  lateNight?: boolean
   /** The sky over the slot, which the banner's mark is drawn as wherever it is not clear. */
   weather: Weather
   /** The goodbye menu: the banner says no date and the column takes no turn. */
@@ -347,7 +349,7 @@ export function LandingChrome(props: LandingChromeProps): JSX.Element {
                 'Someday, sometime...'
               ) : (
                 <>
-                  {weekday} {formatNumericGameDate(date, season)} · {night ? 'Evening' : 'Morning'}
+                  {weekday} {formatNumericGameDate(date, season)} · {props.lateNight ? 'Night' : night ? 'Evening' : 'Morning'}
                 </>
               )}
             </div>
@@ -699,7 +701,7 @@ function SlotButton({
           </span>
         </span>
       )}
-      <span className="vu-landing-kind">{action.word ?? category.word}</span>
+      {action.word !== null && <span className="vu-landing-kind">{action.word ?? category.word}</span>}
       <span className="vu-landing-doword">{action.text}</span>
       <ChevronIcon />
     </motion.button>

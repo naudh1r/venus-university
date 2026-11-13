@@ -49,6 +49,8 @@ export interface InterludeCtx {
 
 /** One way to release a held slot. */
 export interface InterludeRow {
+  /** Draw a plan card without a category chip instead of a quiet row. */
+  card?: true
   label: string
   onPick: () => void
 }
