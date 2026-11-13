@@ -126,6 +126,13 @@ function threads(): Promise<typeof import('../stores/bunnyfeedsThreads')> {
   return import('../stores/bunnyfeedsThreads')
 }
 
+/** Files the memories due by the next slot and asks for any answers still owed. */
+function settleFeed(): void {
+  const { date, time } = readBunnyfeedsContext()
+  fileDueFeedMemories(globalSlotOf(date, time) + 1)
+  void threads().then((module) => module.armFeedThreads('next'))
+}
+
 // Closing the phone ends a visit: everything he commented during it goes out as one call.
 let wasPhoneOpen = phoneOpen()
 subscribePhoneView(() => {
@@ -201,11 +208,9 @@ registerHooks(BUNNYFEEDS, {
 
   // Held memories whose answers show next slot are filed now, so the boundary save carries them;
   // then whatever the phone-close call never answered is asked for.
-  slotSettled: () => {
-    const { date, time } = readBunnyfeedsContext()
-    fileDueFeedMemories(globalSlotOf(date, time) + 1)
-    void threads().then((module) => module.armFeedThreads('next'))
-  },
+  slotSettled: settleFeed,
+  // A late night held before the morning settles the same way, read as the evening it follows.
+  interludeSettled: settleFeed,
 
   // Files the replies too. A post another mod is putting a picture on (its "image") draws more.
   fileFeedPost: (filing) => {
