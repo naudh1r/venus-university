@@ -194,6 +194,7 @@ import {
   releaseHeldReplies,
   resetTextingLoop,
   resumeHeldReplies,
+  settleClassReplies,
   resolveFriendRequests,
   rollAskerInvite
 } from './textingLoop'
@@ -3243,6 +3244,11 @@ async function crossSlotBoundary(): Promise<void> {
       // Only now does the curtain say its piece.
       answerCrossing()
     }
+  }
+
+  if (!over) {
+    await settleClassReplies(markCrossingWait)
+    if (runStale(run)) return
   }
 
   // Before the clock moves, so each text is stamped with the slot the scene ran in, and before

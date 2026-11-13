@@ -219,6 +219,11 @@ export interface Conversation {
         regenerable?: boolean;
     };
     heldReply?: {
+        afterClass?: {
+            date: number;
+            time: TimeSlot;
+            code: string;
+        };
         until: {
             date: number;
             time: TimeSlot;

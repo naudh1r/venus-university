@@ -1688,6 +1688,10 @@ export interface TextingPromptState {
     playerSchedule: Record<number, string>;
     roster: readonly Character[];
     secretBudget?: number;
+    sharedClass?: {
+        name: string;
+        attended: boolean;
+    };
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
     // (undocumented)

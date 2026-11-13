@@ -171,7 +171,10 @@ function carriedConversation(conversation: Conversation, shift: number): Convers
   return {
     ...rest,
     ...(conversation.heldReply ? { heldReply: { ...conversation.heldReply,
-      until: { ...conversation.heldReply.until, date: conversation.heldReply.until.date - shift }
+      until: { ...conversation.heldReply.until, date: conversation.heldReply.until.date - shift },
+      ...(conversation.heldReply.afterClass ? { afterClass: { ...conversation.heldReply.afterClass,
+        date: conversation.heldReply.afterClass.date - shift
+      } } : {})
     } } : {}),
     messages: conversation.messages.map((message) => ({ ...message, date: message.date - shift }))
   }

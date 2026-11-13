@@ -1807,6 +1807,16 @@ and epilogue gates still apply. `commitment` is a `Commitment`: her class (`{ ki
 (`{ kind: 'shift', employer }`). While it holds the gate open, her empty composer reads that she will
 reply when she is available.
 
+If her next slot is a class the reader takes too, sending makes no reply call. Every text
+waits for one reply due after that shared class. Its boundary records attendance before writing
+the reply, under the curtain. `TextingPromptState.sharedClass` supplies `{ name, attended }`;
+`attended` comes from the class record. If she is sick, away or no longer in that class, the
+reply has no `sharedClass`. Pending class waits are saved and carried with their due clock.
+Recovery does not ask for a shared-class reply before it is due. A boundary failure leaves
+his texts waiting; the due landing or a later reload recovers them. A girl whose held reply
+is due at an opening, written or still pending, is left out of that opening's reach-outs,
+plan invitations and occasion invitations.
+
 The reader's message is shown immediately. The normal DM call receives `heldUntil` (the next
 slot's date and time) and `commitment` in `TextingPromptState`. Its reply does not stream or
 show typing dots, and is not classified for a hangout. Every contact message appended
