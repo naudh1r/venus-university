@@ -566,6 +566,15 @@ export interface ModHooks {
     mapOverlay?: ComponentType<ScreenSlotProps['mapOverlay']>;
     messageAttachment?: ComponentType<ScreenSlotProps['messageAttachment']>;
     modDetail?: (mod: ModDef) => ComponentType<ModDetailProps> | undefined;
+    openingLook?: (ctx: {
+        date: number;
+        time: TimeSlot;
+    }) => {
+        room: {
+            kind: 'herRoom';
+            charId: string;
+        };
+    } | null;
     optionPreviews?: Record<string, ComponentType<OptionPreviewProps>>;
     panelLayer?: ComponentType<ScreenSlotProps['panelLayer']>;
     phoneOverlay?: ComponentType<ScreenSlotProps['phoneOverlay']>;

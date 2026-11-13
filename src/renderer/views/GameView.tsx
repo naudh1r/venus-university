@@ -1158,10 +1158,15 @@ export function GameView(): JSX.Element {
   const backgrounds = useAssetStore((s) => s.backgrounds)
   const listedBgs = useMemo(() => new Set(allBackgrounds(backgrounds)), [backgrounds])
 
-  // What the player picked wins the layer, and only the layer: `bg` is still what the scene
-  // reports. A game over plays on black, with no background at all.
-  const shownBg = interlude ? SLOT_BG : bgOverride ?? bg
-  const roomCharId = shownBg ? roomOwnerOf(shownBg, roomBgToCharId, listedBgs) : undefined
+  // An opening owns its backdrop; elsewhere the player's pick wins only the layer, while `bg`
+  // remains what the scene reports. A game over plays on black, with no background at all.
+  const openingRoom = useGameStore(s => s.openingRoom)
+  const openingBg = openingRoom
+    ? (openingRoom.ready && characters[openingRoom.charId] ? roomBgIdOf(characters[openingRoom.charId]) : SLOT_BG)
+    : null
+  const shownBg = interlude ? SLOT_BG : openingBg ?? bgOverride ?? bg
+  const roomCharId = !interlude && openingRoom?.ready ? openingRoom.charId
+    : shownBg ? roomOwnerOf(shownBg, roomBgToCharId, listedBgs) : undefined
   // Cache-buster for a room regenerated this session.
   const roomVersion = useSpriteVersion(roomCharId)
   // The same cache-buster for the speaker's portrait: the player can reframe one mid-playthrough.

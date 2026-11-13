@@ -132,7 +132,7 @@ import {
   type ReplayStayFields,
   type SceneKind
 } from './gameStore'
-import { gameEntered, interludePreview, interludeSettled, playerActs, slotInterlude, type InterludeCtx } from '../mods/hooks'
+import { gameEntered, interludePreview, interludeSettled, openingLook, playerActs, slotInterlude, type InterludeCtx } from '../mods/hooks'
 import { useCharacterStore } from './characterStore'
 import { castOf, useSaveStore } from './saveStore'
 import {
@@ -592,6 +592,8 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
     ...grades.finals.map((text) => ({ speaker: '', text }))
   ]
 
+  if (!tutorial && opening.lines.length > 0) await chooseOpeningRoom()
+  if (runStale(run)) return
   const ready = useGameStore.getState()
   openChatSlot()
   ready.appendPendingLines(lines)
@@ -645,6 +647,29 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
   // Folded into the slot-save minted before the call went out, which is the start-of-slot
   // decision point.
   await foldOpeningIntoSlotSave(lines)
+}
+
+/** Chooses the opening's temporary backdrop; the landing itself keeps its usual room. */
+function chooseOpeningRoom(): Promise<void> | null {
+  const run = currentRun()
+  const game = useGameStore.getState()
+  const look = openingLook({ date: game.date, time: game.time })
+  if (!look) return null
+  const charId = look.room.charId
+  const set = (ready: boolean): void => {
+    if (!runStale(run)) useGameStore.setState({ openingRoom: { charId, ready } })
+  }
+  if (!game.characters[charId]) {
+    set(false)
+    return null
+  }
+  return window.api.chars.room(charId).then(result => {
+    if (!result.ok) console.warn('[opening] could not read the room:', result.error)
+    set(result.ok && result.data.day && result.data.night)
+  }).catch(error => {
+    console.warn('[opening] could not read the room:', error)
+    set(false)
+  })
 }
 
 /** The playthrough's first scene, cast and sent without a classifier. */
@@ -2693,6 +2718,7 @@ export function advance(): void {
  * absences are charged, and the scene is written as the point a reload lands on.
  */
 function reachDecisionPoint(): void {
+  useGameStore.setState({ openingRoom: null })
   const game = useGameStore.getState()
   game.setAwaitingInput(true)
   // The beat a rewind held for this point is spent, however it was reached again.
@@ -3438,6 +3464,12 @@ export function enterGame(
   // decision point, not a slot with one line left to play.
   const drained = queued.length === 0 && !onLine
   live.setAwaitingInput(drained && !ending)
+  let openingRoomReady: Promise<void> | null = null
+  if (!ending && !drained && !save.scene.quiz && save.scene.cast.length === 0 &&
+    save.scene.transcript.length === 0 && save.scene.summary === null &&
+    !isOrientationSlot(save.date, save.time, live.semesterIndex) && !isGraduationSlot(save.date, save.time)) {
+    openingRoomReady = chooseOpeningRoom()
+  }
   // A drained scene *is* a decision point, so leaving from one writes it back; a landing is not,
   // so leaving from one writes nothing, as a live landing does. A paper is one too: its own point
   // is the start it was written at, which is what this save holds.
@@ -3446,15 +3478,20 @@ export function enterGame(
   }
   // Puts the queue's first line on screen, as `beginSlot` does for a live opening; otherwise
   // the box opens on `currentLine` as the save left it.
-  if ((!drained || ending) && !onLine) advance()
+  const enteredRun = currentRun()
+  if (openingRoomReady) void openingRoomReady.then(() => {
+    if (runStale(enteredRun)) return
+    if ((!drained || ending) && !onLine) advance()
+    endCrossing()
+  })
+  else if ((!drained || ending) && !onLine) advance()
 
   // A save taken mid-goodbye never runs `beginSlot`, and without this a reload from one loses
   // both the picture and the posts.
   if (isGraduationSlot(save.date, save.time)) armEpilogue()
 
-  // The scene is on screen: the entry crossing may open on it. Everything below is either
-  // a prefetch or a read the player is not waiting on.
-  endCrossing()
+  // The opening's chosen room is ready before the entry curtain reveals it.
+  if (!openingRoomReady) endCrossing()
 
   // A resumed scene never runs the casting step, so CG availability is read here.
   void loadCgReady(save.scene.cast)

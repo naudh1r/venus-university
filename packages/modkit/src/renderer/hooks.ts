@@ -398,6 +398,8 @@ export type SceneLedgerEntry =
 export interface ModHooks {
   /** The first enabled mod to answer holds the slot before any opening effects. */
   slotInterlude?: (ctx: InterludeCtx) => Interlude | null
+  /** The room behind a slot's opening narration, until its landing question appears. */
+  openingLook?: (ctx: { date: number; time: TimeSlot }) => { room: { kind: 'herRoom'; charId: string } } | null
   /** The first label replaces the Relax row's words. */
   relaxLabel?: (ctx: { date: number; time: TimeSlot }) => string | undefined
   /** Extra choices that call their handler before spending the slot on Relax. */
@@ -980,6 +982,19 @@ export function slotInterlude(ctx: InterludeCtx): { owner: string; interlude: In
       if (interlude) return { owner: modId, interlude }
     } catch (error) {
       console.warn(`[mods] ${modId}: slotInterlude failed`, error)
+    }
+  }
+  return null
+}
+
+/** The first enabled mod to choose a room for the opening narration. */
+export function openingLook(ctx: { date: number; time: TimeSlot }): { room: { kind: 'herRoom'; charId: string } } | null {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      const look = hooks.openingLook?.(ctx)
+      if (look) return look
+    } catch (error) {
+      console.warn(`[mods] ${modId}: openingLook failed`, error)
     }
   }
   return null

@@ -86,6 +86,11 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.21.0
+
+- `openingLook` chooses a girl's ready room behind a slot's opening narration, including
+  after a reload. The landing returns to its usual room when the narration is read.
+
 ## 0.20.0
 
 - A late-night interlude defers the next opening until its row settles the night's

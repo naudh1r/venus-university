@@ -69,6 +69,7 @@ export const HOOKS = [
   { name: 'afterDmReply', side: 'renderer', kind: 'event', dispatch: ['afterDmReply'], since: '0.1.0' },
   { name: 'afterSceneReply', side: 'renderer', kind: 'event', dispatch: ['afterSceneReply'], since: '0.1.0' },
   { name: 'sceneReplyLanded', side: 'renderer', kind: 'event', dispatch: ['sceneReplyLanded'], since: '0.7.0' },
+  { name: 'openingLook', side: 'renderer', kind: 'first', dispatch: ['openingLook'], since: '0.21.0' },
   { name: 'slotInterlude', side: 'renderer', kind: 'first', dispatch: ['slotInterlude'], since: '0.9.0' },
   { name: 'relaxRows', side: 'renderer', kind: 'add', dispatch: ['relaxRows'], since: '0.17.0' },
   { name: 'relaxLabel', side: 'renderer', kind: 'first', dispatch: ['relaxLabel'], since: '0.9.0' },
