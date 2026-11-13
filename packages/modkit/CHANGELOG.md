@@ -86,6 +86,19 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.21.0
+
+- Interlude rows accept `line`, played as Relax narration before their ending. `relaxLine`
+  replaces only Relax’s own line; extra Relax rows retain the default.
+- A busy-time text waits through a shared next class without a reply call. Its boundary
+  writes one reply with `TextingPromptState.sharedClass` and recorded attendance; failed
+  turns recover when due, and the pending class clock carries across semesters.
+- Held replies due at a landing exclude that girl from reach-outs and invitations,
+  including plan reminders and occasion fallback picks.
+
+- `openingLook` chooses a girl's ready room behind a slot's opening narration, including
+  after a reload. The landing returns to its usual room when the narration is read.
+
 ## 0.20.0
 
 - A late-night interlude defers the next opening until its row settles the night's

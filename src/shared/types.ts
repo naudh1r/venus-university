@@ -1038,6 +1038,8 @@ export interface ChatMessage {
 export interface Conversation {
   /** Pending delivery, including messages appended by mods after the reply. */
   heldReply?: {
+    /** The shared class whose ending writes this reply; its due slot is the one after it. */
+    afterClass?: { date: number; time: TimeSlot; code: string }
     until: { date: number; time: TimeSlot }
     firstPlayerId: string
     messageIds: string[]

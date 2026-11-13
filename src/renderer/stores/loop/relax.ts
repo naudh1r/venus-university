@@ -1,5 +1,5 @@
 import type { TimeSlot } from '@shared/types'
-import { playerActs } from '../../mods/hooks'
+import { playerActs, relaxLine as modRelaxLine } from '../../mods/hooks'
 import { isGraduationSlot } from '../../prompts/graduation'
 import { useGameStore } from '../gameStore'
 import { runQuietEnding } from './exams'
@@ -26,13 +26,14 @@ function relaxLine(time: TimeSlot): string {
  * authored line over the ending an exam runs — the texting ledger, the next slot's opening, one
  * write.
  */
-export async function relax(): Promise<void> {
+export async function relax(ownRow = false): Promise<void> {
   const run = currentRun()
   const game = useGameStore.getState()
   if (game.interlude || game.busy || !game.awaitingInput || sceneInProgress()) return
   if (game.createdScene || game.replaying || game.activeGameOver !== null) return
   if (isGraduationSlot(game.date, game.time)) return
 
+  const line = ownRow ? modRelaxLine({ date: game.date, time: game.time }) : undefined
   game.setInputDraft('')
   game.setAwaitingInput(false)
   game.setBusy(true)
@@ -51,7 +52,7 @@ export async function relax(): Promise<void> {
   const live = useGameStore.getState()
   // The slot's history entry, and `sceneInProgress()`'s marker.
   live.setSceneSummary(RELAX_SUMMARY, live.currentSceneTranscript.length)
-  queueLines([relaxLine(live.time)])
+  queueLines([line ?? relaxLine(live.time)])
 
   live.setSceneEnding(true)
   live.setEndingInFlight(true)

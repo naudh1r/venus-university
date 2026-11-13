@@ -1192,8 +1192,10 @@ else names it.
 | `dmHistoryNote` | `textingPrompt.ts` | Add a note after a DM in the history the prompt quotes |
 | `characterFromDraft` | `characterPrompt.ts` | Fill fields of a generated character from the reply |
 | `dmReplyLead` | `textingLoop.ts` | Read the `lead` fields of her DM reply the moment they have streamed in, before her first text lands. Once per reply, never for one already abandoned. Context includes `signal`: a lead's work ends at `afterDmReply` or at this signal, whichever comes first. Failure, cancellation, blocking, abandonment, load, leaving or scene takeover aborts it; a landed reply does not. Her finished reply stays authoritative |
+| `openingLook` | `gameLoop.ts` | Choose a girl's room for the opening narration, before the landing's own backdrop |
 | `slotInterlude` | `gameLoop.ts` (`beginSlot`) | Hold the slot opening on the finished slot’s landing with narration and choices |
 | `relaxLabel` | `slotActions.ts` | Replace the Relax row’s label, keeping its behavior |
+| `relaxLine` | `relax.ts` | Replace Relax’s narration; extra rows keep the default |
 | `relaxRows` | `GameView.tsx` | Add rows under Relax; each calls its handler, then runs the normal Relax flow |
 | `interludeSettled` | `gameLoop.ts` | Observe the held night's applied texting ledger before its opening and save, while the hold stands |
 | `interludePreview` | `slotCrossing.ts` | Say, without writing anything, that the coming slot will be held on the finished one's look, so the boundary's curtain announces that slot (`{ at: 'from' }`) |
@@ -1248,6 +1250,15 @@ else names it.
 | `sceneCut` | `gameStore.ts` | Undo what the replies past a cut in the transcript changed |
 | `switchedOn` | `App.tsx` (`boot`), then as a switch or the game's record moves | Read what the mod keeps as it comes on: at boot, waited for before the first screen, and again each time it is switched on |
 
+`openingLook({ date, time })` is asked when ordinary opening narration begins, including
+on a boundary, after a held night, and when a saved opening resumes. The first enabled mod
+returning `{ room: { kind: 'herRoom', charId } }` chooses its backdrop; a failing hook is
+logged and skipped. The slot keeps its own half and weather, nobody is on stage, and an
+unready or unknown room falls back to the landing's usual background. Once the narration
+ends, the landing's question stands in the usual room, with the ordinary background change.
+No answer, or no opening narration, changes nothing. The look is not saved: a resumed opening
+asks the current hooks again.
+
 `slotInterlude(ctx)` is asked once per entry into `beginSlot`, after game-over checks and
 before graduation or any ordinary slot-opening effects. `ctx.from` is the preceding slot;
 `ctx.to` is the clock's current slot, with `semesterIndex` naming its semester. `ctx.ledger`
@@ -1257,7 +1268,9 @@ hold. Its `lines` play on the finished slot's landing, followed only by its `row
 row has a `label` and an `onPick` called once before the slot opens normally. There is no
 action box, gift or map travel. Set a row's `card: true` to draw the existing plan-tone
 paper card with its label and chevron, without a category chip; otherwise it is a quiet
-row. The row does not ask the hook again.
+row. An optional `line` plays through the normal narration queue after `onPick`, before
+the hold’s ending, with the same box and advance as Relax. A save while it plays reloads
+the held landing before that choice. The row does not ask the hook again.
 A manual save holds no scene, so loading it asks anew, as loading a boundary save does.
 A late-night hold has no banked narration: its ending writes the opening after the night's
 texts are settled. Leaving the landing writes nothing. Switching the owner off leaves the current
@@ -1291,6 +1304,10 @@ as Night with the night mark. This answer defers the opening until the held nigh
 other answers keep ordinary opening behavior. It receives the same ledger as the ending, retained through
 ending reloads. The `requests['slot-intro']` context also carries `ledger`: the scene's
 ledger when its ending fetched this opening, null when no scene preceded it.
+
+`relaxLine({ date, time })` replaces the narration only when the Relax row itself is picked.
+The first enabled answer wins; `undefined` keeps the default and a failing hook is logged
+and skipped. The history summary is unchanged.
 
 `relaxRows({ date, time })` adds each enabled mod's rows under Relax, in mod order, wherever
 Relax is offered. Rows have a `label` and `onPick`; choosing one calls its handler and runs
@@ -1796,6 +1813,16 @@ and hints, and read/edit/export with a missing provider. No particular mod trait
 and epilogue gates still apply. `commitment` is a `Commitment`: her class (`{ kind: 'class', name }`) or shift
 (`{ kind: 'shift', employer }`). While it holds the gate open, her empty composer reads that she will
 reply when she is available.
+
+If her next slot is a class the reader takes too, sending makes no reply call. Every text
+waits for one reply due after that shared class. Its boundary records attendance before writing
+the reply, under the curtain. `TextingPromptState.sharedClass` supplies `{ name, attended }`;
+`attended` comes from the class record. If she is sick, away or no longer in that class, the
+reply has no `sharedClass`. Pending class waits are saved and carried with their due clock.
+Recovery does not ask for a shared-class reply before it is due. A boundary failure leaves
+his texts waiting; the due landing or a later reload recovers them. A girl whose held reply
+is due at an opening, written or still pending, is left out of that opening's reach-outs,
+plan invitations and occasion invitations.
 
 The reader's message is shown immediately. The normal DM call receives `heldUntil` (the next
 slot's date and time) and `commitment` in `TextingPromptState`. Its reply does not stream or

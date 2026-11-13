@@ -458,6 +458,8 @@ interface GameStoreState {
    * included. Written back under the values below.
    */
   modData: Record<string, ModSlice>
+  /** The room a mod chose behind the slot's opening narration, until its landing question; never saved. */
+  openingRoom: { charId: string; ready: boolean } | null
   /** The slot opening held on the landing; never written into a save. */
   interlude: HeldInterlude | null
   /** The value of each registered mod the loaded save held data for, by id, as its field read it. */
@@ -1708,6 +1710,7 @@ const initialState = {
   breakthroughFlash: null as GameStoreState['breakthroughFlash'],
   saveRest: {} as Record<string, unknown>,
   modData: {} as Record<string, ModSlice>,
+  openingRoom: null as { charId: string; ready: boolean } | null,
   interlude: null as HeldInterlude | null,
   modValues: {} as Record<string, unknown>,
   playthroughId: null,
@@ -2502,6 +2505,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   clearStage: () =>
     set({
+      openingRoom: null,
       ...freshStage(),
       pendingLines: [],
       currentLine: null,

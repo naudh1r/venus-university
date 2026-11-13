@@ -112,6 +112,9 @@ export const loopState = {
   /** A held night is settling its texts without crossing another slot boundary. */
   interludeEnding: false,
   interludeStatusDone: null as (() => void) | null,
+  interludeLineDone: null as (() => void) | null,
+  /** A row line reloads the held landing before its choice took effect. */
+  interludeBase: null as SaveDraft | null,
 
   /** An exam's opening, in flight while the player answers; null after a reload. */
   examOpening: null as Promise<BankedOpening | null> | null,
@@ -282,6 +285,8 @@ export function resetTurnSlice(): void {
   loopState.endBase = null
   loopState.endLines = null
   loopState.statusBase = null
+  loopState.interludeBase = null
+  loopState.interludeLineDone = null
 }
 
 /**
@@ -349,6 +354,8 @@ export function resetLoopState(): void {
   loopState.bankedOpening = null
   loopState.interludeEnding = false
   loopState.interludeStatusDone = null
+  loopState.interludeLineDone = null
+  loopState.interludeBase = null
   // An in-flight prefetch is simply abandoned; the next armed hangout makes its own call.
   loopState.hangoutPrefetch = null
   // Abandoned the same way; the bytes it holds are released separately, by `dropEndingArt`.
