@@ -1915,7 +1915,7 @@ export function GameView(): JSX.Element {
     if (chosen.key === RELAX_KEY || chosen.relaxPick) {
       setSending(true)
       try { chosen.relaxPick?.() } catch (error) { console.warn('[mods] relax row failed', error) }
-      void relax()
+      void relax(chosen.key === RELAX_KEY)
       return
     }
     // A button spends the turn exactly as the box does, so the wait is reported the same —

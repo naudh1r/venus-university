@@ -88,6 +88,8 @@
 
 ## 0.21.0
 
+- Interlude rows accept `line`, played as Relax narration before their ending. `relaxLine`
+  replaces only Relax’s own line; extra Relax rows retain the default.
 - A busy-time text waits through a shared next class without a reply call. Its boundary
   writes one reply with `TextingPromptState.sharedClass` and recorded attendance; failed
   turns recover when due, and the pending class clock carries across semesters.

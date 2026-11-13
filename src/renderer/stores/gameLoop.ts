@@ -284,7 +284,7 @@ import { dropProfilePicture, loadProfilePicture } from './loop/profilePicture'
 import { farewellDisposition, graduatingNames } from './loop/farewells'
 import { settleSpringBreak, springBreakPickFor } from './loop/springBreak'
 import { homecomingPickFor, settleHomecoming } from './loop/homecoming'
-import { dropHeldSceneLines, sceneInProgress, streamScene, unpark } from './loop/stream'
+import { dropHeldSceneLines, queueLines, sceneInProgress, streamScene, unpark } from './loop/stream'
 import {
   announceableAdds,
   announceableDrops,
@@ -432,6 +432,7 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
         const row = held.interlude.rows[index]
         if (!row || picked || runStale(run) || useGameStore.getState().interlude?.now !== now) return
         picked = true
+        if (row.line !== undefined) loopState.interludeBase = { ...state.toGameSave(), scene: null }
         try {
           row.onPick()
         } catch (error) {
@@ -440,11 +441,15 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
         if (runStale(run)) return
         state.setAwaitingInput(false)
         if (now.clock === 'late-night') {
-          void finishInterlude(now)
+          void finishInterlude(now, row.line)
           return
         }
-        void coverInterludeOpening().then(() => {
+        void playInterludeLine(row.line).then(() => {
           if (runStale(run)) return
+          return coverInterludeOpening()
+        }).then(() => {
+          if (runStale(run)) return
+          loopState.interludeBase = null
           useGameStore.setState({ interlude: null })
           useGameStore.getState().clearStage()
           void beginSlot(true)
@@ -2698,6 +2703,14 @@ export function advance(): void {
     return
   }
 
+  if (loopState.interludeLineDone) {
+    const done = loopState.interludeLineDone
+    loopState.interludeLineDone = null
+    game.setWaitingForLine(true)
+    done()
+    return
+  }
+
   if (game.interlude) {
     game.setAwaitingInput(true)
     return
@@ -2948,7 +2961,7 @@ export function takeTurnFromReply(): boolean {
 function showStatusLines(textOnly = false): boolean {
   // What a save taken anywhere in the sequence records, taken before any money moves: the
   // scene's last line, unturned, so a load raises the whole sequence again.
-  loopState.statusBase = endingSave()
+  loopState.statusBase = loopState.interludeBase ?? endingSave()
   const game = useGameStore.getState()
   game.setStatusShown(true)
   // Money lands here, so the balance moves as the line reporting it is read.
@@ -3293,8 +3306,21 @@ async function crossSlotBoundary(): Promise<void> {
   void writeSlotSave(replay ?? undefined).then(() => beginSlot())
 }
 
+/** Plays a held choice through the same narration queue as Relax. */
+async function playInterludeLine(line: string | undefined): Promise<void> {
+  if (line === undefined) return
+  const game = useGameStore.getState()
+  game.clearStage()
+  await new Promise<void>(resolve => {
+    loopState.interludeLineDone = resolve
+    queueLines([line])
+    game.setWaitingForLine(false)
+    advance()
+  })
+}
+
 /** Settles a held night's phone, then writes and opens its morning without advancing the clock. */
-async function finishInterlude(now: InterludeCtx): Promise<void> {
+async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> {
   const run = currentRun()
   const game = useGameStore.getState()
   loopState.interludeEnding = true
@@ -3305,15 +3331,23 @@ async function finishInterlude(now: InterludeCtx): Promise<void> {
   game.setWaitingForLine(true)
   await applyCast([])
   if (runStale(run)) return
+  if (line !== undefined) {
+    queueLines([line])
+    game.setWaitingForLine(false)
+    advance()
+  }
   const schedule = scheduleInput(now.to.date, now.to.time)
   const ledger = await claimTextLedger(now.to.date, now.to.time)
   if (!ledger || runStale(run)) return
   loopState.pendingLedgerResult = ledger
   game.setEndingInFlight(false)
-  game.setWaitingForLine(false)
   await new Promise<void>(resolve => {
     loopState.interludeStatusDone = resolve
-    advance()
+    if (line !== undefined) unpark()
+    else {
+      game.setWaitingForLine(false)
+      advance()
+    }
   })
   if (runStale(run)) return
   game.setEndingInFlight(true)
@@ -3364,6 +3398,7 @@ async function finishInterlude(now: InterludeCtx): Promise<void> {
   await coverInterludeOpening()
   if (runStale(run)) return
   loopState.interludeEnding = false
+  loopState.interludeBase = null
   game.setEndingInFlight(false)
   game.setSceneEnding(false)
   game.setStatusShown(false)

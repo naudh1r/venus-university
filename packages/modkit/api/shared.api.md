@@ -487,6 +487,12 @@ export const HOOKS: readonly [{
     readonly dispatch: readonly ["slotInterlude"];
     readonly since: '0.9.0';
 }, {
+    readonly name: 'relaxLine';
+    readonly side: 'renderer';
+    readonly kind: 'first';
+    readonly dispatch: readonly ["relaxLine"];
+    readonly since: '0.21.0';
+}, {
     readonly name: 'relaxRows';
     readonly side: 'renderer';
     readonly kind: 'add';

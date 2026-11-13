@@ -42,6 +42,7 @@ export {
   promptStateParts,
   promptTextEdits,
   relaxLabel,
+  relaxLine,
   relaxRows,
   saveChoice,
   saveNotes,

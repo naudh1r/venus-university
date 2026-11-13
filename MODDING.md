@@ -1195,6 +1195,7 @@ else names it.
 | `openingLook` | `gameLoop.ts` | Choose a girl's room for the opening narration, before the landing's own backdrop |
 | `slotInterlude` | `gameLoop.ts` (`beginSlot`) | Hold the slot opening on the finished slot’s landing with narration and choices |
 | `relaxLabel` | `slotActions.ts` | Replace the Relax row’s label, keeping its behavior |
+| `relaxLine` | `relax.ts` | Replace Relax’s narration; extra rows keep the default |
 | `relaxRows` | `GameView.tsx` | Add rows under Relax; each calls its handler, then runs the normal Relax flow |
 | `interludeSettled` | `gameLoop.ts` | Observe the held night's applied texting ledger before its opening and save, while the hold stands |
 | `interludePreview` | `slotCrossing.ts` | Say, without writing anything, that the coming slot will be held on the finished one's look, so the boundary's curtain announces that slot (`{ at: 'from' }`) |
@@ -1267,7 +1268,9 @@ hold. Its `lines` play on the finished slot's landing, followed only by its `row
 row has a `label` and an `onPick` called once before the slot opens normally. There is no
 action box, gift or map travel. Set a row's `card: true` to draw the existing plan-tone
 paper card with its label and chevron, without a category chip; otherwise it is a quiet
-row. The row does not ask the hook again.
+row. An optional `line` plays through the normal narration queue after `onPick`, before
+the hold’s ending, with the same box and advance as Relax. A save while it plays reloads
+the held landing before that choice. The row does not ask the hook again.
 A manual save holds no scene, so loading it asks anew, as loading a boundary save does.
 A late-night hold has no banked narration: its ending writes the opening after the night's
 texts are settled. Leaving the landing writes nothing. Switching the owner off leaves the current
@@ -1301,6 +1304,10 @@ as Night with the night mark. This answer defers the opening until the held nigh
 other answers keep ordinary opening behavior. It receives the same ledger as the ending, retained through
 ending reloads. The `requests['slot-intro']` context also carries `ledger`: the scene's
 ledger when its ending fetched this opening, null when no scene preceded it.
+
+`relaxLine({ date, time })` replaces the narration only when the Relax row itself is picked.
+The first enabled answer wins; `undefined` keeps the default and a failing hook is logged
+and skipped. The history summary is unchanged.
 
 `relaxRows({ date, time })` adds each enabled mod's rows under Relax, in mod order, wherever
 Relax is offered. Rows have a `label` and `onPick`; choosing one calls its handler and runs

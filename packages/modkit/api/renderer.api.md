@@ -404,6 +404,7 @@ export interface InterludeRow {
     card?: true;
     // (undocumented)
     label: string;
+    line?: string;
     // (undocumented)
     onPick: () => void;
 }
@@ -597,6 +598,10 @@ export interface ModHooks {
     promptText?: PromptTextSpot;
     railButton?: ComponentType<ScreenSlotProps['railButton']>;
     relaxLabel?: (ctx: {
+        date: number;
+        time: TimeSlot;
+    }) => string | undefined;
+    relaxLine?: (ctx: {
         date: number;
         time: TimeSlot;
     }) => string | undefined;
