@@ -458,8 +458,9 @@ interface GameStoreState {
    * included. Written back under the values below.
    */
   modData: Record<string, ModSlice>
-  /** The slot opening held on the landing; never written into a save. */
+  /** The room a mod chose behind the slot's opening narration, until its landing question; never saved. */
   openingRoom: { charId: string; ready: boolean } | null
+  /** The slot opening held on the landing; never written into a save. */
   interlude: HeldInterlude | null
   /** The value of each registered mod the loaded save held data for, by id, as its field read it. */
   modValues: Record<string, unknown>
