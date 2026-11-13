@@ -1254,7 +1254,9 @@ is the finished scene's ledger, as `slotSettled` receives it, or null after Rela
 opening with no preceding scene. The first enabled mod returning an `Interlude` owns the
 hold. Its `lines` play on the finished slot's landing, followed only by its `rows`; each
 row has a `label` and an `onPick` called once before the slot opens normally. There is no
-action box, gift or map travel. The row does not ask the hook again.
+action box, gift or map travel. Set a row's `card: true` to draw the existing plan-tone
+paper card with its label and chevron, without a category chip; otherwise it is a quiet
+row. The row does not ask the hook again.
 A manual save holds no scene, so loading it asks anew, as loading a boundary save does.
 `heldOpening` retains the banked morning narration through that reload, without asking for
 it again. Leaving the landing writes nothing. Switching the owner off leaves the current
@@ -1268,7 +1270,8 @@ taking precedence. Other interludes show no presence. Texts retain `to`'s date a
 the ledger and gain `late: true`; their saved marker prints as the preceding night in
 threads, classifier context and ledger blocks, including after the hold ends or the save
 is loaded. Reach-outs and invitations from the new slot arrive only after a row releases
-it. The stage and room sound use `from`, in the reader's room.
+it. The stage and room sound use `from`, in the reader's room. The landing header
+says Night with `from`'s date while this late-night hold stands.
 
 `interludePreview(ctx)` is a pure preview asked before the boundary's curtain falls. Return
 `{ at: 'from' }` to announce the finished slot, or add `clock: 'late-night'` to announce it
