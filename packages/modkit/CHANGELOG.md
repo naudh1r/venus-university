@@ -86,6 +86,15 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.20.0
+
+- A late-night interlude defers the next opening until its row settles the night's
+  texting ledger, displays its status lines, and claims the messages before saving.
+- `interludeSettled` receives that ledger synchronously while the hold still stands,
+  before its opening and save. `slotSettled` never sees this extra ending.
+- Remove the saved `heldOpening`. Ordinary scene endings still retain their paid
+  opening and boundary results on the scene for replaying the ending after a reload.
+
 ## 0.19.0
 
 - Interlude rows can set `card: true` to use a plan card without a category chip.

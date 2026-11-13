@@ -1001,6 +1001,8 @@ export type InviteKind = (typeof INVITE_KINDS)[number]
 export interface ChatMessage {
   /** A held reply is still being written for this player text. */
   awaitingReply?: true
+  /** Already included in a completed texting ledger. */
+  ledgered?: true
   /** Sent late on the night preceding its stored slot. */
   late?: true
   /** Optional response grouping retained by the Text Regeneration mod. */
@@ -1530,6 +1532,8 @@ export interface SlotOpening {
 /** A {@link SlotOpening} an ending banked: the three settles it rolled are always on it. */
 export type BankedOpening = SlotOpening &
   Required<Pick<SlotOpening, 'rumorPass' | 'crushes' | 'npcRelationships'>> & {
+    /** Only boundary results are ready; a held night writes the narration when it ends. */
+    deferred?: true
     /** The scene ledger this opening follows; absent on older saves. */
     ledger?: LedgerResponse | null
   }
@@ -1568,8 +1572,6 @@ export interface BreakupOwed {
 export interface NativeGameSave {
   /** The chat clock whose shown messages have already contributed to unread counts. */
   chatShownThrough?: { date: number; time: TimeSlot }
-  /** The unopened slot's paid narration, retained through a held landing. */
-  heldOpening?: BankedOpening
   schemaVersion: 13
   /**
    * The playthrough this save belongs to. Derived from the containing folder

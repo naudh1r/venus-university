@@ -30,7 +30,7 @@ export function homecomingPickFor(
  * slot's opening, or one made now where no scene preceded it. Null on every other slot, and
  * when nobody qualifies.
  */
-export function settleHomecoming(banked: BankedOpening | null): string | null {
+export function settleHomecoming(banked: Pick<BankedOpening, 'homecomingVisitor'> | null): string | null {
   const game = useGameStore.getState()
   if (!isHomecomingPickSlot(game.calendar.season, game.date, game.time)) return null
   const visitor = banked

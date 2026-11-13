@@ -73,6 +73,7 @@ export const HOOKS = [
   { name: 'relaxRows', side: 'renderer', kind: 'add', dispatch: ['relaxRows'], since: '0.17.0' },
   { name: 'relaxLabel', side: 'renderer', kind: 'first', dispatch: ['relaxLabel'], since: '0.9.0' },
   { name: 'interludePreview', side: 'renderer', kind: 'first', dispatch: ['interludePreview'], since: '0.16.0' },
+  { name: 'interludeSettled', side: 'renderer', kind: 'event', dispatch: ['interludeSettled'], since: '0.20.0' },
   { name: 'textWhileBusy', side: 'renderer', kind: 'any', dispatch: ['textWhileBusy'], since: '0.13.0' },
   { name: 'hangoutCheck', side: 'renderer', kind: 'any', dispatch: ['hangoutCheck'], since: '0.18.0' },
   { name: 'sceneCut', side: 'renderer', kind: 'event', dispatch: ['sceneCut'], since: '0.7.0' },

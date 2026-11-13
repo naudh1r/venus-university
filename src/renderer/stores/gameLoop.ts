@@ -1,3 +1,4 @@
+import { claimLedgerMessages } from '@shared/textingThread'
 import { chatClockOf, shownConversation } from '@shared/chatVisibility'
 import { filterSceneLedger, promptTextEdits, exercisedStats, projectSlotMemories, settleSceneStats, slotActivityAvailable, slotSettled, slotStatusLines, statFloor } from '../mods/hooks'
 import { withSlotActivityPrompt } from '../prompts/slotActivity'
@@ -131,7 +132,7 @@ import {
   type ReplayStayFields,
   type SceneKind
 } from './gameStore'
-import { gameEntered, playerActs, slotInterlude } from '../mods/hooks'
+import { gameEntered, interludePreview, interludeSettled, playerActs, slotInterlude, type InterludeCtx } from '../mods/hooks'
 import { useCharacterStore } from './characterStore'
 import { castOf, useSaveStore } from './saveStore'
 import {
@@ -371,7 +372,7 @@ function breakDecayLines(): SceneLine[] {
 }
 
 /** Opens a slot: the transition, the narration, and the action prompt. */
-async function beginSlot(released = false): Promise<void> {
+async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<void> {
   const run = currentRun()
   // The opening is the first prompt a stay can build, so it waits on the playthrough's lorebook.
   await lorebookLoaded()
@@ -437,6 +438,10 @@ async function beginSlot(released = false): Promise<void> {
         }
         if (runStale(run)) return
         state.setAwaitingInput(false)
+        if (now.clock === 'late-night') {
+          void finishInterlude(now)
+          return
+        }
         void coverInterludeOpening().then(() => {
           if (runStale(run)) return
           useGameStore.setState({ interlude: null })
@@ -444,6 +449,7 @@ async function beginSlot(released = false): Promise<void> {
           void beginSlot(true)
         })
       }
+      loopState.bankedOpening = null
       useGameStore.setState({ interlude: { now, interlude: held.interlude, pick } })
       openChatSlot()
       showInterludeLanding(ctx.from)
@@ -504,9 +510,9 @@ async function beginSlot(released = false): Promise<void> {
   // Who leaves campus for spring break: the pick the ending banked with this opening, or one made
   // now. First, because it reads the affection the boundary just saved and the sweeps below write
   // `charInfo`.
-  const springBreak = settleSpringBreak(loopState.bankedOpening?.springBreakAway)
+  const springBreak = settleSpringBreak(readyOpening?.springBreakAway ?? loopState.bankedOpening?.springBreakAway)
   // Who is back for Homecoming, on its morning, settled the same way and for the same reason.
-  const homecoming = settleHomecoming(loopState.bankedOpening)
+  const homecoming = settleHomecoming(readyOpening ?? loopState.bankedOpening)
 
   // Friend requests resolve against today's disposition, inside the start-of-slot save.
   resolveFriendRequests()
@@ -532,7 +538,7 @@ async function beginSlot(released = false): Promise<void> {
 
   // Who the roster is spending this slot with.
   const overlay =
-    loopState.bankedOpening?.npcOverlay ?? rollNpcOverlayNow(state.date, state.time)
+    readyOpening?.npcOverlay ?? loopState.bankedOpening?.npcOverlay ?? rollNpcOverlayNow(state.date, state.time)
   applyNpcOverlay(overlay)
 
   // The blocked-player window for a deferred failure modal; up before the spinner
@@ -545,7 +551,7 @@ async function beginSlot(released = false): Promise<void> {
   // Banked by the ending that led here, or fetched when no scene precedes the slot.
   const tutorial = isTutorialSlot(state.date, state.time, state.semesterIndex)
   const silent: SlotOpening = { lines: [], hangouts: [], events: [], cancellations: [] }
-  const banked = loopState.bankedOpening
+  const banked = readyOpening ?? (loopState.bankedOpening?.deferred ? null : loopState.bankedOpening)
   const narration = tutorial
     ? (banked ?? silent)
     : (banked ??
@@ -561,7 +567,6 @@ async function beginSlot(released = false): Promise<void> {
         overlay
       ))
   loopState.bankedOpening = null
-  useGameStore.setState({ heldOpening: null })
   // **Nothing was banked, so this slot is waiting on a call**: the curtain is the loading screen,
   // so it is told there is a load to report and stays down over the whole of it — the
   // retry modal included, which opens above it. A banked or authored opening declares nothing
@@ -2185,9 +2190,15 @@ async function fetchEndingOpening(
 
   // The first night's opening is the authored tutorial and the last morning's the authored
   // graduation: no call, but the plans, overlay and settles are banked either way.
-  if (isTutorialSlot(date, time, game.semesterIndex) || isGraduationSlot(date, time)) {
+  const preview = interludePreview({
+    from: { date: game.date, time: game.time }, to: { date, time },
+    semesterIndex: game.semesterIndex, ledger
+  })
+  const deferred = preview?.at === 'from' && preview.clock === 'late-night'
+  if (deferred || isTutorialSlot(date, time, game.semesterIndex) || isGraduationSlot(date, time)) {
     return {
       ledger: sceneLedger,
+      ...(deferred ? { deferred: true as const } : {}),
       lines: [],
       hangouts: [],
       events: plans.events,
@@ -2605,6 +2616,19 @@ export function advance(): void {
     return
   }
 
+  if (ending && loopState.interludeEnding) {
+    if (!game.statusShown && showStatusLines(true)) return
+    if (loopState.statusSteps.length > 0) {
+      playStatusStep()
+      return
+    }
+    game.setWaitingForLine(true)
+    const done = loopState.interludeStatusDone
+    loopState.interludeStatusDone = null
+    done?.()
+    return
+  }
+
   // A goodbye ends on one line about how she took it, then hands the screen back to the
   // menu.
   const farewell = game.sceneFarewell
@@ -2894,7 +2918,7 @@ export function takeTurnFromReply(): boolean {
  * sequence the boundary waits behind, and plays its first beat. Returns true when there was
  * something to say; the ordering and line/screen split are `buildStatusSteps`'.
  */
-function showStatusLines(): boolean {
+function showStatusLines(textOnly = false): boolean {
   // What a save taken anywhere in the sequence records, taken before any money moves: the
   // scene's last line, unturned, so a load raises the whole sequence again.
   loopState.statusBase = endingSave()
@@ -2906,11 +2930,11 @@ function showStatusLines(): boolean {
   const spent = shift ? 0 : spentOf(loopState.pendingLedgerResult?.spent)
   if (shift) game.spendMoney(-shift.pay)
   else if (spent > 0) game.spendMoney(spent)
-  const resolved = resolveScene()
+  const resolved = textOnly ? { deltas: { brain: 0, body: 0, heart: 0 }, lines: [] } : resolveScene()
   const ledger = loopState.pendingLedgerResult
   // Folded by value, since the boundary's own apply is still to come: the milestone screens
   // diff the scene's folds against the store.
-  const projected = ledger ? projectLedger(game.charInfo, ledger, game.date) : null
+  const projected = ledger ? projectLedger(game.charInfo, ledger, textOnly ? game.interlude!.now.from.date : game.date) : null
   // `game.stats` is still the before-snapshot — the deltas land at the boundary — so the two
   // readings the rank-up screen walks between are both had here.
   const after = applyStatDeltas(game.stats, resolved.deltas, statFloor)
@@ -2944,7 +2968,7 @@ function showStatusLines(): boolean {
         game.sceneTurnedDown
       ),
       // Then what the mods report, such as the memories the next slot files for them.
-      ...slotStatusLines({ nextSlot: globalSlotOf(game.date, game.time) + 1 })
+      ...(textOnly ? [] : slotStatusLines({ nextSlot: globalSlotOf(game.date, game.time) + 1 }))
     ],
     // Milestones last, one screen apiece, the thing the player is left on.
     milestones: projected ? milestoneReports(projected) : []
@@ -3182,7 +3206,7 @@ async function crossSlotBoundary(): Promise<void> {
     const rows = sceneMemoryRows(ledger)
     // The spinner closes the input for the fade; `advance()` would otherwise hand the box back.
     useGameStore.getState().setWaitingForLine(true)
-    await coverSlotCrossing(rows.length > 0, banked?.ledger ?? null)
+    await coverSlotCrossing(rows.length > 0, banked?.ledger ?? ledger)
     // The player left while it closed; `cancelCrossing` has already taken the cover down.
     if (runStale(run)) return
     if (rows.length > 0) {
@@ -3199,6 +3223,12 @@ async function crossSlotBoundary(): Promise<void> {
   // the boundary save, which records them.
   slotSettled({ before: game, ledger, closingCast: loopState.closingCast ?? [] })
   for (const send of owedTexts) send()
+
+  if (banked?.deferred) {
+    addPlanContacts(banked.events)
+    useGameStore.getState().addEvents(banked.events)
+    deliverEventCancellations(banked.cancellations)
+  }
 
   // The scene as delivered, for the calendar to replay: read before the clock moves and the scene
   // is cleared below, and named on the boundary save by its own write. A game lost here asks
@@ -3228,8 +3258,85 @@ async function crossSlotBoundary(): Promise<void> {
     void beginSlot()
     return
   }
-  useGameStore.setState({ heldOpening: loopState.bankedOpening })
   void writeSlotSave(replay ?? undefined).then(() => beginSlot())
+}
+
+/** Settles a held night's phone, then writes and opens its morning without advancing the clock. */
+async function finishInterlude(now: InterludeCtx): Promise<void> {
+  const run = currentRun()
+  const game = useGameStore.getState()
+  loopState.interludeEnding = true
+  game.clearStage()
+  game.setStatusShown(false)
+  game.setSceneEnding(true)
+  game.setEndingInFlight(true)
+  game.setWaitingForLine(true)
+  await applyCast([])
+  if (runStale(run)) return
+  const schedule = scheduleInput(now.to.date, now.to.time)
+  const ledger = await claimTextLedger(now.to.date, now.to.time)
+  if (!ledger || runStale(run)) return
+  loopState.pendingLedgerResult = ledger
+  game.setEndingInFlight(false)
+  game.setWaitingForLine(false)
+  await new Promise<void>(resolve => {
+    loopState.interludeStatusDone = resolve
+    advance()
+  })
+  if (runStale(run)) return
+  game.setEndingInFlight(true)
+  const dating = applyLedger(ledger, now.from.date)
+  const plans = settlePlans(ledger, now.from.date, now.from.time)
+  addPlanContacts(plans.events)
+  useGameStore.getState().addEvents(plans.events)
+  const ids = new Set(schedule.threads.flatMap(thread => thread.messages.map(message => message.id)))
+  useGameStore.setState(state => ({
+    bunnyboard: {
+      ...state.bunnyboard,
+      conversations: Object.fromEntries(
+        Object.entries(state.bunnyboard.conversations).map(([id, thread]) => [id, {
+          ...thread, messages: claimLedgerMessages(thread.messages, ids)
+        }])
+      )
+    }
+  }))
+  interludeSettled({ ...now, ledger })
+  if (runStale(run)) return
+  const live = useGameStore.getState()
+  const overlay = rollNpcOverlayNow(now.to.date, now.to.time)
+  const springBreak = springBreakPickFor(now.to.date, live.charInfo)
+  const homecoming = homecomingPickFor(
+    now.to.date, now.to.time, live.charInfo, new Set(dating.breakups.map(entry => entry.charId))
+  )
+  const opening = isGraduationSlot(now.to.date, now.to.time)
+    ? { lines: [], hangouts: [], events: plans.events, cancellations: plans.cancellations }
+    : await fetchSlotIntro(
+      now.to.date, now.to.time, plans.events, plans.cancellations,
+      introBreakupsOf({ charInfo: live.charInfo, scene: live.charInfo, breakups: dating.breakups }),
+      springBreak, homecoming, undefined, overlay, liveView(), { group: ENDING_LLM_GROUP, ledger: null }
+    )
+  if (!opening || runStale(run)) return
+  const ready: SlotOpening = {
+    ...opening,
+    // The night applied its plans before the hook and the save; the opening only narrates them.
+    events: [],
+    ...(overlay ? { npcOverlay: overlay } : {}),
+    ...(springBreak ? { springBreakAway: springBreak } : {}),
+    ...(homecoming ? { homecomingVisitor: homecoming } : {})
+  }
+  loopState.pendingLedgerResult = null
+  loopState.statusSteps = []
+  game.clearStage()
+  await writeSlotSave()
+  if (runStale(run)) return
+  await coverInterludeOpening()
+  if (runStale(run)) return
+  loopState.interludeEnding = false
+  game.setEndingInFlight(false)
+  game.setSceneEnding(false)
+  game.setStatusShown(false)
+  useGameStore.setState({ interlude: null })
+  void beginSlot(true, ready)
 }
 
 /** Resets loop-local state. Paired with `gameStore.reset()` on leaving a game. */
@@ -3270,6 +3377,16 @@ export function enterGame(
     .gameEntered(record, save.playthroughId, Array.isArray(unversionedSeen) ? unversionedSeen : [])
   const game = useGameStore.getState()
   game.loadSave(save, record, characters)
+  // Plans kept with an unopened landing belong on the calendar even without its narration.
+  const heldEvents = (save as GameSave & { heldOpening?: Pick<SlotOpening, 'events'> }).heldOpening?.events
+  if (!save.scene && Array.isArray(heldEvents)) {
+    const known = new Set(useGameStore.getState().events.map(event => event.id))
+    const events = heldEvents.filter(event => event && typeof event.id === 'string' &&
+      Number.isInteger(event.date) && (event.time === 0 || event.time === 1) &&
+      Array.isArray(event.charIds) && !known.has(event.id))
+    addPlanContacts(events)
+    useGameStore.getState().addEvents(events)
+  }
   // A read nothing on screen is waiting on: the profile is not open yet.
   void loadProfilePicture()
   // Waited on by the first prompt the stay builds, never by the entry itself.
@@ -3283,7 +3400,6 @@ export function enterGame(
   // manual one.
   loopState.slotSaveId = isSlotSaveId(save.saveId) ? save.saveId : null
 
-  loopState.bankedOpening = save.heldOpening ?? null
   if (!save.scene) {
     void beginSlot()
     return
@@ -3300,8 +3416,13 @@ export function enterGame(
   // The opening the ending already paid for; the boundary replays it, `OLD_ACTION_PROMPT`
   // stripped from its lines too.
   const banked = save.scene.opening ?? null
+  const preview = banked && !banked.deferred ? interludePreview({
+    from: { date: save.date, time: save.time }, to: nextSlot(save.date, save.time),
+    semesterIndex: live.semesterIndex, ledger: banked.ledger ?? save.scene.ledger ?? null
+  }) : null
   loopState.bankedOpening = banked
-    ? { ...banked, lines: withoutActionPrompt(banked.lines) }
+    ? { ...banked, lines: withoutActionPrompt(banked.lines),
+      ...(preview?.at === 'from' && preview.clock === 'late-night' ? { deferred: true as const } : {}) }
     : null
   // Both records are derived from the save the way the cast turn derived them;
   // without them the boundary credits neither the shift nor the session.

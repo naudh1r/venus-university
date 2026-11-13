@@ -454,6 +454,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   playerActs: fn('playerActs', undefined, (host) => host.playerActs()),
   gameEntered: fn('gameEntered', undefined, (host) => host.gameEntered()),
   keepSceneLedgerEntry: fn('keepSceneLedgerEntry', true, host => host.filterSceneLedger({memories:[{charKey:'test',type:'liked',desc:'test'}]})),
+  interludeSettled: fn('interludeSettled', undefined, host => host.interludeSettled(never)),
   slotSettled: fn('slotSettled', undefined, (host) => host.slotSettled(never)),
   slotStatusLines: fn('slotStatusLines', [], (host) => host.slotStatusLines({ nextSlot: 1 })),
   projectSlotMemories: fn('projectSlotMemories', {}, (host) => host.projectSlotMemories(never, {})),
