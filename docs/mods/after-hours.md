@@ -29,7 +29,8 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 
 ### Texting while she's busy
 
-- **Text her when she's busy** is on by default. Her DM box stays open during class or work.
+- **Text her when she's busy** is on by default. Her DM box stays open during class or work,
+  and reads that she will reply when she is available.
 - Send her a message now; her reply arrives in the next half of the day, as she would send it
   once she is out. She can mention class or work without having to make a topic of it.
 - Send again before it arrives and one replacement reply catches up on both messages.
