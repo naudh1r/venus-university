@@ -3,7 +3,7 @@ import { Fragment, useEffect, useState, type JSX } from 'react'
 import { postIsOut } from '../../shared/heldPosts'
 import { photoUrl } from '../../shared/photoFiles'
 import type { ChatPhoto } from '../../shared/photoTypes'
-import type { SocialPost, TimeSlot } from '@vx/modkit/shared'
+import { shownMessages, type SocialPost, type TimeSlot } from '@vx/modkit/shared'
 import { PhotoInfoButton, PhotoRedrawFailure } from '../components/PhotoInfo'
 import { photoRedrawKey, usePhotoRedraw } from '../stores/photoRedraw'
 import { redrawMessagePhoto } from '../stores/photoTurn'
@@ -23,7 +23,7 @@ import {
   EyeOffIcon
 } from '@vx/modkit/renderer'
 import { useExplicitBlocked, usePhotosVisible } from '../stores/photoSwitchHooks'
-import { useCharacter, useGameFacts, useConversation, useFeed } from '@vx/modkit/renderer'
+import { chatClock, useCharacter, useGameFacts, useConversation, useFeed } from '@vx/modkit/renderer'
 import { messagePhoto, postPhoto } from '../stores/photoRecords'
 import { EchoPanel } from './EchoPanel'
 import { photosVisible } from '../../shared/photoSwitches'
@@ -185,9 +185,13 @@ export function GalleryPanel({ charId, isContact, theme }: ContactTabProps): JSX
   const conversation = useConversation(charId)
   const feed = useFeed(charId)
 
+  // Only the texts the phone shows: a reply held for a later slot keeps its picture until then.
+  const opened = chatClock()
+  const messages = opened ? shownMessages(conversation?.messages ?? [], opened) : conversation?.messages ?? []
+
   // The thread's newest first, then merged with her posts by the slot each was sent in. The sort
   // is stable, so two pictures from one slot keep the order they arrived in.
-  const sent: GalleryShot[] = [...(conversation?.messages ?? [])].reverse().flatMap((message) => {
+  const sent: GalleryShot[] = [...messages].reverse().flatMap((message) => {
     const photo = messagePhoto.read(message)
     return landed(photo)
       ? [
