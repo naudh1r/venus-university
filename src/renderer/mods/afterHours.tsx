@@ -20,7 +20,7 @@ import {
   usePlayerProfilePicture,
   type ScreenSlotProps
 } from '@vx/modkit/renderer'
-import { AFTER_HOURS_MOD, busyDrops, busyPromptApplies, nightOwed, normalize, stayOverOf, type AfterHours } from '../../shared/afterHours'
+import { AFTER_HOURS_MOD, busyPromptApplies, nightOwed, normalize, stayOverOf, type AfterHours } from '../../shared/afterHours'
 import {
   afterHoursText, busyPrompt, busyTextPrompt, morningReturnPrompt, nightPrompt,
   stayOverLedgerInstruction, stayOverPrompt
@@ -143,8 +143,8 @@ registerHooks(AFTER_HOURS_MOD, {
     label: afterHoursText.skipTomorrow,
     onPick: () => status.set({ ...status.read(), nightDone: globalSlotOf(date, time) + 1 })
   }] : [],
-  slotSettled: ({ before, ledger, closingCast }) => {
-    if (before.time === 1 && stayOverOf(ledger, closingCast)) {
+  slotSettled: ({ before, ledger }) => {
+    if (before.time === 1 && stayOverOf(ledger, gameCharacters())) {
       status.set({ ...status.read(), nightDone: globalSlotOf(before.date, before.time) + 1 })
     }
   },
@@ -169,8 +169,8 @@ registerHooks(AFTER_HOURS_MOD, {
       return { ...request, user: `${request.user}\n${morningReturnPrompt(stay.girl.firstName, stay.room)}` }
     }
   },
-  hangoutVerdict: (verdict, ctx) =>
-    busyDrops(verdict, ctx, modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy) ? null : verdict,
+  hangoutCheck: ({ startedBy }) =>
+    !busyPromptApplies(modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy, startedBy),
   relaxLabel: ({ time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? afterHoursText.relax : undefined,
   prompts: {
     scene: {
@@ -181,8 +181,7 @@ registerHooks(AFTER_HOURS_MOD, {
         const thread = conversation(character.charId)
         const busy = busyPromptApplies(
           modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy,
-          threadStartedBy(thread?.messages ?? [], state.date, state.time),
-          state.answeringInvite === true
+          threadStartedBy(thread?.messages ?? [], state.date, state.time)
         )
         return [
           ...(state.heldUntil && state.commitment ? [busyTextPrompt(character.firstName, state.commitment)] : []),

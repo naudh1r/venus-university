@@ -1,4 +1,4 @@
-import { chatClockOf, messageShown, shownConversation, shownMessages, type ChatClock } from '@shared/chatVisibility'
+import { chatClockOf, messageShown, shownConversation, shownMessages, unreadAfterOpening, type ChatClock } from '@shared/chatVisibility'
 import { currentStorySnapshot } from './storyMemory'
 import { BREAKTHROUGH_MOD } from '@shared/breakthrough'
 /**
@@ -98,7 +98,7 @@ import {
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
 import { threadStartedBy, waitingText } from '@shared/textingThread'
-import { afterDmReply, afterReachOut, dmReplyLead, hangoutVerdict, textWhileBusy, promptTextEdits } from '../mods/hooks'
+import { afterDmReply, afterReachOut, dmReplyLead, hangoutCheck, textWhileBusy, promptTextEdits } from '../mods/hooks'
 import { INCOMING_TEXTS } from '@shared/modEntries/incoming-texts'
 import { lorebookNow } from './lorebookStore'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
@@ -614,8 +614,7 @@ async function sendText(charId: string, text: string, incoming: boolean): Promis
       game.charInfo[charId],
       conversation,
       incoming ? '' : trimmed,
-      { ...textingState(game, charId), ...(held ? { heldUntil: held, ...(commitment ? { commitment } : {}) } : {}),
-        ...(sent && invited ? { answeringInvite: true } : {}) },
+      { ...textingState(game, charId), ...(held ? { heldUntil: held, ...(commitment ? { commitment } : {}) } : {}) },
       // The same reader block a scene gets, grades and all.
       readerBlockOf(game),
       incoming ? trimmed : undefined
@@ -747,7 +746,7 @@ async function runReply(
         } } }
       })
       landed = true
-      afterDmReply({ charId, character, reply: data, held })
+      afterDmReply({ charId, character, reply: data })
       releaseHeldReplies()
       return
     }
@@ -781,14 +780,7 @@ async function runReply(
     // An unsolicited text is not an answer to a standing invitation.
     if (!sent && invited) return
     const verdict = await classifyHangout(character, conversation, sent, messages)
-    const game = useGameStore.getState()
-    const ctx = {
-      charId,
-      startedBy: threadStartedBy(shownMessages(game.bunnyboard.conversations[charId]?.messages ?? [], chatClockOf(game)), game.date, game.time),
-      answeringInvite: sent !== null && invited !== null
-    }
-    const decided = hangoutVerdict(verdict, ctx)
-    if (!useGameStore.getState().interlude) handleHangout(charId, decided)
+    if (!useGameStore.getState().interlude) handleHangout(charId, verdict)
     if (sent && invited) settleAnsweredInvitation(charId, invited.occasionId)
   } finally {
     abortLead()
@@ -894,14 +886,16 @@ export async function regenerateTextReply(charId: string, commit: (
     check()
     if (!result.ok) throw Error(result.error.message)
     const replacement = checkedTextReplacement(result.data)
-    const verdict = await window.api.llm.classifyHangout(buildHangoutClassifierPrompt(
-      character.firstName, prior.messages, target.sent,
-      replacement.messages.map(text => chatMessage('contact', text)),
-      hangoutClockOf(game)
-    ))
-    check()
-    if (!verdict.ok) throw Error('The plan check failed. Your original reply was kept.')
-    if (verdict.data.playerAsked !== false || verdict.data.characterOffered !== false) throw Error('The replacement would make a new hangout, or its plan check was unclear. Your original reply was kept; send a new message to make plans.')
+    if (shouldCheckHangout(charId)) {
+      const verdict = await window.api.llm.classifyHangout(buildHangoutClassifierPrompt(
+        character.firstName, prior.messages, target.sent,
+        replacement.messages.map(text => chatMessage('contact', text)),
+        hangoutClockOf(game)
+      ))
+      check()
+      if (!verdict.ok) throw Error('The plan check failed. Your original reply was kept.')
+      if (verdict.data.playerAsked !== false || verdict.data.characterOffered !== false) throw Error('The replacement would make a new hangout, or its plan check was unclear. Your original reply was kept; send a new message to make plans.')
+    }
     const next = replaceTextReply(target, replacement, () => crypto.randomUUID())
     const saved = await commit(charId, next, isCurrent)
     if (!saved.ok) throw Error(saved.error.message)
@@ -1005,14 +999,22 @@ export function abandonHangoutClassify(): void {
 
 /** The clock and weather every hangout classification reads, including a regenerated reply. */
 function hangoutClockOf(game: ReturnType<typeof useGameStore.getState>): HangoutClassifierState {
-  const from = game.interlude?.now.clock === 'late-night' ? game.interlude.now.from : null
   return {
-    date: from?.date ?? game.date,
-    time: from?.time ?? game.time,
+    date: game.date,
+    time: game.time,
     season: game.calendar.season,
-    weather: game.weather,
-    ...(from ? { late: true } : {})
+    weather: game.weather
   }
+}
+
+/** Interludes suppress the check before any mod or classifier is asked. */
+function shouldCheckHangout(charId: string): boolean {
+  const game = useGameStore.getState()
+  if (game.interlude) return false
+  return hangoutCheck({
+    charId,
+    startedBy: threadStartedBy(shownMessages(game.bunnyboard.conversations[charId]?.messages ?? [], chatClockOf(game)), game.date, game.time)
+  })
 }
 
 /**
@@ -1025,7 +1027,7 @@ async function classifyHangout(
   sent: ChatMessage | null,
   replies: readonly string[]
 ): Promise<HangoutVerdict | null> {
-  if (replies.length === 0) return null
+  if (replies.length === 0 || !shouldCheckHangout(character.charId)) return null
 
   const game = useGameStore.getState()
   // Built once, outside the loop: a retry re-sends the identical request.
@@ -1997,10 +1999,8 @@ export function openChatSlot(): void {
   const clock = { date: game.date, time: game.time }
   const before = chatClockOf(game)
   const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => {
-    const newlyShown = chat.messages.filter(message => message.sender === 'contact' &&
-      !chat.heldReply?.messageIds.includes(message.id) &&
-      !messageShown(message, before) && messageShown(message, clock)).length
-    return [id, newlyShown ? { ...chat, unread: chat.unread + newlyShown } : chat]
+    const unread = unreadAfterOpening(chat, before, clock)
+    return [id, unread === chat.unread ? chat : { ...chat, unread }]
   }))
   useGameStore.setState({ chatShownThrough: clock, bunnyboard: { ...game.bunnyboard, conversations } })
   releaseHeldReplies()

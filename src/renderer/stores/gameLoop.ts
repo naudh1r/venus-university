@@ -3274,8 +3274,8 @@ export function enterGame(
   void loadProfilePicture()
   // Waited on by the first prompt the stay builds, never by the entry itself.
   void useLorebookStore.getState().load(useGameStore.getState().playthroughId)
-  useGameStore.setState({ chatShownThrough: !save.scene
-    ? prevSlot(save.date, save.time) : { date: save.date, time: save.time } })
+  useGameStore.setState({ chatShownThrough: save.chatShownThrough ?? (save.scene || !isSlotSaveId(save.saveId)
+    ? { date: save.date, time: save.time } : prevSlot(save.date, save.time)) })
   gameEntered()
   releaseHeldReplies()
   resumeHeldReplies()

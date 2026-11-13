@@ -1566,6 +1566,8 @@ export interface BreakupOwed {
 
 /** On-disk save file — `/data/saves/{playthroughId}/{saveId}.json`. */
 export interface NativeGameSave {
+  /** The chat clock whose shown messages have already contributed to unread counts. */
+  chatShownThrough?: { date: number; time: TimeSlot }
   /** The unopened slot's paid narration, retained through a held landing. */
   heldOpening?: BankedOpening
   schemaVersion: 13

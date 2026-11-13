@@ -2,9 +2,16 @@ import type { ChatMessage, Conversation, TimeSlot } from './types'
 
 export type ChatClock = { date: number; time: TimeSlot }
 
+/** The slot a phone stamp names; late texts read as the half before their ledger slot. */
+export function messageSlotOf(message: Pick<ChatMessage, 'date' | 'time' | 'late'>): ChatClock {
+  if (!message.late) return { date: message.date, time: message.time }
+  return message.time === 0 ? { date: message.date - 1, time: 1 } : { date: message.date, time: 0 }
+}
+
 /** A future-stamped message becomes visible when the opened clock reaches its slot. */
 export function messageShown(message: Pick<ChatMessage, 'date' | 'time' | 'late'>, clock: ChatClock): boolean {
-  return message.date * 2 + message.time - (message.late ? 1 : 0) <= clock.date * 2 + clock.time
+  const slot = messageSlotOf(message)
+  return slot.date * 2 + slot.time <= clock.date * 2 + clock.time
 }
 
 /** The last landing opened to texts, rather than a clock advanced under the curtain. */
@@ -35,4 +42,11 @@ export function shownConversation(thread: Conversation | undefined, clock: ChatC
       ? previous : { ...thread, messages: [...messages] }
   threads.set(thread, { slot, value })
   return value
+}
+
+/** Adds only newly shown contact texts; held replies account for their own delivery. */
+export function unreadAfterOpening(thread: Conversation, before: ChatClock, clock: ChatClock): number {
+  return thread.unread + thread.messages.filter(message => message.sender === 'contact' &&
+    !thread.heldReply?.messageIds.includes(message.id) &&
+    !messageShown(message, before) && messageShown(message, clock)).length
 }

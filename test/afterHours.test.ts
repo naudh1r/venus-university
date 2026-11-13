@@ -1,36 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { charKeyOf } from '@vx/modkit/shared'
 import { character } from './fixtures'
-import { busyDrops, busyPromptApplies, nightOwed, normalize, stayOverOf } from '../src/shared/afterHours'
+import { busyPromptApplies, nightOwed, normalize, stayOverOf } from '../src/shared/afterHours'
 
-describe('Busy invitations', () => {
-  const ctx = { startedBy: 'reader' as const, answeringInvite: false }
-  const hers = { initiatedBy: 'contact' as const }
-
-  it('drops her new ask in a chat the reader started', () => {
-    expect(busyDrops(hers, ctx, true)).toBe(true)
+describe('Busy restrictions on chats the reader starts', () => {
+  it('restricts his chat while Busy and leaves her chat unchanged', () => {
+    expect(busyPromptApplies(true, 'reader')).toBe(true)
+    expect(busyPromptApplies(true, 'her')).toBe(false)
   })
 
-  it('keeps his asks, standing invitations and chats she started', () => {
-    expect(busyDrops({ initiatedBy: 'player' }, ctx, true)).toBe(false)
-    expect(busyDrops(hers, { ...ctx, answeringInvite: true }, true)).toBe(false)
-    expect(busyDrops(hers, { ...ctx, startedBy: 'her' }, true)).toBe(false)
-    expect(busyDrops(null, ctx, true)).toBe(false)
-  })
-
-  it('keeps every verdict while Online', () => {
-    expect(busyDrops(hers, ctx, false)).toBe(false)
-    expect(busyDrops({ initiatedBy: 'player' }, ctx, false)).toBe(false)
-    expect(busyDrops(null, ctx, false)).toBe(false)
-  })
-})
-
-describe('Busy prompt restrictions', () => {
-  it('applies only in his chat while Busy and outside her standing invitation', () => {
-    expect(busyPromptApplies(true, 'reader', false)).toBe(true)
-    expect(busyPromptApplies(true, 'her', false)).toBe(false)
-    expect(busyPromptApplies(true, 'reader', true)).toBe(false)
-    expect(busyPromptApplies(false, 'reader', false)).toBe(false)
+  it('leaves either opener unrestricted while Online', () => {
+    expect(busyPromptApplies(false, 'reader')).toBe(false)
+    expect(busyPromptApplies(false, 'her')).toBe(false)
   })
 })
 

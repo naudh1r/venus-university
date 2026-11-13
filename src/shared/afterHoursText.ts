@@ -9,7 +9,7 @@ export const afterHoursText = {
   option: 'Busy status',
   online: 'Online',
   busy: 'Busy',
-  hint: "Busy: girls won't ask you to meet up in chats you start.",
+  hint: "Busy: no meeting up right now in chats you start.",
   busyTextsOption: "Text her when she's busy",
   busyTextsHint: "Text her during class or work; she replies when she's out, in the next half of the day.",
   nightOption: 'The night',

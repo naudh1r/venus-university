@@ -1639,6 +1639,7 @@ describe('toGameSave', () => {
       'bunnymapUnlocked',
       'bunnyshopUnlocked',
       'charInfo',
+      'chatShownThrough',
       'classRecords',
       'date',
       'droppedClasses',

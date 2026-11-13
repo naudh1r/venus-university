@@ -1,6 +1,6 @@
 # After Hours
 
-## 0.6.0
+## 0.6.1
 
 By **Naudh1r**.
 
@@ -13,12 +13,14 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - **After Hours** and its **Busy status** option are on by default in Mods.
 - Open Bunnyboard's **Chats** tab. Beside **Chats** stands your own card: your picture (or
   your initial), your name, and a dot with **Online** or **Busy**. Click it to switch.
-- While Busy, a girl won't ask you to meet up right now in a chat you started this slot.
-  If the model still writes an invitation, it opens no Yes/No footer and arms no hangout.
-- Her invitations and reach-outs at slot changes still work normally, including the
-  Yes/No footer. Answering an invitation she already had standing is unchanged.
-- You can still ask her to meet up yourself. She is not told you are Busy, only to leave
-  the asking to you, so she doesn't make a topic of it. Plans for another time work as before.
+- While Busy, a chat you start this slot won't turn into a meet-up right now, whether she
+  asks or you do, even if you are answering an earlier invitation of hers. Her text may agree,
+  but it opens no Yes/No footer and arms no hangout. Switch to **Online** to meet up now.
+- Chats she starts this slot — her reach-outs and slot-change invitations — work as before,
+  including the Yes/No footer.
+- She is not told you are Busy, so she doesn't make a topic of it. Plans for another time
+  still work normally.
+- Chats you start while Busy answer faster: there is no hangout check.
 - The status lasts until you switch it, and is kept with your save. A new semester
   starts **Online**.
 - Switching the mod or its option off hides the chip and lets girls ask you out again.

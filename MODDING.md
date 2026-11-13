@@ -1196,7 +1196,7 @@ else names it.
 | `relaxLabel` | `slotActions.ts` | Replace the Relax row’s label, keeping its behavior |
 | `relaxRows` | `GameView.tsx` | Add rows under Relax; each calls its handler, then runs the normal Relax flow |
 | `interludePreview` | `slotCrossing.ts` | Say, without writing anything, that the coming slot will be held on the finished one's look, so the boundary's curtain announces that slot (`{ at: 'from' }`) |
-| `hangoutVerdict` | `textingLoop.ts` | Change or drop the texting classifier's verdict before a hangout or invitation is filed |
+| `hangoutCheck` | `textingLoop.ts` | Return false before the immediate-meetup classifier to skip the call and its result |
 | `afterDmReply` | `textingLoop.ts` | Act after her reply in a DM has landed |
 | `afterSceneReply` | `loop/turn.ts` | Read a landed scene reply as the model wrote it, fields a mod asked for included. A turn's reply only: a scene's closing reply is not handed over |
 | `scenePlay` | `SceneChrome.tsx`, `GameView.tsx` | Stand a seat on the scene's rail, and open a panel of its own over the scene |
@@ -1258,8 +1258,8 @@ action box, gift or map travel. The row does not ask the hook again.
 A manual save holds no scene, so loading it asks anew, as loading a boundary save does.
 `heldOpening` retains the banked morning narration through that reload, without asking for
 it again. Leaving the landing writes nothing. Switching the owner off leaves the current
-hold standing; the next slot entry follows the current switches. `interludeNow()` and
-`useInterludeNow()` return the held context, its `owner` and optional `clock`, or null.
+hold standing; the next slot entry follows the current switches. `interludeNow()` returns
+the held context, its `owner` and optional `clock`, or null.
 
 With `clock: 'late-night'`, the phone reads as late on `from`: prompt weather and dorm-room
 whereabouts come from that night, and classes and work do not shut the composer. Contacts
@@ -1280,16 +1280,17 @@ ledger when its ending fetched this opening, null when no scene preceded it.
 Relax is offered. Rows have a `label` and `onPick`; choosing one calls its handler and runs
 the same Relax line, wait and boundary. A failing row-producing hook is logged and skipped.
 
-While any interlude holds, a DM verdict still standing after `hangoutVerdict` is dropped;
-it cannot arm a hangout. Plans for another slot work normally.
+While any interlude holds, core skips the immediate-meetup classifier without asking
+`hangoutCheck`. It cannot arm a hangout. Plans for another slot work normally.
 
-`hangoutVerdict(verdict, ctx)` runs after a normal texting reply is classified, before it arms
-a hangout or raises her invitation; a regenerated reply does not ask it. `ctx.charId` names
-her thread. `startedBy` is `'reader'` or `'her'`, from the first non-system message in that
-thread at the current date and time, including the reader's just-sent text. `answeringInvite`
-is true when he sent a text while her invitation was still standing. Each enabled mod gets
-the last one's verdict in list order; returning `null` drops it. A throwing handler is logged
-and skipped. `HangoutVerdict` and `HangoutVerdictCtx` are exported from `@vx/modkit/renderer`.
+`hangoutCheck({ charId, startedBy })` runs before every immediate-meetup classification,
+including a regenerated reply's plan check. `startedBy` is `'reader'` or `'her'`, from the
+first non-system message in that thread at the current date and time, including the
+reader's just-sent text. Any enabled mod returning `false` skips the classifier call:
+no verdict, pending invitation or Begin hangout. Without a veto the normal classifier
+runs. A throwing handler is logged and counts as `true`; another mod may still veto.
+Everything else about the reply remains, including settling a standing invitation he
+answered as a reply that agreed to nothing when the check was skipped.
 
 The two ways on (`endingChoice`, `saveChoice`) share one shape, `WayOn`. Its `prepare` runs
 while nothing has been torn down, does whatever may fail and reports it, and returns `enter`,
@@ -1780,9 +1781,8 @@ and epilogue gates still apply. `commitment` is a `Commitment`: her class (`{ ki
 
 The reader's message is shown immediately. The normal DM call receives `heldUntil` (the next
 slot's date and time) and `commitment` in `TextingPromptState`. Its reply does not stream or
-show typing dots, and is not classified for a hangout. `afterDmReply` receives the held slot
-as `held`. Every contact message appended while the hold stands, including attachments from
-mods, is stamped for that slot. Future messages stay out of the thread, previews, unread
+show typing dots, and is not classified for a hangout. Every contact message appended
+while the hold stands, including attachments from mods, is stamped for that slot. Future messages stay out of the thread, previews, unread
 counts, sounds and the current texting ledger. They appear when that slot's landing or an
 interlude using its clock opens, a late-night hold included. A block in the
 reply takes effect then too. A failure instead posts its error immediately and keeps Retry.
@@ -1792,7 +1792,10 @@ reader's texts since the hold began. Until that reply lands, his messages have
 `awaitingReply: true`. The messages and hold are saved normally. Loading unfinished player
 texts requests their reply again, for the slot after the last text or the current slot if
 that has passed. Starting a scene leaves held calls running; leaving the game cancels them.
-No save is added merely for leaving a landing.
+No save is added merely for leaving a landing. Saves retain `chatShownThrough`, the opened
+chat clock already accounted for by their unread counts. Loading reuses it, so opening a
+landing again does not count the same reply twice. On older saves without it, scene and
+manual saves use their own clock; unopened boundary saves use the preceding slot.
 
 ### Shown conversation messages
 
@@ -1802,10 +1805,6 @@ Feature puts its photo on her held reply). A mod that **shows** messages to the 
 first: `shownMessages(messages, chatClock())`, with `messageShown` and `shownMessages` from
 `@vx/modkit/shared` and `chatClock()` from `@vx/modkit/renderer`. Core's own previews, scene histories
 and other thread consumers follow that rule; storage, carry and delivery keep the complete thread.
-
-A `prompts.dm` hook also finds `answeringInvite: true` on the prompt state when the reader's new text
-answers an invitation of hers that was still standing: the invitation itself is cleared as he sends, so
-the thread alone no longer shows it.
 
 `threadStartedBy(messages, date, time)` from `@vx/modkit/shared` returns `'reader'` or `'her'`
 from the first non-system message in that slot, defaulting to the reader for an empty thread.
