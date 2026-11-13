@@ -43,6 +43,21 @@ describe('saved status', () => {
       expect(normalize({ busy: true, nightDone })).toEqual({ busy: true })
     }
   })
+
+  it('keeps a well-formed stay-over for the morning it ends on', () => {
+    const stayOver = { charId: 'mia', room: 'herRoom', morning: 16 }
+    expect(normalize({ busy: false, nightDone: 16, stayOver })).toEqual({ busy: false, nightDone: 16, stayOver })
+    expect(normalize({ stayOver: { charId: 'mia', room: 'hisRoom', morning: 16, extra: 1 } }))
+      .toEqual({ busy: false, stayOver: { charId: 'mia', room: 'hisRoom', morning: 16 } })
+  })
+
+  it('drops a malformed stay-over and keeps the rest', () => {
+    for (const stayOver of [null, 'mia', { charId: '', room: 'herRoom', morning: 16 },
+      { charId: 'mia', room: 'library', morning: 16 }, { charId: 'mia', room: 'herRoom', morning: 16.5 },
+      { charId: 'mia', room: 'herRoom' }]) {
+      expect(normalize({ busy: true, nightDone: 16, stayOver })).toEqual({ busy: true, nightDone: 16 })
+    }
+  })
 })
 
 describe('the night owed before a morning opens', () => {

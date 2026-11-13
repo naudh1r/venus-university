@@ -101,6 +101,8 @@ export interface TextingPromptState {
   /** The reply is composed now for delivery after this commitment. */
   heldUntil?: { date: number; time: TimeSlot }
   commitment?: import('./slotIntroPrompt').Commitment
+  /** Her shared class has ended, with the reader's attendance read from its class record. */
+  sharedClass?: { name: string; attended: boolean }
   /** The reader's accumulated stats, used for relationship requirement guidance. */
   stats?: PlayerStats
   /**
@@ -521,7 +523,10 @@ export function buildTextingPrompt(
     ...(state.heldUntil ? [] : state.lateNight ? [`${name} is ${info?.pursuing !== undefined ? 'at home' : 'in her dorm room'} for the night.`]
       : whereSheIs(name, state.charLocation, state.charCompanions, state.charHaunt, state.time)),
     '',
-    ...(state.heldUntil ? [`The reader is texting ${name} while she is ${state.commitment?.kind === 'class' ? `in ${state.commitment.name}` : `working at ${state.commitment?.kind === 'shift' ? state.commitment.employer : 'her job'}`}. Write the reply she will send once she is out; she is not answering during her commitment.`] : []),
+    ...(state.heldUntil && !state.sharedClass ? [`The reader is texting ${name} while she is ${state.commitment?.kind === 'class' ? `in ${state.commitment.name}` : `working at ${state.commitment?.kind === 'shift' ? state.commitment.employer : 'her job'}`}. Write the reply she will send once she is out; she is not answering during her commitment.`] : []),
+    ...(state.sharedClass ? [
+      `${name} has just finished ${state.sharedClass.name}. The reader ${state.sharedClass.attended ? 'attended that class' : 'did not attend that class'}. Her reply can follow up on that and all the messages he sent while she was busy.`
+    ] : []),
     ...lore,
     ...(summary ? ['TEXTING SO FAR', '"' + summary + '"', ''] : []),
     'RECENT MESSAGES',

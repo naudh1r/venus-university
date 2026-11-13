@@ -404,6 +404,7 @@ export interface InterludeRow {
     card?: true;
     // (undocumented)
     label: string;
+    line?: string;
     // (undocumented)
     onPick: () => void;
 }
@@ -566,6 +567,15 @@ export interface ModHooks {
     mapOverlay?: ComponentType<ScreenSlotProps['mapOverlay']>;
     messageAttachment?: ComponentType<ScreenSlotProps['messageAttachment']>;
     modDetail?: (mod: ModDef) => ComponentType<ModDetailProps> | undefined;
+    openingLook?: (ctx: {
+        date: number;
+        time: TimeSlot;
+    }) => {
+        room: {
+            kind: 'herRoom';
+            charId: string;
+        };
+    } | null;
     optionPreviews?: Record<string, ComponentType<OptionPreviewProps>>;
     panelLayer?: ComponentType<ScreenSlotProps['panelLayer']>;
     phoneOverlay?: ComponentType<ScreenSlotProps['phoneOverlay']>;
@@ -588,6 +598,10 @@ export interface ModHooks {
     promptText?: PromptTextSpot;
     railButton?: ComponentType<ScreenSlotProps['railButton']>;
     relaxLabel?: (ctx: {
+        date: number;
+        time: TimeSlot;
+    }) => string | undefined;
+    relaxLine?: (ctx: {
         date: number;
         time: TimeSlot;
     }) => string | undefined;
@@ -1679,6 +1693,10 @@ export interface TextingPromptState {
     playerSchedule: Record<number, string>;
     roster: readonly Character[];
     secretBudget?: number;
+    sharedClass?: {
+        name: string;
+        attended: boolean;
+    };
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
     // (undocumented)

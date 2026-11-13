@@ -495,6 +495,7 @@ export function offerNoteOf(offer: ReplayOffer): string | null {
  */
 export function manualSaveDraft(): SaveDraft | null {
   const game = useGameStore.getState()
+  if (game.interlude && loopState.interludeBase) return loopState.interludeBase
   if (game.sceneEnding && game.statusShown) return loopState.statusBase
   if (isGraduationSlot(game.date, game.time) && game.graduationSeen && !sceneActiveOf(game)) {
     return { ...game.toGameSave(), scene: null }

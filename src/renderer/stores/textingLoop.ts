@@ -97,6 +97,7 @@ import {
 } from '@shared/types'
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
+import { heldReplyDueAt, sharedReplyClass } from '@shared/heldReplies'
 import { threadStartedBy, waitingText } from '@shared/textingThread'
 import { afterDmReply, afterReachOut, dmReplyLead, hangoutCheck, textWhileBusy, promptTextEdits } from '../mods/hooks'
 import { INCOMING_TEXTS } from '@shared/modEntries/incoming-texts'
@@ -108,6 +109,7 @@ import { BOT_REPLY_MS, createTypingPacer, typingDelayFor, type TypingPacer } fro
 import {
   charAwayNow,
   charBusyNow,
+  charClassNow,
   charCommitmentAt,
   charHiddenLocationNow,
   charOverlayGroupNow,
@@ -578,9 +580,16 @@ async function sendText(charId: string, text: string, incoming: boolean): Promis
   const sentAt = firstText?.late ? prevSlot(firstText.date, firstText.time) : firstText
   const commitment = sentAt ? charCommitmentAt(charId, sentAt.date, sentAt.time)
     : game.interlude?.now.clock === 'late-night' ? null : charCommitmentAt(charId)
-  const held = incoming ? undefined : (previousHold && !previousHold.opened
+  let held = incoming ? undefined : (previousHold && !previousHold.opened
     ? previousHold.until
     : commitment && textWhileBusy({ charId, commitment }) ? nextSlot(game.date, game.time) : undefined)
+  const next = nextSlot(game.date, game.time)
+  const herClass = held && !incoming && !charAwayNow(charId, next.date)
+    ? charClassNow(charId, next.date, next.time) : null
+  const sharedCode = held ? sharedReplyClass(herClass ? { kind: 'class', code: herClass } : null,
+    playerClassNow(next.date, next.time)) : null
+  const afterClass = held ? previousHold?.afterClass ?? (sharedCode ? { ...next, code: sharedCode } : undefined) : undefined
+  if (afterClass) held = nextSlot(afterClass.date, afterClass.time)
   if (held && previousHold) {
     const ids = new Set(previousHold.messageIds)
     useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
@@ -595,12 +604,14 @@ async function sendText(charId: string, text: string, incoming: boolean): Promis
     useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
       ...state.bunnyboard.conversations,
       [charId]: { ...state.bunnyboard.conversations[charId], heldReply: {
-        until: held, firstPlayerId: previousHold?.firstPlayerId ?? sent.id, messageIds: []
+        until: held, firstPlayerId: previousHold?.firstPlayerId ?? sent.id, messageIds: [],
+        ...(afterClass ? { afterClass } : {})
       } }
     } } }))
     game = useGameStore.getState()
     conversation = { ...game.bunnyboard.conversations[charId], messages: game.bunnyboard.conversations[charId].messages.filter(message => message.id !== sent.id) }
   }
+  if (held && afterClass) return
   if (conversation) conversation = { ...conversation, messages: [...shownMessages(conversation.messages, chatClockOf(game))] }
 
   // The composer stays locked from here until the hangout verdict is in.
@@ -643,7 +654,8 @@ async function runReply(
   request: Parameters<typeof window.api.llm.completeTexting>[0],
   skip: number,
   invited: Conversation['pendingHangout'] | null,
-  held?: ChatClock
+  held?: ChatClock,
+  quietFailure = false
 ): Promise<void> {
   if (!held && sent && skip === 0 && modIsOn(TEXT_REGENERATION_MOD)) {
     useGameStore.setState(s => ({ bunnyboard: { ...s.bunnyboard, conversations: {
@@ -707,6 +719,10 @@ async function runReply(
     if (!result.ok) {
       if (result.error.code === 'CANCELLED') return
       console.warn('[texting] the reply failed:', result.error)
+      if (quietFailure) {
+        pacer.cancel()
+        return
+      }
       // Whatever the stream queued is dropped; anything already released stays.
       pacer.cancel()
       // The failure is said in the thread at once, under whatever did land.
@@ -1493,6 +1509,7 @@ export function pickOccasionAsker(
 
   const candidates: OccasionAskCandidate[] = []
   for (const charId of game.chars) {
+    if (heldReplyDueAt(game.bunnyboard.conversations[charId]?.heldReply, day, half)) continue
     if (askChanceFor(charId, day, half, view, 1) <= 0) continue
     if (charUnavailableNow(charId, day, half)) continue
     // She is already asking him something else.
@@ -1571,6 +1588,7 @@ export function pickSlotAskers(
     const reachable = event.charIds.filter(
       (charId) =>
         !chosen.has(charId) &&
+        !heldReplyDueAt(game.bunnyboard.conversations[charId]?.heldReply, day, half) &&
         game.characters[charId] &&
         !view.charInfo[charId]?.flags?.blocked &&
         !charAwayNow(charId, day)
@@ -1598,7 +1616,7 @@ export function pickSlotAskers(
   const seenLastSlot = inSceneLastSlot(day, half)
   const candidates: SlotAskCandidate[] = []
   for (const charId of game.chars) {
-    if (chosen.has(charId)) continue
+    if (chosen.has(charId) || heldReplyDueAt(game.bunnyboard.conversations[charId]?.heldReply, day, half)) continue
     // She just spent the hour with him: only the plan branch above lets her text.
     if (seenLastSlot.has(charId)) continue
     if (charUnavailableNow(charId, day, half)) continue
@@ -1637,7 +1655,7 @@ export function pickSlotReachOut(
 
   const candidates: SlotAskCandidate[] = []
   for (const charId of game.chars) {
-    if (taken.has(charId)) continue
+    if (taken.has(charId) || heldReplyDueAt(game.bunnyboard.conversations[charId]?.heldReply, date, time)) continue
     if (plannedWith(charId, date, time, view.events)) continue
     if (charBusyNow(charId, date, time)) continue
     const conversation = conversations[charId]
@@ -2005,39 +2023,73 @@ export function openChatSlot(): void {
   }))
   useGameStore.setState({ chatShownThrough: clock, bunnyboard: { ...game.bunnyboard, conversations } })
   releaseHeldReplies()
+  for (const chat of Object.values(useGameStore.getState().bunnyboard.conversations)) {
+    if (chat.heldReply?.afterClass) void resumeHeldReply(chat)
+  }
 }
 
 /** Restarts a saved player turn whose background reply did not finish before the save. */
 export function resumeHeldReplies(): void {
-  const game = useGameStore.getState()
-  for (const chat of Object.values(game.bunnyboard.conversations)) {
-    const last = waitingText(chat.messages)
-    if (!last || inFlight.has(chat.charId)) continue
-    const character = game.characters[chat.charId]
-    if (!character) continue
-    const waitingIndex = chat.messages.indexOf(last)
-    const messages = chat.messages.filter((message, index) => index <= waitingIndex || !message.error || message.sender !== 'system')
-    const sentAt = last.late ? prevSlot(last.date, last.time) : last
-    const due = nextSlot(sentAt.date, sentAt.time)
-    const held = messageShown(due, game) ? { date: game.date, time: game.time } : due
-    useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
-      ...state.bunnyboard.conversations,
-      [chat.charId]: { ...chat,
-        messages: messages.filter(message => !chat.heldReply?.messageIds.includes(message.id)),
-        heldReply: { until: held, firstPlayerId: chat.heldReply?.firstPlayerId ?? last.id, messageIds: [],
-          ...(messageShown(held, chatClockOf(game)) ? { opened: true as const } : {})
-        } }
-    } } }))
-    const conversation = { ...useGameStore.getState().bunnyboard.conversations[chat.charId], messages: [...shownMessages(messages.filter(message => message.id !== last.id && !chat.heldReply?.messageIds.includes(message.id)), chatClockOf(game))] }
-    const request = buildTextingPrompt(character, game.charInfo[chat.charId], conversation, last.text,
-      { ...textingState(game, chat.charId), heldUntil: held, commitment: charCommitmentAt(chat.charId, sentAt.date, sentAt.time) ?? undefined }, readerBlockOf(game))
-    useBunnyboardStore.getState().setTextBusy(chat.charId, true)
-    const reply = runReply(chat.charId, character, conversation, last, request, 0, null, held)
-    const owned = inFlight.get(chat.charId)
-    void reply.finally(() => {
-      if (inFlight.get(chat.charId) !== owned) return
-      inFlight.delete(chat.charId)
-      useBunnyboardStore.getState().setTextBusy(chat.charId, false)
-    }).catch(error => console.warn('[texting] could not resume reply', error))
+  for (const chat of Object.values(useGameStore.getState().bunnyboard.conversations)) {
+    void resumeHeldReply(chat)
   }
+}
+
+/** Writes queued shared-class replies after attendance is recorded, while the boundary is covered. */
+export async function settleClassReplies(onWait: () => void): Promise<void> {
+  const game = useGameStore.getState()
+  const pending = Object.values(game.bunnyboard.conversations).filter(chat => {
+    const at = chat.heldReply?.afterClass
+    return at?.date === game.date && at.time === game.time && waitingText(chat.messages) && !inFlight.has(chat.charId)
+  })
+  if (pending.length > 0) onWait()
+  await Promise.all(pending.map(chat => resumeHeldReply(chat, true)))
+}
+
+function resumeHeldReply(chat: Conversation, atBoundary = false): Promise<void> | null {
+  const game = useGameStore.getState()
+  const last = waitingText(chat.messages)
+  if (!last || inFlight.has(chat.charId)) return null
+  const character = game.characters[chat.charId]
+  if (!character) return null
+  const afterClass = chat.heldReply?.afterClass
+  if (afterClass && !atBoundary && !heldReplyDueAt(chat.heldReply, game.date, game.time)) return null
+  const waitingIndex = chat.messages.indexOf(last)
+  const messages = chat.messages.filter((message, index) => index <= waitingIndex || !message.error || message.sender !== 'system')
+  const first = afterClass ? messages.find(message => message.id === chat.heldReply?.firstPlayerId) : undefined
+  const source = first ?? last
+  const sentAt = source.late ? prevSlot(source.date, source.time) : source
+  const due = afterClass ? chat.heldReply!.until : nextSlot(sentAt.date, sentAt.time)
+  const held = messageShown(due, game) ? { date: game.date, time: game.time } : due
+  useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
+    ...state.bunnyboard.conversations,
+    [chat.charId]: { ...chat,
+      messages: messages.filter(message => !chat.heldReply?.messageIds.includes(message.id)),
+      heldReply: { until: held, firstPlayerId: chat.heldReply?.firstPlayerId ?? last.id, messageIds: [],
+        ...(afterClass ? { afterClass } : {}),
+        ...(messageShown(held, chatClockOf(game)) ? { opened: true as const } : {})
+      } }
+  } } }))
+  const conversation = { ...useGameStore.getState().bunnyboard.conversations[chat.charId], messages: [...shownMessages(messages.filter(message => message.id !== last.id && !chat.heldReply?.messageIds.includes(message.id)), chatClockOf(game))] }
+  const meeting = afterClass ? game.classRecords[afterClass.code]?.meetings.find(one => one.date === afterClass.date) : undefined
+  const shared = afterClass && !charAwayNow(chat.charId, afterClass.date) &&
+    charClassNow(chat.charId, afterClass.date, afterClass.time) === afterClass.code && !meeting?.cancelled
+    ? { name: game.classes[afterClass.code]?.name ?? afterClass.code, attended: meeting?.attended === true }
+    : undefined
+  const request = buildTextingPrompt(character, game.charInfo[chat.charId], conversation, last.text,
+    { ...textingState(game, chat.charId), heldUntil: held,
+      commitment: shared ? { kind: 'class', name: shared.name } : charCommitmentAt(chat.charId, sentAt.date, sentAt.time) ?? undefined,
+      ...(shared ? { sharedClass: shared } : {}) }, readerBlockOf(game))
+  if (afterClass) {
+    failedTurns.delete(chat.charId)
+    useBunnyboardStore.getState().setTextFailed(chat.charId, false)
+  }
+  useBunnyboardStore.getState().setTextBusy(chat.charId, true)
+  const reply = runReply(chat.charId, character, conversation, last, request, 0, null, held, atBoundary)
+  const owned = inFlight.get(chat.charId)
+  return reply.finally(() => {
+    if (inFlight.get(chat.charId) !== owned) return
+    inFlight.delete(chat.charId)
+    useBunnyboardStore.getState().setTextBusy(chat.charId, false)
+  }).catch(error => console.warn('[texting] could not resume reply', error))
 }

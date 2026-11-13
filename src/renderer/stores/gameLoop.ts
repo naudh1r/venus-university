@@ -132,7 +132,7 @@ import {
   type ReplayStayFields,
   type SceneKind
 } from './gameStore'
-import { gameEntered, interludePreview, interludeSettled, playerActs, slotInterlude, type InterludeCtx } from '../mods/hooks'
+import { gameEntered, interludePreview, interludeSettled, openingLook, playerActs, slotInterlude, type InterludeCtx } from '../mods/hooks'
 import { useCharacterStore } from './characterStore'
 import { castOf, useSaveStore } from './saveStore'
 import {
@@ -194,6 +194,7 @@ import {
   releaseHeldReplies,
   resetTextingLoop,
   resumeHeldReplies,
+  settleClassReplies,
   resolveFriendRequests,
   rollAskerInvite
 } from './textingLoop'
@@ -283,7 +284,7 @@ import { dropProfilePicture, loadProfilePicture } from './loop/profilePicture'
 import { farewellDisposition, graduatingNames } from './loop/farewells'
 import { settleSpringBreak, springBreakPickFor } from './loop/springBreak'
 import { homecomingPickFor, settleHomecoming } from './loop/homecoming'
-import { dropHeldSceneLines, sceneInProgress, streamScene, unpark } from './loop/stream'
+import { dropHeldSceneLines, queueLines, sceneInProgress, streamScene, unpark } from './loop/stream'
 import {
   announceableAdds,
   announceableDrops,
@@ -431,6 +432,7 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
         const row = held.interlude.rows[index]
         if (!row || picked || runStale(run) || useGameStore.getState().interlude?.now !== now) return
         picked = true
+        if (row.line !== undefined) loopState.interludeBase = { ...state.toGameSave(), scene: null }
         try {
           row.onPick()
         } catch (error) {
@@ -439,11 +441,15 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
         if (runStale(run)) return
         state.setAwaitingInput(false)
         if (now.clock === 'late-night') {
-          void finishInterlude(now)
+          void finishInterlude(now, row.line)
           return
         }
-        void coverInterludeOpening().then(() => {
+        void playInterludeLine(row.line).then(() => {
           if (runStale(run)) return
+          return coverInterludeOpening()
+        }).then(() => {
+          if (runStale(run)) return
+          loopState.interludeBase = null
           useGameStore.setState({ interlude: null })
           useGameStore.getState().clearStage()
           void beginSlot(true)
@@ -592,6 +598,8 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
     ...grades.finals.map((text) => ({ speaker: '', text }))
   ]
 
+  if (!tutorial && opening.lines.length > 0) await chooseOpeningRoom()
+  if (runStale(run)) return
   const ready = useGameStore.getState()
   openChatSlot()
   ready.appendPendingLines(lines)
@@ -645,6 +653,29 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
   // Folded into the slot-save minted before the call went out, which is the start-of-slot
   // decision point.
   await foldOpeningIntoSlotSave(lines)
+}
+
+/** Chooses the opening's temporary backdrop; the landing itself keeps its usual room. */
+function chooseOpeningRoom(): Promise<void> | null {
+  const run = currentRun()
+  const game = useGameStore.getState()
+  const look = openingLook({ date: game.date, time: game.time })
+  if (!look) return null
+  const charId = look.room.charId
+  const set = (ready: boolean): void => {
+    if (!runStale(run)) useGameStore.setState({ openingRoom: { charId, ready } })
+  }
+  if (!game.characters[charId]) {
+    set(false)
+    return null
+  }
+  return window.api.chars.room(charId).then(result => {
+    if (!result.ok) console.warn('[opening] could not read the room:', result.error)
+    set(result.ok && result.data.day && result.data.night)
+  }).catch(error => {
+    console.warn('[opening] could not read the room:', error)
+    set(false)
+  })
 }
 
 /** The playthrough's first scene, cast and sent without a classifier. */
@@ -2672,6 +2703,14 @@ export function advance(): void {
     return
   }
 
+  if (loopState.interludeLineDone) {
+    const done = loopState.interludeLineDone
+    loopState.interludeLineDone = null
+    game.setWaitingForLine(true)
+    done()
+    return
+  }
+
   if (game.interlude) {
     game.setAwaitingInput(true)
     return
@@ -2693,6 +2732,7 @@ export function advance(): void {
  * absences are charged, and the scene is written as the point a reload lands on.
  */
 function reachDecisionPoint(): void {
+  useGameStore.setState({ openingRoom: null })
   const game = useGameStore.getState()
   game.setAwaitingInput(true)
   // The beat a rewind held for this point is spent, however it was reached again.
@@ -2921,7 +2961,7 @@ export function takeTurnFromReply(): boolean {
 function showStatusLines(textOnly = false): boolean {
   // What a save taken anywhere in the sequence records, taken before any money moves: the
   // scene's last line, unturned, so a load raises the whole sequence again.
-  loopState.statusBase = endingSave()
+  loopState.statusBase = loopState.interludeBase ?? endingSave()
   const game = useGameStore.getState()
   game.setStatusShown(true)
   // Money lands here, so the balance moves as the line reporting it is read.
@@ -3219,6 +3259,11 @@ async function crossSlotBoundary(): Promise<void> {
     }
   }
 
+  if (!over) {
+    await settleClassReplies(markCrossingWait)
+    if (runStale(run)) return
+  }
+
   // Before the clock moves, so each text is stamped with the slot the scene ran in, and before
   // the boundary save, which records them.
   slotSettled({ before: game, ledger, closingCast: loopState.closingCast ?? [] })
@@ -3261,8 +3306,21 @@ async function crossSlotBoundary(): Promise<void> {
   void writeSlotSave(replay ?? undefined).then(() => beginSlot())
 }
 
+/** Plays a held choice through the same narration queue as Relax. */
+async function playInterludeLine(line: string | undefined): Promise<void> {
+  if (line === undefined) return
+  const game = useGameStore.getState()
+  game.clearStage()
+  await new Promise<void>(resolve => {
+    loopState.interludeLineDone = resolve
+    queueLines([line])
+    game.setWaitingForLine(false)
+    advance()
+  })
+}
+
 /** Settles a held night's phone, then writes and opens its morning without advancing the clock. */
-async function finishInterlude(now: InterludeCtx): Promise<void> {
+async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> {
   const run = currentRun()
   const game = useGameStore.getState()
   loopState.interludeEnding = true
@@ -3273,15 +3331,23 @@ async function finishInterlude(now: InterludeCtx): Promise<void> {
   game.setWaitingForLine(true)
   await applyCast([])
   if (runStale(run)) return
+  if (line !== undefined) {
+    queueLines([line])
+    game.setWaitingForLine(false)
+    advance()
+  }
   const schedule = scheduleInput(now.to.date, now.to.time)
   const ledger = await claimTextLedger(now.to.date, now.to.time)
   if (!ledger || runStale(run)) return
   loopState.pendingLedgerResult = ledger
   game.setEndingInFlight(false)
-  game.setWaitingForLine(false)
   await new Promise<void>(resolve => {
     loopState.interludeStatusDone = resolve
-    advance()
+    if (line !== undefined) unpark()
+    else {
+      game.setWaitingForLine(false)
+      advance()
+    }
   })
   if (runStale(run)) return
   game.setEndingInFlight(true)
@@ -3332,6 +3398,7 @@ async function finishInterlude(now: InterludeCtx): Promise<void> {
   await coverInterludeOpening()
   if (runStale(run)) return
   loopState.interludeEnding = false
+  loopState.interludeBase = null
   game.setEndingInFlight(false)
   game.setSceneEnding(false)
   game.setStatusShown(false)
@@ -3438,6 +3505,12 @@ export function enterGame(
   // decision point, not a slot with one line left to play.
   const drained = queued.length === 0 && !onLine
   live.setAwaitingInput(drained && !ending)
+  let openingRoomReady: Promise<void> | null = null
+  if (!ending && !drained && !save.scene.quiz && save.scene.cast.length === 0 &&
+    save.scene.transcript.length === 0 && save.scene.summary === null &&
+    !isOrientationSlot(save.date, save.time, live.semesterIndex) && !isGraduationSlot(save.date, save.time)) {
+    openingRoomReady = chooseOpeningRoom()
+  }
   // A drained scene *is* a decision point, so leaving from one writes it back; a landing is not,
   // so leaving from one writes nothing, as a live landing does. A paper is one too: its own point
   // is the start it was written at, which is what this save holds.
@@ -3446,15 +3519,20 @@ export function enterGame(
   }
   // Puts the queue's first line on screen, as `beginSlot` does for a live opening; otherwise
   // the box opens on `currentLine` as the save left it.
-  if ((!drained || ending) && !onLine) advance()
+  const enteredRun = currentRun()
+  if (openingRoomReady) void openingRoomReady.then(() => {
+    if (runStale(enteredRun)) return
+    if ((!drained || ending) && !onLine) advance()
+    endCrossing()
+  })
+  else if ((!drained || ending) && !onLine) advance()
 
   // A save taken mid-goodbye never runs `beginSlot`, and without this a reload from one loses
   // both the picture and the posts.
   if (isGraduationSlot(save.date, save.time)) armEpilogue()
 
-  // The scene is on screen: the entry crossing may open on it. Everything below is either
-  // a prefetch or a read the player is not waiting on.
-  endCrossing()
+  // The opening's chosen room is ready before the entry curtain reveals it.
+  if (!openingRoomReady) endCrossing()
 
   // A resumed scene never runs the casting step, so CG availability is read here.
   void loadCgReady(save.scene.cast)

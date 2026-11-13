@@ -2,18 +2,30 @@ import { charKeyOf, globalSlotOf, type Character, type TimeSlot } from '@vx/modk
 
 export { AFTER_HOURS_MOD } from './afterHoursText'
 
-/** The reader's phone status and the morning whose night has ended. */
+/** A night spent together, kept until the morning it ends on has opened. */
+export interface StayOver {
+  charId: string
+  room: 'herRoom' | 'hisRoom'
+  morning: number
+}
+
+/** The reader's phone status, the morning whose night has ended, and a night spent together. */
 export interface AfterHours {
   busy: boolean
   nightDone?: number
+  stayOver?: StayOver
 }
 
-/** Restores the phone status and completed-night marker. */
+/** Restores the phone status, completed-night marker and a well-formed stay-over. */
 export function normalize(stored: unknown): AfterHours {
   const data = typeof stored === 'object' && stored !== null ? stored as Partial<AfterHours> : {}
+  const stay = data.stayOver
+  const validStay = stay && typeof stay === 'object' && typeof stay.charId === 'string' && stay.charId.length > 0 &&
+    (stay.room === 'herRoom' || stay.room === 'hisRoom') && Number.isInteger(stay.morning)
   return {
     busy: data.busy === true,
-    ...(typeof data.nightDone === 'number' && Number.isInteger(data.nightDone) ? { nightDone: data.nightDone } : {})
+    ...(typeof data.nightDone === 'number' && Number.isInteger(data.nightDone) ? { nightDone: data.nightDone } : {}),
+    ...(validStay ? { stayOver: { charId: stay.charId, room: stay.room, morning: stay.morning } } : {})
   }
 }
 

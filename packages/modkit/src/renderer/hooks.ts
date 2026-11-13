@@ -52,6 +52,8 @@ export interface InterludeRow {
   /** Draw a plan card without a category chip instead of a quiet row. */
   card?: true
   label: string
+  /** Play this line before settling the held slot. */
+  line?: string
   onPick: () => void
 }
 
@@ -398,8 +400,12 @@ export type SceneLedgerEntry =
 export interface ModHooks {
   /** The first enabled mod to answer holds the slot before any opening effects. */
   slotInterlude?: (ctx: InterludeCtx) => Interlude | null
+  /** The room behind a slot's opening narration, until its landing question appears. */
+  openingLook?: (ctx: { date: number; time: TimeSlot }) => { room: { kind: 'herRoom'; charId: string } } | null
   /** The first label replaces the Relax row's words. */
   relaxLabel?: (ctx: { date: number; time: TimeSlot }) => string | undefined
+  /** The first answer replaces narration for the Relax row itself. */
+  relaxLine?: (ctx: { date: number; time: TimeSlot }) => string | undefined
   /** Extra choices that call their handler before spending the slot on Relax. */
   relaxRows?: (ctx: { date: number; time: TimeSlot }) => readonly { label: string; onPick: () => void }[]
   /**
@@ -985,6 +991,19 @@ export function slotInterlude(ctx: InterludeCtx): { owner: string; interlude: In
   return null
 }
 
+/** The first enabled mod to choose a room for the opening narration. */
+export function openingLook(ctx: { date: number; time: TimeSlot }): { room: { kind: 'herRoom'; charId: string } } | null {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      const look = hooks.openingLook?.(ctx)
+      if (look) return look
+    } catch (error) {
+      console.warn(`[mods] ${modId}: openingLook failed`, error)
+    }
+  }
+  return null
+}
+
 /** Asks enabled mods, first answer wins, which slot the boundary's curtain should announce. */
 export function interludePreview(ctx: InterludeCtx): { at: 'from' | 'to'; clock?: 'late-night' } | null {
   for (const { modId, hooks } of activeEntries()) {
@@ -1006,6 +1025,19 @@ export function relaxLabel(ctx: { date: number; time: TimeSlot }): string | unde
       if (label !== undefined) return label
     } catch (error) {
       console.warn(`[mods] ${modId}: relaxLabel failed`, error)
+    }
+  }
+  return undefined
+}
+
+/** Asks enabled mods for the first replacement of Relax's own narration. */
+export function relaxLine(ctx: { date: number; time: TimeSlot }): string | undefined {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      const line = hooks.relaxLine?.(ctx)
+      if (line !== undefined) return line
+    } catch (error) {
+      console.warn(`[mods] ${modId}: relaxLine failed`, error)
     }
   }
   return undefined
