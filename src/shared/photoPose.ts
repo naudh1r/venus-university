@@ -54,6 +54,9 @@ const FINGERS_IN_MOUTH_CUES = [
 ]
 
 /** How she is framed and standing with her clothes on. */
+/** Against a wall of any kind: "the tiled wall", "a brick wall". */
+const AGAINST_A_WALL = /\bagainst (?:the |a )?(?:[a-z-]+ )?wall\b/
+
 const DRESSED_POSITIONS: readonly Rule[] = [
   { cues: ['close-up', 'close up'], tags: ['close-up', 'upper_body', 'hand_up'] },
   { cues: ['face shot', 'face only', 'just her face'], tags: ['close-up', 'portrait'] },
@@ -73,7 +76,7 @@ const DRESSED_POSITIONS: readonly Rule[] = [
   { cues: ['kneeling', 'crouching'], tags: ['kneeling', 'hands_on_own_thighs'] },
   // A wall keeps her arms folded. Anything else she leans on has her on her feet with her hands
   // on it: drawn as a wall, she sat on the counter or the railing's step instead.
-  { cues: ['against the wall', 'against a wall'], tags: ['against_wall', 'crossed_arms'] },
+  { cues: AGAINST_A_WALL, tags: ['against_wall', 'crossed_arms'] },
   {
     cues: ['leaning over', 'leaning against', 'leaning on'],
     tags: ['standing', 'leaning_forward', 'leaning_on_object']
@@ -144,7 +147,7 @@ const BARE_POSITIONS: readonly Rule[] = [
   { cues: ['squatting', 'squat'], tags: ['squatting', 'solo', 'spread_legs', 'hand_on_own_thigh'] },
   { cues: ['on her knees', 'kneeling'], tags: ['kneeling', 'solo', 'hands_on_own_thighs'] },
   {
-    cues: ['against the wall', 'against wall'],
+    cues: AGAINST_A_WALL,
     tags: ['against_wall', 'solo', 'arms_at_sides']
   },
   {
@@ -425,7 +428,17 @@ interface GestureRule extends ActivityRule {
  * The `selfie` tag adds a peace sign on its own, which is a selfie's own gesture: kept, unless
  * her free hand is holding something, where it would be a third hand. Asked for, always kept.
  */
-const PEACE_CUES = ['peace sign', 'v sign', 'v-sign', 'flashing a v']
+const PEACE_CUES = [
+  'peace sign',
+  'peace-sign',
+  'v sign',
+  'v-sign',
+  'flashing a v',
+  'two fingers up',
+  'two fingers raised',
+  'raising two fingers',
+  'holding up two fingers'
+]
 
 /** A garment in her hand, in either order, including a short relative clause. */
 function heldClothing(garment: string): RegExp {
@@ -436,7 +449,89 @@ function heldClothing(garment: string): RegExp {
 
 /** Everyday gestures, with covering reserved for the suggestive and explicit tiers. */
 const FREE_HAND_GESTURES: readonly GestureRule[] = [
-  { cues: ['waving'], tags: ['waving'] },
+  // Each drew as named on a same-seed check. Not `finger_frame`, `crossed_fingers`, `index_finger_raised` or `beckoning` (hands at her chin),
+  // `\\m/` (horns on her head) or `bunny_pose` (bunny ears on her head).
+  {
+    cues: ['double peace', 'two peace signs', 'peace signs', 'peace sign with both hands', 'double v'],
+    tags: ['double_v'],
+    twoHanded: true
+  },
+  // Plain at the end held on three seeds of three; once on one seed it went to both hands.
+  {
+    cues: ['flipping off', 'flips off', 'flipping the bird', 'giving the finger', 'middle finger', 'flipping him off'],
+    tags: ['middle_finger']
+  },
+  { cues: ['ok sign', 'okay sign', 'ok gesture', 'okay gesture', 'an ok with'], tags: ['ok_sign'] },
+  { cues: ['salute', 'saluting', 'salutes'], tags: ['salute'] },
+  { cues: ['finger gun', 'finger guns', 'finger-gun', 'finger pistol'], tags: ['finger_gun'] },
+  {
+    cues: ['cat claws', 'claw pose', 'claws with her hands', 'cat paws', 'paws with her hands'],
+    tags: ['claw_pose'],
+    twoHanded: true
+  },
+  {
+    cues: [
+      'pointing at the camera',
+      'pointing at the viewer',
+      'pointing at the lens',
+      'pointing at you',
+      'points at the camera',
+      'pointing straight at'
+    ],
+    tags: ['pointing_at_viewer']
+  },
+  {
+    cues: ['pointing at herself', 'pointing to herself', 'points at herself', 'pointing at her own face'],
+    tags: ['pointing_at_self']
+  },
+  { cues: ['shushing', 'shush', 'hushing'], tags: ['shushing'] },
+  {
+    cues: ['covering her mouth', 'covers her mouth', 'hand over her mouth', 'hiding her mouth'],
+    tags: ['covering_own_mouth']
+  },
+  { cues: ['facepalm', 'facepalming', 'face palm', 'face-palming'], tags: ['facepalm'] },
+  {
+    cues: [
+      'hands on her cheeks',
+      'both hands on her cheeks',
+      'cheeks in her hands',
+      'cupping her cheeks',
+      'cupping her face',
+      'squishing her cheeks'
+    ],
+    tags: ['hands_on_own_cheeks'],
+    twoHanded: true
+  },
+  {
+    cues: [
+      'reaching out to the camera',
+      'reaching toward the camera',
+      'reaching towards the camera',
+      'reaching for the camera',
+      'reaching out to the viewer',
+      'reaching out to you'
+    ],
+    tags: ['reaching_towards_viewer']
+  },
+  {
+    cues: ['fist pump', 'fist-pump', 'pumping her fist', 'pumps her fist', 'fist in the air', 'raising a fist'],
+    tags: ['fist_pump']
+  },
+  { cues: ['shrugging', 'shrugs at', 'a little shrug'], tags: ['shrugging'], twoHanded: true },
+  {
+    cues: ['arms in the air', 'arms raised', 'raising both arms', 'throwing her arms up', 'throws her arms up', 'hands in the air'],
+    tags: ['arms_up'],
+    twoHanded: true
+  },
+  {
+    cues: ['hands on her hips', 'hands on hips', 'hands planted on her hips', 'akimbo'],
+    tags: ['hands_on_own_hips'],
+    twoHanded: true
+  },
+  {
+    cues: ['waving', 'waves at', 'waves hello', 'waves to', 'a little wave', 'a small wave', 'gives a wave'],
+    tags: ['waving']
+  },
   { cues: ['pointing'], tags: ['pointing'] },
   { cues: heldClothing('panties'), tags: ['holding_panties'] },
   { cues: heldClothing('bra'), tags: ['holding_bra'] },
@@ -760,6 +855,14 @@ const DRESSED_MODIFIERS: ReadonlySet<string> = new Set([
   'mirror'
 ])
 
+/** Words that place her body somewhere, whether or not a position row knows the phrase. */
+const POSE_WORDS =
+  /\b(?:ly(?:ing)?|lies|lay(?:ing|s)?|kneel\w*|knelt|sit\w*|sat|seated|squat\w*|crouch\w*|curl\w*|sprawl\w*|bent|bend\w*|straddl\w*|recline\w*|reclining|propped|perched|on all fours|on (?:her|the) (?:bed|couch|sofa|floor|sheets|mattress|desk|counter|knees|back|side|stomach))\b/
+
+function saysPose(text: string): boolean {
+  return POSE_WORDS.test(text)
+}
+
 /** The tags {@link posePhotoTags} gives, before what her legs are doing is settled. */
 function poseTagsOf(caption: string, bare: boolean): string[] {
   const text = caption.toLowerCase()
@@ -787,7 +890,10 @@ function poseTagsOf(caption: string, bare: boolean): string[] {
   // dressed one's words ("on the couch"), else the one her hands imply, else standing. Taking the
   // dressed row as well as another is how a picture came out both sitting and lying on her back.
   const implied = hands.find((action) => action.implies)?.implies
-  tags.push(...(position?.tags ?? dressed?.tags ?? implied ?? BARE_POSITION_DEFAULT))
+  // Standing only where the caption says nothing of how she is placed: forced over words it does
+  // not know ("curled up on the sheets"), it drew her upright against her own sentence.
+  const fallback = saysPose(text) ? ['solo'] : BARE_POSITION_DEFAULT
+  tags.push(...(position?.tags ?? dressed?.tags ?? implied ?? fallback))
   if (facing) tags.push(...facing.tags)
 
   for (const modifier of MODIFIERS) {
@@ -1219,4 +1325,29 @@ export function photoPose(caption: string, tier: PhotoTier): PhotoPose {
   }
   // A caption's framing wins over the defaults for a selfie or a close shot lying down.
   return { ...pose, tags: withFraming(text, pose.tags) }
+}
+
+/** Words that give her hands something to do. */
+const HAND_WORDS = /\b(?:hands?|fingers?|fist|palm|arms?|thumbs?)\b/
+
+/**
+ * The parts of a caption the tags could not read: "pose" where none of the position rows knew
+ * how she is placed, "hands" where her hands are said to do something no rule knew. Logged so the
+ * rules can be widened from what the captions actually say.
+ */
+export function unreadPhotoParts(caption: string, tier: PhotoTier): string[] {
+  const text = caption.toLowerCase()
+  const unread: string[] = []
+  const placed =
+    firstMatch(text, DRESSED_POSITIONS) ??
+    (tier === 'explicit' ? firstMatch(text, BARE_POSITIONS) : null) ??
+    handActionsOf(text).find((action) => action.implies)
+  if (!placed && (tier === 'explicit' || saysPose(text))) unread.push('pose')
+  const handled =
+    handActionsOf(text).length > 0 ||
+    activityOf(text, says(text, 'mirror') && says(text, 'selfie'), tier !== 'everyday') !== null ||
+    heldIn(text) !== '' ||
+    says(text, 'selfie')
+  if (HAND_WORDS.test(text) && !handled) unread.push('hands')
+  return unread
 }

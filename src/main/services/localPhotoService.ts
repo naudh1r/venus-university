@@ -30,6 +30,7 @@ import {
 import { photoSwitches, PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 import { isPhotoTier, type PhotoTier } from '../../shared/photoGate'
 import { buildDuoPhotoPrompt, buildPhotoPrompt } from '../../shared/photoPrompt'
+import { unreadPhotoParts } from '../../shared/photoPose'
 import {
   beginPhotoFile, copyPhotoFile, dropPhotoTwins, findPhotoImage, findPhotoSidecar,
   getPhotoPath, getPhotosPath, getPhotosRoot, legacyPhotosRoot, movePhotoFiles,
@@ -299,6 +300,10 @@ export async function generatePhoto(
   const prompts = overrides.prompts
     ? { positive: overrides.prompts.positive, negative: overrides.prompts.negative }
     : buildPhotoPrompt(await withBodySetting(character), tier as PhotoTier, photoPrompt)
+  if (!overrides.prompts) {
+    const unread = unreadPhotoParts(photoPrompt, tier as PhotoTier)
+    if (unread.length > 0) console.log(`[photo] no tags read for ${unread.join(' or ')}: "${photoPrompt}"`)
+  }
 
   await renderPhotoImage(playthroughId, character.charId, file, {
     workflow: soloWorkflow,
