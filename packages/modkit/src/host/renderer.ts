@@ -26,6 +26,7 @@ export {
   gameModal,
   hangoutCheck,
   interludePreview,
+  interludeSettled,
   modDetail,
   modRequest,
   optionPreview,

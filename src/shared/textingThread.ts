@@ -18,3 +18,16 @@ export function waitingText(messages: readonly ChatMessage[]): ChatMessage | und
   }
   return undefined
 }
+
+/** The unclaimed texts filed at a slot's ending, or only its held late-night exchange. */
+export function ledgerMessages(
+  messages: readonly ChatMessage[], date: number, time: TimeSlot, night = false
+): ChatMessage[] {
+  return messages.filter(message => message.date === date && message.time === time &&
+    !message.ledgered && (!night || message.late === true))
+}
+
+/** Marks the exact messages a completed ledger took, leaving later arrivals unclaimed. */
+export function claimLedgerMessages(messages: readonly ChatMessage[], ids: ReadonlySet<string>): ChatMessage[] {
+  return messages.map(message => ids.has(message.id) ? { ...message, ledgered: true } : message)
+}

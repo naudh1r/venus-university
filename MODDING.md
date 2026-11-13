@@ -1195,6 +1195,7 @@ else names it.
 | `slotInterlude` | `gameLoop.ts` (`beginSlot`) | Hold the slot opening on the finished slot’s landing with narration and choices |
 | `relaxLabel` | `slotActions.ts` | Replace the Relax row’s label, keeping its behavior |
 | `relaxRows` | `GameView.tsx` | Add rows under Relax; each calls its handler, then runs the normal Relax flow |
+| `interludeSettled` | `gameLoop.ts` | Observe the held night's applied texting ledger before its opening and save, while the hold stands |
 | `interludePreview` | `slotCrossing.ts` | Say, without writing anything, that the coming slot will be held on the finished one's look, so the boundary's curtain announces that slot (`{ at: 'from' }`) |
 | `hangoutCheck` | `textingLoop.ts` | Return false before the immediate-meetup classifier to skip the call and its result |
 | `afterDmReply` | `textingLoop.ts` | Act after her reply in a DM has landed |
@@ -1258,8 +1259,8 @@ action box, gift or map travel. Set a row's `card: true` to draw the existing pl
 paper card with its label and chevron, without a category chip; otherwise it is a quiet
 row. The row does not ask the hook again.
 A manual save holds no scene, so loading it asks anew, as loading a boundary save does.
-`heldOpening` retains the banked morning narration through that reload, without asking for
-it again. Leaving the landing writes nothing. Switching the owner off leaves the current
+A late-night hold has no banked narration: its ending writes the opening after the night's
+texts are settled. Leaving the landing writes nothing. Switching the owner off leaves the current
 hold standing; the next slot entry follows the current switches. `interludeNow()` returns
 the held context, its `owner` and optional `clock`, or null.
 
@@ -1273,9 +1274,21 @@ is loaded. Reach-outs and invitations from the new slot arrive only after a row 
 it. The stage and room sound use `from`, in the reader's room. The landing header
 says Night with `from`'s date while this late-night hold stands.
 
-`interludePreview(ctx)` is a pure preview asked before the boundary's curtain falls. Return
+Picking a late-night row calls `onPick` once, then runs a quiet ending while the hold still
+stands: the night's unclaimed `late` texts go through the texting ledger and its normal retry
+paths, with the late-night clock, then its status lines play. The results and plans are applied,
+and only the messages that ledger took are marked claimed, so the morning never counts them
+again. `interludeSettled(ctx)` then runs synchronously with the night's ledger in `ctx.ledger`,
+before the held slot's opening is written and the ending is saved. `slotSettled` is not called:
+a mod that records ordinary slots must register `interludeSettled` to record a held night.
+The opening request's `ledger` is null here. Closing before the write leaves the saved night
+unchanged; loading it runs the ending again. The new-day curtain and ordinary opening follow.
+
+`interludePreview(ctx)` is a pure preview asked before the ending writes the next opening,
+and again before the boundary's curtain falls. Return
 `{ at: 'from' }` to announce the finished slot, or add `clock: 'late-night'` to announce it
-as Night with the night mark. It receives the same ledger as the ending, retained through
+as Night with the night mark. This answer defers the opening until the held night's ending;
+other answers keep ordinary opening behavior. It receives the same ledger as the ending, retained through
 ending reloads. The `requests['slot-intro']` context also carries `ledger`: the scene's
 ledger when its ending fetched this opening, null when no scene preceded it.
 
@@ -1484,6 +1497,7 @@ Where a branch goes:
 
 - `prompts.scene` adds context to cast and solo scenes, including continuations and closing requests.
 - `requests.scene`, `requests.dm`, `requests.ledger` and `requests['slot-intro']` extend a completed request in mod-list order. Preserve the request and schema fields received from earlier mods. DM hooks run for normal and regenerated replies because both use the same builder.
+- `interludeSettled` receives a late-night hold's context and completed texting ledger after application, before its opening and save, while `interludeNow()` still names that hold.
 - `slotSettled` receives the scene's starting state, the completed ledger and closing cast after bookkeeping, before clock advancement and the boundary save. It is synchronous so mod state is included in that save.
 - `slotStatusLines` adds lines to the slot's closing report, after what each girl took away from it, written with `memoryStatusLine` as the game writes its own. It is handed `nextSlot`, the global slot about to begin, and every mod that is on is asked, in list order.
 - `fileLatePost(post)` in `loop/feed.ts` files a post a mod wrote mid-slot, outside the slot's opening, the way the opening files its own: through `fileFeedPost`, so it can be held like any other. It leaves the slot's teaser and fill as they were drawn.

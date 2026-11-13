@@ -560,6 +560,7 @@ export interface ModHooks {
         at: 'from' | 'to';
         clock?: 'late-night';
     } | null;
+    interludeSettled?: (ctx: InterludeCtx) => void;
     keepSceneLedgerEntry?: (entry: Readonly<SceneLedgerEntry>) => boolean;
     landingTool?: ComponentType<ScreenSlotProps['landingTool']>;
     mapOverlay?: ComponentType<ScreenSlotProps['mapOverlay']>;

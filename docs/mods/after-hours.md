@@ -1,6 +1,6 @@
 # After Hours
 
-## 0.6.2
+## 0.6.3
 
 By **Naudh1r**.
 
@@ -51,11 +51,13 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   activity choice or map travel. The phone stays available for texts and Bunnyboard comments.
 - Each contact is in her own room; her chat names her dorm. Nobody goes anywhere tonight,
   and a DM cannot begin a hangout. Plans for another time still work normally.
-- **Go to sleep** opens the new-day curtain, then the usual morning narration, texts, posts and
-  landing. There is no confirmation.
+- **Go to sleep** ends the night the way Relax ends a slot: the night's texts are counted and
+  their results shown, then the new-day curtain and the morning's narration, texts, posts and
+  landing. The narration is written after the night, so it can follow up on what was said, and a
+  plan made at night for the morning is on its landing. There is no confirmation.
 - A reply held until a night you skip arrives on the morning landing instead.
-- A save taken at night loads back into it with the same morning narration waiting. The
-  night's texts are marked **late night** and kept with the morning's texts.
+- A save taken at night loads back into the night. The night's texts are marked **late night**
+  and counted once, when you go to sleep, never again with the morning's.
 - The night before graduation comes too; **Go to sleep** opens the ceremony.
 - Turn **The night** off to keep the evening's own Relax, with no extra row or new night.
   A night already on screen stays until you sleep.
