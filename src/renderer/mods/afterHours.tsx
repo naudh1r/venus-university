@@ -135,19 +135,30 @@ registerHooks(AFTER_HOURS_MOD, {
       rows: [{
         label: afterHoursText.goToSleep,
         card: true,
+        line: afterHoursText.sleepLine,
         onPick: () => status.set({ ...status.read(), nightDone: globalSlotOf(to.date, to.time) })
       }],
       clock: 'late-night'
     }
+  },
+  relaxLine: ({ time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? afterHoursText.relaxLine : undefined,
+  // After a night at hers, the morning's narration plays in her room until he is home.
+  openingLook: ({ date, time }) => {
+    const stay = status.read().stayOver
+    return stay?.room === 'herRoom' && stay.morning === globalSlotOf(date, time)
+      ? { room: { kind: 'herRoom', charId: stay.charId } } : null
   },
   relaxRows: ({ date, time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? [{
     label: afterHoursText.skipTomorrow,
     onPick: () => status.set({ ...status.read(), nightDone: globalSlotOf(date, time) + 1 })
   }] : [],
   slotSettled: ({ before, ledger }) => {
-    if (before.time === 1 && stayOverOf(ledger, gameCharacters())) {
-      status.set({ ...status.read(), nightDone: globalSlotOf(before.date, before.time) + 1 })
-    }
+    const slot = globalSlotOf(before.date, before.time)
+    const { stayOver: past, ...data } = status.read()
+    const stay = before.time === 1 ? stayOverOf(ledger, gameCharacters()) : null
+    status.set(stay
+      ? { ...data, nightDone: slot + 1, stayOver: { charId: stay.girl.charId, room: stay.room, morning: slot + 1 } }
+      : { ...data, ...(past && past.morning > slot ? { stayOver: past } : {}) })
   },
   requests: {
     ledger: (request, { state, charKeys }) => {
@@ -185,7 +196,8 @@ registerHooks(AFTER_HOURS_MOD, {
           threadStartedBy(thread?.messages ?? [], state.date, state.time)
         )
         return [
-          ...(state.heldUntil && state.commitment ? [busyTextPrompt(character.firstName, state.commitment)] : []),
+          // A reply written after a class they share is told so by the game itself.
+          ...(state.heldUntil && state.commitment && !state.sharedClass ? [busyTextPrompt(character.firstName, state.commitment)] : []),
           ...(nightHolds() ? [nightPrompt(character.firstName)] : []),
           ...(busy ? [busyPrompt(character.firstName)] : [])
         ]

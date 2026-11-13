@@ -1,6 +1,6 @@
 # After Hours
 
-## 0.6.3
+## 0.6.4
 
 By **Naudh1r**.
 
@@ -37,21 +37,26 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - A late reply never starts an immediate hangout. Plans for another time still work normally.
 - With Photo Feature on, she may include a photo under its own rules. It arrives with her reply.
 - Text her during an evening class and the reply arrives on the night screen, after class.
+- If her next class is one you take too, she answers after that class instead, once, knowing
+  whether you were there. All your texts until then wait for that one reply.
+- A girl whose reply arrives at a landing sends nothing else there: no reach-out and no
+  invitation from her at the same time.
 - Switch the option off to close her DM box during class and work as usual.
 
 ### The night
 
 - **The night** option is on by default. After the evening, the curtain announces **Night**
   on the same day, and you return to your room before the morning opens.
-- On the evening landing, **Relax (Skip to bedtime)** spends the evening relaxing and opens
-  the night. **Skip to tomorrow**, just below it, relaxes the same way and opens the morning
+- On the evening landing, **Relax (Skip to bedtime)** spends the evening relaxing (its line
+  ends with the evening gone, not with bedtime) and opens the night. **Skip to tomorrow**, just below it, relaxes the same way and opens the morning
   directly.
 - The night landing's header reads **Night**, with the quiet room line and one card row:
   **Go to sleep**. There is no text box,
   activity choice or map travel. The phone stays available for texts and Bunnyboard comments.
 - Each contact is in her own room; her chat names her dorm. Nobody goes anywhere tonight,
   and a DM cannot begin a hangout. Plans for another time still work normally.
-- **Go to sleep** ends the night the way Relax ends a slot: the night's texts are counted and
+- **Go to sleep** plays its own line, as Relax does, then ends the night the way Relax ends a
+  slot: the night's texts are counted and
   their results shown, then the new-day curtain and the morning's narration, texts, posts and
   landing. The narration is written after the night, so it can follow up on what was said, and a
   plan made at night for the morning is on its landing. There is no confirmation.
@@ -68,9 +73,10 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   both of you want it. It is an option, never a goal.
 - The evening ends normally, with its one ledger and memory question. There is no extra
   scene and no night landing afterward.
-- The new-day curtain opens on the morning where you woke together. Its narration tells
-  how you part and get back into your own morning, in whatever way fits what happened.
-  The game's summary and rumour follow, then the normal landing.
+- The new-day curtain opens on the morning where you woke together. After a night at hers,
+  the narration plays in her room. It can give her parting words, then tells how you part
+  and get back into your own morning, in whatever way fits what happened. The game's summary
+  and rumour follow, then the normal landing in your room.
 
 ## Where the code is
 

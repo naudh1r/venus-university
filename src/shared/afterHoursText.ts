@@ -14,7 +14,9 @@ export const afterHoursText = {
   busyTextsHint: "Text her during class or work; she replies when she's out, in the next half of the day.",
   nightOption: 'The night',
   nightHint: 'After the evening, stay up texting before you sleep. An evening in her room or yours can last the night.',
-  nightLine: 'You head back to your room for the night. The hall outside is quiet now.',
+  nightLine: "It's late, and you're in your room for the night. The hall outside is quiet now.",
+  sleepLine: "You put your phone away and turn in for the night. Before you know it, it's morning.",
+  relaxLine: "You stay in and take it easy, doing nothing in particular. Before you know it, the evening's gone.",
   goToSleep: 'Go to sleep',
   skipTomorrow: 'Skip to tomorrow',
   relax: 'Relax (Skip to bedtime)'
@@ -32,14 +34,12 @@ export function nightPrompt(name: string): string {
 
 export const stayOverPrompt = "This is the evening. If the scene ends in her dorm room or the reader's, and both of them want it, they can spend the night there together. It is only an option, never a goal."
 export const stayOverLedgerInstruction = 'Set stayedOverWith to the key of the girl the reader is spending tonight with as the scene ends, and stayedOverIn to whose room it is in; set both to none if he is spending the night alone.'
-const roomText = (room: 'herRoom' | 'hisRoom'): string => room === 'herRoom' ? 'her room' : 'his room'
 
-/** The morning opening narrates their parting after a night together. */
+/** The morning opening narrates their parting after a night together, her parting words allowed. */
 export function morningReturnPrompt(name: string, room: 'herRoom' | 'hisRoom'): string {
-  const departure = room === 'herRoom'
-    ? 'the reader leaves her and gets back to his own room and into the morning'
-    : 'she leaves his room and the reader gets into the morning'
-  return `Last night the reader was with ${name} in ${roomText(room)}, and they woke up there together (see the latest scene). Open by telling, in a line or two, how ${departure}, in whatever way fits what happened between them; then the morning as usual.`
+  return room === 'herRoom'
+    ? `Last night the reader stayed over with ${name} in her room (see the latest scene). Open on them waking up there. If she says something as he leaves, give her words as she says them: that is the one line of dialogue allowed. Then tell, in a line or two, how he gets back to his own room and into the morning, in whatever way fits what happened between them; then the morning as usual.`
+    : `Last night ${name} stayed over in the reader's room (see the latest scene). Open on them waking up there. If she says something as she leaves, give her words as she says them: that is the one line of dialogue allowed. Then tell, in a line or two, how she heads off and he gets into the morning; then the morning as usual.`
 }
 
 /** Her reply catches up after the commitment, without making it a required topic. */
