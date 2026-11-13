@@ -24,7 +24,7 @@ export {
   filterSceneLedger,
   gameEntered,
   gameModal,
-  hangoutVerdict,
+  hangoutCheck,
   interludePreview,
   modDetail,
   modRequest,

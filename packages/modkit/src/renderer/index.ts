@@ -1,6 +1,5 @@
 /** `@vx/modkit/renderer`: what a mod may import in the window. */
-export { interludeNow, useInterludeNow } from '../bridge/renderer'
-export type { HangoutVerdict } from '../bridge/renderer'
+export { interludeNow } from '../bridge/renderer'
 export type {
   BunnyboardPage,
   ContactTab,
@@ -11,7 +10,6 @@ export type {
   EndingChoice,
   GameMenuItemProps,
   GameModalProps,
-  HangoutVerdictCtx,
   Interlude,
   InterludeCtx,
   InterludeRow,

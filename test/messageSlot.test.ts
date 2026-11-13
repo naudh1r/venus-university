@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { formatChatDivider, formatMessageSlot } from '../src/renderer/prompts/gameDate'
+import { messageSlotOf } from '../src/shared/chatVisibility'
 
 describe('the slot a saved phone message belongs to', () => {
-  it('prints a late text on the previous night and keeps ordinary slots unchanged', () => {
-    expect(formatMessageSlot({ date: 36, time: 0, late: true }, 'spring')).toBe('Feb 23, late night')
-    expect(formatMessageSlot({ date: 36, time: 0 }, 'spring')).toBe(formatChatDivider(36, 0, 'spring'))
-    expect(formatMessageSlot({ date: 35, time: 1 }, 'spring')).toBe(formatChatDivider(35, 1, 'spring'))
+  it('keeps the ledger slot and reads a late text as the preceding half', () => {
+    const message = { date: 36, time: 0 as const, late: true as const }
+    expect(messageSlotOf(message)).toEqual({ date: 35, time: 1 })
+    expect(message).toEqual({ date: 36, time: 0, late: true })
+    expect(messageSlotOf({ date: 36, time: 0 })).toEqual({ date: 36, time: 0 })
+    expect(messageSlotOf({ date: 35, time: 1 })).toEqual({ date: 35, time: 1 })
   })
 })

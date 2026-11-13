@@ -3,7 +3,6 @@ import { checkCompat, hookNamesOf } from '../shared/compat'
 import { declaredHooksNow, refusedAsForeign } from './attribution'
 import type { StructuredRequest, LedgerResponse } from '../bridge/shared'
 import type { Commitment } from '../bridge/renderer'
-import type { HangoutVerdict } from '../bridge/renderer'
 import type { PromptState } from '../bridge/renderer'
 import type { SlotIntroInput } from '../bridge/renderer'
 import type { useGameStore } from '../bridge/renderer'
@@ -59,15 +58,6 @@ export interface Interlude {
   lines: readonly string[]
   rows: readonly InterludeRow[]
   clock?: 'late-night'
-}
-
-/** The thread and invitation behind a texting classifier's verdict. */
-export interface HangoutVerdictCtx {
-  charId: string
-  /** Who sent the first text of this slot's thread: the reader, or her (a reach-out, an invitation, a reply). */
-  startedBy: 'reader' | 'her'
-  /** The exchange answers an invitation of hers still standing. */
-  answeringInvite: boolean
 }
 
 /** What each prompt hands the mods adding to it. */
@@ -491,12 +481,12 @@ export interface ModHooks {
     lead: Readonly<Record<string, unknown>>
     signal: AbortSignal
   }) => void
-  /** Change or drop the texting classifier's verdict before it arms a hangout or raises an invitation. */
-  hangoutVerdict?: (verdict: HangoutVerdict | null, ctx: HangoutVerdictCtx) => HangoutVerdict | null
+  /** Return false to skip the immediate-meetup classifier for this exchange. */
+  hangoutCheck?: (ctx: { charId: string; startedBy: 'reader' | 'her' }) => boolean
   /** Opens only the timetable gate on her composer. */
   textWhileBusy?: (ctx: { charId: string; commitment: Commitment }) => boolean
   /** After her reply in a DM has landed. */
-  afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse; held?: { date: number; time: TimeSlot } }) => void
+  afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void
   /** After a scene reply has landed and its lines are on the transcript. */
   afterSceneReply?: (ctx: SceneReplied) => void
   /** A seat on the scene's rail, and the panel it opens over the scene. */
@@ -934,7 +924,6 @@ export function afterDmReply(ctx: {
   charId: string
   character: Character
   reply: TextingResponse
-  held?: { date: number; time: TimeSlot }
 }): void {
   for (const hooks of active()) hooks.afterDmReply?.(ctx)
 }
@@ -1018,17 +1007,16 @@ export function relaxLabel(ctx: { date: number; time: TimeSlot }): string | unde
   return undefined
 }
 
-/** Hands the verdict to each enabled mod in turn; a failed handler leaves the last result intact. */
-export function hangoutVerdict(verdict: HangoutVerdict | null, ctx: HangoutVerdictCtx): HangoutVerdict | null {
+/** Any enabled mod may skip an exchange's immediate-meetup classifier. */
+export function hangoutCheck(ctx: { charId: string; startedBy: 'reader' | 'her' }): boolean {
   for (const { modId, hooks } of activeEntries()) {
-    if (!hooks.hangoutVerdict) continue
     try {
-      verdict = hooks.hangoutVerdict(verdict, ctx)
+      if (hooks.hangoutCheck?.(ctx) === false) return false
     } catch (error) {
-      console.warn(`[mods] ${modId}: hangoutVerdict failed`, error)
+      console.warn(`[mods] ${modId}: hangoutCheck failed`, error)
     }
   }
-  return verdict
+  return true
 }
 
 /** Tells each enabled mod that a scene reply has landed. */

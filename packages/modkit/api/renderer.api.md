@@ -355,20 +355,6 @@ export function gestures(dead: boolean, hover: TargetAndTransition, tap: TargetA
 };
 
 // @public
-export interface HangoutVerdict {
-    description: string;
-    initiatedBy: 'player' | 'contact';
-}
-
-// @public
-export interface HangoutVerdictCtx {
-    answeringInvite: boolean;
-    // (undocumented)
-    charId: string;
-    startedBy: 'reader' | 'her';
-}
-
-// @public
 export function hasDesktopSurfaces(): boolean;
 
 // @public
@@ -528,10 +514,6 @@ export interface ModHooks {
         charId: string;
         character: Character;
         reply: TextingResponse;
-        held?: {
-            date: number;
-            time: TimeSlot;
-        };
     }) => void;
     afterReachOut?: (ctx: {
         charId: string;
@@ -569,7 +551,10 @@ export interface ModHooks {
     gameEntered?: () => void;
     gameMenuEntry?: ComponentType<ScreenSlotProps['gameMenuEntry']>;
     gameModals?: Record<string, ComponentType<GameModalProps>>;
-    hangoutVerdict?: (verdict: HangoutVerdict | null, ctx: HangoutVerdictCtx) => HangoutVerdict | null;
+    hangoutCheck?: (ctx: {
+        charId: string;
+        startedBy: 'reader' | 'her';
+    }) => boolean;
     interludePreview?: (ctx: InterludeCtx) => {
         at: 'from' | 'to';
         clock?: 'late-night';
@@ -1659,7 +1644,6 @@ export interface TextFieldProps {
 
 // @public
 export interface TextingPromptState {
-    answeringInvite?: boolean;
     breakthrough?: BreakthroughState;
     calendar: SemesterCalendar;
     charCompanions?: NpcCompanions;
@@ -1805,9 +1789,6 @@ export function useGameFacts(): {
 
 // @public (undocumented)
 export function useImageApiConfigured(): boolean;
-
-// @public
-export function useInterludeNow(): InterludeNow | null;
 
 // @public
 export function useLessNsfwText(): boolean;

@@ -100,8 +100,6 @@ export interface TextingPromptState {
   lateNight?: { date: number; time: TimeSlot }
   /** The reply is composed now for delivery after this commitment. */
   heldUntil?: { date: number; time: TimeSlot }
-  /** His new text answers an invitation of hers that was still standing when he sent it. */
-  answeringInvite?: boolean
   commitment?: import('./slotIntroPrompt').Commitment
   /** The reader's accumulated stats, used for relationship requirement guidance. */
   stats?: PlayerStats

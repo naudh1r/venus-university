@@ -15,8 +15,3 @@ export interface HeldInterlude {
 export function interludeNow(): InterludeNow | null {
   return useGameStore.getState().interlude?.now ?? null
 }
-
-/** The held boundary for a component, updated when the hold is entered or released. */
-export function useInterludeNow(): InterludeNow | null {
-  return useGameStore(state => state.interlude?.now ?? null)
-}

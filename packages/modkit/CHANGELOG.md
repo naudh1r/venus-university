@@ -86,6 +86,17 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.18.0
+
+- `hangoutCheck` replaces `hangoutVerdict`: any false answer skips the immediate-meetup
+  classifier before the call, for ordinary and regenerated replies. Interludes skip it
+  without asking mods. Standing invitation settlement remains unchanged.
+- Saves retain the opened chat clock so reloading preserves unread counts for messages
+  already delivered or still held.
+- Remove `HangoutVerdict`, `HangoutVerdictCtx`, `TextingPromptState.answeringInvite`,
+  `useInterludeNow`, and the unused `held` member of `afterDmReply`'s context. `chatClock`
+  remains available to message views.
+
 ## 0.17.0
 
 - Interludes are narration and simple choices only. Private-room routes, confirmation and
@@ -106,7 +117,7 @@
 
 ## 0.15.0
 
-- `TextingPromptState.answeringInvite`: the reader's new text answers an invitation of hers that was
+- The former `TextingPromptState.answeringInvite` (removed in 0.18.0): the reader's new text answers an invitation of hers that was
   still standing, so a `prompts.dm` hook can tell it apart even though the invitation is cleared as he
   sends.
 
@@ -122,22 +133,22 @@
 
 - `textWhileBusy` can open a character's composer during a class or shift. Her reply is
   generated immediately for the next slot, hidden until that slot opens, and never classified
-  for a hangout. DM prompts receive `heldUntil` and `commitment`; `afterDmReply` receives `held`.
+  for a hangout. DM prompts receive `heldUntil` and `commitment`; `afterDmReply` originally received `held` (removed in 0.18.0).
   Later message attachments share the hold, and saved unfinished turns resume on load.
 
 ## 0.9.0
 
 - `slotInterlude` can hold a slot opening on the finished slot's landing with narration,
-  choices and a working phone. `interludeNow` and `useInterludeNow` read the hold.
+  choices and a working phone. `interludeNow` reads the hold; the unused reactive reader was removed in 0.18.0.
 - A `late-night` clock keeps texts in the new slot's ledger while their stamps, prompts,
   weather and availability read as late on the preceding night.
 - `relaxLabel` replaces the Relax row's words without changing what it does.
 
 ## 0.8.0
 
-- `hangoutVerdict` lets renderer mods change or drop a texting classifier verdict, with who
+- The former verdict pipeline (replaced by `hangoutCheck` in 0.18.0) let mods change or drop a texting classifier verdict, with who
   started the slot's thread and whether the exchange answers her standing invitation.
-  Renderer exports `HangoutVerdict` and `HangoutVerdictCtx`.
+  Its public verdict types were removed in 0.18.0.
 - `chatsHeader` draws beside the Chats title, handed the phone's day or night theme.
 
 ## 0.7.0
