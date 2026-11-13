@@ -1015,8 +1015,10 @@ function ConversationView({
   const interlude = useGameStore(s => s.interlude)
   const atWork = !bot && interlude?.now.clock !== 'late-night' && charJobNow(charId) !== null
   const commitment = !bot ? charCommitmentAt(charId) : null
-  const unavailable = !bot && interlude?.now.clock !== 'late-night' && charBusyNow(charId) &&
-    !(commitment && textWhileBusy({ charId, commitment }))
+  const committed = !bot && interlude?.now.clock !== 'late-night' && charBusyNow(charId)
+  // A mod can keep her box open through a class or shift; her answer then waits for her to be free.
+  const heldOpen = committed && commitment !== null && textWhileBusy({ charId, commitment })
+  const unavailable = committed && !heldOpen
   // Her reply plus the hangout classifier that reads it.
   const busy = useBunnyboardStore((s) => s.busyCharIds.includes(charId))
   // Texts written and waiting out their typing delay.
@@ -1274,7 +1276,9 @@ function ConversationView({
                     ? `${name} blocked you.`
                     : unavailable
                       ? `${name} is ${atWork ? 'at work' : 'in class'} right now.`
-                      : busy
+                      : heldOpen
+                        ? `${name} will reply to you when she is available.`
+                        : busy
                         ? `Waiting for ${name}...`
                         : incoming ? `Describe the text ${name} sends you` : 'Message'
             }

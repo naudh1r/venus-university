@@ -1780,7 +1780,8 @@ and hints, and read/edit/export with a missing provider. No particular mod trait
 `textWhileBusy({ charId, commitment })` is an `any` renderer hook. Any enabled mod returning
 `true` opens only the composer's class/shift gate; scene, block, failed-turn, reply-in-flight
 and epilogue gates still apply. `commitment` is a `Commitment`: her class (`{ kind: 'class', name }`) or shift
-(`{ kind: 'shift', employer }`).
+(`{ kind: 'shift', employer }`). While it holds the gate open, her empty composer reads that she will
+reply when she is available.
 
 The reader's message is shown immediately. The normal DM call receives `heldUntil` (the next
 slot's date and time) and `commitment` in `TextingPromptState`. Its reply does not stream or
