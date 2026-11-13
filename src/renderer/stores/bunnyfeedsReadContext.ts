@@ -21,6 +21,7 @@ import {
   playerStats,
   playerProfilePicture,
   currentRun,
+  interludeNow,
   subscribeCharacter,
   subscribeCharacterInfo,
   subscribeConversation,
@@ -60,11 +61,15 @@ export function readBunnyfeedsContext(): BunnyfeedsContext {
   const infos = ids.map(characterInfo)
   const chats = ids.map(conversation)
   const at = clock()
+  // A late night held before the morning belongs to the evening it follows: what he comments then
+  // is stamped for the evening, and the answers wait for the morning.
+  const held = interludeNow()
+  const night = held?.clock === 'late-night' ? held.from : null
   const facts = gameFacts()
   const pairs = npcRelationships()
   const stats = playerStats()
   const picture = playerProfilePicture()
-  const next = [ids, chars, ...definitions, ...infos, ...chats, at, facts.playthroughId,
+  const next = [ids, chars, ...definitions, ...infos, ...chats, at, held, facts.playthroughId,
     facts.readerName, pairs, stats, picture, currentRun()]
   if (value && next.length === keys.length && next.every((one, i) => one === keys[i])) return value
 
@@ -85,8 +90,8 @@ export function readBunnyfeedsContext(): BunnyfeedsContext {
   value = {
     playthroughId: facts.playthroughId,
     playerFirstName: facts.readerName,
-    date: at?.date ?? 0,
-    time: at?.time ?? 0,
+    date: night?.date ?? at?.date ?? 0,
+    time: night?.time ?? at?.time ?? 0,
     calendar: { season: at?.season ?? 'spring' },
     chars,
     characters: Object.freeze(characters),
