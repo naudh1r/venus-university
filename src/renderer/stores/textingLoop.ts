@@ -193,10 +193,11 @@ const failedTurns = new Map<
  */
 export function sceneActiveOf(state: {
   busy: boolean
+  sceneEnding?: boolean
   currentSceneTranscript: readonly unknown[]
   sceneSummary: string | null
 }): boolean {
-  return state.busy || state.currentSceneTranscript.length > 0 || state.sceneSummary !== null
+  return state.busy || state.sceneEnding === true || state.currentSceneTranscript.length > 0 || state.sceneSummary !== null
 }
 
 /**

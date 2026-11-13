@@ -48,6 +48,8 @@ export interface SlotDuty {
 
 /** Everything the `PLANS` half of the ledger request reads. */
 export interface SchedulePromptInput {
+  /** The late-night hold following this evening, before the next morning opens. */
+  lateNight?: true
   /** The slot being read — what "tonight" is measured against. */
   date: number
   time: TimeSlot
@@ -236,7 +238,9 @@ export function scheduleBlocks(input: SchedulePromptInput, wantPlans: boolean): 
   const now = [
     // What "tomorrow" in a transcript is measured against; the scene never says what day it is.
     'NOW',
-    `The part of the day you are reading has just ended. It was ${formatDateBanner(input.date, input.time, input.season)}`
+    input.lateNight
+      ? `It is late on ${formatDatePart(input.date, input.season)} night. The next part of the day is tomorrow morning.`
+      : `The part of the day you are reading has just ended. It was ${formatDateBanner(input.date, input.time, input.season)}`
   ]
   if (!wantPlans) return now
 

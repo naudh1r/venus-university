@@ -403,10 +403,12 @@ export interface ModHooks {
   /** Extra choices that call their handler before spending the slot on Relax. */
   relaxRows?: (ctx: { date: number; time: TimeSlot }) => readonly { label: string; onPick: () => void }[]
   /**
-   * Whether the coming slot will be held on the finished one's look, asked when the boundary's
-   * curtain falls so it announces what is shown next. Pure: write nothing.
+   * Whether the coming slot will be held on the finished one's look, asked before writing its
+   * opening and at the boundary's curtain. Pure: write nothing.
    */
   interludePreview?: (ctx: InterludeCtx) => { at: 'from' | 'to'; clock?: 'late-night' } | null
+  /** The held night's texting ledger is applied, before its opening and save, while it holds. */
+  interludeSettled?: (ctx: InterludeCtx) => void
   /** Return false to omit this scene row before projection and settlement. */
   keepSceneLedgerEntry?: (entry: Readonly<SceneLedgerEntry>) => boolean
   /**
@@ -1264,6 +1266,10 @@ export function filterSceneLedger(ledger: LedgerResponse): LedgerResponse {
     ...(ledger.events && { events: ledger.events.filter(value => keep({kind: 'event', value})) }),
     ...(ledger.acts && { acts: ledger.acts.filter(value => keep({kind: 'act', value})) })
   }
+}
+
+export function interludeSettled(ctx: InterludeCtx): void {
+  for (const hooks of active()) hooks.interludeSettled?.(ctx)
 }
 
 export function slotSettled(ctx: SlotSettled): void {
