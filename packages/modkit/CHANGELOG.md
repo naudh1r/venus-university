@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Shared exports `EMOTIONS`, the sprite expressions a dialogue line's `emotion` may name, such as
+  a staged opening's line.
 - Activities can call `setSceneSuggestionsPaused` to pause optional scene suggestions for
   the loaded game. Providers can query `sceneSuggestionsPaused`, render from
   `useSceneSuggestionsPaused` or observe boolean changes with `subscribeSceneSuggestionsPaused`.

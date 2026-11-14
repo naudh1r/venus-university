@@ -104,6 +104,7 @@ export {
   characterLoraOf,
   DORM_IDS,
   dormLabel,
+  EMOTIONS,
   LOCATIONS,
   NARRATIVE_LOCATIONS,
   customOutfitSlotsIn,
