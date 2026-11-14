@@ -1572,6 +1572,8 @@ export interface BreakupOwed {
 
 /** On-disk save file — `/data/saves/{playthroughId}/{saveId}.json`. */
 export interface NativeGameSave {
+  /** The late night this save opens on, used only for its listing and thumbnail. */
+  heldNight?: { date: number; time: TimeSlot }
   /** The chat clock whose shown messages have already contributed to unread counts. */
   chatShownThrough?: { date: number; time: TimeSlot }
   schemaVersion: 13
@@ -1907,6 +1909,8 @@ export const FIRST_SLOT: { date: number; time: TimeSlot } = { date: 0, time: 0 }
  * plus that playthrough's newest save alone.
  */
 export interface PlaythroughSummary {
+  /** The late night the newest save opens on. */
+  heldNight?: { date: number; time: TimeSlot }
   playthroughId: string
   /** What Load Game calls it: the player's {@link name}, or `Playthrough N` at its {@link position}. */
   label: string
@@ -1966,6 +1970,8 @@ export interface PlaythroughSummary {
 
 /** What the load grid shows of one save, read off it without shipping the save itself. */
 export interface SaveSummary {
+  /** The late night this save opens on. */
+  heldNight?: { date: number; time: TimeSlot }
   /** In-game position of the save. */
   date: number
   time: TimeSlot
