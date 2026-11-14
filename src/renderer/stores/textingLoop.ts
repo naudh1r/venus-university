@@ -10,7 +10,9 @@ import { BREAKTHROUGH_MOD } from '@shared/breakthrough'
 
 import { formatDateBanner, nextSlot, prevSlot, shiftWeekdayOf } from '../prompts/gameDate'
 import { TEXT_REGENERATION_MOD, latestTextReply, beforeTextReply, textReplyFingerprint, checkedTextReplacement, replaceTextReply } from '@shared/textRegeneration'
-import type { Result } from '@shared/types'
+import { OUTGOING_PHOTO_DESCRIPTION_LIMIT, type Result, type OutgoingPhoto } from '@shared/types'
+import { currentRun, invoke, saveChanges } from '@vx/modkit/renderer'
+import { isWebBuild } from '../platform'
 import { modIsOn } from './modsStore'
 import type {
   CalendarEvent,
@@ -101,7 +103,7 @@ import { useGameStore } from './gameStore'
 import { heldReplyDueAt, sharedReplyClass } from '@shared/heldReplies'
 import { threadStartedBy, waitingText } from '@shared/textingThread'
 import { afterDmReply, afterReachOut, dmReplyLead, hangoutCheck, textWhileBusy, promptTextEdits } from '../mods/hooks'
-import { INCOMING_TEXTS } from '@shared/modEntries/incoming-texts'
+import { INCOMING_TEXTS, OUTGOING_IMAGE_STORAGE_MOD } from '@shared/modEntries/incoming-texts'
 import { lorebookNow } from './lorebookStore'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
 import { createRetryGate } from './retryGate'
@@ -554,9 +556,56 @@ export async function sendIncomingMessage(charId: string, direction: string): Pr
   return sendText(charId, direction, true)
 }
 
-async function sendText(charId: string, text: string, incoming: boolean): Promise<void> {
+/** Checks the current thread before adding a reader-supplied photo. */
+function photoThreadOpen(charId: string): boolean {
+  const game = useGameStore.getState()
+  const ui = useBunnyboardStore.getState()
+  return modIsOn(INCOMING_TEXTS) && Boolean(game.playthroughId && game.characters[charId]) &&
+    Boolean(game.bunnyboard.conversations[charId]) && !sceneActiveOf(game) && !epilogueOf(game) &&
+    !charBusyNow(charId) && !game.charInfo[charId]?.flags.blocked && !ui.armedHangout &&
+    !ui.busyCharIds.includes(charId) && !failedTurns.has(charId) && !inFlight.has(charId)
+}
+
+/** Sends a photo description or stores a local image and includes it in the first reply request. */
+export async function sendOutgoingPhoto(
+  charId: string, caption: string, attachment: string | File
+): Promise<void> {
+  const game = useGameStore.getState()
+  if (!game.playthroughId || !photoThreadOpen(charId)) throw Error('This conversation is unavailable.')
+  if (typeof attachment === 'string') {
+    const description = attachment.trim()
+    if (!description || description.length > OUTGOING_PHOTO_DESCRIPTION_LIMIT) {
+      throw Error('Enter a photo description of up to 4,000 characters.')
+    }
+    void sendText(charId, caption, false, { kind: 'description', description })
+    return
+  }
+  if (isWebBuild() || !modIsOn(OUTGOING_IMAGE_STORAGE_MOD)) throw Error('Image attachments require the desktop Photo mod.')
+  const bytes = new Uint8Array(await attachment.arrayBuffer())
+  const current = (): boolean => {
+    const live = useGameStore.getState()
+    return live.playthroughId === game.playthroughId && live.loads === game.loads &&
+      live.date === game.date && live.time === game.time && photoThreadOpen(charId)
+  }
+  if (!current()) throw Error('The conversation changed. Try sending the image again.')
+  const result = await invoke<{ file: string; data: string }>(
+    OUTGOING_IMAGE_STORAGE_MOD, 'import-chat-photo', [game.playthroughId, charId, bytes]
+  )
+  if (!result.ok) throw Error(result.error.message)
+  const { file, data } = result.data
+  if (!current()) {
+    await invoke(OUTGOING_IMAGE_STORAGE_MOD, 'drop', [game.playthroughId, charId, file])
+    throw Error('The conversation changed. Try sending the image again.')
+  }
+  void sendText(charId, caption, false, { kind: 'image', file }, data)
+}
+
+/** Adds the player's message, if any, and starts the reply turn. */
+async function sendText(
+  charId: string, text: string, incoming: boolean, outgoingPhoto?: OutgoingPhoto, imageData?: string
+): Promise<void> {
   const trimmed = text.trim()
-  if (!trimmed || inFlight.has(charId)) return
+  if ((!trimmed && !outgoingPhoto) || inFlight.has(charId)) return
   // No bot can be written for: their composers are buttons or nothing at all.
   if (isBossChat(charId) || isVenusChat(charId) || isBunnybotChat(charId)) return
 
@@ -589,7 +638,10 @@ async function sendText(charId: string, text: string, incoming: boolean): Promis
     ? charClassNow(charId, next.date, next.time) : null
   const sharedCode = held ? sharedReplyClass(herClass ? { kind: 'class', code: herClass } : null,
     playerClassNow(next.date, next.time)) : null
-  const afterClass = held ? previousHold?.afterClass ?? (sharedCode ? { ...next, code: sharedCode } : undefined) : undefined
+  // A photo is answered now, while its image can still be shown to her; a reply written after the
+  // class would see only that a photo was sent.
+  const afterClass = held && !outgoingPhoto
+    ? previousHold?.afterClass ?? (sharedCode ? { ...next, code: sharedCode } : undefined) : undefined
   if (afterClass) held = nextSlot(afterClass.date, afterClass.time)
   if (held && previousHold) {
     const ids = new Set(previousHold.messageIds)
@@ -599,7 +651,11 @@ async function sendText(charId: string, text: string, incoming: boolean): Promis
     } } }))
     conversation = useGameStore.getState().bunnyboard.conversations[charId]
   }
-  const sent = incoming ? null : { ...chatMessage('player', trimmed), ...(held ? { awaitingReply: true as const } : {}) }
+  const sent = incoming ? null : {
+    ...chatMessage('player', trimmed),
+    ...(held ? { awaitingReply: true as const } : {}),
+    ...(outgoingPhoto ? { outgoingPhoto } : {})
+  }
   if (sent) game.appendChatMessage(charId, sent, 0)
   if (held && sent) {
     useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
@@ -630,7 +686,9 @@ async function sendText(charId: string, text: string, incoming: boolean): Promis
       { ...textingState(game, charId), ...(held ? { heldUntil: held, ...(commitment ? { commitment } : {}) } : {}) },
       // The same reader block a scene gets, grades and all.
       readerBlockOf({ ...game, ...textingClockOf(game) }),
-      incoming ? trimmed : undefined
+      incoming ? trimmed : undefined,
+      outgoingPhoto,
+      imageData
     )
 
     const reply = runReply(charId, character, conversation, sent, request, 0, invited, held)
@@ -745,6 +803,23 @@ async function runReply(
     }
 
     const data: TextingResponse = result.data
+    const photo = sent?.outgoingPhoto
+    const description = typeof data.outgoingPhotoDescription === 'string'
+      ? data.outgoingPhotoDescription.trim().slice(0, OUTGOING_PHOTO_DESCRIPTION_LIMIT)
+      : ''
+    if (sent && photo?.kind === 'image' && description) {
+      const outgoingPhoto = { ...photo, description }
+      useGameStore.setState(state => {
+        const thread = state.bunnyboard.conversations[charId]
+        if (!thread) return state
+        return { bunnyboard: { ...state.bunnyboard, conversations: {
+          ...state.bunnyboard.conversations,
+          [charId]: { ...thread, messages: thread.messages.map(message =>
+            message.id === sent.id ? { ...message, outgoingPhoto } : message
+          ) }
+        } } }
+      })
+    }
     const messages = (data.messages ?? []).map((text) => text.trim()).filter(Boolean)
     if (held) {
       for (const text of messages) deliver(charId, chatMessage('contact', text))
@@ -766,6 +841,12 @@ async function runReply(
       landed = true
       afterDmReply({ charId, character, reply: data })
       releaseHeldReplies()
+      // A held turn stores the sent photo as any turn does.
+      if (sent?.outgoingPhoto) {
+        void saveChanges(INCOMING_TEXTS, { run: currentRun() }).then(result => {
+          if (!result.ok) console.warn('[texting] could not save the photo turn:', result.error)
+        })
+      }
       return
     }
     // Anything the preview did not already queue — nor an earlier attempt release.
@@ -781,6 +862,12 @@ async function runReply(
     // The verdict can arm a hangout and force the thread open, so it waits for her last text.
     await pacer.drain()
     if (entry.abandoned) return
+
+    if (sent?.outgoingPhoto) {
+      void saveChanges(INCOMING_TEXTS, { run: currentRun() }).then(result => {
+        if (!result.ok) console.warn('[texting] could not save the photo turn:', result.error)
+      })
+    }
 
     // The block lands under her last text, ahead of the scene check: a scene with somebody
     // *else* does not unmake a reply that landed. Nothing is left to classify, so the turn ends.
@@ -899,7 +986,7 @@ export async function regenerateTextReply(charId: string, commit: (
     const request = buildTextingPrompt(character, game.charInfo[charId], prior, target.sent.text, {
       ...textingState(game, charId),
       historyLimit: prior.summary === null ? 160 : undefined
-    }, readerBlockOf({ ...game, ...textingClockOf(game) }))
+    }, readerBlockOf({ ...game, ...textingClockOf(game) }), undefined, target.sent.outgoingPhoto)
     const result = await window.api.llm.completeTexting(request, `texting:${charId}`)
     check()
     if (!result.ok) throw Error(result.error.message)

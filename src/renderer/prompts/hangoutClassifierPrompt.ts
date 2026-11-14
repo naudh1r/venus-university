@@ -65,6 +65,9 @@ export function buildHangoutClassifierPrompt(
     ...(background.length > 0 ? background : ['(none)']),
     "'''",
     '',
+    ...(playerMessage?.outgoingPhoto ? [
+      'For an attached photo, consider only the caption when deciding whether the reader asked to meet.'
+    ] : []),
     'THE MESSAGE — what the reader just sent.',
     "'''",
     ...(playerMessage
