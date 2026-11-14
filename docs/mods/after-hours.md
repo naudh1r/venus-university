@@ -1,6 +1,6 @@
 # After Hours
 
-## 0.6.4
+## 0.6.5
 
 By **Naudh1r**.
 
@@ -73,10 +73,12 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   both of you want it. It is an option, never a goal.
 - The evening ends normally, with its one ledger and memory question. There is no extra
   scene and no night landing afterward.
-- The new-day curtain opens on the morning where you woke together. After a night at hers,
-  the narration plays in her room. It can give her parting words, then tells how you part
-  and get back into your own morning, in whatever way fits what happened. The game's summary
-  and rumour follow, then the normal landing in your room.
+- The new-day curtain opens on the morning where you woke together, staged there: her room (or
+  yours) with her on stage, a short line of waking up, her parting words as her own lines with her
+  expression, then the line where you part, where the stage turns to your room without her. The
+  usual morning lines follow, then the normal landing. The night itself is not summed up again.
+- Her parting words are part of the morning's narration, not a scene: nothing more is counted for
+  them, and the landing after is the ordinary one.
 
 ## Where the code is
 

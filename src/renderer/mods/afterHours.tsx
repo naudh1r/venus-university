@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { globalSlotOf, threadStartedBy } from '@vx/modkit/shared'
+import { charKeyOf, EMOTIONS, globalSlotOf, threadStartedBy } from '@vx/modkit/shared'
 import {
   character,
   conversation,
@@ -20,7 +20,7 @@ import {
   usePlayerProfilePicture,
   type ScreenSlotProps
 } from '@vx/modkit/renderer'
-import { AFTER_HOURS_MOD, busyPromptApplies, nightOwed, normalize, stayOverOf, type AfterHours } from '../../shared/afterHours'
+import { AFTER_HOURS_MOD, busyPromptApplies, nightOwed, normalize, stagedUntil, stayOverOf, type AfterHours } from '../../shared/afterHours'
 import {
   afterHoursText, busyPrompt, busyTextPrompt, morningReturnPrompt, nightPrompt,
   stayOverLedgerInstruction, stayOverPrompt
@@ -143,10 +143,17 @@ registerHooks(AFTER_HOURS_MOD, {
   },
   relaxLine: ({ time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? afterHoursText.relaxLine : undefined,
   // After a night at hers, the morning's narration plays in her room until he is home.
-  openingLook: ({ date, time }) => {
+  // The morning after a night together opens on them there: her on stage for her parting words,
+  // until the line where they have parted.
+  openingLook: ({ date, time, reply }) => {
     const stay = status.read().stayOver
-    return stay?.room === 'herRoom' && stay.morning === globalSlotOf(date, time)
-      ? { room: { kind: 'herRoom', charId: stay.charId } } : null
+    const girl = stay && stay.morning === globalSlotOf(date, time) ? character(stay.charId) : null
+    if (!stay || !girl) return null
+    return {
+      room: { kind: stay.room, charId: stay.charId },
+      cast: [stay.charId],
+      until: stagedUntil(reply, charKeyOf(girl.firstName, girl.lastName))
+    }
   },
   relaxRows: ({ date, time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? [{
     label: afterHoursText.skipTomorrow,
@@ -178,7 +185,27 @@ registerHooks(AFTER_HOURS_MOD, {
       if (input.time !== 0) return request
       const stay = stayOverOf(ledger, gameCharacters())
       if (!stay) return request
-      return { ...request, user: `${request.user}\n${morningReturnPrompt(stay.girl.firstName, stay.room)}` }
+      const key = charKeyOf(stay.girl.firstName, stay.girl.lastName)
+      // Her parting words may be her own lines, and the reply names where they have parted.
+      const schema = request.schema.schema as { properties: Record<string, unknown>; required?: string[] }
+      const lines = schema.properties.lines as { items: { properties: Record<string, unknown> } }
+      return {
+        ...request,
+        user: `${request.user}\n${morningReturnPrompt(stay.girl.firstName, key, stay.room)}`,
+        schema: { ...request.schema, schema: {
+          ...schema,
+          properties: {
+            ...schema.properties,
+            lines: { ...lines, items: { ...lines.items, properties: {
+              ...lines.items.properties,
+              speaker: { type: 'string', enum: [key] },
+              emotion: { type: 'string', enum: [...EMOTIONS] }
+            } } },
+            homeLine: { type: 'integer' }
+          },
+          required: [...(schema.required ?? []), 'homeLine']
+        } }
+      }
     }
   },
   hangoutCheck: ({ startedBy }) =>
