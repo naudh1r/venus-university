@@ -3007,8 +3007,9 @@ function showStatusLines(textOnly = false): boolean {
         game.sceneIgnoredInvites,
         game.sceneTurnedDown
       ),
-      // Then what the mods report, such as the memories the next slot files for them.
-      ...(textOnly ? [] : slotStatusLines({ nextSlot: globalSlotOf(game.date, game.time) + 1 }))
+      // Then what the mods report, such as the memories the next slot files for them. A held night
+      // already stands on the slot it opens, so that slot is the next one.
+      ...slotStatusLines({ nextSlot: globalSlotOf(game.date, game.time) + (textOnly ? 0 : 1) })
     ],
     // Milestones last, one screen apiece, the thing the player is left on.
     milestones: projected ? milestoneReports(projected) : []
