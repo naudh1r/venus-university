@@ -230,6 +230,7 @@ export const KIT_APIS = [
   'shared:characterLoraOf',
   'shared:DORM_IDS',
   'shared:dormLabel',
+  'shared:EMOTIONS',
   'shared:LOCATIONS',
   'shared:NARRATIVE_LOCATIONS',
   'shared:customOutfitSlotsIn',

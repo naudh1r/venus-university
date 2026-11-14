@@ -35,11 +35,12 @@ export function nightPrompt(name: string): string {
 export const stayOverPrompt = "This is the evening. If the scene ends in her dorm room or the reader's, and both of them want it, they can spend the night there together. It is only an option, never a goal."
 export const stayOverLedgerInstruction = 'Set stayedOverWith to the key of the girl the reader is spending tonight with as the scene ends, and stayedOverIn to whose room it is in; set both to none if he is spending the night alone.'
 
-/** The morning opening narrates their parting after a night together, her parting words allowed. */
-export function morningReturnPrompt(name: string, room: 'herRoom' | 'hisRoom'): string {
+/** The morning after a night together, staged: waking there, her own parting line, then home. */
+export function morningReturnPrompt(name: string, key: string, room: 'herRoom' | 'hisRoom'): string {
+  const speech = `if she says something, her words as their own line or two, each an entry with "speaker" set to "${key}", her words as "text" and how she looks saying them as "emotion"`
   return room === 'herRoom'
-    ? `Last night the reader stayed over with ${name} in her room (see the latest scene). Open on them waking up there. If she says something as he leaves, give her words as she says them: that is the one line of dialogue allowed. Then tell, in a line or two, how he gets back to his own room and into the morning, in whatever way fits what happened between them; then the morning as usual.`
-    : `Last night ${name} stayed over in the reader's room (see the latest scene). Open on them waking up there. If she says something as she leaves, give her words as she says them: that is the one line of dialogue allowed. Then tell, in a line or two, how she heads off and he gets into the morning; then the morning as usual.`
+    ? `Last night the reader stayed over with ${name} in her room (see the latest scene). This morning's opening is the one time dialogue and someone else on screen are allowed. Write it as short lines, one beat each: first, one line of him waking up there beside her; then, as he leaves, ${speech}; then one line of him getting back to his own room; then the morning as usual. Do not sum up or describe what happened between them last night. Set "homeLine" to the index in "lines" of the line where he is back in his own room.`
+    : `Last night ${name} stayed over in the reader's room (see the latest scene). This morning's opening is the one time dialogue and someone else on screen are allowed. Write it as short lines, one beat each: first, one line of them waking up there together; then, as she leaves, ${speech}; then one line of her heading off; then the morning as usual. Do not sum up or describe what happened between them last night. Set "homeLine" to the index in "lines" of the first line after she has gone.`
 }
 
 /** Her reply catches up after the commitment, without making it a required topic. */

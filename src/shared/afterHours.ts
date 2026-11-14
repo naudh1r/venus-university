@@ -48,3 +48,20 @@ export function nightOwed(to: { date: number; time: TimeSlot }, data: AfterHours
 export function busyPromptApplies(busy: boolean, startedBy: 'reader' | 'her'): boolean {
   return busy && startedBy === 'reader'
 }
+
+/**
+ * The first opening line after the staged part of a morning after a night together: the line the
+ * reply names as the one where they have parted, else the line after her last words, else the line
+ * after waking.
+ */
+export function stagedUntil(reply: { homeLine?: unknown; lines?: unknown }, key: string): number {
+  const lines = Array.isArray(reply.lines) ? reply.lines : []
+  let last = -1
+  lines.forEach((line, index) => {
+    if (line && typeof line === 'object' && (line as { speaker?: unknown }).speaker === key) last = index
+  })
+  // A named line before her last words would leave them off the stage she speaks on.
+  const named = reply.homeLine
+  if (typeof named === 'number' && Number.isInteger(named) && named > Math.max(last, 0) && named <= lines.length) return named
+  return Math.min(lines.length, last >= 0 ? last + 1 : 1)
+}

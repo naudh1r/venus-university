@@ -570,12 +570,8 @@ export interface ModHooks {
     openingLook?: (ctx: {
         date: number;
         time: TimeSlot;
-    }) => {
-        room: {
-            kind: 'herRoom';
-            charId: string;
-        };
-    } | null;
+        reply: Readonly<Record<string, unknown>>;
+    }) => OpeningLook | null;
     optionPreviews?: Record<string, ComponentType<OptionPreviewProps>>;
     panelLayer?: ComponentType<ScreenSlotProps['panelLayer']>;
     phoneOverlay?: ComponentType<ScreenSlotProps['phoneOverlay']>;
@@ -696,6 +692,19 @@ export const npcRelationships: () => Readonly<NpcRelationshipMap> | undefined;
 
 // @public
 export function objectSchema(name: string, required: readonly string[], properties: Record<string, unknown>): StructuredRequest['schema'];
+
+// @public
+export interface OpeningLook {
+    // (undocumented)
+    cast?: readonly string[];
+    // (undocumented)
+    room?: {
+        kind: 'herRoom' | 'hisRoom';
+        charId: string;
+    };
+    // (undocumented)
+    until?: number;
+}
 
 // @public
 export function openPanel(id: string, arg?: string): boolean;

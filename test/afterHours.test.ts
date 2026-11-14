@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { charKeyOf } from '@vx/modkit/shared'
 import { character } from './fixtures'
-import { busyPromptApplies, nightOwed, normalize, stayOverOf } from '../src/shared/afterHours'
+import { busyPromptApplies, nightOwed, normalize, stagedUntil, stayOverOf } from '../src/shared/afterHours'
 
 describe('Busy restrictions on chats the reader starts', () => {
   it('restricts his chat while Busy and leaves her chat unchanged', () => {
@@ -101,5 +101,27 @@ describe('the stay-over named by the ending ledger', () => {
       { stayedOverWith: 1, stayedOverIn: 'herRoom' }, { stayedOverWith: key, stayedOverIn: 'elsewhere' }]) {
       expect(stayOverOf(ledger, [girl])).toBeNull()
     }
+  })
+})
+
+describe('where the staged morning after a night together ends', () => {
+  const her = (text: string) => ({ speaker: 'mia_lee', text, emotion: 'happy' })
+  const lines = ['You wake beside her.', her('Pull the door shut.'), 'You walk home.', 'Campus wakes.']
+
+  it('ends on the line the reply names as parted', () => {
+    expect(stagedUntil({ lines, homeLine: 2 }, 'mia_lee')).toBe(2)
+  })
+
+  it('falls back to the line after her last words when the named line is missing or before them', () => {
+    expect(stagedUntil({ lines }, 'mia_lee')).toBe(2)
+    expect(stagedUntil({ lines, homeLine: 1 }, 'mia_lee')).toBe(2)
+    expect(stagedUntil({ lines, homeLine: 2.5 }, 'mia_lee')).toBe(2)
+    expect(stagedUntil({ lines, homeLine: 9 }, 'mia_lee')).toBe(2)
+  })
+
+  it('stages only the waking line when she says nothing', () => {
+    expect(stagedUntil({ lines: ['You wake beside her.', 'You walk home.'] }, 'mia_lee')).toBe(1)
+    expect(stagedUntil({ lines: ['You wake beside her.'] }, 'mia_lee')).toBe(1)
+    expect(stagedUntil({}, 'mia_lee')).toBe(0)
   })
 })

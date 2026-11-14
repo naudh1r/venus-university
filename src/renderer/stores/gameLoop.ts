@@ -56,6 +56,7 @@ import { sickInSlot, withGiftDoses, worstInSlot } from '@shared/colds'
 import { LAST_SEMESTER, semesterOf } from '@shared/semesters'
 import type { SavedScene, SceneSetup } from '@shared/sceneCreator'
 import type { SlotReplay } from '@shared/replays'
+import { parseOpeningLine, type OpeningPlayback } from '@shared/opening'
 import { formatGameDate, formatSlotOpening, nextSlot, prevSlot, shiftWeekdayOf } from '../prompts/gameDate'
 import {
   introScrollLines,
@@ -588,17 +589,29 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
   // The narration outlived the run it was fetched for.
   if (runStale(run)) return
 
+  const breakLines = breakDecayLines()
   const lines = [
     // The standing heads the opening.
     ...grades.standing.map((text) => ({ speaker: '', text })),
     ...(tutorial ? tutorialLines().map((text) => ({ speaker: '', text })) : opening.lines),
     // What the break cost, after the narration that brought him back.
-    ...breakDecayLines(),
+    ...breakLines,
     // The finals close the list, so the narration's last line is theirs.
     ...grades.finals.map((text) => ({ speaker: '', text }))
   ]
 
-  if (!tutorial && opening.lines.length > 0) await chooseOpeningRoom()
+  const playback: OpeningPlayback | null = !tutorial && opening.lines.length > 0 ? {
+    reply: opening.reply ?? { lines: opening.lines.map(line => line.text) },
+    lines,
+    indices: [
+      ...grades.standing.map(() => 0),
+      ...(opening.lineIndices ?? opening.lines.map((_, index) => index)),
+      ...[...breakLines, ...grades.finals].map(() =>
+        Array.isArray(opening.reply?.lines) ? opening.reply.lines.length : opening.lines.length)
+    ],
+    index: -1
+  } : null
+  if (playback) await chooseOpeningRoom(playback)
   if (runStale(run)) return
   const ready = useGameStore.getState()
   openChatSlot()
@@ -652,15 +665,17 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
 
   // Folded into the slot-save minted before the call went out, which is the start-of-slot
   // decision point.
-  await foldOpeningIntoSlotSave(lines)
+  await foldOpeningIntoSlotSave(lines, playback ?? undefined)
 }
 
-/** Chooses the opening's temporary backdrop; the landing itself keeps its usual room. */
-function chooseOpeningRoom(): Promise<void> | null {
+/** Chooses the opening's temporary stage before its lines are revealed. */
+function chooseOpeningRoom(playback: OpeningPlayback): Promise<void> | null {
   const run = currentRun()
   const game = useGameStore.getState()
-  const look = openingLook({ date: game.date, time: game.time })
-  if (!look) return null
+  const look = openingLook({ date: game.date, time: game.time, reply: Object.freeze(structuredClone(playback.reply)) })
+  game.stageOpening(playback, look)
+  useGameStore.setState({ openingRoom: null })
+  if (look?.room?.kind !== 'herRoom') return null
   const charId = look.room.charId
   const set = (ready: boolean): void => {
     if (!runStale(run)) useGameStore.setState({ openingRoom: { charId, ready } })
@@ -1277,12 +1292,21 @@ async function fetchSlotIntro(
         reachOuts: keysOf(reachOuts),
         visitors: keysOf(visitors)
       })
-      const written = reply.lines
+      const rawReply: Record<string, unknown> = { ...result.data }
+      const body = (Array.isArray(rawReply.lines) ? rawReply.lines : []).flatMap((value, index) => {
+        const line = parseOpeningLine(value, Object.keys(game.charKeyToId))
+        return line ? [{ line, index }] : []
+      })
+      const written = body.map(entry => entry.line.text)
+      const prefix = narrate([opening])
+      const pages = body.flatMap(({ line, index }) => splitOverflow(line, boxFits).map(page => ({ line: page, index })))
       // What the narration actually said about the place it was handed. A rumor about
       // an entry that is not a place, or one the narration never named, banks nothing.
       const said = rumorPlace?.id ? rumorSentenceFor(rumorPlace, written) : null
       return {
-        lines: narrate([opening, ...written]),
+        lines: [...prefix, ...pages.map(page => page.line)],
+        lineIndices: [...prefix.map(() => 0), ...pages.map(page => page.index)],
+        reply: rawReply,
         hangouts: reply.hangouts,
         breakups: reply.breakups,
         ...(occasion ? { askOccasionId: occasion.id } : {}),
@@ -2732,7 +2756,9 @@ export function advance(): void {
  * absences are charged, and the scene is written as the point a reload lands on.
  */
 function reachDecisionPoint(): void {
-  useGameStore.setState({ openingRoom: null })
+  const wasOpening = useGameStore.getState().openingPlayback !== null
+  useGameStore.setState({ openingRoom: null, openingLook: null, openingPlayback: null,
+    ...(wasOpening ? { slots: [null, null, null], emotions: {}, bg: null, bgOverride: null, stageOverride: {}, outfitLock: {}, cgLock: null } : {}) })
   const game = useGameStore.getState()
   game.setAwaitingInput(true)
   // The beat a rewind held for this point is spent, however it was reached again.
@@ -3475,7 +3501,7 @@ export function enterGame(
 
   const live = useGameStore.getState()
   // The queue as the save left it, minus `OLD_ACTION_PROMPT` where an older save carried it.
-  const queued = withoutActionPrompt(save.scene.pendingLines)
+  const queued = save.scene.slotOpening ? [...save.scene.pendingLines] : withoutActionPrompt(save.scene.pendingLines)
   live.restoreScene({ ...save.scene, pendingLines: queued })
   // A resolved scene resumes with its ending still to play, into the same boundary.
   const ending = save.scene.endPending === true
@@ -3489,7 +3515,7 @@ export function enterGame(
     semesterIndex: live.semesterIndex, ledger: banked.ledger ?? save.scene.ledger ?? null
   }) : null
   loopState.bankedOpening = banked
-    ? { ...banked, lines: withoutActionPrompt(banked.lines),
+    ? { ...banked, lines: banked.reply ? banked.lines : withoutActionPrompt(banked.lines),
       ...(preview?.at === 'from' && preview.clock === 'late-night' ? { deferred: true as const } : {}) }
     : null
   // Both records are derived from the save the way the cast turn derived them;
@@ -3510,7 +3536,14 @@ export function enterGame(
   if (!ending && !drained && !save.scene.quiz && save.scene.cast.length === 0 &&
     save.scene.transcript.length === 0 && save.scene.summary === null &&
     !isOrientationSlot(save.date, save.time, live.semesterIndex) && !isGraduationSlot(save.date, save.time)) {
-    openingRoomReady = chooseOpeningRoom()
+    const saved = save.scene.slotOpening
+    const read = save.scene.sceneLog.length > 0 ? save.scene.sceneLog
+      : save.scene.currentLine ? [save.scene.currentLine] : []
+    const pages = [...read, ...queued]
+    openingRoomReady = chooseOpeningRoom(saved ?? {
+      reply: { lines: pages.map(line => line.text) }, lines: pages,
+      indices: pages.map((_, index) => index), index: read.length - 1
+    })
   }
   // A drained scene *is* a decision point, so leaving from one writes it back; a landing is not,
   // so leaving from one writes nothing, as a live landing does. A paper is one too: its own point
