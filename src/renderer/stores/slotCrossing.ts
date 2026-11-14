@@ -34,6 +34,7 @@ function gameThemeNow(): ScreenTheme {
 
 /** {@link gameThemeNow} for a save being opened, read off the file instead of the store. */
 function saveTheme(save: GameSave): ScreenTheme {
+  if (save.heldNight) return slotHalf(save.heldNight.time)
   return isEpilogueNight(save.date, save.time, save.graduationSeen) ? 'night' : slotHalf(save.time)
 }
 
@@ -85,9 +86,13 @@ export function entryCrossing(
 ): CrossingOptions {
   const semester = semesterOf(record, save.semester)
   const calendar = semesterCalendarOf(semester)
+  // A save taken on a held night announces that night, as the curtain into it did.
+  const night = save.heldNight
   const splash = save.graduationSeen
     ? goodbyesStamp(calendar)
-    : slotStampOf(
+    : night
+      ? { ...slotStampOf(night.date, night.time, calendar, slotWeather(semester.weather, night.date, night.time, false)), lateNight: true }
+      : slotStampOf(
         save.date,
         save.time,
         calendar,
