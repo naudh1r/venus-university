@@ -196,11 +196,15 @@ registerHooks(AFTER_HOURS_MOD, {
           ...schema,
           properties: {
             ...schema.properties,
-            lines: { ...lines, items: { ...lines.items, properties: {
-              ...lines.items.properties,
-              speaker: { type: 'string', enum: [key] },
-              emotion: { type: 'string', enum: [...EMOTIONS] }
-            } } },
+            // Required on every line, empty for narration, so each line is decided as hers or not.
+            lines: { ...lines, items: { ...lines.items,
+              properties: {
+                ...lines.items.properties,
+                speaker: { type: 'string', enum: [key, ''] },
+                emotion: { type: 'string', enum: [...EMOTIONS, ''] }
+              },
+              required: [...((lines.items as { required?: string[] }).required ?? []), 'speaker', 'emotion']
+            } },
             homeLine: { type: 'integer' }
           },
           required: [...(schema.required ?? []), 'homeLine']
