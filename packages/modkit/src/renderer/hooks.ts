@@ -2,6 +2,8 @@ import type { ComponentType, ReactNode } from 'react'
 import { checkCompat, hookNamesOf } from '../shared/compat'
 import { declaredHooksNow, refusedAsForeign } from './attribution'
 import type { StructuredRequest, LedgerResponse } from '../bridge/shared'
+import type { OpeningLook } from '../bridge/renderer'
+export type { OpeningLook } from '../bridge/renderer'
 import type { Commitment } from '../bridge/renderer'
 import type { PromptState } from '../bridge/renderer'
 import type { SlotIntroInput } from '../bridge/renderer'
@@ -400,8 +402,8 @@ export type SceneLedgerEntry =
 export interface ModHooks {
   /** The first enabled mod to answer holds the slot before any opening effects. */
   slotInterlude?: (ctx: InterludeCtx) => Interlude | null
-  /** The room behind a slot's opening narration, until its landing question appears. */
-  openingLook?: (ctx: { date: number; time: TimeSlot }) => { room: { kind: 'herRoom'; charId: string } } | null
+  /** The stage behind opening lines, chosen from their written reply. */
+  openingLook?: (ctx: { date: number; time: TimeSlot; reply: Readonly<Record<string, unknown>> }) => OpeningLook | null
   /** The first label replaces the Relax row's words. */
   relaxLabel?: (ctx: { date: number; time: TimeSlot }) => string | undefined
   /** The first answer replaces narration for the Relax row itself. */
@@ -991,8 +993,8 @@ export function slotInterlude(ctx: InterludeCtx): { owner: string; interlude: In
   return null
 }
 
-/** The first enabled mod to choose a room for the opening narration. */
-export function openingLook(ctx: { date: number; time: TimeSlot }): { room: { kind: 'herRoom'; charId: string } } | null {
+/** The first enabled mod to choose a stage for the opening. */
+export function openingLook(ctx: { date: number; time: TimeSlot; reply: Readonly<Record<string, unknown>> }): OpeningLook | null {
   for (const { modId, hooks } of activeEntries()) {
     try {
       const look = hooks.openingLook?.(ctx)

@@ -1192,7 +1192,7 @@ else names it.
 | `dmHistoryNote` | `textingPrompt.ts` | Add a note after a DM in the history the prompt quotes |
 | `characterFromDraft` | `characterPrompt.ts` | Fill fields of a generated character from the reply |
 | `dmReplyLead` | `textingLoop.ts` | Read the `lead` fields of her DM reply the moment they have streamed in, before her first text lands. Once per reply, never for one already abandoned. Context includes `signal`: a lead's work ends at `afterDmReply` or at this signal, whichever comes first. Failure, cancellation, blocking, abandonment, load, leaving or scene takeover aborts it; a landed reply does not. Her finished reply stays authoritative |
-| `openingLook` | `gameLoop.ts` | Choose a girl's room for the opening narration, before the landing's own backdrop |
+| `openingLook` | `gameLoop.ts` | Stage part of an opening, using its written reply |
 | `slotInterlude` | `gameLoop.ts` (`beginSlot`) | Hold the slot opening on the finished slot’s landing with narration and choices |
 | `relaxLabel` | `slotActions.ts` | Replace the Relax row’s label, keeping its behavior |
 | `relaxLine` | `relax.ts` | Replace Relax’s narration; extra rows keep the default |
@@ -1250,14 +1250,32 @@ else names it.
 | `sceneCut` | `gameStore.ts` | Undo what the replies past a cut in the transcript changed |
 | `switchedOn` | `App.tsx` (`boot`), then as a switch or the game's record moves | Read what the mod keeps as it comes on: at boot, waited for before the first screen, and again each time it is switched on |
 
-`openingLook({ date, time })` is asked when ordinary opening narration begins, including
-on a boundary, after a held night, and when a saved opening resumes. The first enabled mod
-returning `{ room: { kind: 'herRoom', charId } }` chooses its backdrop; a failing hook is
-logged and skipped. The slot keeps its own half and weather, nobody is on stage, and an
-unready or unknown room falls back to the landing's usual background. Once the narration
-ends, the landing's question stands in the usual room, with the ordinary background change.
-No answer, or no opening narration, changes nothing. The look is not saved: a resumed opening
-asks the current hooks again.
+`openingLook({ date, time, reply })` is asked when opening lines start, including on a
+boundary, after a held night, and when a saved opening resumes. `reply` is the written
+`'slot-intro'` reply, including fields a mod added. The first enabled answer wins;
+a failing hook is logged and skipped.
+
+Return `OpeningLook`: `{ room?, cast?, until? }`. `room` is
+`{ kind: 'herRoom' | 'hisRoom', charId }`: a ready girl's room, or his usual room;
+an unready or unknown girl's room falls back to his. `cast` contains at most one charId
+on stage, with nobody when absent. The slot keeps its own half and weather.
+`until` is the index in `reply.lines` of the first line outside the staged part; split
+pages retain their written line's index. Authored leading lines share the first index.
+Without `until`, the whole opening is staged. From `until` onward, his usual room and
+an empty stage return through the existing background change.
+
+The game's own opening prompt and schema are unchanged and ask for narration alone.
+A mod may edit the `'slot-intro'` request to ask for strings or dialogue objects in `lines`:
+`{ speaker: charKey, text: string, emotion: expression }`. A valid speaker in the look's
+cast plays with her sprite, expression, name box and usual voice. Invalid dialogue,
+a speaker outside that cast, and lines outside the staged part play as narration of
+`text`. She stays between her lines, keeping her last expression or neutral initially.
+
+This is an opening, not a scene: no transcript, ledger, memory question, stat lines or
+scene history is started. The ordinary landing follows. No look leaves the game's
+normal opening unchanged. The saved opening keeps its structured pages, written reply
+and position. Reloading asks the current hook again and reconstructs the stage at that
+position. Save thumbnails taken during staging show the ordinary landing.
 
 `slotInterlude(ctx)` is asked once per entry into `beginSlot`, after game-over checks and
 before graduation or any ordinary slot-opening effects. `ctx.from` is the preceding slot;

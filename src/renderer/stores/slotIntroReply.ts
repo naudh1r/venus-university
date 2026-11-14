@@ -10,10 +10,8 @@ export interface SlotIntroAsked {
   visitors: ReadonlySet<string>
 }
 
-/** The slot opening's reply with every list kept to the girls it was asked for, one entry each. */
+/** The opening's phone and feed deliveries, kept to the girls asked for, one entry each. */
 export interface SlotIntroReply {
-  /** The narration, trimmed, blanks dropped. */
-  lines: string[]
   hangouts: NonNullable<SlotIntroResponse['hangouts']>
   breakups: NonNullable<SlotIntroResponse['breakups']>
   posts: NonNullable<SlotIntroResponse['posts']>
@@ -97,16 +95,7 @@ export function sanitizeSlotIntro(data: unknown, asked: SlotIntroAsked): SlotInt
   const reply = isFields(data) ? data : {}
   if (!isFields(data)) console.warn('[slot] the reply is not an object — treating it as empty.')
 
-  if (reply.lines !== undefined && !Array.isArray(reply.lines)) {
-    console.warn('[slot] "lines" is not a list — the opening plays without narration.')
-  }
-  const lines = (Array.isArray(reply.lines) ? reply.lines : []).flatMap((line) => {
-    const text = isFields(line) ? textOf(line.text) : null
-    return text ? [text] : []
-  })
-
   return {
-    lines,
     hangouts: entriesOf(reply.hangouts, 'hangouts', asked.askers, (entry, char) => {
       const text = textOf(entry.text)
       const description = textOf(entry.description)

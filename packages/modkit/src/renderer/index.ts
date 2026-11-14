@@ -17,6 +17,7 @@ export type {
   LikesAsk,
   ModDetailProps,
   ModHooks,
+  OpeningLook,
   OptionPreviewProps,
   PostCommentsProps,
   PostCommentsSpot,
