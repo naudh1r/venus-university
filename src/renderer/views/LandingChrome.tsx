@@ -126,6 +126,10 @@ export interface LandingChromeProps {
 
   /* The opening narration, while the turn is not yet his. */
   text: string
+  /** A staged opening line uses the scene's own speaker dressing. */
+  speakerName?: string
+  speakerCharId?: string
+  speakerVersion?: number
   /** Runs of that line drawn in a colour of their own — a status message's. */
   marks?: readonly TextMark[]
   revealed: number
@@ -555,6 +559,9 @@ export function LandingChrome(props: LandingChromeProps): JSX.Element {
         ready={!covered}
         covered={covered}
         text={wants ? '' : props.text}
+        speakerName={props.speakerName}
+        speakerCharId={props.speakerCharId}
+        speakerVersion={props.speakerVersion}
         marks={props.marks}
         revealed={props.revealed}
         fullyRevealed={props.fullyRevealed}

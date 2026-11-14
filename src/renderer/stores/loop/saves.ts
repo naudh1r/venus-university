@@ -1,3 +1,4 @@
+import type { OpeningPlayback } from '@shared/opening'
 import { payableShift } from './jobs'
 import { TALENTS, buyTalent, transferSavings, normalizeTalents } from '@shared/campusTalents'
 import { applyTalentChoice, type TalentChange } from '../talentActions'
@@ -242,13 +243,14 @@ export function writeEpilogueSave(): Promise<void> {
  * Folds the slot opening's narration into the slot-save minted before the call went out, so
  * reloading it replays the opening.
  */
-export function foldOpeningIntoSlotSave(lines: SceneLine[]): Promise<void> {
+export function foldOpeningIntoSlotSave(lines: SceneLine[], playback?: OpeningPlayback): Promise<void> {
   return queueWrite(async () => {
     const game = useGameStore.getState()
     const saveId = loopState.slotSaveId
     const playthroughId = game.playthroughId
     if (!playthroughId || !saveId) return
-    const draft: SaveDraft = { ...game.toGameSave(), scene: openingScene(lines) }
+    const draft: SaveDraft = { ...game.toGameSave(), scene: { ...openingScene(lines),
+      ...(playback ? { slotOpening: { ...playback, index: -1 } } : {}) } }
 
     const result = await window.api.saves.overwrite(playthroughId, saveId, draft)
     if (!result.ok) reportWriteFailure(result.error)

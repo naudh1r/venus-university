@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Shared exports `EMOTIONS`, the sprite expressions a dialogue line's `emotion` may name, such as
+  a staged opening's line.
 - Activities can call `setSceneSuggestionsPaused` to pause optional scene suggestions for
   the loaded game. Providers can query `sceneSuggestionsPaused`, render from
   `useSceneSuggestionsPaused` or observe boolean changes with `subscribeSceneSuggestionsPaused`.
@@ -85,6 +87,13 @@
 
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
+
+## 0.22.0
+
+- `openingLook` receives the written opening reply and returns `OpeningLook`, with optional
+  room, one cast member and an `until` boundary. Opening dialogue uses the scene's expression,
+  name box and voice without starting a scene. Saved openings keep their reply and playback
+  position; their thumbnails use the ordinary landing.
 
 ## 0.21.1
 

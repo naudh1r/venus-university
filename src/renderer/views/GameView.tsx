@@ -1,3 +1,4 @@
+import { openingStagedAt } from '@shared/opening'
 import { ensureTalents } from '../modEntries/campus-talents'
 import { UnspokenLinkGlitch } from './UnspokenLinkGlitch'
 import { ReckoningModal } from './ReckoningModal'
@@ -1161,11 +1162,15 @@ export function GameView(): JSX.Element {
   // An opening owns its backdrop; elsewhere the player's pick wins only the layer, while `bg`
   // remains what the scene reports. A game over plays on black, with no background at all.
   const openingRoom = useGameStore(s => s.openingRoom)
-  const openingBg = openingRoom
-    ? (openingRoom.ready && characters[openingRoom.charId] ? roomBgIdOf(characters[openingRoom.charId]) : SLOT_BG)
+  const openingPlayback = useGameStore(s => s.openingPlayback)
+  const openingLook = useGameStore(s => s.openingLook)
+  const openingStaged = openingPlayback && openingStagedAt(openingLook,
+    openingPlayback.indices[Math.max(0, openingPlayback.index)] ?? 0)
+  const openingBg = openingPlayback && openingLook
+    ? (openingStaged && openingRoom?.ready && characters[openingRoom.charId] ? roomBgIdOf(characters[openingRoom.charId]) : SLOT_BG)
     : null
   const shownBg = interlude ? SLOT_BG : openingBg ?? bgOverride ?? bg
-  const roomCharId = !interlude && openingRoom?.ready ? openingRoom.charId
+  const roomCharId = !interlude && openingStaged && openingRoom?.ready ? openingRoom.charId
     : shownBg ? roomOwnerOf(shownBg, roomBgToCharId, listedBgs) : undefined
   // Cache-buster for a room regenerated this session.
   const roomVersion = useSpriteVersion(roomCharId)
@@ -2331,6 +2336,9 @@ export function GameView(): JSX.Element {
           held={epilogue ? turnHeld : landingHeld}
           sending={sending}
           text={text}
+          speakerName={openingPlayback ? speaker : undefined}
+          speakerCharId={openingPlayback ? speakingCharId : undefined}
+          speakerVersion={speakingCharId ? (spriteVersions[speakingCharId] ?? 0) : undefined}
           marks={currentLine?.status?.marks}
           revealed={revealed}
           fullyRevealed={fullyRevealed}

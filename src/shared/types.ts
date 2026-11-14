@@ -1,3 +1,4 @@
+import type { OpeningPlayback } from './opening'
 import type { ReckoningState } from './reckoning'
 import type { EchoState } from './echo'
 import type { StoryMemory, StoryRecallRequest } from './storyMemory'
@@ -1311,6 +1312,8 @@ export interface SceneSummaryMark {
 
 /** Mid-scene save/rewind snapshot — of a drained scene or a queued reply. */
 export interface SceneState {
+  /** A resumable slot opening, independent of scene bookkeeping. */
+  slotOpening?: OpeningPlayback
   /** Optional interactive training chosen before this scene was cast. */
   activity?: import('./slotActivity').SlotActivity
   /** What mods keep with this scene, under fields they declare on `ModSceneFields`. */
@@ -1469,7 +1472,11 @@ export interface SlotRumor {
 
 /** Everything the slot opening needs, produced once at the previous scene's end. */
 export interface SlotOpening {
-  /** The narration, as playback lines — the action prompt included. */
+  /** The written reply, including fields added by mods. */
+  reply?: Record<string, unknown>
+  /** Each playback page’s index in reply.lines; authored leading pages use zero. */
+  lineIndices?: number[]
+  /** Opening playback pages, before the landing’s own question. */
   lines: SceneLine[]
   /** The invitations the opening rolled, delivered to the phone at step 1. */
   hangouts: SlotIntroResponse['hangouts']
@@ -2775,11 +2782,10 @@ export interface LedgerResponse {
 }
 
 /**
- * The slot-opening narration. Narration only: it carries no
- * speaker, emotion, action or bg, so nothing in it can touch the stage.
+ * The default slot opening asks for text alone; a mod may ask for dialogue in its lines.
  */
 export interface SlotIntroResponse {
-  lines: Array<{ text: string }>
+  lines: Array<string | { text: string; speaker?: string; emotion?: string }>
   /**
    * One text-message invitation per character the slot rolled in: `char` is her
    * charKey, `text` the message and `description` the plan a yes starts the scene from.

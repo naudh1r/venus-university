@@ -56,7 +56,6 @@ describe('sanitizeSlotIntro', () => {
       asked
     )
     expect(reply).toEqual({
-      lines: ['Morning.'],
       hangouts: [{ char: 'sarah_rose', text: 'coffee?', description: 'Coffee with Sarah' }],
       breakups: [{ char: 'mina_kwon', texts: ['we are done'] }],
       posts: [
@@ -98,7 +97,6 @@ describe('sanitizeSlotIntro', () => {
 
   it('never throws on a reply that ignores the schema', () => {
     const empty = {
-      lines: [],
       hangouts: [],
       breakups: [],
       posts: [],
@@ -122,7 +120,6 @@ describe('sanitizeSlotIntro', () => {
       asked
     )
     expect(reply).toEqual({
-      lines: ['Kept.'],
       hangouts: [],
       breakups: [],
       posts: [],
@@ -130,7 +127,6 @@ describe('sanitizeSlotIntro', () => {
       reachOuts: [{ char: 'joy_lee', texts: ['hi', 'there'] }],
       homecomingTexts: []
     })
-    expect(sanitizeSlotIntro({ lines: 'Morning.' }, asked).lines).toEqual([])
   })
 
   it('keeps the fields a mod asked for on a post and a reach-out', () => {
