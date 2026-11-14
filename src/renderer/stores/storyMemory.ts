@@ -2,10 +2,11 @@ import { storySnapshot, type StorySnapshot, type StoryRecall } from '../../share
 import { useGameStore } from './gameStore'
 import { modIsOn } from '@vx/modkit/renderer'
 
-/** Optional input shared by pure scene, text and opening builders. */
-export function currentStorySnapshot(): StorySnapshot | undefined {
+/** Optional input shared by pure scene, text and opening builders, read at the request's slot. */
+export function currentStorySnapshot(at?: Pick<StorySnapshot, 'date' | 'time'>): StorySnapshot | undefined {
   const game = useGameStore.getState()
-  return modIsOn('story-memory') && !game.createdScene && !game.replaying ? storySnapshot(game) : undefined
+  return modIsOn('story-memory') && !game.createdScene && !game.replaying
+    ? storySnapshot(at ? { ...game, ...at } : game) : undefined
 }
 
 export async function inspectCurrentStoryMemory(
