@@ -440,6 +440,13 @@ asked.
 
 ## What changed
 
+### 0.2.3
+
+A game played with a girl no longer starts itself again once it is over. Its result goes into the
+scene naming the game, and that turn was read as the reader asking for it: the game could come
+round again and again until the scene moved on. She may still suggest another, and it starts
+only once the reader says yes.
+
 ### 0.2.2
 
 The framework keeps its state with the scene through the mod kit, under Mini-games' own name: a

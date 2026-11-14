@@ -327,6 +327,15 @@ export function PhotoLightboxHost(): JSX.Element | null {
 
 /** A message's picture, in a bubble of its own after her words; nothing for a message without one. */
 export function MessagePhotoAttachment({ message }: { message: ChatMessage }): JSX.Element | null {
+  const charId = useViewingThread()
+  if (charId && message.sender === 'player' && message.outgoingPhoto?.kind === 'image') {
+    return (
+      <div className="vu-bb-bubble vu-bb-bubble--mine vu-bb-bubble--photo">
+        <MessagePhoto charId={charId} photo={{ tier: 'everyday', file: message.outgoingPhoto.file }}
+          onOpen={openShot} />
+      </div>
+    )
+  }
   const photo = messagePhoto.read(message)
   if (!photo || message.sender === 'system') return null
   return <MessagePhotoBubble photo={photo} sender={message.sender} messageId={message.id} />
