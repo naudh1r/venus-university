@@ -13,7 +13,8 @@ import {
   STAGE_THUMB_WIDTH,
   type StagePlacement
 } from '@shared/stageThumb'
-import { allBackgrounds, roomBgIdOf, type SceneState } from '@shared/types'
+import { allBackgrounds, roomBgIdOf, type SaveDraft, type SceneState } from '@shared/types'
+import { weatherAt } from '@shared/weather'
 import { slotHalf } from '../../prompts/gameDate'
 import { isEpilogueNight } from '../../prompts/graduation'
 import { bgThumbUrl, customBackgroundOf, roomOwnerOf, SLOT_BG } from '../../views/bgAssets'
@@ -125,7 +126,7 @@ export function roomOwnerNow(base: string): string | undefined {
  * The background `base` names at `half`: one of the player's own, a character's room, or a
  * bundled thumbnail. The first two are read as bytes over the bridge, as the canvas needs them.
  */
-function backgroundLayer(base: string, half: RoomVariant): Promise<ImageBitmap | null> {
+function backgroundLayer(base: string, half: RoomVariant, wet = false): Promise<ImageBitmap | null> {
   const custom = customBackgroundOf(base)
   if (custom) {
     // Keyed on when it was brought, so one re-added under the name is decoded afresh.
@@ -134,7 +135,7 @@ function backgroundLayer(base: string, half: RoomVariant): Promise<ImageBitmap |
   }
   const owner = roomOwnerNow(base)
   if (owner) return characterLayer(owner, roomRel(half), STAGE_THUMB_HEIGHT)
-  const url = bgThumbUrl(base, half, false) ?? bgThumbUrl(SLOT_BG, half, false)
+  const url = bgThumbUrl(base, half, wet) ?? bgThumbUrl(SLOT_BG, half, wet)
   if (!url) return Promise.resolve(null)
   return layerOf(url, STAGE_THUMB_HEIGHT, () => bundledImage(url))
 }
@@ -262,6 +263,38 @@ export async function composeStageThumbnail(scene: SceneState): Promise<string |
     }
   }
 
+  return encodeThumbnail(canvas, run)
+}
+
+/** Draws a held night's room, or the save's ordinary scene, as its thumbnail. */
+export function composeSaveThumbnail(draft: Pick<SaveDraft, 'scene' | 'heldNight'>): Promise<string | null> {
+  if (draft.heldNight) return composeHeldNightThumbnail(draft.heldNight)
+  return draft.scene ? composeStageThumbnail(draft.scene) : Promise.resolve(null)
+}
+
+/** The reader's room at the saved night's half and weather. */
+async function composeHeldNightThumbnail(night: NonNullable<SaveDraft['heldNight']>): Promise<string | null> {
+  if (typeof document === 'undefined') return null
+  const run = currentRun()
+  const game = useGameStore.getState()
+  const canvas = document.createElement('canvas')
+  canvas.width = STAGE_THUMB_WIDTH
+  canvas.height = STAGE_THUMB_HEIGHT
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  try {
+    const bitmap = await backgroundLayer(SLOT_BG, 'night', weatherAt(game.weather, night.date, night.time) !== 'clear')
+    if (!bitmap || runStale(run)) return null
+    drawCovering(ctx, bitmap)
+    return encodeThumbnail(canvas, run)
+  } catch (error) {
+    leftOut('its background', error)
+    return null
+  }
+}
+
+/** Encodes the canvas within the save thumbnail's byte limit. */
+async function encodeThumbnail(canvas: HTMLCanvasElement, run: object): Promise<string | null> {
   try {
     let blob = await canvasToWebpOr(canvas, STAGE_THUMB_QUALITY, STAGE_THUMB_FALLBACK_MIME_TYPE)
     if (runStale(run)) return null

@@ -199,6 +199,20 @@ describe('writeAutosave', () => {
 })
 
 describe('writeSlotSave', () => {
+  it('labels a deferred opening as night and the completed night as morning', async () => {
+    const saves = stubSaves()
+    await writeSlotSave(undefined, { date: 7, time: 1 })
+    const [, deferred] = saves.slot.mock.calls[0] as unknown as [string, SaveDraft]
+    expect(deferred.heldNight).toEqual({ date: 7, time: 1 })
+    useGameStore.setState({ interlude: {
+      now: { owner: 'test', from: { date: 7, time: 1 }, to: { date: 8, time: 0 }, semesterIndex: 0, ledger: null, clock: 'late-night' },
+      interlude: { lines: [], rows: [] }, pick: () => {}
+    } })
+    await writeSlotSave(undefined, null)
+    const [, completed] = saves.slot.mock.calls[1] as unknown as [string, SaveDraft]
+    expect(completed).not.toHaveProperty('heldNight')
+  })
+
   it('records the minted save as the one an opening folds back into', async () => {
     stubSaves()
     await writeSlotSave()

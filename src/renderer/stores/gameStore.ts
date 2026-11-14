@@ -274,6 +274,7 @@ export interface SceneKind {
  */
 const SAVE_KEYS: Record<keyof NativeGameSave, true> & Partial<Record<keyof GameSave, true>> = {
   chatShownThrough: true,
+  heldNight: true,
   schemaVersion: true,
   playthroughId: true,
   semester: true,
@@ -3472,6 +3473,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       // First, so a key core owns always wins; a save with nothing foreign adds nothing here.
       ...state.saveRest,
       chatShownThrough: { date: opened.date, time: opened.time },
+      ...(state.interlude?.now.clock === 'late-night'
+        ? { heldNight: { ...state.interlude.now.from } } : {}),
       schemaVersion: SAVE_SCHEMA_VERSION,
       ...(state.semesterId !== null ? { semester: state.semesterId } : {}),
       stats: state.stats,

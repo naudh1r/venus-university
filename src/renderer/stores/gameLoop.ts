@@ -3304,7 +3304,7 @@ async function crossSlotBoundary(): Promise<void> {
     void beginSlot()
     return
   }
-  void writeSlotSave(replay ?? undefined).then(() => beginSlot())
+  void writeSlotSave(replay ?? undefined, banked?.deferred ? { date: game.date, time: game.time } : undefined).then(() => beginSlot())
 }
 
 /** Plays a held choice through the same narration queue as Relax. */
@@ -3394,7 +3394,7 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
   loopState.pendingLedgerResult = null
   loopState.statusSteps = []
   game.clearStage()
-  await writeSlotSave()
+  await writeSlotSave(undefined, null)
   if (runStale(run)) return
   await coverInterludeOpening()
   if (runStale(run)) return

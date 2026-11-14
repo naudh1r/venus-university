@@ -86,6 +86,11 @@
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+## 0.21.1
+
+- `NativeGameSave.heldNight` records the late night a save opens on for listing and
+  thumbnail purposes. It does not control slot entry.
+
 ## 0.21.0
 
 - Interlude rows accept `line`, played as Relax narration before their ending. `relaxLine`

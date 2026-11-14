@@ -23,7 +23,8 @@ import {
   type Result,
   type SaveDraft,
   type SceneLine,
-  type SceneState
+  type SceneState,
+  type TimeSlot
 } from '@shared/types'
 import { bindModWrites, bindSceneFieldSaves, saveFields, writeModSlices as slicesWith } from '@vx/modkit/host/renderer'
 import { isGraduationSlot } from '../../prompts/graduation'
@@ -34,7 +35,7 @@ import { sceneActiveOf, textingUnsettled } from '../textingLoop'
 import { useUiStore } from '../uiStore'
 import { currentRun, loopState, runStale } from './state'
 import { sceneInProgress } from './stream'
-import { composeStageThumbnail } from './thumbnail'
+import { composeSaveThumbnail } from './thumbnail'
 
 /**
  * Every write the slot loop makes, which scene each one records, and the ordering
@@ -180,7 +181,7 @@ export function writeAutosave(
         scene && !game.replaying && !game.createdScene ? game.currentSceneTranscript : undefined)
     }
 
-    const thumbnail = scene ? await composeStageThumbnail(scene) : null
+    const thumbnail = draft.scene || draft.heldNight ? await composeSaveThumbnail(draft) : null
     if (superseded(point)) return
     const result = await window.api.saves.autosave(
       playthroughId,
@@ -196,8 +197,9 @@ export function writeAutosave(
  * Mints the slot-boundary save; the autosave beside it stands. A `replay` is named on the save
  * and kept beside it in the same write, and named only once the write's turn has come, so no
  * write queued ahead of it names a replay not yet kept; a failed write forgets it again.
+ * `heldNight` names a deferred opening; null records a completed hold as an ordinary slot.
  */
-export function writeSlotSave(replay?: SlotReplay): Promise<void> {
+export function writeSlotSave(replay?: SlotReplay, heldNight?: { date: number; time: TimeSlot } | null): Promise<void> {
   return queueWrite(async () => {
     const run = currentRun()
     const game = useGameStore.getState()
@@ -206,6 +208,11 @@ export function writeSlotSave(replay?: SlotReplay): Promise<void> {
     const before = replay ? game.replays[replay.date]?.[replay.time] : undefined
     if (replay) game.setReplay(replay.date, replay.time, replayIdOf(replay))
     const draft = useGameStore.getState().toGameSave()
+    if (heldNight === null) delete draft.heldNight
+    else if (heldNight) draft.heldNight = { ...heldNight }
+    const thumbnail = draft.heldNight ? await composeSaveThumbnail(draft) : null
+    if (thumbnail) draft.thumbnail = thumbnail
+    if (runStale(run)) return
 
     // Unknown until this write answers: a failed one leaves nothing for the opening to fold into.
     loopState.slotSaveId = null
@@ -522,7 +529,7 @@ export async function writeManualSave(slot: number): Promise<boolean> {
   let saved = false
   try {
     await queueWrite(async () => {
-      const thumbnail = draft.scene ? await composeStageThumbnail(draft.scene) : null
+      const thumbnail = draft.scene || draft.heldNight ? await composeSaveThumbnail(draft) : null
       const result = await window.api.saves.manual(
         playthroughId,
         slot,
