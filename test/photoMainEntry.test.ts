@@ -11,7 +11,7 @@ import { handleModProtocol } from '../src/main/mods/protocol'
 let root = ''
 const mocks = vi.hoisted(() => ({ handle: vi.fn(),
   reservePhotoName: vi.fn(), carryPhotos: vi.fn(), photoLanded: vi.fn(), readPhotoBytes: vi.fn(),
-  storeWebpPhoto: vi.fn(), photoInfo: vi.fn(), dropPhoto: vi.fn(), retirePhoto: vi.fn(),
+  storeWebpPhoto: vi.fn(), importChatPhoto: vi.fn(), photoInfo: vi.fn(), dropPhoto: vi.fn(), retirePhoto: vi.fn(),
   generatePhoto: vi.fn(), generateDuoPhoto: vi.fn(), validatePhotoOverrides: vi.fn() }))
 vi.mock('electron', () => ({ protocol: { handle: mocks.handle }, net: { fetch: vi.fn() },
   app: { isPackaged: false, getAppPath: () => root, getPath: () => root },
@@ -38,6 +38,7 @@ it('reaches every Photo handler through the real start/result dispatch with the 
     ['landed', mocks.photoLanded, ['100', 'lia', file]],
     ['read', mocks.readPhotoBytes, ['100', 'lia', file]],
     ['store-webp', mocks.storeWebpPhoto, ['100', 'lia', file, bytes]],
+    ['import-chat-photo', mocks.importChatPhoto, ['100', 'lia', bytes]],
     ['info', mocks.photoInfo, ['100', girl, friend, 'everyday', 'At the cafe', file, true]],
     ['drop', mocks.dropPhoto, ['100', 'lia', file]],
     ['generate', mocks.generatePhoto, ['100', girl, 'everyday', 'At the cafe', file, { seed: 42 }]],

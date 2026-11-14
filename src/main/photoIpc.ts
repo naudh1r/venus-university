@@ -12,6 +12,7 @@ import {
   dropPhoto,
   generateDuoPhoto,
   generatePhoto,
+  importChatPhoto,
   photoLanded,
   readPhotoBytes,
   reservePhotoName,
@@ -128,6 +129,10 @@ export function photoInvocations(): Record<string, InvokeHandler> {
     'store-webp',
     (_event, playthroughId: string, charId: string, file: string, bytes: Uint8Array) =>
       storeWebpPhoto(playthroughId, charId, file, bytes)
+  )
+
+  handle('import-chat-photo', (_event, playthroughId: string, charId: string, bytes: Uint8Array) =>
+    importChatPhoto(playthroughId, charId, bytes)
   )
 
   // Reads the recorded request, or rebuilds it from today's tags and settings.

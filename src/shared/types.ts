@@ -997,6 +997,14 @@ export const INVITE_KINDS = ['herRoom', 'study', 'hisRoom', 'outing', 'everyday'
 /** One of {@link INVITE_KINDS}. */
 export type InviteKind = (typeof INVITE_KINDS)[number]
 
+/** A photo the reader sends, with any caption kept separately in the message text. */
+export type OutgoingPhoto =
+  | { kind: 'description'; description: string }
+  | { kind: 'image'; file: string; description?: string }
+
+export const OUTGOING_PHOTO_DESCRIPTION_LIMIT = 4000
+export const OUTGOING_PHOTO_FILE_LIMIT = 20 * 1024 * 1024
+
 /** One Bunnyboard text message. */
 export interface ChatMessage {
   /** A held reply is still being written for this player text. */
@@ -1005,6 +1013,7 @@ export interface ChatMessage {
   ledgered?: true
   /** Sent late on the night preceding its stored slot. */
   late?: true
+  outgoingPhoto?: OutgoingPhoto
   /** Optional response grouping retained by the Text Regeneration mod. */
   exReplyTo?: string
   /**
@@ -1099,6 +1108,8 @@ export function emptyBunnyboard(): BunnyboardState {
  * classifier's question.
  */
 export interface TextingResponse {
+  /** Visual memory of a reader-supplied image. */
+  outgoingPhotoDescription?: string
   /** The character's reply — one long text or several short ones. */
   messages: string[]
   /** Prior summary + the recent messages, rolled into one recap. */
