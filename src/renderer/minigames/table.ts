@@ -2,20 +2,24 @@ import { MINI_GAMES } from '@shared/minigames'
 import { finishSlotActivity } from '../stores/slotActivity'
 import {
   boxParts,
+  character,
+  characterInfo,
   currentRun,
+  holdTurn,
   reachTurn,
   readerSaysInScene,
   runStale,
   sayInScene,
+  scene,
   submitAction,
-  takeTurnFromReply
+  takeTurnFromReply,
+  useScene,
+  type SceneView
 } from '@vx/modkit/renderer'
 import { create } from 'zustand'
 import { gamesOffered, gameSwitchOn, listed, type MiniGameDef } from '@shared/minigames'
 import { modById, optionKey, READER_SPEAKER } from '@vx/modkit/shared'
 import type { Emotion } from '@shared/types'
-import { useGameStore } from '../stores/gameStore'
-import { replyRowOfferOf } from '../stores/loop/playback'
 import { useModsStore, modIsOn } from '../stores/modsStore'
 import { gameComponent, type PlayResult } from './play'
 import { gameById, tunedGame, usePrefsStore } from './prefs'
@@ -35,19 +39,17 @@ export function gameIsOn(modId: string, game: MiniGameDef): boolean {
 /** The games on offer in the scene on screen, each with a component to play it with. */
 export function useGamesOffered(): MiniGameDef[] {
   const sceneLocation = useScenePlace()
-  const activity = useGameStore(s => s.sceneActivity)
+  const activity = useScene(view => view?.activity ?? null)
   const training = activity?.owner === MINI_GAMES && activity.status === 'pending' ? activity : null
   const location = training?.location ?? sceneLocation
-  const girls = useGameStore((s) => s.cast.filter((id) => !s.departed.includes(id)).length)
+  const girls = usePresentGirls().length
   // Read so a switch moved mid-scene is answered at once.
   useModsStore((s) => s.switches)
   // Read so a game retuned on its page is offered as retuned.
   usePrefsStore((s) => s.byGame)
   // A game is played inside a scene. Before the reader's first action there is none yet, only
   // the slot's landing, and a game narrated onto it would pass for a scene already running.
-  const under = useGameStore((state) =>
-    state.currentSceneTranscript.some((line) => line.speaker === READER_SPEAKER)
-  )
+  const under = useScene(view => view?.lines.some((line) => line.speaker === READER_SPEAKER) ?? false)
   if (!under) return []
   return gamesOffered({ location, girls }, gameIsOn)
     .filter(game => !training || game.id === training.id)
@@ -56,22 +58,24 @@ export function useGamesOffered(): MiniGameDef[] {
 }
 
 /** The girls in the scene, by id: the cast, less whoever has left it. */
-export function usePresentGirls(): string[] {
-  const cast = useGameStore((s) => s.cast)
-  const departed = useGameStore((s) => s.departed)
-  return cast.filter((id) => !departed.includes(id))
+export function usePresentGirls(): readonly string[] {
+  return useScene(presentOf)
+}
+
+const NOBODY: readonly string[] = []
+function presentOf(view: SceneView | null): readonly string[] {
+  return view?.present ?? NOBODY
 }
 
 /** What the reader calls a girl: her first name once he has been told it, "her" until then. */
 export function nameOf(charId: string): string {
-  const game = useGameStore.getState()
-  const known = game.charInfo[charId]?.nameKnown
-  return (known && game.characters[charId]?.firstName) || 'her'
+  const known = characterInfo(charId)?.nameKnown
+  return (known && character(charId)?.firstName) || 'her'
 }
 
 /** The reader is standing at his own turn, with nothing left to read. */
 export function useAtTurn(): boolean {
-  return useGameStore((s) => s.awaitingInput && !s.busy && s.pendingLines.length === 0)
+  return useScene(view => view?.atTurn ?? false)
 }
 
 /**
@@ -91,13 +95,10 @@ export function proposeGame(gameId: string, charIds: readonly string[], words: s
  * a reply he is still reading, on the terms an interjection is let through on.
  */
 export function useTableOpen(): boolean {
-  return useGameStore((s) => {
-    if (s.replaying || s.sceneQuiz) return false
-    if (s.sceneActivity?.owner === MINI_GAMES && s.sceneActivity.status === 'pending') {
-      return s.awaitingInput && !s.busy && s.pendingLines.length === 0
-    }
-    if (s.awaitingInput && !s.busy && s.pendingLines.length === 0) return true
-    return replyRowOfferOf(s) === 'open'
+  return useScene((view) => {
+    if (!view || view.replay || view.quiz) return false
+    if (view.activity?.owner === MINI_GAMES && view.activity.status === 'pending') return view.atTurn
+    return view.atTurn || view.canInterject
   })
 }
 
@@ -106,7 +107,7 @@ export function useTableOpen(): boolean {
  * playthrough is over. The seat is then absent, where a turn merely out leaves it standing dim.
  */
 export function useSceneSpent(): boolean {
-  return useGameStore((s) => s.statusShown || s.statusModal !== null || s.activeGameOver !== null)
+  return useScene(view => Boolean(view && (view.resolved || view.over)))
 }
 
 /**
@@ -282,9 +283,9 @@ export function narrateAtTable(text: string): Promise<void> {
  */
 export async function sayAtTable(charId: string, situation: string, cue: string): Promise<void> {
   const at = sitting
-  const character = useGameStore.getState().characters[charId]
-  if (!character) return
-  const line = await tableLine(character, situation, cue)
+  const girl = character(charId)
+  if (!girl) return
+  const line = await tableLine(girl, situation, cue)
   if (!line || at !== sitting) return
   await show(line, charId)
   // At the reader's own pace the line is his to leave; otherwise it is given its time.
@@ -293,9 +294,8 @@ export async function sayAtTable(charId: string, situation: string, cue: string)
 
 /** A girl's line at the table in words already written, shown as hers and given its time. */
 export async function speakAtTable(charId: string, text: string, expression?: Emotion): Promise<void> {
-  const character = useGameStore.getState().characters[charId]
   const line = text.trim()
-  if (!character || !line) return
+  if (!character(charId) || !line) return
   await show(line, charId, expression)
   // At the reader's own pace the line is his to leave; otherwise it is given its time.
   if (!stepped) await new Promise((resolve) => setTimeout(resolve, holdFor(line, true)))
@@ -349,29 +349,34 @@ export function fileResult(result: PlayResult, played: PlayedWith, tries = 0): v
   const delivery = resultRun(run)
   const key = match.id
   if (delivery.filing.has(key) || delivery.dispatched.has(key)) return
-  if (!reachTurn()) {
+  // The turn is held while the result is saved, so nothing else is taken over it meanwhile.
+  const hold = reachTurn() ? holdTurn(MINI_GAMES) : null
+  if (!hold?.ok) {
     if (tries < FILE_TRIES) setTimeout(() => {
       if (!runStale(run) && sceneMiniGame().match?.id === key) fileResult(result, played, tries + 1)
     }, FILE_WAIT_MS)
     return
   }
+  const release = hold.data
   checkpointResult(result, played.names)
   delivery.filing.add(key)
-  useGameStore.setState({ busy: true })
   void saveSceneMiniGame().then(() => {
+    release()
     if (runStale(run)) return
-    useGameStore.setState({ busy: false })
     delivery.dispatched.add(key)
     const saved = sceneMiniGame().match
     deliverResult(saved?.result ?? result, { ...played, names: saved?.names ?? played.names })
-  }).finally(() => { delivery.filing.delete(key) })
+  }).finally(() => {
+    release()
+    delivery.filing.delete(key)
+  })
 }
 
 /** Puts a result saved before its scene was told of it into the scene, once nothing else holds it. */
 export function resumeMiniGameResult(): void {
-  const state = useGameStore.getState()
+  const view = scene()
   const match = sceneMiniGame().match
-  if (!match || match.status !== 'result' || !match.result || state.busy || state.turnError || state.sceneEnding || useTableStore.getState().active) return
+  if (!view || !match || match.status !== 'result' || !match.result || view.busy || view.failed || view.ending || useTableStore.getState().active) return
   const game = gameById(match.gameId)
   if (game) fileResult(match.result, { game, names: match.names ?? [], stake: match.stake })
 }
@@ -396,7 +401,7 @@ function deliverResult(result: PlayResult, played: PlayedWith, tries = 0): void 
     return
   }
 
-  const activity = useGameStore.getState().sceneActivity
+  const activity = scene()?.activity
   if (activity?.owner === MINI_GAMES && activity.id === played.game.id) {
     if (result.outcome === 'broken') return // training panel offers retry; never settle a technical failure
     const company = played.names.length ? ` Played with ${listed(played.names)}.` : ' Played alone.'

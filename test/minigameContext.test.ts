@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Character, StructuredRequest } from '@shared/types'
+import { miniGamesReady } from './fixtures/miniGamesKit'
 vi.mock('../src/renderer/minigames/MiniGamePanel', () => ({ MiniGamePanel: () => null }))
 vi.mock('../src/renderer/minigames/MiniGameSeat', () => ({ MiniGameSeat: () => null }))
 vi.mock('../src/renderer/minigames/PackPage', () => ({ PackPage: () => null }))
@@ -13,6 +14,8 @@ import '../src/renderer/modEntries/mini-games'
 
 // The kit's renderer entry loads the game's stores; these tests take each name from its own module.
 vi.mock('@vx/modkit/renderer', async () => (await import('./fixtures/miniGamesKit')).miniGamesKit())
+vi.mock('../src/renderer/stores/gameLoop', () => ({ submitAction: vi.fn(), takeTurnFromReply: vi.fn(() => false) }))
+beforeAll(miniGamesReady)
 const cast = [{charId:'a',firstName:'Ana',lastName:'Seo'}, {charId:'b',firstName:'Bea',lastName:'Seo'}] as Character[]
 const transcript = [{speaker:'reader',text:'Hello'}, {speaker:'ana_seo',text:'Darts?'}]
 function request(action: string) {

@@ -2,7 +2,8 @@ import { vi } from 'vitest'
 
 // These tests have no Electron host. Exercise the real kit model-call, calendar,
 // hook, switch, data and motion functions without initializing unrelated UI stores.
-// The kit contract suite checks that these are the public exports.
+// The kit contract suite checks that these are the public exports. The scene view's
+// names call through once a test has awaited loadSceneView (see kitScene).
 vi.mock('@vx/modkit/renderer', async () => ({
   ...await import('../../src/renderer/mods/llm'),
   ...await import('../../src/renderer/prompts/feedRandoms'),
@@ -14,5 +15,6 @@ vi.mock('@vx/modkit/renderer', async () => ({
   ...await import('../../packages/modkit/src/renderer/modState'),
   ...await import('../../src/renderer/views/motion'),
   ...Object.fromEntries(Object.entries(await import('../../src/renderer/stores/modsStore'))
-    .filter(([name]) => ['modIsOn', 'useModOn', 'useModOption', 'modOptionOn'].includes(name)))
+    .filter(([name]) => ['modIsOn', 'useModOn', 'useModOption', 'modOptionOn'].includes(name))),
+  ...await (await import('./kitScene')).kitScene()
 }))

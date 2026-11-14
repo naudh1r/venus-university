@@ -1,9 +1,8 @@
 import { create } from 'zustand'
-import { sceneField } from '@vx/modkit/renderer'
+import { scene, sceneField } from '@vx/modkit/renderer'
 import type { Result } from '@vx/modkit/shared'
 import { MINI_GAMES } from '@shared/minigames'
 import { miniGameSceneOf, type MiniGameInvitation, type MiniGameResult, type MiniGameScene } from '@shared/minigameScene'
-import { useGameStore } from '../stores/gameStore'
 
 /** Proposals are transient; invitations, match setup and outcomes live in scene saves. */
 
@@ -126,20 +125,19 @@ export type Invitation = MiniGameInvitation
 
 /** Keeps a girl's unanswered invitation with the scene, against the line it was made on; null drops it. */
 export function keepInvitation(invitation: Invitation | null): void {
-  const game = useGameStore.getState()
   const state = sceneMiniGame()
-  const transcript = game.currentSceneTranscript
+  const transcript = scene()?.lines ?? []
   setSceneMiniGame({ ...state, invitation: invitation ?? undefined,
     invitationAt: invitation ? { at: transcript.length, tail: JSON.stringify(transcript.at(-1) ?? null) } : undefined })
 }
 
 /** The invitation still awaiting the reader's answer, or null once the scene has moved past it. */
 export function keptInvitation(): Invitation | null {
-  const game = useGameStore.getState()
   const state = sceneMiniGame()
   const mark = state.invitationAt
-  if (mark && (game.currentSceneTranscript.length < mark.at || game.currentSceneTranscript.length > mark.at + 1 ||
-    JSON.stringify(game.currentSceneTranscript[mark.at - 1] ?? null) !== mark.tail)) return null
+  const transcript = scene()?.lines ?? []
+  if (mark && (transcript.length < mark.at || transcript.length > mark.at + 1 ||
+    JSON.stringify(transcript[mark.at - 1] ?? null) !== mark.tail)) return null
   return state.invitation ?? null
 }
 

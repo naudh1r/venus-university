@@ -16,6 +16,7 @@ import {
   type MiniGameDef
 } from '@shared/minigames'
 import {
+  character,
   gestures,
   lift,
   panelUnderTab,
@@ -31,11 +32,12 @@ import {
   dropTransientLines,
   useModalShell,
   useModOption,
+  useScene,
   useSceneInput,
-  veilIn
+  veilIn,
+  type SceneView
 } from '@vx/modkit/renderer'
 import type { ScenePanelProps } from '../mods/hooks'
-import { useGameStore } from '../stores/gameStore'
 import { gameComponent, type GamePlay, type Opponent, type PlayResult } from './play'
 import { agreementAvailable, cancelMatch, checkpointResult, keptAgreed, saveSceneMiniGame, seatMatch, useTableStore, type Agreed, type OpenTable } from './session'
 import { tableRound } from './round'
@@ -99,6 +101,17 @@ const RESULT_BEAT_MS = 1800
 /** Nobody at the table but the reader. */
 const NO_ONE: Opponent[] = []
 
+const EMPTY_STAGE: readonly (string | null)[] = []
+/** Who is standing where on the stage, by id. */
+function stageOf(view: SceneView | null): readonly (string | null)[] {
+  return view?.stage ?? EMPTY_STAGE
+}
+
+/** The line on the box now. */
+function lineOf(view: SceneView | null) {
+  return view?.line ?? null
+}
+
 /**
  * The sitting a game she agreed to opens on, her skill still to come. What was agreed is read
  * against the game as it is set now: an option agreed under a wider content setting, then kept
@@ -139,7 +152,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
   const chattiness: Chattiness = quiet ? 'quiet' : lots ? 'lots' : 'some'
   const location = useScenePlace()
   // Who is standing where on the stage: left, middle, right.
-  const slots = useGameStore((s) => s.slots)
+  const slots = useScene(stageOf)
   // The game she agreed to, taken off the table's own state as the panel opens on it.
   const [agreed] = useState(() => {
     const due = useTableStore.getState().agreed ?? keptAgreed()
@@ -201,8 +214,8 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
     if (!agreed) return
     const game = gameById(agreed.gameId)
     const characters = agreed.charIds
-      .map((charId) => useGameStore.getState().characters[charId])
-      .filter((character) => character !== undefined)
+      .map((charId) => character(charId))
+      .filter((girl) => girl !== undefined)
     if (!game) return
     if (characters.length === 0) {
       setSitting(now => now ? { ...now, opponents: NO_ONE } : now)
@@ -290,7 +303,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
   const ownsInput = Boolean(host && seated && Game)
   const hasInput = Boolean(host && seated && Game && (seated.opponents?.length || asked))
   const inputOpen = requiredInput || inputHover || inputPinned
-  const currentLine = useGameStore((state) => state.currentLine)
+  const currentLine = useScene(lineOf)
 
   function putChatAway(): void {
     setInputHover(false)
@@ -420,10 +433,9 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
       },
       round: (ask) => {
         begin()
-        const characters = useGameStore.getState().characters
         const players = (seated?.opponents ?? [])
-          .map((girl) => characters[girl.charId])
-          .filter((character) => character !== undefined)
+          .map((girl) => character(girl.charId))
+          .filter((player) => player !== undefined)
         return tableRound(
           seated?.game.name ?? '',
           players,

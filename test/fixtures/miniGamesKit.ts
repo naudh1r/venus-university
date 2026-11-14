@@ -1,10 +1,13 @@
+import { kitScene, loadSceneView } from './kitScene'
+
 type SceneLines = typeof import('../../src/renderer/stores/sceneLines')
 type GameLoop = typeof import('../../src/renderer/stores/gameLoop')
 
 /**
  * Core's scene lines and game loop, once loaded. They reach the kit's entry themselves, through
  * the stores they import, so the mock below cannot wait for them: it hands out functions that call
- * through to them, and {@link miniGamesReady} waits for them before a test calls one.
+ * through to them, and {@link miniGamesReady} waits for them, and for the scene view, before a
+ * test calls one.
  */
 let lines: SceneLines | undefined
 let loop: GameLoop | undefined
@@ -32,7 +35,8 @@ export async function miniGamesReady(): Promise<void> {
 export async function miniGamesKit(): Promise<Record<string, unknown>> {
   loading = Promise.all([
     import('../../src/renderer/stores/sceneLines').then((module) => { lines = module }),
-    import('../../src/renderer/stores/gameLoop').then((module) => { loop = module })
+    import('../../src/renderer/stores/gameLoop').then((module) => { loop = module }),
+    loadSceneView()
   ])
   const readers = await import('../../src/renderer/mods/readers')
   const llm = await import('../../src/renderer/mods/llm')
@@ -44,6 +48,7 @@ export async function miniGamesKit(): Promise<Record<string, unknown>> {
   const field = await import('../../packages/modkit/src/renderer/sceneField')
   return {
     ...readers,
+    ...await kitScene(),
     boxParts: (...args: Parameters<SceneLines['boxParts']>) => loaded(lines).boxParts(...args),
     dropTransientLines: (...args: Parameters<SceneLines['dropTransientLines']>) => loaded(lines).dropTransientLines(...args),
     reachTurn: () => loaded(lines).reachTurn(),

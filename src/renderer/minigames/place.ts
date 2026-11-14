@@ -1,8 +1,8 @@
 import { minigameLocation, minigameSceneLocation } from '@shared/minigames'
 import { locationAvailable } from '@shared/cityLife'
 import { locationDefOf, ROOM_LOCATION, LOCATIONS, NARRATIVE_LOCATIONS } from '@shared/locations'
+import { scene, useScene, type SceneView } from '@vx/modkit/renderer'
 import { keyPattern, LOREBOOK } from '../prompts/lorebook'
-import { useGameStore } from '../stores/gameStore'
 
 /**
  * Where the scene on screen is, as a place id the games can be matched to, or null.
@@ -21,27 +21,26 @@ export function placeOf(sceneLocation: string | null | undefined, bg: string | n
   return null
 }
 
-/** {@link placeOf} for the scene in the store now. */
+/** {@link placeOf} for the scene on screen now. */
 export function scenePlace(): string | null {
-  const game = useGameStore.getState()
-  return reachedScenePlace(game.sceneLocation, game.sceneLog)
+  return placeOfView(scene())
 }
 
-/** {@link placeOf} for the scene in the store, kept current. */
+/** {@link placeOf} for the scene on screen, kept current. */
 export function useScenePlace(): string | null {
-  return useGameStore((s) => reachedScenePlace(s.sceneLocation, s.sceneLog))
+  return useScene(placeOfView)
 }
 
-/** Reached playback takes precedence over the classifier and queued scene backgrounds. */
+function placeOfView(view: SceneView | null): string | null {
+  return reachedScenePlace(view?.location, view?.background ?? null)
+}
+
+/** The background playback has reached takes precedence over the classifier's words. */
 export function reachedScenePlace(
   sceneLocation: string | null | undefined,
-  reached: readonly { bg?: string }[]
+  background: string | null
 ): string | null {
-  for (let i = reached.length - 1; i >= 0; i--) {
-    const bg = reached[i].bg
-    if (bg === undefined) continue
-    return placeNamed(minigameSceneLocation(null, [{ bg }]) ?? bg)
-  }
+  if (background !== null) return placeNamed(minigameSceneLocation(null, [{ bg: background }]) ?? background)
   return placeOf(sceneLocation, null)
 }
 

@@ -17,7 +17,7 @@ vi.mock('../src/renderer/views/boxRows', () => ({ boxFits: () => true }))
 beforeEach(() => {
   vi.clearAllMocks()
   useGameStore.getState().reset()
-  useGameStore.setState({ awaitingInput: true, currentSceneTranscript: [{ speaker: 'reader', text: 'I sit down to train.' }], sceneActivity: { owner: MINI_GAMES, id: 'cat-pairs', stat: 'brain', location: 'cutetea', label: 'Train', status: 'pending' } })
+  useGameStore.setState({ playthroughId: 'p', awaitingInput: true, currentSceneTranscript: [{ speaker: 'reader', text: 'I sit down to train.' }], sceneActivity: { owner: MINI_GAMES, id: 'cat-pairs', stat: 'brain', location: 'cutetea', label: 'Train', status: 'pending' } })
 })
 describe('training result handoff', () => {
   it.each(['won', 'lost', 'draw', 'played'] as const)('records completion for %s, retaining companion and result facts', outcome => {
