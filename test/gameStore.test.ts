@@ -1623,6 +1623,20 @@ describe('the feed actions', () => {
 })
 
 describe('toGameSave', () => {
+  it('records a held night only while the late-night hold stands', () => {
+    const game = useGameStore.getState()
+    expect(game.toGameSave()).not.toHaveProperty('heldNight')
+    useGameStore.setState({ interlude: {
+      now: { owner: 'test', from: { date: 7, time: 1 }, to: { date: 8, time: 0 }, semesterIndex: 0, ledger: null, clock: 'late-night' },
+      interlude: { lines: [], rows: [] }, pick: () => {}
+    } })
+    const saved = useGameStore.getState().toGameSave()
+    expect(saved.heldNight).toEqual({ date: 7, time: 1 })
+    useGameStore.getState().reset()
+    useGameStore.getState().loadSave(saved as GameSave, playthroughRecord(), {})
+    expect(useGameStore.getState().toGameSave()).not.toHaveProperty('heldNight')
+  })
+
   it('projects exactly the SaveDraft fields — no more, no fewer', () => {
     // saveService owns playthroughId/saveId/saveDate; anything extra here would
     // be written into every save file and read back as part of the schema.

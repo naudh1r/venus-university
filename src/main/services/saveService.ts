@@ -26,6 +26,7 @@ import {
   ENROLLMENT_READ,
   ENROLLMENT_UNREADABLE,
   groupSaveIds,
+  heldNightField,
   listedSaveIds,
   manualSaveId,
   maskedField,
@@ -410,6 +411,7 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
           chars: semester?.chars ?? [],
           // A pick New Game left masked stays masked until she has been met.
           ...(semester ? maskedField(semester.chars, semester.masked, save.charInfo) : {}),
+          ...heldNightField(save),
           date: save.date,
           time: save.time,
           ...(semester && semester.index > 0 ? { semesterIndex: semester.index } : {}),

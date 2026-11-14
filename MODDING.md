@@ -1272,6 +1272,9 @@ row. An optional `line` plays through the normal narration queue after `onPick`,
 the hold’s ending, with the same box and advance as Relax. A save while it plays reloads
 the held landing before that choice. The row does not ask the hook again.
 A manual save holds no scene, so loading it asks anew, as loading a boundary save does.
+Saves written on a late-night hold, and its deferred boundary save, carry `heldNight`
+for their listing and thumbnail. The completed night’s save omits it. This metadata
+does not decide whether a slot is held when loaded.
 A late-night hold has no banked narration: its ending writes the opening after the night's
 texts are settled. Leaving the landing writes nothing. Switching the owner off leaves the current
 hold standing; the next slot entry follows the current switches. `interludeNow()` returns

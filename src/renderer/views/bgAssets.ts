@@ -139,8 +139,8 @@ function thumbMimeOf(base64: string): string {
  * The picture a save's card shows: the frame it was written over where it carries one, and
  * otherwise its place's thumbnail in its half of the day, the dorm where it names none.
  */
-export function saveThumbUrl(summary: SaveSummary): string | null {
+export function saveThumbUrl(summary: SaveSummary, wet = false): string | null {
   if (summary.thumbnail) return `data:${thumbMimeOf(summary.thumbnail)};base64,${summary.thumbnail}`
-  const half = summary.graduationSeen || summary.time === 1 ? 'night' : 'day'
-  return bgThumbUrl(summary.bg ?? SLOT_BG, half, false) ?? bgThumbUrl(SLOT_BG, half, false)
+  const half = summary.heldNight || summary.graduationSeen || summary.time === 1 ? 'night' : 'day'
+  return bgThumbUrl(summary.heldNight ? SLOT_BG : summary.bg ?? SLOT_BG, half, wet) ?? bgThumbUrl(SLOT_BG, half, wet)
 }

@@ -27,6 +27,7 @@ import {
   ENROLLMENT_NOT_FOUND,
   ENROLLMENT_READ,
   groupSaveIds,
+  heldNightField,
   isSlotSaveId,
   listedSaveIds,
   manualSaveId,
@@ -345,6 +346,7 @@ export async function listPlaythroughs(): Promise<PlaythroughSummary[]> {
                 ...(semester
                   ? maskedField(semester.chars, semester.masked, newest.save.charInfo)
                   : {}),
+                ...heldNightField(newest.save),
                 date: newest.save.date,
                 time: newest.save.time,
                 ...(semester && semester.index > 0 ? { semesterIndex: semester.index } : {}),

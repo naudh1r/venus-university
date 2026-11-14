@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, type AnimationPlaybackControls } from 'motion/react'
+import { weatherAt } from '@shared/weather'
 import { appError, toAppError } from '@shared/errors'
 import { classifySaveId, manualSlotOf } from '@shared/saveRules'
 import { seasonOf, semesterName, semesterOf, type SemesterView } from '@shared/semesters'
@@ -11,6 +12,7 @@ import {
   type GameSave,
   type PlaythroughRecord,
   type PlaythroughSummary,
+  type SaveSummary,
   type Season
 } from '@shared/types'
 import { ConfirmModal } from '../components/ConfirmModal'
@@ -26,7 +28,7 @@ import { MaskedFace } from '../components/Spoiler'
 import { typingIn, useWindowKeydown } from '../components/useWindowKeydown'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
-import { formatDateBanner } from '../prompts/gameDate'
+import { formatDateBanner, formatDatePart } from '../prompts/gameDate'
 import { GOODBYES_SAVE_LABEL } from '../prompts/graduation'
 import { profileUrl, useCharacterStore } from '../stores/characterStore'
 import { beginCrossing, coverSwap, endCrossing, useCrossingStore } from '../stores/crossingStore'
@@ -137,6 +139,13 @@ function semesterOfSave(entry: ResolvedSave): SemesterView | null {
   }
 }
 
+/** The slot a save opens on, including a held night before its stored morning. */
+function saveDateBanner(save: Pick<SaveSummary, 'date' | 'time' | 'heldNight'>, season: Season): string {
+  return save.heldNight
+    ? `${formatDatePart(save.heldNight.date, season)}. Late night.`
+    : formatDateBanner(save.date, save.time, season)
+}
+
 /**
  * A save as its card draws it: where it sits in its semester, when it was written, its gate;
  * the semester is named once the playthrough has more than one.
@@ -157,11 +166,12 @@ function cardOf(entry: ResolvedSave, sticker: string): SaveGridCard {
     headline: summary
       ? summary.graduationSeen
         ? GOODBYES_SAVE_LABEL
-        : formatDateBanner(summary.date, summary.time, season)
+        : saveDateBanner(summary, season)
       : 'Unreadable save',
     meta: `${named}Saved ${writtenAtShort(savedAt)}`,
     reason: unloadable ? `Cannot load — ${unloadable}` : null,
-    thumbSrc: summary ? saveThumbUrl(summary) : null,
+    thumbSrc: summary ? saveThumbUrl(summary, Boolean(summary.heldNight && semester &&
+      weatherAt(semester.weather, summary.heldNight.date, summary.heldNight.time) !== 'clear')) : null,
     dead: Boolean(unloadable),
     deletable: true
   }
@@ -963,11 +973,7 @@ function PlaythroughRow({
               : 'New Game'
             : playthrough.enrolling
               ? 'Class registration'
-              : formatDateBanner(
-                playthrough.date,
-                playthrough.time,
-                seasonOf(playthrough.semesterIndex ?? 0)
-              )}
+              : saveDateBanner(playthrough, seasonOf(playthrough.semesterIndex ?? 0))}
       </span>
 
       {/* The faces stand where a list of their names would: recognised, not read. */}

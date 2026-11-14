@@ -599,9 +599,17 @@ function lastBgOf(lines: readonly SceneLine[]): string | null {
   return bg
 }
 
+/** Validated display metadata for a save that opens on a late night. */
+export function heldNightField(save: { heldNight?: unknown }): Pick<SaveSummary, 'heldNight'> {
+  const night = save.heldNight
+  if (!isPlainObject(night) || !Number.isSafeInteger(night.date) || (night.time !== 0 && night.time !== 1)) return {}
+  return { heldNight: { date: night.date as number, time: night.time } }
+}
+
 /** What the load grid shows of one save. */
 export function summaryOf(save: GameSave): SaveSummary {
   const summary: SaveSummary = {
+    ...heldNightField(save),
     date: save.date,
     time: save.time,
     graduationSeen: save.graduationSeen,
@@ -647,7 +655,7 @@ export function withRegistration(
   const semesterIndex = registration.continued?.index ?? 0
   const noted = { ...summary, registration: { savedAt: registration.savedAt, semesterIndex } }
   if (registration.savedAt < summary.savedAt) return noted
-  const { masked: _masked, ...rest } = noted
+  const { masked: _masked, heldNight: _heldNight, ...rest } = noted
   return {
     ...rest,
     enrolling: true,
