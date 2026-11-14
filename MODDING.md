@@ -1278,8 +1278,10 @@ hold standing; the next slot entry follows the current switches. `interludeNow()
 the held context, its `owner` and optional `clock`, or null.
 
 With `clock: 'late-night'`, the phone reads as late on `from`: prompt weather and dorm-room
-whereabouts come from that night, and classes and work do not shut the composer. Contacts
-are placed in their own dorm rooms and shown free, with out-of-town and home-sick statuses
+whereabouts come from that night, and classes and work do not shut the composer.
+DM prompt `date` and `time` read `from`, including history, lore and relative times.
+Late-stamped messages read as that same night in history and recaps.
+Contacts are placed in their own dorm rooms and shown free, with out-of-town and home-sick statuses
 taking precedence. Other interludes show no presence. Texts retain `to`'s date and time for
 the ledger and gain `late: true`; their saved marker prints as the preceding night in
 threads, classifier context and ledger blocks, including after the hold ends or the save

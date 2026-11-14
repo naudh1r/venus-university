@@ -1,4 +1,5 @@
 import { chatClockOf, messageShown, shownConversation, shownMessages, unreadAfterOpening, type ChatClock } from '@shared/chatVisibility'
+import { textingClockOf } from '@shared/textingClock'
 import { currentStorySnapshot } from './storyMemory'
 import { BREAKTHROUGH_MOD } from '@shared/breakthrough'
 /**
@@ -151,9 +152,9 @@ import { isFeedContact } from './feedView'
 import type { NpcCompanions } from '../prompts/npcRelationship'
 
 /** Who is with `charId` this slot, as the sentence naming them reads. */
-function companionsOf(charId: string): NpcCompanions {
+function companionsOf(charId: string, at: ChatClock): NpcCompanions {
   const game = useGameStore.getState()
-  const group = charOverlayGroupNow(charId)
+  const group = charOverlayGroupNow(charId, at.date, at.time)
   const knownNames: string[] = []
   let unknown = 0
   for (const member of group?.members ?? []) {
@@ -628,7 +629,7 @@ async function sendText(charId: string, text: string, incoming: boolean): Promis
       incoming ? '' : trimmed,
       { ...textingState(game, charId), ...(held ? { heldUntil: held, ...(commitment ? { commitment } : {}) } : {}) },
       // The same reader block a scene gets, grades and all.
-      readerBlockOf(game),
+      readerBlockOf({ ...game, ...textingClockOf(game) }),
       incoming ? trimmed : undefined
     )
 
@@ -817,17 +818,17 @@ export function textRegenerationTarget(charId: string): ReturnType<typeof latest
 
 /** Both delivery paths provide the same current continuity to every DM hook. */
 function textingState(game: ReturnType<typeof useGameStore.getState>, charId: string): Parameters<typeof buildTextingPrompt>[4] {
+  const now = textingClockOf(game)
   // Everyone else on the roster and every graduate, for the lorebook's character entries.
   const others = [...game.chars, ...game.alumni]
     .filter((id) => id !== charId)
     .map((id) => game.characters[id])
     .filter((other): other is Character => Boolean(other))
-  const visitor = homecomingVisitorNow()
+  const visitor = homecomingVisitorNow(now.date)
   return {
-    date: game.date,
-    time: game.time,
+    ...now,
     ...(game.interlude?.now.clock === 'late-night' ? { lateNight: game.interlude.now.from } : {}),
-    storyMemory: currentStorySnapshot(),
+    storyMemory: currentStorySnapshot(now),
     stats: game.stats,
     breakthrough: modIsOn(BREAKTHROUGH_MOD) ? game.exBreakthrough : undefined,
     roster: others,
@@ -848,11 +849,11 @@ function textingState(game: ReturnType<typeof useGameStore.getState>, charId: st
     calendar: game.calendar,
     weather: game.weather,
     // Where she is texting from; never a class or shift, as the composer is shut then.
-    charLocation: charHiddenLocationNow(charId),
+    charLocation: charHiddenLocationNow(charId, now.date, now.time),
     // Who is with her: the same group the location came from.
-    charCompanions: companionsOf(charId),
+    charCompanions: companionsOf(charId, now),
     // What she is there for, on a slot she is standing at her own haunt.
-    charHaunt: charStandingHauntNow(charId),
+    charHaunt: charStandingHauntNow(charId, now.date, now.time),
     // The one absence a thread survives, so her block has to say it.
     springBreakAway: game.springBreakAway,
     // The one day a graduate's thread is from somebody in town.
@@ -861,7 +862,7 @@ function textingState(game: ReturnType<typeof useGameStore.getState>, charId: st
     upcomingPlans: upcomingPlanLines(
       game.events,
       game.characters,
-      globalSlotOf(game.date, game.time),
+      globalSlotOf(now.date, now.time),
       game.calendar.season
     ),
     memoryBudget: memoryBudgetsOf(useSettingsStore.getState().settings ?? {}).one,
@@ -898,7 +899,7 @@ export async function regenerateTextReply(charId: string, commit: (
     const request = buildTextingPrompt(character, game.charInfo[charId], prior, target.sent.text, {
       ...textingState(game, charId),
       historyLimit: prior.summary === null ? 160 : undefined
-    }, readerBlockOf(game))
+    }, readerBlockOf({ ...game, ...textingClockOf(game) }))
     const result = await window.api.llm.completeTexting(request, `texting:${charId}`)
     check()
     if (!result.ok) throw Error(result.error.message)
@@ -2079,7 +2080,7 @@ function resumeHeldReply(chat: Conversation, atBoundary = false): Promise<void> 
   const request = buildTextingPrompt(character, game.charInfo[chat.charId], conversation, last.text,
     { ...textingState(game, chat.charId), heldUntil: held,
       commitment: shared ? { kind: 'class', name: shared.name } : charCommitmentAt(chat.charId, sentAt.date, sentAt.time) ?? undefined,
-      ...(shared ? { sharedClass: shared } : {}) }, readerBlockOf(game))
+      ...(shared ? { sharedClass: shared } : {}) }, readerBlockOf({ ...game, ...textingClockOf(game) }))
   if (afterClass) {
     failedTurns.delete(chat.charId)
     useBunnyboardStore.getState().setTextFailed(chat.charId, false)

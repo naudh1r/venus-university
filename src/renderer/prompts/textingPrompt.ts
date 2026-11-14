@@ -1,4 +1,5 @@
 import { type StorySnapshot } from '@shared/storyMemory'
+import { messageSlotOf } from '@shared/chatVisibility'
 import type { BreakthroughState } from '@shared/breakthrough'
 import type { CharacterDynamics } from '@shared/characterDynamics'
 import { affectionFor, dedupedMemoriesFor, emptyFlags } from '@shared/relationship'
@@ -27,7 +28,8 @@ import {
   formatDateBanner,
   formatGameDate,
   formatRelativeSlot,
-  formatSemesterProgress
+  formatSemesterProgress,
+  nextSlot
 } from './gameDate'
 import {
   ambientLoreCharacters,
@@ -239,7 +241,10 @@ function hangoutTail(
   if (last.sender === 'contact') {
     if (last.invite || conversation.pendingHangout) return { ask: last }
     const reachOut = unansweredReachOuts(messages).at(-1)
-    if (!reachOut || reachOut.date !== last.date || reachOut.time !== last.time) return null
+    if (!reachOut) return null
+    const fromSlot = messageSlotOf(reachOut)
+    const lastSlot = messageSlotOf(last)
+    if (fromSlot.date !== lastSlot.date || fromSlot.time !== lastSlot.time) return null
     // Her texts from the reach-out's first to the end of its slot, nothing of his among them.
     const from = messages.indexOf(reachOut)
     const text = messages
@@ -279,12 +284,13 @@ export function composeTextingSummary(
   const last = conversation.messages[conversation.messages.length - 1]
   // An untexted thread holds only the friend-request system line; say when that add happened.
   if (!hasTexted(conversation) && conversation.messages.length > 0) {
-    const first = conversation.messages[0]
+    const first = messageSlotOf(conversation.messages[0])
     lines.push(
       `The reader and ${firstName} added each other on Bunnyboard ${formatRelativeSlot(first.date, first.time, now.date, now.time)}, but haven't texted yet.`
     )
   } else if (last) {
-    const when = formatRelativeSlot(last.date, last.time, now.date, now.time)
+    const at = messageSlotOf(last)
+    const when = formatRelativeSlot(at.date, at.time, now.date, now.time)
     const tail = hangoutTail(conversation)
     // Her ask and his Sure never pass through a texting call, so no summary holds them:
     // the scene is shown the texts themselves.
@@ -366,28 +372,20 @@ export function buildTextingPrompt(
   const away =
     (info?.pursuing !== undefined && !visiting) ||
     isAwayForSpringBreak(state.springBreakAway, character.charId, state.date)
-  const thread: ChatMessage[] = [
-    ...(conversation?.messages ?? []).slice(-historyLimit),
-    {
-      id: 'pending',
-      sender: 'player',
-      text: newMessage,
-      date: state.date,
-      time: state.time,
-      ...(state.lateNight ? { late: true as const } : {})
-    }
-  ]
+  const pending: ChatMessage = {
+    id: 'pending',
+    sender: 'player',
+    text: newMessage,
+    ...(state.lateNight ? nextSlot(state.lateNight.date, state.lateNight.time)
+      : { date: state.date, time: state.time }),
+    ...(state.lateNight ? { late: true as const } : {})
+  }
+  const thread = [...(conversation?.messages ?? []).slice(-historyLimit), pending]
   // The new text is the last line of the log, so it gets its own stamp when it lands in a new slot.
   const history = stampedStubs(
     [
       ...(conversation?.messages ?? []).slice(-historyLimit),
-      ...(incomingDirection === undefined ? [{
-        id: 'pending',
-        sender: 'player' as const,
-        text: newMessage,
-        date: state.date,
-        time: state.time
-      }] : [])
+      ...(incomingDirection === undefined ? [pending] : [])
     ],
     name,
     state.calendar.season
@@ -433,7 +431,10 @@ export function buildTextingPrompt(
     // Only this slot's texts: an older one's "last night" was a different night.
     ...recapLore(
       thread
-        .filter((message) => message.date === state.date && message.time === state.time)
+        .filter((message) => {
+          const at = messageSlotOf(message)
+          return at.date === state.date && at.time === state.time
+        })
         .map((message) => message.text)
         .join('\n'),
       state.date,
