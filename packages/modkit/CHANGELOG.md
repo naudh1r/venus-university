@@ -18,6 +18,8 @@
   The auxiliary page communicates through its mod's channel namespace. A main invoke
   handler can use its host-provided `senderId` to associate a surface with the calling window.
 - Shared exports the native `JobDef` and `LocationDef` types for mod-owned catalogues.
+- Shared exports the native `BackgroundSets` type so City Life can filter scene
+  background choices through the public kit.
   These are erased type exports; no native catalogue values or runtime APIs are exposed.
 
 - `addMemory` accepts `replacingUnmarked` to replace unmarked memories a mod wrote before its switch.

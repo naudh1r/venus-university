@@ -7,6 +7,7 @@ export type { JobDef } from '../../../../src/shared/jobs'
 export type { LocationDef } from '../../../../src/shared/locations'
 export type {
   AppError,
+  BackgroundSets,
   BunnyboardState,
   Character,
   CharInfo,
