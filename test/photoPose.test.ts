@@ -886,4 +886,10 @@ describe('captioned hands replace position fillers', () => {
     expect(posePhotoTags(makeup, false)).not.toContain('holding_phone')
     expect(withoutMirrorWords(makeup)).toBe(makeup)
   })
+
+  it('tags a hand on her hip the caption names, now that standing gives none by default', () => {
+    expect(posePhotoTags('Standing in the park, a hand on her hip.', false)).toContain('hand_on_own_hip')
+    expect(posePhotoTags('Standing in the park, hands on her hips.', false)).toContain('hands_on_own_hips')
+    expect(posePhotoTags('Standing in the park, smiling.', false)).not.toContain('hand_on_own_hip')
+  })
 })

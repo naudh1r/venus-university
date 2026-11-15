@@ -591,7 +591,9 @@ const FREE_HAND_GESTURES: readonly GestureRule[] = [
     tags: ['covering_crotch'],
     covering: true
   },
-  { cues: PEACE_CUES, tags: ['v'] }
+  { cues: PEACE_CUES, tags: ['v'] },
+  // Last: her other hand's wave or peace sign is the one drawn, the hip is the sentence's.
+  { cues: ['hand on her hip', 'hand on hip', 'hand resting on her hip'], tags: ['hand_on_own_hip'] }
 ]
 
 const FREE_HAND_TAGS: ReadonlySet<string> = new Set(FREE_HAND_GESTURES.flatMap((row) => row.tags))
@@ -1057,6 +1059,8 @@ function selfieShot(
         !turned.has(tag) &&
         !TWO_HANDED_GESTURES.has(tag) &&
         !otherHandTags.has(tag) &&
+        // Her hip is left to the sentence in the glass, as it always was.
+        tag !== 'hand_on_own_hip' &&
         !(has('spread_pussy') && (tag === 'spread_legs' || tag.startsWith('(spread_legs:')))
     )
     // Her whole body in the glass, unless the caption framed it closer: "a close mirror selfie".
