@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'fs'
 import { basename, join, resolve } from 'path'
-import { MODS } from '@shared/mods'
+import { MODS, type ModDef } from '@shared/mods'
 import { BUILT_IN_MAIN_ENTRIES } from '../modEntries'
 import { checkCompat, hookNameKind, modDefOf, parseManifest } from '@vx/modkit/host/shared'
 import { satisfies } from '../../../packages/modkit/src/shared/range'
@@ -173,6 +173,16 @@ function builtInCandidates(input: LoaderInput): Candidate[] {
   return candidates
 }
 
+/**
+ * The built-ins with no main entry, which `builtInCandidates` leaves out of the table. They are
+ * still part of the build, so a mod that requires one finds it there, at the version `MODS` gives
+ * it, and loads only where everything that built-in requires in turn did.
+ */
+function rowlessBuiltIns(input: LoaderInput): ModDef[] {
+  const entries = input.builtInMain ?? BUILT_IN_MAIN_ENTRIES
+  return MODS.filter((mod) => input.builtIn.includes(mod.id) && !Object.hasOwn(entries, mod.id))
+}
+
 /** A built-in's own row: part of the build, with no manifest and no folder. */
 function isBuiltIn(candidate: Candidate): boolean {
   return isBuiltInRow(candidate.entry) && candidate.entry.def !== null
@@ -238,7 +248,7 @@ function checkCandidates(candidates: Candidate[], gameVersion: string): void {
 }
 
 /** Blocks what cannot load for what it requires, and answers the load order of the rest. */
-function orderCandidates(candidates: Candidate[], warn: (line: string) => void): { order: readonly string[]; optionalPresent: Readonly<Record<string, readonly string[]>> } {
+function orderCandidates(candidates: Candidate[], input: LoaderInput): { order: readonly string[]; optionalPresent: Readonly<Record<string, readonly string[]>> } {
   const byId = new Map(candidates.filter((one) => one.entry.def).map((one) => [one.entry.id, one]))
   const inputs: OrderInput[] = [...byId.values()].map((one) => ({
     id: one.entry.id,
@@ -249,6 +259,15 @@ function orderCandidates(candidates: Candidate[], warn: (line: string) => void):
       Object.fromEntries((one.entry.def?.requires ?? []).map((id) => [id, '*'])),
     optional: one.entry.manifest?.optional
   }))
+  // A built-in without a row orders with its own requirements, so a missing one or a cycle
+  // through it blocks whatever requires it; the built-in itself stays out of the table.
+  for (const def of rowlessBuiltIns(input)) {
+    if (byId.has(def.id)) continue
+    inputs.push({
+      id: def.id, name: def.name, version: def.version, loadable: true,
+      requires: Object.fromEntries((def.requires ?? []).map((id) => [id, '*']))
+    })
+  }
   const ordered = orderMods(inputs)
   for (const [id, message] of Object.entries(ordered.blocked)) {
     const candidate = byId.get(id)
@@ -256,7 +275,7 @@ function orderCandidates(candidates: Candidate[], warn: (line: string) => void):
   }
   for (const [id, warnings] of Object.entries(ordered.warnings)) byId.get(id)?.entry.warnings.push(...warnings)
   for (const [id, skipped] of Object.entries(ordered.optionalSkipped)) {
-    for (const dep of skipped) warn(`[mods] ${id}: optional ${dep} is installed but did not load; running without it`)
+    for (const dep of skipped) input.warn(`[mods] ${id}: optional ${dep} is installed but did not load; running without it`)
   }
 
   // A library's exports are a contract like a hook's: a name a dependent uses must still be there.
@@ -347,19 +366,29 @@ function requireCandidates(
   const invokes = new Map<string, Map<string, InvokeHandler>>()
   const mainExports = new Map<string, unknown>()
   const requireMain = input.requireMain ?? requireMainFile
+  const rowless = new Map(rowlessBuiltIns(input).map((def) => [def.id, def]))
+  // A built-in without a row has no status of its own: it counts as loaded while everything it
+  // requires, down the chain, is loaded, and a chain that comes back to itself is not.
+  const running = (dep: string, through: ReadonlySet<string> = new Set()): boolean => {
+    const def = rowless.get(dep)
+    if (!def) return byId.get(dep)?.entry.status === 'loaded'
+    if (through.has(dep)) return false
+    const next = new Set([...through, dep])
+    return (def.requires ?? []).every((id) => running(id, next))
+  }
   for (const id of order) {
     const candidate = byId.get(id)
     const manifest = candidate?.entry.manifest
     if (!candidate || candidate.entry.status !== 'loaded') continue
     const required = manifest ? Object.keys(manifest.requires ?? {}) : candidate.entry.def?.requires ?? []
-    const gone = required.find((dep) => byId.get(dep)?.entry.status !== 'loaded')
+    const gone = required.find((dep) => !running(dep))
     if (gone) {
-      fail(candidate, 'blocked', `needs ${byId.get(gone)?.entry.manifest?.name ?? gone}, which did not load`)
+      fail(candidate, 'blocked', `needs ${byId.get(gone)?.entry.manifest?.name ?? rowless.get(gone)?.name ?? gone}, which did not load`)
       continue
     }
     // An optional dependency that was ordered first but whose main.js then failed is as if absent.
     const optional = (optionalPresent[id] ?? []).filter((dep) => {
-      if (byId.get(dep)?.entry.status === 'loaded') return true
+      if (running(dep)) return true
       input.warn(`[mods] ${id}: optional ${dep} is installed but did not load; running without it`)
       return false
     })
@@ -426,7 +455,7 @@ export function loadMods(input: LoaderInput): LoaderResult {
     candidates = builtInCandidates(input)
     candidates.push(...findCandidates(input))
     checkCandidates(candidates, input.gameVersion)
-    const { order, optionalPresent } = orderCandidates(candidates, input.warn)
+    const { order, optionalPresent } = orderCandidates(candidates, input)
     permitCandidates(candidates, input.allowUnreviewedMain)
     if (input.safeStart !== null) {
       input.log(`[mods] started without mods (${input.safeStart}): nothing installed runs this session`)

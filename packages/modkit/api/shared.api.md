@@ -181,6 +181,8 @@ export interface ChatMessage {
     id: string;
     invite?: true;
     inviteKind?: InviteKind;
+    // (undocumented)
+    outgoingPhoto?: OutgoingPhoto;
     reachOut?: true;
     // (undocumented)
     sender: ChatSender;
@@ -1400,6 +1402,7 @@ export interface TextEditSet {
 export interface TextingResponse {
     blocked?: boolean;
     messages: string[];
+    outgoingPhotoDescription?: string;
     summary?: string;
 }
 

@@ -1,5 +1,6 @@
+import { randomUUID } from 'crypto'
 import { watch, type FSWatcher } from 'fs'
-import { mkdir, readFile, rm } from 'fs/promises'
+import { mkdir, readFile, rm, stat } from 'fs/promises'
 import { join } from 'path'
 import {
   characterLoraOf,
@@ -177,6 +178,38 @@ export async function storeWebpPhoto(
     message: 'Could not save the photo as WebP.'
   })
   await dropPhotoTwins(path)
+}
+
+/** Validates and normalizes a picked or pasted image before keeping it with the thread's photos. */
+export async function importChatPhoto(
+  playthroughId: string,
+  charId: string,
+  bytes: Uint8Array
+): Promise<{ file: string; data: string }> {
+  assertSafePlaythroughId(playthroughId)
+  assertSafeCharId(charId)
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength > 20 * 1024 * 1024 || !imageTypeOf(bytes)) {
+    throw appError('PHOTO_FILE_INVALID', 'Choose a PNG, JPEG or WebP image up to 20 MB.')
+  }
+  let prepared: Buffer
+  try {
+    const { default: sharp } = await import('sharp')
+    const image = sharp(bytes, { limitInputPixels: 40_000_000 })
+    const { width, height, pages } = await image.metadata()
+    if (!width || !height || width * height > 40_000_000 || (pages ?? 1) > 1) {
+      throw Error('Use a still image of up to 40 megapixels.')
+    }
+    prepared = await image.autoOrient()
+      .resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 90 }).toBuffer()
+  } catch {
+    throw appError('PHOTO_FILE_INVALID', 'Use a readable still image of up to 40 megapixels.')
+  }
+  const root = await stat(photoPlaythroughPath(playthroughId)).catch(() => null)
+  if (!root?.isDirectory()) throw appError('PHOTO_WRITE_FAILED', 'This playthrough is no longer available.')
+  const file = photoFileName('upload' + randomUUID().replaceAll('-', ''), 'chat', 1, 'webp')
+  await storeWebpPhoto(playthroughId, charId, file, prepared)
+  return { file, data: prepared.toString('base64') }
 }
 
 /**

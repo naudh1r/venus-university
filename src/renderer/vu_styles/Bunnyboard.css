@@ -586,6 +586,44 @@
   gap: 14px;
 }
 
+.vu-bb-photo-tool {
+  flex: none;
+}
+
+.vu-bb-photo-draft {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.vu-bb-photo-description.vu-input {
+  flex: 1;
+  min-width: 12ch;
+  max-height: calc(2lh + 26px);
+  overflow: auto;
+  resize: none;
+}
+
+.vu-bb-photo-preview {
+  width: 54px;
+  height: 42px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: var(--vu-recessed);
+}
+
+.vu-bb-photo-error {
+  margin-bottom: 6px;
+  color: var(--vu-text);
+}
+
+.vu-bb-photo-described {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .vu-bb-input {
   flex: 1;
   min-width: 0;
