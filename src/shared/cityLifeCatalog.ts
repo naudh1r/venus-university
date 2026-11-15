@@ -1,5 +1,4 @@
-import type { LocationDef } from './locations'
-import type { JobDef } from './jobs'
+import type { JobDef, LocationDef } from '@vx/modkit/shared'
 
 export const CITY_LIFE_LOCATIONS: readonly LocationDef[] = [
   { id: "dance_studio", label: "Dance Studio", icon: "💃",

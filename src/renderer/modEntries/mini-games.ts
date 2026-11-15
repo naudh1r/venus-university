@@ -143,8 +143,13 @@ registerHooks(MINI_GAMES, {
       // Only the games a girl may bring up here are on it, and any his action names: the rest
       // are his to ask for from the table.
       const current = scenePlace()
-      const invitation = keptInvitation()
-      const action = actionOf(request.user)
+      // The turn that tells the scene how a game went is the game's own words, not his: it names
+      // the game it reports, and that is neither asking for another nor an answer to an invitation.
+      // She may still suggest one more, which he then answers for himself.
+      const { played } = useTableStore.getState()
+      const reporting = Boolean(played && ctx.query.includes(played.text))
+      const invitation = reporting ? null : keptInvitation()
+      const action = reporting ? '' : actionOf(request.user)
       const destination = gamesNamed(MINI_GAMES_LIST, action).length ? destinationOf(action) : null
       const namedAnywhere = gamesNamed(MINI_GAMES_LIST, action)
       const followsInvite = invitation && (!namedAnywhere.length || namedAnywhere.some(game => game.id === invitation.gameId))
@@ -152,7 +157,7 @@ registerHooks(MINI_GAMES, {
       const { busy, keen } = sceneTerms()
       const here = gamesWith(ctx.cast, location)
       const suggested = gamesSuggested(here, location, busy, keen)
-      const named = gamesNamed(here, actionOf(request.user))
+      const named = gamesNamed(here, action)
       const pending = invitation && invitation.location === location ? here.filter(game => game.id === invitation.gameId) : []
       const detailed = named.length > 0 || pending.length > 0
       const games = named.length ? named : pending.length ? pending : destination && destination !== current ? [] : suggested

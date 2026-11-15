@@ -102,6 +102,16 @@ describe('compact scene game context',()=>{
   request('Hello'); reply({minigameInvite:{game:'darts',location:'selkie_beach'}})
   expect(keptInvitation()).toBeNull()
  })
+ it('the turn that reports a result cannot start the game again',()=>{
+  const text='You play Darts with Ana and win.'
+  useTableStore.setState({played:{text,brief:['MINI-GAME RESULT']}})
+  const r=request(text)
+  expect(properties(r)).not.toHaveProperty('minigame')
+  reply({minigame:{play:'darts',with:{ana_seo:'in',bea_seo:'out'},stake:'',options:{}}})
+  expect(useTableStore.getState().agreed).toBeNull()
+  // His own words naming the game afterwards still do.
+  expect(properties(request('Another game of darts?'))).toHaveProperty('minigame')
+ })
  it('scene closing cannot retain an invitation or launch a match',()=>{
   request('Darts?'); reply({minigameInvite:{game:'darts',location:'pino_cola_lounge'},minigame:{play:'darts',with:{ana_seo:'in',bea_seo:'in'}}},true)
   expect(keptInvitation()).toBeNull()

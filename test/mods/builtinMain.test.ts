@@ -1,4 +1,4 @@
-import { cpSync } from 'fs'
+import { cpSync, readFileSync, writeFileSync } from 'fs'
 import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { installMods, MODS, setInstalledMods, type ModDef } from '../../src/shared/mods'
 import { isRunning, sessionRow } from '../../src/shared/modSession'
 import { loadMods, type LoaderInput, type LoaderResult } from '../../src/main/mods/loader'
+import type { MainContext } from '../../src/main/mods/require'
 import { ModInvocations } from '../../src/main/mods/invoke'
 import { handleModProtocol } from '../../src/main/mods/protocol'
 import { useModSessionStore } from '../../src/renderer/stores/modSessionStore'
@@ -182,4 +183,69 @@ it('keeps built-in entries working after a loader error in installed mods', asyn
     expect(isRunning(result.table, 'one')).toBe(true)
     expect(await call(result, 'one')).toEqual({ id: 'one', value: 'hello' })
   }
+})
+
+it.each([null, 'flag'] as const)('lets a built-in with a main entry require one without, which keeps no row (safe start %s)', async (safeStart) => {
+  installMods([{ ...def('companion', ['invoke']), requires: ['notes'] }, def('notes')])
+  const load = vi.fn(entry)
+  const result = run({ companion: load }, { safeStart })
+  expect(sessionRow(result.table, 'companion')).toMatchObject({ status: 'loaded', message: null })
+  expect(load).toHaveBeenCalledOnce()
+  expect(await call(result, 'companion')).toEqual({ id: 'companion', value: 'hello' })
+  expect(sessionRow(result.table, 'notes')).toBeUndefined()
+  expect(result.table.order).toEqual(['companion'])
+  expect(isRunning(result.table, 'notes')).toBe(true)
+})
+
+it('lets an installed mod require a built-in without a main entry, held to its range', () => {
+  installMods([def('notes')])
+  const folder = installFixture(root, 'hello-mod')
+  const manifest = JSON.parse(readFileSync(join(folder, 'vxmod.json'), 'utf8')) as Record<string, unknown>
+  const requireMain = vi.fn((_ctx: MainContext) => ({}))
+  writeFileSync(join(folder, 'vxmod.json'), JSON.stringify({ ...manifest, requires: { notes: '^1.0.0' } }))
+  const inRange = run({}, { requireMain })
+  expect(sessionRow(inRange.table, 'hello-mod')).toMatchObject({ status: 'loaded', message: null })
+  expect(requireMain).toHaveBeenCalledOnce()
+  expect(requireMain.mock.lastCall![0].dependencies).toEqual(new Set(['notes']))
+  expect(sessionRow(inRange.table, 'notes')).toBeUndefined()
+  writeFileSync(join(folder, 'vxmod.json'), JSON.stringify({ ...manifest, requires: { notes: '^2.0.0' } }))
+  const outOfRange = run({}, { requireMain })
+  expect(sessionRow(outOfRange.table, 'hello-mod')).toMatchObject({ status: 'blocked', message: 'needs notes ^2.0.0, 1.0.0 is installed' })
+})
+
+it('blocks an installed mod whose built-in requirement without a main entry needs a mod that is absent', () => {
+  installMods([{ ...def('notes'), requires: ['backend'] }])
+  const folder = installFixture(root, 'hello-mod')
+  const manifest = JSON.parse(readFileSync(join(folder, 'vxmod.json'), 'utf8')) as Record<string, unknown>
+  writeFileSync(join(folder, 'vxmod.json'), JSON.stringify({ ...manifest, requires: { notes: '*' } }))
+  const requireMain = vi.fn((_ctx: MainContext) => ({}))
+  const result = run({}, { requireMain })
+  expect(sessionRow(result.table, 'hello-mod')).toMatchObject({ status: 'blocked', message: 'needs notes, which did not load' })
+  expect(requireMain).not.toHaveBeenCalled()
+  expect(sessionRow(result.table, 'notes')).toBeUndefined()
+})
+
+it('blocks a built-in whose requirement without a main entry needs a built-in whose entry threw', () => {
+  installMods([
+    { ...def('companion', ['invoke']), requires: ['notes'] },
+    { ...def('notes'), requires: ['backend'] },
+    def('backend', ['invoke'])
+  ])
+  const load = vi.fn(entry)
+  const result = run({ companion: load, backend: throwingEntry })
+  expect(sessionRow(result.table, 'backend')?.status).toBe('failed')
+  expect(sessionRow(result.table, 'companion')).toMatchObject({ status: 'blocked', message: 'needs notes, which did not load' })
+  expect(load).not.toHaveBeenCalled()
+  expect(result.invokes.has('companion')).toBe(false)
+  expect(sessionRow(result.table, 'notes')).toBeUndefined()
+  expect(result.table.order).toEqual([])
+})
+
+it('blocks a built-in that requires itself through a built-in without a main entry', () => {
+  installMods([{ ...def('companion', ['invoke']), requires: ['notes'] }, { ...def('notes'), requires: ['companion'] }])
+  const load = vi.fn(entry)
+  const result = run({ companion: load })
+  expect(sessionRow(result.table, 'companion')).toMatchObject({ status: 'blocked', message: 'requires itself through companion → notes → companion' })
+  expect(load).not.toHaveBeenCalled()
+  expect(sessionRow(result.table, 'notes')).toBeUndefined()
 })
