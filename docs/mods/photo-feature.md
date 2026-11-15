@@ -1,6 +1,6 @@
 # Photo Feature
 
-An unofficial mod for Venus University by **naudh1r**. Version **1.7.2**, for the game's 0.7.0.
+An unofficial mod for Venus University by **naudh1r**. Version **1.7.3**, for the game's 0.7.0.
 
 The girls send you photos in their DMs and post them on their feeds, with comments from the rest
 of campus. Each contact gets a gallery, and characters can get optional body details. Photos are
@@ -127,6 +127,27 @@ is kept once the scene next saves, at its next choice or its end: quit before th
 you had before comes back.
 
 If a photo stays PNG while WebP is on, look in `data/app.log` for a `[photo] kept ... as PNG:` line.
+
+If a photo leaves out a pose or a gesture her sentence asked for, look in `data/app.log` for a
+`[photo] no tags read for` line: it names the photo's sentence, which helps widen what the mod reads.
+
+## 1.7.3
+
+- **More of her gestures**: an OK sign, a salute, finger guns, a peace sign with both hands, cat
+  claws, pointing at you or at herself, shushing, a hand over her mouth, a facepalm, hands on her
+  cheeks, reaching out to you, a fist pump, a shrug, arms in the air, hands on her hips, and
+  flipping you off.
+- **Reads her sentence more ways**: "flips off" and "flipped off" as well as "flipping off", and a
+  pose she puts in words of her own is no longer drawn standing.
+- **Mirror selfies** she describes as facing the mirror with her phone up are drawn as mirror
+  selfies again, and the mirror is left out of the picture's sentence so it draws no second her.
+- **More varied shots**: she picks how close and from which angle to suit the moment, rather than
+  the same one each time, and asks for the light. A photo she takes now is where she is, at that
+  time of day. Standing, she no longer always has a hand on her hip.
+- **Knees-up shots** are framed that way only while she stands. Sitting, kneeling or lying down,
+  her sentence frames the shot.
+- **Photos of two girls**: her friend's face is read past a comma ("an awkward, shy smile"), and
+  what both of them do goes to both.
 
 ## 1.7.2
 

@@ -6,6 +6,7 @@ import {
   posePhotoTags,
   withoutCameraHold,
   withoutHeldObject,
+  withoutMirrorWords,
   withoutSelfieWord
 } from '../src/shared/photoPose'
 
@@ -255,8 +256,7 @@ describe('her hands on an activity', () => {
     expect(posePhotoTags('with her microphones', false)).toContain('holding_microphone')
     expect(posePhotoTags('standing by a bassinet under a microscopic pattern', false)).toEqual([
       'standing',
-      'cowboy_shot',
-      'hand_on_own_hip'
+      'cowboy_shot'
     ])
   })
 
@@ -876,5 +876,14 @@ describe('captioned hands replace position fillers', () => {
   it('leaves standing out of a bare picture whose caption places her in words it does not know', () => {
     expect(posePhotoTags('Curled up on the sheets completely nude, smiling sleepily.', true)).not.toContain('standing')
     expect(posePhotoTags('Completely nude in her room, smiling at the camera.', true)).toContain('standing')
+  })
+
+  it('reads the mirror and her phone in hand as a mirror selfie, and keeps the mirror out of the sentence', () => {
+    const caption = 'In the changing room, in front of the full-length mirror with her phone up, head to toe.'
+    expect(posePhotoTags(caption, false)).toEqual(expect.arrayContaining(['mirror', 'holding_phone']))
+    expect(withoutMirrorWords(caption)).not.toMatch(/mirror/i)
+    const makeup = 'In the bathroom, standing at the mirror doing her makeup.'
+    expect(posePhotoTags(makeup, false)).not.toContain('holding_phone')
+    expect(withoutMirrorWords(makeup)).toBe(makeup)
   })
 })
