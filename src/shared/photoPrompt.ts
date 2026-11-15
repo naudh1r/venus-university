@@ -507,7 +507,12 @@ export function buildPhotoPrompt(
       tag.replace(/^\(|:[\d.]+\)$/g, '').trim()
     )
   )
-  const posed = shown.filter((tag) => !earlier.has(tag))
+  // Knees up is drawn with `cowboy_shot` only standing; on the floor, a bed or a chair it is left
+  // to the sentence. The framing still decides what of her outfit and body is in shot.
+  const notStanding = shown.some((tag) => NOT_STANDING.has(tag))
+  const posed = shown.filter(
+    (tag) => !earlier.has(tag) && !(notStanding && tag === 'cowboy_shot')
+  )
 
   const positive = [
     `${PHOTO_QUALITY}, ${base}`,
@@ -551,6 +556,20 @@ const FACE_SHOT_CUES = [
   'headshot',
   'her face filling'
 ]
+
+/** Poses that are not standing: `cowboy_shot` is a standing framing and is kept off them. */
+const NOT_STANDING: ReadonlySet<string> = new Set([
+  'sitting',
+  'kneeling',
+  'lying',
+  'on_back',
+  'on_side',
+  'on_stomach',
+  'all_fours',
+  'squatting',
+  'seiza',
+  'indian_style'
+])
 
 /** Where the rest of the photo would put her body, her arms and the camera, out of a face shot. */
 const NOT_IN_A_FACE_SHOT: ReadonlySet<string> = new Set([
