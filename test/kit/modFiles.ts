@@ -67,8 +67,12 @@ export const MOD_FILES: Record<string, ModSet> = {
       'src/shared/cityLife.ts',
       'src/shared/cityLifeCatalog.ts',
       'src/renderer/prompts/cityLifeLore.ts',
+      'assets/bg/interior/bowling_alley_*',
+      'assets/bg/interior/roller_rink_*',
+      'assets/bg/interior/cat_cafe_*',
       'assets/bg/interior/dance_studio_*',
-      'assets/bg_thumbs/interior/dance_studio_*'
+      'assets/bg_thumbs/interior/dance_studio_*',
+      'docs/mods/city-life-assets.txt'
     ]
   },
   'custom-soundtracks': {

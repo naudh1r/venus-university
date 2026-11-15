@@ -284,8 +284,6 @@
   "src/shared/campusTalents.ts -> ./modRules",
   "src/shared/campusTalents.ts -> ./playerStats",
   "src/shared/cityLife.ts -> ./types",
-  "src/shared/cityLifeCatalog.ts -> ./jobs",
-  "src/shared/cityLifeCatalog.ts -> ./locations",
   "src/shared/continuedModSetup.ts -> ./echoSetup",
   "src/shared/continuedModSetup.ts -> ./types",
   "src/shared/echo.ts -> ./campusTalents",
