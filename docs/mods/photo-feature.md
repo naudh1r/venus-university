@@ -139,6 +139,8 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
   flipping you off.
 - **Reads her sentence more ways**: "flips off" and "flipped off" as well as "flipping off", and a
   pose she puts in words of her own is no longer drawn standing.
+- **Mirror selfies** she describes as facing the mirror with her phone up are drawn as mirror
+  selfies again, and the mirror is left out of the picture's sentence so it draws no second her.
 - **Knees-up shots** are framed that way only while she stands. Sitting, kneeling or lying down,
   her sentence frames the shot.
 - **Photos of two girls**: her friend's face is read past a comma ("an awkward, shy smile"), and

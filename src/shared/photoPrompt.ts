@@ -7,7 +7,9 @@ import {
   PHOTO_CLAUSE_END,
   photoPose,
   withoutCameraHold,
+  isMirrorSelfie,
   withoutHeldObject,
+  withoutMirrorWords,
   withoutSelfieWord
 } from './photoPose'
 // Carries Photo's message and post augmentations into whatever imports this module. The
@@ -522,7 +524,9 @@ export function buildPhotoPrompt(
     // The sentence's own full stop would sit in front of the tags that follow it.
     [
       lookingAtViewer(
-        withoutSelfieWord(withoutHeldObject(withoutCameraHold(withoutWhoTookIt(caption))))
+        withoutMirrorWords(
+          withoutSelfieWord(withoutHeldObject(withoutCameraHold(withoutWhoTookIt(caption))))
+        )
       ).replace(/[.!?]+$/, ''),
       posed.join(', ')
     ]
@@ -1103,8 +1107,8 @@ export function buildDuoPhotoPrompt(
   const pose = photoPose(scene, tier)
   const posture = pose.tags.filter((tag) => DUO_POSTURE.has(tag))
   // Selfies: the phone is hers, and only her half reaches for it.
-  const selfie = says(text, 'selfie')
-  const mirror = selfie && says(text, 'mirror')
+  const mirror = isMirrorSelfie(text)
+  const selfie = says(text, 'selfie') || mirror
   const lying = posture.includes('lying')
   const armOut = selfie && !mirror && !lying
   const framing = duoFraming(text, armOut)

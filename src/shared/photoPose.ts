@@ -982,6 +982,40 @@ function handsFull(text: string): boolean {
  * alone put her free arm out of frame on most seeds, whatever the negative refused; "photo" left
  * it on the table.
  */
+/** Her phone in her hand: "her phone up", "holding her phone", "phone held up". */
+const PHONE_IN_HAND =
+  /\bphone (?:up|held up|raised|in (?:her |one )?hand)\b|\bholding (?:up )?(?:her |a )?phone\b|\bphone held\b/
+
+/**
+ * A mirror selfie, said either way: "a mirror selfie", or the mirror and her phone in her hand,
+ * "facing the mirror with her phone up", which the brief asks for.
+ */
+export function isMirrorSelfie(text: string): boolean {
+  const lower = text.toLowerCase()
+  return says(lower, 'mirror') && (says(lower, 'selfie') || PHONE_IN_HAND.test(lower))
+}
+
+/**
+ * A mirror selfie's sentence without the mirror: the tags already put her in front of one, and
+ * "facing the mirror", "at the glass" or "her reflection" in the sentence drew the glass and a
+ * second her in it.
+ */
+export function withoutMirrorWords(scene: string): string {
+  if (!isMirrorSelfie(scene)) return scene
+  return scene
+    .replace(/\bmirror (?:selfie|photo|shot|pic)\b/gi, 'photo')
+    .replace(
+      /\s*,?\s*\b(?:facing|in front of|standing before|before|looking (?:into|at)|turned (?:to|towards?)|toward|towards|into|in|at)\s+(?:the|a|her)\s+(?:[a-z-]+\s+)?(?:mirror|glass|reflection)\b/gi,
+      ''
+    )
+    .replace(/\s*,?\s*\b(?:her|its)\s+reflection\b/gi, '')
+    .replace(/\bmirror\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;])/g, '$1')
+    .replace(/^[\s,]+/, '')
+    .trim()
+}
+
 export function withoutSelfieWord(scene: string): string {
   const text = scene.toLowerCase()
   if (says(text, 'mirror') || !handsFull(text)) return scene
@@ -1005,9 +1039,9 @@ function selfieShot(
   tags: readonly string[],
   freeHand: readonly string[]
 ): PhotoPose | null {
-  if (!says(text, 'selfie')) return null
+  if (!says(text, 'selfie') && !isMirrorSelfie(text)) return null
   const has = (tag: string): boolean => tags.includes(tag)
-  if (says(text, 'mirror')) {
+  if (isMirrorSelfie(text)) {
     // Her back to a mirror drew her twice, the reflection facing the other way: the mirror
     // shows her front, whichever way the caption turned her.
     const turned = new Set(['from_behind', 'looking_back', 'from_side', 'profile'])
@@ -1274,7 +1308,7 @@ export function photoPose(caption: string, tier: PhotoTier): PhotoPose {
   const bare = tier === 'explicit'
   const text = caption.toLowerCase()
   let tags = poseTagsOf(caption, bare)
-  const mirror = says(text, 'mirror') && says(text, 'selfie')
+  const mirror = isMirrorSelfie(text)
   const bodyAction = bare && handActionsOf(text).length > 0
   let activity = activityOf(text, mirror, tier !== 'everyday')
   const gesture = activity?.tags.some((tag) => FREE_HAND_TAGS.has(tag)) ?? false
@@ -1345,7 +1379,7 @@ export function unreadPhotoParts(caption: string, tier: PhotoTier): string[] {
   if (!placed && (tier === 'explicit' || saysPose(text))) unread.push('pose')
   const handled =
     handActionsOf(text).length > 0 ||
-    activityOf(text, says(text, 'mirror') && says(text, 'selfie'), tier !== 'everyday') !== null ||
+    activityOf(text, isMirrorSelfie(text), tier !== 'everyday') !== null ||
     heldIn(text) !== '' ||
     says(text, 'selfie')
   if (HAND_WORDS.test(text) && !handled) unread.push('hands')
