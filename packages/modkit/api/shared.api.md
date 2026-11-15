@@ -33,6 +33,14 @@ export function assertSafeId(id: string, pattern: RegExp, code: string, message:
 export function assertSafePlaythroughId(playthroughId: string): void;
 
 // @public
+export interface BackgroundSets {
+    // (undocumented)
+    exterior: string[];
+    // (undocumented)
+    interior: string[];
+}
+
+// @public
 export const BACKUP_ZIP_LIMITS: {
     maxEntries: number;
     maxTotalBytes: number;
