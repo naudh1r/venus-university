@@ -1,6 +1,9 @@
 /** Keep a character's private words in their own voice without inventing a replacement belief. */
 export function firstPersonThought(raw:string,name:string):string|null {
  const original=raw.trim().replace(/^[“"]([\s\S]+)[”"]$/,'$1').trim()
+ // Existing first-person references identify the speaker; an opening pronoun
+ // describes somebody else and must not be repaired into the narrator.
+ if(/^(?:she|he|they|her|his|their)\b/i.test(original)&&/\b(?:I|me|my|mine|myself)\b/i.test(original))return original
  let words=original
  const escape=(s:string):string=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')
  const names=[...new Set([name.trim(),name.trim().split(/\s+/)[0]])].filter(Boolean).sort((a,b)=>b.length-a.length).map(escape)

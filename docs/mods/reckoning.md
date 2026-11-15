@@ -1,6 +1,6 @@
 # Breaking Through the Silence
 
-This mod connects Breakthrough to a private encounter with a character's **Unheard Soul**: the guarded, negative expression of thoughts they struggles to voice. The inner world is **The Unspoken**, called the **Unspoken Void** in narration. The code/save/mod ID remains reckoning so existing records and settings stay readable. It requires Breakthrough; Echoes supplies optional artwork, an aspect and a hint, while ordinary Breakthrough still works independently.
+This mod connects Breakthrough to a private encounter with a character's **Unheard Soul**: the guarded, negative expression of thoughts they struggle to voice. The inner world is **The Unspoken**, called the **Unspoken Void** in narration. The code/save/mod ID remains reckoning so existing records and settings stay readable. It requires Breakthrough; Echoes supplies optional artwork, an aspect and a hint, while ordinary Breakthrough still works independently.
 
 This mod ships off by default (version 0.7.12), and background question preparation also defaults off. Players can enable each explicitly; saved choices remain authoritative.
 
@@ -8,7 +8,7 @@ This mod ships off by default (version 0.7.12), and background question preparat
 
 During a safe scene reply, select a known, present character with at least **38 weighted native affection points** and **100 spirit**, then summon the encounter. This is roughly 75% of the native 50-point Devoted threshold; affection itself has no fixed numerical maximum. Only one link can be active, and a character with completed growth cannot earn it twice.
 
-The link and charge are saved together. A strong, wordless glitch marks activation. Activation inserts a short ordinary scene beat giving both the reader and character a sharp head pain; they brushes it off as a passing headache. Later scene prompts preserve that physical event while keeping the mental connection private. This replaces the earlier earthquake/hidden-basement-door concept.
+The link and charge are saved together. A strong, wordless glitch marks activation. Activation inserts a short ordinary scene beat giving both the reader and character a sharp head pain; they brush it off as a passing headache. Later scene prompts preserve that physical event while keeping the mental connection private. This replaces the earlier earthquake/hidden-basement-door concept.
 
 Invocation does not teleport the reader. Finish the current scene, then use **Follow their voice** in the nighttime map row beneath the map. The reader closes their eyes and follows their voice inward. The real character stays on their normal schedule. The private encounter uses a snapshot of their context rather than moving or replacing the real character.
 
@@ -26,7 +26,7 @@ The floating four-button menu uses native Venus styling. Hover glitches have no 
 
 | Choice | Behavior |
 | --- | --- |
-| Talk | They opens, then the reader can make three replies. Their responses are personal, dark, moody and unapologetic, with indirect clues rather than quotations from the question set. The fourth reply ends the attempt locally without another paid request. A warning appears after the third. |
+| Talk | They open, then the reader can make three replies. Their responses are personal, dark, moody and unapologetic, with indirect clues rather than quotations from the question set. The fourth reply ends the attempt locally without another paid request. A warning appears after the third. |
 | Break through the silence | The button warns that there is no going back to Talk or the hint during this attempt. It opens directly on the first question; no introduction screen. Pausing preserves the questions, not access to the preparation choices. |
 | Your named aspect ability | The reader's actual Echo ability supplies one perspective/hint per connection. It needs Echoes and a player aspect, costs no additional spirit, and can be reread without another request. Reentering does not restore the spent hint. |
 | Open your eyes | A hard return to the real world, without a goodbye conversation or a flash of the normal portrait. An unfinished link remains available. Failed or expelled attempts need another 100 spirit to enter again. |

@@ -22,7 +22,7 @@ The choices are specific to this playthrough and do not rewrite reusable charact
 
 Open a character's Bunnyboard profile and find **Backstory → Character Dynamics**. A small button and summary open a separate, read-only panel with their assigned traits, their meanings, their starting relationship, and the explanation entered during setup. Choices are shown from the currently loaded save. Characters with no assigned choices have no extra button.
 
-The player-authored choices can be read before the native backstory is unlocked; the character's own undiscovered backstory remains locked. **Starting background** records the setup rather than claiming they still feels the same way. Reading the panel does not edit their character file, notes, memories, or saved choices. Carried choices remain readable when the mod's effects are inactive.
+The player-authored choices can be read before the native backstory is unlocked; the character's own undiscovered backstory remains locked. **Starting background** records the setup rather than claiming they still feel the same way. Reading the panel does not edit their character file, notes, memories, or saved choices. Carried choices remain readable when the mod's effects are inactive.
 
 ## Trait catalog
 

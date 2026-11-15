@@ -5,7 +5,7 @@ const mod: ModDef = {
   id: CHARACTER_DYNAMICS_MOD,
   name: 'Character Dynamics',
   author: 'Maestro Leeds',
-  version: '1.0.1',
+  version: '1.0.2',
   scope: 'playthrough',
   defaultOn: false,
   blurb: 'Choose shared history and gentle personality nudges for individual characters when starting a playthrough. Multiple tags, one setup screen.',

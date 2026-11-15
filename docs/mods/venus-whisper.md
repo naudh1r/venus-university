@@ -52,13 +52,13 @@ can finish its discussion without regenerating the article.
 ## The secret columnist
 
 The first settled slot with the mod enabled chooses one enrolled character, retained in the
-normal boundary save. This lets their start collecting sightings before the first Wednesday.
+normal boundary save. This lets them start collecting sightings before the first Wednesday.
 If publication happens first (for example, enabling the mod midweek), it saves that choice
 **before** the paid writing request. A failed request never rerolls them. New, unrelated games
 choose their own author. Loading an earlier save restores the identity and publications in that save.
 
 The author occasionally joins the comments under their ordinary account (a 25% inclusion roll
-per batch, or when explicitly addressed). They receives the same comment-generation task as
+per batch, or when explicitly addressed). They receive the same comment-generation task as
 every other participant. The comment request is never told which person is the author.
 It contains the public article, a short thread window, and ordinary character profiles only.
 It prohibits identity guesses, insider hints, knowing winks, and conspicuous denials; a
@@ -79,7 +79,7 @@ Native 0.5.0 New Game+ carries the **same author**, profile snapshot, issues, co
 links and deletion markers. The identity stays even if they graduate, is omitted from the
 next roster, or their character file is later unavailable. A previously known columnist can
 continue to comment through their saved public profile. Other known readers' public profiles
-are kept too, so alumni participation does not single their out. Graduation does not put their back on
+are kept too, so alumni participation does not single them out. Graduation does not put them back on
 the map or change enrollment. Missing portraits fall back to an initial.
 
 Pseudonymity is a story rule, not encryption: this is a local game, and a player inspecting the
@@ -87,9 +87,9 @@ save or code can discover the stored identity.
 
 ### A private confession
 
-The player can ask the actual author whether they writes the column or is Harewood.
+The player can ask the actual author whether they write the column or are Harewood.
 A first confession is available only at the native **trusted or devoted** relationship tier,
-in a one-to-one scene outside class, the player’s work shift, or a visit to them on-shift job.
+in a one-to-one scene outside class, the player’s work shift, or a visit to their on-shift job.
 The scene writer must also find the conversation private/out of earshot. These gates use
 native affection rather than a separate trust meter. A respectful question favors an honest
 admission; threats, coercion, public confrontations, jokes, and player-dictated outcomes do
@@ -117,7 +117,7 @@ The editor selects one supported lead from known characters' public posts and **
 firsthand sightings**, then sends at most six relevant snippets. At each settled slot, the
 collector checks newly settled native NPC encounters against the author's actual class,
 work shift, or whereabouts. It reuses the native timetable's holiday, absence, mood, and
-current-overlay rules. A rolled run-in that moves their away from their usual haunt wins over
+current-overlay rules. A rolled run-in that moves them away from their usual haunt wins over
 that haunt. Being in the same dorm does not prove they heard a conversation: dorm run-ins
 qualify only when the encounter actually includes them. Characters involved in the player's
 scene are excluded; no private scene is mined for gossip. This mod never rolls extra meetings

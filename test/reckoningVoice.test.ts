@@ -1,3 +1,4 @@
+import {parseDungeonText} from '@shared/dungeonConversation'
 import {expect,it} from 'vitest'
 import {firstPersonThought} from '@shared/reckoningVoice'
 import {unspokenWhispers} from '@shared/unspokenVoice'
@@ -57,4 +58,19 @@ it('validates new generation while retaining old saved encounters and their answ
  expect(unspokenWhispers(loaded.dungeon!)[0]).toBe(bad[0].challenge)
  const prompt=beginReckoningPrompt(context)
  expect(prompt.system).toContain('every belief as their own first-person thought')
+})
+
+// An opening pronoun can describe others within the speaker's own thought.
+it.each([
+ 'They think I am weak.', "They know I'm a fraud.", 'They want me to fail.',
+ 'They never listen to me.', 'They will leave once they see the real me.',
+ 'He will never forgive me.', 'Their approval is the only thing that makes me matter.',
+ 'She thinks I am a disappointment.', 'Her approval matters to me.', 'His opinion defines my worth.'
+])('preserves first-person beliefs about other people: %s', belief=>{
+ expect(firstPersonThought(belief,context.name)).toBe(belief)
+ expect(parseDungeonText({reply:belief},dungeon,'reply')).toBe(belief)
+ const saved={...dungeon,thoughts:[{...thoughts[0],belief}]}
+ expect(unspokenWhispers(saved)).toEqual([belief])
+ const generated=thoughts.map((t,i)=>i===0?{...t,belief}:t)
+ expect(parseReckoningThoughts({thoughts:generated},context,true)[0].belief).toBe(belief)
 })
