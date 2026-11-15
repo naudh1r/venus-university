@@ -148,6 +148,8 @@ describe('old Bunnyfeeds saves', () => {
     expect(notes.unreadFeedNotesOf()).toBe(1)
     await armFeedThreads()
     await writesSettled()
+    // The count kept between renders follows a reply filed in the same session.
+    expect(notes.unreadFeedNotesOf()).toBe(2)
 
     expect(autosave).toHaveBeenCalledOnce()
     expect(await receipts.mock.results[0].value).toEqual({ ok: true, data: 'written' })

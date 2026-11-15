@@ -29,9 +29,21 @@ export function feedNotesOf(
   return feedNotes(posts, globalSlotOf(state.date, state.time))
 }
 
-/** How many replies to him he has yet to read. */
+/** The last count, with the game it was read from and the read mark it was counted against. */
+let counted: { state: BunnyfeedsContext; mark: number | undefined; unread: number } | undefined
+
+/**
+ * How many replies to him he has yet to read. The phone's badge asks on every render of the
+ * scene, so the answer is kept until the game it was read from or the read mark changes: the
+ * context is a new object only once something it reads has changed.
+ */
 export function unreadFeedNotesOf(): number {
-  return unreadFeedNotes(feedNotesOf(), feedReadMark())
+  const state = readBunnyfeedsContext()
+  const mark = feedReadMark()
+  if (counted?.state === state && counted.mark === mark) return counted.unread
+  const unread = unreadFeedNotes(feedNotesOf(state), mark)
+  counted = { state, mark, unread }
+  return unread
 }
 
 /** Marks one live comment through its own slice; a deleted target is an inert refusal. */
