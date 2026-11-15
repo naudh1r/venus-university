@@ -141,6 +141,9 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
   pose she puts in words of her own is no longer drawn standing.
 - **Mirror selfies** she describes as facing the mirror with her phone up are drawn as mirror
   selfies again, and the mirror is left out of the picture's sentence so it draws no second her.
+- **More varied shots**: she picks how close and from which angle to suit the moment, rather than
+  the same one each time, and asks for the light. A photo she takes now is where she is, at that
+  time of day. Standing, she no longer always has a hand on her hip.
 - **Knees-up shots** are framed that way only while she stands. Sitting, kneeling or lying down,
   her sentence frames the shot.
 - **Photos of two girls**: her friend's face is read past a comma ("an awkward, shy smile"), and

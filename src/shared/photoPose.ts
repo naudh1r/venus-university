@@ -82,7 +82,8 @@ const DRESSED_POSITIONS: readonly Rule[] = [
     tags: ['standing', 'leaning_forward', 'leaning_on_object']
   },
   { cues: ['leaning forward'], tags: ['leaning_forward', 'hand_on_own_chin'] },
-  { cues: ['standing', 'walking'], tags: ['standing', 'cowboy_shot', 'hand_on_own_hip'] },
+  // No hand on her hip by default: given to every standing picture, it was the same pose in each.
+  { cues: ['standing', 'walking'], tags: ['standing', 'cowboy_shot'] },
   { cues: ['stretching', 'reaching up'], tags: ['standing', 'arms_up', 'armpits'] }
 ]
 
@@ -158,7 +159,7 @@ const BARE_POSITIONS: readonly Rule[] = [
     cues: ['sitting', 'seated', 'cross-legged'],
     tags: ['sitting', 'solo', 'spread_legs', 'hands_on_own_thighs']
   },
-  { cues: ['standing'], tags: ['standing', 'solo', 'hand_on_own_hip', 'cowboy_shot'] },
+  { cues: ['standing'], tags: ['standing', 'solo', 'cowboy_shot'] },
   // Lowest priority: whatever the dressed pass would have said, kept consistent with it.
   {
     cues: ['lying', 'laying', 'on the bed', 'on bed', 'on the floor'],
@@ -167,7 +168,7 @@ const BARE_POSITIONS: readonly Rule[] = [
 ]
 
 /** Nothing on, and nothing said about how she is lying. */
-const BARE_POSITION_DEFAULT: readonly string[] = ['standing', 'solo', 'hand_on_own_hip']
+const BARE_POSITION_DEFAULT: readonly string[] = ['standing', 'solo']
 
 /**
  * Every tag above that places a hand or an arm. When an action below fires, all of these are
@@ -742,7 +743,8 @@ function handActionsOf(text: string): readonly ActionRule[] {
 
 /** No action matched, but her hands are clearly on herself somewhere. */
 const VAGUE_TOUCH: Rule = {
-  cues: ['touching', 'hand on', 'caressing'],
+  // Her chest only where nothing else is named: "a hand on her hip" or "caressing her thigh" is not it.
+  cues: /\b(?:touching|caressing|hand on)\b(?! (?:her |own )?(?:hips?|waist|thighs?|knees?|legs?|lap|head|hair|cheek|chin|face|neck|necklace|choker|shoulders?)\b)/,
   tags: ['hand_on_own_chest']
 }
 

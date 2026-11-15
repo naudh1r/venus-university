@@ -256,8 +256,7 @@ describe('her hands on an activity', () => {
     expect(posePhotoTags('with her microphones', false)).toContain('holding_microphone')
     expect(posePhotoTags('standing by a bassinet under a microscopic pattern', false)).toEqual([
       'standing',
-      'cowboy_shot',
-      'hand_on_own_hip'
+      'cowboy_shot'
     ])
   })
 
