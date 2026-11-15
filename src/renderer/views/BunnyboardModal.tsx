@@ -1372,8 +1372,15 @@ function Composer({
   )
 }
 
-/** One message bubble: the player's, the contact's, or a system line. */
-function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
+/**
+ * One message bubble: the player's, the contact's, or a system line. Kept apart from the draft
+ * above it, so typing redraws the box and not every message in the thread.
+ */
+const MessageBubble = memo(function MessageBubble({
+  message
+}: {
+  message: ChatMessage
+}): JSX.Element {
   // A message drawn bare stands with no bubble behind it, as a mod drawing sent text says.
   const bare = useBareMessage(message.text)
   if (message.sender === 'system') {
@@ -1399,7 +1406,8 @@ function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
       <ModSlot slot="messageAttachment" props={{ message }} />
     </>
   )
-}
+})
+
 
 /** The Friends tab: what expires on top, then who he could ask, then who he has. */
 function FriendsList(): JSX.Element {
