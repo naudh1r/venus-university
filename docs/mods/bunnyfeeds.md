@@ -95,6 +95,11 @@ on them, from any mod that puts one there, get threads like any other post.
 - After New Game+ the count starts over with the new semester: last semester's replies are still
   listed, as read.
 
+## 1.1.6
+
+- **Smoother scenes**: in a save with lots of feed comments, a scene's text types out more
+  smoothly. The phone's unread count is only worked out again when something on the feed changes.
+
 ## 1.1.5
 
 - **Her own photos**: when you text or meet her, she knows what the picture on her latest posts
