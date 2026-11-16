@@ -15,6 +15,7 @@ function silentlyRetryable(code: string): boolean {
   return (
     code === 'LLM_NETWORK' ||
     code === 'LLM_HTTP' ||
+    code === 'LLM_STOPPED' ||
     code === 'LLM_TRUNCATED' ||
     code === 'LLM_EMPTY' ||
     code === 'LLM_MALFORMED' ||
