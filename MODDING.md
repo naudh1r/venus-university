@@ -1875,4 +1875,6 @@ first: `shownMessages(messages, chatClock())`, with `messageShown` and `shownMes
 and other thread consumers follow that rule; storage, carry and delivery keep the complete thread.
 
 `threadStartedBy(messages, date, time)` from `@vx/modkit/shared` returns `'reader'` or `'her'`
-from the first non-system message in that slot, defaulting to the reader for an empty thread.
+from the first non-system message in that slot, defaulting to the reader for an empty thread. Her
+first text counts as the reader's when it answers his earlier texts (a reply that arrived late, the
+last message before it being his) rather than being flagged as a reach-out or an invitation.
