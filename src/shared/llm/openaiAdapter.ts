@@ -143,7 +143,14 @@ function assertFinished(reason: string, envelope: OpenAiError | undefined, label
   }
   if (reason === 'error') {
     if (envelope) throw classify(statusOf(envelope), envelope, label)
-    throw appError('LLM_HTTP', `${label} reported an error mid-reply.`, 'finish_reason=error')
+    // The endpoint read the request and stopped while answering, naming no reason: not the lost
+    // connection `LLM_HTTP` stands for. A filter that labels itself no better ends here too, so
+    // the prompt stays the player's to edit.
+    throw appError(
+      'LLM_STOPPED',
+      `${label} stopped partway through the reply without saying why. If retrying doesn't help, try editing the prompt.`,
+      'finish_reason=error'
+    )
   }
   throw appError(
     'LLM_TRUNCATED',
