@@ -1,17 +1,25 @@
 import type { ChatMessage, TimeSlot } from './types'
 import { messageSlotOf } from './chatVisibility'
 
-/** Finds who opened this slot's thread, skipping system lines; an empty thread defaults to the reader. */
+/**
+ * Finds who opened this slot's thread, skipping system lines; an empty thread defaults to the reader.
+ * Her first text here counts as the reader's thread when it answers his earlier texts (a reply that
+ * arrived late) rather than reaching out or inviting.
+ */
 export function threadStartedBy(
   messages: readonly ChatMessage[],
   date: number,
   time: TimeSlot
 ): 'reader' | 'her' {
-  const first = messages.find(message => {
+  const index = messages.findIndex(message => {
     const at = messageSlotOf(message)
     return at.date === date && at.time === time && message.sender !== 'system'
   })
-  return first?.sender === 'contact' ? 'her' : 'reader'
+  const first = messages[index]
+  if (first?.sender !== 'contact') return 'reader'
+  if (first.reachOut || first.invite) return 'her'
+  const before = messages.slice(0, index).reverse().find(message => message.sender !== 'system')
+  return before?.sender === 'player' ? 'reader' : 'her'
 }
 
 /** Finds the latest player turn whose held reply still needs to be written. */

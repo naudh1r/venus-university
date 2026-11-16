@@ -12,6 +12,17 @@ describe('who opened a slot\'s DM thread, which decides whether a mod may drop h
     expect(threadStartedBy([system, her, reader], 2, 1)).toBe('her')
     expect(threadStartedBy([{ ...her, date: 1 }, { ...her, time: 0 }, reader], 2, 1)).toBe('reader')
   })
+
+  it('gives the thread to the reader when her first text this slot answers his earlier one', () => {
+    const his: ChatMessage = { id: 'his', sender: 'player', text: 'In class?', date: 2, time: 0 }
+    const late: ChatMessage = { id: 'late', sender: 'contact', text: 'Just got out.', date: 2, time: 1 }
+    const failed: ChatMessage = { ...his, id: 'failed', sender: 'system', error: true }
+    expect(threadStartedBy([his, late], 2, 1)).toBe('reader')
+    expect(threadStartedBy([his, failed, late], 2, 1)).toBe('reader')
+    expect(threadStartedBy([his, { ...late, reachOut: true }], 2, 1)).toBe('her')
+    expect(threadStartedBy([his, { ...late, invite: true }], 2, 1)).toBe('her')
+    expect(threadStartedBy([{ ...his, sender: 'contact' }, late], 2, 1)).toBe('her')
+  })
 })
 
 describe('recovering an unfinished held turn', () => {

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `threadStartedBy` gives the thread to the reader when her first text in the slot is a late
+  answer to his earlier texts, not a reach-out or an invitation.
 - Shared exports `EMOTIONS`, the sprite expressions a dialogue line's `emotion` may name, such as
   a staged opening's line.
 - Activities can call `setSceneSuggestionsPaused` to pause optional scene suggestions for
