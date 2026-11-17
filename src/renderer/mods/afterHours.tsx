@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { charKeyOf, EMOTIONS, globalSlotOf, threadStartedBy } from '@vx/modkit/shared'
+import { charKeyOf, EMOTIONS, globalSlotOf, seededRand, threadStartedBy } from '@vx/modkit/shared'
 import {
   character,
   conversation,
@@ -130,12 +130,15 @@ registerHooks(AFTER_HOURS_MOD, {
       ? { at: 'from', clock: 'late-night' } : null,
   slotInterlude: ({ to }) => {
     if (!modOptionOn(AFTER_HOURS_MOD, 'night') || !nightOwed(to, status.read())) return null
+    // Seeded by the night, so a reload of the same night reads the same line.
+    const pool = afterHoursText.sleepLines
+    const sleepLine = pool[Math.floor(seededRand(`${AFTER_HOURS_MOD}:sleep:${globalSlotOf(to.date, to.time)}`)() * pool.length)]
     return {
       lines: [afterHoursText.nightLine],
       rows: [{
         label: afterHoursText.goToSleep,
         card: true,
-        line: afterHoursText.sleepLine,
+        line: sleepLine,
         onPick: () => status.set({ ...status.read(), nightDone: globalSlotOf(to.date, to.time) })
       }],
       clock: 'late-night'

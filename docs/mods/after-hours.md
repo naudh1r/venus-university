@@ -1,6 +1,6 @@
 # After Hours
 
-## 0.6.6
+## 0.6.7
 
 By **Naudh1r**.
 
@@ -55,8 +55,8 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   activity choice or map travel. The phone stays available for texts and Bunnyboard comments.
 - Each contact is in her own room; her chat names her dorm. Nobody goes anywhere tonight,
   and a DM cannot begin a hangout. Plans for another time still work normally.
-- **Go to sleep** plays its own line, as Relax does, then ends the night the way Relax ends a
-  slot: the night's texts are counted and
+- **Go to sleep** plays a line of you falling asleep, picked for that night from a handful, as
+  Relax plays its own, then ends the night the way Relax ends a slot: the night's texts are counted and
   their results shown, then the new-day curtain and the morning's narration, texts, posts and
   landing. The narration is written after the night, so it can follow up on what was said, and a
   plan made at night for the morning is on its landing. There is no confirmation.
@@ -74,8 +74,8 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - The evening ends normally, with its one ledger and memory question. There is no extra
   scene and no night landing afterward.
 - The new-day curtain opens on the morning where you woke together, staged there: her room (or
-  yours) with her on stage, a short line of waking up, her parting words as her own lines with her
-  expression, then the line where you part, where the stage turns to your room without her. The
+  yours) with her on stage, a short line of waking up, three or four lines of her talking to you as
+  her own lines with her expression, then the line where you part, where the stage turns to your room without her. The
   usual morning lines follow, then the normal landing. The night itself is not summed up again.
 - Her parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
