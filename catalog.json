@@ -265,6 +265,10 @@
         {
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/emoji-extended/screenshots/01-emoji-panel.webp",
           "caption": "Every emoji in tabs, with search and a skin tone for hands and people."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/emoji-extended/screenshots/02-big-emoji.webp",
+          "caption": "A text of nothing but a few emoji is drawn big."
         }
       ]
     },
