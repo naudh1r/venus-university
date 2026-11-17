@@ -71,6 +71,7 @@ const SETTINGS_REQUIRED: Record<
     | 'memoryBudgets'
     | 'secretBudget'
     | 'scenePersona'
+    | 'modCatalogUrl'
     | 'devModFolders'
     | 'allowUnreviewedMain'
     | 'modNoticesSeen'

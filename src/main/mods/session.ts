@@ -6,6 +6,8 @@ import { BUILD, MODS, setInstalledMods } from '@shared/mods'
 import type { Settings } from '@shared/types'
 import { getModsDirPath, getSettingsPath } from '../paths'
 import { bindModSession } from '../services/modsService'
+import { ModCatalog, DEFAULT_CATALOG_URL } from './catalog'
+import { getSettings } from '../services/settingsService'
 import { patchStoredSettings } from '../services/settingsService'
 import { addDevFolder, devFolders, removeDevFolder, watchDevFolder, type DevChangeKind } from './devFolders'
 import { loadMods, type LoaderResult } from './loader'
@@ -183,6 +185,10 @@ type Handle = <Args extends unknown[], T>(
 
 /** The session's channels: the table, read synchronously by the preload, and the rest through `handle`. */
 export function registerModIpc(handle: Handle): void {
+  const catalog = new ModCatalog(getModsDirPath(), undefined, BUILT_IN_IDS)
+  handle('mods:catalog', async () => catalog.read((await getSettings()).modCatalogUrl ?? DEFAULT_CATALOG_URL))
+  handle('mods:catalogInstalled', () => catalog.list())
+  handle('mods:installRelease', (_event, id: string, version: string, approved: boolean) => catalog.installRelease(id, version, approved))
   // Synchronous: `MODS` has to hold the installed mods before any module in the window reads it.
   ipcMain.on('mods:session', (event) => {
     event.returnValue = modSession()
