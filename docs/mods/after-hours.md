@@ -1,8 +1,6 @@
 # After Hours
 
-## 0.6.7
-
-By **Naudh1r**.
+By **naudh1r**.
 
 A Busy status for Bunnyboard, and a night in your room after the evening to text before you sleep.
 
@@ -79,6 +77,15 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   usual morning lines follow, then the normal landing. The night itself is not summed up again.
 - Her parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
+
+## 0.6.7
+
+- Going to sleep plays one of a handful of lines, picked for that night.
+- The morning after a night together, she says three or four lines before you part.
+
+## 0.6.6
+
+- A Busy status for Bunnyboard, and a night in your room after the evening to text before you sleep.
 
 ## Where the code is
 
