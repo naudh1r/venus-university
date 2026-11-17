@@ -4,6 +4,8 @@
 
 naudh1r-core: the org's unreleased kit changes and After Hours' hooks.
 
+- `NativeGameSave` gains optional `heldNightLedger` and `morningOpening`: a late-night hold's
+  paid texting ledger, and the morning opening its ending wrote, kept so a reload pays for neither again.
 - `threadStartedBy` gives the thread to the reader when her first text in the slot is a late
   answer to his earlier texts, not a reach-out or an invitation.
 - Shared exports `EMOTIONS`, the sprite expressions a dialogue line's `emotion` may name, such as
