@@ -71,7 +71,7 @@ Then **Mods → Browse**: install the four, restart, and switch them on under **
 Photo Feature asks first, since it runs code outside the game window.
 
 [`vxbuild.mjs`](vxbuild.mjs) builds a release: `node vxbuild.mjs <repo> <mod id> <out folder>`,
-from a checkout of the mod's branch. It reads the kit version from the repo, and with `OWN_GLOBS`
+from a checkout of the mod's branch. It reads the kit version from the repo and asks for that version or newer, and with `OWN_GLOBS`
 set to the mod's globs it lists any game file that ended up in the bundle.
 
 ## Suggestions

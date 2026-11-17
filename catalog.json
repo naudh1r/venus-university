@@ -12,8 +12,8 @@
         {
           "version": "1.7.3",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/photo-feature-1.7.3.zip",
-          "sha256": "1e336fc2d5d9ca23a43a96ee840fba5654fec6f3f46d2a348ecce6f82b228421",
-          "kit": "0.8.0",
+          "sha256": "f919b27188cbb39a52deda9f57c705cd1849b06352cff11afe38a564eb249ac5",
+          "kit": ">=0.8.0",
           "game": ">=0.8.0",
           "main": true,
           "reviewed": false,
@@ -141,8 +141,8 @@
         {
           "version": "1.1.6",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/bunnyfeeds-1.1.6.zip",
-          "sha256": "367642f1d69b828087b7dd7f6e2754f0c3325bfd9e1589150070fd349683e853",
-          "kit": "0.8.0",
+          "sha256": "f42da93010d6e7d0732e856c4bf0f21feba9e57de7bc4409a729bbc0db91e65a",
+          "kit": ">=0.8.0",
           "game": ">=0.8.0",
           "main": false,
           "reviewed": false,
@@ -213,8 +213,8 @@
         {
           "version": "1.0.0",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/emoji-extended-1.0.0.zip",
-          "sha256": "12eba51ae088dc5c721e94d9ba6fb763d3aa73e19b5ef0c4a82c167537009ac2",
-          "kit": "0.8.0",
+          "sha256": "632e02c45a5432d8b936e216d81142c68def0cfdafbfaa232f0f365b90b376e0",
+          "kit": ">=0.8.0",
           "game": ">=0.8.0",
           "main": false,
           "reviewed": false,
@@ -245,8 +245,8 @@
         {
           "version": "0.6.6",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.6.6.zip",
-          "sha256": "97c99b5e777ccdb41ea99bc3efbfe552dc39fbac287a95215303f5221f85f9d4",
-          "kit": "0.8.0",
+          "sha256": "4d21539d963c3efa103fdc6e99b32a0fd605564ab2c5f9332a5f4cb27f8cca12",
+          "kit": ">=0.8.0",
           "game": ">=0.8.0",
           "main": false,
           "reviewed": false,
