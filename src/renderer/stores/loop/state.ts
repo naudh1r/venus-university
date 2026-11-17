@@ -1,5 +1,6 @@
 import type {
   BankedOpening,
+  BankedTextLedger,
   Character,
   LedgerResponse,
   PlaythroughRecord,
@@ -110,6 +111,8 @@ export const loopState = {
   interludeLineDone: null as (() => void) | null,
   /** A row line reloads the held landing before its choice took effect. */
   interludeBase: null as SaveDraft | null,
+  /** The held night's paid texting ledger, until its ending applies it. */
+  nightLedger: null as BankedTextLedger | null,
 
   /** An exam's opening, in flight while the player answers; null after a reload. */
   examOpening: null as Promise<BankedOpening | null> | null,
@@ -351,6 +354,7 @@ export function resetLoopState(): void {
   loopState.interludeStatusDone = null
   loopState.interludeLineDone = null
   loopState.interludeBase = null
+  loopState.nightLedger = null
   // An in-flight prefetch is simply abandoned; the next armed hangout makes its own call.
   loopState.hangoutPrefetch = null
   // Abandoned the same way; the bytes it holds are released separately, by `dropEndingArt`.
