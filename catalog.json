@@ -305,6 +305,20 @@
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
       "releases": [
         {
+          "version": "0.6.7",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.6.7.zip",
+          "sha256": "fc95583538f6f43f3ec742b2246c3df31694100b55ac731c07b347839dff2ce0",
+          "kit": ">=0.8.0",
+          "game": ">=0.8.0",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-17",
+          "changes": [
+            "Going to sleep plays one of a handful of lines, picked for that night.",
+            "The morning after a night together, she says three or four lines before you part."
+          ]
+        },
+        {
           "version": "0.6.6",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.6.6.zip",
           "sha256": "2718c906d10d8af24460b7fa8deb7df0f03746e2e408206d1f5cc8355b9e932a",
@@ -319,6 +333,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.6.7",
+          "changes": [
+            "Going to sleep plays one of a handful of lines, picked for that night.",
+            "The morning after a night together, she says three or four lines before you part."
+          ]
+        },
         {
           "version": "0.6.6",
           "changes": [
