@@ -196,6 +196,8 @@
   color: var(--vu-text-body);
   font: 500 15px var(--font-body);
   line-height: 1.5;
+  /* A description's line breaks stay, so a mod can list its features one per line. */
+  white-space: pre-line;
 }
 
 .vu-mods-tags {
