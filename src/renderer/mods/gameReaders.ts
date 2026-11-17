@@ -119,7 +119,7 @@ export function useRosterIds(options: { alumni?: boolean } = {}): readonly strin
   return useSyncExternalStore(follow, get, get)
 }
 
-/** The slot texts are opened through: a message stamped later is not shown yet. @since 0.14.0 */
+/** The slot texts are opened through: a message stamped later is not shown yet. @since 0.8.0 */
 export function chatClock(): { date: number; time: TimeSlot } | null {
   const game = useGameStore.getState()
   return game.playthroughId ? chatClockOf(game) : null
