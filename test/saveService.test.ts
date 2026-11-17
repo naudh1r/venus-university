@@ -162,6 +162,56 @@ describe('loadSave', () => {
     })
   })
 
+  describe('the held-reply, late-night and opening fields', () => {
+    const clock = { date: 4, time: 1 }
+    const text = { id: 't1', sender: 'player', text: 'Out yet?', date: 4, time: 0 }
+    const hold = { until: clock, firstPlayerId: 't1', messageIds: ['r1'] }
+    const playback = { reply: { lines: ['Morning.'] }, lines: [{ speaker: '', text: 'Morning.' }], indices: [0], index: -1 }
+
+    /** A complete save whose one chat holds `message` and `heldReply`, with `over` on top. */
+    function withChat(message: object, heldReply?: object, over: object = {}): object {
+      const base = draft()
+      return { ...base, bunnyboard: { ...base.bunnyboard, conversations: { mia: {
+        charId: 'mia', messages: [message], unread: 0, summary: null, ...(heldReply ? { heldReply } : {})
+      } } }, ...over }
+    }
+
+    it('reads a save without them, and one that carries them well formed', async () => {
+      await seed('1', '1', draft())
+      await expect(saveService.loadSave('1', '1')).resolves.toMatchObject({ saveId: '1' })
+      await seed('1', '2', withChat({ ...text, awaitingReply: true, ledgered: true, late: true },
+        { ...hold, afterClass: { ...clock, code: 'ENG101' }, opened: true, blocked: true, summary: 'Asked.' },
+        { chatShownThrough: clock, heldNight: clock, scene: { slotOpening: playback } }))
+      await expect(saveService.loadSave('1', '2')).resolves.toMatchObject({ chatShownThrough: clock })
+    })
+
+    it('refuses a save where any of them is malformed, and names it', async () => {
+      const bad: Array<[object, string]> = [
+        [withChat(text, {}), 'heldReply'],
+        [withChat(text, { ...hold, until: { date: 'x', time: 0 } }), 'until'],
+        [withChat(text, { ...hold, messageIds: 'r1' }), 'messageIds'],
+        [withChat(text, { ...hold, firstPlayerId: 1 }), 'firstPlayerId'],
+        [withChat(text, { ...hold, afterClass: { ...clock } }), 'afterClass'],
+        [withChat(text, { ...hold, opened: false }), 'opened'],
+        [withChat({ ...text, awaitingReply: 1 }), 'awaitingReply'],
+        [withChat({ ...text, ledgered: 'yes' }), 'ledgered'],
+        [withChat({ ...text, late: false }), 'late'],
+        [{ ...draft(), chatShownThrough: { date: 'invalid', time: 0 } }, 'chatShownThrough'],
+        [{ ...draft(), heldNight: { date: 4, time: 2 } }, 'heldNight'],
+        [{ ...draft(), scene: { slotOpening: { ...playback, index: 1 } } }, 'index'],
+        [{ ...draft(), scene: { slotOpening: { ...playback, indices: [] } } }, 'indices'],
+        [{ ...draft(), scene: { slotOpening: { ...playback, reply: null } } }, 'reply']
+      ]
+      for (const [index, [body, field]] of bad.entries()) {
+        await seed('1', String(10 + index), body)
+        await expect(saveService.loadSave('1', String(10 + index))).rejects.toMatchObject({
+          code: 'SAVE_MALFORMED',
+          detail: expect.stringContaining(field)
+        })
+      }
+    })
+  })
+
   it('takes the ids from the location on disk, not from the file body', async () => {
     // Moving a playthrough folder by hand renames the playthrough; trusting
     // the copies inside would make every later write land somewhere else.
