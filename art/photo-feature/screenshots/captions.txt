@@ -1,0 +1,2 @@
+01-fullscreen.webp: A photo of two friends from her feed, opened full screen.
+02-gallery.webp: Every photo she has sent or posted, in the Gallery on her contact page.

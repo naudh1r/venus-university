@@ -130,6 +130,16 @@
             "Fixes: the eye icon on hidden photos was dark in the day theme."
           ]
         }
+      ],
+      "screenshots": [
+        {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/screenshots/01-fullscreen.webp",
+          "caption": "A photo of two friends from her feed, opened full screen."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/screenshots/02-gallery.webp",
+          "caption": "Every photo she has sent or posted, in the Gallery on her contact page."
+        }
       ]
     },
     {
@@ -203,6 +213,16 @@
             "Notifications: a page beside the feed in Updates listing every answer to your comments, with an unread count on its title and on the rail, each opening its post at the reply, and Mark as read on each one or all at once. No AI calls."
           ]
         }
+      ],
+      "screenshots": [
+        {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/bunnyfeeds/screenshots/01-post-photo.webp",
+          "caption": "Her post, with the photo and a reply from another student."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/bunnyfeeds/screenshots/02-notifications.webp",
+          "caption": "Notifications under Updates lists every answer to your comments."
+        }
       ]
     },
     {
@@ -241,7 +261,7 @@
     {
       "id": "after-hours",
       "name": "After Hours",
-      "author": "Naudh1r",
+      "author": "naudh1r",
       "blurb": "A Busy status for the phone, and a night in your room after the evening to text before you sleep.",
       "source": "https://github.com/naudh1r/venus-university/tree/mod/after-hours-kit",
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
@@ -266,6 +286,12 @@
           "changes": [
             "A Busy status for Bunnyboard, and a night in your room after the evening to text before you sleep."
           ]
+        }
+      ],
+      "screenshots": [
+        {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/screenshots/01-busy-status.webp",
+          "caption": "Busy in the chats header, and a text to her while she's in class."
         }
       ]
     }
