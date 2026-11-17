@@ -1,3 +1,5 @@
 01-post-photo.webp: Her post, with the photo and a reply from another student.
 02-notifications.webp: Notifications under Updates lists every answer to your comments.
 03-thread.webp: A conversation under her post: she answers you, and her friends join in.
+04-feed.webp: Every girl's posts in Updates, with replies from other students.
+05-mention.webp: Type @ to tag a girl in your comment, and she answers too.
