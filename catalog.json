@@ -133,6 +133,10 @@
       ],
       "screenshots": [
         {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/screenshots/00-dm.webp",
+          "caption": "She sends you a photo in your DMs."
+        },
+        {
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/screenshots/01-fullscreen.webp",
           "caption": "A photo of two friends from her feed, opened full screen."
         },
