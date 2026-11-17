@@ -1317,8 +1317,13 @@ and only the messages that ledger took are marked claimed, so the morning never 
 again. `interludeSettled(ctx)` then runs synchronously with the night's ledger in `ctx.ledger`,
 before the held slot's opening is written and the ending is saved. `slotSettled` is not called:
 a mod that records ordinary slots must register `interludeSettled` to record a held night.
-The opening request's `ledger` is null here. Closing before the write leaves the saved night
-unchanged; loading it runs the ending again. The new-day curtain and ordinary opening follow.
+The opening request's `ledger` is null here. Once the night's ledger is paid for, before its
+status lines play, it is kept on the night's autosave and on any save taken during them, as
+`heldNightLedger`; loading one returns to the held landing, and picking the row again reuses that
+ledger while the night's texts are still the ones it read, or pays for a new one when another
+text has been sent since. The finished morning opening is kept on the morning's boundary save as
+`morningOpening` before the new-day curtain, and loading that save opens from it instead of
+writing another. The new-day curtain and ordinary opening follow.
 
 `interludePreview(ctx)` is a pure preview asked before the ending writes the next opening,
 and again before the boundary's curtain falls. Return
