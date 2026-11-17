@@ -101,7 +101,7 @@ itself expel the player or delete the playthrough. See [Starting Challenge](mods
 - Meanwhile now uses the game's existing NPC encounters. It does not inject a second daily
   pair event. The optional spectator dialogue does not grant the player knowledge of it.
 - The Hare & Quill replaces the earlier newsletter name in the UI, while its stable internal
-  ID remains `venus-whisper`. Lady Harewood is the byline, not a fixed character identity.
+  ID remains `venus-whisper`. Harewood is the byline, not a fixed character identity.
 - Echo, Character Dynamics and Breaking Through the Silence add their own guides, state,
   artwork handling and save safeguards. PNG, JPEG and WebP artwork use a shared decoder.
 - 0.5.0 uses native New Game+ and semester records. Carry adapters retain appropriate mod data;

@@ -31,7 +31,7 @@ describe('Echo setup before the semester',()=>{
     expect(state.girls.a).toMatchObject({aspect:'stoneward',name:'Elyndra',art,source:'uploaded',creature:{type:'armored fox',description:'silver fur'},stage:{x:100,y:-90,scale:1.2},assignment:'chosen'})
     expect(state.girls.b).toEqual(original.girls.b)
     expect(original.girls.a.aspect).toBe('veilkeeper')
-    expect(state.girls.a.reason).toContain('her story')
+    expect(state.girls.a.reason).toContain('their story')
     const final=finalizeEchoSetup(state,roster)
     expect(assignEchoes(final,'entered-game',Object.fromEntries(roster.map(c=>[c.charId,c])),'Reader','new bio')).toEqual(final)
     expect(changePlayerEcho(final,'daylark').playerChangeUsed).toBe(true)

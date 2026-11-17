@@ -24,7 +24,7 @@ export function chooseSetupEchoAspect(value:EchoState, owner:string, aspect:Echo
   if(identity.aspect===aspect)return state
   const parts=character?[{label:'personality',text:character.personality,weight:3},{label:'backstory',text:character.backstory,weight:2}]:[{label:'bio',text:bio,weight:3}]
   const updated={...identity,aspect,assignment:'chosen' as const,...explainEchoAspect(aspect,parts,true)}
-  if(character)updated.reason=updated.reason.replace('Here are the parts of your story that might speak to it.','Here are the parts of her story that might speak to it.')
+  if(character)updated.reason=updated.reason.replace('Here are the parts of your story that might speak to it.','Here are the parts of their story that might speak to it.')
   if(owner==='player')state.player=updated;else state.girls[owner]=updated
   return state
 }

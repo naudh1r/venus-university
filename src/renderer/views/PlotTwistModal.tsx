@@ -76,7 +76,7 @@ export function PlotTwistModal({ theme, onClose }: {
         <TextField id="plot-twist-text" label="Ongoing story direction" value={text}
           onChange={(value) => { setText(value); setStatus(''); setError('') }} multiline rows={7}
           maxLength={PLOT_TWIST_LIMIT} disabled={pending || !enabled || !sameGame} autoFocus
-          placeholder="A scholarship review is approaching, and the reader must improve his grades to stay enrolled." />
+          placeholder="A scholarship review is approaching, and the reader must improve their grades to stay enrolled." />
         <p className="vu-plot-twist-count">{text.length.toLocaleString()} / {PLOT_TWIST_LIMIT.toLocaleString()} characters</p>
         <p className="vu-plot-twist-status" role={error ? 'alert' : 'status'}>
           {error || (!sameGame ? 'The loaded game changed. Close and reopen this editor.'

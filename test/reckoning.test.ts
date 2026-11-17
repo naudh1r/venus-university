@@ -47,7 +47,7 @@ it('atomically charges once, plays the shared pain beat and opens a private link
  expect(beat.map(l=>l.speaker)).toEqual(['',charKeyOf(girl.firstName,girl.lastName)]);expect(beat[0].text).toContain('your head');expect(beat[0].text).toContain('Nina');expect(beat[1].text).toContain('headache');expect(JSON.stringify(beat)).not.toMatch(/connection|inner world|mind.link|thoughts/)
  expect(useReckoningLinkEffect.getState().pulse).toMatchObject({id:game().exReckoning.dungeon!.id,playthroughId:'test',loads:game().loads})
  expect(unspokenSceneBoundary(game().exReckoning).join(' ')).toContain('without replaying the pain')
- expect(game().exReckoning.dungeon?.voice?.beat).toContain('Her lips have not moved');expect(JSON.stringify(game().exReckoning)).not.toMatch(/earthquake|basement/)
+ expect(game().exReckoning.dungeon?.voice?.beat).toContain('Their lips have not moved');expect(JSON.stringify(game().exReckoning)).not.toMatch(/earthquake|basement/)
  expect(canUnlockReckoning(game(),'a')).toBe(false);await expect(enterReckoningDungeon()).rejects.toThrow('night');await expect(startReckoning('a')).rejects.toThrow('map at night')
 })
 it('does not spend or change the scene when invocation cannot save',async()=>{const before=ordinary();vi.spyOn(window.api.saves,'autosave').mockResolvedValueOnce(fail);await expect(unlockReckoningDungeon('a')).rejects.toThrow('Offline');expect(ordinary()).toBe(before);expect(game().exBreakthrough.meters.a).toBe(100);expect(game().exReckoning.dungeon).toBeUndefined();expect(useReckoningLinkEffect.getState().pulse).toBeNull()})

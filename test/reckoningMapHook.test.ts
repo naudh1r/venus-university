@@ -74,7 +74,7 @@ describe('Breaking Through the Silence map contribution', () => {
     const html = await drawPin()
     expect(html).toBe(renderToStaticMarkup(createElement(ReckoningDungeonMapPin, { canTravel: true, onEnter: close })))
     expect(html.match(/aria-label="The Unspoken entrance"/g)).toHaveLength(1)
-    expect(html).toContain('Follow her voice · 100 spirit')
+    expect(html).toContain('Follow their voice · 100 spirit')
     expect(html).not.toContain('disabled=""')
     expect(close).not.toHaveBeenCalled()
   })

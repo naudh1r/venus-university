@@ -32,13 +32,13 @@ export function dungeonFarewell(d:ReckoningDungeon,outcome:NonNullable<Reckoning
 // Keep the legacy phase name readable in existing saves; it is now an outcome, never a goodbye scene.
 export function dungeonOutcomeText(d:ReckoningDungeon,outcome=d.outcome):string {
  return outcome==='victory'?`${d.context.name}'s Unheard Soul breaks into light. The voice falls quiet. The inner world is empty; you can open your eyes now.`:
-  outcome==='expelled'?'Her voice recedes as your concentration slips. This attempt is over. Open your eyes and gather your strength before trying again.':
+  outcome==='expelled'?'Their voice recedes as your concentration slips. This attempt is over. Open your eyes and gather your strength before trying again.':
   outcome==='failed'?'The thought still holds its ground. This attempt is over, but the connection remains. Open your eyes and gather your strength.':'Open your eyes and return to the world around you.'
 }
 async function change(run:(d:ReckoningDungeon,current:()=>boolean,job:string)=>Promise<ReckoningDungeon|undefined>,leaving=false):Promise<void> {
  if(group)throw Error('Wait for the current reply.')
  const game=useGameStore.getState(),previous=game.exReckoning,d=previous.dungeon
- if(!d||!(leaving?canLeave(game):dungeonVisitAllowed(game)))throw Error('Follow her voice at night, when the game is ready.')
+ if(!d||!(leaving?canLeave(game):dungeonVisitAllowed(game)))throw Error('Follow their voice at night, when the game is ready.')
  const job=`dungeon-${crypto.randomUUID()}`;group=job;useDungeonRequest.setState({busy:true})
  const current=():boolean=>{const now=useGameStore.getState();return now.playthroughId===game.playthroughId&&now.loads===game.loads&&now.exReckoning===previous&&now.date===game.date&&now.time===game.time&&(leaving||modIsOn('reckoning')&&modIsOn('breakthrough'))}
  try{
@@ -52,10 +52,10 @@ async function change(run:(d:ReckoningDungeon,current:()=>boolean,job:string)=>P
 export async function enterReckoningDungeon():Promise<void> {
  return change(async d=>{
   if(d.phase!=='unlocked')throw Error('This visit has already begun.')
-  if(d.needsSpirit&&(useGameStore.getState().exBreakthrough.meters[d.charId]??0)<100)throw Error('Rebuild 100 spirit with her before another attempt.')
+  if(d.needsSpirit&&(useGameStore.getState().exBreakthrough.meters[d.charId]??0)<100)throw Error('Rebuild 100 spirit with them before another attempt.')
   if(!dungeonEntryAllowed(useGameStore.getState()))throw Error('Finish the current scene, then enter from the map at night.')
   const place=RECKONING_DUNGEONS[d.aspect]
-  return {...d,phase:'inside',needsSpirit:undefined,lines:[{who:'narrator',text:`You find somewhere quiet, close your eyes, and follow ${d.context.name}'s voice inward. The world around you falls away. The Unspoken Void takes shape around you. Before you lies ${place.name}, built from feelings she has never said aloud. Her Unheard Soul waits within it.`}],replies:0}
+  return {...d,phase:'inside',needsSpirit:undefined,lines:[{who:'narrator',text:`You find somewhere quiet, close your eyes, and follow ${d.context.name}'s voice inward. The world around you falls away. The Unspoken Void takes shape around you. Before you lies ${place.name}, built from feelings they have never said aloud. Their Unheard Soul waits within it.`}],replies:0}
  })
 }
 function beforeQuestions(d:ReckoningDungeon):void {

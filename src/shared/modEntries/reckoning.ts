@@ -9,14 +9,14 @@ const mod: ModDef = {
   scope: 'anytime',
   defaultOn: false,
   requires: ['breakthrough'],
-  blurb: `At ${RECKONING_AFFECTION_MIN}+ affection and 100 spirit, help a girl challenge three limiting beliefs and earn her own Character Dynamics growth tag.`,
+  blurb: `At ${RECKONING_AFFECTION_MIN}+ affection and 100 spirit, help a character challenge three limiting beliefs and earn their own Character Dynamics growth tag.`,
   offNote: 'Keeps saved encounters and earned tags. Character Dynamics can still apply earned growth when that mod is active.',
   options: [
     {
       id: 'prepare-questions',
       label: 'Prepare questions in the background',
       default: false,
-      hint: 'Off by default: generate questions when you open them. Turn on to prepare thoughts for eligible girls in the current scene at 100 spirit. Uses your text provider even if you never start.'
+      hint: 'Off by default: generate questions when you open them. Turn on to prepare thoughts for eligible characters in the current scene at 100 spirit. Uses your text provider even if you never start.'
     },
     {
       id: 'glitch-effects',

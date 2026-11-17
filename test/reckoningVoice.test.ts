@@ -1,3 +1,4 @@
+import {parseDungeonText} from '@shared/dungeonConversation'
 import {expect,it} from 'vitest'
 import {firstPersonThought} from '@shared/reckoningVoice'
 import {unspokenWhispers} from '@shared/unspokenVoice'
@@ -12,6 +13,21 @@ const thoughts=[
  {belief:'My mistakes decide what I am worth.',challenge:'Why would you stay with me?',evidence:['e1']}
 ]
 const dungeon:ReckoningDungeon={id:'link',charId:'zira',aspect:'wildspark',phase:'unlocked',unlockedByReckoning:true,context,replies:0,farewellReplies:0,lines:[],thoughts}
+
+it.each([
+ ['He believes every mistake proves his worthlessness.',null],
+ ['They believe every mistake proves their worthlessness.',null],
+ ['He believes every mistake proves failure.','I believe every mistake proves failure.'],
+ ['They believe every mistake proves failure.','I believe every mistake proves failure.'],
+ ['They are always one mistake away from failure.','I am always one mistake away from failure.'],
+ ['They were never good enough.','I was never good enough.'],
+ ['His attitude is defensive.',null],
+ ['Their attitude is defensive.',null],
+ ["I worry my brother will leave; he has done it before.","I worry my brother will leave; he has done it before."],
+ ["I worry my friend will leave; they have done it before.","I worry my friend will leave; they have done it before."]
+])('handles neutral and gendered input without rewriting another person’s history', (input,expected)=>{
+ expect(firstPersonThought(input,context.name)).toBe(expected)
+})
 
 it('repairs the named narrator opener without losing its belief, and keeps direct first-person thoughts intact',()=>{
  expect(firstPersonThought(thoughts[0].belief,context.name)).toBe('I believe everything is a power struggle.')
@@ -41,5 +57,20 @@ it('validates new generation while retaining old saved encounters and their answ
  expect(loaded.active).toEqual(active)
  expect(unspokenWhispers(loaded.dungeon!)[0]).toBe(bad[0].challenge)
  const prompt=beginReckoningPrompt(context)
- expect(prompt.system).toContain('every belief as her own first-person thought')
+ expect(prompt.system).toContain('every belief as their own first-person thought')
+})
+
+// An opening pronoun can describe others within the speaker's own thought.
+it.each([
+ 'They think I am weak.', "They know I'm a fraud.", 'They want me to fail.',
+ 'They never listen to me.', 'They will leave once they see the real me.',
+ 'He will never forgive me.', 'Their approval is the only thing that makes me matter.',
+ 'She thinks I am a disappointment.', 'Her approval matters to me.', 'His opinion defines my worth.'
+])('preserves first-person beliefs about other people: %s', belief=>{
+ expect(firstPersonThought(belief,context.name)).toBe(belief)
+ expect(parseDungeonText({reply:belief},dungeon,'reply')).toBe(belief)
+ const saved={...dungeon,thoughts:[{...thoughts[0],belief}]}
+ expect(unspokenWhispers(saved)).toEqual([belief])
+ const generated=thoughts.map((t,i)=>i===0?{...t,belief}:t)
+ expect(parseReckoningThoughts({thoughts:generated},context,true)[0].belief).toBe(belief)
 })

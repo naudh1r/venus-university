@@ -72,7 +72,7 @@ export function TalentAbilityControls({skill,safe,act,onClose}:{skill:string;saf
       {cityLocationsOn&&cityJobsOn&&<p>Dancer III also qualifies you for Dance Instructor at the Dance Studio, with Good Body and Good Heart. Apply through Jobs. Visiting the studio needs no rank.</p>}
       {button('Start dancing',!safe||!talentSceneOpen(game),()=>speak('I take the opportunity to dance, using my practiced timing and footwork. If there is a willing partner, I invite them to join me without pressuring them.'))}</>
   }else if(skill===TALENT_ABILITIES.value){
-    content=<p>Open BunnyShop and choose a person under Eye for Value. Your best affordable gift is highlighted. Select Find to jump to its shop and card. Uses her actual gift tastes, avoids repeats, and works before your first gift.</p>
+    content=<p>Open BunnyShop and choose a person under Eye for Value. Your best affordable gift is highlighted. Select Find to jump to its shop and card. Uses their actual gift tastes, avoids repeats, and works before your first gift.</p>
   }else if(skill===TALENT_ABILITIES.borrowed){
     const sources=present.filter(id=>!!availableEchoBreakthrough(game,id)),source=sources.includes(choice)?choice:sources[0]
     const id=present.includes(target)?target:present[0],ability=source?availableEchoBreakthrough(game,source):null

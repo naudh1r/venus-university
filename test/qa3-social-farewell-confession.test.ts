@@ -111,7 +111,7 @@ describe('QA3 departed company and private confession', () => {
     expect(proseCast.map(c => c.charId)).toEqual(['a'])
     expect(ledgerCast.map(c => c.charId)).toEqual(['a', 'b'])
     const proseContext = whisperIdentityContext(state, proseCast)!
-    expect(whisperIdentityLines(proseContext).join(' ')).toContain('she may honestly admit it')
+    expect(whisperIdentityLines(proseContext).join(' ')).toContain('they may honestly admit it')
     const expected = settleWhisperConfession(proseContext, claim, lines).discovery
     expect(expected).toBeDefined()
     const request = { system: 'Bookkeeping', user: 'Scene transcript',

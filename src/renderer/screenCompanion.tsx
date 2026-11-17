@@ -163,10 +163,10 @@ function Companion(): JSX.Element {
   const tabs = [{ id: 'share', label: 'Share' }, { id: 'chat', label: 'Chat' }, { id: 'appearance', label: 'Appearance' }, { id: 'voices', label: 'Voices' }] as const
   const panelProps = (name: typeof tab) => ({ id: `laptop-panel-${name}`, role: 'tabpanel', 'aria-labelledby': `laptop-tab-${name}`, hidden: tab !== name, tabIndex: 0 })
   return <main className="companion-controls companion-workspace" data-theme="day">
-    <header className="companion-header"><div><p className="companion-eyebrow">VENUS UNIVERSITY · A LITTLE TIME TOGETHER</p><h1>Show her my screen</h1>
-      <p>Pull up a chair. There’s something you want to show her.</p></div>
+    <header className="companion-header"><div><p className="companion-eyebrow">VENUS UNIVERSITY · A LITTLE TIME TOGETHER</p><h1>Share my screen</h1>
+      <p>Pull up a chair. There’s something you want to show them.</p></div>
       <span className="companion-session-tag">{state?.sceneKind === 'creator' ? 'Scene Creator' : 'Your story'}</span></header>
-    <section className="companion-people" aria-label="Girls from your scene"><span>With you</span>
+    <section className="companion-people" aria-label="Characters from your scene"><span>With you</span>
       {characters.filter(person => charIds.includes(person.charId)).map(person => <p key={person.charId}>{person.name}</p>)}
       {!characters.length && <p>Waiting for your scene…</p>}
     </section>
@@ -178,9 +178,9 @@ function Companion(): JSX.Element {
             {Object.entries(COMPANION_MODES).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}
           </select></label>
           <p className="companion-hint companion-mode-hint">{COMPANION_MODES[mode].hint}</p>
-          <label>{mode === 'fps' ? 'Your game, role & goal (optional)' : 'A little context (optional)'}<textarea value={coachingContext} disabled={sharing || busy} maxLength={1500} rows={3} onChange={e => setCoachingContext(e.target.value)} placeholder={mode === 'fps' ? 'My FPS game and role. Help me use cover and take better angles.' : 'Tell her what you’re up to, or what you’d like a hand with.'} /></label>
+          <label>{mode === 'fps' ? 'Your game, role & goal (optional)' : 'A little context (optional)'}<textarea value={coachingContext} disabled={sharing || busy} maxLength={1500} rows={3} onChange={e => setCoachingContext(e.target.value)} placeholder={mode === 'fps' ? 'My FPS game and role. Help me use cover and take better angles.' : 'Tell them what you’re up to, or what you’d like a hand with.'} /></label>
           <p className="companion-hint" role="status">{state?.documentName ? <>Using scene notes: <strong>{state.documentName}</strong>. Available in every mode.</> : <>Add a document using the book button in your scene.</>}</p>
-          {mode === 'fps' && <p className="companion-hint">Show the scoreboard for team advice. She sees snapshots, so tips won’t track every cooldown or the latest patch.</p>}
+          {mode === 'fps' && <p className="companion-hint">Show the scoreboard for team advice. They see snapshots, so tips won’t track every cooldown or the latest patch.</p>}
         </section>
         <section className="companion-card"><span className="companion-eyebrow">02 · OPEN YOUR LAPTOP</span><h2>A window into your world</h2>
           <label>Share from your laptop<select value={sourceId} disabled={sharing || busy} onChange={e => setSourceId(e.target.value)}>
@@ -193,7 +193,7 @@ function Companion(): JSX.Element {
           {rapidFps(mode, interval) ? <p className="companion-hint">Tiny callouts and quick highlights, targeting one screen check per second. Previous messages float up and fade over three seconds. AI response time can make updates slower.</p> : <label>Time between reactions<select value={interval} disabled={sharing || busy} onChange={e => setIntervalSeconds(Number(e.target.value))}>
             {[5, 12, 20, 30, 60, 120].map(n => <option key={n} value={n}>{n} seconds after a reply</option>)}
           </select></label>}
-          <p className="companion-hint companion-note">She sees occasional screenshots through your AI provider. Shorter intervals use more credits. Game audio stays with you.</p>
+          <p className="companion-hint companion-note">They see occasional screenshots through your AI provider. Shorter intervals use more credits. Game audio stays with you.</p>
         </section>
       </section>
       <section {...panelProps('chat')} className="companion-grid companion-chat-grid">{conversation}
@@ -207,12 +207,12 @@ function Companion(): JSX.Element {
         <section className="companion-card"><span className="companion-eyebrow">MAKE YOURSELF COMFORTABLE</span><h2>A place beside you</h2>
           <label>Character height <span className="companion-value">{state?.size ?? 520}px</span><input aria-label="Character height" type="range" min="240" max="800" step="20" value={state?.size ?? 520} onChange={e => void perform(() => unwrap(api.configure(Number(e.target.value), state?.clickThrough ?? false)))} /></label>
           <label>Message size <span className="companion-value">{state?.messageSize ?? 100}%</span><input aria-label="Message size" type="range" min="75" max="200" step="5" value={state?.messageSize ?? 100} onChange={e => void perform(() => unwrap(api.messageSize(Number(e.target.value))))} /></label>
-          <p className="companion-hint">Resize the text and bubbles above her, including rapid FPS callouts.</p>
-          <label className="companion-check"><input type="checkbox" checked={state?.clickThrough ?? false} onChange={e => void perform(() => unwrap(api.configure(state?.size ?? 520, e.target.checked)))} /> Let game clicks pass through the girls</label>
-          <p className="companion-hint">With click-through on, hover over a character to reveal her move button in the upper-right corner. To close the companion, right-click the move button and choose Close.</p>
-          <label className="companion-check"><input type="checkbox" checked={state?.pointing ?? true} onChange={e => void perform(() => unwrap(api.pointing(e.target.checked)))} /> Let her point out details on screen</label>
-          <p className="companion-hint">A small aura marks what she means, then fades. Clicks pass through it.</p>
-          <label>Screenshot delay<select aria-label="Screenshot delay" value={screenshotDelay} onChange={e=>setScreenshotDelay(Number(e.target.value))}>{[3,5,10,15].map(seconds=><option key={seconds} value={seconds}>{seconds} seconds</option>)}</select></label><p className="companion-hint">Controls hide while the timer runs. Alt-Tab to your desktop or browser; she stays visible in the screenshot.</p><button className="companion-quiet" disabled={pending} onClick={()=>void perform(async()=>{const file=await unwrap(api.screenshot(screenshotDelay));setError('Screenshot saved: '+file)})}>Screenshot desktop with character</button>
+          <p className="companion-hint">Resize the text and bubbles above them, including rapid FPS callouts.</p>
+          <label className="companion-check"><input type="checkbox" checked={state?.clickThrough ?? false} onChange={e => void perform(() => unwrap(api.configure(state?.size ?? 520, e.target.checked)))} /> Let game clicks pass through the characters</label>
+          <p className="companion-hint">With click-through on, hover over a character to reveal their move button in the upper-right corner. To close the companion, right-click the move button and choose Close.</p>
+          <label className="companion-check"><input type="checkbox" checked={state?.pointing ?? true} onChange={e => void perform(() => unwrap(api.pointing(e.target.checked)))} /> Let them point out details on screen</label>
+          <p className="companion-hint">A small aura marks what they mean, then fades. Clicks pass through it.</p>
+          <label>Screenshot delay<select aria-label="Screenshot delay" value={screenshotDelay} onChange={e=>setScreenshotDelay(Number(e.target.value))}>{[3,5,10,15].map(seconds=><option key={seconds} value={seconds}>{seconds} seconds</option>)}</select></label><p className="companion-hint">Controls hide while the timer runs. Alt-Tab to your desktop or browser; they stay visible in the screenshot.</p><button className="companion-quiet" disabled={pending} onClick={()=>void perform(async()=>{const file=await unwrap(api.screenshot(screenshotDelay));setError('Screenshot saved: '+file)})}>Screenshot desktop with character</button>
           <div className="companion-preview"><select aria-label="Preview expression" value={emotion} disabled={sharing || busy} onChange={e => setEmotion(e.target.value as Emotion)}>{EMOTIONS.map(e => <option key={e} value={e}>{e}</option>)}</select>
             <button className="companion-quiet" disabled={sharing || busy || !charIds.length} onClick={() => void perform(() => unwrap(api.preview(charIds, emotion)))}>Preview expression</button></div>
         </section>

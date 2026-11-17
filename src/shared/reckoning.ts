@@ -109,7 +109,7 @@ export function parseReckoningThoughts(value: unknown, context: ReckoningContext
     const t=object(v)
     if(!Array.isArray(t.evidence)||!t.evidence.length||t.evidence.length>4||t.evidence.some(e=>typeof e!=='string'||!allowed.has(e)))throw Error('A thought cited unavailable history. Try again; no spirit was spent.')
     const rawBelief=text(t.belief,350,'the limiting belief'),belief=requireFirstPerson?firstPersonThought(rawBelief,context.name):rawBelief
-    if(!belief)throw Error('The thought must be in her own first-person voice. Try again; no progress was changed.')
+    if(!belief)throw Error('The thought must be in their own first-person voice. Try again; no progress was changed.')
     return {belief,challenge:text(t.challenge,550,'the thought\'s challenge'),evidence:t.evidence as string[]}
   })
   if(new Set(thoughts.map(t=>t.belief.toLowerCase())).size!==3)throw Error('The thoughts repeated themselves. Try again.')

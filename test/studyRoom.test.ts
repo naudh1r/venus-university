@@ -8,7 +8,7 @@ describe('study access',()=>{
   for(const tier of ['friendly','trusted','devoted'])expect(studyEligibility({...friend,tier})).toBe('')
  })
  it('keeps a declined invitation closed for this slot even for a devoted contact',()=>{
-  expect(studyEligibility({...friend,tier:'devoted',declined:true})).toBe('She has ended this session for this time slot')
+  expect(studyEligibility({...friend,tier:'devoted',declined:true})).toBe('They have ended this session for this time slot')
   expect(studyEligibility({...friend,tier:'devoted',declined:false})).toBe('')
  })
 })
