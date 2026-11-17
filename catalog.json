@@ -1,140 +1,54 @@
 {
   "schemaVersion": 1,
-  "name": "naudh1r's test catalogue",
+  "name": "naudh1r's mods",
   "mods": [
-    {
-      "id": "emoji-extended",
-      "name": "Emoji Extended",
-      "author": "naudh1r",
-      "blurb": "Every emoji on the phone, not just eight. A smiley beside the box opens them all in tabs, with search, the ones you used last first and a skin tone for hands and people. Emoji in texts and posts stand a size up from the words, and a text of nothing but a few is drawn big. No AI calls.",
-      "source": "https://github.com/venus-extracurriculars/build",
-      "releases": [
-        {
-          "version": "1.0.1",
-          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/emoji-extended-1.0.1.zip",
-          "sha256": "cc6ea48d49081f6375727c2c280026e5fd1ac62fcf369d01cb7b28b13d0b1f33",
-          "kit": "0.7.0",
-          "game": ">=0.7.0",
-          "main": false,
-          "reviewed": false,
-          "released": "2026-11-07",
-          "changes": [
-            "A test release with no changes, for trying an update."
-          ]
-        },
-        {
-          "version": "1.0.0",
-          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/emoji-extended-1.0.0.zip",
-          "sha256": "336b41489905eb560f61499e336858aeca715c33ebf89f0b6734479db1a74b8e",
-          "kit": "0.7.0",
-          "game": ">=0.7.0",
-          "main": false,
-          "reviewed": false,
-          "released": "2026-11-07",
-          "changes": [
-            "The panel: every emoji in tabs, search, the ones you used last first and one skin tone for every hand and person, beside the phone's box and any mod's that takes the game's emoji tool.",
-            "Emoji in texts, posts and comments a size up from the words, and a message of one to three drawn big."
-          ]
-        }
-      ],
-      "changelog": [
-        {
-          "version": "1.0.1",
-          "changes": [
-            "A test release with no changes, for trying an update."
-          ]
-        },
-        {
-          "version": "1.0.0",
-          "changes": [
-            "The panel: every emoji in tabs, search, the ones you used last first and one skin tone for every hand and person, beside the phone's box and any mod's that takes the game's emoji tool.",
-            "Emoji in texts, posts and comments a size up from the words, and a message of one to three drawn big."
-          ]
-        }
-      ]
-    },
-    {
-      "id": "bunnyfeeds",
-      "name": "Bunnyfeeds",
-      "author": "naudh1r",
-      "blurb": "Comment on your friends' posts on Bunnyboard. She replies in her own words, her friends and other students join the conversation, and she remembers what you said. Girls also comment on each other's posts, and Notifications under Updates lists every answer to you. Costs a little extra AI each time you close the phone after commenting; just scrolling is free.",
-      "source": "https://github.com/venus-extracurriculars/build",
-      "releases": [
-        {
-          "version": "1.1.4",
-          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/bunnyfeeds-1.1.4.zip",
-          "sha256": "83f8e15ef2b8f2b47730a3245a83f83caa8ca34f9f942f397c6b310e85f5a6c4",
-          "kit": "0.7.0",
-          "game": ">=0.7.0",
-          "main": false,
-          "reviewed": false,
-          "released": "2026-11-07",
-          "changes": [
-            "Your older comments and replies are kept; Bunnyfeeds reads and saves through the mod kit now."
-          ]
-        }
-      ],
-      "changelog": [
-        {
-          "version": "1.1.4",
-          "changes": [
-            "Your older comments and replies are kept; Bunnyfeeds reads and saves through the mod kit now."
-          ]
-        },
-        {
-          "version": "1.1.3",
-          "changes": [
-            "Replies are saved when they arrive: closing the game right after the girls answer no longer loses their replies."
-          ]
-        },
-        {
-          "version": "1.1.2",
-          "changes": [
-            "Who is in her picture: she no longer calls the girl beside her a friend when the two aren't."
-          ]
-        },
-        {
-          "version": "1.1.1",
-          "changes": [
-            "Who is in her picture: with Photo Feature's 2 girls 1 photo on, she knows who is beside her when you ask in the comments, whether or not the two are friends."
-          ]
-        },
-        {
-          "version": "1.1.0",
-          "changes": [
-            "Who comments, reworked: only her friends join on their own, rolled each time (a friend you share most often), anybody else only where you tag her; tagging her enemy reads as such; the people you answer directly answer back; strangers are her followers, with a public feed's whole range of tones; and a girl who replies to you, or whom you answer and who stays quiet, remembers it even before you meet.",
-            "Busier feed, nothing written for nothing: how many people reply under each of the slot's new posts is rolled before it is written, a count for words and one for a picture, and the call writes exactly that many, where it used to write a few and the game kept fewer. The count is her followers; a friend named under the post replies on top of them, so the two mix. Posts draw more too: about a reply under a typical girl's post of words where most had none, two under her picture, and a lively thread under a popular girl's.",
-            "Faces: every face is an archway, ringed in the accent at list size and plain in comments; other students get a face drawn off their handle in place of an emoji, Gradient, Identicon, Shapes, Monogram or Mixed (one of the four per student, kept), chosen in the Mods screen with a preview.",
-            "Emoji: the comment well takes the game's emoji tool, and posts and comments are drawn through its sent text, so with Emoji Extended on the well has its panel and a comment of nothing but a few emoji is drawn big.",
-            "Notifications: a page beside the feed in Updates listing every answer to your comments, with an unread count on its title and on the rail, each opening its post at the reply, and Mark as read on each one or all at once. No AI calls."
-          ]
-        }
-      ]
-    },
     {
       "id": "photo-feature",
       "name": "Photo Feature",
       "author": "naudh1r",
       "blurb": "The girls send photos in their DMs and post them on their feeds, with comments from the rest of campus. Adds a gallery to each contact and optional body details for characters. Separate from the game's own Photos tab, where you make pictures yourself. Needs ComfyUI to draw the pictures, the game's own or yours.",
-      "source": "https://github.com/venus-extracurriculars/build",
+      "source": "https://github.com/naudh1r/venus-university/tree/mod/photo-feature-kit",
       "releases": [
         {
-          "version": "1.7.1",
-          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/photo-feature-1.7.1.zip",
-          "sha256": "374efa5a3f0bf49f3b677a90fdc3957ed5afd161463027cf99c889157b3a742c",
-          "kit": "0.7.0",
-          "game": ">=0.7.0",
+          "version": "1.7.3",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/photo-feature-1.7.3.zip",
+          "sha256": "1e336fc2d5d9ca23a43a96ee840fba5654fec6f3f46d2a348ecce6f82b228421",
+          "kit": "0.8.0",
+          "game": ">=0.8.0",
           "main": true,
           "reviewed": false,
-          "released": "2026-11-07",
+          "released": "2026-11-17",
           "changes": [
-            "Your older photos stay with their texts and posts, including pictures still waiting to appear and photos of two girls.",
-            "A body tag her appearance already names is no longer doubled in sprites or CGs.",
-            "Your photos are kept in Photo Feature's own folder now; older ones move there when you next view that playthrough's photos."
+            "More of her gestures: an OK sign, a salute, finger guns, a peace sign with both hands, cat claws, pointing at you or at herself, shushing, a hand over her mouth, a facepalm, hands on her cheeks, reaching out to you, a fist pump, a shrug, arms in the air, hands on her hips, and flipping you off.",
+            "Reads her sentence more ways: \"flips off\" and \"flipped off\" as well as \"flipping off\", and a pose she puts in words of her own is no longer drawn standing.",
+            "Mirror selfies she describes as facing the mirror with her phone up are drawn as mirror selfies again, and the mirror is left out of the picture's sentence so it draws no second her.",
+            "More varied shots: she picks how close and from which angle to suit the moment, rather than the same one each time, and asks for the light. A photo she takes now is where she is, at that time of day. Standing, she no longer always has a hand on her hip.",
+            "Knees-up shots are framed that way only while she stands. Sitting, kneeling or lying down, her sentence frames the shot.",
+            "Photos of two girls: her friend's face is read past a comma (\"an awkward, shy smile\"), and what both of them do goes to both."
           ]
         }
       ],
       "changelog": [
+        {
+          "version": "1.7.3",
+          "changes": [
+            "More of her gestures: an OK sign, a salute, finger guns, a peace sign with both hands, cat claws, pointing at you or at herself, shushing, a hand over her mouth, a facepalm, hands on her cheeks, reaching out to you, a fist pump, a shrug, arms in the air, hands on her hips, and flipping you off.",
+            "Reads her sentence more ways: \"flips off\" and \"flipped off\" as well as \"flipping off\", and a pose she puts in words of her own is no longer drawn standing.",
+            "Mirror selfies she describes as facing the mirror with her phone up are drawn as mirror selfies again, and the mirror is left out of the picture's sentence so it draws no second her.",
+            "More varied shots: she picks how close and from which angle to suit the moment, rather than the same one each time, and asks for the light. A photo she takes now is where she is, at that time of day. Standing, she no longer always has a hand on her hip.",
+            "Knees-up shots are framed that way only while she stands. Sitting, kneeling or lying down, her sentence frames the shot.",
+            "Photos of two girls: her friend's face is read past a comma (\"an awkward, shy smile\"), and what both of them do goes to both."
+          ]
+        },
+        {
+          "version": "1.7.2",
+          "changes": [
+            "Closer to her sentence: her photos follow what she wrote more closely: how she sits, leans or lies, what her hands are doing, and what she holds, one thing at most.",
+            "Her face up close: a new shot, a close-up of her face, for her look rather than her outfit or the place.",
+            "Mirror selfies: drawn as the picture she took, without a second her in the glass. A photo of her from behind has no mirror in it.",
+            "Photos of two girls: each has her own face and hands, with a little room between them, and the shot is sometimes a selfie, sometimes a photo somebody took."
+          ]
+        },
         {
           "version": "1.7.1",
           "changes": [
@@ -213,6 +127,140 @@
             "Colours and words: legwear she was not given stays off her legs, in any colour. Colours named after food are drawn as colours. A drink is no longer splashed over her, a bubble tea shop no longer hands her a cup, and no camera turns up in her hands.",
             "Sprites: petite and curvy builds show up more on character sprites.",
             "Fixes: the eye icon on hidden photos was dark in the day theme."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bunnyfeeds",
+      "name": "Bunnyfeeds",
+      "author": "naudh1r",
+      "blurb": "Comment on your friends' posts on Bunnyboard. She replies in her own words, her friends and other students join the conversation, and she remembers what you said. Girls also comment on each other's posts, and Notifications under Updates lists every answer to you. Costs a little extra AI each time you close the phone after commenting; just scrolling is free.",
+      "source": "https://github.com/naudh1r/venus-university/tree/mod/bunnyfeeds-kit",
+      "releases": [
+        {
+          "version": "1.1.6",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/bunnyfeeds-1.1.6.zip",
+          "sha256": "367642f1d69b828087b7dd7f6e2754f0c3325bfd9e1589150070fd349683e853",
+          "kit": "0.8.0",
+          "game": ">=0.8.0",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-17",
+          "changes": [
+            "Smoother scenes: in a save with lots of feed comments, a scene's text types out more smoothly. The phone's unread count is only worked out again when something on the feed changes."
+          ]
+        }
+      ],
+      "changelog": [
+        {
+          "version": "1.1.6",
+          "changes": [
+            "Smoother scenes: in a save with lots of feed comments, a scene's text types out more smoothly. The phone's unread count is only worked out again when something on the feed changes."
+          ]
+        },
+        {
+          "version": "1.1.5",
+          "changes": [
+            "Her own photos: when you text or meet her, she knows what the picture on her latest posts showed, not just what she wrote.",
+            "Replies no longer talk about a picture that never appeared on the post."
+          ]
+        },
+        {
+          "version": "1.1.4",
+          "changes": [
+            "Your older comments and replies are kept; Bunnyfeeds reads and saves through the mod kit now.",
+            "Saves don't go back: once a save is played on 1.1.4, an older Bunnyfeeds reads your comments as strangers' and has the girls answer them again."
+          ]
+        },
+        {
+          "version": "1.1.3",
+          "changes": [
+            "Replies are saved when they arrive: closing the game right after the girls answer no longer loses their replies."
+          ]
+        },
+        {
+          "version": "1.1.2",
+          "changes": [
+            "Who is in her picture: she no longer calls the girl beside her a friend when the two aren't."
+          ]
+        },
+        {
+          "version": "1.1.1",
+          "changes": [
+            "Who is in her picture: with Photo Feature's 2 girls 1 photo on, she knows who is beside her when you ask in the comments, whether or not the two are friends."
+          ]
+        },
+        {
+          "version": "1.1.0",
+          "changes": [
+            "Who comments, reworked: only her friends join on their own, rolled each time (a friend you share most often), anybody else only where you tag her; tagging her enemy reads as such; the people you answer directly answer back; strangers are her followers, with a public feed's whole range of tones; and a girl who replies to you, or whom you answer and who stays quiet, remembers it even before you meet.",
+            "Busier feed, nothing written for nothing: how many people reply under each of the slot's new posts is rolled before it is written, a count for words and one for a picture, and the call writes exactly that many, where it used to write a few and the game kept fewer. The count is her followers; a friend named under the post replies on top of them, so the two mix. Posts draw more too: about a reply under a typical girl's post of words where most had none, two under her picture, and a lively thread under a popular girl's.",
+            "Faces: every face is an archway, ringed in the accent at list size and plain in comments; other students get a face drawn off their handle in place of an emoji, Gradient, Identicon, Shapes, Monogram or Mixed (one of the four per student, kept), chosen in the Mods screen with a preview.",
+            "Emoji: the comment well takes the game's emoji tool, and posts and comments are drawn through its sent text, so with Emoji Extended on the well has its panel and a comment of nothing but a few emoji is drawn big.",
+            "Notifications: a page beside the feed in Updates listing every answer to your comments, with an unread count on its title and on the rail, each opening its post at the reply, and Mark as read on each one or all at once. No AI calls."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emoji-extended",
+      "name": "Emoji Extended",
+      "author": "naudh1r",
+      "blurb": "Every emoji on the phone, not just eight. A smiley beside the box opens them all in tabs, with search, the ones you used last first and a skin tone for hands and people. Emoji in texts and posts stand a size up from the words, and a text of nothing but a few is drawn big. No AI calls.",
+      "source": "https://github.com/naudh1r/venus-university/tree/mod/emoji-extended-kit",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/emoji-extended-1.0.0.zip",
+          "sha256": "12eba51ae088dc5c721e94d9ba6fb763d3aa73e19b5ef0c4a82c167537009ac2",
+          "kit": "0.8.0",
+          "game": ">=0.8.0",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-17",
+          "changes": [
+            "The panel: every emoji in tabs, search, the ones you used last first and one skin tone for every hand and person, beside the phone's box and any mod's that takes the game's emoji tool.",
+            "Emoji in texts, posts and comments a size up from the words, and a message of one to three drawn big."
+          ]
+        }
+      ],
+      "changelog": [
+        {
+          "version": "1.0.0",
+          "changes": [
+            "The panel: every emoji in tabs, search, the ones you used last first and one skin tone for every hand and person, beside the phone's box and any mod's that takes the game's emoji tool.",
+            "Emoji in texts, posts and comments a size up from the words, and a message of one to three drawn big."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "after-hours",
+      "name": "After Hours",
+      "author": "Naudh1r",
+      "blurb": "A Busy status for the phone, and a night in your room after the evening to text before you sleep.",
+      "source": "https://github.com/naudh1r/venus-university/tree/mod/after-hours-kit",
+      "releases": [
+        {
+          "version": "0.6.6",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.6.6.zip",
+          "sha256": "97c99b5e777ccdb41ea99bc3efbfe552dc39fbac287a95215303f5221f85f9d4",
+          "kit": "0.8.0",
+          "game": ">=0.8.0",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-17",
+          "changes": [
+            "A Busy status for Bunnyboard, and a night in your room after the evening to text before you sleep."
+          ]
+        }
+      ],
+      "changelog": [
+        {
+          "version": "0.6.6",
+          "changes": [
+            "A Busy status for Bunnyboard, and a night in your room after the evening to text before you sleep."
           ]
         }
       ]

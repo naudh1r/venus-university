@@ -47,31 +47,32 @@ The allowlist told the truth: what it said was left is exactly what kept the bun
 
 ## Try it
 
-The three releases I tested are in [`releases/`](releases), with an `installed.json` standing in for the installer. They're test builds only:
-- Photo's `EchoPanel` is stubbed out, since Echo isn't on `core`.
-- `installed.json` approves Photo's `main.js` by hand. Without it, Photo needs `allowUnreviewedMain: true` in `settings.json`.
-- Bunnyfeeds needs #281 (`replacingUnmarked`). #281's branch is `core` plus #281, so use that until #281 is in `core`; after that, plain `core`.
+The mods are installable releases now, listed in [`catalog.json`](catalog.json) and kept in
+[`releases/`](releases). Each is built from its own branch, `naudh1r-core` plus that one mod:
 
-In PowerShell, with this folder's zips and `installed.json` downloaded into `$z`:
+| Mod | Release | Branch |
+|---|---|---|
+| Photo Feature | 1.7.3 | `mod/photo-feature-kit` |
+| Bunnyfeeds | 1.1.6 | `mod/bunnyfeeds-kit` |
+| Emoji Extended | 1.0.0 | `mod/emoji-extended-kit` |
+| After Hours | 0.6.6 | `mod/after-hours-kit` |
+
+`naudh1r-core` is the org's `core` with After Hours' hooks, a few fixes and the mods browser, and
+its kit is 0.8.0. In PowerShell, from a checkout of it:
 
 ```powershell
-git fetch origin pull/281/head:test/standalone
-git checkout test/standalone
+git checkout naudh1r-core
 npm install
 npm --prefix packages/modkit install
-# if `npm run dev` says "Electron uninstall": node node_modules\electron\install.js
-
-$z = "$HOME\Downloads"
-New-Item -ItemType Directory -Force data\mods | Out-Null
-Expand-Archive "$z\emoji-extended-1.0.0.zip" data\mods\emoji-extended\1.0.0 -Force
-Expand-Archive "$z\bunnyfeeds-1.1.4.zip"     data\mods\bunnyfeeds\1.1.4 -Force
-Expand-Archive "$z\photo-feature-1.7.1.zip"  data\mods\photo-feature\1.7.1 -Force
-Copy-Item "$z\installed.json" data\mods\installed.json
-
 npm run dev
 ```
 
-Then switch the three on under **Mods**. Copy `settings.json` from another checkout first if you want your AI key and ComfyUI setup.
+Then **Mods → Browse**: install the four, restart, and switch them on under **Installed**.
+Photo Feature asks first, since it runs code outside the game window.
+
+[`vxbuild.mjs`](vxbuild.mjs) builds a release: `node vxbuild.mjs <repo> <mod id> <out folder>`,
+from a checkout of the mod's branch. It reads the kit version from the repo, and with `OWN_GLOBS`
+set to the mod's globs it lists any game file that ended up in the bundle.
 
 ## Suggestions
 
