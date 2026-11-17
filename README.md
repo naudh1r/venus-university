@@ -1,83 +1,90 @@
-# Standalone test: Photo Feature, Bunnyfeeds and Emoji Extended as installed mods on `core`
+# naudh1r's mods for Venus University
 
-I built three of my mods as installed releases and ran them on a plain `core` build, to see whether "kit-only" holds outside the repo before anyone builds `vxmod build` or the installer. Short version: it holds, the loader did its job, and the test turned up a few things the build tool will need to handle.
+Installable releases of Photo Feature, Bunnyfeeds, Emoji Extended and After Hours, and the
+catalogue the game's mods browser reads them from. They run on `naudh1r-core`.
 
-## Verdict
-
-**Kit-only works:** three mods run as installed releases on plain `core`, with no game code in their bundles. **What's missing before mods can ship as installs is tooling, not the kit:**
-- a `vxmod build` that generates `vxmod.json`, the `hooks` list above all, from the code
-- the installer that writes `installed.json`
-
-Without the build tool, every author writes the hooks list by hand, and a missing name only shows when that feature is first used.
-
-## What I did
-
-- **Base:** `core` + #281 (`addMemory`'s `replacingUnmarked`, which Bunnyfeeds needs). No mods built in.
-- **Mods:** Emoji Extended 1.0.0, Bunnyfeeds 1.1.4 (#284's branch), Photo Feature 1.7.1 (#283's branch).
-- **Build:** a throwaway esbuild script standing in for `vxmod build`:
-  - `renderer.js`: one ES module, with `react`, `react/jsx-runtime`, `react-dom`, `motion/react` and the kit left external, as `MODDING.md` describes
-  - `style.css`, from the CSS the mod imports
-  - `main.js` (Photo only): one CommonJS file, the main entry's `{ invoke, protocols }` as `module.exports`
-  - `vxmod.json`, generated from the mod's `ModDef`
-- **Install:** each unzipped into `data/mods/<id>/<version>/`, with a hand-written `installed.json` approving Photo's `main.js` in place of the installer.
-
-## Results
-
-| Mod | Game files in the bundle | Result |
+| Mod | Release | What it does |
 |---|---|---|
-| Emoji Extended | none | ✅ runs |
-| Bunnyfeeds | none | ✅ runs |
-| Photo Feature | only `EchoPanel` (its one allowlist row, waiting on Echo's own tab), stubbed for the test | ✅ runs; `main.js` requires only the kit, `electron` and Node's own modules |
+| Photo Feature | 1.7.3 | The girls send photos in their DMs and post them on their feeds, drawn by ComfyUI |
+| Bunnyfeeds | 1.1.6 | Comments under their posts, and replies to yours |
+| Emoji Extended | 1.0.0 | Every emoji on the phone, and big emoji in texts |
+| After Hours | 0.6.6 | A Busy status, and a night in your room to text before you sleep |
 
-Checked in game: DM photos with early render, feed photos solo and duo, comments and replies, emoji in DMs and comments, memory announcements on and off, backup export and import, older saves, and Photo's body field. Older saves' feed memories are replaced through `replacingUnmarked`, one per girl, with her other memories untouched.
+## Installing
 
-The allowlist told the truth: what it said was left is exactly what kept the bundles from being self-contained.
+On `naudh1r-core`, open **Mods → Browse**. Each mod has a page with its description, what it
+needs and its changelog.
 
-## What it found
+1. **Install** downloads the mod's release and checks it against the hash in the catalogue. A
+   file that doesn't match is refused, and nothing is written.
+2. Photo Feature asks first, since part of it runs outside the game window.
+3. Restart, then switch the mod on under **Installed**.
 
-1. **A dependency the allowlist can't see: core calling a mod.** Photo's options were handed to it by the game (`setPhotoSwitches(photoSwitchesOf(…))` in `modsStore.ts` and `modsService.ts`). On `core` nothing did, so every option stayed at its default; the body field never showed. Fixed in #283 (d32132cd): Photo reads them with `sharedModOn` and each side's `modOptionOn`. The scan only looks at mods importing the game, so this direction only showed up when installed. Echo's `setEchoBonusEnabled`, in the same function, is the same pattern.
-2. **The manifest's `hooks` list is the hard part.** The loader refuses a mod that registers or uses something its manifest doesn't declare, which is right, but it took several rounds to get the lists complete:
-   - Bunnyfeeds was missing 5 prompt hooks (`prompts.scene`, `prompts.dm`, …).
-   - Photo was missing 9 hooks plus 18 main-side kit names.
+When a newer release is listed, its page shows **Update**. The version you had stays on disk.
 
-   The main-side ones are checked when they're first used, not at start: Photo started fine and then failed on backup import (`shared:SAFE_NUMERIC_ID is not declared`). In-repo `ModDef.hooks` was never complete, since the built-in path doesn't enforce it, so `vxmod build` needs to derive the list from the code, renderer and main both, rather than trust `ModDef.hooks`.
-3. **`source` is required** in `vxmod.json` and has no counterpart in `ModDef`. The first start refused Emoji Extended for it.
-4. **The manifest repeats the `ModDef`:** name, version, blurb, options, `offNote`. Generating one from the other keeps them in step.
-5. **Small:** `sharedModOn`'s doc comment says main has no binding, but `modsService.ts` binds it, and Photo's fix relies on that.
+## The modkit
 
-## Try it
+A mod reaches the game only through `@vx/modkit`, the kit the game carries: readers for the
+game's state, hooks into its prompts and screens, writes to the save, and its own slice of every
+record. No game file is in a mod's release, so a mod keeps working while the game's own code
+changes underneath it, as long as the kit still has what it uses.
 
-The mods are installable releases now, listed in [`catalog.json`](catalog.json) and kept in
-[`releases/`](releases). Each is built from its own branch, `naudh1r-core` plus that one mod:
+An installed mod lives in `data/mods/<id>/<version>/`:
 
-| Mod | Release | Branch |
-|---|---|---|
-| Photo Feature | 1.7.3 | `mod/photo-feature-kit` |
-| Bunnyfeeds | 1.1.6 | `mod/bunnyfeeds-kit` |
-| Emoji Extended | 1.0.0 | `mod/emoji-extended-kit` |
-| After Hours | 0.6.6 | `mod/after-hours-kit` |
+| File | What it is |
+|---|---|
+| `vxmod.json` | The manifest: id, name, version, the kit it needs, and every hook and kit function it uses |
+| `renderer.js` | The mod's code in the game window |
+| `style.css` | Its styles, where it has any |
+| `main.js` | Its code outside the window, where it has any (Photo Feature does) |
 
-`naudh1r-core` is the org's `core` with After Hours' hooks, a few fixes and the mods browser, and
-its kit is 0.8.0. In PowerShell, from a checkout of it:
+The game refuses a mod whose manifest leaves out something it uses, or that needs a kit the game
+doesn't have. `data/mods/installed.json` records each install: where it came from, its hash and
+whether its `main.js` was approved.
 
-```powershell
-git checkout naudh1r-core
-npm install
-npm --prefix packages/modkit install
-npm run dev
-```
+## naudh1r-core
 
-Then **Mods → Browse**: install the four, restart, and switch them on under **Installed**.
-Photo Feature asks first, since it runs code outside the game window.
+The game these releases are built for: the org's `core`, plus After Hours' hooks, a few fixes
+and the mods browser. Its kit is **0.8.0**, one version ahead of the org's 0.7.0, and moves
+ahead again whenever the org's does. Every release asks for kit 0.8.0 or newer, so a newer core
+keeps running them.
 
-[`vxbuild.mjs`](vxbuild.mjs) builds a release: `node vxbuild.mjs <repo> <mod id> <out folder>`,
-from a checkout of the mod's branch. It reads the kit version from the repo and asks for that version or newer, and with `OWN_GLOBS`
-set to the mod's globs it lists any game file that ended up in the bundle.
+## Branches
 
-## Suggestions
+| Branch | What it holds |
+|---|---|
+| `naudh1r-core` | The game and the kit, with no mods |
+| `mod/photo-feature-kit` | `naudh1r-core` + Photo Feature |
+| `mod/bunnyfeeds-kit` | `naudh1r-core` + Bunnyfeeds |
+| `mod/emoji-extended-kit` | `naudh1r-core` + Emoji Extended |
+| `mod/after-hours-kit` | `naudh1r-core` + After Hours |
+| `notes/standalone-mods` | This page, the catalogue and the releases |
 
-- **`vxmod build`:** generate `vxmod.json` from the `ModDef`, derive `hooks` from what the bundles actually use, and refuse to build when a game file ends up in the bundle. The throwaway script does most of that: [`vxbuild.mjs`](vxbuild.mjs), if it's a useful start.
-- **The installer:** `unpack.ts` already does the safe unpack; what's missing is writing `installed.json` (hash, source, approval).
-- **A reverse check:** a test that no game file imports a mod's file, to catch case 1 before it ships.
+Each mod's `-kit` branch is where it is changed and tested. A change meant for the org's `main`
+or `core` is carried to a new branch from there, one commit at a time.
 
-The build here was only a test build to see whether the mods hold up, not a proposal for how `vxmod build` should work. If you have other ideas for any of this, go with them; happy to help either way. Feel free to use these three mods to experiment with, for `vxmod build`, the installer or anything else.
+## Releasing
+
+1. Make the change on the mod's `-kit` branch, and bump its version in
+   `src/shared/modEntries/<id>.ts`: the last digit for a fix, the middle for a new feature, the
+   first for a change older saves can't go back from.
+2. Add the version's section at the top of the changelog in `docs/mods/<id>.md`.
+3. Build the release from a checkout of that branch, and zip what it writes as
+   `releases/<id>-<version>.zip`:
+
+   ```
+   node vxbuild.mjs <repo> <id> <out folder>
+   ```
+
+   [`vxbuild.mjs`](vxbuild.mjs) writes the manifest from the mod's definition and the code it
+   bundles, and asks for the kit it builds against or newer. With `OWN_GLOBS` set to the mod's
+   file globs, it lists any game file that ended up in the bundle, which should be none.
+4. Add the release to [`catalog.json`](catalog.json) with its sha256 and changelog.
+
+A released version is never rebuilt: a change is a new version, with its own zip and hash.
+
+## The catalogue
+
+[`catalog.json`](catalog.json) lists each mod with its releases, newest first. A release names
+its zip, sha256, the kit and game it needs, whether it has a `main.js`, and its changes. A mod
+can also have a `cover` and up to eight `screenshots`, which its page in Browse shows.
