@@ -201,6 +201,12 @@ describe('openaiAdapter stream frames', () => {
     expect(error.code).toBe('LLM_BLOCKED')
   })
 
+  it('reports a reply the endpoint stopped without a reason as one the prompt may answer', async () => {
+    const error = await errorOf(read([deltaFrame('half a ', 'error')]))
+
+    expect(error.code).toBe('LLM_STOPPED')
+  })
+
   it('passes over the usage chunk that carries no choice', async () => {
     const result = await read([
       deltaFrame('done'),
