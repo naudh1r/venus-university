@@ -1,2 +1,3 @@
 01-post-photo.webp: Her post, with the photo and a reply from another student.
 02-notifications.webp: Notifications under Updates lists every answer to your comments.
+03-thread.webp: A conversation under her post: she answers you, and her friends join in.
