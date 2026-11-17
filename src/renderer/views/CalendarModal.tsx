@@ -277,7 +277,8 @@ export function CalendarModal({
   onDeleteReplay,
   onClose
 }: CalendarModalProps): JSX.Element | null {
-  const today = useGameStore((s) => s.date)
+  // A held late night still belongs to the day it follows, though the clock already reads the morning.
+  const today = useGameStore((s) => s.interlude?.now.clock === 'late-night' ? s.interlude.now.from.date : s.date)
   const semesterIndex = useGameStore((s) => s.semesterIndex)
   const playerSchedule = useGameStore((s) => s.playerSchedule)
   const classes = useGameStore((s) => s.classes)

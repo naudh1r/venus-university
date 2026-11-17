@@ -88,7 +88,7 @@ export async function startExam(
   const textCall = claimTextLedger(game.date, game.time)
   loopState.examTextLedger = textCall
   loopState.examOpening = textCall.then((ledger) =>
-    ledger === null ? null : fetchEndingOpening(ledger)
+    ledger === null ? null : fetchEndingOpening(ledger, undefined, null)
   )
 
   queueLines([
@@ -200,7 +200,7 @@ export async function runQuietEnding(): Promise<void> {
   // file on an exam slot as on any other, and the rest reads nothing an exam lacks.
   loopState.pendingLedgerResult = ledger
 
-  const opening = await (prefetchedOpening ?? fetchEndingOpening(ledger))
+  const opening = await (prefetchedOpening ?? fetchEndingOpening(ledger, undefined, null))
   if (!opening) return
   if (runStale(run)) return
 

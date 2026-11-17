@@ -725,7 +725,7 @@ export function datingInputOf(
  * Applies a finished scene's ledger — memories, then milestones, then who the campus now
  * takes the reader to be dating.
  */
-export function applyLedger(ledger: LedgerResponse): DatingPassOutcome {
+export function applyLedger(ledger: LedgerResponse, date = useGameStore.getState().date): DatingPassOutcome {
   const game = useGameStore.getState()
   // Taken before anything writes: the dating pass is a diff across the whole apply.
   const before = game.charInfo
@@ -738,21 +738,21 @@ export function applyLedger(ledger: LedgerResponse): DatingPassOutcome {
   }
 
   for (const entry of ledgerMemories(ledger)) {
-    game.recordMemory(entry.charId, { date: game.date, type: entry.type, desc: entry.desc })
+    game.recordMemory(entry.charId, { date, type: entry.type, desc: entry.desc })
   }
 
-  // Still the finished slot's date: `advanceSlot` runs later in the boundary.
+  // Text memories use the day being settled.
   // Replaces rather than appends — the phone holds one impression. A graduate's is kept among
   // her memories instead, saying it came by text, since texting is all she has of him now.
   for (const entry of ledgerTextMemories(ledger)) {
     if (game.charInfo[entry.charId]?.pursuing !== undefined) {
       game.recordMemory(entry.charId, {
-        date: game.date,
+        date,
         type: entry.type,
         desc: overTextDesc(entry.desc)
       })
     } else {
-      game.setTextMemory(entry.charId, { date: game.date, type: entry.type, desc: entry.desc })
+      game.setTextMemory(entry.charId, { date, type: entry.type, desc: entry.desc })
     }
   }
 
@@ -762,14 +762,14 @@ export function applyLedger(ledger: LedgerResponse): DatingPassOutcome {
     if (events.includes('gave_contact_info')) addContact(charId, 1)
     // Its mirror, ahead of the fold so `unblockContact` still sees the block standing.
     if (events.includes('unblocked')) unblockContact(charId, 1)
-    useGameStore.getState().applyRelationshipEvents(charId, events)
+    useGameStore.getState().applyRelationshipEvents(charId, events, date)
   }
 
   // Every kiss and every night counted once per act: the boundary replays from the save before
   // it, so this lands once however often it runs.
   game.recordActs(ledgerActs(ledger, false))
 
-  const dating = settleDating(datingInputOf(before, useGameStore.getState().charInfo, game.date))
+  const dating = settleDating(datingInputOf(before, useGameStore.getState().charInfo, date))
   useGameStore.getState().applyDatingSettle(dating)
   return dating
 }

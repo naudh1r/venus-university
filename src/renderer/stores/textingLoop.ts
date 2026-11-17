@@ -1,10 +1,12 @@
+import { chatClockOf, messageShown, shownConversation, shownMessages, unreadAfterOpening, type ChatClock } from '@shared/chatVisibility'
+import { textingClockOf } from '@shared/textingClock'
 /**
  * The Bunnyboard texting loop (the game loop's little sibling): sends the player's texts, streams
  * the character's replies into the conversation, evaluates friend requests at slot boundaries, and
  * turns an agreed hangout into a real scene.
  */
 
-import { formatDateBanner, prevSlot, shiftWeekdayOf } from '../prompts/gameDate'
+import { formatDateBanner, nextSlot, prevSlot, shiftWeekdayOf } from '../prompts/gameDate'
 import type {
   CalendarEvent,
   CharInfo,
@@ -73,6 +75,7 @@ import { coldStageAt, isSymptomatic } from '@shared/colds'
 import {
   buildHangoutClassifierPrompt,
   normalizeHangout,
+  type HangoutClassifierState,
   type HangoutVerdict
 } from '../prompts/hangoutClassifierPrompt'
 import { buildTextingPrompt, unansweredReachOuts } from '../prompts/textingPrompt'
@@ -90,7 +93,9 @@ import {
 } from '@shared/types'
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
-import { afterDmReply, afterReachOut, dmReplyLead, promptTextEdits } from '../mods/hooks'
+import { heldReplyDueAt, sharedReplyClass } from '@shared/heldReplies'
+import { threadStartedBy, waitingText } from '@shared/textingThread'
+import { afterDmReply, afterReachOut, dmReplyLead, hangoutCheck, textWhileBusy, promptTextEdits } from '../mods/hooks'
 import { lorebookNow } from './lorebookStore'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
 import { createRetryGate } from './retryGate'
@@ -99,6 +104,8 @@ import { BOT_REPLY_MS, createTypingPacer, typingDelayFor, type TypingPacer } fro
 import {
   charAwayNow,
   charBusyNow,
+  charClassNow,
+  charCommitmentAt,
   charHiddenLocationNow,
   charOverlayGroupNow,
   charStandingHauntAt,
@@ -139,9 +146,9 @@ import { isFeedContact } from './feedView'
 import type { NpcCompanions } from '../prompts/npcRelationship'
 
 /** Who is with `charId` this slot, as the sentence naming them reads. */
-function companionsOf(charId: string): NpcCompanions {
+function companionsOf(charId: string, at: ChatClock): NpcCompanions {
   const game = useGameStore.getState()
-  const group = charOverlayGroupNow(charId)
+  const group = charOverlayGroupNow(charId, at.date, at.time)
   const knownNames: string[] = []
   let unknown = 0
   for (const member of group?.members ?? []) {
@@ -155,7 +162,7 @@ function companionsOf(charId: string): NpcCompanions {
 }
 
 /** One in-flight texting turn per conversation, keyed by charId. */
-type TextFlight = { abandoned: boolean; pacer: TypingPacer; abortLead: () => void }
+type TextFlight = { held?: ChatClock; abandoned: boolean; pacer: TypingPacer; abortLead: () => void }
 const inFlight = new Map<string, TextFlight>()
 
 /**
@@ -173,6 +180,7 @@ const failedTurns = new Map<
     invited: Conversation['pendingHangout'] | null
     bubbleId: string
     code: string
+    held?: ChatClock
   }
 >()
 
@@ -182,10 +190,11 @@ const failedTurns = new Map<
  */
 export function sceneActiveOf(state: {
   busy: boolean
+  sceneEnding?: boolean
   currentSceneTranscript: readonly unknown[]
   sceneSummary: string | null
 }): boolean {
-  return state.busy || state.currentSceneTranscript.length > 0 || state.sceneSummary !== null
+  return state.busy || state.sceneEnding === true || state.currentSceneTranscript.length > 0 || state.sceneSummary !== null
 }
 
 /**
@@ -193,7 +202,7 @@ export function sceneActiveOf(state: {
  * Bunnyboard can subscribe to it.
  */
 export function epilogueOf(state: { date: number; time: TimeSlot }): boolean {
-  return isGraduationSlot(state.date, state.time)
+  return !('interlude' in state && state.interlude) && isGraduationSlot(state.date, state.time)
 }
 
 /**
@@ -233,7 +242,8 @@ function chatMessage(sender: ChatSender, text: string, error = false): ChatMessa
     sender,
     text,
     date: game.date,
-    time: game.time
+    time: game.time,
+    ...(game.interlude?.now.clock === 'late-night' ? { late: true as const } : {})
   }
   if (error) message.error = true
   return message
@@ -310,7 +320,7 @@ async function typedBotReply(chatId: string, text: string): Promise<void> {
  */
 export function textingUnsettled(): boolean {
   const { busyCharIds, typingCharIds, failedCharIds } = useBunnyboardStore.getState()
-  return busyCharIds.length > 0 || typingCharIds.length > 0 || failedCharIds.length > 0
+  return busyCharIds.some(id => !inFlight.get(id)?.held) || typingCharIds.length > 0 || failedCharIds.length > 0
 }
 
 /** One timer, awaited. */
@@ -522,91 +532,93 @@ function deliverBunnybotInvitationTip(): void {
 
 /** Sends one player text and requests the character's reply. */
 export async function sendMessage(charId: string, text: string): Promise<void> {
+  return sendText(charId, text)
+}
+
+/** Adds the player's message and starts the reply turn. */
+async function sendText(charId: string, text: string): Promise<void> {
   const trimmed = text.trim()
   if (!trimmed || inFlight.has(charId)) return
   // No bot can be written for: their composers are buttons or nothing at all.
   if (isBossChat(charId) || isVenusChat(charId) || isBunnybotChat(charId)) return
 
-  const game = useGameStore.getState()
+  let game = useGameStore.getState()
   // Texting her anything settles an ignored invitation and answers one put away with No.
   game.setIgnoredInvitation(charId, false)
   game.setPendingHangout(charId, null)
 
   // The thread as it stood *before* this message; the new one rides separately in the prompt.
-  const conversation = game.bunnyboard.conversations[charId]
+  let conversation = game.bunnyboard.conversations[charId]
   // The ask-out she had standing, so this exchange is his answer to it — and to whatever
   // occasion it was about.
   const invited = conversation?.pendingHangout ?? null
   const character = game.characters[charId]
   if (!character) return
 
-  const sent = chatMessage('player', trimmed)
-  game.appendChatMessage(charId, sent, 0)
+  const previousHold = conversation?.heldReply
+  const firstText = previousHold && !previousHold.opened
+    ? conversation?.messages.find(message => message.id === previousHold.firstPlayerId) : undefined
+  const sentAt = firstText?.late ? prevSlot(firstText.date, firstText.time) : firstText
+  const commitment = sentAt ? charCommitmentAt(charId, sentAt.date, sentAt.time)
+    : game.interlude?.now.clock === 'late-night' ? null : charCommitmentAt(charId)
+  let held = (previousHold && !previousHold.opened
+    ? previousHold.until
+    : commitment && textWhileBusy({ charId, commitment }) ? nextSlot(game.date, game.time) : undefined)
+  const next = nextSlot(game.date, game.time)
+  const herClass = held && !charAwayNow(charId, next.date)
+    ? charClassNow(charId, next.date, next.time) : null
+  const sharedCode = held ? sharedReplyClass(herClass ? { kind: 'class', code: herClass } : null,
+    playerClassNow(next.date, next.time)) : null
+  // A photo is answered now, while its image can still be shown to her; a reply written after the
+  // class would see only that a photo was sent.
+  const afterClass = held
+    ? previousHold?.afterClass ?? (sharedCode ? { ...next, code: sharedCode } : undefined) : undefined
+  if (afterClass) held = nextSlot(afterClass.date, afterClass.time)
+  if (held && previousHold) {
+    const ids = new Set(previousHold.messageIds)
+    useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
+      ...state.bunnyboard.conversations,
+      [charId]: { ...state.bunnyboard.conversations[charId], messages: state.bunnyboard.conversations[charId].messages.filter(message => !ids.has(message.id)) }
+    } } }))
+    conversation = useGameStore.getState().bunnyboard.conversations[charId]
+  }
+  const sent = {
+    ...chatMessage('player', trimmed),
+    ...(held ? { awaitingReply: true as const } : {})
+  }
+  if (sent) game.appendChatMessage(charId, sent, 0)
+  if (held && sent) {
+    useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
+      ...state.bunnyboard.conversations,
+      [charId]: { ...state.bunnyboard.conversations[charId], heldReply: {
+        until: held, firstPlayerId: previousHold?.firstPlayerId ?? sent.id, messageIds: [],
+        ...(afterClass ? { afterClass } : {})
+      } }
+    } } }))
+    game = useGameStore.getState()
+    conversation = { ...game.bunnyboard.conversations[charId], messages: game.bunnyboard.conversations[charId].messages.filter(message => message.id !== sent.id) }
+  }
+  if (held && afterClass) return
+  if (conversation) conversation = { ...conversation, messages: [...shownMessages(conversation.messages, chatClockOf(game))] }
 
   // The composer stays locked from here until the hangout verdict is in.
   useBunnyboardStore.getState().setTextBusy(charId, true)
 
   let owned: TextFlight | undefined
   try {
-    // Everyone else on the roster and every graduate, for the lorebook's character entries.
-    const others = [...game.chars, ...game.alumni]
-      .filter((id) => id !== charId)
-      .map((id) => game.characters[id])
-      .filter((other): other is Character => Boolean(other))
-    const visitor = homecomingVisitorNow()
-
+    // Everyone else on the roster and every graduate, for the lorebook's character entries,
+    // gathered with the rest of her state in `textingState`.
     const request = buildTextingPrompt(
       character,
       game.charInfo[charId],
       conversation,
       trimmed,
-      {
-        date: game.date,
-        time: game.time,
-        stats: game.stats,
-        roster: others,
-        lorebook: lorebookNow(),
-        charInfo: game.charInfo,
-        npcRelationships: game.npcRelationships,
-        classes: game.classes,
-        playerSchedule: game.playerSchedule,
-        classRosters: classRostersOf(
-          game.classes,
-          game.chars,
-          game.characters,
-          game.charInfo,
-          game.classRecords
-        ),
-        playerJob: game.job,
-        calendar: game.calendar,
-        weather: game.weather,
-        // Where she is texting from; never a class or shift, as the composer is shut then.
-        charLocation: charHiddenLocationNow(charId),
-        // Who is with her: the same group the location came from.
-        charCompanions: companionsOf(charId),
-        // What she is there for, on a slot she is standing at her own haunt.
-        charHaunt: charStandingHauntNow(charId),
-        // The one absence a thread survives, so her block has to say it.
-        springBreakAway: game.springBreakAway,
-        // The one day a graduate's thread is from somebody in town.
-        ...(visitor ? { homecomingVisitor: visitor } : {}),
-        // From this slot on: texting comes before the slot's scene, so its own plan is still ahead.
-        upcomingPlans: upcomingPlanLines(
-          game.events,
-          game.characters,
-          globalSlotOf(game.date, game.time),
-          game.calendar.season
-        ),
-        memoryBudget: memoryBudgetsOf(useSettingsStore.getState().settings ?? {}).one,
-        secretBudget: secretBudgetOf(useSettingsStore.getState().settings ?? {}),
-        history: game.history,
-        globalTextEdits: promptTextEdits()?.global
-      },
+      { ...textingState(game, charId), ...(held ? { heldUntil: held, ...(commitment ? { commitment } : {}) } : {}) },
       // The same reader block a scene gets, grades and all.
-      readerBlockOf(game)
+      readerBlockOf({ ...game, ...textingClockOf(game) })
     )
 
-    const reply = runReply(charId, character, conversation, sent, request, 0, invited)
+    const reply = runReply(charId, character, conversation, sent, request, 0, invited, held)
     owned = inFlight.get(charId)
     await reply
   } finally {
@@ -618,8 +630,7 @@ export async function sendMessage(charId: string, text: string): Promise<void> {
 }
 
 /**
- * One reply turn: stream her texts through the pacer, then hand the finished exchange to the
- * hangout classifier.
+ * Paces an ordinary reply before classification, or banks a held reply without classification.
  */
 async function runReply(
   charId: string,
@@ -628,22 +639,26 @@ async function runReply(
   sent: ChatMessage,
   request: Parameters<typeof window.api.llm.completeTexting>[0],
   skip: number,
-  invited: Conversation['pendingHangout'] | null
+  invited: Conversation['pendingHangout'] | null,
+  held?: ChatClock,
+  quietFailure = false
 ): Promise<void> {
   // Every text goes through the pacer, one at a time at typing speed.
   // `released` counts what actually landed, which a retry must not repeat.
   let released = skip
   const pacer = createTypingPacer(charId, (text) => {
     released += 1
-    deliver(charId, chatMessage('contact', text))
+    const message = chatMessage('contact', text)
+    deliver(charId, message)
   })
   const leadController = new AbortController()
   let landed = false
   const abortLead = (): void => { if (!landed) leadController.abort() }
-  const entry = { abandoned: false, pacer, abortLead }
+  const entry = { abandoned: false, pacer, abortLead, held }
   inFlight.set(charId, entry)
 
   try {
+
     // Streamed texts are queued as their JSON string closes; the resolved reply
     // stays authoritative for anything the preview missed.
     const extractor = createTextExtractor()
@@ -657,6 +672,7 @@ async function runReply(
       if (entry.abandoned) return
       const lead = leadReader.feed(delta)
       if (lead) dmReplyLead({ charId, character, lead, signal: leadController.signal })
+      if (held) return
       for (const message of extractor.feed(delta)) {
         const clean = message.trim()
         if (!clean) continue
@@ -678,6 +694,10 @@ async function runReply(
     if (!result.ok) {
       if (result.error.code === 'CANCELLED') return
       console.warn('[texting] the reply failed:', result.error)
+      if (quietFailure) {
+        pacer.cancel()
+        return
+      }
       // Whatever the stream queued is dropped; anything already released stays.
       pacer.cancel()
       // The failure is said in the thread at once, under whatever did land.
@@ -691,7 +711,8 @@ async function runReply(
         released,
         invited,
         bubbleId: bubble.id,
-        code: result.error.code
+        code: result.error.code,
+        ...(held ? { held } : {})
       })
       useBunnyboardStore.getState().setTextFailed(charId, true)
       return
@@ -699,6 +720,28 @@ async function runReply(
 
     const data: TextingResponse = result.data
     const messages = (data.messages ?? []).map((text) => text.trim()).filter(Boolean)
+    if (held) {
+      for (const text of messages) deliver(charId, chatMessage('contact', text))
+      useGameStore.setState(state => {
+        const chat = state.bunnyboard.conversations[charId]
+        return { bunnyboard: { ...state.bunnyboard, conversations: { ...state.bunnyboard.conversations,
+          [charId]: { ...chat,
+            messages: chat.messages.map(message => {
+              if (!message.awaitingReply) return message
+              const next = { ...message }; delete next.awaitingReply; return next
+            }),
+            ...(chat.heldReply ? { heldReply: { ...chat.heldReply,
+              ...(data.blocked === true ? { blocked: true as const } : {}),
+              ...(data.summary?.trim() ? { summary: data.summary.trim() } : {})
+            } } : {})
+          }
+        } } }
+      })
+      landed = true
+      afterDmReply({ charId, character, reply: data })
+      releaseHeldReplies()
+      return
+    }
     // Anything the preview did not already queue — nor an earlier attempt release.
     for (const text of messages.slice(Math.max(seen, skip))) {
       pacer.push(text)
@@ -726,10 +769,66 @@ async function runReply(
     // A scene already owns the screen: the verdict could only be discarded.
     if (sceneActiveOf(useGameStore.getState())) return
 
-    handleHangout(charId, await classifyHangout(character, conversation, sent, messages))
-    if (invited) settleAnsweredInvitation(charId, invited.occasionId)
+    // An unsolicited text is not an answer to a standing invitation.
+    if (!sent && invited) return
+    const verdict = await classifyHangout(character, conversation, sent, messages)
+    if (!useGameStore.getState().interlude) handleHangout(charId, verdict)
+    if (sent && invited) settleAnsweredInvitation(charId, invited.occasionId)
   } finally {
     abortLead()
+  }
+}
+
+/** Both delivery paths provide the same current continuity to every DM hook. */
+function textingState(game: ReturnType<typeof useGameStore.getState>, charId: string): Parameters<typeof buildTextingPrompt>[4] {
+  const now = textingClockOf(game)
+  // Everyone else on the roster and every graduate, for the lorebook's character entries.
+  const others = [...game.chars, ...game.alumni]
+    .filter((id) => id !== charId)
+    .map((id) => game.characters[id])
+    .filter((other): other is Character => Boolean(other))
+  const visitor = homecomingVisitorNow(now.date)
+  return {
+    ...now,
+    ...(game.interlude?.now.clock === 'late-night' ? { lateNight: game.interlude.now.from } : {}),
+    stats: game.stats,
+    roster: others,
+    lorebook: lorebookNow(),
+    charInfo: game.charInfo,
+    npcRelationships: game.npcRelationships,
+    classes: game.classes,
+    playerSchedule: game.playerSchedule,
+    classRosters: classRostersOf(
+      game.classes,
+      game.chars,
+      game.characters,
+      game.charInfo,
+      game.classRecords
+    ),
+    playerJob: game.job,
+    calendar: game.calendar,
+    weather: game.weather,
+    // Where she is texting from; never a class or shift, as the composer is shut then.
+    charLocation: charHiddenLocationNow(charId, now.date, now.time),
+    // Who is with her: the same group the location came from.
+    charCompanions: companionsOf(charId, now),
+    // What she is there for, on a slot she is standing at her own haunt.
+    charHaunt: charStandingHauntNow(charId, now.date, now.time),
+    // The one absence a thread survives, so her block has to say it.
+    springBreakAway: game.springBreakAway,
+    // The one day a graduate's thread is from somebody in town.
+    ...(visitor ? { homecomingVisitor: visitor } : {}),
+    // From this slot on: texting comes before the slot's scene, so its own plan is still ahead.
+    upcomingPlans: upcomingPlanLines(
+      game.events,
+      game.characters,
+      globalSlotOf(now.date, now.time),
+      game.calendar.season
+    ),
+    memoryBudget: memoryBudgetsOf(useSettingsStore.getState().settings ?? {}).one,
+    secretBudget: secretBudgetOf(useSettingsStore.getState().settings ?? {}),
+    history: game.history,
+    globalTextEdits: promptTextEdits()?.global
   }
 }
 
@@ -774,7 +873,8 @@ export async function retryFailedMessage(charId: string, prompt?: string): Promi
       failed.sent,
       prompt === undefined ? failed.request : { ...failed.request, user: prompt },
       failed.released,
-      failed.invited
+      failed.invited,
+      failed.held
     )
     owned = inFlight.get(charId)
     await reply
@@ -818,6 +918,26 @@ export function abandonHangoutClassify(): void {
   hangoutGate.answer(false)
 }
 
+/** The clock and weather every hangout classification reads, including a regenerated reply. */
+function hangoutClockOf(game: ReturnType<typeof useGameStore.getState>): HangoutClassifierState {
+  return {
+    date: game.date,
+    time: game.time,
+    season: game.calendar.season,
+    weather: game.weather
+  }
+}
+
+/** Interludes suppress the check before any mod or classifier is asked. */
+function shouldCheckHangout(charId: string): boolean {
+  const game = useGameStore.getState()
+  if (game.interlude) return false
+  return hangoutCheck({
+    charId,
+    startedBy: threadStartedBy(shownMessages(game.bunnyboard.conversations[charId]?.messages ?? [], chatClockOf(game)), game.date, game.time)
+  })
+}
+
 /**
  * Asks the hangout classifier whether the exchange that just happened was somebody proposing to
  * meet up right now.
@@ -828,7 +948,7 @@ async function classifyHangout(
   sent: ChatMessage,
   replies: readonly string[]
 ): Promise<HangoutVerdict | null> {
-  if (replies.length === 0) return null
+  if (replies.length === 0 || !shouldCheckHangout(character.charId)) return null
 
   const game = useGameStore.getState()
   // Built once, outside the loop: a retry re-sends the identical request.
@@ -837,13 +957,13 @@ async function classifyHangout(
     conversation?.messages ?? [],
     sent,
     replies.map((text) => chatMessage('contact', text)),
-    { date: game.date, time: game.time, season: game.calendar.season, weather: game.weather }
+    hangoutClockOf(game)
   )
 
   for (;;) {
     const result = await window.api.llm.classifyHangout(request)
     if (result.ok) {
-      const verdict = normalizeHangout(result.data)
+      const verdict = normalizeHangout(sent ? result.data : { ...result.data, playerAsked: false })
       console.log(
         `[hangout] = ${verdict ? `${verdict.initiatedBy}: ${verdict.description}` : 'no hangout'}`
       )
@@ -1080,7 +1200,8 @@ export function acceptFriendRequest(charId: string): void {
  * busy.
  */
 export function resetTextingLoop(): void {
-  for (const entry of inFlight.values()) {
+  for (const [charId, entry] of inFlight) {
+    if (entry.held) void window.api.jobs.cancelGroup(`texting:${charId}`)
     entry.abandoned = true
     entry.abortLead()
     entry.pacer.cancel()
@@ -1094,19 +1215,18 @@ export function resetTextingLoop(): void {
 }
 
 /**
- * Abandons and cancels every in-flight reply and parked failed turn when a scene starts —
- * whoever the thread is with.
+ * Cancels ordinary replies and failed turns on scene entry. Held replies keep running.
  */
 export function cancelAllTexts(): void {
-  for (const charId of failedTurns.keys()) {
-    // A parked failed turn goes the same way; the composer comes back with the thread.
+  for (const [charId, failed] of failedTurns) {
+    if (failed.held) continue
     useBunnyboardStore.getState().setTextFailed(charId, false)
+    failedTurns.delete(charId)
   }
-  failedTurns.clear()
   for (const [charId, entry] of inFlight) {
+    if (entry.held) continue
     entry.abandoned = true
     entry.abortLead()
-    // Texts still waiting out their delay never arrive.
     entry.pacer.cancel()
     void window.api.jobs.cancelGroup(`texting:${charId}`)
   }
@@ -1282,7 +1402,7 @@ export function pickOccasionAsker(
   overlay: NpcSlotOverlay | null = null
 ): string | null {
   const game = useGameStore.getState()
-  const conversations = game.bunnyboard.conversations
+  const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => [id, shownConversation(chat, chatClockOf(game))!]))
   const target = globalSlotOf(day, half)
 
   // Everybody the overlay for this slot has spending it with somebody.
@@ -1293,6 +1413,7 @@ export function pickOccasionAsker(
 
   const candidates: OccasionAskCandidate[] = []
   for (const charId of game.chars) {
+    if (heldReplyDueAt(game.bunnyboard.conversations[charId]?.heldReply, day, half)) continue
     if (askChanceFor(charId, day, half, view, 1) <= 0) continue
     if (charUnavailableNow(charId, day, half)) continue
     // She is already asking him something else.
@@ -1371,6 +1492,7 @@ export function pickSlotAskers(
     const reachable = event.charIds.filter(
       (charId) =>
         !chosen.has(charId) &&
+        !heldReplyDueAt(game.bunnyboard.conversations[charId]?.heldReply, day, half) &&
         game.characters[charId] &&
         !view.charInfo[charId]?.flags?.blocked &&
         !charAwayNow(charId, day)
@@ -1385,7 +1507,7 @@ export function pickSlotAskers(
   if (booked) return picked
 
   const target = globalSlotOf(day, half)
-  const conversations = game.bunnyboard.conversations
+  const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => [id, shownConversation(chat, chatClockOf(game))!]))
   // One invitation, then a spell of quiet, whoever sent it.
   let newest: number | null = null
   for (const conversation of Object.values(conversations)) {
@@ -1398,7 +1520,7 @@ export function pickSlotAskers(
   const seenLastSlot = inSceneLastSlot(day, half)
   const candidates: SlotAskCandidate[] = []
   for (const charId of game.chars) {
-    if (chosen.has(charId)) continue
+    if (chosen.has(charId) || heldReplyDueAt(game.bunnyboard.conversations[charId]?.heldReply, day, half)) continue
     // She just spent the hour with him: only the plan branch above lets her text.
     if (seenLastSlot.has(charId)) continue
     if (charUnavailableNow(charId, day, half)) continue
@@ -1424,7 +1546,7 @@ export function pickSlotReachOut(
   taken: ReadonlySet<string>
 ): string | null {
   const game = useGameStore.getState()
-  const conversations = game.bunnyboard.conversations
+  const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => [id, shownConversation(chat, chatClockOf(game))!]))
   const target = globalSlotOf(date, time)
 
   // One reach-out, then a spell of quiet, whoever sent it.
@@ -1437,7 +1559,7 @@ export function pickSlotReachOut(
 
   const candidates: SlotAskCandidate[] = []
   for (const charId of game.chars) {
-    if (taken.has(charId)) continue
+    if (taken.has(charId) || heldReplyDueAt(game.bunnyboard.conversations[charId]?.heldReply, date, time)) continue
     if (plannedWith(charId, date, time, view.events)) continue
     if (charBusyNow(charId, date, time)) continue
     const conversation = conversations[charId]
@@ -1445,7 +1567,7 @@ export function pickSlotReachOut(
     const info = view.charInfo[charId]
     if (!info || !isFeedContact(info)) continue
     // Her thread has to have gone quiet, and longer for every reach-out of hers left unanswered.
-    const gap = reachOutGapSlots(unansweredReachOuts(conversation?.messages ?? []).length)
+    const gap = reachOutGapSlots(unansweredReachOuts(shownMessages(conversation?.messages ?? [], chatClockOf(game))).length)
     if (!askCooldownOver(lastTextSlotOf(conversation), target, gap)) continue
     const chance = reachOutChanceOf(
       info.flags?.isLover ?? false,
@@ -1545,9 +1667,10 @@ function outingsFor(info: CharInfo, date: number, time: TimeSlot, intimate: bool
 
 /** The everyday asks dealt in the round still open, read off every invitation they marked. */
 export function everydayRoundNow(): ReadonlySet<EverydayAsk> {
+  const game = useGameStore.getState()
   const bySlot = new Map<number, EverydayAsk[]>()
   for (const conversation of Object.values(useGameStore.getState().bunnyboard.conversations)) {
-    for (const message of conversation.messages) {
+    for (const message of shownMessages(conversation.messages, chatClockOf(game))) {
       if (message.sender !== 'contact' || !message.everydayAsk) continue
       const slot = globalSlotOf(message.date, message.time)
       bySlot.set(slot, [...(bySlot.get(slot) ?? []), message.everydayAsk])
@@ -1771,4 +1894,106 @@ export function deliverEventCancellations(
       )
     )
   }
+}
+
+/** Opens deliveries once their landing is available, including a deferred block. */
+export function releaseHeldReplies(): void {
+  const game = useGameStore.getState()
+  for (const chat of Object.values(game.bunnyboard.conversations)) {
+    const held = chat.heldReply
+    if (!held || !messageShown(held.until, chatClockOf(game))) continue
+    const pending = chat.messages.some(message => message.awaitingReply)
+    const { heldReply: _held, ...rest } = chat
+    useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
+      ...state.bunnyboard.conversations,
+      [chat.charId]: { ...rest,
+        unread: chat.unread + (held.opened ? 0 : chat.messages.filter(message => held.messageIds.includes(message.id) && messageShown(message, chatClockOf(game))).length),
+        ...(held.summary ? { summary: held.summary } : {}),
+        ...(pending ? { heldReply: { ...held, opened: true as const } } : {})
+      }
+    } } }))
+    if (held.blocked) blockContact(chat.charId, 0)
+  }
+}
+
+/** A slot's messages become available at its landing, or at an interlude held before it. */
+export function openChatSlot(): void {
+  const game = useGameStore.getState()
+  const clock = { date: game.date, time: game.time }
+  const before = chatClockOf(game)
+  const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => {
+    const unread = unreadAfterOpening(chat, before, clock)
+    return [id, unread === chat.unread ? chat : { ...chat, unread }]
+  }))
+  useGameStore.setState({ chatShownThrough: clock, bunnyboard: { ...game.bunnyboard, conversations } })
+  releaseHeldReplies()
+  for (const chat of Object.values(useGameStore.getState().bunnyboard.conversations)) {
+    if (chat.heldReply?.afterClass) void resumeHeldReply(chat)
+  }
+}
+
+/** Restarts a saved player turn whose background reply did not finish before the save. */
+export function resumeHeldReplies(): void {
+  for (const chat of Object.values(useGameStore.getState().bunnyboard.conversations)) {
+    void resumeHeldReply(chat)
+  }
+}
+
+/** Writes queued shared-class replies after attendance is recorded, while the boundary is covered. */
+export async function settleClassReplies(onWait: () => void): Promise<void> {
+  const game = useGameStore.getState()
+  const pending = Object.values(game.bunnyboard.conversations).filter(chat => {
+    const at = chat.heldReply?.afterClass
+    return at?.date === game.date && at.time === game.time && waitingText(chat.messages) && !inFlight.has(chat.charId)
+  })
+  if (pending.length > 0) onWait()
+  await Promise.all(pending.map(chat => resumeHeldReply(chat, true)))
+}
+
+function resumeHeldReply(chat: Conversation, atBoundary = false): Promise<void> | null {
+  const game = useGameStore.getState()
+  const last = waitingText(chat.messages)
+  if (!last || inFlight.has(chat.charId)) return null
+  const character = game.characters[chat.charId]
+  if (!character) return null
+  const afterClass = chat.heldReply?.afterClass
+  if (afterClass && !atBoundary && !heldReplyDueAt(chat.heldReply, game.date, game.time)) return null
+  const waitingIndex = chat.messages.indexOf(last)
+  const messages = chat.messages.filter((message, index) => index <= waitingIndex || !message.error || message.sender !== 'system')
+  const first = afterClass ? messages.find(message => message.id === chat.heldReply?.firstPlayerId) : undefined
+  const source = first ?? last
+  const sentAt = source.late ? prevSlot(source.date, source.time) : source
+  const due = afterClass ? chat.heldReply!.until : nextSlot(sentAt.date, sentAt.time)
+  const held = messageShown(due, game) ? { date: game.date, time: game.time } : due
+  useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
+    ...state.bunnyboard.conversations,
+    [chat.charId]: { ...chat,
+      messages: messages.filter(message => !chat.heldReply?.messageIds.includes(message.id)),
+      heldReply: { until: held, firstPlayerId: chat.heldReply?.firstPlayerId ?? last.id, messageIds: [],
+        ...(afterClass ? { afterClass } : {}),
+        ...(messageShown(held, chatClockOf(game)) ? { opened: true as const } : {})
+      } }
+  } } }))
+  const conversation = { ...useGameStore.getState().bunnyboard.conversations[chat.charId], messages: [...shownMessages(messages.filter(message => message.id !== last.id && !chat.heldReply?.messageIds.includes(message.id)), chatClockOf(game))] }
+  const meeting = afterClass ? game.classRecords[afterClass.code]?.meetings.find(one => one.date === afterClass.date) : undefined
+  const shared = afterClass && !charAwayNow(chat.charId, afterClass.date) &&
+    charClassNow(chat.charId, afterClass.date, afterClass.time) === afterClass.code && !meeting?.cancelled
+    ? { name: game.classes[afterClass.code]?.name ?? afterClass.code, attended: meeting?.attended === true }
+    : undefined
+  const request = buildTextingPrompt(character, game.charInfo[chat.charId], conversation, last.text,
+    { ...textingState(game, chat.charId), heldUntil: held,
+      commitment: shared ? { kind: 'class', name: shared.name } : charCommitmentAt(chat.charId, sentAt.date, sentAt.time) ?? undefined,
+      ...(shared ? { sharedClass: shared } : {}) }, readerBlockOf({ ...game, ...textingClockOf(game) }))
+  if (afterClass) {
+    failedTurns.delete(chat.charId)
+    useBunnyboardStore.getState().setTextFailed(chat.charId, false)
+  }
+  useBunnyboardStore.getState().setTextBusy(chat.charId, true)
+  const reply = runReply(chat.charId, character, conversation, last, request, 0, null, held, atBoundary)
+  const owned = inFlight.get(chat.charId)
+  return reply.finally(() => {
+    if (inFlight.get(chat.charId) !== owned) return
+    inFlight.delete(chat.charId)
+    useBunnyboardStore.getState().setTextBusy(chat.charId, false)
+  }).catch(error => console.warn('[texting] could not resume reply', error))
 }

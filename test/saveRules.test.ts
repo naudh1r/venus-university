@@ -114,6 +114,14 @@ describe('summaryOf', () => {
     return { date: 5, time: 1, graduationSeen: false, scene: null, ...over } as GameSave
   }
 
+  it('keeps valid night metadata and ignores malformed optional metadata', () => {
+    expect(summaryOf(save({ heldNight: { date: 4, time: 1 } })).heldNight).toEqual({ date: 4, time: 1 })
+    expect(summaryOf(save({ heldNight: { date: 4, time: 0 } })).heldNight).toEqual({ date: 4, time: 0 })
+    for (const heldNight of [null, {}, [], { date: 4.5, time: 1 }, { date: '4', time: 1 }, { date: 4, time: 2 }, { date: 4, time: 0.5 }, { date: NaN, time: 1 }]) {
+      expect(summaryOf(save({ heldNight } as unknown as Partial<GameSave>))).not.toHaveProperty('heldNight')
+    }
+  })
+
   it('reads a save between scenes as having no scene and no picture', () => {
     const summary = summaryOf(save())
     expect(summary).toEqual({ date: 5, time: 1, graduationSeen: false, midScene: false, bg: null })

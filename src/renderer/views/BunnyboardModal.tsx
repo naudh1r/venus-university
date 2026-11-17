@@ -1,3 +1,6 @@
+import { shownConversation, shownMessages } from '@shared/chatVisibility'
+import { textWhileBusy } from '../mods/hooks'
+import { charCommitmentAt } from '../stores/timetable'
 import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
 import { ModSlot } from '../mods/ModSlot'
 import { useModsStore } from '../stores/modsStore'
@@ -40,7 +43,7 @@ import { TextField } from '../components/TextField'
 import { useModalShell } from '../components/useModalShell'
 import { yearLabel } from '@shared/classes'
 import {
-  formatChatDivider,
+  formatMessageSlot,
   formatNumericGameDate,
   formatShortGameDate,
   shiftWeekdayOf,
@@ -437,7 +440,7 @@ export function BunnyboardModal({
                     is what takes a back button out of the thread's own header. */}
                 {tab === 'chats' && (
                   <>
-                    <ChatList />
+                    <ChatList theme={theme} />
                     {viewingCharId ? (
                       <ConversationView
                         key={viewingCharId}
@@ -478,10 +481,11 @@ function useHiddenThreads(): (charId: string) => boolean {
   const date = useGameStore((s) => s.date)
   const time = useGameStore((s) => s.time)
   const sceneActive = useGameStore(sceneActiveOf)
+  const opened = useGameStore(s => s.chatShownThrough)
 
   return (charId) =>
     blockedThreadHidden(
-      conversations[charId],
+      shownConversation(conversations[charId], opened ?? { date, time }),
       charInfo[charId]?.flags?.blocked === true,
       date,
       time,
@@ -599,7 +603,7 @@ function presenceOf(
     return { busy: true, text: `In class — ${named ?? placed.classCode}` }
   }
   // A shift reads as a place on the map; on a phone it is worth saying it is work.
-  if (charJobNow(charId, date, time) !== null) {
+  if (useGameStore.getState().interlude?.now.clock !== 'late-night' && charJobNow(charId, date, time) !== null) {
     return { busy: true, text: `Working @ ${placed.placeLabel}` }
   }
   return { busy: false, text: `At ${placed.placeLabel}` }
@@ -611,7 +615,7 @@ function BusyLed({ busy }: { busy: boolean }): JSX.Element {
 }
 
 /** The Chats tab's conversation list, which stands beside the open thread rather than under it. */
-function ChatList(): JSX.Element {
+function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
   const bunnyboard = useGameStore((s) => s.bunnyboard)
   const characters = useGameStore((s) => s.characters)
   const date = useGameStore((s) => s.date)
@@ -624,7 +628,12 @@ function ChatList(): JSX.Element {
   const hiddenOf = useHiddenThreads()
 
   // Newest activity first.
+  const shownClock = useGameStore(s => s.chatShownThrough)
+  const nowDate = useGameStore(s => s.date)
+  const nowTime = useGameStore(s => s.time)
+  const clock = shownClock ?? { date: nowDate, time: nowTime }
   const conversations = Object.values(bunnyboard.conversations)
+    .map(chat => ({ ...chat, messages: [...shownMessages(chat.messages, clock)] }))
     .filter((conversation) => conversation.messages.length > 0)
     .filter((conversation) => !hiddenOf(conversation.charId))
     .sort((a, b) => {
@@ -639,6 +648,7 @@ function ChatList(): JSX.Element {
     <div className="vu-bb-side">
       <div className="vu-title vu-bb-title">
         <h2 className="vu-title-text">Chats</h2>
+        <ModSlot slot="chatsHeader" props={{ theme }} />
       </div>
 
       {conversations.length === 0 ? (
@@ -981,14 +991,22 @@ function ConversationView({
   const [draft, setDraft] = useState('')
   const [scrollBox, setScrollBox] = useState<HTMLDivElement | null>(null)
 
-  const messages = conversation?.messages ?? []
+  const shownClock = useGameStore(s => s.chatShownThrough)
+  const nowDate = useGameStore(s => s.date)
+  const nowTime = useGameStore(s => s.time)
+  const messages = shownMessages(conversation?.messages ?? [], shownClock ?? { date: nowDate, time: nowTime })
   const identity = chatIdentityOf(charId, character)
   const boss = jobDefForChat(charId)
   const bot = identity.bot
   const name = character?.firstName ?? '???'
   // No bot has a timetable.
-  const atWork = !bot && charJobNow(charId) !== null
-  const unavailable = !bot && charBusyNow(charId)
+  const interlude = useGameStore(s => s.interlude)
+  const atWork = !bot && interlude?.now.clock !== 'late-night' && charJobNow(charId) !== null
+  const commitment = !bot ? charCommitmentAt(charId) : null
+  const committed = !bot && interlude?.now.clock !== 'late-night' && charBusyNow(charId)
+  // A mod can keep her box open through a class or shift; her answer then waits for her to be free.
+  const heldOpen = committed && commitment !== null && textWhileBusy({ charId, commitment })
+  const unavailable = committed && !heldOpen
   // Her reply plus the hangout classifier that reads it.
   const busy = useBunnyboardStore((s) => s.busyCharIds.includes(charId))
   // Texts written and waiting out their typing delay.
@@ -1066,7 +1084,7 @@ function ConversationView({
   // A blocked thread says nothing about where she is: the map has dropped her to what he
   // remembers, and the composer under it already says she blocked him. Neither does a screen
   // set sometime after graduation, which pins nobody to an hour.
-  const status = bot || blocked || epilogue ? null : presenceOf(placed, charId, date, time)
+  const status = bot || blocked || epilogue || (interlude && interlude.now.clock !== 'late-night') ? null : presenceOf(placed, charId, date, time)
 
   return (
     <div className="vu-bb-thread">
@@ -1101,18 +1119,17 @@ function ConversationView({
         {messages.map((message, index) => {
           // A divider opens the thread and repeats whenever the slot changes.
           const previous = messages[index - 1]
-          const stamp = formatChatDivider(message.date, message.time, season)
+          const stamp = formatMessageSlot(message, season)
           const divider =
-            !previous || formatChatDivider(previous.date, previous.time, season) !== stamp
+            !previous || formatMessageSlot(previous, season) !== stamp
           return (
             <Fragment key={message.id}>
               {divider && (
-                // The same two readings `formatChatDivider` is built from, glued differently:
-                // that function stays the one thing deciding where a divider goes.
+                // The date and half share the same reading as the prompt's message stamps.
                 <div className="vu-bb-divider">
-                  <span>{formatShortGameDate(message.date, season)}</span>
+                  <span>{stamp.split(', ')[0]}</span>
                   <span className="vu-bb-thread-dot">·</span>
-                  <span>{slotHalf(message.time)}</span>
+                  <span>{stamp.split(', ')[1]}</span>
                 </div>
               )}
               <MessageBubble message={message} />
@@ -1239,7 +1256,9 @@ function ConversationView({
                     ? `${name} blocked you.`
                     : unavailable
                       ? `${name} is ${atWork ? 'at work' : 'in class'} right now.`
-                      : busy
+                      : heldOpen
+                        ? `${name} will reply to you when she is available.`
+                        : busy
                         ? `Waiting for ${name}...`
                         : 'Message'
             }
@@ -1403,6 +1422,7 @@ function MessageBubble({ message }: { message: ChatMessage }): JSX.Element {
 
 /** The Friends tab: what expires on top, then who he could ask, then who he has. */
 function FriendsList(): JSX.Element {
+  const interlude = useGameStore(s => s.interlude)
   const bunnyboard = useGameStore((s) => s.bunnyboard)
   const characters = useGameStore((s) => s.characters)
   const charInfo = useGameStore((s) => s.charInfo)
@@ -1525,7 +1545,7 @@ function FriendsList(): JSX.Element {
                   character={character}
                   info={info}
                   tag={relationshipTagOf(info.flags ?? emptyFlags(), affection)}
-                  status={presenceOf(placed.get(charId), charId, date, time)}
+                  status={interlude && interlude.now.clock !== 'late-night' ? null : presenceOf(placed.get(charId), charId, date, time)}
                   onOpen={() => openPage(charId)}
                 />
               )
@@ -1555,6 +1575,8 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
   const playerSchedule = useGameStore((s) => s.playerSchedule)
   const calendar = useGameStore((s) => s.calendar)
   const date = useGameStore((s) => s.date)
+  const time = useGameStore((s) => s.time)
+  const opened = useGameStore(s => s.chatShownThrough)
   const finalsScoresShown = useGameStore((s) => s.finalsScoresShown)
   const chars = useGameStore((s) => s.chars)
   const alumni = useGameStore((s) => s.alumni)
@@ -1620,7 +1642,7 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
     )
     const texts = Object.values(conversations).reduce(
       (total, conversation) =>
-        total + conversation.messages.filter((message) => message.sender === 'player').length,
+        total + shownMessages(conversation.messages, opened ?? { date, time }).filter((message) => message.sender === 'player').length,
       0
     )
     return [
@@ -1665,6 +1687,8 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
     classRecords,
     classes,
     conversations,
+    time,
+    opened,
     counts,
     date,
     finalsScoresShown,
@@ -1809,7 +1833,7 @@ function ContactCard({
   character: Character
   info: CharInfo
   tag: string
-  status: Presence
+  status: Presence | null
   onOpen: () => void
 }): JSX.Element {
   const version = useSpriteVersion(charId)
@@ -1832,10 +1856,10 @@ function ContactCard({
           <span className="vu-bb-card-line">
             {yearLabel(info.year)} · {info.major}
           </span>
-          <span className="vu-bb-where">
+          {status && <span className="vu-bb-where">
             <BusyLed busy={status.busy} />
             {status.text}
-          </span>
+          </span>}
         </span>
         <span className="vu-bb-tag" data-tag={tagSlug(tag)}>
           {tag}

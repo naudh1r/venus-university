@@ -17,6 +17,8 @@ export type CrossingPhase = 'idle' | 'closing' | 'holding' | 'opening'
 
 /** Which slot the curtain announces, and what else is happening on it. */
 export interface SlotStamp {
+  /** The finished evening is being announced as a held night. */
+  lateNight?: boolean
   date: number
   time: TimeSlot
   /** The season of the semester the date is in, which the printed date is read in. */

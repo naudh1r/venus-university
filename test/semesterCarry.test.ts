@@ -214,6 +214,19 @@ describe('the clock across the break', () => {
     expect(handoff.carry.charInfo.a.memories[0]).toMatchObject({ date: 100 - 155, breakDays: 87 + 32 })
   })
 
+  it('moves a held reply and its waiting player text onto the next semester clock', () => {
+    const bunnyboard = { ...emptyBunnyboard(), conversations: { a: {
+      charId: 'a', unread: 0, summary: null,
+      messages: [{ id: 'waiting', sender: 'player' as const, text: 'Hi', date: 118, time: 1 as const, awaitingReply: true as const }],
+      heldReply: { until: { date: 119, time: 0 as const }, firstPlayerId: 'waiting', messageIds: [] }
+    } } }
+    const handoff = carryOf(input({ bunnyboard }), springView({ a: profile(2) }))
+    const thread = handoff.carry.bunnyboard.conversations.a
+    expect(thread.messages[0]).toMatchObject({ date: 118 - 210, awaitingReply: true })
+    expect(thread.heldReply?.until).toEqual({ date: 119 - 210, time: 0 })
+    expect(bunnyboard.conversations.a.heldReply.until.date).toBe(119)
+  })
+
   it('moves every thread’s texts on and drops what was still pending in them', () => {
     const bunnyboard = {
       ...emptyBunnyboard(),

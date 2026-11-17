@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `threadStartedBy` gives the thread to the reader when her first text in the slot is a late
+  answer to his earlier texts, not a reach-out or an invitation.
+- Shared exports `EMOTIONS`, the sprite expressions a dialogue line's `emotion` may name, such as
+  a staged opening's line.
 - Activities can call `setSceneSuggestionsPaused` to pause optional scene suggestions for
   the loaded game. Providers can query `sceneSuggestionsPaused`, render from
   `useSceneSuggestionsPaused` or observe boolean changes with `subscribeSceneSuggestionsPaused`.
@@ -87,6 +91,112 @@
 
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
+
+## 0.22.0
+
+- `openingLook` receives the written opening reply and returns `OpeningLook`, with optional
+  room, one cast member and an `until` boundary. Opening dialogue uses the scene's expression,
+  name box and voice without starting a scene. Saved openings keep their reply and playback
+  position; their thumbnails use the ordinary landing.
+
+## 0.21.1
+
+- `NativeGameSave.heldNight` records the late night a save opens on for listing and
+  thumbnail purposes. It does not control slot entry.
+
+## 0.21.0
+
+- Interlude rows accept `line`, played as Relax narration before their ending. `relaxLine`
+  replaces only Relax’s own line; extra Relax rows retain the default.
+- A busy-time text waits through a shared next class without a reply call. Its boundary
+  writes one reply with `TextingPromptState.sharedClass` and recorded attendance; failed
+  turns recover when due, and the pending class clock carries across semesters.
+- Held replies due at a landing exclude that girl from reach-outs and invitations,
+  including plan reminders and occasion fallback picks.
+
+- `openingLook` chooses a girl's ready room behind a slot's opening narration, including
+  after a reload. The landing returns to its usual room when the narration is read.
+
+## 0.20.0
+
+- A late-night interlude defers the next opening until its row settles the night's
+  texting ledger, displays its status lines, and claims the messages before saving.
+- `interludeSettled` receives that ledger synchronously while the hold still stands,
+  before its opening and save. `slotSettled` never sees this extra ending.
+- Remove the saved `heldOpening`. Ordinary scene endings still retain their paid
+  opening and boundary results on the scene for replaying the ending after a reload.
+
+## 0.19.0
+
+- Interlude rows can set `card: true` to use a plan card without a category chip.
+  Rows without it remain quiet choices.
+- A held `clock: 'late-night'` interlude labels the landing header Night, on the
+  finished slot's date.
+
+## 0.18.0
+
+- `hangoutCheck` replaces `hangoutVerdict`: any false answer skips the immediate-meetup
+  classifier before the call, for ordinary and regenerated replies. Interludes skip it
+  without asking mods. Standing invitation settlement remains unchanged.
+- Saves retain the opened chat clock so reloading preserves unread counts for messages
+  already delivered or still held.
+- Remove `HangoutVerdict`, `HangoutVerdictCtx`, `TextingPromptState.answeringInvite`,
+  `useInterludeNow`, and the unused `held` member of `afterDmReply`'s context. `chatClock`
+  remains available to message views.
+
+## 0.17.0
+
+- Interludes are narration and simple choices only. Private-room routes, confirmation and
+  transition fields, bonus scenes and their settlement flags, and the kit's commitment reader
+  are removed. Existing scene saves still load; obsolete bonus fields have no effect.
+- `relaxRows` adds choices under Relax, in mod order, that call their handler before the
+  normal Relax flow.
+- `interludePreview` accepts a late-night clock for the curtain. Its context and the slot-intro
+  request context carry the preceding scene's ledger, or null without a scene.
+- Night holds show contacts in their own dorms, with away and sick statuses taking priority.
+  Manual saves retain the banked opening so a held landing reload keeps its morning narration.
+
+## 0.16.0
+
+- `interludePreview(ctx)`: asked when a boundary's curtain falls; a mod that will hold the coming slot
+  on the finished one's look answers `{ at: 'from' }`, and the curtain announces that slot instead of
+  the next. Pure: it writes nothing.
+
+## 0.15.0
+
+- The former `TextingPromptState.answeringInvite` (removed in 0.18.0): the reader's new text answers an invitation of hers that was
+  still standing, so a `prompts.dm` hook can tell it apart even though the invitation is cleared as he
+  sends.
+
+## 0.14.0
+
+- Core's previews and scene histories leave out messages not shown yet. The conversation readers
+  keep handing out the whole thread; `chatClock()` (renderer) with `messageShown` and
+  `shownMessages` (shared) let a mod that shows messages filter them the same way. Recovery finds
+  waiting texts behind saved errors; semester carry moves held delivery dates with their messages.
+- Shared exports `threadStartedBy`.
+
+## 0.13.0
+
+- `textWhileBusy` can open a character's composer during a class or shift. Her reply is
+  generated immediately for the next slot, hidden until that slot opens, and never classified
+  for a hangout. DM prompts receive `heldUntil` and `commitment`; `afterDmReply` originally received `held` (removed in 0.18.0).
+  Later message attachments share the hold, and saved unfinished turns resume on load.
+
+## 0.9.0
+
+- `slotInterlude` can hold a slot opening on the finished slot's landing with narration,
+  choices and a working phone. `interludeNow` reads the hold; the unused reactive reader was removed in 0.18.0.
+- A `late-night` clock keeps texts in the new slot's ledger while their stamps, prompts,
+  weather and availability read as late on the preceding night.
+- `relaxLabel` replaces the Relax row's words without changing what it does.
+
+## 0.8.0
+
+- The former verdict pipeline (replaced by `hangoutCheck` in 0.18.0) let mods change or drop a texting classifier verdict, with who
+  started the slot's thread and whether the exchange answers her standing invitation.
+  Its public verdict types were removed in 0.18.0.
+- `chatsHeader` draws beside the Chats title, handed the phone's day or night theme.
 
 ## 0.7.0
 
