@@ -33,6 +33,14 @@ export function assertSafeId(id: string, pattern: RegExp, code: string, message:
 export function assertSafePlaythroughId(playthroughId: string): void;
 
 // @public
+export interface BackgroundSets {
+    // (undocumented)
+    exterior: string[];
+    // (undocumented)
+    interior: string[];
+}
+
+// @public
 export const BACKUP_ZIP_LIMITS: {
     maxEntries: number;
     maxTotalBytes: number;
@@ -173,6 +181,8 @@ export interface ChatMessage {
     id: string;
     invite?: true;
     inviteKind?: InviteKind;
+    // (undocumented)
+    outgoingPhoto?: OutgoingPhoto;
     reachOut?: true;
     // (undocumented)
     sender: ChatSender;
@@ -1392,6 +1402,7 @@ export interface TextEditSet {
 export interface TextingResponse {
     blocked?: boolean;
     messages: string[];
+    outgoingPhotoDescription?: string;
     summary?: string;
 }
 

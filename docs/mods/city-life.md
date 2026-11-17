@@ -1,13 +1,5 @@
 # City Life
 
-Catalogue definitions import the native `JobDef` and `LocationDef` types from
-`@vx/modkit/shared`; the imports are erased at runtime. Catalogue values, job gates,
-shift pay and location registration keep their existing behavior.
-
-The mod ownership list includes all eight venue backgrounds, the Dance Studio
-thumbnails, and the generated-art redistribution notice. Keep these materials
-together when packaging City Life independently.
-
 Two separate switches appear in Mods. **City Life locations** adds Lucky Strike Lanes,
 Starlight Roller Rink, Purr & Pour Cat Café, and Dance Studio. **City Life jobs** adds part-time work at
 those venues and requires the locations switch. Locations work without jobs or any other mod.
@@ -38,6 +30,14 @@ gains, boss texts, absences, and dismissal rules apply. NPC jobs use the same ve
 workers appear at their workplace through the existing timetable and scene casting.
 
 ## Code map and integration
+
+Catalogue definitions import the native `JobDef` and `LocationDef` types from
+`@vx/modkit/shared`; the imports are erased at runtime. Catalogue values, job gates,
+shift pay and location registration keep their existing behavior.
+
+The mod ownership list includes all eight venue backgrounds, the Dance Studio
+thumbnails, and the generated-art redistribution notice. Keep these materials
+together when packaging City Life independently.
 
 - `src/shared/cityLifeCatalog.ts`: typed venue/job content, preserving `ex_bowling`,
   `ex_roller`, and `ex_cat_cafe` IDs from the earlier mod. The new `ex_dance_instructor`
