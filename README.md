@@ -88,3 +88,22 @@ A released version is never rebuilt: a change is a new version, with its own zip
 [`catalog.json`](catalog.json) lists each mod with its releases, newest first. A release names
 its zip, sha256, the kit and game it needs, whether it has a `main.js`, and its changes. A mod
 can also have a `cover` and up to eight `screenshots`, which its page in Browse shows.
+
+## Covers and screenshots
+
+Each mod's art is in its own folder, and [`catalog.mjs`](catalog.mjs) lists it in the catalogue:
+
+```
+art/<id>/cover.webp
+art/<id>/screenshots/01-dm-photo.webp
+art/<id>/screenshots/02-feed-post.webp
+art/<id>/screenshots/captions.txt
+```
+
+- **Cover:** 16:9, about 1600x900, with what matters in the middle third from top to bottom,
+  since a mod's page shows it cut to a thin strip.
+- **Screenshots:** 16:9, at most eight, shown in file-name order.
+- **Captions:** optional, one `file name: caption` per line in `captions.txt`.
+- Each image is WebP, PNG or JPEG, and at most 1 MB.
+
+To add or remove one, change the files, then run `node catalog.mjs` here and push.
