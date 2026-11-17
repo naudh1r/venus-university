@@ -6,7 +6,7 @@
       "id": "photo-feature",
       "name": "Photo Feature",
       "author": "naudh1r",
-      "blurb": "The girls send photos in their DMs and post them on their feeds, with comments from the rest of campus. Adds a gallery to each contact and optional body details for characters. Separate from the game's own Photos tab, where you make pictures yourself. Needs ComfyUI to draw the pictures, the game's own or yours.",
+      "blurb": "The girls send photos in their DMs and post them on their feeds.\n• Photos in her DMs and on her feed posts, with comments from the rest of campus.\n• A photo can show her with a friend, who is tagged on it.\n• A gallery on each contact's page with every photo she has sent or posted.\n• Don't like one? Edit its prompt in Photo info and redraw it.\n• Optional body details for characters, used in their pictures.\n• Separate from the game's own Photos tab, where you make pictures yourself.\n• Needs ComfyUI to draw the pictures, the game's own or yours.",
       "source": "https://github.com/naudh1r/venus-university/tree/mod/photo-feature-kit",
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/cover.webp",
       "releases": [
@@ -150,7 +150,7 @@
       "id": "bunnyfeeds",
       "name": "Bunnyfeeds",
       "author": "naudh1r",
-      "blurb": "Comment on your friends' posts on Bunnyboard. She replies in her own words, her friends and other students join the conversation, and she remembers what you said. Girls also comment on each other's posts, and Notifications under Updates lists every answer to you. Costs a little extra AI each time you close the phone after commenting; just scrolling is free.",
+      "blurb": "Comment on your friends' posts on Bunnyboard, and she answers.\n• She replies in her own words, and remembers what you said.\n• Her friends and other students join the conversation.\n• Girls also comment on each other's posts.\n• Notifications under Updates lists every answer to you.\n• Costs a little extra AI each time you close the phone after commenting; just scrolling is free.",
       "source": "https://github.com/naudh1r/venus-university/tree/mod/bunnyfeeds-kit",
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/bunnyfeeds/cover.webp",
       "releases": [
@@ -233,7 +233,7 @@
       "id": "emoji-extended",
       "name": "Emoji Extended",
       "author": "naudh1r",
-      "blurb": "Every emoji on the phone, not just eight. A smiley beside the box opens them all in tabs, with search, the ones you used last first and a skin tone for hands and people. Emoji in texts and posts stand a size up from the words, and a text of nothing but a few is drawn big. No AI calls.",
+      "blurb": "Every emoji on the phone, not just eight.\n• A smiley beside the box opens them all in tabs.\n• Search, the ones you used last first, and a skin tone for hands and people.\n• Emoji in texts and posts stand a size up from the words.\n• A text of nothing but a few emoji is drawn big.\n• No AI calls.",
       "source": "https://github.com/naudh1r/venus-university/tree/mod/emoji-extended-kit",
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/emoji-extended/cover.webp",
       "releases": [
@@ -276,7 +276,7 @@
       "id": "after-hours",
       "name": "After Hours",
       "author": "naudh1r",
-      "blurb": "A Busy status for the phone, any time of day: a chat you start, or her answer to your texts, won't turn into meeting up right now, though she can still ask you out herself. Text her during class or work and she replies once she's out. And after the evening, a night in your room to text before you sleep, unless you spend it with her: then the next morning opens with a short goodbye before she heads off, or you head home.",
+      "blurb": "A Busy status, texting during class, and a night after the evening.\n• Busy, any time of day: a chat you start, or her answer to your texts, won't turn into meeting up right now. She can still ask you out herself.\n• Text her during class or work, and she replies once she's out.\n• After the evening, a night in your room to text before you sleep.\n• Spend the evening with her instead, and the next morning opens with a short goodbye before she heads off, or you head home.",
       "source": "https://github.com/naudh1r/venus-university/tree/mod/after-hours-kit",
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
       "releases": [
