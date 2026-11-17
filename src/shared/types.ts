@@ -1568,6 +1568,13 @@ export interface NativeGameSave {
   heldNight?: { date: number; time: TimeSlot }
   /** The chat clock whose shown messages have already contributed to unread counts. */
   chatShownThrough?: { date: number; time: TimeSlot }
+  /**
+   * A late-night hold's texting ledger, paid for once its row was picked: reloading the night
+   * reuses it when the night's texts are still the ones it read.
+   */
+  heldNightLedger?: BankedTextLedger
+  /** The morning opening a finished night wrote, opened on load instead of being written again. */
+  morningOpening?: SlotOpening
   schemaVersion: 13
   /**
    * The playthrough this save belongs to. Derived from the containing folder
