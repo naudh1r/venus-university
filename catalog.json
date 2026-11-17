@@ -276,7 +276,7 @@
       "id": "after-hours",
       "name": "After Hours",
       "author": "naudh1r",
-      "blurb": "A Busy status for the phone, any time of day: a chat you start, or her answer to your texts, won't turn into meeting up right now, though she can still ask you out herself. Text her during class or work and she replies once she's out. And after the evening, a night in your room to text before you sleep, or to spend with her.",
+      "blurb": "A Busy status for the phone, any time of day: a chat you start, or her answer to your texts, won't turn into meeting up right now, though she can still ask you out herself. Text her during class or work and she replies once she's out. And after the evening, a night in your room to text before you sleep, unless you spend it with her: then the next morning opens with a short goodbye before she heads off, or you head home.",
       "source": "https://github.com/naudh1r/venus-university/tree/mod/after-hours-kit",
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
       "releases": [
