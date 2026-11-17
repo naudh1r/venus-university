@@ -2517,8 +2517,6 @@ function prefetchTextLedger(): void {
   if (loopState.textLedgerPrefetch?.key === key) return
   // Already paid for and on the save: the ending claims it from there.
   if (game.sceneTextLedger?.key === key) return
-  // A held night's ledger its save kept: the night's ending claims it from there.
-  if (loopState.nightLedger?.key === key) return
   if (loopState.textLedgerPrefetch) loopState.textLedgerPrefetch.stale = true
   const record = {
     key,
