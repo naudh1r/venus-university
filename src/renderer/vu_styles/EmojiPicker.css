@@ -1,0 +1,181 @@
+/* The emoji panel a composer's smiley opens: one object with two callers, the phone's texts and
+   a post's comment well. */
+
+/* The smiley and the panel it hangs over itself; the panel is placed against this box. The
+   smiley stands at the Send button's height, as the field beside it does. */
+.vu-emoji {
+  position: relative;
+  flex: none;
+}
+
+.vu-emoji-open {
+  width: 52px;
+  height: 52px;
+}
+
+.vu-emoji-open svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Beside the phone's field, which comes down to the Send button's height to stand level with it;
+   its four-line cap counts the padding, 12.5px and the field's 2.5px border, doubled. */
+.vu-bb-compose:has(> .vu-emoji) .vu-bb-input {
+  padding-top: 12.5px;
+  padding-bottom: 12.5px;
+}
+
+.vu-bb-compose:has(> .vu-emoji) .vu-bb-input--multiline.vu-input {
+  max-height: calc(4lh + 30px);
+}
+
+/* Open, the smiley wears the accent, as a pill in force does. */
+.vu-emoji-open--on {
+  background: var(--vu-accent);
+  color: var(--vu-accent-ink);
+}
+
+/* The panel: the floating list's own rounded rectangle, standing up from the smiley's corner. */
+/* Where the panel stands: on the stage over the modal it was opened from (a veil stands at 100),
+   its corner set against the smiley's. */
+.vu-emoji-layer {
+  position: absolute;
+  z-index: 150;
+  pointer-events: none;
+}
+
+.vu-emoji-pop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 372px;
+  padding: 12px 10px 10px;
+  /* The grid clips itself; a scroller inside a rounded clip is repainted on every frame. */
+  overflow: visible;
+}
+
+.vu-emoji-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 0 2px 8px;
+}
+
+.vu-emoji-search {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.vu-emoji-tone {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--vu-recessed);
+  font: 400 20px/1 var(--font-body);
+}
+
+.vu-emoji-tone--on {
+  background: var(--vu-tint);
+}
+
+/* The tabs, or in their place the six tones: one row of the same height either way, so the grid
+   under it never moves. */
+.vu-emoji-tabs,
+.vu-emoji-tones {
+  display: flex;
+  justify-content: space-between;
+  height: 38px;
+  padding: 0 2px 6px;
+  border-bottom: 2px solid var(--vu-tint);
+}
+
+.vu-emoji-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--vu-text-muted);
+}
+
+.vu-emoji-tab svg {
+  width: 19px;
+  height: 19px;
+}
+
+.vu-emoji-tab--on {
+  background: var(--vu-tint);
+  color: var(--vu-accent);
+}
+
+/* The grid scrolls under a fade on the panel's ground; the overscroll stays in it. */
+.vu-emoji-scroll {
+  position: relative;
+}
+
+.vu-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  align-content: start;
+  height: 264px;
+  padding: 8px 2px 22px;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  /* Scrolled on its own layer: colour emoji are drawn once and slid, not redrawn row by row. */
+  will-change: scroll-position;
+}
+
+/* The height of the rows not on the page, so the scrollbar measures the whole tab. */
+.vu-emoji-gap {
+  grid-column: 1 / -1;
+}
+
+.vu-emoji-scroll .vu-scroll-fade {
+  height: 22px;
+  background: linear-gradient(transparent, var(--vu-ground));
+}
+
+.vu-emoji-grid .vu-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+}
+
+/* One emoji: a quiet square, tinted only where it is the tone in force. */
+.vu-emoji-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font: 400 26px/1 var(--font-body);
+}
+
+/* An emoji drawn once as a picture, at the size the glyph stands. */
+.vu-emoji-pic {
+  display: block;
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+}
+
+.vu-emoji-tones .vu-emoji-cell {
+  width: 44px;
+  height: 32px;
+  font-size: 22px;
+}
+
+.vu-emoji-cell--on {
+  background: var(--vu-tint);
+}
