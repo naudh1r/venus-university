@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   BankedOpening,
@@ -50,6 +51,8 @@ function replyScene(read: string[], queued: string[]): SceneState {
 beforeEach(() => {
   resetLoopState()
   stubApi({
+    // Mods are on here, so an unversioned game is told so and remembered.
+    mods: { unversionedSeen: vi.fn(async (): Promise<Result<void>> => ({ ok: true, data: undefined })) },
     saves: {
       readProfilePicture: vi.fn(
         async (): Promise<Result<Uint8Array<ArrayBuffer> | null>> => ({ ok: true, data: null })
