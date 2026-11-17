@@ -2,6 +2,8 @@
 
 Audited 2026-11-17. Scope: the four requested kit branches and committed releases; Mini-games and Darts excluded. Read-only audit: no commits, pushes, PRs, or tracked-file edits. The original checkout was left untouched. All fetches, detached checkouts, dependency installs, builds and logs were in `/workspace/work/mod-audit`, outside the original repository. The release zips were not replaced.
 
+> **Update, 2026-11-17 (after the audit):** checks 7 and 8 were run afterwards with `xvfb-run`, and they found that three of the four released zips did not work. The cause was in `vxbuild.mjs`. It was fixed, and the three zips were rebuilt in place under the same versions (`notes/standalone-mods` c1dc0a08). See **Follow-up: checks 7–8 and the release fix** at the end. The results table below shows the state after the fix. The sections in between are the audit as Codex ran it, against e568367f.
+
 ## Revisions
 
 | Ref | Audited commit |
@@ -21,10 +23,14 @@ Kit version read from `packages/modkit/src/shared/version.ts` on the base: `0.8.
 
 | Mod | 1. Only this mod | 2. Zero allowlists | 3. Typecheck + tests | 4. Core current | 5. Zip matches | 6. Catalogue | 7. Install/run alone | 8. Missing partners |
 |---|---|---|---|---|---|---|---|---|
-| Photo Feature | ✅ | ✅ (0 / 0) | ❌ | ✅ (0 behind) | ❌ | ✅ | skipped | skipped |
-| Bunnyfeeds | ✅ | ✅ (0 / 0) | ❌ | ✅ (0 behind) | ✅ | ✅ | skipped | skipped |
-| Emoji Extended | ✅ | ✅ (0 / 0) | ❌ | ✅ (0 behind) | ✅ | ✅ | skipped | skipped |
-| After Hours | ✅ | ✅ (0 / 0) | ❌ | ✅ (0 behind) | ✅ | ✅ | skipped | skipped |
+| Photo Feature | ✅ | ✅ (0 / 0) | ❌¹ | ✅ (0 behind) | ❌² | ✅³ | ✅³ | — |
+| Bunnyfeeds | ✅ | ✅ (0 / 0) | ❌¹ | ✅ (0 behind) | ✅ | ✅³ | ✅³ | ✅³ (without Photo) |
+| Emoji Extended | ✅ | ✅ (0 / 0) | ❌¹ | ✅ (0 behind) | ✅ | ✅ | ✅ | — |
+| After Hours | ✅ | ✅ (0 / 0) | ❌¹ | ✅ (0 behind) | ✅ | ✅³ | ✅³ | ✅³ (alone) |
+
+¹ Only `getComfyOutputFilePath`, the known failure on Linux (Windows paths).
+² Only a build-path comment in `main.js`; the code is identical.
+³ After the release fix (c1dc0a08). Before it, Photo and Bunnyfeeds were refused at startup and After Hours was refused at install; see the follow-up.
 
 Check 8 applies to Bunnyfeeds without Photo Feature and After Hours without the other three; the other two mods have no separate missing-partner scenario. All runtime scenarios were skipped.
 
@@ -299,7 +305,7 @@ Read `catalog.json` and the committed ZIPs from the audited notes commit. SHA-25
 | Emoji Extended | `1.0.0` / `1.0.0` | `>=0.8.0` / `>=0.8.0` | `art/emoji-extended/cover.webp` | 44326 | `632e02c45a5432d8b936e216d81142c68def0cfdafbfaa232f0f365b90b376e0` |
 | After Hours | `0.6.6` / `0.6.6` | `>=0.8.0` / `>=0.8.0` | `art/after-hours/cover.webp` | 40954 | `4d21539d963c3efa103fdc6e99b32a0fd605564ab2c5f9332a5f4cb27f8cca12` |
 
-## 7–8. Runtime scenarios — skipped
+## 7–8. Runtime scenarios — skipped by Codex (run afterwards, see the follow-up)
 
 The environment has neither `xvfb-run` nor `Xvfb`. The availability probe produced:
 
@@ -314,3 +320,60 @@ Electron’s binary was made available for Node test imports, but no Electron UI
 ## Preservation check
 
 `git status --short --untracked-files=no` was empty after each branch’s checks in the scratch clone. `git -C /workspace/venus-university status --short` was empty before and after the audit. `DESIGN_GUIDE.md`, `UI_STYLE_GUIDE.md`, `README.md` and `TESTING_PLAN.md` were not edited. Scratch artifacts and this report are outside the original repository.
+
+## Follow-up: checks 7–8 and the release fix
+
+Run after the audit, in a container that has `xvfb-run`. The app was `naudh1r-core` 180e75b1, built with `npm run build` and launched with Playwright's Electron on a fresh data folder each time. Each zip was installed through the mods browser's own path (`mods.catalog()`, then `mods.installRelease(id, version, approved)`), which downloads it from the live catalogue, checks its sha256 and unpacks it. The game was then started again with the mod switched on.
+
+### Before the fix (the zips the audit checked)
+
+| Release | Installs | Starts |
+|---|---|---|
+| Photo Feature 1.7.3 | ✅ | ❌ refused: ``main.js reads `main:requiredBackupPart` is not declared in vxmod.json`` |
+| Bunnyfeeds 1.1.6 | ✅ | ❌ refused: ``registers `prompts.scene`, `prompts.dm`, `prompts.slot-posts`, `prompts.text-ledger`, `requests.slot-intro` but does not declare them`` |
+| Emoji Extended 1.0.0 | ✅ | ✅ |
+| After Hours 0.6.6 | ❌ refused: ``"requires" is not an object of mod ids and version ranges`` | — |
+
+### Cause
+
+`vxbuild.mjs` writes each manifest's `hooks` list, and three kinds of entry were missing:
+
+- **Hook names that the kit's `hookTable.ts` builds with helpers:** `prompt('scene')` is `prompts.scene`, `request('ledger')` is `requests.ledger`, and `slot('x')` is a screen slot. The script only read literal `{ name: '…' }` rows. It also didn't look inside the nested `prompts: { … }` and `requests: { … }` blocks in `registerHooks`.
+- **The names `main.js` reads from the kit:** it recorded `main:*` and then filtered that out, so no `main:` or `shared:` name used on the main side was declared.
+- **An empty `requires: []`:** it was copied as is, but the manifest takes `{ id: range }`.
+
+Check 5 couldn't catch this, because the rebuild used the same script and so got the same manifests.
+
+### Fix
+
+`vxbuild.mjs` now:
+- adds the names the hook table builds with helpers
+- reads the keys of `prompts` and `requests` blocks by matching braces
+- declares every property `main.js` reads off a kit module
+- leaves out an empty `requires` or `optional`, and refuses a non-empty list
+
+Photo Feature 1.7.3, Bunnyfeeds 1.1.6 and After Hours 0.6.6 were rebuilt in place under the same versions, and their sha256 hashes in `catalog.json` were updated. Emoji Extended 1.0.0 is unchanged.
+
+| Release | New sha256 |
+|---|---|
+| Photo Feature 1.7.3 | `e646980fd7c6d4ede61a547f5d3357cc4d08cd03aa7d6d8cef872841c4163998` |
+| Bunnyfeeds 1.1.6 | `360b07c6e8d4744f85b86dd71351653ce2eba7738acb1675b98e35abb9a1d755` |
+| After Hours 0.6.6 | `2718c906d10d8af24460b7fa8deb7df0f03746e2e408206d1f5cc8355b9e932a` |
+
+Added to the manifests: Photo gets `contactPostExtra`, `messageAttachment`, `phoneOverlay`, five `prompts.*`, `requests.scene`, seven `main:` and twelve more `shared:` names. Bunnyfeeds gets the four `prompts.*` and `requests.slot-intro`. After Hours gets `prompts.dm`, `prompts.scene`, `requests.ledger` and `requests.slot-intro`, and its empty `requires` is removed.
+
+### After the fix
+
+Installed from the live catalogue at c1dc0a08:
+
+| Scenario | Installs | Starts (on) | Mods notice | Console errors |
+|---|---|---|---|---|
+| Photo Feature alone | ✅ | ✅ | none | none |
+| Bunnyfeeds alone (without Photo) | ✅ | ✅ | none | none |
+| Emoji Extended alone | ✅ | ✅ | none | none |
+| After Hours alone (without the other three) | ✅ | ✅ | none | none |
+| All four together | ✅ | ✅ | none | none |
+
+**Not covered:** no turn was played, because that needs a real AI key. How Bunnyfeeds behaves in a game without Photo is covered only by the unit tests. Anyone who installed the earlier Photo 1.7.3 or Bunnyfeeds 1.1.6 has to remove it and install it again: the version didn't change, so the game won't offer it as an update.
+
+**Still open:** the build-path comment in Photo's `main.js` (check 5) remains, so a rebuild still differs from the zip by that one line.
