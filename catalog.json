@@ -145,8 +145,12 @@
           "caption": "A photo with a friend tags her, like a real post."
         },
         {
-          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/screenshots/04-photo-info.webp",
-          "caption": "Tap the ⓘ on a photo to see each girl's prompt; edit it and redraw with the same seed or a new one."
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/screenshots/04-info-button.webp",
+          "caption": "Every photo has an ⓘ in its corner that opens Photo info."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/screenshots/05-photo-info.webp",
+          "caption": "Photo info shows each girl's prompt; edit it and redraw with the same seed or a new one."
         }
       ]
     },
