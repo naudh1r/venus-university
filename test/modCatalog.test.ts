@@ -9,6 +9,7 @@ import { ModCatalog, parseCatalog } from '../src/main/mods/catalog'
 import type { DownloadOptions } from '../src/main/services/downloadService'
 import { downloadFile } from '../src/main/services/downloadService'
 import * as atomic from '../src/main/services/jsonFile'
+import { KIT_VERSION } from '../packages/modkit/src/shared/version'
 
 const folders: string[] = []
 afterEach(async () => {
@@ -24,7 +25,7 @@ const manifest = (version = '1.0.0', id = 'test-mod') => ({
   version,
   blurb: 'Test mod',
   source: 'https://example.com/mod',
-  kit: '0.7.0',
+  kit: KIT_VERSION,
   hooks: [],
   main: false,
   scope: 'anytime',
@@ -43,7 +44,7 @@ const release = (version = '1.0.0', bytes = archive(version)) => ({
   version,
   url: `https://example.com/${version}.zip`,
   sha256: hash(bytes),
-  kit: '0.7.0',
+  kit: KIT_VERSION,
   main: false,
   reviewed: false,
   released: '2026-11-07',
