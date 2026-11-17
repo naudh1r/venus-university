@@ -1,0 +1,93 @@
+import { setRendererPhotoSwitches } from './fixtures/photoSwitchState'
+import { savedPhoto } from '../src/shared/photoTypes'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { postIsOut } from '../src/shared/heldPosts'
+import {
+  DEFAULT_PHOTO_SWITCHES,
+  explicitPhotosAllowed,
+  PHOTO_FEATURE_MOD,
+  photoFeatureOn,
+  photoGenerationOn,
+  photoSwitches,
+  photosVisible,
+  bindPhotoOptionReader
+} from '../src/shared/photoSwitches'
+import { postCommentLines } from '../src/renderer/prompts/photoBrief'
+import type { SocialPost } from '../src/shared/types'
+
+/** Photo Feature's own switches, as the Mods screen sets them. */
+
+beforeEach(() => setRendererPhotoSwitches(DEFAULT_PHOTO_SWITCHES))
+afterEach(() => setRendererPhotoSwitches(DEFAULT_PHOTO_SWITCHES))
+
+const held: SocialPost = {
+  id: 'p1',
+  text: 'beach day',
+  date: 3,
+  time: 0,
+  likes: 4,
+  photo: { tier: 'everyday', scene: 'on the sand', file: 'a.png', pending: true, held: true }
+} as SocialPost
+
+describe('photo switches', () => {
+  it('leave the mod fully on before anything sets them', () => {
+    bindPhotoOptionReader(null)
+    expect(photoFeatureOn()).toBe(true)
+    expect(photoGenerationOn()).toBe(true)
+    expect(photoSwitches().loader).toBe('bunny')
+    expect(photosVisible()).toBe(true)
+    expect(explicitPhotosAllowed(false)).toBe(true)
+    expect(explicitPhotosAllowed(true)).toBe(false)
+    expect(postIsOut(held)).toBe(false)
+  })
+
+  it('hide what exists while off', () => {
+    setRendererPhotoSwitches({ on: false })
+    expect(photoFeatureOn()).toBe(false)
+    expect(photosVisible()).toBe(false)
+    expect(photoGenerationOn()).toBe(false)
+  })
+
+  it('keep what exists on screen with photo generation off, and make nothing new', () => {
+    setRendererPhotoSwitches({ photos: false })
+    expect(photoFeatureOn()).toBe(true)
+    expect(photosVisible()).toBe(true)
+    expect(photoGenerationOn()).toBe(false)
+  })
+
+  it('let either switch forbid an explicit photo, and neither allow what the other forbids', () => {
+    expect(explicitPhotosAllowed(false, { ...DEFAULT_PHOTO_SWITCHES, explicit: false })).toBe(false)
+    expect(explicitPhotosAllowed(true, { ...DEFAULT_PHOTO_SWITCHES, explicit: true })).toBe(false)
+    expect(explicitPhotosAllowed(false, { ...DEFAULT_PHOTO_SWITCHES, explicit: true })).toBe(true)
+  })
+
+  it('show a post still waiting for its picture while off, without touching it', () => {
+    setRendererPhotoSwitches({ on: false })
+    expect(postIsOut(held)).toBe(true)
+    expect(savedPhoto(held ?? {})?.held).toBe(true)
+    setRendererPhotoSwitches({ on: true })
+    expect(postIsOut(held)).toBe(false)
+  })
+
+  it('tell the slot opening to write no comments while off', () => {
+    expect(postCommentLines(true).length).toBeGreaterThan(1)
+    expect(postCommentLines(false)).toEqual(['Leave "comments" empty on every post.'])
+    setRendererPhotoSwitches({ on: false })
+    expect(postCommentLines()).toEqual(['Leave "comments" empty on every post.'])
+  })
+
+  it('describe itself for a mods screen with options whose defaults match this build', () => {
+    expect(PHOTO_FEATURE_MOD.id).toBe('photo-feature')
+    const defaults = Object.fromEntries(PHOTO_FEATURE_MOD.options.map((o) => [o.id, o.default]))
+    expect(defaults).toEqual({
+      photos: DEFAULT_PHOTO_SWITCHES.photos,
+      explicit: DEFAULT_PHOTO_SWITCHES.explicit,
+      webp: DEFAULT_PHOTO_SWITCHES.webp,
+      body: DEFAULT_PHOTO_SWITCHES.body,
+      duo: DEFAULT_PHOTO_SWITCHES.duo,
+      'loader-bunny': true,
+      'loader-shimmer': false,
+      'loader-dots': false
+    })
+  })
+})

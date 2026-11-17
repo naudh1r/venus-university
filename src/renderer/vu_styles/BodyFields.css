@@ -1,0 +1,21 @@
+/* ---- the body editor's heading ------------------------------------------- */
+
+/* The label and the note that explains why this overlaps Appearance, stacked: the note is long
+   enough to need its own line, and a field label alone would not say why the section exists.
+   In the feature's own file, like the rest of what the photos added. */
+.vu-edit-body-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---- what the engine drew, under her build --------------------------------- */
+
+/* The drawn fields read as one line, with the reroll beside them rather than under: it is the
+   one thing to do with that line. */
+.vu-edit-body-drawn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
