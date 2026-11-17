@@ -6,7 +6,7 @@
       "id": "photo-feature",
       "name": "Photo Feature",
       "author": "naudh1r",
-      "blurb": "The girls send photos in their DMs and post them on their feeds.\n• Photos in her DMs and on her feed posts, with comments from the rest of campus.\n• A photo can show her with a friend, who is tagged on it.\n• A gallery on each contact's page with every photo she has sent or posted.\n• Don't like one? Edit its prompt in Photo info and redraw it.\n• Optional body details for characters, used in their pictures.\n• Separate from the game's own Photos tab, where you make pictures yourself.\n• Needs ComfyUI to draw the pictures, the game's own or yours.",
+      "blurb": "The girls send photos in their DMs and post them on their feeds.\n• Photos in her DMs and on her feed posts, with comments from the rest of campus.\n• Optional, still being tuned: a photo of her with a friend, who is tagged on it.\n• A gallery on each contact's page with every photo she has sent or posted.\n• Don't like one? Edit its prompt in Photo info and redraw it.\n• Optional body details for characters, used in their pictures.\n• Separate from the game's own Photos tab, where you make pictures yourself.\n• Needs ComfyUI to draw the pictures, the game's own or yours.",
       "source": "https://github.com/naudh1r/venus-university/tree/mod/photo-feature-kit",
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/cover.webp",
       "releases": [
