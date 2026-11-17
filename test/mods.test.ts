@@ -128,7 +128,10 @@ describe('a new playthrough', () => {
       free: '1.0.0',
       quiet: '1.0.0'
     })
-    expect(playthroughModVersions(NO_SWITCHES)).toEqual({})
+    // Untouched switches keep the version of each in-repo mod that is on by default, and no other.
+    expect(playthroughModVersions(NO_SWITCHES)).toEqual(
+      Object.fromEntries(MODS.filter((mod) => modOn(NO_SWITCHES, mod.id)).map((mod) => [mod.id, mod.version]))
+    )
   })
 })
 
