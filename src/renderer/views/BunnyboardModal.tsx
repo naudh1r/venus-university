@@ -1408,7 +1408,6 @@ const MessageBubble = memo(function MessageBubble({
   )
 })
 
-
 /** The Friends tab: what expires on top, then who he could ask, then who he has. */
 function FriendsList(): JSX.Element {
   const bunnyboard = useGameStore((s) => s.bunnyboard)
