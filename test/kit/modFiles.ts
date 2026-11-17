@@ -7,4 +7,14 @@ import type { ModSet } from './boundaryScan'
  * is empty; on `main` each author lists their own mod's files, and a mod has moved out when its
  * entry here is gone.
  */
-export const MOD_FILES: Record<string, ModSet> = {}
+export const MOD_FILES: Record<string, ModSet> = {
+  bunnyfeeds: {
+    globs: [
+      'src/shared/bunnyfeeds*.ts',
+      'src/renderer/components/Bunnyfeeds*',
+      'src/renderer/prompts/bunnyfeedsPrompt.ts',
+      'src/renderer/stores/bunnyfeeds*',
+      'src/renderer/vu_styles/Bunnyfeeds.css'
+    ]
+  }
+}
