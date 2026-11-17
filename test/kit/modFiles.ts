@@ -7,4 +7,6 @@ import type { ModSet } from './boundaryScan'
  * is empty; on `main` each author lists their own mod's files, and a mod has moved out when its
  * entry here is gone.
  */
-export const MOD_FILES: Record<string, ModSet> = {}
+export const MOD_FILES: Record<string, ModSet> = {
+  'after-hours': { globs: ['src/shared/afterHours*.ts', 'src/renderer/mods/afterHours*', 'src/renderer/vu_styles/AfterHours.css'] }
+}
