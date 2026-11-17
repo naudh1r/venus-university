@@ -12,6 +12,7 @@ import {
   type SaveDraft,
   type SceneLine,
   type SceneState,
+  type SlotOpening,
   type TimeSlot
 } from '@shared/types'
 import { bindModWrites, bindSceneFieldSaves, saveFields, writeModSlices as slicesWith } from '@vx/modkit/host/renderer'
@@ -150,8 +151,13 @@ export function writeAutosave(
  * and kept beside it in the same write, and named only once the write's turn has come, so no
  * write queued ahead of it names a replay not yet kept; a failed write forgets it again.
  * `heldNight` names a deferred opening; null records a completed hold as an ordinary slot.
+ * `morningOpening` is the opening a finished night wrote, kept for a load to open from.
  */
-export function writeSlotSave(replay?: SlotReplay, heldNight?: { date: number; time: TimeSlot } | null): Promise<void> {
+export function writeSlotSave(
+  replay?: SlotReplay,
+  heldNight?: { date: number; time: TimeSlot } | null,
+  morningOpening?: SlotOpening
+): Promise<void> {
   return queueWrite(async () => {
     const run = currentRun()
     const game = useGameStore.getState()
@@ -162,6 +168,7 @@ export function writeSlotSave(replay?: SlotReplay, heldNight?: { date: number; t
     const draft = useGameStore.getState().toGameSave()
     if (heldNight === null) delete draft.heldNight
     else if (heldNight) draft.heldNight = { ...heldNight }
+    if (morningOpening) draft.morningOpening = morningOpening
     const thumbnail = draft.heldNight ? await composeSaveThumbnail(draft) : null
     if (thumbnail) draft.thumbnail = thumbnail
     if (runStale(run)) return
@@ -179,6 +186,24 @@ export function writeSlotSave(replay?: SlotReplay, heldNight?: { date: number; t
     }
     // The file the opening narration is folded back into once it arrives.
     else loopState.slotSaveId = result.data.saveId
+  })
+}
+
+/**
+ * Writes `draft` as the autosave just as it is, behind every write already queued: a held night's
+ * landing as it stood before its row was picked, with the ledger that row has since paid for.
+ */
+export function writeHeldNightAutosave(draft: SaveDraft): Promise<void> {
+  const run = currentRun()
+  const order = ++nextAutosaveOrder
+  return queueWrite(async () => {
+    const playthroughId = useGameStore.getState().playthroughId
+    if (!playthroughId || runStale(run)) return
+    const thumbnail = draft.heldNight ? await composeSaveThumbnail(draft) : null
+    if (runStale(run)) return
+    const result = await window.api.saves.autosave(playthroughId, thumbnail ? { ...draft, thumbnail } : draft)
+    if (result.ok) lastSavedOrder = Math.max(lastSavedOrder, order)
+    else reportWriteFailure(result.error)
   })
 }
 
@@ -461,7 +486,10 @@ export function manualSaveDraft(): SaveDraft | null {
     return { ...game.toGameSave(), scene: null }
   }
   // A held interlude has no scene: loading the save opens the slot again and lands back on it.
-  if (game.interlude) return { ...game.toGameSave(), scene: null }
+  if (game.interlude) {
+    const ledger = game.interlude.now.clock === 'late-night' ? loopState.nightLedger : null
+    return { ...game.toGameSave(), scene: null, ...(ledger ? { heldNightLedger: ledger } : {}) }
+  }
   const draft = game.toGameSave()
   if (!draft.scene) return null
   const scene = onLine(draft.scene)

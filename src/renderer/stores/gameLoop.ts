@@ -260,6 +260,7 @@ import {
   queuedScene,
   writeAutosave,
   writeEpilogueSave,
+  writeHeldNightAutosave,
   writeSlotSave,
   writesSettled
 } from './loop/saves'
@@ -3342,8 +3343,20 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
     advance()
   }
   const schedule = scheduleInput(now.to.date, now.to.time)
-  const ledger = await claimTextLedger(now.to.date, now.to.time)
+  // A ledger this night already paid for, kept on its save, while the night's texts are the same.
+  const key = textLedgerKeyOf(schedule)
+  const kept = loopState.nightLedger?.key === key ? loopState.nightLedger.reply : null
+  const ledger = kept ?? await claimTextLedger(now.to.date, now.to.time)
   if (!ledger || runStale(run)) return
+  if (textLedgerCharKeys(schedule).length > 0) {
+    // Kept before the status lines play, so neither a save taken during them nor closing the game
+    // pays for it again; it is applied after them, once.
+    loopState.nightLedger = { key, reply: ledger }
+    if (loopState.interludeBase) {
+      loopState.interludeBase = { ...loopState.interludeBase, heldNightLedger: loopState.nightLedger }
+      if (!kept) void writeHeldNightAutosave(loopState.interludeBase)
+    }
+  }
   loopState.pendingLedgerResult = ledger
   game.setEndingInFlight(false)
   await new Promise<void>(resolve => {
@@ -3371,6 +3384,7 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
       )
     }
   }))
+  loopState.nightLedger = null
   interludeSettled({ ...now, ledger })
   if (runStale(run)) return
   const live = useGameStore.getState()
@@ -3398,7 +3412,8 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
   loopState.pendingLedgerResult = null
   loopState.statusSteps = []
   game.clearStage()
-  await writeSlotSave(undefined, null)
+  // The paid opening goes on the morning's save before the curtain, so a reload opens from it.
+  await writeSlotSave(undefined, null, ready)
   if (runStale(run)) return
   await coverInterludeOpening()
   if (runStale(run)) return
@@ -3442,6 +3457,8 @@ export function enterGame(
   resetLoop()
   // Held for a replay's return, which enters the same game again.
   loopState.record = record
+  // A held night's paid ledger, for its row to claim when the night's texts still match.
+  loopState.nightLedger = save.heldNightLedger ? { ...save.heldNightLedger } : null
   // A `playthrough` mod this game started with that is not running this session is named once.
   const unversionedSeen = useSettingsStore.getState().settings?.modUnversionedSeen
   useModSessionStore
@@ -3473,7 +3490,9 @@ export function enterGame(
   loopState.slotSaveId = isSlotSaveId(save.saveId) ? save.saveId : null
 
   if (!save.scene) {
-    void beginSlot()
+    // A finished night's morning opens from the opening it already wrote.
+    if (save.morningOpening) void beginSlot(true, save.morningOpening)
+    else void beginSlot()
     return
   }
 

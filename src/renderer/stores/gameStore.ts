@@ -264,6 +264,8 @@ export interface SceneKind {
 const SAVE_KEYS: Record<keyof NativeGameSave, true> & Partial<Record<keyof GameSave, true>> = {
   chatShownThrough: true,
   heldNight: true,
+  heldNightLedger: true,
+  morningOpening: true,
   schemaVersion: true,
   playthroughId: true,
   semester: true,

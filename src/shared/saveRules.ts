@@ -190,8 +190,7 @@ function playbackProblem(playback: unknown): string | null {
   if (!isPlainObject(playback)) return 'is not an object'
   if (!isPlainObject(playback.reply)) return 'has no valid "reply"'
   const lines = playback.lines
-  if (!Array.isArray(lines) || !lines.every(line => isPlainObject(line) &&
-    typeof line.speaker === 'string' && typeof line.text === 'string')) return 'has no valid "lines"'
+  if (!Array.isArray(lines) || !isLines(lines)) return 'has no valid "lines"'
   const indices = playback.indices
   if (!Array.isArray(indices) || indices.length !== lines.length ||
     !indices.every(index => Number.isSafeInteger(index) && index >= 0)) return 'has no valid "indices"'
@@ -202,9 +201,30 @@ function playbackProblem(playback: unknown): string | null {
   return null
 }
 
+/** Whether every entry of `lines` is a playback line: a speaker and its text. */
+function isLines(lines: unknown): boolean {
+  return Array.isArray(lines) && lines.every(line => isPlainObject(line) &&
+    typeof line.speaker === 'string' && typeof line.text === 'string')
+}
+
+/** The first problem with a finished night's banked morning opening, or null when it is well formed. */
+function morningOpeningProblem(opening: unknown): string | null {
+  if (!isPlainObject(opening)) return 'is not an object'
+  if (!isLines(opening.lines)) return 'has no valid "lines"'
+  for (const key of ['hangouts', 'events', 'cancellations'] as const) {
+    if (!Array.isArray(opening[key])) return `has no valid "${key}"`
+  }
+  if (opening.reply !== undefined && !isPlainObject(opening.reply)) return 'has an invalid "reply"'
+  const indices = opening.lineIndices
+  if (indices !== undefined && !(Array.isArray(indices) &&
+    indices.every(index => Number.isSafeInteger(index) && index >= 0))) return 'has an invalid "lineIndices"'
+  return null
+}
+
 /**
  * Refuses a save whose native optional fields are present but malformed: the held-reply clock and
- * hold, the late-night marker, a resumable opening and the literal message flags. A save written
+ * hold, the late-night marker and its paid ledger, a resumable or banked opening and the literal
+ * message flags. A save written
  * before any of them, which lacks them, is valid; what mods keep is not looked at.
  */
 export function assertSaveFields(save: GameSave, where: string): void {
@@ -214,6 +234,14 @@ export function assertSaveFields(save: GameSave, where: string): void {
   const fields = save as unknown as Record<string, unknown>
   for (const key of ['chatShownThrough', 'heldNight'] as const) {
     if (fields[key] !== undefined && !isClock(fields[key])) malformed(key)
+  }
+  const ledger = fields.heldNightLedger
+  if (ledger !== undefined && !(isPlainObject(ledger) && typeof ledger.key === 'string' && isPlainObject(ledger.reply))) {
+    malformed('heldNightLedger')
+  }
+  if (fields.morningOpening !== undefined) {
+    const problem = morningOpeningProblem(fields.morningOpening)
+    if (problem) malformed(`morningOpening ${problem}`)
   }
   const scene = fields.scene
   if (isPlainObject(scene) && scene.slotOpening !== undefined) {

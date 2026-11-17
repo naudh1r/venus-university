@@ -162,7 +162,7 @@ describe('loadSave', () => {
     })
   })
 
-  describe('the held-reply, late-night and opening fields', () => {
+  describe('the held-reply, late-night, chat-clock and opening fields', () => {
     const clock = { date: 4, time: 1 }
     const text = { id: 't1', sender: 'player', text: 'Out yet?', date: 4, time: 0 }
     const hold = { until: clock, firstPlayerId: 't1', messageIds: ['r1'] }
@@ -181,7 +181,9 @@ describe('loadSave', () => {
       await expect(saveService.loadSave('1', '1')).resolves.toMatchObject({ saveId: '1' })
       await seed('1', '2', withChat({ ...text, awaitingReply: true, ledgered: true, late: true },
         { ...hold, afterClass: { ...clock, code: 'ENG101' }, opened: true, blocked: true, summary: 'Asked.' },
-        { chatShownThrough: clock, heldNight: clock, scene: { slotOpening: playback } }))
+        { chatShownThrough: clock, heldNight: clock, scene: { slotOpening: playback },
+          heldNightLedger: { key: '9|mia:t1', reply: { stats: {} } },
+          morningOpening: { lines: playback.lines, hangouts: [], events: [], cancellations: [], reply: {}, lineIndices: [0] } }))
       await expect(saveService.loadSave('1', '2')).resolves.toMatchObject({ chatShownThrough: clock })
     })
 
@@ -200,7 +202,10 @@ describe('loadSave', () => {
         [{ ...draft(), heldNight: { date: 4, time: 2 } }, 'heldNight'],
         [{ ...draft(), scene: { slotOpening: { ...playback, index: 1 } } }, 'index'],
         [{ ...draft(), scene: { slotOpening: { ...playback, indices: [] } } }, 'indices'],
-        [{ ...draft(), scene: { slotOpening: { ...playback, reply: null } } }, 'reply']
+        [{ ...draft(), scene: { slotOpening: { ...playback, reply: null } } }, 'reply'],
+        [{ ...draft(), heldNightLedger: { key: '9|mia:t1' } }, 'heldNightLedger'],
+        [{ ...draft(), morningOpening: { lines: 'Morning.', hangouts: [], events: [], cancellations: [] } }, 'morningOpening'],
+        [{ ...draft(), morningOpening: { lines: [], hangouts: [], events: [] } }, 'cancellations']
       ]
       for (const [index, [body, field]] of bad.entries()) {
         await seed('1', String(10 + index), body)

@@ -1093,6 +1093,7 @@ export interface NativeGameSave {
         date: number;
         time: TimeSlot;
     };
+    heldNightLedger?: BankedTextLedger;
     history: GameHistory;
     homecomingVisitor?: string;
     inventory: OwnedItem[];
@@ -1105,6 +1106,7 @@ export interface NativeGameSave {
     } | null;
     midtermStandingDone: boolean;
     money: number;
+    morningOpening?: SlotOpening;
     npcFriendships?: NpcFriendship[];
     npcOverlay: NpcSlotOverlay | null;
     npcRelationships: NpcRelationshipMap;
