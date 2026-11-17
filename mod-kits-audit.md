@@ -377,3 +377,41 @@ Installed from the live catalogue at c1dc0a08:
 **Not covered:** no turn was played, because that needs a real AI key. How Bunnyfeeds behaves in a game without Photo is covered only by the unit tests. Anyone who installed the earlier Photo 1.7.3 or Bunnyfeeds 1.1.6 has to remove it and install it again: the version didn't change, so the game won't offer it as an update.
 
 **Still open:** the build-path comment in Photo's `main.js` (check 5) remains, so a rebuild still differs from the zip by that one line.
+
+## Follow-up: After Hours review and play test (0.6.7)
+
+After Hours was never reviewed as a pull request, so it was reviewed and tested as one, on commits.
+
+### Review
+
+- **The mod** (`naudh1r-core...mod/after-hours-kit`): reviewed by Claude. No blocking issues. The order of `slotSettled` and `slotInterlude` was checked: a stay-over marks the night done before the next morning checks it.
+- **Its core hooks** (`hooks/after-hours-core`, 23a162c5): reviewed by Codex in `after-hours-core-review.md`. Three findings, all should-fix, all fixed on `hooks/after-hours-core`:
+
+| Finding | Fix |
+|---|---|
+| 1. A night's paid ledger and morning opening are not kept on the save, so a reload pays again | 73036511, then 80d0f2ed: the early ledger request skips a night whose save already holds its ledger |
+| 2. Held replies resume before the playthrough's lorebook loads | 17aaed30 |
+| 3. The new save fields are read without checking their shape | c4fc0a6d |
+
+All merged through `naudh1r-core` (983b6385, then 381b44ff) into the four kit branches. Typecheck and tests pass on each, apart from `getComfyOutputFilePath` on Linux.
+
+### Release
+
+**After Hours 0.6.7** (`mod/after-hours-kit` a884f5c8, catalogue 4a0c62ba): a pool of falling-asleep lines, three or four lines of her the morning after a night together, a fuller description, the author in lowercase, and a changelog section in its docs. Installs and starts from the live catalogue alone and with the other three mods, with no notice or console errors.
+
+### Played
+
+On `naudh1r-core` 381b44ff, with all four mods installed from Browse:
+
+| Check | Result |
+|---|---|
+| Busy status, and texting her while she's in class or at work | ✅ |
+| Night screen after the evening, Go to sleep | ✅ |
+| Save during the night, load, back on the night | ✅ |
+| Fix 1: manual save during the night's status lines, restart, load, Go to sleep: `app.log` shows one `text-ledger` request for the night (23:48:28) and none after the load (23:48:59) | ✅ |
+| Skip to tomorrow from the evening skips the night | ✅ |
+| Stay-over morning: her lines, and no night screen | ✅ |
+
+Also played: Bunnyfeeds with and without Photo Feature, Photo Feature in DMs, feeds, the gallery and Photo info, and Emoji Extended.
+
+Every release keeps `reviewed: false` in `catalog.json`: what that flag means is for the org to decide if the mods browser goes upstream, and the game does not show it.
