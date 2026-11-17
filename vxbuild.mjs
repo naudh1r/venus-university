@@ -18,8 +18,25 @@ const js = readFileSync(join(out, 'renderer.js'), 'utf8')
 for (const m of js.matchAll(/import\s*\{([^}]*)\}\s*from\s*"@vx\/modkit\/(renderer|shared)"/g)) for (const n of m[1].split(',')) { const name = n.trim().split(/\s+as\s+/)[0]; if (name && !/^type /.test(name)) kitNames.add(`${m[2]}:${name}`) }
 const table = readFileSync(join(repo, 'packages/modkit/src/shared/hookTable.ts'), 'utf8')
 const hookNames = [...table.matchAll(/\{ name: '([^']+)', side: '(?:renderer|shared|main)'/g)].map((m) => m[1])
+// The names the table builds with helpers: prompt('x') is prompts.x, request('x') is requests.x, slot('x') is x.
+for (const m of table.matchAll(/^\s*(prompt|request|slot)\('([^']+)'\)/gm)) hookNames.push(m[1] === 'slot' ? m[2] : `${m[1]}s.${m[2]}`)
 const entrySrc = [...inputs].filter((f) => !f.includes('node_modules') && !f.includes(':')).map((f) => readFileSync(join(repo, f), 'utf8')).join('\n')
-for (const h of hookNames) if (new RegExp(`^\\s*${h}\\s*[:(,]`, 'm').test(entrySrc) && /registerHooks/.test(entrySrc)) kitNames.add(h)
+// The keys of a `group: { ... }` block, found by matching its braces: `prompts.<spot>` and `requests.<spot>`.
+const blockKeys = (src, group) => {
+  const keys = new Set()
+  for (const m of src.matchAll(new RegExp(`^\\s*${group}\\s*:\\s*\\{`, 'gm'))) {
+    let depth = 1, i = m.index + m[0].length, start = i
+    for (; i < src.length && depth > 0; i++) { if (src[i] === '{') depth++; else if (src[i] === '}') depth-- }
+    let body = src.slice(start, i - 1), flat = '', d = 0
+    for (const c of body) { if (c === '{') d++; else if (c === '}') d--; else if (d === 0) flat += c }
+    for (const k of flat.matchAll(/(?:^|[,\n])\s*(?:'([^']+)'|"([^"]+)"|([A-Za-z_$][\w$-]*))\s*:/g)) keys.add(k[1] ?? k[2] ?? k[3])
+  }
+  return keys
+}
+if (/registerHooks/.test(entrySrc)) for (const h of hookNames) {
+  const dot = h.indexOf('.')
+  if (dot > 0 ? blockKeys(entrySrc, h.slice(0, dot)).has(h.slice(dot + 1)) : new RegExp(`^\\s*${h}\\s*[:(,]`, 'm').test(entrySrc)) kitNames.add(h)
+}
 const mainEntry = join(repo, `src/main/modEntries/${id}.ts`)
 let hasMain = false
 if (existsSync(mainEntry)) {
@@ -30,14 +47,23 @@ if (existsSync(mainEntry)) {
   Object.keys(mr.metafile.inputs).forEach((f) => inputs.add(f))
   rmSync(wrap)
   const mjs = readFileSync(join(out, 'main.js'), 'utf8')
-  for (const m of mjs.matchAll(/require\("@vx\/modkit\/(main|shared)"\)/g)) kitNames.add(`${m[1]}:*`)
+  // esbuild binds each kit module to a variable; every property read off it is a name the manifest declares.
+  for (const m of mjs.matchAll(/var (\w+) = require\("@vx\/modkit\/(main|shared)"\)/g))
+    for (const u of mjs.matchAll(new RegExp(`\\b${m[1]}\\.(\\w+)`, 'g'))) kitNames.add(`${m[2]}:${u[1]}`)
 }
 // The ModDef, evaluated.
 const defOut = join(out, '_def.mjs')
 await build({ ...common, metafile: false, entryPoints: [join(repo, `src/shared/modEntries/${id}.ts`)], format: 'esm', platform: 'node', outfile: defOut, external: kitExternal, plugins: [{ name: 'kitstub', setup(b) { b.onResolve({ filter: /^@vx\/modkit/ }, () => ({ path: 'kit', namespace: 'kit' })); b.onLoad({ filter: /.*/, namespace: 'kit' }, () => ({ contents: 'module.exports = new Proxy({}, { get: () => () => {} })', loader: 'js' })) } }] })
 const def = (await import(pathToFileURL(defOut).href)).default
 rmSync(defOut)
-const manifest = { manifest: 1, id: def.id, name: def.name, author: def.author, version: def.version, blurb: def.blurb, source: 'https://github.com/venus-extracurriculars/build', kit: `>=${KIT}`, hooks: [...new Set([...(def.hooks ?? []), ...kitNames])].filter((h) => !h.endsWith(':*')).sort(), main: hasMain, scope: def.scope, defaultOn: def.defaultOn, ...(def.offNote ? { offNote: def.offNote } : {}), ...(def.options ? { options: def.options } : {}), ...(def.optionGroups ? { optionGroups: def.optionGroups } : {}), ...(def.requires ? { requires: def.requires } : {}), ...(def.optional ? { optional: def.optional } : {}), ...(def.dataPath ? { dataPath: def.dataPath } : {}) }
+// The manifest takes { id: range }; an empty list or object is left out.
+const deps = (key) => {
+  const v = def[key]
+  if (v === undefined || (Array.isArray(v) && v.length === 0) || (v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)) return {}
+  if (Array.isArray(v)) throw new Error(`${key} is a list; the manifest needs { id: range }`)
+  return { [key]: v }
+}
+const manifest = { manifest: 1, id: def.id, name: def.name, author: def.author, version: def.version, blurb: def.blurb, source: 'https://github.com/venus-extracurriculars/build', kit: `>=${KIT}`, hooks: [...new Set([...(def.hooks ?? []), ...kitNames])].filter((h) => !h.endsWith(':*')).sort(), main: hasMain, scope: def.scope, defaultOn: def.defaultOn, ...(def.offNote ? { offNote: def.offNote } : {}), ...(def.options ? { options: def.options } : {}), ...(def.optionGroups ? { optionGroups: def.optionGroups } : {}), ...deps('requires'), ...deps('optional'), ...(def.dataPath ? { dataPath: def.dataPath } : {}) }
 writeFileSync(join(out, 'vxmod.json'), JSON.stringify(manifest, null, 2))
 // Which game files went into the bundle, beyond the mod's own.
 const own = JSON.parse(process.env.OWN_GLOBS ?? '[]').map((g) => new RegExp('^' + g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '\0').replace(/\*/g, '[^/]*').replace(/\0/g, '.*') + '$'))
