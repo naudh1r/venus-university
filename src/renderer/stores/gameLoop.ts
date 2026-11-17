@@ -365,6 +365,17 @@ function breakDecayLines(): SceneLine[] {
   return decay.stats.length > 0 || cooled ? [breakDecayLine()] : []
 }
 
+/**
+ * Rewrites the held replies a save left unfinished once the playthrough's lorebook is read, so each
+ * request carries its own world. The conversations are read again after the wait, and a reply
+ * already in flight is not sent twice.
+ */
+async function resumeHeldRepliesOnceRead(run: object): Promise<void> {
+  await lorebookLoaded()
+  if (runStale(run)) return
+  resumeHeldReplies()
+}
+
 /** Opens a slot: the transition, the narration, and the action prompt. */
 async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<void> {
   const run = currentRun()
@@ -3456,7 +3467,7 @@ export function enterGame(
     ? { date: save.date, time: save.time } : prevSlot(save.date, save.time)) })
   gameEntered()
   releaseHeldReplies()
-  resumeHeldReplies()
+  void resumeHeldRepliesOnceRead(currentRun())
   // The file a slot opening is folded back into: a boundary's own save, never the autosave or a
   // manual one.
   loopState.slotSaveId = isSlotSaveId(save.saveId) ? save.saveId : null

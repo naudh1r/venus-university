@@ -4,12 +4,14 @@ import type {
   GameSave,
   LedgerResponse,
   Result,
-  SceneState
+  SceneState,
+  TextingResponse
 } from '@shared/types'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { openingScene } from '../src/renderer/stores/loop/saves'
 import { loopState, resetLoopState } from '../src/renderer/stores/loop/state'
-import { playthroughRecord, restoreApi, sceneLines, stubApi } from './fixtures'
+import { character, playthroughRecord, restoreApi, sceneLines, stubApi } from './fixtures'
+import { useLorebookStore } from '../src/renderer/stores/lorebookStore'
 import type { LorebookRecord } from '../src/shared/lorebookRecord'
 
 /**
@@ -139,5 +141,60 @@ describe('enterGame', () => {
 
     enterGame(saveOf(scene, 'manual07'), playthroughRecord(), {})
     expect(loopState.slotSaveId).toBeNull()
+  })
+})
+
+describe('a held reply the save left unfinished', () => {
+  /** A landing save whose only chat ends on a busy-time text still waiting for her reply. */
+  function heldSave(): GameSave {
+    const narration = sceneLines('Morning.')
+    const save = saveOf({ ...openingScene([]), sceneLog: narration, currentLine: narration[0] })
+    const text = { id: 'text', sender: 'player' as const, text: 'Out of class yet?', date: save.date,
+      time: save.time, awaitingReply: true as const }
+    return { ...save, bunnyboard: { ...save.bunnyboard, conversations: {
+      'char-1': { charId: 'char-1', messages: [text], unread: 0, summary: null,
+        heldReply: { until: { date: save.date + 1, time: 0 }, firstPlayerId: 'text', messageIds: [] } }
+    } } }
+  }
+
+  /** Holds the playthrough's lorebook read open, and records the lorebook's state at each reply sent. */
+  function stubHeldRead(): { finish: () => void; sentWhile: string[] } {
+    let finish = (): void => {}
+    const read = new Promise<Result<LorebookRecord | null>>(resolve => {
+      finish = () => resolve({ ok: true, data: null })
+    })
+    const sentWhile: string[] = []
+    stubApi({
+      saves: { readProfilePicture: vi.fn(async (): Promise<Result<Uint8Array<ArrayBuffer> | null>> => ({ ok: true, data: null })) },
+      lorebook: { read: vi.fn(() => read) },
+      llm: {
+        onTextingDelta: () => () => {},
+        completeTexting: vi.fn((): Promise<Result<TextingResponse>> => {
+          sentWhile.push(useLorebookStore.getState().status)
+          return new Promise(() => {})
+        })
+      }
+    })
+    return { finish: () => finish(), sentWhile }
+  }
+
+  it('is written only once the playthrough\'s lorebook has been read', async () => {
+    const { finish, sentWhile } = stubHeldRead()
+    enterGame(heldSave(), playthroughRecord(), { 'char-1': character() })
+    await Promise.resolve()
+    expect(sentWhile).toEqual([])
+
+    finish()
+    await vi.waitFor(() => expect(sentWhile).toEqual(['ready']))
+  })
+
+  it('is not written for a game left before the read finished', async () => {
+    const { finish, sentWhile } = stubHeldRead()
+    enterGame(heldSave(), playthroughRecord(), { 'char-1': character() })
+    resetLoopState()
+
+    finish()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(sentWhile).toEqual([])
   })
 })
