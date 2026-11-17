@@ -1,4 +1,2 @@
 01-busy-status.webp: Busy in the chats header, and a text to her while she's in class.
-02-evening.webp: In the evening, relax until bedtime or skip to tomorrow.
-03-night-curtain.webp: After the evening, the night begins.
-04-night.webp: Back in your room for the night: text before you go to sleep.
+02-night.webp: After the evening, a night in your room to text before you sleep.

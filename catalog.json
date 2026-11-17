@@ -143,10 +143,6 @@
         {
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/screenshots/03-friend-tag.webp",
           "caption": "A photo with a friend tags her, like a real post."
-        },
-        {
-          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/screenshots/04-photo-info.webp",
-          "caption": "Photo info shows each girl's prompt; edit it and redraw with the same seed or a new one."
         }
       ]
     },
@@ -302,16 +298,8 @@
           "caption": "Busy in the chats header, and a text to her while she's in class."
         },
         {
-          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/screenshots/02-evening.webp",
-          "caption": "In the evening, relax until bedtime or skip to tomorrow."
-        },
-        {
-          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/screenshots/03-night-curtain.webp",
-          "caption": "After the evening, the night begins."
-        },
-        {
-          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/screenshots/04-night.webp",
-          "caption": "Back in your room for the night: text before you go to sleep."
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/screenshots/02-night.webp",
+          "caption": "After the evening, a night in your room to text before you sleep."
         }
       ]
     }
