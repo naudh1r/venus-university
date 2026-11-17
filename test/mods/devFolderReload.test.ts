@@ -33,6 +33,14 @@ const { modSession, rerunModChecks, startModSession } = await import('../../src/
 const { MODS, modById } = await import('../../src/shared/mods')
 const { sharedModOn } = await import('../../src/shared/modRules')
 
+// Core has none; main must keep its bundled definitions through every installed-mod rerun.
+const builtIn = [...MODS]
+
+function expectBundledAndLibrary(): void {
+  expect(MODS.map((mod) => mod.id)).toEqual([...builtIn.map((mod) => mod.id), 'lib'].sort())
+  for (const mod of builtIn) expect(modById(mod.id)).toBe(mod)
+}
+
 /** The developer folder: a copy of the hello-mod fixture. */
 let dev = ''
 
@@ -87,7 +95,7 @@ describe('a developer folder reloaded while the game runs', () => {
     await rewrite({ surprise: true })
     expect(row('hello-mod')?.status).toBe('refused')
     expect(row('hello-mod')?.def).toBeNull()
-    expect(MODS.map((mod) => mod.id)).toEqual(['lib'])
+    expectBundledAndLibrary()
     expect(sharedModOn('hello-mod')).toBe(false)
   })
 
@@ -96,7 +104,7 @@ describe('a developer folder reloaded while the game runs', () => {
     await rm(dev, { recursive: true, force: true })
     rerunModChecks()
     expect(row('hello-mod')?.def).toBeNull()
-    expect(MODS.map((mod) => mod.id)).toEqual(['lib'])
+    expectBundledAndLibrary()
     expect(sharedModOn('hello-mod')).toBe(false)
   })
 })
