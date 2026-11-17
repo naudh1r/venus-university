@@ -139,6 +139,14 @@
         {
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/screenshots/02-gallery.webp",
           "caption": "Every photo she has sent or posted, in the Gallery on her contact page."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/screenshots/03-friend-tag.webp",
+          "caption": "A photo with a friend tags her, like a real post."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/screenshots/04-photo-info.webp",
+          "caption": "Photo info shows each girl's prompt; edit it and redraw with the same seed or a new one."
         }
       ]
     },
