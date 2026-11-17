@@ -208,7 +208,7 @@ art, a girl's ordinary sprite and her Unheard Soul portrait are three different 
 [observations](../src/renderer/stores/whisperObservations.ts),
 [delivery](../src/renderer/stores/whisperDelivery.ts), [carry](../src/shared/whisperCarry.ts).
 
-Stable ID `venus-whisper`, state `exVenusWhisper`, UI The Hare & Quill and byline Lady Harewood.
+Stable ID `venus-whisper`, state `exVenusWhisper`, UI The Hare & Quill and byline Harewood.
 One issue is due each in-game Wednesday. Enabling late catches up only the latest issue, not
 an unlimited backlog. Automatic delivery waits for a safe save checkpoint; retry/backoff,
 deletion markers and saved batches prevent duplicate paid publication.

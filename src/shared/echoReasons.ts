@@ -73,7 +73,7 @@ export function explainEchoAspect(id:EchoAspect,parts:EchoProfilePart[],chosen=f
   let reason=VOICE[id].intro+' '
   if(chosen)reason+='This one was your choice. Here are the parts of your story that might speak to it.'
   else if(supports.some(e=>e.source==='Backstory'))reason+='You can see a little of that in the moments below.'
-  else if(supports.length)reason+=parts.some(p=>p.label==='backstory')?'The fit is easier to see in her personality than in her past.':'The details below are what point your Echo in this direction.'
+  else if(supports.length)reason+=parts.some(p=>p.label==='backstory')?'The fit is easier to see in their personality than in their past.':'The details below are what point your Echo in this direction.'
   else reason+='This is a loose fit; there isn’t much in the available story that points toward it.'
   return {reason,reasonExamples:examples.slice(0,4),reasonVersion:2}
 }

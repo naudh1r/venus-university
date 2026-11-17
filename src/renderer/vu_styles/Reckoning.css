@@ -57,7 +57,7 @@
 .vu-reckoning-portrait img.vu-reflection-stage-image{position:absolute;height:85%;width:55%;right:9%;bottom:0;object-position:center bottom;transform-origin:50% 100%}
 
 /* Mirror the player’s current placement without overwriting her ordinary Echo settings. */
-.vu-reckoning-echo--girl.echo-reflection-stage .echo-aura{left:auto;right:calc(9.4% + var(--echo-x,0%));transform:translateX(50%) scale(var(--echo-scale,1))}
+.vu-reckoning-echo--character.echo-reflection-stage .echo-aura{left:auto;right:calc(9.4% + var(--echo-x,0%));transform:translateX(50%) scale(var(--echo-scale,1))}
 
 /* The longer encounter title stays clear of the close control. */
 .vu-reckoning>header>div{min-width:0}.vu-reckoning h1{font-size:clamp(22px,2.4vw,34px);line-height:1.15;text-wrap:balance}

@@ -28,13 +28,13 @@ export function CompanionVoiceSettings({ api, settings, people, report }: { api:
   return <div className="companion-voice">
     <CompanionTabs id="laptop-voice" label="Voice setup" active={tab} onChange={setTab} tabs={[{ id: 'voices', label: 'Their voices' }, { id: 'microphone', label: 'Your microphone' }]} />
     <div id="laptop-voice-panel-voices" role="tabpanel" aria-labelledby="laptop-voice-tab-voices" hidden={tab !== 'voices'} className="companion-grid">
-      <section className="companion-card"><h2>Hear her voice</h2>
+      <section className="companion-card"><h2>Hear their voice</h2>
         <label>ElevenLabs API key<input type="password" autoComplete="off" value={elevenKey} placeholder={settings.elevenLabsKeySet ? 'Saved · leave blank to keep' : 'Enter API key'} onChange={e => { setElevenKey(e.target.value); changed() }} /></label>
         {settings.elevenLabsKeySet && <label className="companion-check"><input type="checkbox" checked={clearEleven} onChange={e => { setClearEleven(e.target.checked); changed() }} /> Remove saved ElevenLabs key</label>}
         <label>Speech model<input value={draft.elevenLabsModel} maxLength={100} onChange={e => edit({ elevenLabsModel: e.target.value })} /></label>
         <p className="companion-hint">Spoken replies use ElevenLabs credits.</p>
       </section>
-      <section className="companion-card"><h2>A voice for each girl</h2>
+      <section className="companion-card"><h2>A voice for each character</h2>
         <p className="companion-hint">These voices are used for screen-sharing replies. Leave a voice ID blank to keep that speaker silent.</p>
         {people.map(person => <label key={person.charId}>{person.name} · voice ID<input value={draft.voiceIds[person.charId] ?? ''} maxLength={100} placeholder="Paste an ElevenLabs voice ID" onChange={e => edit({ voiceIds: { ...draft.voiceIds, [person.charId]: e.target.value.trim() } })} /></label>)}
       </section>

@@ -103,7 +103,7 @@ async function runPreparation():Promise<void> {
     }catch(error){
       if(validOpening(opening)){
         opening.status='error'
-        opening.error=error instanceof Error?error.message:'Her thoughts could not be prepared.'
+        opening.error=error instanceof Error?error.message:'Their thoughts could not be prepared.'
       }
     }finally{
       if(preparing===opening)preparing=null
@@ -159,7 +159,7 @@ export async function moveLegacyReckoningToDungeon():Promise<void> {
   if(!girl)throw Error('This character is unavailable.')
   const aspect=game.exEcho.girls[session.charId]?.aspect??profileAspect(fullNameOf(girl),[{label:'personality',text:girl.personality,weight:3},{label:'backstory',text:girl.backstory,weight:2}]).aspect
   commit()
-  await writeReckoningChange({...game.exReckoning,dungeon:{id:session.id,charId:session.charId,aspect,unlockedByReckoning:true,phase:'inside',context:session.context,replies:0,farewellReplies:0,lines:[{who:'narrator',text:'You settle somewhere quiet and follow her voice inward. Your unfinished encounter is still waiting in The Unspoken.'}]}},game.exReckoning,0,session.charId,undefined,current)
+  await writeReckoningChange({...game.exReckoning,dungeon:{id:session.id,charId:session.charId,aspect,unlockedByReckoning:true,phase:'inside',context:session.context,replies:0,farewellReplies:0,lines:[{who:'narrator',text:'You settle somewhere quiet and follow their voice inward. Your unfinished encounter is still waiting in The Unspoken.'}]}},game.exReckoning,0,session.charId,undefined,current)
  })
 }
 /** A saved closing beat waits for a later ordinary scene with her, never the inner world. */
@@ -196,7 +196,7 @@ async function operation<T>(run:(group:string,current:()=>boolean,commit:()=>voi
 export async function startReckoning(charId:string):Promise<void> {
   return operation(async(group,current,commit)=>{
     const game=useGameStore.getState()
-    if(!canStartReckoning(game,charId))throw Error('Listen beneath her words to open a connection, then follow her voice from the map at night.')
+    if(!canStartReckoning(game,charId))throw Error('Listen beneath their words to open a connection, then follow their voice from the map at night.')
     const context=openingContext(game,charId)
     const cached=openings.get(charId)
     let thoughts:ReckoningSession['thoughts']
@@ -205,7 +205,7 @@ export async function startReckoning(charId:string):Promise<void> {
       // A direct caller during preparation joins that request instead of paying for a second one.
       if(cached.status==='preparing')await cached.promise
       if(!current()||!validOpening(cached))throw Error('The encounter changed. No spirit was spent.')
-      if(cached.status!=='ready'||!cached.thoughts)throw Error(cached.error||'Her thoughts are still being prepared.')
+      if(cached.status!=='ready'||!cached.thoughts)throw Error(cached.error||'Their thoughts are still being prepared.')
       thoughts=cached.thoughts
     }else{
       const result=await completeStructured<unknown>(RECKONING_MOD, beginReckoningPrompt(context), { group: group })

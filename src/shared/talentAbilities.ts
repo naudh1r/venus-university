@@ -76,7 +76,7 @@ export function valueSuggestions(info: CharInfo | undefined, items: readonly Ite
     // Native gifting values the original catalog price, even when the purchase was discounted.
     const reaction=giftReactionOf(itemDefOf(item.id)??item,character,info.gifts?.includes(item.id)??false)
     if(reaction!=='loved'&&reaction!=='liked')return []
-    return [{item,reaction,because:reaction==='loved'?'She’ll love this gift.':'She’ll like this gift.'}]
+    return [{item,reaction,because:reaction==='loved'?'They’ll love this gift.':'They’ll like this gift.'}]
   }).sort((a,b)=>(a.reaction===b.reaction?0:a.reaction==='loved'?-1:1)||a.item.price-b.item.price||a.item.id.localeCompare(b.item.id)).slice(0,1)
 }
 
@@ -86,9 +86,9 @@ export function dancerCapability(s: TalentState, context: string): string | null
   if (!rank || !/\b(danc(?:e|es|ed|ing|er)|waltz|salsa|tango|choreograph\w*)\b/i.test(context)) return null
   return [
     'The reader is a competent dancer with reliable timing and basic steps.',
-    'The reader is a skilled dancer who can confidently lead a willing partner and adapt to her pace.',
+    'The reader is a skilled dancer who can confidently lead a willing partner and adapt to their pace.',
     'The reader is an accomplished dancer who can improvise an expressive, technically impressive performance and lead a willing partner.'
-  ][Math.min(3,rank)-1] + ' Treat this as his established physical skill, while preserving injuries, space, consent and other realistic limits. It does not decide whether anyone is attracted or impressed. Show it naturally without mentioning skill ranks.'
+  ][Math.min(3,rank)-1] + ' Treat this as their established physical skill, while preserving injuries, space, consent and other realistic limits. It does not decide whether anyone is attracted or impressed. Show it naturally without mentioning skill ranks.'
 }
 
 /** Settle one meeting's pending goodbye and consume older anticipation against actual scene memories. */

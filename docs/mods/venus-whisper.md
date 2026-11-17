@@ -13,7 +13,7 @@ character profiles, Bunnyboard Updates, and Meanwhile's spectator conversations.
   Reading saved issues makes no AI call. Delivery waits for a safe save checkpoint.
 - Enabling the mod or loading a save later in the week catches up only the latest Wednesday;
   it does not generate an entire missed backlog. No issue arrives before the first Wednesday.
-- Every article ends with **— Lady Harewood**, the columnist’s pen name. Her real identity
+- Every article ends with **— Harewood**, the columnist’s pen name. Their real identity
   stays secret. This signature is rendered by the app, so it appears on archived issues too
   without rewriting their saved text. NPC comments use their regular names, handles and profile pictures.
 - Player comments show the reader portrait set in the native profile editor, with the usual
@@ -52,13 +52,13 @@ can finish its discussion without regenerating the article.
 ## The secret columnist
 
 The first settled slot with the mod enabled chooses one enrolled character, retained in the
-normal boundary save. This lets her start collecting sightings before the first Wednesday.
+normal boundary save. This lets them start collecting sightings before the first Wednesday.
 If publication happens first (for example, enabling the mod midweek), it saves that choice
-**before** the paid writing request. A failed request never rerolls her. New, unrelated games
+**before** the paid writing request. A failed request never rerolls them. New, unrelated games
 choose their own author. Loading an earlier save restores the identity and publications in that save.
 
-The author occasionally joins the comments under her ordinary account (a 25% inclusion roll
-per batch, or when explicitly addressed). She receives the same comment-generation task as
+The author occasionally joins the comments under their ordinary account (a 25% inclusion roll
+per batch, or when explicitly addressed). They receive the same comment-generation task as
 every other participant. The comment request is never told which person is the author.
 It contains the public article, a short thread window, and ordinary character profiles only.
 It prohibits identity guesses, insider hints, knowing winks, and conspicuous denials; a
@@ -70,16 +70,16 @@ three saved character likes, with names/handles redacted. It does not receive an
 handle, biography, save memories, private conversations, or full timetable. It asks for **one
 small incidental clue per issue**: a preference-based metaphor, a personality tell, or a broad
 classmate/worker/bystander perspective supported by a recorded sighting. This gives attentive
-readers something to connect across issues without printing her real name or announcing the
-answer. Lady Harewood is a shared public pen name, not a clue to a particular character.
+readers something to connect across issues without printing their real name or announcing the
+answer. Harewood is a shared public pen name, not a clue to a particular character.
 A preference is writing flavor, not proof that an incident happened. Comments still
 receive ordinary public profiles and are never told the secret role or the private clue data.
 
 Native 0.5.0 New Game+ carries the **same author**, profile snapshot, issues, comments, reply
-links and deletion markers. The identity stays even if she graduates, is omitted from the
-next roster, or her character file is later unavailable. A previously known columnist can
-continue to comment through her saved public profile. Other known readers' public profiles
-are kept too, so alumni participation does not single her out. Graduation does not put her back on
+links and deletion markers. The identity stays even if they graduate, is omitted from the
+next roster, or their character file is later unavailable. A previously known columnist can
+continue to comment through their saved public profile. Other known readers' public profiles
+are kept too, so alumni participation does not single them out. Graduation does not put them back on
 the map or change enrollment. Missing portraits fall back to an initial.
 
 Pseudonymity is a story rule, not encryption: this is a local game, and a player inspecting the
@@ -87,9 +87,9 @@ save or code can discover the stored identity.
 
 ### A private confession
 
-The player can ask the actual author whether she writes the column or is Lady Harewood.
+The player can ask the actual author whether they write the column or are Harewood.
 A first confession is available only at the native **trusted or devoted** relationship tier,
-in a one-to-one scene outside class, the player’s work shift, or a visit to her on-shift job.
+in a one-to-one scene outside class, the player’s work shift, or a visit to their on-shift job.
 The scene writer must also find the conversation private/out of earshot. These gates use
 native affection rather than a separate trust meter. A respectful question favors an honest
 admission; threats, coercion, public confrontations, jokes, and player-dictated outcomes do
@@ -104,7 +104,7 @@ private discovery is filed when the scene finishes and the native boundary save 
 bookkeeping does not certify a discovery. Old completed scenes are not retrospectively scanned.
 
 Later scenes with the author remember the discovery even if affection falls. Ordinary comments
-and newsletter generation never receive it, and the public byline stays Lady Harewood. It is
+and newsletter generation never receive it, and the public byline stays Harewood. It is
 not automatically shared with other NPCs or added to DMs. The optional discovery survives save,
 load, mod toggles and repeated semester carryover; rewinding to an older save restores that
 save’s knowledge. Replays, the scene creator, stale requests, and unrelated games are inert.
@@ -117,14 +117,14 @@ The editor selects one supported lead from known characters' public posts and **
 firsthand sightings**, then sends at most six relevant snippets. At each settled slot, the
 collector checks newly settled native NPC encounters against the author's actual class,
 work shift, or whereabouts. It reuses the native timetable's holiday, absence, mood, and
-current-overlay rules. A rolled run-in that moves her away from her usual haunt wins over
-that haunt. Being in the same dorm does not prove she heard a conversation: dorm run-ins
-qualify only when the encounter actually includes her. Characters involved in the player's
+current-overlay rules. A rolled run-in that moves them away from their usual haunt wins over
+that haunt. Being in the same dorm does not prove they heard a conversation: dorm run-ins
+qualify only when the encounter actually includes them. Characters involved in the player's
 scene are excluded; no private scene is mined for gossip. This mod never rolls extra meetings
 or changes anyone's schedule.
 
 The player's `nameKnown` flags do not restrict firsthand sightings: the columnist can
-report a public encounter she participated in or witnessed before the reader meets her
+report a public encounter they participated in or witnessed before the reader meets them
 or the other participants. This does not introduce anyone to the reader, unlock contacts,
 or reveal who writes the column. Unfamiliar characters' public feeds remain excluded.
 
@@ -212,7 +212,7 @@ local author identifier stays out of that request. Three preference strings are 
 120 characters each, and at most one is sent per issue. None of this requires SQLite.
 
 Discovery stores only `{ author, term, day, time }`, matched to the saved author. It is
-separate from `author.known`, which only means the reader knows her ordinary name. Malformed
+separate from `author.known`, which only means the reader knows their ordinary name. Malformed
 or mismatched discoveries are dropped; future stamps cannot grant knowledge early. The
 internal mod ID (`venus-whisper`), tab ID, issue keys and `exVenusWhisper` save field stay
 stable across the new display name, so existing switches and archives continue to work.

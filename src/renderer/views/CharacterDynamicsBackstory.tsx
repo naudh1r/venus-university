@@ -49,10 +49,10 @@ function CharacterDynamicsDetails({ entry, character, theme, onClose }: Props & 
         <header className="vu-dynamics-details-head">
           <span>This playthrough</span>
           <h2>{fullNameOf(character)}</h2>
-          <p>Her starting tendencies and the growth she has earned in this playthrough.</p>
+          <p>Their starting tendencies and the growth they have earned in this playthrough.</p>
         </header>
         <div className="vu-dynamics-details-scroll">
-          {entry.growth && <section className="vu-dynamics-earned" aria-label="Earned growth"><h3>Earned by breaking through the silence</h3><strong>{entry.growth.name}</strong><p>{entry.growth.description}</p><ul>{entry.growth.reframes.map((line,i)=><li key={i}>{line}</li>)}</ul><p>A change she can build on, while keeping her voice and personality.</p></section>}
+          {entry.growth && <section className="vu-dynamics-earned" aria-label="Earned growth"><h3>Earned by breaking through the silence</h3><strong>{entry.growth.name}</strong><p>{entry.growth.description}</p><ul>{entry.growth.reframes.map((line,i)=><li key={i}>{line}</li>)}</ul><p>A change they can build on, while keeping their voice and personality.</p></section>}
           {relationship && <section className="vu-dynamics-starting-background">
             <h3>Starting background</h3>
             <strong>{relationship.name}</strong>
@@ -60,7 +60,7 @@ function CharacterDynamicsDetails({ entry, character, theme, onClose }: Props & 
           </section>}
           {traits.length > 0 && <section className="vu-dynamics-details-traits">
             <h3>Personality nudges <span>{traits.length}</span></h3>
-            <p>Small influences on her original personality.</p>
+            <p>Small influences on their original personality.</p>
             <ul aria-label="Assigned personality traits">
               {traits.map(tag => <li key={tag.id}><h4>{tag.name}</h4><p>{tag.hint}</p></li>)}
             </ul>

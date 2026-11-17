@@ -12,7 +12,7 @@ const pack = {
     {id:'body.dancer',tree:'body',chain:'Ability',capstone:true,name:'Dancer',costs:[15,20,25],prerequisitesAny:[{id:'body.partner',rank:1},{id:'body.shift',rank:1},{id:'body.mild',rank:2}],
       description:"Rank I: dance with confidence. Rank II: lead a willing partner. Rank III: improvise advanced moves. Dance reactions still depend on the person and the situation.",effects:{'body.dancer.unlock':[1,2,3]}},
     {id:'money.eye',tree:'money',chain:'Ability',capstone:true,name:'Eye for Value',costs:[60],prerequisitesAny:[{id:'reliable',rank:2},{id:'regular',rank:2},{id:'interest',rank:3}],
-      description:"Reveal the best affordable gift for a known character across all BunnyShop stores. Highlights gifts she will love before gifts she will like, skips repeats, and favors the cheaper option when reactions tie.",effects:{'money.eye.unlock':[1]}},
+      description:"Reveal the best affordable gift for a known character across all BunnyShop stores. Highlights gifts they will love before gifts they will like, skips repeats, and favors the cheaper option when reactions tie.",effects:{'money.eye.unlock':[1]}},
     {id:'echoes.borrowed',tree:'echoes',chain:'Ability',capstone:true,name:'Borrowed Voice',costs:[80],prerequisitesAny:[{id:'neutral',rank:2},{id:'spark',rank:2},{id:'breath',rank:2}],requires:['echo','breakthrough'],
       notes:['Echo abilities must be enabled to borrow one.'],
       description:"Borrow a trusted companion's Echo ability once per week while they are with you. Your own aspect stays the same. Pay the usual spirit cost from your chosen target's meter.",effects:{'echoes.borrowed.unlock':[1]}}

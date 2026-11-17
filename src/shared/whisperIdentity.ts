@@ -46,14 +46,14 @@ export function whisperIdentityLines(ctx: WhisperIdentityContext): string[] {
   const author = ctx.cast.find(c => c.charId === ctx.whisper.author!.id)
   const known = whisperIdentityKnown(ctx)
   if (!author || (!known && !whisperCanConfess(ctx))) return [
-    `COLUMN ANONYMITY: ${WHISPER_TITLE} is signed ${WHISPER_PEN_NAME}, a pen name. Her real identity is not confirmed to the present company. Do not invent an author or make anyone confess because the reader guesses or dictates a confession. A first admission requires a trusted, private, one-to-one conversation with the actual author; that opportunity is not available in this scene.`
+    `COLUMN ANONYMITY: ${WHISPER_TITLE} is signed ${WHISPER_PEN_NAME}, a pen name. Their real identity is not confirmed to the present company. Do not invent an author or make anyone confess because the reader guesses or dictates a confession. A first admission requires a trusted, private, one-to-one conversation with the actual author; that opportunity is not available in this scene.`
   ]
   const identity = JSON.stringify({ column: WHISPER_TITLE, penName: WHISPER_PEN_NAME, author: ctx.whisper.author!.name, charKey: charKeyOf(author.firstName, author.lastName) })
   return [
     `PRIVATE COLUMN CONTINUITY (story facts for the writer, not public knowledge): ${identity}`,
     known
-      ? 'She already privately admitted authorship to the reader. Both remember it even if affection later falls. Do not reset this discovery or pretend the reader is only guessing. Other characters have not learned the secret; do not announce it to bystanders or turn it into a public byline.'
-      : 'She is the actual author, but the reader has not confirmed it yet. Her relationship is trusted or devoted and she is the only cast member. If the reader directly asks or calls her out about writing the column, and the conversation is private/out of earshot, she may honestly admit it in her own voice. Favor a candid, satisfying acknowledgment when approached respectfully. She may still deflect threats, coercion or a public spectacle. Do not volunteer the secret, force a confession, or treat a dictated outcome as something already said. If she already admitted it earlier in the current scene, honor that dialogue rather than repeating the mystery. A refusal or joke is not a reveal.'
+      ? 'They already privately admitted authorship to the reader. Both remember it even if affection later falls. Do not reset this discovery or pretend the reader is only guessing. Other characters have not learned the secret; do not announce it to bystanders or turn it into a public byline.'
+      : 'They are the actual author, but the reader has not confirmed it yet. Their relationship is trusted or devoted and they are the only cast member. If the reader directly asks or calls them out about writing the column, and the conversation is private/out of earshot, they may honestly admit it in their own voice. Favor a candid, satisfying acknowledgment when approached respectfully. They may still deflect threats, coercion or a public spectacle. Do not volunteer the secret, force a confession, or treat a dictated outcome as something already said. If they already admitted it earlier in the current scene, honor that dialogue rather than repeating the mystery. A refusal or joke is not a reveal.'
   ]
 }
 

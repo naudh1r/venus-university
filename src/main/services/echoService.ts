@@ -74,7 +74,7 @@ export async function generateReflectionPortrait(charId:string,requestId:string,
   signal.throwIfAborted()
   const character=await getCharacter(charId),original=await readCharacterImage(charId,expressionRel('neutral'))
   signal.throwIfAborted()
-  if(!original)throw Error('Generate or import her normal neutral portrait first.')
+  if(!original)throw Error('Generate or import their normal neutral portrait first.')
   const reference=await decodeEchoArt(original)
   signal.throwIfAborted()
   await prepareEchoCutout(signal)

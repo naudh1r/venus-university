@@ -6,5 +6,5 @@ export function CompanionMoveHandle({ api, enabled }: { api: CompanionApi; enabl
   useEffect(() => {
     return api.onMoveHandle(setHovering)
   }, [api])
-  return enabled ? <div className={`companion-move-handle${hovering ? ' is-visible' : ''}`} title="Drag to move her" aria-label="Drag to move her">✥</div> : null
+  return enabled ? <div className={`companion-move-handle${hovering ? ' is-visible' : ''}`} title="Drag to move them" aria-label="Drag to move them">✥</div> : null
 }

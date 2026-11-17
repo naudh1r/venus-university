@@ -95,7 +95,9 @@ describe('newsletter identity and semester continuity', () => {
     expect(user).not.toHaveProperty('author')
     expect(user).not.toHaveProperty('temperament')
     expect(user.profiles.every((p: object) => !('known' in p))).toBe(true)
-    expect(() => validateWhisperComments({ comments: people.map(p => ({ speaker: p.id, text: "I'm the anonymous author." })) }, people)).toThrow()
+    for (const text of ["I'm the anonymous author.", "I'm Harewood.", "I'm Lady Harewood."]) {
+      expect(() => validateWhisperComments({ comments: people.map(p => ({ speaker: p.id, text })) }, people)).toThrow()
+    }
     expect(() => validateWhisperComments({ comments: people.map(() => ({ speaker: 'outsider', text: 'Hi.' })) }, people)).toThrow()
     expect(whisperMentions('@sarah hi @minaret', people)).toEqual(['a'])
   })

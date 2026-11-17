@@ -23,6 +23,6 @@ export function StudyRoom({theme,onClose}:GameModalProps):JSX.Element|null{
  <TitleTab>Study together</TitleTab><button className="study-close" aria-label="Close Study together" onClick={onClose}>×</button>
  <div className="study-work">
  <><label>Who’s free?<select aria-label="Study partner" value={chosen} onChange={e=>setChosen(e.target.value)} disabled={busy}><option value="">Choose a friend</option>{contacts.map(({id,name,reason})=><option key={id} value={id} disabled={Boolean(reason)}>{name}{reason?' — '+reason:''}</option>)}</select></label><label>What would you like to study?<textarea aria-label="Study topic" value={topic} maxLength={2000} rows={3} onChange={e=>setTopic(e.target.value)} placeholder="A concept, a skill, a chapter, a project…"/></label></>
- <div className="study-actions"><button disabled={busy||!allowed||!chosen||!topic.trim()||Boolean(eligible(chosen))} onClick={begin}>Invite her to study</button></div>
+ <div className="study-actions"><button disabled={busy||!allowed||!chosen||!topic.trim()||Boolean(eligible(chosen))} onClick={begin}>Invite them to study</button></div>
  </div></motion.section></motion.div>,shell.host)
 }

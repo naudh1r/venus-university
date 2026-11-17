@@ -74,13 +74,13 @@ export function CharacterDynamicsModal({ theme, roster, initial, returning = [],
         <TitleTab>Character Dynamics</TitleTab>
         <header className="vu-dynamics-intro">
           <h2>A different beginning</h2>
-          <p>Give a girl shared history, gentle personality nudges, or both. Leave her unchanged if you prefer.</p>
-          {returning.length > 0 && <p>Returning girls keep their history and choices. Customize only the girls new to this semester.</p>}
+          <p>Give a character shared history, gentle personality nudges, or both. Leave them unchanged if you prefer.</p>
+          {returning.length > 0 && <p>Returning characters keep their history and choices. Customize only the characters new to this semester.</p>}
         </header>
         <div className="vu-dynamics-body">
           <aside className="vu-dynamics-palette" aria-label="Personality tags">
             <h3>Personality tags</h3>
-            <p>Drag tags onto a girl. Or select a tag, then use her “Add” button. You can use several.</p>
+            <p>Drag tags onto a character. Or select a tag, then use their “Add” button. You can use several.</p>
             <TextField id="dynamics-tag-search" label="Find a trait" value={search} onChange={setSearch} />
             <span className="vu-dynamics-tag-count" role="status">{matchingTags.length} of {PERSONALITY_NUDGES.length} traits</span>
             <div className="vu-dynamics-tags">
@@ -101,7 +101,7 @@ export function CharacterDynamicsModal({ theme, roster, initial, returning = [],
               ))}
             </div>
           </aside>
-          <div className="vu-dynamics-roster" aria-label="Your girls">
+          <div className="vu-dynamics-roster" aria-label="Your characters">
             {roster.map(girl => {
               const entry = dynamicFor(draft, girl.charId)
               const locked = returning.includes(girl.charId)
@@ -120,7 +120,7 @@ export function CharacterDynamicsModal({ theme, roster, initial, returning = [],
                     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(null)
                   }}
                   onDrop={event => { if (!locked && !submitted) drop(event, girl) }}>
-                  <header className="vu-dynamics-girl">
+                  <header className="vu-dynamics-character">
                     <div className="vu-arch vu-dynamics-portrait"><div className="vu-crop">
                       <img src={spriteUrl(girl.charId, 'neutral')} alt="" draggable={false} />
                     </div></div>
@@ -153,7 +153,7 @@ export function CharacterDynamicsModal({ theme, roster, initial, returning = [],
                   {entry.growth && <div className="vu-dynamics-history"><span className="vu-field-label">Earned growth</span><strong>{entry.growth.name}</strong><p>{entry.growth.description}</p></div>}
                   <div className="vu-dynamics-dropzone">
                     <span className="vu-field-label">Personality nudges</span>
-                    {entry.traits.length === 0 && <p>{locked ? 'Original personality.' : 'Drop tags here. Her original personality stays.'}</p>}
+                    {entry.traits.length === 0 && <p>{locked ? 'Original personality.' : 'Drop tags here. Their original personality stays.'}</p>}
                     <div className="vu-dynamics-assigned">
                       {entry.traits.map(id => <span key={id} className="vu-dynamics-assigned-tag">
                         {PERSONALITY_NUDGES.find(tag => tag.id === id)?.name}
@@ -174,8 +174,8 @@ export function CharacterDynamicsModal({ theme, roster, initial, returning = [],
         </div>
         <footer className="vu-dynamics-footer">
           <div className="vu-dynamics-summary" aria-live="polite">
-            <span>{assigned} of {roster.length} girls customized</span>
-            <p>{missing.length > 0 ? `${missing.length} ${missing.length === 1 ? 'girl needs an explanation' : 'girls need explanations'}.` : 'No stat changes. Unassigned girls keep their original personality.'}</p>
+            <span>{assigned} of {roster.length} characters customized</span>
+            <p>{missing.length > 0 ? `${missing.length} ${missing.length === 1 ? 'character needs an explanation' : 'characters need explanations'}.` : 'No stat changes. Unassigned characters keep their original personality.'}</p>
           </div>
           <motion.button type="button" className="vu-btn vu-btn--primary vu-btn--panel vu-paper"
             disabled={missing.length > 0 || submitted} {...gestures(missing.length > 0 || submitted, lift, press)}
