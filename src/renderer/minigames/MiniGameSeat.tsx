@@ -4,7 +4,7 @@ import { gameById } from './prefs'
 import { useEffect, useRef, type JSX } from 'react'
 import type { SceneSeatProps } from '../mods/hooks'
 import { fewestWith } from '@shared/minigames'
-import { useGameStore } from '../stores/gameStore'
+import { scene, useScene } from '@vx/modkit/renderer'
 import { DiceIcon } from '../views/screenIcons'
 import { agreementAvailable, keptAgreed, useSceneMiniGame, useTableStore } from './session'
 import { resumeMiniGameResult, useAtTurn, useGamesOffered, useSceneSpent, useTableOpen } from './table'
@@ -19,16 +19,16 @@ export function MiniGameSeat({ Seat, visible, open }: SceneSeatProps): JSX.Eleme
   // A game she agreed to opens by itself, once her answer has been read out.
   const agreed = useTableStore((s) => s.agreed)
   const atTurn = useAtTurn()
-  const activity = useGameStore(s => s.sceneActivity)
+  const activity = useScene(view => view?.activity ?? null)
   const training = activity?.owner === MINI_GAMES && activity.status === 'pending' ? activity : null
   const openedTraining = useRef<unknown>(null)
   const saved = useSceneMiniGame()
   const active = useTableStore(state => state.active)
-  const busy = useGameStore(state => state.busy)
-  const turnError = useGameStore(state => state.turnError)
+  const busy = useScene(view => view?.busy ?? false)
+  const failed = useScene(view => view?.failed ?? false)
   useEffect(() => {
-    if (atTurn && !active && !busy && !turnError && saved.match?.status === 'result') resumeMiniGameResult()
-  }, [atTurn, active, busy, turnError, saved])
+    if (atTurn && !active && !busy && !failed && saved.match?.status === 'result') resumeMiniGameResult()
+  }, [atTurn, active, busy, failed, saved])
   // Read at the effect rather than depended on: the rail hands down a new one every render.
   const opener = useRef(open)
   opener.current = open
@@ -46,10 +46,8 @@ export function MiniGameSeat({ Seat, visible, open }: SceneSeatProps): JSX.Eleme
     }
     // A girl who has left the scene since she said yes is not sat down; with too few left for
     // the game, there is no game.
-    const scene = useGameStore.getState()
-    const here = due.charIds.filter(
-      (charId) => scene.cast.includes(charId) && !scene.departed.includes(charId)
-    )
+    const present = scene()?.present ?? []
+    const here = due.charIds.filter((charId) => present.includes(charId))
     const game = gameById(due.gameId)
     if (!game || here.length < (due.charIds.length === 0 && game.players.min === 0 ? 0 : fewestWith(game))) {
       useTableStore.getState().setAgreed(null)

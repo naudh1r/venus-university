@@ -5,7 +5,7 @@ import { locationDefOf } from '@shared/locations'
 import { trainingOffers } from '@shared/minigameTraining'
 import type { StatKey } from '@shared/playerStats'
 import type { SlotActivityOffer } from '@shared/slotActivity'
-import { useGameStore } from '../stores/gameStore'
+import { scene } from '@vx/modkit/renderer'
 import { useModsStore } from '../stores/modsStore'
 import { gameIsOn } from './table'
 import { gameComponent } from './play'
@@ -30,6 +30,6 @@ export function trainingAvailable(offer: SlotActivityOffer): boolean {
 
 /** The mini-game training the scene was committed to and has not settled yet, or null. */
 export function pendingTraining() {
-  const activity = useGameStore.getState().sceneActivity
+  const activity = scene()?.activity
   return activity?.owner === MINI_GAMES && activity.status === 'pending' ? activity : null
 }

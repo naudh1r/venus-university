@@ -1,9 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+
+// The kit's renderer entry loads the game's stores; these tests take each name from its own module.
+vi.mock('@vx/modkit/renderer', async () => (await import('./fixtures/miniGamesKit')).miniGamesKit())
+vi.mock('../src/renderer/stores/gameLoop', () => ({ submitAction: vi.fn(), takeTurnFromReply: vi.fn(() => false) }))
 import { groupsFor, listed, type MiniGameDef } from '../src/shared/minigames'
 import type { Character, StructuredRequest } from '../src/shared/types'
 import { agreedOf, withOffer } from '../src/renderer/minigames/offer'
 import { answerOf, withProposal, type Asked } from '../src/renderer/minigames/proposal'
 import DARTS from '../src/shared/minigameEntries/darts'
+import { miniGamesReady } from './fixtures/miniGamesKit'
+
+// Waits for the modules the kit mock loads late, which would otherwise outlive these tests.
+beforeAll(miniGamesReady)
 
 function game(min: number, max: number): MiniGameDef {
   return {

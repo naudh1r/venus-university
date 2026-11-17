@@ -1,7 +1,6 @@
 import { MINI_GAMES } from '@shared/minigames'
-import { completeStructured, objectSchema } from '@vx/modkit/renderer'
+import { character, completeStructured, objectSchema, scene } from '@vx/modkit/renderer'
 import { READER_SPEAKER, type Character, type StructuredRequest } from '@vx/modkit/shared'
-import { useGameStore } from '../stores/gameStore'
 
 /**
  * A round the model runs. Most games are played by their own code and only talked about by the
@@ -29,11 +28,9 @@ const RECENT_LINES = 16
 
 /** The last of the scene, as a script: who said what, the narration unattributed. */
 function recentScene(): string[] {
-  const game = useGameStore.getState()
-  return game.currentSceneTranscript.slice(-RECENT_LINES).map((line) => {
+  return (scene()?.lines ?? []).slice(-RECENT_LINES).map((line) => {
     if (line.speaker === READER_SPEAKER) return `The reader: ${line.text}`
-    const charId = game.charKeyToId[line.speaker]
-    const name = charId ? game.characters[charId]?.firstName : undefined
+    const name = line.speaker ? character(line.speaker)?.firstName : undefined
     return name ? `${name}: ${line.text}` : line.text
   })
 }

@@ -24,7 +24,7 @@ import { clearMatch, keepInvitation, keptInvitation, savedMiniGame, sceneMiniGam
 import { skillOf } from '../minigames/skill'
 import { gameIsOn, nameOf } from '../minigames/table'
 import { registerHooks } from '../mods/hooks'
-import { useGameStore } from '../stores/gameStore'
+import { clock, scene } from '@vx/modkit/renderer'
 import { useModsStore } from '../stores/modsStore'
 import { destinationOf, scenePlace } from '../minigames/place'
 import { tableCanOpen } from '../minigames/screen'
@@ -44,16 +44,16 @@ function gamesWith(cast: readonly Character[], location: string | null): MiniGam
 
 /** At most two real outings, rotated by slot. Never a full remote catalogue. */
 function outingsWith(cast: readonly Character[], current: string | null, busy: boolean, keen: boolean): InviteChoice[] {
-  if (busy || cast.length === 0 || pendingTraining()) return []
+  const now = clock()
+  if (!now || busy || cast.length === 0 || pendingTraining()) return []
   const choices: InviteChoice[] = []
-  const state = useGameStore.getState()
   for (const game of MINI_GAMES_LIST) {
     if (!gameIsOn(game.modId, game) || !gameComponent(game.id) || game.players.max < 1 || game.players.min > cast.length) continue
     const locations = game.locations?.filter(id => id !== current && locationAvailable(id) && locationDefOf(id) && gamesSuggested([tunedGame(game)], id, busy, keen).length > 0) ?? []
-    const location = locations[(state.date + state.time) % locations.length]
+    const location = locations[(now.date + now.time) % locations.length]
     if (location) choices.push({ game: tunedGame(game), location })
   }
-  const offset = choices.length ? (state.date * 2 + state.time) % choices.length : 0
+  const offset = choices.length ? (now.date * 2 + now.time) % choices.length : 0
   return [...choices.slice(offset), ...choices.slice(0, offset)].slice(0, 2)
 }
 
@@ -65,9 +65,9 @@ function actionOf(user: string): string {
 
 /** Whether the scene has something else going on, and whether he wants games to come up often. */
 function sceneTerms(): { busy: boolean; keen: boolean } {
-  const scene = useGameStore.getState()
+  const view = scene()
   return {
-    busy: Boolean(scene.sceneClass || scene.sceneJob || scene.sceneProject),
+    busy: Boolean(view?.classCode || view?.jobId || view?.projectClass),
     keen: optionOn(useModsStore.getState().switches, MINI_GAMES, SUGGEST_OFTEN)
   }
 }
@@ -103,7 +103,7 @@ registerHooks(MINI_GAMES, {
   slotActivityAvailable: trainingAvailable,
   // A training slot exercised its own stat in place of the hour's; any other scene is left be.
   exercisedStats: (exercised) => {
-    const activity = useGameStore.getState().sceneActivity
+    const activity = scene()?.activity
     return activity?.owner === MINI_GAMES ? trainingExercise(activity) : exercised
   },
   scenePlay: { Seat: MiniGameSeat, Panel: MiniGamePanel },
@@ -139,7 +139,7 @@ registerHooks(MINI_GAMES, {
       if (!request.user.includes("Reader's action:")) return request
       // Nor is a screen with no seat to open a table from (the orientation, a created scene):
       // agreed there, a game would never start, and she would be set up for it turn after turn.
-      if (!tableCanOpen(useGameStore.getState())) return request
+      if (!tableCanOpen(scene())) return request
       // Only the games a girl may bring up here are on it, and any his action names: the rest
       // are his to ask for from the table.
       const current = scenePlace()
@@ -203,7 +203,7 @@ registerHooks(MINI_GAMES, {
     }
 
     // No proposal of his own was out: the two of them may still have agreed in the scene.
-    if (ending || !offered?.detailed || !tableCanOpen(useGameStore.getState())) return
+    if (ending || !offered?.detailed || !tableCanOpen(scene())) return
     // The reply can only name a game its request offered: the field allows no other.
     const agreed = agreedOf(reply, offered?.games.filter(game => gameIsOn(game.modId, game)) ?? [], cast)
     if (agreed) agree(agreed.game, agreed.characters, agreed.stake, agreed.options, offered?.location)

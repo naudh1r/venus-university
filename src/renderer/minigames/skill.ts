@@ -1,7 +1,6 @@
 import { MINI_GAMES, type MiniGameDef } from '@shared/minigames'
-import { completeStructured, objectSchema } from '@vx/modkit/renderer'
+import { completeStructured, gameFacts, objectSchema } from '@vx/modkit/renderer'
 import type { Character, StructuredRequest } from '@vx/modkit/shared'
-import { useGameStore } from '../stores/gameStore'
 
 /**
  * How well a girl plays a game: judged once from who she is, by the model, and kept for the
@@ -55,7 +54,7 @@ function request(character: Character, game: MiniGameDef): StructuredRequest {
 }
 
 function keyOf(charId: string, game: MiniGameDef): string {
-  const playthrough = useGameStore.getState().playthroughId ?? 'none'
+  const playthrough = gameFacts().playthroughId ?? 'none'
   const axes = game.skillAxes?.map((axis) => axis.id).join('-')
   return `vu-minigames:skill:${playthrough}:${charId}:${game.id}${axes ? `:axes-v1-${axes}` : ''}`
 }

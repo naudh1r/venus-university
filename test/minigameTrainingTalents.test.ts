@@ -20,6 +20,8 @@ vi.mock('../src/renderer/stores/slotCrossing', async importOriginal => ({
 stubApi({ jobs: { onProgress: () => () => {} } })
 const { advance } = await import('../src/renderer/stores/gameLoop')
 await import('../src/renderer/modEntries/mini-games')
+// Mini-games reads the training slot through the kit's scene view.
+await (await import('./fixtures/kitScene')).loadSceneView()
 const game = () => useGameStore.getState()
 const start: PlayerStats = { brain: 10, body: 10, heart: 10 }
 const training: SlotActivity = { owner: MINI_GAMES, id: 'darts', location: 'pino_cola_lounge', label: 'Train Body', stat: 'body', status: 'completed', closed: true }

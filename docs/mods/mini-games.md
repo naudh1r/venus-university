@@ -440,6 +440,14 @@ asked.
 
 ## What changed
 
+### 0.2.4
+
+The framework reads the scene through the mod kit: who is in it and where each girl stands,
+where it is, what has been said, and whether the reader is at his turn. While a game's result is
+being saved, it holds the turn through the kit too. A girl's invitation still unanswered in a
+save from an earlier version is forgotten when that save is loaded; she can ask again. Nothing
+else changes at the table, and no pack has to change.
+
 ### 0.2.3
 
 A game played with a girl no longer starts itself again once it is over. Its result goes into the

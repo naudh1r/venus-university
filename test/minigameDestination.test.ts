@@ -1,8 +1,16 @@
-import { describe, it, expect } from 'vitest'
+import { beforeAll, describe, it, expect, vi } from 'vitest'
+
+// The kit's renderer entry loads the game's stores; these tests take each name from its own module.
+vi.mock('@vx/modkit/renderer', async () => (await import('./fixtures/miniGamesKit')).miniGamesKit())
+vi.mock('../src/renderer/stores/gameLoop', () => ({ submitAction: vi.fn(), takeTurnFromReply: vi.fn(() => false) }))
 import { destinationOf } from '../src/renderer/minigames/place'
 import { withOffer, agreedOf } from '../src/renderer/minigames/offer'
 import DARTS from '../src/shared/minigameEntries/darts'
 import type { Character, StructuredRequest } from '../src/shared/types'
+import { miniGamesReady } from './fixtures/miniGamesKit'
+
+// Waits for the modules the kit mock loads late, which would otherwise outlive these tests.
+beforeAll(miniGamesReady)
 const cast = [{charId:'a',firstName:'Ana',lastName:'Seo'}, {charId:'b',firstName:'Bea',lastName:'Seo'}] as Character[]
 const request = {user:"Reader's action: darts at pino cola lounge?",schema:{name:'scene',schema:{properties:{},required:[]}}} as unknown as StructuredRequest
 

@@ -1,10 +1,18 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+
+// The kit's renderer entry loads the game's stores; these tests take each name from its own module.
+vi.mock('@vx/modkit/renderer', async () => (await import('./fixtures/miniGamesKit')).miniGamesKit())
+vi.mock('../src/renderer/stores/gameLoop', () => ({ submitAction: vi.fn(), takeTurnFromReply: vi.fn(() => false) }))
 import { hereLine, placeOf, reachedScenePlace } from '../src/renderer/minigames/place'
+import { miniGamesReady } from './fixtures/miniGamesKit'
+
+// Waits for the modules the kit mock loads late, which would otherwise outlive these tests.
+beforeAll(miniGamesReady)
 
 describe("the mini-games' place for a scene", () => {
   it('keeps the home-room sentinel available to home games', () => {
     expect(placeOf('room', null)).toBe('room')
-    expect(reachedScenePlace('btb_arcade', [{ bg: 'lowrise_dorm_room' }])).toBe('room')
+    expect(reachedScenePlace('btb_arcade', 'lowrise_dorm_room')).toBe('room')
   })
 
   it('keeps the short Pino-Cola aliases working before playback', () => {
@@ -54,30 +62,26 @@ describe('a game played where the scene is', () => {
 
 describe('the reached place after a scene transition', () => {
   it('uses classifier words before any background is reached', () => {
-    expect(reachedScenePlace('the arcade downtown', [])).toBe('btb_arcade')
+    expect(reachedScenePlace('the arcade downtown', null)).toBe('btb_arcade')
   })
 
   it('replaces a stale classifier location with the reached venue', () => {
-    expect(reachedScenePlace('room', [{ bg: 'campus_road' }, { bg: 'pinocola_lounge' }])).toBe('pino_cola_lounge')
-    expect(reachedScenePlace('pino_cola_lounge', [{ bg: 'arcade' }])).toBe('btb_arcade')
+    expect(reachedScenePlace('room', 'pinocola_lounge')).toBe('pino_cola_lounge')
+    expect(reachedScenePlace('pino_cola_lounge', 'arcade')).toBe('btb_arcade')
   })
 
   it('clears the old venue on roads and unknown backgrounds', () => {
-    expect(reachedScenePlace('pino_cola_lounge', [{ bg: 'pinocola_lounge' }, { bg: 'campus_road' }])).toBeNull()
-    expect(reachedScenePlace('btb_arcade', [{ bg: 'unknown_background' }])).toBeNull()
-  })
-
-  it('keeps the reached venue through later lines without backgrounds', () => {
-    expect(reachedScenePlace('room', [{ bg: 'pinocola_lounge' }, {}])).toBe('pino_cola_lounge')
+    expect(reachedScenePlace('pino_cola_lounge', 'campus_road')).toBeNull()
+    expect(reachedScenePlace('btb_arcade', 'unknown_background')).toBeNull()
   })
 
   it('honors City Life availability after a transition', async () => {
     const { setCityLifeEnabled } = await import('@shared/cityLife')
     try {
       setCityLifeEnabled(true, true)
-      expect(reachedScenePlace('room', [{ bg: 'bowling_alley' }])).toBe('bowling_alley')
+      expect(reachedScenePlace('room', 'bowling_alley')).toBe('bowling_alley')
       setCityLifeEnabled(false, false)
-      expect(reachedScenePlace('room', [{ bg: 'bowling_alley' }])).toBeNull()
+      expect(reachedScenePlace('room', 'bowling_alley')).toBeNull()
     } finally {
       setCityLifeEnabled(false, false)
     }
