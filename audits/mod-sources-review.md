@@ -209,3 +209,36 @@ Test Files  1 failed | 212 passed | 3 skipped (216)
 ```
 
 No fixes, implementation commits, implementation pushes or PRs were made during this review. Only this report is committed to the fork's `notes/standalone-mods` branch.
+
+## Fixes
+
+Applied on 18 November 2026 in [`ee21e953b1392f565c77795058edea8b49b35118`](https://github.com/naudh1r/venus-university/commit/ee21e953b1392f565c77795058edea8b49b35118), **`core: fix mod source planning and review findings`**. This is a new commit directly above the reviewed `e5ff13bc`; the original commit was not amended. The findings above describe the original reviewed head.
+
+| Requested fix | Implementation | Fix commit |
+| --- | --- | --- |
+| 1. Resolver library exports | Added host-shared `libraryExportProblem` in `packages/modkit/src/shared/library.ts` and replaced the loader's local copy with it. The resolver uses the same rule while filtering library releases, checking retained libraries and validating the final graph. `InstalledMod.hooks` and `.exports` are optional so existing callers still typecheck. Known requested, newly picked, installed and built-in dependents constrain library exports; obsolete versions due for replacement do not constrain their replacements. Later conflicts with a greedy choice still refuse. Updated `MODDING.md` and the kit changelog. | `ee21e953` |
+| 2. Readability | Reformatted every area identified in the review, including host export lists, fixtures and tests. `source.ts` now has named release, approval, withdrawal, screenshot and mod readers. `install.ts` names reachability pruning, demand collection, replacement detection and export checks. `sources.ts` separates bounded transport from JSON decoding and names stable-release/manifest/zip asset checks. Long conditions and records are wrapped; setup, mutations and assertions occupy separate lines. Existing parsing/source/ordering behavior is preserved apart from the requested functional fixes and missing-source diagnostic detail. | `ee21e953` |
+| 3. Wording assertion | Removed the English-sentence match. The missing-requirement test checks refusal, the actual missing ID and the supplying source address. The refusal now identifies that source. Range and identity diagnostics remain tested without matching an English sentence. | `ee21e953` |
+| 4. Weak tests | The retained-library case explicitly asserts `keep` and dependency order. Required/present-optional cycle refusals identify the involved IDs; removal refusals identify the library and dependent. Added cross-page byte-budget and shared-deadline tests using injected fetch. The deadline case verifies one deadline signal is created and applied to both pages, and that abort during the second page settles the read. | `ee21e953` |
+| 5. Cancellation | All three cancellation sites initiate cleanup without awaiting it. Cleanup rejection/throw cannot replace the original result. Added never-settling cancellation cases for stalled bodies, declared and streamed size refusals, and redirect bodies, plus a rejecting-cancellation regression preserving the original size error. | `ee21e953` |
+
+The exact export regression now selects `lib@1.0.0` with `greet` over `lib@2.0.0` with only `wave` for `uses-lib@1.0.0` using `lib:greet`; a source containing only the latter library version is refused. Additional regressions cover installed and built-in dependents, newly discovered dependents, an installed library needing an export-compatible update, a built-in library missing an export, a later greedy conflict, and final validation of a retained optional dependent.
+
+Snapshot hook/export fields remain optional. Callers providing older snapshots without hook declarations retain their earlier behavior; the resolver can check only the export uses supplied to it. The loader's missing-library handling and export diagnostic are shared unchanged. Mixed-source arbitration remains unchanged for the PR discussion. No screen, IPC or installer transaction was added; kit version remains **0.7.0**.
+
+### Fix validation
+
+There are **16 additional regression tests**, taking the three source-related test files from **81 to 97**: parser **49**, resolver/removal **24**, fetching/settings **24**. The focused run also included the unchanged eight ordering tests and 19 loader tests: **124 passed across five files**.
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | PASS: node, web and test configurations |
+| `npm test` on the final committed implementation | **2,656 passed, 1 failed, 4 skipped** tests; **212 passed, 1 failed, 3 skipped** files. The sole failure remains the known Linux `getComfyOutputFilePath` case at `test/mainServices.test.ts:182`. |
+| `npm run build` | PASS |
+| `npm run build:web` | PASS |
+| `npm --prefix packages/modkit run report` | PASS; public API reports unchanged because additions are host-only |
+| `npm --prefix packages/modkit run report:check` | PASS; API reports up to date |
+| Focused source/parser/resolver/ordering/loader run | PASS: **124/124** tests |
+| Diff/working-tree checks | PASS; implementation checkout clean after the fix commit. Protected documents and root dependency manifests/lockfile unchanged. |
+
+The implementation is published only to the fork's `hooks/mod-sources`, in one push after the checks. This appended report is committed separately, only to `notes/standalone-mods`. Both commits use `Naudh1r <102735014+naudh1r@users.noreply.github.com>` with `core:` titles and no co-author lines. No PR was opened.
