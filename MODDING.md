@@ -1029,10 +1029,14 @@ valid screenshots survive, with malformed screenshot entries dropped.
 
 An install request maps each id to `{ version, source }`, where `source` is the address of one
 of the supplied `{ url, source }` lists. Installed and built-in snapshots carry version,
-requirements and optionals; installed snapshots may carry their source address. All required
-ranges in the prospective installed graph must hold. Built-ins cannot be replaced. An installed
-version in range stays; otherwise the highest compatible version from the requiring source is
-picked once, without backtracking. Optional dependencies are never fetched. The result lists
+requirements and optionals; installed snapshots may carry their source address. Snapshots may
+also carry hooks and library exports, which let the resolver check retained and built-in
+dependents against candidate libraries. All required ranges in the prospective installed graph
+must hold. Built-ins cannot be replaced. An installed version meeting its ranges and known
+export uses stays; otherwise the highest compatible version from the requiring source is
+picked once, without backtracking. A library candidate must provide every export its known
+dependents use, and the final graph uses the loader's same export check. Missing snapshot hooks
+remain optional for older callers. Optional dependencies are never fetched. The result lists
 changes in dependency order, including each update's old version. Removal refuses dependents
 and offers newly orphaned libraries separately rather than removing them automatically.
 

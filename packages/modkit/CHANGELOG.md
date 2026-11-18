@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Install planning checks library exports with the loader's shared rule, including retained
+  dependents. Source stream cleanup preserves deadlines and the original refusal.
+
 - Host shared parses strict `vxsource.json` lists and plans greedy installs and removals with
   the loader's dependency ordering. Main reads bounded list/repo sources and owns `modSources`;
   fetching does not confer approval on custom sources. No screen or install IPC is added.

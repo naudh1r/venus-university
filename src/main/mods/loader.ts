@@ -2,7 +2,13 @@ import { existsSync, readFileSync, statSync } from 'fs'
 import { basename, join, resolve } from 'path'
 import { MODS, type ModDef } from '@shared/mods'
 import { BUILT_IN_MAIN_ENTRIES } from '../modEntries'
-import { checkCompat, hookNameKind, modDefOf, parseManifest } from '@vx/modkit/host/shared'
+import {
+  checkCompat,
+  hookNameKind,
+  libraryExportProblem,
+  modDefOf,
+  parseManifest
+} from '@vx/modkit/host/shared'
 import { satisfies } from '../../../packages/modkit/src/shared/range'
 import { isBuiltInRow, isRunning, modFileUrl, type ModSessionEntry, type ModSessionTable, type ModStatus, type SafeStart } from '@shared/modSession'
 import { findInstalledMods, readInstalled } from './layout'
@@ -283,14 +289,11 @@ function orderCandidates(candidates: Candidate[], input: LoaderInput): { order: 
     const candidate = byId.get(id)
     const manifest = candidate?.entry.manifest
     if (!candidate || !manifest || candidate.entry.status !== 'loaded') continue
-    for (const hook of manifest.hooks) {
-      const kind = hookNameKind(hook)
-      if (kind.kind !== 'export') continue
-      const library = byId.get(kind.library)?.entry.manifest
-      if (!library || library.exports?.includes(kind.name)) continue
-      fail(candidate, 'needs-update', `needs \`${hook}\`, which ${library.name} ${library.version} no longer has`)
-      break
-    }
+    const problem = libraryExportProblem(
+      manifest.hooks,
+      (library) => byId.get(library)?.entry.manifest ?? undefined
+    )
+    if (problem) fail(candidate, 'needs-update', problem.message)
   }
   return { order: ordered.order, optionalPresent: ordered.optionalPresent }
 }
