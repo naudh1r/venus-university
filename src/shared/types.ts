@@ -2505,6 +2505,8 @@ export interface Settings {
    * and read before the window opens. Absent is none.
    */
   devModFolders?: string[]
+  /** Custom mod source addresses. Written by main; absent is no custom sources. */
+  modSources?: string[]
   /**
    * Whether an installed mod from a source the org has not reviewed may run its main-process
    * code. Hand-edited until the Mods screen offers it; absent is off, and such a mod is then
@@ -2560,6 +2562,7 @@ export type SettingsPatch = Omit<
   | 'comfyGpu'
   | 'updateAsVersion'
   | 'updateFeed'
+  | 'modSources'
 > & {
   apiKey?: string
   endpointApiKey?: string

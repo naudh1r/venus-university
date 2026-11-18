@@ -1019,6 +1019,29 @@ options: [
 optionGroups: [{ id: 'loader', label: 'Loading animation', hint: 'The animation shown while…' }]
 ```
 
+## Install source preparation
+
+Core's host shared entry exports `parseSource(json)` for schema-1 `vxsource.json` lists,
+`resolveInstall(input)` and `resolveRemoval(id, installed, builtIn?)`. These are host APIs,
+not mod imports. The parser refuses the whole list on malformed metadata, duplicate IDs or
+versions, or a release manifest that disagrees with its entry. Covers use https; up to eight
+valid screenshots survive, with malformed screenshot entries dropped.
+
+An install request maps each id to `{ version, source }`, where `source` is the address of one
+of the supplied `{ url, source }` lists. Installed and built-in snapshots carry version,
+requirements and optionals; installed snapshots may carry their source address. All required
+ranges in the prospective installed graph must hold. Built-ins cannot be replaced. An installed
+version in range stays; otherwise the highest compatible version from the requiring source is
+picked once, without backtracking. Optional dependencies are never fetched. The result lists
+changes in dependency order, including each update's old version. Removal refuses dependents
+and offers newly orphaned libraries separately rather than removing them automatically.
+
+`src/main/mods/sources.ts` reads lists and GitHub release sources, under a 2 MiB byte budget and
+a deadline. Repo answers are cached for the session; custom approval blocks are ignored.
+`VU_MOD_SOURCE` replaces the approved list only in development and may then name a `file:` URL.
+Custom addresses are kept in main-written `Settings.modSources`; ordinary settings patches
+cannot change them. There is no source IPC, automatic fetch, or new screen yet.
+
 ## Where the code is
 
 | File | What it is |

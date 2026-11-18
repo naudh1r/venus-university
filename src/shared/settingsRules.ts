@@ -72,6 +72,7 @@ const SETTINGS_REQUIRED: Record<
     | 'secretBudget'
     | 'scenePersona'
     | 'devModFolders'
+    | 'modSources'
     | 'allowUnreviewedMain'
     | 'modNoticesSeen'
     | 'modUnversionedSeen'

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Host shared parses strict `vxsource.json` lists and plans greedy installs and removals with
+  the loader's dependency ordering. Main reads bounded list/repo sources and owns `modSources`;
+  fetching does not confer approval on custom sources. No screen or install IPC is added.
 - Activities can call `setSceneSuggestionsPaused` to pause optional scene suggestions for
   the loaded game. Providers can query `sceneSuggestionsPaused`, render from
   `useSceneSuggestionsPaused` or observe boolean changes with `subscribeSceneSuggestionsPaused`.
