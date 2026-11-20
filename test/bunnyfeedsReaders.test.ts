@@ -9,7 +9,7 @@ import { useBunnyboardStore } from '../src/renderer/stores/bunnyboardStore'
 import { markCommented, takeCommented } from '../src/renderer/stores/bunnyfeedsVisit'
 import { commentData, visibleFeedComments } from '../src/renderer/stores/bunnyfeedsData'
 import { globalSlotOf, type PostComment } from '@vx/modkit/shared'
-import { feedNotesOf, unreadFeedNotesOf } from '../src/renderer/stores/bunnyfeedsNotes'
+import { feedNotesOf, markAllFeedNotesRead, unreadFeedNotesOf } from '../src/renderer/stores/bunnyfeedsNotes'
 import { armFeedThreads } from '../src/renderer/stores/bunnyfeedsThreads'
 
 vi.mock('../src/renderer/stores/jobStore', () => ({ useJobStore: {} }))
@@ -146,5 +146,42 @@ describe('feed reply visibility and unread across a held night', () => {
     expect(feedNotesOf().map(one => one.comment.id)).toEqual(['evening-answer', 'night-answer'])
     expect(unreadFeedNotesOf()).toBe(2)
     expect(visibleFeedComments(comments, morning, morning + 1)).toEqual(comments)
+  })
+  it('marks every reply shown during a held night read, leaving a night answer still on its way', () => {
+    const from = { date: 10, time: 1 as const }
+    const to = { date: 11, time: 0 as const }
+    const evening = globalSlotOf(from.date, from.time)
+    const morning = globalSlotOf(to.date, to.time)
+    const mine: PostComment = { id: 'mine', at: evening, handle: 'you', emoji: '', text: 'Hello' }
+    const answer = { ...mine, id: 'evening-answer', at: morning }
+    const night = commentData.with({ ...answer, id: 'night-answer' }, {
+      charId: 'her', replyTo: mine.id, night: true
+    })
+    const comments = [
+      { ...mine, player: true },
+      { ...answer, charId: 'her', replyTo: mine.id },
+      night
+    ]
+    useGameStore.setState({
+      ...to,
+      playthroughId: 'two',
+      chars: ['her'],
+      charInfo: { her: charInfo({
+        feed: [{ ...from, id: 'post', text: 'Post', likes: 0, comments }]
+      }) },
+      interlude: {
+        now: { from, to, clock: 'late-night', owner: 'test', semesterIndex: 0, ledger: null },
+        interlude: { lines: [], rows: [] },
+        pick: () => {}
+      }
+    })
+    expect(unreadFeedNotesOf()).toBe(1)
+
+    markAllFeedNotesRead()
+    expect(unreadFeedNotesOf()).toBe(0)
+
+    useGameStore.setState({ interlude: null })
+    expect(feedNotesOf().map(one => one.comment.id)).toEqual(['evening-answer', 'night-answer'])
+    expect(unreadFeedNotesOf()).toBe(1)
   })
 })

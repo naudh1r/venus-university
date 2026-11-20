@@ -53,11 +53,18 @@ export function markFeedNoteRead(note: FeedNote): void {
   }, data => data.read ? undefined : { ...data, read: true })
 }
 
-/** Every reply that has arrived by now marked read at once. */
+/**
+ * Every reply that has arrived by now marked read at once. During a held night the read mark
+ * stays on the evening and the replies already due at the morning, which show, are marked one by
+ * one, so an answer to a night comment still on its way is not marked read before it arrives.
+ */
 export function markAllFeedNotesRead(): void {
   const game = readBunnyfeedsContext()
   if (!game.playthroughId) return
-  feedData.set({ readThrough: globalSlotOf(game.date, game.time) })
+  const now = globalSlotOf(game.date, game.time)
+  feedData.set({ readThrough: now })
+  if (game.heldSlot === undefined) return
+  for (const note of feedNotesOf(game)) if (note.comment.at > now) markFeedNoteRead(note)
 }
 
 /** Seeds the own marker on entry, and clamps a marker carried from a later semester clock. */

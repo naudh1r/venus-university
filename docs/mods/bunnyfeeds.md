@@ -101,6 +101,12 @@ on them, from any mod that puts one there, get threads like any other post.
 - Evening replies now show and count as unread during the night. Replies to comments you
   write at night still arrive in the morning.
 
+## 1.1.7
+
+- **Replies at night**: with a mod that adds a night after the evening, replies to what you wrote
+  in the evening show under the post, and in Notifications, that night. Replies to what you write
+  during the night still arrive in the morning.
+
 ## 1.1.6
 
 - **Smoother scenes**: in a save with lots of feed comments, a scene's text types out more
