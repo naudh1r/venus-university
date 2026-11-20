@@ -115,7 +115,7 @@ Test Files  1 failed | 218 passed | 3 skipped (222)
 Duration 101.24s
 ```
 
-Tests used `NODE_USE_ENV_PROXY=1` and the existing local Electron distribution through `ELECTRON_OVERRIDE_DIST_PATH=/workspace/work/mod-audit/electron-dist`. All assertions ran with the normal test settings. The kit contract, mod hooks/readers and loader tests are included in the full suite. The `hookTie.ts` relationship mentioned by the hook-table comments has no separate named file in this checkout; the actual available contract/type checks passed.
+Tests used `NODE_USE_ENV_PROXY=1` and the existing local Electron distribution through `ELECTRON_OVERRIDE_DIST_PATH=/workspace/work/mod-audit/electron-dist`. All assertions ran with the normal test settings. The kit contract, mod hooks/readers and loader tests are included in the full suite. `packages/modkit/src/renderer/hookTie.ts` is included by `tsconfig.web.json`; its bidirectional hook/table type assertions passed with the web typecheck.
 
 Regression coverage includes split generation text/pool overrides, existing kit helper calls with a changing reader and new pronouns, held-night third-person memory dates, and deferred-opening validation/save round trips. The focused integration run passes **220 tests in eight files**. Kept the incoming tests and updated core-only calls for the new signatures; no NPC assertions or test timeouts were weakened.
 
