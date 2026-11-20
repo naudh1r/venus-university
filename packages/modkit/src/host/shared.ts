@@ -3,7 +3,7 @@
  * and the runners New Game+ calls. Not for mods; the boundary test refuses it in a mod file.
  */
 export { setSharedModRules } from '../shared/modRules'
-export { setMemoryPresentation } from '../shared/memory'
+export { setMemoryPresentation } from '../shared/memoryPresentation'
 export { carriedModFields, carryModFields, carryPostFields } from '../shared/modCarry'
 export { checkCompat, CORE_SURFACE, hookNamesOf, manifestHooks } from '../shared/compat'
 export type { Compat, CoreSurface, MissingHook } from '../shared/compat'

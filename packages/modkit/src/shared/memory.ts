@@ -5,23 +5,7 @@ import {
   type SceneLine
 } from '../bridge/shared'
 
-/** The player and memory holder's presentation vocabulary. */
-interface MemoryPresentation {
-  readerName: string
-  holder: Parameters<typeof nativeMemoryStatusLine>[3]
-  reader: Parameters<typeof nativeMemoryStatusLine>[4]
-}
-
-let presentationOf: (name?: string) => MemoryPresentation = () => ({
-  readerName: 'the reader',
-  holder: 'female',
-  reader: 'he'
-})
-
-/** Binds the live reader and the named character to the shared memory helpers. */
-export function setMemoryPresentation(read: typeof presentationOf): void {
-  presentationOf = read
-}
+import { memoryPresentation as presentationOf } from './memoryPresentation'
 
 /** A memory announcement using the current reader's name and pronouns. */
 export function memoryStatusLine(
