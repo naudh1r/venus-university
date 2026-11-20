@@ -1,3 +1,4 @@
+import { readDeferredOpeningNotes } from '@shared/opening'
 import { claimLedgerMessages } from '@shared/textingThread'
 import { chatClockOf, shownConversation } from '@shared/chatVisibility'
 import { filterSceneLedger, promptTextEdits, exercisedStats, projectSlotMemories, settleSceneStats, slotActivityAvailable, slotSettled, slotStatusLines, statFloor } from '../mods/hooks'
@@ -15,8 +16,15 @@ import {
   type StatusText
 } from '@shared/playerStats'
 import { factoidLine, kindOf, projectProgress, projectProgressLine } from '@shared/academics'
+import { genderOf } from '@shared/gender'
 import { giftActionLine, itemDefOf, type ItemPick } from '@shared/shop'
-import type { NpcSlotOverlay } from '@shared/npcRelationships'
+import {
+  newCouples,
+  withAffairsFound,
+  withCouplesFormed,
+  withCouplesLeft,
+  type NpcSlotOverlay
+} from '@shared/npcRelationships'
 import { isSilentLine, isSlotSaveId } from '@shared/saveRules'
 import {
   affectionFor,
@@ -26,16 +34,19 @@ import {
 } from '@shared/relationship'
 import {
   charKeyOf,
+  fullNameOf,
   READER_SPEAKER,
   type AppError,
   type CalendarEvent,
   type Character,
+  type CharInfo,
   type EventCancellation,
   type EverydayAsk,
   type GameSave,
   type InviteKind,
   type PlaythroughRecord,
   type LedgerResponse,
+  type LoveText,
   type SceneLine,
   type SceneState,
   type BankedOpening,
@@ -46,7 +57,7 @@ import {
 } from '@shared/types'
 import { withSecretTold } from '@shared/secrets'
 import { sickInSlot, withGiftDoses, worstInSlot } from '@shared/colds'
-import { LAST_SEMESTER, semesterOf } from '@shared/semesters'
+import { LAST_SEMESTER, semesterOf, withTransfers } from '@shared/semesters'
 import type { SavedScene, SceneSetup } from '@shared/sceneCreator'
 import type { SlotReplay } from '@shared/replays'
 import { parseOpeningLine, type OpeningPlayback } from '@shared/opening'
@@ -118,6 +129,7 @@ import { useGrabBagStore } from './grabBagStore'
 import { useModSessionStore } from './modSessionStore'
 import { useSettingsStore } from './settingsStore'
 import {
+  gendersOf,
   namesCharacter,
   PORTRAIT_SLOTS,
   summariesWithin,
@@ -181,6 +193,7 @@ import {
   everydayRoundNow,
   pickOccasionAsker,
   pickSlotAskers,
+  pickSlotLoveTexts,
   pickSlotReachOut,
   plannedWith,
   openChatSlot,
@@ -189,7 +202,8 @@ import {
   resumeHeldReplies,
   settleClassReplies,
   resolveFriendRequests,
-  rollAskerInvite
+  rollAskerInvite,
+  type LoveTextInput
 } from './textingLoop'
 import {
   bunnybotHauntRevealTexts,
@@ -207,7 +221,6 @@ import {
   isContact,
   nameIsKnown,
   rejection,
-  UNKNOWN_NAME_REJECTION,
   type Verdict
 } from './loop/classify'
 import {
@@ -216,8 +229,10 @@ import {
   localsAtLocation,
   planAttendees,
   runIntoNote,
+  shownFirst,
   workingHereNote
 } from './loop/casting'
+import { shownAt } from './whereabouts'
 import {
   classOutcomeNow,
   gradeOutcomeNow,
@@ -242,11 +257,13 @@ import {
   type SceneKindVerdict
 } from './loop/meetings'
 import {
+  adviceGivenNow,
+  applyNewCouples,
   applyNewFriendships,
   applyNpcOverlay,
   npcWhereaboutsFor,
   rollNpcOverlayNow,
-  rollNpcRelationshipSettle,
+  rollNpcSettle,
   rollSlotEncounterGroups
 } from './loop/npc'
 import { applyRumorPass, rollRumorPass } from './loop/rumors'
@@ -265,6 +282,13 @@ import {
   writesSettled
 } from './loop/saves'
 import { registerSpriteVersions } from './loop/thumbnail'
+import {
+  arrivedAt,
+  endingAwaitingTransfers,
+  pendingArrivals,
+  resetTransfers,
+  transfersSettled
+} from './loop/transfers'
 import {
   holdGame,
   replayLinesOf,
@@ -297,6 +321,7 @@ import {
   endSceneOpenOf,
   forwardOpenOf,
   interjectOfferOf,
+  lineRewriteLocked,
   replyRowOfferOf,
   rewindOpenOf
 } from './loop/playback'
@@ -575,7 +600,12 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
         springBreak?.away ?? null,
         homecoming,
         undefined,
-        overlay
+        overlay,
+        undefined,
+        undefined,
+        undefined,
+        // Whoever transferred in at this slot is on the roster by now.
+        arrivedAt(state.date, state.time)
       ))
   loopState.bankedOpening = null
   // **Nothing was banked, so this slot is waiting on a call**: the curtain is the loading screen,
@@ -659,7 +689,7 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
   deliverSlotBreakups(opening.breakups)
 
   // The girl reaching out just to talk; after the invitations, so one standing for her wins.
-  deliverSlotReachOuts(opening.reachOuts)
+  deliverSlotReachOuts(opening.reachOuts, opening.loveTexts)
 
   // The status updates the same call wrote, filed before the fold on the same terms. Awaited,
   // since a mod may need a moment with a post before the fold writes it down.
@@ -719,12 +749,16 @@ async function startOrientationScene(): Promise<void> {
   }
   const picked = pool.length > 0 ? anyOf(pool) : null
   const cast = picked ? [picked] : []
+  const pickedCharacter = picked ? game.characters[picked] : undefined
   const action = orientationPremise({
-    firstName: (picked && game.characters[picked]?.firstName) || 'she',
+    who: {
+      firstName: pickedCharacter?.firstName || 'someone',
+      gender: pickedCharacter?.gender
+    },
     freshman: picked === null || freshman(picked),
     met: picked !== null && met(picked),
     knowsSomebody: game.chars.some(met)
-  })
+  }, game.playerPronouns)
 
   const snapshot: TurnSnapshot = { scene: game.captureScene(), action, intro: true }
   loopState.lastTurn = snapshot
@@ -978,6 +1012,50 @@ export function endInDebt(): void {
   endEpilogue('endingDebt')
 }
 
+/** One girl texting him as `(date, time)` opens about `topic`, as the opening describes her. */
+function reachOutOf(
+  charKey: string,
+  character: Character,
+  info: CharInfo,
+  topic: IntroReachOut['topic'],
+  date: number,
+  time: TimeSlot,
+  npcOverlay: NpcSlotOverlay | null,
+  view: PostLedgerView
+): IntroReachOut {
+  const live = useGameStore.getState()
+  const conversation = shownConversation(live.bunnyboard.conversations[character.charId], chatClockOf(live))
+  const whereabouts = npcWhereaboutsFor(character.charId, date, time, npcOverlay, view.charInfo)
+  return {
+    charKey,
+    character,
+    info,
+    texted: hasTexted(conversation),
+    topic,
+    // Her thread as a scene in the slot about to open would read it.
+    thread: composeTextingSummary(
+      conversation,
+      info.ignoredInvitation === true,
+      character,
+      { date, time },
+      false,
+      useGameStore.getState().playerPronouns
+    ),
+    ...(whereabouts
+      ? {
+          whereabouts: {
+            location: whereabouts.location,
+            companions: {
+              knownNames: whereabouts.knownNames,
+              unknown: whereabouts.unknown
+            },
+            ...(whereabouts.haunt ? { haunt: whereabouts.haunt } : {})
+          }
+        }
+      : {})
+  }
+}
+
 /**
  * The slot opening as playback lines, plus the invitations the call rolled and the
  * plans the ledger found. `call` names the cancel group it is sent under and what else, beside
@@ -1003,7 +1081,11 @@ async function fetchSlotIntro(
   pendingSummary?: string | null,
   npcOverlay: NpcSlotOverlay | null = null,
   view: PostLedgerView = liveView(),
-  call: { group?: string; stale?: () => boolean; ledger?: LedgerResponse | null } = {}
+  call: { group?: string; stale?: () => boolean; ledger?: LedgerResponse | null } = {},
+  /** What the finished slot's settle leaves for the love-life texts; nothing where no settle ran. */
+  love: LoveTextInput = { argued: [], outcomes: [] },
+  /** How many transfer students start at this slot, unnamed in its opening. */
+  newTransfers = 0
 ): Promise<SlotOpening | null> {
   const run = currentRun()
   const group = call.group ?? LOOP_LLM_GROUP
@@ -1153,42 +1235,30 @@ async function fetchSlotIntro(
   const taken = new Set(
     [...askers, ...breakups, ...leavers, ...visitors].map(({ character }) => character.charId)
   )
-  const reachOutKey = pickSlotReachOut(date, time, view, taken)
   const reachOuts: IntroReachOut[] = []
+  // Who texts him about her love life, rolled outside the reach-out's own odds and quiet: a girl
+  // saying how his advice went, then one venting or asking about a crush.
+  const loveTexts: Record<string, LoveText> = {}
+  for (const { charId, kind, about } of pickSlotLoveTexts(date, time, view, taken, love)) {
+    const character = game.characters[charId]
+    const info = view.charInfo[charId]
+    const other = game.characters[about]
+    if (!character || !info || !other) continue
+    const charKey = charKeyOf(character.firstName, character.lastName)
+    loveTexts[charKey] = { kind, about }
+    const topic = { kind, about: fullNameOf(other) }
+    reachOuts.push(reachOutOf(charKey, character, info, topic, date, time, npcOverlay, view))
+  }
+  // The ordinary reach-out, on a slot nobody is texting him about her love life.
+  const reachOutKey = reachOuts.length === 0 ? pickSlotReachOut(date, time, view, taken) : null
   for (const charKey of reachOutKey ? [reachOutKey] : []) {
     const charId = game.charKeyToId[charKey]
     const character = game.characters[charId]
     const info = view.charInfo[charId]
     if (!character || !info) continue
-    const conversation = shownConversation(game.bunnyboard.conversations[charId], chatClockOf(game))
-    const whereabouts = npcWhereaboutsFor(charId, date, time, npcOverlay, view.charInfo)
-    reachOuts.push({
-      charKey,
-      character,
-      info,
-      texted: hasTexted(conversation),
-      // A girl in bed with a cold texts about that, whatever the roll would have had her say.
-      topic: worstInSlot(info.cold, globalSlotOf(date, time)) ? 'sick' : rollReachOutTopic(),
-      // Her thread as a scene in the slot about to open would read it.
-      thread: composeTextingSummary(
-        conversation,
-        info.ignoredInvitation === true,
-        character.firstName,
-        { date, time }
-      ),
-      ...(whereabouts
-        ? {
-            whereabouts: {
-              location: whereabouts.location,
-              companions: {
-                knownNames: whereabouts.knownNames,
-                unknown: whereabouts.unknown
-              },
-              ...(whereabouts.haunt ? { haunt: whereabouts.haunt } : {})
-            }
-          }
-        : {})
-    })
+    // A girl in bed with a cold texts about that, whatever the roll would have had her say.
+    const topic = worstInSlot(info.cold, globalSlotOf(date, time)) ? 'sick' : rollReachOutTopic()
+    reachOuts.push(reachOutOf(charKey, character, info, topic, date, time, npcOverlay, view))
   }
 
   // The girls no list carries but the opening should know anyway: the closest friends of
@@ -1212,6 +1282,7 @@ async function fetchSlotIntro(
     ambientLoreCharacters(absent, present, view.npcRelationships),
     view.charInfo,
     date,
+    game.calendar.season,
     { relationships: view.npcRelationships, present },
     undefined,
     visitor ?? undefined
@@ -1236,6 +1307,10 @@ async function fetchSlotIntro(
           date,
           time,
           stats: game.stats,
+          romance: game.romance,
+          readerPronouns: game.playerPronouns,
+          npcRelationships: view.npcRelationships,
+          people: [...game.chars, ...game.alumni].flatMap((charId) => game.characters[charId] ? [game.characters[charId]] : []),
           opening,
           lessNsfwText: lessNsfwTextNow(),
           globalTextEdits: promptTextEdits()?.global,
@@ -1253,6 +1328,7 @@ async function fetchSlotIntro(
           ...(game.semesterIndex > 0 && date === 0 && time === 0
             ? { backOnCampus: game.semesterIndex }
             : {}),
+          ...(newTransfers > 0 ? { newTransfers } : {}),
           occasionLeadUps: occasionLeadUpLines(date, time, game.calendar),
           weather: game.weather,
           ...(rumorPlace ? { rumorPlace } : {}),
@@ -1315,6 +1391,16 @@ async function fetchSlotIntro(
         posts: postsWithModFields(result.data, reply, askers, posters),
         springBreakTexts: reply.springBreakTexts,
         ...(reply.reachOuts.length > 0 ? { reachOuts: reply.reachOuts } : {}),
+        // Only the love texts the reply actually wrote.
+        ...(reply.reachOuts.some(({ char }) => loveTexts[char])
+          ? {
+              loveTexts: Object.fromEntries(
+                reply.reachOuts.flatMap(({ char }) =>
+                  loveTexts[char] ? [[char, loveTexts[char]] as const] : []
+                )
+              )
+            }
+          : {}),
         ...(reply.homecomingTexts.length > 0 ? { homecomingTexts: reply.homecomingTexts } : {}),
         events: [...events],
         cancellations: [...cancellations],
@@ -1610,6 +1696,7 @@ export function submitGift(charId: string, pick: ItemPick, message: string): boo
       : undefined
   const line = giftActionLine(
     nameIsKnown(charId) ? character.firstName : null,
+    genderOf(character),
     item,
     reaction,
     returnedOn,
@@ -1680,19 +1767,9 @@ export async function submitAction(
     loopState.projectWork = null
   }
 
-  // A turn naming a stranger is refused before the classifier; a graduate he never learned the
-  // name of is one too.
-  const stranger = [...game.chars, ...game.alumni].find(
-    (charId) =>
-      !nameIsKnown(charId) &&
-      namesCharacter(trimmed, game.characters[charId]?.firstName ?? '')
-  )
-  if (stranger) {
-    failTurn(rejection(UNKNOWN_NAME_REJECTION), snapshot)
-    return
-  }
-  // So is a scene opening on a graduate, who is gone from Veridan; mid-scene she can be talked
-  // about, her lorebook entry saying she is out of town.
+  // A scene opening on a graduate is refused before the classifier, since she is gone from
+  // Veridan; mid-scene nothing is refused, and she can be talked about, her lorebook entry
+  // saying she is out of town.
   const graduate = isContinuation
     ? undefined
     : game.alumni.find(
@@ -1798,13 +1875,6 @@ async function castTurn(
   if (!snapshot.preset) snapshot.preset = verdict
   const { mentioned, mentionedOnly, actionType, inPublic, sceneLocation } = verdict
 
-  // The backstop for a name the scan above could not see (a nickname, a surname, a misspelling);
-  // mentions count too, or her lorebook paragraph would reach the prompt.
-  if ([...mentioned, ...mentionedOnly].some((charId) => !nameIsKnown(charId))) {
-    failTurn(rejection(UNKNOWN_NAME_REJECTION), snapshot)
-    return null
-  }
-
   // A plan's own button is a meeting with its attendees whatever the words sound like, as the
   // same plan begun from her reminder is, and also whatever kind of scene the words are. Anybody
   // with another plan this slot whom the words name comes past her class or shift too.
@@ -1893,23 +1963,19 @@ function castJobTurn(
   }
   const { job, def } = kind
 
-  // Whoever else is rostered here right now is on the other side of the counter,
-  // resolved without the classifier and seated ahead of the draw.
-  const coworkers = kind.coworkers.slice(0, PORTRAIT_SLOTS)
-
-  // Whoever spends this slot at his workplace turns up on his side of the counter, cast
-  // outright.
-  const locals =
-    coworkers.length < PORTRAIT_SLOTS && def
-      ? localsAtLocation(def.locationId).slice(0, PORTRAIT_SLOTS - coworkers.length)
-      : []
+  // Whoever else is rostered here right now is on the other side of the counter, and whoever
+  // spends this slot at his workplace on his side of it, both resolved without the classifier,
+  // cast outright ahead of the draw, and whoever of them the map shows here seated first.
+  const here = def
+    ? shownFirst([...kind.coworkers, ...localsAtLocation(def.locationId)], shownAt(def.locationId))
+    : kind.coworkers
+  const front = here.slice(0, PORTRAIT_SLOTS)
 
   // The shift fills what is left on the same ladder a nobody-named action does;
   // nobody at all is the solo branch.
-  const filled = coworkers.length + locals.length
-  const customers = filled < PORTRAIT_SLOTS ? drawFreeCast(inPublic, def?.locationId) : []
-  const cast = [...coworkers, ...locals, ...customers].slice(0, PORTRAIT_SLOTS)
-  const drawn = cast.filter((charId) => !coworkers.includes(charId))
+  const cast = [...front, ...drawFreeCast(inPublic, def?.locationId, front)]
+  const coworkers = cast.filter((charId) => kind.coworkers.includes(charId))
+  const drawn = cast.filter((charId) => !kind.coworkers.includes(charId))
   const shift = shiftOf(kind)
   return {
     cast,
@@ -1966,8 +2032,8 @@ function castPeopleTurn(
   attendees: readonly string[] = [],
   kind: SceneKindVerdict = NO_KIND
 ): CastPlan | null {
-  // Naming her needs her number; checked before availability, so unreachable
-  // outranks busy. Safe to name her back: a stranger was refused two gates above.
+  // Naming her needs her number, a girl he has never met included; checked before
+  // availability, so unreachable outranks busy.
   const unreachable = mentioned.find((charId) => !isContact(charId))
   if (unreachable) {
     failTurn(rejection(`You have no way to contact ${firstNameOf(unreachable)} yet.`), snapshot)
@@ -2083,7 +2149,8 @@ async function runEnding(goodbye: boolean): Promise<void> {
   // `advance()` parks again at the boundary rather than crossing an ending in flight.
   unpark()
 
-  const opening = await fetchEndingOpening(merged, dropped)
+  // The opening waits for every transfer still out, whose failure is raised at the ending's wait.
+  const opening = await endingAwaitingTransfers(fetchEndingOpening(merged, dropped))
   if (!opening) return
   if (runStale(run) || dropped()) return
 
@@ -2127,7 +2194,8 @@ function breakupsAheadOf(projected: ProjectedLedger): ProjectedLedger['breakups'
 function introBreakupsOf(projected: ProjectedLedger): IntroBreakup[] {
   const game = useGameStore.getState()
   const breakups: IntroBreakup[] = []
-  for (const { charId, forCharId } of breakupsAheadOf(projected)) {
+  for (const breakup of breakupsAheadOf(projected)) {
+    const { charId, forCharId } = breakup
     const info = projected.charInfo[charId]
     const character = game.characters[charId]
     const forFirstName = game.characters[forCharId]?.firstName
@@ -2137,15 +2205,17 @@ function introBreakupsOf(projected: ProjectedLedger): IntroBreakup[] {
       info,
       charKey: charKeyOf(character.firstName, character.lastName),
       texted: hasTexted(shownConversation(game.bunnyboard.conversations[charId], chatClockOf(game))),
-      forFirstName
+      forFirstName,
+      ...(breakup.closed ? { closed: true } : {})
     })
   }
   return breakups
 }
 
 /**
- * The opening for the slot this ending leads into, or null when the player gave up on it or
- * `dropped` answers true. Sent as the ending's bookkeeping.
+ * The opening for the slot this ending leads into, or null when the player gave up on it, left
+ * the game or `dropped` answers true. Sent as the ending's bookkeeping, once every transfer still
+ * being generated has settled.
  */
 async function fetchEndingOpening(
   ledger: LedgerResponse,
@@ -2162,10 +2232,12 @@ async function fetchEndingOpening(
   // The run-ins the affinity settle counts, which are dice and so are rolled once.
   const groups = rollSlotEncounterGroups()
 
-  // The finished slot's settles, banked below for the boundary to apply.
-  const rumor = rollRumorPass(ledger, projected.charInfo)
-  // Read the earned mod weights before rolling a crush or writing the opening. This
-  // is a projection only: rewards and ability use still commit at slotSettled.
+  // The finished slot's settles, banked below for the boundary to apply. The couples his new
+  // lovers left for him end first, so nobody is said to cheat in one; the affairs his hour
+  // gave away land on the map the settle then rolls from.
+  const parted = withCouplesLeft(game.npcRelationships, projected.left, game.date)
+  const rumor = rollRumorPass(ledger, projected.charInfo, parted)
+  const found = withAffairsFound(parted, rumor.affairs ?? [], rumor.sided ?? [], game.date)
   const seen = projectSlotMemories(
     { before: game, closingCast: loopState.closingCast ?? [] },
     withRumorPass(projected.charInfo, rumor)
@@ -2176,7 +2248,13 @@ async function fetchEndingOpening(
   // Rolled against the charInfo the witness pass just left and the post-scene stats, which is
   // what the boundary's fallback would see too.
   const crushes = rollCrushSettle(ledger, seen, stats)
-  const npcRelationships = rollNpcRelationshipSettle(bondedCharIds(ledger), groups)
+  const fallen = withCrushes(seen, crushes)
+  // Off who stands where with the reader after the scene, so a lover made tonight counts; the
+  // reader's answers to this slot's vents and questions about crushes land first.
+  const settle = rollNpcSettle(bondedCharIds(ledger), groups, fallen, found, adviceGivenNow())
+  const npcRelationships = settle.relationships
+  // Whoever got together tonight, whose crush on the reader the boundary will take.
+  const couples = newCouples(game.npcRelationships, npcRelationships, game.npcCouples)
   // Who caught a cold in the finished slot, off the same run-ins; a cold caught tonight is still
   // incubating in the slot about to open, so the projection below has nothing of it to step.
   const coldPass = rollColdPass(ledger, groups, stats)
@@ -2187,7 +2265,11 @@ async function fetchEndingOpening(
   const charInfo = withGiftDoses(
     withSecretTold(
       withBreakPenaltiesStepped(
-        withRomanceScenes(game.charInfo, withCrushes(seen, crushes), game.cast),
+        withRomanceScenes(
+          game.charInfo,
+          withCouplesFormed(fallen, couples, game.characters),
+          game.cast
+        ),
         game.cast
       ),
       game.cast,
@@ -2219,9 +2301,20 @@ async function fetchEndingOpening(
     npcRelationships
   }
 
-  // Who is out with whom in the slot about to open, off the affinities settled above;
-  // banked with the invitations so a reload opens the evening that was paid for.
-  const npcOverlay = rollNpcOverlayNow(date, time, npcRelationships)
+  // Every transfer still being generated lands on the waiting list or is given up first, so the
+  // slot about to open is dealt with whoever is coming.
+  const run = currentRun()
+  await transfersSettled()
+  if (runStale(run) || dropped()) return null
+
+  // Whoever transferred in arrives at the slot about to open; read only now, so every settle of
+  // the finished slot above stays blind to her.
+  const arriving = pendingArrivals()
+
+  // Who is out with whom in the slot about to open, off the affinities settled above and with
+  // whoever is arriving; banked with the invitations so a reload opens the evening that was paid
+  // for.
+  const npcOverlay = rollNpcOverlayNow(date, time, npcRelationships, arriving)
 
   // The first night's opening is the authored tutorial and the last morning's the authored
   // graduation: no call, but the plans, overlay and settles are banked either way.
@@ -2233,7 +2326,7 @@ async function fetchEndingOpening(
   if (deferred || isTutorialSlot(date, time, game.semesterIndex) || isGraduationSlot(date, time)) {
     return {
       ledger: sceneLedger,
-      ...(deferred ? { deferred: true as const } : {}),
+      ...(deferred ? { deferred: true as const, openingNotes: { newTransfers: arriving.length, love: { argued: settle.argued, outcomes: settle.outcomes } } } : {}),
       lines: [],
       hangouts: [],
       events: plans.events,
@@ -2260,7 +2353,9 @@ async function fetchEndingOpening(
     useGameStore.getState().sceneSummary,
     npcOverlay,
     view,
-    { group: ENDING_LLM_GROUP, stale: dropped, ledger: sceneLedger }
+    { group: ENDING_LLM_GROUP, stale: dropped, ledger: sceneLedger },
+    { argued: settle.argued, outcomes: settle.outcomes },
+    arriving.length
   )
   // An abandoned opening banks nothing, the rolls above included; the player replays the
   // turn.
@@ -2437,7 +2532,7 @@ function startTextLedger(
 
   return (async () => {
     const built = await buildOrAsk(
-      () => buildTextLedgerPrompt(schedule, useGameStore.getState().charInfo, promptTextEdits()?.global),
+      () => buildTextLedgerPrompt(schedule, useGameStore.getState().charInfo, useGameStore.getState().playerPronouns, promptTextEdits()?.global),
       useGameStore.getState().setTextLedgerError,
       stale
     )
@@ -2676,7 +2771,7 @@ export function advance(): void {
       game.setStatusShown(true)
       game.appendPendingLines([
         farewellStatusLine(
-          game.characters[farewell]?.firstName ?? '',
+          game.characters[farewell] ?? { firstName: '' },
           farewellDisposition(farewell)
         )
       ])
@@ -2830,6 +2925,8 @@ function withLineRewritten(
  */
 export function rewriteLine(at: number, text: string): boolean {
   const game = useGameStore.getState()
+  // A line of an opening reply that held the reader back stays as it was delivered.
+  if (lineRewriteLocked(game, at)) return false
   const old = game.sceneLog[at]
   const tAt = game.editLogLine(at, text)
   if (tAt === null) return false
@@ -3012,7 +3109,9 @@ function showStatusLines(textOnly = false): boolean {
         after,
         game.sceneGifts,
         game.sceneIgnoredInvites,
-        game.sceneTurnedDown
+        game.sceneTurnedDown,
+        game.sceneIgnoredVents,
+        projected?.charInfo
       ),
       // Then what the mods report, such as the memories the next slot files for them. A held night
       // already stands on the slot it opens, so that slot is the next one.
@@ -3081,8 +3180,10 @@ function askMemoryEdits(
 
 /** Files what the answers changed: a filed memory rewritten or dropped, a blank row recorded. */
 function fileMemoryEdits(rows: readonly MemoryEditRow[], answers: readonly MemoryAnswer[]): void {
-  const { date } = useGameStore.getState()
-  for (const { charId, match, next } of memoryEditsOf(rows, answers, date)) {
+  const { date, characters, playerPronouns, playerFirstName } = useGameStore.getState()
+  const genders = gendersOf(rows.map(({ charId }) => charId), characters)
+  const edits = memoryEditsOf(rows, answers, date, genders, playerPronouns, playerFirstName)
+  for (const { charId, match, next } of edits) {
     if (match) useGameStore.getState().replaceMemory(charId, match, next)
     else if (next) useGameStore.getState().recordMemory(charId, next)
   }
@@ -3191,7 +3292,9 @@ async function crossSlotBoundary(): Promise<void> {
     useGameStore.getState().clearBreakupsOwed()
     applyRumorPass(banked.rumorPass)
     applyCrushSettle(banked.crushes)
-    // Before the map is stored: what is recorded is the difference between the two.
+    // Before the map is stored: what is recorded is the difference between the two. After the
+    // crushes, so one rolled on a girl who got together with somebody tonight is taken again.
+    applyNewCouples(useGameStore.getState().npcRelationships, banked.npcRelationships)
     applyNewFriendships(useGameStore.getState().npcRelationships, banked.npcRelationships)
     useGameStore.getState().setNpcRelationships(banked.npcRelationships)
     // Absent only on an opening banked before colds existed.
@@ -3237,6 +3340,8 @@ async function crossSlotBoundary(): Promise<void> {
   useGameStore.getState().tellSceneSecret()
   // And the curveball it opened on, which waits out its cooldown from today.
   useGameStore.getState().commitSceneEvent()
+  // And a cast scene's ending towards the next redrafted opening, while the cast still stands.
+  useGameStore.getState().commitRedraftCount()
   // Filed under the slot the scene ran in, so before the clock moves on.
   useGameStore.getState().commitSceneToHistory(game.date, game.time)
   // Stamped with the finishing slot and before the cast clears below: the ask-out roll reads it
@@ -3290,7 +3395,15 @@ async function crossSlotBoundary(): Promise<void> {
   if (!over && !keepReplay) useGameStore.getState().dropReplay(game.date, game.time)
 
   useGameStore.setState({ chatShownThrough: { date: game.date, time: game.time } })
+  // The slot's vents and questions about crushes come down with it: the ending acted on every
+  // answer, and nothing left standing outlives its slot.
+  useGameStore.getState().clearAdvice()
   useGameStore.getState().advanceSlot()
+  // Whoever transferred in joins the roster as the slot she arrives at opens, before anything
+  // below reads it and before the boundary save, which records her; idempotent, so a boundary
+  // replayed off a save admits the list that save was still waiting on.
+  useGameStore.getState().admitTransfers()
+  useGameStore.setState({ heldNightOpening: banked?.deferred ? readDeferredOpeningNotes(banked.openingNotes) : null })
   // Off the affection the slot about to open reads, so a girl decayed out of a half is caught.
   useGameStore.getState().observeUpperHalves()
   // On the same reading: a secret reached tonight waits for the next scene she is alone in.
@@ -3331,6 +3444,7 @@ async function playInterludeLine(line: string | undefined): Promise<void> {
 async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> {
   const run = currentRun()
   const game = useGameStore.getState()
+  const openingNotes = game.heldNightOpening
   loopState.interludeEnding = true
   game.clearStage()
   game.setStatusShown(false)
@@ -3372,6 +3486,8 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
   if (runStale(run)) return
   game.setEndingInFlight(true)
   const dating = applyLedger(ledger, now.from.date)
+  const settled = useGameStore.getState()
+  settled.setNpcRelationships(withCouplesLeft(settled.npcRelationships, dating.left ?? [], now.from.date))
   const plans = settlePlans(ledger, now.from.date, now.from.time)
   addPlanContacts(plans.events)
   useGameStore.getState().addEvents(plans.events)
@@ -3399,8 +3515,9 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
     ? { lines: [], hangouts: [], events: plans.events, cancellations: plans.cancellations }
     : await fetchSlotIntro(
       now.to.date, now.to.time, plans.events, plans.cancellations,
-      introBreakupsOf({ charInfo: live.charInfo, scene: live.charInfo, breakups: dating.breakups }),
-      springBreak, homecoming, undefined, overlay, liveView(), { group: ENDING_LLM_GROUP, ledger: null }
+      introBreakupsOf({ charInfo: live.charInfo, scene: live.charInfo, breakups: dating.breakups, left: dating.left ?? [] }),
+      springBreak, homecoming, undefined, overlay, liveView(), { group: ENDING_LLM_GROUP, ledger: null },
+      openingNotes?.love ?? { argued: [], outcomes: [] }, openingNotes?.newTransfers ?? 0
     )
   if (!opening || runStale(run)) return
   const ready: SlotOpening = {
@@ -3424,7 +3541,7 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
   game.setEndingInFlight(false)
   game.setSceneEnding(false)
   game.setStatusShown(false)
-  useGameStore.setState({ interlude: null })
+  useGameStore.setState({ interlude: null, heldNightOpening: null })
   void beginSlot(true, ready)
 }
 
@@ -3439,6 +3556,8 @@ export function resetLoop(): void {
   dropEndingArt()
   // The same, for the picture the reader's profile draws.
   dropProfilePicture()
+  // A transfer still being generated belongs to the game being torn down.
+  resetTransfers()
   useLorebookStore.getState().drop()
 }
 
@@ -3621,7 +3740,8 @@ export async function leaveForNextSemester(): Promise<boolean> {
   const record = loopState.record
   const playthroughId = game.playthroughId
   if (record && playthroughId) {
-    const view = semesterOf(record, game.semesterId ?? undefined)
+    // The semester as it was played, whoever transferred into it carried as the roster is.
+    const view = withTransfers(semesterOf(record, game.semesterId ?? undefined), game)
     // Read off the store before the teardown resets it: purchases since the goodbyes included.
     const handoff = carryOf(game, view)
     // What the mods carry, read off the same ending, rides beside the game's own carry.
@@ -3776,13 +3896,16 @@ export async function switchGame(playthroughId: string, saveId: string): Promise
   const read = await window.api.saves.read(playthroughId, saveId)
   if (!read.ok) throw read.error
   const { record, save } = read.data
-  // The save's own semester: its roster, and the graduates who are loaded beside it.
-  const semester = semesterOf(record, save.semester)
+  // The save's own semester: its roster with whoever transferred in, the graduates who are loaded
+  // beside it, and the transfers still waiting to arrive.
+  const semester = withTransfers(semesterOf(record, save.semester), save)
+  const waiting = (save.pendingTransfers ?? []).map((entry) => entry.charId)
 
   const characters = Object.fromEntries(
-    castOf([...semester.chars, ...semester.alumni], useSaveStore.getState().characters).map(
-      (c) => [c.charId, c]
-    )
+    castOf(
+      [...semester.chars, ...semester.alumni, ...waiting],
+      useSaveStore.getState().characters
+    ).map((c) => [c.charId, c])
   )
 
   leaveGame(true)
@@ -3795,4 +3918,16 @@ export { abandonClassify, retryClassify } from './loop/classify'
 export { submitQuizAnswer } from './loop/exams'
 export { relax } from './loop/relax'
 export { manualSaveOffer, milestonesOffer, offerNoteOf, writeManualSave } from './loop/saves'
+export {
+  abandonTransfer,
+  cancelPendingTransfer,
+  firstFailedTransfer,
+  retryTransfer,
+  startTransfer,
+  transferCharacterOf,
+  transferFailedPrompt,
+  transferFailureOffersEdit,
+  transferOffer,
+  transferRoom
+} from './loop/transfers'
 export type { ManualSaveOffer } from './loop/saves'

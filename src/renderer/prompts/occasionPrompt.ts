@@ -486,7 +486,12 @@ export function buildOccasionPrompt(
   })
 
   // The requests are in the prompt, so this caches only across retries of the same New Game.
-  return { system, user, schema, cacheKey: 'venus-university-occasion-generation' }
+  return {
+    system,
+    user,
+    schema,
+    cacheKey: 'venus-university-occasion-generation'
+  }
 }
 
 /** The reply's shape, before any of it is trusted. */

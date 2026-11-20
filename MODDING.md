@@ -413,8 +413,10 @@ changes with it. Their props are the ones the game's own screens pass, typed in 
 ### Prompt helpers and image viewing
 
 `Lightbox({ src, onClose })` from `@vx/modkit/renderer` is the game's image viewer, with its own
-styles and motion. `relationshipLines`, `profileLines`, `memoryLines` and `spaced` are the same
-prompt helpers core uses; they take their inputs from the caller and do not read a game store.
+styles and motion. `relationshipLines`, `profileLines` and `memoryLines` keep their kit call
+signatures and use core's prompt helpers with the active reader's pronouns and romance rules.
+`spaced` is the same pure helper core uses. `memoryStatusLine` uses the active reader's first
+name, and `readerize` files memory text in the third person with their pronouns.
 `RelationshipMedium` and `RelationshipProgress` describe relationship-helper inputs.
 `globalSlotOf(date, time)` is already in `@vx/modkit/shared`.
 
