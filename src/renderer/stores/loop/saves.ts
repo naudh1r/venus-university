@@ -166,7 +166,10 @@ export function writeSlotSave(
     const before = replay ? game.replays[replay.date]?.[replay.time] : undefined
     if (replay) game.setReplay(replay.date, replay.time, replayIdOf(replay))
     const draft = useGameStore.getState().toGameSave()
-    if (heldNight === null) delete draft.heldNight
+    if (heldNight === null) {
+      delete draft.heldNight
+      delete draft.heldNightOpening
+    }
     else if (heldNight) draft.heldNight = { ...heldNight }
     if (morningOpening) draft.morningOpening = morningOpening
     const thumbnail = draft.heldNight ? await composeSaveThumbnail(draft) : null
@@ -316,6 +319,8 @@ export function queuedScene(
   else delete scene.ignoredInvites
   if (game.sceneTurnedDown.length > 0) scene.turnedDownInvites = [...game.sceneTurnedDown]
   else delete scene.turnedDownInvites
+  if (game.sceneIgnoredVents.length > 0) scene.ignoredVents = [...game.sceneIgnoredVents]
+  else delete scene.ignoredVents
   if (game.sceneFarewell) scene.farewell = game.sceneFarewell
   else delete scene.farewell
   // `base` predates the casting turn, so these are only in the store.
@@ -332,6 +337,8 @@ export function queuedScene(
   else delete scene.event
   if (game.sceneReceivedGift) scene.receivedGift = { ...game.sceneReceivedGift }
   else delete scene.receivedGift
+  if (game.sceneRedraft) scene.redraft = true
+  else delete scene.redraft
   return scene
 }
 

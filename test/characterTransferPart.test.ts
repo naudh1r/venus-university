@@ -74,7 +74,7 @@ function notePart(over: Partial<CharacterTransferPart> = {}): { seen: unknown[] 
 
 /** A character on disk with the fixture part's note on her. */
 async function noted(): Promise<string> {
-  const { charId } = await createCharacter('Mina', 'Aoki')
+  const { charId } = await createCharacter('Mina', 'Aoki', 'female')
   await mkdir(noteDir(), { recursive: true })
   await writeFile(join(noteDir(), `${charId}.txt`), 'likes rain')
   return charId
