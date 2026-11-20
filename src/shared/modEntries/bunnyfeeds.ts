@@ -8,12 +8,12 @@ const mod: ModDef = {
   scope: 'anytime',
   defaultOn: false,
   blurb:
-    "Comment on your friends' posts on Bunnyboard. They reply in their own words, their friends and other students join the conversation, and they remember what you said. They also comment on each other's posts, and Notifications under Updates lists every answer to you. Costs a little extra AI each time you close the phone after commenting; just scrolling is free.",
+    "Comment on your friends' posts on Bunnyboard. They reply in their own words, their friends and other students join the conversation, and they remember what you said. They also comment on each other's posts, and Notifications under Updates lists every answer to you. Costs a little extra AI each time you close the phone after commenting. Just scrolling is free.",
   options: [
     {
       id: 'announce',
       label: 'Announce feed memories',
-      hint: 'Off, the closing no longer says what they made of your comments; they still remember it.',
+      hint: 'Off, the closing no longer says what they made of your comments. They still remember it.',
       default: true
     },
     // One of these is on at a time: the store turns the others off.
