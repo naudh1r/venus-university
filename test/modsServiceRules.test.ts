@@ -58,6 +58,7 @@ describe('shared rules in main', () => {
 
   it('list the installed mods, and answer for a loaded one from the switches main last read or wrote', async () => {
     expect(modSession().mods.map((mod) => [mod.id, mod.status])).toEqual([
+      ['photo-feature', 'loaded'],
       ['broken', 'failed'],
       ['hello-mod', 'loaded']
     ])
