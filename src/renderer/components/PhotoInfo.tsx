@@ -181,7 +181,14 @@ function PhotoInfoModal({
   }, [info, host, id])
   useEffect(() => {
     let active = true
-    void photoInvoke('info', [playthroughId, character, friend, photo.tier, photo.scene ?? '', photo.file])
+    void photoInvoke('info', [
+      playthroughId,
+      character,
+      friend,
+      photo.tier,
+      photo.scene ?? '',
+      photo.file
+    ])
       .then((result) => {
         if (!active) return
         if (result.ok) {
@@ -208,7 +215,15 @@ function PhotoInfoModal({
     setBusy(true)
     setError('')
     try {
-      const result = await photoInvoke('info', [playthroughId, character, friend, photo.tier, photo.scene ?? '', photo.file, true])
+      const result = await photoInvoke('info', [
+        playthroughId,
+        character,
+        friend,
+        photo.tier,
+        photo.scene ?? '',
+        photo.file,
+        true
+      ])
       if (result.ok) {
         refitFields.current = true
         setInfo(result.data)
@@ -264,7 +279,7 @@ function PhotoInfoModal({
               </p>
               {!info.recorded && (
                 <p className="vu-photo-info-note">
-                  This prompt was rebuilt from her current tags and settings.
+                  This prompt was rebuilt from the character’s current tags and settings.
                 </p>
               )}
               {recorded && (

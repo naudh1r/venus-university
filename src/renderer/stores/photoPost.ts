@@ -1,3 +1,4 @@
+import { genderOf } from '../../shared/photoGender'
 import { postPhoto } from './photoRecords'
 import { photoInvoke } from './photoInvoke'
 import { redrawPhoto, RENDER_PATIENCE_MS } from './photoRedraw'
@@ -36,12 +37,26 @@ import { renderPhoto } from './photoWebp'
  * What a post's picture is allowed to be, read off the caption she wrote rather than a flag
  * beside it, and capped by the one rule a public feed has.
  */
-function settlePostPhoto(image: string | undefined): { tier: PhotoTier; scene: string } | null {
+function settlePostPhoto(
+  image: string | undefined,
+  charId: string,
+  friendId?: string
+): { tier: PhotoTier; scene: string } | null {
   const scene = image?.trim()
   if (!scene || !canSendPhotos()) return null
 
   const allowed = allowedPostTier(noNsfwImages())
-  const verdict = settlePhoto({ sendPhoto: true, photoPrompt: scene, allowed })
+  const game = photoGame()
+  const character = game.characters[charId]
+  if (!character) return null
+  const friend = friendId ? game.characters[friendId] : undefined
+  const verdict = settlePhoto({
+    sendPhoto: true,
+    photoPrompt: scene,
+    allowed,
+    gender: genderOf(character),
+    ...(friend ? { companionGender: genderOf(friend) } : {})
+  })
   if (!verdict.send) {
     if (verdict.note) console.log(`[feed] no picture on a post: ${verdict.note}`)
     return null
@@ -54,7 +69,12 @@ async function reservePostPhotoName(charId: string): Promise<string | null> {
   const game = photoGame()
   const character = game.characters[charId]
   if (!character || !game.playthroughId) return null
-  const result = await photoInvoke('reserveName', [game.playthroughId, character, 'bunnyboard', photoNamesInSave(charId)])
+  const result = await photoInvoke('reserveName', [
+    game.playthroughId,
+    character,
+    'bunnyboard',
+    photoNamesInSave(charId)
+  ])
   if (result.ok) return result.data
   console.warn(`[feed] no name for a post's picture: ${result.error.code}`, result.error.message)
   return null
@@ -88,14 +108,16 @@ export async function preparePostPhoto(
   // The friend beside her in a group photo, by charId; the scene they shared settled it.
   friendId?: string
 ): Promise<PreparedPostPhoto | null> {
-  const shot = settlePostPhoto(image)
+  const shot = settlePostPhoto(image, charId, friendId)
   if (!shot) return null
   const file = await reservePostPhotoName(charId)
   if (!file) return null
   // A friend is in it only in everyday clothes or swimwear: past that is hers alone to post.
-  const dressed = shot.tier === 'everyday' || (shot.tier === 'suggestive' && SWIMWEAR.test(shot.scene))
+  const dressed =
+    shot.tier === 'everyday' || (shot.tier === 'suggestive' && SWIMWEAR.test(shot.scene))
   const friend = friendId && dressed ? photoGame().characters[friendId] : undefined
-  if (friendId && !friend) console.log('[photo] the friend is left out of a picture past everyday clothes')
+  if (friendId && !friend)
+    console.log('[photo] the friend is left out of a picture past everyday clothes')
   return { shot, file, ...(friend ? { with: friend.charId } : {}) }
 }
 
@@ -121,7 +143,10 @@ export function holdPostPhoto(
   nudgeOf = nudge
   const { tier, scene } = prepared.shot
   return postPhoto.with(written, {
-    tier, scene, file: prepared.file, held: true,
+    tier,
+    scene,
+    file: prepared.file,
+    held: true,
     ...(prepared.with ? { with: prepared.with } : {})
   })
 }
@@ -159,7 +184,11 @@ function photoOf(charId: string, postId: string): ChatPhoto | null {
 function settle(charId: string, postId: string, photo: ChatPhoto): void {
   const before = photoOf(charId, postId)
   if (!before) return
-  const changed = setFeedPostPhoto(charId, postId, before.held ? { ...photo, outAt: Date.now() } : photo)
+  const changed = setFeedPostPhoto(
+    charId,
+    postId,
+    before.held ? { ...photo, outAt: Date.now() } : photo
+  )
   if (!changed.ok) return
   if (before.held) {
     const flags = photoGame().charInfo[charId]?.flags
@@ -189,7 +218,8 @@ async function drawPostPhoto(charId: string, postId: string): Promise<void> {
   const { tier, scene, file } = photo
   const drawn: ChatPhoto = { tier, scene, file, ...(photo.with ? { with: photo.with } : {}) }
   const friend = photo.with ? game.characters[photo.with] : undefined
-  const live = (): boolean => photoGame().playthroughId === playthroughId && photoGame().run === game.run
+  const live = (): boolean =>
+    photoGame().playthroughId === playthroughId && photoGame().run === game.run
 
   // A render can finish after the save that was waiting on it was written: the picture is on disk
   // and the save still says held. Found, it only has to be let out.
@@ -271,7 +301,9 @@ export function startHeldPostPhoto(): void {
   // the first time the reader commits to something after they are switched back on.
   if (!canSendPhotos()) return
   const held = Object.entries(game.charInfo).flatMap(([charId, info]) =>
-    (info?.feed ?? []).filter((post) => postPhoto.read(post)?.held).map((post) => ({ charId, post }))
+    (info?.feed ?? [])
+      .filter((post) => postPhoto.read(post)?.held)
+      .map((post) => ({ charId, post }))
   )
   held.sort((a, b) => a.post.date - b.post.date || a.post.time - b.post.time)
   for (const { charId, post } of held) {
@@ -315,21 +347,24 @@ export async function redrawPostPhoto(
   const character = game.characters[charId]
   if (!playthroughId || !character || !canSendPhotos()) return
   const photo = photoOf(charId, postId)
-  await redrawPhoto({
-    playthroughId,
-    character,
-    friend: photo?.with ? game.characters[photo.with] : undefined,
-    kind: 'bunnyboard',
-    read: () => photoOf(charId, postId),
-    write: async (next) => {
-      if (!setFeedPostPhoto(charId, postId, next).ok) return false
-      await savePhotoStateAwaitable(game.run)
-      return true
+  await redrawPhoto(
+    {
+      playthroughId,
+      character,
+      friend: photo?.with ? game.characters[photo.with] : undefined,
+      kind: 'bunnyboard',
+      read: () => photoOf(charId, postId),
+      write: async (next) => {
+        if (!setFeedPostPhoto(charId, postId, next).ok) return false
+        await savePhotoStateAwaitable(game.run)
+        return true
+      },
+      live: () => {
+        const now = photoGame()
+        return now.playthroughId === playthroughId && now.run === game.run
+      },
+      inSave: () => photoNamesInSave(charId)
     },
-    live: () => {
-      const now = photoGame()
-      return now.playthroughId === playthroughId && now.run === game.run
-    },
-    inSave: () => photoNamesInSave(charId)
-  }, options)
+    options
+  )
 }

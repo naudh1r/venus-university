@@ -1,3 +1,4 @@
+import { fillPronouns, type PhotoGender } from '../../shared/photoGender'
 /**
  * BunnyBot on photos: what the reader is told the first time a girl sends him one in a DM, and the
  * first time a post with a picture is on his Updates tab. Each said once, in the thread's own
@@ -11,11 +12,17 @@
 /** The DM tip's line that marks it as said. */
 export const DM_PHOTO_TIP_MARK = `the spicy ones come covered, so tap to take a peek... tap again to see it full size. if one ever fails to load, just hit reroll`
 
-export function bunnybotDmPhotoTexts(firstName: string): readonly string[] {
+export function bunnybotDmPhotoTexts(
+  firstName: string,
+  gender: PhotoGender = 'female'
+): readonly string[] {
   return [
     `ooh, ${firstName.toLowerCase()} just sent you a pic. photos on bunnyboard get drawn right on your own pc, so give them a sec to show up`,
     DM_PHOTO_TIP_MARK,
-    `what they're willing to send depends on how close you two are, and her page keeps a gallery of everything she's sent you`,
+    fillPronouns(
+      `what they're willing to send depends on how close you two are, and {their} page keeps a gallery of everything {they} has sent you`,
+      gender
+    ),
     `and if you'd rather not get any, you can switch photos off in settings`
   ]
 }

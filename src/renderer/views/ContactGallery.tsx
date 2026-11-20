@@ -261,7 +261,7 @@ export function GalleryPanel({ charId, isContact }: ContactTabProps): JSX.Elemen
           </div>
           {shown.length === 0 ? (
             <p className="vu-contact-empty">
-              {filter === 'dm' ? 'No photos in DMs yet.' : 'No photos on her feed yet.'}
+              {filter === 'dm' ? 'No photos in DMs yet.' : 'No photos on this feed yet.'}
             </p>
           ) : (
             <ul className="vu-gallery-grid vu-contact-shots">

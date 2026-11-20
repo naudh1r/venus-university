@@ -17,6 +17,7 @@ import {
 import {
   bodyBriefLines,
   bodyOfDraft,
+  bodyDraftGender,
   bodySchemaFields,
   bodySchemaRequired,
   type DraftBody
@@ -42,9 +43,8 @@ import { MessagePhotoAttachment, PhotoLightboxHost } from '../components/PhotoBu
 import { GalleryPanel, galleryShown, PostPhotoExtra } from '../views/ContactGallery'
 import { PHOTO_FEATURE_ID, bindPhotoOptionReader } from '../../shared/photoSwitches'
 
-bindPhotoOptionReader(option => modOptionOn(PHOTO_FEATURE_ID, option))
+bindPhotoOptionReader((option) => modOptionOn(PHOTO_FEATURE_ID, option))
 registerPhotoDraft(registerImagePromptDraft)
-
 
 /**
  * Photo Feature, plugged into the game through its hooks. Everything it adds to the game's own
@@ -124,7 +124,14 @@ registerHooks(PHOTO_FEATURE_ID, {
     ),
 
   characterFromDraft: (draft, { baseAppearance }) =>
-    writeBody(bodyOfDraft(draft.body as DraftBody | undefined, baseAppearance)),
+    writeBody(
+      bodyOfDraft(
+        draft.body as DraftBody | undefined,
+        baseAppearance,
+        undefined,
+        bodyDraftGender(draft, baseAppearance)
+      )
+    ),
 
   // Her streamed decision starts drawing; the completed reply claims that same render.
   dmReplyLead: ({ charId, character, lead, signal }) =>

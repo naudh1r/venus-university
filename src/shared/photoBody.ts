@@ -1,3 +1,4 @@
+import { photoRuleText, type PhotoGender } from './photoGender'
 import type { CharacterBody } from './characterBody'
 import type { Framing } from './photoFraming'
 import { says, saysAny } from './photoWords'
@@ -104,7 +105,7 @@ const FRAMED_SEEN: Partial<Record<Framing, readonly Region[]>> = {
  * included: a close one is all the caption's own words get to say about what is in it.
  */
 function seenIn(caption: string, framing: Framing | null): Set<Region> {
-  const text = caption.toLowerCase()
+  const text = photoRuleText(caption)
   const close = framing ? FRAMED_SEEN[framing] : undefined
   const row = FRAMING.find((rule) => saysAny(text, rule.cues))
   const seen = new Set<Region>(close ?? row?.seen ?? SEEN_BY_DEFAULT)
@@ -179,6 +180,9 @@ const SHAPES: Readonly<Record<string, readonly Region[]>> = {
   underwear: ['bust', 'nipples', 'pubic', 'buttocks'],
   thong: ['pubic'],
   'g-string': ['pubic'],
+  boxers: ['pubic', 'buttocks'],
+  briefs: ['pubic', 'buttocks'],
+  trunks: ['pubic', 'buttocks'],
   leggings: ['hipsThighs', 'buttocks', 'pubic'],
   stockings: []
 }
@@ -221,7 +225,19 @@ const TOP_BARE_CUES = [
 ]
 
 /** Words that bare her bottom half, whatever is still on above it. */
-const BOTTOM_BARE_CUES = ['bottomless', 'no bottoms', 'no panties', 'without panties', 'pantiless']
+const BOTTOM_BARE_CUES = [
+  'no underwear',
+  'without underwear',
+  'no boxers',
+  'without boxers',
+  'no briefs',
+  'without briefs',
+  'bottomless',
+  'no bottoms',
+  'no panties',
+  'without panties',
+  'pantiless'
+]
 
 /**
  * "Nothing on below", "naked from the waist down": her bottom half, said in the words for all of
@@ -244,7 +260,7 @@ function withoutNothingBelow(text: string): string {
  * picture allowed to be undressed and described as undressed has nothing on it to detect.
  */
 function coverageIn(caption: string, bare: boolean): Record<Region, Coverage> {
-  const text = caption.toLowerCase()
+  const text = photoRuleText(caption)
 
   const coverage = Object.fromEntries(REGIONS.map((field) => [field, 'exposed'])) as Record<
     Region,
@@ -281,7 +297,15 @@ export interface PartialPhotoExposure {
 
 /** Reveal tags settle the bare half; an unrecognised reveal retains the usual coverage. */
 const TOP_GARMENT_WORDS = ['neckline', 'shirt', 'top', 'sweater', 'blouse', 'hoodie', 'dress']
-const BOTTOM_GARMENT_WORDS = ['shorts', 'skirt', 'pants', 'jeans', 'panties', 'leggings', 'trousers']
+const BOTTOM_GARMENT_WORDS = [
+  'shorts',
+  'skirt',
+  'pants',
+  'jeans',
+  'panties',
+  'leggings',
+  'trousers'
+]
 
 /**
  * Whether what she pulls is her top: the garment nearest the pull in its own clause, on either
@@ -293,8 +317,11 @@ function pullsHerTop(text: string): boolean {
   return text.split(/[,.;]/).some((clause) => {
     const words = clause.split(/\s+/).filter(Boolean)
     const garments = words.flatMap((word, at) =>
-      saysAny(word, TOP_GARMENT_WORDS) ? [{ at, top: true }]
-        : saysAny(word, BOTTOM_GARMENT_WORDS) ? [{ at, top: false }] : []
+      saysAny(word, TOP_GARMENT_WORDS)
+        ? [{ at, top: true }]
+        : saysAny(word, BOTTOM_GARMENT_WORDS)
+          ? [{ at, top: false }]
+          : []
     )
     return words.some((word, at) => {
       if (!/^(?:pull|tug)/.test(word)) return false
@@ -313,7 +340,7 @@ export function partialExposureIn(
   outfit: readonly string[] = []
 ): PartialPhotoExposure | undefined {
   if (describesNothingOn(caption)) return undefined
-  const text = caption.toLowerCase()
+  const text = photoRuleText(caption)
   const upper =
     reveals.some((tag) => ['breasts_out', 'shirt_lift', 'bra_lift', 'bra_pull'].includes(tag)) ||
     (reveals.includes('clothes_pull') && pullsHerTop(text)) ||
@@ -325,6 +352,7 @@ export function partialExposureIn(
         'panties_aside',
         'panty_pull',
         'pants_pull',
+        'penis',
         'no_panties',
         'panties_around_one_leg',
         'pussy',
@@ -384,7 +412,8 @@ export function bodyTagsFor(
   caption: string,
   bare: boolean,
   framing: Framing | null = null,
-  partial?: PartialPhotoExposure
+  partial?: PartialPhotoExposure,
+  gender: PhotoGender = 'female'
 ): string[] {
   const seen = seenIn(caption, framing)
   const coverage = coverageIn(caption, bare)
@@ -401,7 +430,7 @@ export function bodyTagsFor(
     if (state === 'hidden') continue
 
     // The same words her nude sprite is drawn with, for the parts of her this picture shows.
-    const nude = BARE_TAGS[region]
+    const nude = gender === 'male' && region === 'pubic' ? 'penis' : BARE_TAGS[region]
     if (state === 'exposed' && bare && nude) tags.push(nude)
 
     const own = body ? ownTag(body, region, bare && state === 'exposed') : undefined
@@ -412,7 +441,12 @@ export function bodyTagsFor(
     // Her own hips say what cloth over them shows, where she has them: the generic shape is
     // only for a picture that knows nothing of her.
     if (state === 'shape') {
-      const through = region === 'hipsThighs' && body ? undefined : THROUGH_CLOTH[region]
+      const through =
+        gender === 'male' && region === 'bust'
+          ? undefined
+          : region === 'hipsThighs' && body
+            ? undefined
+            : THROUGH_CLOTH[region]
       if (through) tags.push(through)
     }
   }
@@ -432,7 +466,7 @@ const BARE_TAGS: Partial<Record<Region, string>> = {
 
 /** Whether the caption has nothing left on her at all, rather than something moved aside. */
 export function describesNothingOn(caption: string): boolean {
-  return saysAny(withoutNothingBelow(caption.toLowerCase()), [
+  return saysAny(withoutNothingBelow(photoRuleText(caption)), [
     'naked',
     'nude',
     'no clothes',

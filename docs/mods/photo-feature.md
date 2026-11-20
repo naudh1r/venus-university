@@ -1,13 +1,13 @@
 # Photo Feature
 
-An unofficial mod for Venus University by **naudh1r**. Version **1.7.3**, for the game's 0.7.0.
+An unofficial mod for Venus University by **naudh1r**. Version **1.8.0**, for the game with male characters and NPC relationships.
 
-The girls send you photos in their DMs and post them on their feeds, with comments from the rest
+Characters send you photos in their DMs and post them on their feeds, with comments from the rest
 of campus. Each contact gets a gallery, and characters can get optional body details. Photos are
 drawn on your own machine by ComfyUI, the game's own or yours.
 
 It is separate from the game's own **Photos** tab in the Bunnyboard, where you make pictures
-yourself. This mod is about the photos *she* sends and posts.
+yourself. This mod is about the photos characters send and post.
 
 This is not made or supported by Venus Dev. Please do not report problems with it to them.
 
@@ -25,12 +25,19 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
 | Option | Default | What it does |
 |---|---|---|
 | Photo Feature | on | Off, nobody sends a new photo and posts get no new comments. Photos, galleries and comments already made are hidden, not deleted, and come back when it is on again. |
-| Photo generation | on | Off, no new photos are made and the girls are not told they can send one. Photos already sent stay visible. |
+| Photo generation | on | Off, no new photos are made and characters are not told they can send one. Photos already sent stay visible. |
 | Explicit photos | on | Off, nobody sends an undressed photo and ones already sent stay covered. The game's own "No NSFW images" turns them off too. |
 | Body details | off | Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable from the main menu in Manage Characters, under a character's Generation settings (the default characters too), and drawn in their sprites, CGs and photos. Off, what they have is kept but not used. |
-| 2 girls 1 photo (experimental) | off | A girl's feed post can be a photo of her and a friend, and a scene you are in with other girls can bring a photo of two of them on one's feed. Always two girls, never more. See below. |
+| Two in one photo (experimental) | off | A feed post can show its author with a friend or current partner. A scene can bring a photo of any two characters, never more. See below. |
 | Save photos as WebP | on | New photos are saved as WebP, with no visible quality loss while taking much less space than PNG. Off, they are saved as PNG. Photos already saved stay as they are. |
 | Loading animation | Bunny hop | What a photo shows while it is being drawn: Bunny hop, Dot shimmer or Typing dots. |
+
+Male and female characters use the same settings. A bare male chest is ordinary; male nudity
+below the waist is explicit. A girl’s coverage rules are unchanged. Explicit photos stay covered
+while either Explicit photos is off or No NSFW images is on, regardless of gender.
+
+The examples below use a female character; male photos follow the same steps with his own
+appearance, wardrobe, body details and pronouns.
 
 ## How a photo is made
 
@@ -67,45 +74,37 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
      negative: naming legwear, `pantyshot` or censoring there drew a smudge or a coloured leg
      in its place.
 5. ComfyUI draws it with the style LoRA, followed by her own LoRA if she has one under her
-   Generation settings. Pictures of two girls use the style LoRA alone. It lands in the bubble
+   Generation settings. Pictures of two people use the style LoRA alone. It lands in the bubble
    or the post.
 
-Every tag the mod adds has been checked in ComfyUI on the photo checkpoint, side by side with the
-same seed. Many plain tags turned out to do nothing, so some rules use weights or special
+The earlier female tags were checked in ComfyUI on the photo checkpoint, side by side with the
+same seed. The male additions use the game’s male subject and nude vocabulary; new image comparisons
+are still needed before release. Many plain tags turned out to do nothing, so some rules use weights or special
 combinations. The comment beside each rule in the code says what was tried.
 
-## 2 girls 1 photo (experimental)
+## Two in one photo (experimental)
 
-With the option on, a scene you go into with two or more of the girls brings a photo of two of them,
-never more: two picked at random from pairs who are not enemies, and one posts it on her feed, once a slot.
-If all the pairs are enemies, there is no group photo. The scene's first call writes it
-beside the scene's opening lines, once the game has settled who is there, and it is filed like any
-feed post: held until the picture lands, with likes and comments from whichever mod draws them. Its
-picture is drawn under the scene, behind any of the slot's own feed pictures still waiting. They
-are dressed for where they are, so the pool puts them in their swimsuits, and like every post it is
-never past suggestive.
+With the option on, a scene with two or more characters can bring a photo of two of them,
+posted on one’s feed, once a slot. Any pairing works: two girls, two guys or one of each.
+The pair is picked at random from those who are not enemies. If every pair is enemies, there
+is no group photo. It is written as the scene begins and waits on the feed until its picture
+lands, behind the slot’s other waiting pictures. Likes and comments work as on any feed post.
 
-The option also lets a girl's own feed post be a picture of her and a friend. As the slot opens,
-one of the girls posting, at most, is rolled a picture with one of her friends (1 in 4 for a girl
-who has any), wherever either of them is: neither has to be in your scene. The opening is told so
-under her name and writes it with her post. A friend stays in a picture only in everyday clothes
-or swimwear; past that the picture is drawn of the poster alone. The console says so as the
-opening is written (`[photo] X's post this slot is a picture with Y`).
+A character’s own feed post can also show them with a friend or current partner. At most one
+poster each slot gets this roll: a 1 in 4 chance for anyone with an eligible companion, then
+one companion picked from their friends and current partner. Neither needs to be in your scene.
+A breakup ends partner eligibility; someone who is still a friend remains eligible as a friend.
+Only everyday clothes or swimwear are used for these duos, as before. A feed photo never goes
+past suggestive, and a mixed pair follows the same coverage rules for both people.
 
-- The two are drawn side by side and not touching, from the waist up, each in her own half of the
-  picture: told as one prompt, the model swapped their hair and clothes between them, and where
-  they touched their bodies merged. Each half is dressed from the waist up only: a skirt, jeans or a
-  belt in either drew them down to the hips, where their sides fused. Their clothes are their own,
-  never the caption's, and both carry the face the caption asks for, or a smile.
-- The picture is the poster's, in her gallery only. The console names the pair when the scene is asked for it
-  (`[photo] group photo asked of the scene: …`), and the `photo:` lines show each girl's prompt
-  as `node 50` and `node 51`.
+The two are drawn side by side, from the waist up, without touching. Each keeps their own
+appearance, clothes, colours, expression and gestures in a separate half. Selfies give only
+the poster the arm holding the phone. The picture belongs to the poster’s gallery.
 
-Still being tuned: now and then a face, an outfit or a colour comes out wrong, and close-ups and
-from-behind shots hold less well than plain ones. Pictures from below are drawn at eye level. The
-two can still meet in the middle, most often in swimsuits, where nothing marks where one ends, and
-a girl in a long dress beside one in a top is sometimes drawn further down, as if a step behind.
-Her chin on her hand is left to the sentence and mostly not drawn: tagged, her elbow merged them.
+Still being tuned: a face, outfit or colour sometimes comes out wrong. Close-ups and rear views
+hold less well than plain shots. The two can meet in the middle, especially in swimwear;
+a long dress beside a top can pull one person further down. A chin resting on a hand stays in
+the sentence, since tagging it made elbows merge across the picture.
 
 ## Where photos are kept
 
@@ -130,6 +129,16 @@ If a photo stays PNG while WebP is on, look in `data/app.log` for a `[photo] kep
 
 If a photo leaves out a pose or a gesture her sentence asked for, look in `data/app.log` for a
 `[photo] no tags read for` line: it names the photo's sentence, which helps widen what the mod reads.
+
+## 1.8.0
+
+- Guys can send photos in DMs, post them and keep them in the gallery, with the same settings
+  and redraw controls as everyone else.
+- Body details have build and chest choices for each character’s gender, under the same
+  Generation controls. Existing choices for girls stay as they are.
+- A guy without a shirt is an ordinary photo and stays uncovered. Nudity below the waist follows
+  Explicit photos and No NSFW images, including the covers on pictures already sent.
+- Two in one photo works for any pair. Feed duos can include a current partner as well as a friend.
 
 ## 1.7.3
 
@@ -203,7 +212,7 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
 
 - **Fixed**: a post waiting on its picture came out under the posts its slot already showed, as
   if it were older. It now goes on top when it comes out.
-- **2 girls 1 photo (experimental)**: a scene with two or more of the girls brings a photo of two of
+- **Two in one photo (experimental)**: a scene with two or more of the girls brings a photo of two of
   them, never more, that one of them posts, off by default. The scene's first call writes it, so the two are girls
   you are with, and its picture is drawn under that scene. Now and then a girl's own post is a
   picture with one of her friends too.
@@ -297,6 +306,26 @@ Some things come from a girl's own tags rather than from the mod, and are fixed 
 ## For modders
 
 How the mod plugs into the shared mod system. The system itself is in `MODDING.md`.
+
+### Gender and body details
+
+`photoGender.ts` owns Photo’s pronouns, adult subject tags and caption cue normalization. It reads
+`Character.gender`; an absent gender is female. It imports only the kit. Original captions and
+recorded prompts are kept intact. Caption matching accepts male pronouns without changing the
+female cue tables.
+
+`characterBody.ts` keeps the old five body keys and female pools. Male characters use separate
+build, chest and pubic-hair pools, with shared tags only where appropriate. Normalization recognises
+male-only picks; drawing and the editor filter against the actual character’s gender. The editor’s
+gender context is temporary and is not written into the body slice. Character generation gets
+its gender from the host’s subject tags, falling back to the gender-specific appearance shape
+when those tags have been customised. The model chooses from the matching build pool.
+
+`photoGate.ts` treats a male bare chest as ordinary and lower nudity or sexual activity as explicit.
+The same Explicit photos and No NSFW images switches still govern sending and uncovering explicit
+photos. Male characters without a saved swim outfit get Photo’s swim-trunks fallback; a saved
+swim outfit wins. Duo count bans follow both characters; mixed duos retain the full SFW guard.
+Current partners join friends in the existing feed roll while their `dating` field is set.
 
 ### Switches
 

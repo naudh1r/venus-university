@@ -1,6 +1,12 @@
+import { fillPronouns, genderOf } from '../../shared/photoGender'
 import { postPhoto } from './photoRecords'
-import { npcFriendsOf, type Character, type StructuredRequest, type TimeSlot } from '@vx/modkit/shared'
-import { groupPhotoPair, type GroupPhotoPair } from '../../shared/photoDuo'
+import { type Character, type StructuredRequest, type TimeSlot } from '@vx/modkit/shared'
+import {
+  groupPhotoPair,
+  photoCompanions,
+  canSharePhoto,
+  type GroupPhotoPair
+} from '../../shared/photoDuo'
 import { duoPhotosOn, PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 import {
   ownsPostComments,
@@ -14,7 +20,6 @@ import { postCommentLines, postPhotoLines } from '../prompts/photoBrief'
 import { photoGame } from './photoGame'
 import { canSendPhotos } from './localPhotoStore'
 import { startHeldPostPhoto } from './photoPost'
-
 
 /**
  * The group photo: two of the girls in the scene the reader just committed to, posted by one of
@@ -45,7 +50,9 @@ function slotKey(): string | null {
 function postedThisSlot(): boolean {
   const { charInfo, date, time } = photoGame()
   return Object.values(charInfo).some((info) =>
-    (info?.feed ?? []).some((post) => post.date === date && post.time === time && postPhoto.read(post)?.with)
+    (info?.feed ?? []).some(
+      (post) => post.date === date && post.time === time && postPhoto.read(post)?.with
+    )
   )
 }
 
@@ -95,11 +102,16 @@ export function withGroupPhotoRequest(
   const poster = characters[asked.poster]
   const friend = characters[asked.friend]
   if (!poster || !friend) return request
-  console.log(`[photo] group photo asked of the scene: ${poster.firstName} with ${friend.firstName}`)
+  console.log(
+    `[photo] group photo asked of the scene: ${poster.firstName} with ${friend.firstName}`
+  )
 
   const block = [
     'GROUP PHOTO',
-    `${poster.firstName} is posting a photo of herself and ${friend.firstName}, taken here as this scene begins. Fill "groupPost": "text" is her post, one or two short lines in her own voice; "image" is one full sentence describing the photograph: where they are, "in their everyday clothes", "in their PE kit" for sport or the gym, or "in their swimsuits" at a pool or a beach, rather than what each one wears; the two of them side by side and not touching, from the waist up, looking at the camera each with her own face and her own hands, the way friends pose together — one might flash a peace sign while the other winks, or both just laugh — written as "her … while her friend …". A hand that holds something makes no gesture. It can be a photo somebody took of them, or a selfie she holds out at arm's length, whichever fits the moment. Say "her and her friend" rather than either name, and never "two girls". The scene itself does not mention the photo.`,
+    fillPronouns(
+      `${poster.firstName} is posting a photo of {themself} and ${friend.firstName}, taken here as this scene begins. Fill "groupPost": "text" is {their} post, one or two short lines in {their} own voice; "image" is one full sentence describing the photograph: where they are, "in their everyday clothes", "in their PE kit" for sport or the gym, or "in their swimsuits" at a pool or a beach, rather than what each one wears; the two of them side by side and not touching, from the waist up, looking at the camera each with their own face and their own hands, the way two people pose together — one might flash a peace sign while the other winks, or both just laugh — written as "{their} … while {their} friend …". A hand that holds something makes no gesture. It can be a photo somebody took of them, or a selfie {they} holds out at arm's length, whichever fits the moment. Say "{them} and {their} friend" rather than either name, and never a count of people. The scene itself does not mention the photo.`,
+      genderOf(poster)
+    ),
     ...postFieldLines(),
     ''
   ].join('\n')
@@ -172,17 +184,22 @@ function feedFriendOf(character: Character, date: number, time: TimeSlot): Chara
   if (feedFriends?.slot !== slot) feedFriends = { slot, rolled: new Set(), pairs: new Map() }
   const game = photoGame()
   const known = feedFriends.pairs.get(character.charId)
-  if (feedFriends.rolled.has(character.charId)) return known ? (game.characters[known] ?? null) : null
+  if (feedFriends.rolled.has(character.charId))
+    return known && canSharePhoto(game.npcRelationships, character.charId, known)
+      ? (game.characters[known] ?? null)
+      : null
   feedFriends.rolled.add(character.charId)
   if (feedFriends.pairs.size > 0) return null
-  const friends = npcFriendsOf(game.npcRelationships, character.charId, game.chars).filter(
+  const friends = photoCompanions(game.npcRelationships, character.charId, game.chars).filter(
     (id) => game.characters[id]
   )
   if (friends.length === 0 || Math.random() >= FEED_FRIEND_CHANCE) return null
   const friend = game.characters[friends[Math.floor(Math.random() * friends.length)]]
   if (!friend) return null
   feedFriends.pairs.set(character.charId, friend.charId)
-  console.log(`[photo] ${character.firstName}'s post this slot is a picture with ${friend.firstName}`)
+  console.log(
+    `[photo] ${character.firstName}'s post this slot is a picture with ${friend.firstName}`
+  )
   return friend
 }
 
@@ -191,11 +208,15 @@ export function feedFriendLines(character: Character, date: number, time: TimeSl
   const friend = feedFriendOf(character, date, time)
   if (!friend) return []
   return [
-    `  Her post is a picture of her and her friend ${friend.firstName}, so it carries an "image": the two of them side by side and not touching, from the waist up, "in their everyday clothes", "in their PE kit" for sport or the gym, or "in their swimsuits" only where they are at a pool or a beach, rather than what each one wears, each with her own face and her own hands, the way friends pose together — one might flash a peace sign while the other winks, or both just laugh — written as "her … while her friend …". A hand that holds something makes no gesture. It can be a photo somebody took of them, or a selfie she holds out at arm's length, whichever fits the moment. Say "her and her friend", never ${friend.firstName}'s name.`
+    fillPronouns(
+      `  {Their} post is a picture of {them} and {their} friend ${friend.firstName}, so it carries an "image": the two of them side by side and not touching, from the waist up, "in their everyday clothes", "in their PE kit" for sport or the gym, or "in their swimsuits" only where they are at a pool or a beach, rather than what each one wears, each with their own face and their own hands, the way two people pose together — one might flash a peace sign while the other winks, or both just laugh — written as "{their} … while {their} friend …". A hand that holds something makes no gesture. It can be a photo somebody took of them, or a selfie {they} holds out at arm's length, whichever fits the moment. Say "{them} and {their} friend", never ${friend.firstName}'s name.`,
+      genderOf(character)
+    )
   ]
 }
 
 /** The friend rolled for this poster's picture this slot, by charId. */
 export function feedFriendFor(charId: string): string | undefined {
-  return feedFriends?.slot === slotKey() ? feedFriends?.pairs.get(charId) : undefined
+  const friend = feedFriends?.slot === slotKey() ? feedFriends.pairs.get(charId) : undefined
+  return friend && canSharePhoto(photoGame().npcRelationships, charId, friend) ? friend : undefined
 }
