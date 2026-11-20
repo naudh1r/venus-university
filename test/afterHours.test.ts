@@ -80,18 +80,21 @@ describe('the stay-over named by the ending ledger', () => {
   const other = character({ charId: 'other', firstName: 'Mina', lastName: 'Lee' })
   const key = charKeyOf(girl.firstName, girl.lastName)
 
-  it('finds a girl of the cast in either room', () => {
-    for (const room of ['herRoom', 'hisRoom'] as const) {
-      expect(stayOverOf({ stayedOverWith: key, stayedOverIn: room }, [other, girl])).toEqual({ girl, room })
+  it.each([girl, character({ charId: 'guy', firstName: 'Alex', lastName: 'Jones', gender: 'male' })])(
+    'finds $firstName in the cast in either saved room', partner => {
+      const partnerKey = charKeyOf(partner.firstName, partner.lastName)
+      for (const room of ['herRoom', 'hisRoom'] as const) {
+        expect(stayOverOf({ stayedOverWith: partnerKey, stayedOverIn: room }, [other, partner])).toEqual({ partner, room })
+      }
     }
-  })
+  )
 
   it('keeps no stay-over when either field says none', () => {
     expect(stayOverOf({ stayedOverWith: 'none', stayedOverIn: 'herRoom' }, [girl])).toBeNull()
     expect(stayOverOf({ stayedOverWith: key, stayedOverIn: 'none' }, [girl])).toBeNull()
   })
 
-  it('rejects an unknown key and a girl outside the cast', () => {
+  it('rejects an unknown key and a character outside the cast', () => {
     expect(stayOverOf({ stayedOverWith: 'unknown', stayedOverIn: 'herRoom' }, [girl])).toBeNull()
     expect(stayOverOf({ stayedOverWith: key, stayedOverIn: 'herRoom' }, [other])).toBeNull()
   })

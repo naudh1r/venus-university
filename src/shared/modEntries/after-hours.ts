@@ -5,7 +5,7 @@ const mod: ModDef = {
   id: AFTER_HOURS_MOD,
   name: afterHoursText.name,
   author: 'naudh1r',
-  version: '0.6.7',
+  version: '0.7.0',
   scope: 'anytime',
   defaultOn: true,
   requires: [],
