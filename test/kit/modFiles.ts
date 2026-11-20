@@ -48,5 +48,6 @@ export const MOD_FILES: Record<string, ModSet> = {
       'src/renderer/stores/bunnyfeeds*',
       'src/renderer/vu_styles/Bunnyfeeds.css'
     ]
-  }
+  },
+  'after-hours': { globs: ['src/shared/afterHours*.ts', 'src/renderer/mods/afterHours*', 'src/renderer/vu_styles/AfterHours.css'] }
 }

@@ -1,0 +1,106 @@
+/* With the status in it, the title row spans the column so the status can stand at its far end. The
+   row stands over the list under it, so the status's hint is never painted over. */
+.vu-bb-title:has(> .vu-after-hours-status) {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  z-index: 3;
+}
+
+/* The title's tab, which would now span the whole row, is drawn on its word instead, as base.css
+   draws it on the title. */
+.vu-bb-title:has(> .vu-after-hours-status)::before {
+  content: none;
+}
+
+.vu-bb-title:has(> .vu-after-hours-status) > .vu-title-text {
+  position: relative;
+  isolation: isolate;
+}
+
+.vu-bb-title:has(> .vu-after-hours-status) > .vu-title-text::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -12px -14px -14px 14px;
+  border-radius: 26px;
+  background: var(--vu-highlight);
+  rotate: -4deg;
+}
+
+/* The rest of the title row, after the word. */
+.vu-after-hours-status {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  margin-left: 30px;
+}
+
+/* His own reading, drawn as a chat row is: recessed, his archway seated in the round end and inset
+   far enough that its square corners clear the curve, his name over the presence line. */
+.vu-after-hours-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 68px;
+  padding: 0 18px 0 22px;
+  border: 0;
+  border-radius: 999px 0 0 999px;
+  background: var(--vu-recessed);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Lifted onto the surface tone, as a listed face is, so it reads against the recessed card. */
+.vu-after-hours-face {
+  display: grid;
+  place-items: stretch;
+  overflow: hidden;
+}
+
+/* No picture yet: his initial where the picture would stand. */
+.vu-after-hours-face:has(> .vu-after-hours-initial) {
+  place-items: center;
+}
+
+.vu-after-hours-initial {
+  color: var(--vu-text-muted);
+  font: 700 18px var(--font-body);
+}
+
+.vu-after-hours-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vu-after-hours-main .vu-bb-name {
+  font-size: 14px;
+}
+
+.vu-after-hours-main .vu-bb-where {
+  font-size: 12.5px;
+}
+
+/* The status explains itself in a quiet pill under the pointer, clear of the title. */
+.vu-after-hours-hint {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1;
+  width: 260px;
+  margin-top: 12px;
+  padding: 8px 16px;
+  border: 2px solid var(--vu-border);
+  border-radius: 20px;
+  background: var(--vu-surface);
+  color: var(--vu-text-body);
+  font: 700 12px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
