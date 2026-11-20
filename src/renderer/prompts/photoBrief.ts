@@ -224,7 +224,7 @@ export function postPhotoLines(canRenderImages: boolean): string[] {
   // is told it is empty rather than left to guess: unexplained, it comes back as file names.
   if (!canRenderImages) return ['Leave "image" empty on every post: nobody posts a picture today.']
   return [
-    'A post may carry a picture of the author. Describe it in "image" — what the photograph shows, the way they would caption it to themself. One sentence, and a full one: where they are, what they are wearing, how they are standing or sitting, what their hands are doing, the light, and the shot. Leave "image" empty on a post that is just words, which most of them are.',
+    'Each entry under STATUS UPDATES says whether its post carries a picture. Where it does, describe it in "image" — what the photograph shows, the way they would caption it to themself. One sentence, and a full one: where they are, what they are wearing, how they are standing or sitting, what their hands are doing, the light, and the shot. Where it says the post is just words, leave "image" empty.',
     'The shot is whichever suits the post, and not the one they posted last: their face up close, from the waist up, from the knees up, head to toe, or further back with more of the place; straight on, from above, from below, from the side, or from behind.',
     'What they own is listed under their name above.',
     'It can be a candid one where they are not posing. Either it is from now, where they are and at this time of day, or from earlier — today, a weekend, a trip, a night out. Either way, say its light: morning sun, the lamp in their room, a street at night. A selfie is for showing their year right now.',

@@ -30,6 +30,7 @@ import { clearEarlyPhotos, sendPhoto, startDmPhoto } from '../stores/photoTurn'
 import {
   feedFriendFor,
   feedFriendLines,
+  feedPictureLines,
   fileGroupPhoto,
   withGroupPhotoRequest
 } from '../stores/photoGroup'
@@ -102,7 +103,8 @@ registerHooks(PHOTO_FEATURE_ID, {
     'slot-poster': {
       lines: ({ character, date, time }) => [
         ...posterPhotoLines(character, canSendPhotos()),
-        ...feedFriendLines(character, date, time)
+        ...feedFriendLines(character, date, time),
+        ...feedPictureLines(character, date, time)
       ]
     },
     character: {
