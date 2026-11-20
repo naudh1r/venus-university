@@ -2,6 +2,7 @@ import { BUNNYFEEDS } from '../../shared/bunnyfeeds'
 import {
   globalSlotOf,
   registerPostCarry,
+  readerWordsOf,
   type Character,
   charKeyOf
 } from '@vx/modkit/shared'
@@ -88,13 +89,14 @@ const RECENT_POSTS = 2
  * he wrote under it.
  */
 function recentPostLines(characters: readonly Character[]): string[] {
-  const { charInfo, date, time, heldSlot, calendar } = readBunnyfeedsContext()
+  const { charInfo, date, time, heldSlot, calendar, readerPronouns } = readBunnyfeedsContext()
   return characters.flatMap((character) => {
     const posts = (charInfo[character.charId]?.feed ?? [])
       .filter(postVisible)
       .slice(-RECENT_POSTS)
     if (posts.length === 0) return []
     const name = character.firstName
+    const reader = readerWordsOf(readerPronouns, character.gender ?? 'female')
     return [
       `${name}'s latest feed posts, which everyone can see:`,
       ...posts.flatMap((post) => {
@@ -114,7 +116,7 @@ function recentPostLines(characters: readonly Character[]): string[] {
           // The picture on it, where one is showing: she knows what she posted, not just its words.
           ...(picture ? [`  With a photo of ${feedPronounsOf(character).them}${pictureWith ? ` and ${pictureWith}` : ''}: ${picture}`] : []),
           ...his.map((one) => `  The reader commented: "${one.text}"`),
-          ...hers.map((one) => `  ${name} answered him: "${one.text}"`)
+          ...hers.map((one) => `  ${name} answered ${reader.him}: "${one.text}"`)
         ]
       })
     ]

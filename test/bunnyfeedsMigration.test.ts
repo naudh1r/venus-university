@@ -247,6 +247,27 @@ describe('old Bunnyfeeds saves', () => {
     expect(descs).toHaveLength(2)
   })
 
+  it.each([
+    ['he', 'He shared a joke'],
+    ['she', 'She shared a joke'],
+    ['they', 'The reader shared a joke']
+  ] as const)('replaces a saved feed memory under %s without reading its subject as metadata', (playerPronouns, desc) => {
+    const info = game.getState().charInfo.friend
+    game.setState({
+      playerPronouns,
+      charInfo: { ...game.getState().charInfo,
+        friend: { ...info, memories: [
+          { date: 1, type: 'liked', desc: `${desc}, on her post` },
+          { date: 1, type: 'liked', desc: 'He visited, on Bunnyboard' }
+        ] }
+      }
+    })
+    memory.fileDueFeedMemories(6)
+    const memories = game.getState().charInfo.friend.memories
+    expect(memories).toHaveLength(1)
+    expect(memories[0].ex?.bunnyfeeds).toBeDefined()
+  })
+
   it('normalizes malformed metadata and gives an explicit slice priority over legacy keys', () => {
     expect(data.commentData.read({ ex: { bunnyfeeds: { v: '1', data: {
       charId: [], player: 'yes', read: 1, replyTo: 3, tags: ['friend', 2]
