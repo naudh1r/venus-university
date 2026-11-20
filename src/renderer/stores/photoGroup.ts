@@ -215,6 +215,42 @@ export function feedFriendLines(character: Character, date: number, time: TimeSl
   ]
 }
 
+/**
+ * The chance a post with no friend in it carries a picture of its poster. The game rolls it
+ * rather than leaving it to the model, which pictured girls posting selfies and boys posting
+ * words: rolled here, every poster carries a picture as often, whoever they are.
+ */
+const FEED_PICTURE_CHANCE = 0.3
+
+/** Which of the slot's posters carry a picture of themselves, rolled once a slot per poster. */
+let feedPictures: { slot: string; rolled: Map<string, boolean> } | null = null
+
+/** Whether this poster's post carries a picture of them alone, rolled once for the slot. */
+function feedPictureOf(character: Character, date: number, time: TimeSlot): boolean {
+  if (!canSendPhotos()) return false
+  const { playthroughId } = photoGame()
+  if (!playthroughId) return false
+  const slot = `${playthroughId}:${date}:${time}`
+  if (feedPictures?.slot !== slot) feedPictures = { slot, rolled: new Map() }
+  const known = feedPictures.rolled.get(character.charId)
+  if (known !== undefined) return known
+  const picture = Math.random() < FEED_PICTURE_CHANCE
+  feedPictures.rolled.set(character.charId, picture)
+  return picture
+}
+
+/**
+ * Her entry's line saying whether her post carries a picture, under her name in the opening: a
+ * picture with a friend says so itself, so this speaks only for a post without one.
+ */
+export function feedPictureLines(character: Character, date: number, time: TimeSlot): string[] {
+  if (!canSendPhotos()) return []
+  if (feedFriendOf(character, date, time)) return []
+  return feedPictureOf(character, date, time)
+    ? [fillPronouns('  {Their} post carries a picture of {them}: describe it in "image".', genderOf(character))]
+    : ['  This post is just words: leave its "image" empty.']
+}
+
 /** The friend rolled for this poster's picture this slot, by charId. */
 export function feedFriendFor(charId: string): string | undefined {
   const friend = feedFriends?.slot === slotKey() ? feedFriends.pairs.get(charId) : undefined

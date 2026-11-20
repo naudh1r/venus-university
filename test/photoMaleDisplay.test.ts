@@ -71,7 +71,7 @@ describe('covers on male photos', () => {
 
 const { BODY_EDITOR_FIELD } = await import('../src/renderer/views/bodyFields')
 const { useSetupStore } = await import('../src/renderer/stores/setupStore')
-const { feedFriendLines, feedFriendFor } = await import('../src/renderer/stores/photoGroup')
+const { feedFriendLines, feedFriendFor, feedPictureLines } = await import('../src/renderer/stores/photoGroup')
 const { preparePostPhoto } = await import('../src/renderer/stores/photoPost')
 const { photoCalls } = await import('./fixtures/photoCalls')
 
@@ -119,6 +119,36 @@ describe('male editor and feed integration', () => {
       useGameStore.setState({ npcRelationships: { 'female|male': { affinity: 0, ended: 2 } } })
       expect(feedFriendFor('male')).toBeUndefined()
       expect(feedFriendLines(guy, 2, 0)).toEqual([])
+    } finally {
+      random.mockRestore()
+    }
+  })
+
+  it('rolls a picture for male and female posters alike, once a slot, and leaves a duo poster to its friend line', () => {
+    const { male: guy, female: girl } = useGameStore.getState().characters
+    const random = vi.spyOn(Math, 'random')
+    try {
+      random.mockReturnValue(0.99)
+      const words = feedPictureLines(girl, 5, 0)
+      expect(feedPictureLines(guy, 5, 0)).toEqual(words)
+
+      random.mockReturnValue(0)
+      // Rolled once a slot: the same posters keep their words.
+      expect(feedPictureLines(girl, 5, 0)).toEqual(words)
+      expect(feedPictureLines(guy, 5, 0)).toEqual(words)
+
+      // A new slot rolls again, and the same roll gives both genders a picture.
+      const hers = feedPictureLines(girl, 6, 0)
+      const his = feedPictureLines(guy, 6, 0)
+      expect(hers).toHaveLength(1)
+      expect(his).toHaveLength(1)
+      expect(hers).not.toEqual(words)
+      expect(his).not.toEqual(words)
+
+      // A poster whose post is a picture with a friend gets no second picture line.
+      useGameStore.setState({ npcRelationships: { 'female|male': { affinity: 0, dating: 0 } } })
+      expect(feedFriendLines(guy, 7, 0).length).toBeGreaterThan(0)
+      expect(feedPictureLines(guy, 7, 0)).toEqual([])
     } finally {
       random.mockRestore()
     }
