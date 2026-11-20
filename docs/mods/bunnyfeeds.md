@@ -79,7 +79,8 @@ on them, from any mod that puts one there, get threads like any other post.
 - Each row shows her face, name and handle; what happened ("Lili replied to your comment" under
   her own post, "Lili replied to your comment under Ami's post" anywhere else); what she said; and
   the half of the day it turned up in. Rows sit under a heading for their day (Today, Yesterday,
-  then the date). A reply shows only once its slot has arrived, as it does under the post.
+  then the date). Replies due after the evening show during a held night, both here and under
+  the post. Replies to comments you write during the night wait until morning.
 - The list shows the newest 30 replies, with **Load more** at its foot for the next 30, as the
   Updates feed does. Nothing is dropped: every reply stays reachable, and the unread count covers
   the ones not loaded yet.
@@ -94,6 +95,11 @@ on them, from any mod that puts one there, get threads like any other post.
 - Replies from before you updated to 1.1.0 start read, so the count starts at what arrives next.
 - After New Game+ the count starts over with the new semester: last semester's replies are still
   listed, as read.
+
+## 1.1.7
+
+- Evening replies now show and count as unread during the night. Replies to comments you
+  write at night still arrive in the morning.
 
 ## 1.1.6
 

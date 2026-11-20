@@ -478,6 +478,7 @@ function fileReplies(
       text,
       at: shownAt
     }, {
+      ...(game.heldSlot !== undefined ? { night: true } : {}),
       ...(fromId ? { charId: fromId } : {}),
       ...(comment ? { replyTo: comment.id } : {})
     }))

@@ -46,7 +46,8 @@ export function FeedNotificationsPage(): JSX.Element {
   const charInfo = useBunnyfeedsContext((s) => s.charInfo)
   const date = useBunnyfeedsContext((s) => s.date)
   const time = useBunnyfeedsContext((s) => s.time)
-  const notes = useMemo(() => feedNotesOf({ charInfo, date, time }), [charInfo, date, time])
+  const heldSlot = useBunnyfeedsContext((s) => s.heldSlot)
+  const notes = useMemo(() => feedNotesOf({ charInfo, date, time, heldSlot }), [charInfo, date, time, heldSlot])
   // How much of the list is mounted: a page, and one more per click of Load more, as the feed.
   const [pages, setPages] = useState(1)
   const more = pages * FEED_PAGE < notes.length

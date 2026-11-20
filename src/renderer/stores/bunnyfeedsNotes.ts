@@ -21,12 +21,12 @@ export function useFeedReadMark(): number | undefined {
 
 /** Every reply to the reader under a post the feed shows, newest first. */
 export function feedNotesOf(
-  state: Pick<BunnyfeedsContext, 'charInfo' | 'date' | 'time'> = readBunnyfeedsContext()
+  state: Pick<BunnyfeedsContext, 'charInfo' | 'date' | 'time' | 'heldSlot'> = readBunnyfeedsContext()
 ): FeedNote[] {
   const posts = Object.entries(state.charInfo).flatMap(([posterId, info]) =>
     (info.feed ?? []).filter(postVisible).map(post => ({ posterId, post }))
   )
-  return feedNotes(posts, globalSlotOf(state.date, state.time))
+  return feedNotes(posts, globalSlotOf(state.date, state.time), state.heldSlot)
 }
 
 /** The last count, with the game it was read from and the read mark it was counted against. */

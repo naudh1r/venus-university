@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import {
   charKeyOf,
   DEFAULT_PLAYER_STATS,
+  globalSlotOf,
   type Character,
   type CharInfo,
   type Conversation,
@@ -27,6 +28,7 @@ import {
   subscribeConversation,
   subscribeRosterIds,
   subscribeClock,
+  subscribeScene,
   subscribeNpcRelationships,
   subscribePlayerStats,
   subscribePlayerProfilePicture,
@@ -39,6 +41,7 @@ export interface BunnyfeedsContext {
   playerFirstName: string
   date: number
   time: TimeSlot
+  heldSlot?: number
   calendar: { season: Season }
   chars: readonly string[]
   characters: Readonly<Record<string, Readonly<Character>>>
@@ -64,7 +67,7 @@ export function readBunnyfeedsContext(): BunnyfeedsContext {
   // A late night held before the morning belongs to the evening it follows: what he comments then
   // is stamped for the evening, and the answers wait for the morning.
   const held = interludeNow()
-  const night = held?.clock === 'late-night' ? held.from : null
+  const night = held?.clock === 'late-night' ? held : null
   const facts = gameFacts()
   const pairs = npcRelationships()
   const stats = playerStats()
@@ -90,8 +93,9 @@ export function readBunnyfeedsContext(): BunnyfeedsContext {
   value = {
     playthroughId: facts.playthroughId,
     playerFirstName: facts.readerName,
-    date: night?.date ?? at?.date ?? 0,
-    time: night?.time ?? at?.time ?? 0,
+    date: night?.from.date ?? at?.date ?? 0,
+    time: night?.from.time ?? at?.time ?? 0,
+    ...(night ? { heldSlot: globalSlotOf(night.to.date, night.to.time) } : {}),
     calendar: { season: at?.season ?? 'spring' },
     chars,
     characters: Object.freeze(characters),
@@ -121,6 +125,7 @@ function followBunnyfeedsContext(onChange: () => void): () => void {
     subscribeRosterIds(() => { bind(); onChange() }, { alumni: true }),
     subscribeRosterIds(onChange),
     subscribeClock(onChange),
+    subscribeScene(onChange, interludeNow),
     subscribeNpcRelationships(onChange),
     subscribePlayerStats(onChange),
     subscribePlayerProfilePicture(onChange)

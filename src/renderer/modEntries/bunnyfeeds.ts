@@ -3,7 +3,6 @@ import {
   globalSlotOf,
   registerPostCarry,
   type Character,
-  shownComments,
   charKeyOf
 } from '@vx/modkit/shared'
 import {
@@ -33,7 +32,7 @@ import { feedStatusLines, fileDueFeedMemories, textLedgerFeedLines } from '../st
 import { takeCommented } from '../stores/bunnyfeedsVisit'
 import { settleFeedReadMark, unreadFeedNotesOf } from '../stores/bunnyfeedsNotes'
 import { readBunnyfeedsContext } from '../stores/bunnyfeedsReadContext'
-import { carriedThread, commentData } from '../stores/bunnyfeedsData'
+import { carriedThread, commentData, visibleFeedComments } from '../stores/bunnyfeedsData'
 import { pictureOf } from '../stores/bunnyfeedsPicture'
 
 // Loaded on first draw, so registering the mod pulls in no screen code.
@@ -88,7 +87,7 @@ const RECENT_POSTS = 2
  * he wrote under it.
  */
 function recentPostLines(characters: readonly Character[]): string[] {
-  const { charInfo, date, time, calendar } = readBunnyfeedsContext()
+  const { charInfo, date, time, heldSlot, calendar } = readBunnyfeedsContext()
   return characters.flatMap((character) => {
     const posts = (charInfo[character.charId]?.feed ?? [])
       .filter(postVisible)
@@ -98,7 +97,7 @@ function recentPostLines(characters: readonly Character[]): string[] {
     return [
       `${name}'s latest feed posts, which everyone can see:`,
       ...posts.flatMap((post) => {
-        const said = shownComments(post.comments, date, time)
+        const said = visibleFeedComments(post.comments, globalSlotOf(date, time), heldSlot)
         const hers = said.filter(
           (one) =>
             commentData.read(one).charId === character.charId &&

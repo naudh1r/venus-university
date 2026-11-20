@@ -7,7 +7,9 @@ import { FEED_EMOJI_BAG, FEED_HANDLE_BAG } from '../src/renderer/prompts/feedRan
 import { rollFeedComments } from '../src/renderer/stores/bunnyfeedsReplies'
 import { useBunnyboardStore } from '../src/renderer/stores/bunnyboardStore'
 import { markCommented, takeCommented } from '../src/renderer/stores/bunnyfeedsVisit'
-import { commentData } from '../src/renderer/stores/bunnyfeedsData'
+import { commentData, visibleFeedComments } from '../src/renderer/stores/bunnyfeedsData'
+import { globalSlotOf, type PostComment } from '@vx/modkit/shared'
+import { feedNotesOf, unreadFeedNotesOf } from '../src/renderer/stores/bunnyfeedsNotes'
 import { armFeedThreads } from '../src/renderer/stores/bunnyfeedsThreads'
 
 vi.mock('../src/renderer/stores/jobStore', () => ({ useJobStore: {} }))
@@ -94,5 +96,55 @@ describe('the other reply triggers', () => {
     host.slotSettled({ before: useGameStore.getState(), ledger: null, closingCast: [] })
     await vi.dynamicImportSettled()
     expect(armFeedThreads).toHaveBeenCalledExactlyOnceWith('next')
+  })
+})
+
+
+describe('feed reply visibility and unread across a held night', () => {
+  it('shows evening answers at night and recomputes unread as the hold opens and closes', () => {
+    const from = { date: 10, time: 1 as const }
+    const to = { date: 11, time: 0 as const }
+    const evening = globalSlotOf(from.date, from.time)
+    const morning = globalSlotOf(to.date, to.time)
+    const mine: PostComment = { id: 'mine', at: evening, handle: 'you', emoji: '', text: 'Hello' }
+    const answer = { ...mine, id: 'evening-answer', at: morning }
+    const night = commentData.with({ ...answer, id: 'night-answer' }, {
+      charId: 'her', replyTo: mine.id, night: true
+    })
+    const comments = [
+      { ...mine, player: true },
+      { ...answer, charId: 'her', replyTo: mine.id },
+      night
+    ]
+    useGameStore.setState({
+      ...from,
+      playthroughId: 'one',
+      chars: ['her'],
+      charInfo: { her: charInfo({
+        feed: [{ ...from, id: 'post', text: 'Post', likes: 0, comments }]
+      }) }
+    })
+    expect(commentData.read(comments[1]).night).toBeUndefined()
+    expect(visibleFeedComments(comments, evening).map(one => one.id)).toEqual(['mine'])
+    expect(feedNotesOf()).toEqual([])
+    expect(unreadFeedNotesOf()).toBe(0)
+
+    useGameStore.setState({
+      ...to,
+      interlude: {
+        now: { from, to, clock: 'late-night', owner: 'test', semesterIndex: 0, ledger: null },
+        interlude: { lines: [], rows: [] },
+        pick: () => {}
+      }
+    })
+    expect(visibleFeedComments(comments, evening, morning).map(one => one.id))
+      .toEqual(['mine', 'evening-answer'])
+    expect(feedNotesOf().map(one => one.comment.id)).toEqual(['evening-answer'])
+    expect(unreadFeedNotesOf()).toBe(1)
+
+    useGameStore.setState({ interlude: null })
+    expect(feedNotesOf().map(one => one.comment.id)).toEqual(['evening-answer', 'night-answer'])
+    expect(unreadFeedNotesOf()).toBe(2)
+    expect(visibleFeedComments(comments, morning, morning + 1)).toEqual(comments)
   })
 })

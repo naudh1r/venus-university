@@ -25,7 +25,7 @@ function idOf(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined
 }
 
-/** Reads the five comment fields from its slice, or from a pre-switch comment. */
+/** Reads the comment fields from its slice, or from a pre-switch comment. */
 function normalizeComment(stored: unknown, legacy: Readonly<Record<string, unknown>>): BunnyCommentData {
   const value = objectOf(stored !== undefined ? stored : legacy)
   const charId = idOf(value.charId)
@@ -35,6 +35,7 @@ function normalizeComment(stored: unknown, legacy: Readonly<Record<string, unkno
     : []
   return {
     ...(charId ? { charId } : {}),
+    ...(stored !== undefined && value.night === true ? { night: true } : {}),
     ...(value.player === true ? { player: true } : {}),
     ...(value.read === true ? { read: true } : {}),
     ...(replyTo ? { replyTo } : {}),
@@ -131,13 +132,26 @@ export function carriedThread(post: SocialPost, days: number): SocialPost {
   })
 }
 
+/** Includes replies due at the held slot, while new night answers wait for the morning. */
+export function visibleFeedComments(
+  comments: readonly PostComment[] | undefined,
+  now: number,
+  heldSlot?: number
+): PostComment[] {
+  return (comments ?? []).filter(comment =>
+    comment.at <= (heldSlot ?? now) &&
+    (heldSlot === undefined || comment.at <= now || !commentData.read(comment).night)
+  )
+}
+
 /** Replies to his comments, read from either format and sorted as the feed shows them. */
 export function feedNotes(
   posts: ReadonlyArray<{ posterId: string; post: SocialPost }>,
-  now: number
+  now: number,
+  heldSlot?: number
 ): FeedNote[] {
   const notes = posts.flatMap(({ posterId, post }) => {
-    const said = (post.comments ?? []).filter(one => one.at <= now)
+    const said = visibleFeedComments(post.comments, now, heldSlot)
     const his = new Map(said.filter(one => commentData.read(one).player).map(one => [one.id, one]))
     return said.flatMap((one): FeedNote[] => {
       const data = commentData.read(one)
