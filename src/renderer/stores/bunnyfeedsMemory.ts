@@ -2,6 +2,7 @@ import { BUNNYFEEDS, type HeldFeedMemory } from '../../shared/bunnyfeeds'
 import { memoryStatusLine, type CharMemory, type Result, type SceneLine } from '@vx/modkit/shared'
 import { addMemory, currentRun, modIsOn, modOptionOn } from '@vx/modkit/renderer'
 import { TEXT_LEDGER_FEED_LINES } from '../prompts/bunnyfeedsPrompt'
+import { feedPronounsOf } from '../../shared/bunnyfeedsGender'
 import { commentData, postData } from './bunnyfeedsData'
 import { readBunnyfeedsContext } from './bunnyfeedsReadContext'
 
@@ -9,12 +10,14 @@ import { readBunnyfeedsContext } from './bunnyfeedsReadContext'
 const FEED_MEMORY_TAG = ', on the feed'
 
 /** How a feed memory is found again to be replaced, earlier test builds' wordings included. */
-const FEED_MEMORY_END = /, (on the feed|on Bunnyboard|on her post|under [^,]+'s post)$/
+const FEED_MEMORY_END = /, (on the feed|on Bunnyboard|on (?:her|his) post|under [^,]+'s post)$/
 
-/** Where a feed memory says it happened: her own post, or the girl's she answered under. */
+/** Where a feed memory says it happened: their own post, or the poster's they answered under. */
 function whereTag(charId: string, posterId: string | undefined): string {
   if (!posterId) return FEED_MEMORY_TAG
-  if (posterId === charId) return ', on her post'
+  if (posterId === charId) {
+    return `, on ${feedPronounsOf(readBunnyfeedsContext().characters[charId]).their} post`
+  }
   const poster = readBunnyfeedsContext().characters[posterId]
   return poster ? `, under ${poster.firstName}'s post` : FEED_MEMORY_TAG
 }

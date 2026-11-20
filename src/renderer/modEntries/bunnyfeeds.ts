@@ -33,6 +33,7 @@ import { takeCommented } from '../stores/bunnyfeedsVisit'
 import { settleFeedReadMark, unreadFeedNotesOf } from '../stores/bunnyfeedsNotes'
 import { readBunnyfeedsContext } from '../stores/bunnyfeedsReadContext'
 import { carriedThread, commentData, visibleFeedComments } from '../stores/bunnyfeedsData'
+import { feedPronounsOf } from '../../shared/bunnyfeedsGender'
 import { pictureOf } from '../stores/bunnyfeedsPicture'
 
 // Loaded on first draw, so registering the mod pulls in no screen code.
@@ -111,7 +112,7 @@ function recentPostLines(characters: readonly Character[]): string[] {
         return [
           `- ${formatShortGameDate(post.date, calendar.season)}: "${post.text}"`,
           // The picture on it, where one is showing: she knows what she posted, not just its words.
-          ...(picture ? [`  With a photo of her${pictureWith ? ` and ${pictureWith}` : ''}: ${picture}`] : []),
+          ...(picture ? [`  With a photo of ${feedPronounsOf(character).them}${pictureWith ? ` and ${pictureWith}` : ''}: ${picture}`] : []),
           ...his.map((one) => `  The reader commented: "${one.text}"`),
           ...hers.map((one) => `  ${name} answered him: "${one.text}"`)
         ]

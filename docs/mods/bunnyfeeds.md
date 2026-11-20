@@ -98,14 +98,11 @@ on them, from any mod that puts one there, get threads like any other post.
 
 ## 1.1.7
 
-- Evening replies now show and count as unread during the night. Replies to comments you
-  write at night still arrive in the morning.
-
-## 1.1.7
-
 - **Replies at night**: with a mod that adds a night after the evening, replies to what you wrote
   in the evening show under the post, and in Notifications, that night. Replies to what you write
   during the night still arrive in the morning.
+- **Boys on the feed**: replies, memories and the AI's instructions follow each character's
+  gender, so a boy's post, his picture and his replies are written about him, not her.
 
 ## 1.1.6
 
