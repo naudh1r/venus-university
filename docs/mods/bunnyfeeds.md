@@ -12,72 +12,74 @@ on them, from any mod that puts one there, get threads like any other post.
   post, its photo, every comment with replies folded behind **View N replies** (yours open), and a
   box at the foot for commenting on the post. You comment on a post once; after that you carry on
   through Reply, as often as you like. **Reply** shows when you hover a comment, any comment in
-  the thread; it opens a box under that thread addressed to its author (`@handle`, tagged if she
-  is a contact), so a conversation can carry on there. ✕, Escape or a click outside closes it.
+  the thread; it opens a box under that thread addressed to its author (`@handle`, tagged if they
+  are a contact), so a conversation can carry on there. ✕, Escape or a click outside closes it.
 - Type `@` to tag one of your contacts. A list of them opens under the box and narrows as you type;
   arrows and Enter or Tab pick one. A tag counts only while its `@handle` is still in what you send.
 - What you write shows at once. Closing the post view, or the phone, sends everything you wrote
   since as one call, in the background. The answers are stamped for the next slot, so they are
   waiting when it opens.
-- A post only grows while you are in its thread. Once she has answered you and you stop
+- A post only grows while you are in its thread. Once the poster has answered you and you stop
   replying, nothing new is written under it and it costs nothing.
-- The poster always answers your comments. Anybody you tagged answers too, written by how she
-  stands with the poster: her friend, her enemy, or somebody who barely knows her.
-- Who else joins is rolled each time your comments are answered, once a post: a friend of hers
-  who is also your contact 60% of the time, failing that one of her other friends 20%; one of
-  her followers 30%, up to 60% for a girl many people follow. At most one of each.
-- Reply straight to somebody else's comment and they answer you back: a girl 70% of the time,
+- The poster always answers your comments. Anybody you tagged answers too, written by how they
+  stand with the poster: a friend, an enemy, or somebody who barely knows them.
+- Who else joins is rolled each time your comments are answered, once a post: a friend of the poster's
+  who is also your contact 60% of the time, failing that one of their other friends 20%; one of
+  their followers 30%, up to 60% for a poster many people follow. At most one of each.
+- Reply straight to somebody else's comment and they answer you back: a character 70% of the time,
   a follower 50%, the follower under the same handle.
-- Only her friends among the roster girls ever join on their own; any other girl comments only
-  where you tag her. Everybody else is one of her followers: fans, classmates, people from her
-  club or dorm, friendly with her but never close. They comment the way a public feed does,
-  mostly friendly, sometimes flirty or roasting her or you, now and then a hater, never more than
-  one mean comment under a post. Each girl answers however she actually would.
-- She also answers up to three other people's comments under a post you are active on.
-- Every face is an archway: a girl's picture or yours, ringed in the accent at list size and
-  plain in comments. A follower's is drawn off her handle in the game's colours, so she keeps
-  the same face wherever she comments: soft blurred colour by default, or a mirrored pattern of
+- Only the poster's friends among the roster ever join on their own; any other character comments
+  only where you tag them. Everybody else is one of the poster's followers: fans, classmates, people
+  from their club or dorm, friendly with them but never close. They comment the way a public feed
+  does, mostly friendly, sometimes flirty or roasting the poster or you, now and then a hater, never
+  more than one mean comment under a post. Each character answers however they actually would.
+- The poster also answers up to three other people's comments under a post you are active on.
+- Every face is an archway: a character's picture or yours, ringed in the accent at list size and
+  plain in comments. A follower's is drawn off their handle in the game's colours, so they keep
+  the same face wherever they comment: soft blurred colour by default, or a mirrored pattern of
   squares, or a few overlapping shapes, picked under "Faces of other students" in the
   Mods screen, which shows a few followers in the style picked.
 - Each comment shows its writer's handle on its own line, and a reply opens with whom it answers
   ("@handle"), drawn like the handle above it. You have no handle, so you show as @ and your
   first name.
-- After about six of your comments under one post, the thread winds down: she keeps her answers
-  short and starts wrapping it up, and only girls you tag still join in. You can keep replying.
-- Posts arrive with replies from her followers, and 35% of the time from one of her friends in
-  her own voice. A girl with no friends among the roster gets followers only.
+- After about six of your comments under one post, the thread winds down: the poster keeps their answers
+  short and starts wrapping it up, and only characters you tag still join in. You can keep replying.
+- Posts arrive with replies from the poster's followers, and 35% of the time from one of their
+  friends in their own voice. A poster with no friends among the roster gets followers only.
 - Commenting is closed during a scene, exactly when texting is: the post view's box says so, and
   Reply is hidden. Reading stays open.
 - Strangers' posts, and the slot's random student post, take no comments.
-- Threads carry through New Game+: what she still owes you and what she has yet to remember move
-  onto the next semester with her post, comments and all.
-- She keeps one memory of your comments among her own, arriving with her answers, the newest
-  replacing the last, as her texting memory does. It shows in her Memories ("…, on her post"), can
-  be edited there, counts in her affection like any memory, and every scene, text and slot opening
-  can bring it up. The closing before her answers show announces it, as it does any memory;
+- Threads carry through New Game+: what the poster still owes you and what they have yet to remember
+  move onto the next semester with their post, comments and all.
+- The poster keeps one memory of your comments among their own, arriving with their answers, the
+  newest replacing the last, as their texting memory does. It shows in their Memories ("…, on her
+  post" or "…, on his post"), can be edited there, counts in their affection like any memory, and
+  every scene, text and slot opening can bring it up. The closing before their answers show
+  announces it, as it does any memory;
   switch off "Announce feed memories" in the Mods screen to keep it quiet.
-- A roster girl who answers you under somebody else's post keeps the same kind of memory ending
-  "…, under <name>'s post", whether or not she has met you, so she can bring it up in her own
-  texts and scenes, or when you first meet her. It comes out of the same call and replaces her
-  last feed memory, whether she posted or commented.
-- Talking about her post or your comment in her DMs is not filed as something said over text:
+- A roster character who answers you under somebody else's post keeps the same kind of memory
+  ending "…, under <name>'s post", whether or not they have met you, so they can bring it up in
+  their own texts and scenes, or when you first meet them. It comes out of the same call and
+  replaces their last feed memory, whether they posted or commented.
+- Talking about their post or your comment in their DMs is not filed as something said over text:
   the texting bookkeeping is told that comments belong to the feed.
-- In her texts and in scenes with her, she sees her two newest posts, with what you commented
-  under them and what she answered, so she knows what she posted and what you said there.
-- When she answers you she knows her profile, how she stands with you, her latest memories of
-  you and what she made of your last comments. Another girl who has met you knows how she stands
-  with you and the last thing she remembers of you; one who has not knows you only from the feed,
+- In their texts and in scenes with them, a character sees their two newest posts, with what you
+  commented under them and what they answered, so they know what they posted and what you said there.
+- When the poster answers you they know their profile, how they stand with you, their latest
+  memories of you and what they made of your last comments. Another character who has met you
+  knows how they stand with you and the last thing they remember of you; one who has not knows you only from the feed,
   or only as the name on your comment.
-- Comments are public. Nobody agrees to meet, to a date, a time or a place in them; a girl who is
-  keen keeps it open or tells you to message her. Nothing private or explicit is said there.
+- Comments are public. Nobody agrees to meet, to a date, a time or a place in them; anyone who is
+  keen keeps it open or tells you to message them. Nothing private or explicit is said there.
 
 ## Notifications
 
 - The Updates tab's title gets a second one beside it, **Notifications**; press either to
   switch. Notifications lists every reply to your comments, newest first, from the poster or
   anybody else.
-- Each row shows her face, name and handle; what happened ("Lili replied to your comment" under
-  her own post, "Lili replied to your comment under Ami's post" anywhere else); what she said; and
+- Each row shows the replier's face, name and handle; what happened ("Lili replied to your
+  comment" under Lili's own post, "Lili replied to your comment under Ami's post" anywhere else);
+  what they said; and
   the half of the day it turned up in. Rows sit under a heading for their day (Today, Yesterday,
   then the date). Replies due after the evening show during a held night, both here and under
   the post. Replies to comments you write during the night wait until morning.
@@ -98,13 +100,13 @@ on them, from any mod that puts one there, get threads like any other post.
 
 ## 1.1.7
 
-- Feed replies and memories follow the pronouns you choose for your reader.
-
 - **Replies at night**: with a mod that adds a night after the evening, replies to what you wrote
   in the evening show under the post, and in Notifications, that night. Replies to what you write
   during the night still arrive in the morning.
 - **Boys on the feed**: replies, memories and the AI's instructions follow each character's
   gender, so a boy's post, his picture and his replies are written about him, not her.
+- **Your pronouns**: replies, memories and the AI's instructions follow the pronouns you chose
+  for yourself.
 
 ## 1.1.6
 
@@ -168,7 +170,7 @@ Bunnyfeeds makes **one extra AI call** of its own, to your usual model, on top o
 
 - Opening and closing the phone without commenting makes no call.
 - One call per phone visit you commented in. It describes only the posts you commented under:
-  the poster in full, and the girls who may react (the friend the roll let in, anybody you
+  the poster in full, and the characters who may react (the friend the roll let in, anybody you
   tagged, and anybody answering you back).
 - Each call is roughly **2,000 to 4,000 tokens in and 200 to 500 out**, more when you comment
   under several posts in one visit. These are estimates from what the prompt holds; your
@@ -196,7 +198,7 @@ Bunnyfeeds makes **one extra AI call** of its own, to your usual model, on top o
 | `src/renderer/modEntries/bunnyfeeds.ts` | Registers the hooks, the post comments it draws among them. |
 | `src/renderer/prompts/bunnyfeedsPrompt.ts` | The slot opening's reply lines, the replier block, the thread call's prompt and the texting bookkeeping's note. |
 | `src/renderer/stores/bunnyfeedsReplies.ts` | Who may reply under a post, and how the slot opening's replies are filed. |
-| `src/shared/bunnyfeedsCrowd.ts` | How many answer a post (her following, and whether it carries a picture), and the rolls for who joins a thread. |
+| `src/shared/bunnyfeedsCrowd.ts` | How many answer a post (the poster's following, and whether it carries a picture), and the rolls for who joins a thread. |
 | `src/renderer/stores/bunnyfeedsThreads.ts` | The thread call through `completeStructured`, run fences and owned cancellation; `addPostComments`, record updates and `saveChanges` file its answers. |
 | `src/renderer/stores/bunnyfeedsPicture.ts` | `pictureOf`: the picture on a post, read off Photo Feature's slice as plain data, only while Photo is on and the picture is showing; it names the friend in it with the kit's `character`. Threads and the scene and DM lines both use it. |
 | `src/renderer/stores/bunnyfeedsMemory.ts` | Post slices hold pending memories; `addMemory` replaces owned ones and adopts the same legacy feed endings. Kit mod/option readers gate announcements and the texting note. |
@@ -215,7 +217,7 @@ It uses nothing of any other mod: only the game's places on a post (`postComment
 - **`postComments`**: it draws the thread's preview under each post and puts its comment pill
   beside the like. Only one mod draws comments at a time, the first on in the mods list, so with
   another comment-drawing mod on it is asked first. Its `claims` marks the comments only it writes
-  (yours, roster girls', replies), which another mod drawing comments leaves out while Bunnyfeeds
+  (yours, roster characters', replies), which another mod drawing comments leaves out while Bunnyfeeds
   is off.
 - While it is the mod drawing comments (`ownsPostComments`), it asks the slot opening for each
   post's replies (`prompts['slot-posts']`, each reply naming who wrote it) and files them
@@ -226,8 +228,8 @@ It uses nothing of any other mod: only the game's places on a post (`postComment
 - The `text-ledger` prompt hook adds `textLedgerFeedLines`, so a post talked about in DMs is not
   filed as something said over text. `slotStatusLines` adds the feed-memory announcements to the
   closing. Both do nothing while the mod is off.
-- `requests['slot-intro']` adds the replier block. `prompts.dm` and `prompts.scene` add her two
-  newest posts with the reader’s comments and the poster’s answers. `slotSettled` sends whatever is still owed.
+- `requests['slot-intro']` adds the replier block. `prompts.dm` and `prompts.scene` add the character's two
+  newest posts with the reader's comments and the poster's answers. `slotSettled` sends whatever is still owed.
   `gameEntered` drops a visit not yet sent.
 - **`updatesTab`** adds Notifications (`notifications`) beside the feed; its `unread` is the count
   the game puts on its title and the Updates tile, and its `Action` is Mark all as read. Its `Page` draws the post view over the screen
@@ -254,10 +256,10 @@ Marking one read updates that comment; Mark all as read updates the root mark. B
 the next save. A reply round calls `saveChanges` as soon as its answers are filed: written
 outside a scene, or carried by the loop's next save while a line is playing.
 
-A thread's memory waits on its post until the replies show. It is then added to her native
+A thread's memory waits on its post until the replies show. It is then added to the character's native
 memories, where the game reads it. Each new feed memory replaces the marked feed memory before
 it; on an older save it also adopts the unmarked memory with the same feed ending used before
-the switch. Her other memories stay as they are.
+the switch. Their other memories stay as they are.
 
 New Game+ moves native comment arrival slots with their post. `carriedThread` moves thread
 progress and held-memory slots through the post handle; comment data stays with each comment.
