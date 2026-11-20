@@ -29,8 +29,7 @@ import { settlePendingPhotos } from '../stores/photoRecovery'
 import { clearEarlyPhotos, sendPhoto, startDmPhoto } from '../stores/photoTurn'
 import {
   feedFriendFor,
-  feedFriendLines,
-  feedPictureLines,
+  withFeedPicturesRequest,
   fileGroupPhoto,
   withGroupPhotoRequest
 } from '../stores/photoGroup'
@@ -101,10 +100,8 @@ registerHooks(PHOTO_FEATURE_ID, {
     },
     // What each poster owns, for a post whose picture has her in it.
     'slot-poster': {
-      lines: ({ character, date, time }) => [
-        ...posterPhotoLines(character, canSendPhotos()),
-        ...feedFriendLines(character, date, time),
-        ...feedPictureLines(character, date, time)
+      lines: ({ character }) => [
+        ...posterPhotoLines(character, canSendPhotos())
       ]
     },
     character: {
@@ -115,7 +112,11 @@ registerHooks(PHOTO_FEATURE_ID, {
   },
 
   // Two of the scene's girls in a group photo, written by the scene's first call.
-  requests: { scene: (request, { cast }) => withGroupPhotoRequest(request, cast) },
+  requests: {
+    scene: (request, { cast }) => withGroupPhotoRequest(request, cast),
+    // Which of the slot's posts carry a picture, decided by the game, not the model.
+    'slot-intro': (request, { input }) => withFeedPicturesRequest(request, input)
+  },
   afterSceneReply: (ctx) => fileGroupPhoto(ctx),
 
   dmHistoryNote: (message) =>

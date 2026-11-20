@@ -71,7 +71,8 @@ describe('covers on male photos', () => {
 
 const { BODY_EDITOR_FIELD } = await import('../src/renderer/views/bodyFields')
 const { useSetupStore } = await import('../src/renderer/stores/setupStore')
-const { feedFriendLines, feedFriendFor, feedPictureLines } = await import('../src/renderer/stores/photoGroup')
+const { feedFriendFor, withFeedPicturesRequest, withGroupPhotoRequest } = await import('../src/renderer/stores/photoGroup')
+const { postPhoto } = await import('../src/renderer/stores/photoRecords')
 const { preparePostPhoto } = await import('../src/renderer/stores/photoPost')
 const { photoCalls } = await import('./fixtures/photoCalls')
 
@@ -105,53 +106,78 @@ describe('male editor and feed integration', () => {
     expect(guy).toEqual(before)
   })
 
-  it('keeps the existing feed chance and revokes a cached partner after a breakup', () => {
-    const guy = useGameStore.getState().characters.male
-    useGameStore.setState({ npcRelationships: { 'female|male': { affinity: 0, dating: 0 } } })
-    const random = vi.spyOn(Math, 'random').mockReturnValue(0.99)
-    try {
-      expect(feedFriendLines(guy, 1, 0)).toEqual([])
-      useGameStore.setState({ date: 2 })
-      random.mockReturnValue(0)
-
-      expect(feedFriendLines(guy, 2, 0).length).toBeGreaterThan(0)
-      expect(feedFriendFor('male')).toBe('female')
-      useGameStore.setState({ npcRelationships: { 'female|male': { affinity: 0, ended: 2 } } })
-      expect(feedFriendFor('male')).toBeUndefined()
-      expect(feedFriendLines(guy, 2, 0)).toEqual([])
-    } finally {
-      random.mockRestore()
+  /** The slot's opening as the kit hands it over: two posters, Adam placed with Bea. */
+  function opening(withBea: boolean) {
+    const { male: adam, female: bea } = useGameStore.getState().characters
+    return {
+      date: 10,
+      time: 0 as const,
+      posters: [
+        { character: adam, charKey: 'adam', ...(withBea ? { whereabouts: { companions: { knownNames: ['Bea'] } } } : {}) },
+        { character: bea, charKey: 'bea' }
+      ]
     }
+  }
+  const request = { system: '', user: 'OPENING\nYOUR TURN\nwrite', schema: { name: 'x', schema: {} } } as never
+
+  /** Two named, known friends; `sharedOn` files an earlier picture of the two on that date. */
+  function friends(sharedOn?: number): void {
+    const { male, female } = useGameStore.getState().characters
+    const post = { id: 'p', date: sharedOn ?? 0, time: 0, text: 'x', likes: 0, comments: [] }
+    useGameStore.setState({
+      date: 10,
+      time: 0,
+      characters: {
+        male: { ...male, firstName: 'Adam' },
+        female: { ...female, firstName: 'Bea' }
+      },
+      charInfo: {
+        male: { nameKnown: true, feed: sharedOn === undefined ? [] : [postPhoto.with(post as never, { tier: 'casual', with: 'female' })] },
+        female: { nameKnown: true, feed: [] }
+      } as never,
+      npcRelationships: { 'female|male': { affinity: 0, dating: 0 } }
+    })
+  }
+
+  it('gives the slot one picture alone and one of a poster with the friend they are with', () => {
+    friends()
+    const asked = withFeedPicturesRequest(request, opening(true))
+    const block = (asked as { user: string }).user.split('FEED PICTURES')[1] ?? ''
+    expect(block).toContain('- adam:')
+    expect(block).toContain('- bea:')
+    expect(feedFriendFor('male')).toBe('female')
+    expect(feedFriendFor('female')).toBeUndefined()
   })
 
-  it('rolls a picture for male and female posters alike, once a slot, and leaves a duo poster to its friend line', () => {
-    const { male: guy, female: girl } = useGameStore.getState().characters
-    const random = vi.spyOn(Math, 'random')
-    try {
-      random.mockReturnValue(0.99)
-      const words = feedPictureLines(girl, 5, 0)
-      expect(feedPictureLines(guy, 5, 0)).toEqual(words)
+  it('makes both pictures alone without a friend there, inside the cooldown, or with duos off', () => {
+    friends()
+    withFeedPicturesRequest(request, opening(false))
+    expect(feedFriendFor('male')).toBeUndefined()
 
-      random.mockReturnValue(0)
-      // Rolled once a slot: the same posters keep their words.
-      expect(feedPictureLines(girl, 5, 0)).toEqual(words)
-      expect(feedPictureLines(guy, 5, 0)).toEqual(words)
+    friends(8)
+    withFeedPicturesRequest(request, opening(true))
+    expect(feedFriendFor('male')).toBeUndefined()
 
-      // A new slot rolls again, and the same roll gives both genders a picture.
-      const hers = feedPictureLines(girl, 6, 0)
-      const his = feedPictureLines(guy, 6, 0)
-      expect(hers).toHaveLength(1)
-      expect(his).toHaveLength(1)
-      expect(hers).not.toEqual(words)
-      expect(his).not.toEqual(words)
+    friends(2)
+    withFeedPicturesRequest(request, opening(true))
+    expect(feedFriendFor('male')).toBe('female')
 
-      // A poster whose post is a picture with a friend gets no second picture line.
-      useGameStore.setState({ npcRelationships: { 'female|male': { affinity: 0, dating: 0 } } })
-      expect(feedFriendLines(guy, 7, 0).length).toBeGreaterThan(0)
-      expect(feedPictureLines(guy, 7, 0)).toEqual([])
-    } finally {
-      random.mockRestore()
-    }
+    friends()
+    setRendererPhotoSwitches({ ...DEFAULT_PHOTO_SWITCHES, on: true, duo: false })
+    const asked = withFeedPicturesRequest(request, opening(true))
+    expect(feedFriendFor('male')).toBeUndefined()
+    const block = (asked as { user: string }).user.split('FEED PICTURES')[1] ?? ''
+    expect(block).toContain('- adam:')
+    expect(block).toContain('- bea:')
+  })
+
+  it('asks the scene for a picture of one of them alone when the pair shared one lately', () => {
+    friends(8)
+    const { male, female } = useGameStore.getState().characters
+    const asked = withGroupPhotoRequest(request, [male, female]) as { user: string; schema: { schema: { required?: string[] } } }
+    expect(asked.schema.schema.required).toContain('groupPost')
+    expect(asked.user).not.toContain('and Bea')
+    expect(asked.user).not.toContain('and Adam')
   })
 
   it('files a shirtless male feed photo under No NSFW, and refuses a shirtless mixed pair', async () => {

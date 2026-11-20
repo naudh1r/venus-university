@@ -24,7 +24,8 @@ export interface GroupPhotoPair {
 export function groupPhotoPair(
   cast: readonly string[],
   relationships: NpcRelationshipMap | undefined,
-  rand: () => number = Math.random
+  rand: () => number = Math.random,
+  pairedRecently: (a: string, b: string) => boolean = () => false
 ): GroupPhotoPair | null {
   const people = [...new Set(cast)]
   const pairs: GroupPhotoPair[] = []
@@ -33,11 +34,15 @@ export function groupPhotoPair(
       const a = people[i]
       const b = people[j]
       if (zoneOf(npcPairOf(relationships, a, b)?.affinity ?? 0) === 'enemies') continue
+      if (pairedRecently(a, b)) continue
       pairs.push({ poster: a, friend: b }, { poster: b, friend: a })
     }
   }
   return pairs.length ? pairs[Math.floor(rand() * pairs.length)] : null
 }
+
+/** How many days two people wait after a picture together before they can share another. */
+export const DUO_COOLDOWN_DAYS = 7
 
 /** Friends and current partners share the feed's existing duo roll. */
 export function canSharePhoto(
