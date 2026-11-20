@@ -1,7 +1,9 @@
 import { chatClockOf, shownMessages } from '@shared/chatVisibility'
 import { coldStageAt, isSickWindow } from '@shared/colds'
+import { genderOf, readerGenderOf } from '@shared/gender'
 import { globalSlotOf, jobDefOf } from '@shared/jobs'
 import { locationDefOf, type LocationDef } from '@shared/locations'
+import { REDRAFT_CHANCE_STEP } from '@shared/odds'
 import { affectionFor, dispositionOf } from '@shared/relationship'
 import {
   eventNamesGirl,
@@ -21,8 +23,8 @@ import { lessNsfwTextNow, secretToTell } from './promptState'
 import type { TurnSnapshot } from './state'
 
 /**
- * The curveball and the present a cast scene opens on, read off the store and rolled once per
- * turn: the impure edge of `shared/sceneEvents`.
+ * The curveball, the present and the redraft a cast scene opens on, read off the store and rolled
+ * once per turn: the impure edge of `shared/sceneEvents`.
  */
 
 /** What one scene start rolled: kept on the turn, so a retry sends the same. */
@@ -108,7 +110,12 @@ function classOf(
   }
 }
 
-/** Rolls the curveball and the present for a scene about to be cast. */
+/** The odds a cast scene opening now is redrafted, off the cast scenes ended since the last. */
+function redraftChance(): number {
+  return Math.min(1, useGameStore.getState().scenesSinceRedraft * REDRAFT_CHANCE_STEP)
+}
+
+/** Rolls the curveball, the present and the redraft for a scene about to be cast. */
 function rollFor(cast: readonly string[], scene: SceneKind, host?: string): SceneEventRoll {
   const game = useGameStore.getState()
   const invite = inviteOf(host)
@@ -117,7 +124,10 @@ function rollFor(cast: readonly string[], scene: SceneKind, host?: string): Scen
     time: game.time,
     cast: cast.map((charId) => ({
       charId,
-      onPeriod: moodIndexOf(game.date, game.charInfo[charId]?.moodCycleOffset ?? 0) < PERIOD_DAYS,
+      // Only a girl has a cycle to be on her period in.
+      onPeriod:
+        genderOf(game.characters[charId]) === 'female' &&
+        moodIndexOf(game.date, game.charInfo[charId]?.moodCycleOffset ?? 0) < PERIOD_DAYS,
       sick: isSickWindow(
         coldStageAt(game.charInfo[charId]?.cold, globalSlotOf(game.date, game.time))
       )
@@ -146,11 +156,15 @@ function rollFor(cast: readonly string[], scene: SceneKind, host?: string): Scen
     const itemId = rollReceivedGift({
       invite,
       disposition: dispositionOf(affection),
-      lover: info?.flags?.isLover === true
+      lover: info?.flags?.isLover === true,
+      reader: readerGenderOf(game.playerPronouns)
     })
     if (itemId) gift = { itemId, charId: host }
   }
-  return { event, gift }
+  const chance = redraftChance()
+  const redraft = Math.random() < chance
+  if (redraft) console.log(`[redraft] opening redrafted (${Math.round(chance * 100)}%)`)
+  return { event, gift, redraft }
 }
 
 /** A roll kept from an earlier attempt, less whatever names a girl the new cast lost. */
@@ -160,7 +174,7 @@ function stillCast(roll: SceneEventRoll, cast: readonly string[]): SceneEventRol
       ? null
       : roll.event
   const gift = roll.gift && cast.includes(roll.gift.charId) ? roll.gift : null
-  return { event, gift }
+  return { event, gift, redraft: roll.redraft }
 }
 
 /**
@@ -173,7 +187,7 @@ export function sceneEventsFor(
   cast: readonly string[],
   scene: SceneKind,
   host?: string
-): Pick<SceneKind, 'event' | 'receivedGift'> {
+): Pick<SceneKind, 'event' | 'receivedGift' | 'redraft'> {
   if (cast.length === 0) return {}
   const kept = snapshot.sceneEvents ? stillCast(snapshot.sceneEvents, cast) : rollFor(cast, scene, host)
   // A girl alone with a secret to tell opens on it, with no curveball beside it.
@@ -186,6 +200,7 @@ export function sceneEventsFor(
   if (roll.gift) console.log(`[event] ${nameOf(roll.gift.charId)} brings ${roll.gift.itemId}`)
   return {
     ...(roll.event ? { event: roll.event } : {}),
-    ...(roll.gift ? { receivedGift: roll.gift } : {})
+    ...(roll.gift ? { receivedGift: roll.gift } : {}),
+    ...(roll.redraft ? { redraft: true } : {})
   }
 }

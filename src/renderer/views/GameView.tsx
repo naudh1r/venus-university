@@ -15,9 +15,10 @@ import {
   type WheelEvent as ReactWheelEvent
 } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { AUDIO_FILES, pitchSemitonesOf, VOICE_PITCH_DEFAULT } from '@shared/audio'
+import { VOICE_PITCH_DEFAULT, voiceSemitonesOf } from '@shared/audio'
 import { isPermanent } from '@shared/errors'
 import { canContinueAfter, GAME_OVER_SCENES, gameCompleteSceneOf } from '@shared/gameOver'
+import { genderOf, PRONOUNS } from '@shared/gender'
 import { hashString } from '@shared/hash'
 import { isGameOver } from '@shared/money'
 import { semesterCalendarOf } from '@shared/semesters'
@@ -120,6 +121,7 @@ import {
   rewind,
   goHome,
   endInDebt,
+  firstFailedTransfer,
   forward,
   saveMemoryEdits,
   speakerNameOf,
@@ -127,6 +129,7 @@ import {
   submitAction,
   submitQuizAnswer,
   submitGift,
+  transferOffer,
   turnPromptEditable
 } from '../stores/gameLoop'
 import {
@@ -185,7 +188,8 @@ import {
   slotActionsNow
 } from '../stores/slotActions'
 import { isWebBuild } from '../platform'
-import { noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
+import { matchCgBiologyOf, noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
+import { stockCgsInPlay } from '@shared/positions'
 import { useUiStore } from '../stores/uiStore'
 import { BunnyboardModal } from './BunnyboardModal'
 import { CastModal } from './CastModal'
@@ -217,6 +221,7 @@ import { RankUpModal } from './RankUpModal'
 import { SaveGameModal } from './SaveGameModal'
 import { SceneMemoriesModal } from './SceneMemoriesModal'
 import { SaveSceneModal } from './SaveSceneModal'
+import { TransferFailure, TransferStudentModal } from './TransferStudentModal'
 import { JobsModal } from './JobsModal'
 import { GiftMessageModal } from './GiftMessageModal'
 import { GiftTargetModal } from './GiftTargetModal'
@@ -237,9 +242,6 @@ const REVEAL_MS = 18
 
 /** What has a sound as it is typed: a letter or a digit, and nothing a space or a mark says. */
 const VOICED = /[\p{L}\p{N}]/u
-
-/** How far a voice takes the blip, either side of the file as recorded. */
-const VOICE_RANGE = AUDIO_FILES.voice.pitch
 
 /** What a goodbye row on the epilogue's menu is keyed by, and where its character id starts. */
 const FAREWELL_KEY = 'farewell:'
@@ -291,6 +293,7 @@ type OpenPanel =
   | { kind: 'settings' }
   | { kind: 'saveGame' }
   | { kind: 'loadGame' }
+  | { kind: 'transfer' }
   | { kind: 'appSettings' }
   | { kind: 'controls' }
   | { kind: 'mods' }
@@ -609,6 +612,10 @@ export function GameView(): JSX.Element {
   const cgReady = useGameStore((s) => s.cgReady)
   const customCgReady = useGameStore((s) => s.customCgReady)
   const noNsfwImages = useSettingsStore(noNsfwImagesOf)
+  const stockCgs = stockCgsInPlay(
+    useGameStore((s) => s.playerPronouns),
+    useSettingsStore(matchCgBiologyOf)
+  )
   const pictureInScenes = useSettingsStore(
     (s) => s.settings?.showProfilePictureInScenes === true
   )
@@ -1127,7 +1134,7 @@ export function GameView(): JSX.Element {
     emotions,
     lock: cgLock,
     hasCharacter: (charId) => Boolean(characters[charId]),
-    ready: { cgReady, customCgReady },
+    ready: { cgReady, customCgReady, stockCgs },
     noNsfwImages
   })
 
@@ -1435,7 +1442,10 @@ export function GameView(): JSX.Element {
       useAudioStore.getState().play('narrator')
       return
     }
-    const semitones = pitchSemitonesOf(speaking.voicePitch ?? VOICE_PITCH_DEFAULT, VOICE_RANGE)
+    const semitones = voiceSemitonesOf(
+      speaking.voicePitch ?? VOICE_PITCH_DEFAULT,
+      genderOf(speaking)
+    )
     useAudioStore.getState().play('voice', { semitones })
   }, [revealed, text, speakingCharId, characters])
 
@@ -1576,7 +1586,30 @@ export function GameView(): JSX.Element {
     !quiz &&
     !action.trim()
 
-  const blocked = blockedBefore || photoShown
+  // The first transfer student whose generation failed. A created scene or a replay has no
+  // playthrough of its own, so no transfer of any is said there.
+  const transferFailed = useGameStore((s) =>
+    created || replaying ? null : firstFailedTransfer(s.transferJobs)
+  )
+  const endingAwaitsTransfers = useGameStore((s) => s.endingAwaitsTransfers)
+  /**
+   * Her failure is said on the landing while nothing moves under it, a landing a save was loaded
+   * onto included, once no photo's is, and at an ending parked on its opening while transfers are
+   * out; never over the transfer students' sheet, which raises it itself.
+   */
+  const transferShown =
+    transferFailed !== null &&
+    ((landingHeld &&
+      !sceneActive &&
+      !blockedBefore &&
+      !photoShown &&
+      !covered &&
+      !gameOver &&
+      !quiz &&
+      !action.trim()) ||
+      (endingAwaitsTransfers && waitingForLine && panel?.kind !== 'transfer'))
+
+  const blocked = blockedBefore || photoShown || transferShown
 
   /**
    * The playthrough's opening owns the screen: nothing on it but the dialogue box,
@@ -2127,7 +2160,8 @@ export function GameView(): JSX.Element {
               emotions[charId] ?? 'neutral',
               outfitLock[charId],
               outfitReady[charId],
-              customCgReady[charId]
+              customCgReady[charId],
+              stockCgs
             )
             return (
               <PortraitSlot
@@ -2507,11 +2541,13 @@ export function GameView(): JSX.Element {
           <GiftMessageModal
             key="giftMessage"
             theme={half}
-            // A girl the reader has not been told the name of is given to as "her".
-            firstName={
+            // Somebody the reader has not been told the name of is given to as "her" or "him".
+            recipient={
               charInfo[panel.charId]?.nameKnown
-                ? (characters[panel.charId]?.firstName ?? 'her')
-                : 'her'
+                ? (characters[panel.charId]?.firstName ?? 'them')
+                : characters[panel.charId]
+                  ? PRONOUNS[genderOf(characters[panel.charId])].them
+                  : 'them'
             }
             onClose={closePanel}
             onSend={(message) => {
@@ -2687,7 +2723,7 @@ export function GameView(): JSX.Element {
               // The scene has already been cut back once, so the advice starts there.
               hint={
                 <>
-                  If the model is refusing to write due to prohibited content, try rewording "The reader's action:" first. Avoid any explicit sexual words, replacing them with vague descriptions: "make love" instead of "fuck", "use her mouth" instead of "blowjob".
+                  If the model is refusing to write due to prohibited content, try rewording "The reader's action:" first. Avoid any explicit sexual words, replacing them with vague descriptions: "make love" instead of "fuck", "use their mouth" instead of "blowjob".
                   <br/> If rewording the action doesn't work, start rewriting or removing words from THE SCENE SO FAR or the STORY SO FAR.
                   <br/> Replacing specific sexual details with a vague "They shared an intimate encounter" usually unblocks the scene and allows you to continue.
                 </>
@@ -2862,9 +2898,13 @@ export function GameView(): JSX.Element {
         )}
       </AnimatePresence>
 
+      {/* A transfer student whose generation failed, on the landing under the photo's terms and
+          at an ending waiting on her. */}
+      <TransferFailure theme={modalTheme} charId={transferShown ? transferFailed : null} />
+
       {/* The Game menu — the ⚙ and Escape both open it — the Settings, Controls and Feedback
           modals it opens, Save Game, Load Game re-entering under this view's own crossing rather
-          than the Main Menu's, and the leave and quit confirmations. Every one of them wears the stage's
+          than the Main Menu's, the transfer students' sheet, and the leave and quit confirmations. Every one of them wears the stage's
           own half rather than the clock's (`half`, not `modalTheme`): it is what `toMenu()`'s
           crossing already carries at both ends, and what Load Game's own entry crossing takes as
           its `from`. */}
@@ -2880,6 +2920,9 @@ export function GameView(): JSX.Element {
             {...(created || replaying
               ? {}
               : { onLoadGame: () => setPanel({ kind: 'loadGame' }) })}
+            // Nor a roster to add a transfer student to.
+            transferOffer={created || replaying ? undefined : transferOffer()}
+            onTransfer={() => setPanel({ kind: 'transfer' })}
             onFeedback={() => setPanel({ kind: 'feedback' })}
             onSettings={() => setPanel({ kind: 'appSettings' })}
             onMods={() => setPanel({ kind: 'mods' })}
@@ -2941,6 +2984,11 @@ export function GameView(): JSX.Element {
 
         {panel?.kind === 'loadGame' && (
           <LoadGameModal key="load-game" theme={half} onClose={closePanel} />
+        )}
+
+        {/* The transfer students waiting for the next timeslot, and the way to add another. */}
+        {panel?.kind === 'transfer' && (
+          <TransferStudentModal key="transfer" theme={half} onClose={closePanel} />
         )}
 
         {/* The app's own settings, the same modal the Main Menu opens. An arm of

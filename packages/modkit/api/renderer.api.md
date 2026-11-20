@@ -914,7 +914,10 @@ export interface PromptState {
     projectClass: string | null;
     projectRecap?: readonly ClassMeetingRecap[];
     projectScene?: ProjectSceneContext;
+    readerPronouns: ReaderPronouns;
     receivedGift?: ReceivedGift;
+    redraft?: boolean;
+    romance: RomanceSetting;
     roomReady: Record<string, boolean>;
     roster: readonly Character[];
     sceneEvent?: SceneEvent;
@@ -925,12 +928,13 @@ export interface PromptState {
     slotRumor?: LoreRumor;
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
-    subjectTags?: readonly string[];
+    subjectTags?: Readonly<Record<Gender, readonly string[]>>;
     textEdits?: TextEditSet;
     textedWith?: readonly string[];
     textingSummaries?: Record<string, string[]>;
     // (undocumented)
     time: TimeSlot;
+    transferEntrances?: readonly TransferEntrance[];
     upcomingPlans?: Record<string, string[]>;
     visitJobId: string | null;
     weather?: readonly Weather[];
@@ -1491,13 +1495,18 @@ export interface SlotIntroInput {
     homecomingVisitor?: string;
     leavers: readonly IntroLeaver[];
     lessNsfwText: boolean;
+    newTransfers?: number;
+    npcRelationships: NpcRelationshipMap;
     occasionLeadUps?: readonly string[];
     occasions: readonly Occasion[];
     opening: string;
+    people: readonly Character[];
     playthroughId: string;
     posters: readonly IntroPoster[];
     reachOuts: readonly IntroReachOut[];
+    readerPronouns: ReaderPronouns;
     recent: readonly string[];
+    romance: RomanceSetting;
     rumorPlace?: LoreEntry;
     season: Season;
     secretBudget?: number;
@@ -1684,6 +1693,8 @@ export interface TextingPromptState {
     npcRelationships: NpcRelationshipMap;
     playerJob: JobState | null;
     playerSchedule: Record<number, string>;
+    readerPronouns: ReaderPronouns;
+    romance: RomanceSetting;
     roster: readonly Character[];
     secretBudget?: number;
     sharedClass?: {

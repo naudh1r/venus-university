@@ -100,20 +100,21 @@ describe('the entry points', () => {
     }
   })
 
-  it('re-exports the native lightbox and prompt helpers without wrappers', async () => {
+  it('exposes the native lightbox and the prompt readers bound to the game', async () => {
     const characters = await import('../../src/renderer/stores/characterStore')
     expect(rendererKit.spriteUrl).toBe(characters.spriteUrl)
     expect(rendererKit.profileUrl).toBe(characters.profileUrl)
     expect(rendererKit.useSpriteVersion).toBe(characters.useSpriteVersion)
     const lightbox = await import('../../src/renderer/components/Lightbox')
-    const relationship = await import('../../src/renderer/prompts/relationship')
+    const readers = await import('../../src/renderer/mods/promptReaders')
     const scene = await import('../../src/renderer/prompts/scenePrompt')
     const image = await import('../../src/shared/imagePromptDrafts')
     expect(rendererKit.Lightbox).toBe(lightbox.Lightbox)
-    expect(rendererKit.relationshipLines).toBe(relationship.relationshipLines)
-    for (const name of ['memoryLines', 'profileLines', 'spaced'] as const) {
-      expect(rendererKit[name]).toBe(scene[name])
+    expect(rendererKit.relationshipLines).toBe(readers.relationshipLines)
+    for (const name of ['memoryLines', 'profileLines'] as const) {
+      expect(rendererKit[name]).toBe(readers[name])
     }
+    expect(rendererKit.spaced).toBe(scene.spaced)
     expect(sharedKit.registerImagePromptDraft).toBe(image.registerImagePromptDraft)
   })
 
@@ -247,8 +248,8 @@ describe('the entry points', () => {
     expect(sharedKit.rollPostLikes).toBe(feed.rollPostLikes)
     const backup = await import('../../src/shared/backup')
     expect(sharedKit.BACKUP_ZIP_LIMITS).toBe(backup.BACKUP_ZIP_LIMITS)
-    const readerVoice = await import('../../src/shared/readerVoice')
-    expect(sharedKit.readerize).toBe(readerVoice.readerize)
+    const memory = await import('../../packages/modkit/src/shared/memory')
+    expect(sharedKit.readerize).toBe(memory.readerize)
     const playerStats = await import('../../src/shared/playerStats')
     expect(sharedKit.DEFAULT_PLAYER_STATS).toBe(playerStats.DEFAULT_PLAYER_STATS)
     const icons = await import('../../src/renderer/views/screenIcons')

@@ -63,6 +63,7 @@ export function carryModFiles(context: TermFilesContext): Promise<void>;
 
 // @public
 export interface Character {
+    attractedTo?: Attraction;
     backstory: string;
     baseAppearance: string[];
     // (undocumented)
@@ -80,6 +81,7 @@ export interface Character {
     expressionTags: Record<Emotion, string[]>;
     // (undocumented)
     firstName: string;
+    gender?: 'male';
     generationSeed: number;
     giftPreferences: GiftPreferences;
     height: number;
@@ -214,6 +216,7 @@ export type ClassCatalogKey = keyof typeof CLASS_CATALOG_RANGES;
 
 // @public
 export interface Conversation {
+    advice?: ConversationAdvice;
     // (undocumented)
     charId: string;
     declined?: number;
@@ -880,6 +883,7 @@ export interface JobDef {
         summer?: string;
         winter?: string;
     };
+    neutralMessages?: Partial<Record<CoreJobMessageKind, string>>;
     pay: number;
     requires: Partial<Record<StatKey, StatTier>>;
     // (undocumented)
@@ -1094,6 +1098,7 @@ export interface NativeGameSave {
         time: TimeSlot;
     };
     heldNightLedger?: BankedTextLedger;
+    heldNightOpening?: DeferredOpeningNotes;
     history: GameHistory;
     homecomingVisitor?: string;
     inventory: OwnedItem[];
@@ -1107,11 +1112,13 @@ export interface NativeGameSave {
     midtermStandingDone: boolean;
     money: number;
     morningOpening?: SlotOpening;
+    npcCouples?: NpcCouple[];
     npcFriendships?: NpcFriendship[];
     npcOverlay: NpcSlotOverlay | null;
     npcRelationships: NpcRelationshipMap;
     occasionsDeclined?: string[];
     outingSlots: Record<string, number>;
+    pendingTransfers?: PendingTransfer[];
     playerSchedule: Record<number, string>;
     playthroughId: string;
     readerCold?: ColdCase;
@@ -1121,6 +1128,7 @@ export interface NativeGameSave {
     saveId: string;
     scene: SceneState | null;
     sceneEventsFired?: SceneEventsFired;
+    scenesSinceRedraft?: number;
     // (undocumented)
     schemaVersion: 13;
     semester?: string;
@@ -1132,6 +1140,7 @@ export interface NativeGameSave {
     // (undocumented)
     time: TimeSlot;
     transcript?: Transcript;
+    transfers?: Transfer[];
     venusJobIntroSent: boolean;
     venusThrough: number;
     weekendOutings: Record<string, number>;
@@ -1177,7 +1186,9 @@ export interface PlaythroughRecord extends ModPlaythroughFields {
     playerFirstName: string;
     // (undocumented)
     playerLastName: string;
+    playerPronouns?: ReaderPronouns;
     profiles: Record<string, CharProfile>;
+    romance?: RomanceSetting;
     // (undocumented)
     schemaVersion: 3;
     semesters?: Record<string, SemesterRecord>;
@@ -1436,6 +1447,7 @@ export interface StructuredRequest {
     minThinking?: ThinkingLevel;
     modTags?: Record<string, unknown>;
     parts?: PromptPart[];
+    raiseThinking?: boolean;
     sceneSpot?: SceneSpotTag;
     schema: {
         name: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { openingStagedAt, parseOpeningLine } from '@shared/opening'
+import { openingStagedAt, parseOpeningLine, readDeferredOpeningNotes } from '@shared/opening'
 
 describe('safe dialogue in a slot opening', () => {
   it('reads a string or a normal text object as narration', () => {
@@ -35,5 +35,21 @@ describe('the boundary of a staged opening', () => {
     expect(openingStagedAt({}, 0)).toBe(true)
     expect(openingStagedAt({}, 20)).toBe(true)
     expect(openingStagedAt(null, 0)).toBe(false)
+  })
+})
+
+describe('a saved deferred opening', () => {
+  it('copies the transfer and advice inputs kept through a night', () => {
+    const input = { newTransfers: 2, love: { argued: [{ a: 'a', b: 'b' }], outcomes: [{ charId: 'a', about: 'b', result: 'together' }] } }
+    const kept = readDeferredOpeningNotes(input)
+    expect(kept).toEqual(input)
+    input.love.argued[0].a = 'changed'
+    expect(kept?.love.argued[0].a).toBe('a')
+  })
+
+  it('drops malformed saved entries and refuses a non-object context', () => {
+    const input = { newTransfers: -1, love: { argued: [null, { a: 7, b: 'b' }], outcomes: [null, { charId: 'a', about: 'b', result: 'unknown' }] } }
+    expect(readDeferredOpeningNotes(input)).toEqual({ newTransfers: 0, love: { argued: [], outcomes: [] } })
+    expect(readDeferredOpeningNotes(null)).toBeNull()
   })
 })
