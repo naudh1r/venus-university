@@ -5,17 +5,20 @@ import { AnimatePresence, motion } from 'motion/react'
 import { VOICE_PITCH_DEFAULT, VOICE_TIER_LABELS, voiceTierOf } from '@shared/audio'
 import { EMOTIONS } from '@shared/emotions'
 import { STAT_ATTRACTIONS } from '@shared/playerStats'
-import { STOCK_POSITIONS } from '@shared/positions'
+import { genderOf } from '@shared/gender'
+import { attractionOf, SEXUALITY_LABELS, sexualityOf } from '@shared/relationship'
+import { STOCK_POSITIONS, stockCgsFor } from '@shared/positions'
 import { ROOM_VARIANTS } from '@shared/room'
 import { fullNameOf, type Character } from '@shared/types'
 import { traitTone } from '@shared/traits'
+import { tagLabel } from '../components/ChipListInput'
 import { LandscapeTile } from '../components/LandscapeTile'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
 import { WardrobeColumn } from '../components/WardrobeColumn'
 import { profileUrl, roomUrl, useCharacterStore, useSpriteVersion } from '../stores/characterStore'
 import { noNsfwImagesOf, useSettingsStore } from '../stores/settingsStore'
-import { BEHAVIOR_FIELDS, TAG_FIELDS, WARDROBES } from './characterFields'
+import { behaviorFields, GENERATION_TYPE_LABELS, TAG_FIELDS, WARDROBES } from './characterFields'
 import { ImageGalleryModal } from './ImageGalleryModal'
 import {
   gestures,
@@ -61,19 +64,21 @@ function Prose({ label, value }: { label: string; value: string }): JSX.Element 
 function Chips({
   label,
   values,
-  traitColors
+  traitColors,
+  tags
 }: {
   label: string
   values: readonly string[]
   traitColors?: boolean
+  tags?: boolean
 }): JSX.Element | null {
   if (values.length === 0) return null
   return (
     <Field label={label}>
       <ul className="vu-view-chips">
         {values.map((value) => (
-          <li className="vu-chip-tag" key={value} data-tone={traitColors ? traitTone(value) : undefined}>
-            {value}
+          <li className="vu-chip-tag" key={tags ? tagLabel(value) : value} data-tone={traitColors ? traitTone(value) : undefined}>
+            {tags ? tagLabel(value) : value}
           </li>
         ))}
       </ul>
@@ -176,7 +181,8 @@ export function CharacterModal({
               ))}
             </div>
 
-            {/* A gallery opened with no `onRegenerate` is read-only. */}
+            {/* A gallery opened with no `onRegenerate` is read-only. It holds the stock CGs
+                alone, so a male character, who has none, is shown no CG tile. */}
             <div className="vu-edit-tiles">
               <LandscapeTile
                 title="ROOM BG"
@@ -188,15 +194,17 @@ export function CharacterModal({
                 )}
                 onShow={() => setRoomGallery(true)}
               />
-              <LandscapeTile
-                title="NSFW CG"
-                what="the CGs"
-                shownDone={cgsOnDisk}
-                total={STOCK_POSITIONS.length}
-                onShow={() => setGallery(true)}
-                showLocked={noNsfwImages}
-                showLockedReason="Hidden by SFW setting"
-              />
+              {stockCgsFor(character) && (
+                <LandscapeTile
+                  title="NSFW CG"
+                  what="the CGs"
+                  shownDone={cgsOnDisk}
+                  total={STOCK_POSITIONS.length}
+                  onShow={() => setGallery(true)}
+                  showLocked={noNsfwImages}
+                  showLockedReason="Hidden by SFW setting"
+                />
+              )}
             </div>
           </div>
 
@@ -247,11 +255,20 @@ export function CharacterModal({
                     <Field label="Virgin">
                       <p className="vu-view-prose">{character.isVirgin ? 'Yes' : 'No'}</p>
                     </Field>
+                    <Field label="Sexuality">
+                      <p className="vu-view-prose">
+                        {
+                          SEXUALITY_LABELS[
+                            sexualityOf(genderOf(character), attractionOf(character))
+                          ]
+                        }
+                      </p>
+                    </Field>
 
                     <Lines label="Likes" values={character.likes} />
                     <Lines label="Dislikes" values={character.dislikes} />
 
-                    {BEHAVIOR_FIELDS.map(({ key, label }) => (
+                    {behaviorFields(genderOf(character)).map(({ key, label }) => (
                       <Prose key={key} label={label} value={character.behavior[key]} />
                     ))}
 
@@ -267,12 +284,18 @@ export function CharacterModal({
                     Generation settings <span className="vu-disc-note">(Advanced)</span>
                   </motion.summary>
                   <div className="vu-disc-body">
+                    <Field label="Generation type">
+                      <p className="vu-view-prose">
+                        {GENERATION_TYPE_LABELS[genderOf(character)]}
+                      </p>
+                    </Field>
                     {TAG_FIELDS.map(({ key, label }) => (
-                      <Chips key={key} label={label} values={character[key]} />
+                      <Chips key={key} label={label} values={character[key]} tags />
                     ))}
                     <Chips
                       label="Additional negative prompts"
                       values={character.negativeTags ?? []}
+                      tags
                     />
                     <Prose label="Room BG prompt" value={character.roomPrompt} />
                   </div>

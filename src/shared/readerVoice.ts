@@ -1,7 +1,11 @@
 /**
- * A memory is kept and prompted in the third person ("the reader was late") and shown to the
- * player in the second ("you were late"), the verb agreeing with its subject either way.
+ * A memory is kept and prompted in the third person ("the reader was late"), the verb agreeing
+ * with "the reader", and shown to the player with the reader's first name in his place, as a recap
+ * is; one the player types with that name is filed with "the reader" back in its place.
  */
+
+import { PRONOUNS, readerWords, type ReaderPronouns } from './gender'
+import type { Gender } from './types'
 
 /** Adverbs that may stand between the subject and the verb it agrees with. */
 const ADVERBS = 'never|always|still|really|actually|also|just|even|finally|only|already'
@@ -35,14 +39,11 @@ const PREPOSITIONS = [
  */
 function subjectVerbPattern(subject: string, verbs: Record<string, string>): RegExp {
   return new RegExp(
-    `(?<!\\b(?:${PREPOSITIONS})\\s)\\b${subject}(\\s+(?:himself|yourself|${ADVERBS}))?(\\s+)` +
+    `(?<!\\b(?:${PREPOSITIONS})\\s)\\b${subject}(\\s+(?:himself|herself|themself|yourself|${ADVERBS}))?(\\s+)` +
       `(${Object.keys(verbs).join('|')})(n['’]t)?\\b`,
     'gi'
   )
 }
-
-/** Each verb that agrees with "the reader", and the one that agrees with "you" in its place. */
-const TO_SECOND_PERSON: Record<string, string> = { was: 'were', is: 'are', has: 'have', does: 'do' }
 
 /** Each verb that agrees with "you", and the one that agrees with "the reader" in its place. */
 const TO_THIRD_PERSON: Record<string, string> = { were: 'was', are: 'is', have: 'has', do: 'does' }
@@ -50,10 +51,8 @@ const TO_THIRD_PERSON: Record<string, string> = { were: 'was', are: 'is', have: 
 /** What each of "you're", "you've", "you'll" and "you'd" spells out to after "the reader". */
 const CONTRACTIONS: Record<string, string> = { re: 'is', ve: 'has', ll: 'will', d: 'would' }
 
-/** "the reader" or "you" and the verb it governs, in each direction. */
-const THIRD_PERSON_VERB = subjectVerbPattern('the reader', TO_SECOND_PERSON)
+/** "you" and the verb it governs. */
 const SECOND_PERSON_VERB = subjectVerbPattern('you', TO_THIRD_PERSON)
-const HE_VERB = subjectVerbPattern('he', TO_SECOND_PERSON)
 
 /** `word` with a capital first letter when the text it replaces opens with one. */
 function matchCase(replaced: string, word: string): string {
@@ -76,34 +75,18 @@ function agreeing(subject: string, verbs: Record<string, string>) {
 }
 
 /**
- * A memory as the player reads it: "the reader" becomes "you", the verb after it agreeing —
- * and in a memory that names him, his "he", "him" and "his" turn with him.
+ * A memory in the reader's voice: "you" becomes "the reader", the verb after it agreeing,
+ * "yourself" the reader's own reflexive, and "the two of you broke up" puts the holder's pronoun
+ * beside the reader.
  */
-export function secondPerson(text: string): string {
-  if (!/\bthe reader\b/i.test(text)) return text
-  // The verb agrees before the reflexive turns, so "the reader himself was" reads "you yourself
-  // were"; the reflexive turns before the subject, so a bare "the reader himself" reads too.
-  return text
-    .replace(/\bthe reader['’]s\b/gi, (m) => matchCase(m, 'your'))
-    .replace(/\bhis\b(?=\s*(?:[.,;:!?]|$))/gi, (m) => matchCase(m, 'yours'))
-    .replace(/\bhis\b/gi, (m) => matchCase(m, 'your'))
-    .replace(THIRD_PERSON_VERB, agreeing('you', TO_SECOND_PERSON))
-    .replace(HE_VERB, agreeing('you', TO_SECOND_PERSON))
-    .replace(/\bhimself\b/gi, (m) => matchCase(m, 'yourself'))
-    .replace(/\bhim\b/gi, (m) => matchCase(m, 'you'))
-    // A bare "he" turns, and "he'll" and "he'd" with it; "he's" stays as written, being "he is"
-    // or "he has".
-    .replace(/\bhe\b(?!['’]s\b)/gi, (m) => matchCase(m, 'you'))
-    .replace(/\bthe reader\b/gi, (m) => matchCase(m, 'you'))
-}
-
-/** A memory in the reader's voice: "you" becomes "the reader", the verb after it agreeing. */
-export function readerize(text: string): string {
+export function readerize(text: string, holder: Gender, reader: ReaderPronouns): string {
   // The reflexive turns first, so the verb rule sees "you himself were" and lands the reader's
   // verb behind it.
   return text
-    .replace(/\bthe two of you broke up\b/gi, (m) => matchCase(m, 'she and the reader broke up'))
-    .replace(/\byourself\b/gi, (m) => matchCase(m, 'himself'))
+    .replace(/\bthe two of you broke up\b/gi, (m) =>
+      matchCase(m, `${PRONOUNS[holder].they} and the reader broke up`)
+    )
+    .replace(/\byourself\b/gi, (m) => matchCase(m, readerWords(reader).himself))
     .replace(/\byours?\b/gi, (m) => matchCase(m, "the reader's"))
     .replace(/\byou['’](re|ve|ll|d)\b/gi, (m, tail: string) =>
       matchCase(m, `the reader ${CONTRACTIONS[tail.toLowerCase()]}`)
@@ -113,9 +96,68 @@ export function readerize(text: string): string {
 }
 
 /**
- * A memory as it is filed: trimmed, in the reader's voice, and opening lower-case, since it
- * completes "<Name> liked that …".
+ * A memory as it is filed: trimmed, in the reader's voice as its holder's gender has it, and
+ * opening lower-case, since it completes "<Name> liked that …".
  */
-export function storedMemoryDesc(text: string): string {
-  return readerize(text.trim()).replace(/^The reader\b/, 'the reader')
+export function storedMemoryDesc(
+  text: string,
+  holder: Gender,
+  reader: ReaderPronouns
+): string {
+  return readerize(text.trim(), holder, reader).replace(/^The reader\b/, 'the reader')
+}
+
+/**
+ * A recap or a memory as the player reads it: every "the reader" his own name, "the reader's"
+ * his too.
+ */
+export function namedReader(text: string, name: string): string {
+  return text.replace(/\bthe reader\b/gi, () => name)
+}
+
+/**
+ * `name` as a pattern, any case: its characters as written, the space between its words any run
+ * of space, and never part of a longer word, whatever alphabet either side is written in.
+ */
+function namePattern(name: string): RegExp {
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  return new RegExp(`(?<![\\p{L}\\p{N}_])${words.join('\\s+')}(?![\\p{L}\\p{N}_])`, 'giu')
+}
+
+/**
+ * Text the player wrote calling the reader by `name`, with "the reader" in its place wherever it
+ * stands as a word in any case, opening a sentence with a capital; "Lucky's" becomes "the
+ * reader's".
+ */
+export function unnamedReader(text: string, name: string): string {
+  if (!name.trim()) return text
+  return text.replace(namePattern(name), (_match, at: number, whole: string) =>
+    /(?:^|[.!?]\s+)$/.test(whole.slice(0, at)) ? 'The reader' : 'the reader'
+  )
+}
+
+/**
+ * A filed memory as the player reads it and as an edit opens on it: in the reader's voice, as an
+ * older save's second-person memory is sent to the model too, then with his name for "the reader".
+ */
+export function shownMemoryDesc(
+  desc: string,
+  name: string,
+  holder: Gender,
+  reader: ReaderPronouns
+): string {
+  return namedReader(readerize(desc, holder, reader), name)
+}
+
+/** A memory the player typed calling the reader by `name`, as it is filed. */
+export function typedMemoryDesc(
+  text: string,
+  name: string,
+  holder: Gender,
+  reader: ReaderPronouns
+): string {
+  return storedMemoryDesc(unnamedReader(text, name), holder, reader)
 }
