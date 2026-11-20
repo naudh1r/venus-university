@@ -8,6 +8,7 @@ import {
   type Conversation,
   type NpcRelationshipMap,
   type PlayerStats,
+  type ReaderPronouns,
   type Season,
   type TimeSlot
 } from '@vx/modkit/shared'
@@ -39,6 +40,7 @@ import {
 export interface BunnyfeedsContext {
   playthroughId: string | null
   playerFirstName: string
+  readerPronouns: ReaderPronouns
   date: number
   time: TimeSlot
   heldSlot?: number
@@ -73,7 +75,7 @@ export function readBunnyfeedsContext(): BunnyfeedsContext {
   const stats = playerStats()
   const picture = playerProfilePicture()
   const next = [ids, chars, ...definitions, ...infos, ...chats, at, held, facts.playthroughId,
-    facts.readerName, pairs, stats, picture, currentRun()]
+    facts.readerName, facts.readerPronouns, pairs, stats, picture, currentRun()]
   if (value && next.length === keys.length && next.every((one, i) => one === keys[i])) return value
 
   const characters: Record<string, Readonly<Character>> = Object.create(null)
@@ -93,6 +95,7 @@ export function readBunnyfeedsContext(): BunnyfeedsContext {
   value = {
     playthroughId: facts.playthroughId,
     playerFirstName: facts.readerName,
+    readerPronouns: facts.readerPronouns,
     date: night?.from.date ?? at?.date ?? 0,
     time: night?.from.time ?? at?.time ?? 0,
     ...(night ? { heldSlot: globalSlotOf(night.to.date, night.to.time) } : {}),

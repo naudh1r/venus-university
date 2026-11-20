@@ -98,6 +98,8 @@ on them, from any mod that puts one there, get threads like any other post.
 
 ## 1.1.7
 
+- Feed replies and memories follow the pronouns you choose for your reader.
+
 - **Replies at night**: with a mod that adds a night after the evening, replies to what you wrote
   in the evening show under the post, and in Notifications, that night. Replies to what you write
   during the night still arrive in the morning.
@@ -198,7 +200,7 @@ Bunnyfeeds makes **one extra AI call** of its own, to your usual model, on top o
 | `src/renderer/stores/bunnyfeedsThreads.ts` | The thread call through `completeStructured`, run fences and owned cancellation; `addPostComments`, record updates and `saveChanges` file its answers. |
 | `src/renderer/stores/bunnyfeedsPicture.ts` | `pictureOf`: the picture on a post, read off Photo Feature's slice as plain data, only while Photo is on and the picture is showing; it names the friend in it with the kit's `character`. Threads and the scene and DM lines both use it. |
 | `src/renderer/stores/bunnyfeedsMemory.ts` | Post slices hold pending memories; `addMemory` replaces owned ones and adopts the same legacy feed endings. Kit mod/option readers gate announcements and the texting note. |
-| `src/renderer/stores/bunnyfeedsVisit.ts` | Whether he commented during this phone visit. |
+| `src/renderer/stores/bunnyfeedsVisit.ts` | Whether the reader commented during this phone visit. |
 | `src/renderer/components/BunnyfeedsThread.tsx`, `vu_styles/Bunnyfeeds.css` | The feed preview, post view and comment box; kit snapshots, `useProfileImageUrl`, `useSceneActive` and `toggleFeedLike` supply the game's data and actions. |
 | `src/renderer/components/BunnyfeedsNotifications.tsx` | Notifications, the page beside the feed. |
 | `src/renderer/components/BunnyfeedsFaces.tsx` | Followers' faces, drawn off the handle in the style the Mods screen picked, and that choice's preview (`optionPreviews`). |
@@ -225,7 +227,7 @@ It uses nothing of any other mod: only the game's places on a post (`postComment
   filed as something said over text. `slotStatusLines` adds the feed-memory announcements to the
   closing. Both do nothing while the mod is off.
 - `requests['slot-intro']` adds the replier block. `prompts.dm` and `prompts.scene` add her two
-  newest posts with his comments and her answers. `slotSettled` sends whatever is still owed.
+  newest posts with the reader’s comments and the poster’s answers. `slotSettled` sends whatever is still owed.
   `gameEntered` drops a visit not yet sent.
 - **`updatesTab`** adds Notifications (`notifications`) beside the feed; its `unread` is the count
   the game puts on its title and the Updates tile, and its `Action` is Mark all as read. Its `Page` draws the post view over the screen
