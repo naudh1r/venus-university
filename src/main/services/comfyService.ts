@@ -14,6 +14,7 @@ import {
 } from '@shared/imagePrompt'
 import { defaultTagsOf, type DefaultTags } from '@shared/defaultTags'
 import { COMFY_HOST } from '@shared/setupManifest'
+import { registeredNodePacks } from './comfyNodePacks'
 import {
   characterLoraOf,
   COMFY_MODEL_SLOTS,
@@ -537,7 +538,7 @@ async function missingClasses(objectInfo: Record<string, unknown>): Promise<stri
 
 /** The lines naming what a server lacks, each pack's classes under it and ComfyUI's own last. */
 function missingNodeLines(classes: readonly string[]): string {
-  return groupMissingNodes(classes)
+  return groupMissingNodes(classes, registeredNodePacks())
     .map((group) =>
       group.pack === null
         ? `Missing core nodes (update ComfyUI, tested on v0.34): ${group.classes.join(', ')}.`
@@ -1439,6 +1440,30 @@ export interface ComfyRenderRequest {
   texts?: Record<string, string>
 }
 
+/**
+ * Refuses a mod's graph that names a class the server did not load, each one named under the
+ * pack that provides it, before anything is uploaded or queued.
+ */
+async function assertGraphClasses(
+  modId: string,
+  workflow: ComfyRenderRequest['workflow'],
+  target: ComfyTarget
+): Promise<void> {
+  const listing = await listingFor(target)
+  const missing = [...new Set(Object.values(workflow).map((node) => node.class_type))]
+    .filter((name) => !Object.hasOwn(listing, name))
+    .sort()
+  if (missing.length === 0) return
+  throw appError(
+    'COMFY_NODES_MISSING',
+    `ComfyUI is missing nodes ${modId}'s image needs.`,
+    missingNodeLines(missing) +
+      (target.source === 'external'
+        ? '\nInstall what is missing in your ComfyUI and restart it.'
+        : `\nComfyUI's log: ${getComfyLogPath()}`)
+  )
+}
+
 /** Queues a mod's graph through core's renderer and returns its checked image bytes. */
 export async function renderComfyImage(
   modId: string,
@@ -1485,6 +1510,8 @@ export async function renderComfyImage(
       try {
         throwIfCancelled(jobSignal)
         await start(target, report)
+        throwIfCancelled(jobSignal)
+        await assertGraphClasses(modId, owned.workflow, target)
         throwIfCancelled(jobSignal)
         await mkdir(getTempPath(), { recursive: true })
         scratch = await mkdtemp(join(getTempPath(), 'mod-render-'))
@@ -2200,7 +2227,7 @@ export async function probe(url: string): Promise<ComfyProbe> {
   for (const slot of COMFY_MODEL_SLOTS) folders[slot.role] = located[slot.role].length > 0
   return {
     version,
-    missingNodes: groupMissingNodes(await missingClasses(objectInfo)),
+    missingNodes: groupMissingNodes(await missingClasses(objectInfo), registeredNodePacks()),
     models: modelListsOf(objectInfo),
     folders
   }

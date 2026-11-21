@@ -19,6 +19,7 @@ export type {
   ModDetailProps,
   ModHooks,
   OpeningLook,
+  OptionControlProps,
   OptionPreviewProps,
   PostCommentsProps,
   PostCommentsSpot,

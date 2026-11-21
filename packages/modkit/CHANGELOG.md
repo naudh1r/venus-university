@@ -1,5 +1,13 @@
 # @vx/modkit
 
+## 0.8.2
+
+- Main code can pin a ComfyUI custom-node pack of its own with `registerComfyNodePack`, install it
+  into the game's managed ComfyUI on demand with `installComfyNodePack`, and read it with
+  `comfyNodePackState`. `renderComfyImage` refuses a graph naming a class the server lacks as
+  `COMFY_NODES_MISSING`, naming the pack.
+- `optionControls` draws a mod's own control under one of its ungrouped options on the Mods screen.
+
 ## 0.8.1
 
 - `gameFacts` and `useGameFacts` include the reader's pronouns. Shared `readerWordsOf` gives mods the same pronoun forms the game uses.

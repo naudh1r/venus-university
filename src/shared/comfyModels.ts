@@ -1,6 +1,6 @@
 import { endpointProblem } from './endpoint'
 import { PLAIN_NUMBER } from './settingsRules'
-import { PINNED_MODELS, PINNED_NODES, type PinnedModel } from './setupManifest'
+import { PINNED_MODELS, PINNED_NODES, type NodePack, type PinnedModel } from './setupManifest'
 import type { Character, CharacterLora, Settings } from './types'
 
 /**
@@ -229,11 +229,17 @@ export function modelListsOf(objectInfo: unknown): ComfyModelLists {
   return lists
 }
 
-/** The classes a server lacks, grouped under the pack that provides each, ComfyUI's own last. */
-export function groupMissingNodes(classes: readonly string[]): ComfyMissingNodes[] {
+/**
+ * The classes a server lacks, grouped under the pack that provides each (core's packs, then the
+ * ones mods registered), ComfyUI's own last.
+ */
+export function groupMissingNodes(
+  classes: readonly string[],
+  extraPacks: readonly Pick<NodePack, 'repo' | 'classes'>[] = []
+): ComfyMissingNodes[] {
   const groups: ComfyMissingNodes[] = []
   const left = new Set(classes)
-  for (const node of PINNED_NODES) {
+  for (const node of [...PINNED_NODES, ...extraPacks]) {
     const missing = node.classes.filter((name) => left.has(name))
     if (missing.length === 0) continue
     for (const name of missing) left.delete(name)
