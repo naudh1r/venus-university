@@ -4,6 +4,10 @@
  */
 export { registerComfyLaunchEnvironment } from '../../../../src/main/services/comfyLaunchEnvironment'
 export type { ComfyLaunchContext } from '../../../../src/main/services/comfyLaunchEnvironment'
+export { registerComfyNodePack } from '../../../../src/main/services/comfyNodePacks'
+export type { ComfyNodePack } from '../../../../src/main/services/comfyNodePacks'
+export { comfyNodePackState, installComfyNodePack } from '../../../../src/main/services/setupService'
+export type { ComfyNodePackState } from '../../../../src/main/services/setupService'
 export { registerFinalRequest } from '../../../../src/main/services/finalRequest'
 export type { FinalRequestHook, FinalRequestPlan } from '../../../../src/main/services/finalRequest'
 export { readJsonFile, writeAtomicBytes, writeAtomicJson } from '../../../../src/main/services/jsonFile'

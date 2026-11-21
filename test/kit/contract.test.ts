@@ -502,6 +502,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   modDetail: fn('modDetail', Comp, (host) => host.modDetail(never)),
   // Asked by the mod's own id, on or off, so a player sees the preview before switching the mod on.
   optionPreviews: thing('optionPreviews', { group: Comp }, (host, id) => host.optionPreview(id, 'group') === Comp),
+  optionControls: thing('optionControls', { option: Comp }, (host, id) => host.optionControl(id, 'option') === Comp),
   bunnyboardPage: (id) => thing('bunnyboardPage', { id, word: 'W', Mark: Comp, Page: Comp }, (host) => host.bunnyboardPages().some((page) => page.id === id))(id),
   updatesTab: (id) => thing('updatesTab', { id, word: 'W', Page: Comp }, (host) => host.updatesTabs().some((tab) => tab.id === id))(id),
   scenePlay: thing('scenePlay', { Seat: Comp, Panel: Comp }, (host, id) => host.scenePlays().some((one) => one.modId === id)),
