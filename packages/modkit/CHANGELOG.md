@@ -1,5 +1,9 @@
 # @vx/modkit
 
+## 0.8.1
+
+- `gameFacts` and `useGameFacts` include the reader's pronouns. Shared `readerWordsOf` gives mods the same pronoun forms the game uses.
+
 ## 0.8.0
 
 naudh1r-core: the org's unreleased kit changes and After Hours' hooks.

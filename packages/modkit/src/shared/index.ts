@@ -133,3 +133,4 @@ export type { CharFlags, CustomOutfitSlot, Season, NpcRelationshipMap } from '..
 export type { DesktopSurfaceBridge } from '../bridge/shared'
 
 export { memoryStatusLine, readerize } from './memory'
+export { readerWordsOf, type ReaderPronouns, type ReaderWords } from '../bridge/shared'
