@@ -256,6 +256,7 @@ export const KIT_APIS = [
   'shared:rollPostLikes',
   'renderer:invoke',
   'shared:BACKUP_ZIP_LIMITS',
+  'shared:readerWordsOf',
   'shared:readerize',
   'shared:DEFAULT_PLAYER_STATS',
   'renderer:CloseIcon',
