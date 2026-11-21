@@ -14,7 +14,7 @@ export const PHOTO_FEATURE_MOD = {
   scope: 'anytime' as const,
   defaultOn: false,
   blurb:
-    "The girls send photos in their DMs and post them on their feeds, with comments from the rest of campus. Adds a gallery to each contact and optional body details for characters. Separate from the game's own Photos tab, where you make pictures yourself. Needs ComfyUI to draw the pictures, the game's own or yours.",
+    "Characters send photos in their DMs and post them on their feeds, with comments from the rest of campus. Adds a gallery to each contact and optional body details for characters. Separate from the game's own Photos tab, where you make pictures yourself. Needs ComfyUI to draw the pictures, the game's own or yours.",
   offNote:
     'Off, nobody takes a new photo, posts get no new comments and body details are not used. Photos, galleries and comments already made are hidden. Nothing is deleted: everything comes back when it is on again.',
   options: [
@@ -27,7 +27,7 @@ export const PHOTO_FEATURE_MOD = {
     {
       id: 'explicit',
       label: 'Explicit photos',
-      hint: 'Off, nobody sends an undressed photo, and ones already sent stay covered. Settings → No NSFW images turns them off too.',
+      hint: 'Off, nobody sends an explicit photo, and ones already sent stay covered. A guy without a shirt is still an ordinary photo. Settings → No NSFW images turns them off too.',
       default: true
     },
     {
@@ -38,8 +38,8 @@ export const PHOTO_FEATURE_MOD = {
     },
     {
       id: 'duo',
-      label: '2 girls 1 photo (experimental)',
-      hint: "A girl's feed post can be a photo of her and a friend, and a scene you are in with other girls can bring a photo of two of them, posted on one's feed. Always two girls, never more. Still being tuned: now and then a face, an outfit or a colour comes out wrong.",
+      label: 'Two in one photo (experimental)',
+      hint: 'A character’s feed post can show them with a friend or partner. A scene with two or more characters can bring a photo of two of them. Still being tuned: now and then a face, an outfit or a colour comes out wrong.',
       default: false
     },
     {

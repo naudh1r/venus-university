@@ -1,3 +1,4 @@
+import { fillPronouns, genderOf } from '../../shared/photoGender'
 import { messagePhoto } from '../stores/photoRecords'
 import { photoFeatureOn } from '../../shared/photoSwitches'
 import {
@@ -84,12 +85,19 @@ export function photoLines(
 
   // Two briefs, and she reads only hers: how an undressed picture is captioned, and why she would
   // send one, are said only to a girl who may.
-  return tier === 'explicit'
-    ? intimateBrief(character, photoReasonOf(info?.flags, character.traits) ?? 'crush', occasion)
-    : normalBrief(character, tier, occasion)
+  const lines =
+    tier === 'explicit'
+      ? intimateBrief(character, photoReasonOf(info?.flags, character.traits) ?? 'crush', occasion)
+      : normalBrief(character, tier, occasion)
+  if (genderOf(character) === 'male') {
+    lines.push(
+      'A bare chest is ordinary. Nudity below the waist and sexual activity are explicit; underwear and swimwear are suggestive.'
+    )
+  }
+  return lines.map((line) => fillPronouns(line, genderOf(character)))
 }
 
-/** What her picture goes with: her answer to him, or texts she sends him first. */
+/** What her picture goes with: her answer to the reader, or texts she sends him first. */
 export type PhotoOccasion = 'reply' | 'reachOut'
 
 /** An everyday or a suggestive picture: what she will send, and the rules every picture keeps. */
@@ -102,8 +110,8 @@ function normalBrief(
   return [
     ...opening(name, occasion),
     tier === 'suggestive'
-      ? `${name} will send a flirty one — what she is wearing, a swimsuit, underwear — but nothing more than that. Nothing undressed.`
-      : `${name} only sends ordinary pictures: where she is, what she is eating, her outfit, something that made her laugh. Nothing flirty, nothing undressed.`,
+      ? `${name} will send a flirty one — what {they} is wearing, a swimsuit, underwear — but nothing more than that. Nothing undressed.`
+      : `${name} only sends ordinary pictures: where {they} is, what {they} is eating, {their} outfit, something that made {them} laugh. Nothing flirty, nothing undressed.`,
     ...captioning(character, occasion),
     ...keeping(name, occasion)
   ]
@@ -112,7 +120,7 @@ function normalBrief(
 /**
  * An undressed picture. Why she would send one is said as what is true of the two of them, since
  * a model told she has slept with somebody she has not writes the history in: what they have
- * done, or who she is, or that she is into him and it is her own decision.
+ * done, or who she is, or that she is into the reader and it is her own decision.
  */
 function intimateBrief(
   character: Character,
@@ -122,23 +130,24 @@ function intimateBrief(
   const name = character.firstName
   return [
     ...opening(name, occasion),
-    `${name} will send anything of herself, undressed included. ${INTIMATE_REASON[reason]}`,
+    `${name} will send anything of {themself}, undressed included. ${INTIMATE_REASON[reason]}`,
     ...captioning(character, occasion),
     // The gate has already allowed this; a caption that will not say it renders a picture that
     // does not show it, and the tease is read as the whole of what she sent.
-    `So a picture of ${name} undressed is captioned as one, in plain words: what is bare, what she is doing, what the shot shows. Coy wording is a coy picture — "the top of a shirt" is a photograph of a shirt.`,
-    `Write it as she would, not as a catalogue: she is sending this to ${reason === 'intimate' ? 'somebody she has slept with' : "somebody she's into"}, and she knows what she is doing.`,
+    `So a picture of ${name} undressed is captioned as one, in plain words: what is bare, what {they} is doing, what the shot shows. Coy wording is a coy picture — "the top of a shirt" is a photograph of a shirt.`,
+    `Write it as {they} would, not as a catalogue: {they} is sending this to ${reason === 'intimate' ? 'somebody {they} has slept with' : "somebody {they}'s into"}, and {they} knows what {they} is doing.`,
     ...keeping(name, occasion)
   ]
 }
 
 /** Why an undressed picture is hers to send, in the order `photoReasonOf` settles it. */
 const INTIMATE_REASON: Readonly<Record<PhotoReason, string>> = {
-  intimate: 'She has already been that far with him, so nothing is being asked for the first time.',
+  intimate:
+    '{They} has already been that far with the reader, so nothing is being asked for the first time.',
   promiscuous:
-    "This is nothing new for her: she sends pictures like this to people she's into, and he has her number.",
+    "This is nothing new for {them}: {they} sends pictures like this to people {they}'s into, and the reader has {their} number.",
   crush:
-    "She's into him, but they haven't been together. Sending one is her own decision, and not a small one: she does it when she wants to, never because he pushed."
+    "{They}'s into the reader, but they haven't been together. Sending one is {their} own decision, and not a small one: {they} does it when {they} wants to, never because the reader pushed."
 }
 
 /** Both briefs open the same way. */
@@ -147,7 +156,7 @@ function opening(name: string, occasion: PhotoOccasion): string[] {
     'PHOTOS',
     occasion === 'reply'
       ? `${name} can attach one picture to this reply. Set "sendPhoto" and describe it in "photoPrompt".`
-      : `${name} can attach one picture to these texts. Set "sendPhoto" in her entry and describe it in "photoPrompt".`
+      : `${name} can attach one picture to these texts. Set "sendPhoto" in {their} entry and describe it in "photoPrompt".`
   ]
 }
 
@@ -156,18 +165,18 @@ function captioning(character: Character, occasion: PhotoOccasion): string[] {
   const name = character.firstName
   return [
     occasion === 'reply'
-      ? 'A picture is worth sending when the conversation is already about one — she offers it, or he asked and she wants to. Most replies are just words: set "sendPhoto" false and leave "photoPrompt" empty.'
-      : 'A picture is worth sending when it is part of what she is texting about, and she would rather show him than tell him. Most texts like these are just words: set "sendPhoto" false and leave "photoPrompt" empty.',
-    `Write "photoPrompt" as what the picture shows, the way ${name} would caption it to herself. One sentence, and a full one: where she is, what she is wearing, how she is sitting or lying or standing, what her hands are doing, where she is looking, the light, and the shot.`,
+      ? 'A picture is worth sending when the conversation is already about one — {they} offers it, or the reader asked and {they} wants to. Most replies are just words: set "sendPhoto" false and leave "photoPrompt" empty.'
+      : 'A picture is worth sending when it is part of what {they} is texting about, and {they} would rather show the reader than tell the reader. Most texts like these are just words: set "sendPhoto" false and leave "photoPrompt" empty.',
+    `Write "photoPrompt" as what the picture shows, the way ${name} would caption it to {themself}. One sentence, and a full one: where {they} is, what {they} is wearing, how {they} is sitting or lying or standing, what {their} hands are doing, where {they} is looking, the light, and the shot.`,
     // His request decides the picture; the shots after it are the ones the tags can draw.
-    'If he asked for a particular picture — a selfie, her outfit, her face — that is the picture. Otherwise the shot is whichever suits the moment, and not the one she sent last: her face up close, from the waist up, from the knees up, head to toe, or further back with more of the place; straight on, from above, from below, from the side, or from behind.',
-    'Either she takes it now, where she is and at this time of day, or it is one she already has, from earlier — today, a weekend, a trip, a night out. Either way, say its light: morning sun, the lamp in her room, a street at night. A selfie is for showing him right now.',
-    'A mirror selfie only where there would be a mirror: her room, a bathroom, a changing room. Write it as what the photo shows, her facing the mirror with her phone up, not the mirror or her reflection. A picture of her from behind has no mirror and no phone in it.',
-    'A close-up of her face is for her look, not her outfit or the place: say "a close-up of her face".',
+    'If the reader asked for a particular picture — a selfie, {their} outfit, {their} face — that is the picture. Otherwise the shot is whichever suits the moment, and not the one {they} sent last: {their} face up close, from the waist up, from the knees up, head to toe, or further back with more of the place; straight on, from above, from below, from the side, or from behind.',
+    'Either {they} takes it now, where {they} is and at this time of day, or it is one {they} already has, from earlier — today, a weekend, a trip, a night out. Either way, say its light: morning sun, the lamp in {their} room, a street at night. A selfie is for showing the reader right now.',
+    'A mirror selfie only where there would be a mirror: {their} room, a bathroom, a changing room. Write it as what the photo shows, {them} facing the mirror with {their} phone up, not the mirror or {their} reflection. A picture of {them} from behind has no mirror and no phone in it.',
+    'A close-up of {their} face is for {their} look, not {their} outfit or the place: say "a close-up of {their} face".',
     'What is not written is not drawn. A caption that says only "a photo of me" gets a picture of nobody in particular.',
-    'She holds one thing at most, and in a selfie the phone already takes one hand: a bubble tea, a book, a bouquet — not an umbrella and a crepe as well. Hands that hold nothing do whatever she would do with them in a photo: a peace sign, maybe, or a hand in her hair, or nothing in particular.',
+    '{They} holds one thing at most, and in a selfie the phone already takes one hand: a bubble tea, a book, a bouquet — not an umbrella and a crepe as well. Hands that hold nothing do whatever {they} would do with them in a photo: a peace sign, maybe, or a hand in {their} hair, or nothing in particular.',
     wardrobeLine(character),
-    'Then set "photoTier" to what that picture is, which is a separate question from whether she would send it: "everyday" for one with nothing on show, "suggestive" for underwear, swimwear or a towel, "explicit" for one where any part of her usually covered is not. Judge the picture you described, not the words you described it in — a caption that never says a word for it can still be a picture of one. "none" where there is no picture.'
+    `Then set "photoTier" to what that picture is, which is a separate question from whether {they} would send it: "everyday" for one with nothing on show, "suggestive" for underwear, swimwear or a towel, "explicit" for ${genderOf(character) === 'male' ? 'nudity below the waist or sexual activity' : 'one where any part of {them} usually covered is not'}. Judge the picture you described, not the words you described it in — a caption that never says a word for it can still be a picture of one. "none" where there is no picture.`
   ]
 }
 
@@ -176,16 +185,16 @@ function keeping(name: string, occasion: PhotoOccasion): string[] {
   return [
     // Not every picture is a selfie: somebody else may have taken it, or a timer, so the phone is
     // in it only where it would be.
-    "Describe the picture itself: how she looks in it, not how it was taken or sent. A phone only appears in it when it's a mirror selfie.",
+    "Describe the picture itself: how {they} looks in it, not how it was taken or sent. A phone only appears in it when it's a mirror selfie.",
     // The renderer draws one girl and nobody else, and the gate refuses a caption that says otherwise.
-    `${name} is the only person in the picture. Whoever took it stays behind the camera: nobody else is in it, touching her, or doing anything with her.`,
-    'Name nobody and nowhere: not herself, not the reader, not a building or a place on the map. A picture cannot show a name. "her room", "a lecture hall", "the cafe" — what it looks like, never what it is called. Her own room is "her room" or "her bedroom", never a dorm.',
-    'Her texts should read like somebody who just sent that picture. Do not describe it in them.',
+    `${name} is the only person in the picture. Whoever took it stays behind the camera: nobody else is in it, touching {them}, or doing anything with {them}.`,
+    'Name nobody and nowhere: not {themself}, not the reader, not a building or a place on the map. A picture cannot show a name. "{their} room", "a lecture hall", "the cafe" — what it looks like, never what it is called. {Their} own room is "{their} room" or "{their} bedroom", never a dorm.',
+    '{Their} texts should read like somebody who just sent that picture. Do not describe it in them.',
     // The slot's opening sums her thread up rather than quoting it, so only a reply is told where
     // her pictures are written.
     occasion === 'reply'
-      ? 'Any picture she has already sent is written into RECENT MESSAGES beside the text it came with. She knows what she sent him and would not send the same one twice, or the same kind of shot every time.'
-      : 'She knows what she has already sent him and would not send the same picture twice, or the same kind of shot every time.',
+      ? 'Any picture {they} has already sent is written into RECENT MESSAGES beside the text it came with. {They} knows what {they} sent the reader and would not send the same one twice, or the same kind of shot every time.'
+      : '{They} knows what {they} has already sent the reader and would not send the same picture twice, or the same kind of shot every time.',
     ''
   ]
 }
@@ -215,17 +224,17 @@ export function postPhotoLines(canRenderImages: boolean): string[] {
   // is told it is empty rather than left to guess: unexplained, it comes back as file names.
   if (!canRenderImages) return ['Leave "image" empty on every post: nobody posts a picture today.']
   return [
-    'A post may carry a picture of her. Describe it in "image" — what the photograph shows, the way she would caption it to herself. One sentence, and a full one: where she is, what she is wearing, how she is standing or sitting, what her hands are doing, the light, and the shot. Leave "image" empty on a post that is just words, which most of them are.',
-    'The shot is whichever suits the post, and not the one she posted last: her face up close, from the waist up, from the knees up, head to toe, or further back with more of the place; straight on, from above, from below, from the side, or from behind.',
-    'What she owns is listed under her name above.',
-    'It can be a candid one where she is not posing. Either it is from now, where she is and at this time of day, or from earlier — today, a weekend, a trip, a night out. Either way, say its light: morning sun, the lamp in her room, a street at night. A selfie is for showing her year right now.',
-    'A mirror selfie only where there would be a mirror: her room, a bathroom, a changing room. Write it as what the photo shows, her facing the mirror with her phone up, not the mirror or her reflection. A picture of her from behind has no mirror and no phone in it.',
-    'A close-up of her face is for her look, not her outfit or the place: say "a close-up of her face".',
+    'FEED PICTURES says which posts carry a picture. Where one does, describe it in "image" — what the photograph shows, the way they would caption it to themself. One sentence, and a full one: where they are, what they are wearing, how they are standing or sitting, what their hands are doing, the light, and the shot. Every other post is just words: leave "image" empty.',
+    'The shot is whichever suits the post, and not the one they posted last: their face up close, from the waist up, from the knees up, head to toe, or further back with more of the place; straight on, from above, from below, from the side, or from behind.',
+    'What they own is listed under their name above.',
+    'It can be a candid one where they are not posing. Either it is from now, where they are and at this time of day, or from earlier — today, a weekend, a trip, a night out. Either way, say its light: morning sun, the lamp in their room, a street at night. A selfie is for showing their year right now.',
+    'A mirror selfie only where there would be a mirror: their room, a bathroom, a changing room. Write it as what the photo shows, them facing the mirror with their phone up, not the mirror or their reflection. A picture of them from behind has no mirror and no phone in it.',
+    'A close-up of their face is for their look, not their outfit or the place: say "a close-up of their face".',
     'What is not written is not drawn: "a photo of me" gets a picture of nobody in particular.',
-    'She holds one thing at most, and in a selfie the phone already takes one hand: a bubble tea, a book, a bouquet — not an umbrella and a crepe as well. Hands that hold nothing do whatever she would do with them in a photo: a peace sign, maybe, or a hand in her hair, or nothing in particular.',
-    'Her whole year sees this, so it is an ordinary picture or a flirty one at most — what she is wearing, a day out, a swimsuit. Never anything undressed, whatever she might send one person in a message.',
-    'Name nobody and nowhere: a picture cannot show a name. "her room", "the quad", "a cafe" — what it looks like, never what it is called.',
-    'She is the only person in the picture, unless her entry says it is a picture with a friend.',
+    'They hold one thing at most, and in a selfie the phone already takes one hand: a bubble tea, a book, a bouquet — not an umbrella and a crepe as well. Hands that hold nothing do whatever they would do with them in a photo: a peace sign, maybe, or a hand in their hair, or nothing in particular.',
+    'Their whole year sees this, so it is an ordinary picture or a flirty one at most — what they are wearing, a day out, a swimsuit. Never anything undressed, whatever they might send one person in a message.',
+    'Name nobody and nowhere: a picture cannot show a name. "their room", "the quad", "a cafe" — what it looks like, never what it is called.',
+    'They are the only person in the picture, unless their entry says it is a picture with a friend.',
     'The post’s own "text" should read like somebody who just posted that picture, without describing it.'
   ]
 }
@@ -248,7 +257,7 @@ export function postCommentLines(on: boolean = photoFeatureOn()): string[] {
   if (!on) return ['Leave "comments" empty on every post.']
   return [
     'Each post also carries "comments": what other students replied underneath it, in their own voices — up to five, and an empty array on the posts nobody answers, which is most of them. A post with a picture draws more than one without.',
-    'They are strangers from the four thousand this campus holds, not the characters above: they do not know her, they are not the reader, and none of them may be named. No handles and no @s — just what each one said.',
+    'They are strangers from the four thousand this campus holds, not the characters above: they do not know the author, they are not the reader, and none of them may be named. No handles and no @s — just what each one said.',
     'They answer the post they are under. A reply to a picture is a reply to that picture; one under a picture with skin in it reads like a public feed at its least charming, which is strangers being obvious at somebody who did not ask.'
   ]
 }

@@ -26,7 +26,7 @@ const { setModSwitches } = await import('../src/main/services/modsService')
 const { setRendererPhotoSwitches } = await import('./fixtures/photoSwitchState')
 const { redrawMessagePhoto } = await import('../src/renderer/stores/photoTurn')
 const { redrawPostPhoto } = await import('../src/renderer/stores/photoPost')
-const { dropPhoto, retirePhoto, flushRetiredPhotos } = await import(
+const { dropPhoto, retirePhoto, flushRetiredPhotos, photoInfo } = await import(
   '../src/main/services/localPhotoService'
 )
 const girl = character({ charId: 'a' })
@@ -137,3 +137,41 @@ for (const kind of ['chat', 'bunnyboard'] as const) {
     })
   })
 }
+
+
+describe('gender in recorded and rebuilt photo info', () => {
+  const guy = { ...girl, gender: 'male' as const, baseAppearance: ['1boy', 'male_focus', 'brown_hair'], outfit: ['blue_shirt'] }
+
+  it('rebuilds a male single from the current character, keeping the saved seed', async () => {
+    await writeFile(image('adam_chat_001.json'), JSON.stringify({ schemaVersion: 1, seed: 42, tier: 'everyday', positive: 'old prompt', negative: 'old negative' }))
+
+    const info = await photoInfo('1', guy, undefined, 'everyday', 'shirtless in his shorts', 'adam_chat_001.png', true)
+
+    expect(info.recorded).toBe(false)
+    expect(info.seed).toBe(42)
+    expect(info.positive).toContain('1boy')
+    expect(info.positive).toContain('mature_male')
+    expect(info.positive).not.toMatch(/1girl|breasts|pussy/)
+    expect(info.negative).toMatch(/\bpenis\b/)
+  })
+
+  it('rebuilds mixed halves from each current character', async () => {
+    const info = await photoInfo('1', guy, character({ charId: 'b' }), 'everyday', 'Him and his friend in their everyday clothes', 'adam_bunnyboard_001.png', true)
+
+    expect(info.positive).toMatch(/\b1girl\b/)
+    expect(info.positive).toMatch(/\b1boy\b/)
+    expect(info.left).toContain('mature_male')
+    expect(info.right).toContain('mature_female')
+    expect(info.negative).not.toMatch(/\b1boy\b|\b1girl\b/)
+  })
+
+  it('returns a female photo’s recorded request unchanged until a rebuild is asked for', async () => {
+    const saved = { schemaVersion: 1, seed: 41, tier: 'explicit', positive: '1girl, mature_female, nude', negative: '1boy, sex' }
+    await writeFile(image('sarah_chat_001.json'), JSON.stringify(saved))
+
+    const info = await photoInfo('1', girl, undefined, 'explicit', 'nude', 'sarah_chat_001.png')
+
+    expect(info).toEqual({ ...saved, recorded: true })
+    expect(JSON.parse(await readFile(image('sarah_chat_001.json'), 'utf8'))).toEqual(saved)
+  })
+})

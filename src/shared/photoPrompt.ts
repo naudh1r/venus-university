@@ -1,7 +1,26 @@
-import type { PhotoTier } from './photoGate'
-import { DORM_IDS, dormLabel, LOCATIONS, NARRATIVE_LOCATIONS, type Character } from '@vx/modkit/shared'
+import {
+  fillPronouns,
+  pronounsOf,
+  genderOf,
+  genderedTags,
+  photoRuleText,
+  photoSubject
+} from './photoGender'
+import { maleTopBare, type PhotoTier } from './photoGate'
+import {
+  DORM_IDS,
+  dormLabel,
+  LOCATIONS,
+  NARRATIVE_LOCATIONS,
+  type Character
+} from '@vx/modkit/shared'
 import { bodyAppearance, bodyNegative, bodyOf } from './characterBody'
-import { bodyTagsFor, describesNothingOn, partialExposureIn, type PartialPhotoExposure } from './photoBody'
+import {
+  bodyTagsFor,
+  describesNothingOn,
+  partialExposureIn,
+  type PartialPhotoExposure
+} from './photoBody'
 import { framingInTags, framingOf, type Framing } from './photoFraming'
 import {
   PHOTO_CLAUSE_END,
@@ -49,14 +68,33 @@ import { says, saysAny } from './photoWords'
  */
 const PHOTO_QUALITY = 'masterpiece, best_quality, very_aesthetic'
 
-const PHOTO_BASE = '1girl, solo, depth_of_field'
+function photoBase(character: Character): string {
+  return [...photoSubject(character), 'solo', 'depth_of_field'].join(', ')
+}
+
+/** Count bans follow the actual cast; SFW anatomy guards are added separately. */
+function peopleNegative(people: readonly Character[], bare: boolean): string {
+  const boys = people.filter((person) => genderOf(person) === 'male').length
+  const girls = people.length - boys
+  const tags =
+    people.length === 1
+      ? boys
+        ? ['1girl', 'breasts', 'multiple_boys', 'multiple_girls', '2boys', '2girls']
+        : ['1boy', 'multiple_boys', 'multiple_girls', '2girls']
+      : boys === 0
+        ? ['1boy', 'multiple_boys']
+        : girls === 0
+          ? ['1girl', 'breasts', 'multiple_girls', '3boys']
+          : ['2girls', '2boys', 'multiple_girls', 'multiple_boys', '3girls', '3boys']
+  return [...tags, 'hetero', ...(!bare || boys === 0 ? ['penis'] : []), 'sex'].join(', ')
+}
 
 /** What no phone photo may be. A sprite's white cut-out background is the enemy here. */
 const PHOTO_NEGATIVE =
   'worst_quality, bad_quality, lowres, simple_background, white_background, transparent_background, ' +
   'multiple_views, reference_sheet, english_text, speech_bubble, artist_name, watermark, signature, ' +
-  // Every photo is her alone: nobody else is drawn into it, whoever took it.
-  '1boy, multiple_boys, multiple_girls, 2girls, hetero, penis, sex, ' +
+  // Count bans are filled from the actual cast.
+  '__PEOPLE__, ' +
   // `photo_(medium)` holds the illustration against photographic realism the checkpoint drifts
   // toward; the rest are what it adds to a body unasked.
   'gold, photo_(medium), cum, ' +
@@ -107,11 +145,10 @@ const SHOWS_CLEAVAGE = new RegExp(
  * Only where nothing she wears shows it. A suggestive photo keeps it allowed: there it is often
  * what was asked for.
  */
-function dressedNegative(text: string, everyday: boolean): string[] {
-  const kept = DRESSED_NEGATIVE.filter(([, said]) => !said.test(text)).map(([tag]) => tag)
+function dressedNegative(text: string, everyday: boolean, strict = false): string[] {
+  const kept = DRESSED_NEGATIVE.filter(([, said]) => strict || !said.test(text)).map(([tag]) => tag)
   return everyday && !SHOWS_CLEAVAGE.test(text) ? [...kept, 'cleavage', 'downblouse'] : kept
 }
-
 
 /** Words in her description that say she is already dressed for the picture. */
 const CLOTHING_WORDS = [
@@ -169,9 +206,24 @@ const CLOTHING_WORDS = [
 
 /** These go with her set rather than replacing it. */
 const ACCESSORIES = [
-  'hat', 'beanie', 'cap', 'scarf', 'glasses', 'sunglasses', 'earrings', 'necklace',
-  'choker', 'bracelet', 'ring', 'bag', 'purse', 'backpack', 'hair clip', 'ribbon',
-  'headphones', 'watch'
+  'hat',
+  'beanie',
+  'cap',
+  'scarf',
+  'glasses',
+  'sunglasses',
+  'earrings',
+  'necklace',
+  'choker',
+  'bracelet',
+  'ring',
+  'bag',
+  'purse',
+  'backpack',
+  'hair clip',
+  'ribbon',
+  'headphones',
+  'watch'
 ]
 
 /** A garment or outfit, apart from words that can introduce an accessory alone. */
@@ -198,16 +250,18 @@ function properNames(character: Character): string[] {
     // "the Agora" is also written bare, and the article would be left dangling otherwise.
     place.label.replace(/^the /i, '')
   ])
-  return [
-    `${character.firstName} ${character.lastName}`,
-    character.firstName,
-    character.lastName,
-    ...DORM_IDS.map(dormLabel),
-    ...places
-  ]
-    .filter((name) => name.length > 2)
-    // Longest first, so a full name goes before either half of it does.
-    .sort((a, b) => b.length - a.length)
+  return (
+    [
+      `${character.firstName} ${character.lastName}`,
+      character.firstName,
+      character.lastName,
+      ...DORM_IDS.map(dormLabel),
+      ...places
+    ]
+      .filter((name) => name.length > 2)
+      // Longest first, so a full name goes before either half of it does.
+      .sort((a, b) => b.length - a.length)
+  )
 }
 
 /** Escapes a name for use inside a regular expression. */
@@ -348,7 +402,7 @@ export function plainColours(scene: string): string {
  * `looking_at_viewer`; a caption about her own camera is left as it is.
  */
 export function lookingAtViewer(scene: string): string {
-  if (/\b(?:her|a|film)\s+camera\b|\bpolaroid\b/i.test(scene)) return scene
+  if (/\b(?:her|his|a|film)\s+camera\b|\bpolaroid\b/i.test(scene)) return scene
   return scene.replace(
     /\b(at|into|toward|towards|to)\s+the\s+(?:camera|lens|phone)\b/gi,
     (_whole, word: string) => `${word} the viewer`
@@ -389,11 +443,12 @@ const SPILL_NEGATIVE: readonly (readonly [string, RegExp])[] = [
  * kind of picture; what is left is the picture itself.
  */
 export function withoutWhoTookIt(scene: string): string {
-  const person = '(?:friend|roommate|bestie|best friend|boyfriend|sister|mom)'
+  const person =
+    '(?:friend|roommate|bestie|best friend|boyfriend|girlfriend|brother|sister|mom|dad)'
   const taker = `(?:(?:a|her|my|his|the)\\s+${person}|somebody|someone)`
   const takenBy = new RegExp(`\\s*,?\\s*(?:taken|shot|snapped)\\s+by\\s+${taker}\\b`, 'gi')
   const tookOf = new RegExp(
-    `\\b(?:that\\s+)?${taker}\\s+(?:took|snapped|shot)(?:\\s+of\\s+(?:her|me))?\\s*`,
+    `\\b(?:that\\s+)?${taker}\\s+(?:took|snapped|shot)(?:\\s+of\\s+(?:her|him|me))?\\s*`,
     'gi'
   )
   return scene
@@ -444,7 +499,7 @@ function withoutOutfitName(scene: string, names: readonly string[]): string {
     .sort((a, b) => b.length - a.length)
     .join('|')
   const reference = new RegExp(
-    `\\b(?:(?:dressed\\s+in|wearing|in|of)\\s+)?(?:(?:her|their)\\s+)?(?:own\\s+)?` +
+    `\\b(?:(?:dressed\\s+in|wearing|in|of)\\s+)?(?:(?:her|his|their)\\s+)?(?:own\\s+)?` +
       `(?:["“])?(?:${named})(?:s|es)?(?![a-z0-9])(?:["”])?` +
       '(?:\\s+(?:clothes|cloth|outfit)\\b)?',
     'gi'
@@ -472,25 +527,32 @@ export function buildPhotoPrompt(
   tier: PhotoTier,
   photoPrompt: string
 ): PhotoPrompts {
-  const scene = shopNotDrink(drinkNotLiquid(plainColours(withoutNames(character, photoPrompt.trim()))))
+  const scene = shopNotDrink(
+    drinkNotLiquid(plainColours(withoutNames(character, photoPrompt.trim())))
+  )
   // The one question the rest is answered from, and the gate alone decides it.
   const bare = tier === 'explicit'
   const dressed = describesClothing(scene)
 
-  const pose = photoPose(scene, tier)
+  const pose = photoPose(scene, tier, genderOf(character))
   // An everyday photo is seen by everyone: a hoodie slipping off a shoulder there is how she
   // wears it, not her undressing, and the tags pulled the picture towards it.
   if (tier === 'everyday') pose.tags = pose.tags.filter((tag) => !EVERYDAY_DROPS.has(tag))
   // Her body as far as the shot reaches: a selfie from the waist up names no hips.
   const selected = wardrobeForPhoto(character, tier, scene, dressed, framingInTags(pose.tags))
   const body = bodyTagsFor(
-    bodyOf(character), scene, bare, framingInTags(pose.tags), selected.exposure
+    bodyOf(character),
+    scene,
+    bare,
+    framingInTags(pose.tags),
+    selected.exposure,
+    genderOf(character)
   )
   const caption = withoutOutfitName(scene, selected.names)
 
   // A close-up of her face: her outfit pulled the camera back to show it, so only her top stays,
   // unweighted, to keep her dressed at the neckline.
-  const face = !bare && saysAny(scene.toLowerCase(), FACE_SHOT_CUES)
+  const face = !bare && saysAny(photoRuleText(scene), FACE_SHOT_CUES)
   const shown = face ? faceShotTags(pose.tags) : pose.tags
   const worn = face ? faceShotTop(selected.tags) : selected.tags
   const wardrobe = plainColours((face ? worn : worn.map(heldColour)).join(', '))
@@ -498,7 +560,10 @@ export function buildPhotoPrompt(
   // Her appearance, with her build and her chest in it while the body switch is on. It opens on
   // the subject tag where she has one, so the base does not say it a second time.
   const appearance = bodyAppearance(character, 'photo')
-  const base = appearance.includes('1girl') ? PHOTO_BASE.replace('1girl, ', '') : PHOTO_BASE
+  const base = photoBase(character)
+    .split(', ')
+    .filter((tag) => !appearance.includes(tag))
+    .join(', ')
 
   // Read off everything the picture will be told she wears, her own tags and outfit included.
   const told = `${appearance.join(' ')} ${wardrobe} ${scene}`
@@ -512,14 +577,12 @@ export function buildPhotoPrompt(
   // Knees up is drawn with `cowboy_shot` only standing; on the floor, a bed or a chair it is left
   // to the sentence. The framing still decides what of her outfit and body is in shot.
   const notStanding = shown.some((tag) => NOT_STANDING.has(tag))
-  const posed = shown.filter(
-    (tag) => !earlier.has(tag) && !(notStanding && tag === 'cowboy_shot')
-  )
+  const posed = shown.filter((tag) => !earlier.has(tag) && !(notStanding && tag === 'cowboy_shot'))
 
   const positive = [
     `${PHOTO_QUALITY}, ${base}`,
     appearance.join(', '),
-    face ? '' : body.join(', '),
+    face ? '' : genderedTags(body, genderOf(character)).join(', '),
     wardrobe,
     // The sentence's own full stop would sit in front of the tags that follow it.
     [
@@ -537,12 +600,22 @@ export function buildPhotoPrompt(
     .join(',\n\n')
 
   const negative = [
-    PHOTO_NEGATIVE,
-    ...(bare ? [] : dressedNegative(told.toLowerCase().replace(/_/g, ' '), tier === 'everyday')),
-    ...SPILL_NEGATIVE.filter(([, said]) => !said.test(scene.toLowerCase())).map(([tag]) => tag),
+    PHOTO_NEGATIVE.replace('__PEOPLE__', peopleNegative([character], bare)),
+    ...(bare
+      ? []
+      : dressedNegative(
+          told.toLowerCase().replace(/_/g, ' '),
+          tier === 'everyday',
+          genderOf(character) === 'male'
+        )),
+    ...SPILL_NEGATIVE.filter(([, said]) => !said.test(photoRuleText(scene))).map(([tag]) => tag),
     ...pose.negative,
     ...bodyNegative(character),
-    ...(character.negativeTags ?? [])
+    ...(character.negativeTags ?? []).filter(
+      (tag) =>
+        !photoSubject(character).includes(tag) &&
+        !(bare && genderOf(character) === 'male' && tag === 'penis')
+    )
   ].join(', ')
   return { positive, negative }
 }
@@ -631,7 +704,14 @@ function wardrobeForPhoto(
 ): { tags: readonly string[]; names: readonly string[]; exposure?: PartialPhotoExposure } {
   const bare = tier === 'explicit'
   const named = photoWardrobeNames(character, scene)
-  const reveals = bare ? displacedTags(scene) : []
+  const reveals = bare
+    ? displacedTags(scene).map((tag) =>
+        genderOf(character) === 'male' &&
+        ['panty_pull', 'panties_aside', 'no_panties'].includes(tag)
+          ? 'pants_pull'
+          : tag
+      )
+    : []
   const partial =
     bare &&
     (captionDressesHer || named.length > 0 || reveals.length > 0) &&
@@ -645,19 +725,42 @@ function wardrobeForPhoto(
         : []
   const exposure = partial ? partialExposureIn(scene, reveals, outfit) : undefined
   const visibleOutfit = filterPhotoWardrobe(outfit, scene, framing)
+  const male = genderOf(character) === 'male'
+  const shirtless = male && maleTopBare(scene)
   const tags = bare
     ? partial
       ? [
           ...visibleOutfit,
           'partially_undressed',
           ...reveals,
-          ...(exposure?.upper ? ['breasts_out'] : []),
+          ...(exposure?.upper ? [male ? 'bare_chest' : 'breasts_out'] : []),
           ...(exposure?.bottomless ? ['bottomless'] : []),
           BARE_POSITIVE
         ]
-      : ['nude', 'completely_nude', BARE_POSITIVE]
+      : [
+          'nude',
+          'completely_nude',
+          BARE_POSITIVE,
+          ...(male ? ['bare_arms', 'bare_legs', 'bare_shoulders', 'barefoot'] : [])
+        ]
     : [...visibleOutfit, ...(tier === 'suggestive' ? suggestiveReveals(scene) : [])]
-  return { tags: [...new Set(tags)], names, exposure }
+  const gendered = genderedTags(tags, genderOf(character)).filter(
+    (tag) => !(male && /^(?:bra|panty|panties|no_panties|underboob)/.test(tag))
+  )
+  const shown = shirtless
+    ? [
+        ...gendered.filter(
+          (tag) =>
+            !/shirt|blouse|hoodie|sweater|cardigan|jacket|coat|top|vest|dress|uniform|clothes/.test(
+              tag
+            )
+        ),
+        'bare_chest',
+        'bare_arms',
+        'bare_shoulders'
+      ]
+    : gendered
+  return { tags: [...new Set(shown)], names, exposure }
 }
 
 /** Pose tags an everyday photo never carries. */
@@ -701,7 +804,10 @@ const DISPLACEMENTS: readonly RevealRule[] = [
     words: garmentMove(['thong', 'panties', 'underwear', 'g-string', 'bikini bottom'], LOWERED),
     tags: ['panty_pull']
   },
-  { words: garmentMove(['shorts', 'pants', 'trousers'], LOWERED), tags: ['pants_pull'] },
+  {
+    words: garmentMove(['shorts', 'pants', 'trousers', 'boxers', 'briefs'], LOWERED),
+    tags: ['pants_pull']
+  },
   { words: garmentMove(['bra', 'bikini top'], LIFTED), tags: ['bra_lift'] },
   { words: garmentMove(['bra', 'bikini top'], LOWERED), tags: ['bra_pull'] },
   {
@@ -774,7 +880,7 @@ const SUGGESTIVE_REVEALS: readonly RevealRule[] = [
 
 /** Every matching reveal from the tier's own table. */
 function revealTags(scene: string, table: readonly RevealRule[]): string[] {
-  const text = scene.toLowerCase()
+  const text = photoRuleText(scene)
   return [
     ...new Set(
       table
@@ -830,7 +936,11 @@ const TOUCHING = new RegExp(
 
 /** The sentence without the two of them touching. */
 export function withoutTouching(scene: string): string {
-  return scene.replace(TOUCHING, '').replace(/\s{2,}/g, ' ').replace(/\s+([,.;])/g, '$1').trim()
+  return scene
+    .replace(TOUCHING, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;])/g, '$1')
+    .trim()
 }
 
 /**
@@ -839,7 +949,7 @@ export function withoutTouching(scene: string): string {
  * under it. Each half is dressed from her own wardrobe instead.
  */
 const WORN_CLAUSE = new RegExp(
-  ',?\\s*\\b(?:wearing|dressed in|in (?:their|her|matching)\\b)' +
+  ',?\\s*\\b(?:wearing|dressed in|in (?:their|her|his|matching)\\b)' +
     `[^,.;]*?(?=\\s+(?:wearing|dressed in)\\b|${PHOTO_CLAUSE_END})`,
   'gi'
 )
@@ -871,7 +981,10 @@ const DUO_EXPRESSIONS: readonly [RegExp, readonly string[]][] = [
 const DUO_GESTURES: readonly [RegExp, readonly string[]][] = [
   [/\bpeace sign|\bv sign|\btwo fingers (?:up|raised)|\braising two fingers/i, ['v']],
   [/\bthumbs? up/i, ['thumbs_up']],
-  [/\bhand on her cheek|\bhand to her cheek|\bcheek in her hand|\bresting a hand on her cheek/i, ['hand_on_own_cheek']],
+  [
+    /\bhand on her cheek|\bhand to her cheek|\bcheek in her hand|\bresting a hand on her cheek/i,
+    ['hand_on_own_cheek']
+  ],
   [/\bheart with her hands|\bheart hands|\bhand heart/i, ['heart_hands']],
   [/\bwaving|\bwaves\b/i, ['waving']],
   [/\barms crossed|\bcrossed arms|\bcrossing her arms/i, ['crossed_arms']],
@@ -880,13 +993,17 @@ const DUO_GESTURES: readonly [RegExp, readonly string[]][] = [
 
 /** The faces one stretch of caption names, or none. */
 function facesIn(text: string): string[] {
+  text = photoRuleText(text)
   const said = DUO_EXPRESSIONS.filter(([words]) => words.test(text)).flatMap(([, tags]) => tags)
   return said.length > 0 ? [...new Set(said)] : []
 }
 
 /** The gestures one stretch of caption names, or none. */
 function gesturesIn(text: string): string[] {
-  return [...new Set(DUO_GESTURES.filter(([words]) => words.test(text)).flatMap(([, tags]) => tags))]
+  text = photoRuleText(text)
+  return [
+    ...new Set(DUO_GESTURES.filter(([words]) => words.test(text)).flatMap(([, tags]) => tags))
+  ]
 }
 
 function withBlush(faces: readonly string[], text: string): string[] {
@@ -959,7 +1076,10 @@ function duoExpressions(text: string): { left: string[]; right: string[] } {
       )
     }
   }
-  const both = withBlush([...(facesIn(text).length > 0 ? facesIn(text) : ['smile']), ...gesturesIn(text)], text)
+  const both = withBlush(
+    [...(facesIn(text).length > 0 ? facesIn(text) : ['smile']), ...gesturesIn(text)],
+    text
+  )
   return { left: both, right: both }
 }
 
@@ -988,10 +1108,12 @@ const DUO_POSTURE: ReadonlySet<string> = new Set([
 
 /** Where the two of them are drawn, from what the caption asks for. */
 /** Room asked between the two of them: without it they met and merged in the middle. */
-const DUO_ROOM = ['with a little space between them', 'each in her own space']
+const DUO_ROOM = ['with a little space between them', 'each in {their} own space']
 
 function duoFraming(text: string, armOut = false): { tags: string[]; scene: string[] } {
-  if (saysAny(text, ['from behind', 'back view', 'backs to', 'looking back', 'over her shoulder'])) {
+  if (
+    saysAny(text, ['from behind', 'back view', 'backs to', 'looking back', 'over her shoulder'])
+  ) {
     // Each half turns on its own, and one of them faced the camera unless both were told.
     return {
       tags: ['(from_behind:1.3)', 'looking_back', '(upper_body:1.3)'],
@@ -1036,20 +1158,36 @@ function duoHalf(
 ): { prompt: string; worn: string; names: readonly string[] } {
   const bare = tier === 'explicit'
   const dressed = bare && describesClothing(scene)
-  const appearance = bodyAppearance(girl, 'photo').filter((tag) => tag !== '1girl')
-  const selected = wardrobeForPhoto(girl, tier, scene, dressed)
-  const body = bodyTagsFor(bodyOf(girl), scene, bare, 'waist', selected.exposure).filter(
-    (tag) => bare || !BELOW_WAIST.test(tag)
+  const appearance = bodyAppearance(girl, 'photo').filter(
+    (tag) => tag !== '1girl' && tag !== '1boy'
   )
+  const selected = wardrobeForPhoto(girl, tier, scene, dressed)
+  const body = bodyTagsFor(
+    bodyOf(girl),
+    scene,
+    bare,
+    'waist',
+    selected.exposure,
+    genderOf(girl)
+  ).filter((tag) => bare || !BELOW_WAIST.test(tag))
   const wardrobe = selected.tags
     .filter((tag) => bare || !BELOW_WAIST.test(tag))
     .map((tag) => (bare ? tag : waistUpDress(tag)))
     .map(heldColour)
   return {
     prompt: plainColours(
-      [PHOTO_QUALITY, '1girl, solo', ...appearance, ...body, ...wardrobe, ...posture, ...extra].join(
-        ', '
-      )
+      [
+        PHOTO_QUALITY,
+        `${genderOf(girl) === 'male' ? '1boy' : '1girl'}, solo`,
+        ...appearance,
+        ...photoSubject(girl).filter(
+          (tag) => tag !== '1girl' && tag !== '1boy' && !appearance.includes(tag)
+        ),
+        ...genderedTags(body, genderOf(girl)),
+        ...wardrobe,
+        ...posture,
+        ...extra
+      ].join(', ')
     ),
     worn: `${appearance.join(' ')} ${wardrobe.join(' ')}`,
     names: selected.names
@@ -1060,12 +1198,15 @@ function duoHalf(
  * The caption with her friend said as "her friend" rather than taken out like any other name:
  * "me and Ana at the cafe" read as "me and at the cafe".
  */
-function friendAsFriend(friend: Character, scene: string): string {
+function friendAsFriend(friend: Character, scene: string, sender: Character): string {
   return [`${friend.firstName} ${friend.lastName}`, friend.firstName]
     .filter((name) => name.length > 2)
     .reduce(
       (text, name) =>
-        text.replace(new RegExp(`\\b${escaped(name)}(?:['\u2019]s)?\\b`, 'gi'), 'her friend'),
+        text.replace(
+          new RegExp(`\\b${escaped(name)}(?:['\u2019]s)?\\b`, 'gi'),
+          `${pronounsOf(sender).their} friend`
+        ),
       scene
     )
 }
@@ -1079,11 +1220,22 @@ function senderAsHer(sender: Character, scene: string): string {
     .filter((name) => name.length > 2)
     .reduce(
       (text, name) =>
-        text.replace(new RegExp(`\\b${escaped(name)}(?:['\u2019]s)?\\b`, 'gi'), (_said: string, at: number) =>
-          at === 0 ? 'Her' : 'her'
+        text.replace(
+          new RegExp(`\\b${escaped(name)}(?:['\u2019]s)?\\b`, 'gi'),
+          (_said: string, at: number) =>
+            at === 0 ? pronounsOf(sender).Them : pronounsOf(sender).them
         ),
       scene
     )
+}
+
+function duoSubjects(sender: Character, friend: Character): string[] {
+  const boys = [sender, friend].filter((person) => genderOf(person) === 'male').length
+  return boys === 0
+    ? ['2girls', 'multiple_girls']
+    : boys === 2
+      ? ['2boys', 'multiple_boys', 'mature_male']
+      : ['1girl', '1boy', 'mature_female', 'mature_male']
 }
 
 /**
@@ -1099,12 +1251,15 @@ export function buildDuoPhotoPrompt(
   tier: PhotoTier,
   photoPrompt: string
 ): DuoPhotoPrompts {
-  const named = withoutNames(sender, senderAsHer(sender, friendAsFriend(friend, photoPrompt.trim())))
+  const named = withoutNames(
+    sender,
+    senderAsHer(sender, friendAsFriend(friend, photoPrompt.trim(), sender))
+  )
   const scene = withoutTouching(shopNotDrink(drinkNotLiquid(plainColours(named))))
-  const text = scene.toLowerCase()
+  const text = photoRuleText(scene)
   const bare = tier === 'explicit'
 
-  const pose = photoPose(scene, tier)
+  const pose = photoPose(scene, tier, genderOf(sender))
   const posture = pose.tags.filter((tag) => DUO_POSTURE.has(tag))
   // Selfies: the phone is hers, and only her half reaches for it.
   const mirror = isMirrorSelfie(text)
@@ -1117,10 +1272,11 @@ export function buildDuoPhotoPrompt(
     : armOut
       ? ['selfie', '(outstretched_arm:1.3)', 'foreshortening']
       : []
-  const phoneNegative = selfie && !mirror ? ['phone', 'cellphone', 'smartphone', 'holding_phone'] : []
+  const phoneNegative =
+    selfie && !mirror ? ['phone', 'cellphone', 'smartphone', 'holding_phone'] : []
 
   const shared = [...framing.tags]
-  const faces = duoExpressions(text)
+  const faces = duoExpressions(photoRuleText(text))
   const left = duoHalf(sender, tier, scene, posture, [...faces.left, ...shared, ...holds])
   const right = duoHalf(friend, tier, scene, posture, [...faces.right, ...shared])
   const dressedScene = withoutOutfitName(scene, [...left.names, ...right.names])
@@ -1137,19 +1293,29 @@ export function buildDuoPhotoPrompt(
     .replace(/[.!?]+$/, '')
 
   const sceneTags = [
-    `${PHOTO_QUALITY}, 2girls, multiple_girls, depth_of_field`,
+    `${PHOTO_QUALITY}, ${duoSubjects(sender, friend).join(', ')}, depth_of_field`,
     sentence,
     'side by side',
-    ...framing.scene,
+    ...framing.scene.map((line) =>
+      genderOf(sender) === 'male' || genderOf(friend) === 'male'
+        ? line.replace('{their}', 'their')
+        : fillPronouns(line, 'female')
+    ),
     ...(mirror ? ['mirror'] : []),
     ...shared
   ]
 
   const worn = `${scene} ${left.worn} ${right.worn}`
   const negative = [
-    PHOTO_NEGATIVE.replace('multiple_girls, 2girls, ', ''),
-    '3girls',
-    ...(bare ? [] : dressedNegative(worn.toLowerCase().replace(/_/g, ' '), tier === 'everyday')),
+    PHOTO_NEGATIVE.replace('__PEOPLE__', peopleNegative([sender, friend], bare)),
+    ...(genderOf(sender) === 'female' && genderOf(friend) === 'female' ? ['3girls'] : []),
+    ...(bare
+      ? []
+      : dressedNegative(
+          worn.toLowerCase().replace(/_/g, ' '),
+          tier === 'everyday',
+          genderOf(sender) === 'male' || genderOf(friend) === 'male'
+        )),
     ...SPILL_NEGATIVE.filter(([, said]) => !said.test(text)).map(([tag]) => tag),
     ...phoneNegative,
     ...(mirror || saysAny(text, ['camera']) ? [] : ['camera']),

@@ -24,19 +24,44 @@ export interface GroupPhotoPair {
 export function groupPhotoPair(
   cast: readonly string[],
   relationships: NpcRelationshipMap | undefined,
-  rand: () => number = Math.random
+  rand: () => number = Math.random,
+  pairedRecently: (a: string, b: string) => boolean = () => false
 ): GroupPhotoPair | null {
-  const girls = [...new Set(cast)]
+  const people = [...new Set(cast)]
   const pairs: GroupPhotoPair[] = []
-  for (let i = 0; i < girls.length; i++) {
-    for (let j = i + 1; j < girls.length; j++) {
-      const a = girls[i]
-      const b = girls[j]
+  for (let i = 0; i < people.length; i++) {
+    for (let j = i + 1; j < people.length; j++) {
+      const a = people[i]
+      const b = people[j]
       if (zoneOf(npcPairOf(relationships, a, b)?.affinity ?? 0) === 'enemies') continue
+      if (pairedRecently(a, b)) continue
       pairs.push({ poster: a, friend: b }, { poster: b, friend: a })
     }
   }
   return pairs.length ? pairs[Math.floor(rand() * pairs.length)] : null
+}
+
+/** How many days two people wait after a picture together before they can share another. */
+export const DUO_COOLDOWN_DAYS = 7
+
+/** Friends and current partners share the feed's existing duo roll. */
+export function canSharePhoto(
+  relationships: NpcRelationshipMap | undefined,
+  a: string,
+  b: string
+): boolean {
+  return (
+    a !== b &&
+    (areNpcFriends(relationships, a, b) || npcPairOf(relationships, a, b)?.dating !== undefined)
+  )
+}
+
+export function photoCompanions(
+  relationships: NpcRelationshipMap | undefined,
+  poster: string,
+  roster: readonly string[]
+): string[] {
+  return [...new Set(roster)].filter((id) => canSharePhoto(relationships, poster, id))
 }
 
 /** The other girl's handle on a photo, only while she and its poster are friends. */
@@ -46,7 +71,7 @@ export function photoFriendHandle(
   friendId: string | undefined,
   charInfo: Readonly<Record<string, Pick<CharInfo, 'handle'> | undefined>>
 ): string | null {
-  if (!friendId || friendId === posterId || !areNpcFriends(relationships, posterId, friendId)) {
+  if (!friendId || friendId === posterId || !canSharePhoto(relationships, posterId, friendId)) {
     return null
   }
   return charInfo[friendId]?.handle || null

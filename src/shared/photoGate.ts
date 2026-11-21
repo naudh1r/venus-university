@@ -1,3 +1,4 @@
+import { type PhotoGender } from './photoGender'
 import { saysAny } from './photoWords'
 import { dispositionOf, hasTrait, type Character, type CharFlags } from '@vx/modkit/shared'
 
@@ -187,14 +188,96 @@ const SUGGESTIVE_WORDS = [
   'revealing'
 ]
 
+/** A bare male upper body does not undress the lower half. */
+export function maleTopBare(caption: string): boolean {
+  const text = caption.toLowerCase()
+  return (
+    saysAny(text, [
+      'shirtless',
+      'topless',
+      'bare-chested',
+      'bare chested',
+      'bare chest',
+      'bare torso',
+      'bare front',
+      'chest bare',
+      'exposed chest',
+      'nude from the waist up',
+      'naked from the waist up',
+      'bare from the waist up',
+      'undressed from the waist up'
+    ]) ||
+    /\b(?:without (?:a |his )?shirt|shirt (?:off|removed)|nothing (?:on|covering) (?:his )?(?:chest|torso|upper body))\b/.test(
+      text
+    ) ||
+    (/\b(?:wearing only|wearing nothing but|dressed in only|clad only in)\b/.test(text) &&
+      saysAny(text, ['shorts', 'pants', 'jeans', 'trousers', 'boxers', 'briefs', 'swim trunks']))
+  )
+}
+
 /**
  * What the picture she described actually is. Read off her own words rather than a flag she
  * set beside them: the flag is what she says, this is what she wrote.
  */
-export function describedPhotoTier(photoPrompt: string): PhotoTier {
+export function describedPhotoTier(photoPrompt: string, gender: PhotoGender = 'female'): PhotoTier {
   const text = photoPrompt.toLowerCase()
   if (!text.trim()) return 'none'
-  if (saysAny(text, EXPLICIT_WORDS)) return 'explicit'
+  if (gender === 'male') {
+    // An uncovered upper body is ordinary; removing a lower garment still is not.
+    const upperOnly = [
+      'topless',
+      'bare-chested',
+      'bare chested',
+      'bare chest',
+      'bare torso',
+      'bare front',
+      'bare from the waist up',
+      'chest bare',
+      'exposed chest',
+      'shirtless',
+      'nipple',
+      'nothing covering'
+    ]
+    const onlyGarment = [
+      'wearing only',
+      'wearing nothing but',
+      'dressed in only',
+      'in only her',
+      'clad only in'
+    ]
+    const explicit = EXPLICIT_WORDS.filter(
+      (word) => !upperOnly.includes(word) && !onlyGarment.includes(word)
+    )
+    const bottomOff =
+      /\b(?:pulling|tugging|sliding|taking) (?:down|off) (?:his |her |the )?(?:pants|shorts|boxers|briefs|underwear)\b|\b(?:bottomless|no (?:bottoms|underwear|boxers|briefs|pants)|without (?:underwear|boxers|briefs|pants)|(?:pants|shorts|trousers|boxers|briefs|underwear).{0,30}(?:down|off|aside)|(?:naked|nude|bare) (?:from the waist down|below the waist)|nothing (?:on )?below)\b/
+    const onlyTop =
+      /\b(?:wearing only|wearing nothing but|dressed in only|clad only in|in only his)\b/.test(
+        text
+      ) &&
+      !saysAny(text, [
+        'shorts',
+        'pants',
+        'jeans',
+        'trousers',
+        'boxers',
+        'briefs',
+        'underwear',
+        'swim trunks',
+        'swimsuit',
+        'towel'
+      ])
+    const upper = text
+      .replace(/\bwearing nothing but\b/g, 'wearing only')
+      .replace(/\b(?:naked|nude|bare|undressed) (?:from the waist up|above the waist)\b/g, '')
+      .replace(/\bnothing (?:covering|on) (?:his )?(?:chest|torso|upper body)\b/g, '')
+    if (
+      saysAny(upper, explicit) ||
+      saysAny(text, ['penis', 'cock', 'dick', 'testicles', 'anus']) ||
+      bottomOff.test(text) ||
+      onlyTop
+    )
+      return 'explicit'
+  } else if (saysAny(text, EXPLICIT_WORDS)) return 'explicit'
   if (saysAny(text, SUGGESTIVE_WORDS)) return 'suggestive'
   return 'everyday'
 }
@@ -248,10 +331,47 @@ const PARTNER_BODY_WORDS = ['penis', 'cock', 'dick']
 const TOY_WORDS = ['dildo', 'vibrator', 'toy', 'magic wand']
 
 /** Whether a caption puts anybody but her in the picture. */
-export function describesSomebodyElse(photoPrompt: string): boolean {
+export function describesSomebodyElse(
+  photoPrompt: string,
+  gender: PhotoGender = 'female',
+  duo = false
+): boolean {
   const text = photoPrompt.toLowerCase()
-  if (saysAny(text, NOT_SOLO_WORDS)) return true
-  return saysAny(text, PARTNER_BODY_WORDS) && !saysAny(text, TOY_WORDS)
+  if (duo) {
+    const acts = NOT_SOLO_WORDS.slice(NOT_SOLO_WORDS.indexOf('blowjob'))
+    return saysAny(text, [
+      ...acts,
+      'kissing her',
+      'riding her',
+      'threesome',
+      'three girls',
+      'three boys',
+      'third person',
+      'third girl',
+      'third boy',
+      'another girl',
+      'another boy'
+    ])
+  }
+  const other =
+    gender === 'male' ? NOT_SOLO_WORDS.filter((word) => !word.startsWith('his ')) : NOT_SOLO_WORDS
+  if (
+    saysAny(text, [
+      ...other,
+      ...(gender === 'male' ? ['with her'] : []),
+      'another boy',
+      'other boy',
+      'two boys',
+      'girlfriend',
+      'kissing her',
+      'riding her'
+    ])
+  )
+    return true
+  return (
+    saysAny(text, gender === 'male' ? ['pussy', 'vagina', 'clitoris'] : PARTNER_BODY_WORDS) &&
+    !saysAny(text, TOY_WORDS)
+  )
 }
 
 /** One photo request, once the gate has had its say. */
@@ -279,17 +399,24 @@ export function settlePhoto(input: {
    * can under-report what it drew, so whichever of the two says more is the one taken.
    */
   stated?: PhotoTier
+  gender?: PhotoGender
+  /** A known companion; body pronouns may refer to either of the two, never a third. */
+  companionGender?: PhotoGender
 }): PhotoVerdict {
   const { sendPhoto, photoPrompt, allowed, stated } = input
   if (!sendPhoto || !photoPrompt.trim()) return { send: false, tier: 'none' }
   if (allowed === 'none') return { send: false, tier: 'none', note: 'she sends him nothing' }
-  if (describesSomebodyElse(photoPrompt)) {
+  if (describesSomebodyElse(photoPrompt, input.gender, input.companionGender !== undefined)) {
     return { send: false, tier: 'none', note: 'the picture is not of her alone' }
   }
 
-  const described = describedPhotoTier(photoPrompt)
-  const tier =
-    stated && rankOf(stated) > rankOf(described) ? stated : described
+  const own = describedPhotoTier(photoPrompt, input.gender)
+  const companion =
+    input.companionGender === undefined
+      ? 'none'
+      : describedPhotoTier(photoPrompt, input.companionGender)
+  const described = rankOf(own) >= rankOf(companion) ? own : companion
+  const tier = stated && rankOf(stated) > rankOf(described) ? stated : described
   if (rankOf(tier) > rankOf(allowed)) {
     return {
       send: false,

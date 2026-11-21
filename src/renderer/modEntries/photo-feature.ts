@@ -17,6 +17,7 @@ import {
 import {
   bodyBriefLines,
   bodyOfDraft,
+  bodyDraftGender,
   bodySchemaFields,
   bodySchemaRequired,
   type DraftBody
@@ -28,7 +29,7 @@ import { settlePendingPhotos } from '../stores/photoRecovery'
 import { clearEarlyPhotos, sendPhoto, startDmPhoto } from '../stores/photoTurn'
 import {
   feedFriendFor,
-  feedFriendLines,
+  withFeedPicturesRequest,
   fileGroupPhoto,
   withGroupPhotoRequest
 } from '../stores/photoGroup'
@@ -42,9 +43,8 @@ import { MessagePhotoAttachment, PhotoLightboxHost } from '../components/PhotoBu
 import { GalleryPanel, galleryShown, PostPhotoExtra } from '../views/ContactGallery'
 import { PHOTO_FEATURE_ID, bindPhotoOptionReader } from '../../shared/photoSwitches'
 
-bindPhotoOptionReader(option => modOptionOn(PHOTO_FEATURE_ID, option))
+bindPhotoOptionReader((option) => modOptionOn(PHOTO_FEATURE_ID, option))
 registerPhotoDraft(registerImagePromptDraft)
-
 
 /**
  * Photo Feature, plugged into the game through its hooks. Everything it adds to the game's own
@@ -100,9 +100,8 @@ registerHooks(PHOTO_FEATURE_ID, {
     },
     // What each poster owns, for a post whose picture has her in it.
     'slot-poster': {
-      lines: ({ character, date, time }) => [
-        ...posterPhotoLines(character, canSendPhotos()),
-        ...feedFriendLines(character, date, time)
+      lines: ({ character }) => [
+        ...posterPhotoLines(character, canSendPhotos())
       ]
     },
     character: {
@@ -113,7 +112,11 @@ registerHooks(PHOTO_FEATURE_ID, {
   },
 
   // Two of the scene's girls in a group photo, written by the scene's first call.
-  requests: { scene: (request, { cast }) => withGroupPhotoRequest(request, cast) },
+  requests: {
+    scene: (request, { cast }) => withGroupPhotoRequest(request, cast),
+    // Which of the slot's posts carry a picture, decided by the game, not the model.
+    'slot-intro': (request, { input }) => withFeedPicturesRequest(request, input)
+  },
   afterSceneReply: (ctx) => fileGroupPhoto(ctx),
 
   dmHistoryNote: (message) =>
@@ -124,7 +127,14 @@ registerHooks(PHOTO_FEATURE_ID, {
     ),
 
   characterFromDraft: (draft, { baseAppearance }) =>
-    writeBody(bodyOfDraft(draft.body as DraftBody | undefined, baseAppearance)),
+    writeBody(
+      bodyOfDraft(
+        draft.body as DraftBody | undefined,
+        baseAppearance,
+        undefined,
+        bodyDraftGender(draft, baseAppearance)
+      )
+    ),
 
   // Her streamed decision starts drawing; the completed reply claims that same render.
   dmReplyLead: ({ charId, character, lead, signal }) =>
