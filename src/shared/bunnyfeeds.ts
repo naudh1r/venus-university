@@ -9,6 +9,7 @@ export const BUNNY_MEMORY_TYPES: readonly MemoryType[] = ['loved', 'liked', 'dis
 /** The fields Bunnyfeeds keeps on one native comment. */
 export interface BunnyCommentData {
   charId?: string
+  night?: true
   player?: true
   read?: true
   replyTo?: string
