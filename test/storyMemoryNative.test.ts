@@ -182,7 +182,7 @@ describe('Story Memory alongside native 0.6 recall', () => {
 describe('real native prompt builders', () => {
   const alex = character({ charId: 'a', firstName: 'Alex' })
   function state(): PromptState {
-    return { playthroughId: '123', date: 10, time: 0, storyMemory: payload(),
+    return { romance:{female:'sexuality' as const,male:'sexuality' as const},readerPronouns:'he' as const, playthroughId: '123', date: 10, time: 0, storyMemory: payload(),
       backgrounds: { interior: ['library'], exterior: ['quad'] }, lorebook: [],
       charInfo: { a: charInfo({ nameKnown: true, notes: 'Alex prefers quiet meetings.' }) },
       npcRelationships: {}, roster: [], classes: {}, playerSchedule: {}, classRosters: {},

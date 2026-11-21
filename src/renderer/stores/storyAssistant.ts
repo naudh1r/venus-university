@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { STAT_ATTRACTIONS } from '@shared/playerStats'
-import { loveLifeBlurb } from '@shared/relationship'
+import { attractionInPlay, loveLifeBlurb } from '@shared/relationship'
 import { memoryBudgetFor } from '@shared/settingsRules'
 import {
   cancelCalls,
@@ -296,17 +296,17 @@ function girlOf(game: GameState, character: Character, castSize: number, plans: 
   if (name !== null && flags.gaveContactInfo) {
     if (character.likes?.length) profile.push(`${name} likes: ${character.likes.join(', ')}.`)
     if (character.dislikes?.length) profile.push(`${name} dislikes: ${character.dislikes.join(', ')}.`)
-    if (reveals.traits) profile.push(`${name} likes guys with ${STAT_ATTRACTIONS[character.preferredStat]}.`)
+    if (reveals.traits) profile.push(`${name} is attracted to people with ${STAT_ATTRACTIONS[character.preferredStat]}.`)
     if (reveals.backstory && character.backstory?.trim()) profile.push(`Backstory: ${character.backstory.trim()}`)
-    const loveLife = loveLifeBlurb(character, flags)
+    const loveLife = loveLifeBlurb(character, flags, attractionInPlay(character, info, game.romance, game.playerPronouns))
     if (reveals.loveLife && loveLife) profile.push(`Love life: ${loveLife}`)
     const budget = memoryBudgetFor(memoryBudgetsNow(), castSize)
     record.push(
-      ...memoryLines(character, dedupedMemoriesFor(info).slice(-budget), info?.textMemory, game.calendar.season)
+      ...memoryLines(character, dedupedMemoriesFor(info).slice(-budget), info?.textMemory, game.calendar.season, game.playerPronouns)
     )
   }
   if (name !== null) {
-    record.push(...secretLines(info?.toldSecrets, secretBudgetNow()))
+    record.push(...secretLines(name, info?.toldSecrets, secretBudgetNow()))
     record.push(...notesLines(name, info?.notes))
     record.push(...plans)
   }

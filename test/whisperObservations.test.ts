@@ -2,7 +2,7 @@ import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { carryWhisper, ensureWhisperAuthor, normalizeWhisper, observeWhisperSlot, whisperSources, WHISPER_OBSERVATIONS,
   type WhisperObservation, type WhisperPresence } from '@shared/venusWhisper'
-import type { NpcEncounter, NpcRelationshipMap } from '@shared/npcRelationships'
+import type { NpcEncounter, NpcMeeting, NpcRelationshipMap } from '@shared/npcRelationships'
 import type { GameSave, SaveDraft, StructuredRequest } from '@shared/types'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { recordWhisperObservations } from '../src/renderer/stores/whisperObservations'
@@ -13,8 +13,8 @@ import { SPRING_BREAK_LEAVE } from '../src/renderer/prompts/springBreak'
 import { classEntry, character, charInfo, charactersById, playthroughRecord, restoreApi, stubApi } from './fixtures'
 
 const game = () => useGameStore.getState()
-const encounter = (over: Partial<NpcEncounter> = {}): NpcEncounter => ({ date: 7, kind: 'hangout', ref: 'green_hill_park', positive: true, ...over })
-const relationships = (e = encounter(), pair = 'b|c'): NpcRelationshipMap => ({ [pair]: { affinity: 2, encounter: e } })
+const encounter = (over: Partial<NpcMeeting> = {}): NpcMeeting => ({ date: 7, kind: 'hangout', ref: 'green_hill_park', positive: true, ...over })
+const relationships = (e: NpcEncounter = encounter(), pair = 'b|c'): NpcRelationshipMap => ({ [pair]: { affinity: 2, encounter: e } })
 function seed(): void {
   game().reset()
   useModsStore.setState({ switches: { on: {}, options: {} } })
@@ -30,13 +30,24 @@ beforeEach(seed)
 afterEach(async () => { await writesSettled(); restoreApi(); vi.restoreAllMocks() })
 
 /** Execute the same collector used by the mod's settled-slot hook with the real timetable. */
-function settle(e = encounter(), pair = 'b|c'): void {
+function settle(e: NpcEncounter = encounter(), pair = 'b|c'): void {
   const before = game()
   useGameStore.setState({ npcRelationships: relationships(e, pair) })
   recordWhisperObservations({ before, ledger: null, closingCast: [] })
 }
 
 describe('firsthand Whisper evidence', () => {
+  it.each<NpcEncounter>([
+    { date: 7, kind: 'together' }, { date: 7, kind: 'brokeUp' },
+    { date: 7, kind: 'jealous', by: 'b', of: 'a' },
+    { date: 7, kind: 'foundOut', by: 'b' },
+    { date: 7, kind: 'sided', by: 'b', of: 'a' },
+    { date: 7, kind: 'turnedDown', by: 'b' }
+  ])('does not turn the NPC event $kind into a witnessed meeting', event => {
+    settle(event)
+    expect(game().exVenusWhisper.observations).toEqual([])
+    expect(game().npcRelationships['b|c'].encounter).toEqual(event)
+  })
   it('uses the native haunt, active overlay, class and work shift, with commitments taking precedence', () => {
     settle()
     expect(game().exVenusWhisper.observations?.[0].perspective).toBe('nearby')

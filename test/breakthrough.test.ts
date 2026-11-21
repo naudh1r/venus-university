@@ -178,7 +178,7 @@ describe('actual outcomes and independent continuity',()=>{
   })
   it('carries committed outcomes into new scenes and texts, with no repeated advantage',()=>{
     const state=normalizeBreakthrough({moments:{a:[{id:'m',date:6,time:0,outcome:'A promise about the observatory.'}]}})
-    const common={lorebook:SHIPPED_BOOK,date:7,time:0 as const,charInfo:{a:charInfo()},npcRelationships:{},roster:[],classes:{},playerSchedule:{},classRosters:{},calendar:calendarOf('spring',[], {}),history:{},playerJob:null,breakthrough:state}
+    const common={romance:{female:'sexuality' as const,male:'sexuality' as const},readerPronouns:'he' as const,lorebook:SHIPPED_BOOK,date:7,time:0 as const,charInfo:{a:charInfo()},npcRelationships:{},roster:[],classes:{},playerSchedule:{},classRosters:{},calendar:calendarOf('spring',[], {}),history:{},playerJob:null,breakthrough:state}
     const scene=buildScenePrompt([a],'Hello',{...common,playthroughId:'p',backgrounds:{interior:['library'],exterior:['quad']},bg:null,classCode:null,projectClass:null,jobId:null,visitJobId:null,giftNotes:[],emotions:{},onStage:[],lessNsfwText:false,memoryBudgets:DEFAULT_MEMORY_BUDGETS,cgReady:{},outfitReady:{},roomReady:{}, customCgReady:{}},'SETTING','READER')
     const text=buildTextingPrompt(a,charInfo(),undefined,'Hello',{...common,memoryBudget:10},'READER')
     for (const r of [scene,text]) {expect(r.user).toContain('observatory');expect(r.user).not.toContain('ONE-TURN NARRATIVE ADVANTAGE')}

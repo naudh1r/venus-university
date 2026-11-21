@@ -98,7 +98,7 @@ it('preserves the previous whole-game export when reading settings fails before 
 it('preserves a previous character export if the character cannot be read', async () => {
   const { createCharacter } = await import('../src/main/services/characterService')
   const { exportCharacter } = await import('../src/main/services/characterTransferService')
-  const girl = await createCharacter('Test', 'Character')
+  const girl = await createCharacter('Test', 'Character', 'female')
   const file = join(root, 'character.zip')
   await exportCharacter(girl.charId, file)
   const previous = await readFile(file)

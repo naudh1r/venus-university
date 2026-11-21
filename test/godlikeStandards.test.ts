@@ -137,8 +137,8 @@ describe('Godlike standards', () => {
     const stats = { brain: 60, body: 60, heart: 60 }
     const ctx = { character: godlike, stats }
     expect(blocksNewRomance(godlike, stats, info.flags)).toBe(false)
-    expect(foldRelationshipEvents(info, ['kissed'], 7, ctx).flags).toMatchObject({ isLover: true, hasKissed: true })
-    expect(foldRelationshipEvents(info, ['broke_up', 'became_lovers', 'sex'], 7, ctx).flags).toMatchObject({ isLover: false, hadSex: false })
+    expect(foldRelationshipEvents(info, ['kissed'], 7, 'female', ctx).flags).toMatchObject({ isLover: true, hasKissed: true })
+    expect(foldRelationshipEvents(info, ['broke_up', 'became_lovers', 'sex'], 7, 'female', ctx).flags).toMatchObject({ isLover: false, hadSex: false })
     expect(relationshipLines(godlike, info.flags, true, 50, info, stats).join(' ')).not.toContain('requires Brain')
   })
 

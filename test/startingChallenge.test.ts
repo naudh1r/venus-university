@@ -57,7 +57,7 @@ describe('Starting Challenge save rules', () => {
     for(let n=-100;n<=0;n++){
       expect(applyStatDeltas(stats(n),stats(1),key=>challengeStatFloor(chosen,key))).toEqual(stats(n+1))
       expect(tierOf(n)).toBe(n<0?0:1)
-      const prose=describePlayer(stats(n));expect(prose).not.toContain('undefined');expect(prose.length).toBeGreaterThan(35)
+      const prose=describePlayer(stats(n), 'he');expect(prose).not.toContain('undefined');expect(prose.length).toBeGreaterThan(35)
     }
     expect(applyStatDeltas(stats(-80),stats(0))).toEqual(stats(-15))
     for(const n of [-101,-99,-81,-79,NaN,Infinity])expect(readStartingChallenge({version:2,floors:stats(n)})).toBeUndefined()

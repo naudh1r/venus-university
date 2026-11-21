@@ -19,7 +19,7 @@ export function canInviteToScene(): boolean {
 export function freeForInvitation(id: string): boolean {
   const g = useGameStore.getState()
   return Boolean(g.playthroughId && g.chars.includes(id) && g.charInfo[id]?.nameKnown &&
-    !charUnavailableNow(id) && !isHomebound(g.charInfo[id],g.date,g.time) && !charOverlayGroupNow(id) &&
+    !charUnavailableNow(id) && !isHomebound(g.characters[id],g.charInfo[id],g.date,g.time) && !charOverlayGroupNow(id) &&
     !g.events.some(event => event.date === g.date && event.time === g.time && event.charIds.includes(id)))
 }
 

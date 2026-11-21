@@ -2,6 +2,7 @@ import { echoMultiplier } from './echo'
 import { blocksNewRomance, missingRomanceStatOf, romanceMinimumsOf } from './romanceRequirements'
 import { talentHeartMultiplier } from './talentPerks'
 import { likedPostBonus, likedPostWindowOf } from './feed'
+import { genderOf, PRONOUNS, readerGenderOf, readerWords, type ReaderPronouns } from './gender'
 import { RELATIONSHIP_SHARE, STAT_SHARE } from './odds'
 import {
   MAX_TIER,
@@ -14,10 +15,11 @@ import {
   type StatKey,
   type StatTier
 } from './playerStats'
-import { secondPerson } from './readerVoice'
+import { secondPerson, shownMemoryDesc } from './readerVoice'
 import { markedLine, markedRuns } from './statusMark'
 import { hasTrait } from './traits'
 import type {
+  Attraction,
   Character,
   CharacterBehavior,
   CharFlags,
@@ -25,8 +27,11 @@ import type {
   CharMemory,
   CrushHint,
   Emotion,
+  Gender,
   MemoryType,
   RelationshipEvent,
+  RomanceLevel,
+  RomanceSetting,
   SceneLine,
   TextMark,
   UpperHalf
@@ -47,10 +52,7 @@ function weightFor(daysAgo: number): number {
  * Splices one entry in **after** the last entry not newer than it, so a scene memory from the
  * same slot still reads first.
  */
-function spliceByDate(
-  memories: readonly CharMemory[],
-  entry: CharMemory
-): readonly CharMemory[] {
+function spliceByDate(memories: readonly CharMemory[], entry: CharMemory): readonly CharMemory[] {
   let at = memories.length
   while (at > 0 && memories[at - 1].date > entry.date) at--
   return [...memories.slice(0, at), entry, ...memories.slice(at)]
@@ -75,9 +77,7 @@ export function mergedMemories(
 
 /** {@link mergedMemories} straight off a `CharInfo`, absent lists included. */
 export function memoriesFor(
-  info:
-    | Pick<CharInfo, 'memories' | 'textMemory' | 'jealousyMemories' | 'giftMemories'>
-    | undefined
+  info: Pick<CharInfo, 'memories' | 'textMemory' | 'jealousyMemories' | 'giftMemories'> | undefined
 ): readonly CharMemory[] {
   return mergedMemories(
     info?.memories ?? [],
@@ -114,6 +114,11 @@ function replacedIn(
     else if (next) replaced.push({ ...entry, ...next })
   }
   return replaced
+}
+
+/** `memory` with a new verb and words, on its own date. */
+export function rewordedMemory(memory: CharMemory, type: MemoryType, desc: string): CharMemory {
+  return { ...memory, type, desc }
 }
 
 /**
@@ -169,9 +174,7 @@ export function dedupedMemories(memories: readonly CharMemory[]): readonly CharM
 
 /** {@link dedupedMemories} over {@link memoriesFor} — the folded list every reader reads. */
 export function dedupedMemoriesFor(
-  info:
-    | Pick<CharInfo, 'memories' | 'textMemory' | 'jealousyMemories' | 'giftMemories'>
-    | undefined
+  info: Pick<CharInfo, 'memories' | 'textMemory' | 'jealousyMemories' | 'giftMemories'> | undefined
 ): readonly CharMemory[] {
   return dedupedMemories(memoriesFor(info))
 }
@@ -207,30 +210,56 @@ export function affectionFor(
   )
 }
 
+/** A memory as a status line reads it: its desc, and the ledger's second-person words if kept. */
+export type SpokenMemory = Pick<CharMemory, 'type' | 'desc'> & { youDesc?: string }
+
 /**
- * The three parts of a memory sentence, its desc turned to the second person, cut where the word
- * it is coloured by begins and ends.
+ * The three parts of a memory sentence, cut where the word it is coloured by begins and ends:
+ * its second-person words where it has them, else its desc with the reader called `readerName`.
  */
 function memoryParts(
   name: string,
-  entry: Pick<CharMemory, 'type' | 'desc'>
+  entry: SpokenMemory,
+  readerName: string,
+  holder: Gender,
+  reader: ReaderPronouns
 ): { before: string; run: string; after: string } {
-  const desc = sentence(secondPerson(entry.desc))
+  const desc = sentence(entry.youDesc ?? shownMemoryDesc(entry.desc, readerName, holder, reader))
   return { before: `${name} `, run: entry.type, after: ` that ${desc}` }
 }
 
 /**
- * `"Mika liked that you walked her home."` off "the reader walked her home" — the one phrasing
- * of a memory, used by the post-scene status lines and by Bunnyboard's history alike.
+ * `"Mika liked that Seth walked her home."` off "the reader walked her home" — the one phrasing
+ * of a memory, used by the post-scene status lines and by her contact page alike.
  */
-export function memorySentence(name: string, entry: Pick<CharMemory, 'type' | 'desc'>): string {
-  const { before, run, after } = memoryParts(name, entry)
+export function memorySentence(
+  name: string,
+  entry: Pick<CharMemory, 'type' | 'desc'>,
+  readerName: string,
+  holder: Gender,
+  reader: ReaderPronouns
+): string {
+  // Only its two fields: an older save's memory may still carry second-person words on disk.
+  const { before, run, after } = memoryParts(
+    name,
+    { type: entry.type, desc: entry.desc },
+    readerName,
+    holder,
+    reader
+  )
   return `${before}${run}${after}`
 }
 
 /** A texting memory's description with the clause that says where it came from. */
 export function overTextDesc(desc: string): string {
   return `${desc.replace(/[.!?…]+$/, '')} over text.`
+}
+
+/** A texting memory with the clause that says where it came from, in both of its voices. */
+export function overTextMemory<T extends Pick<SpokenMemory, 'desc' | 'youDesc'>>(entry: T): T {
+  const said = { ...entry, desc: overTextDesc(entry.desc) }
+  if (entry.youDesc !== undefined) said.youDesc = overTextDesc(entry.youDesc)
+  return said
 }
 
 /** Which way each of the four verbs went, for the run the status box paints. */
@@ -242,14 +271,28 @@ const MEMORY_TONES: Record<MemoryType, TextMark['tone']> = {
 }
 
 /**
- * {@link memorySentence} as the status box draws it: the verb she remembers him by in the
- * colour of which way it went.
+ * {@link memorySentence} as the status box draws it, spoken to the reader where the ledger's
+ * second-person words were kept: the verb she remembers him by in the colour of which way it went.
  */
 export function memoryStatusLine(
   name: string,
-  entry: Pick<CharMemory, 'type' | 'desc'>
+  entry: SpokenMemory,
+  readerName?: string,
+  holder: Gender = 'female',
+  reader: ReaderPronouns = 'he'
 ): SceneLine {
-  const { before, run, after } = memoryParts(name, entry)
+  // Existing mods use two arguments and expect the former second-person status line.
+  const spoken =
+    readerName === undefined
+      ? { ...entry, youDesc: entry.youDesc ?? secondPerson(entry.desc) }
+      : entry
+  const { before, run, after } = memoryParts(
+    name,
+    spoken,
+    readerName ?? 'the reader',
+    holder,
+    reader
+  )
   return markedLine(before, run, after, MEMORY_TONES[entry.type])
 }
 
@@ -260,17 +303,70 @@ function sentence(text: string): string {
 }
 
 /**
- * Her four love-life fields as the one paragraph everything that shows or injects them reads.
+ * Her love life as the one paragraph everything that shows or injects it reads: her three prose
+ * fields, the kinks left out where `kinks` is false, then her sexuality as `attraction` has it
+ * and whether she is a virgin.
  */
 export function loveLifeBlurb(
-  character: Pick<Character, 'firstName' | 'datingHistory' | 'datingPreference' | 'kinks' | 'isVirgin'>,
-  flags: Pick<CharFlags, 'hadSex'>
+  character: Pick<
+    Character,
+    'firstName' | 'gender' | 'datingHistory' | 'datingPreference' | 'kinks' | 'isVirgin'
+  >,
+  flags: Pick<CharFlags, 'hadSex'>,
+  attraction: Attraction,
+  kinks = true
 ): string {
-  const parts = [character.datingHistory, character.datingPreference, character.kinks]
+  const parts = [character.datingHistory, character.datingPreference, kinks ? character.kinks : '']
     .filter((part) => part?.trim())
     .map(sentence)
+  parts.push(`${character.firstName} is ${sexualityOf(genderOf(character), attraction)}.`)
   if (character.isVirgin && !flags.hadSex) parts.push(`${character.firstName} is a virgin.`)
   return parts.join(' ')
+}
+
+/** What a sexuality is called, by her gender and who she is attracted to. */
+export type Sexuality = 'straight' | 'gay' | 'lesbian' | 'bisexual'
+
+/** Each sexuality as a page names it. */
+export const SEXUALITY_LABELS: Record<Sexuality, string> = {
+  straight: 'Straight',
+  gay: 'Gay',
+  lesbian: 'Lesbian',
+  bisexual: 'Bisexual'
+}
+
+/** Her sexuality by name: both genders bisexual, her own alone gay or lesbian, else straight. */
+export function sexualityOf(gender: Gender, attraction: Attraction): Sexuality {
+  if (attraction.female && attraction.male) return 'bisexual'
+  if (attraction[gender]) return gender === 'male' ? 'gay' : 'lesbian'
+  return 'straight'
+}
+
+/** An attraction off a value that crossed the bridge or came off a record; null unless valid. */
+export function asAttraction(value: unknown): Attraction | null {
+  if (typeof value !== 'object' || value === null) return null
+  const { female, male } = value as Record<string, unknown>
+  if (typeof female !== 'boolean' || typeof male !== 'boolean') return null
+  return female || male ? { female, male } : null
+}
+
+/** Who her record says she is attracted to: the other gender alone where it says nothing valid. */
+export function attractionOf(
+  c: Pick<Character, 'gender' | 'attractedTo'> | null | undefined
+): Attraction {
+  const held = asAttraction(c?.attractedTo)
+  if (held) return held
+  const male = genderOf(c) === 'female'
+  return { female: !male, male }
+}
+
+/** Whether an attraction is what an absent field reads as, and so is left off her record. */
+export function isDefaultAttraction(
+  c: Pick<Character, 'gender'> | null | undefined,
+  attraction: Attraction
+): boolean {
+  const fallback = attractionOf({ gender: c?.gender })
+  return attraction.female === fallback.female && attraction.male === fallback.male
 }
 
 /**
@@ -353,29 +449,32 @@ export const DISPOSITION_PREDICATE: Record<Disposition, string> = {
 /**
  * The three tiers that read differently in their upper half: the score it starts above, its
  * tier's ceiling, what it says the first time she is in it and what it says once she has been
- * out of it. Neutral's half is counted from where everybody starts.
+ * out of it, given how the line names the reader. Neutral's half is counted from where everybody
+ * starts.
  */
-const UPPER_HALVES: Record<UpperHalf, { from: number; to: number; first: string; again: string }> =
-  {
-    neutral: {
-      from: FRIENDLY_FLOOR / 2,
-      to: FRIENDLY_FLOOR,
-      first: 'is warming up to the reader',
-      again: 'is on good terms with the reader'
-    },
-    friendly: {
-      from: (FRIENDLY_FLOOR + TRUSTED_FLOOR) / 2,
-      to: TRUSTED_FLOOR,
-      first: 'is friends with the reader and is confiding in him more and more',
-      again: 'is close friends with the reader and confides in him'
-    },
-    trusted: {
-      from: (TRUSTED_FLOOR + DEVOTED_FLOOR) / 2,
-      to: DEVOTED_FLOOR,
-      first: 'trusts the reader deeply and is appreciating him more and more',
-      again: 'trusts the reader deeply and appreciates him'
-    }
+const UPPER_HALVES: Record<
+  UpperHalf,
+  { from: number; to: number; first: (him: string) => string; again: (him: string) => string }
+> = {
+  neutral: {
+    from: FRIENDLY_FLOOR / 2,
+    to: FRIENDLY_FLOOR,
+    first: () => 'is warming up to the reader',
+    again: () => 'is on good terms with the reader'
+  },
+  friendly: {
+    from: (FRIENDLY_FLOOR + TRUSTED_FLOOR) / 2,
+    to: TRUSTED_FLOOR,
+    first: (him) => `is friends with the reader and is confiding in ${him} more and more`,
+    again: (him) => `is close friends with the reader and confides in ${him}`
+  },
+  trusted: {
+    from: (TRUSTED_FLOOR + DEVOTED_FLOOR) / 2,
+    to: DEVOTED_FLOOR,
+    first: (him) => `trusts the reader deeply and is appreciating ${him} more and more`,
+    again: (him) => `trusts the reader deeply and appreciates ${him}`
   }
+}
 
 const UPPER_HALF_KEYS = Object.keys(UPPER_HALVES) as UpperHalf[]
 
@@ -406,12 +505,15 @@ export function observedUpperHalves(
 /**
  * Completes `"<FirstName> ___."` for how she feels: her tier's phrase, or its upper half's, read
  * as rising the first time she is there and as a level once she has been out of it. A lover's
- * neutral and friendly tiers read plain beside the status line's word on them.
+ * neutral and friendly tiers read plain beside the status line's word on them; `holder` is her
+ * gender, which decides whether the reader is named outright.
  */
 export function dispositionPredicateOf(
   affection: number,
   halves: CharInfo['upperHalves'],
-  isLover: boolean
+  isLover: boolean,
+  reader: ReaderPronouns,
+  holder: Gender
 ): string {
   const disposition = dispositionOf(affection)
   const split =
@@ -419,7 +521,10 @@ export function dispositionPredicateOf(
     (!isLover && (disposition === 'friendly' || disposition === 'neutral'))
   if (split) {
     const half = UPPER_HALVES[disposition]
-    if (affection > half.from) return halves?.[disposition] === 'again' ? half.again : half.first
+    if (affection > half.from) {
+      const him = readerWords(reader, holder).him
+      return halves?.[disposition] === 'again' ? half.again(him) : half.first(him)
+    }
   }
   return DISPOSITION_PREDICATE[disposition]
 }
@@ -512,10 +617,7 @@ export function isNegative(affection: number): boolean {
 }
 
 /** Picks which {@link CharacterBehavior} stage is live; first match wins. */
-export function behaviorLevelOf(
-  flags: CharFlags,
-  affection: number
-): keyof CharacterBehavior {
+export function behaviorLevelOf(flags: CharFlags, affection: number): keyof CharacterBehavior {
   if (flags.isLover) return 'withLover'
   if (flags.hasCrush) return 'withCrush'
   if (isNegative(affection) || flags.brokenUp > 0) return 'withEnemy'
@@ -563,7 +665,8 @@ const RELATIONSHIP_EVENTS: readonly RelationshipEvent[] = [
   'friendzoned_reader',
   'gave_contact_info',
   'unblocked',
-  'agreed_to_harem'
+  'agreed_to_harem',
+  'agreed_to_closed'
 ]
 
 /** Guard for a relationship event echoed back by the LLM. */
@@ -598,45 +701,61 @@ export function applyEvent(flags: CharFlags, event: RelationshipEvent): CharFlag
     // One-way; `blocked` is its own flag.
     case 'gave_contact_info':
       return { ...flags, gaveContactInfo: true }
-    // The one milestone that clears a flag rather than setting one.
+    // Clears the block rather than setting anything.
     case 'unblocked':
       return { ...flags, blocked: false }
     // Her stance on the other girls, which `became_lovers` leaves standing.
     case 'agreed_to_harem':
       return { ...flags, harem: true }
+    // Takes sharing back, and only from a lover: seeing only the reader means nothing to anyone else.
+    case 'agreed_to_closed':
+      return flags.isLover ? { ...flags, harem: false } : flags
   }
 }
 
 /**
  * One character's info with a scene's milestones folded in: the flag transitions, the
- * memories the two biggest of them leave behind, and the dates dating starting and ending
- * leave on her.
+ * memories the two biggest of them leave behind, worded for the holder's gender, and the dates
+ * dating starting and ending leave on her.
  */
 export function foldRelationshipEvents(
   info: CharInfo,
   events: readonly RelationshipEvent[],
   date: number,
-  romance?: { character: Pick<Character, 'traits' | 'preferredStat'> | undefined; stats: PlayerStats }
+  holder: Gender,
+  romance?: {
+    character: Pick<Character, 'traits' | 'preferredStat'> | undefined
+    stats: PlayerStats
+  }
 ): CharInfo {
   const before = info.flags ?? emptyFlags()
   let flags = before
   for (const event of events) {
-    if (romance && blocksNewRomance(romance.character, romance.stats, flags) &&
-      ['kissed', 'sex', 'became_lovers', 'agreed_to_harem'].includes(event)) continue
+    if (
+      romance &&
+      blocksNewRomance(romance.character, romance.stats, flags) &&
+      ['kissed', 'sex', 'became_lovers', 'agreed_to_harem'].includes(event)
+    )
+      continue
     flags = applyEvent(flags, event)
   }
+  const { them } = PRONOUNS[holder]
 
   // The milestones' own memories, stacked with whatever the ledger wrote about the scene.
   const milestones: CharMemory[] = []
   if (!before.hasKissed && flags.hasKissed) {
-    milestones.push({ date, type: 'loved', desc: 'the reader kissed her for the first time' })
+    milestones.push({ date, type: 'loved', desc: `the reader kissed ${them} for the first time` })
   }
   if (!before.hadSex && flags.hadSex) {
-    milestones.push({ date, type: 'loved', desc: 'the reader slept with her for the first time' })
+    milestones.push({
+      date,
+      type: 'loved',
+      desc: `the reader slept with ${them} for the first time`
+    })
   }
   // Keyed on the count, so a second breakup writes a second memory.
   if (flags.brokenUp > before.brokenUp) {
-    milestones.push({ date, type: 'hated', desc: 'things ended between the reader and her' })
+    milestones.push({ date, type: 'hated', desc: `things ended between the reader and ${them}` })
   }
 
   const folded: CharInfo = {
@@ -659,14 +778,56 @@ export function foldRelationshipEvents(
 }
 
 /**
- * Every word said to the player about a milestone, one line per milestone the scene actually
- * reached.
+ * What an unanswered invitation costs her, in the reader's voice: completes
+ * "{Name} disliked that ..." in the memory, and with `who` "you" in the ending's status line.
  */
-export function milestoneStatusLines(name: string, before: CharFlags, after: CharFlags): string[] {
+export function ignoredTextDesc(g: Gender, who = 'the reader'): string {
+  return `${who} ignored ${PRONOUNS[g].their} text`
+}
+
+/**
+ * What leaving her vent unanswered costs her, in the same voice, kept as her texting memory:
+ * completes "{Name} disliked that ..." before the clause saying it was over text.
+ */
+export function ignoredVentDesc(g: Gender, who = 'the reader'): string {
+  return `${who} ignored ${PRONOUNS[g].them} when ${PRONOUNS[g].they} wanted to vent`
+}
+
+/**
+ * What answering an invitation with a no costs a lover, in the same voice: completes
+ * "{Name} disliked that ..." in the memory, and with `who` "you" in the ending's status line.
+ */
+export function turnedDownDesc(g: Gender, who = 'the reader'): string {
+  return `${who} turned down ${PRONOUNS[g].their} request to hang out`
+}
+
+/**
+ * What a plan the reader stood her up on costs her, in the same voice: completes
+ * "{Name} hated that ...".
+ */
+export function ghostedDesc(g: Gender, title: string): string {
+  return `the reader ghosted ${PRONOUNS[g].them} and didn't show up for ${title}`
+}
+
+/** The status line that puts someone the reader has a plan with on his phone. */
+export function contactInfoLine(name: string, g: Gender): string {
+  return `${name} gave you ${PRONOUNS[g].their} contact info so you can coordinate your plans.`
+}
+
+/**
+ * Every word said to the player about a milestone, one line per milestone the scene actually
+ * reached, her number given in her own pronoun.
+ */
+export function milestoneStatusLines(
+  name: string,
+  before: CharFlags,
+  after: CharFlags,
+  holder: Gender
+): string[] {
   const lines: string[] = []
   // A fixed order: escalating first, then the ways it goes wrong.
   if (!before.gaveContactInfo && after.gaveContactInfo)
-    lines.push(`${name} gave you her contact info.`)
+    lines.push(`${name} gave you ${PRONOUNS[holder].their} contact info.`)
   if (!before.hasKissed && after.hasKissed) lines.push(`You and ${name} kissed for the first time.`)
   if (!before.hadSex && after.hadSex)
     lines.push(`You and ${name} slept together for the first time.`)
@@ -675,7 +836,9 @@ export function milestoneStatusLines(name: string, before: CharFlags, after: Cha
   if (!before.friendZoned && after.friendZoned) lines.push(`You friendzoned ${name}.`)
   if (!before.friendZonedBy && after.friendZonedBy) lines.push(`${name} friendzoned you.`)
   if (after.brokenUp > before.brokenUp) lines.push(`You and ${name} broke up.`)
-  // The one true→false diff, and last.
+  // The true→false diffs, last.
+  if (before.harem && !after.harem && after.isLover)
+    lines.push(`${name} agreed to a closed relationship with you.`)
   if (before.blocked && !after.blocked) lines.push(`${name} unblocked you.`)
   return lines
 }
@@ -686,10 +849,12 @@ export function milestoneStatusLines(name: string, before: CharFlags, after: Cha
  */
 const MILESTONE_PHRASES: readonly { phrase: string; loss: boolean }[] = [
   { phrase: 'gave you her contact info', loss: false },
+  { phrase: 'gave you his contact info', loss: false },
   { phrase: 'kissed', loss: false },
   { phrase: 'slept together', loss: false },
   { phrase: 'became lovers', loss: false },
   { phrase: 'open relationship', loss: false },
+  { phrase: 'closed relationship', loss: false },
   { phrase: 'friendzoned', loss: true },
   { phrase: 'broke up', loss: true },
   { phrase: 'unblocked', loss: false }
@@ -709,7 +874,7 @@ export function milestoneMarkOf(text: string): TextMark | null {
 }
 
 /**
- * Whether what the scene reached is a loss rather than a step forward — the three of the nine
+ * Whether what the scene reached is a loss rather than a step forward — the three of the ten
  * milestones that go the wrong way. Lives beside the phrases so there's one place deciding which
  * are bad, not two. **A set holding any one of them is negative however much else it reached.**
  */
@@ -730,6 +895,88 @@ export function milestoneEmotionOf(before: CharFlags, after: CharFlags): Emotion
   if (!before.hadSex && after.hadSex) return 'aroused'
   if ((!before.hasKissed && after.hasKissed) || (!before.isLover && after.isLover)) return 'happy'
   return 'neutral'
+}
+
+/** The romance setting a playthrough plays under when its record carries none. */
+export const DEFAULT_ROMANCE: RomanceSetting = { female: 'sexuality', male: 'sexuality' }
+
+/** Everyone attracted to the reader: Quickstart's, and a play that is not a playthrough's own. */
+export const ALL_ROMANCE: RomanceSetting = { female: 'all', male: 'all' }
+
+/** Every romance level, in the order the steppers walk them. */
+export const ROMANCE_LEVELS: readonly RomanceLevel[] = ['none', 'sexuality', 'all', 'everyone']
+
+/** One gender's level off a stored value: one of the levels, else following her sexuality. */
+function romanceLevelOf(value: unknown): RomanceLevel {
+  return ROMANCE_LEVELS.includes(value as RomanceLevel) ? (value as RomanceLevel) : 'sexuality'
+}
+
+/** The romance setting a record holds, read leniently, one gender at a time. */
+export function romanceOf(record: { romance?: unknown } | null | undefined): RomanceSetting {
+  const held = record?.romance
+  const stored = typeof held === 'object' && held !== null ? (held as Record<string, unknown>) : {}
+  return { female: romanceLevelOf(stored.female), male: romanceLevelOf(stored.male) }
+}
+
+/** Attracted to both genders, which is what `everyone` makes of her. */
+const EVERYONE: Attraction = { female: true, male: true }
+
+/**
+ * Who she is attracted to in this playthrough: what it settled for her, else her record, with
+ * the reader's own gender added where her gender's level is `all`, and both where it is
+ * `everyone`. A they/them reader adds none.
+ */
+export function attractionInPlay(
+  c: Pick<Character, 'gender' | 'attractedTo'> | null | undefined,
+  info: Pick<CharInfo, 'attractedTo'> | undefined,
+  romance: RomanceSetting,
+  reader: ReaderPronouns
+): Attraction {
+  if (romance[genderOf(c)] === 'everyone') return { ...EVERYONE }
+  const attraction = asAttraction(info?.attractedTo) ?? attractionOf(c)
+  const readerGender = readerGenderOf(reader)
+  if (romance[genderOf(c)] !== 'all' || readerGender === null) return attraction
+  return { ...attraction, [readerGender]: true }
+}
+
+/**
+ * Who she is attracted to among the other characters: both genders where her gender's level is
+ * `everyone`, else what the playthrough settled for her, else her record. `all` adds nothing.
+ */
+export function npcAttractionOf(
+  c: Pick<Character, 'gender' | 'attractedTo'> | null | undefined,
+  info: Pick<CharInfo, 'attractedTo'> | undefined,
+  romance: RomanceSetting
+): Attraction {
+  if (romance[genderOf(c)] === 'everyone') return { ...EVERYONE }
+  return asAttraction(info?.attractedTo) ?? attractionOf(c)
+}
+
+/**
+ * Whether the reader may romance her: her gender's level is not `none` and she is attracted to
+ * the reader's gender (to a they/them reader, always), or the two have already kissed, slept
+ * together, dated, been friends with benefits or broken up.
+ */
+export function isRomanceable(
+  c: Pick<Character, 'gender' | 'attractedTo'> | null | undefined,
+  info: Pick<CharInfo, 'flags' | 'datingSince' | 'attractedTo'> | undefined,
+  romance: RomanceSetting,
+  reader: ReaderPronouns
+): boolean {
+  if (romance[genderOf(c)] !== 'none') {
+    const readerGender = readerGenderOf(reader)
+    if (readerGender === null) return true
+    if (attractionInPlay(c, info, romance, reader)[readerGender]) return true
+  }
+  const flags: Partial<CharFlags> | undefined = info?.flags
+  return (
+    flags?.hasKissed === true ||
+    flags?.hadSex === true ||
+    flags?.isLover === true ||
+    flags?.benefits === true ||
+    (flags?.brokenUp ?? 0) > 0 ||
+    info?.datingSince !== undefined
+  )
 }
 
 /** The character half of the roll — what she is drawn to, and how hard she is to reach. */
@@ -761,10 +1008,7 @@ export function meetsCrushStandards(character: CrushCharacter, stats: PlayerStat
 }
 
 /** The first stat keeping the reader below her crush requirements, for prompt guidance. */
-export function missingCrushStatOf(
-  character: CrushCharacter,
-  stats: PlayerStats
-): StatKey | null {
+export function missingCrushStatOf(character: CrushCharacter, stats: PlayerStats): StatKey | null {
   const extra = missingRomanceStatOf(character, stats)
   if (extra) return extra
   const preferred = preferredStatOf(character)
@@ -782,21 +1026,31 @@ function crushRequirementOf(character: CrushCharacter, stat: StatKey): StatTier 
 
 /** How a status line names what she is waiting on — all three for a girl who wants all three. */
 function hintSubject(character: CrushCharacter, stat: StatKey): string {
-  return hasTrait(character, 'High Standards') || STAT_KEYS.every(key => romanceMinimumsOf(character)[key] !== undefined)
+  return hasTrait(character, 'High Standards') ||
+    STAT_KEYS.every((key) => romanceMinimumsOf(character)[key] !== undefined)
     ? `${STAT_LABELS.brain}, ${STAT_LABELS.body}, and ${STAT_LABELS.heart}`
     : STAT_LABELS[stat]
 }
 
 /**
+ * Where one girl stands for her standards line: free to fall for the reader, taken by somebody
+ * whose couple holds her odds down, or fallen for him already.
+ */
+export type CrushStanding = 'free' | 'taken' | 'crush'
+
+/**
  * What the memory scroll says about one girl's standards, and what to remember having said.
  * A stat is named once per tier, and the same hint object comes back whenever
- * there is nothing new to say, which is what lets the caller skip the write.
+ * there is nothing new to say, which is what lets the caller skip the write. A taken girl is
+ * not said to be interested until she is free or has fallen for him anyway, and a girl who has
+ * fallen for him is told nothing she is waiting on.
  */
 export function crushHintUpdate(
   name: string,
   character: CrushCharacter,
   stats: PlayerStats,
-  hint: CrushHint | undefined
+  hint: CrushHint | undefined,
+  standing: CrushStanding = 'free'
 ): { line: string | null; hint: CrushHint | undefined } {
   // A newly enabled requirement (or a newly added trait) can raise a previously cleared bar.
   // Ordinary terminal hints keep their native behavior.
@@ -810,6 +1064,8 @@ export function crushHintUpdate(
   if (missing === null) {
     // Nothing was promised, so there is no payoff to pay off.
     if (!hint) return { line: null, hint: undefined }
+    // Still owed, and paid once she is single again or has a crush on him.
+    if (standing === 'taken') return { line: null, hint }
     return {
       line: `Your ${hintSubject(character, hint.stat)} seem${
         hintSubject(character, hint.stat).includes(',') ? '' : 's'
@@ -817,6 +1073,9 @@ export function crushHintUpdate(
       hint: { met: true }
     }
   }
+
+  // Short of her bar again after a break, she already has a crush on him.
+  if (standing === 'crush') return { line: null, hint }
 
   return {
     line: `Your ${STAT_LABELS[missing]} needs to be at least ${tierNameOf(
@@ -843,16 +1102,20 @@ export function crushChance(
   )
 }
 
-/** One draw against {@link crushChance}; `rand` is injectable for tests. */
+/**
+ * One draw against {@link crushChance}, multiplied by `factor` (what being taken does to it);
+ * `rand` is injectable for tests. A factor of 0 draws nothing.
+ */
 export function rollsCrush(
   character: CrushCharacter,
   stats: PlayerStats,
   affection: number,
-  rand: () => number = Math.random
+  rand: () => number = Math.random,
+  factor = 1
 ): boolean {
   // Never at a score `refreshedFlags` would clear it at.
-  if (affection < 0) return false
-  return rand() < crushChance(character, stats, affection)
+  if (affection < 0 || factor <= 0) return false
+  return rand() < crushChance(character, stats, affection) * factor
 }
 
 /**

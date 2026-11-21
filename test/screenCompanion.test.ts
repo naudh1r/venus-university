@@ -62,6 +62,15 @@ const turn = (over: Partial<CompanionTurn> = {}): CompanionTurn => ({
   lines: [{ charId: 'char-1', text: 'Try staying near cover.', emotion: 'happy' }], ...over
 })
 
+it('sends the saved participant gender and reader pronouns to the laptop', async () => {
+  useGameStore.setState(state => ({ playerPronouns: 'they',
+    characters: { ...state.characters, 'char-1': { ...state.characters['char-1'], gender: 'male' } } }))
+  await openScreenCompanion()
+  const context = JSON.parse(open.mock.calls[0][0])
+  expect(context.profiles['char-1'].gender).toBe('male')
+  expect(context.scene.readerPronouns).toBe('they')
+})
+
 it('keeps laptop dialogue, its expression and the decision point together in the saved scene, once', async () => {
   const before = useGameStore.getState().toGameSave()
   await openScreenCompanion()

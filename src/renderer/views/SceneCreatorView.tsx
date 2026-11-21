@@ -6,12 +6,19 @@
 import { useEffect, useMemo, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 
+import {
+  asReaderPronouns,
+  genderOf,
+  READER_PRONOUN_LABELS,
+  READER_PRONOUNS
+} from '@shared/gender'
 import { isCustomOutfitSlot, outfitLabelOf } from '@shared/outfits'
 import { STAT_KEYS, STAT_LABELS, MAX_TIER, MIN_TIER, tierName, pointsForStartingTier, type StartingStatTier } from '@shared/playerStats'
 import { MIN_CHALLENGE_TIER, STARTING_CHALLENGE_MOD } from '@shared/startingChallenge'
 import { DISPOSITION_LABELS, type Disposition } from '@shared/relationship'
 import {
   effectiveDisposition,
+  flagsOfEntry,
   normalizeMilestones,
   SCENE_DISPOSITIONS,
   SCENE_FIRST_DATE,
@@ -23,7 +30,7 @@ import {
 } from '@shared/sceneCreator'
 import {
   allBackgrounds,
-  DEFAULT_PLAYER_FIRST_NAME,
+  DEFAULT_PLAYER_FIRST_NAMES,
   DEFAULT_PLAYER_LAST_NAME,
   fullNameOf,
   roomBgIdOf,
@@ -508,11 +515,21 @@ function SceneRow({
   )
 }
 
-/** Who the reader is: his name, his three stats by tier, and his own words about himself. */
+/** The pronoun select's options, in the order New Game offers them. */
+const PRONOUN_OPTIONS = READER_PRONOUNS.map((value) => ({
+  value,
+  label: READER_PRONOUN_LABELS[value]
+}))
+
+/**
+ * Who the reader is: his name, his pronouns, his three stats by tier, and his own words about
+ * himself.
+ */
 function ReaderColumn({ draft }: { draft: SceneDraft }): JSX.Element {
   const store = useSceneCreatorStore.getState()
   const challengeEnabled = useModOn(STARTING_CHALLENGE_MOD)
   const { reader } = draft
+  const pronouns = asReaderPronouns(reader.pronouns)
   return (
     <section className="vu-scene-reader" aria-label="Reader">
       <h2 className="vu-scene-reader-head">Reader</h2>
@@ -521,7 +538,7 @@ function ReaderColumn({ draft }: { draft: SceneDraft }): JSX.Element {
           id="scene-reader-first"
           label="First name"
           value={reader.firstName}
-          placeholder={DEFAULT_PLAYER_FIRST_NAME}
+          placeholder={DEFAULT_PLAYER_FIRST_NAMES[pronouns]}
           maxLength={32}
           onChange={(firstName) => store.patchReader({ firstName })}
         />
@@ -535,6 +552,13 @@ function ReaderColumn({ draft }: { draft: SceneDraft }): JSX.Element {
         />
       </div>
       <div className="vu-scene-reader-stats">
+        <SelectField
+          id="scene-reader-pronouns"
+          label="Pronouns"
+          value={pronouns}
+          options={PRONOUN_OPTIONS}
+          onChange={(value) => store.patchReader({ pronouns: asReaderPronouns(value) })}
+        />
         {STAT_KEYS.map((key) => (
           <SelectField
             key={key}
@@ -610,6 +634,7 @@ function PanelFor({
           <SceneMilestonesModal
             theme={theme}
             character={character}
+            gender={genderOf(character)}
             entry={entry}
             onChange={(milestones) => store.patchRow(panel.row, { milestones })}
             onClose={onClose}
@@ -623,6 +648,13 @@ function PanelFor({
             character={character}
             others={cast.filter((other) => other.charId !== character.charId)}
             pairs={draft.pairs}
+            people={Object.fromEntries(
+              draft.rows.flatMap((row) => {
+                if (!row) return []
+                const who = characters[row.charId]
+                return [[row.charId, { character: who, flags: flagsOfEntry(row, who) }]]
+              })
+            )}
             onChange={(other, relation) => store.setRelation(character.charId, other, relation)}
             onClose={onClose}
           />

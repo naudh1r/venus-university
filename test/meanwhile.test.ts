@@ -2,6 +2,7 @@ import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MEANWHILE_MOD, meanwhileEvents, normalizeMeanwhile, validateMeanwhile, withMeanwhile, type MeanwhileScene, type MeanwhileResponse } from '@shared/meanwhile'
 import type { GameSave, Result } from '@shared/types'
+import type { NpcEncounter } from '@shared/npcRelationships'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { useModsStore } from '../src/renderer/stores/modsStore'
 import { generateMeanwhile } from '../src/renderer/stores/meanwhile'
@@ -26,6 +27,18 @@ beforeEach(seed)
 afterEach(async()=>{await writesSettled();restoreApi();vi.restoreAllMocks()})
 
 describe('spectator cache rules',()=>{
+  it.each<NpcEncounter>([
+    { date: 6, kind: 'together' }, { date: 6, kind: 'brokeUp' },
+    { date: 6, kind: 'jealous', by: 'a', of: 'c' },
+    { date: 6, kind: 'foundOut', by: 'a' },
+    { date: 6, kind: 'sided', by: 'a', of: 'c' },
+    { date: 6, kind: 'turnedDown', by: 'a' }
+  ])('does not invent a meeting place for the new NPC event $kind', encounter => {
+    useGameStore.setState({ npcRelationships: { 'a|b': { affinity: 2, encounter } } })
+    const before = structuredClone(game().npcRelationships)
+    expect(meanwhileEvents(game())).toEqual([])
+    expect(game().npcRelationships).toEqual(before)
+  })
   it('bounds and validates imported records, including both speakers and no additional participants',()=>{
     expect(normalizeMeanwhile({scenes:[null,{...scene(),date:NaN},{...scene(),lines:[{speaker:'player',text:'Hi'}]},scene()]}).scenes).toHaveLength(1)
     expect(normalizeMeanwhile({scenes:Array.from({length:80},(_,i)=>({...scene(),id:String(i)}))}).scenes).toHaveLength(50)

@@ -48,7 +48,7 @@ beforeEach(async () => {
   await mkdir(getDataPath(), { recursive: true })
   await writeFile(getSettingsPath(), JSON.stringify({ ...defaultSettings(), apiKey: '', lessNsfwText: false }))
   await createPlaythrough(record(), useGameStore.getState().toGameSave(), SOURCE_ID)
-  reflectionId = (await createCharacter('QA', 'Character')).charId
+  reflectionId = (await createCharacter('QA', 'Character', 'female')).charId
   await writePortableReflection(reflectionId, REFLECTION)
   await mkdir(join(getDataPath(), 'echoes', 'art'), { recursive: true })
   await writeFile(join(getDataPath(), echoArtEntry(ART_ID)), PNG)

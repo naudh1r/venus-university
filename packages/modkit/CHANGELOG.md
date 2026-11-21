@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Scene exchange context includes each participant's normalized `gender` and
+  `scene.readerPronouns`, so auxiliary scenes preserve 0.9 identities without
+  inferring them from names.
+
+- Venus University 0.9.2 integration keeps the existing positional prompt helpers,
+  second-person memory status calls, and requests without a `thinking` row working.
+  New calls can use upstream's gender, attraction and reader-pronoun arguments and
+  per-task reasoning rows; legacy `minThinking` still raises the selected level.
+  Scene prompt hooks keep the older `subjectTags` list and add `subjectTagsByGender`.
+- New Game's prompt-text edits and custom class counts apply to the new split
+  requests, including combined profile/secrets calls and later-semester students.
+  Editable defaults now match upstream's gender-neutral prose and `lowrise` answer.
+
 - Activities can call `setSceneSuggestionsPaused` to pause optional scene suggestions for
   the loaded game. Providers can query `sceneSuggestionsPaused`, render from
   `useSceneSuggestionsPaused` or observe boolean changes with `subscribeSceneSuggestionsPaused`.

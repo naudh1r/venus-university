@@ -34,9 +34,9 @@ export const TRAIT_DESCRIPTIONS: Readonly<Record<NativeCharacterTrait, string>> 
   'Terminally Online':
     'addicted to social media or online content',
   Promiscuous:
-    'hooks-up frequently and doesn\'t get jealous of her partners',
+    'hooks-up frequently and doesn\'t get jealous of their partners',
   'High Standards':
-    'picky about who she\'s attracted to'
+    'picky about who they\'re attracted to'
 }
 
 /** A trait's stored value and presentation. Gameplay effects use their own hooks. */
