@@ -3,7 +3,8 @@
 ## 0.8.2
 
 - `comfyNodePackState` checks the loaded classes on the player's own ComfyUI, with a short
-  deadline and a one-minute cache cleared when its source or address changes.
+  deadline and a one-minute cache cleared when its source or address changes. The existing
+  `subscribeLocalImageSource` also notifies mods when the external address changes.
 
 - Main code can pin a ComfyUI custom-node pack of its own with `registerComfyNodePack`, install it
   into the game's managed ComfyUI on demand with `installComfyNodePack`, and read it with
