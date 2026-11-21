@@ -1263,6 +1263,15 @@ export function duoHeadCount(sender: Character, friend: Character): string[] {
       : ['1girl', '1boy']
 }
 
+/**
+ * One person's half of a wide picture with her own subject in place of the head count, for the
+ * face pass, which redraws her face alone and drew a second face under the picture's count.
+ */
+export function faceHalfOf(half: string, person: Character): string {
+  const own = genderOf(person) === 'male' ? '1boy, solo, male_focus' : '1girl, solo'
+  return half.replace(/\b(?:2girls, multiple_girls|1girl, 1boy|2boys, multiple_boys)\b/, own)
+}
+
 /** The scene's subject tags: the head count, then the adult tags for who is in it. */
 function duoSubjects(sender: Character, friend: Character): string[] {
   const boys = [sender, friend].filter((person) => genderOf(person) === 'male').length

@@ -30,7 +30,7 @@ import {
 } from '../../shared/photoTypes'
 import { photoSwitches, PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 import { isPhotoTier, type PhotoTier } from '../../shared/photoGate'
-import { buildDuoPhotoPrompt, buildPhotoPrompt } from '../../shared/photoPrompt'
+import { buildDuoPhotoPrompt, buildPhotoPrompt, faceHalfOf } from '../../shared/photoPrompt'
 import { unreadPhotoParts } from '../../shared/photoPose'
 import {
   beginPhotoFile, copyPhotoFile, dropPhotoTwins, findPhotoImage, findPhotoSidecar,
@@ -355,6 +355,9 @@ export async function generatePhoto(
 /** The two people's own prompt nodes, the same ids in the portrait and the wide graph. */
 const DUO_GIRL_NODE = { left: '50', right: '51' } as const
 
+/** The wide graph's face-pass prompt nodes, one per person. */
+const DUO_FACE_NODE = { left: '80', right: '81' } as const
+
 /**
  * Whether a wide picture of two can be drawn: `yes` where the game's ComfyUI has ComfyUI-ppm,
  * `try` on the player's own ComfyUI, which is only known by asking it, and `no` otherwise.
@@ -435,7 +438,17 @@ export async function generateDuoPhoto(
       workflow: wide ? wideDuoWorkflow : duoWorkflow,
       nodes: DUO_PHOTO_NODE,
       prompts: { positive: prompts.positive, negative: prompts.negative },
-      texts: { [DUO_GIRL_NODE.left]: prompts.left, [DUO_GIRL_NODE.right]: prompts.right },
+      texts: {
+        [DUO_GIRL_NODE.left]: prompts.left,
+        [DUO_GIRL_NODE.right]: prompts.right,
+        // The wide graph's face pass reads each person's own prompt, not the picture's count.
+        ...(wide
+          ? {
+              [DUO_FACE_NODE.left]: faceHalfOf(prompts.left, character),
+              [DUO_FACE_NODE.right]: faceHalfOf(prompts.right, friend)
+            }
+          : {})
+      },
       seed
     }, {
       schemaVersion: 1, seed, tier, ...prompts, ...(wide ? { orientation: 'wide' as const } : {})

@@ -264,7 +264,7 @@
         2
       ],
       "positive": [
-        "50",
+        "80",
         0
       ],
       "negative": [
@@ -335,7 +335,7 @@
         2
       ],
       "positive": [
-        "51",
+        "81",
         0
       ],
       "negative": [
@@ -526,6 +526,26 @@
         "75",
         0
       ]
+    }
+  },
+  "80": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "3",
+        1
+      ],
+      "text": ""
+    }
+  },
+  "81": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "3",
+        1
+      ],
+      "text": ""
     }
   }
 }

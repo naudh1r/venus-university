@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { groupPhotoPair, photoFriendHandle } from '../src/shared/photoDuo'
-import { buildDuoPhotoPrompt, duoHeadCount, withoutTouching } from '../src/shared/photoPrompt'
+import { buildDuoPhotoPrompt, duoHeadCount, faceHalfOf, withoutTouching } from '../src/shared/photoPrompt'
 import { character } from './fixtures'
 
 describe('who is in a group photo', () => {
@@ -249,5 +249,10 @@ describe('a picture of two', () => {
     const prompts = buildDuoPhotoPrompt(risa, ana, 'everyday', 'A selfie of me and Ana at the park')
     expect(prompts.left).toContain('outstretched_arm')
     expect(prompts.right).not.toContain('outstretched_arm')
+  })
+
+  it('gives the face pass each person\'s own subject in place of the head count', () => {
+    expect(faceHalfOf('masterpiece, 2girls, multiple_girls, pink_hair', risa)).toBe('masterpiece, 1girl, solo, pink_hair')
+    expect(faceHalfOf('masterpiece, 1girl, 1boy, short_hair', { ...ana, gender: 'male' } as typeof ana)).toBe('masterpiece, 1boy, solo, male_focus, short_hair')
   })
 })
