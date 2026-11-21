@@ -173,3 +173,43 @@ describe('a group of options', () => {
     expect(withOption(blue, 'look', 'blue', false, LIST)).toBe(blue)
   })
 })
+
+describe('an option requirement', () => {
+  const mod: ModDef = { ...base, id: 'dependent', name: 'Dependent', scope: 'anytime', defaultOn: true,
+    options: [
+      { id: 'parent', label: 'Parent', hint: '', default: false },
+      { id: 'child', label: 'Child', hint: '', default: true, requires: 'parent' },
+      { id: 'last', label: 'Last', hint: '', default: true, requires: 'child' }
+    ] }
+  const mods = [mod]
+
+  it('uses the effective required option through a chain and stays independent of the mod switch', () => {
+    expect(optionOn(NO_SWITCHES, mod.id, 'child', mods)).toBe(false)
+    expect(optionOn(NO_SWITCHES, mod.id, 'last', mods)).toBe(false)
+    const on = withOption(NO_SWITCHES, mod.id, 'parent', true, mods)
+    expect(optionOn(on, mod.id, 'last', mods)).toBe(true)
+    const off = withMod(on, mod.id, false)
+    expect(modOn(off, mod.id, undefined, mods)).toBe(false)
+    expect(optionOn(off, mod.id, 'last', mods)).toBe(true)
+  })
+
+  it('keeps the player’s stored child choice when the required option goes off and back on', () => {
+    const chosen = withOption(withOption(NO_SWITCHES, mod.id, 'parent', true, mods), mod.id, 'child', true, mods)
+    const blocked = withOption(chosen, mod.id, 'parent', false, mods)
+    expect(blocked.options['dependent:child']).toBe(true)
+    expect(optionOn(blocked, mod.id, 'child', mods)).toBe(false)
+    expect(optionOn(withOption(blocked, mod.id, 'parent', true, mods), mod.id, 'child', mods)).toBe(true)
+    const declined = withOption(chosen, mod.id, 'child', false, mods)
+    const restored = withOption(withOption(declined, mod.id, 'parent', false, mods), mod.id, 'parent', true, mods)
+    expect(optionOn(restored, mod.id, 'child', mods)).toBe(false)
+  })
+
+  it('fails closed for a missing requirement or a cycle in an unchecked definition', () => {
+    const missing = { ...mod, options: [{ ...mod.options![1], requires: 'missing' }] }
+    expect(optionOn(NO_SWITCHES, mod.id, 'child', [missing])).toBe(false)
+    const cycle = { ...mod, options: [
+      { ...mod.options![1], requires: 'last' }, { ...mod.options![2], requires: 'child' }
+    ] }
+    expect(optionOn(NO_SWITCHES, mod.id, 'child', [cycle])).toBe(false)
+  })
+})

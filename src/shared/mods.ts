@@ -1,3 +1,4 @@
+import { optionDependencyError } from '../../packages/modkit/src/shared/optionRules'
 import type { PlaythroughRecord } from './types'
 
 /**
@@ -34,6 +35,8 @@ export interface ModOption {
    * Mods screen shows them together, under the group's own label and hint.
    */
   group?: string
+  /** Another option of the same mod this one needs. While that one is off, this one counts as off. */
+  requires?: string
 }
 
 /** What a group of options is, shown once above them. */
@@ -80,7 +83,12 @@ const ENTRIES = import.meta.glob<ModDef>('./modEntries/*.ts', { eager: true, imp
 /** The list itself, which {@link installMods} and {@link setInstalledMods} change in place so every holder of `MODS` sees the same list. */
 const list: ModDef[] = Object.keys(ENTRIES)
   .sort()
-  .map((file) => ENTRIES[file])
+  .map((file) => {
+    const mod = ENTRIES[file]
+    const error = optionDependencyError(mod.options ?? [])
+    if (error) throw new Error(`[mods] ${mod.id}: ${error}`)
+    return mod
+  })
 
 /**
  * Every mod in this build, in the order the Mods screen lists them and the hooks are asked: by
@@ -204,16 +212,25 @@ export function modOn(
   return globallyOn(switches, id, mods)
 }
 
-/** Where one of a mod's options stands. An option nobody declared is off. */
+/** An option is on only while its own choice and every required option are on. */
 export function optionOn(
   switches: ModSwitches,
   modId: string,
   optionId: string,
   mods: readonly ModDef[] = MODS
 ): boolean {
-  const option = modById(modId, mods)?.options?.find((o) => o.id === optionId)
+  const options = modById(modId, mods)?.options ?? []
+  const seen = new Set<string>()
+  let option = options.find((entry) => entry.id === optionId)
   if (!option) return false
-  return switches.options[optionKey(modId, optionId)] ?? option.default
+  while (option) {
+    if (seen.has(option.id)) return false
+    seen.add(option.id)
+    if (!(switches.options[optionKey(modId, option.id)] ?? option.default)) return false
+    if (option.requires === undefined) return true
+    option = options.find((entry) => entry.id === option?.requires)
+  }
+  return false
 }
 
 export function withMod(switches: ModSwitches, id: string, on: boolean): ModSwitches {

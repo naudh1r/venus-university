@@ -135,6 +135,18 @@ modOn(switches, 'city-life-locations', record)
 
 An option is read the same way: `useModOption(modId, optionId)` or `optionOn(switches, …)`.
 
+Since kit 0.8.3, an ungrouped option can name another ungrouped option of the same mod with
+`requires: 'other-option-id'`. While the required option is off, the dependent option counts as
+off in shared, renderer and main readers. The player's stored choice is kept, so turning the
+requirement back on restores that choice. Requirements can form a chain, but a missing option,
+self-reference, cycle, or a requirement involving a grouped option is refused for installed and
+built-in definitions. Option reads remain independent of the mod's own on/off switch.
+
+The Mods screen shows the dependent switch off and disabled while its requirement is off,
+with a short note naming the required option. Its `optionControls` contribution is hidden for
+that time. A mod-specific settings screen should use the same effective option reader and keep
+stored choices intact.
+
 **3. Keep its data when it is off.** Off stops a mod acting. It never deletes what the mod
 wrote, so a save always loads and switching back on finds everything where it was.
 

@@ -323,12 +323,17 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
                 <ul className="vu-mods-options">
                   {selected.options.map((option, index, all) => {
                     if (!option.group) {
-                      const Control = optionControl(selected.id, option.id)
+                      const required = selected.options?.find((entry) => entry.id === option.requires)
+                      const blocked = Boolean(option.requires && !optionOn(switches, selected.id, option.requires))
+                      const Control = blocked ? null : optionControl(selected.id, option.id)
                       return (
                         <li key={option.id} className="vu-mods-option">
                           <span className="vu-mods-option-text">
                             <span className="vu-mods-option-label">{option.label}</span>
                             <span className="vu-mods-option-hint">{option.hint}</span>
+                            {blocked && required && (
+                              <span className="vu-check-note">Needs {required.label}.</span>
+                            )}
                             {Control && (
                               <span className="vu-mods-option-control">
                                 <SlotBoundary slot="optionControls" modId={selected.id}>
@@ -343,6 +348,7 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
                           <Switch
                             id={`mods-option-${selected.id}-${option.id}`}
                             label={option.label}
+                            disabled={blocked}
                             on={optionOn(switches, selected.id, option.id)}
                             onChange={(on) => request({ modId: selected.id, optionId: option.id, on })}
                           />

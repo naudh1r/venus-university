@@ -1,4 +1,5 @@
 import type { ModDef, ModOption, ModOptionGroup, ModScope } from '../bridge/shared'
+import { optionDependencyError } from './optionRules'
 import { manifestHooks } from './compat'
 import { parseRange, parseVersion } from './range'
 
@@ -253,6 +254,9 @@ function read(json: unknown, folder: { id: string; version: string } | null): Ma
     }
   }
 
+  const optionError = optionDependencyError(options ?? [])
+  if (optionError) refuse(optionError)
+
   const library = get('library')
   boolean('library', library, false)
   const exportsValue = get('exports')
@@ -346,14 +350,18 @@ function optionList(value: unknown): ModOption[] | undefined {
   if (!Array.isArray(value)) refuse('"options" is not a list')
   const options: ModOption[] = []
   for (const item of value) {
-    const fields = entry('options', item, ['id', 'label', 'hint', 'default', 'group'])
+    const fields = entry('options', item, ['id', 'label', 'hint', 'default', 'group', 'requires'])
     const id = fields.id as string
     if (typeof field(fields, 'default') !== 'boolean') refuse(`option ${id} has no "default" of true or false`)
     const group = field(fields, 'group')
     if (group !== undefined && typeof group !== 'string') refuse(`option ${id} has a "group" that is not a string`)
     if (options.some((option) => option.id === id)) refuse(`"options" has ${id} twice`)
     const option: ModOption = { id, label: fields.label as string, hint: fields.hint as string, default: fields.default as boolean }
-    options.push(group === undefined ? option : { ...option, group })
+    if (group !== undefined) option.group = group
+    const requires = field(fields, 'requires')
+    if (requires !== undefined && typeof requires !== 'string') refuse(`option ${id} has a "requires" that is not a string`)
+    if (requires !== undefined) option.requires = requires as string
+    options.push(option)
   }
   return options
 }
