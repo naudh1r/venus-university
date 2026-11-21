@@ -29,10 +29,10 @@
   border-radius: 12px;
 }
 
-/* The three states that are not a photograph. Each keeps the bubble's width *and* the shape a
-   photograph comes back in — 832x1216, the size `characterPhoto.json` renders at — so nothing
-   moves when the picture lands on top of the frame that was waiting for it. Change the graph's
-   latent and this follows it. */
+/* The three states that are not a photograph. Each keeps the bubble's width *and* the shape most
+   photographs come back in — 832x1216, the portrait size `characterPhoto.json` renders at — so
+   nothing moves when a portrait lands on top of the frame that was waiting for it; a wide one,
+   1216x832, comes back shorter. Change the graph's latent and this follows it. */
 .vu-bb-photo--pending,
 .vu-bb-photo--failed {
   display: grid;
@@ -168,8 +168,9 @@
 
 /* ---- a picture on a post -------------------------------------------------- */
 
-/* Held to a block rather than the column's width: her renders are 2:3 portraits, and one at
-   full width would be the card rather than a part of it. */
+/* Held to a block rather than the column's width: most of her renders are 2:3 portraits, and one
+   at full width would be the card rather than a part of it. A wide one keeps the same width and
+   its own height. */
 .vu-bb-post-shot {
   position: relative;
   width: min(100%, 330px);

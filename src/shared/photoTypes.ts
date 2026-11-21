@@ -12,10 +12,17 @@ export interface PhotoPrompts {
   right?: string
 }
 
-/** Optional overrides for a redraw; omitted values use today's builder and a fresh seed. */
+/** The shape a picture is drawn in: 832x1216 standing up, or 1216x832 lying on its side. */
+export type PhotoOrientation = 'portrait' | 'wide'
+
+/**
+ * Optional overrides for a redraw; omitted values use today's builder and a fresh seed, and an
+ * omitted orientation the default for the picture.
+ */
 export interface PhotoRenderOptions {
   seed?: number
   prompts?: PhotoPrompts
+  orientation?: PhotoOrientation
 }
 
 /** What reached ComfyUI, kept beside the picture rather than in the save. */
@@ -24,6 +31,8 @@ export interface PhotoSidecar extends PhotoPrompts {
   seed: number
   tier: string
   lora?: { name: string; weight: number }
+  /** Written only for a wide picture; absent, it was drawn portrait. */
+  orientation?: 'wide'
 }
 
 /** A recorded prompt, or today's reconstruction for a picture without a usable sidecar. */
@@ -32,6 +41,7 @@ export interface PhotoInfo extends PhotoPrompts {
   seed?: number
   tier: string
   lora?: { name: string; weight: number }
+  orientation: PhotoOrientation
 }
 
 /** One picture on a thread, in whichever state the render left it. */

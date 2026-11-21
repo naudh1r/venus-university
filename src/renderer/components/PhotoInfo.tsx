@@ -20,6 +20,7 @@ import { photoGenerationOn } from '../../shared/photoSwitches'
 import type {
   ChatPhoto,
   PhotoInfo,
+  PhotoOrientation,
   PhotoPrompts,
   PhotoRenderOptions
 } from '../../shared/photoTypes'
@@ -125,6 +126,8 @@ function PhotoInfoModal({
   const [recorded, setRecorded] = useState(false)
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState('')
+  // A picture of two is drawn wide only through ComfyUI-ppm, so without it there is no switch to wide.
+  const [wideOffered, setWideOffered] = useState(!friend)
   const photosOn = photoGenerationOn(usePhotoSwitches())
   const id = useId()
   const body = useRef<HTMLDivElement>(null)
@@ -139,7 +142,45 @@ function PhotoInfoModal({
       ...(friend ? { left: info.left ?? '', right: info.right ?? '' } : {})
     }
     onClose()
-    onRedraw({ seed: same ? info.seed : undefined, prompts })
+    onRedraw({ seed: same ? info.seed : undefined, prompts, orientation: info.orientation })
+  }
+  const turned: PhotoOrientation = info?.orientation === 'wide' ? 'portrait' : 'wide'
+
+  /**
+   * Redraws in the other orientation with the same seed where there is one and the prompts in the
+   * fields; a picture of two takes each person's prompt as built for the other method.
+   */
+  const switchOrientation = async (): Promise<void> => {
+    if (dead || !info) return
+    let halves: Pick<PhotoPrompts, 'left' | 'right'> = {}
+    if (friend) {
+      setBusy(true)
+      setError('')
+      try {
+        const result = await photoInvoke('info', [
+          playthroughId,
+          character,
+          friend,
+          photo.tier,
+          photo.scene ?? '',
+          photo.file,
+          true,
+          turned
+        ])
+        if (!result.ok) throw new Error(result.error.message)
+        halves = { left: result.data.left ?? '', right: result.data.right ?? '' }
+      } catch {
+        setError('Could not rebuild the photo prompt.')
+        setBusy(false)
+        return
+      }
+    }
+    onClose()
+    onRedraw({
+      seed: info.seed,
+      prompts: { positive: info.positive, negative: info.negative, ...halves },
+      orientation: turned
+    })
   }
   const { host, overlayProps, primaryProps } = useModalShell(onClose, 'panel', () =>
     redraw(info?.seed !== undefined)
@@ -203,6 +244,13 @@ function PhotoInfoModal({
       .finally(() => {
         if (active) setBusy(false)
       })
+    if (friend) {
+      void photoInvoke('ppmState', [])
+        .then((result) => {
+          if (active) setWideOffered(result.ok && result.data !== 'missing' && result.data !== 'invalid')
+        })
+        .catch(() => {})
+    }
     return () => {
       active = false
     }
@@ -222,7 +270,8 @@ function PhotoInfoModal({
         photo.tier,
         photo.scene ?? '',
         photo.file,
-        true
+        true,
+        info?.orientation
       ])
       if (result.ok) {
         refitFields.current = true
@@ -324,6 +373,19 @@ function PhotoInfoModal({
             >
               Close
             </motion.button>
+            {info && (turned === 'portrait' || wideOffered) && (
+              <motion.button
+                type="button"
+                disabled={dead}
+                className="vu-btn vu-btn--quiet"
+                {...gestures(dead, quietLift, quietPress)}
+                onClick={() => {
+                  void switchOrientation()
+                }}
+              >
+                {turned === 'wide' ? 'Switch to wide' : 'Switch to portrait'}
+              </motion.button>
+            )}
             <motion.button
               type="button"
               disabled={dead}

@@ -26,7 +26,7 @@ const { setModSwitches } = await import('../src/main/services/modsService')
 const { setRendererPhotoSwitches } = await import('./fixtures/photoSwitchState')
 const { redrawMessagePhoto } = await import('../src/renderer/stores/photoTurn')
 const { redrawPostPhoto } = await import('../src/renderer/stores/photoPost')
-const { dropPhoto, retirePhoto, flushRetiredPhotos, photoInfo } = await import(
+const { dropPhoto, retirePhoto, flushRetiredPhotos, photoInfo, validatePhotoOverrides } = await import(
   '../src/main/services/localPhotoService'
 )
 const girl = character({ charId: 'a' })
@@ -171,7 +171,31 @@ describe('gender in recorded and rebuilt photo info', () => {
 
     const info = await photoInfo('1', girl, undefined, 'explicit', 'nude', 'sarah_chat_001.png')
 
-    expect(info).toEqual({ ...saved, recorded: true })
+    expect(info).toEqual({ ...saved, recorded: true, orientation: 'portrait' })
     expect(JSON.parse(await readFile(image('sarah_chat_001.json'), 'utf8'))).toEqual(saved)
+  })
+})
+
+describe('a photo\u2019s orientation', () => {
+  it('reads a recorded wide picture, and refuses a record naming any other orientation', async () => {
+    const saved = { schemaVersion: 1, seed: 7, tier: 'everyday', positive: 'at the cafe', negative: 'lowres' }
+    await writeFile(image('sarah_chat_001.json'), JSON.stringify({ ...saved, orientation: 'wide' }))
+    await writeFile(image('sarah_chat_002.json'), JSON.stringify({ ...saved, orientation: 'portrait' }))
+
+    expect(await photoInfo('1', girl, undefined, 'everyday', 'at the cafe', 'sarah_chat_001.png'))
+      .toEqual({ ...saved, recorded: true, orientation: 'wide' })
+    const refused = await photoInfo('1', girl, undefined, 'everyday', 'at the cafe', 'sarah_chat_002.png')
+    expect(refused.recorded).toBe(false)
+    expect(refused.seed).toBeUndefined()
+    expect(refused.orientation).toBe('portrait')
+  })
+
+  it('accepts a redraw in either orientation and refuses any other', () => {
+    for (const orientation of ['portrait', 'wide'] as const) {
+      expect(() => validatePhotoOverrides({ orientation }, true)).not.toThrow()
+    }
+    for (const orientation of ['landscape', 1, null]) {
+      expect(() => validatePhotoOverrides({ orientation }, false)).toThrow(/orientation/)
+    }
   })
 })

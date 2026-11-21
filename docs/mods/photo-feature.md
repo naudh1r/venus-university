@@ -17,6 +17,8 @@ This is not made or supported by Venus Dev. Please do not report problems with i
   in Settings. The browser version never makes photos.
 - Photos use the game's own photo checkpoint and style LoRA (`assets/workflows/characterPhoto.json`).
   Nothing else to download.
+- Optional: ComfyUI-ppm, for wide photos of two. The game's own ComfyUI installs it from
+  **Mods → Photo Feature**, under Two in one photo; your own ComfyUI needs it installed there.
 
 ## Settings
 
@@ -28,7 +30,7 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
 | Photo generation | on | Off, no new photos are made and characters are not told they can send one. Photos already sent stay visible. |
 | Explicit photos | on | Off, nobody sends an undressed photo and ones already sent stay covered. The game's own "No NSFW images" turns them off too. |
 | Body details | off | Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable from the main menu in Manage Characters, under a character's Generation settings (the default characters too), and drawn in their sprites, CGs and photos. Off, what they have is kept but not used. |
-| Two in one photo (experimental) | off | A feed post can show its author with a friend or current partner. A scene can bring a photo of any two characters, never more. See below. |
+| Two in one photo (experimental) | off | A feed post can show its author with a friend or current partner. A scene can bring a photo of any two characters, never more. With ComfyUI-ppm, installed from under this option, they are drawn wide. See below. |
 | Save photos as WebP | on | New photos are saved as WebP, with no visible quality loss while taking much less space than PNG. Off, they are saved as PNG. Photos already saved stay as they are. |
 | Loading animation | Bunny hop | What a photo shows while it is being drawn: Bunny hop, Dot shimmer or Typing dots. |
 
@@ -104,9 +106,17 @@ The two are drawn side by side, from the waist up, without touching. Each keeps 
 appearance, clothes, colours, expression and gestures in a separate half. Selfies give only
 the poster the arm holding the phone. The picture belongs to the poster’s gallery.
 
+With ComfyUI-ppm the picture is wide, 1216x832, and the two meet in the middle much less often.
+The game's own ComfyUI installs it from **Mods → Photo Feature**, under Two in one photo, after
+asking: it needs a recent ComfyUI (tested on 0.37.1), and ComfyUI restarts once it is in. On
+your own ComfyUI, install [ComfyUI-ppm](https://github.com/pamparamm/ComfyUI-ppm) yourself; a
+photo of two tried wide there without it is drawn portrait instead. Without it, photos of two
+are portrait, 832x1216, as before.
+
 Still being tuned: a face, outfit or colour sometimes comes out wrong. Close-ups and rear views
-hold less well than plain shots. The two can meet in the middle, especially in swimwear;
-a long dress beside a top can pull one person further down. A chin resting on a hand stays in
+hold less well than plain shots. In a portrait photo the two can meet in the middle, especially
+in swimwear; in a wide one a guy's hair colour sometimes spills onto the girl beside him, which
+a reroll fixes. A long dress beside a top can pull one person further down. A chin resting on a hand stays in
 the sentence, since tagging it made elbows merge across the picture.
 
 ## Where photos are kept
@@ -123,7 +133,8 @@ Finished photos travel in the game's normal backup now. To restore an older back
 Hover the photo and open the **info icon** in its bottom-right corner. It shows the prompt,
 negative, seed and LoRA used to draw it. Most problems are one word in her sentence the model
 drew too literally: change or remove it, then redraw. **Redraw with same seed** keeps the rest of
-the picture close to what it was, so you can see what your change did. A photo taken before 1.7.0
+the picture close to what it was, so you can see what your change did. **Switch to wide** or
+**Switch to portrait** redraws it the other way round, with the same seed where it has one. A photo taken before 1.7.0
 shows a rebuilt prompt and no seed, so it can only be redrawn with a new one. A redraw during a scene
 is kept once the scene next saves, at its next choice or its end: quit before then, and the photo
 you had before comes back.
@@ -132,6 +143,15 @@ If a photo stays PNG while WebP is on, look in `data/app.log` for a `[photo] kep
 
 If a photo leaves out a pose or a gesture her sentence asked for, look in `data/app.log` for a
 `[photo] no tags read for` line: it names the photo's sentence, which helps widen what the mod reads.
+
+## 1.9.0
+
+- Photos of two are drawn wide once ComfyUI-ppm is installed, which you can do from Mods, under
+  Two in one photo. The two meet in the middle less often. Without it they are drawn portrait, as
+  before.
+- The photo info panel can switch a photo between wide and portrait and redraw it.
+- A guy's own name in his caption becomes "him" or "his" instead of leaving a gap, and his photos
+  no longer ask for a flat chest.
 
 ## 1.8.0
 
@@ -417,12 +437,34 @@ checkpoint draws it.
 ### A picture of two
 
 `buildDuoPhotoPrompt` in `photoPrompt.ts` writes four strings: the scene over the whole
-picture, the sender's half, the friend's half and one negative. `assets/workflows/characterPhotoDuo.json`
-is the photo graph with each girl's prompt held to her half by `ConditioningSetArea` (strength
-2.0) and combined with the scene. Its face pass runs on each half on its own, cut out and put
-back, with that girl's own prompt: one pass over the whole picture redraws each face in a crop where
-the halves' whole-picture areas point at the wrong girl or past the crop's edge (which ComfyUI
-refuses), and driven by the scene alone it changed their eye colours. Who is in it is `photoDuo.ts`;
+picture, the sender's half, the friend's half and one negative, for one of two graphs.
+
+- **Wide**, `assets/photo/characterPhotoDuoWide.json` at 1216x832: ComfyUI-ppm's
+  `AttentionCouplePPM` patches the model with the scene over a full mask and each person's prompt
+  over a mask of their half, and the sampler's positive is the scene alone. An attention mask
+  sees the whole picture, so each half opens on its head count (`duoHeadCount`: `2girls,
+  multiple_girls`, `1girl, 1boy` or `2boys, multiple_boys`) and drops `solo` and `male_focus`.
+  It lives outside `assets/workflows`, whose graphs core checks against every server: a ppm class
+  there would stop every render on a ComfyUI without it.
+- **Portrait**, `assets/workflows/characterPhotoDuo.json` at 832x1216: each person's prompt,
+  opening `1girl, solo` or `1boy, solo`, is held to their half by `ConditioningSetArea`
+  (strength 2.0) and combined with the scene.
+
+In both, the face pass runs on each half on its own, cut out and put back, with that person's
+own prompt: one pass over the whole picture redraws each face in a crop where the halves'
+whole-picture areas point at the wrong person or past the crop's edge (which ComfyUI refuses),
+and driven by the scene alone it changed their eye colours. A solo photo drawn wide is the solo
+graph with its latent set to 1216x832.
+
+The pack is pinned in `main/photoNodePack.ts` and registered by the main entry with
+`registerComfyNodePack`; the Mods screen's control under Two in one photo
+(`components/PhotoPpmControl.tsx`, `optionControls`) reads `comfyNodePackState` and installs it
+with `installComfyNodePack`. A picture of two without an orientation asked for is drawn wide where
+the pack is `installed`, tried wide on the player's own ComfyUI and drawn again portrait on
+`COMFY_NODES_MISSING`, and portrait otherwise. A redraw names its orientation: an explicit wide
+one without the pack is refused, never drawn portrait. The sidecar records `orientation: 'wide'`
+for a wide picture and nothing for a portrait one, and `info` builds the prompts for another
+orientation when asked, which is how the switch rebuilds each person's prompt. Who is in it is `photoDuo.ts`;
 picking the pair, asking the scene's first call for its post (`requests.scene`) and filing it
 off the reply (`afterSceneReply`) is `photoGroup.ts`. The post is filed through `fileLatePost` in
 `loop/feed.ts`, the opening's own filing for a post written mid-slot, and its picture joins the
@@ -452,7 +494,7 @@ is that mod (`ownsPostComments`). It never names any other mod.
 | `renderer/stores/photoTurn.ts`, `photoPost.ts`, `photoRecovery.ts`, `photoGroup.ts`, `photoComments.ts`, `photoTipDelivery.ts` | Kit game readers and run fences; post filing through `fileLatePost`, one-shot tips through `bunnybotSays`, identity draws through the kit. Photo keeps a held post's release timestamp and nudges when it comes out. |
 | `renderer/components/PhotoBubble.tsx`, `PhotoPostSpots.tsx`, `renderer/views/ContactGallery.tsx` | Reactive `useCharacter`, `useCharacterInfo`, `useConversation`, `useFeed`, `useNpcRelationships`, `useClock` and `useGameFacts`; saved attachments read through the handles. |
 | `renderer/stores/photoInvoke.ts` | `invoke('photo-feature', name, args)`. Only `DESKTOP_ONLY` gets Photo's browser answer: carry succeeds empty; other calls retain Photo's note. |
-| `main/modEntries/photo-feature.ts`, `main/photoIpc.ts` | Built-in main entry exports `invoke` handlers: `reserve-name`, `carry`, `landed`, `read`, `store-webp`, `info`, `drop`, `generate`, `generate-duo`. Same call arguments and results as before. |
+| `main/modEntries/photo-feature.ts`, `main/photoIpc.ts` | Built-in main entry exports `invoke` handlers: `reserve-name`, `carry`, `landed`, `read`, `store-webp`, `info`, `drop`, `generate`, `generate-duo`, `ppm-state`, `install-ppm`, and registers ComfyUI-ppm. `info` takes an optional orientation after `rebuild`; redraw options take an optional `orientation`. |
 | `main/photoProtocol.ts`, `shared/photoFiles.ts` | Main entry's `photos` protocol route, `vxmod://photo-feature/@/photos/<playthrough>/<character>/<file>`. Saves keep file names, including older names; the URL is built when displayed. |
 | `main/services/localPhotoService.ts`, `main/photoFiles.ts` | `renderComfyImage`, mod data paths and saved-checkpoint checks before retiring replaced files. A deferred save alone never permits deleting an old picture. |
 | `renderer/stores/bunnyfeedsThreads.ts`, `pictureOf` only | Reads the versioned Photo slice as plain data, falling back to the old field. Companion names use kit `character`; no dependency on Photo's renderer is introduced. |
@@ -465,3 +507,6 @@ are kept either way.
 
 The code is AGPL-3.0-only, like the game (`LICENSE`). Images, audio and video remain © Venus Dev
 (`LICENSE-ASSETS.md`).
+
+Wide photos of two use [ComfyUI-ppm](https://github.com/pamparamm/ComfyUI-ppm) by pamparamm,
+AGPL-3.0, which the game downloads into its own ComfyUI only when you install it from Mods.

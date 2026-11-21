@@ -95,7 +95,8 @@ export async function readPhotoSidecar(path: string): Promise<PhotoSidecar | und
         (info.right !== undefined && typeof info.right !== 'string') ||
         (info.left === undefined) !== (info.right === undefined) ||
         (info.lora !== undefined && (!info.lora || typeof info.lora.name !== 'string' ||
-          typeof info.lora.weight !== 'number' || !Number.isFinite(info.lora.weight)))) return undefined
+          typeof info.lora.weight !== 'number' || !Number.isFinite(info.lora.weight))) ||
+        (info.orientation !== undefined && info.orientation !== 'wide')) return undefined
     return info as PhotoSidecar
   } catch { return undefined }
 }
