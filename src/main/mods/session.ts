@@ -1,12 +1,14 @@
 import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { readFileSync } from 'fs'
 import { basename, resolve } from 'path'
+import { toAppError } from '@shared/errors'
 import type { ModSessionTable, ModStatus, SafeStart } from '@shared/modSession'
-import { BUILD, MODS, setInstalledMods } from '@shared/mods'
+import { BUILD, MODS, setInstalledMods, type ModSwitches } from '@shared/mods'
 import type { Settings } from '@shared/types'
 import { getModsDirPath, getSettingsPath } from '../paths'
-import { bindModSession } from '../services/modsService'
+import { bindModSession, readModSwitches } from '../services/modsService'
 import { patchStoredSettings } from '../services/settingsService'
+import { writeKnownMods } from './known'
 import { addDevFolder, devFolders, removeDevFolder, watchDevFolder, type DevChangeKind } from './devFolders'
 import { loadMods, type LoaderResult } from './loader'
 import { handleModProtocol } from './protocol'
@@ -81,6 +83,25 @@ export function startModSession(): void {
     })
   )
   bindModSession(modSession)
+  void recordKnownMods()
+}
+
+/**
+ * Writes `data/mods/known.json` from the table this start settled on and the switches in
+ * `mods.json`. Runs alongside the rest of the start and never stops it: a `mods.json` that will
+ * not read leaves the last record as it was, rather than writing every switch at its default.
+ */
+async function recordKnownMods(): Promise<void> {
+  let switches: ModSwitches
+  try {
+    switches = await readModSwitches()
+  } catch (err) {
+    const failure = toAppError(err)
+    console.warn(`[mods] known.json not written: mods.json did not read: ${failure.detail ?? failure.message}`)
+    return
+  }
+  const builtIn = MODS.filter((mod) => BUILT_IN_IDS.includes(mod.id))
+  await writeKnownMods(getModsDirPath(), { builtIn, table: modSession(), switches }, (line) => console.warn(line))
 }
 
 /** The table as it stands; empty until {@link startModSession} has run. */
