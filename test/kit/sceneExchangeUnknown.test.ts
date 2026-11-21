@@ -46,3 +46,15 @@ it('still excludes characters who departed, are outside the cast, or have no por
     useGameStore.setState(state => ({ cast: ['unmet'], characters: { unmet: { ...state.characters.unmet, pose: '' } } }))
   expect(sceneExchangeContext().people).toEqual([])
 })
+
+// The detached context must carry identity explicitly, including an unknown participant.
+it.each(['he', 'she', 'they'] as const)('keeps a male character and a %s reader in exchange context', pronouns => {
+  useGameStore.setState(state => ({ playerPronouns: pronouns,
+    characters: { ...state.characters, unmet: { ...state.characters.unmet, gender: 'male' } } }))
+  const context = sceneExchangeContext()
+  expect(context.people[0].profile.gender).toBe('male')
+  expect(context.people[0].relationship.nameKnown).toBe(false)
+  expect(context.scene.readerPronouns).toBe(pronouns)
+  context.people[0].profile.gender = 'female'
+  expect(useGameStore.getState().characters.unmet.gender).toBe('male')
+})

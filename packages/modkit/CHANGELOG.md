@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Scene exchange context includes each participant's normalized `gender` and
+  `scene.readerPronouns`, so auxiliary scenes preserve 0.9 identities without
+  inferring them from names.
+
 - Venus University 0.9.2 integration keeps the existing positional prompt helpers,
   second-person memory status calls, and requests without a `thinking` row working.
   New calls can use upstream's gender, attraction and reader-pronoun arguments and
