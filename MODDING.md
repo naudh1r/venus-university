@@ -688,7 +688,13 @@ onProgress })` (`main:installComfyNodePack`), and reads where it stands with
 - `missing`: no folder, or the game's ComfyUI runtime is not installed.
 - `invalid`: the folder is there but a dependency does not import; an install repairs it without
   downloading again.
-- `unmanaged`: the player's own ComfyUI is the image source. The player installs the pack there.
+- On the player's own ComfyUI, `installed` means every class in the pack's `classes` is
+  present in that server's `/object_info`. `missing` means at least one is absent.
+- `unmanaged`: the player's own server could not answer the node probe within two seconds.
+  The player installs the pack there themselves.
+
+External probes share a one-minute cache per address, including unavailable answers. Changing
+ComfyUI's source or address in Settings clears it. The managed states above are unchanged.
 
 An install goes into the game's own install only: it answers `COMFY_NODE_PACK_UNMANAGED` while the
 player's own ComfyUI is the source and `COMFY_RUNTIME_REQUIRED` before the runtime is installed.
