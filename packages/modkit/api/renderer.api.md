@@ -320,11 +320,18 @@ export function formatShortGameDate(date: number, season: Season): string;
 // @public
 export function freeForInvitation(id: string): boolean;
 
-// @public
-export function gameFacts(): {
+// @public (undocumented)
+export interface GameFacts {
+    // (undocumented)
     playthroughId: string | null;
+    // (undocumented)
     readerName: string;
-};
+    // (undocumented)
+    readerPronouns: ReaderPronouns;
+}
+
+// @public
+export function gameFacts(): GameFacts;
 
 // @public
 export interface GameMenuItemProps {
@@ -872,6 +879,7 @@ export interface PromptSpots {
 export interface PromptState {
     addedNotices?: readonly AddedNotice[];
     affection?: Record<string, number>;
+    ages?: Readonly<Record<string, number>>;
     backFromBreak?: readonly string[];
     backgrounds: BackgroundSets;
     bg: string | null;
@@ -1486,6 +1494,7 @@ export function slotHalf(time: TimeSlot): 'day' | 'night';
 
 // @public
 export interface SlotIntroInput {
+    ages?: Readonly<Record<string, number>>;
     askers: readonly IntroAsker[];
     backgroundLore?: readonly string[];
     backOnCampus?: number;
@@ -1665,6 +1674,7 @@ export interface TextFieldProps {
 
 // @public
 export interface TextingPromptState {
+    ages?: Readonly<Record<string, number>>;
     calendar: SemesterCalendar;
     charCompanions?: NpcCompanions;
     charHaunt?: Haunt | null;
@@ -1804,10 +1814,7 @@ export const useFeed: (id: string) => readonly Readonly<SocialPost>[];
 export const useFeedReadThrough: () => number | undefined;
 
 // @public
-export function useGameFacts(): {
-    playthroughId: string | null;
-    readerName: string;
-};
+export function useGameFacts(): GameFacts;
 
 // @public (undocumented)
 export function useImageApiConfigured(): boolean;

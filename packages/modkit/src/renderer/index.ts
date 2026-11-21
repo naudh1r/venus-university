@@ -1,5 +1,6 @@
 /** `@vx/modkit/renderer`: what a mod may import in the window. */
 export { interludeNow } from '../bridge/renderer'
+export type { GameFacts } from '../bridge/renderer'
 export type {
   BunnyboardPage,
   ContactTab,
