@@ -6,7 +6,6 @@ import { globalSlotOf } from '@shared/jobs'
 import {
   genderOf,
   PRONOUNS,
-  pronounTag,
   readerWords,
   type Pronouns,
   type ReaderPronouns,
@@ -50,6 +49,7 @@ import { relationshipLines } from './relationship'
 import { objectSchema } from './schema'
 import {
   graduateLines,
+  headingTag,
   memoryLines,
   secretLines,
   notesLines,
@@ -217,17 +217,25 @@ const REACH_OUT_TOPIC_PHRASE: Record<ReachOutTopic, (p: Pronouns, r: ReaderWords
 export interface LoveTopic {
   kind: LoveText['kind']
   about: string
+  /**
+   * Why a turn-down was one, for `turnedDown` alone: whom the other one is dating, or null where
+   * the feelings were not mutual.
+   */
+  seeing?: string | null
 }
 
 /** Each love-life topic as the prompt names it beside the texter's key, in the texter's pronouns. */
-const LOVE_TOPIC_PHRASE: Record<LoveText['kind'], (p: Pronouns, r: ReaderWords, about: string) => string> = {
+const LOVE_TOPIC_PHRASE: Record<
+  LoveText['kind'],
+  (p: Pronouns, r: ReaderWords, about: string, seeing?: string | null) => string
+> = {
   vent: (p, r, about) => `venting to ${r.him} after an argument with ${about}, whom ${p.they} is dating`,
   crush: (p, r, about) =>
     `asking ${r.him} whether ${p.they} should ask out ${about}, whom ${p.they} has a crush on`,
   together: (p, r, about) =>
     `telling ${r.him} ${p.they} took ${r.his} advice and asked out ${about}, who said yes, so the two of them are dating now`,
-  turnedDown: (p, r, about) =>
-    `telling ${r.him} ${p.they} took ${r.his} advice and asked out ${about}, who turned ${p.them} down`,
+  turnedDown: (p, r, about, seeing) =>
+    `telling ${r.him} ${p.they} took ${r.his} advice and asked out ${about}, who ${seeing ? `is already dating ${seeing}` : 'does not feel the same way'} and so turned ${p.them} down`,
   brokeUp: (p, r, about) => `telling ${r.him} ${p.they} took ${r.his} advice and broke up with ${about}`
 }
 
@@ -333,6 +341,8 @@ export interface SlotIntroInput {
   springBreakAway?: readonly string[] | null
   /** The graduate back in town for Homecoming, as a charId; absent on every other slot. */
   homecomingVisitor?: string
+  /** How old each of `people` is, by charId; an entry with none carries only her pronouns. */
+  ages?: Readonly<Record<string, number>>
   /**
    * The place `SOMEWHERE TO GO` invents a rumor about. **Drawn by the loop rather than
    * here**, which is what lets the reply's own sentence about it be banked and carried into the
@@ -636,7 +646,7 @@ function reachOutBlock(input: SlotIntroInput): string[] {
       const phrase =
         typeof topic === 'string'
           ? REACH_OUT_TOPIC_PHRASE[topic](PRONOUNS[g], r)
-          : LOVE_TOPIC_PHRASE[topic.kind](PRONOUNS[g], r, topic.about)
+          : LOVE_TOPIC_PHRASE[topic.kind](PRONOUNS[g], r, topic.about, topic.seeing)
       return [`- ${charKey} — ${phrase}`, ...promptLines('slot-reach-outs', { character, info, date: input.date })]
     })
   ]
@@ -673,7 +683,7 @@ function characterBlock(input: SlotIntroInput): string[] {
     const slot = globalSlotOf(input.date, input.time)
     const coldLine = herColdLine(character, info.cold, slot, true)
     entries.push([
-      `${fullNameOf(character)} (${pronounTag(genderOf(character))}) — "char": "${charKey}"`,
+      `${fullNameOf(character)} (${headingTag(genderOf(character), input.ages?.[character.charId])}) — "char": "${charKey}"`,
       ...profileLines(
         character,
         info.flags ?? emptyFlags(),
