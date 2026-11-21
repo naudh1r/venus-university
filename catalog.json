@@ -6,10 +6,27 @@
       "id": "photo-feature",
       "name": "Photo Feature",
       "author": "naudh1r",
-      "blurb": "The girls send photos in their DMs and post them on their feeds.\n• Photos in her DMs and on her feed posts, with comments from the rest of campus.\n• Optional, still being tuned: a photo of her with a friend, who is tagged on it.\n• A gallery on each contact's page with every photo she has sent or posted.\n• Don't like one? Edit its prompt in Photo info and redraw it.\n• Optional body details for characters, used in their pictures.\n• Separate from the game's own Photos tab, where you make pictures yourself.\n• Needs ComfyUI to draw the pictures, the game's own or yours.",
+      "blurb": "Characters send photos in their DMs and post them on their feeds.\n• Photos in their DMs and on their feed posts, with comments from the rest of campus.\n• Optional, still being tuned: photos of two people together.\n• A gallery on each contact's page with every photo they have sent or posted.\n• Don't like one? Edit its prompt in Photo info and redraw it.\n• Optional body details for characters, used in their pictures.\n• Separate from the game's own Photos tab, where you make pictures yourself.\n• Needs ComfyUI to draw the pictures, the game's own or yours.",
       "source": "https://github.com/naudh1r/venus-university/tree/mod/photo-feature-kit",
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/cover.webp",
       "releases": [
+        {
+          "version": "1.8.0",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/photo-feature-1.8.0.zip",
+          "sha256": "21c6a682d928b5338991bbe431872073ef0f4568bc075ee847a51720e2198eb3",
+          "kit": ">=0.8.1",
+          "game": ">=0.8.0",
+          "main": true,
+          "reviewed": false,
+          "released": "2026-11-21",
+          "changes": [
+            "Guys can send photos in DMs, post them and keep them in the gallery, with the same settings and redraw controls as everyone else.",
+            "Body details have build and chest choices for each character's gender, under the same Generation controls. Existing choices for girls stay as they are.",
+            "A guy without a shirt is an ordinary photo and stays uncovered. Nudity below the waist follows Explicit photos and No NSFW images, including the covers on pictures already sent.",
+            "Two in one photo works for any pair. Feed duos can include a current partner as well as a friend.",
+            "The game picks which posts carry a picture: two each slot on the feed, one person alone and one with a friend or partner they're with right now, and one more from a scene with two or more people. The same two aren't pictured together again for a week. With Two in one photo off, every one of them shows one person alone."
+          ]
+        },
         {
           "version": "1.7.3",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/photo-feature-1.7.3.zip",
@@ -30,6 +47,16 @@
         }
       ],
       "changelog": [
+        {
+          "version": "1.8.0",
+          "changes": [
+            "Guys can send photos in DMs, post them and keep them in the gallery, with the same settings and redraw controls as everyone else.",
+            "Body details have build and chest choices for each character's gender, under the same Generation controls. Existing choices for girls stay as they are.",
+            "A guy without a shirt is an ordinary photo and stays uncovered. Nudity below the waist follows Explicit photos and No NSFW images, including the covers on pictures already sent.",
+            "Two in one photo works for any pair. Feed duos can include a current partner as well as a friend.",
+            "The game picks which posts carry a picture: two each slot on the feed, one person alone and one with a friend or partner they're with right now, and one more from a scene with two or more people. The same two aren't pictured together again for a week. With Two in one photo off, every one of them shows one person alone."
+          ]
+        },
         {
           "version": "1.7.3",
           "changes": [
@@ -162,10 +189,25 @@
       "id": "bunnyfeeds",
       "name": "Bunnyfeeds",
       "author": "naudh1r",
-      "blurb": "Comment on your friends' posts on Bunnyboard, and she answers.\n• She replies in her own words, and remembers what you said.\n• Her friends and other students join the conversation.\n• Girls also comment on each other's posts.\n• Notifications under Updates lists every answer to you.\n• Costs a little extra AI each time you close the phone after commenting; just scrolling is free.",
+      "blurb": "Comment on your friends' posts on Bunnyboard, and they answer.\n• They reply in their own words, and remember what you said.\n• Their friends and other students join the conversation.\n• They also comment on each other's posts.\n• Notifications under Updates lists every answer to you.\n• Costs a little extra AI each time you close the phone after commenting. Just scrolling is free.",
       "source": "https://github.com/naudh1r/venus-university/tree/mod/bunnyfeeds-kit",
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/bunnyfeeds/cover.webp",
       "releases": [
+        {
+          "version": "1.1.7",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/bunnyfeeds-1.1.7.zip",
+          "sha256": "bfd7b5c77f870ea7f926727a0daf75caba49fddb5c00ef8eb31cf4dfbc1602ec",
+          "kit": ">=0.8.1",
+          "game": ">=0.8.0",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-21",
+          "changes": [
+            "Replies at night: with a mod that adds a night after the evening, replies to what you wrote in the evening show under the post, and in Notifications, that night. Replies to what you write during the night still arrive in the morning.",
+            "Boys on the feed: replies, memories and the AI's instructions follow each character's gender, so a boy's post, his picture and his replies are written about him, not her.",
+            "Your pronouns: replies, memories and the AI's instructions follow the pronouns you chose for yourself."
+          ]
+        },
         {
           "version": "1.1.6",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/bunnyfeeds-1.1.6.zip",
@@ -181,6 +223,14 @@
         }
       ],
       "changelog": [
+        {
+          "version": "1.1.7",
+          "changes": [
+            "Replies at night: with a mod that adds a night after the evening, replies to what you wrote in the evening show under the post, and in Notifications, that night. Replies to what you write during the night still arrive in the morning.",
+            "Boys on the feed: replies, memories and the AI's instructions follow each character's gender, so a boy's post, his picture and his replies are written about him, not her.",
+            "Your pronouns: replies, memories and the AI's instructions follow the pronouns you chose for yourself."
+          ]
+        },
         {
           "version": "1.1.6",
           "changes": [
@@ -300,10 +350,24 @@
       "id": "after-hours",
       "name": "After Hours",
       "author": "naudh1r",
-      "blurb": "A Busy status, texting her while she's busy, and a night after the evening.\n• Busy, any time of day: a chat you start, or her answer to your texts, won't turn into meeting up right now. She can still ask you out herself.\n• Text her while she's in class or at work, which the game doesn't normally allow; she replies once she's out.\n• After the evening, a night in your room to text before you sleep.\n• Spend the evening with her instead, and the next morning opens with a short goodbye before she heads off, or you head home.",
+      "blurb": "A Busy status, texting people while they're busy, and a night after the evening.\n• Busy, any time of day: a chat you start, or their answer to your texts, won't turn into meeting up right now. They can still ask you out themselves.\n• Text someone while they're in class or at work, which the game doesn't normally allow. They reply once they're out.\n• After the evening, a night in your room to text before you sleep.\n• Spend the evening with someone instead, and the next morning opens with a short goodbye before they head off, or you head home.",
       "source": "https://github.com/naudh1r/venus-university/tree/mod/after-hours-kit",
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
       "releases": [
+        {
+          "version": "0.7.0",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.0.zip",
+          "sha256": "289d2241dcdd5624c6f9a2b6dd6e14eb60e5fe637286da5f6537b8027ec7740c",
+          "kit": ">=0.8.1",
+          "game": ">=0.8.0",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-21",
+          "changes": [
+            "Boys work the same as girls: texting while they're busy, staying over and the morning goodbye.",
+            "The night and the morning after follow the pronouns you chose for yourself."
+          ]
+        },
         {
           "version": "0.6.7",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.6.7.zip",
@@ -333,6 +397,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.7.0",
+          "changes": [
+            "Boys work the same as girls: texting while they're busy, staying over and the morning goodbye.",
+            "The night and the morning after follow the pronouns you chose for yourself."
+          ]
+        },
         {
           "version": "0.6.7",
           "changes": [
