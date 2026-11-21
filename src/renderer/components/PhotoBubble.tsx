@@ -20,7 +20,7 @@ import {
   useViewingThread
 } from '@vx/modkit/renderer'
 import { PhotoInfoButton, PhotoRedrawFailure } from './PhotoInfo'
-import { photoRedrawKey, usePhotoRedraw, usePhotoRedrawOrientation } from '../stores/photoRedraw'
+import { photoRedrawKey, usePhotoRedraw, usePhotoRedrawReason, usePhotoRedrawOrientation } from '../stores/photoRedraw'
 import { loadedPhotoOrientation, useExpectedPhotoOrientation, usePhotoOrientation } from '../stores/photoOrientation'
 import '../vu_styles/PhotoBubble.css'
 
@@ -93,6 +93,7 @@ export function MessagePhoto({
   const friend = useCharacter(photo.with ?? '')
   const key = photoRedrawKey(playthroughId, charId, photo.file)
   const redraw = usePhotoRedraw(key)
+  const refusal = usePhotoRedrawReason(key)
   const requested = usePhotoRedrawOrientation(key)
   const src = playthroughId && photo.file ? photoUrl(playthroughId, charId, photo.file) : null
   const loaded = usePhotoOrientation(src)
@@ -187,7 +188,7 @@ export function MessagePhoto({
           redrawing={redraw === 'drawing'}
         />
       )}
-      <PhotoRedrawFailure failed={redraw === 'failed'} />
+      <PhotoRedrawFailure failed={redraw === 'failed'} reason={refusal} />
     </div>
   )
 }

@@ -89,7 +89,7 @@ export function PhotoInfoButton({ redrawing = false, ...props }: PhotoInfoProps)
 }
 
 /** A short-lived failure notice shared by every view of the old picture. */
-export function PhotoRedrawFailure({ failed }: { failed: boolean }): JSX.Element {
+export function PhotoRedrawFailure({ failed, reason }: { failed: boolean; reason?: string }): JSX.Element {
   const still = useReducedMotion() ?? false
   return (
     <AnimatePresence>
@@ -102,7 +102,7 @@ export function PhotoRedrawFailure({ failed }: { failed: boolean }): JSX.Element
           exit={{ opacity: 0 }}
           transition={{ duration: still ? 0 : 0.14 }}
         >
-          Redraw failed. This photo stays.
+          {reason ?? 'Redraw failed. This photo stays.'}
         </motion.span>
       )}
     </AnimatePresence>

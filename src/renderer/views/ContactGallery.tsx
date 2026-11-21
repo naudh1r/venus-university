@@ -5,7 +5,7 @@ import { photoUrl } from '../../shared/photoFiles'
 import type { ChatPhoto } from '../../shared/photoTypes'
 import { shownMessages, type SocialPost, type TimeSlot } from '@vx/modkit/shared'
 import { PhotoInfoButton, PhotoRedrawFailure } from '../components/PhotoInfo'
-import { photoRedrawKey, usePhotoRedraw, usePhotoRedrawOrientation } from '../stores/photoRedraw'
+import { photoRedrawKey, usePhotoRedraw, usePhotoRedrawReason, usePhotoRedrawOrientation } from '../stores/photoRedraw'
 import { redrawMessagePhoto } from '../stores/photoTurn'
 import { redrawPostPhoto } from '../stores/photoPost'
 import { PhotoWait, openShot } from '../components/PhotoBubble'
@@ -95,6 +95,7 @@ function Shot({
   const friend = useCharacter(photo.with ?? '')
   const key = photoRedrawKey(playthroughId, charId, file)
   const redraw = usePhotoRedraw(key)
+  const refusal = usePhotoRedrawReason(key)
   const requested = usePhotoRedrawOrientation(key)
   const src = playthroughId ? photoUrl(playthroughId, charId, file) : null
   const loaded = usePhotoOrientation(src)
@@ -178,7 +179,7 @@ function Shot({
           }}
         />
       )}
-      <PhotoRedrawFailure failed={redraw === 'failed'} />
+      <PhotoRedrawFailure failed={redraw === 'failed'} reason={refusal} />
     </motion.li>
   )
 }

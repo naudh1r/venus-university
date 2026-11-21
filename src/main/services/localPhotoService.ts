@@ -395,7 +395,7 @@ export async function generateDuoPhoto(
   if (await photoPpmState() !== 'installed') {
     throw appError(
       'PHOTO_WIDE_NEEDS_PPM',
-      'This photo of two needs ComfyUI-ppm. Install it from Mods, under Two in one photo.'
+      'This photo of two needs the ComfyUI-ppm node pack. Install it from Mods under Two in one photo, or on your own ComfyUI if you use one.'
     )
   }
   const recorded = await recordedPhotoInfo(playthroughId, character.charId, file)

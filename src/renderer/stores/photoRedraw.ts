@@ -22,6 +22,8 @@ interface RedrawEntry {
   token: object
   orientation?: PhotoOrientation
   state: Exclude<RedrawState, 'idle'>
+  /** Why the redraw was refused, where the player can act on it. */
+  reason?: string
   timer?: ReturnType<typeof setTimeout>
 }
 const redraws = new Map<string, RedrawEntry>()
@@ -53,18 +55,37 @@ export function beginPhotoRedraw(key: string, orientation?: PhotoOrientation): o
 }
 
 /** Clears this attempt alone, or shows its failure for four seconds over the old photo. */
-export function endPhotoRedraw(key: string, token: object, failed = false): void {
+export function endPhotoRedraw(key: string, token: object, failed = false, reason?: string): void {
   const entry = redraws.get(key)
   if (entry?.token !== token) return
   if (failed && entry.state === 'failed') return
   clearTimeout(entry.timer)
   if (failed) {
     entry.state = 'failed'
-    entry.timer = setTimeout(() => endPhotoRedraw(key, token), 4000)
+    entry.reason = reason
+    entry.timer = setTimeout(() => endPhotoRedraw(key, token), reason ? 8000 : 4000)
   } else {
     redraws.delete(key)
   }
   changed()
+}
+
+/** The player-facing reason for a refusal they can fix, such as ComfyUI-ppm missing. */
+function refusalOf(error: unknown): string | undefined {
+  const message = error instanceof Error ? error.message : String(error)
+  return /^PHOTO_WIDE_NEEDS_PPM: (.+)$/s.exec(message)?.[1]
+}
+
+/** The reason a redraw was refused, while its failure line shows. */
+export function usePhotoRedrawReason(key: string): string | undefined {
+  return useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    },
+    () => redraws.get(key)?.reason,
+    () => undefined
+  )
 }
 
 /** Subscribes a photo's view to its redraw and short-lived failure line. */
@@ -172,7 +193,7 @@ export async function redrawPhoto(
   } catch (error) {
     console.warn(`[photo] redraw of ${oldFile} failed:`, error)
     settled = true
-    endPhotoRedraw(key, token, live() && read()?.file === oldFile)
+    endPhotoRedraw(key, token, live() && read()?.file === oldFile, refusalOf(error))
   } finally {
     clearTimeout(timer)
     if (!settled) endPhotoRedraw(key, token)
