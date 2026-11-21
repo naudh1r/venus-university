@@ -39,7 +39,7 @@ export const PHOTO_FEATURE_MOD = {
     {
       id: 'duo',
       label: 'Two in one photo (experimental)',
-      hint: 'A character’s feed post can show them with a friend or partner. A scene with two or more characters can bring a photo of two of them. Needs ComfyUI-ppm, installed here. Without it, every photo shows one person. Still being tuned: now and then a face, an outfit or a colour comes out wrong.',
+      hint: 'A character’s feed post can show them with a friend or partner. A scene with two or more characters can bring a photo of two of them. Needs the ComfyUI-ppm node pack, installed here. Without it, every photo shows one person. Still being tuned: now and then a face, an outfit or a colour comes out wrong.',
       default: false
     },
     {
