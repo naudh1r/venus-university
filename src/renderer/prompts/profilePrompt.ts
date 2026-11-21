@@ -368,23 +368,27 @@ function hauntLines(
           `fun: 0 to ${MAX_FUN_LOCATIONS} places they go out to enjoy themselves. Leave it empty for somebody who does not go out.`
         ]
       : []),
-    blockText(
-      textEdits,
-      'newgame.profiles.freeTime',
-      [
-        ...(asked.has('activity')
-          ? [
-              'activity: a specific interest of theirs that they pursue somewhere every week, as one short lowercase phrase starting with an -ing verb that names both what they do and where they do it: "sketching at the Whitman Greenhouse", "jogging at Green Hill Park", "practicing cello in the practice rooms under Thorne Auditorium". It has to be something they do over and over, not a one-off, and it must happen at one of the ACTIVITY LOCATIONS. An empty string for a student with no such interest, which is most of them.',
-              'activityLocation: the key of the place activity names, exactly as written below. An empty string when activity is empty.'
-            ]
-          : []),
-        ...(asked.has('meal')
-          ? [
-              'meal: one place they eat out at, about once a week. An empty string for somebody who cooks for themselves or eats in the dorm kitchens.'
-            ]
-          : [])
-      ].join('\n')
-    ),
+    ...(asked.has('activity') || asked.has('meal')
+      ? [
+          blockText(
+            textEdits,
+            'newgame.profiles.freeTime',
+            [
+              ...(asked.has('activity')
+                ? [
+                    'activity: a specific interest of theirs that they pursue somewhere every week, as one short lowercase phrase starting with an -ing verb that names both what they do and where they do it: "sketching at the Whitman Greenhouse", "jogging at Green Hill Park", "practicing cello in the practice rooms under Thorne Auditorium". It has to be something they do over and over, not a one-off, and it must happen at one of the ACTIVITY LOCATIONS. An empty string for a student with no such interest, which is most of them.',
+                    'activityLocation: the key of the place activity names, exactly as written below. An empty string when activity is empty.'
+                  ]
+                : []),
+              ...(asked.has('meal')
+                ? [
+                    'meal: one place they eat out at, about once a week. An empty string for somebody who cooks for themselves or eats in the dorm kitchens.'
+                  ]
+                : [])
+            ].join('\n')
+          )
+        ]
+      : []),
     ...menu('study', 'STUDY LOCATIONS', STUDY_LOCATIONS),
     ...menu('fun', 'FUN LOCATIONS', FUN_LOCATIONS),
     ...menu('meal', 'MEAL LOCATIONS', MEAL_LOCATIONS),
@@ -562,10 +566,13 @@ export function buildStudentPrompt(
   if (!profile && !secrets) return null
   // Her decided fields are not in the schema: the model only reads them.
   const decided = decidedLine(input.decided, 'Already decided')
+  const newcomers = profile && input.next
+    ? blockText(textEdits, 'newgame.profiles.next.newcomers', '')
+    : ''
 
   const preamble = [
     ...(profile ? profileLines(asked, decided !== null, textEdits, input.next) : []),
-    ...(profile && input.next ? [blockText(textEdits, 'newgame.profiles.next.newcomers', '')] : []),
+    ...(newcomers.trim() ? [newcomers] : []),
     ...(profile && secrets ? [''] : []),
     ...(secrets ? secretLines(secrets.tiers, profile ? BESIDE : undefined, textEdits) : []),
     '---',
