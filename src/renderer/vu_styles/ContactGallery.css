@@ -55,9 +55,6 @@
   padding-left: 440px;
 }
 
-/* Portrait, because a phone holds a phone that way; the CG grid's own cells are landscape. A
-   wide picture of two is shown whole in it rather than cropped, since cropping the middle of
-   one cuts both faces. */
 /* Written with the base class as well, so it wins on specificity rather than on load order.
    These sit in the feature's own stylesheet, which the bundler happens to place *before* the
    build's — so at one class each the build's rule would win and the override would do nothing.
@@ -69,10 +66,6 @@
 .vu-gallery-cell.vu-contact-shot {
   aspect-ratio: 2 / 3;
   cursor: pointer;
-}
-
-.vu-gallery-img.vu-contact-shot-img--wide {
-  object-fit: contain;
 }
 
 /* Covered until asked for, the same rule her bubble follows and the same look: the picture
@@ -139,12 +132,16 @@
 }
 
 /* The row clearance matches the columns when a portrait tile grows by 10%. */
-.vu-contact-card--gallery .vu-contact-scroll:has(.vu-contact-shots) {
+.vu-contact-shot-grid {
   container-type: inline-size;
 }
 
 .vu-gallery-grid.vu-contact-shots {
-  --photo-tile-width: calc((100cqw - 48px) / 4);
+  --photo-columns: 4;
+  --photo-tile-width: calc((100cqw - (var(--photo-columns) - 1) * 16px) / var(--photo-columns));
+  grid-template-columns: repeat(var(--photo-columns), minmax(0, 1fr));
+  grid-auto-rows: calc(var(--photo-tile-width) * 1.5);
+  grid-auto-flow: dense;
   --photo-overhang: calc(var(--photo-tile-width) * 0.075);
   row-gap: calc(16px + var(--photo-tile-width) * 0.025);
   padding-block: var(--photo-overhang);
@@ -159,4 +156,39 @@
 .vu-contact-shots .vu-contact-shot-wait,
 .vu-contact-shots .vu-contact-shot-wait .vu-bb-photo {
   background: inherit;
+}
+
+/* A wide tile shares its neighbours' row; portraits backfill the slot it skips. */
+.vu-contact-shots .vu-contact-shot-item--wide {
+  grid-column: span min(2, var(--photo-columns));
+}
+
+.vu-contact-shots .vu-contact-shot,
+.vu-contact-shots .vu-contact-shot-wait,
+.vu-contact-shots .vu-contact-shot-wait .vu-bb-photo {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+
+.vu-contact-shots .vu-gallery-img {
+  object-fit: contain;
+}
+
+.vu-contact-shot-item--wide .vu-gallery-img {
+  object-fit: cover;
+  object-position: center;
+}
+
+@container (max-width: 420px) {
+  .vu-gallery-grid.vu-contact-shots {
+    --photo-columns: 2;
+  }
+}
+
+@container (max-width: 210px) {
+  .vu-gallery-grid.vu-contact-shots {
+    --photo-columns: 1;
+  }
 }

@@ -3,8 +3,10 @@ import { useSyncExternalStore } from 'react'
 import type { Character } from '@vx/modkit/shared'
 import type { PhotoKind } from '../../shared/photoFiles'
 import { photoGenerationOn } from '../../shared/photoSwitches'
-import type { ChatPhoto, PhotoRenderOptions } from '../../shared/photoTypes'
+import type { ChatPhoto, PhotoOrientation, PhotoRenderOptions } from '../../shared/photoTypes'
 import { renderPhoto } from './photoWebp'
+import { photoUrl } from '../../shared/photoFiles'
+import { rememberPhotoOrientation } from './photoOrientation'
 
 /**
  * How long a render may go unanswered before its post comes out without it. A picture takes
@@ -18,6 +20,7 @@ export const RENDER_PATIENCE_MS = 3 * 60 * 1000
 type RedrawState = 'idle' | 'drawing' | 'failed'
 interface RedrawEntry {
   token: object
+  orientation?: PhotoOrientation
   state: Exclude<RedrawState, 'idle'>
   timer?: ReturnType<typeof setTimeout>
 }
@@ -39,12 +42,12 @@ function changed(): void {
 }
 
 /** Reserves the redraw synchronously, including while its new file name is being reserved. */
-export function beginPhotoRedraw(key: string): object | undefined {
+export function beginPhotoRedraw(key: string, orientation?: PhotoOrientation): object | undefined {
   const previous = redraws.get(key)
   if (previous?.state === 'drawing') return undefined
   clearTimeout(previous?.timer)
   const token = {}
-  redraws.set(key, { token, state: 'drawing' })
+  redraws.set(key, { token, state: 'drawing', orientation })
   changed()
   return token
 }
@@ -75,6 +78,21 @@ export function usePhotoRedraw(key: string): RedrawState {
     },
     () => redraws.get(key)?.state ?? 'idle',
     () => 'idle'
+  )
+}
+
+/** The requested shape lives only for this attempt; a failure keeps the old photo's shape. */
+export function usePhotoRedrawOrientation(key: string): PhotoOrientation | undefined {
+  return useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    },
+    () => {
+      const entry = redraws.get(key)
+      return entry?.state === 'drawing' ? entry.orientation : undefined
+    },
+    () => undefined
   )
 }
 
@@ -112,7 +130,7 @@ export async function redrawPhoto(
   const charId = character.charId
   const oldFile = photo.file
   const key = photoRedrawKey(playthroughId, charId, oldFile)
-  const token = beginPhotoRedraw(key)
+  const token = beginPhotoRedraw(key, options.orientation)
   if (!token) return
   let settled = false
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -136,6 +154,9 @@ export async function redrawPhoto(
       options
     )
     if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+    if (options.orientation) {
+      rememberPhotoOrientation(photoUrl(playthroughId, charId, newFile), options.orientation)
+    }
     const now = read()
     // A refused write leaves the old photo in place, so the new render is the one dropped.
     const replace = live() && now?.file === oldFile && await write({ ...now, file: newFile })
