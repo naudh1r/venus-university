@@ -64,7 +64,7 @@
 }
 
 .vu-gallery-cell.vu-contact-shot {
-  aspect-ratio: 2 / 3;
+  aspect-ratio: 832 / 1216;
   cursor: pointer;
 }
 
@@ -140,7 +140,8 @@
   --photo-columns: 4;
   --photo-tile-width: calc((100cqw - (var(--photo-columns) - 1) * 16px) / var(--photo-columns));
   grid-template-columns: repeat(var(--photo-columns), minmax(0, 1fr));
-  grid-auto-rows: calc(var(--photo-tile-width) * 1.5);
+  /* A portrait photo's own shape, 832x1216, so it fills its tile with no band above or below. */
+  grid-auto-rows: calc(var(--photo-tile-width) * 1216 / 832);
   grid-auto-flow: dense;
   --photo-overhang: calc(var(--photo-tile-width) * 0.075);
   row-gap: 16px;
