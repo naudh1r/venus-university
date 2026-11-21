@@ -28,6 +28,9 @@ import { photosVisible } from '../../shared/photoSwitches'
 import { loadedPhotoOrientation, useExpectedPhotoOrientation, usePhotoOrientation } from '../stores/photoOrientation'
 import '../vu_styles/ContactGallery.css'
 
+/** A wide tile's hover: about the same growth in pixels as a portrait's 10%, so it doesn't spill over its neighbours. */
+const WIDE_LIFT = { ...quietLift, scale: 1.05 }
+
 /**
  * Her gallery: every picture of her, the ones she sent on the thread and the ones she posted on
  * the feed, newest first, each marked with where it came from.
@@ -112,7 +115,7 @@ function Shot({
   return (
     <motion.li
       className={`vu-gallery-item vu-contact-shot-item${orientation === 'wide' ? ' vu-contact-shot-item--wide' : ''}`}
-      {...gestures(locked, quietLift, quietPress)}
+      {...gestures(locked, orientation === 'wide' ? WIDE_LIFT : quietLift, quietPress)}
     >
       {redraw === 'drawing' || photo.pending ? (
         <div className="vu-contact-shot-wait">

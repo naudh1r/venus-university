@@ -131,7 +131,7 @@
   opacity: 1;
 }
 
-/* The row clearance matches the columns when a portrait tile grows by 10%. */
+/* Rows and columns sit the same distance apart. */
 .vu-contact-shot-grid {
   container-type: inline-size;
 }
@@ -143,7 +143,7 @@
   grid-auto-rows: calc(var(--photo-tile-width) * 1.5);
   grid-auto-flow: dense;
   --photo-overhang: calc(var(--photo-tile-width) * 0.075);
-  row-gap: calc(16px + var(--photo-tile-width) * 0.025);
+  row-gap: 16px;
   padding-block: var(--photo-overhang);
 }
 
