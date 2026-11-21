@@ -1,3 +1,6 @@
+import { setMemoryPresentation } from '@vx/modkit/host/shared'
+import { genderOf } from '@shared/gender'
+import { useGameStore } from './gameStore'
 import { setSharedModRules } from '@shared/modRules'
 import { create } from 'zustand'
 import {
@@ -107,6 +110,15 @@ const rules = {
 }
 setHookRules(rules)
 setSharedModRules(rules.isOn)
+setMemoryPresentation((name) => {
+  const game = useGameStore.getState()
+  const character = Object.values(game.characters).find((one) => one.firstName === name)
+  return {
+    readerName: game.playerFirstName || 'the reader',
+    holder: genderOf(character),
+    reader: game.playerPronouns
+  }
+})
 
 /** Whether a mod is on, for code outside a component; see `modOn` for what a record changes. */
 export function modIsOn(id: string, record?: Pick<PlaythroughRecord, 'mods'> | null): boolean {

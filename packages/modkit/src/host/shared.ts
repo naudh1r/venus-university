@@ -8,3 +8,4 @@ export { checkCompat, CORE_SURFACE, hookNamesOf, manifestHooks } from '../shared
 export type { Compat, CoreSurface, MissingHook } from '../shared/compat'
 export { CORE_DATA_NAMES, CORE_PLAYTHROUGH_NAMES, MANIFEST_SCHEMA, MOD_ID_RULE, RESERVED_MOD_IDS, parseManifest, modDefOf, hookNameKind } from '../shared/manifest'
 export type { Manifest, ParsedManifest, HookNameKind } from '../shared/manifest'
+export { setMemoryPresentation } from '../shared/memoryPresentation'

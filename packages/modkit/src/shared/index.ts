@@ -70,7 +70,6 @@ export {
   globalSlotOf,
   hasTrait,
   MAX_TIER,
-  memoryStatusLine,
   messageOf,
   modById,
   modOn,
@@ -123,9 +122,10 @@ export {
   fallbackHandleOf,
   rollPostLikes,
   BACKUP_ZIP_LIMITS,
-  readerize,
   DEFAULT_PLAYER_STATS,
 } from '../bridge/shared'
 export type { CharFlags, CustomOutfitSlot, Season, NpcRelationshipMap } from '../bridge/shared'
 
 export type { DesktopSurfaceBridge } from '../bridge/shared'
+
+export { memoryStatusLine, readerize } from './memory'

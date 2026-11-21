@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Venus University's male characters, romance settings and reader pronouns: `memoryStatusLine`,
+  `readerize`, `relationshipLines`, `memoryLines` and `profileLines` keep their arguments and
+  read the reader's name and pronouns and each character's gender from the game. Prompt
+  contexts gain `readerPronouns`, `romance` and `ages`, and `subjectTags` is now one list per
+  gender.
 - Activities can call `setSceneSuggestionsPaused` to pause optional scene suggestions for
   the loaded game. Providers can query `sceneSuggestionsPaused`, render from
   `useSceneSuggestionsPaused` or observe boolean changes with `subscribeSceneSuggestionsPaused`.

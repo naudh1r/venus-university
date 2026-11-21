@@ -356,6 +356,7 @@ afterEach(() => {
 })
 
 describe('a stranger’s key on a save', () => {
+
   it('survives a load and a save, and the core keys come out as without it', () => {
     const out = loadAndSave(strangerSave())
     // Core's own keys first, so a lost stranger cannot hide a changed core field.
@@ -435,7 +436,7 @@ describe('a stranger’s key on a save', () => {
       { type: 'loved' as const, desc: 'the reader was very kind' },
       { type: 'loved' as const, desc: 'the reader texted all night' }
     ]
-    const edits = memoryEditsOf(rows, answers, save.date)
+    const edits = memoryEditsOf(rows, answers, save.date, { a: 'female' }, 'he', 'The Reader')
     expect(edits).toHaveLength(2)
     // What the boundary's filing does with each edit.
     for (const { charId, match, next } of edits) {

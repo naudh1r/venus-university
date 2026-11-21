@@ -99,9 +99,9 @@ export { addMemory, addPostComments, toggleFeedLike } from '../../../../src/rend
 export { saveChanges } from '../../../../src/renderer/stores/loop/saves'
 
 export { Lightbox } from '../../../../src/renderer/components/Lightbox'
-export { relationshipLines } from '../../../../src/renderer/prompts/relationship'
+export { relationshipLines, memoryLines, profileLines } from '../../../../src/renderer/mods/promptReaders'
 export type { RelationshipMedium, RelationshipProgress } from '../../../../src/renderer/prompts/relationship'
-export { memoryLines, profileLines, spaced } from '../../../../src/renderer/prompts/scenePrompt'
+export { spaced } from '../../../../src/renderer/prompts/scenePrompt'
 
 export {
   noNsfwImages,

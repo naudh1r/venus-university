@@ -23,10 +23,29 @@ import {
 } from '@shared/locations'
 import { hasTrait } from '@shared/traits'
 import { isRainedOut, weatherAt } from '@shared/weather'
-import { affectionFor, dispositionOf, emptyFlags, isPositive } from '@shared/relationship'
+import { genderOf, pronounsOf } from '@shared/gender'
+import {
+  affectionFor,
+  contactInfoLine,
+  dispositionOf,
+  emptyFlags,
+  ghostedDesc,
+  ignoredTextDesc,
+  ignoredVentDesc,
+  isPositive,
+  isTrusted,
+  turnedDownDesc
+} from '@shared/relationship'
 import { requestAcceptChance } from '@shared/feed'
 import {
+  crushAskedOf,
+  isFreeToDate,
+  npcCrushesOf,
   npcFriendsOf,
+  npcPairOf,
+  withCrushAsked,
+  type NpcAdviceOutcome,
+  type NpcCouple,
   type NpcRelationshipMap,
   type NpcSlotOverlay
 } from '@shared/npcRelationships'
@@ -38,6 +57,7 @@ import {
   bossChatIdOf,
   globalSlotOf,
   isBossChat,
+  bossMessageOf,
   jobDefOf,
   shiftSlotOf,
   slotFromId,
@@ -84,6 +104,8 @@ import {
   type ChatMessage,
   type ChatSender,
   type Conversation,
+  type ConversationAdvice,
+  type LoveText,
   type SlotIntroResponse,
   type TextingResponse,
   type TimeSlot
@@ -97,6 +119,7 @@ import { createRetryGate } from './retryGate'
 import { createDmLeadReader, createTextExtractor } from './textingStream'
 import { BOT_REPLY_MS, createTypingPacer, typingDelayFor, type TypingPacer } from './textingPace'
 import {
+  agesNow,
   charAwayNow,
   charBusyNow,
   charHiddenLocationNow,
@@ -125,12 +148,14 @@ import {
   reachOutChanceOf,
   reachOutGapSlots,
   rollHangoutInvite,
+  rollLoveText,
   rollSlotAskers,
   rollSlotReachOut,
   slotAskMultiplier,
   ASK_QUIET_SLOTS,
   REACH_OUT_QUIET_SLOTS,
   STUDY_LEAD_DAYS,
+  type LoveTextCandidate,
   type OccasionAskCandidate,
   type SlotAskCandidate,
   type StudyExam
@@ -261,7 +286,7 @@ function deliver(charId: string, message: ChatMessage): void {
  * — `holiday`, on everyone who does not close with the university.
  */
 function bossText(jobId: string, kind: JobMessageKind): string | null {
-  return jobDefOf(jobId)?.messages[kind] ?? null
+  return bossMessageOf(jobDefOf(jobId), kind, useGameStore.getState().playerPronouns)
 }
 
 /** Posts one of the boss's canned texts into his thread. */
@@ -580,6 +605,8 @@ export async function sendMessage(charId: string, text: string): Promise<void> {
         playerJob: game.job,
         calendar: game.calendar,
         weather: game.weather,
+        romance: game.romance,
+        readerPronouns: game.playerPronouns,
         // Where she is texting from; never a class or shift, as the composer is shut then.
         charLocation: charHiddenLocationNow(charId),
         // Who is with her: the same group the location came from.
@@ -590,6 +617,7 @@ export async function sendMessage(charId: string, text: string): Promise<void> {
         springBreakAway: game.springBreakAway,
         // The one day a graduate's thread is from somebody in town.
         ...(visitor ? { homecomingVisitor: visitor } : {}),
+        ages: agesNow([charId]),
         // From this slot on: texting comes before the slot's scene, so its own plan is still ahead.
         upcomingPlans: upcomingPlanLines(
           game.events,
@@ -918,7 +946,7 @@ export async function beginHangout(): Promise<void> {
 /** The line under a meet-up agreed with a girl who has left campus for spring break. */
 function deliverAwayNotice(charId: string): void {
   const game = useGameStore.getState()
-  const name = game.characters[charId]?.firstName ?? 'She'
+  const name = game.characters[charId]?.firstName ?? 'This contact'
   deliver(
     charId,
     chatMessage(
@@ -959,6 +987,41 @@ export function answerHangout(charId: string, yes: boolean): void {
 
   // No writes nothing back: the footer comes down and the invitation stands underneath.
   game.setPendingHangout(charId, { ...pending, dismissed: true })
+}
+
+/**
+ * The three answers under a vent and under a question about a crush, in the order they stand:
+ * each the text it sends as his, its button's label where that differs from the text, and what
+ * the slot's ending acts on, null for one it does not.
+ */
+export const ADVICE_ANSWERS: Record<
+  ConversationAdvice['kind'],
+  readonly { answer: ConversationAdvice['answer'] | null; text: string; label?: string }[]
+> = {
+  vent: [
+    { answer: 'breakUp', text: 'You should break up' },
+    { answer: 'talk', text: 'You should talk things out' },
+    { answer: null, text: 'That really sucks...' }
+  ],
+  crush: [
+    { answer: 'yes', label: 'Yes', text: 'I think you should go for it' },
+    { answer: null, text: "I don't know..." },
+    { answer: 'no', label: "Don't do it", text: "I don't think you should go for it" }
+  ]
+}
+
+/**
+ * One of the three answers under her vent or her question about a crush: the footer comes down,
+ * what the ending acts on is kept on the thread, and his line goes out as an ordinary text.
+ */
+export function answerAdvice(charId: string, index: number): void {
+  const game = useGameStore.getState()
+  const advice = game.bunnyboard.conversations[charId]?.advice
+  if (!advice || advice.answer || inFlight.has(charId) || sceneActiveOf(game)) return
+  const choice = ADVICE_ANSWERS[advice.kind][index]
+  if (!choice) return
+  game.setAdvice(charId, choice.answer ? { ...advice, answer: choice.answer } : null)
+  void sendMessage(charId, choice.text)
 }
 
 /**
@@ -1018,7 +1081,7 @@ export function addContact(
   // Also guards re-adding somebody who has him blocked: a block masks `gaveContactInfo`.
   if (game.charInfo[charId]?.flags?.gaveContactInfo) return
 
-  const name = game.characters[charId]?.firstName ?? 'She'
+  const name = game.characters[charId]?.firstName ?? 'This contact'
   game.resolveRequest(charId)
   game.setGaveContactInfo(charId)
   useGameStore.getState().appendChatMessage(charId, chatMessage('system', messageOf(name)), unread)
@@ -1043,7 +1106,7 @@ export function blockContact(charId: string, unread = 1): void {
   const game = useGameStore.getState()
   if (game.charInfo[charId]?.flags?.blocked) return
 
-  const name = game.characters[charId]?.firstName ?? 'She'
+  const name = game.characters[charId]?.firstName ?? 'This contact'
   game.setBlocked(charId, true)
   game.setPendingHangout(charId, null)
   useGameStore
@@ -1059,7 +1122,7 @@ export function unblockContact(charId: string, unread = 1): void {
   const game = useGameStore.getState()
   if (!game.charInfo[charId]?.flags?.blocked) return
 
-  const name = game.characters[charId]?.firstName ?? 'She'
+  const name = game.characters[charId]?.firstName ?? 'This contact'
   game.setBlocked(charId, false)
   useGameStore
     .getState()
@@ -1113,25 +1176,14 @@ export function cancelAllTexts(): void {
 }
 
 /**
- * What an unanswered invitation costs her, in the reader's voice: completes
- * "{Name} disliked that ..." in the memory and in the ending's status line alike.
- */
-export const IGNORED_TEXT_DESC = 'the reader ignored her text'
-
-/**
- * What answering an invitation with a no costs a lover, in the same voice: completes
- * "{Name} disliked that ..." in the memory and in the ending's status line alike.
- */
-export const TURNED_DOWN_DESC = 'the reader turned down her request to hang out'
-
-/**
- * Every plan the reader is standing up, every invitation he never answered and every one he
- * turned down by text is settled, run once the slot's scene is committed to. Returns the
- * charIds left on read and the lovers owed a turned-down memory — never the stood-up plans.
+ * Every plan the reader is standing up, every invitation he never answered, every one he
+ * turned down by text and every vent or question about a crush he left standing is settled, run
+ * once the slot's scene is committed to. Returns the charIds left on read, the lovers owed a
+ * turned-down memory and those whose vent he ignored — never the stood-up plans.
  */
 export function expireHangoutInvitations(
   castIds: readonly string[]
-): { ignored: string[]; turnedDown: string[] } {
+): { ignored: string[]; turnedDown: string[]; ignoredVents: string[] } {
   const cast = new Set(castIds)
   const game = useGameStore.getState()
   const settled = new Set<string>()
@@ -1152,7 +1204,7 @@ export function expireHangoutInvitations(
       live.recordMemory(charId, {
         date: live.date,
         type: 'hated',
-        desc: `the reader ghosted her and didn't show up for ${event.title}`
+        desc: ghostedDesc(genderOf(live.characters[charId]), event.title)
       })
     }
 
@@ -1174,7 +1226,7 @@ export function expireHangoutInvitations(
     live.recordMemory(conversation.charId, {
       date: live.date,
       type: 'disliked',
-      desc: IGNORED_TEXT_DESC
+      desc: ignoredTextDesc(genderOf(live.characters[conversation.charId]))
     })
     // Silence counts against her next ask exactly as a spoken no does.
     live.bumpDeclined(conversation.charId)
@@ -1193,11 +1245,30 @@ export function expireHangoutInvitations(
     live.recordMemory(conversation.charId, {
       date: live.date,
       type: 'disliked',
-      desc: TURNED_DOWN_DESC
+      desc: turnedDownDesc(genderOf(live.characters[conversation.charId]))
     })
     turnedDown.push(conversation.charId)
   }
-  return { ignored, turnedDown }
+
+  const ignoredVents: string[] = []
+  for (const conversation of Object.values(useGameStore.getState().bunnyboard.conversations)) {
+    const advice = conversation.advice
+    // An answered one waits for the ending, which acts on the answer.
+    if (!advice || advice.answer) continue
+    const live = useGameStore.getState()
+    // Spent as it is filed, so a replayed scene start cannot file it twice.
+    live.setAdvice(conversation.charId, null)
+    // A question about a crush left standing costs nothing, nor a vent she is here to finish.
+    if (advice.kind !== 'vent' || cast.has(conversation.charId)) continue
+    // The phone's one impression of her, which this replaces.
+    live.setTextMemory(conversation.charId, {
+      date: live.date,
+      type: 'disliked',
+      desc: ignoredVentDesc(genderOf(live.characters[conversation.charId]))
+    })
+    ignoredVents.push(conversation.charId)
+  }
+  return { ignored, turnedDown, ignoredVents }
 }
 
 /**
@@ -1329,7 +1400,7 @@ function askChanceFor(
   if (!info || !flags.gaveContactInfo || flags.blocked) return 0
   // One of the days she stays in, or the worst of a cold: a plan already made still stands, but
   // she starts nothing.
-  if (isHomebound(info, date, time)) return 0
+  if (isHomebound(game.characters[charId], info, date, time)) return 0
 
   return askChanceOf(
     {
@@ -1460,6 +1531,90 @@ export function pickSlotReachOut(
 }
 
 /**
+ * What a slot's love-life texts are drawn from: the couples the ending saw argue, and what his
+ * advice came to.
+ */
+export interface LoveTextInput {
+  argued: readonly Pick<NpcCouple, 'a' | 'b'>[]
+  outcomes: readonly NpcAdviceOutcome[]
+}
+
+/**
+ * Who texts the reader about her love life as `(date, time)` opens, each by charId with what it is
+ * about: a girl saying how his advice went first, then at most one venting about her partner or
+ * asking about her crush. None in `taken`, and each a contact of his on the roster. A turn-down
+ * given because her crush is dating somebody else carries its outcome's `taken`.
+ */
+export function pickSlotLoveTexts(
+  date: number,
+  time: TimeSlot,
+  view: SlotAskerView,
+  taken: ReadonlySet<string>,
+  love: LoveTextInput
+): Array<LoveText & Pick<NpcAdviceOutcome, 'charId' | 'taken'>> {
+  const game = useGameStore.getState()
+  const conversations = game.bunnyboard.conversations
+  const busy = new Set(taken)
+  const picked: Array<LoveText & Pick<NpcAdviceOutcome, 'charId' | 'taken'>> = []
+  /** A contact on the roster nobody has texting him about anything else this slot. */
+  const reachable = (charId: string): boolean =>
+    !busy.has(charId) &&
+    game.chars.includes(charId) &&
+    isFeedContact(view.charInfo[charId]) &&
+    !conversations[charId]?.pendingHangout
+
+  for (const { charId, about, result, taken: seeing } of love.outcomes) {
+    if (!reachable(charId)) continue
+    busy.add(charId)
+    picked.push({ charId, about, kind: result, ...(seeing ? { taken: seeing } : {}) })
+  }
+
+  /** Free to text him about this now: trusted, no plan with him this slot, not in class or at work. */
+  const free = (charId: string): boolean => {
+    if (!reachable(charId)) return false
+    const info = view.charInfo[charId]
+    if (!info || !isTrusted(affectionFor(info, date, game.characters[charId]))) return false
+    return !plannedWith(charId, date, time, view.events) && !charBusyNow(charId, date, time)
+  }
+  const map = view.npcRelationships
+  const vents: LoveTextCandidate[] = []
+  for (const { a, b } of love.argued) {
+    if (npcPairOf(map, a, b)?.dating === undefined) continue
+    if (free(a)) vents.push({ charId: a, about: b })
+    if (free(b)) vents.push({ charId: b, about: a })
+  }
+  const freeToDate = (charId: string): boolean =>
+    isFreeToDate(map, charId, game.characters[charId], view.charInfo[charId]?.flags)
+  const advisers: LoveTextCandidate[] = []
+  for (const charId of game.chars) {
+    if (!free(charId) || !freeToDate(charId)) continue
+    if (view.charInfo[charId]?.flags?.hasCrush) continue
+    const crushes = npcCrushesOf(map, charId, game.chars).filter(
+      (target) => !crushAskedOf(map, charId, target) && freeToDate(target)
+    )
+    if (crushes.length === 0) continue
+    advisers.push({ charId, about: crushes[Math.floor(Math.random() * crushes.length)] })
+  }
+  const rolled = rollLoveText(vents, advisers)
+  if (rolled) picked.push(rolled)
+  return picked
+}
+
+/** Whether what a love-life text is about still stands as it is delivered. */
+function loveTextStands(charId: string, love: LoveText): boolean {
+  const pair = npcPairOf(useGameStore.getState().npcRelationships, charId, love.about)
+  if (love.kind === 'vent') return pair?.dating !== undefined
+  if (love.kind === 'crush') {
+    return (
+      pair?.dating === undefined &&
+      pair?.crush?.includes(charId) === true &&
+      !pair.crushAsked?.includes(charId)
+    )
+  }
+  return true
+}
+
+/**
  * What `charId`'s invitation out of nowhere asks the reader to this slot — off what she is to him,
  * her day, the lectures they share and the map — or null for one she words as she likes. `round`
  * is the everyday asks already dealt.
@@ -1480,7 +1635,7 @@ export function rollAskerInvite(
     lustful:
       hasTrait(character, 'Promiscuous') &&
       flags.hadSex &&
-      isMoodLustful(date, info.moodCycleOffset ?? 0, hasTrait(character, 'Mood-swings')),
+      isMoodLustful(character, date, info.moodCycleOffset ?? 0),
     intimate,
     friend: flags.isLover || flags.hasCrush || isPositive(affectionFor(info, date, character)),
     exam: sharedExamAhead(info, date, time),
@@ -1682,8 +1837,15 @@ export function deliverHomecomingTexts(entries: SlotIntroResponse['homecomingTex
   }
 }
 
-/** Files the texts of the girl the slot opening rolled to reach out just to talk. */
-export function deliverSlotReachOuts(reachOuts: SlotIntroResponse['reachOuts']): void {
+/**
+ * Files the texts of the girls the slot opening rolled to reach out, `loveTexts` saying which are
+ * about somebody's love life: a vent or a question about a crush stands its answers under her
+ * thread, and is dropped whole where what it was about no longer stands.
+ */
+export function deliverSlotReachOuts(
+  reachOuts: SlotIntroResponse['reachOuts'],
+  loveTexts: Readonly<Record<string, LoveText>> = {}
+): void {
   for (const entry of reachOuts ?? []) {
     const game = useGameStore.getState()
     const charId = game.charKeyToId[entry.char]
@@ -1693,11 +1855,20 @@ export function deliverSlotReachOuts(reachOuts: SlotIntroResponse['reachOuts']):
     if (!isFeedContact(game.charInfo[charId])) continue
     // An invitation of hers still standing outranks just talking.
     if (game.bunnyboard.conversations[charId]?.pendingHangout) continue
+    const love = loveTexts[entry.char]
+    if (love && !loveTextStands(charId, love)) continue
 
     // Mods hang what they add on the texts she just sent, so only once there are some.
     const character = game.characters[charId]
     if (deliverContactTexts(charId, entry.texts, 3, true) > 0 && character) {
       afterReachOut({ charId, character, reply: entry })
+    }
+    if (love?.kind !== 'vent' && love?.kind !== 'crush') continue
+    game.setAdvice(charId, { kind: love.kind, about: love.about })
+    // Each crush is taken to him once.
+    if (love.kind === 'crush') {
+      const live = useGameStore.getState()
+      live.setNpcRelationships(withCrushAsked(live.npcRelationships, charId, love.about))
     }
   }
 }
@@ -1739,7 +1910,7 @@ export function addPlanContacts(events: readonly CalendarEvent[]): void {
       addContact(
         charId,
         1,
-        (name) => `${name} gave you her contact info so you can coordinate your plans.`
+        (name) => contactInfoLine(name, genderOf(useGameStore.getState().characters[charId]))
       )
     }
   }
@@ -1754,15 +1925,16 @@ export function deliverEventCancellations(
     if (!character) continue
     // A stranger dropped from a plan gets no text naming her.
     if (!useGameStore.getState().charInfo[charId]?.flags?.gaveContactInfo) continue
+    const they = pronounsOf(character).they
     const employer = reason === 'shift' && jobId ? jobDefOf(jobId)?.employer : null
     const because =
       reason === 'away'
-        ? 'she is away for spring break'
+        ? `${they} is away for spring break`
         : reason === 'class'
-          ? 'she remembered she had class'
+          ? `${they} remembered ${they} had class`
           : employer
-            ? `she has a shift at ${employer} then`
-            : 'she remembered she had a shift'
+            ? `${they} has a shift at ${employer} then`
+            : `${they} remembered ${they} had a shift`
     deliver(
       charId,
       chatMessage(

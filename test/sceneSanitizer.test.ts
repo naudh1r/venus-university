@@ -854,6 +854,23 @@ describe('the crush standards line', () => {
     expect(memoryStatusLines(scene, CLEARS, [], [], [])).toHaveLength(2)
     expect(useGameStore.getState().charInfo.a.crushHint).toBeUndefined()
   })
+
+  it('keeps the payoff owed while she is dating somebody, and pays it once she has a crush', () => {
+    memoryStatusLines(scene, NOBODY, [], [], [])
+    const owed = useGameStore.getState().charInfo.a.crushHint
+    // Together since the scene's own day, so in the honeymoon: her odds are nothing.
+    useGameStore.setState({ npcRelationships: { 'a|b': { affinity: 5, dating: 7 } } })
+
+    expect(memoryStatusLines(scene, CLEARS, [], [], [])).toHaveLength(2)
+    expect(useGameStore.getState().charInfo.a.crushHint).toBe(owed)
+
+    const info = useGameStore.getState().charInfo.a
+    useGameStore.setState({
+      charInfo: { a: { ...info, flags: { ...(info.flags ?? emptyFlags()), hasCrush: true } } }
+    })
+    expect(memoryStatusLines(scene, CLEARS, [], [], []).at(-1)?.text).toContain('interest...')
+    expect(useGameStore.getState().charInfo.a.crushHint).toEqual({ met: true })
+  })
 })
 
 /**
@@ -940,7 +957,7 @@ describe('the threesome fold', () => {
   })
 
   // Idempotent under the boundary replay, like everything else the fold does:
-  // `harem` only ever sets, so a second pass reaches the same flags.
+  // a group act only ever sets `harem`, so a second pass reaches the same flags.
   it('reaches the same flags on a replayed boundary', () => {
     const ledger: LedgerResponse = {
       memories: [],
@@ -960,6 +977,7 @@ describe('the threesome fold', () => {
  * projection and apply stop agreeing, the opening describes a girl the save then contradicts.
  */
 describe('projectLedger', () => {
+
   it('reaches exactly what the boundary will bank, for every kind of row at once', () => {
     useGameStore.setState({
       // A roster, so the dating pass the two seams share has somebody to fold over.

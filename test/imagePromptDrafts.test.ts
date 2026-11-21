@@ -68,12 +68,12 @@ describe('mods in a sprite or CG draft', () => {
     })
 
     const draft = prompt.cgSetDraft(her, TAGS)
-    const kept = regen.withRegenTags(draft, { kind: 'cgs', appearance: ['kept'] }, TAGS)
+    const kept = regen.withRegenTags(draft, { kind: 'cgs', appearance: ['kept'] }, TAGS, 'female')
     expect(told).toEqual([['first', true], ['off', false]])
     if (kept.kind !== 'cgs') throw new Error('a CG set edit')
     expect(kept.appearance).toEqual(['kept'])
     expect(kept.negative).toEqual([])
     // Nothing remembered: the draft as it is, with nobody asked.
-    expect(regen.withRegenTags(draft, undefined, TAGS)).toBe(draft)
+    expect(regen.withRegenTags(draft, undefined, TAGS, 'female')).toBe(draft)
   })
 })

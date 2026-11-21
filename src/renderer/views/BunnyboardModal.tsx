@@ -21,15 +21,16 @@ import {
   type CharInfo,
   type ChatMessage,
   type Conversation,
+  type ConversationAdvice,
   type TimeSlot
 } from '@shared/types'
-import type { NpcFriendship } from '@shared/npcRelationships'
+import type { NpcCouple, NpcFriendship } from '@shared/npcRelationships'
 import { gpaOf, gradedCourses } from '@shared/academics'
+import type { ReaderPronouns } from '@shared/gender'
 import { sickInSlot } from '@shared/colds'
 import { globalSlotOf, jobDefForChat, shiftSlotOf } from '@shared/jobs'
 import { locationLabel, ROOM_LOCATION } from '@shared/locations'
 import { formatMoney } from '@shared/money'
-import { PROFILE_PICTURE_TYPES } from '@shared/profilePicture'
 import { formatTokens } from '@shared/tallies'
 import { affectionFor, emptyFlags, relationshipTagOf } from '@shared/relationship'
 import { ConfirmModal } from '../components/ConfirmModal'
@@ -59,14 +60,13 @@ import { FEED_PAGE, isFeedContact, updatesFeed, type FeedEntry } from '../stores
 import { awayWhereabouts, knownWhereabouts, type Whereabouts } from '../stores/whereabouts'
 import { useGameStore } from '../stores/gameStore'
 import type { ReplayOffer } from '../stores/loop/saves'
-import {
-  openPickedPicture,
-  removeProfilePicture,
-  type ReaderPicture
-} from '../stores/loop/profilePicture'
+import { gamePictureHome } from '../stores/loop/profilePicture'
+import { useReaderPicture } from '../components/ReaderPictureArch'
 import { useSettingsStore } from '../stores/settingsStore'
 import {
   acceptFriendRequest,
+  ADVICE_ANSWERS,
+  answerAdvice,
   answerHangout,
   askVenusForGrades,
   beginHangout,
@@ -94,7 +94,6 @@ import { PostCommentAction, PostCommentsView, PostPicture } from '../components/
 import { ContactPage } from './ContactPage'
 import { LorebookPage } from './LorebookPage'
 import { PhotosPage } from './PhotosPage'
-import { ReaderPictureModal, ScenesAskModal } from './ReaderPictureModal'
 import { EditPromptModal } from './EditPromptModal'
 import { RescheduleModal } from './RescheduleModal'
 import {
@@ -121,11 +120,9 @@ import {
 import {
   BackIcon,
   BunnyMark,
-  CloseIcon,
   HeartIcon,
   LorebookIcon,
-  MapIcon,
-  PlusIcon
+  MapIcon
 } from './screenIcons'
 import { LettersFilter, lettersUrl } from '../components/LettersMark'
 import type { PostComment } from '@shared/postComments'
@@ -949,6 +946,50 @@ function PrimaryButton({
   )
 }
 
+/**
+ * Her vent's or her question's three answers, in place of the composer: the one that does
+ * nothing backs out, the one against what she has in mind is an outline, the other is loud.
+ */
+function AdviceAnswers({
+  charId,
+  kind,
+  dead
+}: {
+  charId: string
+  kind: ConversationAdvice['kind']
+  dead: boolean
+}): JSX.Element {
+  const [loud, against, nothing] =
+    kind === 'vent' ? ([1, 0, 2] as const) : ([0, 2, 1] as const)
+  const answers = ADVICE_ANSWERS[kind]
+  return (
+    <div className="vu-bb-answers">
+      <div className="vu-bb-answers-row">
+        <CancelButton
+          id={`bb-advice-${nothing}`}
+          dead={dead}
+          onClick={() => answerAdvice(charId, nothing)}
+        >
+          {answers[nothing].label ?? answers[nothing].text}
+        </CancelButton>
+        <motion.button
+          id={`bb-advice-${against}`}
+          className="vu-btn vu-btn--outline vu-btn--panel vu-paper"
+          type="button"
+          disabled={dead}
+          {...gestures(dead, lift, press)}
+          onClick={() => answerAdvice(charId, against)}
+        >
+          {answers[against].label ?? answers[against].text}
+        </motion.button>
+        <PrimaryButton id={`bb-advice-${loud}`} dead={dead} onClick={() => answerAdvice(charId, loud)}>
+          {answers[loud].label ?? answers[loud].text}
+        </PrimaryButton>
+      </div>
+    </div>
+  )
+}
+
 /** One open conversation: history, and the input or its stand-ins. */
 function ConversationView({
   charId,
@@ -1002,6 +1043,8 @@ function ConversationView({
   // Her ask-out, only while it is still asking: a No dismisses it, invitation still standing.
   const pendingHangout = conversation?.pendingHangout
   const askingOut = Boolean(pendingHangout && !pendingHangout.dismissed)
+  // Her vent or her question about a crush, while it still waits on his answer.
+  const advice = conversation?.advice && !conversation.advice.answer ? conversation.advice : null
   const armedHere = armed?.charId === charId
   // Reschedule needs a real `CalendarEvent` to move and an hour already spoken for: his class,
   // his shift or another plan, which drops the button once that plan has moved off the hour.
@@ -1223,6 +1266,12 @@ function ConversationView({
               </PrimaryButton>
             </div>
           </div>
+        ) : !epilogue && advice ? (
+          <AdviceAnswers
+            charId={charId}
+            kind={advice.kind}
+            dead={sceneActive || busy}
+          />
         ) : (
           <Composer
             closed={composerClosed}
@@ -1544,6 +1593,13 @@ function FriendsList(): JSX.Element {
   )
 }
 
+/** The SEX tally's other reading, by the reader's pronouns. */
+const SEX_READING: Readonly<Record<ReaderPronouns, string>> = {
+  he: 'MALE',
+  she: 'FEMALE',
+  they: 'OTHER'
+}
+
 /**
  * The Profile tab: his own card at the head of the app everybody else is listed in, the bio that
  * rides every prompt, and the semester counted up. Every reading below the bio is derived here
@@ -1552,6 +1608,7 @@ function FriendsList(): JSX.Element {
 function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
   const firstName = useGameStore((s) => s.playerFirstName)
   const lastName = useGameStore((s) => s.playerLastName)
+  const pronouns = useGameStore((s) => s.playerPronouns)
   const picture = useGameStore((s) => s.profilePicture)
   const bio = useGameStore((s) => s.bio)
   const setBio = useGameStore((s) => s.setBio)
@@ -1570,39 +1627,12 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
   const semesterIndex = useGameStore((s) => s.semesterIndex)
   const conversations = useGameStore((s) => s.bunnyboard.conversations)
   const lessNsfwText = useSettingsStore((s) => s.settings?.lessNsfwText === true)
-  const fileInput = useRef<HTMLInputElement>(null)
-  /** The picture's crop modal, then the ask its Save may raise, one following the other. */
-  const [picturePanel, setPicturePanel] = useState<'framing' | 'asking' | null>(null)
-  /** The file the crop modal opens on, where it does not open on the kept picture. */
-  const [picked, setPicked] = useState<ReaderPicture | null>(null)
-
-  /** Hands the pick to the store, clearing the box so the same file picked twice fires twice. */
-  const pick = async (file: File | undefined): Promise<void> => {
-    if (fileInput.current) fileInput.current.value = ''
-    if (!file) return
-    const next = await openPickedPicture(file)
-    if (!next) return
-    setPicked(next)
-    setPicturePanel('framing')
-  }
-
-  /** The crop is kept: asks about scenes only where the answer could change anything. */
-  const onPictureSaved = (): void => {
-    const settings = useSettingsStore.getState().settings
-    const asks =
-      settings?.showProfilePictureInScenes !== true &&
-      settings?.askProfilePictureInScenes !== false
-    setPicturePanel(asks ? 'asking' : null)
-  }
-
-  const onScenesAnswer = (show: boolean, mute: boolean): void => {
-    setPicturePanel(null)
-    if (!show && !mute) return
-    void useSettingsStore.getState().update({
-      ...(show ? { showProfilePictureInScenes: true } : {}),
-      ...(mute ? { askProfilePictureInScenes: false } : {})
-    })
-  }
+  // The one place in the game a face is his own.
+  const pictureControl = useReaderPicture(
+    theme,
+    gamePictureHome(picture),
+    'bb-profile-picture-input'
+  )
 
   // One walk of the roster, the records and the threads for the whole grid, rather than one
   // apiece: every tile below is a count of something the save is already keeping. The girls
@@ -1631,7 +1661,7 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
       0
     )
     return [
-      { id: 'bb-tally-girls', label: 'GIRLS MET', value: `${met} / ${everyone.length}` },
+      { id: 'bb-tally-girls', label: 'PEOPLE MET', value: `${met} / ${everyone.length}` },
       {
         id: 'bb-tally-gpa',
         label: 'GPA',
@@ -1649,7 +1679,7 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
       { id: 'bb-tally-texts', label: 'TEXTS SENT', value: String(texts) },
       // A player who asked for less of it keeps the tile: the reading under it answers the
       // label's other question instead of counting.
-      { id: 'bb-tally-sex', label: 'SEX', value: lessNsfwText ? 'MALE' : String(counts.sex) },
+      { id: 'bb-tally-sex', label: 'SEX', value: lessNsfwText ? SEX_READING[pronouns] : String(counts.sex) },
       {
         id: 'bb-tally-exams',
         label: 'EXAMS ACED',
@@ -1678,6 +1708,7 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
     lessNsfwText,
     calendar,
     playerSchedule,
+    pronouns,
     transcript
   ])
 
@@ -1689,49 +1720,7 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
 
       <div className="vu-bb-scroll">
         <div className="vu-bb-me">
-          {/* The archway is the upload control: the one place in the app a face is his own, and
-              the ✕ that clears it is its sibling, never a button inside a button. */}
-          <motion.button
-            className={`vu-arch vu-bb-me-arch${picture ? '' : ' vu-bb-me-arch--empty'}`}
-            type="button"
-            aria-label={picture ? 'Edit profile picture' : 'Add a profile picture'}
-            {...gestures(false, portraitLift, quietPress)}
-            onClick={() => {
-              if (!picture) {
-                fileInput.current?.click()
-                return
-              }
-              setPicked(null)
-              setPicturePanel('framing')
-            }}
-          >
-            {picture ? (
-              <span className="vu-crop">
-                <img className="vu-crop-img" src={picture} alt="" />
-              </span>
-            ) : (
-              <PlusIcon size={34} />
-            )}
-          </motion.button>
-          {picture && (
-            <motion.button
-              className="vu-x"
-              type="button"
-              aria-label="Remove profile picture"
-              {...gestures(false, quietLift, quietPress)}
-              onClick={() => void removeProfilePicture()}
-            >
-              <CloseIcon />
-            </motion.button>
-          )}
-          <input
-            ref={fileInput}
-            id="bb-profile-picture-input"
-            type="file"
-            accept={PROFILE_PICTURE_TYPES.join(',')}
-            hidden
-            onChange={(event) => void pick(event.target.files?.[0])}
-          />
+          {pictureControl.arch}
           <div className="vu-bb-me-main">
             <span className="vu-bb-me-name">
               {firstName} {lastName}
@@ -1756,7 +1745,7 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
             multiline
             rows={3}
             placeholder="Optional. Can be left blank."
-            hint={`This is put in every prompt so try to keep it short and sweet. Use third-person past tense and continue this paragraph: ${readerYearLine(firstName + ' ' + lastName, semesterIndex)} The reader is <description based on current stats>. The reader is...`}
+            hint={`This is put in every prompt so try to keep it short and sweet. Use third-person past tense and continue this paragraph: ${readerYearLine(firstName + ' ' + lastName, semesterIndex, pronouns)} The reader is <description based on current stats>. The reader is...`}
           />
         </div>
 
@@ -1778,19 +1767,7 @@ function ProfilePage({ theme }: { theme: 'day' | 'night' }): JSX.Element {
 
       {/* The crop modal and the ask its Save raises follow one another, so they share one presence
           in wait mode and the ask never arrives over the modal still leaving. */}
-      <AnimatePresence propagate mode="wait">
-        {picturePanel === 'framing' ? (
-          <ReaderPictureModal
-            key="reader-picture"
-            theme={theme}
-            picked={picked}
-            onClose={() => setPicturePanel(null)}
-            onSaved={onPictureSaved}
-          />
-        ) : picturePanel === 'asking' ? (
-          <ScenesAskModal key="reader-picture-scenes" theme={theme} onAnswer={onScenesAnswer} />
-        ) : null}
-      </AnimatePresence>
+      {pictureControl.modals}
     </div>
   )
 }
@@ -2013,17 +1990,19 @@ const FeedPost = memo(function FeedPost({
 })
 
 /**
- * The day two of them became friends, on the check-in's own row; it redraws only when the pair
- * it names does.
+ * The day two of them became friends or got together, on the check-in's own row; it redraws
+ * only when the pair it names does.
  */
-const FriendshipRow = memo(function FriendshipRow({
+const PairRow = memo(function PairRow({
   pair,
   one,
-  two
+  two,
+  dating
 }: {
-  pair: NpcFriendship
+  pair: NpcFriendship | NpcCouple
   one: Character
   two: Character
+  dating: boolean
 }): JSX.Element {
   const openPage = useBunnyboardStore.getState().openPage
   return (
@@ -2035,7 +2014,7 @@ const FriendshipRow = memo(function FriendshipRow({
         <Portrait charId={pair.b} ring size="sm" />
       </FaceButton>
       <span>
-        {one.firstName} and {two.firstName} are now friends.
+        {one.firstName} and {two.firstName} are now {dating ? 'dating' : 'friends'}.
       </span>
     </motion.div>
   )
@@ -2060,11 +2039,14 @@ const CheckInRow = memo(function CheckInRow({
 })
 
 /**
- * What a row is keyed on: the post it draws, the pair it names, the girl checking in, or the
- * day's own student.
+ * What a row is keyed on: the post it draws, the pair it names (a couple by the day too), the
+ * girl checking in, or the day's own student.
  */
 function feedRowKey(entry: FeedEntry): string {
   if (entry.kind === 'friendship') return `friends:${entry.pair.a}|${entry.pair.b}`
+  if (entry.kind === 'couple') {
+    return `couple:${entry.couple.a}|${entry.couple.b}@${entry.couple.date}`
+  }
   if (entry.kind === 'checkIn') return `checkin:${entry.charId}`
   return entry.kind === 'random' ? 'random-student' : entry.post.id
 }
@@ -2076,6 +2058,7 @@ function samePage(before: readonly FeedEntry[], now: readonly FeedEntry[]): bool
     const was = before[at]
     if (was.kind !== entry.kind) return false
     if (entry.kind === 'friendship') return was.kind === 'friendship' && was.pair === entry.pair
+    if (entry.kind === 'couple') return was.kind === 'couple' && was.couple === entry.couple
     if (entry.kind === 'checkIn') {
       return was.kind === 'checkIn' && was.charId === entry.charId && was.label === entry.label
     }
@@ -2088,7 +2071,11 @@ function samePage(before: readonly FeedEntry[], now: readonly FeedEntry[]): bool
 function rowOf(entry: FeedEntry, requestsSent: readonly string[]): JSX.Element {
   if (entry.kind === 'friendship') {
     const { pair, one, two } = entry
-    return <FriendshipRow key={feedRowKey(entry)} pair={pair} one={one} two={two} />
+    return <PairRow key={feedRowKey(entry)} pair={pair} one={one} two={two} dating={false} />
+  }
+  if (entry.kind === 'couple') {
+    const { couple, one, two } = entry
+    return <PairRow key={feedRowKey(entry)} pair={couple} one={one} two={two} dating />
   }
   if (entry.kind === 'checkIn') {
     return <CheckInRow key={feedRowKey(entry)} name={entry.name} label={entry.label} />
@@ -2203,6 +2190,7 @@ function UpdatesFeed({ head }: { head: JSX.Element }): JSX.Element {
   const charInfo = useGameStore((s) => s.charInfo)
   const feedExtras = useGameStore((s) => s.feedExtras)
   const npcFriendships = useGameStore((s) => s.npcFriendships)
+  const npcCouples = useGameStore((s) => s.npcCouples)
   const requestsSent = useGameStore((s) => s.bunnyboard.requestsSent)
   const date = useGameStore((s) => s.date)
   const time = useGameStore((s) => s.time)
@@ -2248,6 +2236,7 @@ function UpdatesFeed({ head }: { head: JSX.Element }): JSX.Element {
       characters,
       charInfo,
       npcFriendships,
+      npcCouples,
       feedExtras,
       checkIns,
       date,
@@ -2259,6 +2248,7 @@ function UpdatesFeed({ head }: { head: JSX.Element }): JSX.Element {
     characters,
     charInfo,
     npcFriendships,
+    npcCouples,
     feedExtras,
     date,
     time,
