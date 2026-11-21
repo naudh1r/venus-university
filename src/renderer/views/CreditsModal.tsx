@@ -224,6 +224,12 @@ const SECTIONS: readonly CreditSection[] = [
         sourceUrl: 'https://github.com/john-mnz/ComfyUI-Inspyrenet-Rembg',
       },
       {
+        name: 'ComfyUI-ppm',
+        by: 'pamparamm',
+        license: 'AGPL-3.0',
+        sourceUrl: 'https://github.com/pamparamm/ComfyUI-ppm'
+      },
+      {
         name: 'Ultralytics YOLO',
         by: 'Ultralytics',
         license: 'AGPL-3.0',

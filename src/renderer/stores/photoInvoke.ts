@@ -1,6 +1,6 @@
 import { invoke } from '@vx/modkit/renderer'
 import type { Result, Character } from '@vx/modkit/shared'
-import type { PhotoInfo, PhotoRenderOptions } from '../../shared/photoTypes'
+import type { PhotoInfo, PhotoOrientation, PhotoRenderOptions } from '../../shared/photoTypes'
 import { PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 
 export type PhotoCalls = {
@@ -22,7 +22,10 @@ export type PhotoCalls = {
       landed: (playthroughId: string, charId: string, file: string) => Promise<Result<boolean>>
       /** The bytes of a picture on disk, whichever of PNG or WebP it is under. */
       read: (playthroughId: string, charId: string, file: string) => Promise<Result<Uint8Array>>
-      /** The recorded prompt, or a current build; rebuilding retains a recorded seed. */
+      /**
+       * The recorded prompt, or a current build; rebuilding retains a recorded seed. An
+       * orientation other than the recorded one builds the prompt for that orientation.
+       */
       info: (
         playthroughId: string,
         character: Character,
@@ -30,8 +33,13 @@ export type PhotoCalls = {
         tier: string,
         scene: string,
         file: string,
-        rebuild?: boolean
+        rebuild?: boolean,
+        orientation?: PhotoOrientation
       ) => Promise<Result<PhotoInfo>>
+      /** Where ComfyUI-ppm stands: `installed`, `missing`, `invalid`, or `unmanaged` on the player's own ComfyUI. */
+      ppmState: () => Promise<Result<'installed' | 'missing' | 'invalid' | 'unmanaged'>>
+      /** Installs ComfyUI-ppm into the game's own ComfyUI, restarting it on the next render. */
+      installPpm: () => Promise<Result<void>>
       /** Cancels one render, retires a replacement, or removes an unused picture. */
       drop: (
         playthroughId: string,

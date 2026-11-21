@@ -41,6 +41,7 @@ import { BODY_EDITOR_FIELD, writeBody } from '../views/bodyFields'
 import { PhotoComments, PhotoPostPicture } from '../components/PhotoPostSpots'
 import { MessagePhotoAttachment, PhotoLightboxHost } from '../components/PhotoBubble'
 import { GalleryPanel, galleryShown, PostPhotoExtra } from '../views/ContactGallery'
+import { PhotoPpmControl } from '../components/PhotoPpmControl'
 import { PHOTO_FEATURE_ID, bindPhotoOptionReader } from '../../shared/photoSwitches'
 
 bindPhotoOptionReader((option) => modOptionOn(PHOTO_FEATURE_ID, option))
@@ -61,6 +62,8 @@ registerHooks(PHOTO_FEATURE_ID, {
   contactTab: { id: 'gallery', label: 'Gallery', Panel: GalleryPanel, shown: galleryShown },
   // Her body, as a field in the character editor.
   editorField: BODY_EDITOR_FIELD,
+  // Under Two in one photo on the Mods screen, ComfyUI-ppm's state and its Install.
+  optionControls: { duo: PhotoPpmControl },
   prompts: {
     dm: {
       lead: true,

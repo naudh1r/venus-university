@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { groupPhotoPair, photoFriendHandle } from '../src/shared/photoDuo'
-import { buildDuoPhotoPrompt, withoutTouching } from '../src/shared/photoPrompt'
+import { buildDuoPhotoPrompt, duoHeadCount, withoutTouching } from '../src/shared/photoPrompt'
 import { character } from './fixtures'
 
 describe('who is in a group photo', () => {
@@ -51,6 +51,21 @@ describe('the friend tagged under a photo', () => {
 describe('a picture of two', () => {
   const risa = character({ charId: 'risa', firstName: 'Risa', lastName: 'Vale', outfit: ['pink_top', 'black_thighhighs', 'white_sneakers'] })
   const ana = character({ charId: 'ana', firstName: 'Ana', lastName: 'Moss', outfit: ['brown_sweater'] })
+
+  it('counts the heads of each pairing, and opens each wide half on that count', () => {
+    const kai = character({ charId: 'kai', firstName: 'Kai', gender: 'male', baseAppearance: ['1boy', 'male_focus', 'black_hair'] })
+    const ren = character({ charId: 'ren', firstName: 'Ren', gender: 'male', baseAppearance: ['1boy', 'brown_hair'] })
+    expect(duoHeadCount(risa, ana)).toEqual(['2girls', 'multiple_girls'])
+    expect(duoHeadCount(risa, kai)).toEqual(['1girl', '1boy'])
+    expect(duoHeadCount(kai, risa)).toEqual(['1girl', '1boy'])
+    expect(duoHeadCount(kai, ren)).toEqual(['2boys', 'multiple_boys'])
+    const wide = buildDuoPhotoPrompt(kai, risa, 'everyday', 'Kai and Risa at the cafe', 'wide')
+    for (const half of [wide.left, wide.right]) {
+      expect(half).toMatch(/^masterpiece, best_quality, very_aesthetic, 1girl, 1boy, /)
+      expect(half).not.toMatch(/\bsolo\b|male_focus/)
+    }
+    expect(buildDuoPhotoPrompt(kai, risa, 'everyday', 'Kai and Risa at the cafe').left).toMatch(/\b1boy, solo\b/)
+  })
 
   it('draws them apart, never touching, and leaves her legs out of a shot from the waist up', () => {
     const prompts = buildDuoPhotoPrompt(risa, ana, 'everyday', 'Me and Ana at the cafe, hugging and smiling at the camera')

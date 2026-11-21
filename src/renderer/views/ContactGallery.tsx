@@ -98,7 +98,9 @@ function Shot({
   // A picture the save names but the folder does not hold — one a save brought along without
   // its pictures — is left out of the grid rather than drawn as an empty frame.
   const [missing, setMissing] = useState(false)
-  useEffect(() => { setMissing(false) }, [file])
+  // A wide picture of two is shown whole in the portrait cell, so neither face is cut off.
+  const [wide, setWide] = useState(false)
+  useEffect(() => { setMissing(false); setWide(false) }, [file])
   if (!playthroughId) return <li className="vu-gallery-item" />
   if (missing) return null
 
@@ -122,10 +124,13 @@ function Shot({
         >
           {/* Covered the way the thread covers it: the picture itself, blurred past reading. */}
           <img
-            className={`vu-gallery-img${shown ? '' : ' vu-contact-shot-img--veiled'}`}
+            className={`vu-gallery-img${shown ? '' : ' vu-contact-shot-img--veiled'}${wide ? ' vu-contact-shot-img--wide' : ''}`}
             src={src}
             alt=""
             decoding="async"
+            onLoad={(event) =>
+              setWide(event.currentTarget.naturalWidth > event.currentTarget.naturalHeight)
+            }
             onError={() => setMissing(true)}
           />
           <span className="vu-contact-shot-from">{from === 'dm' ? 'DM' : 'Feed'}</span>

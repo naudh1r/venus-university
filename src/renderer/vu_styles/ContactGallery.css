@@ -55,7 +55,9 @@
   padding-left: 440px;
 }
 
-/* Portrait, because a phone holds a phone that way; the CG grid's own cells are landscape. */
+/* Portrait, because a phone holds a phone that way; the CG grid's own cells are landscape. A
+   wide picture of two is shown whole in it rather than cropped, since cropping the middle of
+   one cuts both faces. */
 /* Written with the base class as well, so it wins on specificity rather than on load order.
    These sit in the feature's own stylesheet, which the bundler happens to place *before* the
    build's — so at one class each the build's rule would win and the override would do nothing.
@@ -67,6 +69,10 @@
 .vu-gallery-cell.vu-contact-shot {
   aspect-ratio: 2 / 3;
   cursor: pointer;
+}
+
+.vu-gallery-img.vu-contact-shot-img--wide {
+  object-fit: contain;
 }
 
 /* Covered until asked for, the same rule her bubble follows and the same look: the picture

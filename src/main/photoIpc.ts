@@ -2,8 +2,15 @@ import { registerPhotoBackup } from './localPhotoBackup'
 import { registerImagePromptDraft } from '@vx/modkit/shared'
 import { registerPhotoDraft } from '../shared/photoDraft'
 import { BrowserWindow } from 'electron'
-import type { InvokeContext, InvokeHandler } from '@vx/modkit/main'
-import type { PhotoRenderOptions } from '../shared/photoTypes'
+import {
+  comfyNodePackState,
+  installComfyNodePack,
+  type InvokeContext,
+  type InvokeHandler
+} from '@vx/modkit/main'
+import type { PhotoOrientation, PhotoRenderOptions } from '../shared/photoTypes'
+import { PHOTO_FEATURE_ID } from '../shared/photoSwitches'
+import { PPM_PACK } from './photoNodePack'
 import { appError, type Character } from '@vx/modkit/shared'
 import {
   carryPhotos,
@@ -141,8 +148,17 @@ export function photoInvocations(): Record<string, InvokeHandler> {
       tier: string,
       scene: string,
       file: string,
-      rebuild: boolean = false
-    ) => photoInfo(playthroughId, character, friend, tier, scene, file, rebuild)
+      rebuild: boolean = false,
+      orientation?: PhotoOrientation
+    ) => photoInfo(playthroughId, character, friend, tier, scene, file, rebuild, orientation)
+  )
+
+  // Where ComfyUI-ppm, which wide photos of two are drawn with, stands in the game's ComfyUI.
+  handle('ppm-state', () => comfyNodePackState(PHOTO_FEATURE_ID, PPM_PACK.id))
+
+  // Installs ComfyUI-ppm into the game's ComfyUI, stopped by the call's own cancellation.
+  handle('install-ppm', (event) =>
+    installComfyNodePack(PHOTO_FEATURE_ID, PPM_PACK.id, { signal: event.signal })
   )
 
   // Cancels an abandoned render, or removes a file once saved references permit it.
