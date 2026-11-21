@@ -919,6 +919,7 @@ export interface LedgerResponse {
         charKey: string;
         type: MemoryType;
         desc: string;
+        youDesc?: string;
     }>;
     plans?: Array<{
         slot: number;
@@ -933,6 +934,7 @@ export interface LedgerResponse {
         charKey: string;
         type: MemoryType;
         desc: string;
+        youDesc?: string;
     }>;
 }
 

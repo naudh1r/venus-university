@@ -432,18 +432,19 @@ interface CharacterStoreState {
   /** Whether one set has the base frame the hand fix repaints — the repair's own gate. */
   hasBaseImage: (charId: string, target: SetTarget) => Promise<boolean>
   /**
-   * Redraws the hand painted on in `paintLayer`, answering with the cutout and the region it
-   * changed, or `null` where the job failed or was cancelled.
+   * Redraws the hand painted on in `paintLayer` at `denoise`, answering with the cutout and the
+   * region it changed, or `null` where the job failed or was cancelled.
    */
   fixHands: (
     charId: string,
     set: OutfitSet | null,
-    paintLayer: string
+    paintLayer: string,
+    denoise: number
   ) => Promise<RegionFixResult | null>
   /** Stops a hand fix in flight, leaving the character's other work alone. */
   cancelHandFix: (charId: string, set: OutfitSet | null) => Promise<void>
   /**
-   * Redraws what was painted or marked over one wardrobe's neutral sprite at `strength`,
+   * Redraws what was painted or marked over one wardrobe's neutral sprite at `denoise`,
    * answering as `fixHands` does: the cutout and the region, or `null` where the job failed or
    * was cancelled.
    */
@@ -451,7 +452,7 @@ interface CharacterStoreState {
     charId: string,
     set: OutfitSet | null,
     layers: { source: string; paint: string; mask: string },
-    strength: number
+    denoise: number
   ) => Promise<RegionFixResult | null>
   /** Stops a repaint in flight, leaving the character's other work alone. */
   cancelRepaint: (charId: string, set: OutfitSet | null) => Promise<void>
@@ -1041,7 +1042,7 @@ export const useCharacterStore = create<CharacterStoreState>((set, get) => ({
     return !result.ok || result.data
   },
 
-  fixHands: async (charId, outfitSet, paintLayer) => {
+  fixHands: async (charId, outfitSet, paintLayer, denoise) => {
     const character = get().characters[charId]
     if (!character) return null
 
@@ -1051,6 +1052,7 @@ export const useCharacterStore = create<CharacterStoreState>((set, get) => ({
       character,
       outfitSet ?? 'default',
       paintLayer,
+      denoise,
       rerollSeed(character)
     )
     if (!result.ok) {
@@ -1065,7 +1067,7 @@ export const useCharacterStore = create<CharacterStoreState>((set, get) => ({
     await window.api.jobs.cancelKeys(charId, [`hands:${outfitSet ?? 'default'}`])
   },
 
-  repaint: async (charId, outfitSet, layers, strength) => {
+  repaint: async (charId, outfitSet, layers, denoise) => {
     const character = get().characters[charId]
     if (!character) return null
 
@@ -1076,7 +1078,7 @@ export const useCharacterStore = create<CharacterStoreState>((set, get) => ({
       layers.source,
       layers.paint,
       layers.mask,
-      strength,
+      denoise,
       rerollSeed(character)
     )
     if (!result.ok) {

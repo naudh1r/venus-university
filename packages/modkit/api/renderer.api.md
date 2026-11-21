@@ -879,6 +879,7 @@ export interface PromptSpots {
 export interface PromptState {
     addedNotices?: readonly AddedNotice[];
     affection?: Record<string, number>;
+    ages?: Readonly<Record<string, number>>;
     backFromBreak?: readonly string[];
     backgrounds: BackgroundSets;
     bg: string | null;
@@ -1493,6 +1494,7 @@ export function slotHalf(time: TimeSlot): 'day' | 'night';
 
 // @public
 export interface SlotIntroInput {
+    ages?: Readonly<Record<string, number>>;
     askers: readonly IntroAsker[];
     backgroundLore?: readonly string[];
     backOnCampus?: number;
@@ -1672,6 +1674,7 @@ export interface TextFieldProps {
 
 // @public
 export interface TextingPromptState {
+    ages?: Readonly<Record<string, number>>;
     calendar: SemesterCalendar;
     charCompanions?: NpcCompanions;
     charHaunt?: Haunt | null;
