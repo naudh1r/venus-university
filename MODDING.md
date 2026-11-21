@@ -443,8 +443,9 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
   This is not a connectivity or account-credit check; it reveals no key or endpoint.
 - `localImageSource()`, `useLocalImageSource()` and `subscribeLocalImageSource(onChange)`
   (`renderer`): `'managed'` or `'external'`, or null before settings load. This says which
-  source is selected, not whether it is ready or reachable. Both subscriptions fire only
-  when their own answer changes and return an unsubscribe function. Each exported value
+  source is selected, not whether it is ready or reachable. Its subscription also fires when
+  the external server address changes, without exposing that address. The image-credential
+  subscription fires only when its own answer changes. Both return an unsubscribe function. Each exported value
   has its matching `renderer:<name>` capability.
 - `canRenderLocalImages()` and `subscribeCanRenderLocalImages(onChange)` (`renderer`): core's
   local-rendering rule. False on the web or before settings load; external ComfyUI is available
