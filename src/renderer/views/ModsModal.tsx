@@ -15,7 +15,8 @@ import { isBuiltInRow, sessionRow, type ModSessionEntry } from '@shared/modSessi
 import { ConfirmModal } from '../components/ConfirmModal'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
-import { modDetail, optionPreview } from '../mods/hooks'
+import { modDetail, optionControl, optionPreview } from '../mods/hooks'
+import { SlotBoundary } from '../mods/ModSlot'
 import { isWebBuild } from '../platform'
 import { ModsBrowse } from './ModsBrowse'
 import { ModsAuthorsFold } from './ModsAuthorsFold'
@@ -322,11 +323,22 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
                 <ul className="vu-mods-options">
                   {selected.options.map((option, index, all) => {
                     if (!option.group) {
+                      const Control = optionControl(selected.id, option.id)
                       return (
                         <li key={option.id} className="vu-mods-option">
                           <span className="vu-mods-option-text">
                             <span className="vu-mods-option-label">{option.label}</span>
                             <span className="vu-mods-option-hint">{option.hint}</span>
+                            {Control && (
+                              <span className="vu-mods-option-control">
+                                <SlotBoundary slot="optionControls" modId={selected.id}>
+                                  <Control
+                                    optionId={option.id}
+                                    on={optionOn(switches, selected.id, option.id)}
+                                  />
+                                </SlotBoundary>
+                              </span>
+                            )}
                           </span>
                           <Switch
                             id={`mods-option-${selected.id}-${option.id}`}

@@ -95,9 +95,9 @@ export function modelForComponentId(componentId: string): PinnedModel | undefine
   return PINNED_MODELS.find((model) => model.id === id)
 }
 
-/** A ComfyUI custom node installed from a GitHub commit archive. */
-export interface PinnedNode {
-  id: 'impactPack' | 'impactSubpack' | 'inspyrenetRembg'
+/** A ComfyUI custom node installed from a GitHub commit archive: core's own or a mod's. */
+export interface NodePack {
+  id: string
   label: string
   owner: string
   repo: string
@@ -116,6 +116,11 @@ export interface PinnedNode {
   modules: readonly string[]
   /** The node classes the workflows take from this pack, so one a server lacks is named under it. */
   classes: readonly string[]
+}
+
+/** One of the custom nodes core's own workflows need. */
+export interface PinnedNode extends NodePack {
+  id: 'impactPack' | 'impactSubpack' | 'inspyrenetRembg'
 }
 
 /** Custom nodes required by the runtime workflows, verified against them. */
@@ -167,12 +172,12 @@ export const PINNED_NODES: readonly PinnedNode[] = [
 ] as const
 
 /** Builds the GitHub commit archive URL for a custom node. */
-export function nodeZipUrl(node: PinnedNode): string {
+export function nodeZipUrl(node: NodePack): string {
   return `https://github.com/${node.owner}/${node.repo}/archive/${node.sha}.zip`
 }
 
 /** Returns the wrapper folder GitHub creates inside a commit archive. */
-export function nodeZipWrapperDir(node: PinnedNode): string {
+export function nodeZipWrapperDir(node: NodePack): string {
   return `${node.repo}-${node.sha}`
 }
 

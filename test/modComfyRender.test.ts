@@ -44,7 +44,10 @@ beforeEach(() => {
   } } })
   fixture.fetch.mockReset().mockImplementation(async (url: string, options?: RequestInit) => {
     const path = new URL(url).pathname
-    if (path === '/object_info' || path === '/system_stats') return Response.json({})
+    if (path === '/object_info') {
+      return Response.json(Object.fromEntries(Object.values(request.workflow).map((node) => [node.class_type, {}])))
+    }
+    if (path === '/system_stats') return Response.json({})
     if (path === '/prompt') {
       submitted.push(JSON.parse(options!.body as string).prompt)
       return Response.json({ prompt_id: 'render' })
@@ -67,6 +70,13 @@ function render(signal = new AbortController().signal): Promise<Uint8Array> {
 }
 
 describe('mod-owned ComfyUI renders', () => {
+  it('refuses a graph naming a class the server lacks before anything is queued', async () => {
+    const unknown = { ...request, workflow: { ...request.workflow, '5': { class_type: 'FixtureNode', inputs: {} } } }
+    await expect(renderComfyImage('photo-feature', unknown, { signal: new AbortController().signal }))
+      .rejects.toMatchObject({ code: 'COMFY_NODES_MISSING', detail: expect.stringContaining('FixtureNode') })
+    expect(submitted).toEqual([])
+  })
+
   it('hands each step to onProgress, and renders on when the callback throws', async () => {
     const steps: string[] = []
     const heard = await renderComfyImage('photo-feature', request, {
