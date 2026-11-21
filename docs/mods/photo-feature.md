@@ -158,14 +158,13 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
 - Wide photos on feed posts and in DMs keep the height of a portrait photo, and can open
   twice as wide in the full view. Portrait photos keep their usual size.
 - Wide photos take two tiles in a contact's gallery, cropped at the centre. Opening one shows
-  the whole picture; portraits fill the gaps, so the newest photos may stand slightly out of order.
+  the whole picture. Portraits fill the gaps, so the newest photos may stand slightly out of order.
 - A photo's waiting frame follows the shape being drawn, including when switching between wide
   and portrait. A failed redraw brings back the old picture in its old shape.
-
 - ComfyUI-ppm has its own switch, off by default. Turn it on and install the pack from under
   **Draw photos of two with ComfyUI-ppm** in Mods. With it off, new photos start portrait as before.
 - Photos of two can use ComfyUI-ppm in portrait too. They still start wide while ppm is on and
-  installed; the info panel can redraw them portrait.
+  installed, and the info panel can redraw them portrait.
 - With ppm off, the info panel can still switch photos of two to wide using the older drawing
   method. Solo photos keep both choices too.
 - The photo info panel can switch a photo between wide and portrait and redraw it.

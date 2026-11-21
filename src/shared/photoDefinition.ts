@@ -45,7 +45,7 @@ export const PHOTO_FEATURE_MOD = {
     {
       id: 'ppm',
       label: 'Draw photos of two with ComfyUI-ppm',
-      hint: 'Keeps the two in a photo apart instead of meeting in the middle. Photos of two start wide; you can redraw them portrait. Needs ComfyUI-ppm, installed here.',
+      hint: 'Keeps the two in a photo apart instead of meeting in the middle. Photos of two start wide, and you can redraw them portrait. Needs ComfyUI-ppm, installed here.',
       default: false
     },
     {
