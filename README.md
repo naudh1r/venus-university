@@ -8,7 +8,7 @@ catalogue the game's mods browser reads them from. They run on `naudh1r-core`.
 | Photo Feature | 1.8.0 | Characters send photos in their DMs and post them on their feeds, drawn by ComfyUI |
 | Bunnyfeeds | 1.1.7 | Comments under their posts, and replies to yours |
 | Emoji Extended | 1.0.0 | Every emoji on the phone, and big emoji in texts |
-| After Hours | 0.7.0 | A Busy status, and a night in your room to text before you sleep |
+| After Hours | 0.7.1 | A Busy status, and a night in your room to text before you sleep |
 
 ## Installing
 

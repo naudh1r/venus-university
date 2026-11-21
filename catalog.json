@@ -355,6 +355,19 @@
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
       "releases": [
         {
+          "version": "0.7.1",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.1.zip",
+          "sha256": "9d1a58ea6af9631b89c2939bc37680e8566eae45168c8ce5459bd01c9885ff67",
+          "kit": ">=0.8.1",
+          "game": ">=0.8.0",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-21",
+          "changes": [
+            "The night landing opens on one of a handful of lines, picked for that night."
+          ]
+        },
+        {
           "version": "0.7.0",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.0.zip",
           "sha256": "289d2241dcdd5624c6f9a2b6dd6e14eb60e5fe637286da5f6537b8027ec7740c",
@@ -397,6 +410,12 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.7.1",
+          "changes": [
+            "The night landing opens on one of a handful of lines, picked for that night."
+          ]
+        },
         {
           "version": "0.7.0",
           "changes": [
