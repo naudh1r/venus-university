@@ -43,6 +43,12 @@ export const PHOTO_FEATURE_MOD = {
       default: false
     },
     {
+      id: 'ppm',
+      label: 'Draw photos of two with ComfyUI-ppm',
+      hint: 'Keeps the two in a photo apart instead of meeting in the middle. Photos of two start wide; you can redraw them portrait. Needs ComfyUI-ppm, installed here.',
+      default: false
+    },
+    {
       id: 'webp',
       label: 'Save photos as WebP',
       hint: 'New photos are saved as WebP, with no visible quality loss while taking much less space than PNG. Off, they are saved as PNG. Photos already saved stay as they are.',

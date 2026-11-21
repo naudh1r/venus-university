@@ -15,6 +15,7 @@ export function usePhotoSwitches(): PhotoSwitches {
   useModOption(PHOTO_FEATURE_ID, 'webp')
   useModOption(PHOTO_FEATURE_ID, 'body')
   useModOption(PHOTO_FEATURE_ID, 'duo')
+  useModOption(PHOTO_FEATURE_ID, 'ppm')
   useModOption(PHOTO_FEATURE_ID, 'loader-bunny')
   useModOption(PHOTO_FEATURE_ID, 'loader-shimmer')
   useModOption(PHOTO_FEATURE_ID, 'loader-dots')

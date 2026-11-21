@@ -19,6 +19,7 @@ import type { Character } from '@vx/modkit/shared'
 import { photoGenerationOn } from '../../shared/photoSwitches'
 import type {
   ChatPhoto,
+  PhotoCouple,
   PhotoInfo,
   PhotoOrientation,
   PhotoPrompts,
@@ -126,8 +127,6 @@ function PhotoInfoModal({
   const [recorded, setRecorded] = useState(false)
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState('')
-  // A picture of two is drawn wide only through ComfyUI-ppm, so without it there is no switch to wide.
-  const [wideOffered, setWideOffered] = useState(!friend)
   const photosOn = photoGenerationOn(usePhotoSwitches())
   const id = useId()
   const body = useRef<HTMLDivElement>(null)
@@ -142,17 +141,23 @@ function PhotoInfoModal({
       ...(friend ? { left: info.left ?? '', right: info.right ?? '' } : {})
     }
     onClose()
-    onRedraw({ seed: same ? info.seed : undefined, prompts, orientation: info.orientation })
+    onRedraw({
+      seed: same ? info.seed : undefined,
+      prompts,
+      orientation: info.orientation,
+      ...(friend ? { couple: info.couple ?? 'area' } : {})
+    })
   }
   const turned: PhotoOrientation = info?.orientation === 'wide' ? 'portrait' : 'wide'
 
   /**
    * Redraws in the other orientation with the same seed where there is one and the prompts in the
-   * fields; a picture of two takes each person's prompt as built for the other method.
+   * fields; a picture of two keeps its prompt method where the switch allows it.
    */
   const switchOrientation = async (): Promise<void> => {
     if (dead || !info) return
     let halves: Pick<PhotoPrompts, 'left' | 'right'> = {}
+    let couple: PhotoCouple | undefined
     if (friend) {
       setBusy(true)
       setError('')
@@ -169,6 +174,7 @@ function PhotoInfoModal({
         ])
         if (!result.ok) throw new Error(result.error.message)
         halves = { left: result.data.left ?? '', right: result.data.right ?? '' }
+        couple = result.data.couple ?? 'area'
       } catch {
         setError('Could not rebuild the photo prompt.')
         setBusy(false)
@@ -179,7 +185,8 @@ function PhotoInfoModal({
     onRedraw({
       seed: info.seed,
       prompts: { positive: info.positive, negative: info.negative, ...halves },
-      orientation: turned
+      orientation: turned,
+      ...(couple ? { couple } : {})
     })
   }
   const { host, overlayProps, primaryProps } = useModalShell(onClose, 'panel', () =>
@@ -244,13 +251,6 @@ function PhotoInfoModal({
       .finally(() => {
         if (active) setBusy(false)
       })
-    if (friend) {
-      void photoInvoke('ppmState', [])
-        .then((result) => {
-          if (active) setWideOffered(result.ok && result.data !== 'missing' && result.data !== 'invalid')
-        })
-        .catch(() => {})
-    }
     return () => {
       active = false
     }
@@ -373,7 +373,7 @@ function PhotoInfoModal({
             >
               Close
             </motion.button>
-            {info && (turned === 'portrait' || wideOffered) && (
+            {info && (
               <motion.button
                 type="button"
                 disabled={dead}

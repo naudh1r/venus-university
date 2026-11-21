@@ -3,7 +3,6 @@ import { registerImagePromptDraft } from '@vx/modkit/shared'
 import { registerPhotoDraft } from '../shared/photoDraft'
 import { BrowserWindow } from 'electron'
 import {
-  comfyNodePackState,
   installComfyNodePack,
   type InvokeContext,
   type InvokeHandler
@@ -16,6 +15,7 @@ import {
   carryPhotos,
   retirePhoto,
   photoInfo,
+  photoPpmState,
   dropPhoto,
   generateDuoPhoto,
   generatePhoto,
@@ -153,8 +153,8 @@ export function photoInvocations(): Record<string, InvokeHandler> {
     ) => photoInfo(playthroughId, character, friend, tier, scene, file, rebuild, orientation)
   )
 
-  // Where ComfyUI-ppm, which wide photos of two are drawn with, stands in the game's ComfyUI.
-  handle('ppm-state', () => comfyNodePackState(PHOTO_FEATURE_ID, PPM_PACK.id))
+  // The effective ppm state also tells waiting frames whether a first duo can be wide.
+  handle('ppm-state', photoPpmState)
 
   // Installs ComfyUI-ppm into the game's ComfyUI, stopped by the call's own cancellation.
   handle('install-ppm', (event) =>
