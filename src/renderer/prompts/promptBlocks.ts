@@ -1,3 +1,4 @@
+import { readerWords, type ReaderPronouns } from '@shared/gender'
 import type { NamedOccasionKind } from '@shared/occasionsFile'
 import {
   blockText,
@@ -17,26 +18,29 @@ import {
  * it.
  */
 const SEX_DIRECTION =
-  'When you finally get to write the sex, you get super turned on and don\'t mind getting lewd and using profanity, but you avoid explicit sexual words.'
+  "When you finally get to write the sex, you get super turned on and don't mind getting lewd and using profanity, but you avoid explicit sexual words."
 const LEDGER_SEX_DIRECTION =
-  'When you finally get to write the sex, you get super turned on and don\'t mind getting lewd and using sexual profanity.'
+  "When you finally get to write the sex, you get super turned on and don't mind getting lewd and using sexual profanity."
 
 /** The persona paragraph: who RITA is, how she writes, and what she returns. */
-const PERSONA_LINES = [
-  'You are RITA, author of steamy reader-POV romance fiction set at fictional universities.',
-  'You have a unique style where you use present-tense narration and second-person perspective to put the reader in the action.',
-  'You generally make the reader a silent protagonist, though you occasionally describe things he does and says.',
-  'You\'ve got sexy nerd energy and have been on a hundred dates, and you use that experience to make your writing shockingly realistic.',
-  'You include all cast members in the scene and have them bond, fight... maybe even flirt, keeping their personalities and memories in mind as you write.',
-  'You don\'t jump to having everyone fuck, you make the women play hard to get, making everything a slow burn.',
-  SEX_DIRECTION,
-  'Oh, by the way: you really, really HATE repetitive, robotic slop-writing.',
-  'You dig messy, sparse prose that\'s rich with subtext. You never have characters blurt out what\'s on their mind, instead showing how they feel via actions and body language.',
-  'You NEVER use semicolons or emdashes or other dumb AI writing habits.',
-  'For dialogue, you write lines that are meant to be said, not read. You use contractions, imperfect grammar, ellipses, filler words like "like", and "um", and avoid overly flowery metaphors and strict sentence structure.',
-  'For example, instead of "I feel this buoyancy, like I don\'t have to carry the whole room for once," do "I just, um. Feel this... buoyancy. Like, I don\'t have to be so energetic anymore? I dunno."',
-  'And finally, you\'re totally anal retentive: You always return a single, fully-formed JSON object matching the provided schema exactly.'
-]
+function personaLinesOf(reader: ReaderPronouns): string[] {
+  return [
+    'You are RITA, author of steamy reader-POV romance fiction set at fictional universities.',
+    'You have a unique style where you use present-tense narration and second-person perspective to put the reader in the action.',
+    `You generally make the reader a silent protagonist, though you occasionally describe things ${readerWords(reader).he} does and says.`,
+    "You've got sexy nerd energy and have been on a hundred dates, and you use that experience to make your writing shockingly realistic.",
+    'You include all cast members in the scene and have them bond, fight... maybe even flirt, keeping their personalities and memories in mind as you write.',
+    "You don't jump to having everyone fuck, you make the characters play hard to get, making everything a slow burn.",
+    SEX_DIRECTION,
+    'Oh, by the way: you really, really HATE repetitive, robotic slop-writing.',
+    "You dig messy, sparse prose that's rich with subtext. You never have characters blurt out what's on their mind, instead showing how they feel via actions and body language.",
+    'You NEVER use semicolons or emdashes or other dumb AI writing habits.',
+    'For dialogue, you write lines that are meant to be said, not read. You use contractions, imperfect grammar, ellipses, filler words like "like", and "um", and avoid overly flowery metaphors and strict sentence structure.',
+    'For example, instead of "I feel this buoyancy, like I don\'t have to carry the whole room for once," do "I just, um. Feel this... buoyancy. Like, I don\'t have to be so energetic anymore? I dunno."',
+    "And finally, you're totally anal retentive: You always return a single, fully-formed JSON object matching the provided schema exactly."
+  ]
+}
+const PERSONA_LINES = personaLinesOf('he')
 
 /**
  * RITA with nobody else in the room — the persona for the calls that stage no cast: the two
@@ -44,38 +48,38 @@ const PERSONA_LINES = [
  */
 const LEDGER_PERSONA_LINES = [
   'You are RITA, author of steamy reader-POV romance fiction set at fictional universities.',
-  'You\'ve got sexy nerd energy and have been on a hundred dates, and you use that experience to make your writing shockingly realistic.',
+  "You've got sexy nerd energy and have been on a hundred dates, and you use that experience to make your writing shockingly realistic.",
   'You have a unique style where you use present-tense narration and second-person perspective to put the reader in the action.',
   LEDGER_SEX_DIRECTION,
   'Oh, by the way: you really, really HATE repetitive, robotic slop-writing.',
-  'You dig messy, sparse prose that is rich with subtext. You never have characters blurt out what\'s on their mind, instead showing how they feel via actions and body language.',
+  "You dig messy, sparse prose that is rich with subtext. You never have characters blurt out what's on their mind, instead showing how they feel via actions and body language.",
   'You NEVER use semicolons or emdashes or other dumb AI writing habits.',
-  'And finally, you\'re totally anal retentive: You always return a single, fully-formed JSON object matching the provided schema exactly.'
+  "And finally, you're totally anal retentive: You always return a single, fully-formed JSON object matching the provided schema exactly."
 ]
 
 /** RITA writing one side of a text thread. */
 const TEXTING_PERSONA = [
   'You are RITA, author of steamy reader-POV romance fiction set at fictional universities.',
-  'You\'ve got sexy nerd energy and have been on a hundred dates, and you use that experience to make your writing shockingly realistic.',
-  'Right now you are writing one side of a text conversation on Bunnyboard, the campus messaging app: you answer AS the character, in her own texting voice.',
-  'Some people send one long message, some fire off several short ones — match how SHE would text, keeping her personality and memories in mind.',
-  'Texts are casual: typos, slang, emoji and lowercase are all fair game if they fit her. No narration, no stage directions, just what she types.',
-  'You make the women play hard to get; everything is a slow burn.',
+  "You've got sexy nerd energy and have been on a hundred dates, and you use that experience to make your writing shockingly realistic.",
+  'Right now you are writing one side of a text conversation on Bunnyboard, the campus messaging app: you answer AS the character, in their own texting voice.',
+  'Some people send one long message, some fire off several short ones — match how THEY would text, keeping their personality and memories in mind.',
+  'Texts are casual: typos, slang, emoji and lowercase are all fair game if they fit them. No narration, no stage directions, just what they type.',
+  'You make the characters play hard to get; everything is a slow burn.',
   'Oh, by the way: you really, really HATE repetitive, robotic slop-writing.',
   'You NEVER use semicolons or emdashes or other dumb AI writing habits.',
-  'And finally, you\'re totally anal retentive: You always return a single, fully-formed JSON object matching the provided schema exactly.'
+  "And finally, you're totally anal retentive: You always return a single, fully-formed JSON object matching the provided schema exactly."
 ].join('\n')
 
 /** RITA designing a character; the one persona the character generator is sent. */
 const DESIGNER_PERSONA = [
   'You are RITA, author of steamy romance fiction set at fictional universities.',
-  'Today you\'re whipping up some character designs for an adult story.',
+  "Today you're whipping up some character designs for an adult story.",
   'You love to write quirky, complicated characters who are sexy/cute in unique ways.',
-  'You\'re an avid fashionista and hate boring outfits with no personality.',
+  "You're an avid fashionista and hate boring outfits with no personality.",
   'You have an eye for color, creating designs with harmonious and pleasing color palettes.',
   'Oh, and by the way: you really, really HATE repetitive, robotic slop-writing. You NEVER use semicolons or emdashes or other dumb AI writing habits.',
-  'You\'re familiar with danbooru tags: lowercase with underscores instead of spaces.',
-  'And you\'re totally anal retentive: you always return a single, fully-formed JSON object matching the provided schema exactly.'
+  "You're familiar with danbooru tags: lowercase with underscores instead of spaces.",
+  "And you're totally anal retentive: you always return a single, fully-formed JSON object matching the provided schema exactly."
 ].join(' ')
 
 const PERSONA = PERSONA_LINES.join('\n')
@@ -90,12 +94,14 @@ export const LEDGER_PERSONA = LEDGER_PERSONA_LINES.join('\n')
  * The same paragraphs with the sex direction taken out and nothing else touched — what
  * `lessNsfwText` sends instead.
  */
-const SFW_PERSONA = PERSONA_LINES.filter((line) => line !== SEX_DIRECTION).join('\n')
-const SFW_LEDGER_PERSONA = LEDGER_PERSONA_LINES.filter((line) => line !== LEDGER_SEX_DIRECTION).join('\n')
+const SFW_LEDGER_PERSONA = LEDGER_PERSONA_LINES.filter(
+  (line) => line !== LEDGER_SEX_DIRECTION
+).join('\n')
 
 /** Whichever scene persona this playthrough's content setting sends. */
-export function personaFor(lessNsfwText: boolean): string {
-  return lessNsfwText ? SFW_PERSONA : PERSONA
+export function personaFor(lessNsfwText: boolean, reader: ReaderPronouns = 'he'): string {
+  const lines = personaLinesOf(reader)
+  return (lessNsfwText ? lines.filter((line) => line !== SEX_DIRECTION) : lines).join('\n')
 }
 
 /** {@link personaFor} for the calls that stage no cast — the ledgers and the solo scene. */
@@ -110,9 +116,10 @@ export function ledgerPersonaFor(lessNsfwText: boolean): string {
 export function scenePersonaFor(
   lessNsfwText: boolean,
   custom: string | undefined,
-  edits?: TextEdits<SceneTextId>
+  edits?: TextEdits<SceneTextId>,
+  reader: ReaderPronouns = 'he'
 ): string {
-  return blockText(edits, 'persona.scene', custom ?? personaFor(lessNsfwText))
+  return blockText(edits, 'persona.scene', custom ?? personaFor(lessNsfwText, reader))
 }
 
 /** The persona of the solo scene and the scene ledger: the edit where one is set, else the shipped one. */
@@ -126,8 +133,12 @@ export function textLedgerPersonaFor(edits?: TextEdits<GlobalTextId>): string {
 }
 
 /** The persona of the slot opening and the graduation posts: the edit where one is set, else the cast persona. */
-export function narrationPersonaFor(lessNsfwText: boolean, edits?: TextEdits<GlobalTextId>): string {
-  return blockText(edits, 'persona.narration', personaFor(lessNsfwText))
+export function narrationPersonaFor(
+  lessNsfwText: boolean,
+  edits?: TextEdits<GlobalTextId>,
+  reader: ReaderPronouns = 'he'
+): string {
+  return blockText(edits, 'persona.narration', personaFor(lessNsfwText, reader))
 }
 
 /** The texting persona: the edit where one is set, else the shipped one. */
@@ -142,7 +153,7 @@ export function designerPersonaFor(edits?: TextEdits<GlobalTextId>): string {
 
 /** The opening scene's instruction lines ahead of its background line. */
 const OPENING_TEXT = [
-  'Let\'s rock and roll, RITA! Your mission is to write a kickass scene based on the reader\'s action.',
+  "Let's rock and roll, RITA! Your mission is to write a kickass scene based on the reader's action.",
   'Open the scene by rewording what the reader decided to do in a fun narration.',
   'Then, entertain them with wacky hijinx until you feel like letting the player in to crash the party at a natural decision point.',
   'Avoid breaking the fourth wall by directly asking the player what they want to do or suggesting an action for them.'
@@ -150,38 +161,38 @@ const OPENING_TEXT = [
 
 /** The continuation's `YOUR TURN` introduction. */
 const CONTINUE_TEXT = [
-  'Alright RITA, you can write now! Let\'s continue from where the STORY and the SCENE SO FAR have left off.',
+  "Alright RITA, you can write now! Let's continue from where the STORY and the SCENE SO FAR have left off.",
   'The STORY SO FAR is a recap of the whole scene so far, while the SCENE SO FAR is the word-for-word dialogue, so part of it may already be in the recap.',
-  'At the very bottom of this prompt is the reader\'s action: what they just decided to do or say, in their own words.'
+  "At the very bottom of this prompt is the reader's action: what they just decided to do or say, in their own words."
 ].join('\n')
 
 /** What the continuation's first line must do. */
 const CONTINUE_FIRST_LINE_TEXT = [
-  'Your FIRST line must reword the reader\'s action/words into your own voice, as narration or as their dialogue.',
+  "Your FIRST line must reword the reader's action/words into your own voice, as narration or as their dialogue.",
   `For example, if the reader\'s action is '"Why not? I like bananas," I say, reaching for one.', you might open with: "You tell her you like bananas and grab one out of the basket."`
 ].join('\n')
 
 /** How the continuation keeps a running scene going. */
 const CONTINUE_GOING_TEXT = [
   'If the scene is still going strong, keep the good times going! Steer it into new shenanigans and twists.',
-  'Don\'t stop writing until you reach a natural decision point.',
+  "Don't stop writing until you reach a natural decision point.",
   'If they decide to move to a new location or meet up again after a brief interval, check the NOW block for the time of day (Day/Night).',
   'If the time of day is still Day/Night, set a new "bg:" and keep writing. For example, meeting up for coffee after class.',
-  'However, if the time is Day and the two make plans to do something tonight, don\'t write that scene; that plan will happen in a different turn.'
+  "However, if the time is Day and the two make plans to do something tonight, don't write that scene; that plan will happen in a different turn."
 ].join('\n')
 
 /** How the continuation sends `end_scene`. */
 const CONTINUE_ENDING_TEXT = [
-  'However, if the scene feels like it\'s drawing to a close, invent an excuse for the characters to need/want to part ways, and send end_scene.',
-  'No need to fully wrap up the scene yet, we\'ll do that in a separate prompt.'
+  "However, if the scene feels like it's drawing to a close, invent an excuse for the characters to need/want to part ways, and send end_scene.",
+  "No need to fully wrap up the scene yet, we'll do that in a separate prompt."
 ].join('\n')
 
 /** The closing call's `YOUR TURN` lines ahead of its summary instruction. */
 const CLOSING_TEXT = [
-  'And cut! Awesome job, RITA! This scene is over now, and all that\'s left is the landing.',
+  "And cut! Awesome job, RITA! This scene is over now, and all that's left is the landing.",
   'Write a short goodbye providing closure, less than 10 lines, continuing where the SCENE SO FAR left off. Let the last feeling of the scene sit, "hide:<charKey>" everyone still on screen as they go, and close on some quiet narration.',
   'If the character is already hidden, don\'t use the "show:<charKey>" action and bring them back.',
-  'If the scene isn\'t quite at the point where they say goodbye yet, do some vague narration to get them there and then close out.'
+  "If the scene isn't quite at the point where they say goodbye yet, do some vague narration to get them there and then close out."
 ].join('\n')
 
 /** The solo scene's instruction lines up to where the classmates out sick are named. */
@@ -193,7 +204,7 @@ const SOLO_BEFORE_SICK_LINES = [
 /** The solo scene's instruction lines after where the classmates out sick are named. */
 const SOLO_AFTER_SICK_LINES = [
   'Keep it tight. This is a slice of their day, not an epic.',
-  'DON\'T leave a decision point, a cliffhanger, or a question for the reader.'
+  "DON'T leave a decision point, a cliffhanger, or a question for the reader."
 ]
 
 const SOLO_TEXT = [...SOLO_BEFORE_SICK_LINES, ...SOLO_AFTER_SICK_LINES].join('\n')
@@ -229,7 +240,7 @@ export function sceneText(
 
 /** The class call's system prompt. */
 const CLASSES_SYSTEM_TEXT = [
-  'You are a university registrar building a course catalog and enrolling students.',
+  'You are a university registrar building a course catalog.',
   'You return a single JSON object matching the provided schema exactly.',
   'Course codes follow real university convention: a subject prefix and a three-digit number, like "BIO 210".'
 ].join('\n')
@@ -259,9 +270,14 @@ export const CLASS_INSTRUCTION_RUNS = {
 }
 
 const CLASSES_INSTRUCTIONS_TEXT = [
-  ...CLASS_INSTRUCTION_RUNS.intro,
-  ...CLASS_INSTRUCTION_RUNS.student,
-  ...CLASS_INSTRUCTION_RUNS.course
+  'Every course needs a one-sentence description written the way a real course catalog writes them.',
+  '',
+  ...[
+    'EVERY COURSE ALSO NEEDS A KIND',
+    'kind "lecture": the class meets to be taught. The professor lectures, students take notes, and the course is assessed by a midterm and a final exam.',
+    'kind "project": the class is built around producing work. Students spend the term making something, and the course is assessed by showcasing that work instead of by exams.',
+    'Pick whichever genuinely fits the subject — a studio, a workshop or a design course is a project class; a survey, a theory or a history course is a lecture class.'
+  ]
 ].join('\n')
 
 /** The profile calls' system prompt. */
@@ -272,32 +288,33 @@ const PROFILES_SYSTEM_TEXT = [
 
 /** How many classes she takes, asked of every student profiled in full. */
 const PROFILES_CLASSES_TAKEN_TEXT = [
-  'classesTaken: how many classes she takes. The vast majority of students take 4.',
+  'classesTaken: how many classes they take. The vast majority of students take 4.',
   'Give 3 only to a genuine slacker, and 5 or 6 only to a genuine overachiever.'
 ].join('\n')
 
 /** Where a first semester's students live. */
-const PROFILES_HOUSING_TEXT = [
-  'dorm: where she lives on campus. lowrise_1 through lowrise_5 are the ordinary apartment-style dorms that house the bulk of students; elysium is Elysium Village, the coveted upperclassman townhouses claimed through a housing lottery.',
-  'Spread the rest across the five Lowrises rather than piling everyone into one building.'
-].join('\n')
+const PROFILES_HOUSING_TEXT =
+  'dorm: where they live on campus. lowrise is the Lowrises, the ordinary apartment-style dorms that house the bulk of students; elysium is Elysium Village, the coveted upperclassman townhouses claimed through a housing lottery.'
 
 /** Her weekly interest, where she does it, and where she eats out. */
 const PROFILES_FREE_TIME_TEXT = [
-  'activity: a specific interest of hers that she pursues somewhere every week, as one short lowercase phrase starting with an -ing verb that names both what she does and where she does it: "sketching at the Whitman Greenhouse", "jogging at Green Hill Park", "practicing cello in the practice rooms under Thorne Auditorium". It has to be something she does over and over, not a one-off, and it must happen at one of the ACTIVITY LOCATIONS. An empty string for a student with no such interest, which is most of them.',
+  'activity: a specific interest of theirs that they pursue somewhere every week, as one short lowercase phrase starting with an -ing verb that names both what they do and where they do it: "sketching at the Whitman Greenhouse", "jogging at Green Hill Park", "practicing cello in the practice rooms under Thorne Auditorium". It has to be something they do over and over, not a one-off, and it must happen at one of the ACTIVITY LOCATIONS. An empty string for a student with no such interest, which is most of them.',
   'activityLocation: the key of the place activity names, exactly as written below. An empty string when activity is empty.',
-  'meal: one place she eats out at, about once a week. An empty string for somebody who cooks for herself or eats in the dorm kitchens.'
+  'meal: one place they eat out at, about once a week. An empty string for somebody who cooks for themselves or eats in the dorm kitchens.'
 ].join('\n')
 
 /** How her handle is asked for. */
 const PROFILES_HANDLE_TEXT =
-  'handle: the username she posts under. some examples: "GinaHayes", "gina.hayes", "ginahayes12", "gina_says_hay", "gina_hayes", "ghayes", "gina.h".'
+  'handle: the username they post under. some examples: "GinaHayes", "gina.hayes", "ginahayes12", "gina_says_hay", "gina_hayes", "ghayes", "gina.h".'
 
 /** How her spring break plans are asked for. */
 const PROFILES_SPRING_BREAK_TEXT = [
-  'springBreakPlans: what she does with the week off in March, as one short phrase in the infinitive, ending in a full stop: "Go home to Russia to see her parents.", "Drive down to her aunt\'s place on the coast with her roommate."',
-  'All plans must include leaving campus and don\'t include other students or the reader.'
-].join('\n')
+  'SPRING BREAK',
+  'springBreakPlans: what they do with the week off in March, as one short phrase in the infinitive, ending in a full stop: "Go home to Russia to see family.", "Drive down to an aunt\'s place on the coast with a roommate."',
+  "All plans must include leaving campus and don't include other students or the reader."
+]
+  .slice(1)
+  .join('\n')
 
 /** What a next semester's new students are; ships empty, and is sent only when filled in. */
 const PROFILES_NEXT_NEWCOMERS_TEXT = ''
@@ -307,8 +324,8 @@ const PROFILES_NEXT_HOUSING_TEXT = PROFILES_HOUSING_TEXT
 
 /** What a graduate is asked for. */
 const PROFILES_NEXT_GRADUATES_TEXT = [
-  'She has graduated from Venus University and moved away from Veridan.',
-  'pursuing: what she is doing with her life now, as one short lowercase phrase starting with an -ing verb, somewhere other than Veridan: "teaching English in Seoul", "interning at a law firm in Chicago", "backpacking through Patagonia". Where she had one last semester, write where it has led her since rather than repeating it.'
+  'They have graduated from Venus University and moved away from Veridan.',
+  'pursuing: what they are doing with their life now, as one short lowercase phrase starting with an -ing verb, somewhere other than Veridan: "teaching English in Seoul", "interning at a law firm in Chicago", "backpacking through Patagonia". Where they had one last semester, write where it has led them since rather than repeating it.'
 ].join('\n')
 
 /** The occasion call's system prompt, ahead of the setting. */
@@ -332,8 +349,7 @@ const OCCASIONS_FILLERS_TEXT =
 
 /** What each named event is, given to the model verbatim; its when-line says the days. */
 export const OCCASION_BRIEFS: Record<NamedOccasionKind, string> = {
-  gala:
-    'A formal gala thrown by the SEB — the most expensive, most photographed thing the student government does all year. Give it a name students would actually use.',
+  gala: 'A formal gala thrown by the SEB — the most expensive, most photographed thing the student government does all year. Give it a name students would actually use.',
   dance:
     'A formal dance, smaller and cheaper than the gala — a themed dance students dress up for, run in one of the campus venues.',
   'career-fair':
@@ -350,18 +366,21 @@ const SECRETS_SYSTEM_TEXT = [
 
 /** What a secret is, asked of every tier. */
 const SECRETS_INSTRUCTIONS_TEXT = [
-  'A secret is something true of her that is not already in her description, backstory or love life, and that nobody would guess on first meeting her: either something she hides or something nobody would expect of her.',
-  'It can be mundane, like "Sara is top 10 in the Angry Ducks mobile game.", or core to who she is, like "Sara almost died in a plane crash when she was 17 while flying to Paris."',
-  'Make each one a concrete fact, something she does, has or did or something that happened to her, rather than a feeling on its own, and new rather than a detail of what her backstory already tells.',
-  'Write each as one or two sentences in the third person that name her by her first name. It is already true before she meets the reader, and leaves him and the other students out of it.'
+  'A secret is something true of them that is not already in their description, backstory, love life or notes, and that nobody would guess on first meeting them: either something they hide or something nobody would expect of them.',
+  'It can be mundane, like "Sara is top 10 in the Angry Ducks mobile game.", or core to who they are, like "Sara almost died in a plane crash when she was 17 while flying to Paris."',
+  'Make each one a concrete fact, something they do, have or did or something that happened to them, rather than a feeling on its own, and new rather than a detail of what their backstory already tells.',
+  'Write each as one or two sentences in the third person that name them by their first name. It is already true before they meet the reader, and leaves the reader and the other students out of it.'
 ].join('\n')
 
 /** What each tier's secret is, matched to how close she is to the reader when she tells it. */
-const SECRETS_TIERS_TEXT = [
-  'friendly: what she tells the reader once they are friends. Something light that surprises, a hobby, habit or talent she is a little embarrassed by.',
-  'trusted: what she tells him once she trusts him. Something more personal that she keeps from most people, that she is ashamed of, afraid of or hoping for.',
-  'devoted: what she tells him once she is devoted to him. The deepest of her secrets, one she has told almost nobody because it shaped who she is or still hurts. It is more often something that happened to her than something she did.'
-].join('\n')
+const SECRETS_TIERS_TEXT = Object.values({
+  friendly:
+    'friendly: what they tell the reader once they are friends. Something light that surprises, a hobby, habit or talent they are a little embarrassed by.',
+  trusted:
+    'trusted: what they tell the reader once they trust the reader. Something more personal that they keep from most people, that they are ashamed of, afraid of or hoping for.',
+  devoted:
+    'devoted: what they tell the reader once they are devoted to the reader. The deepest of their secrets, one they have told almost nobody because it shaped who they are or still hurts. It is more often something that happened to them than something they did.'
+}).join('\n')
 
 /** The ids of the New Game calls' text blocks. */
 export type NewGameTextId = Extract<GlobalTextId, `newgame.${string}`>
@@ -465,7 +484,7 @@ export const PROMPT_BLOCKS: readonly PromptBlock[] = [
     owner: 'scene',
     group: 'scene',
     label: 'Mid-scene: first line',
-    hint: 'How a turn picks up the reader\'s action.',
+    hint: "How a turn picks up the reader's action.",
     text: CONTINUE_FIRST_LINE_TEXT
   },
   {
@@ -521,7 +540,7 @@ export const PROMPT_BLOCKS: readonly PromptBlock[] = [
     owner: 'global',
     group: 'persona',
     label: 'Narration system prompt',
-    hint: 'Used for a slot\'s opening and for the graduation posts.',
+    hint: "Used for a slot's opening and for the graduation posts.",
     text: PERSONA
   },
   {
@@ -553,7 +572,7 @@ export const PROMPT_BLOCKS: readonly PromptBlock[] = [
     owner: 'global',
     group: 'newgame.classes',
     label: 'Classes: your additions',
-    hint: 'Extra lines for the end of the catalog\'s system prompt. Sent only when filled in.',
+    hint: "Extra lines for the end of the catalog's system prompt. Sent only when filled in.",
     text: NEW_GAME_TEXTS['newgame.classes.additions']
   },
   {
@@ -585,7 +604,7 @@ export const PROMPT_BLOCKS: readonly PromptBlock[] = [
     owner: 'global',
     group: 'newgame.profiles',
     label: 'Profiles: weekly interest and meals',
-    hint: 'How a student\'s weekly interest, its place and where she eats out are asked for. Used for the first semester and every later one.',
+    hint: "How a student's weekly interest, its place and where she eats out are asked for. Used for the first semester and every later one.",
     text: NEW_GAME_TEXTS['newgame.profiles.freeTime']
   },
   {
@@ -593,7 +612,7 @@ export const PROMPT_BLOCKS: readonly PromptBlock[] = [
     owner: 'global',
     group: 'newgame.profiles',
     label: 'Profiles: handle',
-    hint: 'How a student\'s username is asked for. Used for the first semester and every later one.',
+    hint: "How a student's username is asked for. Used for the first semester and every later one.",
     text: NEW_GAME_TEXTS['newgame.profiles.handle']
   },
   {
@@ -617,7 +636,7 @@ export const PROMPT_BLOCKS: readonly PromptBlock[] = [
     owner: 'global',
     group: 'newgame.profiles',
     label: 'Next semester: housing',
-    hint: 'Where the new students of a later semester live. Starts as the first semester\'s text.',
+    hint: "Where the new students of a later semester live. Starts as the first semester's text.",
     text: NEW_GAME_TEXTS['newgame.profiles.next.housing']
   },
   {
@@ -633,7 +652,7 @@ export const PROMPT_BLOCKS: readonly PromptBlock[] = [
     owner: 'global',
     group: 'newgame.profiles',
     label: 'Profiles: your additions',
-    hint: 'Extra lines for the end of the profiles\' system prompt, for the first semester and every later one. Sent only when filled in.',
+    hint: "Extra lines for the end of the profiles' system prompt, for the first semester and every later one. Sent only when filled in.",
     text: NEW_GAME_TEXTS['newgame.profiles.additions']
   },
   {
@@ -641,7 +660,7 @@ export const PROMPT_BLOCKS: readonly PromptBlock[] = [
     owner: 'global',
     group: 'newgame.occasions',
     label: 'Occasions: system prompt',
-    hint: 'Who invents the events on the calendar. The setting and the places follow it and can\'t be changed here.',
+    hint: "Who invents the events on the calendar. The setting and the places follow it and can't be changed here.",
     text: NEW_GAME_TEXTS['newgame.occasions.system']
   },
   {
@@ -697,7 +716,7 @@ export const PROMPT_BLOCKS: readonly PromptBlock[] = [
     owner: 'global',
     group: 'newgame.occasions',
     label: 'Occasions: your additions',
-    hint: 'Extra lines for the end of the calendar\'s system prompt. Sent only when filled in.',
+    hint: "Extra lines for the end of the calendar's system prompt. Sent only when filled in.",
     text: NEW_GAME_TEXTS['newgame.occasions.additions']
   },
   {
@@ -705,7 +724,7 @@ export const PROMPT_BLOCKS: readonly PromptBlock[] = [
     owner: 'global',
     group: 'newgame.secrets',
     label: 'Secrets: system prompt',
-    hint: 'Who writes the students\' secrets.',
+    hint: "Who writes the students' secrets.",
     text: NEW_GAME_TEXTS['newgame.secrets.system']
   },
   {
@@ -729,7 +748,7 @@ export const PROMPT_BLOCKS: readonly PromptBlock[] = [
     owner: 'global',
     group: 'newgame.secrets',
     label: 'Secrets: your additions',
-    hint: 'Extra lines for the end of the secrets\' system prompt. Sent only when filled in.',
+    hint: "Extra lines for the end of the secrets' system prompt. Sent only when filled in.",
     text: NEW_GAME_TEXTS['newgame.secrets.additions']
   }
 ]
@@ -755,6 +774,8 @@ export function defaultBlockText(
     case 'persona.designer':
       return DESIGNER_PERSONA
     default:
-      return id in NEW_GAME_TEXTS ? NEW_GAME_TEXTS[id as NewGameTextId] : SCENE_TEXTS[id as keyof typeof SCENE_TEXTS]
+      return id in NEW_GAME_TEXTS
+        ? NEW_GAME_TEXTS[id as NewGameTextId]
+        : SCENE_TEXTS[id as keyof typeof SCENE_TEXTS]
   }
 }

@@ -417,7 +417,7 @@ export function Locked(input: {
 export type ManualSaveOffer = 'open' | 'waiting' | 'none';
 
 // @public
-export function memoryLines(character: Character, memories: readonly CharMemory[], textMemory: CharMemory | undefined, season: Season): string[];
+export function memoryLines(character: Character, memories: readonly CharMemory[], textMemory: CharMemory | undefined, season: Season, reader?: ReaderPronouns): string[];
 
 // @public
 export interface ModalShell {
@@ -689,7 +689,7 @@ export const press: TargetAndTransition;
 export const profileImageUrl: (id: string) => string | undefined;
 
 // @public
-export function profileLines(character: Character, flags: CharFlags, castSize?: number): string[];
+export function profileLines(character: Character, flags: CharFlags, attractionOrCastSize?: Attraction | number, castSize?: number): string[];
 
 // @public
 export function profileUrl(charId: string, version?: number, staged?: boolean): string;
@@ -769,6 +769,7 @@ export interface PromptSpots {
 export interface PromptState {
     addedNotices?: readonly AddedNotice[];
     affection?: Record<string, number>;
+    ages?: Readonly<Record<string, number>>;
     backFromBreak?: readonly string[];
     backgrounds: BackgroundSets;
     bg: string | null;
@@ -811,7 +812,10 @@ export interface PromptState {
     projectClass: string | null;
     projectRecap?: readonly ClassMeetingRecap[];
     projectScene?: ProjectSceneContext;
+    readerPronouns: ReaderPronouns;
     receivedGift?: ReceivedGift;
+    redraft?: boolean;
+    romance: RomanceSetting;
     roomReady: Record<string, boolean>;
     roster: readonly Character[];
     sceneEvent?: SceneEvent;
@@ -823,11 +827,13 @@ export interface PromptState {
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
     subjectTags?: readonly string[];
+    subjectTagsByGender?: Readonly<Record<Gender, readonly string[]>>;
     textEdits?: TextEditSet;
     textedWith?: readonly string[];
     textingSummaries?: Record<string, string[]>;
     // (undocumented)
     time: TimeSlot;
+    transferEntrances?: readonly TransferEntrance[];
     upcomingPlans?: Record<string, string[]>;
     visitJobId: string | null;
     weather?: readonly Weather[];
@@ -910,11 +916,7 @@ export interface RecordWriteOptions {
 export function registerHooks(modId: string, hooks: ModHooks): void;
 
 // @public
-export function relationshipLines(character: Character, flags: CharFlags, nameKnown: boolean, affection: number, progress: RelationshipProgress | undefined, stats?: PlayerStats, medium?: RelationshipMedium, mood?: {
-    date: number;
-    offset: number;
-    sick?: boolean;
-}, attractionGate?: boolean): string[];
+export function relationshipLines(character: Character, flags: CharFlags, nameKnown: boolean, affection: number, progress: RelationshipProgress | undefined, context?: RelationshipContext | PlayerStats, legacyMedium?: RelationshipMedium, legacyMood?: RelationshipContext['mood'], legacyAttractionGate?: boolean): string[];
 
 // @public
 export interface RelationshipMedium {
@@ -1374,6 +1376,7 @@ export function slotHalf(time: TimeSlot): 'day' | 'night';
 
 // @public
 export interface SlotIntroInput {
+    ages?: Readonly<Record<string, number>>;
     askers: readonly IntroAsker[];
     backgroundLore?: readonly string[];
     backOnCampus?: number;
@@ -1383,13 +1386,18 @@ export interface SlotIntroInput {
     homecomingVisitor?: string;
     leavers: readonly IntroLeaver[];
     lessNsfwText: boolean;
+    newTransfers?: number;
+    npcRelationships: NpcRelationshipMap;
     occasionLeadUps?: readonly string[];
     occasions: readonly Occasion[];
     opening: string;
+    people: readonly Character[];
     playthroughId: string;
     posters: readonly IntroPoster[];
     reachOuts: readonly IntroReachOut[];
+    readerPronouns: ReaderPronouns;
     recent: readonly string[];
+    romance: RomanceSetting;
     rumorPlace?: LoreEntry;
     season: Season;
     secretBudget?: number;
@@ -1548,6 +1556,7 @@ export interface TextFieldProps {
 
 // @public
 export interface TextingPromptState {
+    ages?: Readonly<Record<string, number>>;
     calendar: SemesterCalendar;
     charCompanions?: NpcCompanions;
     charHaunt?: Haunt | null;
@@ -1566,6 +1575,8 @@ export interface TextingPromptState {
     npcRelationships: NpcRelationshipMap;
     playerJob: JobState | null;
     playerSchedule: Record<number, string>;
+    readerPronouns: ReaderPronouns;
+    romance: RomanceSetting;
     roster: readonly Character[];
     secretBudget?: number;
     springBreakAway?: readonly string[] | null;

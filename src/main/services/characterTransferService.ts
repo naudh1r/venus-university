@@ -11,18 +11,23 @@ import {
   MANIFEST_READ,
   MANIFEST_UNREADABLE,
   manifestModJson,
+  memberName,
+  packMembers,
+  packRefusal,
   portableOf,
   readManifestRecord,
   stripWrapper,
   unknownManifestKeys,
+  type RefusedMember,
   type CharacterManifest
 } from '@shared/characterTransfer'
 import { MOD_PARTS_DIR } from '@shared/modParts'
-import { appError, messageOf } from '@shared/errors'
+import { appError, messageOf, toAppError } from '@shared/errors'
 import { imageTypeOf } from '@shared/imageBytes'
 import type { ExportKind } from '@shared/sillyTavern'
-import type { Character } from '@shared/types'
+import type { Character, CharacterImport } from '@shared/types'
 import { randomId } from '@shared/uuid'
+import { PACK_ZIP_LIMITS } from '@shared/zipRules'
 import { getCharacterPath, getCharactersPath } from '../paths'
 import {
   checkExtractedContent,
@@ -30,6 +35,7 @@ import {
   replaceZip,
   discard,
   extractZip,
+  listZip,
   relPathsUnder,
   scratchDir,
   stripWrapperDir
@@ -70,7 +76,9 @@ async function exportModParts(
 }
 
 /** Runs every rollback in `rollbacks`, the last first; one that throws is logged. */
-async function rollBack(rollbacks: readonly { modId: string; undo: () => Promise<void> }[]): Promise<void> {
+async function rollBack(
+  rollbacks: readonly { modId: string; undo: () => Promise<void> }[]
+): Promise<void> {
   for (const { modId, undo } of [...rollbacks].reverse()) {
     await undo().catch((err: unknown) => {
       console.error(`[transfer] ${modId} could not take its data back out:`, err)
@@ -96,7 +104,11 @@ async function adoptModParts(
     } catch (err) {
       await rollBack(rollbacks)
       await rm(getCharacterPath(charId), { recursive: true, force: true }).catch(() => {})
-      throw appError(code, `Could not add the ${verb} character: ${modNameOf(modId)} could not take her data.`, messageOf(err))
+      throw appError(
+        code,
+        `Could not add the ${verb} character: ${modNameOf(modId)} could not take her data.`,
+        messageOf(err)
+      )
     }
   }
 }
@@ -177,10 +189,11 @@ async function adoptFolder(
   tempDir: string,
   character: Character,
   code: string,
-  verb: string
+  verb: string,
+  adoptedAt = Date.now()
 ): Promise<Character> {
   // The other write path stamps in `writeCharacter`.
-  const adopted = adoptStamp(character, Date.now())
+  const adopted = adoptStamp(character, adoptedAt)
   await writeAtomicJson(join(tempDir, CHARACTER_FILE_NAME), adopted, {
     code,
     message: `Could not write the ${verb} character.`
@@ -215,7 +228,12 @@ export async function duplicateCharacter(charId: string): Promise<Character> {
     const copy: Character = { ...character, charId: randomId() }
     const adopted = await adoptFolder(tempDir, copy, 'DUPLICATE_FAILED', 'duplicated')
     const parts = characterTransferParts()
-    await adoptModParts(adopted.charId, (modId) => parts.get(modId)!.duplicate(charId, adopted.charId), 'DUPLICATE_FAILED', 'duplicated')
+    await adoptModParts(
+      adopted.charId,
+      (modId) => parts.get(modId)!.duplicate(charId, adopted.charId),
+      'DUPLICATE_FAILED',
+      'duplicated'
+    )
     return adopted
   } catch (err) {
     await discard(tempDir)
@@ -262,9 +280,12 @@ async function readManifest(dir: string): Promise<CharacterManifest> {
 
 /**
  * Adopts a character zip: validates it, gives her a fresh identity and moves the folder into
- * `/data/characters`.
+ * `/data/characters`, stamped `adoptedAt`.
  */
-export async function importCharacter(archivePath: string): Promise<Character> {
+export async function importCharacter(
+  archivePath: string,
+  adoptedAt = Date.now()
+): Promise<Character> {
   const tempDir = scratchDir('import')
   // The mods' own files, moved out of her folder before it becomes hers.
   const modsDir = scratchDir('import-mods')
@@ -302,28 +323,38 @@ export async function importCharacter(archivePath: string): Promise<Character> {
 
     // The mods' files are the mods' to take in, never part of her folder.
     await mkdir(modsDir, { recursive: true })
-    await rename(join(tempDir, MOD_PARTS_DIR), join(modsDir, MOD_PARTS_DIR)).catch((err: unknown) => {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
-    })
+    await rename(join(tempDir, MOD_PARTS_DIR), join(modsDir, MOD_PARTS_DIR)).catch(
+      (err: unknown) => {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+      }
+    )
     const parts = characterTransferParts()
     const dirOf = (modId: string): string => join(modsDir, MOD_PARTS_DIR, modId)
     // Each part finds its folder whether or not the export carries one, as a backup's part does.
     for (const modId of parts.keys()) await mkdir(dirOf(modId), { recursive: true })
     for (const modId of Object.keys(manifest.mods ?? {})) {
-      if (!parts.has(modId)) console.log(`[transfer] ${modId} is not installed; its data in the export is left out`)
+      if (!parts.has(modId))
+        console.log(`[transfer] ${modId} is not installed; its data in the export is left out`)
     }
     for (const [modId, part] of parts) {
       try {
         await part.validate(manifestModJson(manifest, modId), dirOf(modId), legacy)
       } catch (err) {
-        throw appError('IMPORT_FAILED', `That export cannot come in: ${modNameOf(modId)} could not read her data.`, messageOf(err))
+        throw appError(
+          'IMPORT_FAILED',
+          `That export cannot come in: ${modNameOf(modId)} could not read her data.`,
+          messageOf(err)
+        )
       }
     }
 
-    const adopted = await adoptFolder(tempDir, character, 'IMPORT_FAILED', 'imported')
+    const adopted = await adoptFolder(tempDir, character, 'IMPORT_FAILED', 'imported', adoptedAt)
     await adoptModParts(
       adopted.charId,
-      (modId) => parts.get(modId)!.adopt(adopted.charId, manifestModJson(manifest, modId), dirOf(modId), legacy),
+      (modId) =>
+        parts
+          .get(modId)!
+          .adopt(adopted.charId, manifestModJson(manifest, modId), dirOf(modId), legacy),
       'IMPORT_FAILED',
       'imported'
     )
@@ -333,5 +364,39 @@ export async function importCharacter(archivePath: string): Promise<Character> {
     throw err
   } finally {
     await discard(modsDir)
+  }
+}
+
+/**
+ * Adopts whatever Import character ZIP was handed: one character zip, or a pack of them, every
+ * member that passes adopted in name order and the rest named in one error.
+ */
+export async function importArchive(archivePath: string): Promise<CharacterImport> {
+  const members = packMembers((await listZip(archivePath)).map((entry) => entry.path))
+  if (members === null) return { characters: [await importCharacter(archivePath)], refused: null }
+
+  const packDir = scratchDir('import-pack')
+  try {
+    await extractZip(archivePath, packDir, PACK_ZIP_LIMITS)
+
+    const characters: Character[] = []
+    const refused: RefusedMember[] = []
+    const start = Date.now()
+    for (const [i, member] of members.entries()) {
+      const memberPath = join(packDir, member)
+      try {
+        characters.push(await importCharacter(memberPath, start + i))
+      } catch (err) {
+        const error = toAppError(err, 'IMPORT_FAILED')
+        console.warn(`[transfer] refused ${memberName(member)}: ${error.code} ${error.message}`)
+        refused.push({ name: memberName(member), error })
+      }
+      // Done with either way, so the pack's scratch shrinks as it goes.
+      await rm(memberPath, { force: true }).catch(() => {})
+    }
+
+    return { characters, refused: packRefusal(members.length, refused) }
+  } finally {
+    await discard(packDir)
   }
 }

@@ -6,7 +6,7 @@ import {
   imageApiFor,
   modelFor,
   providerFor,
-  thinkingLevelFor
+  thinkingRowsFor
 } from '@shared/providers'
 import {
   imageEndpointOf,
@@ -14,6 +14,7 @@ import {
   imageFieldsToStore,
   imageKeyStays,
   imageModelOf,
+  thinkingRowsPatch,
   writerReady
 } from '@shared/settingsRules'
 import { modelForComponentId, PINNED_NODES } from '@shared/setupManifest'
@@ -810,14 +811,14 @@ function ApiKeyStage({ onDone }: { onDone: () => void }): JSX.Element {
   const custom = apiProvider === 'openai'
   const modelId = modelIdText.trim()
 
-  // The two questions the custom page asks its endpoint, at the effort already stored; an absent
-  // effort reads as minimal.
+  // The two questions the custom page asks its endpoint, at the Scenes effort already stored; an
+  // absent one reads as the row's default.
   const probe = useEndpointProbe({
     enabled: custom,
     endpointUrl,
     endpointKey,
     modelId,
-    reasoningEffort: thinkingLevelFor('openai', '', settings?.reasoningEffort ?? '')
+    reasoningEffort: thinkingRowsFor(settings ?? {}, 'openai', '').scenes
   })
 
   // Which image models the images URL serves and whether it draws at all, asked on the staged
@@ -897,7 +898,7 @@ function ApiKeyStage({ onDone }: { onDone: () => void }): JSX.Element {
           apiKey: geminiKey.trim(),
           rememberKey: remember,
           apiModel,
-          thinkingLevel: thinkingLevelFor('gemini', apiModel, settings.thinkingLevel)
+          ...thinkingRowsPatch(settings, 'gemini', thinkingRowsFor(settings, 'gemini', apiModel))
         }
     const ok = await save(patch)
     // A failed write leaves the stage up; the store has already raised the error.

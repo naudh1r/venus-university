@@ -10,6 +10,7 @@ import { endpointProblem, normalizeEndpoint } from '@shared/endpoint'
 import {
   defaultSettings,
   DEFAULT_MEMORY_BUDGETS,
+  endingPictureMaxOf,
   maxOutputTokensOf,
   memoryBudgetsOf,
   mergePatch,
@@ -45,6 +46,8 @@ function settingsPatch(over: Partial<SettingsPatch> = {}): SettingsPatch {
     apiProvider: 'gemini',
     apiModel: 'gemini-3.7-flash',
     thinkingLevel: 'low',
+    thinkingLevels: {},
+    reasoningEfforts: {},
     comfyDeferred: false,
     noNsfwImages: false,
     lessNsfwText: false,
@@ -151,7 +154,9 @@ describe("mergePatch — each provider's model picks", () => {
       endpointUrl: 'https://example.com/v1',
       endpointModel: 'local-7b',
       endpointSecondaryModel: 'local-1b',
-      reasoningEffort: 'medium'
+      reasoningEffort: 'medium',
+      thinkingLevels: { ledger: 'high' },
+      reasoningEfforts: { texts: 'low', newGame: 'minimal' }
     } as const
     const gemini = settings({ apiProvider: 'gemini', ...picks })
 
@@ -210,6 +215,35 @@ describe('upgradeSettings', () => {
     expect(upgradeSettings(blank).settings).toBe(blank)
   })
 
+  it('starts every row of a file from before the rows at its default, under each provider', () => {
+    const old: Settings = settings({ thinkingLevel: 'minimal', reasoningEffort: 'high' })
+    delete old.thinkingLevels
+    delete old.reasoningEfforts
+    const { settings: read, upgraded } = upgradeSettings(old)
+    expect(upgraded).toBe(true)
+    expect(read.thinkingLevel).toBe('low')
+    expect(read.thinkingLevels).toEqual({})
+    expect(read.reasoningEfforts).toEqual({})
+    expect('reasoningEffort' in read).toBe(false)
+  })
+
+  it('moves a stored History row to Ledger and drops what is no row or level', () => {
+    const rows = settings({
+      thinkingLevel: 'high',
+      thinkingLevels: { texts: 'minimal', history: 'high', classifiers: 'medium' } as never,
+      reasoningEfforts: { ledger: 'low', history: 'high', bogus: 'high', texts: 'ultra' } as never
+    })
+    const { settings: read, upgraded } = upgradeSettings(rows)
+    expect(upgraded).toBe(true)
+    expect(read.thinkingLevel).toBe('high')
+    expect(read.thinkingLevels).toEqual({ texts: 'minimal', ledger: 'high', classifiers: 'medium' })
+    expect(read.reasoningEfforts).toEqual({ ledger: 'low' })
+
+    const current = settings({ thinkingLevels: { ledger: 'high' }, reasoningEfforts: {} })
+    expect(upgradeSettings(current)).toEqual({ settings: current, upgraded: false })
+    expect(upgradeSettings(settings()).upgraded).toBe(false)
+  })
+
   it('drops the retired NSFW sound switch, a switched-on one putting the NSFW slider at 0', () => {
     const on = upgradeSettings({
       ...settings({ volumes: { music: 40, sfx: 60, ambience: 20, nsfw: 90 } }),
@@ -243,20 +277,27 @@ describe('writerModelOf and secondaryModelOf', () => {
 })
 
 describe('mergePatch — the optional switches', () => {
-  it('carries the ending warnings and fullscreen turned off, and leaves an absent one absent', () => {
+  it('carries the ending warnings, fullscreen and CG matching turned off, and leaves an absent one absent', () => {
     // Absent is on, so a save that dropped the field would turn it back on.
     const off = mergePatch(
       settings(),
-      settingsPatch({ warnEndingInterrupt: false, warnEndingEdit: false, fullscreen: false })
+      settingsPatch({
+        warnEndingInterrupt: false,
+        warnEndingEdit: false,
+        fullscreen: false,
+        matchCgBiology: false
+      })
     )
     expect(off.warnEndingInterrupt).toBe(false)
     expect(off.warnEndingEdit).toBe(false)
     expect(off.fullscreen).toBe(false)
+    expect(off.matchCgBiology).toBe(false)
 
     const untouched = mergePatch(settings(), settingsPatch())
     expect(untouched.warnEndingInterrupt).toBeUndefined()
     expect(untouched.warnEndingEdit).toBeUndefined()
     expect(untouched.fullscreen).toBeUndefined()
+    expect(untouched.matchCgBiology).toBeUndefined()
   })
 })
 
@@ -420,6 +461,18 @@ describe('memoryBudgetsOf', () => {
     expect(memoryBudgetsOf(settings({ memoryBudgets: { two: 1000 } }))).toEqual(
       DEFAULT_MEMORY_BUDGETS
     )
+  })
+})
+
+describe('endingPictureMaxOf', () => {
+  it('keeps a whole number from 1 to 12 and falls back to 12 otherwise', () => {
+    const of = (cap: unknown): number =>
+      endingPictureMaxOf(settings({ endingPictureMax: cap as number }))
+    expect(endingPictureMaxOf(settings())).toBe(12)
+    expect(of(1)).toBe(1)
+    expect(of(7)).toBe(7)
+    expect(of(12)).toBe(12)
+    for (const junk of [0, 13, -3, 2.5, NaN, '5']) expect(of(junk)).toBe(12)
   })
 })
 

@@ -58,8 +58,6 @@ const api: VenusUniversityApi = {
       ipcRenderer.invoke('llm:generateProfiles', request, group),
     generateOccasions: (request, group) =>
       ipcRenderer.invoke('llm:generateOccasions', request, group),
-    generateSecrets: (request, group) =>
-      ipcRenderer.invoke('llm:generateSecrets', request, group),
     generateQuiz: (request) => ipcRenderer.invoke('llm:generateQuiz', request),
     listModels: (endpointUrl, apiKey) => ipcRenderer.invoke('llm:listModels', endpointUrl, apiKey),
     testWriter: (candidate) => ipcRenderer.invoke('llm:testWriter', candidate),
@@ -98,8 +96,8 @@ const api: VenusUniversityApi = {
   },
   chars: {
     list: () => ipcRenderer.invoke('chars:list'),
-    create: (firstName, lastName, brief, reference) =>
-      ipcRenderer.invoke('chars:create', firstName, lastName, brief, reference),
+    create: (firstName, lastName, gender, brief, reference) =>
+      ipcRenderer.invoke('chars:create', firstName, lastName, gender, brief, reference),
     reference: (charId) => ipcRenderer.invoke('chars:reference', charId),
     update: (character) => ipcRenderer.invoke('chars:update', character),
     delete: (charId) => ipcRenderer.invoke('chars:delete', charId),
@@ -222,8 +220,10 @@ const api: VenusUniversityApi = {
       ipcRenderer.invoke('comfy:generateCg', character, position, seed, staged, edit),
     generateOutfit: (character, set, emotion, seed, staged, edit) =>
       ipcRenderer.invoke('comfy:generateOutfit', character, set, emotion, seed, staged, edit),
-    fixHands: (character, target, paintLayer, seed) =>
-      ipcRenderer.invoke('comfy:fixHands', character, target, paintLayer, seed)
+    fixHands: (character, target, paintLayer, denoise, seed) =>
+      ipcRenderer.invoke('comfy:fixHands', character, target, paintLayer, denoise, seed),
+    repaint: (character, target, source, paintLayer, mask, denoise, seed) =>
+      ipcRenderer.invoke('comfy:repaint', character, target, source, paintLayer, mask, denoise, seed)
   },
   jobs: {
     cancelGroup: (group) => ipcRenderer.invoke('jobs:cancelGroup', group),

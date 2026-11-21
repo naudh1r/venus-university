@@ -201,7 +201,7 @@ export const FEED_MESSAGES: readonly FeedMessage[] = [
   'got a reserve bank vault seat!!! for march 2028',
   'idc what people say about it Hotel DREAMS is cash only and charges by the hour. Most honest business in Veridan',
   'group project partner submitted nothing. you were the chosen one. you were supposed to destroy the free riders not join them',
-  'bunny bot: you have to be at least Good in her preferred stat. me: brother i am not even Decent',
+  'bunny bot: you have to be at least Good in their preferred stat. me: brother i am not even Decent',
   'ill have a number 9, a number 9 large, a number 6 with the Fast Eats special dip, a Big Burger, large chili fries, Pancho Punch on the side',
   'theres a dude in my class who wears an eyepatch and only says kept you waiting huh',
   'guitar guy in the lowrise 2 courtyard is back and hes actually good this time',
@@ -258,7 +258,14 @@ export const FEED_MESSAGES: readonly FeedMessage[] = [
   'I pray for the grades of all VU students, even freshmen, but we can\'t expect God to do all the work',
   'you take a sip from your trusty VU store water bottle...',
   'to the town of veridan came a stranger one fine day',
-  'oh well im the type of guy who will never settle down'
+  'oh well im the type of guy who will never settle down',
+  'when life gives you lemons DONT make lemonade!! Make life take the lemons back! I DONT WANT YOUR DAMN LEMONS',
+  'ive seen things you people wouldnt believe. deformed image generations. i saw ai hallucinations on frontier models. all those tokens will be lost in time, like tears in rain',
+  'a system of cells interlinked within cells interlinked within cells interlinked within cells',
+  'now i am become larp, performer of worlds',
+  'nothing is true, everything is permitted',
+  'why is literally EVERYONE dating EXCEPT FOR ME',
+  'IT SHOULD HAVE BEEN ME NOT HIM ITS NOT FAIR'
 ]
 
 /** Faces the campus posts under — an emoji stands in for a photo. */

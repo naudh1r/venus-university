@@ -2,13 +2,14 @@
   "donors": [
     "ElPapaDon",
     "thatmaestroguy",
-    "Elitetaco",
     "sav",
+    "Elitetaco",
     "Seviy",
     "Supahslm",
     "Stridley",
     "Evigan",
     "Elric",
+    "cgrd",
     "Donka",
     "0hrichi",
     "NihilBaxter",
@@ -23,11 +24,21 @@
     "newlife1999",
     "Evigan",
     "Stridley",
-    "dfshawke"
+    "dfshawke",
+    "aigh0st",
+    "Megumint"
   ],
   "handles": [
     {
       "name": "0hrichi",
+      "marbles": 4
+    },
+    {
+      "name": "aigh0st",
+      "marbles": 2
+    },
+    {
+      "name": "cgrd",
       "marbles": 4
     },
     {
@@ -80,7 +91,7 @@
     },
     {
       "name": "sav",
-      "marbles": 5
+      "marbles": 6
     },
     {
       "name": "SenpaiDaddy890",
