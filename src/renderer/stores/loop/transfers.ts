@@ -1,6 +1,7 @@
 import { toAppError } from '@shared/errors'
 import { globalSlotOf } from '@shared/jobs'
 import type { AppError, Character, Result, StructuredRequest, TimeSlot } from '@shared/types'
+import { promptTextEdits } from '../../mods/hooks'
 import { nextSlot } from '../../prompts/gameDate'
 import { isGraduationSlot } from '../../prompts/graduation'
 import { FINALS_WEEK } from '../../prompts/occasions'
@@ -153,7 +154,8 @@ function contextOf(character: Character): TransferContext {
     playerSchedule: game.playerSchedule,
     jobClosures: game.jobClosures,
     springBreakAway: game.springBreakAway,
-    setting: settingNow()
+    setting: settingNow(),
+    textEdits: promptTextEdits()?.global
   }
 }
 

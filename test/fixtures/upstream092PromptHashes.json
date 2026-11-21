@@ -1,0 +1,579 @@
+{
+  "upstream": "7615a5a6d3097c642ab07f2cf17167cb0c104bb9",
+  "generatedBy": "test/fixtures/generate092PromptFixtures.mjs (all oracle dependencies read from pinned Git objects)",
+  "textingPersona": "You are RITA, author of steamy reader-POV romance fiction set at fictional universities.\nYou've got sexy nerd energy and have been on a hundred dates, and you use that experience to make your writing shockingly realistic.\nRight now you are writing one side of a text conversation on Bunnyboard, the campus messaging app: you answer AS the character, in their own texting voice.\nSome people send one long message, some fire off several short ones — match how THEY would text, keeping their personality and memories in mind.\nTexts are casual: typos, slang, emoji and lowercase are all fair game if they fit the character. No narration, no stage directions, just what they type.\nYou make the characters play hard to get; everything is a slow burn.\nOh, by the way: you really, really HATE repetitive, robotic slop-writing.\nYou NEVER use semicolons or emdashes or other dumb AI writing habits.\nAnd finally, you're totally anal retentive: You always return a single, fully-formed JSON object matching the provided schema exactly.",
+  "cases": [
+    {
+      "name": "female/student/all/next=false/secrets=false",
+      "sha256": "59486883f4593f272a01435d655614fbb387163e25dfdc970cfb1cb77b75c42f"
+    },
+    {
+      "name": "female/student/all/next=false/secrets=true",
+      "sha256": "bf8fa3518119ae7f10e62809aa81bc50aea8424233ea8238ab76a1c70dd27155"
+    },
+    {
+      "name": "female/student/all/next=true/secrets=false",
+      "sha256": "59486883f4593f272a01435d655614fbb387163e25dfdc970cfb1cb77b75c42f"
+    },
+    {
+      "name": "female/student/all/next=true/secrets=true",
+      "sha256": "bf8fa3518119ae7f10e62809aa81bc50aea8424233ea8238ab76a1c70dd27155"
+    },
+    {
+      "name": "female/student/field=year",
+      "sha256": "a2dd85a5d91b36cd8d43f44297ea506063125d39b3388b7021fe8cd1cfbc2ea7"
+    },
+    {
+      "name": "female/student/field=major",
+      "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+    },
+    {
+      "name": "female/student/field=classesTaken",
+      "sha256": "4562134a29147243895f9aa4a55b0d1b319bdd48cd0966dda49ec4320f23ade9"
+    },
+    {
+      "name": "female/student/field=majorClassesTaken",
+      "sha256": "5ca910b4bb379f597351de7b4eab58d3c3ae1b593258e007b5e595215ff46b92"
+    },
+    {
+      "name": "female/student/field=job",
+      "sha256": "06327f59d709afac01bfcd9031a0ab79ae7578673e12114b5bc1586d108c7734"
+    },
+    {
+      "name": "female/student/field=dorm",
+      "sha256": "b030ae0afcb5691d775c8a7c799c7ccb9b81d6764c1bc9fcb19624651b9ab9d0"
+    },
+    {
+      "name": "female/student/field=homeSlots",
+      "sha256": "f755437ac4c7214c918eff094e88ce8acdd37aaf7d841122638bfb84a326e716"
+    },
+    {
+      "name": "female/student/field=study",
+      "sha256": "63ef9a54d7965b518ecf31e1fd92f454a7b6958c8aead36017eeaf14a79bad59"
+    },
+    {
+      "name": "female/student/field=fun",
+      "sha256": "35705edd04f9089e31fa3dea2c538b921c7896c686b56aeec86a17a4fde6d5d8"
+    },
+    {
+      "name": "female/student/field=activity",
+      "sha256": "ecbe88a37827bddb25558552f42acc784385af64f84ad01f9e522e070e688f64"
+    },
+    {
+      "name": "female/student/field=meal",
+      "sha256": "b01245536b19fd1e87ddc4a8eebb1aca86f4afd6ba8680ecff9480e5e84e763e"
+    },
+    {
+      "name": "female/student/field=handle",
+      "sha256": "92895d5e4c6144e1627c75e1893019ebd41409384c4fcc4a450cd3d407a00b82"
+    },
+    {
+      "name": "female/student/field=breakPosts",
+      "sha256": "14cb217fbb48aac3acd6dd4fcd3976f22df547df7c9f81d8e504b09172a46d22"
+    },
+    {
+      "name": "female/student/field=springBreakPlans",
+      "sha256": "e5bcd9df8ddeb802b21a813cf91d44b2494351d19c21a9c1579e1d9dcfaa7153"
+    },
+    {
+      "name": "female/student/haunts=0",
+      "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+    },
+    {
+      "name": "female/student/haunts=1",
+      "sha256": "3b19d9570df5b1f86dc0bfbd94a9c9e791a80b0593f675f056eba783a2f39299"
+    },
+    {
+      "name": "female/student/haunts=2",
+      "sha256": "95d92faba9e88925e9536b9afc742a3f063a728a8dc4da16ae47510eb119265c"
+    },
+    {
+      "name": "female/student/haunts=3",
+      "sha256": "135b52b7991c49488dd5d14d580552457287709f76cb8d75fbd73fb1055b14fc"
+    },
+    {
+      "name": "female/student/haunts=4",
+      "sha256": "84c1958da0aab5f455c30ae7d8a45fd4ee55c80e38977ff87ffa59de391a2b03"
+    },
+    {
+      "name": "female/student/haunts=5",
+      "sha256": "0a3e2efd77f04186985bb4cd79ee654be6e939da080d57f313529b7e31bf1676"
+    },
+    {
+      "name": "female/student/haunts=6",
+      "sha256": "16f5441a2709f942af39b3210cc57e589fcbd6f45e0dfc617ab6b451d7e4c53f"
+    },
+    {
+      "name": "female/student/haunts=7",
+      "sha256": "3aaaf64e1c12cf57cdd28b7851181346ae2ca2e5c4bf84771c8410ef6d76dc87"
+    },
+    {
+      "name": "female/student/haunts=8",
+      "sha256": "39744d1c91bd1dbd4fc1cde7f792f349ed4a5cc109595bf4598ae9ac46547769"
+    },
+    {
+      "name": "female/student/haunts=9",
+      "sha256": "dff5d19c4fd610361abe900894181267ce2b98deee23f1f43c4c6f1766f61e2c"
+    },
+    {
+      "name": "female/student/haunts=10",
+      "sha256": "3c09c74858881f44b972e30ddaae84dabf90593eed8fb4ce96e5ad9888b14bfa"
+    },
+    {
+      "name": "female/student/haunts=11",
+      "sha256": "42318d6c956f5f920a1b05af8923de2bd84946b1321eab17811654215cb73e24"
+    },
+    {
+      "name": "female/student/haunts=12",
+      "sha256": "7c1007b3db3608a58da8529d316b7591e1aae2193fd3b9b8792b4a9f8716c911"
+    },
+    {
+      "name": "female/student/haunts=13",
+      "sha256": "8ce2999fef224e4ae87ad259fe068c9eaaf82ffab5f5d1da40f8a6f96c272d2f"
+    },
+    {
+      "name": "female/student/haunts=14",
+      "sha256": "ca292a9c3eaccb734453edfb737a02894b82b0f3a10d9b84a1e9fde482da618d"
+    },
+    {
+      "name": "female/student/haunts=15",
+      "sha256": "be88d303c16c8a945f3c61a28a52bba611f7a5dabd8868309eca7a41075eb20f"
+    },
+    {
+      "name": "female/student/haunts=16",
+      "sha256": "cc1412ebeab2269bb4bf421da142964ac731842a711666bc9099640b839cf6a4"
+    },
+    {
+      "name": "female/student/haunts=17",
+      "sha256": "62cb4de22699bbb54e884bc6ac2acadcb71aa17bc7e31db9c9411d3e4696edcb"
+    },
+    {
+      "name": "female/student/haunts=18",
+      "sha256": "5e766f842fc1ec7b3a553c72df1e766935d5489c01036f777ef088b6ee7f14ba"
+    },
+    {
+      "name": "female/student/haunts=19",
+      "sha256": "c386bcae2008a818bef61712197ee77e26d4ba26d7ef260fbed8f289d24aa7a7"
+    },
+    {
+      "name": "female/student/haunts=20",
+      "sha256": "76fe7c19d38019df2836ee73fa30c1dcbb0476fa9c54ed4b931a0aee31a46c14"
+    },
+    {
+      "name": "female/student/haunts=21",
+      "sha256": "603e279036277ad98e42e8f7041b978d001f91c5d5b0fd66fc0e661cda4cc1de"
+    },
+    {
+      "name": "female/student/haunts=22",
+      "sha256": "935f70d5aa572b5a4ecfc299ff64f2dddaf0639744022153c21850c953fe3173"
+    },
+    {
+      "name": "female/student/haunts=23",
+      "sha256": "603298b2e7e84f216db3c3e997e0554cf4252fa8945614cfa16dd8151d9ebb7b"
+    },
+    {
+      "name": "female/student/haunts=24",
+      "sha256": "e2b2c074f180e859d5aac1e156aa22adb03563f92bd9033e23853bea4a4555dd"
+    },
+    {
+      "name": "female/student/haunts=25",
+      "sha256": "cf44177d5d8b672d4af601813f84d3d218d6de6d9efd3d14a6fa1b288155598d"
+    },
+    {
+      "name": "female/student/haunts=26",
+      "sha256": "64abc4321f8748ec77ec504651f5f5b9ce70c889cec62abefadaf2227930d53a"
+    },
+    {
+      "name": "female/student/haunts=27",
+      "sha256": "b00b24416b8d2707ddc40fbf8d7a37161bad748fc6f7603b8dcc6b095dbe42e0"
+    },
+    {
+      "name": "female/student/haunts=28",
+      "sha256": "a7def75bbd0af64fe2616671254c5c863e11f68ab72457e47197ebda15f8376b"
+    },
+    {
+      "name": "female/student/haunts=29",
+      "sha256": "12a9fa7c6164bd7b02d1c1e57b0cb9b7e932184487f659629aa3c799f54ae616"
+    },
+    {
+      "name": "female/student/haunts=30",
+      "sha256": "c1ae924dc26d5f21469f7fe6b59af3a7a326ad1816d780d5875b139028df2cb6"
+    },
+    {
+      "name": "female/student/haunts=31",
+      "sha256": "99919e8afff037e9c5cd331346978546bcf6c90ab40a0b1c4b4167a33b8b9cee"
+    },
+    {
+      "name": "female/student/secret=friendly",
+      "sha256": "45b1aa203f15d261d1e843c5e3520575b46b69ac5582a7b78e1da276ceacb182"
+    },
+    {
+      "name": "female/student/secret=trusted",
+      "sha256": "ad727bc476bd7ab9ae5873bfc6bafaf8b1bc6cbf3b9ae748d7d6c7f85322d959"
+    },
+    {
+      "name": "female/student/secret=devoted",
+      "sha256": "d4960e43b923b54393a5f7c65cc781faf87ba96cd29917a04850a4e550d794d5"
+    },
+    {
+      "name": "female/returning/spring/secrets=false",
+      "sha256": "206853d973d7d0566f716ed78aa13c09b528776a49572f1ef7f5797c754ea4ff"
+    },
+    {
+      "name": "female/returning/spring/secrets=true",
+      "sha256": "9b7688d54b13e6e08c447080e449648d9ce2e9cc30c55e02628736ee2dfd9378"
+    },
+    {
+      "name": "female/graduate/spring",
+      "sha256": "f4dec88e37d0eb407989d07a7eb9bd7570e5c1e2886f689c6c29575310aedb51"
+    },
+    {
+      "name": "female/returning/fall/secrets=false",
+      "sha256": "54e0136164a54fa243ff8c86179390946730738c08cb40dd044f5e519e8fee62"
+    },
+    {
+      "name": "female/returning/fall/secrets=true",
+      "sha256": "dc7b50ee05e6a2b21edb5c68f3f7e024d2ddcc2b2a5dffe47d76d3a6fbd106de"
+    },
+    {
+      "name": "female/graduate/fall",
+      "sha256": "b051cb4007adf20cd142f3ffd748f884ae3db95dab734c1f87b6ebb415d0dd8c"
+    },
+    {
+      "name": "female/majors",
+      "sha256": "8bde4cf1436f17343cddace1e319edf02597b64959afc88435d37e1452b08675"
+    },
+    {
+      "name": "female/classes/pool=pe",
+      "sha256": "584d6c88ce4b53a94cb79d37976c4cbbd79929b7ce7d375cfbc9392f33b89d5f"
+    },
+    {
+      "name": "female/classes/pool=pe/existing",
+      "sha256": "24281f3b92b81fd21d5af331fff9a55d5b45977bd54edd5374948b92f950b4de"
+    },
+    {
+      "name": "female/classes/pool=humanities",
+      "sha256": "dd9f69af7c7b30d1e7f76e8768fc343bc5c66f84fec62b6babbbe99d7a4706b5"
+    },
+    {
+      "name": "female/classes/pool=humanities/existing",
+      "sha256": "bf6d9fce8013f48076be6f1f1506543bb61c6a07245fb9b13d4e7d989aa207e5"
+    },
+    {
+      "name": "female/classes/pool=arts",
+      "sha256": "64072877b64e092cdf77f93113547b32c573f322a28a041ab75e045423a56fa7"
+    },
+    {
+      "name": "female/classes/pool=arts/existing",
+      "sha256": "a082a55bef978bf4be8f0278d1cbfbdacab7f574b6145dac4d4a5aa08150a0ae"
+    },
+    {
+      "name": "female/classes/pool=misc",
+      "sha256": "31023d42f868027e0a581db2decf0445f3bef8f0177b4a03390cf5b3fe6badc2"
+    },
+    {
+      "name": "female/classes/pool=misc/existing",
+      "sha256": "3df8d3fc2e64fd3c5ec6f31df5ef6fdc82bc94e0525546d5c060085231dadf91"
+    },
+    {
+      "name": "female/classes/major",
+      "sha256": "f147dd45e4b24e6773b453e103783102543da785ccd5dc588ffc1136d288a856"
+    },
+    {
+      "name": "female/classes/major/existing",
+      "sha256": "b51e97e4cac41ddfed1328f4d40e700e8acb08617d65d20897518e293919eebc"
+    },
+    {
+      "name": "female/classes/interest",
+      "sha256": "e769c881b3aceb78840b32361ff3fac55cb9a45834ded27d0aaaddfcb6d23db6"
+    },
+    {
+      "name": "male/student/all/next=false/secrets=false",
+      "sha256": "1e7cdf2892bb7abdb3efe65b67a4d5d9039c407004f494c837ab0df1bdae2ba6"
+    },
+    {
+      "name": "male/student/all/next=false/secrets=true",
+      "sha256": "346fb30d60c89580a41d2c76210efcafda3bcf01f5682299776b9995b1a89491"
+    },
+    {
+      "name": "male/student/all/next=true/secrets=false",
+      "sha256": "1e7cdf2892bb7abdb3efe65b67a4d5d9039c407004f494c837ab0df1bdae2ba6"
+    },
+    {
+      "name": "male/student/all/next=true/secrets=true",
+      "sha256": "346fb30d60c89580a41d2c76210efcafda3bcf01f5682299776b9995b1a89491"
+    },
+    {
+      "name": "male/student/field=year",
+      "sha256": "e47e13e65f3e5a7a4d73ef68da0ef9dd158fbccc43e00956a2f93e48ba913a41"
+    },
+    {
+      "name": "male/student/field=major",
+      "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+    },
+    {
+      "name": "male/student/field=classesTaken",
+      "sha256": "521c17345a71cd48edac56fe92532c25d9c1138ed25e6c38c773c33032f5948c"
+    },
+    {
+      "name": "male/student/field=majorClassesTaken",
+      "sha256": "34d1e669480e291508903c8512e79f7a585f7fcf25c559e018ff6e426d3f75fc"
+    },
+    {
+      "name": "male/student/field=job",
+      "sha256": "d1abee13ef40ff61233a5cefef0033fd0af7f754c3fe3dd0ffb9d991ca6ff206"
+    },
+    {
+      "name": "male/student/field=dorm",
+      "sha256": "a512f321b742137dcb95383b1203d6ba3243f7a11b7027eaf775db7401ff0b3f"
+    },
+    {
+      "name": "male/student/field=homeSlots",
+      "sha256": "b6817520ec588442c356d6c67711164bd6771bfdfbd521d43fd1367614e51dd6"
+    },
+    {
+      "name": "male/student/field=study",
+      "sha256": "0aee52d0562d7e7fcbbdcbd6ee82ccba49bd746524aa2b57cfd2364c47a4b40a"
+    },
+    {
+      "name": "male/student/field=fun",
+      "sha256": "817f19d3084dbbab946a033274feb5ed8799ec6ff8b4c24c2e0c9797705c7be8"
+    },
+    {
+      "name": "male/student/field=activity",
+      "sha256": "821bcdeed122c0d133e7a4e85cc3818eb6a3e783f0397fa0515e5272d0d7c065"
+    },
+    {
+      "name": "male/student/field=meal",
+      "sha256": "73e5546001b01013c28af1489801b58a29a5ec5079f98f7627448d040d702490"
+    },
+    {
+      "name": "male/student/field=handle",
+      "sha256": "b8adf2a8aac0079cdde8841f2ee7f6b075f3f090faa6510aca1c03c7fc1b9e59"
+    },
+    {
+      "name": "male/student/field=breakPosts",
+      "sha256": "5fa991b617ccd3f805e6ea456349b1e0ad5f42e88544d57ea30915b2dfe6e360"
+    },
+    {
+      "name": "male/student/field=springBreakPlans",
+      "sha256": "30482d6d322ae1eb24c978815656cbeada4e745de144b707e80f2f62685aa860"
+    },
+    {
+      "name": "male/student/haunts=0",
+      "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+    },
+    {
+      "name": "male/student/haunts=1",
+      "sha256": "c8c4ef7df0f876a06952509dfd098dcfc685deded29446241cd433487c481602"
+    },
+    {
+      "name": "male/student/haunts=2",
+      "sha256": "59c211e33c334c21d7d742590bbe76be6ec2657ef27b4b622adf39f462e8b226"
+    },
+    {
+      "name": "male/student/haunts=3",
+      "sha256": "f207b959641125420204a5774aedf359695a9712d48612b0b7bf702e0a91b914"
+    },
+    {
+      "name": "male/student/haunts=4",
+      "sha256": "cb75d6d0d903f3140518a4c37f2eadaea6a16b381e991f42cb062b26d835a909"
+    },
+    {
+      "name": "male/student/haunts=5",
+      "sha256": "37dd8efe28bbb5539a9e8f25f9d283140d281fbdfb2d62304fdd040abd94f01a"
+    },
+    {
+      "name": "male/student/haunts=6",
+      "sha256": "4a6278867efd9feabe1e9711288306375406c4338bca27dd219fa5bec2751594"
+    },
+    {
+      "name": "male/student/haunts=7",
+      "sha256": "05dbdb10b2de90dcc204befb121506b8afbc167b402dd8fcfece8fe5b82c3d7a"
+    },
+    {
+      "name": "male/student/haunts=8",
+      "sha256": "598591145a4ad161e394138cd2c378d0183d57b054e8672a62fdf34e3930d62a"
+    },
+    {
+      "name": "male/student/haunts=9",
+      "sha256": "e297a888fc12c04e7a3b1c514a901b653be1b2da2617789209fd92fefcf726e3"
+    },
+    {
+      "name": "male/student/haunts=10",
+      "sha256": "8cecebd1e79810325d0e3639fb77aa1f4e88af48e5adc3d32b87e1829bfd1e15"
+    },
+    {
+      "name": "male/student/haunts=11",
+      "sha256": "9b36b256c12c54dcbdcbffa1bc17c5418d53830d28cbd8ae4ba3487790c7df63"
+    },
+    {
+      "name": "male/student/haunts=12",
+      "sha256": "37d0b129782e42501ec93e3286de9d52f8bef357a4248ca0d8855eac5c0b0085"
+    },
+    {
+      "name": "male/student/haunts=13",
+      "sha256": "40f1f54efbd2fbfb43033886a2d43729c15641162b7f64c47e7bffcdf269d589"
+    },
+    {
+      "name": "male/student/haunts=14",
+      "sha256": "032e0e70bd0205d7fd76210fb85f6e87fe5f3ba13e47ed1d2eccc828b803c16c"
+    },
+    {
+      "name": "male/student/haunts=15",
+      "sha256": "58fc33683471ac14daec5906041be0f3e8346174493dae522ff79316c3561b91"
+    },
+    {
+      "name": "male/student/haunts=16",
+      "sha256": "fabb9acde21c1973b1ccda58b98755247f02940528b01aecd572acc95b4166e1"
+    },
+    {
+      "name": "male/student/haunts=17",
+      "sha256": "0b011f89d16288e97565fd79e1b2e30ab6de8b50caca1afa7abc04df1001feb9"
+    },
+    {
+      "name": "male/student/haunts=18",
+      "sha256": "e054193fcf54015eeb784a986bd1dc459e055382a010c16fd33728a41290ceef"
+    },
+    {
+      "name": "male/student/haunts=19",
+      "sha256": "fb8e88961f9e92fe3372ea5234fca90a977b4d8b2528e0a308d291f182df5661"
+    },
+    {
+      "name": "male/student/haunts=20",
+      "sha256": "7db01b3aabe57d28de445996a7ba08d2f22216703610941b8a615030352a11dd"
+    },
+    {
+      "name": "male/student/haunts=21",
+      "sha256": "382dfadb629d075ddc662d5373f2a389e51e05149a2ced68c614b61391311491"
+    },
+    {
+      "name": "male/student/haunts=22",
+      "sha256": "6e09b560dbe2e8f0adb8c2273c35636136741a908a7b49a02e9677180c010a43"
+    },
+    {
+      "name": "male/student/haunts=23",
+      "sha256": "2a91a5c3ee01568650d4a53c0c68f2b1d2c5fdc9925a1ee7756ce74e111290a5"
+    },
+    {
+      "name": "male/student/haunts=24",
+      "sha256": "8701fc67a2eeb53d401ca1af2f972faea717cc5b034d54a2f83c9f483444e354"
+    },
+    {
+      "name": "male/student/haunts=25",
+      "sha256": "d80a78de95fdc02c4defaff50ec1d2341882d414705d4210dcf333cfab237837"
+    },
+    {
+      "name": "male/student/haunts=26",
+      "sha256": "5fc70c8e8dffe225146145964d859a5f59143e8edf6cea90b0d6d6635517c969"
+    },
+    {
+      "name": "male/student/haunts=27",
+      "sha256": "22e354954a0b94a5070052291ff0896cc77fc93d7f06d4c371716f8e52b2bf0a"
+    },
+    {
+      "name": "male/student/haunts=28",
+      "sha256": "659b08aae44008be187997387548d9c8a980e47d1b35c0e1c1db56b49e81c282"
+    },
+    {
+      "name": "male/student/haunts=29",
+      "sha256": "f5a2bee2800122bb58fab0caeba12a994458e20fee2971e2aeedf1c1f4b7d6f8"
+    },
+    {
+      "name": "male/student/haunts=30",
+      "sha256": "6ba88873b9bcde99b4a1e4f80db06e684da65254a0e4b1b8241f95e96a4103f7"
+    },
+    {
+      "name": "male/student/haunts=31",
+      "sha256": "14dcbdbfbaf4034ea98161a55be33f704cb83ac836d26eb98bc0cb86520b8cc0"
+    },
+    {
+      "name": "male/student/secret=friendly",
+      "sha256": "0170df875fce42a92b737e701a62a4e40c81fac9505737b00f087b11f64a2e89"
+    },
+    {
+      "name": "male/student/secret=trusted",
+      "sha256": "2f46d5dc71cb054da6bbb652610ab2366e66f1503a1491249658fc65153a3038"
+    },
+    {
+      "name": "male/student/secret=devoted",
+      "sha256": "cee1c52e34a5073f53ad97bb06efe1bb8f64d51df3ad1a816c1b57d6ed98151b"
+    },
+    {
+      "name": "male/returning/spring/secrets=false",
+      "sha256": "ed15f76bef9b49e234a124e8e61e6febad15a122e6017b82eeddd2db58a8dba5"
+    },
+    {
+      "name": "male/returning/spring/secrets=true",
+      "sha256": "b7db433dee7cde92b4edfa5fa5434a10bf12023b44ff473305ce309bd917e59f"
+    },
+    {
+      "name": "male/graduate/spring",
+      "sha256": "ab4dea7cef2208b271ce8462ce3f5f29406e37eed9a583fe1513977e102cc9f2"
+    },
+    {
+      "name": "male/returning/fall/secrets=false",
+      "sha256": "a393133644c3452c3a40032394d3e28d912810cff5e134818e629442258923c2"
+    },
+    {
+      "name": "male/returning/fall/secrets=true",
+      "sha256": "381881225c9be7bbeb8719a8ecf9603043182566efecdde4f1230b1003a1a94a"
+    },
+    {
+      "name": "male/graduate/fall",
+      "sha256": "7aa46e9ec70e532874d40f9440de1add5eb7ad8e727a3069b1bd0644fdf246ec"
+    },
+    {
+      "name": "male/majors",
+      "sha256": "ec0841c77848dd2a00a251cbab6f204ed80c837fd40cca2efa6a764c4ca7fa8f"
+    },
+    {
+      "name": "male/classes/pool=pe",
+      "sha256": "584d6c88ce4b53a94cb79d37976c4cbbd79929b7ce7d375cfbc9392f33b89d5f"
+    },
+    {
+      "name": "male/classes/pool=pe/existing",
+      "sha256": "24281f3b92b81fd21d5af331fff9a55d5b45977bd54edd5374948b92f950b4de"
+    },
+    {
+      "name": "male/classes/pool=humanities",
+      "sha256": "dd9f69af7c7b30d1e7f76e8768fc343bc5c66f84fec62b6babbbe99d7a4706b5"
+    },
+    {
+      "name": "male/classes/pool=humanities/existing",
+      "sha256": "bf6d9fce8013f48076be6f1f1506543bb61c6a07245fb9b13d4e7d989aa207e5"
+    },
+    {
+      "name": "male/classes/pool=arts",
+      "sha256": "64072877b64e092cdf77f93113547b32c573f322a28a041ab75e045423a56fa7"
+    },
+    {
+      "name": "male/classes/pool=arts/existing",
+      "sha256": "a082a55bef978bf4be8f0278d1cbfbdacab7f574b6145dac4d4a5aa08150a0ae"
+    },
+    {
+      "name": "male/classes/pool=misc",
+      "sha256": "31023d42f868027e0a581db2decf0445f3bef8f0177b4a03390cf5b3fe6badc2"
+    },
+    {
+      "name": "male/classes/pool=misc/existing",
+      "sha256": "3df8d3fc2e64fd3c5ec6f31df5ef6fdc82bc94e0525546d5c060085231dadf91"
+    },
+    {
+      "name": "male/classes/major",
+      "sha256": "f147dd45e4b24e6773b453e103783102543da785ccd5dc588ffc1136d288a856"
+    },
+    {
+      "name": "male/classes/major/existing",
+      "sha256": "b51e97e4cac41ddfed1328f4d40e700e8acb08617d65d20897518e293919eebc"
+    },
+    {
+      "name": "male/classes/interest",
+      "sha256": "3de304e5d3961347b889be4a9296c824ceeadd93f54ea21257c6d1fd8ae72c67"
+    },
+    {
+      "name": "majors/none",
+      "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+    }
+  ]
+}

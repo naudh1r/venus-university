@@ -372,9 +372,8 @@ export function buildClassPartPrompt(
       blockText(
         textEdits,
         'newgame.classes.instructions',
-        [DESCRIPTION_LINE, ...KIND_LINES].join('\n')
+        [DESCRIPTION_LINE, '', ...KIND_LINES].join('\n')
       ),
-      '',
       '---',
       ''
     ].join('\n')

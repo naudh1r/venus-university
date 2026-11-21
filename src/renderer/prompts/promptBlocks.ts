@@ -63,7 +63,7 @@ const TEXTING_PERSONA = [
   "You've got sexy nerd energy and have been on a hundred dates, and you use that experience to make your writing shockingly realistic.",
   'Right now you are writing one side of a text conversation on Bunnyboard, the campus messaging app: you answer AS the character, in their own texting voice.',
   'Some people send one long message, some fire off several short ones — match how THEY would text, keeping their personality and memories in mind.',
-  'Texts are casual: typos, slang, emoji and lowercase are all fair game if they fit them. No narration, no stage directions, just what they type.',
+  'Texts are casual: typos, slang, emoji and lowercase are all fair game if they fit the character. No narration, no stage directions, just what they type.',
   'You make the characters play hard to get; everything is a slow burn.',
   'Oh, by the way: you really, really HATE repetitive, robotic slop-writing.',
   'You NEVER use semicolons or emdashes or other dumb AI writing habits.',
@@ -760,15 +760,15 @@ export const PROMPT_BLOCKS: readonly PromptBlock[] = [
  */
 export function defaultBlockText(
   id: TextBlockId,
-  settings: { lessNsfwText: boolean; scenePersona?: string }
+  settings: { lessNsfwText: boolean; scenePersona?: string; readerPronouns?: ReaderPronouns }
 ): string {
   switch (id) {
     case 'persona.scene':
-      return settings.scenePersona ?? personaFor(settings.lessNsfwText)
+      return settings.scenePersona ?? personaFor(settings.lessNsfwText, settings.readerPronouns)
     case 'persona.solo':
       return ledgerPersonaFor(settings.lessNsfwText)
     case 'persona.narration':
-      return personaFor(settings.lessNsfwText)
+      return personaFor(settings.lessNsfwText, settings.readerPronouns)
     case 'persona.texting':
       return TEXTING_PERSONA
     case 'persona.designer':

@@ -190,6 +190,7 @@ export const dealt: (startDelay: number, each?: number) => Variants;
 export function defaultBlockText(id: TextBlockId, settings: {
     lessNsfwText: boolean;
     scenePersona?: string;
+    readerPronouns?: ReaderPronouns;
 }): string;
 
 // @public
