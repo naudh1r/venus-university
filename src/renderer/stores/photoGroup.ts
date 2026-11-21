@@ -113,6 +113,7 @@ export function withGroupPhotoRequest(
   if (ids.length < 2) return request
   const stale =
     !asked ||
+    (asked.friend !== undefined && !duoPhotosOn()) ||
     asked.slot !== slot ||
     !ids.includes(asked.poster) ||
     (asked.friend !== undefined && !ids.includes(asked.friend))

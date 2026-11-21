@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { character, charactersById, charInfo, restoreApi, stubApi } from './fixtures'
 
 let root = ''
-const mocks = vi.hoisted(() => ({ save: vi.fn(), render: vi.fn() }))
+const mocks = vi.hoisted(() => ({ save: vi.fn(), render: vi.fn(), ppm: vi.fn(), comfy: vi.fn() }))
 vi.mock('electron', () => ({
   app: { isPackaged: false, getAppPath: () => root, getPath: () => root }
 }))
@@ -17,6 +17,7 @@ vi.mock('../src/renderer/stores/loop/saves', () => ({ writeAutosave: mocks.save,
   const game = useGameStore.getState()
   if (game.currentSceneTranscript.length && !game.awaitingInput) return { ok: true, data: 'deferred' }
   await mocks.save(); return { ok: true, data: 'written' } } }))
+vi.mock('@vx/modkit/main', async original => ({ ...await original<object>(), comfyNodePackState: mocks.ppm, renderComfyImage: mocks.comfy }))
 vi.mock('../src/renderer/stores/photoWebp', () => ({ renderPhoto: mocks.render }))
 vi.mock('../src/renderer/stores/photoTipDelivery', () => ({ tellAboutDmPhotos: vi.fn() }))
 stubApi({ jobs: { onProgress: () => () => {} } })
@@ -27,7 +28,7 @@ const { setModSwitches } = await import('../src/main/services/modsService')
 const { setRendererPhotoSwitches } = await import('./fixtures/photoSwitchState')
 const { redrawMessagePhoto } = await import('../src/renderer/stores/photoTurn')
 const { redrawPostPhoto } = await import('../src/renderer/stores/photoPost')
-const { dropPhoto, retirePhoto, flushRetiredPhotos, photoInfo, validatePhotoOverrides } = await import(
+const { dropPhoto, retirePhoto, flushRetiredPhotos, photoInfo, generateDuoPhoto, validatePhotoOverrides } = await import(
   '../src/main/services/localPhotoService'
 )
 const girl = character({ charId: 'a' })
@@ -37,6 +38,8 @@ const exists = (path: string): Promise<boolean> => access(path).then(() => true,
 let currentFile: () => string
 
 beforeEach(async () => {
+  mocks.ppm.mockReset().mockResolvedValue('installed')
+  mocks.comfy.mockReset().mockResolvedValue(new Uint8Array([1, 2, 3]))
   root = await mkdtemp(join(tmpdir(), 'photo-redraw-'))
   await mkdir(join(run(), 'mod-data', 'photo-feature', 'a'), { recursive: true })
   useGameStore.getState().reset()
@@ -223,28 +226,71 @@ describe('a duo photo’s recorded method', () => {
   })
 
   it('validates duo method overrides without accepting them on solo photos', () => {
-    for (const couple of ['area', 'ppm']) {
+    for (const couple of ['ppm'] as const) {
       expect(() => validatePhotoOverrides({ couple }, true)).not.toThrow()
       expect(() => validatePhotoOverrides({ couple }, false)).toThrow(/couple method/)
     }
-    for (const couple of ['wide', 'other', null, 1]) {
+    for (const couple of ['area', 'wide', 'other', null, 1]) {
       expect(() => validatePhotoOverrides({ couple }, true)).toThrow(/couple method/)
     }
   })
 
-  it('keeps the recorded method on rebuild, except when ppm is off', async () => {
-    await writeFile(image('sarah_bunnyboard_001.json'), JSON.stringify({ ...saved, couple: 'ppm' }))
+  it('rebuilds old halves for ppm while keeping the recorded scene, negative and seed', async () => {
+    await writeFile(image('sarah_bunnyboard_001.json'), JSON.stringify(saved))
     const friend = character({ charId: 'b', gender: 'male', baseAppearance: ['1boy', 'black_hair'] })
-    setRendererPhotoSwitches({ ppm: true })
-    const kept = await photoInfo('1', girl, friend, 'everyday', 'Me and my friend at the cafe', 'sarah_bunnyboard_001.png', true)
-    expect(kept.couple).toBe('ppm')
-    expect(kept.left).not.toMatch(/\bsolo\b/)
-    setRendererPhotoSwitches({ ppm: false })
-    const off = await photoInfo('1', girl, friend, 'everyday', 'Me and my friend at the cafe', 'sarah_bunnyboard_001.png', true)
-    expect(off.couple).toBeUndefined()
-    expect(off.left).toMatch(/\b1girl, solo\b/)
-    expect(off.right).toMatch(/\b1boy, solo\b/)
-    expect(off.right).toMatch(/\bmale_focus\b/)
-    expect(JSON.parse(await readFile(image('sarah_bunnyboard_001.json'), 'utf8')).couple).toBe('ppm')
+    const current = await photoInfo('1', girl, friend, 'everyday', 'Me and my friend at the cafe', 'sarah_bunnyboard_001.png')
+    expect(current).toMatchObject({ couple: 'ppm', positive: saved.positive, negative: saved.negative, seed: saved.seed })
+    expect(current.left).not.toBe(saved.left)
+    expect(current.right).not.toBe(saved.right)
+    const rebuilt = await photoInfo('1', girl, friend, 'everyday', 'Me and my friend at the cafe', 'sarah_bunnyboard_001.png', true)
+    expect(rebuilt.couple).toBe('ppm')
+    expect(rebuilt.seed).toBe(saved.seed)
+    expect(JSON.parse(await readFile(image('sarah_bunnyboard_001.json'), 'utf8'))).toEqual(saved)
   })
+  it('keeps recorded ppm prompts when inspecting or changing orientation without Rebuild', async () => {
+    const record = { ...saved, couple: 'ppm', left: 'edited left', right: 'edited right' }
+    await writeFile(image('sarah_bunnyboard_001.json'), JSON.stringify(record))
+    for (const orientation of ['portrait', 'wide'] as const) {
+      const info = await photoInfo('1', girl, character({ charId: 'b' }), 'everyday', 'different scene', 'sarah_bunnyboard_001.png', false, orientation)
+      expect(info).toEqual({ ...record, recorded: true, orientation })
+    }
+    expect(await readPhotoSidecar(image('sarah_bunnyboard_001.json'))).toEqual(record)
+  })
+
+  it.each(['portrait', 'wide'] as const)('redraws old halves with ppm in %s and records the new method', async orientation => {
+    const file = 'sarah_bunnyboard_001.png'
+    await writeFile(image('sarah_bunnyboard_001.json'), JSON.stringify(saved))
+    await generateDuoPhoto('1', girl, character({ charId: 'b' }), 'everyday', 'Me and my friend at the cafe', file, {}, { seed: saved.seed, orientation })
+    const after = await readPhotoSidecar(image('sarah_bunnyboard_001.json'))
+    expect(after).toMatchObject({ couple: 'ppm', positive: saved.positive, negative: saved.negative, seed: saved.seed })
+    expect(after!.left).not.toBe(saved.left)
+    expect(after!.right).not.toBe(saved.right)
+    expect(after!.orientation).toBe(orientation === 'wide' ? 'wide' : undefined)
+    expect(mocks.comfy).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps edited ppm halves on a plain redraw and never retries with another method', async () => {
+    const prompts = { positive: 'player scene', negative: 'player negative', left: 'player left', right: 'player right' }
+    const file = 'sarah_bunnyboard_002.png'
+    await generateDuoPhoto('1', girl, character({ charId: 'b' }), 'everyday', 'original caption', file, {}, { prompts, couple: 'ppm' })
+    expect(await readPhotoSidecar(image('sarah_bunnyboard_002.json'))).toMatchObject({ ...prompts, couple: 'ppm', orientation: 'wide' })
+    mocks.comfy.mockClear().mockRejectedValue({ code: 'COMFY_NODES_MISSING' })
+    await expect(generateDuoPhoto('1', girl, character({ charId: 'b' }), 'everyday', 'original caption', 'sarah_bunnyboard_003.png'))
+      .rejects.toMatchObject({ code: 'COMFY_NODES_MISSING' })
+    expect(mocks.comfy).toHaveBeenCalledTimes(1)
+    expect(await exists(image('sarah_bunnyboard_003.json'))).toBe(false)
+  })
+
+  it.each(['missing', 'invalid', 'unmanaged'] as const)('refuses a duo redraw with ppm %s without changing its files', async state => {
+    const file = 'sarah_bunnyboard_001.png'
+    await writeFile(image(file), 'old picture')
+    await writeFile(image('sarah_bunnyboard_001.json'), JSON.stringify(saved))
+    mocks.ppm.mockResolvedValue(state)
+    await expect(generateDuoPhoto('1', girl, character({ charId: 'b' }), 'everyday', 'caption', file))
+      .rejects.toMatchObject({ code: 'PHOTO_WIDE_NEEDS_PPM' })
+    expect(mocks.comfy).not.toHaveBeenCalled()
+    expect(await readFile(image(file), 'utf8')).toBe('old picture')
+    expect(await readPhotoSidecar(image('sarah_bunnyboard_001.json'))).toEqual(saved)
+  })
+
 })

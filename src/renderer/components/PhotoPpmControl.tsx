@@ -6,14 +6,16 @@ import {
   quietLift,
   quietPress,
   type OptionControlProps,
+  useLocalImageSource,
   type ScreenTheme
 } from '@vx/modkit/renderer'
-import type { PhotoPpmState } from '../../shared/photoTypes'
+import { refreshPhotoPpm, usePhotoPpmState } from '../stores/photoPpm'
 import { photoInvoke } from '../stores/photoInvoke'
 
-/** The ppm option's pack state and install confirmation; the player's own server gets a note. */
+/** The duo option's pack state and install confirmation, or a note for the player's own server. */
 export function PhotoPpmControl({ on }: OptionControlProps): JSX.Element | null {
-  const [state, setState] = useState<PhotoPpmState | null>(null)
+  const state = usePhotoPpmState()
+  const source = useLocalImageSource()
   const [installing, setInstalling] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const [asking, setAsking] = useState<ScreenTheme | null>(null)
@@ -22,15 +24,7 @@ export function PhotoPpmControl({ on }: OptionControlProps): JSX.Element | null 
 
   useEffect(() => {
     live.current = true
-    if (!on) {
-      setState(null)
-      return () => { live.current = false }
-    }
-    void photoInvoke('ppmState', [])
-      .then((result) => {
-        if (live.current && result.ok) setState(result.data)
-      })
-      .catch(() => {})
+    if (on) void refreshPhotoPpm()
     return () => {
       live.current = false
     }
@@ -43,10 +37,8 @@ export function PhotoPpmControl({ on }: OptionControlProps): JSX.Element | null 
     setFailure(null)
     try {
       const result = await photoInvoke('installPpm', [])
-      if (!live.current) return
-      if (!result.ok) setFailure(result.error.message)
-      const after = await photoInvoke('ppmState', [])
-      if (live.current && after.ok) setState(after.data)
+      await refreshPhotoPpm()
+      if (live.current && !result.ok) setFailure(result.error.message)
     } catch (error) {
       if (live.current) setFailure(error instanceof Error ? error.message : String(error))
     } finally {
@@ -54,11 +46,11 @@ export function PhotoPpmControl({ on }: OptionControlProps): JSX.Element | null 
     }
   }
 
-  if (!on || state === null || state === 'off') return null
-  if (state === 'unmanaged') {
+  if (!on || state === null) return null
+  if (state !== 'installed' && (source === 'external' || state === 'unmanaged')) {
     return (
       <span className="vu-check-note">
-        Install ComfyUI-ppm on your own ComfyUI to use it for photos of two.
+        Photos of two need ComfyUI-ppm. Install it on your own ComfyUI, then restart that server.
       </span>
     )
   }
@@ -88,7 +80,7 @@ export function PhotoPpmControl({ on }: OptionControlProps): JSX.Element | null 
         <span className="vu-btn-sub">{installing ? 'INSTALLING…' : 'FAILED'}</span>
       )}
       <span className="vu-check-note">
-        ComfyUI-ppm keeps the two in a photo apart. Photos of two start wide and can be redrawn portrait.
+        Photos of two need ComfyUI-ppm. Without it, every photo shows one person.
       </span>
       {failure && !installing && <span className="vu-test-note">{failure}</span>}
       <AnimatePresence>

@@ -24,7 +24,6 @@ import {
 import {
   PHOTO_PROMPT_LIMIT,
   type PhotoInfo,
-  type PhotoCouple,
   type PhotoPpmState,
   type PhotoOrientation,
   type PhotoRenderOptions,
@@ -48,10 +47,8 @@ import {
 } from '@vx/modkit/main'
 import { PPM_PACK } from '../photoNodePack'
 import soloWorkflow from '../../../assets/workflows/characterPhoto.json'
-import duoWorkflow from '../../../assets/workflows/characterPhotoDuo.json'
 import wideDuoWorkflow from '../../../assets/photo/characterPhotoDuoWide.json'
 import ppmPortraitWorkflow from '../../../assets/photo/characterPhotoDuoPpm.json'
-import areaWideWorkflow from '../../../assets/photo/characterPhotoDuoAreaWide.json'
 
 /**
  * Photo owns its graphs, prompts and playthrough destinations. The kit queues each graph,
@@ -59,7 +56,7 @@ import areaWideWorkflow from '../../../assets/photo/characterPhotoDuoAreaWide.js
  * each girl's prompt through extra text nodes, and the renderer handles WebP encoding.
  */
 
-/** Node ids overwritten in `assets/workflows/characterPhotoDuo.json`. */
+/** Shared node ids filled in Photo’s solo and ppm graphs. */
 const DUO_PHOTO_NODE = {
   seed: '14',
   positivePrompt: '4',
@@ -285,7 +282,7 @@ export function validatePhotoOverrides(
     invalid()
   }
   if (overrides.couple !== undefined &&
-      (!duo || (overrides.couple !== 'area' && overrides.couple !== 'ppm'))) invalid()
+      (!duo || overrides.couple !== 'ppm')) invalid()
   if (overrides.prompts === undefined) return
   if (!isOverrideRecord(overrides.prompts)) invalid()
   const prompts = overrides.prompts as Record<string, unknown>
@@ -364,27 +361,12 @@ const DUO_GIRL_NODE = { left: '50', right: '51' } as const
 /** The ppm graphs' face-pass prompt nodes, one per person. */
 const DUO_FACE_NODE = { left: '80', right: '81' } as const
 
-/** The switch is checked before probing the optional pack. */
+/** Where the pack needed for every photo of two stands on the selected ComfyUI. */
 export async function photoPpmState(): Promise<PhotoPpmState> {
-  if (!photoSwitches().ppm) return 'off'
   return comfyNodePackState(PHOTO_FEATURE_ID, PPM_PACK.id)
 }
 
-/** Installed is certain; the player's own server must be tried for its node classes. */
-async function ppmInUse(): Promise<'yes' | 'try' | 'no'> {
-  const state = await photoPpmState()
-  return state === 'installed' ? 'yes' : state === 'unmanaged' ? 'try' : 'no'
-}
-
-/**
- * Renders one picture of her and a friend side by side, into her own photo folder: the picture is
- * hers, sent by her, and the friend is only in it. `friend` has already been settled against the
- * save; nothing here re-opens whether she may be in it.
- *
- * New photos default to wide with ppm and portrait with area halves. A redraw retains its
- * recorded method where the switch allows it; the player's own server falls back to portrait
- * area halves when ppm's nodes are missing.
- */
+/** Draws two people with ppm, retaining edited ppm halves and converting older halves first. */
 export async function generateDuoPhoto(
   playthroughId: string,
   character: Character,
@@ -410,73 +392,43 @@ export async function generateDuoPhoto(
 
   assertPhotoFile(file)
   const seed = overrides.seed ?? Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
-  const ppmOn = photoSwitches().ppm
-  const ready = await ppmInUse()
-  // Older callers supplying prompts can redraw an existing file without naming its method.
-  const recorded = overrides.prompts && overrides.couple === undefined
-    ? await recordedPhotoInfo(playthroughId, character.charId, file)
-    : undefined
-  const sourceMethod = overrides.couple ?? (overrides.prompts ? recorded?.couple ?? 'area' : undefined)
-  const method: PhotoCouple = ppmOn ? sourceMethod ?? (ready === 'no' ? 'area' : 'ppm') : 'area'
-  const asked = overrides.orientation ?? (overrides.prompts ? recorded?.orientation ?? 'portrait' : undefined)
-  if (ppmOn && ready === 'no' && (asked === 'wide' || method === 'ppm')) {
+  if (await photoPpmState() !== 'installed') {
     throw appError(
       'PHOTO_WIDE_NEEDS_PPM',
-      'This photo of two needs ComfyUI-ppm. Install it from Mods, under Draw photos of two with ComfyUI-ppm.'
+      'This photo of two needs ComfyUI-ppm. Install it from Mods, under Two in one photo.'
     )
   }
-  /** Draws the same scene in the chosen shape and method, converting supplied ppm halves for area. */
-  const draw = async (orientation: PhotoOrientation, couple: PhotoCouple): Promise<void> => {
-    const built = overrides.prompts
-      ? {
-          scene: overrides.prompts.positive,
-          negative: overrides.prompts.negative,
-          left: couple === 'area' ? faceHalfOf(overrides.prompts.left ?? '', character) : overrides.prompts.left ?? '',
-          right: couple === 'area' ? faceHalfOf(overrides.prompts.right ?? '', friend) : overrides.prompts.right ?? ''
-        }
-      : buildDuoPhotoPrompt(
-          await withBodySetting(character),
-          await withBodySetting(friend),
-          tier as PhotoTier,
-          photoPrompt,
-          couple
-        )
-    const prompts = { positive: built.scene, negative: built.negative, left: built.left, right: built.right }
-    const wide = orientation === 'wide'
-    const ppm = couple === 'ppm'
-    await renderPhotoImage(playthroughId, character.charId, file, {
-      workflow: ppm ? (wide ? wideDuoWorkflow : ppmPortraitWorkflow) : (wide ? areaWideWorkflow : duoWorkflow),
-      nodes: DUO_PHOTO_NODE,
-      prompts: { positive: prompts.positive, negative: prompts.negative },
-      texts: {
-        [DUO_GIRL_NODE.left]: prompts.left,
-        [DUO_GIRL_NODE.right]: prompts.right,
-        ...(ppm
-          ? {
-              [DUO_FACE_NODE.left]: faceHalfOf(prompts.left, character),
-              [DUO_FACE_NODE.right]: faceHalfOf(prompts.right, friend)
-            }
-          : {})
-      },
-      seed
-    }, {
-      schemaVersion: 1, seed, tier, ...prompts,
-      ...(wide ? { orientation: 'wide' as const } : {}),
-      ...(ppm ? { couple: 'ppm' as const } : {})
-    }, options)
+  const recorded = await recordedPhotoInfo(playthroughId, character.charId, file)
+  const supplied = overrides.prompts ?? recorded
+  const suppliedPpm = (overrides.couple ?? recorded?.couple) === 'ppm'
+  const built = !supplied || !suppliedPpm
+    ? buildDuoPhotoPrompt(
+        await withBodySetting(character), await withBodySetting(friend), tier, photoPrompt, 'ppm'
+      )
+    : undefined
+  const prompts = {
+    positive: supplied?.positive ?? built!.scene,
+    negative: supplied?.negative ?? built!.negative,
+    left: suppliedPpm && supplied ? supplied.left ?? '' : built!.left,
+    right: suppliedPpm && supplied ? supplied.right ?? '' : built!.right
   }
-
-  const orientation = asked ?? (method === 'ppm' ? 'wide' : 'portrait')
-  if (method !== 'ppm' || ready !== 'try') await draw(orientation, method)
-  else {
-    try {
-      await draw(orientation, 'ppm')
-    } catch (error) {
-      if ((error as { code?: unknown })?.code !== 'COMFY_NODES_MISSING') throw error
-      console.log('[photo] your ComfyUI has no ComfyUI-ppm; drawing the photo of two portrait')
-      await draw('portrait', 'area')
-    }
-  }
+  const orientation = overrides.orientation ?? recorded?.orientation ?? 'wide'
+  const wide = orientation === 'wide'
+  await renderPhotoImage(playthroughId, character.charId, file, {
+    workflow: wide ? wideDuoWorkflow : ppmPortraitWorkflow,
+    nodes: DUO_PHOTO_NODE,
+    prompts: { positive: prompts.positive, negative: prompts.negative },
+    texts: {
+      [DUO_GIRL_NODE.left]: prompts.left,
+      [DUO_GIRL_NODE.right]: prompts.right,
+      [DUO_FACE_NODE.left]: faceHalfOf(prompts.left, character),
+      [DUO_FACE_NODE.right]: faceHalfOf(prompts.right, friend)
+    },
+    seed
+  }, {
+    schemaVersion: 1, seed, tier, ...prompts, couple: 'ppm',
+    ...(wide ? { orientation: 'wide' as const } : {})
+  }, options)
 
   reservedPhotoNames.get(getPhotosPath(playthroughId, character.charId))?.delete(file)
   return file
@@ -583,31 +535,28 @@ export async function photoInfo(
   }
   const saved = await recordedPhotoInfo(playthroughId, character.charId, file)
   const savedOrientation: PhotoOrientation = saved?.orientation ?? 'portrait'
-  if (saved && !rebuild && (orientation ?? savedOrientation) === savedOrientation) {
+  if (saved && !rebuild && (!friend || saved.couple === 'ppm')) {
     const { orientation: _shape, ...request } = saved
-    return { ...request, recorded: true, orientation: savedOrientation }
+    return { ...request, recorded: true, orientation: orientation ?? savedOrientation }
   }
   const seed = saved?.seed
   const shape = orientation ?? savedOrientation
   if (friend) {
-    const couple: PhotoCouple = saved
-      ? (photoSwitches().ppm ? saved.couple ?? 'area' : 'area')
-      : (await ppmInUse()) === 'no' ? 'area' : 'ppm'
     const prompts = buildDuoPhotoPrompt(
       await withBodySetting(character),
       await withBodySetting(friend),
       tier,
       scene,
-      couple
+      'ppm'
     )
     return {
       recorded: false,
       seed,
       tier,
       orientation: shape,
-      ...(couple === 'ppm' ? { couple: 'ppm' as const } : {}),
-      positive: prompts.scene,
-      negative: prompts.negative,
+      couple: 'ppm',
+      positive: !rebuild && saved ? saved.positive : prompts.scene,
+      negative: !rebuild && saved ? saved.negative : prompts.negative,
       left: prompts.left,
       right: prompts.right
     }

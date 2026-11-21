@@ -1,3 +1,4 @@
+import { refreshPhotoPpm, startPhotoPpm } from '../stores/photoPpm'
 import { photoInvoke } from '../stores/photoInvoke'
 import { registerImagePromptDraft } from '@vx/modkit/shared'
 import { registerPhotoDraft } from '../../shared/photoDraft'
@@ -46,6 +47,7 @@ import { PHOTO_FEATURE_ID, bindPhotoOptionReader } from '../../shared/photoSwitc
 
 bindPhotoOptionReader((option) => modOptionOn(PHOTO_FEATURE_ID, option))
 registerPhotoDraft(registerImagePromptDraft)
+startPhotoPpm()
 
 /**
  * Photo Feature, plugged into the game through its hooks. Everything it adds to the game's own
@@ -63,7 +65,7 @@ registerHooks(PHOTO_FEATURE_ID, {
   // Her body, as a field in the character editor.
   editorField: BODY_EDITOR_FIELD,
   // Under Two in one photo on the Mods screen, ComfyUI-ppm's state and its Install.
-  optionControls: { ppm: PhotoPpmControl },
+  optionControls: { duo: PhotoPpmControl },
   prompts: {
     dm: {
       lead: true,
@@ -165,6 +167,7 @@ registerHooks(PHOTO_FEATURE_ID, {
 
   // A picture whose render outlived the save that asked for it: found on disk, or given up on.
   gameEntered: () => {
+    void refreshPhotoPpm()
     clearEarlyPhotos()
     void settlePendingPhotos()
   },
@@ -172,6 +175,7 @@ registerHooks(PHOTO_FEATURE_ID, {
   // Switched back on mid-game: a render that landed while it was off could not be written, so its
   // bubble is still waiting.
   switchedOn: ({ atBoot }) => {
+    void refreshPhotoPpm()
     if (!atBoot) void settlePendingPhotos()
   },
 

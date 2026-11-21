@@ -64,20 +64,8 @@ describe('a picture of two', () => {
       expect(half).toMatch(/^masterpiece, best_quality, very_aesthetic, 1girl, 1boy, /)
       expect(half).not.toMatch(/\bsolo\b|male_focus/)
     }
-    expect(buildDuoPhotoPrompt(kai, risa, 'everyday', 'Kai and Risa at the cafe').left).toMatch(/\b1boy, solo\b/)
   })
 
-  it('converts ppm halves back to each person without changing the rest of the prompt', () => {
-    const boy = character({ gender: 'male', baseAppearance: ['1boy', 'black_hair'] })
-    for (const [left, right] of [[risa, ana], [risa, boy], [boy, { ...boy, charId: 'other' }]]) {
-      const ppm = buildDuoPhotoPrompt(left, right, 'everyday', 'Me and my friend at the cafe', 'ppm')
-      const area = buildDuoPhotoPrompt(left, right, 'everyday', 'Me and my friend at the cafe', 'area')
-      expect(faceHalfOf(ppm.left, left).split(', ').sort()).toEqual(area.left.split(', ').sort())
-      expect(faceHalfOf(ppm.right, right).split(', ').sort()).toEqual(area.right.split(', ').sort())
-      expect(ppm.scene).toBe(area.scene)
-      expect(ppm.negative).toBe(area.negative)
-    }
-  })
 
   it('draws them apart, never touching, and leaves her legs out of a shot from the waist up', () => {
     const prompts = buildDuoPhotoPrompt(risa, ana, 'everyday', 'Me and Ana at the cafe, hugging and smiling at the camera')

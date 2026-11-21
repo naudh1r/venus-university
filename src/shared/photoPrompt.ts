@@ -1160,9 +1160,7 @@ function waistUpDress(tag: string): string {
 }
 
 /**
- * One girl's half: who she is, what of her the shot shows, and what she wears. Drawn in its own
- * area, she is `1girl, solo`; under an attention mask that sees the whole picture, the half
- * opens on the picture's `heads` instead and says nothing that means one person alone.
+ * One person's half under ppm's attention mask, opening on the whole picture's head count.
  */
 function duoHalf(
   girl: Character,
@@ -1170,12 +1168,12 @@ function duoHalf(
   scene: string,
   posture: readonly string[],
   extra: readonly string[],
-  heads?: readonly string[]
+  heads: readonly string[]
 ): { prompt: string; worn: string; names: readonly string[] } {
   const bare = tier === 'explicit'
   const dressed = bare && describesClothing(scene)
   const alone = (tag: string): boolean =>
-    tag === '1girl' || tag === '1boy' || (heads !== undefined && SOLO_TAGS.has(tag))
+    tag === '1girl' || tag === '1boy' || SOLO_TAGS.has(tag)
   const appearance = photoAppearance(girl).filter((tag) => !alone(tag))
   const selected = wardrobeForPhoto(girl, tier, scene, dressed)
   const body = bodyTagsFor(
@@ -1194,7 +1192,7 @@ function duoHalf(
     prompt: plainColours(
       [
         PHOTO_QUALITY,
-        heads ? heads.join(', ') : `${genderOf(girl) === 'male' ? '1boy' : '1girl'}, solo`,
+        heads.join(', '),
         ...appearance,
         ...photoSubject(girl).filter((tag) => !alone(tag) && !appearance.includes(tag)),
         ...genderedTags(body, genderOf(girl)),
@@ -1282,21 +1280,13 @@ function duoSubjects(sender: Character, friend: Character): string[] {
   ]
 }
 
-/**
- * Assembles a picture of two girls side by side: `sender` on the left, who sent it, `friend` on
- * the right. Each is drawn in her own half from her own tags, and the scene over the whole picture.
- *
- * Told as one prompt, the checkpoint swapped their hair, glasses and clothes between them; drawn
- * in halves, each kept her own. The tier has been settled for the pair already. A ppm picture
- * holds each half to its side with an attention mask, which sees the whole picture, so each half
- * names the picture's head count rather than one person alone.
- */
+/** Builds ppm prompts with each person's tags held to their own side by an attention mask. */
 export function buildDuoPhotoPrompt(
   sender: Character,
   friend: Character,
   tier: PhotoTier,
   photoPrompt: string,
-  couple: PhotoCouple = 'area'
+  _couple: PhotoCouple = 'ppm'
 ): DuoPhotoPrompts {
   const named = withoutNames(
     sender,
@@ -1324,7 +1314,7 @@ export function buildDuoPhotoPrompt(
 
   const shared = [...framing.tags]
   const faces = duoExpressions(photoRuleText(text))
-  const heads = couple === 'ppm' ? duoHeadCount(sender, friend) : undefined
+  const heads = duoHeadCount(sender, friend)
   const left = duoHalf(sender, tier, scene, posture, [...faces.left, ...shared, ...holds], heads)
   const right = duoHalf(friend, tier, scene, posture, [...faces.right, ...shared], heads)
   const dressedScene = withoutOutfitName(scene, [...left.names, ...right.names])

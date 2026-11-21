@@ -39,13 +39,7 @@ export const PHOTO_FEATURE_MOD = {
     {
       id: 'duo',
       label: 'Two in one photo (experimental)',
-      hint: 'A character’s feed post can show them with a friend or partner. A scene with two or more characters can bring a photo of two of them. Still being tuned: now and then a face, an outfit or a colour comes out wrong.',
-      default: false
-    },
-    {
-      id: 'ppm',
-      label: 'Draw photos of two with ComfyUI-ppm',
-      hint: 'Keeps the two in a photo apart instead of meeting in the middle. Photos of two start wide, and you can redraw them portrait. Needs ComfyUI-ppm, installed here.',
+      hint: 'A character’s feed post can show them with a friend or partner. A scene with two or more characters can bring a photo of two of them. Needs ComfyUI-ppm, installed here. Without it, every photo shows one person. Still being tuned: now and then a face, an outfit or a colour comes out wrong.',
       default: false
     },
     {

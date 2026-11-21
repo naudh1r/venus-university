@@ -1,4 +1,4 @@
-import { setRendererPhotoSwitches } from './fixtures/photoSwitchState'
+import { setRendererPhotoSwitches, setRendererPhotoPpm } from './fixtures/photoSwitchState'
 import { savedPhoto } from '../src/shared/photoTypes'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { postIsOut } from '../src/shared/heldPosts'
@@ -10,7 +10,8 @@ import {
   photoGenerationOn,
   photoSwitches,
   photosVisible,
-  bindPhotoOptionReader
+  bindPhotoOptionReader,
+  duoPhotosOn
 } from '../src/shared/photoSwitches'
 import { postCommentLines } from '../src/renderer/prompts/photoBrief'
 import type { SocialPost } from '../src/shared/types'
@@ -85,10 +86,20 @@ describe('photo switches', () => {
       webp: DEFAULT_PHOTO_SWITCHES.webp,
       body: DEFAULT_PHOTO_SWITCHES.body,
       duo: DEFAULT_PHOTO_SWITCHES.duo,
-      ppm: DEFAULT_PHOTO_SWITCHES.ppm,
       'loader-bunny': true,
       'loader-shimmer': false,
       'loader-dots': false
     })
   })
 })
+
+for (const state of [null, 'installed', 'missing', 'invalid', 'unmanaged'] as const) {
+  it(`allows two people only with the option and installed ppm, state ${state}`, () => {
+    setRendererPhotoPpm(state)
+    for (const duo of [false, true]) {
+      setRendererPhotoSwitches({ duo })
+      expect(duoPhotosOn()).toBe(duo && state === 'installed')
+    }
+    setRendererPhotoPpm('installed')
+  })
+}

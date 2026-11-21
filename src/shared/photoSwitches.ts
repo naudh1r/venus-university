@@ -1,3 +1,4 @@
+import type { PhotoPpmState } from './photoTypes'
 import { PHOTO_FEATURE_ID } from './photoDefinition'
 export { PHOTO_FEATURE_ID, PHOTO_FEATURE_MOD } from './photoDefinition'
 import { sharedModOn } from '@vx/modkit/shared'
@@ -19,8 +20,6 @@ export interface PhotoSwitches {
   body: boolean
   /** A photo of two girls, never more, on one's feed: her own post with a friend, or from a scene. Experimental. */
   duo: boolean
-  /** Draw photos of two with the optional ComfyUI-ppm pack. */
-  ppm: boolean
 }
 
 /** Before the Mods screen's switches are read: the mod on, nothing forbidden, the bunny. */
@@ -31,13 +30,18 @@ export const DEFAULT_PHOTO_SWITCHES: PhotoSwitches = {
   loader: 'bunny',
   webp: true,
   body: false,
-  duo: false,
-  ppm: false
+  duo: false
 }
 
 type OptionReader = (optionId: string) => boolean
 let readOption: OptionReader | null = null
 let snapshot = DEFAULT_PHOTO_SWITCHES
+let readPpmState: () => PhotoPpmState | null = () => null
+
+/** Supplies this process's latest pack state without waiting at a gameplay gate. */
+export function bindPhotoPpmReader(reader: () => PhotoPpmState | null): void {
+  readPpmState = reader
+}
 
 /** Plugs in the synchronous option reader owned by this process's entry. */
 export function bindPhotoOptionReader(reader: OptionReader | null): void {
@@ -55,7 +59,6 @@ export function photoSwitches(): PhotoSwitches {
     webp: option('webp'),
     body: option('body'),
     duo: option('duo'),
-    ppm: option('ppm'),
     loader: PHOTO_LOADERS.find(loader => option(loaderOptionId(loader.value)))?.value ?? 'bunny'
   }
   if ((Object.keys(next) as (keyof PhotoSwitches)[]).some(key => next[key] !== snapshot[key])) snapshot = next
@@ -91,9 +94,9 @@ export function explicitPhotosAllowed(
   return switches.explicit && !noNsfwImages
 }
 
-/** Whether a shared scene brings a group photo: new photos made, and its option. */
+/** Whether new photos may show two people: generation, the option and a confirmed ppm pack. */
 export function duoPhotosOn(switches: PhotoSwitches = photoSwitches()): boolean {
-  return photoGenerationOn(switches) && switches.duo
+  return photoGenerationOn(switches) && switches.duo && readPpmState() === 'installed'
 }
 
 /** The option that picks one loading animation. */

@@ -23,8 +23,8 @@ export type PhotoCalls = {
       /** The bytes of a picture on disk, whichever of PNG or WebP it is under. */
       read: (playthroughId: string, charId: string, file: string) => Promise<Result<Uint8Array>>
       /**
-       * The recorded prompt, or a current build; rebuilding retains a recorded seed. An
-       * orientation other than the recorded one builds the prompt for that orientation.
+       * The recorded prompt, or a current build; rebuilding retains a recorded seed. Old duo
+       * halves are rebuilt for ppm while their scene and negative stay as recorded.
        */
       info: (
         playthroughId: string,
@@ -36,7 +36,7 @@ export type PhotoCalls = {
         rebuild?: boolean,
         orientation?: PhotoOrientation
       ) => Promise<Result<PhotoInfo>>
-      /** Off while the ppm switch is off; otherwise where ComfyUI-ppm stands: `installed`, `missing`, `invalid`, or `unmanaged` on the player's own ComfyUI. */
+      /** Whether the selected ComfyUI has the pack needed for photos of two. */
       ppmState: () => Promise<Result<PhotoPpmState>>
       /** Installs ComfyUI-ppm into the game's own ComfyUI, restarting it on the next render. */
       installPpm: () => Promise<Result<void>>

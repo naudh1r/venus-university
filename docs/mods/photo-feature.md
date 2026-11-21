@@ -16,9 +16,9 @@ This is not made or supported by Venus Dev. Please do not report problems with i
 - The desktop game, with image generation working: the game's own ComfyUI, or your own one set
   in Settings. The browser version never makes photos.
 - Photos use the game's own photo checkpoint and style LoRA (`assets/workflows/characterPhoto.json`).
-  Nothing else to download.
-- Optional: ComfyUI-ppm, for wide photos of two. The game's own ComfyUI installs it from
-  **Mods → Photo Feature**, under Draw photos of two with ComfyUI-ppm; your own ComfyUI needs it installed there.
+  Photos of one person need nothing else.
+- Photos of two need ComfyUI-ppm. Install it from **Mods → Photo Feature**, under
+  **Two in one photo**. If you use your own ComfyUI, install the pack there instead.
 
 ## Settings
 
@@ -30,8 +30,7 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
 | Photo generation | on | Off, no new photos are made and characters are not told they can send one. Photos already sent stay visible. |
 | Explicit photos | on | Off, nobody sends an undressed photo and ones already sent stay covered. The game's own "No NSFW images" turns them off too. |
 | Body details | off | Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable from the main menu in Manage Characters, under a character's Generation settings (the default characters too), and drawn in their sprites, CGs and photos. Off, what they have is kept but not used. |
-| Two in one photo (experimental) | off | A feed post can show its author with a friend or current partner. A scene can bring a photo of any two characters, never more. See below for the separate ComfyUI-ppm option. |
-| Draw photos of two with ComfyUI-ppm | off | Keeps the two in a photo apart. With the pack installed, photos of two start wide and can be redrawn portrait. Install it under this option. Off, new photos start portrait as before. |
+| Two in one photo (experimental) | off | A feed post can show its author with a friend or current partner. A scene can bring a photo of any two characters, never more. Needs ComfyUI-ppm, installed under this option. Without it, every photo shows one person. |
 | Save photos as WebP | on | New photos are saved as WebP, with no visible quality loss while taking much less space than PNG. Off, they are saved as PNG. Photos already saved stay as they are. |
 | Loading animation | Bunny hop | What a photo shows while it is being drawn: Bunny hop, Dot shimmer or Typing dots. |
 
@@ -107,22 +106,23 @@ The two are drawn side by side, from the waist up, without touching. Each keeps 
 appearance, clothes, colours, expression and gestures in a separate half. Selfies give only
 the poster the arm holding the phone. The picture belongs to the poster’s gallery.
 
-**Draw photos of two with ComfyUI-ppm** is a separate option, off by default. With it off,
-new photos start portrait, 832x1216, using the same drawing method as before. The info panel can
-still switch a photo to wide, 1216x832, without ComfyUI-ppm.
+Photos of two need [ComfyUI-ppm](https://github.com/pamparamm/ComfyUI-ppm). The game's own
+ComfyUI installs it from under **Two in one photo** in **Mods → Photo Feature**, after asking.
+It needs a recent ComfyUI, tested on 0.37.1. ComfyUI restarts once it is installed. On your own
+ComfyUI, install the pack there yourself and restart that server.
 
-With the option on and the pack installed, photos of two start wide, and the two meet in the
-middle much less often. Switching one to portrait uses ComfyUI-ppm too. Solo photos still start
-portrait. The game's own ComfyUI installs the pack from under the ppm option in
-**Mods → Photo Feature**, after asking: it needs a recent ComfyUI (tested on 0.37.1), and
-ComfyUI restarts once it is in. The install control appears while the ppm option is on.
+Without the pack installed, Two in one photo counts as off. Feed posts and scenes bring photos
+of one person, with no pair chosen or pair cooldown used. The switch keeps your choice for when
+the pack is available. Until the pack's state is known, photos show one person too.
 
-On your own ComfyUI, install [ComfyUI-ppm](https://github.com/pamparamm/ComfyUI-ppm) yourself.
-If it is missing there, a photo tried with ppm is drawn portrait with the older method instead.
+Photos of two start wide, 1216x832. The info panel can redraw them portrait, 832x1216, with ppm
+too. Solo photos still start portrait and can be redrawn wide. Older photos of two stay visible.
+Their next redraw uses ppm, with new halves shown in the info panel beforehand. Without ppm,
+a redraw of a photo of two fails and keeps the old picture. It never uses the older drawing method.
 
 Still being tuned: a face, outfit or colour sometimes comes out wrong. Close-ups and rear views
 hold less well than plain shots. In a portrait photo the two can meet in the middle, especially
-in swimwear; in a wide one a guy's hair colour sometimes spills onto the girl beside him, which
+in swimwear. In a wide one a guy's hair colour sometimes spills onto the girl beside him, which
 a reroll fixes. A long dress beside a top can pull one person further down. A chin resting on a hand stays in
 the sentence, since tagging it made elbows merge across the picture.
 
@@ -142,9 +142,12 @@ negative, seed and LoRA used to draw it. Most problems are one word in her sente
 drew too literally: change or remove it, then redraw. **Redraw with same seed** keeps the rest of
 the picture close to what it was, so you can see what your change did. **Switch to wide** or
 **Switch to portrait** redraws it the other way round, with the same seed where it has one.
-Both choices stay available with the ppm option on or off. Turning ppm off redraws photos of two
-with the older method, in the shape you chose. A photo taken before 1.7.0
-shows a rebuilt prompt and no seed, so it can only be redrawn with a new one. A redraw during a scene
+Both choices keep the prompts in the fields. Photos of two need ppm installed for any redraw.
+For an older photo of two, the panel rebuilds its two halves for ppm while keeping the recorded
+scene, negative and seed. You can edit those new halves before drawing. A ppm photo keeps its
+own prompts until you choose **Rebuild**, which replaces them from the characters' current tags.
+A photo taken before 1.7.0 shows a rebuilt prompt and no seed, so it can only be redrawn with a
+new one. A redraw during a scene
 is kept once the scene next saves, at its next choice or its end: quit before then, and the photo
 you had before comes back.
 
@@ -161,12 +164,11 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
   the whole picture. Portraits fill the gaps, so the newest photos may stand slightly out of order.
 - A photo's waiting frame follows the shape being drawn, including when switching between wide
   and portrait. A failed redraw brings back the old picture in its old shape.
-- ComfyUI-ppm has its own switch, off by default. Turn it on and install the pack from under
-  **Draw photos of two with ComfyUI-ppm** in Mods. With it off, new photos start portrait as before.
-- Photos of two can use ComfyUI-ppm in portrait too. They still start wide while ppm is on and
-  installed, and the info panel can redraw them portrait.
-- With ppm off, the info panel can still switch photos of two to wide using the older drawing
-  method. Solo photos keep both choices too.
+- Photos of two need ComfyUI-ppm, installed under **Two in one photo** in Mods. On your own
+  ComfyUI, install the pack there. Without it, every new photo shows one person.
+- Photos of two start wide and can be redrawn portrait with ppm too.
+- Older photos of two stay visible. Their next redraw uses ppm, with new halves shown in the
+  info panel first. The recorded scene, negative and seed are kept.
 - The photo info panel can switch a photo between wide and portrait and redraw it.
 - A guy's own name in his caption becomes "him" or "his" instead of leaving a gap, and his photos
   no longer ask for a flat chest.
@@ -454,45 +456,48 @@ checkpoint draws it.
 
 ### A picture of two
 
-`buildDuoPhotoPrompt(..., couple)` in `photoPrompt.ts` writes the scene, sender's half,
-friend's half and negative for a method, independently of orientation:
+`buildDuoPhotoPrompt(..., 'ppm')` in `photoPrompt.ts` writes the scene, sender's half,
+friend's half and negative independently of orientation. Photos of two use only
+`assets/photo/characterPhotoDuoWide.json` at 1216x832 or
+`assets/photo/characterPhotoDuoPpm.json` at 832x1216. `AttentionCouplePPM` patches the model with
+the scene over a full mask and each person's prompt over their half. Each half opens on
+`duoHeadCount` and drops `solo` and `male_focus`. `faceHalfOf` restores the person's own subject
+for face-pass nodes 80 and 81. The older area graphs and their render/fallback paths are removed.
 
-- **Area halves** (`couple: 'area'`): `assets/workflows/characterPhotoDuo.json` at 832x1216,
-  or `assets/photo/characterPhotoDuoAreaWide.json` at 1216x832. `ConditioningSetArea` holds each
-  person's own subject prompt to their half, at strength 2.0.
-- **ppm** (`couple: 'ppm'`): `assets/photo/characterPhotoDuoWide.json` at 1216x832, or
-  `assets/photo/characterPhotoDuoPpm.json` at 832x1216. `AttentionCouplePPM` patches the model
-  with the scene over a full mask and each person's prompt over their half. Each half opens
-  on `duoHeadCount` and drops `solo`/`male_focus`; `faceHalfOf` restores the person's own
-  subject for face-pass nodes 80/81.
+The ppm graphs stay outside `assets/workflows`, which core checks against every server. Each
+crops the two face passes separately and composites them at the same x coordinates. The portrait's
+upscaled image is 1165x1702, split 582 + 583. The wide image is 1702x1165, split 851 + 851.
+A solo wide photo keeps the solo graph with its latent set to 1216x832.
 
-The Photo-only graphs stay outside `assets/workflows`, which core checks against every server.
-Each graph crops the two face passes separately and composites them at the same x coordinates.
-The portrait's upscaled image is 1165x1702, split 582 + 583; the wide image is 1702x1165,
-split 851 + 851. A solo wide photo keeps the solo graph with its latent set to 1216x832.
+`main/photoNodePack.ts` pins the pack and the main entry registers it. `photoPpmState` directly
+reads the kit's pack state without an option check. For a player's own ComfyUI, the kit checks
+its loaded node classes with a two-second deadline and a one-minute cache. Unreachable or
+unanswered probes return unmanaged, which does not permit duos. Managed probe behavior is unchanged.
 
-`main/photoNodePack.ts` pins the pack and the main entry registers it. The `optionControls`
-entry for `ppm` mounts `PhotoPpmControl` only visibly while the option is on; it retains the
-install button, confirmation and state messages. Main's `photoPpmState` returns `off` before
-probing the pack when the switch is off. `ppmInUse` maps its other states to `yes`, `try` or `no`.
+`renderer/stores/photoPpm.ts` keeps one non-persistent answer, initially unknown. The renderer
+entry binds `duoPhotosOn()` to it and refreshes at entry, on game entry, when the selected ComfyUI
+source or external address changes and after an install. Mounting the Mods control also refreshes it. A failed duo
+render refreshes it before completing its failure, so subsequent slots see a missing pack.
+`duoPhotosOn()` requires photo generation, the duo option and an installed answer. Without that
+answer, feed and scene pairing use the same solo path as with the option off. The old saved ppm
+switch is ignored and remains safe to load.
 
-With ppm off, generation uses area halves, defaults to portrait, and permits a wide request.
-With ppm usable, new duos default to wide ppm; an info-panel redraw carries its recorded method
-as `couple: 'area' | 'ppm'` alongside the orientation. The switch off always wins and converts
-supplied ppm halves through `faceHalfOf`, retaining the supplied scene and negative. Prompts
-without a method use the target file's recorded method, or area when no record exists. The
-dialog names the source method explicitly when redrawing to a newly reserved filename.
+`optionControls: { duo: PhotoPpmControl }` puts the state and install control under Two in one
+photo while that option is on. An external server without the pack gets installation instructions
+for that server. A render independently checks for installed ppm before drawing. There is no
+try/fallback path. If nodes disappear between the check and render, the render fails normally.
 
-On an unmanaged server a ppm request in either shape is tried, then drawn again with portrait
-area halves only on `COMFY_NODES_MISSING`. On managed ComfyUI, an explicit wide request while
-ppm is on, or a redraw requesting ppm in portrait, is refused with `PHOTO_WIDE_NEEDS_PPM`
-when the pack is unavailable.
+A sidecar's optional `orientation: 'wide'` records shape, with absent meaning portrait.
+`couple: 'ppm'` records ppm and remains valid only with both halves. An absent couple is still
+accepted for old photos. Info rebuilds those old halves for ppm and preserves the saved scene,
+negative and seed. The dialog sends `couple: 'ppm'` explicitly with those editable halves to a
+new reserved filename. Main also converts old halves on redraw when the caller has not already
+supplied ppm halves. Every successful duo redraw records ppm.
 
-A sidecar's optional `orientation: 'wide'` records shape; absent means portrait. Its optional
-`couple: 'ppm'` records method; absent means area. It is valid only with both duo halves. Info
-returns the recorded metadata. Rebuild retains the saved method while ppm is allowed and uses
-area prompts when the switch is off. Switching shape rebuilds only the halves for that method;
-the scene, negative and recorded seed stay as supplied. The sidecar is not rewritten by inspection.
+A ppm photo returns its recorded prompts unchanged without Rebuild, including when another
+orientation is requested. Explicit Rebuild always builds ppm prompts and keeps the seed and
+orientation. The orientation button resends the fields without rebuilding. Inspection never
+rewrites the sidecar, and redrawing without installed ppm changes no saved files.
 
 Who is in a duo is `photoDuo.ts`; picking a pair and filing a scene's post is `photoGroup.ts`.
 Its picture joins the feed queue through `fileLatePost`.
@@ -511,8 +516,7 @@ tile spans only that column. Opening either kind shows the whole picture.
 
 Redraw state carries the requested orientation until that attempt ends, independently of the
 saved photo. A failed attempt restores the old image and its dimensions. For a first duo the
-waiting frame uses wide once main reports ppm enabled and installed; an unmanaged server can fall
-back to portrait, so its frame stays portrait until the image loads. Named pending and failed
+waiting frame uses wide once the shared renderer state confirms ppm installed. Named pending and failed
 photos keep their gallery tile, source label and place in the count.
 
 The graph has three prompt areas. `localPhotoService.ts` passes them through the kit's

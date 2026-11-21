@@ -1,3 +1,4 @@
+import { refreshPhotoPpm } from './photoPpm'
 import { photoInvoke } from './photoInvoke'
 import { isWebpPhoto, WEBP_QUALITY } from '../../shared/photoFiles'
 import type { PhotoRenderOptions } from '../../shared/photoTypes'
@@ -27,6 +28,7 @@ export async function renderPhoto(
   const result = friend
     ? await photoInvoke('generateDuo', [playthroughId, character, friend, tier, scene, file, options])
     : await photoInvoke('generate', [playthroughId, character, tier, scene, file, options])
+  if (friend && !result.ok) await refreshPhotoPpm()
   if (result.ok && isWebpPhoto(file)) await encodeWebp(playthroughId, character.charId, file)
   return result
 }

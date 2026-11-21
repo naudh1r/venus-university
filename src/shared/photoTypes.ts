@@ -16,10 +16,10 @@ export interface PhotoPrompts {
 export type PhotoOrientation = 'portrait' | 'wide'
 
 /** The method holding each person to their own half of a photo of two. */
-export type PhotoCouple = 'area' | 'ppm'
+export type PhotoCouple = 'ppm'
 
-/** Whether the optional pack can act for the current Photo switch. */
-export type PhotoPpmState = 'off' | 'installed' | 'missing' | 'invalid' | 'unmanaged'
+/** Whether ComfyUI has the pack that draws photos of two. */
+export type PhotoPpmState = 'installed' | 'missing' | 'invalid' | 'unmanaged'
 
 /**
  * Optional overrides for a redraw; omitted values use today's builder and a fresh seed, and an
@@ -29,7 +29,7 @@ export interface PhotoRenderOptions {
   seed?: number
   prompts?: PhotoPrompts
   orientation?: PhotoOrientation
-  /** The method the supplied duo prompts were built for; retained on a redraw when allowed. */
+  /** The method the supplied duo prompts were built for; ppm when the supplied halves already use it. */
   couple?: PhotoCouple
 }
 
