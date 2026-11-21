@@ -48,7 +48,8 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - On the evening landing, **Relax (Skip to bedtime)** spends the evening relaxing (its line
   ends with the evening gone, not with bedtime) and opens the night. **Skip to tomorrow**, just below it, relaxes the same way and opens the morning
   directly.
-- The night landing's header reads **Night**, with the quiet room line and one card row:
+- The night landing's header reads **Night**, with a quiet line about your room, picked for that
+  night from a handful, and one card row:
   **Go to sleep**. There is no text box,
   activity choice or map travel. The phone stays available for texts and Bunnyboard comments.
 - Each contact is in their own room; their chat names their dorm. Nobody goes anywhere tonight,
@@ -77,6 +78,10 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   usual morning lines follow, then the normal landing. The night itself is not summed up again.
 - Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
+
+## 0.7.1
+
+- The night landing opens on one of a handful of lines, picked for that night.
 
 ## 0.7.0
 

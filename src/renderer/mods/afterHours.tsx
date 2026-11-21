@@ -131,11 +131,13 @@ registerHooks(AFTER_HOURS_MOD, {
       ? { at: 'from', clock: 'late-night' } : null,
   slotInterlude: ({ to }) => {
     if (!modOptionOn(AFTER_HOURS_MOD, 'night') || !nightOwed(to, status.read())) return null
-    // Seeded by the night, so a reload of the same night reads the same line.
-    const pool = afterHoursText.sleepLines
-    const sleepLine = pool[Math.floor(seededRand(`${AFTER_HOURS_MOD}:sleep:${globalSlotOf(to.date, to.time)}`)() * pool.length)]
+    // Seeded by the night, so a reload of the same night reads the same lines.
+    const night = globalSlotOf(to.date, to.time)
+    const pick = (pool: readonly string[], use: string): string =>
+      pool[Math.floor(seededRand(`${AFTER_HOURS_MOD}:${use}:${night}`)() * pool.length)]
+    const sleepLine = pick(afterHoursText.sleepLines, 'sleep')
     return {
-      lines: [afterHoursText.nightLine],
+      lines: [pick(afterHoursText.nightLines, 'night')],
       rows: [{
         label: afterHoursText.goToSleep,
         card: true,

@@ -14,7 +14,15 @@ export const afterHoursText = {
   busyTextsHint: "Text someone during class or work. They reply when they're out, in the next half of the day.",
   nightOption: 'The night',
   nightHint: 'After the evening, stay up texting before you sleep. An evening in their room or yours can last the night.',
-  nightLine: "It's late, and you're in your room for the night. The hall outside is quiet now.",
+  /** One is picked for each night's landing; each leaves the reader awake in their room with their phone. */
+  nightLines: [
+    "It's late, and you're in your room for the night. The hall outside is quiet now.",
+    "It's late. The hall has gone quiet, and the only light left on is your desk lamp.",
+    "You're back in your room for the night. Somewhere down the hall, someone still has music on, low.",
+    "It's late, and the building has mostly settled down. Your bed's right there, but you're not quite tired yet.",
+    "The day's done, and you're in your room for the night. Outside your window, campus is dark and still.",
+    "It's late. A door clicks shut somewhere down the hall, and then everything's quiet."
+  ],
   /** One is picked for each night; each ends at falling asleep, leaving the morning to the curtain. */
   sleepLines: [
     "You put your phone away and turn off the light. Before you know it, you're asleep.",
