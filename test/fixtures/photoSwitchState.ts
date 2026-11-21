@@ -18,7 +18,7 @@ export function setRendererPhotoSwitches(next: Partial<PhotoSwitches>): void {
   bindRendererPhotoReader()
   let switches = useModsStore.getState().switches
   if (next.on !== undefined) switches = withMod(switches, PHOTO_FEATURE_ID, next.on)
-  for (const key of ['photos', 'explicit', 'webp', 'body', 'duo'] as const) {
+  for (const key of ['photos', 'explicit', 'webp', 'body', 'duo', 'ppm'] as const) {
     if (next[key] !== undefined) switches = withOption(switches, PHOTO_FEATURE_ID, key, next[key])
   }
   if (next.loader !== undefined) {

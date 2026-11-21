@@ -19,6 +19,8 @@ export interface PhotoSwitches {
   body: boolean
   /** A photo of two girls, never more, on one's feed: her own post with a friend, or from a scene. Experimental. */
   duo: boolean
+  /** Draw photos of two with the optional ComfyUI-ppm pack. */
+  ppm: boolean
 }
 
 /** Before the Mods screen's switches are read: the mod on, nothing forbidden, the bunny. */
@@ -29,7 +31,8 @@ export const DEFAULT_PHOTO_SWITCHES: PhotoSwitches = {
   loader: 'bunny',
   webp: true,
   body: false,
-  duo: false
+  duo: false,
+  ppm: false
 }
 
 type OptionReader = (optionId: string) => boolean
@@ -52,6 +55,7 @@ export function photoSwitches(): PhotoSwitches {
     webp: option('webp'),
     body: option('body'),
     duo: option('duo'),
+    ppm: option('ppm'),
     loader: PHOTO_LOADERS.find(loader => option(loaderOptionId(loader.value)))?.value ?? 'bunny'
   }
   if ((Object.keys(next) as (keyof PhotoSwitches)[]).some(key => next[key] !== snapshot[key])) snapshot = next

@@ -63,7 +63,7 @@ registerHooks(PHOTO_FEATURE_ID, {
   // Her body, as a field in the character editor.
   editorField: BODY_EDITOR_FIELD,
   // Under Two in one photo on the Mods screen, ComfyUI-ppm's state and its Install.
-  optionControls: { duo: PhotoPpmControl },
+  optionControls: { ppm: PhotoPpmControl },
   prompts: {
     dm: {
       lead: true,

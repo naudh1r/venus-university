@@ -22,6 +22,8 @@ export const MOD_FILES: Record<string, ModSet> = {
       'assets/workflows/characterPhoto.json',
       'assets/workflows/characterPhotoDuo.json',
       'assets/photo/characterPhotoDuoWide.json',
+      'assets/photo/characterPhotoDuoAreaWide.json',
+      'assets/photo/characterPhotoDuoPpm.json',
       'src/renderer/components/PhotoBubble.tsx',
       'src/renderer/components/PhotoInfo.tsx',
       'src/renderer/components/PhotoPpmControl.tsx',

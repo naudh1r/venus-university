@@ -52,19 +52,31 @@ describe('a picture of two', () => {
   const risa = character({ charId: 'risa', firstName: 'Risa', lastName: 'Vale', outfit: ['pink_top', 'black_thighhighs', 'white_sneakers'] })
   const ana = character({ charId: 'ana', firstName: 'Ana', lastName: 'Moss', outfit: ['brown_sweater'] })
 
-  it('counts the heads of each pairing, and opens each wide half on that count', () => {
+  it('counts the heads of each pairing, and opens each ppm half on that count', () => {
     const kai = character({ charId: 'kai', firstName: 'Kai', gender: 'male', baseAppearance: ['1boy', 'male_focus', 'black_hair'] })
     const ren = character({ charId: 'ren', firstName: 'Ren', gender: 'male', baseAppearance: ['1boy', 'brown_hair'] })
     expect(duoHeadCount(risa, ana)).toEqual(['2girls', 'multiple_girls'])
     expect(duoHeadCount(risa, kai)).toEqual(['1girl', '1boy'])
     expect(duoHeadCount(kai, risa)).toEqual(['1girl', '1boy'])
     expect(duoHeadCount(kai, ren)).toEqual(['2boys', 'multiple_boys'])
-    const wide = buildDuoPhotoPrompt(kai, risa, 'everyday', 'Kai and Risa at the cafe', 'wide')
+    const wide = buildDuoPhotoPrompt(kai, risa, 'everyday', 'Kai and Risa at the cafe', 'ppm')
     for (const half of [wide.left, wide.right]) {
       expect(half).toMatch(/^masterpiece, best_quality, very_aesthetic, 1girl, 1boy, /)
       expect(half).not.toMatch(/\bsolo\b|male_focus/)
     }
     expect(buildDuoPhotoPrompt(kai, risa, 'everyday', 'Kai and Risa at the cafe').left).toMatch(/\b1boy, solo\b/)
+  })
+
+  it('converts ppm halves back to each person without changing the rest of the prompt', () => {
+    const boy = character({ gender: 'male', baseAppearance: ['1boy', 'black_hair'] })
+    for (const [left, right] of [[risa, ana], [risa, boy], [boy, { ...boy, charId: 'other' }]]) {
+      const ppm = buildDuoPhotoPrompt(left, right, 'everyday', 'Me and my friend at the cafe', 'ppm')
+      const area = buildDuoPhotoPrompt(left, right, 'everyday', 'Me and my friend at the cafe', 'area')
+      expect(faceHalfOf(ppm.left, left).split(', ').sort()).toEqual(area.left.split(', ').sort())
+      expect(faceHalfOf(ppm.right, right).split(', ').sort()).toEqual(area.right.split(', ').sort())
+      expect(ppm.scene).toBe(area.scene)
+      expect(ppm.negative).toBe(area.negative)
+    }
   })
 
   it('draws them apart, never touching, and leaves her legs out of a shot from the waist up', () => {

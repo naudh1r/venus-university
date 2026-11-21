@@ -85,6 +85,7 @@ describe('photo switches', () => {
       webp: DEFAULT_PHOTO_SWITCHES.webp,
       body: DEFAULT_PHOTO_SWITCHES.body,
       duo: DEFAULT_PHOTO_SWITCHES.duo,
+      ppm: DEFAULT_PHOTO_SWITCHES.ppm,
       'loader-bunny': true,
       'loader-shimmer': false,
       'loader-dots': false

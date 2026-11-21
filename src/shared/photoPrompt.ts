@@ -35,7 +35,7 @@ import {
 // project's `include` would reach it for the app, but `tsconfig.test.json` lists only the tests
 // and pulls in what they import — so the feature brings its own types rather than relying on a
 // tsconfig line, which would be one more thing to re-add on a sync.
-import type { PhotoOrientation } from './photoTypes'
+import type { PhotoCouple } from './photoTypes'
 import {
   photoWardrobe,
   photoWardrobeNames,
@@ -1264,7 +1264,7 @@ export function duoHeadCount(sender: Character, friend: Character): string[] {
 }
 
 /**
- * One person's half of a wide picture with her own subject in place of the head count, for the
+ * One person's half of a ppm picture with her own subject in place of the head count, for the
  * face pass, which redraws her face alone and drew a second face under the picture's count.
  */
 export function faceHalfOf(half: string, person: Character): string {
@@ -1287,7 +1287,7 @@ function duoSubjects(sender: Character, friend: Character): string[] {
  * the right. Each is drawn in her own half from her own tags, and the scene over the whole picture.
  *
  * Told as one prompt, the checkpoint swapped their hair, glasses and clothes between them; drawn
- * in halves, each kept her own. The tier has been settled for the pair already. A `wide` picture
+ * in halves, each kept her own. The tier has been settled for the pair already. A ppm picture
  * holds each half to its side with an attention mask, which sees the whole picture, so each half
  * names the picture's head count rather than one person alone.
  */
@@ -1296,7 +1296,7 @@ export function buildDuoPhotoPrompt(
   friend: Character,
   tier: PhotoTier,
   photoPrompt: string,
-  orientation: PhotoOrientation = 'portrait'
+  couple: PhotoCouple = 'area'
 ): DuoPhotoPrompts {
   const named = withoutNames(
     sender,
@@ -1324,7 +1324,7 @@ export function buildDuoPhotoPrompt(
 
   const shared = [...framing.tags]
   const faces = duoExpressions(photoRuleText(text))
-  const heads = orientation === 'wide' ? duoHeadCount(sender, friend) : undefined
+  const heads = couple === 'ppm' ? duoHeadCount(sender, friend) : undefined
   const left = duoHalf(sender, tier, scene, posture, [...faces.left, ...shared, ...holds], heads)
   const right = duoHalf(friend, tier, scene, posture, [...faces.right, ...shared], heads)
   const dressedScene = withoutOutfitName(scene, [...left.names, ...right.names])

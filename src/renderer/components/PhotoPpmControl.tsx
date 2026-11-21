@@ -8,17 +8,12 @@ import {
   type OptionControlProps,
   type ScreenTheme
 } from '@vx/modkit/renderer'
+import type { PhotoPpmState } from '../../shared/photoTypes'
 import { photoInvoke } from '../stores/photoInvoke'
 
-type PpmState = 'installed' | 'missing' | 'invalid' | 'unmanaged'
-
-/**
- * Under Two in one photo on the Mods screen: whether ComfyUI-ppm, which draws photos of two
- * wide, is in the game's ComfyUI, and the button that installs it after asking. On the player's
- * own ComfyUI there is nothing to install from here, so it says so in one line.
- */
-export function PhotoPpmControl(_props: OptionControlProps): JSX.Element | null {
-  const [state, setState] = useState<PpmState | null>(null)
+/** The ppm option's pack state and install confirmation; the player's own server gets a note. */
+export function PhotoPpmControl({ on }: OptionControlProps): JSX.Element | null {
+  const [state, setState] = useState<PhotoPpmState | null>(null)
   const [installing, setInstalling] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const [asking, setAsking] = useState<ScreenTheme | null>(null)
@@ -27,6 +22,10 @@ export function PhotoPpmControl(_props: OptionControlProps): JSX.Element | null 
 
   useEffect(() => {
     live.current = true
+    if (!on) {
+      setState(null)
+      return () => { live.current = false }
+    }
     void photoInvoke('ppmState', [])
       .then((result) => {
         if (live.current && result.ok) setState(result.data)
@@ -35,7 +34,7 @@ export function PhotoPpmControl(_props: OptionControlProps): JSX.Element | null 
     return () => {
       live.current = false
     }
-  }, [])
+  }, [on])
 
   /** Installs the pack, then reads where it stands again. */
   const install = async (): Promise<void> => {
@@ -55,17 +54,17 @@ export function PhotoPpmControl(_props: OptionControlProps): JSX.Element | null 
     }
   }
 
-  if (state === null) return null
+  if (!on || state === null || state === 'off') return null
   if (state === 'unmanaged') {
     return (
       <span className="vu-check-note">
-        Your own ComfyUI draws photos of two wide once ComfyUI-ppm is installed there.
+        Install ComfyUI-ppm on your own ComfyUI to use it for photos of two.
       </span>
     )
   }
   if (state === 'installed' && !installing) {
     return (
-      <span className="vu-check-note">ComfyUI-ppm is installed: photos of two are drawn wide.</span>
+      <span className="vu-check-note">ComfyUI-ppm is installed. Photos of two start wide and can be redrawn portrait.</span>
     )
   }
   return (
@@ -89,7 +88,7 @@ export function PhotoPpmControl(_props: OptionControlProps): JSX.Element | null 
         <span className="vu-btn-sub">{installing ? 'INSTALLING…' : 'FAILED'}</span>
       )}
       <span className="vu-check-note">
-        With ComfyUI-ppm, photos of two are drawn wide, and the two meet in the middle less often.
+        ComfyUI-ppm keeps the two in a photo apart. Photos of two start wide and can be redrawn portrait.
       </span>
       {failure && !installing && <span className="vu-test-note">{failure}</span>}
       <AnimatePresence>

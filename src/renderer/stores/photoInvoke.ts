@@ -1,6 +1,6 @@
 import { invoke } from '@vx/modkit/renderer'
 import type { Result, Character } from '@vx/modkit/shared'
-import type { PhotoInfo, PhotoOrientation, PhotoRenderOptions } from '../../shared/photoTypes'
+import type { PhotoInfo, PhotoOrientation, PhotoPpmState, PhotoRenderOptions } from '../../shared/photoTypes'
 import { PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 
 export type PhotoCalls = {
@@ -36,8 +36,8 @@ export type PhotoCalls = {
         rebuild?: boolean,
         orientation?: PhotoOrientation
       ) => Promise<Result<PhotoInfo>>
-      /** Where ComfyUI-ppm stands: `installed`, `missing`, `invalid`, or `unmanaged` on the player's own ComfyUI. */
-      ppmState: () => Promise<Result<'installed' | 'missing' | 'invalid' | 'unmanaged'>>
+      /** Off while the ppm switch is off; otherwise where ComfyUI-ppm stands: `installed`, `missing`, `invalid`, or `unmanaged` on the player's own ComfyUI. */
+      ppmState: () => Promise<Result<PhotoPpmState>>
       /** Installs ComfyUI-ppm into the game's own ComfyUI, restarting it on the next render. */
       installPpm: () => Promise<Result<void>>
       /** Cancels one render, retires a replacement, or removes an unused picture. */

@@ -1,3 +1,4 @@
+import { readPhotoSidecar } from '../src/main/photoFiles'
 import { savedPhoto } from '../src/shared/photoTypes'
 import { photoCalls } from './fixtures/photoCalls'
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
@@ -197,5 +198,53 @@ describe('a photo\u2019s orientation', () => {
     for (const orientation of ['landscape', 1, null]) {
       expect(() => validatePhotoOverrides({ orientation }, false)).toThrow(/orientation/)
     }
+  })
+})
+
+
+describe('a duo photo’s recorded method', () => {
+  const saved = { schemaVersion: 1, seed: 9, tier: 'everyday', positive: 'a cafe', negative: 'lowres', left: '1girl, solo', right: '1boy, solo, male_focus' }
+
+  it.each([undefined, 'ppm'] as const)('reads a valid sidecar with method %s', async couple => {
+    const record = { ...saved, ...(couple ? { couple } : {}) }
+    await writeFile(image('sarah_bunnyboard_001.json'), JSON.stringify(record))
+    expect(await readPhotoSidecar(image('sarah_bunnyboard_001.json'))).toEqual(record)
+  })
+
+  it.each(['area', 'other', null, 1])('refuses a sidecar with method %s', async couple => {
+    await writeFile(image('sarah_bunnyboard_001.json'), JSON.stringify({ ...saved, couple }))
+    expect(await readPhotoSidecar(image('sarah_bunnyboard_001.json'))).toBeUndefined()
+  })
+
+  it('refuses ppm on a solo sidecar', async () => {
+    const { left: _left, right: _right, ...solo } = saved
+    await writeFile(image('sarah_chat_001.json'), JSON.stringify({ ...solo, couple: 'ppm' }))
+    expect(await readPhotoSidecar(image('sarah_chat_001.json'))).toBeUndefined()
+  })
+
+  it('validates duo method overrides without accepting them on solo photos', () => {
+    for (const couple of ['area', 'ppm']) {
+      expect(() => validatePhotoOverrides({ couple }, true)).not.toThrow()
+      expect(() => validatePhotoOverrides({ couple }, false)).toThrow(/couple method/)
+    }
+    for (const couple of ['wide', 'other', null, 1]) {
+      expect(() => validatePhotoOverrides({ couple }, true)).toThrow(/couple method/)
+    }
+  })
+
+  it('keeps the recorded method on rebuild, except when ppm is off', async () => {
+    await writeFile(image('sarah_bunnyboard_001.json'), JSON.stringify({ ...saved, couple: 'ppm' }))
+    const friend = character({ charId: 'b', gender: 'male', baseAppearance: ['1boy', 'black_hair'] })
+    setRendererPhotoSwitches({ ppm: true })
+    const kept = await photoInfo('1', girl, friend, 'everyday', 'Me and my friend at the cafe', 'sarah_bunnyboard_001.png', true)
+    expect(kept.couple).toBe('ppm')
+    expect(kept.left).not.toMatch(/\bsolo\b/)
+    setRendererPhotoSwitches({ ppm: false })
+    const off = await photoInfo('1', girl, friend, 'everyday', 'Me and my friend at the cafe', 'sarah_bunnyboard_001.png', true)
+    expect(off.couple).toBeUndefined()
+    expect(off.left).toMatch(/\b1girl, solo\b/)
+    expect(off.right).toMatch(/\b1boy, solo\b/)
+    expect(off.right).toMatch(/\bmale_focus\b/)
+    expect(JSON.parse(await readFile(image('sarah_bunnyboard_001.json'), 'utf8')).couple).toBe('ppm')
   })
 })
