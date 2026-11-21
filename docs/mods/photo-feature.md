@@ -146,6 +146,13 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
 
 ## 1.9.0
 
+- Wide photos on feed posts and in DMs keep the height of a portrait photo, and can open
+  twice as wide in the full view. Portrait photos keep their usual size.
+- Wide photos take two tiles in a contact's gallery, cropped at the centre. Opening one shows
+  the whole picture; portraits fill the gaps, so the newest photos may stand slightly out of order.
+- A photo's waiting frame follows the shape being drawn, including when switching between wide
+  and portrait. A failed redraw brings back the old picture in its old shape.
+
 - Photos of two are drawn wide once ComfyUI-ppm is installed, which you can do from Mods, under
   Two in one photo. The two meet in the middle less often. Without it they are drawn portrait, as
   before.
@@ -469,6 +476,24 @@ picking the pair, asking the scene's first call for its post (`requests.scene`) 
 off the reply (`afterSceneReply`) is `photoGroup.ts`. The post is filed through `fileLatePost` in
 `loop/feed.ts`, the opening's own filing for a post written mid-slot, and its picture joins the
 feed's queue.
+
+### Wide pictures on screen
+
+A loaded photo's own dimensions tell the feed, gallery and full view its orientation
+(`renderer/stores/photoOrientation.ts`). A wide picture keeps the height of a portrait: about 482px on a post
+(330px portrait width) and 409px in a DM (280px portrait width). Its width follows the wide
+ratio, capped by its card or thread; both dimensions shrink together if needed. Photo's wrapper around the shared Lightbox raises only a wide photo's cap to 1520px.
+The shared component and its stylesheet are unchanged.
+
+The contact gallery keeps portrait tiles at 2:3. Wide pictures span two columns in a row of the
+same height and crop at the centre; dense packing fills the slot they skip. At one column a wide
+tile spans only that column. Opening either kind shows the whole picture.
+
+Redraw state carries the requested orientation until that attempt ends, independently of the
+saved photo. A failed attempt restores the old image and its dimensions. For a first duo the
+waiting frame uses wide once the pack is known to be installed; an unmanaged server can fall
+back to portrait, so its frame stays portrait until the image loads. Named pending and failed
+photos keep their gallery tile, source label and place in the count.
 
 The graph has three prompt areas. `localPhotoService.ts` passes them through the kit's
 `renderComfyImage`, using the same cancellation signal as Photo's main invocation.
