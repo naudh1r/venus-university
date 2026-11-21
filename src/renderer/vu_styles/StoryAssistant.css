@@ -52,10 +52,13 @@
 
 /* Over the stage: one column standing between the insets the dialogue box keeps, ending clear of
    the speaker label over the box's top edge, so neither the box nor who is talking is covered.
+   The reader's picture over the box climbs as the stage narrows below 16:9; the padding climbs
+   with it by the same sum, a percentage here being the stage's width and the box 65.6% of it.
    The column takes no pointer; only the choices and the line in it do. */
 .vu-assistant-stage {
   position: absolute;
   inset: 96px 17.2% calc(70px + 56px + 232px + 40px + 18px);
+  padding-bottom: clamp(0px, calc((1250px - 65.6%) * 6), 122px);
   z-index: 3;
   display: flex;
   flex-direction: column;
@@ -65,15 +68,22 @@
   pointer-events: none;
 }
 
-/* The ways forward: a visual novel's menu, a stack of answers in the middle of the stage. */
+/* The ways forward: a visual novel's menu, a stack of answers in the middle of the stage. A menu
+   taller than the column scrolls inside it from its first choice, padded for each choice's shadow
+   and tilt and taking that back in its margin, so a menu that fits stands where it did. It takes
+   the pointer so the wheel and the bar reach it between choices too. */
 .vu-assistant-menu {
   display: flex;
+  flex: 0 1 auto;
   flex-direction: column;
   gap: 14px;
-  width: min(820px, 100%);
-  margin: 0;
-  padding: 0;
+  width: calc(min(820px, 100%) + 24px);
+  min-height: 0;
+  margin: -8px -12px -14px;
+  padding: 8px 12px 14px;
+  overflow: hidden auto;
   list-style: none;
+  pointer-events: auto;
 }
 
 .vu-assistant-choice {
