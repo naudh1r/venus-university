@@ -20,19 +20,20 @@ import {
   usePlayerProfilePicture,
   type ScreenSlotProps
 } from '@vx/modkit/renderer'
-import { AFTER_HOURS_MOD, busyPromptApplies, nightOwed, normalize, stagedUntil, stayOverOf, type AfterHours } from '../../shared/afterHours'
 import {
-  afterHoursText, busyPrompt, busyTextPrompt, morningReturnPrompt, nightPrompt,
-  stayOverLedgerInstruction, stayOverPrompt
-} from '../../shared/afterHoursText'
+  AFTER_HOURS_MOD, busyPrompt, busyPromptApplies, busyTextPrompt, morningReturnPrompt,
+  nightOwed, nightPrompt, normalize, stagedUntil, stayOverLedgerInstruction, stayOverOf, stayOverPrompt,
+  type AfterHours
+} from '../../shared/afterHours'
+import { afterHoursText } from '../../shared/afterHoursText'
 import '../vu_styles/AfterHours.css'
 
 const status = saveField<AfterHours>(AFTER_HOURS_MOD, { empty: { busy: false }, normalize })
 /** The loaded roster and graduates whose keys an opening can name. */
 function gameCharacters(): NonNullable<ReturnType<typeof character>>[] {
   return rosterIds({ alumni: true }).flatMap(id => {
-    const girl = character(id)
-    return girl ? [girl] : []
+    const contact = character(id)
+    return contact ? [contact] : []
   })
 }
 function nightHolds(): boolean {
@@ -41,7 +42,7 @@ function nightHolds(): boolean {
 }
 const hintIn = fadeIn(0)
 
-/** His own face, name and status, drawn as the phone draws a contact; a click switches the status. */
+/** The reader's face, name and status. Clicking the chip switches the status. */
 function StatusChip({ theme }: ScreenSlotProps['chatsHeader']): JSX.Element | null {
   const enabled = useModOption(AFTER_HOURS_MOD, 'busy-status')
   const { playthroughId, readerName } = useGameFacts()
@@ -145,17 +146,15 @@ registerHooks(AFTER_HOURS_MOD, {
     }
   },
   relaxLine: ({ time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? afterHoursText.relaxLine : undefined,
-  // After a night at hers, the morning's narration plays in her room until he is home.
-  // The morning after a night together opens on them there: her on stage for her parting words,
-  // until the line where they have parted.
+  // The morning opens with the stay-over partner on stage until the two part.
   openingLook: ({ date, time, reply }) => {
     const stay = status.read().stayOver
-    const girl = stay && stay.morning === globalSlotOf(date, time) ? character(stay.charId) : null
-    if (!stay || !girl) return null
+    const contact = stay && stay.morning === globalSlotOf(date, time) ? character(stay.charId) : null
+    if (!stay || !contact) return null
     return {
       room: { kind: stay.room, charId: stay.charId },
       cast: [stay.charId],
-      until: stagedUntil(reply, charKeyOf(girl.firstName, girl.lastName))
+      until: stagedUntil(reply, charKeyOf(contact.firstName, contact.lastName))
     }
   },
   relaxRows: ({ date, time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? [{
@@ -167,14 +166,14 @@ registerHooks(AFTER_HOURS_MOD, {
     const { stayOver: past, ...data } = status.read()
     const stay = before.time === 1 ? stayOverOf(ledger, gameCharacters()) : null
     status.set(stay
-      ? { ...data, nightDone: slot + 1, stayOver: { charId: stay.girl.charId, room: stay.room, morning: slot + 1 } }
+      ? { ...data, nightDone: slot + 1, stayOver: { charId: stay.partner.charId, room: stay.room, morning: slot + 1 } }
       : { ...data, ...(past && past.morning > slot ? { stayOver: past } : {}) })
   },
   requests: {
     ledger: (request, { state, charKeys }) => {
       if (state.time !== 1 || !modOptionOn(AFTER_HOURS_MOD, 'night')) return request
       const schema = request.schema.schema
-      return { ...request, user: `${request.user}\n${stayOverLedgerInstruction}`, schema: { ...request.schema, schema: {
+      return { ...request, user: `${request.user}\n${stayOverLedgerInstruction(state.readerPronouns)}`, schema: { ...request.schema, schema: {
         ...schema,
         properties: {
           ...schema.properties as Record<string, unknown>,
@@ -188,18 +187,18 @@ registerHooks(AFTER_HOURS_MOD, {
       if (input.time !== 0) return request
       const stay = stayOverOf(ledger, gameCharacters())
       if (!stay) return request
-      const key = charKeyOf(stay.girl.firstName, stay.girl.lastName)
-      // Her parting words may be her own lines, and the reply names where they have parted.
+      const key = charKeyOf(stay.partner.firstName, stay.partner.lastName)
+      // The opening gives the partner their own lines and names where the two part.
       const schema = request.schema.schema as { properties: Record<string, unknown>; required?: string[] }
       const lines = schema.properties.lines as { items: { properties: Record<string, unknown> } }
       return {
         ...request,
-        user: `${request.user}\n${morningReturnPrompt(stay.girl.firstName, key, stay.room)}`,
+        user: `${request.user}\n${morningReturnPrompt(stay.partner, key, stay.room, input.readerPronouns)}`,
         schema: { ...request.schema, schema: {
           ...schema,
           properties: {
             ...schema.properties,
-            // Required on every line, empty for narration, so each line is decided as hers or not.
+            // Every line names its speaker or uses the empty value for narration.
             lines: { ...lines, items: { ...lines.items,
               properties: {
                 ...lines.items.properties,
@@ -231,9 +230,9 @@ registerHooks(AFTER_HOURS_MOD, {
         )
         return [
           // A reply written after a class they share is told so by the game itself.
-          ...(state.heldUntil && state.commitment && !state.sharedClass ? [busyTextPrompt(character.firstName, state.commitment)] : []),
-          ...(nightHolds() ? [nightPrompt(character.firstName)] : []),
-          ...(busy ? [busyPrompt(character.firstName)] : [])
+          ...(state.heldUntil && state.commitment && !state.sharedClass ? [busyTextPrompt(character, state.commitment, state.readerPronouns)] : []),
+          ...(nightHolds() ? [nightPrompt(character)] : []),
+          ...(busy ? [busyPrompt(character)] : [])
         ]
       }
     }

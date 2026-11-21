@@ -11,35 +11,35 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - **After Hours** and its **Busy status** option are on by default in Mods.
 - Open Bunnyboard's **Chats** tab. Beside **Chats** stands your own card: your picture (or
   your initial), your name, and a dot with **Online** or **Busy**. Click it to switch.
-- While Busy, a chat you start this slot won't turn into a meet-up right now, whether she
-  asks or you do, even if you are answering an earlier invitation of hers. Her text may agree,
+- While Busy, a chat you start this slot won't turn into a meet-up right now, whether they
+  ask or you do, even if you are answering an earlier invitation of theirs. Their text may agree,
   but it opens no Yes/No footer and arms no hangout. Switch to **Online** to meet up now.
-- Chats she starts this slot — her reach-outs and slot-change invitations — work as before,
+- Chats they start this slot — their reach-outs and slot-change invitations — work as before,
   including the Yes/No footer.
-- She is not told you are Busy, so she doesn't make a topic of it. Plans for another time
+- They are not told you are Busy, so they don't make a topic of it. Plans for another time
   still work normally.
 - Chats you start while Busy answer faster: there is no hangout check.
 - The status lasts until you switch it, and is kept with your save. A new semester
   starts **Online**.
-- Switching the mod or its option off hides the chip and lets girls ask you out again.
+- Switching the mod or its option off hides the chip and lets people ask you out again.
   Your saved status stays, ready for when you switch it back on.
 - Changing status costs nothing and makes no extra model call.
 
-### Texting while she's busy
+### Texting while they're busy
 
-- **Text her when she's busy** is on by default. Her DM box stays open during class or work,
-  and reads that she will reply when she is available.
-- Send her a message now; her reply arrives in the next half of the day, as she would send it
-  once she is out. She can mention class or work without having to make a topic of it.
+- **Text people when they're busy** is on by default. Their DM box stays open during class or work,
+  and reads that they will reply when they are available.
+- Send them a message now; their reply arrives in the next half of the day, as they would send it
+  once they are out. They can mention class or work without having to make a topic of it.
 - Send again before it arrives and one replacement reply catches up on both messages.
 - A late reply never starts an immediate hangout. Plans for another time still work normally.
-- With Photo Feature on, she may include a photo under its own rules. It arrives with her reply.
-- Text her during an evening class and the reply arrives on the night screen, after class.
-- If her next class is one you take too, she answers after that class instead, once, knowing
+- With Photo Feature on, they may include a photo under its own rules. It arrives with their reply.
+- Text someone during an evening class and the reply arrives on the night screen, after class.
+- If their next class is one you take too, they answer after that class instead, once, knowing
   whether you were there. All your texts until then wait for that one reply.
-- A girl whose reply arrives at a landing sends nothing else there: no reach-out and no
-  invitation from her at the same time.
-- Switch the option off to close her DM box during class and work as usual.
+- Someone whose reply arrives at a landing sends nothing else there: no reach-out and no
+  invitation from them at the same time.
+- Switch the option off to close their DM box during class and work as usual.
 
 ### The night
 
@@ -51,7 +51,7 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - The night landing's header reads **Night**, with the quiet room line and one card row:
   **Go to sleep**. There is no text box,
   activity choice or map travel. The phone stays available for texts and Bunnyboard comments.
-- Each contact is in her own room; her chat names her dorm. Nobody goes anywhere tonight,
+- Each contact is in their own room; their chat names their dorm. Nobody goes anywhere tonight,
   and a DM cannot begin a hangout. Plans for another time still work normally.
 - **Go to sleep** plays a line of you falling asleep, picked for that night from a handful, as
   Relax plays its own, then ends the night the way Relax ends a slot: the night's texts are counted and
@@ -67,16 +67,21 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 
 ### Staying over
 
-- An evening scene in her room or yours can end with you spending the night together, if
+- An evening scene in their room or yours can end with you spending the night together, if
   both of you want it. It is an option, never a goal.
 - The evening ends normally, with its one ledger and memory question. There is no extra
   scene and no night landing afterward.
-- The new-day curtain opens on the morning where you woke together, staged there: her room (or
-  yours) with her on stage, a short line of waking up, three or four lines of her talking to you as
-  her own lines with her expression, then the line where you part, where the stage turns to your room without her. The
+- The new-day curtain opens on the morning where you woke together, staged there: their room (or
+  yours) with them on stage, a short line of waking up, three or four lines of them talking to you as
+  their own lines with their expression, then the line where you part, where the stage turns to your room without them. The
   usual morning lines follow, then the normal landing. The night itself is not summed up again.
-- Her parting words are part of the morning's narration, not a scene: nothing more is counted for
+- Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
+
+## 0.7.0
+
+- Boys work the same as girls: texting while they're busy, staying over and the morning goodbye.
+- The night and the morning after follow the pronouns you chose for yourself.
 
 ## 0.6.7
 
