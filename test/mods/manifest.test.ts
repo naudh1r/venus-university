@@ -1,3 +1,4 @@
+import { optionDependencyError } from '../../packages/modkit/src/shared/optionRules'
 import { describe, expect, it } from 'vitest'
 import { hookNameKind, modDefOf, parseManifest } from '@vx/modkit/host/shared'
 
@@ -127,6 +128,33 @@ describe('parseManifest', () => {
   it('refuses an option whose group is not declared', () => {
     const options = [{ id: 'loud', label: 'Loud', hint: 'Says it louder.', default: false, group: 'volume' }]
     expect(errorOf({ ...valid(), options })).toBe('option loud names group "volume", which "optionGroups" does not have')
+  })
+
+  it('retains an option requirement when a manifest becomes a mod definition', () => {
+    const options = [
+      { id: 'base', label: 'Base', hint: '', default: false },
+      { id: 'extra', label: 'Extra', hint: '', default: true, requires: 'base' }
+    ]
+    const parsed = parseManifest({ ...valid(), options })
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(modDefOf(parsed.manifest).options).toEqual(options)
+    expect(optionDependencyError(options)).toBeUndefined()
+  })
+
+  it.each([
+    ['missing', [{ id: 'a', requires: 'gone' }]],
+    ['self', [{ id: 'a', requires: 'a' }]],
+    ['grouped target', [{ id: 'a', requires: 'b' }, { id: 'b', group: 'g' }]],
+    ['grouped dependent', [{ id: 'a', group: 'g', requires: 'b' }, { id: 'b' }]],
+    ['cycle', [{ id: 'a', requires: 'b' }, { id: 'b', requires: 'c' }, { id: 'c', requires: 'a' }]],
+    ['invalid type', [{ id: 'a', requires: 3 }]]
+  ])('refuses a %s requirement for installed and built-in options', (_kind, entries) => {
+    const options = entries.map(entry => ({ label: entry.id, hint: '', default: true, ...entry }))
+    const parsed = parseManifest({ ...valid(), options, optionGroups: [{ id: 'g', label: 'Group', hint: '' }] })
+    expect(parsed.ok).toBe(false)
+    const reason = optionDependencyError(options as never)
+    expect(typeof reason).toBe('string')
+    if (!parsed.ok) expect(parsed.error).toContain(reason!)
   })
 
   it('takes exports from a library only, and requires them of one', () => {

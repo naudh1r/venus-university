@@ -1,5 +1,5 @@
 import { readFileSync } from 'fs'
-import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -102,6 +102,24 @@ describe('shared rules in main', () => {
     expect(await modIsOn(mod.id)).toBe(false)
     expect(modOptionOn(mod.id, option.id)).toBe(!option.default)
     expect(await modIsOn('not-installed')).toBe(false)
+  })
+
+  it('reads an installed option’s requirement in main and retains its choice on disk', async () => {
+    const file = join(root, 'data', 'mods', 'hello-mod', '1.0.0', 'vxmod.json')
+    const manifest = JSON.parse(await readFile(file, 'utf8'))
+    manifest.options = [
+      { id: 'parent', label: 'Parent', hint: '', default: true },
+      { id: 'child', label: 'Child', hint: '', default: true, requires: 'parent' }
+    ]
+    await writeFile(file, JSON.stringify(manifest))
+    startModSession()
+    expect(modOptionOn('hello-mod', 'child')).toBe(true)
+    const options = { 'hello-mod:parent': false, 'hello-mod:child': true }
+    await setModSwitches({ on: { 'hello-mod': false }, options })
+    expect(modOptionOn('hello-mod', 'child')).toBe(false)
+    expect((await getModSwitches()).options['hello-mod:child']).toBe(true)
+    await setModSwitches({ on: { 'hello-mod': false }, options: { ...options, 'hello-mod:parent': true } })
+    expect(modOptionOn('hello-mod', 'child')).toBe(true)
   })
 
   it('propagates an unreadable switch record rather than silently enabling a mod', async () => {

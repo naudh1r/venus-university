@@ -175,3 +175,20 @@ it('reads a declared option outside React, including defaults, changes and unkno
   expect(modOptionOn(mod.id, 'missing')).toBe(false)
   expect(modOptionOn('unknown-mod', 'announce')).toBe(false)
 })
+
+
+it('reads option requirements from the current renderer switches without changing the stored choice', () => {
+  const mod: ModDef = { id: 'reader-requires', name: 'Reader requires', author: 'test',
+    version: '1.0.0', scope: 'anytime', defaultOn: false, blurb: '', options: [
+      { id: 'parent', label: 'Parent', hint: '', default: true },
+      { id: 'child', label: 'Child', hint: '', default: true, requires: 'parent' }
+    ] }
+  setInstalledMods([...beforeMods, mod], beforeIds)
+  expect(modOptionOn(mod.id, 'child')).toBe(true)
+  const options = { [optionKey(mod.id, 'parent')]: false, [optionKey(mod.id, 'child')]: true }
+  useModsStore.setState({ switches: { on: { [mod.id]: false }, options } })
+  expect(modOptionOn(mod.id, 'child')).toBe(false)
+  expect(useModsStore.getState().switches.options[optionKey(mod.id, 'child')]).toBe(true)
+  useModsStore.setState({ switches: { on: { [mod.id]: false }, options: { ...options, [optionKey(mod.id, 'parent')]: true } } })
+  expect(modOptionOn(mod.id, 'child')).toBe(true)
+})

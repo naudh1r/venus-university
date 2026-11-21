@@ -1,5 +1,14 @@
 # @vx/modkit
 
+## 0.8.3
+
+- An ungrouped option can name another ungrouped option of the same mod with `requires`.
+  It counts as off while that option is off, with the player's own choice kept for its return.
+- The Mods screen disables the dependent switch and names the option it needs. Its
+  `optionControls` contribution is hidden until the requirement is on again.
+- Manifests and built-in definitions refuse missing requirements, self-references, grouped
+  requirements and cycles.
+
 ## 0.8.2
 
 - Main code can pin a ComfyUI custom-node pack of its own with `registerComfyNodePack`, install it
