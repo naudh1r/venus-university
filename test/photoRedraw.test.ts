@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { character, charactersById, charInfo, restoreApi, stubApi } from './fixtures'
 
 let root = ''
-const mocks = vi.hoisted(() => ({ save: vi.fn(), render: vi.fn() }))
+const mocks = vi.hoisted(() => ({ save: vi.fn(), render: vi.fn(), ppm: vi.fn() }))
 vi.mock('electron', () => ({
   app: { isPackaged: false, getAppPath: () => root, getPath: () => root }
 }))
@@ -17,6 +17,7 @@ vi.mock('../src/renderer/stores/loop/saves', () => ({ writeAutosave: mocks.save,
   const game = useGameStore.getState()
   if (game.currentSceneTranscript.length && !game.awaitingInput) return { ok: true, data: 'deferred' }
   await mocks.save(); return { ok: true, data: 'written' } } }))
+vi.mock('@vx/modkit/main', async original => ({ ...await original<object>(), comfyNodePackState: mocks.ppm }))
 vi.mock('../src/renderer/stores/photoWebp', () => ({ renderPhoto: mocks.render }))
 vi.mock('../src/renderer/stores/photoTipDelivery', () => ({ tellAboutDmPhotos: vi.fn() }))
 stubApi({ jobs: { onProgress: () => () => {} } })
@@ -37,6 +38,7 @@ const exists = (path: string): Promise<boolean> => access(path).then(() => true,
 let currentFile: () => string
 
 beforeEach(async () => {
+  mocks.ppm.mockReset().mockResolvedValue('installed')
   root = await mkdtemp(join(tmpdir(), 'photo-redraw-'))
   await mkdir(join(run(), 'mod-data', 'photo-feature', 'a'), { recursive: true })
   useGameStore.getState().reset()
@@ -232,19 +234,49 @@ describe('a duo photo’s recorded method', () => {
     }
   })
 
-  it('keeps the recorded method on rebuild, except when ppm is off', async () => {
-    await writeFile(image('sarah_bunnyboard_001.json'), JSON.stringify({ ...saved, couple: 'ppm' }))
+  it.each([
+    [true, true, 'installed', 'ppm'],
+    [true, true, 'unmanaged', 'ppm'],
+    [true, true, 'missing', undefined],
+    [true, true, 'invalid', undefined],
+    [false, true, 'installed', undefined],
+    [true, false, 'installed', undefined]
+  ] as const)('rebuild chooses the effective method with ppm %s, duo %s and pack %s', async (ppm, duo, state, expected) => {
+    await writeFile(image('sarah_bunnyboard_001.json'), JSON.stringify(saved))
     const friend = character({ charId: 'b', gender: 'male', baseAppearance: ['1boy', 'black_hair'] })
-    setRendererPhotoSwitches({ ppm: true })
-    const kept = await photoInfo('1', girl, friend, 'everyday', 'Me and my friend at the cafe', 'sarah_bunnyboard_001.png', true)
-    expect(kept.couple).toBe('ppm')
-    expect(kept.left).not.toMatch(/\bsolo\b/)
-    setRendererPhotoSwitches({ ppm: false })
-    const off = await photoInfo('1', girl, friend, 'everyday', 'Me and my friend at the cafe', 'sarah_bunnyboard_001.png', true)
-    expect(off.couple).toBeUndefined()
-    expect(off.left).toMatch(/\b1girl, solo\b/)
-    expect(off.right).toMatch(/\b1boy, solo\b/)
-    expect(off.right).toMatch(/\bmale_focus\b/)
-    expect(JSON.parse(await readFile(image('sarah_bunnyboard_001.json'), 'utf8')).couple).toBe('ppm')
+    setRendererPhotoSwitches({ ppm, duo })
+    mocks.ppm.mockResolvedValue(state)
+    const info = await photoInfo('1', girl, friend, 'everyday', 'Me and my friend at the cafe', 'sarah_bunnyboard_001.png', true)
+    expect(info.couple).toBe(expected)
+    expect(info.seed).toBe(saved.seed)
+    expect(info.orientation).toBe('portrait')
+    expect(info.recorded).toBe(false)
+    if (expected === 'ppm') {
+      expect(info.left).toMatch(/1girl, 1boy/)
+      expect(info.left).not.toMatch(/\bsolo\b/)
+    } else expect(info.left).toMatch(/\b1girl, solo\b/)
+    expect(JSON.parse(await readFile(image('sarah_bunnyboard_001.json'), 'utf8'))).toEqual(saved)
+  })
+
+  it('moves a saved ppm photo back to area on Rebuild when ppm is unavailable', async () => {
+    await writeFile(image('sarah_bunnyboard_001.json'), JSON.stringify({ ...saved, couple: 'ppm' }))
+    setRendererPhotoSwitches({ ppm: true, duo: true })
+    mocks.ppm.mockResolvedValue('missing')
+    const info = await photoInfo('1', girl, character({ charId: 'b' }), 'everyday', 'Me and my friend at the cafe', 'sarah_bunnyboard_001.png', true)
+    expect(info.couple).toBeUndefined()
+    expect(info.left).toMatch(/\b1girl, solo\b/)
+  })
+
+  it.each([undefined, 'ppm'] as const)('keeps saved prompts and method %s without Rebuild, including an orientation change', async couple => {
+    const record = { ...saved, positive: 'player scene', negative: 'player negative', left: 'player edited left', right: 'player edited right', ...(couple ? { couple } : {}) }
+    await writeFile(image('sarah_bunnyboard_001.json'), JSON.stringify(record))
+    for (const ppm of [false, true]) {
+      setRendererPhotoSwitches({ ppm, duo: true })
+      for (const orientation of ['portrait', 'wide'] as const) {
+        const info = await photoInfo('1', girl, character({ charId: 'b' }), 'everyday', 'different scene', 'sarah_bunnyboard_001.png', false, orientation)
+        expect(info).toEqual({ ...record, recorded: true, orientation })
+      }
+    }
+    expect(mocks.ppm).not.toHaveBeenCalled()
   })
 })

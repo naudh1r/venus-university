@@ -107,7 +107,9 @@ The two are drawn side by side, from the waist up, without touching. Each keeps 
 appearance, clothes, colours, expression and gestures in a separate half. Selfies give only
 the poster the arm holding the phone. The picture belongs to the poster’s gallery.
 
-**Draw photos of two with ComfyUI-ppm** is a separate option, off by default. With it off,
+**Draw photos of two with ComfyUI-ppm** is a separate option, off by default. It needs
+**Two in one photo**. Turning Two in one photo off shows ppm off and greyed out, with your ppm
+choice kept for when Two in one photo comes back on. With ppm off,
 new photos start portrait, 832x1216, using the same drawing method as before. The info panel can
 still switch a photo to wide, 1216x832, without ComfyUI-ppm.
 
@@ -142,7 +144,11 @@ negative, seed and LoRA used to draw it. Most problems are one word in her sente
 drew too literally: change or remove it, then redraw. **Redraw with same seed** keeps the rest of
 the picture close to what it was, so you can see what your change did. **Switch to wide** or
 **Switch to portrait** redraws it the other way round, with the same seed where it has one.
-Both choices stay available with the ppm option on or off. Turning ppm off redraws photos of two
+Both choices stay available with the ppm option on or off. They keep the prompts and method
+currently in the fields. **Rebuild** replaces the prompts with ones built from the characters'
+current tags. For a photo of two it uses ppm while the option is on and available, otherwise
+the older method. That lets an older photo move to ppm before you redraw it.
+Turning ppm off redraws photos of two
 with the older method, in the shape you chose. A photo taken before 1.7.0
 shows a rebuilt prompt and no seed, so it can only be redrawn with a new one. A redraw during a scene
 is kept once the scene next saves, at its next choice or its end: quit before then, and the photo
@@ -154,6 +160,10 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
 `[photo] no tags read for` line: it names the photo's sentence, which helps widen what the mod reads.
 
 ## 1.9.0
+
+- ComfyUI-ppm needs Two in one photo. Your ppm choice is kept while that option is off.
+- Rebuild can move an older photo of two to ComfyUI-ppm while it is on and available. A plain
+  redraw or a change between wide and portrait keeps your prompts.
 
 - Wide photos on feed posts and in DMs keep the height of a portrait photo, and can open
   twice as wide in the full view. Portrait photos keep their usual size.
@@ -472,9 +482,13 @@ The portrait's upscaled image is 1165x1702, split 582 + 583; the wide image is 1
 split 851 + 851. A solo wide photo keeps the solo graph with its latent set to 1216x832.
 
 `main/photoNodePack.ts` pins the pack and the main entry registers it. The `optionControls`
-entry for `ppm` mounts `PhotoPpmControl` only visibly while the option is on; it retains the
-install button, confirmation and state messages. Main's `photoPpmState` returns `off` before
-probing the pack when the switch is off. `ppmInUse` maps its other states to `yes`, `try` or `no`.
+entry for `ppm` is suppressed by the Mods screen while its `requires: 'duo'` is unmet. When
+available, `PhotoPpmControl` is visible while ppm is on and retains the install button,
+confirmation and state messages. Main's `photoPpmState` returns `off` before
+probing the pack when the effective switch is off, including while duo is off. `ppmInUse` maps
+its other states to `yes`, `try` or `no`. Photo's process-specific option binding reads the kit's
+effective `modOptionOn`, so `photoSwitches().ppm` also follows the dependency in main and the
+renderer. `useExpectedPhotoOrientation` reads that value and asks main for the effective state.
 
 With ppm off, generation uses area halves, defaults to portrait, and permits a wide request.
 With ppm usable, new duos default to wide ppm; an info-panel redraw carries its recorded method
@@ -490,9 +504,14 @@ when the pack is unavailable.
 
 A sidecar's optional `orientation: 'wide'` records shape; absent means portrait. Its optional
 `couple: 'ppm'` records method; absent means area. It is valid only with both duo halves. Info
-returns the recorded metadata. Rebuild retains the saved method while ppm is allowed and uses
-area prompts when the switch is off. Switching shape rebuilds only the halves for that method;
-the scene, negative and recorded seed stay as supplied. The sidecar is not rewritten by inspection.
+returns the recorded metadata and prompts unchanged without Rebuild, even when another
+orientation is requested. Rebuild chooses ppm when `ppmInUse()` is `yes` or `try`, otherwise
+area, independently of the recorded method. It retains the photo's seed and orientation.
+
+The dialog keeps the result's method in `info.couple` and sends `info.couple ?? 'area'` with
+the redraw. Switching orientation resends the edited fields and that method with the new
+orientation, without rebuilding them. An explicit Rebuild replaces the fields and method
+before that same redraw path runs. The sidecar is not rewritten by inspection.
 
 Who is in a duo is `photoDuo.ts`; picking a pair and filing a scene's post is `photoGroup.ts`.
 Its picture joins the feed queue through `fileLatePost`.

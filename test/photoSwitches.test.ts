@@ -92,3 +92,15 @@ describe('photo switches', () => {
     })
   })
 })
+
+
+it('reads ppm through its duo requirement and restores the saved choice with duo', async () => {
+  const { useModsStore } = await import('./fixtures/photoSwitchState')
+  setRendererPhotoSwitches({ ppm: true, duo: true })
+  expect(photoSwitches().ppm).toBe(true)
+  setRendererPhotoSwitches({ duo: false })
+  expect(photoSwitches().ppm).toBe(false)
+  expect(useModsStore.getState().switches.options['photo-feature:ppm']).toBe(true)
+  setRendererPhotoSwitches({ duo: true })
+  expect(photoSwitches().ppm).toBe(true)
+})

@@ -583,16 +583,16 @@ export async function photoInfo(
   }
   const saved = await recordedPhotoInfo(playthroughId, character.charId, file)
   const savedOrientation: PhotoOrientation = saved?.orientation ?? 'portrait'
-  if (saved && !rebuild && (orientation ?? savedOrientation) === savedOrientation) {
+  if (saved && !rebuild) {
     const { orientation: _shape, ...request } = saved
-    return { ...request, recorded: true, orientation: savedOrientation }
+    return { ...request, recorded: true, orientation: orientation ?? savedOrientation }
   }
   const seed = saved?.seed
   const shape = orientation ?? savedOrientation
   if (friend) {
-    const couple: PhotoCouple = saved
-      ? (photoSwitches().ppm ? saved.couple ?? 'area' : 'area')
-      : (await ppmInUse()) === 'no' ? 'area' : 'ppm'
+    const couple: PhotoCouple = rebuild
+      ? (await ppmInUse()) === 'no' ? 'area' : 'ppm'
+      : saved?.couple ?? 'area'
     const prompts = buildDuoPhotoPrompt(
       await withBodySetting(character),
       await withBodySetting(friend),

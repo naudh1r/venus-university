@@ -19,7 +19,6 @@ import type { Character } from '@vx/modkit/shared'
 import { photoGenerationOn } from '../../shared/photoSwitches'
 import type {
   ChatPhoto,
-  PhotoCouple,
   PhotoInfo,
   PhotoOrientation,
   PhotoPrompts,
@@ -133,7 +132,7 @@ function PhotoInfoModal({
   const refitFields = useRef(true)
 
   const dead = busy || !info || !photosOn
-  const redraw = (same: boolean): void => {
+  const redraw = (same: boolean, orientation?: PhotoOrientation): void => {
     if (dead || !info) return
     const prompts: PhotoPrompts = {
       positive: info.positive,
@@ -144,51 +143,14 @@ function PhotoInfoModal({
     onRedraw({
       seed: same ? info.seed : undefined,
       prompts,
-      orientation: info.orientation,
+      orientation: orientation ?? info.orientation,
       ...(friend ? { couple: info.couple ?? 'area' } : {})
     })
   }
   const turned: PhotoOrientation = info?.orientation === 'wide' ? 'portrait' : 'wide'
 
-  /**
-   * Redraws in the other orientation with the same seed where there is one and the prompts in the
-   * fields; a picture of two keeps its prompt method where the switch allows it.
-   */
-  const switchOrientation = async (): Promise<void> => {
-    if (dead || !info) return
-    let halves: Pick<PhotoPrompts, 'left' | 'right'> = {}
-    let couple: PhotoCouple | undefined
-    if (friend) {
-      setBusy(true)
-      setError('')
-      try {
-        const result = await photoInvoke('info', [
-          playthroughId,
-          character,
-          friend,
-          photo.tier,
-          photo.scene ?? '',
-          photo.file,
-          true,
-          turned
-        ])
-        if (!result.ok) throw new Error(result.error.message)
-        halves = { left: result.data.left ?? '', right: result.data.right ?? '' }
-        couple = result.data.couple ?? 'area'
-      } catch {
-        setError('Could not rebuild the photo prompt.')
-        setBusy(false)
-        return
-      }
-    }
-    onClose()
-    onRedraw({
-      seed: info.seed,
-      prompts: { positive: info.positive, negative: info.negative, ...halves },
-      orientation: turned,
-      ...(couple ? { couple } : {})
-    })
-  }
+  /** Changes the canvas while keeping the prompts and method currently in the fields. */
+  const switchOrientation = (): void => redraw(true, turned)
   const { host, overlayProps, primaryProps } = useModalShell(onClose, 'panel', () =>
     redraw(info?.seed !== undefined)
   )
