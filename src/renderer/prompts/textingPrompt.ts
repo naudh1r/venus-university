@@ -12,7 +12,6 @@ import { worstInSlot } from '@shared/colds'
 import {
   genderOf,
   pronounsOf,
-  pronounTag,
   readerWords,
   type ReaderPronouns
 } from '@shared/gender'
@@ -59,6 +58,7 @@ import { recapLore } from './recaps'
 import { objectSchema } from './schema'
 import {
   graduateLines,
+  headingTag,
   herClassmates,
   memoryLines,
   secretLines,
@@ -165,6 +165,8 @@ export interface TextingPromptState {
   springBreakAway?: readonly string[] | null
   /** The graduate back in town for Homecoming, as a charId; absent on every other slot. */
   homecomingVisitor?: string
+  /** How old she is, by charId; with none her heading carries only her pronouns. */
+  ages?: Readonly<Record<string, number>>
   /**
    * Each character's plans with the reader from this slot on, one sentence apiece, by charId —
    * hers and the lorebook's people's.
@@ -478,7 +480,7 @@ export function buildTextingPrompt(
   const coldLine = herColdLine(character, info?.cold, slot, true)
 
   const characterBlock = [
-    `CHARACTER (${pronounTag(gender)})`,
+    `CHARACTER (${headingTag(gender, state.ages?.[character.charId])})`,
     `${name} ${character.lastName}.`,
     ...(info?.major ? [yearMajorLine(info, gender)] : []),
     ...graduateLines(character, info, visiting),
