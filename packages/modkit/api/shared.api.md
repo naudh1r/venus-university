@@ -1485,6 +1485,7 @@ export interface StructuredRequest {
     };
     // (undocumented)
     system: string;
+    thinking?: ThinkingRow;
     // (undocumented)
     user: string;
 }
