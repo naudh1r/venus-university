@@ -253,9 +253,10 @@ describe('a picture of two', () => {
     expect(prompts.right).not.toContain('outstretched_arm')
   })
 
-  it('gives the face pass each person\'s own subject in place of the head count', () => {
-    expect(faceHalfOf('masterpiece, 2girls, multiple_girls, pink_hair', risa)).toBe('masterpiece, 1girl, solo, pink_hair')
-    expect(faceHalfOf('masterpiece, 1girl, 1boy, short_hair', { ...ana, gender: 'male' } as typeof ana)).toBe('masterpiece, 1boy, solo, male_focus, short_hair')
-    expect(faceHalfOf('masterpiece, 1boy, short_hair', { ...ana, gender: 'male' } as typeof ana)).toBe('masterpiece, 1boy, solo, male_focus, short_hair')
+  it("gives the face pass each person's own subject, eyes, glasses and expression alone", () => {
+    const half = 'masterpiece, best_quality, very_aesthetic, 1girl, mature_female, (light_blonde_hair:1.3), blue_eyes, medium_hair, pink_flower_hairclip, silver_round_glasses, medium_breasts, (yellow_cropped_zip_hoodie:1.2), standing, one_eye_closed, v, selfie, (outstretched_arm:1.3), upper_body'
+    expect(faceHalfOf(half, risa)).toBe('masterpiece, best_quality, very_aesthetic, 1girl, solo, blue_eyes, silver_round_glasses, one_eye_closed')
+    const old = 'masterpiece, 1girl, 1boy, light_blue_eyes, short_hair, stubble, smirk, upper_body'
+    expect(faceHalfOf(old, { ...ana, gender: 'male' } as typeof ana)).toBe('masterpiece, best_quality, very_aesthetic, 1boy, solo, male_focus, light_blue_eyes, smirk')
   })
 })
