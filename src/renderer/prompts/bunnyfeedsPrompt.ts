@@ -401,6 +401,8 @@ export function buildFeedThreadsPrompt(
     user,
     schema: SCHEMA,
     cacheKey: input.playthroughId,
+    // The scenes row, which every mod call without a row of its own has always run at.
+    thinking: 'scenes',
     kind: 'texting'
   }
 }
