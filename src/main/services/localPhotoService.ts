@@ -412,7 +412,9 @@ export async function generateDuoPhoto(
     left: suppliedPpm && supplied ? supplied.left ?? '' : built!.left,
     right: suppliedPpm && supplied ? supplied.right ?? '' : built!.right
   }
-  const orientation = overrides.orientation ?? recorded?.orientation ?? 'wide'
+  // A saved photo without an orientation is portrait, as every photo of two was before ppm. Only a
+  // brand-new photo of two starts wide.
+  const orientation = overrides.orientation ?? (recorded ? recorded.orientation ?? 'portrait' : 'wide')
   const wide = orientation === 'wide'
   await renderPhotoImage(playthroughId, character.charId, file, {
     workflow: wide ? wideDuoWorkflow : ppmPortraitWorkflow,

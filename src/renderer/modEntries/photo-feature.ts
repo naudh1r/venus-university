@@ -165,6 +165,12 @@ registerHooks(PHOTO_FEATURE_ID, {
   // and the posts are waiting on the feed when he is free again.
   playerActs: () => startHeldPostPhoto(),
 
+  // Each slot asks again whether ComfyUI-ppm is there, so a ComfyUI started or given ppm mid-game
+  // is noticed by the next slot's pictures. Main keeps the answer for a minute, so this is cheap.
+  slotSettled: () => {
+    void refreshPhotoPpm()
+  },
+
   // A picture whose render outlived the save that asked for it: found on disk, or given up on.
   gameEntered: () => {
     void refreshPhotoPpm()
