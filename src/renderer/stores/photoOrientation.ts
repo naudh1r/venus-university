@@ -1,3 +1,4 @@
+import { photoIdentityUrl } from './photoRevision'
 import { useSyncExternalStore } from 'react'
 import type { ChatPhoto, PhotoOrientation } from '../../shared/photoTypes'
 import { usePhotoPpmState } from './photoPpm'
@@ -7,6 +8,7 @@ const orientations = new Map<string, PhotoOrientation>()
 const listeners = new Set<() => void>()
 
 export function rememberPhotoOrientation(src: string, orientation: PhotoOrientation): void {
+  src = photoIdentityUrl(src)
   if (orientations.get(src) === orientation) return
   orientations.set(src, orientation)
   for (const listener of listeners) listener()
@@ -18,7 +20,7 @@ export function usePhotoOrientation(src: string | null): PhotoOrientation | unde
       listeners.add(listener)
       return () => { listeners.delete(listener) }
     },
-    () => src ? orientations.get(src) : undefined,
+    () => src ? orientations.get(photoIdentityUrl(src)) : undefined,
     () => undefined
   )
 }

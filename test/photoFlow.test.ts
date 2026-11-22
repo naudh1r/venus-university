@@ -24,7 +24,7 @@ stubApi({ jobs: { onProgress: () => () => {} } })
 type ReserveName = (
   playthroughId: string,
   character: Character,
-  kind: string
+  inSave: readonly string[]
 ) => Promise<Result<string>>
 
 type GeneratePhoto = (

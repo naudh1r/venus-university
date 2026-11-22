@@ -1,8 +1,9 @@
-import { watch, type FSWatcher } from 'fs'
-import { mkdir, readFile, rm } from 'fs/promises'
-import { join } from 'path'
+import { randomBytes } from 'crypto'
+import { mkdir, readdir, readFile, rm } from 'fs/promises'
+import { dirname, join } from 'path'
 import {
   characterLoraOf,
+  SAFE_NUMERIC_ID,
   appError,
   imageTypeOf,
   type Character,
@@ -13,13 +14,8 @@ import {
   isPhotoFile,
   isPhotoSidecar,
   photoSidecarOf,
-  isPhotoKind,
   isWebpPhoto,
-  nextPhotoIndex,
-  photoFileName,
-  photoSlug,
   pngPhotoOf,
-  type PhotoKind
 } from '../../shared/photoFiles'
 import {
   PHOTO_PROMPT_LIMIT,
@@ -36,7 +32,7 @@ import { unreadPhotoParts } from '../../shared/photoPose'
 import {
   beginPhotoFile, copyPhotoFile, dropPhotoTwins, findPhotoImage, findPhotoSidecar,
   getPhotoPath, getPhotosPath, getPhotosRoot, legacyPhotosRoot, movePhotoFiles,
-  afterOneMove, photoCharacters, photoMoveSettled, photoNames, photoPlaythroughPath, photoReferences, readPhotoImage, readPhotoSidecar
+  photoCharacters, photoMoveSettled, photoNames, photoFileRendering, photoPlaythroughPath, photoReferences, readPhotoImage, readPhotoSidecar
 } from '../photoFiles'
 import { withBodySetting } from '../bodySetting'
 import {
@@ -46,6 +42,7 @@ import {
   type ComfyRenderRequest
 } from '@vx/modkit/main'
 import { PPM_PACK } from '../photoNodePack'
+import { recoverPhotoSwap, replacePhotoFiles } from '../photoSwap'
 import soloWorkflow from '../../../assets/workflows/characterPhoto.json'
 import wideDuoWorkflow from '../../../assets/photo/characterPhotoDuoWide.json'
 import ppmPortraitWorkflow from '../../../assets/photo/characterPhotoDuoPpm.json'
@@ -91,6 +88,13 @@ function assertPhotoFile(file: string): void {
  * the first one's file and one bubble would show the other's picture.
  */
 const reservedPhotoNames = new Map<string, Set<string>>()
+/**
+ * Every name handed out since launch. A picture can land before any save names it (a save during
+ * a scene waits for the next decision), so the sweep leaves these for a later launch.
+ */
+const mintedThisRun = new Set<string>()
+const mintedKey = (pid: string, charId: string, file: string): string =>
+  `${pid}/${charId}/${pngPhotoOf(file)}`
 
 /** The names already spoken for in one girl's folder: what is on disk, and what is in flight. */
 async function takenPhotoNames(playthroughId: string, charId: string): Promise<string[]> {
@@ -102,42 +106,68 @@ async function takenPhotoNames(playthroughId: string, charId: string): Promise<s
 }
 
 /**
- * The name the next picture of one kind will be written under, settled now so the bubble that
- * is waiting for it can carry it into the save immediately. Nothing is written here: a reserved
- * name that is never rendered simply frees up again next time the folder is read.
+ * Reserves a random identity before a waiting bubble is saved. Disk files, checkpoints and
+ * other reservations all count as taken, including another image format with the same stem.
  */
 export async function reservePhotoName(
   playthroughId: string,
   character: Character,
-  kind: string,
   inSave: unknown = []
 ): Promise<string> {
   assertSafeCharId(character.charId)
   assertSafePlaythroughId(playthroughId)
-  if (!isPhotoKind(kind)) {
-    throw appError('PHOTO_KIND_UNKNOWN', `"${String(kind)}" is not a kind of picture.`, kind)
-  }
-
-  const slug = photoSlug(character.firstName, character.charId)
   // The names the save already points at count as taken too, file or no file: a picture that
   // never reached this folder — a render cut short, a save carried over without its pictures —
   // must not have its name handed to the next one, or both bubbles show the new picture.
   const saved = Array.isArray(inSave)
     ? inSave.filter((name): name is string => typeof name === 'string' && isPhotoFile(name))
     : []
-  const taken = [...(await takenPhotoNames(playthroughId, character.charId)), ...saved]
-  const file = photoFileName(
-    slug,
-    kind as PhotoKind,
-    nextPhotoIndex(taken, slug, kind as PhotoKind),
-    photoSwitches().webp ? 'webp' : 'png'
-  )
-
+  // An unreadable save must not stop new photos: a random name is all but certain to be free anyway.
+  const referenced = await photoReferences(playthroughId).then(refs => refs.all, () => new Set<string>())
+  const taken = new Set([...(await takenPhotoNames(playthroughId, character.charId)), ...saved,
+    ...referenced].map(name => pngPhotoOf(name.replace(/\.json$/, '.png'))))
   const folder = getPhotosPath(playthroughId, character.charId)
   const held = reservedPhotoNames.get(folder) ?? new Set<string>()
-  held.add(file)
   reservedPhotoNames.set(folder, held)
+  let file: string
+  do {
+    const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    let id = ''
+    while (id.length < 10) {
+      for (const byte of randomBytes(16)) {
+        if (byte < 252 && id.length < 10) id += alphabet[byte % 36]
+      }
+    }
+    file = `${id}.${photoSwitches().webp ? 'webp' : 'png'}`
+  } while (taken.has(pngPhotoOf(file)) || [...held].some(name => pngPhotoOf(name) === pngPhotoOf(file)))
+  held.add(file)
+  mintedThisRun.add(mintedKey(playthroughId, character.charId, file))
   return file
+}
+
+const redrawTemps = new Set<string>()
+
+/** Holds a throwaway render until its replacement or cancellation has finished. */
+export async function reserveRedrawName(pid: string, character: Character, saved: readonly string[]): Promise<string> {
+  const file = await reservePhotoName(pid, character, saved)
+  redrawTemps.add(getPhotoPath(pid, character.charId, file))
+  return file
+}
+
+/** Commits a complete temporary render under the original identity, without changing a save. */
+export async function replacePhoto(pid: string, charId: string, file: string, temporary: string, signal?: AbortSignal): Promise<void> {
+  assertSafePlaythroughId(pid)
+  assertSafeCharId(charId)
+  assertPhotoFile(file)
+  assertPhotoFile(temporary)
+  if (!redrawTemps.has(getPhotoPath(pid, charId, temporary))) {
+    throw appError('PHOTO_FILE_INVALID', 'That redraw is no longer waiting.')
+  }
+  const release = beginPhotoFile(pid, charId, file)
+  try {
+    await movePhotoFiles(pid)
+    await replacePhotoFiles(pid, charId, file, temporary, signal)
+  } finally { release() }
 }
 
 /**
@@ -367,7 +397,9 @@ export async function generatePhoto(
   }, options)
 
   // On disk now, so the folder itself says the name is taken.
-  reservedPhotoNames.get(getPhotosPath(playthroughId, character.charId))?.delete(file)
+  if (!redrawTemps.has(getPhotoPath(playthroughId, character.charId, file))) {
+    reservedPhotoNames.get(getPhotosPath(playthroughId, character.charId))?.delete(file)
+  }
 
   // The name, not the path: the message carries it and the mod's protocol resolves it.
   return file
@@ -459,7 +491,9 @@ export async function generateDuoPhoto(
     ...(wide ? { orientation: 'wide' as const } : {})
   }, options)
 
-  reservedPhotoNames.get(getPhotosPath(playthroughId, character.charId))?.delete(file)
+  if (!redrawTemps.has(getPhotoPath(playthroughId, character.charId, file))) {
+    reservedPhotoNames.get(getPhotosPath(playthroughId, character.charId))?.delete(file)
+  }
   return file
 }
 
@@ -618,6 +652,8 @@ export async function dropPhoto(
     return
   }
   await removePhotoFiles(playthroughId, charId, file)
+  reservedPhotoNames.get(getPhotosPath(playthroughId, charId))?.delete(file)
+  redrawTemps.delete(getPhotoPath(playthroughId, charId, file))
 }
 
 /** Removes the image formats and sidecar after saved references have been checked. */
@@ -630,114 +666,62 @@ async function removePhotoFiles(playthroughId: string, charId: string, file: str
   }
 }
 
-interface RetiredPhoto {
-  charId: string
-  oldFile: string
-  newFile: string
-}
-interface PhotoCleanup {
-  pending: Map<string, RetiredPhoto>
-  watcher: FSWatcher
-  revision: number
-  running?: Promise<void>
-  timer?: ReturnType<typeof setTimeout>
-}
-const photoCleanups = new Map<string, PhotoCleanup>()
+const sweeps = new Map<string, Promise<number>>()
 
-/** Retries after a completed save write; uncertainty always leaves both pictures on disk. */
-export async function flushRetiredPhotos(playthroughId: string): Promise<void> {
-  const cleanup = photoCleanups.get(playthroughId)
-  if (!cleanup) return
-  if (cleanup.running) return cleanup.running
-  const revision = cleanup.revision
-  cleanup.running = (async () => {
-    try {
-      const refs = await photoReferences(playthroughId)
-      // One move with the references just read; the landing checks below read no saves again.
-      await afterOneMove(playthroughId, refs, async () => {
-        for (const [key, photo] of cleanup.pending) {
-          if (cleanup.revision !== revision) break
-          if (
-            !refs.saved.has(pngPhotoOf(photo.newFile)) ||
-            refs.all.has(pngPhotoOf(photo.oldFile))
-          ) continue
-          if (!(await photoLanded(playthroughId, photo.charId, photo.newFile))) continue
-          if (cleanup.revision !== revision) break
-          await removePhotoFiles(playthroughId, photo.charId, photo.oldFile)
-          cleanup.pending.delete(key)
+/** Removes only files no checkpoint or replay names, after migration has finished. */
+export async function sweepPhotos(pid: string): Promise<number> {
+  assertSafePlaythroughId(pid)
+  const previous = sweeps.get(pid)
+  if (previous) return previous
+  const running = sweepPhotoFiles(pid)
+  sweeps.set(pid, running)
+  try { return await running }
+  finally { if (sweeps.get(pid) === running) sweeps.delete(pid) }
+}
+
+async function sweepPhotoFiles(pid: string): Promise<number> {
+  await movePhotoFiles(pid)
+  const refs = await photoReferences(pid)
+  let removed = 0
+  for (const root of [getPhotosRoot(pid), legacyPhotosRoot(pid)]) {
+    for (const charId of await photoCharacters(root)) {
+      const folder = join(root, charId)
+      for (const entry of await readdir(folder, { withFileTypes: true })) {
+        const sidecar = entry.name.replace(/^\.redraw-/, '')
+        if (entry.isFile() && entry.name.startsWith('.redraw-') && isPhotoSidecar(sidecar)) {
+          await recoverPhotoSwap(folder, sidecar.replace(/\.json$/, '.png'))
         }
-      })
-    } catch {
-      // A missing, changing or unreadable checkpoint cannot prove a file is unreferenced.
-    }
-    if (cleanup.pending.size === 0) {
-      cleanup.watcher.close()
-      clearTimeout(cleanup.timer)
-      photoCleanups.delete(playthroughId)
-    }
-  })()
-  try {
-    await cleanup.running
-  } finally {
-    cleanup.running = undefined
-    if (cleanup.pending.size > 0 && cleanup.revision !== revision) schedulePhotoCleanup(playthroughId)
-  }
-}
-
-/** Debounces checkpoint changes, including those that overtake a running reference scan. */
-function schedulePhotoCleanup(playthroughId: string): void {
-  const cleanup = photoCleanups.get(playthroughId)
-  if (!cleanup) return
-  clearTimeout(cleanup.timer)
-  cleanup.timer = setTimeout(() => void flushRetiredPhotos(playthroughId), 100)
-  cleanup.timer.unref()
-}
-
-/** Save files, replay files and replay-folder changes can change a picture's saved references. */
-function photoCheckpointChanged(file: string | null): boolean {
-  if (file === null) return true
-  const parts = file.replaceAll('\\', '/').split('/')
-  if (parts.length === 1) return parts[0] === 'replays' || parts[0].endsWith('.json')
-  return parts.length === 2 && parts[0] === 'replays' && parts[1].endsWith('.json')
-}
-
-/** Watches this playthrough's atomic save writes, retaining originals across skipped saves. */
-export async function retirePhoto(
-  playthroughId: string,
-  charId: string,
-  oldFile: string,
-  newFile: string
-): Promise<void> {
-  assertSafePlaythroughId(playthroughId)
-  assertSafeCharId(charId)
-  assertPhotoFile(oldFile)
-  assertPhotoFile(newFile)
-  if (pngPhotoOf(oldFile) === pngPhotoOf(newFile)) return
-  let cleanup = photoCleanups.get(playthroughId)
-  if (!cleanup) {
-    try {
-      const watcher = watch(
-        photoPlaythroughPath(playthroughId),
-        { recursive: true, persistent: false },
-        (_event, file) => {
-          if (!photoCheckpointChanged(file)) return
-          const current = photoCleanups.get(playthroughId)
-          if (!current) return
-          current.revision += 1
-          schedulePhotoCleanup(playthroughId)
+      }
+      for (const file of await photoNames(folder)) {
+        const png = pngPhotoOf(file.replace(/\.json$/, '.png'))
+        if (refs.all.has(png) || photoFileRendering(pid, charId, file)) continue
+        if (mintedThisRun.has(mintedKey(pid, charId, png))) continue
+        const held = reservedPhotoNames.get(getPhotosPath(pid, charId))
+        if (held && [...held].some(name => pngPhotoOf(name) === png)) continue
+        try {
+          await rm(join(folder, file))
+          removed++
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
         }
-      )
-      watcher.on('error', () => {
-        watcher.close()
-        photoCleanups.delete(playthroughId)
-      })
-      cleanup = { watcher, pending: new Map(), revision: 0 }
-      photoCleanups.set(playthroughId, cleanup)
-    } catch {
-      // Without a reliable save notification, retaining the original costs only disk space.
-      return
+      }
     }
   }
-  cleanup.pending.set(`${charId}/${oldFile}`, { charId, oldFile, newFile })
-  await flushRetiredPhotos(playthroughId)
+  console.info(`[photo] orphan sweep ${pid}: removed ${removed} files`)
+  return removed
+}
+
+let launchSweepStarted = false
+
+/** One background pass per launch, including playthroughs the player never opens. */
+export function sweepAllPhotos(): void {
+  if (launchSweepStarted) return
+  launchSweepStarted = true
+  void (async () => {
+    const root = dirname(photoPlaythroughPath('1'))
+    for (const entry of await readdir(root, { withFileTypes: true })) {
+      if (!entry.isDirectory() || !SAFE_NUMERIC_ID.test(entry.name)) continue
+      await sweepPhotos(entry.name).catch(error => console.warn('[photo] sweep skipped:', entry.name, error))
+    }
+  })().catch(error => console.warn('[photo] launch sweep skipped:', error))
 }

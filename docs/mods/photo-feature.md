@@ -134,8 +134,8 @@ the sentence, since tagging it made elbows merge across the picture.
 
 ## Where photos are kept
 
-`data/saves/<save>/mod-data/photo-feature/<character>/`, named after her, for example `risa_chat_004.webp` or
-`risa_bunnyboard_002.webp`. They belong to that save; a continued semester copies them across.
+`data/saves/<playthrough>/mod-data/photo-feature/<character>/`, with a random name such as
+`k3f9x2ab7q.webp`. Older names still work. They belong to the playthrough and its saves.
 Older photos move here automatically when you next view them.
 
 Finished photos travel in the game's normal backup now. To restore an older backup, keep its
@@ -153,9 +153,8 @@ For an older photo of two, the panel rebuilds its two halves for ppm while keepi
 scene, negative and seed. You can edit those new halves before drawing. A ppm photo keeps its
 own prompts until you choose **Rebuild**, which replaces them from the characters' current tags.
 A photo taken before 1.7.0 shows a rebuilt prompt and no seed, so it can only be redrawn with a
-new one. A redraw during a scene
-is kept once the scene next saves, at its next choice or its end: quit before then, and the photo
-you had before comes back.
+new one. A finished redraw replaces that photo for every save and replay that shows it.
+It stays even if you quit during a scene without saving.
 
 If a photo stays PNG while WebP is on, look in `data/app.log` for a `[photo] kept ... as PNG:` line.
 
@@ -164,6 +163,11 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
 
 ## 1.9.0
 
+- Redrawing replaces the old picture, including in older saves and replays, even if you quit
+  without saving. Pictures left over from earlier redraws are cleared up.
+- New photos are saved under a random name instead of a numbered one. Clearing up old
+  pictures frees their numbers, and a number handed out again could show a new picture in an
+  older save that still expects the old one. Existing photos keep their names.
 - Wide photos on feed posts and in DMs keep the height of a portrait photo, and can open
   twice as wide in the full view. Portrait photos keep their usual size.
 - Wide photos take two tiles in a contact's gallery, cropped at the centre. Opening one shows
@@ -512,7 +516,8 @@ A sidecar's optional `orientation: 'wide'` records shape, with absent meaning po
 `couple: 'ppm'` records ppm and remains valid only with both halves. An absent couple is still
 accepted for old photos. Info rebuilds those old halves for ppm and preserves the saved scene,
 negative and seed. The dialog sends `couple: 'ppm'` explicitly with those editable halves to a
-new reserved filename. Main also converts old halves on redraw when the caller has not already
+temporary filename, then replaces the original image and sidecar under their own name. No
+photo record is written and no save is requested. Main also converts old halves on redraw when the caller has not already
 supplied ppm halves. Every successful duo redraw records ppm.
 
 A ppm photo returns its recorded prompts unchanged without Rebuild, including when another
@@ -564,9 +569,9 @@ is that mod (`ownsPostComments`). It never names any other mod.
 | `renderer/stores/photoTurn.ts`, `photoPost.ts`, `photoRecovery.ts`, `photoGroup.ts`, `photoComments.ts`, `photoTipDelivery.ts` | Kit game readers and run fences; post filing through `fileLatePost`, one-shot tips through `bunnybotSays`, identity draws through the kit. Photo keeps a held post's release timestamp and nudges when it comes out. |
 | `renderer/components/PhotoBubble.tsx`, `PhotoPostSpots.tsx`, `renderer/views/ContactGallery.tsx` | Reactive `useCharacter`, `useCharacterInfo`, `useConversation`, `useFeed`, `useNpcRelationships`, `useClock` and `useGameFacts`; saved attachments read through the handles. |
 | `renderer/stores/photoInvoke.ts` | `invoke('photo-feature', name, args)`. Only `DESKTOP_ONLY` gets Photo's browser answer: carry succeeds empty; other calls retain Photo's note. |
-| `main/modEntries/photo-feature.ts`, `main/photoIpc.ts` | Built-in main entry exports `invoke` handlers: `reserve-name`, `carry`, `landed`, `read`, `store-webp`, `info`, `drop`, `generate`, `generate-duo`, `ppm-state`, `install-ppm`, and registers ComfyUI-ppm. `info` takes an optional orientation after `rebuild`; duo redraw options also carry `couple`, separately from `orientation`. `ppm-state` reports `off` when disabled. |
+| `main/modEntries/photo-feature.ts`, `main/photoIpc.ts` | Built-in main entry exports `invoke` handlers: `reserve-name`, `carry`, `landed`, `read`, `store-webp`, `info`, `drop`, `reserve-redraw`, `replace`, `sweep`, `generate`, `generate-duo`, `ppm-state`, `install-ppm`, and registers ComfyUI-ppm. `info` takes an optional orientation after `rebuild`; duo redraw options also carry `couple`, separately from `orientation`. `ppm-state` reports `off` when disabled. |
 | `main/photoProtocol.ts`, `shared/photoFiles.ts` | Main entry's `photos` protocol route, `vxmod://photo-feature/@/photos/<playthrough>/<character>/<file>`. Saves keep file names, including older names; the URL is built when displayed. |
-| `main/services/localPhotoService.ts`, `main/photoFiles.ts` | `renderComfyImage`, mod data paths and saved-checkpoint checks before retiring replaced files. A deferred save alone never permits deleting an old picture. |
+| `main/services/localPhotoService.ts`, `main/photoFiles.ts` | `renderComfyImage`, random reserved names, and background orphan sweeps after migration on load and once per launch. Unreadable checkpoints or replays prevent deletion. Reserved and in-flight names are protected. |
 | `renderer/stores/bunnyfeedsThreads.ts`, `pictureOf` only | Reads the versioned Photo slice as plain data, falling back to the old field. Companion names use kit `character`; no dependency on Photo's renderer is introduced. |
 
 Off, the photo fields leave the reply's schema; old DMs omit their photo history note; a render
@@ -580,3 +585,10 @@ The code is AGPL-3.0-only, like the game (`LICENSE`). Images, audio and video re
 
 Wide photos of two use [ComfyUI-ppm](https://github.com/pamparamm/ComfyUI-ppm) by pamparamm,
 AGPL-3.0, which the game downloads into its own ComfyUI only when you install it from Mods.
+
+Redraws use an image-first swap with a hidden recovery journal. Main records the new image hash
+and both prompt records, atomically writes the image and then its sidecar, removes the other
+image format, and clears the temporary files and journal. Reads and sweeps finish an interrupted
+swap before using the image or prompt. A failed write rolls back the original files. Prompts,
+seed, shape and couple method stay in the sidecar, independent of saves. Renderer photo URLs
+carry a shared revision after replacement, including the full view and an open info panel.

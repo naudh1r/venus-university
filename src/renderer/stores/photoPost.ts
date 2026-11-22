@@ -10,7 +10,6 @@ import {
   canSendPhotos,
   photoNamesInSave,
   savePhotoState,
-  savePhotoStateAwaitable,
   setFeedPostPhoto
 } from './localPhotoStore'
 import { noNsfwImages } from '@vx/modkit/renderer'
@@ -72,7 +71,6 @@ async function reservePostPhotoName(charId: string): Promise<string | null> {
   const result = await photoInvoke('reserveName', [
     game.playthroughId,
     character,
-    'bunnyboard',
     photoNamesInSave(charId)
   ])
   if (result.ok) return result.data
@@ -352,13 +350,7 @@ export async function redrawPostPhoto(
       playthroughId,
       character,
       friend: photo?.with ? game.characters[photo.with] : undefined,
-      kind: 'bunnyboard',
       read: () => photoOf(charId, postId),
-      write: async (next) => {
-        if (!setFeedPostPhoto(charId, postId, next).ok) return false
-        await savePhotoStateAwaitable(game.run)
-        return true
-      },
       live: () => {
         const now = photoGame()
         return now.playthroughId === playthroughId && now.run === game.run

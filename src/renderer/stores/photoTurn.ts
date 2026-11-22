@@ -11,7 +11,6 @@ import {
   noExplicitPhotos,
   photoNamesInSave,
   savePhotoState,
-  savePhotoStateAwaitable,
   setMessagePhoto
 } from './localPhotoStore'
 import { tellAboutDmPhotos } from './photoTipDelivery'
@@ -140,7 +139,6 @@ export function startDmPhoto(
   early.ready = photoInvoke('reserveName', [
     early.playthroughId,
     character,
-    'chat',
     photoNamesInSave(charId)
   ])
     .then((named) => {
@@ -250,7 +248,6 @@ export async function sendPhoto(
   const named = await photoInvoke('reserveName', [
     playthroughId,
     character,
-    'chat',
     photoNamesInSave(charId)
   ])
   if (!named.ok) {
@@ -399,13 +396,7 @@ export async function redrawMessagePhoto(
       playthroughId,
       character,
       friend: photo?.with ? game.characters[photo.with] : undefined,
-      kind: 'chat',
       read: () => messagePhotoOf(charId, messageId),
-      write: async (next) => {
-        if (!setMessagePhoto(charId, messageId, next).ok) return false
-        await savePhotoStateAwaitable(game.run)
-        return true
-      },
       live: () => {
         const now = photoGame()
         return now.playthroughId === playthroughId && now.run === game.run

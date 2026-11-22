@@ -1,11 +1,11 @@
 import { photoInvoke } from './photoInvoke'
 import { useSyncExternalStore } from 'react'
 import type { Character } from '@vx/modkit/shared'
-import type { PhotoKind } from '../../shared/photoFiles'
 import { photoGenerationOn } from '../../shared/photoSwitches'
 import type { ChatPhoto, PhotoOrientation, PhotoRenderOptions } from '../../shared/photoTypes'
 import { renderPhoto } from './photoWebp'
 import { photoUrl } from '../../shared/photoFiles'
+import { revisePhoto } from './photoRevision'
 import { rememberPhotoOrientation } from './photoOrientation'
 
 /**
@@ -24,6 +24,7 @@ interface RedrawEntry {
   state: Exclude<RedrawState, 'idle'>
   /** Why the redraw was refused, where the player can act on it. */
   reason?: string
+  cancel?: () => void
   timer?: ReturnType<typeof setTimeout>
 }
 const redraws = new Map<string, RedrawEntry>()
@@ -52,6 +53,11 @@ export function beginPhotoRedraw(key: string, orientation?: PhotoOrientation): o
   redraws.set(key, { token, state: 'drawing', orientation })
   changed()
   return token
+}
+
+/** A loaded game supersedes unfinished redraws, including a swap still in main. */
+export function cancelPhotoRedraws(): void {
+  for (const entry of redraws.values()) entry.cancel?.()
 }
 
 /** Clears this attempt alone, or shows its failure for four seconds over the old photo. */
@@ -122,17 +128,14 @@ interface RedrawTarget {
   playthroughId: string
   character: Character
   friend?: Character
-  kind: PhotoKind
   read: () => ChatPhoto | null
-  /** False when the write was refused, the mod being off among other reasons. */
-  write: (photo: ChatPhoto) => Promise<boolean>
   live: () => boolean
   inSave: () => readonly string[]
 }
 
 /** Replaces a landed photo only after its new render arrives, keeping failures transient. */
 export async function redrawPhoto(
-  { playthroughId, character, friend, kind, read, write, live, inSave }: RedrawTarget,
+  { playthroughId, character, friend, read, live, inSave }: RedrawTarget,
   options: PhotoRenderOptions
 ): Promise<void> {
   const photo = read()
@@ -153,49 +156,52 @@ export async function redrawPhoto(
   const key = photoRedrawKey(playthroughId, charId, oldFile)
   const token = beginPhotoRedraw(key, options.orientation)
   if (!token) return
-  let settled = false
+  let finished = false
+  let expired = false
+  let temporary: string | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
+  const wanted = (): boolean => !expired && redraws.get(key)?.token === token && redraws.get(key)?.state === 'drawing' && live() && read()?.file === oldFile && photoGenerationOn()
   try {
-    const named = await photoInvoke('reserveName', [playthroughId, character, kind, inSave()])
+    const named = await photoInvoke('reserveRedraw', [playthroughId, character, inSave()])
     if (!named.ok) throw new Error(`${named.error.code}: ${named.error.message}`)
-    if (!live() || read()?.file !== oldFile || !photoGenerationOn()) return
-    const newFile = named.data
+    temporary = named.data
+    if (!wanted()) return
+    const entry = redraws.get(key)!
+    entry.cancel = () => {
+      expired = true
+      endPhotoRedraw(key, token)
+      void photoInvoke('drop', [playthroughId, charId, temporary!])
+    }
     timer = setTimeout(() => {
-      console.warn(`[photo] redraw of ${oldFile} has not answered in time`)
-      settled = true
+      expired = true
       endPhotoRedraw(key, token, live() && read()?.file === oldFile)
+      void photoInvoke('drop', [playthroughId, charId, temporary!])
     }, RENDER_PATIENCE_MS)
     const result = await renderPhoto(
-      playthroughId,
-      character,
-      photo.tier,
-      photo.scene,
-      newFile,
-      friend,
-      options
+      playthroughId, character, photo.tier, photo.scene, temporary, friend, options
     )
     if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+    if (!wanted()) return
+    clearTimeout(timer)
+    // The complete temporary render is checked in main before the original name is touched.
+    const replaced = await photoInvoke('replace', [playthroughId, charId, oldFile, temporary])
+    if (!replaced.ok) throw new Error(`${replaced.error.code}: ${replaced.error.message}`)
     if (options.orientation) {
-      rememberPhotoOrientation(photoUrl(playthroughId, charId, newFile), options.orientation)
+      rememberPhotoOrientation(photoUrl(playthroughId, charId, oldFile), options.orientation)
     }
-    const now = read()
-    // A refused write leaves the old photo in place, so the new render is the one dropped.
-    const replace = live() && now?.file === oldFile && await write({ ...now, file: newFile })
-    // A render overtaken by a load, replacement or deleted photo belongs to nothing.
-    const dropped = replace
-      ? await photoInvoke('drop', [playthroughId, charId, oldFile, { replacement: newFile }])
-      : await photoInvoke('drop', [playthroughId, charId, newFile])
-    if (!dropped.ok) {
-      console.warn(`[photo] could not drop ${replace ? oldFile : newFile}:`, dropped.error.message)
-    }
-    settled = true
+    revisePhoto(photoUrl(playthroughId, charId, oldFile))
+    finished = true
     endPhotoRedraw(key, token)
   } catch (error) {
+    finished = true
     console.warn(`[photo] redraw of ${oldFile} failed:`, error)
-    settled = true
     endPhotoRedraw(key, token, live() && read()?.file === oldFile, refusalOf(error))
   } finally {
     clearTimeout(timer)
-    if (!settled) endPhotoRedraw(key, token)
+    if (temporary) {
+      const dropped = await photoInvoke('drop', [playthroughId, charId, temporary])
+      if (!dropped.ok) console.warn(`[photo] could not drop ${temporary}:`, dropped.error.message)
+    }
+    if (!expired && !finished) endPhotoRedraw(key, token)
   }
 }
