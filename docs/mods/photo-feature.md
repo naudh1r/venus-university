@@ -165,7 +165,9 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
 
 - Redrawing replaces the old picture, including in older saves and replays, even if you quit
   without saving. Pictures left over from earlier redraws are cleared up.
-
+- New photos are saved under a random name instead of a numbered one. Clearing up old
+  pictures frees their numbers, and a number handed out again could show a new picture in an
+  older save that still expects the old one. Existing photos keep their names.
 - Wide photos on feed posts and in DMs keep the height of a portrait photo, and can open
   twice as wide in the full view. Portrait photos keep their usual size.
 - Wide photos take two tiles in a contact's gallery, cropped at the centre. Opening one shows
