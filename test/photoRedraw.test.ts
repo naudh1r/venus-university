@@ -360,6 +360,20 @@ describe('orphan sweeps', () => {
     expect(await readFile(image('zzzzzzzzzz.png'), 'utf8')).toBe('orphan')
   })
 
+  it('keeps a picture minted this run that landed before any save named it', async () => {
+    const file = await reservePhotoName('1', girl)
+    // Releases the reservation, as a landed render does.
+    await dropPhoto('1', 'a', file)
+    await writeFile(image(file), 'landed')
+    expect(await sweepPhotos('1')).toBe(0)
+    expect(await readFile(image(file), 'utf8')).toBe('landed')
+  })
+
+  it('reserves a name while a save is unreadable', async () => {
+    await writeFile(join(run(), 'broken.json'), '{')
+    expect(await reservePhotoName('1', girl)).toMatch(/^[a-z0-9]{10}\.png$/)
+  })
+
   it('removes a photo after its only save is deleted, preserving another save’s picture', async () => {
     await writeFile(image('sarah_chat_001.png'), 'first')
     await writeFile(image('sarah_chat_002.png'), 'second')

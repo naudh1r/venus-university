@@ -88,6 +88,13 @@ function assertPhotoFile(file: string): void {
  * the first one's file and one bubble would show the other's picture.
  */
 const reservedPhotoNames = new Map<string, Set<string>>()
+/**
+ * Every name handed out since launch. A picture can land before any save names it (a save during
+ * a scene waits for the next decision), so the sweep leaves these for a later launch.
+ */
+const mintedThisRun = new Set<string>()
+const mintedKey = (pid: string, charId: string, file: string): string =>
+  `${pid}/${charId}/${pngPhotoOf(file)}`
 
 /** The names already spoken for in one girl's folder: what is on disk, and what is in flight. */
 async function takenPhotoNames(playthroughId: string, charId: string): Promise<string[]> {
@@ -115,8 +122,10 @@ export async function reservePhotoName(
   const saved = Array.isArray(inSave)
     ? inSave.filter((name): name is string => typeof name === 'string' && isPhotoFile(name))
     : []
+  // An unreadable save must not stop new photos: a random name is all but certain to be free anyway.
+  const referenced = await photoReferences(playthroughId).then(refs => refs.all, () => new Set<string>())
   const taken = new Set([...(await takenPhotoNames(playthroughId, character.charId)), ...saved,
-    ...(await photoReferences(playthroughId)).all].map(name => pngPhotoOf(name.replace(/\.json$/, '.png'))))
+    ...referenced].map(name => pngPhotoOf(name.replace(/\.json$/, '.png'))))
   const folder = getPhotosPath(playthroughId, character.charId)
   const held = reservedPhotoNames.get(folder) ?? new Set<string>()
   reservedPhotoNames.set(folder, held)
@@ -132,6 +141,7 @@ export async function reservePhotoName(
     file = `${id}.${photoSwitches().webp ? 'webp' : 'png'}`
   } while (taken.has(pngPhotoOf(file)) || [...held].some(name => pngPhotoOf(name) === pngPhotoOf(file)))
   held.add(file)
+  mintedThisRun.add(mintedKey(playthroughId, character.charId, file))
   return file
 }
 
@@ -676,6 +686,7 @@ async function sweepPhotoFiles(pid: string): Promise<number> {
       for (const file of await photoNames(folder)) {
         const png = pngPhotoOf(file.replace(/\.json$/, '.png'))
         if (refs.all.has(png) || photoFileRendering(pid, charId, file)) continue
+        if (mintedThisRun.has(mintedKey(pid, charId, png))) continue
         const held = reservedPhotoNames.get(getPhotosPath(pid, charId))
         if (held && [...held].some(name => pngPhotoOf(name) === png)) continue
         try {

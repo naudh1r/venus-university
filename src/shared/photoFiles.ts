@@ -11,11 +11,10 @@
  */
 
 /**
- * What a picture is stored as. Every render lands as PNG; with "Save photos as WebP" on, the
- * renderer re-encodes it and the PNG goes. A name says which one it was meant to be, and a
- * reader takes whichever is on disk, so a WebP that never got written still shows its PNG.
+ * How the renderer encodes a WebP, on Chromium's quality scale, 0 to 1. Every render lands as
+ * PNG; with "Save photos as WebP" on, the renderer re-encodes it and the PNG goes. A name says
+ * which one it was meant to be, and a reader takes whichever is on disk.
  */
-/** How the renderer encodes a WebP: Chromium's quality scale, 0 to 1. */
 export const WEBP_QUALITY = 0.85
 
 /** `risa_bunnyboard_001.png` — whose it is, where it was posted, and which one of hers. */
