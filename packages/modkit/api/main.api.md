@@ -63,6 +63,29 @@ export interface ComfyLaunchContext {
 }
 
 // @public
+export interface ComfyNodePack {
+    bytes: number;
+    classes: readonly string[];
+    dirName: string;
+    id: string;
+    // (undocumented)
+    label: string;
+    modules: readonly string[];
+    // (undocumented)
+    owner: string;
+    // (undocumented)
+    repo: string;
+    sha: string;
+    sha256: string;
+}
+
+// @public
+export type ComfyNodePackState = 'installed' | 'missing' | 'invalid' | 'unmanaged';
+
+// @public
+export function comfyNodePackState(modId: string, packId: string): Promise<ComfyNodePackState>;
+
+// @public
 export interface ComfyRenderRequest {
     // (undocumented)
     lora?: {
@@ -94,7 +117,7 @@ export interface ComfyRenderRequest {
 }
 
 // @public
-export function completeModStructured<T>(request: StructuredRequest, signal: AbortSignal, lowLatency?: boolean): Promise<T>;
+export function completeModStructured<T>(request: Omit<StructuredRequest, 'thinking'> & Partial<Pick<StructuredRequest, 'thinking'>>, signal: AbortSignal, lowLatency?: boolean): Promise<T>;
 
 // @public
 export function createDesktopSurface(owner: string, options: Omit<BrowserWindowConstructorOptions, 'webPreferences'>): BrowserWindow;
@@ -120,6 +143,12 @@ export interface FinalRequestPlan {
 
 // @public
 export function hasExpressionArt(id: string, expression: Emotion): Promise<boolean>;
+
+// @public
+export function installComfyNodePack(modId: string, packId: string, input?: {
+    signal?: AbortSignal;
+    onProgress?: (step: string, percent?: number) => void;
+}): Promise<void>;
 
 // @public
 export interface InvokeContext {
@@ -169,6 +198,9 @@ export type ReadJsonResult<T> = {
 
 // @public
 export function registerComfyLaunchEnvironment(modId: string, provider: EnvironmentProvider): () => void;
+
+// @public
+export function registerComfyNodePack(modId: string, pack: ComfyNodePack): () => void;
 
 // @public
 export function registerFinalRequest(modId: string, hook: FinalRequestHook): () => void;

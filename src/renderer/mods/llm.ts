@@ -9,10 +9,11 @@ import type { Result, StructuredRequest } from '@shared/types'
  */
 export function completeStructured<T>(
   modId: string,
-  request: StructuredRequest,
+  request: Omit<StructuredRequest, 'thinking'> & Partial<Pick<StructuredRequest, 'thinking'>>,
   options: { group?: string } = {}
 ): Promise<Result<T>> {
-  return window.api.llm.completeMod(modId, request, options.group) as Promise<Result<T>>
+  // A mod's call without its own thinking row runs at the scenes row, as every call did before the rows.
+  return window.api.llm.completeMod(modId, { thinking: 'scenes', ...request }, options.group) as Promise<Result<T>>
 }
 
 /**

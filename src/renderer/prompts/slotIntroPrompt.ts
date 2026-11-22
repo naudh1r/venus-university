@@ -907,6 +907,7 @@ export function buildSlotIntroPrompt(
     user,
     schema: slotIntroSchema(),
     cacheKey: input.playthroughId,
+    thinking: 'intros',
     kind: 'slotIntro'
   })
 }

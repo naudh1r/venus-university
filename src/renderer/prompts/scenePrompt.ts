@@ -1783,7 +1783,8 @@ function castScenePrompt(
       user,
       parts: [...system, ...parts],
       schema: sceneSchema(state.backgrounds, cast, state, hasSummary, hasEndScene),
-      cacheKey: state.playthroughId
+      cacheKey: state.playthroughId,
+      thinking: 'scenes'
     }),
     sceneSpot: sceneSpotOf(spot, cast)
   }
@@ -1905,7 +1906,7 @@ export function buildScenePrompt(
   // Nothing has been written yet, so the action is the whole scan. The slot's rumor rides this
   // call alone, and the secret she tells is established on it alone — the continuation and the
   // closing pass neither, the secret reaching them as one she has told.
-  const request = castScenePrompt(
+  return castScenePrompt(
     cast,
     state,
     setting,
@@ -1918,7 +1919,6 @@ export function buildScenePrompt(
     state.slotRumor,
     state.sceneSecret
   )
-  return state.redraft ? { ...request, raiseThinking: true } : request
 }
 
 /** The rules a solo scene needs and no more. */
@@ -1995,6 +1995,7 @@ export function buildSoloPrompt(
       schema: sceneSchema(state.backgrounds, [], state, true, false),
       // Constant, like the ledger's: nothing above the seam varies by save.
       cacheKey: 'solo',
+      thinking: 'scenes',
       // Routable: an hour by himself has nobody in it to be written badly, which is what
       // keeps every other scene call off the secondary model.
       kind: 'solo'
@@ -2426,7 +2427,7 @@ export function buildLedgerPrompt(
     schema: ledgerSchema(charKeys, rosterKeys, classScene, castStats, recap),
     // Constant, not the playthrough: nothing above the seam varies by save.
     cacheKey: 'ledger',
-    thinking: 'history',
+    thinking: 'ledger',
     logFrom: preamble.length + 1
   })
 }

@@ -133,7 +133,7 @@ export type Commitment = {
 };
 
 // @public
-export function completeStructured<T>(modId: string, request: StructuredRequest, options?: {
+export function completeStructured<T>(modId: string, request: Omit<StructuredRequest, 'thinking'> & Partial<Pick<StructuredRequest, 'thinking'>>, options?: {
     group?: string;
 }): Promise<Result<T>>;
 
@@ -579,6 +579,7 @@ export interface ModHooks {
         time: TimeSlot;
         reply: Readonly<Record<string, unknown>>;
     }) => OpeningLook | null;
+    optionControls?: Record<string, ComponentType<OptionControlProps>>;
     optionPreviews?: Record<string, ComponentType<OptionPreviewProps>>;
     panelLayer?: ComponentType<ScreenSlotProps['panelLayer']>;
     phoneOverlay?: ComponentType<ScreenSlotProps['phoneOverlay']>;
@@ -718,6 +719,14 @@ export function openPanel(id: string, arg?: string): boolean;
 
 // @public
 export function openSceneExchange(modId: string): SceneExchange | null;
+
+// @public
+export interface OptionControlProps {
+    // (undocumented)
+    on: boolean;
+    // (undocumented)
+    optionId: string;
+}
 
 // @public
 export interface OptionPreviewProps {
