@@ -408,9 +408,19 @@ export async function generatePhoto(
 /** The two people's own prompt nodes, the same ids in the portrait and the wide graph. */
 const DUO_GIRL_NODE = { left: '50', right: '51' } as const
 
-/** The ppm graphs' face-pass prompt nodes, one per person. */
-const DUO_FACE_NODE = { left: '80', right: '81' } as const
+/** The face pass of a photo of two: one detailer over the whole picture, a prompt per face. */
+const DUO_FACE_PASS = '58'
 
+/**
+ * A graph for a photo of two with its face pass told whose face is whose: faces taken left to
+ * right, each redrawn under its own person's prompt. Over cut halves, a face across the middle
+ * was redrawn twice and seamed, so the pass runs on the whole picture, in a tight crop per face.
+ */
+function withFacePrompts(workflow: ComfyRenderRequest['workflow'], left: string, right: string): ComfyRenderRequest['workflow'] {
+  const graph = structuredClone(workflow)
+  graph[DUO_FACE_PASS].inputs.wildcard = `[ASC]${left}[SEP]${right}`
+  return graph
+}
 /** Where the pack needed for every photo of two stands on the selected ComfyUI. */
 export async function photoPpmState(): Promise<PhotoPpmState> {
   return comfyNodePackState(PHOTO_FEATURE_ID, PPM_PACK.id)
@@ -467,15 +477,14 @@ export async function generateDuoPhoto(
   const orientation = overrides.orientation ?? (recorded ? recorded.orientation ?? 'portrait' : 'wide')
   const wide = orientation === 'wide'
   await renderPhotoImage(playthroughId, character.charId, file, {
-    workflow: wide ? wideDuoWorkflow : ppmPortraitWorkflow,
+    workflow: withFacePrompts(
+      wide ? wideDuoWorkflow : ppmPortraitWorkflow,
+      faceHalfOf(prompts.left, character),
+      faceHalfOf(prompts.right, friend)
+    ),
     nodes: DUO_PHOTO_NODE,
     prompts: { positive: prompts.positive, negative: prompts.negative },
-    texts: {
-      [DUO_GIRL_NODE.left]: prompts.left,
-      [DUO_GIRL_NODE.right]: prompts.right,
-      [DUO_FACE_NODE.left]: faceHalfOf(prompts.left, character),
-      [DUO_FACE_NODE.right]: faceHalfOf(prompts.right, friend)
-    },
+    texts: { [DUO_GIRL_NODE.left]: prompts.left, [DUO_GIRL_NODE.right]: prompts.right },
     seed
   }, {
     schemaVersion: 1, seed, tier, ...prompts, couple: 'ppm',

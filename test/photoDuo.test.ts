@@ -52,7 +52,7 @@ describe('a picture of two', () => {
   const risa = character({ charId: 'risa', firstName: 'Risa', lastName: 'Vale', outfit: ['pink_top', 'black_thighhighs', 'white_sneakers'] })
   const ana = character({ charId: 'ana', firstName: 'Ana', lastName: 'Moss', outfit: ['brown_sweater'] })
 
-  it('counts the heads of each pairing, and opens each ppm half on that count', () => {
+  it('counts the heads of each pairing for the scene, and opens each half on its own subject', () => {
     const kai = character({ charId: 'kai', firstName: 'Kai', gender: 'male', baseAppearance: ['1boy', 'male_focus', 'black_hair'] })
     const ren = character({ charId: 'ren', firstName: 'Ren', gender: 'male', baseAppearance: ['1boy', 'brown_hair'] })
     expect(duoHeadCount(risa, ana)).toEqual(['2girls', 'multiple_girls'])
@@ -60,9 +60,11 @@ describe('a picture of two', () => {
     expect(duoHeadCount(kai, risa)).toEqual(['1girl', '1boy'])
     expect(duoHeadCount(kai, ren)).toEqual(['2boys', 'multiple_boys'])
     const wide = buildDuoPhotoPrompt(kai, risa, 'everyday', 'Kai and Risa at the cafe', 'ppm')
+    expect(wide.left).toMatch(/^masterpiece, best_quality, very_aesthetic, 1boy, /)
+    expect(wide.right).toMatch(/^masterpiece, best_quality, very_aesthetic, 1girl, /)
+    expect(wide.scene).toContain('1girl, 1boy')
     for (const half of [wide.left, wide.right]) {
-      expect(half).toMatch(/^masterpiece, best_quality, very_aesthetic, 1girl, 1boy, /)
-      expect(half).not.toMatch(/\bsolo\b|male_focus/)
+      expect(half).not.toMatch(/\bsolo\b|male_focus|1girl, 1boy|multiple_/)
     }
   })
 
@@ -241,7 +243,7 @@ describe('a picture of two', () => {
     expect(buildDuoPhotoPrompt(risa, ana, 'everyday', 'A selfie of me and Ana at the park').scene).toContain('cowboy_shot')
     const photo = buildDuoPhotoPrompt(risa, ana, 'everyday', 'A photo of me and Ana at the park')
     expect(photo.scene).toContain('upper_body')
-    expect(photo.scene).toContain('a little space between them')
+    expect(photo.scene).not.toContain('space between them')
     expect(photo.scene).not.toContain('(upper_body:1.3)')
   })
 
@@ -254,5 +256,6 @@ describe('a picture of two', () => {
   it('gives the face pass each person\'s own subject in place of the head count', () => {
     expect(faceHalfOf('masterpiece, 2girls, multiple_girls, pink_hair', risa)).toBe('masterpiece, 1girl, solo, pink_hair')
     expect(faceHalfOf('masterpiece, 1girl, 1boy, short_hair', { ...ana, gender: 'male' } as typeof ana)).toBe('masterpiece, 1boy, solo, male_focus, short_hair')
+    expect(faceHalfOf('masterpiece, 1boy, short_hair', { ...ana, gender: 'male' } as typeof ana)).toBe('masterpiece, 1boy, solo, male_focus, short_hair')
   })
 })
