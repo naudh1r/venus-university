@@ -358,6 +358,7 @@ export function buildClassPartPrompt(ask: ClassAsk, setting: string, textEdits?:
       user: `${preamble}\n${rest}`,
       schema: objectSchema('interest_class', ['interestClass'], { interestClass: courseSchema() }),
       cacheKey: 'venus-university-interest-class-generation',
+      thinking: 'newGame',
       logFrom: preamble.length + 1
     }
   }
@@ -400,6 +401,7 @@ export function buildClassPartPrompt(ask: ClassAsk, setting: string, textEdits?:
       classes: { type: 'array', items: partCourseSchema(kind) }
     }),
     cacheKey: `venus-university-${ask.kind}-class-generation`,
+    thinking: 'newGame',
     logFrom: preamble.length + 1
   }
 }

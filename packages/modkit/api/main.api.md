@@ -117,7 +117,7 @@ export interface ComfyRenderRequest {
 }
 
 // @public
-export function completeModStructured<T>(request: StructuredRequest, signal: AbortSignal, lowLatency?: boolean): Promise<T>;
+export function completeModStructured<T>(request: Omit<StructuredRequest, 'thinking'> & Partial<Pick<StructuredRequest, 'thinking'>>, signal: AbortSignal, lowLatency?: boolean): Promise<T>;
 
 // @public
 export function createDesktopSurface(owner: string, options: Omit<BrowserWindowConstructorOptions, 'webPreferences'>): BrowserWindow;
