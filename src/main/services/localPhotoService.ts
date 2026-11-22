@@ -31,7 +31,7 @@ import {
 } from '../../shared/photoTypes'
 import { photoSwitches, PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 import { isPhotoTier, type PhotoTier } from '../../shared/photoGate'
-import { buildDuoPhotoPrompt, buildPhotoPrompt, faceHalfOf } from '../../shared/photoPrompt'
+import { buildDuoPhotoPrompt, buildPhotoPrompt, faceHalfOf, soloOrientationOf } from '../../shared/photoPrompt'
 import { unreadPhotoParts } from '../../shared/photoPose'
 import {
   beginPhotoFile, copyPhotoFile, dropPhotoTwins, findPhotoImage, findPhotoSidecar,
@@ -336,7 +336,11 @@ export async function generatePhoto(
     if (unread.length > 0) console.log(`[photo] no tags read for ${unread.join(' or ')}: "${photoPrompt}"`)
   }
 
-  const wide = overrides.orientation === 'wide'
+  // A new photo takes its shape off its prompt; a redraw keeps the one asked for, or the
+  // portrait every redraw had before shapes, when its prompts come without one.
+  const wide = overrides.orientation
+    ? overrides.orientation === 'wide'
+    : !overrides.prompts && soloOrientationOf(prompts.positive, Math.random()) === 'wide'
   await renderPhotoImage(playthroughId, character.charId, file, {
     workflow: wide ? wideSoloWorkflow() : soloWorkflow,
     nodes: PHOTO_NODE,

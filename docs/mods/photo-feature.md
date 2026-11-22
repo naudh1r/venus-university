@@ -171,6 +171,8 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
 - Older photos of two stay visible. Their next redraw uses ppm, with new halves shown in the
   info panel first. The recorded scene, negative and seed are kept.
 - The photo info panel can switch a photo between wide and portrait and redraw it.
+- A new photo of one person is wide about half the time. A standing head-to-toe shot or a
+  standing mirror selfie stays portrait.
 - In a photo of two, each person keeps their own hair colour more often, without the other's
   colour streaking into it.
 - A feed post's picture shows what the post talks about, such as the rain or the coffee it names.

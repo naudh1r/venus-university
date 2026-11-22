@@ -36,7 +36,7 @@ import {
 // project's `include` would reach it for the app, but `tsconfig.test.json` lists only the tests
 // and pulls in what they import — so the feature brings its own types rather than relying on a
 // tsconfig line, which would be one more thing to re-add on a sync.
-import type { PhotoCouple } from './photoTypes'
+import type { PhotoCouple, PhotoOrientation } from './photoTypes'
 import {
   photoWardrobe,
   photoWardrobeNames,
@@ -1376,4 +1376,17 @@ export function buildDuoPhotoPrompt(
     right: right.prompt,
     negative
   }
+}
+
+/** The share of solo photos drawn wide where the shot fits either shape. */
+const SOLO_WIDE_SHARE = 0.5
+
+/**
+ * The shape a new solo photo is drawn in, read off its finished prompt: a standing full-body shot
+ * or a standing mirror selfie stays portrait, anything else is wide on half the rolls.
+ */
+export function soloOrientationOf(positive: string, roll: number): PhotoOrientation {
+  const tags = new Set(positive.split(/,\s*/).map((tag) => tag.trim()))
+  const standingTall = tags.has('standing') && (tags.has('full_body') || tags.has('mirror'))
+  return !standingTall && roll < SOLO_WIDE_SHARE ? 'wide' : 'portrait'
 }
