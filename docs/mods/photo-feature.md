@@ -121,8 +121,10 @@ Their next redraw uses ppm, with new halves shown in the info panel beforehand. 
 a redraw of a photo of two fails and keeps the old picture. It never uses the older drawing method.
 
 Still being tuned: a face, outfit or colour sometimes comes out wrong. Close-ups and rear views
-hold less well than plain shots. Now and then one person's hair colour still spills onto the
-other's, less often since each colour is weighted, and a reroll fixes it. A long dress beside a top can pull one person further down. A chin resting on a hand stays in
+hold less well than plain shots. Where one person reaches into the other's half, a hand, an arm
+or hair, the two can still meet in the middle and their colours can bleed. A wide photo makes
+that rarer, but not always, and a reroll usually fixes it. Hair colour spills less often since
+each colour is weighted. A long dress beside a top can pull one person further down. A chin resting on a hand stays in
 the sentence, since tagging it made elbows merge across the picture.
 
 ## Where photos are kept
