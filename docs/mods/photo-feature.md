@@ -180,6 +180,7 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
   standing mirror selfie stays portrait.
 - In a photo of two, each person keeps their own hair colour more often, without the other's
   colour streaking into it.
+- A face in a photo of two no longer shows a seam where the two meet in the middle.
 - A feed post's picture shows what the post talks about, such as the rain or the coffee it names.
 - A guy's own name in his caption becomes "him" or "his" instead of leaving a gap, and his photos
   no longer ask for a flat chest.
@@ -472,12 +473,15 @@ friend's half and negative independently of orientation. Photos of two use only
 `assets/photo/characterPhotoDuoWide.json` at 1216x832 or
 `assets/photo/characterPhotoDuoPpm.json` at 832x1216. `AttentionCouplePPM` patches the model with
 the scene over a full mask and each person's prompt over their half. Each half opens on
-`duoHeadCount` and drops `solo` and `male_focus`. `faceHalfOf` restores the person's own subject
-for face-pass nodes 80 and 81. The older area graphs and their render/fallback paths are removed.
+`duoHeadCount` and drops `solo` and `male_focus`. The older area graphs and their render/fallback
+paths are removed.
 
-The ppm graphs stay outside `assets/workflows`, which core checks against every server. Each
-crops the two face passes separately and composites them at the same x coordinates. The portrait's
-upscaled image is 1165x1702, split 582 + 583. The wide image is 1702x1165, split 851 + 851.
+The ppm graphs stay outside `assets/workflows`, which core checks against every server. Their face
+pass is one FaceDetailer (node 58) over the whole picture, its wildcard filled per photo as
+`[ASC]<left face>[SEP]<right face>`: faces sorted left to right, each redrawn under its own
+person's prompt, which `faceHalfOf` gives back that person's own subject. Its crop is 1.5 times
+the face, since a wider crop took in the other face and copied its eye colour. Cutting the picture
+into halves instead left a seam wherever a face or hand crossed the middle.
 A solo wide photo keeps the solo graph with its latent set to 1216x832.
 
 `main/photoNodePack.ts` pins the pack and the main entry registers it. `photoPpmState` directly
