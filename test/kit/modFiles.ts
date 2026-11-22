@@ -39,7 +39,9 @@ export const MOD_FILES: Record<string, ModSet> = {
       'src/renderer/vu_styles/PhotoBubble.css',
       'src/renderer/vu_styles/PostComments.css',
       'src/renderer/vu_styles/ContactGallery.css',
-      'src/renderer/vu_styles/BodyFields.css',
+      'src/renderer/vu_styles/BodyFields.css'
+    ]
+  },
   bunnyfeeds: {
     globs: [
       'src/shared/bunnyfeeds*.ts',
