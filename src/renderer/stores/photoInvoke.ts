@@ -64,6 +64,12 @@ export type PhotoCalls = {
         toPlaythroughId: string,
         charIds?: string[]
       ) => Promise<Result<void>>
+      /** The shape her next photo alone is drawn in, settled before it is drawn. */
+      soloOrientation: (
+        character: Character,
+        tier: string,
+        photoPrompt: string
+      ) => Promise<Result<PhotoOrientation>>
       /**
        * Resolves with the file name when the queued render finishes. `tier` has already been
        * settled by `photoGate`; nothing downstream re-opens it.

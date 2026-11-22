@@ -295,6 +295,20 @@ export function validatePhotoOverrides(
 }
 
 /**
+ * The shape a new photo of her alone is drawn in, settled before it is drawn so the screen can
+ * hold its place in that shape. Read off the prompt the photo will be drawn from.
+ */
+export async function soloPhotoOrientation(
+  character: Character,
+  tier: string,
+  photoPrompt: string
+): Promise<PhotoOrientation> {
+  if (!isPhotoTier(tier) || !photoPrompt.trim()) return 'portrait'
+  const { positive } = buildPhotoPrompt(await withBodySetting(character), tier, photoPrompt)
+  return soloOrientationOf(positive, Math.random())
+}
+
+/**
  * Renders one picture she texted the reader, into the playthrough's own photo folder.
  *
  * The tier has already been settled against the save by `photoGate`; nothing here re-opens it.

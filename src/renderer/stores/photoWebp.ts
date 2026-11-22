@@ -1,6 +1,7 @@
 import { refreshPhotoPpm } from './photoPpm'
 import { photoInvoke } from './photoInvoke'
-import { isWebpPhoto, WEBP_QUALITY } from '../../shared/photoFiles'
+import { rememberPhotoOrientation } from './photoOrientation'
+import { isWebpPhoto, photoUrl, WEBP_QUALITY } from '../../shared/photoFiles'
 import type { PhotoRenderOptions } from '../../shared/photoTypes'
 import type { Result, Character } from '@vx/modkit/shared'
 
@@ -25,6 +26,14 @@ export async function renderPhoto(
   friend?: Character,
   options?: PhotoRenderOptions
 ): Promise<Result<string>> {
+  // A new photo of her alone is given its shape first, so its waiting frame already has it.
+  if (!friend && !options?.orientation && !options?.prompts) {
+    const shape = await photoInvoke('soloOrientation', [character, tier, scene])
+    if (shape.ok) {
+      rememberPhotoOrientation(photoUrl(playthroughId, character.charId, file), shape.data)
+      options = { ...options, orientation: shape.data }
+    }
+  }
   const result = friend
     ? await photoInvoke('generateDuo', [playthroughId, character, friend, tier, scene, file, options])
     : await photoInvoke('generate', [playthroughId, character, tier, scene, file, options])

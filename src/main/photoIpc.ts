@@ -19,6 +19,7 @@ import {
   dropPhoto,
   generateDuoPhoto,
   generatePhoto,
+  soloPhotoOrientation,
   photoLanded,
   readPhotoBytes,
   reservePhotoName,
@@ -176,6 +177,11 @@ export function photoInvocations(): Record<string, InvokeHandler> {
       if (options?.replacement) return retirePhoto(playthroughId, charId, file, options.replacement)
       return dropPhoto(playthroughId, charId, file)
     }
+  )
+
+  // The shape her next photo alone is drawn in, asked before it is drawn.
+  handle('solo-orientation', (_event, character: Character, tier: string, photoPrompt: string) =>
+    soloPhotoOrientation(character, tier, photoPrompt)
   )
 
   // One picture she texted, rendered after her words have already landed on the thread.
