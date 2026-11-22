@@ -231,7 +231,7 @@ export function postPhotoLines(canRenderImages: boolean): string[] {
     'A mirror selfie only where there would be a mirror: their room, a bathroom, a changing room. Write it as what the photo shows, them facing the mirror with their phone up, not the mirror or their reflection. A picture of them from behind has no mirror and no phone in it.',
     'A close-up of their face is for their look, not their outfit or the place: say "a close-up of their face".',
     'What is not written is not drawn: "a photo of me" gets a picture of nobody in particular.',
-    'The picture is the one the post is about: whatever the text names that a camera would see — the rain on the window, the coffee beside her — is in "image" too.',
+    'The picture is the one the post is about: whatever the text names that a camera would see — the rain on the window, the coffee beside them — is in "image" too.',
     'They hold one thing at most, and in a selfie the phone already takes one hand: a bubble tea, a book, a bouquet — not an umbrella and a crepe as well. Hands that hold nothing do whatever they would do with them in a photo: a peace sign, maybe, or a hand in their hair, or nothing in particular.',
     'Their whole year sees this, so it is an ordinary picture or a flirty one at most — what they are wearing, a day out, a swimsuit. Never anything undressed, whatever they might send one person in a message.',
     'Name nobody and nowhere: a picture cannot show a name. "their room", "the quad", "a cafe" — what it looks like, never what it is called.',
