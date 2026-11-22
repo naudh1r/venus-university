@@ -1,5 +1,4 @@
 import {
-  fillPronouns,
   pronounsOf,
   genderOf,
   genderedTags,
@@ -1118,9 +1117,6 @@ const DUO_POSTURE: ReadonlySet<string> = new Set([
 ])
 
 /** Where the two of them are drawn, from what the caption asks for. */
-/** Room asked between the two of them: without it they met and merged in the middle. */
-const DUO_ROOM = ['with a little space between them', 'each in {their} own space']
-
 function duoFraming(text: string, armOut = false): { tags: string[]; scene: string[] } {
   if (
     saysAny(text, ['from behind', 'back view', 'backs to', 'looking back', 'over her shoulder'])
@@ -1133,7 +1129,7 @@ function duoFraming(text: string, armOut = false): { tags: string[]; scene: stri
   }
   // A close-up needed the framing weighted in both halves before either was drawn close.
   if (framingOf(text) === 'face') {
-    return { tags: ['(close-up:1.3)', '(portrait:1.3)'], scene: DUO_ROOM }
+    return { tags: ['(close-up:1.3)', '(portrait:1.3)'], scene: [] }
   }
   // A held-out arm needs room: waist up cropped it out of the picture. A close-up stays close.
   if (armOut && !saysAny(text, ['close-up', 'close up', 'closeup'])) {
@@ -1141,11 +1137,11 @@ function duoFraming(text: string, armOut = false): { tags: string[]; scene: stri
   }
   // Waist up, always: a whole-body shot of two drew one of them smaller, as if a step behind,
   // and her legs folded to fit her half. A close-up keeps the weighted framing; any other shot
-  // takes it plain with room asked between them, since weighted they met and merged in the middle.
+  // takes it plain. No room is asked between them: the words fenced each into a boxed-off corner.
   if (saysAny(text, ['close-up', 'close up', 'closeup'])) {
-    return { tags: ['(upper_body:1.3)'], scene: [...DUO_ROOM, 'same height'] }
+    return { tags: ['(upper_body:1.3)'], scene: ['same height'] }
   }
-  return { tags: ['upper_body'], scene: [...DUO_ROOM, 'same height'] }
+  return { tags: ['upper_body'], scene: ['same height'] }
 }
 
 /**
@@ -1354,11 +1350,7 @@ export function buildDuoPhotoPrompt(
     `${PHOTO_QUALITY}, ${duoSubjects(sender, friend).join(', ')}, depth_of_field`,
     sentence,
     'side by side',
-    ...framing.scene.map((line) =>
-      genderOf(sender) === 'male' || genderOf(friend) === 'male'
-        ? line.replace('{their}', 'their')
-        : fillPronouns(line, 'female')
-    ),
+    ...framing.scene,
     ...(mirror ? ['mirror'] : []),
     ...shared
   ]

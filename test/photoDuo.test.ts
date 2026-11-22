@@ -241,7 +241,7 @@ describe('a picture of two', () => {
     expect(buildDuoPhotoPrompt(risa, ana, 'everyday', 'A selfie of me and Ana at the park').scene).toContain('cowboy_shot')
     const photo = buildDuoPhotoPrompt(risa, ana, 'everyday', 'A photo of me and Ana at the park')
     expect(photo.scene).toContain('upper_body')
-    expect(photo.scene).toContain('a little space between them')
+    expect(photo.scene).not.toContain('space between them')
     expect(photo.scene).not.toContain('(upper_body:1.3)')
   })
 
