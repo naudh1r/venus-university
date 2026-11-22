@@ -30,6 +30,7 @@ export {
   modDetail,
   modRequest,
   openingLook,
+  optionControl,
   optionPreview,
   ownedComments,
   playerActs,

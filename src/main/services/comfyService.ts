@@ -1,3 +1,4 @@
+import { fetchObjectInfo, forgetExternalObjectInfo } from './comfyObjectInfo'
 import { MOD_ID_RULE } from '@vx/modkit/host/shared'
 import { enqueue } from '@shared/jobQueue'
 import { spawn, type ChildProcess } from 'child_process'
@@ -14,6 +15,7 @@ import {
 } from '@shared/imagePrompt'
 import { defaultTagsOf, type DefaultTags } from '@shared/defaultTags'
 import { COMFY_HOST } from '@shared/setupManifest'
+import { registeredNodePacks } from './comfyNodePacks'
 import {
   characterLoraOf,
   COMFY_MODEL_SLOTS,
@@ -94,7 +96,6 @@ const STATS_TIMEOUT_MS = 5_000
 const UPLOAD_TIMEOUT_MS = 60_000
 const SUBMIT_TIMEOUT_MS = 30_000
 const VIEW_TIMEOUT_MS = 120_000
-const OBJECT_INFO_TIMEOUT_MS = 30_000
 
 /** Which ComfyUI one job draws on, read off the settings once, when the job is queued. */
 export interface ComfyTarget {
@@ -304,6 +305,7 @@ const verified = new Map<string, Record<string, unknown>>()
 
 /** Forgets every verification of a player's own server. */
 function forgetExternal(): void {
+  forgetExternalObjectInfo()
   for (const key of [...verified.keys()]) if (key.startsWith('external ')) verified.delete(key)
 }
 
@@ -513,23 +515,6 @@ async function workflowClasses(): Promise<Set<string>> {
   return wanted
 }
 
-/** The server's whole `/object_info` listing: every class it loaded, with each input's options. */
-async function fetchObjectInfo(baseUrl: string): Promise<Record<string, unknown>> {
-  try {
-    const response = await fetch(`${baseUrl}/object_info`, {
-      signal: AbortSignal.timeout(OBJECT_INFO_TIMEOUT_MS)
-    })
-    if (!response.ok) throw new Error(`HTTP ${response.status} from /object_info`)
-    return (await response.json()) as Record<string, unknown>
-  } catch (err) {
-    throw appError(
-      'COMFY_UNREACHABLE',
-      'Could not ask ComfyUI which nodes it loaded.',
-      messageOf(err)
-    )
-  }
-}
-
 /** The classes the workflows name that a listing lacks, sorted. */
 async function missingClasses(objectInfo: Record<string, unknown>): Promise<string[]> {
   return [...(await workflowClasses())].filter((name) => !(name in objectInfo)).sort()
@@ -537,7 +522,7 @@ async function missingClasses(objectInfo: Record<string, unknown>): Promise<stri
 
 /** The lines naming what a server lacks, each pack's classes under it and ComfyUI's own last. */
 function missingNodeLines(classes: readonly string[]): string {
-  return groupMissingNodes(classes)
+  return groupMissingNodes(classes, registeredNodePacks())
     .map((group) =>
       group.pack === null
         ? `Missing core nodes (update ComfyUI, tested on v0.34): ${group.classes.join(', ')}.`
@@ -1439,6 +1424,30 @@ export interface ComfyRenderRequest {
   texts?: Record<string, string>
 }
 
+/**
+ * Refuses a mod's graph that names a class the server did not load, each one named under the
+ * pack that provides it, before anything is uploaded or queued.
+ */
+async function assertGraphClasses(
+  modId: string,
+  workflow: ComfyRenderRequest['workflow'],
+  target: ComfyTarget
+): Promise<void> {
+  const listing = await listingFor(target)
+  const missing = [...new Set(Object.values(workflow).map((node) => node.class_type))]
+    .filter((name) => !Object.hasOwn(listing, name))
+    .sort()
+  if (missing.length === 0) return
+  throw appError(
+    'COMFY_NODES_MISSING',
+    `ComfyUI is missing nodes ${modId}'s image needs.`,
+    missingNodeLines(missing) +
+      (target.source === 'external'
+        ? '\nInstall what is missing in your ComfyUI and restart it.'
+        : `\nComfyUI's log: ${getComfyLogPath()}`)
+  )
+}
+
 /** Queues a mod's graph through core's renderer and returns its checked image bytes. */
 export async function renderComfyImage(
   modId: string,
@@ -1486,6 +1495,8 @@ export async function renderComfyImage(
         throwIfCancelled(jobSignal)
         await start(target, report)
         throwIfCancelled(jobSignal)
+        await assertGraphClasses(modId, owned.workflow, target)
+        throwIfCancelled(jobSignal)
         await mkdir(getTempPath(), { recursive: true })
         scratch = await mkdtemp(join(getTempPath(), 'mod-render-'))
         const destPath = join(scratch, 'image.png')
@@ -1518,6 +1529,7 @@ export async function renderComfyImage(
         if (!imageTypeOf(bytes)) throw appError('RENDER_NOT_IMAGE', 'ComfyUI returned no readable image.')
         return new Uint8Array(bytes)
       } catch (err) {
+        if (target.source === 'external') forgetExternal()
         throwIfCancelled(jobSignal)
         throw toAppError(err, 'RENDER_FAILED')
       } finally {
@@ -2200,7 +2212,7 @@ export async function probe(url: string): Promise<ComfyProbe> {
   for (const slot of COMFY_MODEL_SLOTS) folders[slot.role] = located[slot.role].length > 0
   return {
     version,
-    missingNodes: groupMissingNodes(await missingClasses(objectInfo)),
+    missingNodes: groupMissingNodes(await missingClasses(objectInfo), registeredNodePacks()),
     models: modelListsOf(objectInfo),
     folders
   }

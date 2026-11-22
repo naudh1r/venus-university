@@ -6,9 +6,14 @@ import { getSettings } from '../services/settingsService'
 import { readCharacterImage } from '../services/characterService'
 
 /** A main-side mod request, using the configured provider without disclosing its settings. */
-export async function completeModStructured<T>(request: StructuredRequest, signal: AbortSignal, lowLatency=false): Promise<T> {
+export async function completeModStructured<T>(
+  request: Omit<StructuredRequest, 'thinking'> & Partial<Pick<StructuredRequest, 'thinking'>>,
+  signal: AbortSignal,
+  lowLatency = false
+): Promise<T> {
   const settings = lowLatency ? {...await getSettings(),thinkingLevel:'minimal' as const,reasoningEffort:'minimal' as const} : undefined
-  return completeStructured<T>(request,signal,undefined,settings)
+  // A mod's call without its own thinking row runs at the scenes row, which `lowLatency` lowers.
+  return completeStructured<T>({ thinking: 'scenes', ...request }, signal, undefined, settings)
 }
 /** Whether a generated or bundled expression is available for a scene participant. */
 export async function hasExpressionArt(id:string, expression:Emotion):Promise<boolean>{

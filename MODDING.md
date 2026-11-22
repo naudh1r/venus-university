@@ -443,8 +443,9 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
   This is not a connectivity or account-credit check; it reveals no key or endpoint.
 - `localImageSource()`, `useLocalImageSource()` and `subscribeLocalImageSource(onChange)`
   (`renderer`): `'managed'` or `'external'`, or null before settings load. This says which
-  source is selected, not whether it is ready or reachable. Both subscriptions fire only
-  when their own answer changes and return an unsubscribe function. Each exported value
+  source is selected, not whether it is ready or reachable. Its subscription also fires when
+  the external server address changes, without exposing that address. The image-credential
+  subscription fires only when its own answer changes. Both return an unsubscribe function. Each exported value
   has its matching `renderer:<name>` capability.
 - `canRenderLocalImages()` and `subscribeCanRenderLocalImages(onChange)` (`renderer`): core's
   local-rendering rule. False on the web or before settings load; external ComfyUI is available
@@ -646,6 +647,68 @@ scratch files on success, refusal and cancellation. The mod writes returned byte
 folder if wanted. Oversized output answers `RENDER_TOO_LARGE`, unrecognized bytes
 `RENDER_NOT_IMAGE`, a malformed graph `RENDER_REQUEST_INVALID`, and a bad owner id
 `MOD_ID_INVALID`. Invoke carries these through the ordinary redacted error wrapper.
+
+### A mod's own ComfyUI node pack
+
+A graph of a mod's own can need a custom-node pack the game's workflows do not. Trusted main code
+pins it with `registerComfyNodePack` from `@vx/modkit/main`, declared as
+`main:registerComfyNodePack`, in the same terms as core's packs in `shared/setupManifest.ts`:
+
+```js
+const { registerComfyNodePack } = require('@vx/modkit/main')
+
+const dispose = registerComfyNodePack('my-mod', {
+  id: 'example-nodes',
+  label: 'ComfyUI Example Nodes',
+  owner: 'example',
+  repo: 'ComfyUI-Example',
+  dirName: 'ComfyUI-Example',
+  sha: '<the full 40-character commit>',
+  bytes: 123456,
+  sha256: '<the archive's full SHA256>',
+  modules: ['example_dep'],
+  classes: ['ExampleNode']
+})
+```
+
+`id` is a lower-case dash id, unique among the mod's own packs. The archive is GitHub's for that
+exact commit, accepted only at that size and SHA256 and opened only through the game's zip gate;
+`modules` are the top-level import names its pip dependencies provide, and `classes` the node
+classes the mod's graphs take from it. A `requirements.txt` in the pack resolves from the package
+index under the same pinned constraints as core's packs, so a dependency outside them does not
+install. A malformed pin answers `COMFY_NODE_PACK_INVALID`; a second pack under the same id, or a
+`dirName` that core or another pack already uses (compared without case), answers
+`COMFY_NODE_PACK_DUPLICATE`. The returned disposer removes that registration alone.
+
+Setup never installs a mod's pack, and Install missing does not list it. The mod asks for it,
+usually from a control the player presses, with `installComfyNodePack(modId, packId, { signal,
+onProgress })` (`main:installComfyNodePack`), and reads where it stands with
+`comfyNodePackState(modId, packId)` (`main:comfyNodePackState`):
+
+- `installed`: its folder is there and every name in `modules` imports.
+- `missing`: no folder, or the game's ComfyUI runtime is not installed.
+- `invalid`: the folder is there but a dependency does not import; an install repairs it without
+  downloading again.
+- On the player's own ComfyUI, `installed` means every class in the pack's `classes` is
+  present in that server's `/object_info`. `missing` means at least one is absent.
+- `unmanaged`: the player's own server could not answer the node probe within two seconds.
+  The player installs the pack there themselves.
+
+External probes share a one-minute cache per address, including unavailable answers. Changing
+ComfyUI's source or address in Settings clears it. The managed states above are unchanged.
+
+An install goes into the game's own install only: it answers `COMFY_NODE_PACK_UNMANAGED` while the
+player's own ComfyUI is the source and `COMFY_RUNTIME_REQUIRED` before the runtime is installed.
+It runs one at a time with Setup's installs, stops a running managed server first so the next
+render boots one that loads the pack, and does nothing for a pack already installed.
+`onProgress(step, percent)` hears its steps; `signal` cancels the download, and the steps after
+it once the one running ends, answering `DOWNLOAD_ABORTED`. A pack the mod never registered
+answers `COMFY_NODE_PACK_UNKNOWN`.
+
+Before `renderComfyImage` uploads or queues anything, it checks every `class_type` in the mod's
+graph against the classes the server loaded and answers `COMFY_NODES_MISSING`, each missing class
+named under the pack that provides it, registered packs included. The game's own workflows are
+never checked against a mod's classes, so a mod's missing pack cannot stop the game's renders.
 
 ### The scene's input
 
@@ -1228,6 +1291,7 @@ else names it.
 | `modDetail` | `ModsModal.tsx` | Draw a page of its own for the mod picked on the Mods screen, its own or one built on it, in place of the list of that mod's options |
 | `updatesTab` | `BunnyboardModal.tsx` | Add a page beside the feed in the Updates tab, with an unread count |
 | `optionPreviews` | `ModsModal.tsx` | Draw a preview under one of the mod's option groups on the Mods screen |
+| `optionControls` | `ModsModal.tsx` | Draw a small control under one of the mod's ungrouped options on the Mods screen |
 | `saveNote` | `SaveGameModal.tsx` | Add a line to Save Game about what a save of the scene keeps of the mod's own |
 | `statActivities` | `slotActions.ts` | Offer a training activity in place of one of the landing's stat suggestions |
 | `slotActivityAvailable` | `gameLoop.ts`, `slotActions.ts`, `GameView.tsx` | Say whether a training activity is still there to commit to or resume |
@@ -1489,7 +1553,8 @@ has and the other mods'.
 ### Not covered yet
 
 - Screens: a mod's own panels beyond those over the game view (`scenePlay`, `gameModals`), a
-  page beside the feed (`updatesTab`), a preview on the Mods screen (`optionPreviews`) and the
+  page beside the feed (`updatesTab`), a preview and an option's own control on the Mods screen (`optionPreviews`,
+  `optionControls`) and the
   places on screen above.
 - Main process: IPC, services, settings and character rules. Protocols are covered: a mod's
   `main.js` exports routes under `vxmod://<id>/@/…`.
@@ -1558,6 +1623,7 @@ These hooks add to the existing API; existing hooks and their arguments are unch
 
 - `bunnyboardPage` registers an independently gated tab with `id`, `word`, `Mark` and `Page`. Disabling its mod unmounts the page and returns the phone to Chats. Native tab IDs cannot be replaced. Other screen integration remains direct.
 - `optionPreviews` draws a preview under an option group on the Mods screen, keyed by the group's id. The game hands it `optionId`, the option picked (or null), and draws it under the group's switches on the recessed ground. It is asked whether or not the mod is on, so a player sees it before switching the mod on.
+- `optionControls` draws a small control under the hint of an option outside any group on the Mods screen, keyed by the option's id. The game hands it `optionId` and `on`, whether that option is on, and draws it inside the option's row; one that throws is drawn as nothing. It is asked whether or not the mod is on.
 - `updatesTab` puts a page beside the feed in the Updates tab, with `id`, `word`, `Page`, an optional `unread(game)` and an optional `Action`, drawn at the end of the titles' row while the page is showing. With one or more on, Updates draws a row of titles you press, its own first (the one showing drawn as the screen's title, the rest muted over a faded blob), and the game puts each `unread` on the far corner of its title's blob and sums them onto the Updates tile and the landing's Bunnyboard badge. The page is drawn under the title; it brings its own `vu-bb-scroll`. The feed's id, `feed`, cannot be replaced; leaving the tab, or the mod switching off, comes back to the feed.
 
 ### DM request history window
