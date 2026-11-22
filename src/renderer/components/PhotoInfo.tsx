@@ -1,3 +1,5 @@
+import { useRevisedPhotoUrl } from '../stores/photoRevision'
+import { photoUrl } from '../../shared/photoFiles'
 import { photoInvoke } from '../stores/photoInvoke'
 import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
@@ -122,6 +124,7 @@ function PhotoInfoModal({
   theme: ScreenTheme
   onClose: () => void
 }): JSX.Element | null {
+  const revision = useRevisedPhotoUrl(photoUrl(playthroughId, character.charId, photo.file))
   const [info, setInfo] = useState<PhotoInfo | null>(null)
   const [recorded, setRecorded] = useState(false)
   const [busy, setBusy] = useState(true)
@@ -217,7 +220,7 @@ function PhotoInfoModal({
       active = false
     }
     // Opening captures this picture's recorded request; Rebuild reads the current character props.
-  }, [playthroughId, photo.file])
+  }, [revision, playthroughId, photo.file])
 
   /** Refills only the draft fields, retaining the seed the sidecar recorded. */
   const rebuild = async (): Promise<void> => {

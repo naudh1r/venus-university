@@ -29,7 +29,7 @@ export const MOD_FILES: Record<string, ModSet> = {
       'src/renderer/vu_styles/PhotoInfo.css',
       'src/renderer/components/PhotoPostSpots.tsx',
       'src/renderer/stores/localPhotoStore.ts',
-      'src/renderer/stores/photo{Comments,Game,Group,Invoke,Orientation,Post,Ppm,Records,Recovery,SwitchHooks,TipDelivery,Turn,Webp}.ts',
+      'src/renderer/stores/photo{Comments,Game,Group,Invoke,Orientation,Post,Ppm,Records,Recovery,Revision,SwitchHooks,TipDelivery,Turn,Webp}.ts',
       'src/renderer/views/ContactGallery.tsx',
       'src/renderer/views/bodyFields.tsx',
       'src/renderer/views/bodyDrafts.ts',

@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import { Fragment, useEffect, useState, type JSX } from 'react'
 import { postIsOut } from '../../shared/heldPosts'
+import { useRevisedPhotoUrl } from '../stores/photoRevision'
 import { photoUrl } from '../../shared/photoFiles'
 import type { ChatPhoto } from '../../shared/photoTypes'
 import { shownMessages, type SocialPost, type TimeSlot } from '@vx/modkit/shared'
@@ -97,7 +98,7 @@ function Shot({
   const redraw = usePhotoRedraw(key)
   const refusal = usePhotoRedrawReason(key)
   const requested = usePhotoRedrawOrientation(key)
-  const src = playthroughId ? photoUrl(playthroughId, charId, file) : null
+  const src = useRevisedPhotoUrl(playthroughId ? photoUrl(playthroughId, charId, file) : null)
   const loaded = usePhotoOrientation(src)
   const expected = useExpectedPhotoOrientation(photo, src)
   const orientation = (redraw === 'drawing' ? requested : undefined) ?? loaded ?? expected
@@ -109,7 +110,7 @@ function Shot({
   // A picture the save names but the folder does not hold — one a save brought along without
   // its pictures — is left out of the grid rather than drawn as an empty frame.
   const [missing, setMissing] = useState(false)
-  useEffect(() => { setMissing(false) }, [file])
+  useEffect(() => { setMissing(false) }, [src])
   if (!playthroughId) return <li className="vu-gallery-item" />
   if (missing) return null
 
@@ -317,8 +318,8 @@ export function PostPhotoLink({
 }): JSX.Element | null {
   const playthroughId = useGameFacts().playthroughId
   const visible = usePhotosVisible()
-  if (!visible || !playthroughId || !photo?.file) return null
-  const src = photoUrl(playthroughId, charId, photo.file)
+  const src = useRevisedPhotoUrl(playthroughId && photo?.file ? photoUrl(playthroughId, charId, photo.file) : null)
+  if (!visible || !src) return null
   return (
     <motion.button
       className="vu-contact-like vu-contact-photo"

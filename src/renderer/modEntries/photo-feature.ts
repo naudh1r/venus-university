@@ -1,3 +1,4 @@
+import { cancelPhotoRedraws } from '../stores/photoRedraw'
 import { refreshPhotoPpm, startPhotoPpm } from '../stores/photoPpm'
 import { photoInvoke } from '../stores/photoInvoke'
 import { registerImagePromptDraft } from '@vx/modkit/shared'
@@ -173,6 +174,9 @@ registerHooks(PHOTO_FEATURE_ID, {
 
   // A picture whose render outlived the save that asked for it: found on disk, or given up on.
   gameEntered: () => {
+    cancelPhotoRedraws()
+    const pid = gameFacts().playthroughId
+    if (pid) void photoInvoke('sweep', [pid])
     void refreshPhotoPpm()
     clearEarlyPhotos()
     void settlePendingPhotos()
