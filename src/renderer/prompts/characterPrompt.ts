@@ -566,8 +566,7 @@ export function buildCharacterPrompt(
         : 'venus-university-character-generation',
     ...(reference ? { images: [reference] } : {}),
     logFrom: preamble.length + 1,
-    // Character generation is judged better at medium, whatever the setting says.
-    minThinking: 'medium'
+    thinking: 'characters'
   }
 }
 

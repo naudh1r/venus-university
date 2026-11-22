@@ -222,6 +222,7 @@ export function buildEndingPostsPrompt(
     user,
     schema: SCHEMA,
     cacheKey: input.playthroughId,
+    thinking: 'scenes',
     kind: 'slotIntro'
   }
 }

@@ -133,7 +133,7 @@ export type Commitment = {
 };
 
 // @public
-export function completeStructured<T>(modId: string, request: StructuredRequest, options?: {
+export function completeStructured<T>(modId: string, request: Omit<StructuredRequest, 'thinking'> & Partial<Pick<StructuredRequest, 'thinking'>>, options?: {
     group?: string;
 }): Promise<Result<T>>;
 

@@ -1481,10 +1481,8 @@ export interface StructuredRequest {
     images?: ReferenceImage[];
     kind?: PromptKind;
     logFrom?: number;
-    minThinking?: ThinkingLevel;
     modTags?: Record<string, unknown>;
     parts?: PromptPart[];
-    raiseThinking?: boolean;
     sceneSpot?: SceneSpotTag;
     schema: {
         name: string;
@@ -1492,7 +1490,7 @@ export interface StructuredRequest {
     };
     // (undocumented)
     system: string;
-    thinking?: ThinkingRow;
+    thinking: ThinkingRow | ThinkingLevel;
     // (undocumented)
     user: string;
 }
