@@ -490,7 +490,8 @@ export function buildOccasionPrompt(
     system,
     user,
     schema,
-    cacheKey: 'venus-university-occasion-generation'
+    cacheKey: 'venus-university-occasion-generation',
+    thinking: 'newGame'
   }
 }
 

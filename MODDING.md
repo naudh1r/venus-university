@@ -443,8 +443,9 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
   This is not a connectivity or account-credit check; it reveals no key or endpoint.
 - `localImageSource()`, `useLocalImageSource()` and `subscribeLocalImageSource(onChange)`
   (`renderer`): `'managed'` or `'external'`, or null before settings load. This says which
-  source is selected, not whether it is ready or reachable. Both subscriptions fire only
-  when their own answer changes and return an unsubscribe function. Each exported value
+  source is selected, not whether it is ready or reachable. Its subscription also fires when
+  the external server address changes, without exposing that address. The image-credential
+  subscription fires only when its own answer changes. Both return an unsubscribe function. Each exported value
   has its matching `renderer:<name>` capability.
 - `canRenderLocalImages()` and `subscribeCanRenderLocalImages(onChange)` (`renderer`): core's
   local-rendering rule. False on the web or before settings load; external ComfyUI is available
@@ -688,7 +689,13 @@ onProgress })` (`main:installComfyNodePack`), and reads where it stands with
 - `missing`: no folder, or the game's ComfyUI runtime is not installed.
 - `invalid`: the folder is there but a dependency does not import; an install repairs it without
   downloading again.
-- `unmanaged`: the player's own ComfyUI is the image source. The player installs the pack there.
+- On the player's own ComfyUI, `installed` means every class in the pack's `classes` is
+  present in that server's `/object_info`. `missing` means at least one is absent.
+- `unmanaged`: the player's own server could not answer the node probe within two seconds.
+  The player installs the pack there themselves.
+
+External probes share a one-minute cache per address, including unavailable answers. Changing
+ComfyUI's source or address in Settings clears it. The managed states above are unchanged.
 
 An install goes into the game's own install only: it answers `COMFY_NODE_PACK_UNMANAGED` while the
 player's own ComfyUI is the source and `COMFY_RUNTIME_REQUIRED` before the runtime is installed.
