@@ -1156,15 +1156,16 @@ function waistUpDress(tag: string): string {
 }
 
 /**
- * One person's half under ppm's attention mask, opening on the whole picture's head count.
+ * One person's half under ppm's attention mask, opening on their own subject: `1girl` or `1boy`,
+ * never `solo`. The picture's head count is the scene's alone; said in both halves it named no
+ * side, and a guy's looks could land on her body and hers on his.
  */
 function duoHalf(
   girl: Character,
   tier: PhotoTier,
   scene: string,
   posture: readonly string[],
-  extra: readonly string[],
-  heads: readonly string[]
+  extra: readonly string[]
 ): { prompt: string; worn: string; names: readonly string[] } {
   const bare = tier === 'explicit'
   const dressed = bare && describesClothing(scene)
@@ -1192,7 +1193,7 @@ function duoHalf(
     prompt: plainColours(
       [
         PHOTO_QUALITY,
-        heads.join(', '),
+        genderOf(girl) === 'male' ? '1boy' : '1girl',
         ...appearance,
         ...photoSubject(girl).filter((tag) => !alone(tag) && !appearance.includes(tag)),
         ...genderedTags(body, genderOf(girl)),
@@ -1283,7 +1284,7 @@ export function duoHeadCount(sender: Character, friend: Character): string[] {
  */
 export function faceHalfOf(half: string, person: Character): string {
   const own = genderOf(person) === 'male' ? '1boy, solo, male_focus' : '1girl, solo'
-  return half.replace(/\b(?:2girls, multiple_girls|1girl, 1boy|2boys, multiple_boys)\b/, own)
+  return half.replace(/\b(?:2girls, multiple_girls|1girl, 1boy|2boys, multiple_boys|1girl|1boy)\b/, own)
 }
 
 /** The scene's subject tags: the head count, then the adult tags for who is in it. */
@@ -1330,9 +1331,8 @@ export function buildDuoPhotoPrompt(
 
   const shared = [...framing.tags]
   const faces = duoExpressions(photoRuleText(text))
-  const heads = duoHeadCount(sender, friend)
-  const left = duoHalf(sender, tier, scene, posture, [...faces.left, ...shared, ...holds], heads)
-  const right = duoHalf(friend, tier, scene, posture, [...faces.right, ...shared], heads)
+  const left = duoHalf(sender, tier, scene, posture, [...faces.left, ...shared, ...holds])
+  const right = duoHalf(friend, tier, scene, posture, [...faces.right, ...shared])
   const dressedScene = withoutOutfitName(scene, [...left.names, ...right.names])
   // A selfie lying down did not hold for two, so it is said as the photo it is drawn as.
   const sentence = lookingAtViewer(

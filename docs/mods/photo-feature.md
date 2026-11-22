@@ -181,6 +181,7 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
 - In a photo of two, each person keeps their own hair colour more often, without the other's
   colour streaking into it.
 - A face in a photo of two no longer shows a seam where the two meet in the middle.
+- A guy and a girl in one photo keep their own looks: his no longer end up on her and hers on him.
 - A feed post's picture shows what the post talks about, such as the rain or the coffee it names.
 - A guy's own name in his caption becomes "him" or "his" instead of leaving a gap, and his photos
   no longer ask for a flat chest.
@@ -472,8 +473,9 @@ checkpoint draws it.
 friend's half and negative independently of orientation. Photos of two use only
 `assets/photo/characterPhotoDuoWide.json` at 1216x832 or
 `assets/photo/characterPhotoDuoPpm.json` at 832x1216. `AttentionCouplePPM` patches the model with
-the scene over a full mask and each person's prompt over their half. Each half opens on
-`duoHeadCount` and drops `solo` and `male_focus`. The older area graphs and their render/fallback
+the scene over a full mask and each person's prompt over their half. Each half opens on its own person's subject, `1girl` or `1boy`, without `solo` or `male_focus`,
+and `duoHeadCount` puts the picture's head count in the scene alone: said in both halves, it
+named no side, and a guy's looks could land on her body. The older area graphs and their render/fallback
 paths are removed.
 
 The ppm graphs stay outside `assets/workflows`, which core checks against every server. Their face
