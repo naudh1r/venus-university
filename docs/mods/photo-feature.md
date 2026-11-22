@@ -486,7 +486,9 @@ The ppm graphs stay outside `assets/workflows`, which core checks against every 
 pass is one FaceDetailer (node 58) over the whole picture, its wildcard filled per photo as
 `[ASC]<left face>[SEP]<right face>`: faces sorted left to right, each redrawn under a face
 prompt `faceHalfOf` cuts from that person's: the quality tags, their own subject with `solo`,
-their eyes, any glasses and their expression. Hair, clothes, body and pose stay with the
+their eyes, any glasses, what is on their face (skin tone, facial hair, marks, makeup), their
+earrings and piercings, and
+their expression. Hair, clothes, body and pose stay with the
 picture's own prompt. Its crop is 1.5 times
 the face, since a wider crop took in the other face and copied its eye colour. Cutting the picture
 into halves instead left a seam wherever a face or hand crossed the middle.
