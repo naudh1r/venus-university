@@ -260,7 +260,7 @@ describe('a picture of two', () => {
     expect(faceHalfOf(old, { ...ana, gender: 'male' } as typeof ana)).toBe('masterpiece, best_quality, very_aesthetic, 1boy, solo, male_focus, light_blue_eyes, stubble, tan, smirk')
     const made = 'masterpiece, 1girl, dark_skin, freckles, pink_eyeshadow, red_lipstick, green_eyes, black_hair, smile'
     expect(faceHalfOf(made, risa)).toBe('masterpiece, best_quality, very_aesthetic, 1girl, solo, dark_skin, freckles, pink_eyeshadow, red_lipstick, green_eyes, smile')
-    const spaced = 'masterpiece, 1girl, light pink eyes, black eyeshadow, silver hoop earrings, facial scar, red scarf, grin'
-    expect(faceHalfOf(spaced, risa)).toBe('masterpiece, best_quality, very_aesthetic, 1girl, solo, light pink eyes, black eyeshadow, facial scar, grin')
+    const spaced = 'masterpiece, 1girl, light pink eyes, black eyeshadow, silver hoop earrings, silver ear_piercing, facial scar, red scarf, pink_flower_hairclip, grin'
+    expect(faceHalfOf(spaced, risa)).toBe('masterpiece, best_quality, very_aesthetic, 1girl, solo, light pink eyes, black eyeshadow, silver hoop earrings, silver ear_piercing, facial scar, grin')
   })
 })

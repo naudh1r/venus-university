@@ -1280,10 +1280,11 @@ export function duoHeadCount(sender: Character, friend: Character): string[] {
 
 /**
  * The face pass's own words: the eyes and what is worn over them, then what is on the face's own
- * skin, which a redraw left unsaid smoothed away: its tone, facial hair, marks and makeup.
+ * skin, which a redraw left unsaid smoothed away: its tone, facial hair, marks and makeup, and the
+ * earrings and piercings the crop around it takes in.
  */
 const FACE_PASS_TAG =
-  /(?:^|[_ ])eyes$|^heterochromia$|glasses|eyewear|^monocle$|^tan$|^tanlines$|[_ ]skin$|stubble|beard|mustache|goatee|freckles|^mole|(?:^|[_ ])scar(?:[_ ]|$)|facial[_ ]mark|lipstick|eyeshadow|eyeliner|^makeup$|eyelashes/
+  /(?:^|[_ ])eyes$|^heterochromia$|glasses|eyewear|^monocle$|^tan$|^tanlines$|[_ ]skin$|stubble|beard|mustache|goatee|freckles|^mole|(?:^|[_ ])scar(?:[_ ]|$)|facial[_ ]mark|lipstick|eyeshadow|eyeliner|^makeup$|eyelashes|earring|piercing/
 
 /** The expressions a face pass keeps, beside the ones a caption of two is read for. */
 const FACE_EXPRESSIONS: ReadonlySet<string> = new Set([
