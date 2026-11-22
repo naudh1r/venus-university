@@ -7,7 +7,6 @@ import {
   photoSubject
 } from './photoGender'
 import { maleTopBare, type PhotoTier } from './photoGate'
-import { hairColorOf } from './tags'
 import {
   DORM_IDS,
   dormLabel,
@@ -1179,7 +1178,7 @@ function duoHalf(
   // other's colour landing on her otherwise. Length and style tags stay as they are.
   const appearance = photoAppearance(girl)
     .filter((tag) => !alone(tag))
-    .map((tag) => (tag.endsWith('_hair') && hairColorOf([tag]) !== null ? `(${tag}:1.3)` : tag))
+    .map((tag) => (isHairColourTag(tag) ? `(${tag}:1.3)` : tag))
   const selected = wardrobeForPhoto(girl, tier, scene, dressed)
   const body = bodyTagsFor(
     bodyOf(girl),
@@ -1251,6 +1250,19 @@ function senderAsHer(sender: Character, scene: string): string {
         ),
       scene
     )
+}
+
+/** Hair tags that name a length, texture or style rather than a colour. */
+const NOT_HAIR_COLOURS: ReadonlySet<string> = new Set([
+  ...['very_short', 'short', 'medium', 'long', 'very_long', 'absurdly_long'].map((length) => `${length}_hair`),
+  ...['straight', 'wavy', 'curly', 'messy', 'spiked'].map((texture) => `${texture}_hair`),
+  'drill_hair', 'parted_hair', 'multicolored_hair', 'two-tone_hair', 'streaked_hair', 'gradient_hair',
+  'colored_inner_hair', 'floating_hair', 'wet_hair', 'big_hair'
+])
+
+/** Whether a tag names a hair colour, `dark_blue_hair` or `silver_hair` alike. */
+function isHairColourTag(tag: string): boolean {
+  return tag.endsWith('_hair') && tag.length > '_hair'.length && !NOT_HAIR_COLOURS.has(tag)
 }
 
 /** Hair tagged in two colours, kept out of a picture of two whose people are not. */
