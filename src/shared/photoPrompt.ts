@@ -7,6 +7,7 @@ import {
   photoSubject
 } from './photoGender'
 import { maleTopBare, type PhotoTier } from './photoGate'
+import { hairColorOf } from './tags'
 import {
   DORM_IDS,
   dormLabel,
@@ -1174,7 +1175,11 @@ function duoHalf(
   const dressed = bare && describesClothing(scene)
   const alone = (tag: string): boolean =>
     tag === '1girl' || tag === '1boy' || SOLO_TAGS.has(tag)
-  const appearance = photoAppearance(girl).filter((tag) => !alone(tag))
+  // Her hair colour weighted: two people under one attention, it held only weighted, the
+  // other's colour landing on her otherwise. Length and style tags stay as they are.
+  const appearance = photoAppearance(girl)
+    .filter((tag) => !alone(tag))
+    .map((tag) => (tag.endsWith('_hair') && hairColorOf([tag]) !== null ? `(${tag}:1.3)` : tag))
   const selected = wardrobeForPhoto(girl, tier, scene, dressed)
   const body = bodyTagsFor(
     bodyOf(girl),
@@ -1247,6 +1252,9 @@ function senderAsHer(sender: Character, scene: string): string {
       scene
     )
 }
+
+/** Hair tagged in two colours, kept out of a picture of two whose people are not. */
+const TWO_TONE: readonly string[] = ['multicolored_hair', 'two-tone_hair']
 
 /** Tags that say a picture holds one person, which a half seen over the whole picture drops. */
 const SOLO_TAGS: ReadonlySet<string> = new Set(['solo', 'male_focus'])
@@ -1347,6 +1355,8 @@ export function buildDuoPhotoPrompt(
   const negative = [
     PHOTO_NEGATIVE.replace('__PEOPLE__', peopleNegative([sender, friend], bare)),
     ...(genderOf(sender) === 'female' && genderOf(friend) === 'female' ? ['3girls'] : []),
+    // One's colour bled into the other's ends as a streak; kept off unless either is tagged so.
+    ...TWO_TONE.filter((tag) => ![sender, friend].some((one) => photoAppearance(one).includes(tag))),
     ...(bare
       ? []
       : dressedNegative(
