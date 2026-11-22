@@ -1278,13 +1278,36 @@ export function duoHeadCount(sender: Character, friend: Character): string[] {
       : ['1girl', '1boy']
 }
 
+/** The face pass's own words: what a face shows, worn over the eyes, or shows on it. */
+const FACE_PASS_TAG = /(?:^|_)eyes$|^heterochromia$|glasses|eyewear|^monocle$/
+
+/** The expressions a face pass keeps, beside the ones a caption of two is read for. */
+const FACE_EXPRESSIONS: ReadonlySet<string> = new Set([
+  ...DUO_EXPRESSIONS.flatMap(([, tags]) => tags),
+  'blush',
+  'seductive_smile',
+  'light_smile',
+  'frown',
+  'surprised',
+  'crying',
+  'tears'
+])
+
 /**
- * One person's half of a ppm picture with her own subject in place of the head count, for the
- * face pass, which redraws her face alone and drew a second face under the picture's count.
+ * One person's prompt cut down to their face, for the face pass of a photo of two: the quality
+ * tags, their own subject alone, their eyes, any glasses and their expression. Hair, clothes,
+ * body and pose stay with the picture's own prompt; the pass only redraws the face.
  */
 export function faceHalfOf(half: string, person: Character): string {
-  const own = genderOf(person) === 'male' ? '1boy, solo, male_focus' : '1girl, solo'
-  return half.replace(/\b(?:2girls, multiple_girls|1girl, 1boy|2boys, multiple_boys|1girl|1boy)\b/, own)
+  const own = genderOf(person) === 'male' ? ['1boy', 'solo', 'male_focus'] : ['1girl', 'solo']
+  const face = half
+    .split(/,\s*/)
+    .map((tag) => tag.trim())
+    .filter((tag) => {
+      const bare = tag.replace(/^\(|:[\d.]+\)$/g, '').trim()
+      return FACE_PASS_TAG.test(bare) || FACE_EXPRESSIONS.has(bare)
+    })
+  return [PHOTO_QUALITY, ...own, ...face].join(', ')
 }
 
 /** The scene's subject tags: the head count, then the adult tags for who is in it. */
