@@ -1278,8 +1278,12 @@ export function duoHeadCount(sender: Character, friend: Character): string[] {
       : ['1girl', '1boy']
 }
 
-/** The face pass's own words: what a face shows, worn over the eyes, or shows on it. */
-const FACE_PASS_TAG = /(?:^|_)eyes$|^heterochromia$|glasses|eyewear|^monocle$/
+/**
+ * The face pass's own words: the eyes and what is worn over them, then what is on the face's own
+ * skin, which a redraw left unsaid smoothed away: its tone, facial hair, marks and makeup.
+ */
+const FACE_PASS_TAG =
+  /(?:^|[_ ])eyes$|^heterochromia$|glasses|eyewear|^monocle$|^tan$|^tanlines$|[_ ]skin$|stubble|beard|mustache|goatee|freckles|^mole|(?:^|[_ ])scar(?:[_ ]|$)|facial[_ ]mark|lipstick|eyeshadow|eyeliner|^makeup$|eyelashes/
 
 /** The expressions a face pass keeps, beside the ones a caption of two is read for. */
 const FACE_EXPRESSIONS: ReadonlySet<string> = new Set([
@@ -1295,8 +1299,9 @@ const FACE_EXPRESSIONS: ReadonlySet<string> = new Set([
 
 /**
  * One person's prompt cut down to their face, for the face pass of a photo of two: the quality
- * tags, their own subject alone, their eyes, any glasses and their expression. Hair, clothes,
- * body and pose stay with the picture's own prompt; the pass only redraws the face.
+ * tags, their own subject alone, their eyes and any glasses, what is on the skin of their face,
+ * and their expression. Hair, clothes, body and pose stay with the picture's own prompt; the pass
+ * only redraws the face.
  */
 export function faceHalfOf(half: string, person: Character): string {
   const own = genderOf(person) === 'male' ? ['1boy', 'solo', 'male_focus'] : ['1girl', 'solo']

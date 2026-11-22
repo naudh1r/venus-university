@@ -253,10 +253,14 @@ describe('a picture of two', () => {
     expect(prompts.right).not.toContain('outstretched_arm')
   })
 
-  it("gives the face pass each person's own subject, eyes, glasses and expression alone", () => {
+  it("gives the face pass each person's own subject, eyes, glasses, face and expression alone", () => {
     const half = 'masterpiece, best_quality, very_aesthetic, 1girl, mature_female, (light_blonde_hair:1.3), blue_eyes, medium_hair, pink_flower_hairclip, silver_round_glasses, medium_breasts, (yellow_cropped_zip_hoodie:1.2), standing, one_eye_closed, v, selfie, (outstretched_arm:1.3), upper_body'
     expect(faceHalfOf(half, risa)).toBe('masterpiece, best_quality, very_aesthetic, 1girl, solo, blue_eyes, silver_round_glasses, one_eye_closed')
-    const old = 'masterpiece, 1girl, 1boy, light_blue_eyes, short_hair, stubble, smirk, upper_body'
-    expect(faceHalfOf(old, { ...ana, gender: 'male' } as typeof ana)).toBe('masterpiece, best_quality, very_aesthetic, 1boy, solo, male_focus, light_blue_eyes, smirk')
+    const old = 'masterpiece, 1girl, 1boy, light_blue_eyes, short_hair, stubble, tan, smirk, upper_body'
+    expect(faceHalfOf(old, { ...ana, gender: 'male' } as typeof ana)).toBe('masterpiece, best_quality, very_aesthetic, 1boy, solo, male_focus, light_blue_eyes, stubble, tan, smirk')
+    const made = 'masterpiece, 1girl, dark_skin, freckles, pink_eyeshadow, red_lipstick, green_eyes, black_hair, smile'
+    expect(faceHalfOf(made, risa)).toBe('masterpiece, best_quality, very_aesthetic, 1girl, solo, dark_skin, freckles, pink_eyeshadow, red_lipstick, green_eyes, smile')
+    const spaced = 'masterpiece, 1girl, light pink eyes, black eyeshadow, silver hoop earrings, facial scar, red scarf, grin'
+    expect(faceHalfOf(spaced, risa)).toBe('masterpiece, best_quality, very_aesthetic, 1girl, solo, light pink eyes, black eyeshadow, facial scar, grin')
   })
 })
