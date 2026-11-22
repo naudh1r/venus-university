@@ -1,0 +1,17 @@
+/* Emoji inside sent text: one object with every caller that shows what somebody typed. */
+
+/* An emoji among words, a size up so its picture stands as tall as the letters; its line stays the
+   line the words set. */
+.vu-emoji-inline {
+  font-size: 1.3em;
+  line-height: 0;
+  vertical-align: -0.1em;
+}
+
+/* A message of nothing but a few emoji, drawn big. */
+.vu-emoji-big {
+  display: inline-block;
+  font-size: 2.6em;
+  line-height: 1.15;
+  letter-spacing: 0.04em;
+}

@@ -49,5 +49,14 @@ export const MOD_FILES: Record<string, ModSet> = {
       'src/renderer/vu_styles/Bunnyfeeds.css'
     ]
   },
-  'after-hours': { globs: ['src/shared/afterHours*.ts', 'src/renderer/mods/afterHours*', 'src/renderer/vu_styles/AfterHours.css'] }
+  'after-hours': { globs: ['src/shared/afterHours*.ts', 'src/renderer/mods/afterHours*', 'src/renderer/vu_styles/AfterHours.css'] },
+  'emoji-extended': {
+    globs: [
+      'src/renderer/components/Emoji*',
+      'src/renderer/components/emojiData.json',
+      'src/renderer/stores/emojiPrefs.ts',
+      'src/renderer/vu_styles/EmojiPicker.css',
+      'src/renderer/vu_styles/EmojiText.css'
+    ]
+  }
 }
