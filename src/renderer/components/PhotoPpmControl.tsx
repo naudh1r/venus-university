@@ -15,7 +15,7 @@ import { photoInvoke } from '../stores/photoInvoke'
 /** The duo option's pack state and install confirmation, or a note for the player's own server. */
 /** The node pack's repository, opened in the player's browser. */
 const PPM_LINK = (
-  <a href="https://github.com/pamparamm/ComfyUI-ppm" target="_blank" rel="noreferrer">ComfyUI-ppm</a>
+  <a className="vu-link" href="https://github.com/pamparamm/ComfyUI-ppm" target="_blank" rel="noreferrer">ComfyUI-ppm</a>
 )
 
 export function PhotoPpmControl({ on }: OptionControlProps): JSX.Element | null {
