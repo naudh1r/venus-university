@@ -116,14 +116,17 @@ of one person, with no pair chosen or pair cooldown used. The switch keeps your 
 the pack is available. Until the pack's state is known, photos show one person too.
 
 Photos of two start wide, 1216x832. The info panel can redraw them portrait, 832x1216, with ppm
-too. Solo photos still start portrait and can be redrawn wide. Older photos of two stay visible.
+too. A solo photo starts wide or portrait at random, a standing head-to-toe shot or standing
+mirror selfie always portrait, and either can be redrawn in the other shape. Older photos of two stay visible.
 Their next redraw uses ppm, with new halves shown in the info panel beforehand. Without ppm,
 a redraw of a photo of two fails and keeps the old picture. It never uses the older drawing method.
 
 Still being tuned: a face, outfit or colour sometimes comes out wrong. Close-ups and rear views
 hold less well than plain shots. Where one person reaches into the other's half, a hand, an arm
 or hair, the two can still meet in the middle and their colours can bleed. A wide photo makes
-that rarer, but not always, and a reroll usually fixes it. Hair colour spills less often since
+that rarer, but not always, and a reroll usually fixes it. A portrait photo of two leaves each
+person only half of a narrow picture: once they lean together, one's hair and colours land on the
+other, so wide is the shape to keep them apart in. Hair colour spills less often since
 each colour is weighted. A long dress beside a top can pull one person further down. A chin resting on a hand stays in
 the sentence, since tagging it made elbows merge across the picture.
 
