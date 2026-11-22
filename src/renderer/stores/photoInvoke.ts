@@ -5,16 +5,18 @@ import { PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 
 export type PhotoCalls = {
       /**
-       * The name the next picture of `kind` will land under, settled before it is drawn so the
+       * The random name the next picture will land under, settled before it is drawn so the
        * bubble waiting for it carries that name into the save immediately. `inSave` is every
        * name the save already points at for her, which is never handed out again.
        */
       reserveName: (
         playthroughId: string,
         character: Character,
-        kind: string,
         inSave: readonly string[]
       ) => Promise<Result<string>>
+      reserveRedraw: (pid: string, character: Character, saved: readonly string[]) => Promise<Result<string>>
+      replace: (pid: string, charId: string, file: string, temporary: string) => Promise<Result<void>>
+      sweep: (pid: string) => Promise<Result<void>>
       /**
        * Whether a picture a bubble is still waiting for is on disk after all. Asked on load: a
        * render can finish after the save that was waiting for it was written.
@@ -40,12 +42,12 @@ export type PhotoCalls = {
       ppmState: () => Promise<Result<PhotoPpmState>>
       /** Installs ComfyUI-ppm into the game's own ComfyUI, restarting it on the next render. */
       installPpm: () => Promise<Result<void>>
-      /** Cancels one render, retires a replacement, or removes an unused picture. */
+      /** Cancels one render or removes an unused picture. */
       drop: (
         playthroughId: string,
         charId: string,
         file: string,
-        options?: { cancelOnly?: boolean; replacement?: string }
+        options?: { cancelOnly?: boolean }
       ) => Promise<Result<void>>
       /** Keeps the WebP encoded from a picture that landed as PNG, and drops the PNG. */
       storeWebp: (

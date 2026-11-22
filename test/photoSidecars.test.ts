@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { isPhotoFile, isPhotoSidecar, nextPhotoIndex, photoSidecarOf } from '../src/shared/photoFiles'
+import { isPhotoFile, isPhotoSidecar, photoSidecarOf } from '../src/shared/photoFiles'
 
 describe('photo sidecar names', () => {
   it('shares a stem with current PNG/WebP pictures and legacy pictures', () => {
-    for (const file of ['risa_chat_001.png', 'risa_chat_001.webp', 'risa_bunnyboard_123456.webp', 'photo_1790092329373_a1b2c3d4.png']) {
+    for (const file of ['k3f9x2ab7q.png', 'k3f9x2ab7q.webp', 'risa_chat_001.png', 'risa_chat_001.webp', 'risa_bunnyboard_123456.webp', 'photo_1790092329373_a1b2c3d4.png']) {
       const sidecar = photoSidecarOf(file)
       expect(isPhotoSidecar(sidecar)).toBe(true)
       expect(photoSidecarOf(sidecar.replace(/\.json$/, '.png'))).toBe(sidecar)
@@ -19,8 +19,4 @@ describe('photo sidecar names', () => {
     }
   })
 
-  it('reserves past pictures alone, ignoring sidecars even with a higher counter', () => {
-    expect(nextPhotoIndex(['risa_chat_003.webp', 'risa_chat_099.json', 'risa_bunnyboard_100.png'], 'risa', 'chat')).toBe(4)
-    expect(nextPhotoIndex(['risa_chat_099.json'], 'risa', 'chat')).toBe(1)
-  })
 })

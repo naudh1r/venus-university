@@ -1,6 +1,7 @@
 import type { ChatMessage } from '@vx/modkit/shared'
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useState, type JSX } from 'react'
+import { useRevisedPhotoUrl } from '../stores/photoRevision'
 import { photoUrl } from '../../shared/photoFiles'
 import { photoGenerationOn } from '../../shared/photoSwitches'
 import type { ChatPhoto, PhotoOrientation, PhotoRenderOptions } from '../../shared/photoTypes'
@@ -95,7 +96,7 @@ export function MessagePhoto({
   const redraw = usePhotoRedraw(key)
   const refusal = usePhotoRedrawReason(key)
   const requested = usePhotoRedrawOrientation(key)
-  const src = playthroughId && photo.file ? photoUrl(playthroughId, charId, photo.file) : null
+  const src = useRevisedPhotoUrl(playthroughId && photo.file ? photoUrl(playthroughId, charId, photo.file) : null)
   const loaded = usePhotoOrientation(src)
   const expected = useExpectedPhotoOrientation(photo, src)
   const orientation = (redraw === 'drawing' ? requested : undefined) ?? loaded ?? expected
@@ -104,7 +105,7 @@ export function MessagePhoto({
   // A picture the renderer cannot load says so, rather than collapsing to nothing and leaving
   // her talking about a photograph that is not there.
   const [broken, setBroken] = useState(false)
-  useEffect(() => { setBroken(false) }, [photo.file])
+  useEffect(() => { setBroken(false) }, [src])
   const modOn = usePhotoSwitches().on
   // An undressed picture while they are forbidden stays covered, whatever was tapped before.
   const explicitBlocked = useExplicitBlocked()
@@ -215,7 +216,7 @@ function RerollablePhoto({
   const photosOn = photoGenerationOn(usePhotoSwitches())
   const [missing, setMissing] = useState(false)
   const playthroughId = useGameFacts().playthroughId
-  const src = playthroughId && photo.file ? photoUrl(playthroughId, charId, photo.file) : null
+  const src = useRevisedPhotoUrl(playthroughId && photo.file ? photoUrl(playthroughId, charId, photo.file) : null)
   const loaded = usePhotoOrientation(src)
   const expected = useExpectedPhotoOrientation(photo, src)
   if ((photo.failed || (missing && !photo.pending)) && photo.file && photo.scene) {
@@ -333,7 +334,8 @@ export function PhotoLightboxHost(): JSX.Element | null {
       shotListeners.delete(setShot)
     }
   }, [])
-  const orientation = usePhotoOrientation(shot)
+  const revisedShot = useRevisedPhotoUrl(shot)
+  const orientation = usePhotoOrientation(revisedShot)
   if (!shot) return null
   return (
     <div
@@ -342,7 +344,7 @@ export function PhotoLightboxHost(): JSX.Element | null {
         if (event.target instanceof HTMLImageElement) loadedPhotoOrientation(event.target)
       }}
     >
-      <Lightbox src={shot} onClose={() => openShot(null)} />
+      <Lightbox src={revisedShot!} onClose={() => openShot(null)} />
     </div>
   )
 }

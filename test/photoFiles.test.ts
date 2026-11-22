@@ -1,104 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import {
-  isPhotoFile,
-  isWebpPhoto,
-  nextPhotoIndex,
-  photoFileName,
-  photoIndexOf,
-  photoSlug,
-  photoUrl,
-  pngPhotoOf
-} from '../src/shared/photoFiles'
+import { isPhotoFile, isWebpPhoto, photoUrl, pngPhotoOf } from '../src/shared/photoFiles'
 
-describe('a picture saved as WebP', () => {
-  it('is named, read and counted like a PNG', () => {
-    const name = photoFileName('risa', 'chat', 3, 'webp')
-    expect(name).toBe('risa_chat_003.webp')
+describe('photo names', () => {
+  it.each(['k3f9x2ab7q.png', 'k3f9x2ab7q.webp', 'risa_chat_003.png', 'risa_bunnyboard_123456.webp', 'photo_1790092329373_a1b2c3d4.png'])('accepts %s', name => {
     expect(isPhotoFile(name)).toBe(true)
-    expect(isWebpPhoto(name)).toBe(true)
-    expect(photoIndexOf(name, 'risa', 'chat')).toBe(3)
-    expect(nextPhotoIndex(['risa_chat_001.png', name], 'risa', 'chat')).toBe(4)
+    expect(isWebpPhoto(name)).toBe(name.endsWith('.webp'))
+    expect(pngPhotoOf(name)).toMatch(/\.png$/)
   })
-
-  it('is rendered under its PNG name first', () => {
-    expect(pngPhotoOf('risa_chat_003.webp')).toBe('risa_chat_003.png')
-    expect(isWebpPhoto('risa_chat_003.png')).toBe(false)
-    expect(isPhotoFile('risa_chat_003.gif')).toBe(false)
-  })
-})
-
-describe('photoFileName', () => {
-  it('names a picture after the girl, the thread and which one it is', () => {
-    expect(photoFileName('risa', 'bunnyboard', 1)).toBe('risa_bunnyboard_001.png')
-    expect(photoFileName('risa', 'chat', 12)).toBe('risa_chat_012.png')
-  })
-
-  it('mints a name the protocol will serve', () => {
-    expect(isPhotoFile(photoFileName('risa', 'bunnyboard', 1))).toBe(true)
-    expect(isPhotoFile(photoFileName('risa', 'chat', 999))).toBe(true)
-  })
-
-  /** A save from before the rename still points at these, and the pictures are still there. */
-  it('still reads the names it used to mint', () => {
-    expect(isPhotoFile('photo_1790092329373_a1b2c3d4.png')).toBe(true)
-  })
-
-  it('refuses anything it did not mint', () => {
-    expect(isPhotoFile('../secrets.png')).toBe(false)
-    expect(isPhotoFile('photo_1790092329373_A1B2C3D4.png')).toBe(false)
-    expect(isPhotoFile('sprite_1790092329373_a1b2c3d4.png')).toBe(false)
-    expect(isPhotoFile('risa_diary_001.png')).toBe(false)
-    expect(isPhotoFile('Risa_chat_001.png')).toBe(false)
-    expect(isPhotoFile('risa_chat_1.png')).toBe(false)
-  })
-})
-
-describe('photoSlug', () => {
-  it('is her first name, as a filename', () => {
-    expect(photoSlug('Risa', 'fc585bfd-7')).toBe('risa')
-    expect(photoSlug('Maddy Katherine', 'x')).toBe('maddykatherine')
-  })
-
-  /** A name with nothing a filename can keep still has to produce one. */
-  it('falls back to her id where her name leaves nothing', () => {
-    expect(photoSlug('???', 'FC585BFD-760f')).toBe('fc585bfd')
-    expect(photoSlug('', 'abc12345-9')).toBe('abc12345')
-  })
-})
-
-describe('nextPhotoIndex', () => {
-  it('starts at one in an empty folder', () => {
-    expect(nextPhotoIndex([], 'risa', 'chat')).toBe(1)
-  })
-
-  it('counts past the highest one taken, not the number of them', () => {
-    const taken = ['risa_chat_001.png', 'risa_chat_004.png', 'risa_chat_002.png']
-    expect(nextPhotoIndex(taken, 'risa', 'chat')).toBe(5)
-  })
-
-  /** Her Bunnyboard pictures and her chat pictures count separately, as do the other girls'. */
-  it('counts the pictures of one girl and one kind, and no others', () => {
-    const taken = [
-      'risa_chat_007.png',
-      'risa_bunnyboard_002.png',
-      'maddy_bunnyboard_009.png',
-      'photo_1790092329373_a1b2c3d4.png'
-    ]
-    expect(nextPhotoIndex(taken, 'risa', 'bunnyboard')).toBe(3)
-    expect(nextPhotoIndex(taken, 'risa', 'chat')).toBe(8)
-    expect(nextPhotoIndex(taken, 'ines', 'chat')).toBe(1)
-  })
-})
-
-describe('photoIndexOf', () => {
-  it('reads the counter back out of a name', () => {
-    expect(photoIndexOf('risa_chat_012.png', 'risa', 'chat')).toBe(12)
-  })
-
-  it('answers null for a name belonging to somebody or something else', () => {
-    expect(photoIndexOf('risa_chat_012.png', 'risa', 'bunnyboard')).toBe(null)
-    expect(photoIndexOf('maddy_chat_012.png', 'risa', 'chat')).toBe(null)
-    expect(photoIndexOf('photo_1790092329373_a1b2c3d4.png', 'risa', 'chat')).toBe(null)
+  it.each(['abcdefghi.png', 'abcdefghijk.png', 'Abcdefghij.png', 'abcdefghi_.png', '../abcdefghij.png', 'abcdefghij.gif', 'abcdefghij.png\n', 'risa_chat_1.png', 'risa_diary_001.png', 'photo_1_A1B2C3D4.png', 'abcdefghij.json'])('refuses %s', name => {
+    expect(isPhotoFile(name)).toBe(false)
   })
 })
 

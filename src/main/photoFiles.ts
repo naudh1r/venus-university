@@ -1,6 +1,7 @@
+import { recoverPhotoSwap } from './photoSwap'
 import { constants } from 'fs'
-import { copyFile, lstat, mkdir, readdir, readFile, rm, rmdir } from 'fs/promises'
-import { basename, dirname, join } from 'path'
+import { copyFile, lstat, mkdir, readdir, readFile, realpath, rm, rmdir } from 'fs/promises'
+import { basename, dirname, join, resolve } from 'path'
 import { modDataPath, sniffImageFile, writeAtomicBytes } from '@vx/modkit/main'
 import { SAFE_CHAR_ID, assertSafeCharId, assertSafePlaythroughId, appError } from '@vx/modkit/shared'
 import { isPhotoFile, isPhotoSidecar, pngPhotoOf } from '../shared/photoFiles'
@@ -59,9 +60,19 @@ async function regularFile(path: string): Promise<boolean> {
   }
 }
 
+/** Refuses folders reached through a link, while Windows paths remain case-insensitive. */
+async function unlinkedFolder(folder: string): Promise<boolean> {
+  const actual = await realpath(folder)
+  const requested = resolve(folder)
+  return process.platform === 'win32'
+    ? actual.toLowerCase() === requested.toLowerCase()
+    : actual === requested
+}
+
 /** The real character folders under a root, excluding the native camera roll's files. */
 export async function photoCharacters(root: string): Promise<string[]> {
   try {
+    if (!(await unlinkedFolder(root))) return []
     return (await readdir(root, { withFileTypes: true }))
       .filter(entry => entry.isDirectory() && SAFE_CHAR_ID.test(entry.name))
       .map(entry => entry.name)
@@ -74,6 +85,7 @@ export async function photoCharacters(root: string): Promise<string[]> {
 /** The regular Photo image and sidecar files in a character folder. */
 export async function photoNames(folder: string): Promise<string[]> {
   try {
+    if (!(await unlinkedFolder(folder))) return []
     return (await readdir(folder, { withFileTypes: true }))
       .filter(entry => entry.isFile() && (isPhotoImage(entry.name) || isPhotoSidecar(entry.name)))
       .map(entry => entry.name)
@@ -134,7 +146,7 @@ export async function copyPhotoFile(source: string, dest: string, keepExisting =
   }
 }
 
-/** Every checkpoint and replay naming an image; an unreadable record refuses retirement. */
+/** Every checkpoint and replay naming an image; an unreadable record prevents cleanup. */
 export async function photoReferences(pid: string): Promise<{ saved: Set<string>; all: Set<string> }> {
   const root = photoPlaythroughPath(pid)
   const saved = new Set<string>(), all = new Set<string>()
@@ -251,6 +263,7 @@ export async function findPhotoImage(pid: string, charId: string, file: string):
   assertSafeCharId(charId)
   await movePhotoFiles(pid).catch(error => console.warn('[photo] legacy move will retry:', error))
   for (const root of photoReadRoots(pid)) {
+    await recoverPhotoSwap(join(root, charId), file)
     for (const name of [file.replace(/\.(png|webp)$/, '.webp'), pngPhotoOf(file)]) {
       const path = join(root, charId, name)
       if (await regularFile(path)) return path
@@ -276,6 +289,7 @@ export async function findPhotoSidecar(
 ): Promise<PhotoSidecar | undefined> {
   await movePhotoFiles(pid).catch(error => console.warn('[photo] legacy move will retry:', error))
   for (const root of photoReadRoots(pid)) {
+    await recoverPhotoSwap(join(root, charId), file.replace(/\.json$/, '.png'))
     const info = await readPhotoSidecar(join(root, charId, file))
     if (info) return info
   }
