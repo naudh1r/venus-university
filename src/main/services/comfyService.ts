@@ -1,3 +1,4 @@
+import { fetchObjectInfo, forgetExternalObjectInfo } from './comfyObjectInfo'
 import { MOD_ID_RULE } from '@vx/modkit/host/shared'
 import { enqueue } from '@shared/jobQueue'
 import { spawn, type ChildProcess } from 'child_process'
@@ -95,7 +96,6 @@ const STATS_TIMEOUT_MS = 5_000
 const UPLOAD_TIMEOUT_MS = 60_000
 const SUBMIT_TIMEOUT_MS = 30_000
 const VIEW_TIMEOUT_MS = 120_000
-const OBJECT_INFO_TIMEOUT_MS = 30_000
 
 /** Which ComfyUI one job draws on, read off the settings once, when the job is queued. */
 export interface ComfyTarget {
@@ -305,6 +305,7 @@ const verified = new Map<string, Record<string, unknown>>()
 
 /** Forgets every verification of a player's own server. */
 function forgetExternal(): void {
+  forgetExternalObjectInfo()
   for (const key of [...verified.keys()]) if (key.startsWith('external ')) verified.delete(key)
 }
 
@@ -512,23 +513,6 @@ async function workflowClasses(): Promise<Set<string>> {
     for (const node of Object.values(graph)) wanted.add(node.class_type)
   }
   return wanted
-}
-
-/** The server's whole `/object_info` listing: every class it loaded, with each input's options. */
-async function fetchObjectInfo(baseUrl: string): Promise<Record<string, unknown>> {
-  try {
-    const response = await fetch(`${baseUrl}/object_info`, {
-      signal: AbortSignal.timeout(OBJECT_INFO_TIMEOUT_MS)
-    })
-    if (!response.ok) throw new Error(`HTTP ${response.status} from /object_info`)
-    return (await response.json()) as Record<string, unknown>
-  } catch (err) {
-    throw appError(
-      'COMFY_UNREACHABLE',
-      'Could not ask ComfyUI which nodes it loaded.',
-      messageOf(err)
-    )
-  }
 }
 
 /** The classes the workflows name that a listing lacks, sorted. */
@@ -1545,6 +1529,7 @@ export async function renderComfyImage(
         if (!imageTypeOf(bytes)) throw appError('RENDER_NOT_IMAGE', 'ComfyUI returned no readable image.')
         return new Uint8Array(bytes)
       } catch (err) {
+        if (target.source === 'external') forgetExternal()
         throwIfCancelled(jobSignal)
         throw toAppError(err, 'RENDER_FAILED')
       } finally {

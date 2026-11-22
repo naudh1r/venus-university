@@ -1,3 +1,4 @@
+import { externalObjectInfo } from './comfyObjectInfo'
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
 import {
@@ -39,7 +40,7 @@ import { getSettings } from './settingsService'
 import { findMissingModules, hasRequirements, pipInstallRequirements } from './pythonService'
 import { withRetry } from '@shared/retry'
 import { appError, toAppError } from '@shared/errors'
-import { comfySourceOf } from '@shared/comfyModels'
+import { comfySourceOf, comfyUrlOf } from '@shared/comfyModels'
 
 /** Progress reporter passed down into each component's install routine. */
 type Report = (step: string, percent?: number, bytes?: { done: number; total?: number }) => void
@@ -600,11 +601,16 @@ export type ComfyNodePackState = 'installed' | 'missing' | 'invalid' | 'unmanage
 /**
  * A mod's registered pack read the way Setup reads core's: `missing` without its folder (or
  * without the managed runtime), `invalid` where its folder is there but an import name it needs
- * does not resolve, and `unmanaged` while the player's own ComfyUI is the source.
+ * does not resolve. A player's own server is checked for the pack's classes, or answers
+ * `unmanaged` when it cannot be reached within the short probe deadline.
  */
 export async function comfyNodePackState(modId: string, packId: string): Promise<ComfyNodePackState> {
   const pack = registeredNodePack(modId, packId)
-  if (comfySourceOf(await getSettings()) === 'external') return 'unmanaged'
+  const settings = await getSettings()
+  if (comfySourceOf(settings) === 'external') {
+    const listing = await externalObjectInfo(comfyUrlOf(settings))
+    return listing === null ? 'unmanaged' : pack.classes.every(name => Object.hasOwn(listing, name)) ? 'installed' : 'missing'
+  }
   if ((await fileSize(getComfyPythonPath())) === null) return 'missing'
   const { present, missing, probeError } = await probeNodes([pack])
   if (!present[0]) return 'missing'
@@ -626,15 +632,15 @@ export function installComfyNodePack(
   const pack = registeredNodePack(modId, packId)
   return serialized(async () => {
     if (signal?.aborted) throw appError('DOWNLOAD_ABORTED', 'The install was cancelled.')
-    const state = await comfyNodePackState(modId, packId)
-    if (state === 'installed') return
-    if (state === 'unmanaged') {
+    if (comfySourceOf(await getSettings()) === 'external') {
       throw appError(
         'COMFY_NODE_PACK_UNMANAGED',
         `${pack.label} installs only into the game's own ComfyUI.`,
         'Your own ComfyUI is the image source: install the pack there yourself and restart it.'
       )
     }
+    const state = await comfyNodePackState(modId, packId)
+    if (state === 'installed') return
     if ((await fileSize(getComfyPythonPath())) === null) {
       throw appError(
         'COMFY_RUNTIME_REQUIRED',
