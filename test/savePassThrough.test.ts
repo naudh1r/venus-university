@@ -435,7 +435,7 @@ describe('a stranger’s key on a save', () => {
       { type: 'loved' as const, desc: 'the reader was very kind' },
       { type: 'loved' as const, desc: 'the reader texted all night' }
     ]
-    const edits = memoryEditsOf(rows, answers, save.date)
+    const edits = memoryEditsOf(rows, answers, save.date, { a: 'female' }, 'he', 'Alex')
     expect(edits).toHaveLength(2)
     // What the boundary's filing does with each edit.
     for (const { charId, match, next } of edits) {

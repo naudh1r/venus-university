@@ -137,6 +137,11 @@ export function noNsfwImagesOf(state: SettingsStoreState): boolean {
   return state.settings?.noNsfwImages === true
 }
 
+/** Whether the stock CGs are kept to a reader they match, as they are until the player says not. */
+export function matchCgBiologyOf(state: SettingsStoreState): boolean {
+  return state.settings?.matchCgBiology !== false
+}
+
 /**
  * The current non-secret settings as a patch, for a caller changing one field. Named rather
  * than spread so the presence flags cannot ride along into a write.
@@ -146,13 +151,17 @@ export function patchOf(settings: RendererSettings): SettingsPatch {
     apiProvider: settings.apiProvider,
     apiModel: settings.apiModel,
     thinkingLevel: settings.thinkingLevel,
+    // Carried, or a save made from anywhere else would put Gemini's other rows back to their
+    // defaults.
+    thinkingLevels: settings.thinkingLevels,
     // Carried, or a save made from anywhere else would drop the custom endpoint the writer
-    // runs on, the endpoint's models, the effort and tier it runs at, the reply cap it is sent
+    // runs on, the endpoint's models, the efforts and tier it runs at, the reply cap it is sent
     // and where its pictures are drawn.
     endpointUrl: settings.endpointUrl,
     endpointModel: settings.endpointModel,
     endpointSecondaryModel: settings.endpointSecondaryModel,
     reasoningEffort: settings.reasoningEffort,
+    reasoningEfforts: settings.reasoningEfforts,
     endpointServiceTier: settings.endpointServiceTier,
     maxOutputTokens: settings.maxOutputTokens,
     imageEndpointUrl: settings.imageEndpointUrl,
@@ -186,6 +195,8 @@ export function patchOf(settings: RendererSettings): SettingsPatch {
     newGameWelcome: settings.newGameWelcome,
     noNsfwImages: settings.noNsfwImages,
     lessNsfwText: settings.lessNsfwText,
+    // Carried, or a save made from anywhere else would match the stock CGs to the reader again.
+    matchCgBiology: settings.matchCgBiology,
     sfwAsked: settings.sfwAsked,
     // Carried, or a save made from anywhere else would drop a browser's key on the next visit.
     rememberKey: settings.rememberKey,
@@ -199,6 +210,7 @@ export function patchOf(settings: RendererSettings): SettingsPatch {
     // Carried, or a save made from anywhere else would drop the budgets and the persona.
     memoryBudgets: settings.memoryBudgets,
     secretBudget: settings.secretBudget,
+    endingPictureMax: settings.endingPictureMax,
     scenePersona: settings.scenePersona
   }
 }
