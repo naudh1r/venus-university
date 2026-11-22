@@ -121,9 +121,8 @@ Their next redraw uses ppm, with new halves shown in the info panel beforehand. 
 a redraw of a photo of two fails and keeps the old picture. It never uses the older drawing method.
 
 Still being tuned: a face, outfit or colour sometimes comes out wrong. Close-ups and rear views
-hold less well than plain shots. In a portrait photo the two can meet in the middle, especially
-in swimwear. In a wide one a guy's hair colour sometimes spills onto the girl beside him, which
-a reroll fixes. A long dress beside a top can pull one person further down. A chin resting on a hand stays in
+hold less well than plain shots. Now and then one person's hair colour still spills onto the
+other's, less often since each colour is weighted, and a reroll fixes it. A long dress beside a top can pull one person further down. A chin resting on a hand stays in
 the sentence, since tagging it made elbows merge across the picture.
 
 ## Where photos are kept
