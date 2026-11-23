@@ -18,7 +18,8 @@ This is not made or supported by Venus Dev. Please do not report problems with i
 - Photos use the game's own photo checkpoint and style LoRA (`assets/workflows/characterPhoto.json`).
   Photos of one person need nothing else.
 - Photos of two need ComfyUI-ppm. Install it from **Mods → Photo Feature**, under
-  **Two in one photo**. If you use your own ComfyUI, install the pack there instead.
+  **Two in one photo**. If you use your own ComfyUI, update it to its latest version and
+  install the pack there instead.
 
 ## Settings
 
@@ -30,7 +31,7 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
 | Photo generation | on | Off, no new photos are made and characters are not told they can send one. Photos already sent stay visible. |
 | Explicit photos | on | Off, nobody sends an undressed photo and ones already sent stay covered. The game's own "No NSFW images" turns them off too. |
 | Body details | off | Characters get body details from fixed tag lists when they are made. Edit them in Manage Characters under Generation, including for the default characters. The details are used in sprites, CGs and photos. Off, what they have is kept but not used. |
-| Two in one photo (experimental) | off | A feed post can show its author with a friend or current partner. A scene can bring a photo of any two characters, never more. Needs ComfyUI-ppm, installed under this option. Without it, every photo shows one person. |
+| Two in one photo (experimental) | off | A feed post can show its author with a friend or current partner. A scene can bring a photo of two characters who are friends or a couple, never more. Needs ComfyUI-ppm, installed under this option. Without it, every photo shows one person. |
 | Save photos as WebP | on | New photos are saved as WebP, with no visible quality loss while taking much less space than PNG. Off, they are saved as PNG. Photos already saved stay as they are. |
 | Loading animation | Bunny hop | What a photo shows while it is being drawn: Bunny hop, Dot shimmer or Typing dots. |
 
