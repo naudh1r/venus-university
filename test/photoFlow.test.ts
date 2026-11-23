@@ -3,6 +3,7 @@ import { photoCalls } from './fixtures/photoCalls'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Character, Result } from '@shared/types'
 import { character, restoreApi, stubApi } from './fixtures'
+import photoMod from '../src/shared/modEntries/photo-feature'
 
 /**
  * That the photo feature's *order of events* is what it has to be.
@@ -23,7 +24,7 @@ stubApi({ jobs: { onProgress: () => () => {} } })
 type ReserveName = (
   playthroughId: string,
   character: Character,
-  kind: string
+  inSave: readonly string[]
 ) => Promise<Result<string>>
 
 type GeneratePhoto = (
@@ -649,7 +650,7 @@ describe('a character body in Photo’s record slice', () => {
     const value = field.read(old)
     const saved = JSON.parse(JSON.stringify({ ...old, ...hooks.editorWrites(old, () => value) }))
     expect(saved).not.toHaveProperty('body')
-    expect(saved.ex['photo-feature']).toEqual({ v: '1.7.2', data: { build: 'petite' } })
+    expect(saved.ex['photo-feature']).toEqual({ v: photoMod.version, data: { build: 'petite' } })
     expect(saved.ex.other).toEqual(old.ex.other)
     expect(bodyOf(saved)).toEqual({ build: 'petite' })
     expect(old).toEqual(before)
@@ -674,7 +675,7 @@ describe('a character body in Photo’s record slice', () => {
     )))
     expect(written).not.toHaveProperty('body')
     expect(written.ex['photo-feature']).toMatchObject({
-      v: '1.7.2', data: { build: 'toned', breasts: 'large_breasts' }
+      v: photoMod.version, data: { build: 'toned', breasts: 'large_breasts' }
     })
   })
 })

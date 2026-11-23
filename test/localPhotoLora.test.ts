@@ -19,6 +19,8 @@ vi.mock('@vx/modkit/main', async original => {
   return {
     ...actual,
     renderComfyImage: mocks.render,
+    // Photos of two are drawn only with ComfyUI-ppm.
+    comfyNodePackState: async () => 'installed',
     writeAtomicBytes: async (...args: Parameters<typeof actual.writeAtomicBytes>) => {
       await actual.writeAtomicBytes(...args)
       mocks.afterWrite(args[0])
@@ -66,13 +68,17 @@ it.each([undefined, { name: 'her.safetensors', weight: 0.65 }])(
   }
 )
 
-it('sends the duo scene and both girls to the kit without a character LoRA node', async () => {
+it('sends the duo scene and both people to the kit without a character LoRA node', async () => {
   const lora = { name: 'her.safetensors', weight: 0.65 }
   const prompts = { positive: 'At the cafe', negative: 'bad hands', left: 'Sarah', right: 'Her friend' }
   await generateDuoPhoto('100', character({ lora }), character({ charId: 'friend-1', lora }),
-    'everyday', 'sitting on the grass', file, {}, { seed: 43, prompts })
+    'everyday', 'sitting on the grass', file, {}, { seed: 43, prompts, couple: 'ppm' })
   const request = mocks.render.mock.calls[0][1]
-  expect(request.workflow).toEqual(await graphOf('characterPhotoDuo.json'))
+  // A new photo of two starts wide, its face pass told each face's prompt from left to right.
+  const wide = JSON.parse(await readFile(resolve('assets/photo/characterPhotoDuoWide.json'), 'utf8'))
+  expect(request.workflow['58'].inputs.wildcard).toMatch(/^\[ASC\].*\[SEP\]/)
+  wide['58'].inputs.wildcard = request.workflow['58'].inputs.wildcard
+  expect(request.workflow).toEqual(wide)
   expect(request).not.toHaveProperty('lora')
   expect(request.nodes).not.toHaveProperty('characterLora')
   expect(request.prompts).toEqual({ positive: prompts.positive, negative: prompts.negative })
@@ -81,7 +87,7 @@ it('sends the duo scene and both girls to the kit without a character LoRA node'
     expect(request.workflow).toHaveProperty(id)
   }
   expect(JSON.parse(await readFile(join(folder(), 'sarah_chat_001.json'), 'utf8'))).toMatchObject({
-    seed: 43, ...prompts
+    seed: 43, ...prompts, couple: 'ppm', orientation: 'wide'
   })
 })
 

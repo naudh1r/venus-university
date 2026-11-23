@@ -1,5 +1,11 @@
+import { type PhotoGender } from '../../shared/photoGender'
 import { photoFeatureOn, photoSwitches } from '../../shared/photoSwitches'
-import { BODY_POOLS, drawBody, type CharacterBody } from '../../shared/characterBody'
+import {
+  BODY_POOLS,
+  MALE_BODY_POOLS,
+  drawBody,
+  type CharacterBody
+} from '../../shared/characterBody'
 
 /**
  * What the character call is asked about her body, and what is made of the answer.
@@ -22,8 +28,8 @@ export function bodyBriefLines(on: boolean = bodyDetailsOn()): string[] {
   if (!on) return []
   return [
     'BODY',
-    `build (pick 0-1, omit for an average build): ${BODY_POOLS.build.join(', ')}`,
-    'Pick it from who she is and how she lives, not from her outfit.',
+    `build (pick 0-1, omit for an average build): female — ${BODY_POOLS.build.join(', ')}; male — ${MALE_BODY_POOLS.build.join(', ')}`,
+    'Use the pool for this character’s gender. Pick from their personality and habits, not their outfit.',
     ''
   ]
 }
@@ -43,7 +49,13 @@ export function bodySchemaFields(on: boolean = bodyDetailsOn()): Record<string, 
       required: ['build'],
       properties: {
         // An array because the pick is 0–1 and the strict subset has no optional key.
-        build: { type: 'array', items: { type: 'string', enum: [...BODY_POOLS.build] } }
+        build: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: [...new Set([...BODY_POOLS.build, ...MALE_BODY_POOLS.build])]
+          }
+        }
       }
     }
   }
@@ -62,8 +74,24 @@ export interface DraftBody {
 export function bodyOfDraft(
   draft: DraftBody | undefined,
   baseAppearance: readonly string[],
-  rand?: () => number
+  rand?: () => number,
+  gender: PhotoGender = baseAppearance.includes('1boy') || baseAppearance.includes('male_focus')
+    ? 'male'
+    : 'female'
 ): CharacterBody | undefined {
   if (!draft) return undefined
-  return drawBody(draft.build?.[0], baseAppearance, rand)
+  return drawBody(draft.build?.[0], baseAppearance, rand, undefined, gender)
+}
+
+/** The host supplies subject tags; the generated appearance shape also identifies a custom male subject. */
+export function bodyDraftGender(
+  draft: Readonly<Record<string, unknown>>,
+  baseAppearance: readonly string[]
+): PhotoGender {
+  if (baseAppearance.includes('1boy') || baseAppearance.includes('male_focus')) return 'male'
+  if (baseAppearance.includes('1girl')) return 'female'
+  const appearance = draft.appearance
+  return appearance && typeof appearance === 'object' && Object.hasOwn(appearance, 'facialHair')
+    ? 'male'
+    : 'female'
 }

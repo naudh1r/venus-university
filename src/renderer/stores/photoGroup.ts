@@ -1,6 +1,12 @@
+import { fillPronouns, genderOf } from '../../shared/photoGender'
 import { postPhoto } from './photoRecords'
-import { npcFriendsOf, type Character, type StructuredRequest, type TimeSlot } from '@vx/modkit/shared'
-import { groupPhotoPair, type GroupPhotoPair } from '../../shared/photoDuo'
+import { type Character, type StructuredRequest, type TimeSlot } from '@vx/modkit/shared'
+import {
+  groupPhotoPair,
+  canSharePhoto,
+  DUO_COOLDOWN_DAYS,
+  type GroupPhotoPair
+} from '../../shared/photoDuo'
 import { duoPhotosOn, PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 import {
   ownsPostComments,
@@ -15,7 +21,6 @@ import { photoGame } from './photoGame'
 import { canSendPhotos } from './localPhotoStore'
 import { startHeldPostPhoto } from './photoPost'
 
-
 /**
  * The group photo: two of the girls in the scene the reader just committed to, posted by one of
  * them on her feed. The scene's first call writes it beside the scene's opening lines, once the
@@ -26,9 +31,12 @@ import { startHeldPostPhoto } from './photoPost'
  * loses that one photo, and nothing else.
  */
 
-interface AskedGroupPhoto extends GroupPhotoPair {
+interface AskedGroupPhoto {
   /** The slot it was asked for, as {@link slotKey} writes it. */
   slot: string
+  poster: string
+  /** The other one in the picture; absent for a picture of the poster alone. */
+  friend?: string
 }
 
 let asked: AskedGroupPhoto | null = null
@@ -45,8 +53,24 @@ function slotKey(): string | null {
 function postedThisSlot(): boolean {
   const { charInfo, date, time } = photoGame()
   return Object.values(charInfo).some((info) =>
-    (info?.feed ?? []).some((post) => post.date === date && post.time === time && postPhoto.read(post)?.with)
+    (info?.feed ?? []).some(
+      (post) => post.date === date && post.time === time && postPhoto.read(post)?.with
+    )
   )
+}
+
+/**
+ * Whether these two shared a picture on the feed within the cooldown, read off the duo posts
+ * already filed: either one's post with the other in it.
+ */
+function pairedRecently(a: string, b: string): boolean {
+  const { charInfo, date } = photoGame()
+  const since = date - DUO_COOLDOWN_DAYS
+  const together = (poster: string, other: string): boolean =>
+    (charInfo[poster]?.feed ?? []).some(
+      (post) => post.date > since && postPhoto.read(post)?.with === other
+    )
+  return together(a, b) || together(b, a)
 }
 
 /** The rules for a post's other fields, such as its comments, from whichever mod asks for them. */
@@ -78,28 +102,51 @@ export function withGroupPhotoRequest(
   request: StructuredRequest,
   cast: readonly Character[]
 ): StructuredRequest {
-  if (!duoPhotosOn() || !canSendPhotos()) return request
+  if (!canSendPhotos()) return request
   const slot = slotKey()
   if (!slot || settledSlot === slot) return request
   if (postedThisSlot()) {
     settledSlot = slot
     return request
   }
-  const ids = cast.map((girl) => girl.charId)
-  if (!asked || asked.slot !== slot || !ids.includes(asked.poster) || !ids.includes(asked.friend)) {
-    const pair = groupPhotoPair(ids, photoGame().npcRelationships)
-    asked = pair ? { ...pair, slot } : null
-    if (!asked) return request
+  const ids = [...new Set(cast.map((one) => one.charId))]
+  if (ids.length < 2) return request
+  const stale =
+    !asked ||
+    (asked.friend !== undefined && !duoPhotosOn()) ||
+    asked.slot !== slot ||
+    !ids.includes(asked.poster) ||
+    (asked.friend !== undefined && !ids.includes(asked.friend))
+  if (stale) {
+    // Two of them who have not shared a picture lately, else one of them alone.
+    const pair: GroupPhotoPair | null = duoPhotosOn()
+      ? groupPhotoPair(ids, photoGame().npcRelationships, Math.random, pairedRecently)
+      : null
+    asked = pair ? { ...pair, slot } : { slot, poster: ids[Math.floor(Math.random() * ids.length)] }
   }
+  const current = asked
+  if (!current) return request
   const characters = photoGame().characters
-  const poster = characters[asked.poster]
-  const friend = characters[asked.friend]
-  if (!poster || !friend) return request
-  console.log(`[photo] group photo asked of the scene: ${poster.firstName} with ${friend.firstName}`)
+  const poster = characters[current.poster]
+  const friend = current.friend ? characters[current.friend] : null
+  if (!poster || (current.friend && !friend)) return request
+  console.log(
+    friend
+      ? `[photo] group photo asked of the scene: ${poster.firstName} with ${friend.firstName}`
+      : `[photo] a picture of ${poster.firstName} alone asked of the scene`
+  )
 
   const block = [
     'GROUP PHOTO',
-    `${poster.firstName} is posting a photo of herself and ${friend.firstName}, taken here as this scene begins. Fill "groupPost": "text" is her post, one or two short lines in her own voice; "image" is one full sentence describing the photograph: where they are, "in their everyday clothes", "in their PE kit" for sport or the gym, or "in their swimsuits" at a pool or a beach, rather than what each one wears; the two of them side by side and not touching, from the waist up, looking at the camera each with her own face and her own hands, the way friends pose together — one might flash a peace sign while the other winks, or both just laugh — written as "her … while her friend …". A hand that holds something makes no gesture. It can be a photo somebody took of them, or a selfie she holds out at arm's length, whichever fits the moment. Say "her and her friend" rather than either name, and never "two girls". The scene itself does not mention the photo.`,
+    friend
+      ? fillPronouns(
+      `${poster.firstName} is posting a photo of {themself} and ${friend.firstName}, taken here as this scene begins. Fill "groupPost": "text" is {their} post, one or two short lines in {their} own voice; "image" is one full sentence describing the photograph: where they are, "in their everyday clothes", "in their PE kit" for sport or the gym, or "in their swimsuits" at a pool or a beach, rather than what each one wears; the two of them side by side and not touching, from the waist up, looking at the camera each with their own face and their own hands, the way two people pose together — one might flash a peace sign while the other winks, or both just laugh — written as "{their} … while {their} friend …". A hand that holds something makes no gesture. It can be a photo somebody took of them, or a selfie {they} holds out at arm's length, whichever fits the moment. Say "{them} and {their} friend" rather than either name, and never a count of people. The scene itself does not mention the photo.`,
+      genderOf(poster)
+    )
+      : fillPronouns(
+          `${poster.firstName} is posting a photo of {themself} alone, taken here as this scene begins. Fill "groupPost": "text" is {their} post, one or two short lines in {their} own voice; "image" is one full sentence describing the photograph: where {they} is, what {they} is wearing, how {they} is standing or sitting, what {their} hands are doing, the light and the shot. Only {they} is in it. The scene itself does not mention the photo.`,
+          genderOf(poster)
+        ),
     ...postFieldLines(),
     ''
   ].join('\n')
@@ -147,55 +194,130 @@ export function fileGroupPhoto({ reply }: SceneReplied): void {
   const game = photoGame()
   const char = Object.keys(game.charKeyToId).find((key) => game.charKeyToId[key] === waiting.poster)
   if (!char) return
-  void fileLatePost({ ...written, char, text, image, groupWith: waiting.friend } as {
+  void fileLatePost({
+    ...written,
+    char,
+    text,
+    image,
+    ...(waiting.friend ? { groupWith: waiting.friend } : {})
+  } as {
     char: string
     text: string
   }).then(() => startHeldPostPhoto())
 }
 
-/** The chance a poster with a friend posts a picture of the two of them, at most one a slot. */
-const FEED_FRIEND_CHANCE = 0.25
+/** The slot's feed post that is a picture with a friend: poster to friend, by charId. */
+let feedFriends: { slot: string; pairs: Map<string, string> } | null = null
 
-/** The slot's feed posts that are a picture with a friend: poster to friend, by charId. */
-let feedFriends: { slot: string; rolled: Set<string>; pairs: Map<string, string> } | null = null
-
-/**
- * The friend in this poster's picture, rolled once a slot as the opening is written: one of her
- * friends, wherever either of them is. Null for a picture of her alone. The opening can be
- * written while the slot before it still plays, so the roll is filed under the slot it is for.
- */
-function feedFriendOf(character: Character, date: number, time: TimeSlot): Character | null {
-  if (!duoPhotosOn() || !canSendPhotos()) return null
-  const { playthroughId } = photoGame()
-  if (!playthroughId) return null
-  const slot = `${playthroughId}:${date}:${time}`
-  if (feedFriends?.slot !== slot) feedFriends = { slot, rolled: new Set(), pairs: new Map() }
-  const game = photoGame()
-  const known = feedFriends.pairs.get(character.charId)
-  if (feedFriends.rolled.has(character.charId)) return known ? (game.characters[known] ?? null) : null
-  feedFriends.rolled.add(character.charId)
-  if (feedFriends.pairs.size > 0) return null
-  const friends = npcFriendsOf(game.npcRelationships, character.charId, game.chars).filter(
-    (id) => game.characters[id]
-  )
-  if (friends.length === 0 || Math.random() >= FEED_FRIEND_CHANCE) return null
-  const friend = game.characters[friends[Math.floor(Math.random() * friends.length)]]
-  if (!friend) return null
-  feedFriends.pairs.set(character.charId, friend.charId)
-  console.log(`[photo] ${character.firstName}'s post this slot is a picture with ${friend.firstName}`)
-  return friend
+/** One poster as the slot's opening is given it, with whoever it places them with. */
+interface FeedPoster {
+  character: Character
+  charKey: string
+  whereabouts?: { companions: { knownNames: readonly string[] } }
 }
 
-/** Her entry's line for a picture with a friend, under her name in the opening. */
-export function feedFriendLines(character: Character, date: number, time: TimeSlot): string[] {
-  const friend = feedFriendOf(character, date, time)
-  if (!friend) return []
-  return [
-    `  Her post is a picture of her and her friend ${friend.firstName}, so it carries an "image": the two of them side by side and not touching, from the waist up, "in their everyday clothes", "in their PE kit" for sport or the gym, or "in their swimsuits" only where they are at a pool or a beach, rather than what each one wears, each with her own face and her own hands, the way friends pose together — one might flash a peace sign while the other winks, or both just laugh — written as "her … while her friend …". A hand that holds something makes no gesture. It can be a photo somebody took of them, or a selfie she holds out at arm's length, whichever fits the moment. Say "her and her friend", never ${friend.firstName}'s name.`
-  ]
+/** The posters in a fresh random order. */
+function shuffled<T>(items: readonly T[]): T[] {
+  const out = [...items]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
+/**
+ * Who this poster is with right now that a picture could show: somebody the slot's opening names
+ * beside them, whose name the reader knows, and who is their friend or partner.
+ */
+function companionFor(poster: FeedPoster): Character | null {
+  const names = poster.whereabouts?.companions.knownNames ?? []
+  if (names.length === 0) return null
+  const { characters, charInfo, npcRelationships } = photoGame()
+  const friends = Object.values(characters).filter(
+    (one): one is Character =>
+      !!one &&
+      one.charId !== poster.character.charId &&
+      names.includes(one.firstName) &&
+      charInfo[one.charId]?.nameKnown === true &&
+      canSharePhoto(npcRelationships, poster.character.charId, one.charId) &&
+      !pairedRecently(poster.character.charId, one.charId)
+  )
+  return friends.length > 0 ? friends[Math.floor(Math.random() * friends.length)] : null
+}
+
+/** The entry for a picture of a poster and the friend they are with. */
+function duoPictureLine(poster: Character, friend: Character): string {
+  return fillPronouns(
+    `{Their} post is a picture of {them} and {their} friend ${friend.firstName}, who {they} is with right now, so it carries an "image": the two of them side by side and not touching, from the waist up, "in their everyday clothes", "in their PE kit" for sport or the gym, or "in their swimsuits" only where they are at a pool or a beach, rather than what each one wears, each with their own face and their own hands, the way two people pose together — one might flash a peace sign while the other winks, or both just laugh — written as "{their} … while {their} friend …". A hand that holds something makes no gesture. It can be a photo somebody took of them, or a selfie {they} holds out at arm's length, whichever fits the moment. Say "{them} and {their} friend", never ${friend.firstName}'s name.`,
+    genderOf(poster)
+  )
+}
+
+/**
+ * The slot's feed pictures, decided by the game rather than the model, which pictured girls
+ * posting selfies and boys posting words: one post carries a picture of its poster with a friend
+ * they are with right now, and one other a picture of its poster alone. Without such a pair, both
+ * are pictures alone. Every other post is just words. Told to the slot's opening call.
+ */
+export function withFeedPicturesRequest(
+  request: StructuredRequest,
+  input: { posters: readonly FeedPoster[]; date: number; time: TimeSlot }
+): StructuredRequest {
+  if (!canSendPhotos() || input.posters.length === 0) return request
+  const { playthroughId } = photoGame()
+  if (!playthroughId) return request
+  const slot = `${playthroughId}:${input.date}:${input.time}`
+  const order = shuffled(input.posters)
+  let duo: { poster: FeedPoster; friend: Character } | null = null
+  if (duoPhotosOn()) {
+    for (const poster of order) {
+      const friend = companionFor(poster)
+      if (friend) {
+        duo = { poster, friend }
+        break
+      }
+    }
+  }
+  const alone = order
+    .filter((poster) => poster !== duo?.poster)
+    .slice(0, duo ? 1 : 2)
+  feedFriends = {
+    slot,
+    pairs: new Map(duo ? [[duo.poster.character.charId, duo.friend.charId]] : [])
+  }
+  if (duo) {
+    console.log(
+      `[photo] ${duo.poster.character.firstName}'s post this slot is a picture with ${duo.friend.firstName}`
+    )
+  }
+  if (alone.length > 0) {
+    console.log(
+      `[photo] a picture alone this slot: ${alone.map((one) => one.character.firstName).join(', ')}`
+    )
+  }
+  const block = [
+    'FEED PICTURES',
+    ...(duo ? [`- ${duo.poster.charKey}: ${duoPictureLine(duo.poster.character, duo.friend)}`] : []),
+    ...alone.map(({ character, charKey }) =>
+      fillPronouns(
+        `- ${charKey}: {their} post carries a picture of {them} alone: describe it in "image".`,
+        genderOf(character)
+      )
+    ),
+    'Every other post is just words: leave its "image" empty.',
+    ''
+  ].join('\n')
+  const at = request.user.lastIndexOf('YOUR TURN')
+  const user =
+    at >= 0
+      ? `${request.user.slice(0, at)}${block}\n${request.user.slice(at)}`
+      : `${request.user}\n\n${block}`
+  return { ...request, user }
 }
 
 /** The friend rolled for this poster's picture this slot, by charId. */
 export function feedFriendFor(charId: string): string | undefined {
-  return feedFriends?.slot === slotKey() ? feedFriends?.pairs.get(charId) : undefined
+  const friend = feedFriends?.slot === slotKey() ? feedFriends.pairs.get(charId) : undefined
+  return friend && canSharePhoto(photoGame().npcRelationships, charId, friend) ? friend : undefined
 }

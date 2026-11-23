@@ -1,3 +1,4 @@
+import type { PhotoPpmState } from './photoTypes'
 import { PHOTO_FEATURE_ID } from './photoDefinition'
 export { PHOTO_FEATURE_ID, PHOTO_FEATURE_MOD } from './photoDefinition'
 import { sharedModOn } from '@vx/modkit/shared'
@@ -35,6 +36,12 @@ export const DEFAULT_PHOTO_SWITCHES: PhotoSwitches = {
 type OptionReader = (optionId: string) => boolean
 let readOption: OptionReader | null = null
 let snapshot = DEFAULT_PHOTO_SWITCHES
+let readPpmState: () => PhotoPpmState | null = () => null
+
+/** Supplies this process's latest pack state without waiting at a gameplay gate. */
+export function bindPhotoPpmReader(reader: () => PhotoPpmState | null): void {
+  readPpmState = reader
+}
 
 /** Plugs in the synchronous option reader owned by this process's entry. */
 export function bindPhotoOptionReader(reader: OptionReader | null): void {
@@ -87,9 +94,9 @@ export function explicitPhotosAllowed(
   return switches.explicit && !noNsfwImages
 }
 
-/** Whether a shared scene brings a group photo: new photos made, and its option. */
+/** Whether new photos may show two people: generation, the option and a confirmed ppm pack. */
 export function duoPhotosOn(switches: PhotoSwitches = photoSwitches()): boolean {
-  return photoGenerationOn(switches) && switches.duo
+  return photoGenerationOn(switches) && switches.duo && readPpmState() === 'installed'
 }
 
 /** The option that picks one loading animation. */

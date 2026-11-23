@@ -1,4 +1,5 @@
 import type { PromptEdit, Character } from '@vx/modkit/shared'
+import { genderOf, genderedTags, type PhotoGender } from './photoGender'
 import { PHOTO_FEATURE_ID } from './photoSwitches'
 
 /**
@@ -84,6 +85,36 @@ export const BODY_POOLS: Readonly<Record<BodyField, readonly string[]>> = {
   pubicHair: PUBIC_TAGS
 }
 
+/** Male picks use the same five controls and the same save keys. */
+export const MALE_BODY_POOLS: Readonly<Record<BodyField, readonly string[]>> = {
+  build: ['toned', 'muscular_male', 'tall_male'],
+  breasts: ['flat_chest', 'pectorals'],
+  hipsThighs: ['thick_thighs', 'long_legs'],
+  buttocks: BUTTOCKS_TAGS,
+  pubicHair: ['male_pubic_hair', 'sparse_pubic_hair', 'excessive_pubic_hair']
+}
+
+export function bodyPoolsFor(gender: PhotoGender) {
+  return gender === 'male' ? MALE_BODY_POOLS : BODY_POOLS
+}
+
+/** Old slices have no gender field; recognise male-only picks without rewriting female records. */
+function storedBodyGender(raw: Record<string, unknown>): PhotoGender {
+  return raw.gender === 'male' ||
+    BODY_FIELDS.some((field) => {
+      const value = raw[field]
+      const tags = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : []
+      return tags.some(
+        (tag) =>
+          typeof tag === 'string' &&
+          MALE_BODY_POOLS[field].includes(tag.trim()) &&
+          !BODY_POOLS[field].includes(tag.trim())
+      )
+    })
+    ? 'male'
+    : 'female'
+}
+
 /**
  * What cannot be true of one body at once. Two opposite tags do not average out on the
  * checkpoint, they fight: a petite girl with a huge backside is drawn as neither.
@@ -112,8 +143,13 @@ const CONFLICTS: readonly {
 ]
 
 /** Whether `tag` may stand in `field` beside what the fields before it already hold. */
-export function allowedBeside(body: CharacterBody, field: BodyField, tag: string): boolean {
-  if (!BODY_POOLS[field].includes(tag)) return false
+export function allowedBeside(
+  body: CharacterBody,
+  field: BodyField,
+  tag: string,
+  gender: PhotoGender = 'female'
+): boolean {
+  if (!bodyPoolsFor(gender)[field].includes(tag)) return false
   return !CONFLICTS.some(
     (conflict) =>
       conflict.field !== field &&
@@ -127,7 +163,7 @@ export function allowedBeside(body: CharacterBody, field: BodyField, tag: string
  * first bodies were written as lists of free tags per region, and read through here they keep
  * whatever in them the pool knows.
  */
-function pooled(field: BodyField, written: unknown): string | undefined {
+function pooled(field: BodyField, written: unknown, gender: PhotoGender): string | undefined {
   const tags = Array.isArray(written)
     ? written
     : typeof written === 'string'
@@ -135,7 +171,7 @@ function pooled(field: BodyField, written: unknown): string | undefined {
       : []
   return tags
     .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
-    .find((tag) => BODY_POOLS[field].includes(tag))
+    .find((tag) => bodyPoolsFor(gender)[field].includes(tag))
 }
 
 /** Where each field was kept before it had a pool. Nipples and stomach have no field now. */
@@ -151,13 +187,14 @@ const LEGACY_FIELD: Readonly<Record<BodyField, string>> = {
  * A stored body as the pools allow it: every field one pooled tag or nothing, and a field that
  * contradicts one before it dropped. `undefined` for a body with nothing left in it.
  */
-export function cleanBody(raw: unknown): CharacterBody | undefined {
+export function cleanBody(raw: unknown, gender?: PhotoGender): CharacterBody | undefined {
   if (!raw || typeof raw !== 'object') return undefined
   const record = raw as Record<string, unknown>
   const body: CharacterBody = {}
+  gender ??= storedBodyGender(record)
   for (const field of BODY_FIELDS) {
-    const tag = pooled(field, record[field] ?? record[LEGACY_FIELD[field]])
-    if (tag && allowedBeside(body, field, tag)) body[field] = tag
+    const tag = pooled(field, record[field] ?? record[LEGACY_FIELD[field]], gender)
+    if (tag && allowedBeside(body, field, tag, gender)) body[field] = tag
   }
   return BODY_FIELDS.some((field) => body[field]) ? body : undefined
 }
@@ -176,7 +213,11 @@ const APPEARANCE_BREASTS: Readonly<Record<string, string>> = {
 const ANY_BREAST_TAG = /^(flat_chest|[a-z]+_breasts)$/
 
 /** Her chest as her appearance has it, in the pool: medium where it says nothing. */
-export function appearanceBreasts(baseAppearance: readonly string[]): string {
+export function appearanceBreasts(
+  baseAppearance: readonly string[],
+  gender: PhotoGender = 'female'
+): string {
+  if (gender === 'male') return baseAppearance.includes('pectorals') ? 'pectorals' : 'flat_chest'
   for (const tag of baseAppearance) {
     const mapped = APPEARANCE_BREASTS[tag]
     if (mapped) return mapped
@@ -228,18 +269,25 @@ export function drawBody(
   build: string | undefined,
   baseAppearance: readonly string[],
   rand: () => number = Math.random,
-  chosenBreasts?: string
+  chosenBreasts?: string,
+  gender: PhotoGender = 'female'
 ): CharacterBody {
   const body: CharacterBody = {}
-  if (build && allowedBeside(body, 'build', build)) body.build = build
+  if (build && allowedBeside(body, 'build', build, gender)) body.build = build
   // The chest picked by hand where there is one, else her appearance's, else medium: the first of
   // them her build allows.
-  const breasts = [chosenBreasts, appearanceBreasts(baseAppearance), 'medium_breasts'].find(
-    (tag): tag is string => tag !== undefined && allowedBeside(body, 'breasts', tag)
-  )
+  const breasts = [
+    chosenBreasts,
+    appearanceBreasts(baseAppearance, gender),
+    gender === 'male' ? 'flat_chest' : 'medium_breasts'
+  ].find((tag): tag is string => tag !== undefined && allowedBeside(body, 'breasts', tag, gender))
   if (breasts) body.breasts = breasts
   for (const field of ['hipsThighs', 'buttocks', 'pubicHair'] as const) {
-    const tag = draw(DRAW_WEIGHTS[field] ?? {}, (one) => allowedBeside(body, field, one), rand)
+    const weights =
+      gender === 'male' && field === 'pubicHair'
+        ? { '': 3, male_pubic_hair: 3, sparse_pubic_hair: 1, excessive_pubic_hair: 1 }
+        : (DRAW_WEIGHTS[field] ?? {})
+    const tag = draw(weights, (one) => allowedBeside(body, field, one, gender), rand)
     if (tag) body[field] = tag
   }
   return body
@@ -269,7 +317,7 @@ export function gateBody(character: Character, on: boolean): Character {
   if (on) {
     ex[PHOTO_FEATURE_ID] = {
       v: character.ex?.[PHOTO_FEATURE_ID]?.v ?? '0.0.0',
-      data: cleanBody(bodyOf(character)) ?? {}
+      data: cleanBody(bodyOf(character), genderOf(character)) ?? {}
     }
   } else delete ex[PHOTO_FEATURE_ID]
   return { ...rest, ex }
@@ -288,10 +336,13 @@ export type BodyScope = 'sprite' | 'nude' | 'cg' | 'photo'
  * A photo adds its regions itself, by what is in shot (`photoBody`).
  */
 export function bodyAppearance(character: Character, scope: BodyScope): string[] {
-  const body = bodyOf(character)
-  if (!body) return [...character.baseAppearance]
-  const kept = character.baseAppearance.filter((tag) => !ANY_BREAST_TAG.test(tag) && !BODY_ONLY_TAGS.has(tag))
-  const breasts = body.breasts ?? appearanceBreasts(character.baseAppearance)
+  const gender = genderOf(character)
+  const stored = bodyOf(character)
+  const body = stored ? (cleanBody(stored, gender) ?? {}) : undefined
+  const appearance = genderedTags(character.baseAppearance, gender)
+  if (!body) return appearance
+  const kept = appearance.filter((tag) => !ANY_BREAST_TAG.test(tag) && !BODY_ONLY_TAGS.has(tag))
+  const breasts = body.breasts ?? appearanceBreasts(appearance, gender)
   const tags = [breasts, weightedBuild(body.build, scope)]
   if (scope !== 'photo') tags.push(body.hipsThighs)
   if (scope === 'cg') tags.push(body.buttocks)
@@ -314,6 +365,7 @@ export function bodyNegative(character: Character): string[] {
 /** Every tag that is hers only while the switch is on: every pool but her chest's. */
 const BODY_ONLY_TAGS: ReadonlySet<string> = new Set([
   ...BUILD_TAGS,
+  ...Object.values(MALE_BODY_POOLS).flat(),
   ...BUILD_TAGS.map((tag) => weightedBuild(tag, 'sprite') as string),
   ...HIPS_TAGS,
   ...BUTTOCKS_TAGS,
@@ -334,7 +386,7 @@ const BODY_ONLY_TAGS: ReadonlySet<string> = new Set([
 export function withBodyTags(kept: PromptEdit, draft: PromptEdit, on: boolean): PromptEdit {
   if (kept === draft || kept.kind === 'expression' || draft.kind === 'expression') return kept
   const owned = (tag: string): boolean =>
-    BODY_ONLY_TAGS.has(tag) || (on && ANY_BREAST_TAG.test(tag))
+    BODY_ONLY_TAGS.has(tag) || (on && (ANY_BREAST_TAG.test(tag) || tag === 'pectorals'))
   const appearance = [
     ...kept.appearance.filter((tag) => !owned(tag)),
     ...draft.appearance.filter(owned)

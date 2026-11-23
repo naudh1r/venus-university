@@ -1,3 +1,5 @@
+import { useRevisedPhotoUrl } from '../stores/photoRevision'
+import { photoUrl } from '../../shared/photoFiles'
 import { photoInvoke } from '../stores/photoInvoke'
 import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
@@ -20,6 +22,7 @@ import { photoGenerationOn } from '../../shared/photoSwitches'
 import type {
   ChatPhoto,
   PhotoInfo,
+  PhotoOrientation,
   PhotoPrompts,
   PhotoRenderOptions
 } from '../../shared/photoTypes'
@@ -88,7 +91,7 @@ export function PhotoInfoButton({ redrawing = false, ...props }: PhotoInfoProps)
 }
 
 /** A short-lived failure notice shared by every view of the old picture. */
-export function PhotoRedrawFailure({ failed }: { failed: boolean }): JSX.Element {
+export function PhotoRedrawFailure({ failed, reason }: { failed: boolean; reason?: string }): JSX.Element {
   const still = useReducedMotion() ?? false
   return (
     <AnimatePresence>
@@ -101,7 +104,7 @@ export function PhotoRedrawFailure({ failed }: { failed: boolean }): JSX.Element
           exit={{ opacity: 0 }}
           transition={{ duration: still ? 0 : 0.14 }}
         >
-          Redraw failed. This photo stays.
+          {reason ?? 'Redraw failed. This photo stays.'}
         </motion.span>
       )}
     </AnimatePresence>
@@ -121,6 +124,7 @@ function PhotoInfoModal({
   theme: ScreenTheme
   onClose: () => void
 }): JSX.Element | null {
+  const revision = useRevisedPhotoUrl(photoUrl(playthroughId, character.charId, photo.file))
   const [info, setInfo] = useState<PhotoInfo | null>(null)
   const [recorded, setRecorded] = useState(false)
   const [busy, setBusy] = useState(true)
@@ -131,7 +135,7 @@ function PhotoInfoModal({
   const refitFields = useRef(true)
 
   const dead = busy || !info || !photosOn
-  const redraw = (same: boolean): void => {
+  const redraw = (same: boolean, orientation?: PhotoOrientation): void => {
     if (dead || !info) return
     const prompts: PhotoPrompts = {
       positive: info.positive,
@@ -139,8 +143,17 @@ function PhotoInfoModal({
       ...(friend ? { left: info.left ?? '', right: info.right ?? '' } : {})
     }
     onClose()
-    onRedraw({ seed: same ? info.seed : undefined, prompts })
+    onRedraw({
+      seed: same ? info.seed : undefined,
+      prompts,
+      orientation: orientation ?? info.orientation,
+      ...(friend ? { couple: 'ppm' as const } : {})
+    })
   }
+  const turned: PhotoOrientation = info?.orientation === 'wide' ? 'portrait' : 'wide'
+
+  /** Changes the canvas while retaining the prompts currently in the fields. */
+  const switchOrientation = (): void => redraw(true, turned)
   const { host, overlayProps, primaryProps } = useModalShell(onClose, 'panel', () =>
     redraw(info?.seed !== undefined)
   )
@@ -181,13 +194,20 @@ function PhotoInfoModal({
   }, [info, host, id])
   useEffect(() => {
     let active = true
-    void photoInvoke('info', [playthroughId, character, friend, photo.tier, photo.scene ?? '', photo.file])
+    void photoInvoke('info', [
+      playthroughId,
+      character,
+      friend,
+      photo.tier,
+      photo.scene ?? '',
+      photo.file
+    ])
       .then((result) => {
         if (!active) return
         if (result.ok) {
           refitFields.current = true
           setInfo(result.data)
-          setRecorded(result.data.recorded)
+          setRecorded(result.data.recorded || Boolean(friend && result.data.seed !== undefined))
         } else setError('Could not read the photo prompt.')
       })
       .catch(() => {
@@ -200,7 +220,7 @@ function PhotoInfoModal({
       active = false
     }
     // Opening captures this picture's recorded request; Rebuild reads the current character props.
-  }, [playthroughId, photo.file])
+  }, [revision, playthroughId, photo.file])
 
   /** Refills only the draft fields, retaining the seed the sidecar recorded. */
   const rebuild = async (): Promise<void> => {
@@ -208,7 +228,16 @@ function PhotoInfoModal({
     setBusy(true)
     setError('')
     try {
-      const result = await photoInvoke('info', [playthroughId, character, friend, photo.tier, photo.scene ?? '', photo.file, true])
+      const result = await photoInvoke('info', [
+        playthroughId,
+        character,
+        friend,
+        photo.tier,
+        photo.scene ?? '',
+        photo.file,
+        true,
+        info?.orientation
+      ])
       if (result.ok) {
         refitFields.current = true
         setInfo(result.data)
@@ -264,7 +293,7 @@ function PhotoInfoModal({
               </p>
               {!info.recorded && (
                 <p className="vu-photo-info-note">
-                  This prompt was rebuilt from her current tags and settings.
+                  This prompt was rebuilt from the character’s current tags and settings.
                 </p>
               )}
               {recorded && (
@@ -309,6 +338,19 @@ function PhotoInfoModal({
             >
               Close
             </motion.button>
+            {info && (
+              <motion.button
+                type="button"
+                disabled={dead}
+                className="vu-btn vu-btn--quiet"
+                {...gestures(dead, quietLift, quietPress)}
+                onClick={() => {
+                  void switchOrientation()
+                }}
+              >
+                {turned === 'wide' ? 'Switch to wide' : 'Switch to portrait'}
+              </motion.button>
+            )}
             <motion.button
               type="button"
               disabled={dead}

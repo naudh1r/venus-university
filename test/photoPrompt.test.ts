@@ -5,7 +5,8 @@ import {
   lookingAtViewer,
   plainColours,
   shopNotDrink,
-  withoutWhoTookIt
+  withoutWhoTookIt,
+  soloOrientationOf
 } from '../src/shared/photoPrompt'
 import type { Character } from '../src/shared/types'
 import { character } from './fixtures'
@@ -633,5 +634,18 @@ describe('a photo a friend took', () => {
     expect(withoutWhoTookIt('a photo somebody took of her at the park')).toBe('a photo at the park')
     const { positive } = buildPhotoPrompt(character(), 'everyday', 'a photo my friend took of me')
     expect(positive).not.toMatch(/friend/)
+  })
+})
+
+describe('the shape a new solo photo is drawn in', () => {
+  it('keeps a standing full-body shot and a standing mirror selfie portrait, whatever the roll', () => {
+    expect(soloOrientationOf('A photo, standing, full_body', 0)).toBe('portrait')
+    expect(soloOrientationOf('A photo, standing, mirror, holding_phone, full_body', 0)).toBe('portrait')
+  })
+
+  it('draws any other shot wide on a low roll and portrait on a high one', () => {
+    expect(soloOrientationOf('A photo, sitting, cowboy_shot', 0.2)).toBe('wide')
+    expect(soloOrientationOf('A photo, sitting, cowboy_shot', 0.8)).toBe('portrait')
+    expect(soloOrientationOf('A photo, standing, cowboy_shot', 0.2)).toBe('wide')
   })
 })

@@ -29,10 +29,9 @@
   border-radius: 12px;
 }
 
-/* The three states that are not a photograph. Each keeps the bubble's width *and* the shape a
-   photograph comes back in — 832x1216, the size `characterPhoto.json` renders at — so nothing
-   moves when the picture lands on top of the frame that was waiting for it. Change the graph's
-   latent and this follows it. */
+/* The three states that are not a photograph. Each keeps the bubble's width *and* the shape most
+   photographs come back in — 832x1216, the portrait size `characterPhoto.json` renders at — so
+   nothing moves when a portrait lands. Known wide frames take the wide ratio below. */
 .vu-bb-photo--pending,
 .vu-bb-photo--failed {
   display: grid;
@@ -168,8 +167,8 @@
 
 /* ---- a picture on a post -------------------------------------------------- */
 
-/* Held to a block rather than the column's width: her renders are 2:3 portraits, and one at
-   full width would be the card rather than a part of it. */
+/* Held to a block rather than the column's width: most of her renders are 2:3 portraits, and one
+   at full width would be the card rather than a part of it. A wide one keeps the portrait's height, up to the edge of the post. */
 .vu-bb-post-shot {
   position: relative;
   width: min(100%, 330px);
@@ -273,4 +272,29 @@
 .vu-bb-photo__dots .vu-bb-dot {
   width: 11px;
   height: 11px;
+}
+
+/* Known wide pictures and their temporary frames share one shape. */
+.vu-bb-photo--pending.vu-bb-photo--wide,
+.vu-bb-photo--failed.vu-bb-photo--wide {
+  aspect-ratio: 1216 / 832;
+}
+
+.vu-bb-post-shot:has(.vu-bb-photo--wide) {
+  width: min(100%, calc(330px * 1216 / 832 * 1216 / 832));
+}
+
+/* A wide message keeps the 280px portrait's height; the thread bounds its width. */
+.vu-bb-bubble.vu-bb-bubble--photo:has(.vu-bb-photo--wide) {
+  width: min(100%, calc(280px * 1216 / 832 * 1216 / 832));
+  max-width: 100%;
+}
+
+.vu-bb-bubble--photo:has(.vu-bb-photo--wide) .vu-bb-photo {
+  width: 100%;
+}
+
+/* The shared viewer stays core's; only Photo's wide pictures get the larger cap. */
+.vu-photo-lightbox--wide .vu-lightbox img {
+  max-width: min(1520px, 100%);
 }

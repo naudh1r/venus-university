@@ -1,3 +1,4 @@
+import { genderOf, pronounsOf } from './photoGender'
 import {
   customOutfitSlotsIn,
   outfitTagsFor,
@@ -17,7 +18,15 @@ import { framingOf, type Framing } from './photoFraming'
  */
 
 /** Garments that can only be her swimsuit. Named outright, they win over anything else. */
-const SWIM_GARMENTS = ['swimsuit', 'swimwear', 'bikini', 'one-piece', 'bathing suit']
+const SWIM_GARMENTS = [
+  'swimsuit',
+  'swimwear',
+  'bikini',
+  'one-piece',
+  'bathing suit',
+  'swim trunks',
+  'swim shorts'
+]
 
 /** Garments that can only be her PE kit. */
 const PE_GARMENTS = [
@@ -35,7 +44,7 @@ const MAIN_NAMES = [
   ...['everyday', 'usual'].flatMap((kind) =>
     ['clothes', 'cloth', 'outfit'].map((garment) => `${kind} ${garment}`)
   ),
-  ...['her', 'their'].flatMap((who) =>
+  ...['her', 'his', 'their'].flatMap((who) =>
     ['clothes', 'cloth', 'outfit'].flatMap((garment) => [
       `${who} ${garment}`,
       `${who} own ${garment}`
@@ -75,6 +84,14 @@ function namedCustomSet(character: Character, text: string): CustomOutfitSlot | 
   return null
 }
 
+/** Male characters generated without a swim set still have something to wear at the pool. */
+function swimWardrobe(character: Character): readonly string[] {
+  const tags = outfitTagsFor(character, 'swim')
+  return genderOf(character) === 'male' && tags.length === 0
+    ? ['swim_trunks', 'bare_chest', 'bare_arms', 'bare_shoulders']
+    : tags
+}
+
 /** A set named in the caption, with the words that stand for its tags. */
 function namedWardrobe(
   character: Character,
@@ -89,7 +106,7 @@ function namedWardrobe(
     }
   }
   if (saysAny(text, SWIM_GARMENTS)) {
-    return { tags: outfitTagsFor(character, 'swim'), names: SWIM_GARMENTS }
+    return { tags: swimWardrobe(character), names: SWIM_GARMENTS }
   }
   if (saysAny(text, PE_GARMENTS)) {
     return { tags: outfitTagsFor(character, 'pe'), names: PE_GARMENTS }
@@ -128,13 +145,16 @@ export function photoWardrobe(
     if (removed.length === 0 || saysAny(remaining, GARMENT_NOUNS)) return null
     return character.outfit
   }
-  if (swimwearAllowed && saysAny(text, SWIM_PLACES)) return outfitTagsFor(character, 'swim')
+  if (swimwearAllowed && saysAny(text, SWIM_PLACES)) return swimWardrobe(character)
   if (saysAny(text, PE_PLACES)) return outfitTagsFor(character, 'pe')
   return character.outfit
 }
 
 /** Garments a described item can identify within a set; accessories alone do not select one. */
 const GARMENT_NOUNS = [
+  'boxers',
+  'briefs',
+  'trunks',
   'skirt',
   'shirt',
   'blouse',
@@ -159,7 +179,17 @@ const GARMENT_NOUNS = [
   'leggings',
   'robe'
 ]
-const GARMENT_FILLER = new Set(['her', 'their', 'own', 'the', 'and', 'with', 'clothes', 'clothing'])
+const GARMENT_FILLER = new Set([
+  'her',
+  'his',
+  'their',
+  'own',
+  'the',
+  'and',
+  'with',
+  'clothes',
+  'clothing'
+])
 const GARMENT_BREAK = [
   'and',
   'with',
@@ -223,8 +253,17 @@ export function photoWardrobeFromGarment(
 /** Garment nouns identify the same item across its colour and style tags. */
 const FOOTWEAR = ['shoes', 'boots', 'loafers', 'heels', 'sneakers', 'sandals']
 const LOWER_GARMENTS = [
-  'skirt', 'shorts', 'jeans', 'pants', 'trousers', 'leggings',
-  'thighhighs', 'thigh highs', 'stockings', 'socks', ...FOOTWEAR
+  'skirt',
+  'shorts',
+  'jeans',
+  'pants',
+  'trousers',
+  'leggings',
+  'thighhighs',
+  'thigh highs',
+  'stockings',
+  'socks',
+  ...FOOTWEAR
 ]
 const REMOVABLE_GARMENTS = [...GARMENT_NOUNS, ...LOWER_GARMENTS]
 
@@ -232,7 +271,7 @@ const REMOVABLE_GARMENTS = [...GARMENT_NOUNS, ...LOWER_GARMENTS]
 function removalPattern(noun: string): RegExp {
   const garment = `${noun}(?:s|es)?\\b`
   const description = "(?:\\s+(?!(?:and|with|in|wearing)\\b)[a-z'’-]+){0,3}?\\s+"
-  const off = 'off(?!\\s+(?:(?:one|of|her|the|a)\\s+){0,4}shoulders?\\b)'
+  const off = 'off(?!\\s+(?:(?:one|of|her|his|the|a)\\s+){0,4}shoulders?\\b)'
   return new RegExp(
     `\\b(?:without|took off|discarded)${description}${garment}|` +
       `\\b${garment}\\s+(?:(?:is|was)\\s+)?(?:${off}|draped over)\\b`,
@@ -242,9 +281,7 @@ function removalPattern(noun: string): RegExp {
 
 function removedGarments(tags: readonly string[], text: string): string[] {
   const outfit = garmentWords(tags.join(' '))
-  return REMOVABLE_GARMENTS.filter(
-    (noun) => says(outfit, noun) && removalPattern(noun).test(text)
-  )
+  return REMOVABLE_GARMENTS.filter((noun) => says(outfit, noun) && removalPattern(noun).test(text))
 }
 
 /** Only clothes still worn and within the shot contribute outfit tags. */
@@ -275,12 +312,13 @@ export function wardrobeLine(character: Character): string {
   const sets = [
     `everyday — ${spoken(character.outfit)}`,
     `PE kit — ${spoken(character.peOutfit)}`,
-    `swimsuit — ${spoken(character.swimOutfit)}`,
+    `swimsuit — ${spoken(swimWardrobe(character))}`,
     ...customOutfitSlotsIn(Object.keys(character.customOutfits ?? {})).flatMap((slot) => {
       const set = character.customOutfits?.[slot]
       const name = set?.name?.trim()
       return name && set && set.tags.length > 0 ? [`"${name}" — ${spoken(set.tags)}`] : []
     })
   ]
-  return `${character.firstName}'s clothes: ${sets.join('; ')}. If the picture has her in one of these, say which — "her everyday clothes", "her PE kit", "her swimsuit"${sets.length > 3 ? ', or the name of the set' : ''} — rather than describing it. For something else, or a picture from another day, say what she is wearing and its colour in a few words, as she would dress for it, in her own style: not an oversized knit sweater, cardigan or hoodie unless one is hers.`
+  const p = pronounsOf(character)
+  return `${character.firstName}'s clothes: ${sets.join('; ')}. If the picture has ${p.them} in one of these, say which — "${p.their} everyday clothes", "${p.their} PE kit", "${p.their} swimsuit"${sets.length > 3 ? ', or the name of the set' : ''} — rather than describing it. For something else, or a picture from another day, say what ${p.they} is wearing and its colour in a few words, as ${p.they} would dress for it, in ${p.their} own style: not an oversized knit sweater, cardigan or hoodie unless one is ${p.theirs}.`
 }

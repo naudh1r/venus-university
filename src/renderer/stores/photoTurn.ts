@@ -1,3 +1,4 @@
+import { genderOf } from '../../shared/photoGender'
 import { messagePhoto } from './photoRecords'
 import { photoInvoke } from './photoInvoke'
 import { redrawPhoto, RENDER_PATIENCE_MS } from './photoRedraw'
@@ -10,7 +11,6 @@ import {
   noExplicitPhotos,
   photoNamesInSave,
   savePhotoState,
-  savePhotoStateAwaitable,
   setMessagePhoto
 } from './localPhotoStore'
 import { tellAboutDmPhotos } from './photoTipDelivery'
@@ -25,6 +25,7 @@ function settleReplyPhoto(charId: string, character: Character, data: PhotoReply
   const info = game.charInfo[charId]
 
   return settlePhoto({
+    gender: genderOf(character),
     sendPhoto: data.sendPhoto === true,
     photoPrompt: data.photoPrompt ?? '',
     // Her own reading of what she drew, which may raise the caption's but never lower it.
@@ -67,8 +68,12 @@ function discardEarlyPhoto(early: EarlyPhoto): void {
   early.discarded = true
   early.release()
   if (early.file) {
-    void photoInvoke('drop', [early.playthroughId, early.charId, early.file, { cancelOnly: true }])
-      .catch((error) => console.warn('[photo] could not cancel an early photo:', error))
+    void photoInvoke('drop', [
+      early.playthroughId,
+      early.charId,
+      early.file,
+      { cancelOnly: true }
+    ]).catch((error) => console.warn('[photo] could not cancel an early photo:', error))
   }
   if (earlyPhotos.get(early.charId) === early) earlyPhotos.delete(early.charId)
   void early.render
@@ -131,7 +136,11 @@ export function startDmPhoto(
   const abort = (): void => discardEarlyPhoto(early)
   signal.addEventListener('abort', abort, { once: true })
   earlyPhotos.set(charId, early)
-  early.ready = photoInvoke('reserveName', [early.playthroughId, character, 'chat', photoNamesInSave(charId)])
+  early.ready = photoInvoke('reserveName', [
+    early.playthroughId,
+    character,
+    photoNamesInSave(charId)
+  ])
     .then((named) => {
       if (named.ok) early.file = named.data
       return named
@@ -147,10 +156,12 @@ export function startDmPhoto(
       console.log(`[photo] starting early DM render: ${named.data}`)
       return renderPhoto(early.playthroughId, character, early.tier, early.scene, named.data)
     })
-    .catch((error: unknown): Result<string> => ({
-      ok: false,
-      error: { code: 'PHOTO_THREW', message: String(error) }
-    }))
+    .catch(
+      (error: unknown): Result<string> => ({
+        ok: false,
+        error: { code: 'PHOTO_THREW', message: String(error) }
+      })
+    )
     .then((result) => {
       early.result = result
       if (!early.attached && (!earlyIsLive(early) || !canSendPhotos())) discardEarlyPhoto(early)
@@ -205,7 +216,13 @@ export async function sendPhoto(
     const named = await early.ready
     const now = photoGame()
     const message = now.bunnyboard.conversations[charId]?.messages.find((one) => one.id === last.id)
-    if (early.discarded || !earlyIsLive(early) || !message || messagePhoto.read(message) || !canSendPhotos()) {
+    if (
+      early.discarded ||
+      !earlyIsLive(early) ||
+      !message ||
+      messagePhoto.read(message) ||
+      !canSendPhotos()
+    ) {
       discardEarlyPhoto(early)
       return
     }
@@ -218,7 +235,7 @@ export async function sendPhoto(
         file: early.file,
         ...(early.result?.ok ? {} : { pending: true as const })
       })
-      tellAboutDmPhotos(character.firstName)
+      tellAboutDmPhotos(character.firstName, genderOf(character))
       savePhotoState()
       if (!early.result?.ok) drawMessagePhoto(charId, last.id, early.render)
       return
@@ -228,9 +245,13 @@ export async function sendPhoto(
 
   // The name before the picture, so the bubble carries it into the save whatever the render does
   // next. A bubble saved without one can never be told what landed, and spins for good.
-  const named = await photoInvoke('reserveName', [playthroughId, character, 'chat', photoNamesInSave(charId)])
+  const named = await photoInvoke('reserveName', [
+    playthroughId,
+    character,
+    photoNamesInSave(charId)
+  ])
   if (!named.ok) {
-    console.warn(`[texting] no name for her photo: ${named.error.code}`, named.error.message)
+    console.warn(`[texting] no name for a photo: ${named.error.code}`, named.error.message)
     return
   }
   const file = named.data
@@ -249,7 +270,7 @@ export async function sendPhoto(
     return
   setMessagePhoto(charId, last.id, { tier: verdict.tier, scene, file, pending: true })
   // Her first picture to him is the moment BunnyBot explains them.
-  tellAboutDmPhotos(character.firstName)
+  tellAboutDmPhotos(character.firstName, genderOf(character))
   // The waiting bubble is saved too, carrying the name the render will land under: that name is
   // the only thing `settlePendingPhotos` has to look for, and a bubble that never reached disk
   // leaves the finished picture orphaned there with nothing pointing at it.
@@ -318,7 +339,7 @@ function drawMessagePhoto(
   drawing.add(key)
   const timer = setTimeout(() => {
     if (messagePhotoOf(charId, messageId)?.pending) {
-      console.warn(`[texting] her photo has not answered in time`)
+      console.warn(`[texting] a photo has not answered in time`)
       settle({ ...drawn, failed: true })
     }
   }, RENDER_PATIENCE_MS)
@@ -335,7 +356,7 @@ function drawMessagePhoto(
         settle(drawn)
         return
       }
-      console.warn(`[texting] her photo failed: ${result.error.code}`, result.error.message)
+      console.warn(`[texting] a photo failed: ${result.error.code}`, result.error.message)
       settle({ ...drawn, failed: true })
     })
 }
@@ -375,13 +396,7 @@ export async function redrawMessagePhoto(
       playthroughId,
       character,
       friend: photo?.with ? game.characters[photo.with] : undefined,
-      kind: 'chat',
       read: () => messagePhotoOf(charId, messageId),
-      write: async (next) => {
-        if (!setMessagePhoto(charId, messageId, next).ok) return false
-        await savePhotoStateAwaitable(game.run)
-        return true
-      },
       live: () => {
         const now = photoGame()
         return now.playthroughId === playthroughId && now.run === game.run

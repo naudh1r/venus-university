@@ -1,9 +1,10 @@
 import type { ChatMessage } from '@vx/modkit/shared'
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useState, type JSX } from 'react'
+import { useRevisedPhotoUrl } from '../stores/photoRevision'
 import { photoUrl } from '../../shared/photoFiles'
 import { photoGenerationOn } from '../../shared/photoSwitches'
-import type { ChatPhoto, PhotoRenderOptions } from '../../shared/photoTypes'
+import type { ChatPhoto, PhotoOrientation, PhotoRenderOptions } from '../../shared/photoTypes'
 import { useExplicitBlocked, usePhotoSwitches, usePhotosVisible } from '../stores/photoSwitchHooks'
 import { useCharacter, useGameFacts } from '@vx/modkit/renderer'
 import { messagePhoto } from '../stores/photoRecords'
@@ -20,7 +21,8 @@ import {
   useViewingThread
 } from '@vx/modkit/renderer'
 import { PhotoInfoButton, PhotoRedrawFailure } from './PhotoInfo'
-import { photoRedrawKey, usePhotoRedraw } from '../stores/photoRedraw'
+import { photoRedrawKey, usePhotoRedraw, usePhotoRedrawReason, usePhotoRedrawOrientation } from '../stores/photoRedraw'
+import { loadedPhotoOrientation, useExpectedPhotoOrientation, usePhotoOrientation } from '../stores/photoOrientation'
 import '../vu_styles/PhotoBubble.css'
 
 /**
@@ -36,12 +38,12 @@ import '../vu_styles/PhotoBubble.css'
  * shimmer runs across; or her typing dots, at the size a frame carries them. Reduced motion
  * keeps each one and stills it — the wait still has to be legible as a wait.
  */
-export function PhotoWait(): JSX.Element {
+export function PhotoWait({ orientation = 'portrait' }: { orientation?: PhotoOrientation }): JSX.Element {
   const still = useReducedMotion() ?? false
   const loader = usePhotoSwitches().loader
   return (
     <div
-      className={`vu-bb-photo vu-bb-photo--pending vu-bb-photo--${loader}`}
+      className={`vu-bb-photo vu-bb-photo--pending vu-bb-photo--${loader}${orientation === 'wide' ? ' vu-bb-photo--wide' : ''}`}
       role="img"
       aria-label="Sending a photo"
     >
@@ -90,12 +92,20 @@ export function MessagePhoto({
   const playthroughId = useGameFacts().playthroughId
   const character = useCharacter(charId)
   const friend = useCharacter(photo.with ?? '')
-  const redraw = usePhotoRedraw(photoRedrawKey(playthroughId, charId, photo.file))
+  const key = photoRedrawKey(playthroughId, charId, photo.file)
+  const redraw = usePhotoRedraw(key)
+  const refusal = usePhotoRedrawReason(key)
+  const requested = usePhotoRedrawOrientation(key)
+  const src = useRevisedPhotoUrl(playthroughId && photo.file ? photoUrl(playthroughId, charId, photo.file) : null)
+  const loaded = usePhotoOrientation(src)
+  const expected = useExpectedPhotoOrientation(photo, src)
+  const orientation = (redraw === 'drawing' ? requested : undefined) ?? loaded ?? expected
+  const shape = orientation === 'wide' ? ' vu-bb-photo--wide' : ''
   const [opened, setShown] = useState(photo.tier !== 'explicit')
   // A picture the renderer cannot load says so, rather than collapsing to nothing and leaving
   // her talking about a photograph that is not there.
   const [broken, setBroken] = useState(false)
-  useEffect(() => { setBroken(false) }, [photo.file])
+  useEffect(() => { setBroken(false) }, [src])
   const modOn = usePhotoSwitches().on
   // An undressed picture while they are forbidden stays covered, whatever was tapped before.
   const explicitBlocked = useExplicitBlocked()
@@ -104,13 +114,11 @@ export function MessagePhoto({
 
   if (photo.pending) {
     // Off, nothing is being drawn, so there is nothing to wait for on screen.
-    return modOn ? <PhotoWait /> : null
+    return modOn ? <PhotoWait orientation={orientation} /> : null
   }
   if (photo.failed || broken || !photo.file || !playthroughId) {
-    return <div className="vu-bb-photo vu-bb-photo--failed">The photo never came through.</div>
+    return <div className={`vu-bb-photo vu-bb-photo--failed${shape}`}>The photo never came through.</div>
   }
-
-  const src = photoUrl(playthroughId, charId, photo.file)
 
   /**
    * The eye that covers and uncovers, in the same corner either way, so it reads as one switch
@@ -136,8 +144,9 @@ export function MessagePhoto({
 
   const image = (
     <img
-      className={`vu-bb-photo${shown ? '' : ' vu-bb-photo--veiled'}`}
-      src={src}
+      className={`vu-bb-photo${shape}${shown ? '' : ' vu-bb-photo--veiled'}`}
+      src={src!}
+      onLoad={(event) => loadedPhotoOrientation(event.currentTarget)}
       alt=""
       onError={() => {
         setBroken(true)
@@ -159,7 +168,7 @@ export function MessagePhoto({
       {image}
     </button>
   ) : onOpen ? (
-    <button type="button" className="vu-bb-photo-open" onClick={() => onOpen(src)}>
+    <button type="button" className="vu-bb-photo-open" onClick={() => onOpen(src!)}>
       {image}
     </button>
   ) : (
@@ -167,8 +176,8 @@ export function MessagePhoto({
   )
 
   return (
-    <div className="vu-bb-photo-frame">
-      {redraw === 'drawing' ? <PhotoWait /> : picture}
+    <div className={`vu-bb-photo-frame${shape}`}>
+      {redraw === 'drawing' ? <PhotoWait orientation={orientation} /> : picture}
       {redraw !== 'drawing' && covers && !locked && eye}
       {shown && character && onRedraw && (!photo.with || friend) && (
         <PhotoInfoButton
@@ -180,7 +189,7 @@ export function MessagePhoto({
           redrawing={redraw === 'drawing'}
         />
       )}
-      <PhotoRedrawFailure failed={redraw === 'failed'} />
+      <PhotoRedrawFailure failed={redraw === 'failed'} reason={refusal} />
     </div>
   )
 }
@@ -206,9 +215,13 @@ function RerollablePhoto({
   // Drawing again is the mod acting: it waits for the mod and its photo generation both.
   const photosOn = photoGenerationOn(usePhotoSwitches())
   const [missing, setMissing] = useState(false)
+  const playthroughId = useGameFacts().playthroughId
+  const src = useRevisedPhotoUrl(playthroughId && photo.file ? photoUrl(playthroughId, charId, photo.file) : null)
+  const loaded = usePhotoOrientation(src)
+  const expected = useExpectedPhotoOrientation(photo, src)
   if ((photo.failed || (missing && !photo.pending)) && photo.file && photo.scene) {
     return (
-      <div className="vu-bb-photo vu-bb-photo--failed vu-bb-photo--reroll">
+      <div className={`vu-bb-photo vu-bb-photo--failed vu-bb-photo--reroll${(loaded ?? expected) === 'wide' ? ' vu-bb-photo--wide' : ''}`}>
         <span>Image failed to generate.</span>
         {photosOn && (
           <button
@@ -321,8 +334,19 @@ export function PhotoLightboxHost(): JSX.Element | null {
       shotListeners.delete(setShot)
     }
   }, [])
+  const revisedShot = useRevisedPhotoUrl(shot)
+  const orientation = usePhotoOrientation(revisedShot)
   if (!shot) return null
-  return <Lightbox src={shot} onClose={() => openShot(null)} />
+  return (
+    <div
+      className={`vu-photo-lightbox${orientation === 'wide' ? ' vu-photo-lightbox--wide' : ''}`}
+      onLoadCapture={(event) => {
+        if (event.target instanceof HTMLImageElement) loadedPhotoOrientation(event.target)
+      }}
+    >
+      <Lightbox src={revisedShot!} onClose={() => openShot(null)} />
+    </div>
+  )
 }
 
 /** A message's picture, in a bubble of its own after her words; nothing for a message without one. */

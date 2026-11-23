@@ -2,17 +2,28 @@ import { registerPhotoBackup } from './localPhotoBackup'
 import { registerImagePromptDraft } from '@vx/modkit/shared'
 import { registerPhotoDraft } from '../shared/photoDraft'
 import { BrowserWindow } from 'electron'
-import type { InvokeContext, InvokeHandler } from '@vx/modkit/main'
-import type { PhotoRenderOptions } from '../shared/photoTypes'
+import {
+  installComfyNodePack,
+  type InvokeContext,
+  type InvokeHandler
+} from '@vx/modkit/main'
+import type { PhotoOrientation, PhotoRenderOptions } from '../shared/photoTypes'
+import { PHOTO_FEATURE_ID } from '../shared/photoSwitches'
+import { PPM_PACK } from './photoNodePack'
 import { appError, type Character } from '@vx/modkit/shared'
 import {
   carryPhotos,
-  retirePhoto,
+  reserveRedrawName,
+  replacePhoto,
+  sweepPhotos,
+  sweepAllPhotos,
   photoInfo,
+  photoPpmState,
   dropPhoto,
   generateDuoPhoto,
   generatePhoto,
   importChatPhoto,
+  soloPhotoOrientation,
   photoLanded,
   readPhotoBytes,
   reservePhotoName,
@@ -99,12 +110,20 @@ export function photoInvocations(): Record<string, InvokeHandler> {
     handlers[name] = (context, ...args) => listener(context, ...args as Args)
   }
   registerPhotoBackup()
+  sweepAllPhotos()
+  handle('sweep', (_event, pid: string) => { void sweepPhotos(pid).catch(error => console.warn('[photo] sweep skipped:', error)) })
+  handle('reserve-redraw', (_event, pid: string, character: Character, saved: readonly string[]) => reserveRedrawName(pid, character, saved))
+  handle('replace', (event, pid: string, charId: string, file: string, temporary: string) =>
+    runPhoto(event, pid, charId, temporary, async ({ signal }) => {
+      await replacePhoto(pid, charId, file, temporary, signal)
+      return temporary
+    }))
   registerPhotoDraft(registerImagePromptDraft)
   // Reserves the name the waiting bubble will carry into the save.
   handle(
     'reserve-name',
-    (_event, playthroughId: string, character: Character, kind: string, inSave: unknown) =>
-      reservePhotoName(playthroughId, character, kind, inSave)
+    (_event, playthroughId: string, character: Character, inSave: unknown) =>
+      reservePhotoName(playthroughId, character, inSave)
   )
 
   // The pictures a continued semester's carried threads and feeds point at, copied across.
@@ -146,8 +165,17 @@ export function photoInvocations(): Record<string, InvokeHandler> {
       tier: string,
       scene: string,
       file: string,
-      rebuild: boolean = false
-    ) => photoInfo(playthroughId, character, friend, tier, scene, file, rebuild)
+      rebuild: boolean = false,
+      orientation?: PhotoOrientation
+    ) => photoInfo(playthroughId, character, friend, tier, scene, file, rebuild, orientation)
+  )
+
+  // The effective ppm state also tells waiting frames whether a first duo can be wide.
+  handle('ppm-state', photoPpmState)
+
+  // Installs ComfyUI-ppm into the game's ComfyUI, stopped by the call's own cancellation.
+  handle('install-ppm', (event) =>
+    installComfyNodePack(PHOTO_FEATURE_ID, PPM_PACK.id, { signal: event.signal })
   )
 
   // Cancels an abandoned render, or removes a file once saved references permit it.
@@ -158,13 +186,17 @@ export function photoInvocations(): Record<string, InvokeHandler> {
       playthroughId: string,
       charId: string,
       file: string,
-      options?: { cancelOnly?: boolean; replacement?: string }
+      options?: { cancelOnly?: boolean }
     ) => {
       await cancelPhoto(playthroughId, charId, file)
       if (options?.cancelOnly) return
-      if (options?.replacement) return retirePhoto(playthroughId, charId, file, options.replacement)
       return dropPhoto(playthroughId, charId, file)
     }
+  )
+
+  // The shape her next photo alone is drawn in, asked before it is drawn.
+  handle('solo-orientation', (_event, character: Character, tier: string, photoPrompt: string) =>
+    soloPhotoOrientation(character, tier, photoPrompt)
   )
 
   // One picture she texted, rendered after her words have already landed on the thread.

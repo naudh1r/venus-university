@@ -1,15 +1,24 @@
 import { stubApi } from '../fixtures'
+import type { PhotoPpmState } from '../../src/shared/photoTypes'
 import type { PhotoSwitches } from '../../src/shared/photoSwitches'
 
 if (typeof window === 'undefined' || !window.api) stubApi({ jobs: { onProgress: () => () => {} } })
 const { useModsStore, modOptionOn } = await import('../../src/renderer/stores/modsStore')
 const { withMod, withOption } = await import('../../src/shared/mods')
 const { PHOTO_LOADERS } = await import('../../src/shared/photoLoader')
-const { PHOTO_FEATURE_ID, bindPhotoOptionReader } = await import('../../src/shared/photoSwitches')
+const { PHOTO_FEATURE_ID, bindPhotoOptionReader, bindPhotoPpmReader } = await import('../../src/shared/photoSwitches')
 
 export { useModsStore }
+let ppm: PhotoPpmState | null = 'installed'
+
+/** Supplies the fake installed-pack answer used by Photo's save and pairing fixtures. */
+export function setRendererPhotoPpm(state: PhotoPpmState | null): void {
+  ppm = state
+  bindPhotoPpmReader(() => ppm)
+}
 
 export function bindRendererPhotoReader(): void {
+  bindPhotoPpmReader(() => ppm)
   bindPhotoOptionReader(option => modOptionOn(PHOTO_FEATURE_ID, option))
 }
 
