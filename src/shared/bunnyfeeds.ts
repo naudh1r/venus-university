@@ -28,6 +28,8 @@ export interface HeldFeedMemory {
   at: number
   type: MemoryType
   desc: string
+  /** The same memory said to the reader as "you", for the closing's line. */
+  youDesc?: string
   /** The girl whose post it happened under; her own when it is the poster's memory. */
   posterId?: string
 }
@@ -39,7 +41,7 @@ export interface HeldFeedMemory {
  */
 export interface FeedThreadsResponse {
   replies?: Array<{ to: string; from: string; text: string }>
-  memories?: Array<{ char: string; type: string; desc: string }>
+  memories?: Array<{ char: string; type: string; desc: string; youDesc?: string }>
 }
 
 /** How many comments by other people the poster herself answers under one post. */

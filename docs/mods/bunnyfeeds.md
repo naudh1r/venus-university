@@ -107,6 +107,8 @@ on them, from any mod that puts one there, get threads like any other post.
   gender, so a boy's post, his picture and his replies are written about him, not her.
 - **Your pronouns**: replies, memories and the AI's instructions follow the pronouns you chose
   for yourself.
+- **The closing's memory lines** keep someone else's "his" or "her" as theirs. "You asked who
+  hurt him under his photo, on his post" no longer comes out as "your photo, on your post".
 
 ## 1.1.6
 

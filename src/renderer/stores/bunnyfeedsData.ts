@@ -51,7 +51,9 @@ function heldMemory(value: unknown): HeldFeedMemory[] {
   if (!charId || !type || !Number.isSafeInteger(one.at) ||
       typeof one.desc !== 'string' || !one.desc.trim()) return []
   const posterId = idOf(one.posterId)
+  const youDesc = typeof one.youDesc === 'string' && one.youDesc.trim() ? one.youDesc : undefined
   return [{ charId, at: one.at as number, type, desc: one.desc,
+    ...(youDesc ? { youDesc } : {}),
     ...(posterId ? { posterId } : {}) }]
 }
 
