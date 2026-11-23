@@ -250,22 +250,28 @@ export function photoWardrobeFromGarment(
   return null
 }
 
-/** Garment nouns identify the same item across its colour and style tags. */
-const FOOTWEAR = ['shoes', 'boots', 'loafers', 'heels', 'sneakers', 'sandals']
-const LOWER_GARMENTS = [
-  'skirt',
-  'shorts',
-  'jeans',
-  'pants',
-  'trousers',
-  'leggings',
-  'thighhighs',
-  'thigh highs',
-  'stockings',
-  'socks',
-  ...FOOTWEAR
+const FOOTWEAR = [
+  'shoes', 'boots', 'loafers', 'heels', 'sneakers', 'sandals', 'flats', 'pumps', 'slippers',
+  'flip flops', 'clogs', 'mary janes', 'footwear', 'trainers', 'oxfords'
 ]
-const REMOVABLE_GARMENTS = [...GARMENT_NOUNS, ...LOWER_GARMENTS]
+const HIGH_LEGWEAR = ['thighhigh', 'thigh high', 'stocking', 'pantyhose']
+const LOWER_GARMENTS = [
+  'skirt', 'shorts', 'jeans', 'pants', 'trousers', 'leggings', 'tights', 'legwear',
+  'bottom', 'buruma', 'bloomers', 'belt', 'thighs', 'midriff', 'navel', 'bare legs'
+]
+const REMOVABLE_GARMENTS = [...GARMENT_NOUNS, ...LOWER_GARMENTS, ...HIGH_LEGWEAR, 'sock', ...FOOTWEAR]
+
+export function isFootwearOrSocks(tag: string): boolean {
+  const words = garmentWords(tag)
+  if (FOOTWEAR.some((word) => words.includes(word))) return true
+  return saysAny(words, ['barefoot', 'bare feet']) ||
+    (says(words, 'sock') && !saysAny(words, HIGH_LEGWEAR))
+}
+
+export function feetInShot(caption: string, framing: Framing | null): boolean {
+  return framing === 'full' || framing === 'lower' ||
+    saysAny(garmentWords(caption), [...FOOTWEAR, 'feet', 'foot', 'barefoot', 'shoe', 'sneaker'])
+}
 
 /** A garment removed from her, rather than merely shifted while she wears it. */
 function removalPattern(noun: string): RegExp {
@@ -292,10 +298,13 @@ export function filterPhotoWardrobe(
 ): readonly string[] {
   const removed = removedGarments(tags, caption.toLowerCase())
   const upper = framing === 'waist' || framing === 'face'
+  const feet = feetInShot(caption, framing)
   return tags.filter((tag) => {
     const words = garmentWords(tag)
     if (saysAny(words, removed)) return false
-    return !upper || (!saysAny(words, LOWER_GARMENTS) && !says(words, 'thighs'))
+    if (isFootwearOrSocks(tag)) return feet
+    if (saysAny(words, HIGH_LEGWEAR)) return feet || framing === 'knees'
+    return !upper || !saysAny(words, LOWER_GARMENTS)
   })
 }
 

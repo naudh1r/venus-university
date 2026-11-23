@@ -16,6 +16,11 @@ import { describe, expect, it } from 'vitest'
 
 /** Danbooru vocabulary checked against the API or the catalog cited beside its entries. */
 const VERIFIED = new Set([
+  // Bare body details and skin marks, checked against the published Danbooru catalog below.
+  'small_penis',
+  'large_penis',
+  'huge_penis',
+  'handprint',
   // Hand gestures a caption names, from the published Danbooru catalog cited below.
   'double_v',
   'middle_finger',
@@ -384,6 +389,7 @@ function emittedTags(): string[] {
     // A selfie her hands are too full to take, drawn as somebody else's picture.
     ...quoted(pose, /\.\.\.camera, ('selfie', 'outstretched_arm')\]/g),
     ...quoted(pose, /,\s*('crossed_legs')\]/g),
+    ...quoted(pose, /tags\.push\(('handprint')\)/g),
     ...quoted(pose, /\.\.\.tags, ('indian_style')\]/g),
     ...quoted(pose, /'looking_at_viewer'\), ('looking_away')\]/g),
     ...quoted(body, /BARE_TAGS[^=]*=\s*\{([^}]*)\}/g),

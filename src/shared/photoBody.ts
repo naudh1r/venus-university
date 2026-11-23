@@ -1,7 +1,15 @@
 import { photoRuleText, type PhotoGender } from './photoGender'
 import type { CharacterBody } from './characterBody'
 import type { Framing } from './photoFraming'
-import { says, saysAny } from './photoWords'
+import {
+  ALL_FOURS_CUES,
+  BENT_OVER_CUES,
+  FACE_DOWN_CUES,
+  SPREAD_CHEEKS_CUES,
+  isBackShot,
+  says,
+  saysAny
+} from './photoWords'
 
 /**
  * Which parts of her a photograph actually shows.
@@ -22,9 +30,6 @@ import { says, saysAny } from './photoWords'
 type Region = 'bust' | 'nipples' | 'stomach' | 'hipsThighs' | 'buttocks' | 'pubic'
 const REGIONS: readonly Region[] = ['bust', 'nipples', 'stomach', 'hipsThighs', 'buttocks', 'pubic']
 
-/** Always in shot, whatever the pose: the middle of her. */
-const ALWAYS_SEEN: readonly Region[] = ['stomach']
-
 /** What the front of her offers when the caption says nothing about which way she is turned. */
 const SEEN_BY_DEFAULT: readonly Region[] = ['bust', 'nipples', 'pubic', 'hipsThighs']
 
@@ -36,24 +41,8 @@ const FRAMING: readonly { cues: readonly string[]; seen: readonly Region[] }[] =
     seen: ['bust', 'nipples']
   },
   {
-    // Turned away and offered: her back, and what being bent over shows past it.
-    cues: [
-      'all fours',
-      'hands and knees',
-      'bent over',
-      'bending over',
-      'ass up',
-      'presenting',
-      'spreading her ass',
-      'spreading her cheeks',
-      'grabbing her ass'
-    ],
+    cues: [...ALL_FOURS_CUES, ...BENT_OVER_CUES, 'ass up', 'presenting', 'grabbing her ass'],
     seen: ['buttocks', 'hipsThighs', 'pubic']
-  },
-  {
-    // Turned away and upright: her back only.
-    cues: ['from behind', 'back view', 'rear view', 'back turned', 'over her shoulder'],
-    seen: ['buttocks', 'hipsThighs']
   },
   {
     // On her back with her legs up: everything, from underneath.
@@ -90,9 +79,6 @@ const SPREAD_CUES = [
   'spread pussy'
 ]
 
-/** Anything about her behind puts it in shot the same way. */
-const REAR_CUES = ['spreading her ass', 'spreading her cheeks', 'holding her cheeks apart']
-
 /** Which body regions remain within an explicit crop. */
 const FRAMED_SEEN: Partial<Record<Framing, readonly Region[]>> = {
   face: [],
@@ -106,14 +92,27 @@ const FRAMED_SEEN: Partial<Record<Framing, readonly Region[]>> = {
  */
 function seenIn(caption: string, framing: Framing | null): Set<Region> {
   const text = photoRuleText(caption)
-  const close = framing ? FRAMED_SEEN[framing] : undefined
+  const crop = framing ? FRAMED_SEEN[framing] : undefined
+  const back = isBackShot(text)
+  const prone = saysAny(text, FACE_DOWN_CUES)
+  const spreadCheeks = saysAny(text, SPREAD_CHEEKS_CUES)
+  const bentOrAllFours = saysAny(text, [...ALL_FOURS_CUES, ...BENT_OVER_CUES])
   const row = FRAMING.find((rule) => saysAny(text, rule.cues))
-  const seen = new Set<Region>(close ?? row?.seen ?? SEEN_BY_DEFAULT)
+  const rear = back || prone
+  const seen = new Set<Region>(
+    rear ? ['buttocks', 'hipsThighs'] : crop ?? row?.seen ?? SEEN_BY_DEFAULT
+  )
 
-  if (saysAny(text, SPREAD_CUES)) seen.add('pubic')
-  if (saysAny(text, REAR_CUES)) seen.add('buttocks')
-  // Neither a face-only nor a waist-down crop includes the middle of her.
-  if (framing !== 'face' && framing !== 'lower') for (const field of ALWAYS_SEEN) seen.add(field)
+  // Bent over or on all fours can show past the backside. Face down needs the caption
+  // to say she is spreading her cheeks for the same region to be visible.
+  if (rear && (prone ? spreadCheeks : bentOrAllFours)) seen.add('pubic')
+  if (!rear && framing !== 'face' && framing !== 'lower') seen.add('stomach')
+  if (crop) {
+    for (const region of seen) {
+      if (region !== 'stomach' && !crop.includes(region)) seen.delete(region)
+    }
+  }
+  if (!rear && saysAny(text, SPREAD_CUES)) seen.add('pubic')
   return seen
 }
 
@@ -413,9 +412,14 @@ export function bodyTagsFor(
   bare: boolean,
   framing: Framing | null = null,
   partial?: PartialPhotoExposure,
-  gender: PhotoGender = 'female'
+  gender: PhotoGender = 'female',
+  solo = true
 ): string[] {
   const seen = seenIn(caption, framing)
+  const maleBack = gender === 'male' && isBackShot(photoRuleText(caption))
+  // A wider two-person crop shows more of the outfits without adding intimate detail.
+  if (maleBack || (!solo && !seenIn(caption, 'waist').has('pubic'))) seen.delete('pubic')
+  if (gender === 'male') seen.delete('hipsThighs')
   const coverage = coverageIn(caption, bare)
   if (bare && partial) {
     for (const region of TOP_HALF) coverage[region] = partial.upper ? 'exposed' : 'hidden'
@@ -431,7 +435,10 @@ export function bodyTagsFor(
 
     // The same words her nude sprite is drawn with, for the parts of her this picture shows.
     const nude = gender === 'male' && region === 'pubic' ? 'penis' : BARE_TAGS[region]
-    if (state === 'exposed' && bare && nude) tags.push(nude)
+    if (state === 'exposed' && bare && nude) {
+      tags.push(nude)
+      if (nude === 'penis' && solo && body?.penis) tags.push(body.penis)
+    }
 
     const own = body ? ownTag(body, region, bare && state === 'exposed') : undefined
     if (own) {
