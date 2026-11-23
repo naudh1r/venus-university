@@ -18,6 +18,7 @@ import {
   modIsOn,
   quietLift,
   quietPress,
+  useModOn,
   type ContactTabProps,
   EyeIcon,
   EyeOffIcon
@@ -25,6 +26,7 @@ import {
 import { useExplicitBlocked, usePhotosVisible } from '../stores/photoSwitchHooks'
 import { useCharacter, useGameFacts, useConversation, useFeed } from '@vx/modkit/renderer'
 import { messagePhoto, postPhoto } from '../stores/photoRecords'
+import { EchoPanel } from './EchoPanel'
 import { photosVisible } from '../../shared/photoSwitches'
 import { loadedPhotoOrientation, useExpectedPhotoOrientation, usePhotoOrientation } from '../stores/photoOrientation'
 import '../vu_styles/ContactGallery.css'
@@ -193,9 +195,10 @@ function Shot({
  * photograph adds to a cell, which is the covering.
  */
 /** Her gallery, as a tab beside Profile on her contact page. */
-export function GalleryPanel({ charId, isContact }: ContactTabProps): JSX.Element {
+export function GalleryPanel({ charId, isContact, theme }: ContactTabProps): JSX.Element {
   const [filter, setFilter] = useState<ShotFilter>('all')
   const visible = usePhotosVisible()
+  const echoOn = useModOn('echo')
   const playthroughId = useGameFacts().playthroughId
   const conversation = useConversation(charId)
   const feed = useFeed(charId)
@@ -298,6 +301,7 @@ export function GalleryPanel({ charId, isContact }: ContactTabProps): JSX.Elemen
           )}
         </>
       )}
+      {isContact && echoOn && <EchoPanel hidden={false} gallery owner={charId} theme={theme} />}
     </Card>
   )
 }
