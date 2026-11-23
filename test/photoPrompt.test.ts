@@ -693,7 +693,9 @@ describe('the finished prompt for back shots', () => {
     const dressed = buildPhotoPrompt(guy, 'everyday', 'Standing facing the camera in his clothes')
     expect(dressed.positive).not.toMatch(/\b(?:penis|large_penis|long_legs|huge_ass)\b/)
     expect(dressed.negative).toMatch(/\bhuge_ass\b/)
-    expect(dressed.negative).not.toMatch(/\b(?:flat_ass|small_penis|large_penis|huge_penis)\b/)
+    expect(dressed.negative).not.toMatch(
+      /\b(?:flat_ass|small_penis|large_penis|huge_penis|long_legs|thick_thighs|wide_hips)\b/
+    )
   })
 
   it('preserves kneeling and the marks from the DM caption', () => {
