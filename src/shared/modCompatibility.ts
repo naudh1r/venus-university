@@ -1,5 +1,5 @@
 import { parseRange, satisfies } from '../../packages/modkit/src/shared/range'
-import { modOn, type ModDef, type ModSwitches } from './mods'
+import type { ModDef, ModSwitches } from './mods'
 import type { PlaythroughRecord } from './types'
 
 /** Author declarations describe support, not proof of testing or a loading restriction. */
@@ -10,7 +10,8 @@ export function compatibilityWarning(mod: Pick<ModDef, 'name' | 'game'>, version
   return null
 }
 
-export function compatibilityWarnings(mods: readonly ModDef[], switches: ModSwitches, version: string, record?: Pick<PlaythroughRecord, 'mods'>): string[] {
+export async function compatibilityWarnings(mods: readonly ModDef[], switches: ModSwitches, version: string, record?: Pick<PlaythroughRecord, 'mods'>): Promise<string[]> {
+  const { modOn } = await import('./mods')
   return mods.filter((mod) => !mod.library && modOn(switches, mod.id, record, mods))
     .map((mod) => compatibilityWarning(mod, version)).filter((line): line is string => line !== null)
 }

@@ -1,8 +1,6 @@
 import { create } from 'zustand'
-import { MODS } from '@shared/mods'
 import type { PlaythroughRecord } from '@shared/types'
 import { compatibilityWarnings } from '@shared/modCompatibility'
-import { useModsStore } from '../stores/modsStore'
 import { useUiStore } from '../stores/uiStore'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { heldScreenTheme } from './clockTheme'
@@ -10,10 +8,13 @@ import { heldScreenTheme } from './clockTheme'
 const pending = create<{ messages: string[]; settle: ((ok: boolean) => void) | null }>(() => ({ messages: [], settle: null }))
 
 /** Ask before crossing into gameplay, using saved enrollment rather than new-game defaults. */
-export function confirmModCompatibility(record?: Pick<PlaythroughRecord, 'mods'>): Promise<boolean> {
+export async function confirmModCompatibility(record?: Pick<PlaythroughRecord, 'mods'>): Promise<boolean> {
   if (pending.getState().settle) return Promise.resolve(false)
+  const { MODS } = await import('@shared/mods')
+  const { useModsStore } = await import('../stores/modsStore')
   const switches = useModsStore.getState().switches
-  const messages = compatibilityWarnings(MODS, switches, __APP_VERSION__, record)
+  const messages = await compatibilityWarnings(MODS, switches, __APP_VERSION__, record)
+  if (pending.getState().settle) return false
   if (!messages.length) return Promise.resolve(true)
   return new Promise((settle) => pending.setState({ messages, settle }))
 }
