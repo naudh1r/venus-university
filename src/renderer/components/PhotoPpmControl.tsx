@@ -55,7 +55,7 @@ export function PhotoPpmControl({ on }: OptionControlProps): JSX.Element | null 
   if (state !== 'installed' && (source === 'external' || state === 'unmanaged')) {
     return (
       <span className="vu-check-note">
-        Photos of two need the {PPM_LINK} node pack. Install it on your own ComfyUI, then restart that server.
+        Photos of two need the {PPM_LINK} node pack. Update your ComfyUI to its latest version, install the pack there, then restart it.
       </span>
     )
   }
@@ -84,9 +84,7 @@ export function PhotoPpmControl({ on }: OptionControlProps): JSX.Element | null 
       {(installing || failure) && (
         <span className="vu-btn-sub">{installing ? 'INSTALLING…' : 'FAILED'}</span>
       )}
-      <span className="vu-check-note">
-        Photos of two need the {PPM_LINK} node pack. Without it, every photo shows one person.
-      </span>
+      <span className="vu-check-note">{PPM_LINK} isn't installed yet.</span>
       {failure && !installing && <span className="vu-test-note">{failure}</span>}
       <AnimatePresence>
         {asking && (
