@@ -28,3 +28,10 @@ export function ModCompatibilityWarning() {
     onConfirm={() => finish(true)} onCancel={() => finish(false)}
     extraText="Review mods" onExtra={() => { finish(false); useUiStore.getState().openModal('mods') }} />
 }
+
+/** Existing setup folders can retain a prior playthrough's enrollment. Read it without modifying setup. */
+export async function confirmSetupCompatibility(playthroughId: string): Promise<boolean> {
+  const listing = await window.api.saves.list(playthroughId)
+  if (!listing.ok) { useUiStore.getState().showError(listing.error); return false }
+  return confirmModCompatibility(listing.data.record ?? undefined)
+}

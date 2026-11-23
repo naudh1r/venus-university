@@ -1,4 +1,4 @@
-import { confirmModCompatibility } from './ModCompatibilityWarning'
+import { confirmModCompatibility, confirmSetupCompatibility } from './ModCompatibilityWarning'
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, type AnimationPlaybackControls } from 'motion/react'
@@ -445,6 +445,7 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
       )
       return
     }
+    if (!(await confirmSetupCompatibility(resolved.playthroughId))) return
     /** Stages what was read and raises the screen that reopens on it. */
     const reopen = (): void => {
       if (isApplication(resolved)) {

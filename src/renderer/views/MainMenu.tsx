@@ -1,4 +1,4 @@
-import { confirmModCompatibility } from './ModCompatibilityWarning'
+import { confirmModCompatibility, confirmSetupCompatibility } from './ModCompatibilityWarning'
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { toAppError } from '@shared/errors'
@@ -191,6 +191,7 @@ export function MainMenu(): JSX.Element {
     // this cover, so it holds its quiet second and opens again. A roster it can no longer be
     // played with is explained by its own card.
     if (resumed && (isEnrollment(resumed) || isApplication(resumed))) {
+      if (!(await confirmSetupCompatibility(resumed.playthroughId))) return
       if (resumed.unloadable) {
         openModal('loadGame')
         return
@@ -398,7 +399,9 @@ export function MainMenu(): JSX.Element {
                 // semester and the roster it names are read by the view behind the curtain,
                 // which owns the crossing's end — the same shape as the other two ways into
                 // a game.
-                beginCrossing(() => setView('quickstart'))
+                void confirmModCompatibility().then((ok) => {
+                  if (ok) beginCrossing(() => setView('quickstart'))
+                })
               }}
             >
               Quickstart

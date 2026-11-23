@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Optional `ModDef.game` declares supported Venus University versions. Manifest `game`
+  ranges now propagate to mod-menu metadata; undeclared or out-of-range support is
+  shown with advisory confirmation before enabling mods and game entry.
+
 - Scene exchange context includes each participant's normalized `gender` and
   `scene.readerPronouns`, so auxiliary scenes preserve 0.9 identities without
   inferring them from names.
