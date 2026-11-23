@@ -82,6 +82,7 @@ export function focusesOnBackside(text: string): boolean {
   const rear = '(?:ass|butt|booty|backside|bum|rear)(?![\\w-])'
   const focus = new RegExp(
     `\\b(?:of|showing(?: off)?|focusing on|focused on|framing|showcases?) (?:her |the |a |that )?(?:bare )?${rear}` +
+      `|^\\s*(?:her|the) (?:bare )?${rear}\\b` +
       `|\\b(?:bare ${rear}|${rear} (?:shot|in (?:the )?frame|filling (?:the )?frame))\\b`
   )
   const coveredFront =
