@@ -66,22 +66,27 @@ nothing else:
 - the reader's Brain, Body and Heart as points with their ranks, and that 100 is a soft limit:
   a stat climbs past it, but its rank and wording stay at Godly;
 - the date and half of the day;
-- the four newest finished slots' summaries, and up to four older ones that name a girl in the
-  scene by the name the reader knows her by;
-- each girl still in the scene: her contact page's tag, the milestones the player has watched
-  happen (dating, kissed, slept together, breakups, friendzones, her number, a block), and —
-  once she has given him her number — what her contact page has open: likes and dislikes, her
-  type, backstory and love life on the page's own thresholds, read through `dispositionOf`, and
-  her memories under the cast-scene memory budget; her told secrets, the player's notes and the
-  plans ahead with her;
+- the four newest finished slots' summaries, and up to four older ones that name a character in
+  the scene by the name the reader knows them by;
+- each character still in the scene, headed with their age and pronouns as the scene's own cast
+  heading gives them (`headingTag`, `agesNow`): their contact page's tag, the milestones the
+  player has watched happen (dating, kissed, slept together, breakups, friendzones, their number,
+  a block), and — once they have given the reader their number — what their contact page has
+  open: likes and dislikes, their type, backstory and love life on the page's own thresholds, read
+  through `dispositionOf`, and their memories under the cast-scene memory budget; their told
+  secrets, the player's notes and the plans ahead with them;
 - the running summary and the transcript's tail, exactly as a continuation call reads them.
 
-It is never told an untold secret, a crush, her personality or behaviour lines, her haunts,
-affection as a number or the balance. A girl whose name the reader has not learned is listed by
-a label alone, and every spelling of her first, last and whole name anywhere in the request is
-replaced by that label, sparing a name a named girl of the cast also answers to. A girl who has
-left the scene is not listed, but her lines are still in its tail, so her name is masked the same
-way and she is numbered after the girls still there.
+Lines naming the reader beside a character use `readerWords`, so they follow the reader's
+pronouns and name the reader outright where a pronoun would be that character's too.
+
+It is never told an untold secret, a crush, their personality or behaviour lines, their haunts,
+affection as a number or the balance. A character whose name the reader has not learned is listed
+by a label alone, UNNAMED GIRL or UNNAMED GUY, numbered where several share one, and every
+spelling of their first, last and whole name anywhere in the request is replaced by that label,
+sparing a name a named character of the cast also answers to. A character who has left the scene
+is not listed, but their lines are still in its tail, so their name is masked the same way and
+they are numbered after those still there.
 
 A read is taken only at a decision point, and there every delivered line has been read, so the
 running summary covers nothing the player has not seen.
@@ -111,8 +116,9 @@ are dropped and at most four kept.
 | `src/renderer/modEntries/story-assistant.ts` | Registers `scenePlay`, `stageLayer` and `modDetail`, each screen loaded when it is first drawn |
 
 The kit has no reader yet for the scene being played, so the store reads the game store and the
-helpers a continuation's prompt is built from (the transcript stubs, her memory, secret and notes
-lines, the plans ahead, the setting, the `READER` block, the budgets), and the panel and the menu
+helpers a continuation's prompt is built from (the transcript stubs, the cast heading's age and
+pronouns, the memory, secret and notes lines, the plans ahead, the setting, the `READER` block,
+the budgets), and the panel and the menu
 take `spin` and `dealtItem` from the game's motion. Those imports are the mod's lines in
 `test/kit/boundaryAllowlist.json`; everything else comes from the kit.
 

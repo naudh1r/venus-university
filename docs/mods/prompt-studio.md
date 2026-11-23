@@ -70,10 +70,13 @@ stay locked.
 
 ## New Game
 
-The **New Game** tab rewrites the four calls that build a semester: the class catalog, the
-student profiles, the calendar's occasions and the secrets. A later semester's calls read the
-same edits. The tab shows only on the main menu, and each request takes the edits in force
-when New Game or New Game+ starts it; a retry sends it again unchanged.
+The **New Game** tab rewrites the four kinds of request that build a semester: the class catalog,
+the student profiles, the calendar's occasions and the secrets. New Game sends these in parts:
+each pool and major of the catalog is its own request, and each new student's profile and
+secrets go out together in one, with both sets of edits applied. A later semester's students and
+graduates, and a transfer student, read the same edits. The tab shows only on the main menu, and
+each request takes the edits in force when New Game or New Game+ starts it; a retry sends it
+again unchanged.
 
 Each call has its system prompt, its prose in one or more blocks, and a **Your additions**
 block that ships empty and is added after the system prompt when filled in. An edited block is
