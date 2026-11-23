@@ -468,6 +468,14 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
 - `readerWordsOf(pronouns, beside?)` (`shared`): the game's `ReaderWords`, including capitalized
   forms. The subject is “the reader” for they/them, so it takes a singular verb. Pass a character's
   gender as `beside` if they share the reader's pronouns and the line needs to distinguish them.
+- `genderOf(character)` and `pronounsOf(character)` (`shared`): a character's gender (`'female'`
+  or `'male'`) and the game's `Pronouns` for it: `they`, `them`, `their`, `theirs`, `themself`,
+  each also capitalized, plus `noun` and `partner`. `PRONOUNS[gender]` is the same set by gender,
+  `pronounTag(gender)` is `she/her` or `he/him` for a character sheet, and
+  `fillPronouns(template, gender, name?)` fills a template's `{they}`-style tokens and `{name}`.
+  `readerGenderOf(pronouns)` is the reader's own gender, or null for they/them: where a line names
+  several characters, pass `readerWordsOf` that gender as `beside` if one of them has it. A mod's
+  text takes its words from these wherever it would otherwise write "she" or "he".
 - `useScenePersona()` (`renderer`): the cast-scene persona the player set in Settings, or
   undefined where none is set or the settings are not read yet.
 - `showError(error)` (`renderer`): the game's own error modal, for an `AppError` a mod's call answered.

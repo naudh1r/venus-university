@@ -15,6 +15,9 @@
 - `optionControls` draws a mod's own control under one of its ungrouped options on the Mods screen.
 - `gameFacts` and `useGameFacts` include the reader's pronouns. Shared `readerWordsOf` gives mods the
   same pronoun forms the game uses.
+- `genderOf`, `pronounsOf`, `PRONOUNS`, `fillPronouns`, `pronounTag` and `readerGenderOf`
+  (`shared`), with the `Gender` and `Pronouns` types, are the game's own words for a character's
+  gender, so a mod's text about a character can follow it as the game's does.
 
 - Scene exchange context includes each participant's normalized `gender` and
   `scene.readerPronouns`, so auxiliary scenes preserve 0.9 identities without
