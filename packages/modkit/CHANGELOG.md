@@ -5,6 +5,14 @@
 - Optional `ModDef.game` declares supported Venus University versions. Manifest `game`
   ranges now propagate to mod-menu metadata; undeclared or out-of-range support is
   shown with advisory confirmation before enabling mods and game entry.
+- Main code can pin a ComfyUI custom-node pack of its own with `registerComfyNodePack`, install it
+  into the game's managed ComfyUI on demand with `installComfyNodePack`, and read it with
+  `comfyNodePackState`. `renderComfyImage` refuses a graph naming a class the server lacks as
+  `COMFY_NODES_MISSING`, naming the pack.
+- `comfyNodePackState` checks the loaded classes on the player's own ComfyUI, with a short
+  deadline and a one-minute cache cleared when its source or address changes. The existing
+  `subscribeLocalImageSource` also notifies mods when the external address changes.
+- `optionControls` draws a mod's own control under one of its ungrouped options on the Mods screen.
 
 - Scene exchange context includes each participant's normalized `gender` and
   `scene.readerPronouns`, so auxiliary scenes preserve 0.9 identities without
