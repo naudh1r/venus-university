@@ -381,10 +381,10 @@ export function bodyAppearance(character: Character, scope: BodyScope): string[]
  */
 const PETITE_NEGATIVE_TAGS = ['loli', 'child', 'aged_down']
 
-/** Keep the female-only body shapes out of a guy's photo. */
+/** Keep the female-only chest and backside sizes out of a guy's photo. */
 export function bodyNegative(character: Character): string[] {
   if (genderOf(character) === 'male') {
-    return [...BREAST_TAGS.filter((tag) => tag !== 'flat_chest'), ...HIPS_TAGS, 'huge_ass', 'female_pubic_hair']
+    return [...BREAST_TAGS.filter((tag) => tag !== 'flat_chest'), 'huge_ass']
   }
   return bodyOf(character)?.build === 'petite' ? [...PETITE_NEGATIVE_TAGS] : []
 }
