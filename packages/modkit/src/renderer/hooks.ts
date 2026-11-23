@@ -142,6 +142,12 @@ export interface OptionPreviewProps {
   optionId: string | null
 }
 
+/** What the Mods screen hands a control drawn under one of a mod's own options: that option, and whether it is on. */
+export interface OptionControlProps {
+  optionId: string
+  on: boolean
+}
+
 /** What a mod offers for a save picked in Load Game, beside loading it. */
 export interface SaveChoice extends WayOn {
   title: string
@@ -505,6 +511,11 @@ export interface ModHooks {
    * whichever option is picked. Asked whether or not the mod is on, so it shows before it is.
    */
   optionPreviews?: Record<string, ComponentType<OptionPreviewProps>>
+  /**
+   * A small control drawn under the hint of one of its options outside any group on the Mods
+   * screen, by the option's id. Asked whether or not the mod is on.
+   */
+  optionControls?: Record<string, ComponentType<OptionControlProps>>
   /** An offer for a save picked in Load Game, beside loading it; the first mod that answers. */
   saveChoice?: (ctx: {
     playthroughId: string
@@ -1130,6 +1141,15 @@ export function optionPreview(
 ): ComponentType<OptionPreviewProps> | undefined {
   return registered.find((entry) => entry.modId === modId && entry.hooks.optionPreviews?.[groupId])
     ?.hooks.optionPreviews?.[groupId]
+}
+
+/** The control a mod draws under one of its ungrouped options, on or off; none where it has none. */
+export function optionControl(
+  modId: string,
+  optionId: string
+): ComponentType<OptionControlProps> | undefined {
+  return registered.find((entry) => entry.modId === modId && entry.hooks.optionControls?.[optionId])
+    ?.hooks.optionControls?.[optionId]
 }
 
 /** The offer for a picked save from the first mod that makes one, or none. */
