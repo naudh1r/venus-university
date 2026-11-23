@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { genderOf, readerPronounsOf } from '@shared/gender'
 import { STAT_ATTRACTIONS } from '@shared/playerStats'
 import { attractionInPlay, loveLifeBlurb } from '@shared/relationship'
 import { memoryBudgetFor } from '@shared/settingsRules'
@@ -52,6 +53,7 @@ import { useGameStore } from './gameStore'
 import { settingNow } from './lorebookStore'
 import { replyRowOfferOf } from './loop/playback'
 import { memoryBudgetsNow, reader, sceneSoFar, secretBudgetNow } from './loop/promptState'
+import { agesNow } from './timetable'
 
 type GameState = ReturnType<typeof useGameStore.getState>
 
@@ -276,21 +278,28 @@ function revealsOf(flags: CharFlags, affection: number): { traits: boolean; back
   }
 }
 
-/** A girl of the cast as the request may name her: by her first name once the reader has learned it. */
+/** A character of the cast as the request may name them: by first name once the reader has learned it. */
 function nameOf(game: GameState, character: Character): AssistantName {
   return {
     name: game.charInfo[character.charId]?.nameKnown ? character.firstName : null,
-    names: [character.firstName, character.lastName]
+    names: [character.firstName, character.lastName],
+    gender: genderOf(character)
   }
 }
 
-/** One girl in the scene as the player has been shown her, off her contact page's own rule. */
-function girlOf(game: GameState, character: Character, castSize: number, plans: string[]): AssistantGirl {
+/** One character in the scene as the player has been shown them, off their contact page's own rule. */
+function girlOf(
+  game: GameState,
+  character: Character,
+  castSize: number,
+  plans: string[],
+  age: number | undefined
+): AssistantGirl {
   const info = game.charInfo[character.charId]
   const flags = info?.flags ?? emptyFlags()
   const affection = affectionFor(info, game.date, character)
   const reveals = revealsOf(flags, affection)
-  const { name, names } = nameOf(game, character)
+  const { name, names, gender } = nameOf(game, character)
   const profile: string[] = []
   const record: string[] = []
   if (name !== null && flags.gaveContactInfo) {
@@ -310,7 +319,16 @@ function girlOf(game: GameState, character: Character, castSize: number, plans: 
     record.push(...notesLines(name, info?.notes))
     record.push(...plans)
   }
-  return { name, names, tag: relationshipTagOf(flags, affection), flags, profile, record }
+  return {
+    name,
+    names,
+    gender,
+    age,
+    tag: relationshipTagOf(flags, affection),
+    flags,
+    profile,
+    record
+  }
 }
 
 /** What one read of the scene is built from, off the store as it stands. */
@@ -321,13 +339,15 @@ function contextNow(question: string, choices: ChoiceCount): AssistantContext {
   const present = cast.filter((character) => !game.departed.includes(character.charId))
   // From the next slot on: a plan for this one is the scene being played.
   const plans = upcomingPlanLines(game.events, game.characters, globalSlotOf(game.date, game.time) + 1, season)
+  const ages = agesNow(present.map((character) => character.charId))
   const girls = present.map((character) =>
-    girlOf(game, character, present.length, plans[character.charId] ?? [])
+    girlOf(game, character, present.length, plans[character.charId] ?? [], ages[character.charId])
   )
   const known = girls.flatMap((girl) => (girl.name ? [girl.name] : []))
   return {
     setting: settingNow(),
     reader: reader(),
+    readerPronouns: readerPronounsOf(game),
     stats: game.stats,
     when: formatDateBanner(game.date, game.time, season),
     earlier: earlierSlots(game, known),

@@ -1,4 +1,6 @@
+import { PRONOUNS, readerWords, type ReaderPronouns } from '@shared/gender'
 import { STAT_KEYS, STAT_LABELS, tierName, tierNameOf } from '@shared/playerStats'
+import type { Gender } from '@shared/types'
 import { objectSchema } from '@vx/modkit/renderer'
 import {
   MAX_TIER,
@@ -13,18 +15,22 @@ import {
   ASSISTANT_SUGGESTIONS_MAX,
   type ChoiceCount
 } from '../../shared/storyAssistant'
+import { headingTag } from './scenePrompt'
 
-/** A girl of the scene's cast as the request may name her. */
+/** A character of the scene's cast as the request may name them. */
 export interface AssistantName {
-  /** Her first name, or null while the reader has not learned it. */
+  /** Their first name, or null while the reader has not learned it. */
   name: string | null
-  /** Her first and last name as the story's own text spells them, for masking an unnamed one. */
+  /** Their first and last name as the story's own text spells them, for masking an unnamed one. */
   names: readonly string[]
+  gender: Gender
 }
 
-/** One girl in the scene, as much of her as the player has been shown. */
+/** One character in the scene, as much of them as the player has been shown. */
 export interface AssistantGirl extends AssistantName {
-  /** The tag her contact page wears. */
+  /** Their age as the scene's own cast heading gives it; absent where unknown. */
+  age?: number
+  /** The tag their contact page wears. */
   tag: string
   flags: Pick<
     CharFlags,
@@ -48,15 +54,17 @@ export interface AssistantGirl extends AssistantName {
 export interface AssistantContext {
   setting: string
   reader: string
+  /** The reader's pronouns, for the lines that name the reader beside a character. */
+  readerPronouns: ReaderPronouns
   /** The reader's points in each stat. */
   stats: PlayerStats
   /** The date and half of the day the scene is in. */
   when: string
   /** Earlier slots' summaries, dated, oldest first. */
   earlier: readonly string[]
-  /** The girls still in the scene. */
+  /** The characters still in the scene. */
   girls: readonly AssistantGirl[]
-  /** The girls who have left it, whose lines are still in `lines`. */
+  /** The characters who have left it, whose lines are still in `lines`. */
   departed: readonly AssistantName[]
   /** The running summary, covering the scene up to where `lines` takes over. */
   summary: string | null
@@ -71,17 +79,19 @@ export interface AssistantContext {
 }
 
 /**
- * What the assistant calls each girl of the cast whose name the reader has not learned, those still
- * in the scene first: the only one is UNNAMED GIRL, and several are numbered.
+ * What the assistant calls each character of the cast whose name the reader has not learned, those
+ * still in the scene first: UNNAMED GIRL or UNNAMED GUY, numbered where several share one.
  */
 function unnamedLabels(cast: readonly AssistantName[]): Map<AssistantName, string> {
-  const unnamed = cast.filter((girl) => girl.name === null)
-  return new Map(
-    unnamed.map((girl, index) => [
-      girl,
-      unnamed.length === 1 ? 'UNNAMED GIRL' : `UNNAMED GIRL ${index + 1}`
-    ])
-  )
+  const labels = new Map<AssistantName, string>()
+  for (const gender of ['female', 'male'] as const) {
+    const unnamed = cast.filter((person) => person.name === null && person.gender === gender)
+    const label = `UNNAMED ${PRONOUNS[gender].noun.toUpperCase()}`
+    unnamed.forEach((person, index) => {
+      labels.set(person, unnamed.length === 1 ? label : `${label} ${index + 1}`)
+    })
+  }
+  return labels
 }
 
 /** `word` wherever no letter, number or underscore of any script touches either end of it. */
@@ -120,10 +130,17 @@ function maskedText(
   return out
 }
 
-/** The milestones between her and the reader that the player has watched happen. */
-function milestoneSentences(who: string, flags: AssistantGirl['flags']): string[] {
+/** The milestones between one character and the reader that the player has watched happen. */
+function milestoneSentences(
+  who: string,
+  gender: Gender,
+  flags: AssistantGirl['flags'],
+  reader: ReaderPronouns
+): string[] {
+  const { they, their } = PRONOUNS[gender]
+  const shared = flags.harem ? `, and ${they} has agreed to share ${readerWords(reader, gender).him}` : ''
   const lines: string[] = []
-  if (flags.isLover) lines.push(`${who} and the reader are dating${flags.harem ? ', and she has agreed to share him' : ''}.`)
+  if (flags.isLover) lines.push(`${who} and the reader are dating${shared}.`)
   if (flags.hadSex) lines.push(`${who} and the reader have slept together.`)
   else if (flags.hasKissed) lines.push(`${who} and the reader have kissed.`)
   if (flags.brokenUp > 0) {
@@ -132,7 +149,7 @@ function milestoneSentences(who: string, flags: AssistantGirl['flags']): string[
   if (flags.friendZoned) lines.push(`The reader has friendzoned ${who}.`)
   if (flags.friendZonedBy) lines.push(`${who} has friendzoned the reader.`)
   if (flags.blocked) lines.push(`${who} has blocked the reader on Bunnyboard.`)
-  else if (flags.gaveContactInfo) lines.push(`${who} has given the reader her number.`)
+  else if (flags.gaveContactInfo) lines.push(`${who} has given the reader ${their} number.`)
   return lines
 }
 
@@ -146,14 +163,19 @@ function statLines(stats: PlayerStats): string[] {
   ]
 }
 
-/** One girl's entry under CAST; `label` stands in for her name while the reader has not learned it. */
-function girlLines(girl: AssistantGirl, label: string | undefined): string[] {
+/**
+ * One character's entry under CAST, headed with their age and pronouns as the scene's own cast is;
+ * `label` stands in for their name while the reader has not learned it.
+ */
+function girlLines(girl: AssistantGirl, label: string | undefined, reader: ReaderPronouns): string[] {
+  const tag = headingTag(girl.gender, girl.age)
   if (girl.name === null) {
-    return [`${label}: a girl in the scene who has not told the reader her name.`, '']
+    const { noun, their } = PRONOUNS[girl.gender]
+    return [`${label} (${tag}): a ${noun} in the scene who has not told the reader ${their} name.`, '']
   }
   return [
-    `${girl.name.toUpperCase()} (${girl.tag})`,
-    ...milestoneSentences(girl.name, girl.flags),
+    `${girl.name.toUpperCase()} (${tag}) — ${girl.tag}`,
+    ...milestoneSentences(girl.name, girl.gender, girl.flags, reader),
     ...girl.profile,
     ...girl.record,
     ''
@@ -170,11 +192,11 @@ export const DEFAULT_ASSISTANT_PROMPT = [
   '',
   'WHAT YOU KNOW',
   'You know only what is written in the message, which is what the player has seen. You also know who the reader is, from READER and STATS. Never invent events, history or facts about the characters.',
-  "Nobody's private thoughts are given to you. Read each girl from what she has said and done, and say how sure you are where it matters.",
-  'A girl written as UNNAMED GIRL has not told the reader her name. Never guess one or give her one, and never write the label itself: call her "she", or by how she comes across.',
+  "Nobody's private thoughts are given to you. Read each character from what they have said and done, and say how sure you are where it matters.",
+  'Someone written as UNNAMED GIRL or UNNAMED GUY has not told the reader their name. Never guess one or give them one, and never write the label itself: call them "she" or "he", or by how they come across.',
   '',
   'COMMENTARY',
-  'In "commentary", say what you make of the scene in a phrase or two, maximum 2 sentences: how it is going, how each girl seems to be taking you, what is building or at stake.',
+  'In "commentary", say what you make of the scene in a phrase or two, maximum 2 sentences: how it is going, how each of them seems to be taking you, what is building or at stake.',
   'Be candid and specific to this scene. No lists, no headings, and no retelling of what the player has just read.',
   'Where a QUESTION is given, "commentary" answers it instead, honestly and from what you know.',
   'The commentary is where you can be more direct to the player, so you can use very casual language, as if you are talking to a friend',
@@ -182,13 +204,13 @@ export const DEFAULT_ASSISTANT_PROMPT = [
   'WAYS FORWARD',
   'In "suggestions", offer things the reader could do next, from the scene as it stands, each genuinely different from the others: a bold one, a careful one, one that takes the scene somewhere else entirely.',
   '"label" is two to five words naming it.',
-  `"action" is the turn as the player would type it: first person, what the reader says in quotes and what he does, one or two sentences and under ${ASSISTANT_ACTION_LIMIT} characters, like: "Wait, you actually play?" I lean in, grinning.`,
-  'An action is the reader trying something, never how it turns out: how she answers is the story\'s to tell.',
-  'An action never names a girl written as UNNAMED GIRL; it calls her "her".',
+  `"action" is the turn as the player would type it: first person, the reader's words in quotes and what the reader does, one or two sentences and under ${ASSISTANT_ACTION_LIMIT} characters, like: "Wait, you actually play?" I lean in, grinning.`,
+  'An action is the reader trying something, never how it turns out: how anyone answers is the story\'s to tell.',
+  'An action never names someone written as UNNAMED GIRL or UNNAMED GUY; it calls them "her" or "him".',
   '',
   'WAYS FORWARD GUIDELINES',
-  'Tailor them to the reader as READER and STATS describe him, and to what he has done so far. Brain is his smarts, Body his fitness, Heart his charm: never offer a way forward that leans on a stat he is weak in, such as a feat of strength from a reader with a low Body.',
-  'You may also offer one that shakes the scene up, or that could push a girl away, where it fits who the reader is and what he has done.'
+  'Tailor them to who the reader is, from READER and STATS, and to what the reader has done so far. Brain is the reader\'s smarts, Body their fitness, Heart their charm: never offer a way forward that leans on a stat the reader is weak in, such as a feat of strength from a reader with a low Body.',
+  'You may also offer one that shakes the scene up, or that could push someone away, where it fits who the reader is and the story so far.'
 ].join('\n')
 
 /** How many ways forward one read is asked for, as a line. */
@@ -248,7 +270,7 @@ export function buildStoryAssistantPrompt(context: AssistantContext): Structured
     '',
     ...(context.earlier.length > 0 ? ['EARLIER', ...context.earlier.map((line) => `- ${line}`), ''] : []),
     'CAST',
-    ...context.girls.flatMap((girl) => girlLines(girl, labels.get(girl))),
+    ...context.girls.flatMap((girl) => girlLines(girl, labels.get(girl), context.readerPronouns)),
     ...(context.summary ? ['STORY SO FAR', context.summary, ''] : []),
     'SCENE SO FAR',
     ...context.lines,
