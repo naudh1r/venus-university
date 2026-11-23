@@ -117,10 +117,7 @@ const SAVE_REQUIRED: Record<RequiredKeys<Omit<GameSave, 'playthroughId' | 'saveI
  * the player gives it is optional on the type and omitted here.
  */
 const RECORD_REQUIRED: Record<
-  keyof Omit<
-    PlaythroughRecord,
-    'name' | 'mods' | 'modVersions' | 'semesters' | 'fixedEdits' | 'masked' | 'romance' | 'playerPronouns'
-  >,
+  keyof Omit<PlaythroughRecord, 'name' | 'mods' | 'modVersions' | 'semesters' | 'fixedEdits' | 'masked' | 'romance' | 'playerPronouns'>,
   true
 > = {
   schemaVersion: true,

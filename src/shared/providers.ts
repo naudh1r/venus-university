@@ -417,12 +417,20 @@ export function thinkingRowsFor(
 export function reasoningToSend(
   settings: Settings,
   modelId: string,
-  thinking: ThinkingRow | ThinkingLevel
+  thinking: ThinkingRow | ThinkingLevel = 'scenes',
+  floor?: ThinkingLevel
 ): ThinkingLevel {
   const stored = isThinkingRow(thinking)
     ? storedLevelFor(settings, settings.apiProvider, thinking)
     : thinking
-  return thinkingLevelFor(settings.apiProvider, modelId, stored)
+  const level = thinkingLevelFor(settings.apiProvider, modelId, stored)
+  if (!floor || THINKING_LEVELS.indexOf(level) >= THINKING_LEVELS.indexOf(floor)) return level
+  const accepted = modelFor(settings.apiProvider, modelId).thinkingLevels
+  return (
+    THINKING_LEVELS.slice(THINKING_LEVELS.indexOf(floor)).find((candidate) =>
+      accepted.includes(candidate)
+    ) ?? level
+  )
 }
 
 /**

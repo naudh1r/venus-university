@@ -2,7 +2,17 @@
 
 ## 0.8.2
 
-- Venus University 0.9.x makes a request's `thinking` required and drops `minThinking` and `raiseThinking`. `completeStructured` and `completeModStructured` still take a request without `thinking`, and run it at the `scenes` row, as before.
+- Scene exchange context includes each participant's normalized `gender` and
+  `scene.readerPronouns`, so auxiliary scenes preserve 0.9 identities without
+  inferring them from names.
+- Venus University 0.9.2 integration keeps the existing positional prompt helpers,
+  second-person memory status calls, and requests without a `thinking` row working.
+  New calls can use upstream's gender, attraction and reader-pronoun arguments and
+  per-task reasoning rows; legacy `minThinking` still raises the selected level.
+  Scene prompt hooks keep the older `subjectTags` list and add `subjectTagsByGender`.
+- New Game's prompt-text edits and custom class counts apply to the new split
+  requests, including combined profile/secrets calls and later-semester students.
+  Editable defaults now match upstream's gender-neutral prose and `lowrise` answer.
 - `comfyNodePackState` checks the loaded classes on the player's own ComfyUI, with a short
   deadline and a one-minute cache cleared when its source or address changes. The existing
   `subscribeLocalImageSource` also notifies mods when the external address changes.

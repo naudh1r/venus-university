@@ -403,12 +403,15 @@ function majorPlanOf(
   const otherMajors = [
     ...new Set([...known, ...newcomers.flatMap((c) => decided[charKey(c)].major ?? [])])
   ].filter((major) => major !== '')
-  const majorRequest = buildMajorPrompt({
-    students: lacking,
-    otherMajors,
-    notes: promptNotesByKey(draft, lacking),
-    setting: world.setting
-  }, world.textEdits)
+  const majorRequest = buildMajorPrompt(
+    {
+      students: lacking,
+      otherMajors,
+      notes: promptNotesByKey(draft, lacking),
+      setting: world.setting
+    },
+    world.textEdits
+  )
   const majors = majorRequest
     ? partOf('profiles:majors', majorRequest, (reply) => {
         validateMajorDraft(reply, lacking)
@@ -428,7 +431,10 @@ function majorPlanOf(
       decided[key] = { ...decided[key], major: spell(generated[key]) }
     }
     spelled = Object.fromEntries(
-      roster.map((c) => [c.charId, priorMajorOf(draft, c.charId) ?? decided[charKey(c)]?.major ?? ''])
+      roster.map((c) => [
+        c.charId,
+        priorMajorOf(draft, c.charId) ?? decided[charKey(c)]?.major ?? ''
+      ])
     )
   }
   return { newcomers, decided, majors, spelled }
@@ -460,15 +466,18 @@ function profilePlanOf(
       continue
     }
     const notes = promptNotesOf(draft, character.charId)
-    const request = buildStudentPrompt({
-      character,
-      decided: decided[key],
-      fields: asked,
-      next: Boolean(draft.continued),
-      ...(secrets ? { secrets } : {}),
-      ...(notes ? { notes } : {}),
-      setting: world.setting
-    }, world.textEdits)
+    const request = buildStudentPrompt(
+      {
+        character,
+        decided: decided[key],
+        fields: asked,
+        ...(secrets ? { secrets } : {}),
+        ...(notes ? { notes } : {}),
+        next: draft.continued !== undefined,
+        setting: world.setting
+      },
+      world.textEdits
+    )
     if (!request) continue
     const profile = asked.length > 0
     students.push({
@@ -492,13 +501,16 @@ function profilePlanOf(
   const returning: ReturningPart[] = (next?.returning ?? []).map((character) => {
     const secrets = secretEntryOf(draft, character)
     const notes = promptNotesOf(draft, character.charId)
-    const request = buildReturningPrompt({
-      character,
-      season: draft.season,
-      ...(secrets ? { secrets } : {}),
-      ...(notes ? { notes } : {}),
-      setting: world.setting
-    }, world.textEdits)
+    const request = buildReturningPrompt(
+      {
+        character,
+        season: draft.season,
+        ...(secrets ? { secrets } : {}),
+        ...(notes ? { notes } : {}),
+        setting: world.setting
+      },
+      world.textEdits
+    )
     return {
       character,
       secrets,
@@ -509,14 +521,20 @@ function profilePlanOf(
   })
   const graduates = (next?.graduates ?? []).map((graduate) => {
     const notes = promptNotesOf(draft, graduate.character.charId)
-    const request = buildGraduatePrompt({
-      graduate,
-      season: draft.season,
-      ...(notes ? { notes } : {}),
-      setting: world.setting
-    }, world.textEdits)
+    const request = buildGraduatePrompt(
+      {
+        graduate,
+        season: draft.season,
+        ...(notes ? { notes } : {}),
+        setting: world.setting
+      },
+      world.textEdits
+    )
     // A graduate's reply is never refused: one left out keeps her last pursuit.
-    return { graduate, part: partOf(`profiles:graduate:${graduate.character.charId}`, request, () => {}) }
+    return {
+      graduate,
+      part: partOf(`profiles:graduate:${graduate.character.charId}`, request, () => {})
+    }
   })
 
   return {
@@ -562,7 +580,9 @@ function profilesOf(
   }
   const held = [
     ...plan.newcomers.map((c) => plan.decided[charKey(c)].dorm),
-    ...splitRoster(draft, roster).returning.map((c) => draft.continued?.priorProfiles[c.charId]?.dorm)
+    ...splitRoster(draft, roster).returning.map(
+      (c) => draft.continued?.priorProfiles[c.charId]?.dorm
+    )
   ]
   const dealt = dealLowrises(
     rows.filter((row) => answeredLowrise(row.dorm)).map((row) => row.key),
@@ -689,11 +709,17 @@ function classPlanOf(
 ): { asks: { ask: ClassAsk; part: CallPart }[]; waiting: boolean; input?: ClassPromptInput } {
   const withPart = (ask: ClassAsk): { ask: ClassAsk; part: CallPart } => ({
     ask,
-    part: partOf(classPartId(ask), buildClassPartPrompt(ask, world.setting, world.textEdits), (reply) => {
-      validateClassPart(ask, reply)
-    })
+    part: partOf(
+      classPartId(ask),
+      buildClassPartPrompt(ask, world.setting, world.textEdits),
+      (reply) => {
+        validateClassPart(ask, reply)
+      }
+    )
   })
-  const pools = poolAsksOf(wholePools(draft), draft.continued?.taken, world.classCatalog).map(withPart)
+  const pools = poolAsksOf(wholePools(draft), draft.continued?.taken, world.classCatalog).map(
+    withPart
+  )
   const majors = majorsOf(draft, roster, world)
   if (!majors) return { asks: pools, waiting: true }
   const input = classInput(draft, roster, world, majors)
@@ -740,7 +766,11 @@ export function needOf(
 
 /** Raised where a reply the composition needs is not banked. */
 function unanswered(call: NewGameCall): never {
-  throw appError('NEW_GAME_INCOMPLETE', 'New Game is still waiting on a reply.', `${call} is not in.`)
+  throw appError(
+    'NEW_GAME_INCOMPLETE',
+    'New Game is still waiting on a reply.',
+    `${call} is not in.`
+  )
 }
 
 /** The banked reply of every part, in order, or a refusal naming `call` while one is not in. */
@@ -760,7 +790,11 @@ function answeredAll(
 
 /** Where a skipped call's fill is needed and the composition was handed none. */
 function unfilled(call: NewGameCall): never {
-  throw appError('NEW_GAME_INCOMPLETE', 'New Game is still waiting on a reply.', `${call} was not filled.`)
+  throw appError(
+    'NEW_GAME_INCOMPLETE',
+    'New Game is still waiting on a reply.',
+    `${call} was not filled.`
+  )
 }
 
 /**
@@ -892,10 +926,13 @@ export function composeApplication(
   const input = classInput(draft, roster, world, majors)
   let catalog: ClassGenReply
   if (isSkipped(draft, 'classes')) {
-    catalog = validateClassDraft(dealtClassReply(fill?.classes ?? unfilled('classes'), input.students), {
-      ...input,
-      openMajors: true
-    })
+    catalog = validateClassDraft(
+      dealtClassReply(fill?.classes ?? unfilled('classes'), input.students),
+      {
+        ...input,
+        openMajors: true
+      }
+    )
   } else {
     const plan = classPlanOf(draft, roster, world)
     const replies = answeredAll(
@@ -952,7 +989,7 @@ export function composeApplication(
   }
 
   /** One profile assignment map re-keyed from charKey to charId, absences dropped. */
-  const byCharId = <T,>(byKey: Record<string, T>): Record<string, T> =>
+  const byCharId = <T>(byKey: Record<string, T>): Record<string, T> =>
     Object.fromEntries(
       roster
         .map((c) => [c.charId, byKey[charKey(c)]] as const)
@@ -1026,7 +1063,11 @@ export function composeApplication(
     ...(Object.keys(notes).length > 0 ? { notes } : {}),
     starts: Object.fromEntries(
       roster.flatMap((c) => {
-        const start = charStartOf(draft.girls[c.charId], c, asReaderPronouns(draft.reader?.pronouns))
+        const start = charStartOf(
+          draft.girls[c.charId],
+          c,
+          asReaderPronouns(draft.reader?.pronouns)
+        )
         return start ? [[c.charId, start] as const] : []
       })
     ),
