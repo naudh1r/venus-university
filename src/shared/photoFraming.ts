@@ -1,5 +1,5 @@
 import { photoRuleText } from './photoGender'
-import { saysAny } from './photoWords'
+import { focusesOnBackside, saysAny } from './photoWords'
 
 /**
  * How much of her a photo shows, read once off the caption and shared by what places her in it
@@ -13,20 +13,14 @@ import { saysAny } from './photoWords'
 export type Framing = 'face' | 'lower' | 'waist' | 'knees' | 'full'
 
 const CLOSE_UP = ['close-up', 'closeup', 'close up']
+const FACE_ONLY_CUES = ['face shot', 'face only', 'just her face', 'headshot', 'her face filling']
 const MEDIUM_CLOSE_UP = ['medium close-up', 'medium close up']
 
 const FRAMINGS: readonly { framing: Framing; cues: readonly string[]; tags: readonly string[] }[] =
   [
     {
       framing: 'face',
-      cues: [
-        'face shot',
-        'face only',
-        'just her face',
-        'headshot',
-        'her face filling',
-        ...CLOSE_UP
-      ],
+      cues: [...FACE_ONLY_CUES, ...CLOSE_UP],
       tags: ['close-up', 'portrait']
     },
     {
@@ -94,7 +88,11 @@ export function framingOf(caption: string): Framing | null {
   if (saysAny(text, MEDIUM_CLOSE_UP) || (saysAny(text, CLOSE_UP) && saysAny(text, ['selfie']))) {
     return 'waist'
   }
-  return FRAMINGS.find((row) => saysAny(text, row.cues))?.framing ?? null
+  const rearCloseUp = focusesOnBackside(text) && !saysAny(text, FACE_ONLY_CUES)
+  return (
+    FRAMINGS.find((row) => !(rearCloseUp && row.framing === 'face') && saysAny(text, row.cues))
+      ?.framing ?? null
+  )
 }
 
 /** The tags one framing is drawn with. */

@@ -217,7 +217,6 @@ describe('her hands on an activity', () => {
     expect(guitar).toEqual(['playing_guitar', 'holding_instrument'])
     expect(posePhotoTags('Sitting on the bench, playing with her hair', false)).toEqual([
       'sitting',
-      'cowboy_shot',
       'hand_in_own_hair'
     ])
   })

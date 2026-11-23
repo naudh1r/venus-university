@@ -264,3 +264,25 @@ describe('a picture of two', () => {
     expect(faceHalfOf(spaced, risa)).toBe('masterpiece, best_quality, very_aesthetic, 1girl, solo, light pink eyes, black eyeshadow, silver hoop earrings, silver ear_piercing, facial scar, grin')
   })
 })
+
+it.each([
+  ['full body', 'full_body', true, true],
+  ['knees up', 'cowboy_shot', false, true],
+  ['waist down', 'lower_body', true, true],
+  ['face only', '(portrait:1.3)', false, false],
+  ['', 'upper_body', false, false]
+] as const)('frames both wardrobes with a %s caption', (crop, framing, shoes, bottoms) => {
+  const left = character({
+    firstName: 'Risa', outfit: ['white_top', 'blue_skirt', 'white_sneakers']
+  })
+  const right = character({
+    firstName: 'Kai', gender: 'male', outfit: ['green_shirt', 'blue_jeans', 'black_trainers']
+  })
+  const prompt = buildDuoPhotoPrompt(left, right, 'everyday', `Risa and Kai standing together, ${crop}`)
+  for (const part of [prompt.scene, prompt.left, prompt.right]) expect(part.split(', ')).toContain(framing)
+  expect(prompt.scene).toContain('same height')
+  expect(prompt.left.includes('white_sneakers')).toBe(shoes)
+  expect(prompt.right.includes('black_trainers')).toBe(shoes)
+  expect(prompt.left.includes('blue_skirt')).toBe(bottoms)
+  expect(prompt.right.includes('blue_jeans')).toBe(bottoms)
+})

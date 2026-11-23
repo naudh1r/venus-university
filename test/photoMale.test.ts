@@ -61,8 +61,7 @@ describe('gender in Photo prompts', () => {
             'penis',
             'bare_arms',
             'bare_legs',
-            'bare_shoulders',
-            'barefoot'
+            'bare_shoulders'
           ])
         )
         expect(tags(prompt.negative)).not.toContain('penis')

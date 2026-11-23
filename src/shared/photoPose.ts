@@ -1,6 +1,9 @@
 import { photoRuleText, type PhotoGender } from './photoGender'
 import { FRAMING_TAGS, framingOf, framingTags, FULL_BODY_CUES } from './photoFraming'
-import { says, saysAny } from './photoWords'
+import {
+  ALL_FOURS_CUES, BENT_OVER_CUES, FACE_DOWN_CUES, LOOKING_BACK_CUES, SPREAD_CHEEKS_CUES,
+  focusesOnBackside, isBackShot, says, saysAny
+} from './photoWords'
 import type { PhotoTier } from './photoGate'
 
 /**
@@ -58,23 +61,25 @@ const FINGERS_IN_MOUTH_CUES = [
 /** Against a wall of any kind: "the tiled wall", "a brick wall". */
 const AGAINST_A_WALL = /\bagainst (?:the |a )?(?:[a-z-]+ )?wall\b/
 
+const KNEELING_CUES = ['kneels', 'kneeling', 'on her knees', 'knelt']
+
 const DRESSED_POSITIONS: readonly Rule[] = [
-  { cues: ['close-up', 'close up'], tags: ['close-up', 'upper_body', 'hand_up'] },
-  { cues: ['face shot', 'face only', 'just her face'], tags: ['close-up', 'portrait'] },
-  { cues: ['on her stomach', 'face down', 'prone'], tags: ['lying', 'on_stomach'] },
+  { cues: FACE_DOWN_CUES, tags: ['lying', 'on_stomach'] },
   { cues: SIDE_LYING_CUES, tags: ['lying', 'on_side'] },
   { cues: ['on her back', 'lying back'], tags: ['lying', 'on_back'] },
   { cues: ['lying', 'laying'], tags: ['lying', 'arms_at_sides'] },
   {
     cues: ['sitting', 'seated', 'cross-legged', 'on the chair', 'on the couch', 'on a bench'],
-    tags: ['sitting', 'cowboy_shot', 'hands_on_lap']
+    tags: ['sitting', 'hands_on_lap']
   },
+  { cues: [...KNEELING_CUES, 'crouching'], tags: ['kneeling', 'hands_on_own_thighs'] },
+  { cues: ALL_FOURS_CUES, tags: ['all_fours'] },
+  { cues: BENT_OVER_CUES, tags: ['bent_over'] },
   // Where she is, with nothing said of how: lying. "Sitting on the grass" is the row above.
   {
     cues: ['on the bed', 'on bed', 'on the floor', 'on the grass'],
     tags: ['lying', 'arms_at_sides']
   },
-  { cues: ['kneeling', 'crouching'], tags: ['kneeling', 'hands_on_own_thighs'] },
   // A wall keeps her arms folded. Anything else she leans on has her on her feet with her hands
   // on it: drawn as a wall, she sat on the counter or the railing's step instead.
   { cues: AGAINST_A_WALL, tags: ['against_wall', 'crossed_arms'] },
@@ -85,37 +90,34 @@ const DRESSED_POSITIONS: readonly Rule[] = [
   { cues: ['leaning forward'], tags: ['leaning_forward', 'hand_on_own_chin'] },
   // No hand on her hip by default: given to every standing picture, it was the same pose in each.
   { cues: ['standing', 'walking'], tags: ['standing', 'cowboy_shot'] },
-  { cues: ['stretching', 'reaching up'], tags: ['standing', 'arms_up', 'armpits'] }
+  { cues: ['stretching', 'reaching up'], tags: ['standing', 'arms_up', 'armpits'] },
+  { cues: ['close-up', 'close up'], tags: ['close-up', 'upper_body', 'hand_up'] },
+  { cues: ['face shot', 'face only', 'just her face'], tags: ['close-up', 'portrait'] }
 ]
 
 /** Which way she is turned, and whether she is looking at whoever holds the phone. */
-const FACING: readonly Rule[] = [
-  {
-    cues: ['looking back', 'glancing back', 'over her shoulder'],
-    tags: ['looking_back', 'from_behind']
-  },
-  {
-    cues: ['from behind', 'back view', 'rear view', 'back turned'],
-    tags: ['from_behind']
-  },
+const SIDE_FACING: Rule = {
   // `from_side` alone was drawn facing three-quarters on; `profile` is what turns her.
-  {
-    cues: ['from the side', 'side view', 'in profile', 'side profile', 'profile shot'],
-    tags: ['from_side', 'profile']
-  }
-]
+  cues: ['from the side', 'side view', 'in profile', 'side profile', 'profile shot'],
+  tags: ['from_side', 'profile']
+}
+
+function facingTags(text: string): readonly string[] {
+  if (saysAny(text, LOOKING_BACK_CUES)) return ['looking_back', 'from_behind']
+  if (isBackShot(text)) return ['from_behind']
+  return firstMatch(text, [SIDE_FACING])?.tags ?? []
+}
 
 /** How she is lying or standing with nothing on. First match wins; they are exclusive. */
 const BARE_POSITIONS: readonly Rule[] = [
   {
-    cues: ['on all fours', 'all fours', 'hands and knees'],
+    cues: ALL_FOURS_CUES,
     tags: ['all_fours', 'solo']
   },
   {
-    cues: ['bent over', 'bending over', 'bent forward'],
+    cues: BENT_OVER_CUES,
     tags: ['bent_over', 'solo', 'hands_on_own_knees']
   },
-  { cues: ['from behind'], tags: ['from_behind', 'solo', 'ass_focus'] },
   {
     cues: [
       'legs up',
@@ -139,7 +141,7 @@ const BARE_POSITIONS: readonly Rule[] = [
     tags: ['lying', 'on_back', 'solo', 'arms_up']
   },
   {
-    cues: ['on her stomach', 'face down', 'lying on her stomach', 'prone'],
+    cues: FACE_DOWN_CUES,
     tags: ['lying', 'on_stomach', 'solo', 'head_rest']
   },
   {
@@ -147,7 +149,7 @@ const BARE_POSITIONS: readonly Rule[] = [
     tags: ['lying', 'on_side', 'solo', 'head_rest']
   },
   { cues: ['squatting', 'squat'], tags: ['squatting', 'solo', 'spread_legs', 'hand_on_own_thigh'] },
-  { cues: ['on her knees', 'kneeling'], tags: ['kneeling', 'solo', 'hands_on_own_thighs'] },
+  { cues: KNEELING_CUES, tags: ['kneeling', 'solo', 'hands_on_own_thighs'] },
   {
     cues: AGAINST_A_WALL,
     tags: ['against_wall', 'solo', 'arms_at_sides']
@@ -381,21 +383,8 @@ const HAND_ACTIONS: readonly ActionRule[] = [
   },
   {
     // Both hands on her cheeks pulling them apart; the grab alone drew one hand resting there.
-    cues: [
-      'spreading her ass',
-      'spreading her cheeks',
-      'holding her cheeks apart',
-      'spread her ass',
-      'spread her cheeks',
-      'spread her buttocks',
-      'spread her bare buttocks',
-      'spreading her buttocks',
-      'buttocks apart',
-      'buttocks wide apart',
-      'buttock cheek'
-    ],
-    tags: ['spread_ass', 'grabbing_own_ass', 'ass_focus', 'pussy'],
-    implies: ['bent_over', 'solo']
+    cues: SPREAD_CHEEKS_CUES,
+    tags: ['spread_ass', 'ass_focus']
   },
   {
     cues: ['grabbing her ass'],
@@ -913,12 +902,18 @@ function poseTagsOf(caption: string, bare: boolean): string[] {
   const text = photoRuleText(caption)
   const tags: string[] = []
 
-  const dressed = firstMatch(text, DRESSED_POSITIONS)
-  const facing = firstMatch(text, FACING)
+  const dressed = firstMatch(
+    text,
+    focusesOnBackside(text)
+      ? DRESSED_POSITIONS.filter((row) => !row.tags.includes('close-up'))
+      : DRESSED_POSITIONS
+  )
+  const facing = facingTags(text)
 
   if (!bare) {
     if (dressed) tags.push(...dressed.tags)
-    if (facing) tags.push(...facing.tags)
+    tags.push(...facing)
+    if (focusesOnBackside(text)) tags.push('ass_focus')
     for (const modifier of MODIFIERS) {
       if (DRESSED_MODIFIERS.has(modifier.tags[0]) && fires(text, modifier.cues)) {
         tags.push(...modifier.tags)
@@ -939,7 +934,8 @@ function poseTagsOf(caption: string, bare: boolean): string[] {
   // not know ("curled up on the sheets"), it drew her upright against her own sentence.
   const fallback = saysPose(text) ? ['solo'] : BARE_POSITION_DEFAULT
   tags.push(...(position?.tags ?? dressed?.tags ?? implied ?? fallback))
-  if (facing) tags.push(...facing.tags)
+  tags.push(...facing)
+  if (facing.includes('from_behind')) tags.push('ass_focus')
 
   for (const modifier of MODIFIERS) {
     if (fires(text, modifier.cues)) tags.push(...modifier.tags)
@@ -948,7 +944,11 @@ function poseTagsOf(caption: string, bare: boolean): string[] {
   if (hands.length > 0) {
     // The action owns her hands: every placement collected so far is struck out first.
     const kept = tags.filter((tag) => !PLACEMENT_TAGS.has(tag))
-    return [...new Set([...kept, ...hands.flatMap((action) => action.tags)])]
+    const actionTags = hands.flatMap((action) => action.tags)
+    if (actionTags.includes('spread_ass') && kept.some((tag) => LOW_POSITIONS.has(tag) || tag === 'bent_over')) {
+      actionTags.push('grabbing_own_ass')
+    }
+    return [...new Set([...kept, ...actionTags])]
   }
   // Only where nothing has placed her hands yet: "a hand on her hip" is a placement, not a touch.
   if (!tags.some((tag) => PLACEMENT_TAGS.has(tag)) && fires(text, VAGUE_TOUCH.cues)) {
@@ -1176,7 +1176,7 @@ const CLOSE_CUES = ['close-up', 'close up', 'upper body', 'waist up', 'face shot
 
 /** How she is lying, read off the caption whichever row framed it. */
 const LYING_CUES: readonly (readonly [string, readonly string[]])[] = [
-  ['on_stomach', ['on her stomach', 'face down', 'prone']],
+  ['on_stomach', FACE_DOWN_CUES],
   ['on_side', SIDE_LYING_CUES],
   ['on_back', ['on her back', 'lying back']]
 ]
@@ -1200,6 +1200,11 @@ function closeLying(text: string, tags: readonly string[]): string[] | null {
   return [...new Set(['lying', lying, frame, ...kept])]
 }
 
+export const LOW_POSITIONS: ReadonlySet<string> = new Set<string>([
+  'sitting', 'kneeling', 'lying', 'on_back', 'on_side', 'on_stomach',
+  'all_fours', 'squatting', 'seiza', 'indian_style'
+])
+
 /**
  * The framing the caption names, in place of the one her position came with: "standing" alone
  * is shot from the thighs up, "standing, full body" is not.
@@ -1208,6 +1213,8 @@ function withFraming(text: string, tags: readonly string[]): string[] {
   const framing = framingOf(text)
   if (!framing) return [...tags]
   const kept = tags.filter((tag) => !FRAMING_TAGS.has(tag))
+  // A knees-up crop of a low pose follows the caption without a standing framing tag.
+  if (framing === 'knees' && tags.some((tag) => LOW_POSITIONS.has(tag))) return kept
   return [...new Set([...kept, ...framingTags(framing)])]
 }
 
@@ -1402,6 +1409,10 @@ export function photoPose(
   }
   // Turned to face the camera, she is not side on any more: the profile goes.
   if (tags.includes('looking_at_viewer')) tags = tags.filter((tag) => tag !== 'profile')
+  if (tags.includes('from_behind') || tags.includes('on_stomach')) {
+    tags = tags.filter((tag) => tag !== 'pussy' && tag !== 'spread_pussy')
+  }
+  if (saysAny(text, ['handprint', 'hand print'])) tags.push('handprint')
   const lying = closeLying(text, tags)
   tags = lying ?? withFraming(text, tags)
   const busy = saysAny(text, mirror ? OCCUPIED_HAND_CUES : BUSY_HAND_CUES)
@@ -1414,10 +1425,6 @@ export function photoPose(
   }
   // The mirror's phone hand is added after the activity has settled her free hand.
   tags = [...new Set(tags)]
-  // From behind wins her position, so kneeling, which kept her up off her heels, is added back.
-  if (tags.includes('from_behind') && saysAny(text, ['kneeling', 'on her knees'])) {
-    tags = [...new Set([...tags, 'kneeling'])]
-  }
   // Seen from behind, a mirror holds a second girl facing the other way: the glass goes.
   if (!mirror && tags.includes('from_behind')) tags = tags.filter((tag) => tag !== 'mirror')
   // A camera lying about in the picture turned up beside a photo nobody took as a selfie too.
