@@ -11,7 +11,7 @@ import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { useGrabBagStore } from '../stores/grabBagStore'
 import { FEED_HANDLE_BAG, FEED_HANDLE_POOL, FEED_EMOJI_BAG, FEED_EMOJI } from '../prompts/feedRandoms'
 import { pictureKeySet } from '@shared/settingsRules'
-import { comfySourceOf } from '@shared/comfyModels'
+import { comfySourceOf, comfyUrlOf } from '@shared/comfyModels'
 
 /**
  * The player has Less NSFW text on: the game's own writing is toned down, and a mod's should be.
@@ -106,11 +106,18 @@ export function localImageSource(): 'managed' | 'external' | null {
   return settings ? comfySourceOf(settings) : null
 }
 
-/** Fires only when the selected source changes, independently of setup readiness. */
+/** The selected source and external address, kept inside the subscription. */
+function localImageTarget(): string | null {
+  const settings = useSettingsStore.getState().settings
+  const source = localImageSource()
+  return settings && source ? `${source} ${source === 'external' ? comfyUrlOf(settings) : ''}` : null
+}
+
+/** Fires when the selected source or external address changes, independently of setup readiness. */
 export function subscribeLocalImageSource(onChange: () => void): () => void {
-  let before = localImageSource()
+  let before = localImageTarget()
   return useSettingsStore.subscribe(() => {
-    const next = localImageSource()
+    const next = localImageTarget()
     if (next !== before) { before = next; onChange() }
   })
 }
