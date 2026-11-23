@@ -250,7 +250,7 @@ export function observeWhisperSlot(game: WhisperContext, before: NpcRelationship
     }
     for (const [pair, { encounter: e }] of Object.entries(game.npcRelationships)) {
       const subjects = pair.split('|').sort()
-      if (!e || e.date !== game.date || e.ref === 'room' || subjects.length !== 2 ||
+      if (!e || !('ref' in e) || e.date !== game.date || e.ref === 'room' || subjects.length !== 2 ||
           // The player's introductions do not limit what the columnist personally witnessed.
           subjects.some(id => excluded.includes(id) || !game.characters[id] || !game.charInfo[id]) ||
           JSON.stringify(e) === JSON.stringify(before[pair]?.encounter)) continue

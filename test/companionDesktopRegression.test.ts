@@ -64,6 +64,27 @@ beforeEach(() => {
 })
 afterEach(() => { closeCompanion(); vi.useRealTimers() })
 
+it.each(['story', 'creator'].flatMap(kind => [
+  { kind, gender: 'male', expected: 'male' },
+  { kind, gender: 'female', expected: 'female' },
+  { kind, gender: undefined, expected: 'female' }
+]))('preserves $kind participant gender $gender and reader pronouns in the provider request', async ({ kind, gender, expected }) => {
+  const base = JSON.parse(context)
+  closeCompanion()
+  openCompanion(mocks.windows[0], JSON.stringify({
+    ...base,
+    scene: { kind, readerPronouns: 'they' },
+    profiles: { girl: { ...base.profiles.girl, gender } }
+  }), 'identity-fixture')
+  mocks.complete.mockResolvedValue({ lines: [] })
+  await startCompanion('girl', 'screen:fixture', 20)
+  await vi.advanceTimersByTimeAsync(3000)
+  expect(mocks.complete).toHaveBeenCalledOnce()
+  const request = JSON.parse(mocks.complete.mock.calls[0][0].user)
+  expect(request.characters[0]).toMatchObject({ charId: 'girl', gender: expected })
+  expect(request.gameContext.scene).toMatchObject({ kind, readerPronouns: 'they' })
+})
+
 it('detaches every companion window from native game ownership but still closes them with the game', async () => {
   expect(mocks.windows).toHaveLength(6)
   expect(mocks.windows.slice(1).every(win => win.getParentWindow() === null)).toBe(true)

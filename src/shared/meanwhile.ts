@@ -76,7 +76,7 @@ export function meanwhileEvents(game: MeanwhileContext): MeanwhileScene[] {
   }
   for (const [key, pair] of Object.entries(game.npcRelationships)) {
     const ids = key.split('|'), encounter = pair.encounter
-    if (ids.length !== 2 || ids[0] === ids[1] || !known(ids) || !encounter ||
+    if (ids.length !== 2 || ids[0] === ids[1] || !known(ids) || !encounter || !('ref' in encounter) ||
       encounter.date > game.date || game.date - encounter.date > 7) continue
     const { date, kind, ref, positive } = encounter
     const id = `encounter:${key}:${date}:${kind}:${ref}:${!!positive}`

@@ -4,12 +4,19 @@ import { CharacterDynamicsBackstory } from './CharacterDynamicsBackstory'
 import { AnimatePresence, motion } from 'motion/react'
 import { slotPartsOf, yearLabel } from '@shared/classes'
 import { dormLabel } from '@shared/dorms'
+import { genderOf, PRONOUNS, pronounsOf } from '@shared/gender'
 import { jobDefOf, WEEK_DAY_HEADERS } from '@shared/jobs'
 import { OUTFIT_SET_LABELS, spriteRef, STOCK_OUTFIT_SETS } from '@shared/outfits'
-import { npcEnemiesOf, npcFriendsOf } from '@shared/npcRelationships'
+import {
+  npcCrushesOf,
+  npcEnemiesOf,
+  npcFriendsOf,
+  npcPartnersOf
+} from '@shared/npcRelationships'
 import { STAT_ATTRACTIONS } from '@shared/playerStats'
 import {
   affectionFor,
+  attractionInPlay,
   dedupedMemories,
   emptyFlags,
   isPositive,
@@ -21,7 +28,13 @@ import {
 } from '@shared/relationship'
 import { isCharacterTrait, traitTone } from '@shared/traits'
 import { pendingSecretOf, SECRET_TIERS } from '@shared/secrets'
-import { fullNameOf, type CharMemory, type SecretTier, type StockOutfitSet } from '@shared/types'
+import {
+  fullNameOf,
+  type CharMemory,
+  type Gender,
+  type SecretTier,
+  type StockOutfitSet
+} from '@shared/types'
 import { formatShortGameDate } from '../prompts/gameDate'
 import { DeadNote } from '../components/DeadNote'
 import { useBunnyboardStore } from '../stores/bunnyboardStore'
@@ -87,10 +100,14 @@ export function ContactPage({
   const info = useGameStore((s) => s.charInfo[charId])
   const classes = useGameStore((s) => s.classes)
   const characters = useGameStore((s) => s.characters)
+  const pronouns = useGameStore((s) => s.playerPronouns)
+  const readerName = useGameStore((s) => s.playerFirstName)
+  const romance = useGameStore((s) => s.romance)
   const chars = useGameStore((s) => s.chars)
   const alumni = useGameStore((s) => s.alumni)
   const npcRelationships = useGameStore((s) => s.npcRelationships)
   const npcFriendships = useGameStore((s) => s.npcFriendships)
+  const npcCouples = useGameStore((s) => s.npcCouples)
   // The whole map, for the other half of a pair: `info` is only ever this girl's.
   const charInfo = useGameStore((s) => s.charInfo)
   const playerSchedule = useGameStore((s) => s.playerSchedule)
@@ -147,10 +164,24 @@ export function ContactPage({
     if (!who || !charInfo[other]?.nameKnown) return []
     return [{ pair, other, name: who.firstName }]
   })
-  // One list, sorted once: both are dated things on the same card.
+  // The days she got together with somebody, on the same terms.
+  const together = npcCouples.flatMap((couple) => {
+    if (couple.a !== charId && couple.b !== charId) return []
+    const other = couple.a === charId ? couple.b : couple.a
+    const who = characters[other]
+    if (!who || !charInfo[other]?.nameKnown) return []
+    return [{ couple, name: who.firstName }]
+  })
+  // One list, sorted once: all of them are dated things on the same card.
   const entries = [
     ...feed.map((post) => ({ kind: 'post' as const, post, date: post.date, time: post.time })),
-    ...made.map((entry) => ({ kind: 'made' as const, ...entry, date: entry.pair.date, time: entry.pair.time }))
+    ...made.map((entry) => ({ kind: 'made' as const, ...entry, date: entry.pair.date, time: entry.pair.time })),
+    ...together.map((entry) => ({
+      kind: 'together' as const,
+      ...entry,
+      date: entry.couple.date,
+      time: entry.couple.time
+    }))
   ].sort(newestFirst)
   // A graduate's page says she graduated where a year would be, and lives in no dorm.
   const pursuing = info?.pursuing
@@ -163,9 +194,13 @@ export function ContactPage({
   const showBackstory = Boolean(character.backstory) && (flags.knowsBackstory || isTrusted(affection))
   // Rides `knowsTraits`: same threshold, same one-way rule.
   const showPreferred = flags.knowsTraits || isPositive(affection)
-  // The same paragraph the prompts are given.
-  const loveLife = loveLifeBlurb(character, flags)
-  const showLoveLife = Boolean(loveLife) && (flags.knowsLoveLife || flags.isLover)
+  // The paragraph the prompts are given, her kinks always in it.
+  const loveLife = loveLifeBlurb(
+    character,
+    flags,
+    attractionInPlay(character, info, romance, pronouns)
+  )
+  const showLoveLife = flags.knowsLoveLife || flags.isLover
   // What she has told him, and the one she tells next: waiting on a scene alone with her once
   // its tier is reached, otherwise on the lowest tier still to come.
   const toldSecrets = info?.toldSecrets ?? []
@@ -174,13 +209,20 @@ export function ContactPage({
     untoldSecrets.some((secret) => secret.tier === tier)
   )
   const nextSecretLock = pendingSecretOf(info)
-    ? '??? — Spend more time with her to unlock.'
+    ? `??? — Spend more time with ${character.firstName} to unlock.`
     : nextSecretTier
       ? `??? — Unlocked at ${SECRET_TIER_LABELS[nextSecretTier]}`
       : null
   // Her friends are published like any other field of her page, met or not, graduates or not.
   const known = [...chars, ...alumni].filter((id) => Boolean(characters[id]))
-  const friends = npcFriendsOf(npcRelationships, charId, known)
+  const partners = npcPartnersOf(npcRelationships, charId, known)
+  // A partner is under Dating, not again under Friends.
+  const friends = npcFriendsOf(npcRelationships, charId, known).filter(
+    (id) => !partners.includes(id)
+  )
+  // Who she likes is hers to tell once she trusts him.
+  const crushes =
+    flags.knowsBackstory || isTrusted(affection) ? npcCrushesOf(npcRelationships, charId, known) : []
   const enemies = showBackstory ? npcEnemiesOf(npcRelationships, charId, known) : []
   // Her shifts, once she has actually taken the job.
   const job = info?.job
@@ -294,10 +336,10 @@ export function ContactPage({
                 )}
 
                 {/* Undiscovered is drawn, never hidden: the slot says what would open it (D4). */}
-                <Field label="Her type">
+                <Field label={`${pronounsOf(character).Their} type`}>
                   {showPreferred ? (
                     <p className="vu-contact-text">
-                      {character.firstName} likes guys with {STAT_ATTRACTIONS[character.preferredStat]}.
+                      {character.firstName} likes people with {STAT_ATTRACTIONS[character.preferredStat]}.
                     </p>
                   ) : (
                     <Locked>??? — Unlocked at Friends</Locked>
@@ -337,10 +379,31 @@ export function ContactPage({
                   </Field>
                 )}
 
+                {partners.length > 0 && (
+                  <Field label="Dating">
+                    <div className="vu-contact-faces">
+                      {partners.map((id) => (
+                        <FaceChip key={id} charId={id} name={fullNameOf(characters[id])} />
+                      ))}
+                    </div>
+                  </Field>
+                )}
+
                 {friends.length > 0 && (
                   <Field label="Friends">
                     <div className="vu-contact-faces">
                       {friends.map((id) => (
+                        <FaceChip key={id} charId={id} name={fullNameOf(characters[id])} />
+                      ))}
+                    </div>
+                  </Field>
+                )}
+
+                {/* Absent below `trusted` and when she has none, as Enemies is. */}
+                {crushes.length > 0 && (
+                  <Field label="Crush">
+                    <div className="vu-contact-faces">
+                      {crushes.map((id) => (
                         <FaceChip key={id} charId={id} name={fullNameOf(characters[id])} />
                       ))}
                     </div>
@@ -391,7 +454,7 @@ export function ContactPage({
                 </Field>
               </>
             ) : (
-              <StrangerProfile dynamicsLink={dynamicsLink} />
+              <StrangerProfile dynamicsLink={dynamicsLink} gender={genderOf(character)} />
             )}
           </Card>
 
@@ -412,6 +475,16 @@ export function ContactPage({
                       Became friends with {entry.name}.{' '}
                       <span className="vu-contact-when">
                         {formatShortGameDate(entry.pair.date, season)}
+                      </span>
+                    </li>
+                  ) : entry.kind === 'together' ? (
+                    <li
+                      className="vu-contact-made"
+                      key={`couple:${entry.couple.a}|${entry.couple.b}@${entry.couple.date}`}
+                    >
+                      Started dating {entry.name}.{' '}
+                      <span className="vu-contact-when">
+                        {formatShortGameDate(entry.couple.date, season)}
                       </span>
                     </li>
                   ) : (
@@ -447,7 +520,17 @@ export function ContactPage({
                 {recent.map((memory, index) => (
                   <Fragment key={`${memory.date}-${index}`}>
                     <span className="vu-contact-when">{formatShortGameDate(memory.date, season)}</span>
-                    <span>“{memorySentence(character.firstName, memory)}”</span>
+                    <span>
+                      “
+                      {memorySentence(
+                        character.firstName,
+                        memory,
+                        readerName,
+                        genderOf(character),
+                        pronouns
+                      )}
+                      ”
+                    </span>
                     <motion.button
                       className="vu-square vu-contact-memory-edit"
                       type="button"
@@ -647,7 +730,7 @@ export function Card({
  * with what unlocks it named, never omitted — an absence here would tell the reader something
  * he has no way of knowing.
  */
-function StrangerProfile({ dynamicsLink }: { dynamicsLink: ReactNode }): JSX.Element {
+function StrangerProfile({ dynamicsLink, gender }: { dynamicsLink: ReactNode; gender: Gender }): JSX.Element {
   return (
     <>
       <Field label="Likes">
@@ -659,7 +742,7 @@ function StrangerProfile({ dynamicsLink }: { dynamicsLink: ReactNode }): JSX.Ele
       <Field label="Traits">
         <Locked>??? — Unlocked at Friends</Locked>
       </Field>
-      <Field label="Her type">
+      <Field label={`${PRONOUNS[gender].Their} type`}>
         <Locked>??? — Unlocked at Best Friends</Locked>
       </Field>
       <Field label="Backstory">

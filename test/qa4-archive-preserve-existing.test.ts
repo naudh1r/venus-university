@@ -68,7 +68,7 @@ describe('archive replacement preserves the existing file on source failures', (
   })
 
   it('keeps an existing character ZIP when the added portable reflection source is invalid', async () => {
-    const girl = await createCharacter('Mina', 'Aoki')
+    const girl = await createCharacter('Mina', 'Aoki', 'female')
     await writePortableReflection(girl.charId, {
       version: 1,
       image: `data:image/png;base64,${png.toString('base64')}`,
@@ -107,7 +107,7 @@ describe('archive replacement preserves the existing file on source failures', (
     expect(backupRecord(await readFile(target)).grabbags).toEqual({ inspiration: ['new'] })
     await importBackup(target)
     expect(await getGrabBags()).toEqual({ inspiration: ['new'] })
-    const girl = await createCharacter('Mina', 'Aoki')
+    const girl = await createCharacter('Mina', 'Aoki', 'female')
     const characterTarget = join(root, 'character.zip')
     await exportCharacter(girl.charId, characterTarget)
     await exportCharacter(girl.charId, characterTarget)

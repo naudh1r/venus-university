@@ -24,7 +24,7 @@ function register(owner: string, definition: CharacterTraitDefinition): void {
 afterEach(() => { cleanups.splice(0).reverse().forEach(dispose => dispose()); setSharedModRules(() => false); vi.unstubAllGlobals() })
 const poses = { standing: { tags: ['standing'], description: 'standing' } }
 function request(traits = generatedCharacterTraits()) {
-  return buildCharacterPrompt('Sarah', 'Rose', '', poses, 'seed', false, undefined, traits)
+  return buildCharacterPrompt('Sarah', 'Rose', '', 'female', poses, 'seed', false, undefined, traits)
 }
 function parse(values: string[], traits = generatedCharacterTraits()) {
   return draftToCharacter(character(), { traits: values } as CharacterDraft, poses, SUBJECT_TAGS, traits).traits

@@ -22,7 +22,7 @@ function strangerFeed(post: SocialPost) {
     chars: ['s'],
     characters: charactersById(character({ charId: 's', firstName: 'Cass' })),
     charInfo: { s: charInfo({ nameKnown: true, feed: [post] }) },
-    npcFriendships: [],
+    npcFriendships: [], npcCouples: [],
     feedExtras: {
       date: DATE,
       time: NOW,

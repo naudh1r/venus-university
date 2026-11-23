@@ -1,66 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { readerize, secondPerson, storedMemoryDesc } from '@shared/readerVoice'
+import { readerize, storedMemoryDesc, unnamedReader } from '@shared/readerVoice'
 
 /**
- * The two voices a memory is written in: a desc filed or shown in the wrong person, or with a
- * verb that no longer agrees, is saved that way and read back that way for the rest of the run.
+ * How a memory is filed: a desc filed in the wrong person, with a verb that no longer agrees, or
+ * with the reader's name left in or turned where it was somebody else's word, is saved that way
+ * and read back that way for the rest of the run.
  */
 
-describe('secondPerson turns a filed memory into the one the player reads', () => {
+describe('readerize files the reader’s own reflexive', () => {
   it.each([
-    ['the reader was nice to her', 'you were nice to her'],
-    ['the reader is her lab partner', 'you are her lab partner'],
-    ['the reader has a dog', 'you have a dog'],
-    ['the reader does the dishes', 'you do the dishes'],
-    ["the reader wasn't there", "you weren't there"],
-    ["the reader isn't shy", "you aren't shy"],
-    ["the reader hasn't called", "you haven't called"],
-    ["the reader doesn't dance", "you don't dance"],
-    ['the reader wasn’t there', 'you weren’t there'],
-    ['the reader doesn’t dance', 'you don’t dance'],
-    ['the reader never was on time', 'you never were on time'],
-    ['The reader was late', 'You were late'],
-    ["The reader's notes helped her", 'Your notes helped her'],
-    ["she borrowed the reader's notes", 'she borrowed your notes'],
-    ['she borrowed the reader’s notes', 'she borrowed your notes'],
-    ['the reader himself said so', 'you yourself said so'],
-    ['the reader himself was late', 'you yourself were late'],
-    ['the reader hurt himself', 'you hurt yourself'],
-    ['the girl next to the reader was rude', 'the girl next to you was rude'],
-    ['she had a crush on the reader', 'she had a crush on you'],
-    [
-      'she heard from Mia that the reader was with Sara',
-      'she heard from Mia that you were with Sara'
-    ],
-    [
-      "Ingrid told the reader she's heard his song before.",
-      "Ingrid told you she's heard your song before."
-    ],
-    ['she saw the reader and waved at him', 'she saw you and waved at you'],
-    ['The reader called. He was late', 'You called. You were late'],
-    ["the reader said he'd come", "you said you'd come"],
-    ['the reader said the choice was his.', 'you said the choice was yours.']
-  ])('%s → %s', (text, expected) => {
-    expect(secondPerson(text)).toBe(expected)
-  })
-
-  it.each([
-    'you walked her home',
-    'Tom embarrassed himself',
-    'the young reader smiled',
-    'Tom said he was late'
-  ])('leaves %s, which never names the reader, as it was', (text) => {
-    expect(secondPerson(text)).toBe(text)
-  })
-
-  it.each([
-    'the reader was late',
-    "the reader's notes",
-    'the reader hurt himself',
-    'the reader lost his keys'
-  ])('changes nothing the second time over %s', (text) => {
-    const once = secondPerson(text)
-    expect(secondPerson(once)).toBe(once)
+    ['he', 'you hurt yourself', 'the reader hurt himself'],
+    ['she', 'you yourself were late', 'the reader herself was late'],
+    ['they', 'you hurt yourself', 'the reader hurt themself']
+  ] as const)('a %s reader: %s → %s', (reader, text, expected) => {
+    expect(readerize(text, 'female', reader)).toBe(expected)
   })
 })
 
@@ -80,23 +33,31 @@ describe('readerize turns a second-person memory into the reader’s voice', () 
     ['you walked her home', 'the reader walked her home'],
     ['young love', 'young love']
   ])('%s → %s', (text, expected) => {
-    expect(readerize(text)).toBe(expected)
+    expect(readerize(text, 'female', 'he')).toBe(expected)
   })
-
-  it.each(['you were late', 'your notes', 'you hurt yourself'])(
-    'comes back as %s through secondPerson',
-    (text) => {
-      expect(secondPerson(readerize(text))).toBe(text)
-    }
-  )
 
   it.each(['you were late', 'your notes', 'you hurt yourself', "you're kind"])(
     'changes nothing the second time over %s',
     (text) => {
-      const once = readerize(text)
-      expect(readerize(once)).toBe(once)
+      const once = readerize(text, 'female', 'he')
+      expect(readerize(once, 'female', 'he')).toBe(once)
     }
   )
+})
+
+describe('unnamedReader files the reader’s own name as "the reader"', () => {
+  it.each([
+    ['Lucky', 'Lucky walked her home', 'The reader walked her home'],
+    ['Lucky', "she borrowed lucky's notes. LUCKY was late", "she borrowed the reader's notes. The reader was late"],
+    ['Lucky', 'she borrowed Lucky’s notes', 'she borrowed the reader’s notes'],
+    ['Lucky', 'Luckyduck and Mr. Lucky2 stayed', 'Luckyduck and Mr. Lucky2 stayed'],
+    ['Zoë', 'Zoë was late, so she left without zoë', 'The reader was late, so she left without the reader'],
+    ['J.R.', 'she met J.R. and J-R at the gym', 'she met the reader and J-R at the gym'],
+    ['Mary Ann', 'she told Mary  Ann about Mary', 'she told the reader about Mary'],
+    ['   ', 'nothing to turn', 'nothing to turn']
+  ])('named %s: %s → %s', (name, text, expected) => {
+    expect(unnamedReader(text, name)).toBe(expected)
+  })
 })
 
 describe('storedMemoryDesc files a memory trimmed, in the reader’s voice and lower-case', () => {
@@ -104,6 +65,11 @@ describe('storedMemoryDesc files a memory trimmed, in the reader’s voice and l
     ['  The reader walked her home  ', 'the reader walked her home'],
     ['You were late', 'the reader was late']
   ])('%s → %s', (text, expected) => {
-    expect(storedMemoryDesc(text)).toBe(expected)
+    expect(storedMemoryDesc(text, 'female', 'he')).toBe(expected)
+  })
+
+  it('names a guy by his own pronoun beside the reader', () => {
+    expect(storedMemoryDesc('the two of you broke up', 'male', 'he')).toBe('he and the reader broke up')
+    expect(storedMemoryDesc('you walked him home', 'male', 'he')).toBe('the reader walked him home')
   })
 })

@@ -71,7 +71,7 @@ function enterContinuedRun(recorded: boolean, menu: boolean, retain = true): voi
 function ordinaryPrompt(): StructuredRequest {
   const state = game()
   return buildTextingPrompt(girl, state.charInfo.a, undefined, 'How is your day?', {
-    lorebook: SHIPPED_BOOK, date: state.date, time: state.time, memoryBudget: 10, charInfo: state.charInfo,
+    romance:{female:'sexuality' as const,male:'sexuality' as const},readerPronouns:'he' as const, lorebook: SHIPPED_BOOK, date: state.date, time: state.time, memoryBudget: 10, charInfo: state.charInfo,
     npcRelationships: {}, roster: [girl], classes: {}, playerSchedule: {}, classRosters: {}, calendar: calendarOf('spring', [], {}), history: {}, playerJob: null,
     exCharacterDynamics: state.exCharacterDynamics
   }, 'READER')

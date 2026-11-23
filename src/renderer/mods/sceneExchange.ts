@@ -1,6 +1,7 @@
 import { charKeyOf } from '@shared/types'
 import { isEmotion } from '@shared/emotions'
-import type { Character, CharInfo, Emotion } from '@shared/types'
+import { genderOf, type ReaderPronouns } from '@shared/gender'
+import type { Character, CharInfo, Emotion, Gender } from '@shared/types'
 import type { Disposition } from '@shared/relationship'
 import type { NpcRelationshipMap } from '@shared/npcRelationships'
 import { parseSpriteRef, spriteRef } from '@shared/outfits'
@@ -42,12 +43,12 @@ export function subscribeSceneTurns(listener: () => void): () => void {
 export interface SceneExchangeContext {
   people: Array<{
     id: string
-    profile: Pick<Character,'charId'|'firstName'|'lastName'|'personality'|'behavior'|'backstory'|'likes'|'dislikes'>
+    profile: Pick<Character,'charId'|'firstName'|'lastName'|'personality'|'behavior'|'backstory'|'likes'|'dislikes'> & { gender: Gender }
     relationship: Pick<CharInfo,'memories'|'flags'|'nameKnown'|'notes'> & {disposition?: Disposition}
   }>
   onScreen: (string|null)[]
   reader: string
-  scene: {kind: 'creator'|'story';location:string|null;summary:string|null;readerBio:string;premise?:string;relationships?:NpcRelationshipMap}
+  scene: {kind: 'creator'|'story';location:string|null;summary:string|null;readerBio:string;readerPronouns:ReaderPronouns;premise?:string;relationships?:NpcRelationshipMap}
 }
 
 /** Detached scene-local participant data, also available in Creator without a story save. */
@@ -57,13 +58,13 @@ export function sceneExchangeContext(): SceneExchangeContext {
     const person = g.characters[id], info = g.charInfo[id]
     const entry = g.createdScene?.setup.cast.find(row => row.charId === id)
     const { charId, firstName, lastName, personality, behavior, backstory, likes, dislikes } = person
-    return { id, profile: {charId, firstName, lastName, personality, behavior, backstory, likes, dislikes},
+    return { id, profile: {gender: genderOf(person), charId, firstName, lastName, personality, behavior, backstory, likes, dislikes},
       relationship: {memories: info?.memories.slice(-6) ?? [], flags: info?.flags, nameKnown: info?.nameKnown,
         notes: info?.notes, disposition: entry ? effectiveDisposition(entry) : undefined} }
   })
   return structuredClone({ people, onScreen: g.slots.filter(id => id && present(g,id)),
     reader: [g.playerFirstName,g.playerLastName].join(' '), scene: {
-      kind: g.createdScene ? 'creator' : 'story', location:g.sceneLocation, summary:g.sceneSummary, readerBio:g.bio,
+      kind: g.createdScene ? 'creator' : 'story', location:g.sceneLocation, summary:g.sceneSummary, readerBio:g.bio, readerPronouns:g.playerPronouns,
       ...(g.createdScene ? {premise:g.createdScene.setup.prompt,relationships:g.npcRelationships} : {}) } })
 }
 

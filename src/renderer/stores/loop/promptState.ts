@@ -6,11 +6,12 @@ import { modIsOn } from '../modsStore'
 import { kindOf } from '@shared/academics'
 import { globalSlotOf, jobDefOf, slotFromId } from '@shared/jobs'
 import type { PlayerStats } from '@shared/playerStats'
-import { STOCK_POSITIONS } from '@shared/positions'
+import { genderOf } from '@shared/gender'
+import { STOCK_POSITIONS, stockCgsFor, stockCgsInPlay } from '@shared/positions'
 import { ROOM_VARIANTS } from '@shared/room'
 import { giftLoreNote, itemDefOf } from '@shared/shop'
 import { pendingSecretOf } from '@shared/secrets'
-import { defaultTagsOf } from '@shared/defaultTags'
+import { defaultTagsOf, subjectTagsByGender } from '@shared/defaultTags'
 import { memoryBudgetsOf, secretBudgetOf } from '@shared/settingsRules'
 import { affectionsOf } from '@shared/sceneCreator'
 import { promptStateParts } from '@vx/modkit/host/renderer'
@@ -28,41 +29,37 @@ import {
   type TimeSlot
 } from '@shared/types'
 import {
+  addOwesEntrance,
   classRostersOf,
   classSceneContextOf,
   examOn,
   projectSceneContextOf,
-  recapOf
+  recapOf,
+  transferOwesEntrance
 } from '../../prompts/classProgress'
 import { formatChatDivider, formatGameDate } from '../../prompts/gameDate'
-import { firstMeetingAfter, meetingsBefore } from '../../prompts/occasions'
-import {
-  slotOptions,
-  type SchedulePromptInput,
-  type SlotDuty
-} from '../../prompts/schedulePrompt'
+import { firstMeetingAfter } from '../../prompts/occasions'
+import { slotOptions, type SchedulePromptInput, type SlotDuty } from '../../prompts/schedulePrompt'
 import type {
   AddedNotice,
   ClassSceneContext,
   DroppedNotice,
-  PromptState
+  PromptState,
+  TransferEntrance
 } from '../../prompts/scenePrompt'
 import { recentLines, SCENE_WINDOW_WORDS, windowFloor } from '../../prompts/sceneWindow'
 import { readerBlockOf } from '../../prompts/setting'
-import {
-  composeTextingSummary,
-  hasTexted,
-  unansweredReachOuts
-} from '../../prompts/textingPrompt'
+import { composeTextingSummary, hasTexted, unansweredReachOuts } from '../../prompts/textingPrompt'
 import { upcomingPlanLines } from '../../prompts/upcomingPlans'
 import { useAssetStore } from '../assetStore'
 import { lorebookNow } from '../lorebookStore'
-import { useSettingsStore } from '../settingsStore'
+import { matchCgBiologyOf, useSettingsStore } from '../settingsStore'
 import { readyCustomCgs, readyOutfitSets } from '../characterStore'
 import { useGameStore, type SceneKind } from '../gameStore'
 import { stageAsWritten } from '../sceneSanitizer'
 import { cancelAllTexts, expireHangoutInvitations } from '../textingLoop'
 import {
+  agesNow,
   charSickAtHomeNow,
   homecomingVisitorNow,
   playerClassNow,
@@ -204,8 +201,9 @@ export function recentSummaries(
 }
 
 /**
- * Records which cast members have the full stock set of CGs on disk and which custom pairs
- * whole, which of their alternate wardrobes are fully rendered, and whose room is.
+ * Records which cast members have the full stock set of CGs on disk — only a girl has it at all —
+ * and which custom pairs whole, which of their alternate wardrobes are fully rendered, and whose
+ * room is.
  */
 export async function loadCgReady(cast: readonly string[]): Promise<void> {
   const run = currentRun()
@@ -213,6 +211,7 @@ export async function loadCgReady(cast: readonly string[]): Promise<void> {
   const customCgReady: Record<string, CustomCgSlot[]> = {}
   const outfitReady: Record<string, OutfitSet[]> = {}
   const roomReady: Record<string, boolean> = {}
+  const { characters } = useGameStore.getState()
   await Promise.all(
     cast.map(async (charId) => {
       const [status, outfits, room] = await Promise.all([
@@ -221,7 +220,9 @@ export async function loadCgReady(cast: readonly string[]): Promise<void> {
         window.api.chars.room(charId)
       ])
       if (status.ok) {
-        ready[charId] = STOCK_POSITIONS.every((position) => status.data[position])
+        ready[charId] =
+          stockCgsFor(characters[charId]) &&
+          STOCK_POSITIONS.every((position) => status.data[position])
         customCgReady[charId] = readyCustomCgs(status.data)
       } else {
         console.warn(`[cast] could not read CGs for ${charId}:`, status.error)
@@ -250,12 +251,13 @@ export function secretToTell(cast: readonly string[]): string | undefined {
  */
 export async function applyCast(cast: string[], scene?: SceneKind): Promise<void> {
   cancelAllTexts()
-  const { ignored, turnedDown } = expireHangoutInvitations(cast)
+  const { ignored, turnedDown, ignoredVents } = expireHangoutInvitations(cast)
   const secret = secretToTell(cast)
   await stageCast(cast, {
     ...scene,
     ...(ignored.length > 0 ? { ignoredInvites: ignored } : {}),
     ...(turnedDown.length > 0 ? { turnedDownInvites: turnedDown } : {}),
+    ...(ignoredVents.length > 0 ? { ignoredVents } : {}),
     ...(secret ? { secret } : {})
   })
   // Last, and the order is load-bearing in both directions.
@@ -283,6 +285,25 @@ function outSickOf(entry: ClassEntry | undefined): { outSick?: string[] } {
     .filter((charId) => game.charInfo[charId]?.nameKnown && charSickAtHomeNow(charId))
     .flatMap((charId) => game.characters[charId]?.firstName ?? [])
   return outSick.length > 0 ? { outSick } : {}
+}
+
+/**
+ * The transfer students in the cast walking into `entry` for the first time since they arrived,
+ * the class having met before; nothing when the scene sits in no class or nobody is.
+ */
+function transferEntrancesOf(entry: ClassEntry | undefined): {
+  transferEntrances?: TransferEntrance[]
+} {
+  if (!entry) return {}
+  const game = useGameStore.getState()
+  const transferEntrances = studentsOf(entry, game.cast, game.charInfo).flatMap((charId) => {
+    const character = game.characters[charId]
+    const transferredAt = game.charInfo[charId]?.transferredAt
+    if (!character || transferredAt === undefined || charSickAtHomeNow(charId)) return []
+    if (!transferOwesEntrance(entry, transferredAt, game.date, game.calendar)) return []
+    return [{ firstName: character.firstName, gender: character.gender, transferredAt }]
+  })
+  return transferEntrances.length > 0 ? { transferEntrances } : {}
 }
 
 /**
@@ -326,12 +347,8 @@ export function announceableDrops(): DroppedNotice[] {
 export function announceableAdds(): AddedNotice[] {
   const game = useGameStore.getState()
   return Object.entries(game.addedClasses).flatMap(([code, record]) => {
-    if (record.announced) return []
     const entry = game.classes[code]
-    if (!entry) return []
-    // Meetings held, not dates on the timetable: a first Monday cancelled by orientation is a
-    // class that has not met.
-    if (meetingsBefore(entry.slot, record.date, game.calendar) === 0) return []
+    if (!entry || !addOwesEntrance(entry, record, game.calendar)) return []
     return [{ code, name: entry.name }]
   })
 }
@@ -397,9 +414,10 @@ export function promptState(): PromptState {
     const lines = composeTextingSummary(
       conversation,
       game.charInfo[charId]?.ignoredInvitation === true,
-      character.firstName,
+      character,
       { date: game.date, time: game.time },
-      game.charInfo[charId]?.flags?.blocked === true
+      game.charInfo[charId]?.flags?.blocked === true,
+      game.playerPronouns
     )
     if (lines.length > 0) textingSummaries[charId] = lines
   }
@@ -427,14 +445,13 @@ export function promptState(): PromptState {
       ? game.cast.filter((charId) => {
           const info = game.charInfo[charId]
           return (
-            charId !== visitor &&
-            info?.flags?.hasMet === true &&
-            (info.metSlots?.length ?? 0) === 0
+            charId !== visitor && info?.flags?.hasMet === true && (info.metSlots?.length ?? 0) === 0
           )
         })
       : []
 
   const goodbyeWith = game.sceneFarewell ? game.characters[game.sceneFarewell] : undefined
+  const subjectTags = subjectTagsByGender(defaultTagsOf(useSettingsStore.getState().settings))
   const farewell = goodbyeWith
     ? {
         firstName: goodbyeWith.firstName,
@@ -450,6 +467,8 @@ export function promptState(): PromptState {
     date: game.date,
     time: game.time,
     ex: promptStateParts('scene'),
+    romance: game.romance,
+    readerPronouns: game.playerPronouns,
     backgrounds: cityLifeBackgrounds(useAssetStore.getState().backgrounds),
     lorebook: lorebookNow(),
     charInfo: game.charInfo,
@@ -483,6 +502,7 @@ export function promptState(): PromptState {
     bg: stage.bg,
     classCode: game.sceneClass,
     ...outSickOf(classEntry),
+    ...transferEntrancesOf(classEntry),
     projectClass: game.sceneProject,
     jobId: game.sceneJob,
     visitJobId: game.sceneVisitJob,
@@ -495,6 +515,7 @@ export function promptState(): PromptState {
     sceneSecret: game.sceneSecret,
     ...(game.sceneEvent ? { sceneEvent: game.sceneEvent } : {}),
     ...(game.sceneReceivedGift ? { receivedGift: game.sceneReceivedGift } : {}),
+    ...(game.sceneRedraft ? { redraft: true } : {}),
     // Only while the stamp is this very slot: a rumor outlives no opening but its own,
     // and the three openings that return early never write one over the last.
     ...(game.slotRumor && game.slotRumor.date === game.date && game.slotRumor.time === game.time
@@ -539,9 +560,20 @@ export function promptState(): PromptState {
       if (!character || !item) return []
       // Her own present going back to her says when she gave it.
       const returnedOn =
-        gift.returned && gift.from ? formatGameDate(gift.from.date, game.calendar.season) : undefined
+        gift.returned && gift.from
+          ? formatGameDate(gift.from.date, game.calendar.season)
+          : undefined
       return [
-        giftLoreNote(character.firstName, item, gift.repeat, gift.reaction, returnedOn, gift.dose)
+        giftLoreNote(
+          character.firstName,
+          genderOf(character),
+          item,
+          gift.repeat,
+          gift.reaction,
+          returnedOn,
+          gift.dose ?? false,
+          game.playerPronouns
+        )
       ]
     }),
     emotions: stage.emotions,
@@ -554,11 +586,14 @@ export function promptState(): PromptState {
     // Absent when the player has set no custom one, which is what `scenePersonaFor` reads as.
     ...(scenePersona !== undefined ? { scenePersona } : {}),
     ...(textEdits !== undefined ? { textEdits } : {}),
-    subjectTags: defaultTagsOf(useSettingsStore.getState().settings).subject,
+    subjectTags: subjectTags.female,
+    subjectTagsByGender: subjectTags,
     memoryBudgets: memoryBudgetsNow(),
     secretBudget: secretBudgetNow(),
     history: game.history,
-    cgReady: game.cgReady,
+    cgReady: stockCgsInPlay(game.playerPronouns, matchCgBiologyOf(useSettingsStore.getState()))
+      ? game.cgReady
+      : {},
     customCgReady: game.customCgReady,
     outfitReady: game.outfitReady,
     roomReady: game.roomReady,
@@ -566,6 +601,7 @@ export function promptState(): PromptState {
     textedWith,
     ...(backFromBreak.length > 0 ? { backFromBreak } : {}),
     ...(visitor ? { homecomingVisitor: visitor } : {}),
+    ages: agesNow(game.cast),
     // The slots after this one: this slot's plan is the scene itself, or one he is skipping.
     upcomingPlans: upcomingPlanLines(
       game.events,

@@ -21,6 +21,7 @@ import {
   quietLift,
   quietPress,
   rowPress,
+  sceneExchangeContext,
   TextEditModal,
   TitleTab,
   toggleLift,
@@ -803,7 +804,9 @@ export function PromptStudioModal({ theme, onClose }: PromptStudioModalProps): J
     )
   }
 
-  const textDefault = textEdit ? defaultBlockText(textEdit.id, { lessNsfwText, scenePersona }) : ''
+  const textDefault = textEdit ? defaultBlockText(textEdit.id, {
+    lessNsfwText, scenePersona, readerPronouns: sceneExchangeContext().scene.readerPronouns
+  }) : ''
   const varName = varEdit !== null && varEdit in presetVars ? varEdit : null
   const partText = partShown ? lastSceneRequest?.parts?.find((part) => part.id === partShown)?.text : undefined
 

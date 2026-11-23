@@ -63,6 +63,7 @@ export function carryModFiles(context: TermFilesContext): Promise<void>;
 
 // @public
 export interface Character {
+    attractedTo?: Attraction;
     backstory: string;
     baseAppearance: string[];
     // (undocumented)
@@ -80,6 +81,7 @@ export interface Character {
     expressionTags: Record<Emotion, string[]>;
     // (undocumented)
     firstName: string;
+    gender?: 'male';
     generationSeed: number;
     giftPreferences: GiftPreferences;
     height: number;
@@ -216,6 +218,7 @@ export type ClassCatalogKey = keyof typeof CLASS_CATALOG_RANGES;
 
 // @public
 export interface Conversation {
+    advice?: ConversationAdvice;
     // (undocumented)
     charId: string;
     declined?: number;
@@ -816,6 +819,7 @@ export interface JobDef {
         summer?: string;
         winter?: string;
     };
+    neutralMessages?: Partial<Record<CoreJobMessageKind, string>>;
     pay: number;
     requires: Partial<Record<StatKey, StatTier>>;
     requiresSkills?: readonly JobSkillRequirement[];
@@ -853,6 +857,7 @@ export interface LedgerResponse {
         charKey: string;
         type: MemoryType;
         desc: string;
+        youDesc?: string;
     }>;
     plans?: Array<{
         slot: number;
@@ -867,6 +872,7 @@ export interface LedgerResponse {
         charKey: string;
         type: MemoryType;
         desc: string;
+        youDesc?: string;
     }>;
 }
 
@@ -892,7 +898,7 @@ export const LOCATIONS: readonly LocationDef[];
 export const MAX_TIER: StatTier;
 
 // @public
-export function memoryStatusLine(name: string, entry: Pick<CharMemory, 'type' | 'desc'>): SceneLine;
+export function memoryStatusLine(name: string, entry: SpokenMemory, readerName?: string, holder?: Gender, reader?: ReaderPronouns): SceneLine;
 
 // @public
 export type MemoryType = 'liked' | 'disliked' | 'loved' | 'hated';
@@ -1032,11 +1038,13 @@ export interface NativeGameSave {
     } | null;
     midtermStandingDone: boolean;
     money: number;
+    npcCouples?: NpcCouple[];
     npcFriendships?: NpcFriendship[];
     npcOverlay: NpcSlotOverlay | null;
     npcRelationships: NpcRelationshipMap;
     occasionsDeclined?: string[];
     outingSlots: Record<string, number>;
+    pendingTransfers?: PendingTransfer[];
     playerSchedule: Record<number, string>;
     playthroughId: string;
     readerCold?: ColdCase;
@@ -1046,6 +1054,7 @@ export interface NativeGameSave {
     saveId: string;
     scene: SceneState | null;
     sceneEventsFired?: SceneEventsFired;
+    scenesSinceRedraft?: number;
     // (undocumented)
     schemaVersion: 13;
     semester?: string;
@@ -1057,6 +1066,7 @@ export interface NativeGameSave {
     // (undocumented)
     time: TimeSlot;
     transcript?: Transcript;
+    transfers?: Transfer[];
     venusJobIntroSent: boolean;
     venusThrough: number;
     weekendOutings: Record<string, number>;
@@ -1102,7 +1112,9 @@ export interface PlaythroughRecord extends ModPlaythroughFields {
     playerFirstName: string;
     // (undocumented)
     playerLastName: string;
+    playerPronouns?: ReaderPronouns;
     profiles: Record<string, CharProfile>;
+    romance?: RomanceSetting;
     // (undocumented)
     schemaVersion: 3;
     semesters?: Record<string, SemesterRecord>;
@@ -1181,7 +1193,7 @@ export type PromptPartId = (typeof PROMPT_PARTS)[number];
 export const READER_SPEAKER = "reader";
 
 // @public
-export function readerize(text: string): string;
+export function readerize(text: string, holder?: Gender, reader?: ReaderPronouns): string;
 
 // @public
 export function registerCharacterTrait(modId: string, definition: CharacterTraitDefinition): () => void;
@@ -1366,6 +1378,7 @@ export interface StructuredRequest {
     storyMemory?: StoryRecallRequest;
     // (undocumented)
     system: string;
+    thinking?: ThinkingRow | ThinkingLevel;
     // (undocumented)
     user: string;
 }
