@@ -288,3 +288,15 @@ it.each([
   expect(prompt.left.includes('blue_skirt')).toBe(bottoms)
   expect(prompt.right.includes('blue_jeans')).toBe(bottoms)
 })
+
+describe('a picture of two kept apart', () => {
+  it('keeps hugging, cuddling, kissing and lying on each other off every pairing', () => {
+    const girl = character({ charId: 'risa', firstName: 'Risa' })
+    const her = character({ charId: 'ana', firstName: 'Ana' })
+    const guy = character({ charId: 'kai', firstName: 'Kai', gender: 'male' })
+    for (const [a, b] of [[girl, guy], [girl, her], [guy, girl]] as const) {
+      const negative = buildDuoPhotoPrompt(a, b, 'everyday', 'Me and my friend at the park', 'ppm').negative.split(/,\s*/)
+      expect(negative).toEqual(expect.arrayContaining(['couple', 'hug', 'cuddling', 'kiss', 'lying_on_person']))
+    }
+  })
+})
