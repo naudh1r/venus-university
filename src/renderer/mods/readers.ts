@@ -1,4 +1,5 @@
 import { useMemo, useSyncExternalStore } from 'react'
+import { readerPronounsOf, type ReaderPronouns } from '@shared/gender'
 import type { AppError } from '@shared/types'
 import { busGain, volumesOf } from '@shared/audio'
 import { BUILD, modNames, modsOn } from '@shared/mods'
@@ -46,17 +47,24 @@ export function showError(error: AppError): void {
   useUiStore.getState().showError(error)
 }
 
-/** The playthrough being played, if any, and the reader's first name. */
-export function gameFacts(): { playthroughId: string | null; readerName: string } {
-  const game = useGameStore.getState()
-  return { playthroughId: game.playthroughId, readerName: game.playerFirstName }
+export interface GameFacts {
+  playthroughId: string | null
+  readerName: string
+  readerPronouns: ReaderPronouns
 }
 
-/** {@link gameFacts} for a component: it renders again when either changes. */
-export function useGameFacts(): { playthroughId: string | null; readerName: string } {
+/** The current playthrough and the reader's first name and pronouns. */
+export function gameFacts(): GameFacts {
+  const game = useGameStore.getState()
+  return { playthroughId: game.playthroughId, readerName: game.playerFirstName, readerPronouns: readerPronounsOf(game) }
+}
+
+/** {@link gameFacts} for a component: it renders again when a fact changes. */
+export function useGameFacts(): GameFacts {
   const playthroughId = useGameStore((state) => state.playthroughId)
   const readerName = useGameStore((state) => state.playerFirstName)
-  return useMemo(() => ({ playthroughId, readerName }), [playthroughId, readerName])
+  const readerPronouns = useGameStore(readerPronounsOf)
+  return useMemo(() => ({ playthroughId, readerName, readerPronouns }), [playthroughId, readerName, readerPronouns])
 }
 
 /** The cast-scene persona the player has stored, or undefined until settings are read or when none is stored. */

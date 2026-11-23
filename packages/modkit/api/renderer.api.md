@@ -306,11 +306,18 @@ export function formatShortGameDate(date: number, season: Season): string;
 // @public
 export function freeForInvitation(id: string): boolean;
 
-// @public
-export function gameFacts(): {
+// @public (undocumented)
+export interface GameFacts {
+    // (undocumented)
     playthroughId: string | null;
+    // (undocumented)
     readerName: string;
-};
+    // (undocumented)
+    readerPronouns: ReaderPronouns;
+}
+
+// @public
+export function gameFacts(): GameFacts;
 
 // @public
 export interface GameMenuItemProps {
@@ -1713,10 +1720,7 @@ export const useFeed: (id: string) => readonly Readonly<SocialPost>[];
 export const useFeedReadThrough: () => number | undefined;
 
 // @public
-export function useGameFacts(): {
-    playthroughId: string | null;
-    readerName: string;
-};
+export function useGameFacts(): GameFacts;
 
 // @public (undocumented)
 export function useImageApiConfigured(): boolean;
