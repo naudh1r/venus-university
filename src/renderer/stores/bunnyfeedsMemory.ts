@@ -92,10 +92,17 @@ function dueFeedMemories(through: number): HeldFeedMemory[] {
 export function feedStatusLines(through: number): SceneLine[] {
   if (!modIsOn(BUNNYFEEDS) || !modOptionOn(BUNNYFEEDS, 'announce')) return []
   const game = readBunnyfeedsContext()
-  return dueFeedMemories(through).map(({ charId, type, desc, posterId }) => {
+  return dueFeedMemories(through).map(({ charId, type, desc, youDesc, posterId }) => {
     const character = game.characters[charId]
     const name = character && game.charInfo[charId]?.nameKnown ? character.firstName : '???'
-    return memoryStatusLine(name, { type, desc: `${desc}${whereTag(charId, posterId)}` })
+    const where = whereTag(charId, posterId)
+    if (youDesc) return memoryStatusLine(name, { type, desc: `${desc}${where}`, youDesc: `${youDesc}${where}` })
+    // An older memory has only its third-person words. Turning them into "you" reads every "him"
+    // and "his" as the reader's, which is right only for a girl's memory of a reader who is he.
+    const holder = character?.gender === 'male' ? 'male' : 'female'
+    return holder === 'female' && game.readerPronouns === 'he'
+      ? memoryStatusLine(name, { type, desc: `${desc}${where}` })
+      : memoryStatusLine(name, { type, desc: `${desc}${where}` }, game.playerFirstName, holder, game.readerPronouns)
   })
 }
 

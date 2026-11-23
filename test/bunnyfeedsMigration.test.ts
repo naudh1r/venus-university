@@ -220,6 +220,21 @@ describe('old Bunnyfeeds saves', () => {
     expect(game.getState().charInfo.poster.feed![0].comments).toEqual(comments)
   })
 
+  it("keeps a guy's own his apart from the reader's in the closing line", () => {
+    const chars = game.getState().characters
+    game.setState({ characters: { ...chars, poster: { ...chars.poster, gender: 'male' } }, playerFirstName: 'Kazuya' })
+    expect(memory.holdFeedMemories('poster', 'post', [
+      { charId: 'poster', at: 4, type: 'disliked', desc: 'the reader asked who hurt him under his photo',
+        youDesc: 'you asked who hurt him under his photo', posterId: 'poster' },
+      { charId: 'poster', at: 4, type: 'liked', desc: 'the reader liked his vest', posterId: 'poster' }
+    ])).toMatchObject({ ok: true })
+    const said = JSON.stringify(memory.feedStatusLines(4))
+    expect(said).toContain('you asked who hurt him under his photo, on his post')
+    // An older memory with no words to the reader names him rather than misreading "his".
+    expect(said).toContain('Kazuya liked his vest, on his post')
+    expect(said).not.toContain('your')
+  })
+
   it('keeps future memory timing and honors announce on and off after migration', async () => {
     expect(memory.feedStatusLines(5)).toEqual([])
     expect(memory.feedStatusLines(6)).toHaveLength(1)

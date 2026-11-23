@@ -536,11 +536,12 @@ function fileReplies(
     const charId = game.charKeyToId[memory.char?.trim() ?? '']
     const type = MEMORY_TYPES.find((one) => one === memory.type)
     const desc = memory.desc?.trim().replace(SAID_WHERE, '')
+    const youDesc = memory.youDesc?.trim().replace(SAID_WHERE, '')
     if (!charId || !commentedOn.has(charId) || !type || !desc) continue
     // One a call: a girl met under two posts keeps what the first of them left her.
     commentedOn.delete(charId)
     const posterId = posterOf.get(charId)
-    held.push({ charId, at: shownAt, type, desc, ...(posterId ? { posterId } : {}) })
+    held.push({ charId, at: shownAt, type, desc, ...(youDesc ? { youDesc } : {}), ...(posterId ? { posterId } : {}) })
     remembered.push(game.characters[charId]?.firstName ?? charId)
   }
 
