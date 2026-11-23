@@ -1,7 +1,6 @@
 import {
   areNpcFriends,
   npcPairOf,
-  zoneOf,
   type NpcRelationshipMap,
   type CharInfo
 } from '@vx/modkit/shared'
@@ -18,8 +17,9 @@ export interface GroupPhotoPair {
 }
 
 /**
- * Two of the scene's girls at random, the first the one who posts it; enemy pairs are left out.
- * Null where the scene has no pair to photograph.
+ * Two of the scene's people at random, the first the one who posts it: only friends or a couple,
+ * as on the feed, since sharing a scene alone does not make two people pose together. Null where
+ * the scene has no such pair.
  */
 export function groupPhotoPair(
   cast: readonly string[],
@@ -33,7 +33,7 @@ export function groupPhotoPair(
     for (let j = i + 1; j < people.length; j++) {
       const a = people[i]
       const b = people[j]
-      if (zoneOf(npcPairOf(relationships, a, b)?.affinity ?? 0) === 'enemies') continue
+      if (!canSharePhoto(relationships, a, b)) continue
       if (pairedRecently(a, b)) continue
       pairs.push({ poster: a, friend: b }, { poster: b, friend: a })
     }

@@ -91,8 +91,8 @@ has not been in a picture with the poster in the last week. When no poster has a
 with them, it is a second picture of one poster alone.
 
 A scene with two or more characters also brings a photo, posted on one's feed, once a slot. It
-shows two of them who are not enemies and have not been in a picture together in the last week,
-picked at random. When no pair is left, it shows one of them alone. It is written as the scene
+shows two of them who are friends or a couple and have not been in a picture together in the last
+week, picked at random. When no pair like that is in the scene, it shows one of them alone. It is written as the scene
 begins and waits on the feed until its picture lands, behind the slot's other waiting pictures.
 Likes and comments work as on any feed post.
 
@@ -195,6 +195,8 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
   when the caption mentions them.
 - Shoes and ankle socks appear only when the feet are in the picture.
 - A photo of two can be full body or knees-up when the caption asks for it.
+- A scene's photo of two shows a pair who are friends or a couple, as the feed's does. Two
+  people who only share the scene get a photo of one of them instead.
 
 ## 1.8.0
 
