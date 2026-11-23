@@ -5,7 +5,16 @@ import {
   type MiniGameDef,
   type SuggestRate
 } from '@shared/minigames'
-import { charKeyOf, type Character, type StructuredRequest } from '@vx/modkit/shared'
+import {
+  charKeyOf,
+  genderOf,
+  pronounsOf,
+  type Character,
+  type Pronouns,
+  type StructuredRequest
+} from '@vx/modkit/shared'
+import { gameFacts } from '@vx/modkit/renderer'
+import { readerAmong } from '@shared/minigameKit'
 import { locationDefOf } from '@shared/locations'
 import { hereLine } from './place'
 
@@ -14,11 +23,20 @@ import { hereLine } from './place'
 /** The reply field the signal comes back in; the proposal's own turn uses it for her answer. */
 const FIELD = 'minigame'
 
-const RATE: Record<SuggestRate, string> = {
-  often: 'It is what people come here for: she is likely to suggest it herself, and more than once.',
-  sometimes: 'She may suggest it herself when the moment is slow or playful.',
-  rarely: 'She brings it up herself only if the moment really calls for it.',
-  never: 'She does not bring it up herself here. The reader still may.'
+/** How readily a game is brought up, said of the one character here in `one`'s words, or of several. */
+function rateLine(rate: SuggestRate, one: Pronouns | null): string {
+  const They = one?.They ?? 'They'
+  const themself = one?.themself ?? 'themselves'
+  switch (rate) {
+    case 'often':
+      return `It is what people come here for: ${one ? `${one.they} is` : 'they are'} likely to suggest it ${themself}, and more than once.`
+    case 'sometimes':
+      return `${They} may suggest it ${themself} when the moment is slow or playful.`
+    case 'rarely':
+      return `${They} ${one ? 'brings' : 'bring'} it up ${themself} only if the moment really calls for it.`
+    case 'never':
+      return `${They} ${one ? 'does' : 'do'} not bring it up ${themself} here. The reader still may.`
+  }
 }
 
 /** A whole number in a range, asked for as one of its numerals: every provider takes that. */
@@ -62,6 +80,8 @@ export function withOffer(
   }
   const ranges = optionRanges(games)
   const several = cast.length > 1
+  const one = cast.length === 1 ? pronounsOf(cast[0]) : null
+  const r = readerAmong(gameFacts().readerPronouns, cast.map(genderOf))
   const field = {
     type: 'object',
     additionalProperties: false,
@@ -106,8 +126,8 @@ export function withOffer(
     ...(several
       ? [
           game.players.max <= 1
-            ? '  The reader plays it with one girl, or with her beside him where it is his alone to play.'
-            : `  The reader plays it with ${fewestWith(game) === game.players.max ? game.players.max : `${fewestWith(game)} to ${game.players.max}`} girls at once.`
+            ? `  The reader plays it with one of them, or with one beside ${r.him} where it is ${r.his} alone to play.`
+            : `  The reader plays it with ${fewestWith(game) === game.players.max ? game.players.max : `${fewestWith(game)} to ${game.players.max}`} of them at once.`
         ]
       : []),
     ...(game.options ?? []).map(
@@ -121,7 +141,7 @@ export function withOffer(
             : `${option.min} to ${option.max}`
         }; ${option.default} is the standard game.`
     ),
-    `  ${RATE[suggestRate(game, location, busy, keen)]}`
+    `  ${rateLine(suggestRate(game, location, busy, keen), one)}`
   ])
 
   return {
@@ -135,9 +155,9 @@ export function withOffer(
       ...described,
       ...games.map(game => `${game.name} rules: ${game.format}`),
       several
-        ? 'Set minigame.play to the game ID only when the reader and participating girls have ALL agreed to play now. In minigame.with mark each girl "in" or "out"; spectators may stay. Respect participant limits.'
-        : 'Set minigame.play to the game ID and minigame.with to her key only when the reader and girl have BOTH agreed to play now.',
-      'Otherwise play is "" and with is empty (or every girl "out"). A suggestion, refusal, hypothetical or plan for later is not consent. Do not assume a vague reply accepts: use the conversation.',
+        ? 'Set minigame.play to the game ID only when the reader and everyone taking part have ALL agreed to play now. In minigame.with mark each of them "in" or "out"; spectators may stay. Respect participant limits.'
+        : `Set minigame.play to the game ID and minigame.with to ${one?.their ?? 'the other player\'s'} key only when the reader and ${one?.they ?? 'the other player'} have BOTH agreed to play now.`,
+      'Otherwise play is "" and with is empty (or everyone "out"). A suggestion, refusal, hypothetical or plan for later is not consent. Do not assume a vague reply accepts: use the conversation.',
       'stake: agreed stakes in second person, or "". Use default options unless explicitly agreed otherwise. Reject unsupported rules in character.',
       'On agreement, stop after setup; end_scene must be false. Do not play. If merely inviting, stop for the reader to answer.'
     ].join('\n'),

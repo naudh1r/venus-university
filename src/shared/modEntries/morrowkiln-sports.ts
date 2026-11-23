@@ -9,6 +9,6 @@ export default packMod({
   name: '[MK] Sports',
   author: 'morrowkiln',
   version: '0.1.0-beta',
-  blurb: 'Races on foot, in the water and on skates, alone against the clock or against the girls.',
+  blurb: 'Races on foot, in the water and on skates, alone against the clock or against whoever is there.',
   games: [FOOT_RACE, SWIM_RACE, ROLLER_DERBY]
 })

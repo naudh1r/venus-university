@@ -200,7 +200,7 @@ export function packMod(pack: {
     scope: 'anytime',
     defaultOn: true,
     blurb: pack.blurb,
-    offNote: 'A game already played stays in the story and in her memories.',
+    offNote: 'A game already played stays in the story and in the memories of whoever played.',
     requires: [MINI_GAMES],
     options: pack.games.map((game) => ({
       id: game.id,
@@ -435,8 +435,8 @@ export function tuned(game: MiniGameDef, prefs: GamePrefs | undefined, nsfw = fa
 export function playersWords(game: MiniGameDef): string {
   const { min, max } = game.players
   if (max <= 0) return 'alone'
-  const girls = max === 1 ? 'one girl' : min >= max ? `${max} girls` : `up to ${max} girls`
-  return min === 0 ? `alone, or with ${girls}` : `with ${girls}`
+  const others = max === 1 ? 'one other' : min >= max ? `${max} others` : `up to ${max} others`
+  return min === 0 ? `alone, or with ${others}` : `with ${others}`
 }
 
 /** A game's options at their defaults. */

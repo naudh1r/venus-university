@@ -25,6 +25,7 @@ import { skillOf } from '../minigames/skill'
 import { gameIsOn, nameOf } from '../minigames/table'
 import { registerHooks } from '../mods/hooks'
 import { clock, scene } from '@vx/modkit/renderer'
+import { genderOf } from '@vx/modkit/shared'
 import { useModsStore } from '../stores/modsStore'
 import { destinationOf, scenePlace } from '../minigames/place'
 import { tableCanOpen } from '../minigames/screen'
@@ -79,7 +80,8 @@ function askedOf(charIds: readonly string[], cast: readonly Character[]): Asked[
     .map((member) => ({
       charId: member.charId,
       key: charKeyOf(member.firstName, member.lastName),
-      name: nameOf(member.charId)
+      name: nameOf(member.charId),
+      gender: genderOf(member)
     }))
 }
 

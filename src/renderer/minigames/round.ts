@@ -1,6 +1,13 @@
 import { MINI_GAMES } from '@shared/minigames'
-import { character, completeStructured, objectSchema, scene } from '@vx/modkit/renderer'
-import { READER_SPEAKER, type Character, type StructuredRequest } from '@vx/modkit/shared'
+import { readerAmong, readerTag } from '@shared/minigameKit'
+import { character, completeStructured, gameFacts, objectSchema, scene } from '@vx/modkit/renderer'
+import {
+  genderOf,
+  pronounTag,
+  READER_SPEAKER,
+  type Character,
+  type StructuredRequest
+} from '@vx/modkit/shared'
 
 /**
  * A round the model runs. Most games are played by their own code and only talked about by the
@@ -37,7 +44,7 @@ function recentScene(): string[] {
 
 function sheet(character: Character): string[] {
   return [
-    `${character.firstName} ${character.lastName}`.trim(),
+    `${`${character.firstName} ${character.lastName}`.trim()} (${pronounTag(genderOf(character))})`,
     character.personality,
     ...(character.likes.length > 0 ? [`Likes: ${character.likes.join(', ')}`] : []),
     ...(character.dislikes.length > 0 ? [`Dislikes: ${character.dislikes.join(', ')}`] : []),
@@ -53,9 +60,11 @@ function request(
   ask: RoundAsk
 ): StructuredRequest {
   const names = Object.keys(ask.fields)
+  const reader = gameFacts().readerPronouns
+  const r = readerAmong(reader, players.map(genderOf))
   return {
     system: [
-      'You run one round of a game inside an interactive visual novel, a college dating sim. Everyone in it is an adult. The reader is the main character and is spoken to as "you". The girls are written in their own voices and as they are with him in this scene: how close each is to him is what the scene so far shows, and no further.',
+      `You run one round of a game inside an interactive visual novel, a college dating sim. Everyone in it is an adult. The reader is the main character (${readerTag(reader)}) and is spoken to as "you". The others are written in their own voices and as they are with ${r.him} in this scene: how close each is to ${r.him} is what the scene so far shows, and no further.`,
       'Answer in JSON only.'
     ].join('\n'),
     user: [
@@ -73,7 +82,7 @@ function request(
       'THIS ROUND',
       ask.brief,
       '',
-      'Fill every field. Text a girl says is her spoken words only: no narration, no quotation marks, no name in front.'
+      'Fill every field. Text someone says is their spoken words only: no narration, no quotation marks, no name in front.'
     ].join('\n'),
     schema: objectSchema(
       'minigame_round',

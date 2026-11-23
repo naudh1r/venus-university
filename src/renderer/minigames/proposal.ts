@@ -1,4 +1,6 @@
 import { fewestWith, listed, settledOptions, type MiniGameDef } from '@shared/minigames'
+import { PRONOUNS, readerAmong, type Gender } from '@shared/minigameKit'
+import { gameFacts } from '@vx/modkit/renderer'
 import type { StructuredRequest } from '@vx/modkit/shared'
 import { hereLine } from './place'
 
@@ -7,11 +9,12 @@ import { hereLine } from './place'
 /** The reply field her answer comes back in. */
 const FIELD = 'minigame'
 
-/** A girl the reader asked: the key the model knows her by, and what the reader calls her. */
+/** Someone the reader asked: the key the model knows her by, what the reader calls her, and her gender. */
 export interface Asked {
   charId: string
   key: string
   name: string
+  gender: Gender
 }
 
 /**
@@ -34,6 +37,9 @@ export function withProposal(
   const options = game.options ?? []
   const several = asked.length > 1
   const name = listed(asked.map((girl) => girl.name))
+  // The one asked, in her own words; of several, each line says "they" or names nobody.
+  const p = PRONOUNS[asked[0]?.gender ?? 'female']
+  const r = readerAmong(gameFacts().readerPronouns, asked.map((girl) => girl.gender))
   const need = fewestWith(game)
   /** A whole number in a range, asked for as one of its numerals: every provider takes that. */
   const numerals = (min: number, max: number): string[] =>
@@ -97,25 +103,25 @@ export function withProposal(
                 `- "${option.id}": ${option.describe}. From ${option.min} to ${option.max}. Use ${option.default} unless one of them names something else out loud in this exchange.`
             ),
             several
-              ? 'Never change an option on your own. A value other than the usual one must have been asked for by the reader in his words, or be said by one of the girls in your lines, so that everyone knows what they are sitting down to.'
-              : 'Never change an option on your own. A value other than the usual one must have been asked for by the reader in his words, or be said by her in your lines, so that both of them know what they are sitting down to.'
+              ? `Never change an option on your own. A value other than the usual one must have been asked for by the reader in ${r.his} words, or be said by one of the others in your lines, so that everyone knows what they are sitting down to.`
+              : `Never change an option on your own. A value other than the usual one must have been asked for by the reader in ${r.his} words, or be said by ${name} in your lines, so that both of them know what they are sitting down to.`
           ]
         : []),
       several
         ? `That is the whole of what the table can do. The game is run for real, by its rules as written here, and nothing anyone says can change them. If the reader asks for a way of playing this does not cover, they cannot agree to that version: one of them steers it back to what the game does, in character, or they say no.`
-        : `That is the whole of what the table can do. The game is run for real, by its rules as written here, and nothing either of them says can change them. If the reader asks for a way of playing this does not cover, ${name} cannot agree to that version: she steers it back to what the game does, in character, or says no.`,
+        : `That is the whole of what the table can do. The game is run for real, by its rules as written here, and nothing either of them says can change them. If the reader asks for a way of playing this does not cover, ${name} cannot agree to that version: ${p.they} steers it back to what the game does, in character, or says no.`,
       ...(several
         ? [
-            'Each of them decides for herself, in character and in this moment: one may jump at it while another needs talking into it, or says no and watches.',
-            `Fill the "${FIELD}" field first. "who" says for each girl asked whether she is "in" or "out" of the game right now. "answer" is "accept" only if ${need === 1 ? 'at least one of them is' : `at least ${need} of them are`} in, and "decline" otherwise. "stake" is what the players have settled is riding on the game, in one sentence written the way your narration is, with the reader as "you" ("If you win, they ..."), or "" if nothing is.`,
-            'If the answer is accept, write the ones who are in saying yes and everyone getting set up, and stop there. A girl who is out stays in the scene and watches. Do NOT play the game, deal a card, or say who wins: the game is played for real straight after your lines, and you will be told how it went. Do not send end_scene.',
+            'Each of them decides for themself, in character and in this moment: one may jump at it while another needs talking into it, or says no and watches.',
+            `Fill the "${FIELD}" field first. "who" says for each one asked whether they are "in" or "out" of the game right now. "answer" is "accept" only if ${need === 1 ? 'at least one of them is' : `at least ${need} of them are`} in, and "decline" otherwise. "stake" is what the players have settled is riding on the game, in one sentence written the way your narration is, with the reader as "you" ("If you win, they ..."), or "" if nothing is.`,
+            'If the answer is accept, write the ones who are in saying yes and everyone getting set up, and stop there. Anyone who is out stays in the scene and watches. Do NOT play the game, deal a card, or say who wins: the game is played for real straight after your lines, and you will be told how it went. Do not send end_scene.',
             'If the answer is decline, carry the scene on from their answers as you normally would.'
           ]
         : [
-            `${name} decides for herself, in character and in this moment: she may jump at it, need talking into it, or say no.`,
-            `Fill the "${FIELD}" field first. "answer" is "accept" only if she agrees to play right now, and "decline" otherwise. "stake" is what the two of them have settled is riding on the game, in one sentence written the way your narration is, with the reader as "you" ("If you win, she ..."), or "" if nothing is.`,
-            'If she accepts, write her saying yes and the two of them getting set up, and stop there. Do NOT play the game, deal a card, or say who wins: the game is played for real straight after your lines, and you will be told how it went. Do not send end_scene.',
-            'If she declines, carry the scene on from her answer as you normally would.'
+            `${name} decides for ${p.themself}, in character and in this moment: ${p.they} may jump at it, need talking into it, or say no.`,
+            `Fill the "${FIELD}" field first. "answer" is "accept" only if ${p.they} agrees to play right now, and "decline" otherwise. "stake" is what the two of them have settled is riding on the game, in one sentence written the way your narration is, with the reader as "you" ("If you win, ${p.they} ..."), or "" if nothing is.`,
+            `If ${p.they} accepts, write ${p.them} saying yes and the two of them getting set up, and stop there. Do NOT play the game, deal a card, or say who wins: the game is played for real straight after your lines, and you will be told how it went. Do not send end_scene.`,
+            `If ${p.they} declines, carry the scene on from ${p.their} answer as you normally would.`
           ])
     ].join('\n'),
     schema: {

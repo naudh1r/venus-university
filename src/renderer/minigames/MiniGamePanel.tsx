@@ -30,6 +30,7 @@ import {
   TitleTab,
   TurnField,
   dropTransientLines,
+  useGameFacts,
   useModalShell,
   useModOption,
   useScene,
@@ -37,6 +38,7 @@ import {
   veilIn,
   type SceneView
 } from '@vx/modkit/renderer'
+import { genderOf, pronounsOf } from '@vx/modkit/shared'
 import type { ScenePanelProps } from '../mods/hooks'
 import { gameComponent, type GamePlay, type Opponent, type PlayResult } from './play'
 import { agreementAvailable, cancelMatch, checkpointResult, keptAgreed, saveSceneMiniGame, seatMatch, useTableStore, type Agreed, type OpenTable } from './session'
@@ -150,6 +152,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
   const quiet = useModOption(MINI_GAMES, CHAT_OPTIONS.quiet)
   const lots = useModOption(MINI_GAMES, CHAT_OPTIONS.lots)
   const chattiness: Chattiness = quiet ? 'quiet' : lots ? 'lots' : 'some'
+  const reader = useGameFacts().readerPronouns
   const location = useScenePlace()
   // Who is standing where on the stage: left, middle, right.
   const slots = useScene(stageOf)
@@ -228,6 +231,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
         return {
           charId: character.charId,
           name: nameOf(character.charId),
+          gender: genderOf(character),
           skill: skill.level,
           style: skill.style,
           biases: skill.biases
@@ -405,6 +409,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
   const play = useMemo<GamePlay>(
     () => ({
       opponents: seated?.opponents ?? [],
+      reader,
       location,
       stepped: Boolean(seated?.game.stepped),
       aids: seated ? aidsOf(seated.game) : {},
@@ -465,7 +470,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
         setResult(ended)
       }
     }),
-    [seated?.game.name, seated?.game.stepped, seated?.game.playByPlay, seated?.opponents, seated?.stake, seated?.options, chattiness, location]
+    [seated?.game.name, seated?.game.stepped, seated?.game.playByPlay, seated?.opponents, seated?.stake, seated?.options, chattiness, location, reader]
   )
 
   function leave(ended: PlayResult): void {
@@ -511,7 +516,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
       return
     }
     setWords(
-      `I ask ${namesOf(offer.charIds)} if ${offer.charIds.length > 1 ? 'they want' : 'she wants'} to play a game of ${offer.game.name}.`
+      `I ask ${namesOf(offer.charIds)} if ${offer.charIds.length > 1 ? 'they want' : `${pronounsOf(character(offer.charIds[0])).they} wants`} to play a game of ${offer.game.name}.`
     )
     setAsking(offer)
   }
@@ -527,6 +532,8 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
 
   const title = asking ? `Ask ${namesOf(asking.charIds)}` : 'Play a game'
   const against = seated?.opponents?.[0]
+  /** The one at the table, in her own words, for a line that names nobody. */
+  const theOne = pronounsOf(character(against?.charId ?? agreed?.charIds[0] ?? ''))
   /** Everyone at the table, judged yet or not, as the reader calls them. */
   const tableNames =
     seated?.opponents?.map((girl) => girl.name) ?? (agreed?.charIds ?? []).map(nameOf)
@@ -616,7 +623,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
             </GameGuard>
           ) : (
             <p className="vu-empty">
-              {tableNames.length > 1 ? 'They are getting settled…' : 'She is getting settled…'}
+              {tableNames.length > 1 ? 'They are getting settled…' : `${theOne.They} is getting settled…`}
             </p>
           )}
           {/* The way on, at a table read at the reader's own pace, while something waits on it. */}
@@ -651,7 +658,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
                       ...(soFar.current.length > 0
                         ? { account: soFar.current }
                         : situation.current
-                          ? { account: [`How it stood when he left: ${situation.current}`] }
+                          ? { account: [`How it stood when the reader left: ${situation.current}`] }
                           : {})
                     })
                   : dismiss()
@@ -725,7 +732,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
                       ? `${answering} is answering…`
                       : tableNames.length > 1
                         ? 'Say something to the table…'
-                        : `Say something to ${against?.name ?? 'her'}…`
+                        : `Say something to ${against?.name ?? theOne.them}…`
               }
               multiline
             />
@@ -786,7 +793,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
               <TextField
                 id="minigame-ask-text"
                 label="What you say"
-                hint="Your turn in the scene. Say it your way, and name what is riding on it if you like. She may say no."
+                hint={`Your turn in the scene. Say it your way, and name what is riding on it if you like. ${asking && asking.charIds.length === 1 ? pronounsOf(character(asking.charIds[0])).They : 'They'} may say no.`}
                 value={words}
                 onChange={setWords}
                 maxLength={400}

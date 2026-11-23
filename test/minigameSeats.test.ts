@@ -30,8 +30,8 @@ const girl = (charId: string, firstName: string): Character =>
   ({ charId, firstName, lastName: 'Seo' }) as Character
 const CAST = [girl('a', 'Ana'), girl('b', 'Bea'), girl('c', 'Cy')]
 const ASKED: Asked[] = [
-  { charId: 'a', key: 'ana_seo', name: 'Ana' },
-  { charId: 'b', key: 'bea_seo', name: 'Bea' }
+  { charId: 'a', key: 'ana_seo', name: 'Ana', gender: 'female' },
+  { charId: 'b', key: 'bea_seo', name: 'Bea', gender: 'female' }
 ]
 const REQUEST: StructuredRequest = {
   system: '',
@@ -175,7 +175,7 @@ describe('a game as the player has it set', () => {
     expect(defaultOptions(tuned(base, { options: { hands: 9 } }))).toEqual({ hands: 3 })
     expect(suggestRate(tuned(base, { suggest: 'never' }), 'bar', false)).toBe('never')
     expect(suggestRate(tuned(base, {}), 'bar', false)).toBe('often')
-    expect(playersWords(base)).toBe('alone, or with up to 3 girls')
-    expect(playersWords(game(1, 1))).toBe('with one girl')
+    expect(playersWords(base)).toBe('alone, or with up to 3 others')
+    expect(playersWords(game(1, 1))).toBe('with one other')
   })
 })

@@ -32,7 +32,7 @@ export function reportText({ game, girls, options, account }: ReportOf, modsOn =
     `Pack: ${pack ? `${pack.name} ${pack.version}` : game.modId}`,
     `Build: ${buildLabel()}${modsOn ? `; mods on: ${modsOn}` : ''}`,
     `Text: ${text}; play-by-play ${game.playByPlay ? 'on' : 'off'}`,
-    ...(girls !== undefined ? [`Girls playing: ${girls}`] : []),
+    ...(girls !== undefined ? [`Others playing: ${girls}`] : []),
     ...(options && Object.keys(options).length > 0
       ? [`Options: ${Object.entries(options).map(([id, value]) => `${id} ${value}`).join(', ')}`]
       : []),

@@ -65,7 +65,7 @@ describe('completed game narration handoff', () => {
     fileResult(result, played(DARTS, []))
     expect(submitAction).not.toHaveBeenCalled()
     expect(useTableStore.getState().played?.next).toBe(true)
-    expect(brief()).toContain('on his own')
+    expect(brief()).toContain('alone, for real')
     expect(brief()).not.toContain('AFTER DARTS')
     expect(useGameStore.getState().currentSceneTranscript.at(-1)?.text).toBe(result.summary)
   })
