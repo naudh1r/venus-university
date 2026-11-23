@@ -906,6 +906,7 @@ export interface ModDef {
     author: string;
     blurb: string;
     defaultOn: boolean;
+    game?: string;
     hooks?: readonly string[];
     id: string;
     library?: boolean;

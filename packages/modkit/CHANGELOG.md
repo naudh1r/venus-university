@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Optional `ModDef.game` declares supported Venus University versions. Manifest `game`
+  ranges now propagate to mod-menu metadata; undeclared or out-of-range support is
+  shown with advisory confirmation before enabling mods and game entry.
 - Main code can pin a ComfyUI custom-node pack of its own with `registerComfyNodePack`, install it
   into the game's managed ComfyUI on demand with `installComfyNodePack`, and read it with
   `comfyNodePackState`. `renderComfyImage` refuses a graph naming a class the server lacks as

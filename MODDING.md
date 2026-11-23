@@ -1788,3 +1788,9 @@ only an explicit player removal drops one. A missing mod never rewrites the card
 See `test/characterTraits.test.ts` for generator/editor separation, import-before-registration,
 pending-request snapshots, duplicate owners, deterministic order, metadata disposal, UI tone
 and hints, and read/edit/export with a missing provider. No particular mod trait ships in core.
+
+### Showing supported game versions
+
+Built-in `ModDef` entries may declare `game`, using the same version-range syntax as `vxmod.json` (for example `game: ">=0.9.2 <0.10.0"`). Declare only versions the author supports; do not copy the current version into every mod automatically. This is the Venus University version, not the mod version or VE kit version.
+
+The Mods menu shows the supported range and running game version. Missing declarations are shown as not declared. Enabling a mod with undeclared or out-of-range support asks for confirmation. New Game, Continue and loading a saved game also warn for affected enabled mods; saved games use their recorded per-playthrough enrollment. Warnings are advisory and preserve switches and saved data. They do not claim that a declaration proves testing or that an old declaration means a mod is broken.
