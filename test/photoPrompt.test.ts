@@ -649,3 +649,106 @@ describe('the shape a new solo photo is drawn in', () => {
     expect(soloOrientationOf('A photo, standing, cowboy_shot', 0.2)).toBe('wide')
   })
 })
+
+describe('the finished prompt for back shots', () => {
+  const girl = character({
+    baseAppearance: ['1girl', 'small_breasts', 'brown_hair'],
+    outfit: ['white_top', 'blue_skirt', 'black_thighhighs', 'white_ankle_socks', 'white_sneakers']
+  })
+  const guy = character({
+    gender: 'male',
+    baseAppearance: ['1boy', 'pectorals', 'long_legs', 'huge_ass'],
+    ex: { 'photo-feature': { v: '1.9.0', data: { penis: 'large_penis', buttocks: 'flat_ass' } } }
+  })
+  const tagList = (subject: Character, caption: string, tier = 'explicit' as const) =>
+    buildPhotoPrompt(subject, tier, caption).positive.split(/,\s*/)
+
+  it.each([
+    'looking back at the camera',
+    'glancing back',
+    'facing away',
+    'turned away',
+    'turning away',
+    'with his back to the camera',
+    'from the back',
+    'rear view'
+  ])('keeps the front out when %s', (cue) => {
+    const back = tagList(girl, `Naked, ${cue.replace('his', 'her')}`)
+    const maleBack = tagList(guy, `Naked, ${cue}`)
+    for (const tags of [back, maleBack]) {
+      expect(tags).toEqual(expect.arrayContaining(['from_behind', 'ass_focus']))
+      for (const tag of ['navel', 'nipples', 'pussy', 'penis', 'large_penis', 'small_breasts', 'pectorals']) {
+        expect(tags).not.toContain(tag)
+      }
+    }
+  })
+
+  it('keeps front details face up and places a guy’s saved size next to the bare tag', () => {
+    expect(tagList(girl, 'Naked, lying on her back, legs up')).toEqual(
+      expect.arrayContaining(['lying', 'on_back', 'legs_up', 'navel', 'nipples', 'pussy', 'small_breasts'])
+    )
+    const front = tagList(guy, 'Naked and facing the camera')
+    expect(front).toEqual(expect.arrayContaining(['navel', 'nipples', 'pectorals']))
+    expect(front.slice(front.indexOf('penis'), front.indexOf('penis') + 2)).toEqual(['penis', 'large_penis'])
+    const dressed = buildPhotoPrompt(guy, 'everyday', 'Standing facing the camera in his clothes')
+    expect(dressed.positive).not.toMatch(/\b(?:penis|large_penis|long_legs|huge_ass)\b/)
+    expect(dressed.negative).toMatch(/\bhuge_ass\b/)
+    expect(dressed.negative).not.toMatch(/\b(?:flat_ass|small_penis|large_penis|huge_penis)\b/)
+  })
+
+  it('preserves kneeling and the marks from the DM caption', () => {
+    const caption =
+      'In her bedroom under pale morning light filtering through the blinds, completely naked, she kneels on her unmade bed facing away from the camera while glaring back over her shoulder with a sharp smirk, both hands gripping the edge of the mattress, shot from behind from the knees up showing the red handprint marks across her bare ass.'
+    const maleCaption = caption.replace(/\bher\b/g, 'his').replace(/\bshe\b/g, 'he')
+    for (const [subject, text] of [[girl, caption], [guy, maleCaption]] as const) {
+      const tags = tagList(subject, text)
+      expect(tags).toEqual(expect.arrayContaining(['kneeling', 'from_behind', 'looking_back', 'ass_focus', 'handprint']))
+      for (const tag of ['cowboy_shot', 'navel', 'nipples', 'pussy', 'penis', 'small_breasts', 'pectorals']) {
+        expect(tags).not.toContain(tag)
+      }
+    }
+  })
+
+  it.each([
+    [girl, 'her'],
+    [guy, 'his']
+  ] as const)('keeps a rear-focused caption and a face-down position', (subject, possessive) => {
+    expect(tagList(subject, `A photo of ${possessive} bare ass in the mirror`)).toEqual(
+      expect.arrayContaining(['from_behind', 'ass_focus'])
+    )
+    const closeRear = tagList(subject, `A close-up of ${possessive} backside`)
+    expect(closeRear).toEqual(expect.arrayContaining(['from_behind', 'ass_focus']))
+    expect(closeRear).not.toContain('portrait')
+    const prone = tagList(subject, `Lying face down on ${possessive} bed, naked`)
+    expect(prone).toEqual(expect.arrayContaining(['lying', 'on_stomach']))
+    for (const tag of ['nipples', 'pussy', 'penis', 'navel']) expect(prone).not.toContain(tag)
+    for (const position of ['standing', 'bent over', 'on all fours', 'lying face-down']) {
+      const spread = tagList(subject, `${position}, spreading ${possessive} cheeks`)
+      expect(spread).toEqual(expect.arrayContaining(['spread_ass', 'ass_focus']))
+      expect(spread.includes('pussy')).toBe(subject === girl && position !== 'standing')
+      expect(spread).not.toContain('penis')
+    }
+  })
+
+  it('keeps a bent-over rear shot’s pubic region in view and ignores unrelated rear words', () => {
+    expect(tagList(girl, 'Naked, bent over, looking back between her legs')).toContain('pussy')
+    for (const caption of [
+      'A photo of her smart-ass friend',
+      'She does not want to butt in',
+      'Showing off her covered backside, facing the camera'
+    ]) {
+      expect(buildPhotoPrompt(girl, 'everyday', caption).positive.split(/,\s*/)).not.toContain('from_behind')
+    }
+  })
+
+  it('uses a knees-up outfit without including her shoes or ankle socks', () => {
+    const outfit = (caption: string) => buildPhotoPrompt(girl, 'everyday', caption).positive.split(/,\s*/)
+    const knees = outfit('Standing, knees up')
+    expect(knees).toEqual(expect.arrayContaining(['blue_skirt', 'black_thighhighs']))
+    expect(knees).not.toContain('white_ankle_socks')
+    expect(knees).not.toContain('white_sneakers')
+    expect(outfit('Sitting on a bench')).not.toContain('white_sneakers')
+    expect(outfit('Standing, head to toe')).toContain('white_sneakers')
+    expect(outfit('Standing, knees up, showing off her new sneakers')).toContain('white_sneakers')
+  })
+})

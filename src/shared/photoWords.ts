@@ -57,3 +57,45 @@ export function says(text: string, cue: string): boolean {
 export function saysAny(text: string, cues: readonly string[]): boolean {
   return cues.some((cue) => says(text, cue))
 }
+
+export const LOOKING_BACK_CUES = ['looking back', 'glancing back', 'over her shoulder']
+
+const BACK_SHOT_CUES = [
+  ...LOOKING_BACK_CUES,
+  'from behind', 'back view', 'rear view', 'back turned', 'facing away', 'turned away',
+  'turning away', 'back to the camera', 'from the back', 'backs to the camera'
+]
+
+export const FACE_DOWN_CUES = ['on her stomach', 'on her front', 'face down', 'face-down', 'prone']
+export const ALL_FOURS_CUES = ['all fours', 'hands and knees']
+export const BENT_OVER_CUES = ['bent over', 'bending over', 'bent forward']
+
+export const SPREAD_CHEEKS_CUES = [
+  'spreading her ass', 'spreading her bare ass', 'spreading her cheeks', 'holding her cheeks apart',
+  'spread her ass', 'spread her cheeks', 'spread her buttocks', 'spread her bare buttocks',
+  'spreading her buttocks', 'spreading her bare buttocks', 'buttocks apart', 'buttocks wide apart',
+  'buttock cheek'
+]
+
+/** A rear-focused caption names the subject of the shot or calls out bare skin. */
+export function focusesOnBackside(text: string): boolean {
+  const rear = '(?:ass|butt|booty|backside|bum|rear)(?![\\w-])'
+  const focus = new RegExp(
+    `\\b(?:of|showing(?: off)?|focusing on|focused on|framing|showcases?) (?:her |the |a |that )?(?:bare )?${rear}` +
+      `|\\b(?:bare ${rear}|${rear} (?:shot|in (?:the )?frame|filling (?:the )?frame))\\b`
+  )
+  const coveredFront =
+    saysAny(text, ['facing the camera', 'facing the viewer', 'front view', 'facing forward']) &&
+    saysAny(text, ['covered', 'clothed', 'dressed', 'in her jeans', 'in her shorts', 'in her skirt'])
+  return !coveredFront && focus.test(text)
+}
+
+/** Caption text here is already normalised to the shared pronouns. */
+export function isBackShot(text: string): boolean {
+  return saysAny(text, BACK_SHOT_CUES) || focusesOnBackside(text) || saysAny(text, SPREAD_CHEEKS_CUES)
+}
+
+/** In a face-down pose the camera sees the back of the body even without a facing cue. */
+export function isRearView(text: string): boolean {
+  return isBackShot(text) || saysAny(text, FACE_DOWN_CUES)
+}

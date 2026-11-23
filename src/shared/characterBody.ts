@@ -20,6 +20,7 @@ export interface CharacterBody {
   breasts?: string
   hipsThighs?: string
   buttocks?: string
+  penis?: string
   pubicHair?: string
 }
 
@@ -27,13 +28,12 @@ export interface CharacterBody {
 export function bodyOf(character: Character): CharacterBody | undefined {
   // Shared and main read the slice directly; recordField belongs to the window's kit.
   const stored = character.ex?.[PHOTO_FEATURE_ID]?.data
-  return stored === undefined
-    ? (character as Character & { body?: CharacterBody }).body
-    : (stored as CharacterBody)
+  const raw = stored === undefined ? (character as Character & { body?: CharacterBody }).body : stored
+  return raw == null ? undefined : cleanBody(raw, genderOf(character)) ?? {}
 }
 
 /** Every field, in the order they are settled: each is checked against the ones before it. */
-export const BODY_FIELDS = ['build', 'breasts', 'hipsThighs', 'buttocks', 'pubicHair'] as const
+export const BODY_FIELDS = ['build', 'breasts', 'hipsThighs', 'buttocks', 'penis', 'pubicHair'] as const
 
 export type BodyField = (typeof BODY_FIELDS)[number]
 
@@ -75,6 +75,8 @@ const FULL_ASS = '(huge_ass:0.6)'
 const BUTTOCKS_TAGS = ['flat_ass', '(flat_ass:0.6)', '(huge_ass:0.6)', 'huge_ass']
 
 /** None is hairless, as her nude sprite is drawn. `trimmed_` and `shaved_` have no posts. */
+const PENIS_TAGS = ['small_penis', 'large_penis', 'huge_penis']
+
 const PUBIC_TAGS = ['female_pubic_hair', 'sparse_pubic_hair', 'excessive_pubic_hair']
 
 export const BODY_POOLS: Readonly<Record<BodyField, readonly string[]>> = {
@@ -82,15 +84,17 @@ export const BODY_POOLS: Readonly<Record<BodyField, readonly string[]>> = {
   breasts: BREAST_TAGS,
   hipsThighs: HIPS_TAGS,
   buttocks: BUTTOCKS_TAGS,
+  penis: [],
   pubicHair: PUBIC_TAGS
 }
 
-/** Male picks use the same five controls and the same save keys. */
+/** His own choices. Empty pools are fields his body does not use. */
 export const MALE_BODY_POOLS: Readonly<Record<BodyField, readonly string[]>> = {
   build: ['toned', 'muscular_male', 'tall_male'],
   breasts: ['flat_chest', 'pectorals'],
-  hipsThighs: ['thick_thighs', 'long_legs'],
-  buttocks: BUTTOCKS_TAGS,
+  hipsThighs: [],
+  buttocks: ['flat_ass', SMALL_ASS],
+  penis: PENIS_TAGS,
   pubicHair: ['male_pubic_hair', 'sparse_pubic_hair', 'excessive_pubic_hair']
 }
 
@@ -102,6 +106,8 @@ export function bodyPoolsFor(gender: PhotoGender) {
 function storedBodyGender(raw: Record<string, unknown>): PhotoGender {
   return raw.gender === 'male' ||
     BODY_FIELDS.some((field) => {
+      // A stray size field alone does not identify the character.
+      if (field === 'penis') return false
       const value = raw[field]
       const tags = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : []
       return tags.some(
@@ -180,6 +186,7 @@ const LEGACY_FIELD: Readonly<Record<BodyField, string>> = {
   breasts: 'bust',
   hipsThighs: 'hipsThighs',
   buttocks: 'buttocks',
+  penis: 'penis',
   pubicHair: 'pubicHair'
 }
 
@@ -212,6 +219,11 @@ const APPEARANCE_BREASTS: Readonly<Record<string, string>> = {
 /** Every chest tag an appearance might carry, which a body's own pick replaces. */
 const ANY_BREAST_TAG = /^(flat_chest|[a-z]+_breasts)$/
 
+export function isChestSizeTag(tag: string): boolean {
+  const plain = tag.replace(/^\((.*):[\d.]+\)$/, '$1').trim().toLowerCase().replace(/\s+/g, '_')
+  return plain === 'pectorals' || ANY_BREAST_TAG.test(plain)
+}
+
 /** Her chest as her appearance has it, in the pool: medium where it says nothing. */
 export function appearanceBreasts(
   baseAppearance: readonly string[],
@@ -242,6 +254,17 @@ const DRAW_WEIGHTS: Readonly<Partial<Record<BodyField, Readonly<Record<string, n
   // The in-between sizes more often than the ends.
   buttocks: { '': 4, [SMALL_ASS]: 2, [FULL_ASS]: 2, flat_ass: 1, huge_ass: 1 },
   pubicHair: { '': 3, female_pubic_hair: 3, sparse_pubic_hair: 1, excessive_pubic_hair: 1 }
+}
+
+const MALE_DRAW_WEIGHTS = {
+  buttocks: { '': 7, [SMALL_ASS]: 2, flat_ass: 1 },
+  penis: { '': 7, small_penis: 1, large_penis: 1.5, huge_penis: 0.5 },
+  pubicHair: { '': 3, male_pubic_hair: 3, sparse_pubic_hair: 1, excessive_pubic_hair: 1 }
+}
+
+export function drawnFieldsFor(gender: PhotoGender): BodyField[] {
+  const weights = gender === 'male' ? MALE_DRAW_WEIGHTS : DRAW_WEIGHTS
+  return BODY_FIELDS.filter((field) => Object.hasOwn(weights, field))
 }
 
 /** One weighted pick among what `allowed` lets through; `''` is none. */
@@ -282,11 +305,9 @@ export function drawBody(
     gender === 'male' ? 'flat_chest' : 'medium_breasts'
   ].find((tag): tag is string => tag !== undefined && allowedBeside(body, 'breasts', tag, gender))
   if (breasts) body.breasts = breasts
-  for (const field of ['hipsThighs', 'buttocks', 'pubicHair'] as const) {
-    const weights =
-      gender === 'male' && field === 'pubicHair'
-        ? { '': 3, male_pubic_hair: 3, sparse_pubic_hair: 1, excessive_pubic_hair: 1 }
-        : (DRAW_WEIGHTS[field] ?? {})
+  const weightsByField: typeof DRAW_WEIGHTS = gender === 'male' ? MALE_DRAW_WEIGHTS : DRAW_WEIGHTS
+  for (const field of drawnFieldsFor(gender)) {
+    const weights = weightsByField[field] ?? {}
     const tag = draw(weights, (one) => allowedBeside(body, field, one, gender), rand)
     if (tag) body[field] = tag
   }
@@ -317,7 +338,7 @@ export function gateBody(character: Character, on: boolean): Character {
   if (on) {
     ex[PHOTO_FEATURE_ID] = {
       v: character.ex?.[PHOTO_FEATURE_ID]?.v ?? '0.0.0',
-      data: cleanBody(bodyOf(character), genderOf(character)) ?? {}
+      data: bodyOf(character) ?? {}
     }
   } else delete ex[PHOTO_FEATURE_ID]
   return { ...rest, ex }
@@ -337,9 +358,12 @@ export type BodyScope = 'sprite' | 'nude' | 'cg' | 'photo'
  */
 export function bodyAppearance(character: Character, scope: BodyScope): string[] {
   const gender = genderOf(character)
-  const stored = bodyOf(character)
-  const body = stored ? (cleanBody(stored, gender) ?? {}) : undefined
-  const appearance = genderedTags(character.baseAppearance, gender)
+  const body = bodyOf(character)
+  const appearance = genderedTags(character.baseAppearance, gender).filter((tag) => {
+    const plain = tag.replace(/^\((.*):[\d.]+\)$/, '$1')
+    return !PENIS_TAGS.includes(plain) &&
+      (gender !== 'male' || (!HIPS_TAGS.includes(plain) && plain !== 'huge_ass'))
+  })
   if (!body) return appearance
   const kept = appearance.filter((tag) => !ANY_BREAST_TAG.test(tag) && !BODY_ONLY_TAGS.has(tag))
   const breasts = body.breasts ?? appearanceBreasts(appearance, gender)
@@ -357,8 +381,11 @@ export function bodyAppearance(character: Character, scope: BodyScope): string[]
  */
 const PETITE_NEGATIVE_TAGS = ['loli', 'child', 'aged_down']
 
-/** Her own extra negatives: none, unless her frame is `petite`. */
+/** Keep the female-only body shapes out of a guy's photo. */
 export function bodyNegative(character: Character): string[] {
+  if (genderOf(character) === 'male') {
+    return [...BREAST_TAGS.filter((tag) => tag !== 'flat_chest'), ...HIPS_TAGS, 'huge_ass', 'female_pubic_hair']
+  }
   return bodyOf(character)?.build === 'petite' ? [...PETITE_NEGATIVE_TAGS] : []
 }
 

@@ -29,7 +29,7 @@ Everything is in **Mods → Photo Feature**. The mod is off until you turn it on
 | Photo Feature | on | Off, nobody sends a new photo and posts get no new comments. Photos, galleries and comments already made are hidden, not deleted, and come back when it is on again. |
 | Photo generation | on | Off, no new photos are made and characters are not told they can send one. Photos already sent stay visible. |
 | Explicit photos | on | Off, nobody sends an undressed photo and ones already sent stay covered. The game's own "No NSFW images" turns them off too. |
-| Body details | off | Characters get a build, chest, hips, backside and hair from fixed tag lists, asked for when they are made, editable from the main menu in Manage Characters, under a character's Generation settings (the default characters too), and drawn in their sprites, CGs and photos. Off, what they have is kept but not used. |
+| Body details | off | Characters get body details from fixed tag lists when they are made. Edit them in Manage Characters under Generation, including for the default characters. The details are used in sprites, CGs and photos. Off, what they have is kept but not used. |
 | Two in one photo (experimental) | off | A feed post can show its author with a friend or current partner. A scene can bring a photo of any two characters, never more. Needs ComfyUI-ppm, installed under this option. Without it, every photo shows one person. |
 | Save photos as WebP | on | New photos are saved as WebP, with no visible quality loss while taking much less space than PNG. Off, they are saved as PNG. Photos already saved stay as they are. |
 | Loading animation | Bunny hop | What a photo shows while it is being drawn: Bunny hop, Dot shimmer or Typing dots. |
@@ -189,6 +189,12 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
 - A feed post's picture shows what the post talks about, such as the rain or the coffee it names.
 - A guy's own name in his caption becomes "him" or "his" instead of leaving a gap, and his photos
   no longer ask for a flat chest.
+- A guy's body details are build, chest, backside, penis size and pubic hair.
+- Photos from behind leave out the parts of the body facing away from the camera.
+- Photos from behind keep poses such as kneeling or lying face down, and show handprints
+  when the caption mentions them.
+- Shoes and ankle socks appear only when the feet are in the picture.
+- A photo of two can be full body or knees-up when the caption asks for it.
 
 ## 1.8.0
 
@@ -378,12 +384,15 @@ How the mod plugs into the shared mod system. The system itself is in `MODDING.m
 recorded prompts are kept intact. Caption matching accepts male pronouns without changing the
 female cue tables.
 
-`characterBody.ts` keeps the old five body keys and female pools. Male characters use separate
-build, chest and pubic-hair pools, with shared tags only where appropriate. Normalization recognises
-male-only picks; drawing and the editor filter against the actual character’s gender. The editor’s
-gender context is temporary and is not written into the body slice. Character generation gets
-its gender from the host’s subject tags, falling back to the gender-specific appearance shape
-when those tags have been customised. The model chooses from the matching build pool.
+`characterBody.ts` keeps the five fields for girls: build, breasts, hips and thighs, backside
+and pubic hair. Guys get build, chest, backside, penis size and pubic hair from their own
+pools. The torso uses the existing `breasts` key for both, and `penis` is a new key in Photo's
+character data. An older guy without it reads as average. Penis size goes into a bare solo
+photo only where the caption puts those parts in shot. Reads use the character's gender to
+drop obsolete options. The editor carries that context until the player saves the character.
+Character generation gets gender from the host's subject tags, falling back to the
+gender-specific appearance shape when those tags have been customised. The model chooses
+from the matching build pool.
 
 `photoGate.ts` treats a male bare chest as ordinary and lower nudity or sexual activity as explicit.
 The same Explicit photos and No NSFW images switches still govern sending and uncovering explicit
@@ -420,9 +429,9 @@ options:
   one. Photos already sent stay visible.
 - **Explicit photos**: off, nobody sends an undressed photo and ones already sent stay covered.
   The game's own "No NSFW images" turns them off too.
-- **Body details**: off by default. Characters get a build, chest, hips, backside and hair from
-  fixed tag lists, used in their sprites, CGs and photos. They are set from the main menu, in
-  Manage Characters, under a character's Generation settings, the default characters too.
+- **Body details**: off by default. Girls get build, breasts, hips and thighs, backside and
+  pubic hair. Guys get build, chest, backside, penis size and pubic hair. Edit them in
+  Manage Characters under Generation, including for the default characters.
 - **Save photos as WebP**: on by default. New photos are saved as WebP at 85% quality instead
   of PNG. Off, they are saved as PNG. Photos already saved stay as they are.
 - **Loading animation**: a group of three, Bunny hop, Dot shimmer and Typing dots.
