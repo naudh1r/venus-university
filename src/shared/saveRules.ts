@@ -159,7 +159,115 @@ export const SAVE_READ: ValidateRecordOptions<GameSave> = {
   expects: SAVE_SCHEMA_VERSION,
   required: SAVE_REQUIRED,
   // A version-12 save is one from before semesters: it lacks only fields a save may lack.
-  upgrade: versionStep(12, SAVE_SCHEMA_VERSION)
+  upgrade: versionStep(12, SAVE_SCHEMA_VERSION),
+  check: assertSaveFields
+}
+
+/** Whether `value` is a game clock: a whole day and one of the two halves. */
+function isClock(value: unknown): boolean {
+  return isPlainObject(value) && Number.isSafeInteger(value.date) && (value.time === 0 || value.time === 1)
+}
+
+/** The first problem with a conversation's pending held reply, or null when it is well formed. */
+function heldReplyProblem(held: unknown): string | null {
+  if (!isPlainObject(held)) return 'is not an object'
+  if (!isClock(held.until)) return 'has no valid "until"'
+  if (typeof held.firstPlayerId !== 'string') return 'has no valid "firstPlayerId"'
+  if (!Array.isArray(held.messageIds) || !held.messageIds.every(id => typeof id === 'string')) {
+    return 'has no valid "messageIds"'
+  }
+  const after = held.afterClass
+  if (after !== undefined && !(isClock(after) && typeof (after as Record<string, unknown>).code === 'string')) {
+    return 'has an invalid "afterClass"'
+  }
+  for (const flag of ['opened', 'blocked'] as const) {
+    if (held[flag] !== undefined && held[flag] !== true) return `has an invalid "${flag}"`
+  }
+  if (held.summary !== undefined && typeof held.summary !== 'string') return 'has an invalid "summary"'
+  return null
+}
+
+/** The first problem with a saved opening's playback, or null when it is well formed. */
+function playbackProblem(playback: unknown): string | null {
+  if (!isPlainObject(playback)) return 'is not an object'
+  if (!isPlainObject(playback.reply)) return 'has no valid "reply"'
+  const lines = playback.lines
+  if (!Array.isArray(lines) || !isLines(lines)) return 'has no valid "lines"'
+  const indices = playback.indices
+  if (!Array.isArray(indices) || indices.length !== lines.length ||
+    !indices.every(index => Number.isSafeInteger(index) && index >= 0)) return 'has no valid "indices"'
+  const index = playback.index
+  if (!Number.isSafeInteger(index) || (index as number) < -1 || (index as number) >= lines.length) {
+    return 'has no valid "index"'
+  }
+  return null
+}
+
+/** Whether every entry of `lines` is a playback line: a speaker and its text. */
+function isLines(lines: unknown): boolean {
+  return Array.isArray(lines) && lines.every(line => isPlainObject(line) &&
+    typeof line.speaker === 'string' && typeof line.text === 'string')
+}
+
+/** The first problem with a finished night's banked morning opening, or null when it is well formed. */
+function morningOpeningProblem(opening: unknown): string | null {
+  if (!isPlainObject(opening)) return 'is not an object'
+  if (!isLines(opening.lines)) return 'has no valid "lines"'
+  for (const key of ['hangouts', 'events', 'cancellations'] as const) {
+    if (!Array.isArray(opening[key])) return `has no valid "${key}"`
+  }
+  if (opening.reply !== undefined && !isPlainObject(opening.reply)) return 'has an invalid "reply"'
+  const indices = opening.lineIndices
+  if (indices !== undefined && !(Array.isArray(indices) &&
+    indices.every(index => Number.isSafeInteger(index) && index >= 0))) return 'has an invalid "lineIndices"'
+  return null
+}
+
+/**
+ * Refuses a save whose native optional fields are present but malformed: the held-reply clock and
+ * hold, the late-night marker and its paid ledger, a resumable or banked opening and the literal
+ * message flags. A save written
+ * before any of them, which lacks them, is valid; what mods keep is not looked at.
+ */
+export function assertSaveFields(save: GameSave, where: string): void {
+  const malformed = (detail: string): never => {
+    throw appError(SAVE_READ.malformed.code, 'That save has a field it cannot read.', `${where}: ${detail}`)
+  }
+  const fields = save as unknown as Record<string, unknown>
+  for (const key of ['chatShownThrough', 'heldNight'] as const) {
+    if (fields[key] !== undefined && !isClock(fields[key])) malformed(key)
+  }
+  const ledger = fields.heldNightLedger
+  if (ledger !== undefined && !(isPlainObject(ledger) && typeof ledger.key === 'string' && isPlainObject(ledger.reply))) {
+    malformed('heldNightLedger')
+  }
+  if (fields.morningOpening !== undefined) {
+    const problem = morningOpeningProblem(fields.morningOpening)
+    if (problem) malformed(`morningOpening ${problem}`)
+  }
+  const scene = fields.scene
+  if (isPlainObject(scene) && scene.slotOpening !== undefined) {
+    const problem = playbackProblem(scene.slotOpening)
+    if (problem) malformed(`scene.slotOpening ${problem}`)
+  }
+  const conversations = isPlainObject(fields.bunnyboard) ? fields.bunnyboard.conversations : undefined
+  if (!isPlainObject(conversations)) return
+  for (const [charId, chat] of Object.entries(conversations)) {
+    if (!isPlainObject(chat)) continue
+    if (chat.heldReply !== undefined) {
+      const problem = heldReplyProblem(chat.heldReply)
+      if (problem) malformed(`conversation ${charId} heldReply ${problem}`)
+    }
+    if (!Array.isArray(chat.messages)) continue
+    for (const message of chat.messages) {
+      if (!isPlainObject(message)) continue
+      for (const flag of ['awaitingReply', 'ledgered', 'late'] as const) {
+        if (message[flag] !== undefined && message[flag] !== true) {
+          malformed(`conversation ${charId} message ${String(message.id)} has an invalid "${flag}"`)
+        }
+      }
+    }
+  }
 }
 
 /** Raised when a save is there but cannot be read. */
@@ -608,9 +716,17 @@ function lastBgOf(lines: readonly SceneLine[]): string | null {
   return bg
 }
 
+/** Validated display metadata for a save that opens on a late night. */
+export function heldNightField(save: { heldNight?: unknown }): Pick<SaveSummary, 'heldNight'> {
+  const night = save.heldNight
+  if (!isPlainObject(night) || !Number.isSafeInteger(night.date) || (night.time !== 0 && night.time !== 1)) return {}
+  return { heldNight: { date: night.date as number, time: night.time } }
+}
+
 /** What the load grid shows of one save. */
 export function summaryOf(save: GameSave): SaveSummary {
   const summary: SaveSummary = {
+    ...heldNightField(save),
     date: save.date,
     time: save.time,
     graduationSeen: save.graduationSeen,
@@ -660,7 +776,7 @@ export function withRegistration(
   const semesterIndex = registration.continued?.index ?? 0
   const noted = { ...summary, registration: { savedAt: registration.savedAt, semesterIndex } }
   if (registration.savedAt < summary.savedAt) return noted
-  const { masked: _masked, ...rest } = noted
+  const { masked: _masked, heldNight: _heldNight, ...rest } = noted
   return {
     ...rest,
     enrolling: true,

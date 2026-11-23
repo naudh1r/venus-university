@@ -31,6 +31,7 @@ import {
   type EverydayAsk,
   type Gender,
   type Haunt,
+  type LedgerResponse,
   type Occasion,
   type LoveText,
   type RomanceSetting,
@@ -782,7 +783,8 @@ function characterBlock(input: SlotIntroInput): string[] {
 export function buildSlotIntroPrompt(
   input: SlotIntroInput,
   setting: string,
-  reader: string
+  reader: string,
+  ledger: LedgerResponse | null = null
 ): StructuredRequest {
   const waking = input.time === 0
   const rumor = rumorBlock(input)
@@ -904,7 +906,7 @@ export function buildSlotIntroPrompt(
 
   return modRequest(
     'slot-intro',
-    { input },
+    { input, ledger },
     {
       system: [
         narrationPersonaFor(input.lessNsfwText, input.globalTextEdits, input.readerPronouns),

@@ -4,12 +4,14 @@ import type {
   GameSave,
   LedgerResponse,
   Result,
-  SceneState
+  SceneState,
+  TextingResponse
 } from '@shared/types'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { openingScene } from '../src/renderer/stores/loop/saves'
 import { loopState, resetLoopState } from '../src/renderer/stores/loop/state'
-import { playthroughRecord, restoreApi, sceneLines, stubApi } from './fixtures'
+import { character, playthroughRecord, restoreApi, sceneLines, stubApi } from './fixtures'
+import { useLorebookStore } from '../src/renderer/stores/lorebookStore'
 import type { LorebookRecord } from '../src/shared/lorebookRecord'
 
 /**
@@ -50,6 +52,8 @@ function replyScene(read: string[], queued: string[]): SceneState {
 beforeEach(() => {
   resetLoopState()
   stubApi({
+    // Mods are on here, so an unversioned game is told so and remembered.
+    mods: { unversionedSeen: vi.fn(async (): Promise<Result<void>> => ({ ok: true, data: undefined })) },
     saves: {
       readProfilePicture: vi.fn(
         async (): Promise<Result<Uint8Array<ArrayBuffer> | null>> => ({ ok: true, data: null })
@@ -139,5 +143,93 @@ describe('enterGame', () => {
 
     enterGame(saveOf(scene, 'manual07'), playthroughRecord(), {})
     expect(loopState.slotSaveId).toBeNull()
+  })
+})
+
+describe('a held reply the save left unfinished', () => {
+  /** A landing save whose only chat ends on a busy-time text still waiting for her reply. */
+  function heldSave(): GameSave {
+    const narration = sceneLines('Morning.')
+    const save = saveOf({ ...openingScene([]), sceneLog: narration, currentLine: narration[0] })
+    const text = { id: 'text', sender: 'player' as const, text: 'Out of class yet?', date: save.date,
+      time: save.time, awaitingReply: true as const }
+    return { ...save, bunnyboard: { ...save.bunnyboard, conversations: {
+      'char-1': { charId: 'char-1', messages: [text], unread: 0, summary: null,
+        heldReply: { until: { date: save.date + 1, time: 0 }, firstPlayerId: 'text', messageIds: [] } }
+    } } }
+  }
+
+  /** Holds the playthrough's lorebook read open, and records the lorebook's state at each reply sent. */
+  function stubHeldRead(): { finish: () => void; sentWhile: string[] } {
+    let finish = (): void => {}
+    const read = new Promise<Result<LorebookRecord | null>>(resolve => {
+      finish = () => resolve({ ok: true, data: null })
+    })
+    const sentWhile: string[] = []
+    stubApi({
+      saves: { readProfilePicture: vi.fn(async (): Promise<Result<Uint8Array<ArrayBuffer> | null>> => ({ ok: true, data: null })) },
+      lorebook: { read: vi.fn(() => read) },
+      llm: {
+        onTextingDelta: () => () => {},
+        completeTexting: vi.fn((): Promise<Result<TextingResponse>> => {
+          sentWhile.push(useLorebookStore.getState().status)
+          return new Promise(() => {})
+        })
+      }
+    })
+    return { finish: () => finish(), sentWhile }
+  }
+
+  it('is written only once the playthrough\'s lorebook has been read', async () => {
+    const { finish, sentWhile } = stubHeldRead()
+    enterGame(heldSave(), playthroughRecord(), { 'char-1': character() })
+    await Promise.resolve()
+    expect(sentWhile).toEqual([])
+
+    finish()
+    await vi.waitFor(() => expect(sentWhile).toEqual(['ready']))
+  })
+
+  it('is not written for a game left before the read finished', async () => {
+    const { finish, sentWhile } = stubHeldRead()
+    enterGame(heldSave(), playthroughRecord(), { 'char-1': character() })
+    resetLoopState()
+
+    finish()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(sentWhile).toEqual([])
+  })
+})
+
+describe('a save the night ending wrote', () => {
+  it('keeps the night\'s paid ledger for its row to claim', () => {
+    const narration = sceneLines('Late.')
+    const save = saveOf({ ...openingScene([]), sceneLog: narration, currentLine: narration[0] })
+    const bank = { key: '15|mia:t1', reply: { stats: {} } as LedgerResponse }
+    enterGame({ ...save, heldNightLedger: bank }, playthroughRecord(), {})
+    expect(loopState.nightLedger).toEqual(bank)
+
+    enterGame(save, playthroughRecord(), {})
+    expect(loopState.nightLedger).toBeNull()
+  })
+
+  it('opens the morning from the opening it already wrote, without asking for another', async () => {
+    const slotIntro = vi.fn()
+    stubApi({
+      saves: {
+        readProfilePicture: vi.fn(async (): Promise<Result<Uint8Array<ArrayBuffer> | null>> => ({ ok: true, data: null })),
+        overwrite: vi.fn(async (): Promise<Result<GameSave>> => ({ ok: true, data: {} as GameSave }))
+      },
+      lorebook: { read: vi.fn(async (): Promise<Result<LorebookRecord | null>> => ({ ok: true, data: null })) },
+      // Any request at all fails the test; delta listeners only subscribe.
+      llm: new Proxy({}, { get: (_, name) => String(name).startsWith('on') ? () => () => {} : slotIntro })
+    })
+    const morningOpening = { lines: sceneLines('You wake to the hall waking up.'), hangouts: [], events: [], cancellations: [] }
+    // An ordinary morning, past move-in week's authored openings.
+    enterGame({ ...saveOf(null as unknown as SceneState, '1700000000000'), date: 15, time: 0, scene: null, morningOpening },
+      playthroughRecord(), {})
+
+    await vi.waitFor(() => expect(useGameStore.getState().currentLine?.text).toBe('You wake to the hall waking up.'))
+    expect(slotIntro).not.toHaveBeenCalled()
   })
 })

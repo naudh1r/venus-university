@@ -1,5 +1,6 @@
+import { openingStagedAt } from '@shared/opening'
 import { useModsStore } from '../stores/modsStore'
-import { slotActivityAvailable } from '../mods/hooks'
+import { relaxRows, slotActivityAvailable } from '../mods/hooks'
 import { finishSlotActivity, resumeSlotActivity } from '../stores/slotActivity'
 import {
   useEffect,
@@ -593,6 +594,7 @@ function InterruptEndingModal({
 /** Game View: renders `gameStore`; `gameLoop.ts` owns state changes. */
 export function GameView(): JSX.Element {
   const sceneInput = useSceneInputLayout()
+  const interlude = useGameStore(s => s.interlude)
   const bg = useGameStore((s) => s.bg)
   const time = useGameStore((s) => s.time)
   const date = useGameStore((s) => s.date)
@@ -1149,18 +1151,30 @@ export function GameView(): JSX.Element {
   const backgrounds = useAssetStore((s) => s.backgrounds)
   const listedBgs = useMemo(() => new Set(allBackgrounds(backgrounds)), [backgrounds])
 
-  // What the player picked wins the layer, and only the layer: `bg` is still what the scene
-  // reports. A game over plays on black, with no background at all.
-  const shownBg = bgOverride ?? bg
-  const roomCharId = shownBg ? roomOwnerOf(shownBg, roomBgToCharId, listedBgs) : undefined
+  // An opening owns its backdrop; elsewhere the player's pick wins only the layer, while `bg`
+  // remains what the scene reports. A game over plays on black, with no background at all.
+  const openingRoom = useGameStore(s => s.openingRoom)
+  const openingPlayback = useGameStore(s => s.openingPlayback)
+  const openingLook = useGameStore(s => s.openingLook)
+  const openingStaged = openingPlayback && openingStagedAt(openingLook,
+    openingPlayback.indices[Math.max(0, openingPlayback.index)] ?? 0)
+  const openingBg = openingPlayback && openingLook
+    ? (openingStaged && openingRoom?.ready && characters[openingRoom.charId] ? roomBgIdOf(characters[openingRoom.charId]) : SLOT_BG)
+    : null
+  const shownBg = interlude ? SLOT_BG : openingBg ?? bgOverride ?? bg
+  const roomCharId = !interlude && openingStaged && openingRoom?.ready ? openingRoom.charId
+    : shownBg ? roomOwnerOf(shownBg, roomBgToCharId, listedBgs) : undefined
   // Cache-buster for a room regenerated this session.
   const roomVersion = useSpriteVersion(roomCharId)
   // The same cache-buster for the speaker's portrait: the player can reframe one mid-playthrough.
   const spriteVersions = useCharacterStore((s) => s.spriteVersion)
   // Which half of the day the layer resolves; the epilogue is always night.
-  const half = isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
+  // A held landing stays on the finished slot.
+  const shownDate = interlude?.now.from.date ?? date
+  const shownTime = interlude?.now.from.time ?? time
+  const half = interlude ? slotHalf(shownTime) : isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
   // The sky over this slot, which picks the background's render and the mark the chromes wear.
-  const slotSky = slotWeather(weather, date, time, graduationSeen)
+  const slotSky = slotWeather(weather, shownDate, shownTime, interlude ? false : graduationSeen)
   const wet = isWet(slotSky)
   // How the reader's cold stands this slot, where it shows.
   const coldStage = coldStageAt(readerCold ?? undefined, globalSlotOf(date, time))
@@ -1601,9 +1615,9 @@ export function GameView(): JSX.Element {
    * The playthrough's opening owns the screen: nothing on it but the dialogue box,
    * `BASE_REVEAL` and, once the turn is handed back, the input.
    */
-  const cinematic = isOrientationSlot(date, time, semesterIndex)
+  const cinematic = !interlude && isOrientationSlot(date, time, semesterIndex)
   /** The graduation epilogue: an authored screen the reader still reads and types on. */
-  const epilogue = isGraduationSlot(date, time) && !gameOver
+  const epilogue = !interlude && isGraduationSlot(date, time) && !gameOver
   /** A screen the game wrote end to end; each leaves at most `BASE_REVEAL` standing. */
   const authored = cinematic || epilogue || Boolean(gameOver)
   /**
@@ -1841,10 +1855,17 @@ export function GameView(): JSX.Element {
       void finishSlotActivity(slotActivity.owner, slotActivity.id, false, 'The activity is no longer available, so it ended without being completed.')
     }
   }, [slotActivity, busy, awaitingInput, replaying, turnError, sceneEnding, activitySwitches])
-  const slotActions = useMemo(
+  const slotActions = useMemo<LandingRow[]>(
     // A created scene and a replay have no slot, and their landing is never drawn.
-    () => (created || replaying ? [] : [...slotActionsNow(), relaxAction(time)]),
-    [date, time, events, classes, job, playerSchedule, classRecords, calendar, activitySwitches]
+    () => (interlude ? interlude.interlude.rows.map((row, index) => ({
+      key: `interlude:${index}`,
+      text: row.label,
+      tone: row.card ? 'plan' as const : 'idle' as const,
+      word: row.card ? null : undefined,
+      verdict: null
+    }))
+      : created || replaying ? [] : [...slotActionsNow(), relaxAction(time), ...relaxRows({ date, time }).map((row, index) => ({ key: `relax:${index}`, text: row.label, tone: 'idle' as const, verdict: null, relaxPick: row.onPick }))]),
+    [date, time, events, classes, job, playerSchedule, classRecords, calendar, activitySwitches, interlude]
   )
 
   /** The epilogue's own row, in the slot actions' place: a button per goodbye still owed. */
@@ -1875,6 +1896,13 @@ export function GameView(): JSX.Element {
   )
 
   function onSlotAction(index: number): void {
+    if (interlude) {
+      if (busy || blocked || !awaitingInput) return
+      const row = interlude.interlude.rows[index]
+      if (!row) return
+      interlude.pick(index)
+      return
+    }
     /**
      * The epilogue's menu is not a turn: a row is a goodbye scene of its own, and the
      * last one ends the game. Neither is ever routed through `submitAction` — there is no hour
@@ -1907,9 +1935,10 @@ export function GameView(): JSX.Element {
     setAction('')
     // Relax spends the hour on nothing: no classifier and no scene, and its wait is reported the
     // same way, the landing standing with Go turning until its line is up.
-    if (chosen.key === RELAX_KEY) {
+    if (chosen.key === RELAX_KEY || chosen.relaxPick) {
       setSending(true)
-      void relax()
+      try { chosen.relaxPick?.() } catch (error) { console.warn('[mods] relax row failed', error) }
+      void relax(chosen.key === RELAX_KEY)
       return
     }
     // A button spends the turn exactly as the box does, so the wait is reported the same —
@@ -1925,7 +1954,7 @@ export function GameView(): JSX.Element {
    * runs. Guards on `busy`/`awaitingInput` directly, not `blocked`, which the open map raises.
    */
   function onGoTo(locationId: string, placeLabel: string): void {
-    if (busy || !awaitingInput) return
+    if (interlude || busy || !awaitingInput) return
     closePanel()
     setAction('')
     // The gift's arrangement: the panel closes, then the turn is spent, so the wait is reported
@@ -2237,7 +2266,7 @@ export function GameView(): JSX.Element {
         <SceneChrome
           inputLayout={sceneInput}
           theme={half}
-          date={date}
+          date={shownDate}
           season={season}
           night={half === 'night'}
           weather={slotSky}
@@ -2310,9 +2339,10 @@ export function GameView(): JSX.Element {
            menu — the same answers, asked a different question. No turn: every answer is a row. */
         <LandingChrome
           theme={half}
-          date={date}
+          date={shownDate}
           season={season}
           night={half === 'night'}
+          lateNight={interlude?.now.clock === 'late-night'}
           weather={slotSky}
           epilogue={epilogue}
           covered={covered}
@@ -2322,6 +2352,9 @@ export function GameView(): JSX.Element {
           held={epilogue ? turnHeld : landingHeld}
           sending={sending}
           text={text}
+          speakerName={openingPlayback ? speaker : undefined}
+          speakerCharId={openingPlayback ? speakingCharId : undefined}
+          speakerVersion={speakingCharId ? (spriteVersions[speakingCharId] ?? 0) : undefined}
           marks={currentLine?.status?.marks}
           revealed={revealed}
           fullyRevealed={fullyRevealed}
@@ -2341,7 +2374,7 @@ export function GameView(): JSX.Element {
           inputDead={!awaitingInput}
           inputFocus={!blocked}
           /* The turn is the whole of the test, and the epilogue does not take one. */
-          turnShown={!epilogue && (inputShown || sending)}
+          turnShown={!interlude && !epilogue && (inputShown || sending)}
           /* Which of the screen's own controls this kind of screen hands over. **The
              epilogue's set, whether or not a goodbye call is out**: `shown` reads `sceneActive`,
              which rises the moment the reader presses a row, and the menu he is looking at is
@@ -2429,7 +2462,7 @@ export function GameView(): JSX.Element {
             key="map"
             theme={half}
             onClose={closePanel}
-            onGo={landingSlot && shopReady && !epilogue ? onGoTo : undefined}
+            onGo={landingSlot && shopReady && !epilogue && !interlude ? onGoTo : undefined}
           />
         )}
       </AnimatePresence>

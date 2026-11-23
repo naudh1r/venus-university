@@ -1,4 +1,7 @@
+import { readDeferredOpeningNotes } from '@shared/opening'
+import type { DeferredOpeningNotes } from '@shared/types'
 import { blocksNewRomance } from '@shared/romanceRequirements'
+import type { HeldInterlude } from '../mods/interlude'
 import { savedModScene } from '@shared/modScene'
 import { sceneCut, statFloor } from '../mods/hooks'
 import {
@@ -9,6 +12,9 @@ import {
   writeModSlices
 } from '@vx/modkit/host/renderer'
 import { useModSessionStore } from './modSessionStore'
+import { openingStagedAt, type OpeningLook, type OpeningPlayback } from '@shared/opening'
+import { parseAction } from '@shared/sceneActions'
+import { chatClockOf, messageShown, type ChatClock } from '@shared/chatVisibility'
 import { create } from 'zustand'
 import { genderOf, PRONOUNS, readerPronounsOf, type ReaderPronouns } from '@shared/gender'
 import {
@@ -293,10 +299,15 @@ export interface SceneKind {
  * file carries beyond these is kept as read and written back untouched.
  */
 const SAVE_KEYS: Record<keyof NativeGameSave, true> & Partial<Record<keyof GameSave, true>> = {
+  chatShownThrough: true,
+  heldNight: true,
+  heldNightLedger: true,
+  heldNightOpening: true,
+  morningOpening: true,
   npcCouples: true,
   pendingTransfers: true,
-  transfers: true,
   scenesSinceRedraft: true,
+  transfers: true,
   schemaVersion: true,
   playthroughId: true,
   semester: true,
@@ -369,6 +380,7 @@ const SCENE_KEYS: Record<keyof SceneState, true> = {
   redraft: true,
   activity: true,
   mods: true,
+  slotOpening: true,
   cast: true,
   transcript: true,
   summary: true,
@@ -455,6 +467,8 @@ function sceneKindFields(scene: SceneKind | null | undefined) {
  * `gameLoop.ts` drives this store imperatively outside React.
  */
 interface GameStoreState {
+  /** The last slot opened to texts; a boundary can advance the clock before opening it. */
+  chatShownThrough: ChatClock | null
   /** The activity this scene was committed to on the landing, or null. */
   sceneActivity: import('@shared/slotActivity').SlotActivity | null
   /** What mods keep with the scene being played, saved with it as `mods`. */
@@ -474,6 +488,14 @@ interface GameStoreState {
    * included. Written back under the values below.
    */
   modData: Record<string, ModSlice>
+  /** The room a mod chose behind the slot's opening narration, until its landing question; never saved. */
+  openingRoom: { charId: string; ready: boolean } | null
+  openingPlayback: OpeningPlayback | null
+  openingLook: OpeningLook | null
+  stageOpening: (playback: OpeningPlayback, look: OpeningLook | null) => void
+  /** The slot opening held on the landing; never written into a save. */
+  interlude: HeldInterlude | null
+  heldNightOpening: DeferredOpeningNotes | null
   /** The value of each registered mod the loaded save held data for, by id, as its field read it. */
   modValues: Record<string, unknown>
   /** The playthrough being played; every save this session writes goes into it. */
@@ -1151,7 +1173,7 @@ interface GameStoreState {
    */
   setJealousyMemories: (charId: string, entries: readonly CharMemory[]) => void
   /** Applies the ledger's milestones for one character. */
-  applyRelationshipEvents: (charId: string, events: readonly RelationshipEvent[]) => void
+  applyRelationshipEvents: (charId: string, events: readonly RelationshipEvent[], date?: number) => void
   /** Writes the dating pass's replacement entries over the girls it touched. */
   applyDatingSettle: (outcome: DatingPassOutcome) => void
   /** Marks the cast as having met the reader — run once the scene is over. */
@@ -1689,6 +1711,32 @@ function foldedStageOf(
   }
 }
 
+/** The visual stage and line at one page of a slot opening. */
+function openingFrame(state: GameStoreState, playback: OpeningPlayback, look: OpeningLook | null, index: number): Partial<GameStoreState> {
+  const active = openingStagedAt(look, playback.indices[index] ?? index)
+  const cast = active ? (look?.cast ?? []).filter(id => Boolean(state.characters[id])).slice(0, 1) : []
+  const keys = cast.map(id => charKeyOf(state.characters[id].firstName, state.characters[id].lastName))
+  const source = playback.lines[index]
+  const line = source.speaker && !keys.includes(source.speaker) ? { speaker: '', text: source.text } : source
+  const emotions: Record<string, SpriteRef> = {}
+  for (let at = 0; at <= index && active; at++) {
+    if (!openingStagedAt(look, playback.indices[at] ?? at)) continue
+    const page = playback.lines[at]
+    if (!keys.includes(page.speaker)) continue
+    for (const action of page.actions ?? []) {
+      const parsed = parseAction(action)
+      if (parsed?.kind === 'sprite' && keys.includes(parsed.charKey)) {
+        emotions[state.charKeyToId[parsed.charKey]] = parsed.ref
+      }
+    }
+  }
+  return {
+    currentLine: line,
+    slots: [...cast, ...Array<string | null>(PORTRAIT_SLOTS - cast.length).fill(null)],
+    emotions, bg: null, bgOverride: null, flipped: {}, departed: [], offStage: {}, stageOverride: {}, outfitLock: {}, cgLock: null
+  }
+}
+
 /**
  * What reaching the next pending line sets — popped and shown, its `bg` and actions applied, one
  * fewer beat ahead read — with the reader's lines in front of it logged and charged on the way,
@@ -1699,6 +1747,12 @@ function nextLineFields(
   state: GameStoreState
 ): { patch: Partial<GameStoreState>; landed: boolean } | null {
   if (state.pendingLines.length === 0) return null
+  if (state.openingPlayback) {
+    const playback = { ...state.openingPlayback, index: state.openingPlayback.index + 1 }
+    const frame = openingFrame(state, playback, state.openingLook, playback.index)
+    return { patch: { ...frame, openingPlayback: playback,
+      pendingLines: state.pendingLines.slice(1), sceneLog: [...state.sceneLog, frame.currentLine!] }, landed: true }
+  }
 
   // The reader's line on the queue — a replay's, or one a rewind put back — is passed over
   // unshown, and charged as the decision point before it was.
@@ -1779,6 +1833,11 @@ function nextLineFields(
 const initialState = {
   saveRest: {} as Record<string, unknown>,
   modData: {} as Record<string, ModSlice>,
+  openingRoom: null as { charId: string; ready: boolean } | null,
+  openingPlayback: null as OpeningPlayback | null,
+  openingLook: null as OpeningLook | null,
+  interlude: null as HeldInterlude | null,
+  heldNightOpening: null as DeferredOpeningNotes | null,
   modValues: {} as Record<string, unknown>,
   playthroughId: null,
   createdScene: null as CreatedScene | null,
@@ -1871,6 +1930,7 @@ const initialState = {
   sceneVisitJob: null as string | null,
   sceneMentions: [] as string[],
   sceneLocation: null as string | null,
+  chatShownThrough: null as ChatClock | null,
   sceneInPublic: true,
   sceneSecret: null as string | null,
   sceneEvent: null as SceneEvent | null,
@@ -1949,6 +2009,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       useModSessionStore.getState().noteData(modId, MOD_DATA_UNREADABLE)
     })
     const saveRest = restOf(save, SAVE_KEYS)
+    delete saveRest.heldOpening
     for (const key of mods.consumed) delete saveRest[key]
     set({
       ...initialState,
@@ -2036,6 +2097,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       farewellsDone: save.farewellsDone,
       endingArtWanted: save.endingArtWanted,
       saveRest,
+      chatShownThrough: save.chatShownThrough ?? null,
+      heldNightOpening: save.heldNight ? readDeferredOpeningNotes(save.heldNightOpening) : null,
       modData: isModData(save.ex) ? { ...save.ex } : {},
       modValues: mods.values,
       // Younger than the save format: a save from before them has none.
@@ -2140,6 +2203,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   captureScene: () => {
     const state = get()
+    if (state.interlude) return null
     // Nothing on screen, nothing written, nothing queued: the slot has not opened yet. Not keyed
     // on the cast alone — a solo scene has none.
     if (
@@ -2160,6 +2224,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     return {
       // First, so a key core owns always wins.
       ...state.sceneRest,
+      ...(state.openingPlayback ? { slotOpening: structuredClone(state.openingPlayback) } : {}),
       ...(state.sceneActivity ? { activity: { ...state.sceneActivity } } : {}),
       ...(mods ? { mods } : {}),
       cast: [...state.cast],
@@ -2203,19 +2268,20 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       ...(records.sceneSummaries.length > 0
         ? { summaries: records.sceneSummaries.map((mark) => ({ ...mark })) }
         : {}),
-      bg: state.bg,
-      slots: [...state.slots],
-      emotions: { ...state.emotions },
+      // A saved opening rebuilds its stage; its thumbnail keeps the landing's visual layers.
+      bg: state.openingPlayback ? null : state.bg,
+      slots: state.openingPlayback ? Array<string | null>(PORTRAIT_SLOTS).fill(null) : [...state.slots],
+      emotions: state.openingPlayback ? {} : { ...state.emotions },
       flipped: { ...state.flipped },
       departed: [...state.departed],
       offStage: { ...state.offStage },
       // Omitted when the player never laid a hand on the stage.
-      ...(Object.keys(state.stageOverride).length > 0
+      ...(!state.openingPlayback && Object.keys(state.stageOverride).length > 0
         ? { stageOverride: { ...state.stageOverride } }
         : {}),
-      ...(state.bgOverride ? { bgOverride: state.bgOverride } : {}),
-      ...(Object.keys(state.outfitLock).length > 0 ? { outfitLock: { ...state.outfitLock } } : {}),
-      ...(state.cgLock ? { cgLock: { ...state.cgLock } } : {}),
+      ...(!state.openingPlayback && state.bgOverride ? { bgOverride: state.bgOverride } : {}),
+      ...(!state.openingPlayback && Object.keys(state.outfitLock).length > 0 ? { outfitLock: { ...state.outfitLock } } : {}),
+      ...(!state.openingPlayback && state.cgLock ? { cgLock: { ...state.cgLock } } : {}),
       sceneLog: [...records.sceneLog],
       currentLine: records.currentLine,
       pendingLines: [...records.pendingLines]
@@ -2224,6 +2290,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   restoreScene: (scene) =>
     set({
+      openingPlayback: scene?.slotOpening ?? null,
+      openingLook: null,
+      openingRoom: null,
       pendingLines: scene ? [...scene.pendingLines] : [],
       cast: scene ? [...scene.cast] : [],
       ...sceneKindFields(scene),
@@ -2492,6 +2561,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
     }),
 
+  stageOpening: (playback, look) => set(state => ({
+    openingPlayback: playback,
+    openingLook: look,
+    ...(playback.index >= 0 ? { ...openingFrame(state, playback, look, playback.index),
+      pendingLines: playback.lines.slice(playback.index + 1) } : {})
+  })),
+
   advanceLine: () => {
     const next = nextLineFields(get())
     if (!next) return false
@@ -2583,6 +2659,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   clearStage: () =>
     set({
+      openingRoom: null,
+      openingPlayback: null,
+      openingLook: null,
       ...freshStage(),
       pendingLines: [],
       currentLine: null,
@@ -2927,10 +3006,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     ),
 
   // The fold lives in `shared/relationship`, shared with the ending's projection.
-  applyRelationshipEvents: (charId, events) =>
+  applyRelationshipEvents: (charId, events, date) =>
     set((state) =>
       patchCharInfo(state, charId, (info = blankCharInfo()) =>
-        foldRelationshipEvents(info, events, state.date, genderOf(state.characters[charId]), {
+        foldRelationshipEvents(info, events, date ?? state.date, genderOf(state.characters[charId]), {
           character: state.characters[charId],
           stats: state.stats
         })
@@ -3000,13 +3079,21 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }),
 
   appendChatMessage: (charId, message, unreadDelta) =>
-    set((state) =>
-      patchConversation(state, charId, (chat) => ({
+    set((state) => patchConversation(state, charId, (chat) => {
+      const held = chat.heldReply
+      let stamped = state.interlude?.now.clock === 'late-night'
+        ? { ...message, date: state.date, time: state.time, late: true as const } : message
+      if (held && !held.opened && message.sender === 'contact' && !message.error) {
+        stamped = { ...message, ...held.until }
+        delete stamped.late
+      }
+      return {
         ...chat,
-        messages: [...chat.messages, message],
-        unread: chat.unread + unreadDelta
-      }))
-    ),
+        ...(held && !held.opened && message.sender === 'contact' ? { heldReply: { ...held, messageIds: [...held.messageIds, message.id] } } : {}),
+        messages: [...chat.messages, stamped],
+        unread: chat.unread + (messageShown(stamped, chatClockOf(state)) ? unreadDelta : 0)
+      }
+    })),
 
   removeChatMessage: (charId, messageId) =>
     set((state) =>
@@ -3658,9 +3745,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }),
 
   toGameSave: (state = get()) => {
+    const opened = chatClockOf(state)
     return {
       // First, so a key core owns always wins; a save with nothing foreign adds nothing here.
       ...state.saveRest,
+      chatShownThrough: { date: opened.date, time: opened.time },
+      ...(state.interlude?.now.clock === 'late-night'
+        ? { heldNight: { ...state.interlude.now.from } } : {}),
+      ...(state.heldNightOpening ? { heldNightOpening: state.heldNightOpening } : {}),
       schemaVersion: SAVE_SCHEMA_VERSION,
       ...(state.semesterId !== null ? { semester: state.semesterId } : {}),
       stats: state.stats,

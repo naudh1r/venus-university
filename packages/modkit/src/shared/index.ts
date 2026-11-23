@@ -72,6 +72,7 @@ export {
   MAX_TIER,
   memoryStatusLine,
   messageOf,
+  messageShown,
   modById,
   modOn,
   optionKey,
@@ -83,6 +84,8 @@ export {
   registerImagePromptDraft,
   registerRomanceRequirement,
   SCENE_TEXT_IDS,
+  shownMessages,
+  threadStartedBy,
   validateRecord
 } from '../bridge/shared'
 export { sharedModOn } from './modRules'
@@ -102,6 +105,7 @@ export {
   characterLoraOf,
   DORM_IDS,
   dormLabel,
+  EMOTIONS,
   LOCATIONS,
   NARRATIVE_LOCATIONS,
   customOutfitSlotsIn,

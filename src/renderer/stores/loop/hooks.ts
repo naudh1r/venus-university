@@ -19,7 +19,8 @@ interface SlotCycle {
    */
   fetchEndingOpening: (
     ledger: LedgerResponse,
-    dropped?: () => boolean
+    dropped?: () => boolean,
+    sceneLedger?: LedgerResponse | null
   ) => Promise<BankedOpening | null>
   /** Re-runs a rewound turn down the path it came from — intro, hangout or typed. */
   dispatchTurn: (snapshot: TurnSnapshot) => void
@@ -71,9 +72,10 @@ export function runEnding(goodbye: boolean): Promise<void> {
 
 export function fetchEndingOpening(
   ledger: LedgerResponse,
-  dropped?: () => boolean
+  dropped?: () => boolean,
+  sceneLedger?: LedgerResponse | null
 ): Promise<BankedOpening | null> {
-  return need(slotCycle, 'the slot cycle').fetchEndingOpening(ledger, dropped)
+  return need(slotCycle, 'the slot cycle').fetchEndingOpening(ledger, dropped, sceneLedger)
 }
 
 export function dispatchTurn(snapshot: TurnSnapshot): void {

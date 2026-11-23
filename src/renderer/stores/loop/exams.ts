@@ -89,7 +89,7 @@ export async function startExam(
   const textCall = claimTextLedger(game.date, game.time)
   loopState.examTextLedger = textCall
   loopState.examOpening = textCall.then((ledger) =>
-    ledger === null ? null : fetchEndingOpening(ledger)
+    ledger === null ? null : fetchEndingOpening(ledger, undefined, null)
   )
 
   queueLines([
@@ -202,7 +202,7 @@ export async function runQuietEnding(): Promise<void> {
   loopState.pendingLedgerResult = ledger
 
   // Every transfer still out is waited for under it, a failure raised here rather than mid-paper.
-  const opening = await endingAwaitingTransfers(prefetchedOpening ?? fetchEndingOpening(ledger))
+  const opening = await endingAwaitingTransfers(prefetchedOpening ?? fetchEndingOpening(ledger, undefined, null))
   if (!opening) return
   if (runStale(run)) return
 

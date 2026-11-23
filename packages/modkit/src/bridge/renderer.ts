@@ -2,6 +2,8 @@
  * The bridge for the window: every type and function of core's `src/renderer` that the kit hands
  * a mod, re-exported here and nowhere else in the kit (see `shared.ts`).
  */
+export type { OpeningLook } from '../../../../src/shared/opening'
+export { interludeNow } from '../../../../src/renderer/mods/interlude'
 export { profileUrl, spriteUrl, useSpriteVersion } from '../../../../src/renderer/stores/characterStore'
 export type { PromptState } from '../../../../src/renderer/prompts/scenePrompt'
 export type { SlotIntroInput } from '../../../../src/renderer/prompts/slotIntroPrompt'
@@ -142,6 +144,7 @@ export {
   npcRelationships,
   useNpcRelationships,
   subscribeNpcRelationships,
+  chatClock,
   clock,
   useClock,
   subscribeClock,
@@ -169,6 +172,7 @@ export { scene, useScene, subscribeScene, holdTurn } from '../../../../src/rende
 export type { SceneView, SceneViewLine, ScriptedSlot } from '../../../../src/renderer/mods/sceneView'
 
 export { canInviteToScene, freeForInvitation, subscribeInvitations, startInvitedScene } from '../../../../src/renderer/mods/sceneInvitations'
+export type { Commitment } from '../../../../src/renderer/prompts/slotIntroPrompt'
 
 export { hasDesktopSurfaces, canRecordSceneTurn, openSceneExchange, sceneExchangeContext, subscribeSceneTurns } from '../../../../src/renderer/mods/sceneExchange'
 export type { ExternalSceneTurn, SceneExchange, SceneExchangeContext } from '../../../../src/renderer/mods/sceneExchange'

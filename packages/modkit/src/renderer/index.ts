@@ -1,4 +1,5 @@
 /** `@vx/modkit/renderer`: what a mod may import in the window. */
+export { interludeNow } from '../bridge/renderer'
 export type {
   BunnyboardPage,
   ContactTab,
@@ -9,10 +10,14 @@ export type {
   EndingChoice,
   GameMenuItemProps,
   GameModalProps,
+  Interlude,
+  InterludeCtx,
+  InterludeRow,
   LandingToolProps,
   LikesAsk,
   ModDetailProps,
   ModHooks,
+  OpeningLook,
   OptionPreviewProps,
   PostCommentsProps,
   PostCommentsSpot,
@@ -218,6 +223,7 @@ export {
   npcRelationships,
   useNpcRelationships,
   subscribeNpcRelationships,
+  chatClock,
   clock,
   useClock,
   subscribeClock,
@@ -245,6 +251,7 @@ export { scene, useScene, subscribeScene, holdTurn } from '../bridge/renderer'
 export type { SceneView, SceneViewLine, ScriptedSlot } from '../bridge/renderer'
 
 export { canInviteToScene, freeForInvitation, subscribeInvitations, startInvitedScene } from '../bridge/renderer'
+export type { Commitment } from '../bridge/renderer'
 
 export { hasDesktopSurfaces, canRecordSceneTurn, openSceneExchange, sceneExchangeContext, subscribeSceneTurns } from '../bridge/renderer'
 export type { ExternalSceneTurn, SceneExchange, SceneExchangeContext } from '../bridge/renderer'

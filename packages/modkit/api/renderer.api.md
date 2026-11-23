@@ -83,6 +83,12 @@ export const character: (id: string) => Readonly<Character> | undefined;
 export const characterInfo: (id: string) => Readonly<CharInfo> | undefined;
 
 // @public
+export function chatClock(): {
+    date: number;
+    time: TimeSlot;
+} | null;
+
+// @public
 export function CheckField(input: CheckFieldProps): JSX.Element;
 
 // @public (undocumented)
@@ -116,6 +122,15 @@ export const clock: () => Readonly<{
 
 // @public (undocumented)
 export function CloseIcon(): JSX.Element;
+
+// @public
+export type Commitment = {
+    kind: 'class';
+    name: string;
+} | {
+    kind: 'shift';
+    employer: string;
+};
 
 // @public
 export function completeStructured<T>(modId: string, request: StructuredRequest, options?: {
@@ -356,6 +371,46 @@ export function holdTurn(modId: string): Result<() => void>;
 export function imageApiConfigured(): boolean;
 
 // @public
+export interface Interlude {
+    // (undocumented)
+    clock?: 'late-night';
+    // (undocumented)
+    lines: readonly string[];
+    // (undocumented)
+    rows: readonly InterludeRow[];
+}
+
+// @public
+export interface InterludeCtx {
+    // (undocumented)
+    from: {
+        date: number;
+        time: TimeSlot;
+    };
+    ledger: LedgerResponse | null;
+    // (undocumented)
+    semesterIndex: number;
+    // (undocumented)
+    to: {
+        date: number;
+        time: TimeSlot;
+    };
+}
+
+// @public
+export function interludeNow(): InterludeNow | null;
+
+// @public
+export interface InterludeRow {
+    card?: true;
+    // (undocumented)
+    label: string;
+    line?: string;
+    // (undocumented)
+    onPick: () => void;
+}
+
+// @public
 export function invoke<T>(modId: string, name: string, args: unknown[], options?: {
     signal?: AbortSignal;
 }): Promise<Result<T>>;
@@ -474,6 +529,7 @@ export interface ModHooks {
     characterFromDraft?: (draft: Readonly<Record<string, unknown>>, ctx: {
         baseAppearance: readonly string[];
     }) => Partial<Character>;
+    chatsHeader?: ComponentType<ScreenSlotProps['chatsHeader']>;
     contactPostExtra?: ComponentType<ScreenSlotProps['contactPostExtra']>;
     contactTab?: ContactTab;
     conversationFoot?: ComponentType<ScreenSlotProps['conversationFoot']>;
@@ -498,11 +554,25 @@ export interface ModHooks {
     gameEntered?: () => void;
     gameMenuEntry?: ComponentType<ScreenSlotProps['gameMenuEntry']>;
     gameModals?: Record<string, ComponentType<GameModalProps>>;
+    hangoutCheck?: (ctx: {
+        charId: string;
+        startedBy: 'reader' | 'her';
+    }) => boolean;
+    interludePreview?: (ctx: InterludeCtx) => {
+        at: 'from' | 'to';
+        clock?: 'late-night';
+    } | null;
+    interludeSettled?: (ctx: InterludeCtx) => void;
     keepSceneLedgerEntry?: (entry: Readonly<SceneLedgerEntry>) => boolean;
     landingTool?: ComponentType<ScreenSlotProps['landingTool']>;
     mapOverlay?: ComponentType<ScreenSlotProps['mapOverlay']>;
     messageAttachment?: ComponentType<ScreenSlotProps['messageAttachment']>;
     modDetail?: (mod: ModDef) => ComponentType<ModDetailProps> | undefined;
+    openingLook?: (ctx: {
+        date: number;
+        time: TimeSlot;
+        reply: Readonly<Record<string, unknown>>;
+    }) => OpeningLook | null;
     optionPreviews?: Record<string, ComponentType<OptionPreviewProps>>;
     panelLayer?: ComponentType<ScreenSlotProps['panelLayer']>;
     phoneOverlay?: ComponentType<ScreenSlotProps['phoneOverlay']>;
@@ -524,6 +594,21 @@ export interface ModHooks {
     };
     promptText?: PromptTextSpot;
     railButton?: ComponentType<ScreenSlotProps['railButton']>;
+    relaxLabel?: (ctx: {
+        date: number;
+        time: TimeSlot;
+    }) => string | undefined;
+    relaxLine?: (ctx: {
+        date: number;
+        time: TimeSlot;
+    }) => string | undefined;
+    relaxRows?: (ctx: {
+        date: number;
+        time: TimeSlot;
+    }) => readonly {
+        label: string;
+        onPick: () => void;
+    }[];
     requests?: {
         [S in keyof RequestSpots]?: (request: StructuredRequest, ctx: RequestSpots[S]) => StructuredRequest;
     };
@@ -544,6 +629,7 @@ export interface ModHooks {
     settingsSection?: ComponentType<ScreenSlotProps['settingsSection']>;
     settleSceneStats?: (resolved: SceneStats, settlement: SceneStatSettlement) => SceneStats;
     slotActivityAvailable?: (offer: SlotActivityOffer) => boolean;
+    slotInterlude?: (ctx: InterludeCtx) => Interlude | null;
     slotSettled?: (ctx: SlotSettled) => void;
     slotStatusLines?: (ctx: {
         nextSlot: number;
@@ -554,6 +640,10 @@ export interface ModHooks {
     switchedOn?: (ctx: {
         atBoot: boolean;
     }) => void | Promise<void>;
+    textWhileBusy?: (ctx: {
+        charId: string;
+        commitment: Commitment;
+    }) => boolean;
     updatesTab?: UpdatesTab;
 }
 
@@ -603,6 +693,19 @@ export const npcRelationships: () => Readonly<NpcRelationshipMap> | undefined;
 
 // @public
 export function objectSchema(name: string, required: readonly string[], properties: Record<string, unknown>): StructuredRequest['schema'];
+
+// @public
+export interface OpeningLook {
+    // (undocumented)
+    cast?: readonly string[];
+    // (undocumented)
+    room?: {
+        kind: 'herRoom' | 'hisRoom';
+        charId: string;
+    };
+    // (undocumented)
+    until?: number;
+}
 
 // @public
 export function openPanel(id: string, arg?: string): boolean;
@@ -933,6 +1036,7 @@ export interface RequestSpots {
     // (undocumented)
     'slot-intro': {
         input: SlotIntroInput;
+        ledger: LedgerResponse | null;
     };
     // (undocumented)
     dm: PromptSpots['dm'] & {
@@ -1227,6 +1331,10 @@ export interface ScreenSlotProps {
     advancedSettingsEntry: {
         theme: ScreenTheme;
         busy: boolean;
+    };
+    // (undocumented)
+    chatsHeader: {
+        theme: 'day' | 'night';
     };
     // (undocumented)
     contactPostExtra: {
@@ -1569,11 +1677,21 @@ export interface TextingPromptState {
     classes: Record<string, ClassEntry>;
     classRosters: Readonly<Record<string, ClassRoster>>;
     // (undocumented)
+    commitment?: Commitment;
+    // (undocumented)
     date: number;
     globalTextEdits?: TextEdits<GlobalTextId>;
+    heldUntil?: {
+        date: number;
+        time: TimeSlot;
+    };
     history: GameHistory;
     historyLimit?: number;
     homecomingVisitor?: string;
+    lateNight?: {
+        date: number;
+        time: TimeSlot;
+    };
     lorebook: readonly BookEntry[];
     memoryBudget: number;
     npcRelationships: NpcRelationshipMap;
@@ -1583,6 +1701,10 @@ export interface TextingPromptState {
     romance: RomanceSetting;
     roster: readonly Character[];
     secretBudget?: number;
+    sharedClass?: {
+        name: string;
+        attended: boolean;
+    };
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
     // (undocumented)

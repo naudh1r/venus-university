@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- Held replies and the chat clock. `textWhileBusy` lets a mod open her composer during a class or
+  shift. Her reply is stamped for the next slot, or written after a class they share, and stays out
+  of the thread, previews, unread counts and the texting ledger until that slot opens. Saves keep
+  the held reply and `chatShownThrough`, so a reload neither loses nor recounts it. `chatClock`
+  (renderer) and `messageShown`, `shownMessages` and `threadStartedBy` (shared) let a mod show a
+  thread as the player sees it.
+- Interludes. `slotInterlude` holds a slot's opening on the finished slot's landing with narration
+  and rows, read back by `interludeNow`. A `clock: 'late-night'` hold keeps the phone on that night,
+  settles its texts through one texting ledger when a row is picked, and tells `interludeSettled`.
+  `interludePreview` lets the boundary's curtain announce the held slot. Saves carry `heldNight`,
+  `heldNightLedger`, `heldNightOpening` and `morningOpening`, so a reload pays for neither the
+  night's ledger nor its morning opening again.
+- `openingLook` stages a slot's opening in a girl's ready room or his own, with one cast member and
+  dialogue lines, without starting a scene. Shared exports `EMOTIONS` for those lines. The
+  `slot-intro` request context carries the preceding scene's `ledger`.
+- `relaxLabel`, `relaxLine` and `relaxRows` change the Relax row's words and narration, and add rows
+  under it.
+- `hangoutCheck` lets a mod skip the immediate-meetup classifier for an exchange.
+- `chatsHeader` draws beside the Chats title in the phone.
+
 - Scene exchange context includes each participant's normalized `gender` and
   `scene.readerPronouns`, so auxiliary scenes preserve 0.9 identities without
   inferring them from names.
