@@ -36,6 +36,20 @@ const girl = character({ charId: 'a' })
 const run = (): string => join(root, 'data', 'saves', '1')
 const image = (file: string): string => join(run(), 'mod-data', 'photo-feature', 'a', file)
 const exists = (path: string): Promise<boolean> => access(path).then(() => true, () => false)
+/**
+ * Makes a link for the link-safety checks: a junction for a folder on Windows, which needs no
+ * special rights there. False only where the account may not create one at all.
+ */
+async function linked(target: string, path: string, kind: 'file' | 'dir'): Promise<boolean> {
+  const { symlink } = await import('fs/promises')
+  try {
+    await symlink(target, path, kind === 'dir' && process.platform === 'win32' ? 'junction' : kind)
+    return true
+  } catch (error) {
+    if (['EPERM', 'EACCES'].includes((error as NodeJS.ErrnoException).code ?? '')) return false
+    throw error
+  }
+}
 let currentFile: () => string
 
 beforeEach(async () => {
@@ -339,17 +353,22 @@ describe('orphan sweeps', () => {
     const protectedNames = ['sarah_chat_001.png', 'sarah_chat_001.webp', 'sarah_chat_001.json', 'photo_1_a1b2c3d4.png', reserved, reserved.replace('.png', '.json'), inflight, inflight.replace('.png', '.json'), 'not-a-photo.png']
     const orphanNames = ['sarah_chat_099.png', 'sarah_chat_099.webp', 'sarah_chat_099.json', 'zzzzzzzzzz.json']
     for (const file of [...protectedNames, ...orphanNames]) await writeFile(image(file), 'bytes')
-    const { symlink } = await import('fs/promises')
-    const outside = join(root, 'outside.png')
-    await writeFile(outside, 'outside')
-    await symlink(outside, image('yyyyyyyyyy.png'))
     try {
       expect(await sweepPhotos('1')).toBe(orphanNames.length)
       for (const file of protectedNames) expect(await exists(image(file))).toBe(true)
       for (const file of orphanNames) expect(await exists(image(file))).toBe(false)
-      expect(await readFile(outside, 'utf8')).toBe('outside')
-      expect(await exists(image('yyyyyyyyyy.png'))).toBe(true)
     } finally { release() }
+  })
+
+  it('leaves a photo-named link and the file it points at alone', async ({ skip }) => {
+    const outside = join(root, 'outside.png')
+    await writeFile(outside, 'outside')
+    // A file link on Windows needs Developer Mode or an elevated account; without one there is
+    // nothing to sweep, and the check says so rather than failing.
+    if (!(await linked(outside, image('yyyyyyyyyy.png'), 'file'))) skip('this account cannot create file links')
+    expect(await sweepPhotos('1')).toBe(0)
+    expect(await readFile(outside, 'utf8')).toBe('outside')
+    expect(await exists(image('yyyyyyyyyy.png'))).toBe(true)
   })
 
   it.each(['save', 'replay'])('removes nothing when a %s is unreadable', async kind => {
@@ -486,12 +505,11 @@ describe('legacy sweep safety', () => {
     expect(await exists(join(legacy, 'sarah_chat_001.png'))).toBe(false)
   })
 
-  it('does not follow a photo-root link outside the photo folders', async () => {
-    const { symlink } = await import('fs/promises')
+  it('does not follow a photo-root link outside the photo folders', async ({ skip }) => {
     const outside = join(root, 'unowned')
     await mkdir(join(outside, 'a'), { recursive: true })
     await writeFile(join(outside, 'a/zzzzzzzzzz.png'), 'unowned')
-    await symlink(outside, join(run(), 'photos'))
+    if (!(await linked(outside, join(run(), 'photos'), 'dir'))) skip('this account cannot create folder links')
     expect(await sweepPhotos('1')).toBe(0)
     expect(await readFile(join(outside, 'a/zzzzzzzzzz.png'), 'utf8')).toBe('unowned')
   })
