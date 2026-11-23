@@ -198,11 +198,12 @@ const SCHEMA = objectSchema('feed_threads', ['replies', 'memories'], {
     items: {
       type: 'object',
       additionalProperties: false,
-      required: ['char', 'type', 'desc'],
+      required: ['char', 'type', 'desc', 'youDesc'],
       properties: {
         char: { type: 'string' },
         type: { type: 'string', enum: ['loved', 'liked', 'disliked', 'hated'] },
-        desc: { type: 'string' }
+        desc: { type: 'string' },
+        youDesc: { type: 'string' }
       }
     }
   }
@@ -391,7 +392,7 @@ export function buildFeedThreadsPrompt(
     'Under each post only who THREADS names there reacts: the poster, the people it names, and a follower where it says one may. Whoever may react can still leave it; none is fine. They react to the reader\'s comment, to another comment in the thread, or to the post itself. The thread is a conversation, not a line of people answering the reader: they can talk to each other and to the poster too. Nobody else speaks for the reader, nobody answers themself, and nobody @s anybody or writes a handle in "text".',
     `Everybody replies however they actually would. Each of them goes by their personality, how they stand with the poster and what they know of the reader: they can flirt, tease, hype, roast or brush ${words.him} off. The poster and someone who is their enemy are never warm to each other, however sweet either is with everyone else: cool, catty or passive-aggressive, each in their own manner, and never a compliment that is not backhanded. Followers have the whole range a public feed has: mostly friendly, sometimes flirty, sometimes roasting the poster or the reader, now and then a hater. Never more than one mean comment under a post.`,
     'All of this happens in front of the whole campus, and everybody types like it. Nobody settles anything here: no meeting up, no date, no time or place agreed, whoever suggests it. Anyone who likes the idea can say so in a way that keeps it open, or suggest a private message; anyone who does not can laugh it off. Nothing they would only say to the reader alone goes in a comment: feelings they have not shown in public, what passed between them in private, anything explicit. Followers know nothing about the reader beyond the comment in front of them.',
-    `Fill "memories" with one entry per poster the reader commented under, one per other person who answers ${words.him} in "replies", and one per person who sees ${words.his} answer without answering it, whether or not they have met ${words.him}, saying what they made of what ${words.he} said: "char" is their key, "type" how they felt about it, and "desc" what happened, in a few words, starting with "the reader". Say only what ${words.he} said or did: never the post, whose post it was, or where it happened, since the game adds that.`
+    `Fill "memories" with one entry per poster the reader commented under, one per other person who answers ${words.him} in "replies", and one per person who sees ${words.his} answer without answering it, whether or not they have met ${words.him}, saying what they made of what ${words.he} said: "char" is their key, "type" how they felt about it, and "desc" what happened, in a few words, starting with "the reader". Say only what ${words.he} said or did: never the post, whose post it was, or where it happened, since the game adds that. Then write the same memory again in "youDesc", talking to the reader as "you": "you asked who hurt him". Everybody else in it keeps their own pronouns.`
   ].join('\n')
 
   return {
