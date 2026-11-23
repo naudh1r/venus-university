@@ -9,7 +9,7 @@ export default packMod({
   id: 'morrowkiln-card-games',
   name: '[MK] Card Games',
   author: 'morrowkiln',
-  version: '0.1.0-beta',
+  version: '0.1.1',
   blurb: 'Cards on the table: quick ones for anywhere, and longer ones for an evening in.',
   games: [HIGH_LOW, BLACKJACK, POKER, CAT_PAIRS]
 })

@@ -410,12 +410,12 @@ export function HoopShot({ play }: { play: GamePlay }): JSX.Element {
             ? {
                 outcome: outcomeOf(scores),
                 summary: versusSummary(names, game.shooters),
-                account: versusAccount(names, game.shooters, game.mark, lengthMs)
+                account: versusAccount(names, game.shooters, game.mark, lengthMs, held.current.reader)
               }
             : {
                 outcome: 'played',
                 summary: soloSummary(game.shooters[0], lengthMs),
-                account: soloAccount(game.shooters[0], lengthMs)
+                account: soloAccount(game.shooters[0], lengthMs, held.current.reader)
               }
         )
       }

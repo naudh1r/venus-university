@@ -38,7 +38,7 @@ import {
   veilIn,
   type SceneView
 } from '@vx/modkit/renderer'
-import { genderOf, pronounsOf } from '@vx/modkit/shared'
+import { genderOf, PRONOUNS, pronounsOf } from '@vx/modkit/shared'
 import type { ScenePanelProps } from '../mods/hooks'
 import { gameComponent, type GamePlay, type Opponent, type PlayResult } from './play'
 import { agreementAvailable, cancelMatch, checkpointResult, keptAgreed, saveSceneMiniGame, seatMatch, useTableStore, type Agreed, type OpenTable } from './session'
@@ -394,7 +394,7 @@ export function MiniGamePanel({ theme, onClose }: ScenePanelProps): JSX.Element 
     // The girl he names answers; where he names nobody, they take it in turns.
     const said = remark.toLowerCase()
     const her =
-      table.find((girl) => girl.name !== 'her' && said.includes(girl.name.toLowerCase())) ??
+      table.find((girl) => girl.name !== PRONOUNS[girl.gender].them && said.includes(girl.name.toLowerCase())) ??
       table[turnToAnswer.current++ % table.length]
     begin()
     const words = remark

@@ -1,5 +1,5 @@
 import { freshDeck, rankWord, type Card, type SkillLevel as Skill } from '../minigameKit'
-import { listed } from '../minigameKit'
+import { listed, readerAmong, wordsOf, type Gender, type ReaderPronouns, type ReaderWords } from '../minigameKit'
 
 /**
  * Blackjack's rules, with no dealer: what a hand is worth, which hand wins among everyone at
@@ -231,34 +231,48 @@ export function totalWord(cards: readonly Card[]): string {
   return isNatural(cards) ? '21 in two cards' : String(handTotal(cards).total)
 }
 
-/** The deal of a hand, as the scene's narration says it. `ups` is each girl's card that shows. */
+/**
+ * The deal of a hand, as the scene's narration says it. `genders` is each player's beside
+ * `names`; `ups` is each one's card that shows.
+ */
 export function tableDeal(
   names: readonly string[],
+  genders: readonly Gender[],
   no: number,
   mine: readonly Card[],
   ups: readonly Card[]
 ): string {
   const shows =
     names.length === 1
-      ? `${names[0]} shows ${rankWord(ups[0].rank)}, her other card face down.`
+      ? `${names[0]} shows ${rankWord(ups[0].rank)}, ${wordsOf(genders[0]).their} other card face down.`
       : `${names[0]} shows ${listed([rankWord(ups[0].rank), ...names.slice(1).map((name, i) => `${name} ${rankWord(ups[i + 1].rank)}`)])}, each with a card face down.`
   return `Hand ${no}. You are dealt ${cardsWord(mine)}: ${totalWord(mine)}. ${shows}`
 }
 
-/** How a finished hand came out heads-up, as the scene's narration says it. */
-export function resultLine(name: string, mine: readonly Card[], hers: readonly Card[]): string {
+/** How a finished hand came out heads-up against a player of `gender`, as the scene's narration says it. */
+export function resultLine(
+  name: string,
+  gender: Gender,
+  mine: readonly Card[],
+  hers: readonly Card[]
+): string {
   const winner = handWinner(mine, hers)
+  const p = wordsOf(gender)
   if (standing(mine) < 0) return `The hand is ${name}'s.`
   if (standing(hers) < 0) return 'The hand is yours.'
   if (winner === 'push') return `Both on ${totalWord(mine)}: a push, and nobody takes the hand.`
   return winner === 'reader'
-    ? `Your ${totalWord(mine)} beats her ${totalWord(hers)}: the hand is yours.`
-    : `Her ${totalWord(hers)} beats your ${totalWord(mine)}: the hand is ${name}'s.`
+    ? `Your ${totalWord(mine)} beats ${p.their} ${totalWord(hers)}: the hand is yours.`
+    : `${p.Their} ${totalWord(hers)} beats your ${totalWord(mine)}: the hand is ${name}'s.`
 }
 
 /** How a finished hand came out at a table of any size, as the scene's narration says it. */
-export function tableResult(names: readonly string[], hand: TableHand): string {
-  if (names.length === 1) return resultLine(names[0], hand.mine, hand.girls[0].cards)
+export function tableResult(
+  names: readonly string[],
+  genders: readonly Gender[],
+  hand: TableHand
+): string {
+  if (names.length === 1) return resultLine(names[0], genders[0], hand.mine, hand.girls[0].cards)
   const cards = allCards(hand)
   const marks = cards.map(standing)
   const winner = tableWinner(cards)
@@ -331,7 +345,7 @@ function totalsWord(totals: readonly number[]): string {
  * middling hand is a fair risk whatever comes; what is his own doing is drawing on a hard 17 or
  * better, or standing on a total no card could have broken.
  */
-function readerTold(hand: Pick<TableHand, 'mine' | 'hits'>): string {
+function readerTold(hand: Pick<TableHand, 'mine' | 'hits'>, r: ReaderWords): string {
   if (isNatural(hand.mine)) return 'was dealt a two-card 21: luck, not play'
   const { total } = handTotal(hand.mine)
   const hits = hand.hits
@@ -350,7 +364,7 @@ function readerTold(hand: Pick<TableHand, 'mine' | 'hits'>): string {
   const note = rash
     ? ', after a reckless draw that came off'
     : total <= 11
-      ? ', a mistake: no card could have bust him'
+      ? `, a mistake: no card could have bust ${r.him}`
       : ''
   return `${drew}stood on ${total}${note}`
 }
@@ -360,15 +374,22 @@ function readerTold(hand: Pick<TableHand, 'mine' | 'hits'>): string {
  * work out: she saw what she had to beat, the best of the hands finished before hers, and who
  * was still to play after her.
  */
-function girlTold(names: readonly string[], hand: TableHand, at: number): string {
+function girlTold(
+  names: readonly string[],
+  genders: readonly Gender[],
+  r: ReaderWords,
+  hand: TableHand,
+  at: number
+): string {
   const seat = hand.girls[at]
+  const p = wordsOf(genders[at])
   const marks = allCards(hand).slice(0, at + 1).map(standing)
   const best = Math.max(...marks)
   const holder = marks.indexOf(best)
-  const [whose, whom] = holder === 0 ? ['his', 'him'] : [`${names[holder - 1]}'s`, names[holder - 1]]
+  const [whose, whom] = holder === 0 ? [r.his, r.him] : [`${names[holder - 1]}'s`, names[holder - 1]]
   const after = names.slice(at + 1)
   const { total } = handTotal(seat.cards)
-  if (best < 0 && after.length === 0) return `had only to turn her card, holding ${total}`
+  if (best < 0 && after.length === 0) return `had only to turn ${p.their} card, holding ${total}`
   if (isNatural(seat.cards)) return 'turned over a two-card 21: luck, not play'
   if (best === 22) {
     return `could do nothing against ${names.length === 1 ? 'it' : `${whose} two-card 21`}, holding ${total}`
@@ -380,29 +401,37 @@ function girlTold(names: readonly string[], hand: TableHand, at: number): string
   const timid = moves.find((made) => made.move === 'stand' && made.sound === 'hit')
   if (total > 21) {
     if (greedy) {
-      return `${drew}bust with ${total}, a mistake: she was already ahead on ${greedy.total} and threw the hand away`
+      return `${drew}bust with ${total}, a mistake: ${p.they} was already ahead on ${greedy.total} and threw the hand away`
     }
     return hits[hits.length - 1].total > best
       ? `${drew}bust with ${total}, bad luck: a fair risk with ${listed(after)} still to play`
-      : `${drew}bust with ${total}, bad luck: she had to draw to beat ${whose} ${best}`
+      : `${drew}bust with ${total}, bad luck: ${p.they} had to draw to beat ${whose} ${best}`
   }
   const note = timid
     ? timid.total < best
-      ? `, a mistake: she was still behind ${whose} ${best} and gave the hand up`
+      ? `, a mistake: ${p.they} was still behind ${whose} ${best} and gave the hand up`
       : timid.total === best
         ? `, timid play: level with ${whom} on a total that was worth another card`
         : `, timid play: a thin total with ${listed(after)} still to play`
     : greedy
-      ? `, after a needless draw when she was already ahead on ${greedy.total}`
+      ? `, after a needless draw when ${p.they} was already ahead on ${greedy.total}`
       : ''
   return `${drew}stood on ${total}${note}`
 }
 
 /**
  * Hand `no` of a game, counted from one, as the account tells it: each seat's play in the order
- * it was made, and who took the hand.
+ * it was made, and who took the hand. `genders` is each player's beside `names`, and `reader`
+ * the reader's pronouns.
  */
-export function tableTold(names: readonly string[], hand: TableHand, no: number): HandTold {
+export function tableTold(
+  names: readonly string[],
+  genders: readonly Gender[],
+  reader: ReaderPronouns,
+  hand: TableHand,
+  no: number
+): HandTold {
+  const r = readerAmong(reader, genders)
   const cards = allCards(hand)
   const marks = cards.map(standing)
   const winner = tableWinner(cards)
@@ -418,10 +447,10 @@ export function tableTold(names: readonly string[], hand: TableHand, no: number)
           ? 'Everyone bust, a push: nobody won it'
           : `A push, ${listed(level)} level on ${first === 22 ? 'a two-card 21' : first}: nobody won it`
       : `${winner === 0 ? 'The reader' : names[winner - 1]} won it${close ? ' by a single point' : ''}`
-  const girls = names.map((name, at) => `${name} ${girlTold(names, hand, at)}`)
+  const girls = names.map((name, at) => `${name} ${girlTold(names, genders, r, hand, at)}`)
   const busts = marks.filter((mark) => mark < 0).length
   return {
-    line: `Hand ${no}: the reader ${readerTold(hand)}; ${girls.join('; ')}. ${result}.`,
+    line: `Hand ${no}: the reader ${readerTold(hand, r)}; ${girls.join('; ')}. ${result}.`,
     // Around a full table somebody busts most hands: it takes his own, or more than one.
     notable:
       marks.includes(22) ||
@@ -433,21 +462,25 @@ export function tableTold(names: readonly string[], hand: TableHand, no: number)
 /**
  * How a game went at a table of any size, hand by hand, for the scene's writer: what each seat
  * did on what total, with bad play told apart from bad luck, the count of hands at the end and
- * whose game it was.
+ * whose game it was. `genders` is each player's beside `names`, and `reader` the reader's pronouns.
  */
 export function tableAccount(
   names: readonly string[],
+  genders: readonly Gender[],
+  reader: ReaderPronouns,
   hands: readonly TableHand[],
   agreed: number
 ): string[] {
   const won = tableWon(hands, names.length)
-  const told = hands.map((hand, i) => tableTold(names, hand, i + 1).line)
+  const told = hands.map((hand, i) => tableTold(names, genders, reader, hand, i + 1).line)
+  const r = readerAmong(reader, genders)
   const stopped =
     hands.length < agreed ? ['The match stopped there: the lead could no longer be caught.'] : []
   if (names.length === 1) {
     const name = names[0]
+    const p = wordsOf(genders[0])
     return [
-      `It was heads-up blackjack over ${agreed} hand${agreed === 1 ? '' : 's'}, no dealer. The reader played each hand first without seeing ${name}'s face-down card; she then played knowing his total. Equal totals are a push.`,
+      `It was heads-up blackjack over ${agreed} hand${agreed === 1 ? '' : 's'}, no dealer. The reader played each hand first without seeing ${name}'s face-down card; ${p.they} then played knowing ${r.his} total. Equal totals are a push.`,
       ...told,
       ...stopped,
       `Final count of hands: the reader ${won[0]}, ${name} ${won[1]}.`
@@ -456,8 +489,12 @@ export function tableAccount(
   const top = Math.max(...won)
   const leaders = ['the reader', ...names].filter((_, seat) => won[seat] === top)
   const took = leaders.length === 1 ? `${leaders[0]} took the game` : `${listed(leaders)} shared the lead`
+  // The others by what they are where they are all one, by their seats where they are not.
+  const alike = genders.every((gender) => gender === genders[0])
+  const others = alike ? `the ${wordsOf(genders[0]).noun}s'` : "the other players'"
+  const own = alike ? wordsOf(genders[0]).theirs : 'their own'
   return [
-    `It was blackjack between the reader, ${listed(names)} over ${agreed} hand${agreed === 1 ? '' : 's'}, no dealer, everyone against everyone. The reader played each hand first without seeing the girls' face-down cards; then ${names.join(', then ')}, each knowing the hands finished before hers and one card of any still to come. The best hand not over 21 took the hand; a shared best is a push.`,
+    `It was blackjack between the reader, ${listed(names)} over ${agreed} hand${agreed === 1 ? '' : 's'}, no dealer, everyone against everyone. The reader played each hand first without seeing ${others} face-down cards; then ${names.join(', then ')}, each knowing the hands finished before ${own} and one card of any still to come. The best hand not over 21 took the hand; a shared best is a push.`,
     ...told,
     ...stopped,
     `Final count of hands: the reader ${won[0]}, ${names.map((name, i) => `${name} ${won[i + 1]}`).join(', ')}: ${took}.`

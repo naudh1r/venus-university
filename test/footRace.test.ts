@@ -301,7 +301,7 @@ describe('Foot Race finish', () => {
       told('Cy', null, { placeAtHalf: 4, placeAtLast: 4 })
     ]
     const summary = versusSummary(course, race)
-    const lines = account(course, race).join('\n')
+    const lines = account(course, race, 'he').join('\n')
     for (const name of ['Ana', 'Bea', 'Cy']) {
       expect(summary).toContain(name)
       expect(lines).toContain(name)
@@ -320,7 +320,7 @@ describe('Foot Race finish', () => {
     expect(versusSummary(course, [told('', 61.2), told('Ana', 61.2), told('Bea', 63)])).toContain('dead-heat with Ana')
     expect(versusSummary(course, [told('', 60), told('Ana', 61.2)])).toContain('and win.')
     expect(soloSummary(course, told('', 62.31))).toContain('1:02.31')
-    expect(account(course, [told('', 62.31)]).join('\n')).not.toContain('undefined')
+    expect(account(course, [told('', 62.31)], 'he').join('\n')).not.toContain('undefined')
   })
 })
 
@@ -383,7 +383,7 @@ describe('Foot Race at the keyboard', () => {
     expect(penaltyShownS(courseOf(1), 2)).toBe(0.5)
     expect(penaltyShownS(courseOf(2), 2)).toBe(1.2)
     expect(penaltyShownS(courseOf(3), 9)).toBeCloseTo(4.95, 1)
-    const lines = account(courseOf(2), [told('', 61.2, { falseStarts: 2 }), told('Ana', 60)]).join(' ')
+    const lines = account(courseOf(2), [told('', 61.2, { falseStarts: 2 }), told('Ana', 60)], 'he').join(' ')
     expect(lines).toContain('until the clock read 1.2 s')
   })
 })

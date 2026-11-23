@@ -1,4 +1,4 @@
-import { listed } from '../minigameKit'
+import { listed, readerWords, type ReaderPronouns } from '../minigameKit'
 
 /**
  * Foot Race's rules, pure: the course at each distance, how a runner's effort becomes speed and
@@ -480,9 +480,10 @@ function kicks(told: readonly Told[]): { seat: number; past: number }[] {
 
 /**
  * The race for the scene's writer, one line each: the terms, the order and times, the start,
- * who led, who faded, stumbled or kicked, and how the reader paced it.
+ * who led, who faded, stumbled or kicked, and how the reader paced it, in `pronouns`, the
+ * reader's.
  */
-export function account(course: Course, told: readonly Told[]): string[] {
+export function account(course: Course, told: readonly Told[], pronouns: ReaderPronouns): string[] {
   const reader = 'the reader'
   const names = told.slice(1).map((one) => one.name)
   const lines: string[] = []
@@ -540,6 +541,7 @@ export function account(course: Course, told: readonly Told[]): string[] {
   }
 
   const me = told[0]
+  const r = readerWords(pronouns)
   if (me.time === null) lines.push('The reader gave up before the line.')
   else if (paced(course)) {
     const pacing = readerPacing(me)
@@ -547,7 +549,7 @@ export function account(course: Course, told: readonly Told[]): string[] {
       pacing === 'too-fast'
         ? `The reader went out too fast: nothing left with ${Math.round((1 - (me.spentAt ?? 1)) * course.metres)} m to go, and hung on from there. Poor pacing, not bad luck.`
         : pacing === 'left-too-much'
-          ? 'The reader ran within himself and crossed the line with plenty left: he could have gone harder or kicked sooner.'
+          ? `The reader ran within ${r.himself} and crossed the line with plenty left: ${r.he} could have gone harder or kicked sooner.`
           : 'The reader paced it evenly and emptied the tank at the line: a well-judged run.'
     )
   } else {

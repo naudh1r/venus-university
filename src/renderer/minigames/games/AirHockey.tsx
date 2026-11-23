@@ -90,7 +90,7 @@ export function AirHockey({ play }: { play: GamePlay }): JSX.Element {
   const { mine, hers } = scoreOf(goals)
   const over = matchOver(goals, toWin)
   // Who put the last one in, and who took the match: on the table, where the box no longer says it.
-  const herName = her?.name ?? 'she'
+  const herName = her?.name ?? 'the other player'
   const lastBy = goals[goals.length - 1]
   const scoredNote = lastBy === 'her' ? `${herName} scores` : 'you score'
   const endNote = mine > hers ? 'you win' : `${herName} wins`
@@ -312,7 +312,7 @@ export function AirHockey({ play }: { play: GamePlay }): JSX.Element {
     <div className="vu-airhockey">
       <div className="vu-airhockey-side">
         <p className="vu-airhockey-score">
-          <span className="vu-airhockey-who">{her?.name ?? 'her'}</span>
+          <span className="vu-airhockey-who">{her?.name ?? 'them'}</span>
           <span className="vu-airhockey-goals">{hers}</span>
         </p>
         <p className="vu-airhockey-score vu-airhockey-score--mine">
@@ -327,7 +327,7 @@ export function AirHockey({ play }: { play: GamePlay }): JSX.Element {
           className="vu-airhockey-field"
           viewBox={`0 0 ${TABLE_W} ${TABLE_H}`}
           role="img"
-          aria-label={`Air hockey table. You ${mine}, ${her?.name ?? 'her'} ${hers}.`}
+          aria-label={`Air hockey table. You ${mine}, ${her?.name ?? 'them'} ${hers}.`}
         >
           <line
             className="vu-airhockey-line"

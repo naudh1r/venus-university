@@ -285,7 +285,7 @@ describe('how the reader played', () => {
   })
 
   it('says slow, not cautious, of a reader the bunnies got away from', () => {
-    const slow = soloAccount(pattern, { ...emptyTally(), hits: 3, misses: counts.bun - 3 }).join(' ')
+    const slow = soloAccount(pattern, { ...emptyTally(), hits: 3, misses: counts.bun - 3 }, 'he').join(' ')
     expect(slow).toContain('was slow')
     expect(slow).not.toMatch(/cautious|careful|bunnies let go/)
   })
@@ -293,14 +293,14 @@ describe('how the reader played', () => {
   it('gives a round walked away from its account: the terms, the time left and the scores', () => {
     const mine = { ...emptyTally(), score: 40, hits: 4, best: 4 }
     const rivals = [{ name: 'Mia', tally: { ...emptyTally(), score: 60 } }]
-    expect(standingAccount(pattern, 0, mine, rivals).join(' ')).toMatch(/Mia.*only just begun.*Nothing was scored/)
-    const mid = standingAccount(pattern, 7500, mine, rivals).join(' ')
+    expect(standingAccount(pattern, 0, mine, rivals, 'he').join(' ')).toMatch(/Mia.*only just begun.*Nothing was scored/)
+    const mid = standingAccount(pattern, 7500, mine, rivals, 'he').join(' ')
     expect(mid).toContain('23 of its 30 seconds left')
     expect(mid).toContain('the reader 40, Mia 60; Mia ahead')
-    const alone = standingAccount(pattern, 15000, mine, []).join(' ')
+    const alone = standingAccount(pattern, 15000, mine, [], 'he').join(' ')
     expect(alone).toContain('alone')
     expect(alone).toContain('40 points')
-    expect(standingAccount(pattern, 15000, mine, [])).toHaveLength(2)
+    expect(standingAccount(pattern, 15000, mine, [], 'he')).toHaveLength(2)
   })
 })
 

@@ -53,6 +53,8 @@ import {
 /** Swim Race's rules: the stroke, the air, the turn, how she swims, and how a race is placed. */
 
 const SKILLS: readonly Skill[] = [1, 2, 3, 4, 5]
+/** Every opponent in a summary a girl, as every race here has them. */
+const GIRLS = ['female', 'female', 'female'] as const
 const STEP = STEP_MS
 
 /** A swimmer already in open water, `dist` metres in. */
@@ -421,7 +423,7 @@ describe('Swim Race result', () => {
       { name: 'Bea', swimmer: home(31_000, { gasps: 2, turns: ['late'] }) },
       { name: 'Cy', swimmer: home(24_050) }
     ]
-    const summary = raceSummary(all, 2)
+    const summary = raceSummary(all, 2, GIRLS)
     const account = raceAccount(all, 2, ['Ana']).join('\n')
     for (const name of ['Ana', 'Bea', 'Cy']) {
       expect(summary).toContain(name)
@@ -436,13 +438,13 @@ describe('Swim Race result', () => {
     expect(account).toContain('3. the reader 24.50')
     for (const time of ['24.50', '23.90', '31.00', '24.05']) expect(summary).toContain(time)
 
-    expect(raceSummary(all.slice(0, 2), 2)).toContain('lose')
-    expect(raceSummary([all[1], all[0]].map((entry, i) => ({ ...entry, name: i ? 'Ana' : 'You' })), 2)).toContain('win')
+    expect(raceSummary(all.slice(0, 2), 2, GIRLS)).toContain('lose')
+    expect(raceSummary([all[1], all[0]].map((entry, i) => ({ ...entry, name: i ? 'Ana' : 'You' })), 2, GIRLS)).toContain('win')
     const level = [{ name: 'You', swimmer: home(23_000) }, { name: 'Ana', swimmer: home(23_003) }]
-    expect(raceSummary(level, 2)).toContain('dead heat')
+    expect(raceSummary(level, 2, GIRLS)).toContain('dead heat')
     expect(raceAccount(level, 2, ['the reader']).join('\n')).toContain('dead heat')
     const alone = [{ name: 'You', swimmer: home(23_000) }]
-    expect(raceSummary(alone, 2)).toContain('23.00')
+    expect(raceSummary(alone, 2, GIRLS)).toContain('23.00')
     expect(raceAccount(alone, 2, []).join('\n')).toContain('alone')
   })
 })
@@ -576,23 +578,23 @@ describe('Swim Race wording by the water', () => {
   })
 
   it('says lengths and the pool at the stadium, and the buoy and the sea at the beach', () => {
-    const pool = [raceSummary(all, 2, 'pool'), ...raceAccount(all, 2, ['Ana'], 'pool')].join('\n')
+    const pool = [raceSummary(all, 2, GIRLS, 'pool'), ...raceAccount(all, 2, ['Ana'], 'pool')].join('\n')
     expect(pool).toContain('2 lengths of the pool')
     expect(pool).toContain('the stadium pool')
     expect(pool).toContain('into the wall')
     expect(pool).not.toMatch(/buoy|sea/)
-    const sea = [raceSummary(all, 2, 'sea'), ...raceAccount(all, 2, ['Ana'], 'sea')].join('\n')
+    const sea = [raceSummary(all, 2, GIRLS, 'sea'), ...raceAccount(all, 2, ['Ana'], 'sea')].join('\n')
     expect(sea).toContain('out to the buoy and back')
     expect(sea).toContain('in the sea')
     expect(sea).toContain('Ana led at the buoy')
     expect(sea).not.toMatch(/length|pool|wall|touch|blocks/)
-    expect(raceSummary(all, 4, 'sea')).toContain('twice out to the buoy and back')
-    expect(raceSummary(all.slice(0, 1), 6, 'sea')).toContain('three times out to the buoy and back in the sea, 150 metres')
+    expect(raceSummary(all, 4, GIRLS, 'sea')).toContain('twice out to the buoy and back')
+    expect(raceSummary(all.slice(0, 1), 6, GIRLS, 'sea')).toContain('three times out to the buoy and back in the sea, 150 metres')
     expect(raceAccount(all.slice(0, 1), 2, [], 'sea').join('\n')).not.toMatch(/length|pool|wall|touch|blocks/)
   })
 
   it('keeps to neutral words where it is told nothing', () => {
-    const plain = [raceSummary(all, 2), ...raceAccount(all, 2, ['Ana'])].join('\n')
+    const plain = [raceSummary(all, 2, GIRLS), ...raceAccount(all, 2, ['Ana'])].join('\n')
     expect(plain).toContain('over 2 lengths')
     expect(plain).not.toMatch(/buoy|sea|pool/)
   })
@@ -679,15 +681,15 @@ describe('Swim Race clock', () => {
       { name: 'Ana', swimmer: done(23_900, 50) },
       { name: 'Bea', swimmer: done(26_000, 50) }
     ]
-    for (const told of [raceSummary(all, 2, 'pool'), raceSummary(all.slice(0, 2), 2, 'pool'), raceSummary(all.slice(0, 1), 2, 'pool')]) {
+    for (const told of [raceSummary(all, 2, GIRLS, 'pool'), raceSummary(all.slice(0, 2), 2, GIRLS, 'pool'), raceSummary(all.slice(0, 1), 2, GIRLS, 'pool')]) {
       expect(told).toMatch(/^You /)
       expect(told).toContain('do not finish')
       expect(told).toContain('19 metres short')
       expect(told).toContain('50.00 s')
       expect(told).not.toMatch(/\b0\.00 s|Infinity|NaN|gave up|give up/)
     }
-    expect(raceSummary(all, 2)).toContain('Ana 23.90 s, Bea 26.00 s, you did not finish')
-    expect(raceSummary([all[1], all[0]].map((entry, at) => ({ ...entry, name: at ? 'Ana' : 'You' })), 2)).toContain('she does not finish')
+    expect(raceSummary(all, 2, GIRLS)).toContain('Ana 23.90 s, Bea 26.00 s, you did not finish')
+    expect(raceSummary([all[1], all[0]].map((entry, at) => ({ ...entry, name: at ? 'Ana' : 'You' })), 2, GIRLS)).toContain('she does not finish')
     for (const some of [all, all.slice(0, 2), all.slice(0, 1)]) {
       const account = raceAccount(some, 2, [], 'pool').join('\n')
       expect(account).toContain('the reader 19 metres short')
@@ -704,8 +706,8 @@ describe('Swim Race clock', () => {
   it('gives every time its unit', () => {
     const done = (ms: number): Swimmer => ({ ...onBlocks(250), blockMs: 0, dist: 150, finishMs: ms, strokes: 20, worth: 17 })
     const all = [{ name: 'You', swimmer: done(24_500) }, { name: 'Ana', swimmer: done(63_070) }]
-    expect(raceSummary(all, 6)).toContain('24.50 s to her 1:03.07.')
-    expect(raceSummary(all.slice(0, 1), 6)).toContain('in 24.50 s.')
+    expect(raceSummary(all, 6, GIRLS)).toContain('24.50 s to her 1:03.07.')
+    expect(raceSummary(all.slice(0, 1), 6, GIRLS)).toContain('in 24.50 s.')
     expect(raceAccount(all, 6, []).join('\n')).toContain('1. the reader 24.50 s; 2. Ana 1:03.07')
   })
 

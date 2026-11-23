@@ -11,7 +11,7 @@ const POKER: MiniGameDef = {
   blurb:
     "Texas hold'em for play chips, heads-up or around a table: two cards each, five on the board, bet or fold, and the most chips at the end wins",
   format:
-    "No-limit Texas hold'em between the reader and every girl playing, each for herself, with play chips: the chips are only counters and are worth nothing themselves, so anything really at stake is whatever was agreed in words, and it goes on who wins the game. Everyone starts with the same stack and the blinds are 5 and 10 throughout, moving round with the button each hand, and a player too short for a blind is all-in for what she has; heads-up the button posts the small blind and acts first before the flop. Each hand is two cards face down each, then betting, the flop of three cards, the turn and the river, with betting after each; on his turn the reader folds, checks or calls, or bets or raises half the pot, the pot or all-in. A player all-in for less can win only the part of the pot she matched, the rest going to a side pot; the best five cards of seven win at the showdown and equal hands split the pot. Folded hands are never shown. A player with no chips is out. The game is a set number of hands, ending early if the reader loses all his chips or one player holds them all; whoever has the most chips at the end wins, and level at the top is a draw. There are no rebuys, no antes and no rising blinds.",
+    "No-limit Texas hold'em between the reader and every other player, each playing for themselves, with play chips: the chips are only counters and are worth nothing themselves, so anything really at stake is whatever was agreed in words, and it goes on who wins the game. Everyone starts with the same stack and the blinds are 5 and 10 throughout, moving round with the button each hand, and a player too short for a blind is all-in for what they have; heads-up the button posts the small blind and acts first before the flop. Each hand is two cards face down each, then betting, the flop of three cards, the turn and the river, with betting after each; at each turn the reader folds, checks or calls, or bets or raises half the pot, the pot or all-in. A player all-in for less can win only the part of the pot they matched, the rest going to a side pot; the best five cards of seven win at the showdown and equal hands split the pot. Folded hands are never shown. A player with no chips is out. The game is a set number of hands, ending early if the reader loses every chip or one player holds them all; whoever has the most chips at the end wins, and level at the top is a draw. There are no rebuys, no antes and no rising blinds.",
   options: [
     {
       id: 'hands',
@@ -45,7 +45,7 @@ const POKER: MiniGameDef = {
   controls: 'Click Fold, Check or Call, or a size to bet or raise: half the pot, the pot or all-in.',
   stepped: false,
   skillBrief:
-    'A good player weighs how strong her hand is against the price of a call, bets her good hands, folds her bad ones and bluffs rarely and well; a poor one calls too much, bluffs at the wrong moments or is frightened off the best hand.'
+    'A good player weighs how strong their hand is against the price of a call, bets their good hands, folds their bad ones and bluffs rarely and well; a poor one calls too much, bluffs at the wrong moments or is frightened off the best hand.'
 }
 
 export default POKER

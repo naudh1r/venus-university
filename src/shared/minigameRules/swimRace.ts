@@ -1,4 +1,4 @@
-import { listed } from '../minigameKit'
+import { listed, wordsOf, type Gender } from '../minigameKit'
 
 /**
  * Swim Race's rules: the water, what a stroke, a breath and a turn do to a swimmer, how a girl
@@ -591,8 +591,16 @@ function finishOrder(all: readonly Finisher[]): { who: Finisher; place: number; 
 const shortOf = (swimmer: Swimmer, lengths: number): number =>
   Math.max(1, Math.round(lengths * LENGTH_M - swimmer.dist))
 
-/** The result as the scene narrates it, to "you". The first finisher is the reader. */
-export function raceSummary(all: readonly Finisher[], lengths: number, water: Water = 'water'): string {
+/**
+ * The result as the scene narrates it, to "you". The first finisher is the reader; `genders` is
+ * each of the others' gender, in the same order.
+ */
+export function raceSummary(
+  all: readonly Finisher[],
+  lengths: number,
+  genders: readonly Gender[],
+  water: Water = 'water'
+): string {
   const [me, ...girls] = all
   const out = me.swimmer.finishMs === null
   const mine = timeOf(me.swimmer.finishMs ?? 0)
@@ -608,16 +616,17 @@ export function raceSummary(all: readonly Finisher[], lengths: number, water: Wa
   const order = finishOrder(all)
   if (girls.length === 1) {
     const her = girls[0].swimmer.finishMs
+    const p = wordsOf(genders[0])
     if (out) {
       return her === null
-        ? `You race ${names} ${course} and neither of you finishes: ${called}, and she is not home either.`
-        : `You race ${names} ${course} and do not finish: she ${touch(water) === 'touch' ? 'touches' : 'finishes'} in ${timeOf(her)}, and ${called}.`
+        ? `You race ${names} ${course} and neither of you finishes: ${called}, and ${p.they} is not home either.`
+        : `You race ${names} ${course} and do not finish: ${p.they} ${touch(water) === 'touch' ? 'touches' : 'finishes'} in ${timeOf(her)}, and ${called}.`
     }
-    if (her === null) return `You race ${names} ${course} and win in ${mine}: she does not finish before time is called.`
+    if (her === null) return `You race ${names} ${course} and win in ${mine}: ${p.they} does not finish before time is called.`
     if (outcome === 'draw') return `You race ${names} ${course} and ${touch(water)} together, ${mine} each: a dead heat.`
     return outcome === 'won'
-      ? `You race ${names} ${course} and win, ${mine} to her ${timeOf(her)}.`
-      : `You race ${names} ${course} and lose, ${mine} to her ${timeOf(her)}.`
+      ? `You race ${names} ${course} and win, ${mine} to ${p.their} ${timeOf(her)}.`
+      : `You race ${names} ${course} and lose, ${mine} to ${p.their} ${timeOf(her)}.`
   }
   const told = order
     .map(({ who, index }) => {

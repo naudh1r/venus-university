@@ -1,4 +1,12 @@
-import { listed } from '../minigameKit'
+import {
+  listed,
+  readerAmong,
+  wordsOf,
+  type Gender,
+  type Pronouns,
+  type ReaderPronouns,
+  type ReaderWords
+} from '../minigameKit'
 
 /**
  * Truth or Dare, as far as code can run it: whose turn it is and who asks, what each round asks
@@ -41,11 +49,14 @@ export interface Turn {
 }
 
 /**
- * The game's terms and who is in it. `names` are the girls', in seat order; `manner` is how each
- * plays this game, in a few words, where that was judged.
+ * The game's terms and who is in it. `names` are the girls', in seat order, and `genders` theirs
+ * in the same order; `reader` is the reader's pronouns; `manner` is how each plays this game, in a
+ * few words, where that was judged.
  */
 export interface Terms {
   names: readonly string[]
+  genders: readonly Gender[]
+  reader: ReaderPronouns
   rounds: number
   heat: Heat
   manner?: readonly string[]
@@ -108,12 +119,13 @@ const LIMIT =
  * What holds at heat 4 in place of the limit above: nothing is off the table but what she would
  * not do, and the game stays a game, played where they are.
  */
-const OPEN_LIMIT =
-  'At this heat nothing is ruled out by the game itself: what is asked, dared, said and done may be sexually explicit, and dares may include undressing and touching. Each girl still goes only as far as she really would with him, here and now, and anyone may back out of anything. A dare is still done right here and in a moment; anything that would take longer is for after the game.'
+function openLimit(r: ReaderWords): string {
+  return `At this heat nothing is ruled out by the game itself: what is asked, dared, said and done may be sexually explicit, and dares may include undressing and touching. Everyone else at the table still goes only as far as they really would with ${r.him}, here and now, and anyone may back out of anything. A dare is still done right here and in a moment; anything that would take longer is for after the game.`
+}
 
 /** The line a game's briefs hold to: the open one at heat 4, the party one at every other. */
-function limitOf(heat: Heat): string {
-  return heat === 4 ? OPEN_LIMIT : LIMIT
+function limitOf(terms: Terms): string {
+  return terms.heat === 4 ? openLimit(everyone(terms)) : LIMIT
 }
 
 const ADULTS = 'Everyone at the table is an adult.'
@@ -162,6 +174,16 @@ export function seatName(terms: Terms, seat: number): string {
 /** A seat's name as the model is told it. */
 function told(terms: Terms, seat: number): string {
   return seat === READER ? 'the reader' : terms.names[seat - 1]
+}
+
+/** The words a line about the girl in a seat is written in. */
+function wordsAt(terms: Terms, seat: number): Pronouns {
+  return wordsOf(terms.genders[seat - 1] ?? 'female')
+}
+
+/** The reader's words for a text that names everyone at the table, as every brief does. */
+function everyone(terms: Terms): ReaderWords {
+  return readerAmong(terms.reader, terms.genders)
 }
 
 export function scored(verdict: Verdict): boolean {
@@ -301,14 +323,15 @@ function frame(terms: Terms, log: readonly Turn[]): string[] {
   const player = playerAt(terms, turn)
   const asker = askerAt(terms, turn)
   const used = askedSoFar(log)
+  const r = everyone(terms)
   const manners = terms.names
     .map((name, i) => (terms.manner?.[i] ? `${name} is ${terms.manner[i]}` : ''))
     .filter(Boolean)
   return [
     `Truth or Dare, turn ${turn + 1} of ${turnsIn(terms)}. It is ${told(terms, player)}'s turn to take a truth or a dare; ${told(terms, asker)} is the one who asks the question or sets the dare.`,
-    `Heat is ${terms.heat} of ${terms.heat === 4 ? 4 : 3}, ${HEAT_MEANS[terms.heat]} That is the ceiling, not a target. ${limitOf(terms.heat)}`,
+    `Heat is ${terms.heat} of ${terms.heat === 4 ? 4 : 3}, ${HEAT_MEANS[terms.heat]} That is the ceiling, not a target. ${limitOf(terms)}`,
     `${ADULTS} ${NO_LIFT}`,
-    'Write every girl in her own character and voice, as her sheet and the scene so far show her. How close she is to the reader is judged from the scene so far, by how she has been with him in it: she says and does only what she really would with him, here, now, and no more than that shows.',
+    `Write everyone else at the table in their own character and voice, as their sheet and the scene so far show them. How close each is to the reader is judged from the scene so far, by how they have been with ${r.him} in it: each says and does only what they really would with ${r.him}, here, now, and no more than that shows.`,
     ...(manners.length > 0 ? [`How each plays this game: ${manners.join('. ')}.`] : []),
     used.length > 0
       ? `Already asked or dared this game, none of which may be repeated or reworded: ${used.map((p) => `"${p}"`).join(' ')}`
@@ -316,18 +339,22 @@ function frame(terms: Terms, log: readonly Turn[]): string[] {
   ]
 }
 
-const HER_WORDS = 'her spoken words only, in her own voice: one or two sentences, no narration, no stage directions'
+/** What a line of one girl's is to be, in her words. */
+function herWords(p: Pronouns): string {
+  return `${p.their} spoken words only, in ${p.their} own voice: one or two sentences, no narration, no stage directions`
+}
 
 /** A girl's turn opens: does she take truth or dare? */
 export function chooseRound(terms: Terms, log: readonly Turn[]): RoundPlan {
   const her = told(terms, playerAt(terms, log.length))
   const asker = told(terms, askerAt(terms, log.length))
+  const p = wordsAt(terms, playerAt(terms, log.length))
   return {
     brief: [
       ...frame(terms, log),
-      `${her} now picks truth or dare, in character: what she would really pick with ${asker} doing the asking, given her nerve, her mood and how the game has gone.`,
-      `"choice" is her pick: "truth" or "dare".`,
-      `"line" is what ${her} says as she picks, ${HER_WORDS}. It must make her pick plain.`
+      `${her} now picks truth or dare, in character: what ${p.they} would really pick with ${asker} doing the asking, given ${p.their} nerve, ${p.their} mood and how the game has gone.`,
+      `"choice" is ${p.their} pick: "truth" or "dare".`,
+      `"line" is what ${her} says as ${p.they} picks, ${herWords(p)}. It must make ${p.their} pick plain.`
     ].join('\n'),
     fields: { choice: ['truth', 'dare'], line: 'text' }
   }
@@ -335,15 +362,22 @@ export function chooseRound(terms: Terms, log: readonly Turn[]): RoundPlan {
 
 /** A girl puts the question or sets the dare for whoever's turn it is; here, the reader's. */
 export function poseRound(terms: Terms, log: readonly Turn[], kind: Kind): RoundPlan {
-  const her = told(terms, askerAt(terms, log.length))
-  const player = told(terms, playerAt(terms, log.length))
+  const asking = askerAt(terms, log.length)
+  const seat = playerAt(terms, log.length)
+  const her = told(terms, asking)
+  const player = told(terms, seat)
+  const p = wordsAt(terms, asking)
+  const r = everyone(terms)
+  // Whoever's turn it is, in their words: the reader, or another girl.
+  const q = seat === READER ? null : wordsAt(terms, seat)
+  const them = q ? { he: q.they, him: q.them } : { he: r.he, him: r.him }
   return {
     brief: [
       ...frame(terms, log),
       `${player} has picked ${kind}. ${her} now ${kind === 'truth' ? 'asks the question' : 'sets the dare'}.`,
       kind === 'truth'
-        ? `"prompt" is the one question ${her} asks ${player}, ${HER_WORDS}. A real question with something at stake for him, about him, about her or about the two of them, answerable in a sentence or two.`
-        : `"prompt" is the dare ${her} sets ${player}, ${HER_WORDS}. One thing he can do right here at the table in a moment and describe in a sentence: nothing that needs him to leave, and nothing that needs anyone outside the game.`
+        ? `"prompt" is the one question ${her} asks ${player}, ${herWords(p)}. A real question with something at stake for ${them.him}, about ${them.him}, about ${p.them} or about the two of them, answerable in a sentence or two.`
+        : `"prompt" is the dare ${her} sets ${player}, ${herWords(p)}. One thing ${them.he} can do right here at the table in a moment and describe in a sentence: nothing that needs ${them.him} to leave, and nothing that needs anyone outside the game.`
     ].join('\n'),
     fields: { prompt: 'text' }
   }
@@ -358,17 +392,18 @@ export function answerRound(
 ): RoundPlan {
   const her = told(terms, playerAt(terms, log.length))
   const asker = told(terms, askerAt(terms, log.length))
+  const p = wordsAt(terms, playerAt(terms, log.length))
   const [yes, no] = verdictsFor(kind)
-  const head = [...frame(terms, log), `${her} picked ${kind}. ${asker} put it to her, word for word: "${prompt}"`]
+  const head = [...frame(terms, log), `${her} picked ${kind}. ${asker} put it to ${p.them}, word for word: "${prompt}"`]
   if (kind === 'truth') {
     return {
       brief: [
         ...head,
-        `${her} now answers, in character. She answers for real where she would; where the question goes further than she would go with ${asker}, or than the heat allows, she ducks it.`,
-        `"line" is what ${her} says in answer, ${HER_WORDS}. The answer itself, not a remark about answering.`,
-        `"outcome" is "${yes}" where her line truly answers the question, and "${no}" where she deflected, joked past it or refused.`,
+        `${her} now answers, in character. ${p.They} answers for real where ${p.they} would; where the question goes further than ${p.they} would go with ${asker}, or than the heat allows, ${p.they} ducks it.`,
+        `"line" is what ${her} says in answer, ${herWords(p)}. The answer itself, not a remark about answering.`,
+        `"outcome" is "${yes}" where ${p.their} line truly answers the question, and "${no}" where ${p.they} deflected, joked past it or refused.`,
         fairField('the question as it was put'),
-        `Where it is "over", ${her} does not answer it or repeat it: her line says, in her own way, that it is past what was agreed.`
+        `Where it is "over", ${her} does not answer it or repeat it: ${p.their} line says, in ${p.their} own way, that it is past what was agreed.`
       ].join('\n'),
       fields: { line: 'text', outcome: [yes, no], fair: FAIR }
     }
@@ -376,12 +411,12 @@ export function answerRound(
   return {
     brief: [
       ...head,
-      `${her} now does the dare or backs out, in character. She goes through with what she would really do; where it goes further than she would go with ${asker}, further than the heat allows, or cannot be done right here, she backs out.`,
-      `"line" is what ${her} says as she does it or backs out, ${HER_WORDS}.`,
-      `"action" is one short sentence of narration in the present tense, naming her, of what she is seen to do: the dare carried out, or how she backs out. The reader is "you" in it.`,
-      `"outcome" is "${yes}" where she went through with the dare, and "${no}" where she backed out or did something lesser instead.`,
+      `${her} now does the dare or backs out, in character. ${p.They} goes through with what ${p.they} would really do; where it goes further than ${p.they} would go with ${asker}, further than the heat allows, or cannot be done right here, ${p.they} backs out.`,
+      `"line" is what ${her} says as ${p.they} does it or backs out, ${herWords(p)}.`,
+      `"action" is one short sentence of narration in the present tense, naming ${p.them}, of what ${p.they} is seen to do: the dare carried out, or how ${p.they} backs out. The reader is "you" in it.`,
+      `"outcome" is "${yes}" where ${p.they} went through with the dare, and "${no}" where ${p.they} backed out or did something lesser instead.`,
       fairField('the dare as it was set'),
-      `Where it is "over", ${her} does not do it or repeat it: her line says, in her own way, that it is past what was agreed, and "action" is her not doing it.`
+      `Where it is "over", ${her} does not do it or repeat it: ${p.their} line says, in ${p.their} own way, that it is past what was agreed, and "action" is ${p.them} not doing it.`
     ].join('\n'),
     fields: { line: 'text', action: 'text', outcome: [yes, no], fair: FAIR }
   }
@@ -398,15 +433,18 @@ export function judgeRound(
   prompt: string,
   reply: string | null
 ): RoundPlan {
-  const her = told(terms, askerAt(terms, log.length))
+  const asking = askerAt(terms, log.length)
+  const her = told(terms, asking)
+  const p = wordsAt(terms, asking)
+  const r = everyone(terms)
   const [yes, no] = verdictsFor(kind)
-  const head = [...frame(terms, log), `The reader picked ${kind}. ${her} put it to him: "${prompt}"`]
+  const head = [...frame(terms, log), `The reader picked ${kind}. ${her} put it to ${r.him}: "${prompt}"`]
   if (reply === null) {
     return {
       brief: [
         ...head,
-        `The reader backed out: he ${kind === 'truth' ? 'would not answer' : 'would not do it'}, and scores nothing for the turn.`,
-        `"line" is what ${her} says to that, ${HER_WORDS}.`
+        `The reader backed out: ${r.he} ${kind === 'truth' ? 'would not answer' : 'would not do it'}, and scores nothing for the turn.`,
+        `"line" is what ${her} says to that, ${herWords(p)}.`
       ].join('\n'),
       fields: { line: 'text' }
     }
@@ -416,13 +454,13 @@ export function judgeRound(
       ...head,
       kind === 'truth'
         ? `The reader answered, word for word: "${reply}"`
-        : `The reader says what he does, word for word: "${reply}"`,
-      `${her} reacts and judges it, in character and on its merits: he scores only for a real ${kind === 'truth' ? 'answer' : 'dare carried out'}. A non-answer, a joke that gets round it, a refusal, or a blank or one-word evasion does not score, however it is dressed up. Where what he typed goes further than the heat allows, she does not go along with it or repeat it: she laughs it off or calls him on it, and her own line stays within the heat.`,
-      `"line" is what ${her} says in reaction, ${HER_WORDS}. She reacts to what he actually ${kind === 'truth' ? 'said' : 'did'}.`,
+        : `The reader says what ${r.he} does, word for word: "${reply}"`,
+      `${her} reacts and judges it, in character and on its merits: ${r.he} scores only for a real ${kind === 'truth' ? 'answer' : 'dare carried out'}. A non-answer, a joke that gets round it, a refusal, or a blank or one-word evasion does not score, however it is dressed up. Where what ${r.he} typed goes further than the heat allows, ${p.they} does not go along with it or repeat it: ${p.they} laughs it off or calls ${r.him} on it, and ${p.their} own line stays within the heat.`,
+      `"line" is what ${her} says in reaction, ${herWords(p)}. ${p.They} reacts to what ${r.he} actually ${kind === 'truth' ? 'said' : 'did'}.`,
       kind === 'truth'
-        ? `"verdict" is "${yes}" where he gave a real answer to the question asked, and "${no}" where he deflected, joked past it or answered something else.`
-        : `"verdict" is "${yes}" where what he describes is the dare carried out, and "${no}" where he did not do it, refused, or did something lesser instead.`,
-      fairField('what he typed')
+        ? `"verdict" is "${yes}" where ${r.he} gave a real answer to the question asked, and "${no}" where ${r.he} deflected, joked past it or answered something else.`
+        : `"verdict" is "${yes}" where what ${r.he} describes is the dare carried out, and "${no}" where ${r.he} did not do it, refused, or did something lesser instead.`,
+      fairField(`what ${r.he} typed`)
     ].join('\n'),
     fields: { line: 'text', verdict: [yes, no], fair: FAIR }
   }
@@ -579,19 +617,20 @@ const VERDICT_TOLD: Record<Verdict, string> = {
 }
 
 /**
- * The turn just played, for whoever remarks on it, with how far her remark may go. A void turn
- * is told as that and no more: what it was void for is not passed on.
+ * The turn just played, for the girl in `seat` who remarks on it, with how far her remark may go.
+ * A void turn is told as that and no more: what it was void for is not passed on.
  */
-export function remarkCue(terms: Terms, turn: Turn): string {
+export function remarkCue(terms: Terms, turn: Turn, seat: number): string {
   const player = told(terms, turn.player)
   const asker = told(terms, turn.asker)
-  const bounds = `Her remark keeps to the game's heat, ${HEAT_MEANS[terms.heat]} ${limitOf(terms.heat)} ${ADULTS} ${NO_LIFT}`
+  const p = wordsAt(terms, seat)
+  const bounds = `${p.Their} remark keeps to the game's heat, ${HEAT_MEANS[terms.heat]} ${limitOf(terms)} ${ADULTS} ${NO_LIFT}`
   if (turn.verdict === 'void') {
-    return `${asker} put a ${turn.kind} to ${player}, and the turn was called void for going past what was agreed: no point to anyone. She was watching, not part of that turn; she does not guess at or repeat what it was. ${bounds}`
+    return `${asker} put a ${turn.kind} to ${player}, and the turn was called void for going past what was agreed: no point to anyone. ${p.They} was watching, not part of that turn; ${p.they} does not guess at or repeat what it was. ${bounds}`
   }
   const put = turn.kind === 'truth' ? `asked ${player} "${turn.prompt}"` : `dared ${player}: "${turn.prompt}"`
   const said = turn.reply ? ` ${player} said: "${turn.reply}"` : ''
-  return `${asker} ${put}.${said} ${player} ${VERDICT_TOLD[turn.verdict]}. She was watching, not part of that turn. ${bounds}`
+  return `${asker} ${put}.${said} ${player} ${VERDICT_TOLD[turn.verdict]}. ${p.They} was watching, not part of that turn. ${bounds}`
 }
 
 /* What the framework is told. */
@@ -657,7 +696,12 @@ function turnTold(terms: Terms, turn: Turn, at: number): string {
   }
   const backed = turn.player === READER && turn.reply === ''
   // His dare is his own account of what he did; hers is her line, and then what she was seen to do.
-  const verb = turn.kind === 'truth' ? 'answered' : turn.player === READER ? 'said what he did' : 'said'
+  const verb =
+    turn.kind === 'truth'
+      ? 'answered'
+      : turn.player === READER
+        ? `said what ${readerAmong(terms.reader, [terms.genders[turn.asker - 1]]).he} did`
+        : 'said'
   const body = backed
     ? ` ${player} backed out without ${turn.kind === 'truth' ? 'answering' : 'doing it'}.`
     : `${turn.reply ? ` ${player} ${verb}: "${turn.reply}"` : ''}${turn.deed ? ` ${turn.deed}` : ''}`
@@ -689,7 +733,7 @@ export function accountOf(terms: Terms, log: readonly Turn[]): string[] {
       : 'Nobody dodged or backed out.',
     ...(lost.length > 0
       ? [
-          `Turns skipped through nobody's fault, not held against her: ${lost.map((seat) => `${told(terms, seat)} ${times(count(seat, (v) => v === 'skipped'))}`).join(', ')}.`
+          `Turns skipped through nobody's fault, not held against ${lost.length === 1 && lost[0] !== READER ? wordsAt(terms, lost[0]).them : 'them'}: ${lost.map((seat) => `${told(terms, seat)} ${times(count(seat, (v) => v === 'skipped'))}`).join(', ')}.`
         ]
       : []),
     ...(voided > 0 ? [`Turns called void for going past what was agreed: ${voided}.`] : []),

@@ -1,4 +1,4 @@
-import { listed, seededRand } from '../minigameKit'
+import { listed, readerWords, seededRand, type ReaderPronouns } from '../minigameKit'
 
 /**
  * Whack-a-Bun's rules: the pattern of a round, what a swing lands on, the score, how a girl
@@ -489,7 +489,13 @@ export function halfwayLine(mine: Tally, rivals: readonly Rival[]): string {
  * How a round stands at `at` ms, as the scene's writer is told it should the reader walk away
  * there: the terms, how far in it was, and the scores.
  */
-export function standingAccount(pattern: Pattern, at: number, mine: Tally, rivals: readonly Rival[]): string[] {
+export function standingAccount(
+  pattern: Pattern,
+  at: number,
+  mine: Tally,
+  rivals: readonly Rival[],
+  reader: ReaderPronouns
+): string[] {
   const left = Math.max(0, Math.ceil((pattern.lengthMs - at) / 1000))
   const terms = `${pattern.seconds} seconds at a ${paceName(pattern.pace)} pace`
   const where = at <= 0 ? 'had only just begun' : `had ${left} of its ${pattern.seconds} seconds left`
@@ -498,7 +504,7 @@ export function standingAccount(pattern: Pattern, at: number, mine: Tally, rival
       `The reader was playing a round of Whack-a-Bun alone at the arcade, ${terms}, and it ${where}.`,
       at <= 0
         ? 'Nothing was scored yet.'
-        : `He had ${mine.score} points: ${mine.hits + mine.golds} bunnies bopped, ${mine.misses} away, ${mine.decoys} carrots hit, best run ${mine.best} in a row.`
+        : `${readerWords(reader).He} had ${mine.score} points: ${mine.hits + mine.golds} bunnies bopped, ${mine.misses} away, ${mine.decoys} carrots hit, best run ${mine.best} in a row.`
     ]
   }
   const lead = leaderOf(scoresOf(mine, rivals))
@@ -551,12 +557,16 @@ function playedLine(who: string, pattern: Pattern, tally: Tally): string {
   return `${who} scored ${tally.score}: ${tally.hits} of ${counts.bun} bunnies bopped and ${tally.misses} got away, ${tally.golds} of ${counts.gold} golden ones caught, ${tally.decoys} of ${counts.decoy} carrots hit by mistake, ${tally.strays} swings at an empty hole, best run ${tally.best} in a row.`
 }
 
-const PLAYED: Readonly<Record<ReaderPlay, string>> = {
-  sharp: 'The reader played sharp: nearly everything bopped and hardly a swing wasted.',
-  wild: 'The reader played wild: swinging at everything, carrots and empty holes included, which kept breaking his run.',
-  slow: 'The reader was slow: a lot of bunnies had ducked before his mallet got to them.',
-  cautious: 'The reader played carefully: not one carrot hit and hardly a swing wasted, though some bunnies got away.',
-  steady: 'The reader played steadily: most of the bunnies, the odd one away.'
+function playedTold(play: ReaderPlay, reader: ReaderPronouns): string {
+  const r = readerWords(reader)
+  const told: Readonly<Record<ReaderPlay, string>> = {
+    sharp: 'The reader played sharp: nearly everything bopped and hardly a swing wasted.',
+    wild: `The reader played wild: swinging at everything, carrots and empty holes included, which kept breaking ${r.his} run.`,
+    slow: `The reader was slow: a lot of bunnies had ducked before ${r.his} mallet got to them.`,
+    cautious: 'The reader played carefully: not one carrot hit and hardly a swing wasted, though some bunnies got away.',
+    steady: 'The reader played steadily: most of the bunnies, the odd one away.'
+  }
+  return told[play]
 }
 
 /** A margin under this many plain bunnies is a close game. */
@@ -566,11 +576,11 @@ const CLOSE_BUNS = 3
  * A round played alone as the scene's writer is told it: the terms, the count, and how he went
  * about it.
  */
-export function soloAccount(pattern: Pattern, mine: Tally): string[] {
+export function soloAccount(pattern: Pattern, mine: Tally, reader: ReaderPronouns): string[] {
   return [
     `The reader played one round of Whack-a-Bun alone at the arcade, ${pattern.seconds} seconds at a ${paceName(pattern.pace)} pace: bunnies to bop for 10, golden ones for triple, carrots that cost 20 if hit, 5 off for a swing at an empty hole.`,
     playedLine('The reader', pattern, mine),
-    PLAYED[readerPlay(pattern, mine)]
+    playedTold(readerPlay(pattern, mine), reader)
   ]
 }
 
@@ -583,7 +593,8 @@ export function versusAccount(
   pattern: Pattern,
   mine: Tally,
   rivals: readonly Rival[],
-  halfway: readonly number[]
+  halfway: readonly number[],
+  reader: ReaderPronouns
 ): string[] {
   const who = (place: number): string => (place === 0 ? 'the reader' : rivals[place - 1].name)
   const scores = scoresOf(mine, rivals)
@@ -600,7 +611,7 @@ export function versusAccount(
     led < 0
       ? 'At halfway nobody was alone in front.'
       : `At halfway ${who(led)} led${won >= 0 && won !== led ? `, and ${who(won)} came past in the second half` : ''}.`,
-    PLAYED[readerPlay(pattern, mine)],
+    playedTold(readerPlay(pattern, mine), reader),
     top.length > 1
       ? `It ended level at the top: ${listed(top.map((entry) => who(entry.place)))} on ${best} each.`
       : best - second < CLOSE_BUNS * BUN_POINTS

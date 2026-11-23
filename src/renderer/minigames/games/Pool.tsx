@@ -341,7 +341,7 @@ export function Pool({ play }: { play: GamePlay }): JSX.Element {
       // One line of hers at a time: a shot that comes while one is still being written goes unremarked.
       if (saying) return
       if (remarks >= REMARKS[now.chattiness]) return
-      const about = shotCue(her.name, shot)
+      const about = shotCue(her.name, her.gender, now.reader, shot)
       if (!about) return
       if (!about.notable && (now.chattiness !== 'lots' || sinceRemark < ORDINARY_EVERY)) return
       remarks++
@@ -453,7 +453,7 @@ export function Pool({ play }: { play: GamePlay }): JSX.Element {
       rack = got.rack
       shots.push(got.record)
       const now = latest.current
-      void told(shotLine(her?.name ?? '', got.record, solo))
+      void told(shotLine(her?.name ?? '', her?.gender ?? 'female', got.record, solo))
       // What the scene is to know of it, should he walk away from here.
       const tell = (): void => {
         now.progress(her ? matchProgress(her.name, rack, racksWon(racks), race) : soloProgress(rack, shots))
@@ -463,7 +463,7 @@ export function Pool({ play }: { play: GamePlay }): JSX.Element {
         ended = true
         phase = 'over'
         sync()
-        finish({ outcome: 'played', summary: soloSummary(shots), account: soloAccount(shots) })
+        finish({ outcome: 'played', summary: soloSummary(shots), account: soloAccount(shots, now.reader) })
         return
       }
       if (rack.winner && her) {
@@ -476,8 +476,8 @@ export function Pool({ play }: { play: GamePlay }): JSX.Element {
           sync()
           finish({
             outcome: won.reader > won.her ? 'won' : 'lost',
-            summary: matchSummary(her.name, racks),
-            account: matchAccount(her.name, racks, race)
+            summary: matchSummary(her.name, her.gender, racks),
+            account: matchAccount(her.name, her.gender, racks, race)
           })
           return
         }

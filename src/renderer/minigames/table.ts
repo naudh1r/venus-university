@@ -18,7 +18,7 @@ import {
 } from '@vx/modkit/renderer'
 import { create } from 'zustand'
 import { gamesOffered, gameSwitchOn, listed, type MiniGameDef } from '@shared/minigames'
-import { modById, optionKey, READER_SPEAKER } from '@vx/modkit/shared'
+import { modById, optionKey, pronounsOf, READER_SPEAKER } from '@vx/modkit/shared'
 import type { Emotion } from '@shared/types'
 import { useModsStore, modIsOn } from '../stores/modsStore'
 import { gameComponent, type PlayResult } from './play'
@@ -67,10 +67,13 @@ function presentOf(view: SceneView | null): readonly string[] {
   return view?.present ?? NOBODY
 }
 
-/** What the reader calls a girl: her first name once he has been told it, "her" until then. */
+/**
+ * What the reader calls someone: her first name once he has been told it, and until then "her",
+ * or "him" for a guy.
+ */
 export function nameOf(charId: string): string {
   const known = characterInfo(charId)?.nameKnown
-  return (known && character(charId)?.firstName) || 'her'
+  return (known && character(charId)?.firstName) || pronounsOf(character(charId)).them
 }
 
 /** The reader is standing at his own turn, with nothing left to read. */

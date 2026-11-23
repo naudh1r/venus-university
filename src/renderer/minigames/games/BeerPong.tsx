@@ -31,7 +31,7 @@ import {
   type Shot,
   type Throw
 } from '@shared/minigameRules/beerPong'
-import { listed } from '@shared/minigameKit'
+import { listed, readerWords, wordsOf } from '@shared/minigameKit'
 import { gestures, lift, press } from '../kit'
 import type { GamePlay } from '../kit'
 import '../../vu_styles/BeerPong.css'
@@ -191,7 +191,8 @@ export function BeerPong({ play }: { play: GamePlay }): JSX.Element {
     const line = `You call your re-rack: the ${left} cups left are pulled in tight.`
     setLastTold(line)
     play.narrate(line)
-    remark(lastSaid(), `The reader used his side's one re-rack: the ${left} cups he is throwing at were pulled in tight.`)
+    const r = readerWords(play.reader)
+    remark(lastSaid(), `The reader used ${r.his} side's one re-rack: the ${left} cups ${r.he} is throwing at were pulled in tight.`)
   }
 
   /** The girl who has said least so far, the first of them. */
@@ -269,6 +270,7 @@ export function BeerPong({ play }: { play: GamePlay }): JSX.Element {
     const pause = !several ? HER_PAUSE_MS : !last || last.who === 0 ? BRISK.afterReaderMs : BRISK.betweenMs
     // The beat runs from the throw before hers, so time spent on a remark is not waited out twice.
     const beat = (): number => Math.max(300, pause - (performance.now() - landedAt.current))
+    const p = wordsOf(her.gender)
     if (play.stepped) {
       // The reader's own side's re-rack is his to call.
       const pulls = side === 1 && herRerack(game, side)
@@ -283,10 +285,10 @@ export function BeerPong({ play }: { play: GamePlay }): JSX.Element {
           if (pulls) {
             landedAt.current = performance.now()
             setGame(rerack(game, side))
-            const line = `${her.name} calls ${several ? 'their' : 'her'} re-rack: your ${cups} cups are pulled in tight.`
+            const line = `${her.name} calls ${several ? 'their' : p.their} re-rack: your ${cups} cups are pulled in tight.`
             setLastTold(line)
             play.narrate(line)
-            remark(who - 1, `${her.name} used her side's one re-rack: the ${cups} cups she is throwing at were pulled in tight.`)
+            remark(who - 1, `${her.name} used ${p.their} side's one re-rack: the ${cups} cups ${p.they} is throwing at were pulled in tight.`)
             return
           }
           launch(herThrow(game.sides[side === 0 ? 1 : 0].cups, her.skill, tipsyOf(game, side)))
@@ -301,10 +303,10 @@ export function BeerPong({ play }: { play: GamePlay }): JSX.Element {
         const cups = game.sides[0].cups.length
         landedAt.current = performance.now()
         setGame(rerack(game, side))
-        const line = `${her.name} calls ${several ? 'their' : 'her'} re-rack: your ${cups} cups are pulled in tight.`
+        const line = `${her.name} calls ${several ? 'their' : p.their} re-rack: your ${cups} cups are pulled in tight.`
         setLastTold(line)
         play.narrate(line)
-        remark(who - 1, `${her.name} used her side's one re-rack: the ${cups} cups she is throwing at were pulled in tight.`)
+        remark(who - 1, `${her.name} used ${p.their} side's one re-rack: the ${cups} cups ${p.they} is throwing at were pulled in tight.`)
         return
       }
       launch(herThrow(game.sides[side === 0 ? 1 : 0].cups, her.skill, tipsyOf(game, side)))

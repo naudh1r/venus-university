@@ -1,4 +1,4 @@
-import { listed } from '../minigameKit'
+import { listed, wordsOf, type Gender } from '../minigameKit'
 
 /**
  * Rink Race's rules: the oval, what a stride is worth by its timing, what a bend does to a
@@ -616,9 +616,9 @@ export function summary(race: Race, girls: readonly string[]): string {
 /**
  * The race as the scene's writer is told it: the order and the times, how near it was, who led
  * and when the lead changed, who fell and where, how the reader skated, and the state they are
- * all in. Alone, the same of the one run.
+ * all in. Alone, the same of the one run. `genders` is each girl's gender, in the order of `girls`.
  */
-export function account(race: Race, girls: readonly string[]): string[] {
+export function account(race: Race, girls: readonly string[], genders: readonly Gender[]): string[] {
   const name = (who: number): string => (who === 0 ? 'the reader' : girls[who - 1])
   const cap = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
   const me = race.skaters[0]
@@ -695,7 +695,7 @@ export function account(race: Race, girls: readonly string[]): string[] {
     const skater = race.skaters[who]
     const slips = skater.wide + skater.wobbles
     lines.push(
-      `${girls[who - 1]} skated with a ${rhythmWord(skater.strides)} stride${slips > 0 ? ` and lost the line in a bend ${times(slips)}` : ' and kept her line in the bends'}.`
+      `${girls[who - 1]} skated with a ${rhythmWord(skater.strides)} stride${slips > 0 ? ` and lost the line in a bend ${times(slips)}` : ` and kept ${wordsOf(genders[who - 1]).their} line in the bends`}.`
     )
   }
   lines.push(

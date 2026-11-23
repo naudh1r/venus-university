@@ -5,7 +5,7 @@ const def: ModDef = {
   id: MINI_GAMES,
   name: 'Mini-games',
   author: 'morrowkiln',
-  version: '0.2.4',
+  version: '0.2.5',
   scope: 'anytime',
   // Off until the player turns it on, as every new mod in the build ships.
   defaultOn: false,

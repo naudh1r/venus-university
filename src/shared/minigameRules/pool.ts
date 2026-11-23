@@ -5,7 +5,7 @@
  * surface running from (0, 0) to (TABLE_W, TABLE_H); times are in seconds, angles in radians.
  */
 
-import { listed } from '../minigameKit'
+import { listed, readerWords, wordsOf, type Gender, type ReaderPronouns } from '../minigameKit'
 
 export const TABLE_W = 800
 export const TABLE_H = 400
@@ -1013,8 +1013,9 @@ const FOUL_WORD: Record<Foul, string> = {
   'wrong-ball': 'the wrong ball is struck first'
 }
 
-/** A shot as the dialogue box says it. `name` is hers; alone it is not used. */
-export function shotLine(name: string, shot: ShotRecord, solo = false): string {
+/** A shot as the dialogue box says it. `name` and `gender` are hers; alone they are not used. */
+export function shotLine(name: string, gender: Gender, shot: ShotRecord, solo = false): string {
+  const p = wordsOf(gender)
   const you = shot.by === 'reader'
   const who = you ? 'You' : name
   const verb = (mine: string, hers: string): string => (you ? mine : hers)
@@ -1022,7 +1023,7 @@ export function shotLine(name: string, shot: ShotRecord, solo = false): string {
   const parts: string[] = []
 
   if (shot.eight === 'win') {
-    return `${who} ${verb('sink', 'sinks')} the eight${shot.potted.length > 1 ? ` with ${ballsWord(shot.potted.filter((id) => id !== 8))}` : ''}: the rack is ${verb('yours', 'hers')}.`
+    return `${who} ${verb('sink', 'sinks')} the eight${shot.potted.length > 1 ? ` with ${ballsWord(shot.potted.filter((id) => id !== 8))}` : ''}: the rack is ${verb('yours', p.theirs)}.`
   }
   if (shot.eight === 'early') {
     return `${who} ${verb('pot', 'pots')} the eight too early: the rack goes to ${them}.`
@@ -1060,7 +1061,14 @@ export function shotLine(name: string, shot: ShotRecord, solo = false): string {
  * What a shot gives her to say something about, as a plain account for the model: `notable` for
  * the moments worth a word however little she talks. Null where there is nothing in it.
  */
-export function shotCue(name: string, shot: ShotRecord): { cue: string; notable: boolean } | null {
+export function shotCue(
+  name: string,
+  gender: Gender,
+  reader: ReaderPronouns,
+  shot: ShotRecord
+): { cue: string; notable: boolean } | null {
+  const p = wordsOf(gender)
+  const r = readerWords(reader, gender)
   const who = shot.by === 'reader' ? 'the reader' : name
   const them = shot.by === 'reader' ? name : 'the reader'
   if (shot.winner) {
@@ -1079,14 +1087,14 @@ export function shotCue(name: string, shot: ShotRecord): { cue: string; notable:
     }
   }
   if (shot.onEightNow) {
-    return { cue: `${who} potted the last of ${shot.by === 'reader' ? 'his' : 'her'} group and is on the eight.`, notable: true }
+    return { cue: `${who} potted the last of ${shot.by === 'reader' ? r.his : p.their} group and is on the eight.`, notable: true }
   }
   if (shot.fluke) {
     return {
       cue:
         shot.by === 'reader'
           ? `${who} potted ${ballsWord(shot.own)} by a plain fluke: the cue ball had bounced around the table before anything sent it in.`
-          : `${who} potted ${ballsWord(shot.own)} by a fluke: it was not the ball she was playing for.`,
+          : `${who} potted ${ballsWord(shot.own)} by a fluke: it was not the ball ${p.they} was playing for.`,
       notable: true
     }
   }
@@ -1108,7 +1116,7 @@ export function shotCue(name: string, shot: ShotRecord): { cue: string; notable:
   if (shot.own.length > 0) return { cue: `${who} potted ${ballsWord(shot.own)} and shoots again.`, notable: false }
   if (shot.other.length > 0 && !shot.breakShot) {
     return {
-      cue: `${who} potted ${ballsWord(shot.other)}, which ${shot.other.length > 1 ? 'are' : 'is'} ${them}'s, not ${shot.by === 'reader' ? 'his' : 'her'} own: a mistake that helps ${them}, and the turn passes.`,
+      cue: `${who} potted ${ballsWord(shot.other)}, which ${shot.other.length > 1 ? 'are' : 'is'} ${them}'s, not ${shot.by === 'reader' ? r.his : p.their} own: a mistake that helps ${them}, and the turn passes.`,
       notable: false
     }
   }
@@ -1228,7 +1236,8 @@ export function racksWon(racks: readonly RackRecord[]): Record<Side, number> {
 }
 
 /** The match in the scene's own narration. */
-export function matchSummary(name: string, racks: readonly RackRecord[]): string {
+export function matchSummary(name: string, gender: Gender, racks: readonly RackRecord[]): string {
+  const p = wordsOf(gender)
   const won = racksWon(racks)
   const mine = won.reader > won.her
   const last = racks[racks.length - 1]
@@ -1237,13 +1246,13 @@ export function matchSummary(name: string, racks: readonly RackRecord[]): string
     final?.eight === 'win'
       ? mine
         ? 'sinking the eight'
-        : 'when she sinks the eight'
+        : `when ${p.they} sinks the eight`
       : final?.eight === 'early'
         ? mine
-          ? 'when she pots the eight too early'
+          ? `when ${p.they} pots the eight too early`
           : 'by potting the eight too early'
         : mine
-          ? 'when she fouls on the eight'
+          ? `when ${p.they} fouls on the eight`
           : 'by fouling on the eight'
   if (racks.length === 1) {
     return `You play a rack of eight-ball with ${name} and ${mine ? 'win' : 'lose'}, ${how}.`
@@ -1252,7 +1261,8 @@ export function matchSummary(name: string, racks: readonly RackRecord[]): string
 }
 
 /** The match for the scene's writer: what was played, how each rack went, and play told from luck. */
-export function matchAccount(name: string, racks: readonly RackRecord[], race: number): string[] {
+export function matchAccount(name: string, gender: Gender, racks: readonly RackRecord[], race: number): string[] {
+  const p = wordsOf(gender)
   const called = (side: Side): string => (side === 'reader' ? 'the reader' : name)
   const lines = [
     `It was eight-ball pool, ${race > 1 ? 'best of three racks' : 'a single rack'}: played standing round the table, taking turns, unhurried, a few minutes a rack.`
@@ -1302,10 +1312,10 @@ export function matchAccount(name: string, racks: readonly RackRecord[], race: n
     const off = hers.reduce((sum, shot) => sum + Math.abs(shot.aimError ?? 0), 0) / hers.length
     lines.push(
       off < 0.004
-        ? `${name} cued very straight all game: her pots were earned.`
+        ? `${name} cued very straight all game: ${p.their} pots were earned.`
         : off < 0.012
           ? `${name} cued decently, a little off line now and then.`
-          : `${name} was often well off the line she was aiming for: her misses were her own doing, not bad luck.`
+          : `${name} was often well off the line ${p.they} was aiming for: ${p.their} misses were ${p.their} own doing, not bad luck.`
     )
   }
   const won = racksWon(racks)
@@ -1324,7 +1334,8 @@ export function soloSummary(shots: readonly ShotRecord[]): string {
 }
 
 /** The same for the scene's writer, for whoever was there to have watched. */
-export function soloAccount(shots: readonly ShotRecord[]): string[] {
+export function soloAccount(shots: readonly ShotRecord[], reader: ReaderPronouns): string[] {
+  const r = readerWords(reader)
   const t = tallyOf(shots, 'reader')
   const lines = [
     `The reader played pool alone, clearing all fifteen balls: ${shots.length} shots, ${t.fouls} ${t.fouls === 1 ? 'foul' : 'fouls'}, a best run of ${t.bestRun} in a row.`
@@ -1334,8 +1345,8 @@ export function soloAccount(shots: readonly ShotRecord[]): string[] {
       ? 'That is sharp shooting: hardly a miss.'
       : shots.length <= 40
         ? 'A decent, unhurried clearance.'
-        : 'It took him a good while: plenty of misses.'
+        : `It took ${r.him} a good while: plenty of misses.`
   )
-  if (t.flukes) lines.push(`${t.flukes} of his pots went in by luck rather than aim.`)
+  if (t.flukes) lines.push(`${t.flukes} of ${r.his} pots went in by luck rather than aim.`)
   return lines
 }

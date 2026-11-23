@@ -406,7 +406,7 @@ export function SwimRace({ play }: { play: GamePlay }): JSX.Element {
       setPhase('over')
       held.current.finish({
         outcome: girls.length === 0 ? 'played' : outcomeOf(times),
-        summary: raceSummary(all, lengths, water),
+        summary: raceSummary(all, lengths, girls.map((girl) => girl.gender), water),
         account: raceAccount(all, lengths, game.leaders, water)
       })
     }

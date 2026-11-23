@@ -148,13 +148,13 @@ describe('Blackjack', () => {
   })
 
   it('says the deal, the result and the match as the scene narrates them', () => {
-    expect(tableDeal(['Mio'], 2, hand(13, 6), hand(9))).toBe(
+    expect(tableDeal(['Mio'], ['female'], 2, hand(13, 6), hand(9))).toBe(
       'Hand 2. You are dealt a king and a six: 16. Mio shows a nine, her other card face down.'
     )
-    expect(resultLine('Mio', hand(10, 6, 9), hand(5, 5))).toBe("The hand is Mio's.")
-    expect(resultLine('Mio', hand(10, 9), hand(10, 6, 9))).toBe('The hand is yours.')
-    expect(resultLine('Mio', hand(10, 9), hand(10, 9))).toContain('a push')
-    expect(resultLine('Mio', hand(14, 13), hand(7, 7, 7))).toBe(
+    expect(resultLine('Mio', 'female', hand(10, 6, 9), hand(5, 5))).toBe("The hand is Mio's.")
+    expect(resultLine('Mio', 'female', hand(10, 9), hand(10, 6, 9))).toBe('The hand is yours.')
+    expect(resultLine('Mio', 'female', hand(10, 9), hand(10, 9))).toContain('a push')
+    expect(resultLine('Mio', 'female', hand(14, 13), hand(7, 7, 7))).toBe(
       'Your 21 in two cards beats her 21: the hand is yours.'
     )
     expect(matchSummary('Mio', 2, 1)).toBe('You play blackjack with Mio and win, 2 hands to 1.')
@@ -190,23 +190,23 @@ describe('Blackjack', () => {
       hits: [],
       girls: [{ cards: hand(10, 6, 10), moves: [{ move: 'hit', total: 16, sound: 'stand' }] }]
     }
-    const first = tableTold(['Mio'], reckless, 1)
+    const first = tableTold(['Mio'], ['female'], 'he', reckless, 1)
     expect(first.line).toContain('hit on 18 and bust with 27, a reckless call')
     expect(first.line).toContain('Mio had only to turn her card, holding 12')
     expect(first.notable).toBe(true)
-    const second = tableTold(['Mio'], beaten, 2)
+    const second = tableTold(['Mio'], ['female'], 'he', beaten, 2)
     expect(second.line).toContain('the reader stood on 20')
     expect(second.line).toContain('Mio hit on 16 and stood on 21')
     expect(second.line).toContain('Mio won it by a single point')
-    expect(tableTold(['Mio'], timid, 3).line).toContain('a mistake: she was still behind his 18')
-    expect(tableTold(['Mio'], greedy, 4).line).toContain('she was already ahead on 16 and threw the hand away')
+    expect(tableTold(['Mio'], ['female'], 'he', timid, 3).line).toContain('a mistake: she was still behind his 18')
+    expect(tableTold(['Mio'], ['female'], 'he', greedy, 4).line).toContain('she was already ahead on 16 and threw the hand away')
 
-    const account = tableAccount(['Mio'], [reckless, beaten], 3)
+    const account = tableAccount(['Mio'], ['female'], 'he', [reckless, beaten], 3)
     expect(account[0]).toContain('over 3 hands')
     expect(account).toHaveLength(5)
     expect(account[3]).toBe('The match stopped there: the lead could no longer be caught.')
     expect(account[4]).toBe('Final count of hands: the reader 0, Mio 2.')
-    const full = tableAccount(['Mio'], [timid, greedy, beaten], 3)
+    const full = tableAccount(['Mio'], ['female'], 'he', [timid, greedy, beaten], 3)
     expect(full).toHaveLength(5)
     expect(full[4]).toBe('Final count of hands: the reader 2, Mio 1.')
   })
@@ -361,12 +361,12 @@ describe('Blackjack', () => {
     }
     const names = ['Ana', 'Bea']
     expect(tableWon([first, second], 2)).toEqual([0, 1, 0])
-    const told = tableTold(names, first, 1)
+    const told = tableTold(names, ['female', 'female'], 'he', first, 1)
     expect(told.line).toContain('the reader stood on 18')
     expect(told.line).toContain('Ana hit on 15 and stood on 19')
     expect(told.line).toContain("Bea hit on 16 and bust with 25, bad luck: she had to draw to beat Ana's 19")
     expect(told.line).toContain('Ana won it by a single point')
-    const push = tableTold(names, second, 2).line
+    const push = tableTold(names, ['female', 'female'], 'he', second, 2).line
     expect(push).toContain('Ana stood on 13, timid play: a thin total with Bea still to play')
     expect(push).toContain('Bea stood on 13, timid play: level with Ana')
     expect(push).toContain('A push, Ana and Bea level on 13: nobody won it')
@@ -374,11 +374,11 @@ describe('Blackjack', () => {
     expect(remarkBy(first, [])).toBe(0)
     expect(remarkBy(second, [1, 0])).toBe(1)
 
-    const account = tableAccount(names, [first, second], 2)
+    const account = tableAccount(names, ['female', 'female'], 'he', [first, second], 2)
     expect(account).toHaveLength(4)
     expect(account[0]).toContain('the reader, Ana and Bea')
     expect(account[3]).toBe('Final count of hands: the reader 0, Ana 1, Bea 0: Ana took the game.')
-    const four = tableAccount(['Ana', 'Bea', 'Cy'], [{ ...first, girls: [...first.girls, { cards: hand(10, 7), moves: [] }] }], 1)
+    const four = tableAccount(['Ana', 'Bea', 'Cy'], ['female', 'female', 'female'], 'he', [{ ...first, girls: [...first.girls, { cards: hand(10, 7), moves: [] }] }], 1)
     expect(four).toHaveLength(3)
     for (const name of ['Ana', 'Bea', 'Cy']) for (const line of four) expect(line).toContain(name)
 

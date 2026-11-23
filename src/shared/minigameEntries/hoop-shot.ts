@@ -11,7 +11,7 @@ const HOOP_SHOT: MiniGameDef = {
   blurb:
     'an arcade basketball machine: a row of cabinets side by side, everyone shooting as many baskets as they can before the buzzer',
   format:
-    'One round on the clock, 30 seconds unless a longer one was agreed. Everyone playing has a cabinet of their own and shoots at the same time, ball after ball, each ball coming back to the hand a moment after it is thrown. A basket is 2 points. In the last third of the round the hoop starts sliding from side to side and a basket is 3. Three baskets in a row put a shooter on fire, and every basket from the third on is worth 1 more until a miss ends the run. A ball in the air at the buzzer still counts. Alone the reader shoots for a score. With girls the most points at the buzzer wins; the top score shared is a draw between those who share it.',
+    'One round on the clock, 30 seconds unless a longer one was agreed. Everyone playing has a cabinet of their own and shoots at the same time, ball after ball, each ball coming back to the hand a moment after it is thrown. A basket is 2 points. In the last third of the round the hoop starts sliding from side to side and a basket is 3. Three baskets in a row put a shooter on fire, and every basket from the third on is worth 1 more until a miss ends the run. A ball in the air at the buzzer still counts. Alone the reader shoots for a score. With others playing, the most points at the buzzer wins; the top score shared is a draw between those who share it.',
   options: [
     {
       id: 'seconds',

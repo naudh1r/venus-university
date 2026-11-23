@@ -431,7 +431,7 @@ type Voice = 'you' | 'reader'
 
 /** What someone is called: the reader as the narration or the account has him, a girl by her name. */
 function called(names: readonly string[], who: number, voice: Voice): string {
-  return who === 0 ? (voice === 'you' ? 'you' : 'the reader') : (names[who - 1] ?? 'her')
+  return who === 0 ? (voice === 'you' ? 'you' : 'the reader') : (names[who - 1] ?? 'someone')
 }
 
 const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)

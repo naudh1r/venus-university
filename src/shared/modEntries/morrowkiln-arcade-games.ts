@@ -13,7 +13,7 @@ export default packMod({
   id: "morrowkiln-arcade-games",
   name: '[MK] Arcade & Bar Games',
   author: "morrowkiln",
-  version: "0.1.0-beta",
+  version: "0.1.1",
   blurb: "What the arcade, the bar and the bowling alley are for.",
   games: [
     AIR_HOCKEY,

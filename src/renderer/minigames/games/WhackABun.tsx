@@ -387,7 +387,7 @@ export function WhackABun({ play }: { play: GamePlay }): JSX.Element {
     held.current.started()
     if (girls.length === 0) held.current.narrate(startLine(pattern, names))
     else held.current.situation(standing())
-    held.current.progress(standingAccount(pattern, game.at, game.seats[0].tally, rivals()))
+    held.current.progress(standingAccount(pattern, game.at, game.seats[0].tally, rivals(), held.current.reader))
     setCount(Math.ceil(COUNT_IN_MS / 1000))
     setPhase('count')
   }
@@ -466,12 +466,12 @@ export function WhackABun({ play }: { play: GamePlay }): JSX.Element {
           ? {
               outcome: 'played' as const,
               summary: soloSummary(pattern, mine),
-              account: soloAccount(pattern, mine)
+              account: soloAccount(pattern, mine, held.current.reader)
             }
           : {
               outcome: outcomeOf(scores()),
               summary: versusSummary(mine, rivals()),
-              account: versusAccount(pattern, mine, rivals(), game.halfway ?? scores())
+              account: versusAccount(pattern, mine, rivals(), game.halfway ?? scores(), held.current.reader)
             }
       // Told on the box, the buzzer has its time there; otherwise the scores stand a moment.
       if (held.current.playByPlay) {
@@ -530,7 +530,7 @@ export function WhackABun({ play }: { play: GamePlay }): JSX.Element {
       const quarter = Math.min(3, Math.floor((at * 4) / lengthMs))
       if (quarter > game.quarter) {
         game.quarter = quarter
-        held.current.progress(standingAccount(pattern, at, game.seats[0].tally, rivals()))
+        held.current.progress(standingAccount(pattern, at, game.seats[0].tally, rivals(), held.current.reader))
       }
 
       if (at >= lengthMs) {
