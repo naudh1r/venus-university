@@ -65,11 +65,21 @@ export function askedTiers(tiers: readonly SecretTier[]): SecretTier[] {
  * How her secrets are asked: what a secret is, and the line of each tier asked; `beside` names
  * what the same reply writes of her besides, which no secret may touch.
  */
-export function secretLines(tiers: readonly SecretTier[], beside?: string, textEdits?: TextEdits<GlobalTextId>): string[] {
+export function secretLines(
+  tiers: readonly SecretTier[],
+  beside?: string,
+  textEdits?: TextEdits<GlobalTextId>
+): string[] {
   return [
     'SECRETS',
     blockText(textEdits, 'newgame.secrets.instructions', SECRET_LINES.join('\n')),
-    blockText(textEdits, 'newgame.secrets.tiers', askedTiers(tiers).map((tier) => TIER_LINES[tier]).join('\n')),
+    blockText(
+      textEdits,
+      'newgame.secrets.tiers',
+      askedTiers(tiers)
+        .map((tier) => TIER_LINES[tier])
+        .join('\n')
+    ),
     'Where their secrets so far are listed under their name, every new one is unlike all of them.',
     ...(beside ? [`No secret mentions ${beside}.`] : [])
   ]

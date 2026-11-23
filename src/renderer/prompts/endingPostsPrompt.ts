@@ -1,3 +1,4 @@
+import { readerAmongCast } from './setting'
 import {
   genderOf,
   pronounsOf,
@@ -30,7 +31,6 @@ import { relationshipLines } from './relationship'
 import { objectSchema } from './schema'
 import type { TextEdits, GlobalTextId } from '@shared/promptText'
 import { narrationPersonaFor } from './promptBlocks'
-import { readerAmongCast } from './setting'
 import {
   memoryLines,
   notesLines,

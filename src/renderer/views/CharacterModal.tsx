@@ -70,6 +70,7 @@ function Chips({
   label: string
   values: readonly string[]
   traitColors?: boolean
+  /** Whether the values are booru tags. */
   tags?: boolean
 }): JSX.Element | null {
   if (values.length === 0) return null
@@ -77,7 +78,7 @@ function Chips({
     <Field label={label}>
       <ul className="vu-view-chips">
         {values.map((value) => (
-          <li className="vu-chip-tag" key={tags ? tagLabel(value) : value} data-tone={traitColors ? traitTone(value) : undefined}>
+          <li className="vu-chip-tag" key={value} data-tone={traitColors ? traitTone(value) : undefined}>
             {tags ? tagLabel(value) : value}
           </li>
         ))}
