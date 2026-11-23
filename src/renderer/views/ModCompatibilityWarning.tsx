@@ -1,0 +1,30 @@
+import { create } from 'zustand'
+import { MODS } from '@shared/mods'
+import type { PlaythroughRecord } from '@shared/types'
+import { compatibilityWarnings } from '@shared/modCompatibility'
+import { useModsStore } from '../stores/modsStore'
+import { useUiStore } from '../stores/uiStore'
+import { ConfirmModal } from '../components/ConfirmModal'
+import { heldScreenTheme } from './clockTheme'
+
+const pending = create<{ messages: string[]; settle: ((ok: boolean) => void) | null }>(() => ({ messages: [], settle: null }))
+
+/** Ask before crossing into gameplay, using saved enrollment rather than new-game defaults. */
+export function confirmModCompatibility(record?: Pick<PlaythroughRecord, 'mods'>): Promise<boolean> {
+  if (pending.getState().settle) return Promise.resolve(false)
+  const switches = useModsStore.getState().switches
+  const messages = compatibilityWarnings(MODS, switches, __APP_VERSION__, record)
+  if (!messages.length) return Promise.resolve(true)
+  return new Promise((settle) => pending.setState({ messages, settle }))
+}
+
+export function ModCompatibilityWarning() {
+  const { messages, settle } = pending()
+  if (!settle) return null
+  const finish = (ok: boolean): void => { pending.setState({ messages: [], settle: null }); settle(ok) }
+  return <ConfirmModal id="mod-compatibility-warning" theme={heldScreenTheme()}
+    title="Mod compatibility unconfirmed" message={messages}
+    confirmText="Continue anyway" cancelText="Cancel"
+    onConfirm={() => finish(true)} onCancel={() => finish(false)}
+    extraText="Review mods" onExtra={() => { finish(false); useUiStore.getState().openModal('mods') }} />
+}

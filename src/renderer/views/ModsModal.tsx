@@ -1,4 +1,5 @@
 import { useState, type JSX } from 'react'
+import { compatibilityWarning } from '@shared/modCompatibility'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -121,7 +122,13 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
 
   /** Makes a change, or asks first where the screen underneath says it costs something. */
   function request(change: ModChange): void {
-    const warning = warn?.(change) ?? null
+    const existing = warn?.(change) ?? null
+    const mod = MODS.find((entry) => entry.id === change.modId)
+    const compatibility = change.on && change.optionId === null && mod
+      ? compatibilityWarning(mod, __APP_VERSION__) : null
+    const warning = compatibility
+      ? { title: 'Compatibility unconfirmed', message: [compatibility, existing?.message].filter(Boolean).join('\n\n'), confirmText: existing?.confirmText ?? 'Enable anyway' }
+      : existing
     if (warning) setAsking({ change, warning })
     else apply(change)
   }
@@ -260,6 +267,14 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
                   by {selected.author} · version {selected.version}
                 </p>
               </div>
+              <p className="vu-mods-note">
+                Supports Venus University: {selected.game ?? 'not declared'} · running {__APP_VERSION__}
+              </p>
+              {compatibilityWarning(selected, __APP_VERSION__) && (
+                <p className="vu-mods-note" data-kind="needs" role="status">
+                  {compatibilityWarning(selected, __APP_VERSION__)}
+                </p>
+              )}
               <p className="vu-mods-blurb">{selected.blurb}</p>
               <p className="vu-mods-tags">
                 <span className="vu-mods-tag">{originWords(selectedSession)}</span>

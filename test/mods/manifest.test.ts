@@ -49,6 +49,7 @@ describe('parseManifest', () => {
       name: 'Hello mod',
       author: 'morrowkiln',
       version: '1.0.0',
+      game: '>=0.6.0 <0.8.0',
       scope: 'anytime',
       defaultOn: true,
       blurb: 'Says hello in App settings.',
