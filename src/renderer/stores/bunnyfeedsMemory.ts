@@ -96,13 +96,14 @@ export function feedStatusLines(through: number): SceneLine[] {
     const character = game.characters[charId]
     const name = character && game.charInfo[charId]?.nameKnown ? character.firstName : '???'
     const where = whereTag(charId, posterId)
-    if (youDesc) return memoryStatusLine(name, { type, desc: `${desc}${where}`, youDesc: `${youDesc}${where}` })
+    // Words already said to the reader as "you" have no "the reader" left to turn, so they stand.
+    if (youDesc) return memoryStatusLine(name, { type, desc: `${youDesc}${where}` })
     // An older memory has only its third-person words. Turning them into "you" reads every "him"
-    // and "his" as the reader's, which is right only for a girl's memory of a reader who is he.
-    const holder = character?.gender === 'male' ? 'male' : 'female'
-    return holder === 'female' && game.readerPronouns === 'he'
-      ? memoryStatusLine(name, { type, desc: `${desc}${where}` })
-      : memoryStatusLine(name, { type, desc: `${desc}${where}` }, game.playerFirstName, holder, game.readerPronouns)
+    // and "his" as the reader's, which is right only for a girl's memory of a reader who is he;
+    // otherwise the reader is named.
+    const guessable = character?.gender !== 'male' && game.readerPronouns === 'he'
+    const said = guessable ? desc : desc.replace(/\bthe reader\b/gi, game.playerFirstName || 'the reader')
+    return memoryStatusLine(name, { type, desc: `${said}${where}` })
   })
 }
 

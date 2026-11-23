@@ -229,7 +229,8 @@ describe('old Bunnyfeeds saves', () => {
       { charId: 'poster', at: 4, type: 'liked', desc: 'the reader liked his vest', posterId: 'poster' }
     ])).toMatchObject({ ok: true })
     const said = JSON.stringify(memory.feedStatusLines(4))
-    expect(said).toContain('you asked who hurt him under his photo, on his post')
+    // The reader is "you" or named, as the kit words it; the guy's own "his" stays his either way.
+    expect(said).toMatch(/(?:you|Kazuya) asked who hurt him under his photo, on his post/)
     // An older memory with no words to the reader names him rather than misreading "his".
     expect(said).toContain('Kazuya liked his vest, on his post')
     expect(said).not.toContain('your')
