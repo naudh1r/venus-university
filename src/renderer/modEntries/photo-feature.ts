@@ -1,3 +1,5 @@
+import { cancelPhotoRedraws } from '../stores/photoRedraw'
+import { refreshPhotoPpm, startPhotoPpm } from '../stores/photoPpm'
 import { photoInvoke } from '../stores/photoInvoke'
 import { registerImagePromptDraft } from '@vx/modkit/shared'
 import { registerPhotoDraft } from '../../shared/photoDraft'
@@ -17,6 +19,7 @@ import {
 import {
   bodyBriefLines,
   bodyOfDraft,
+  bodyDraftGender,
   bodySchemaFields,
   bodySchemaRequired,
   type DraftBody
@@ -28,7 +31,7 @@ import { settlePendingPhotos } from '../stores/photoRecovery'
 import { clearEarlyPhotos, sendPhoto, startDmPhoto } from '../stores/photoTurn'
 import {
   feedFriendFor,
-  feedFriendLines,
+  withFeedPicturesRequest,
   fileGroupPhoto,
   withGroupPhotoRequest
 } from '../stores/photoGroup'
@@ -40,11 +43,12 @@ import { BODY_EDITOR_FIELD, writeBody } from '../views/bodyFields'
 import { PhotoComments, PhotoPostPicture } from '../components/PhotoPostSpots'
 import { MessagePhotoAttachment, PhotoLightboxHost } from '../components/PhotoBubble'
 import { GalleryPanel, galleryShown, PostPhotoExtra } from '../views/ContactGallery'
+import { PhotoPpmControl } from '../components/PhotoPpmControl'
 import { PHOTO_FEATURE_ID, bindPhotoOptionReader } from '../../shared/photoSwitches'
 
-bindPhotoOptionReader(option => modOptionOn(PHOTO_FEATURE_ID, option))
+bindPhotoOptionReader((option) => modOptionOn(PHOTO_FEATURE_ID, option))
 registerPhotoDraft(registerImagePromptDraft)
-
+startPhotoPpm()
 
 /**
  * Photo Feature, plugged into the game through its hooks. Everything it adds to the game's own
@@ -61,6 +65,8 @@ registerHooks(PHOTO_FEATURE_ID, {
   contactTab: { id: 'gallery', label: 'Gallery', Panel: GalleryPanel, shown: galleryShown },
   // Her body, as a field in the character editor.
   editorField: BODY_EDITOR_FIELD,
+  // Under Two in one photo on the Mods screen, ComfyUI-ppm's state and its Install.
+  optionControls: { duo: PhotoPpmControl },
   prompts: {
     dm: {
       lead: true,
@@ -100,9 +106,8 @@ registerHooks(PHOTO_FEATURE_ID, {
     },
     // What each poster owns, for a post whose picture has her in it.
     'slot-poster': {
-      lines: ({ character, date, time }) => [
-        ...posterPhotoLines(character, canSendPhotos()),
-        ...feedFriendLines(character, date, time)
+      lines: ({ character }) => [
+        ...posterPhotoLines(character, canSendPhotos())
       ]
     },
     character: {
@@ -113,7 +118,11 @@ registerHooks(PHOTO_FEATURE_ID, {
   },
 
   // Two of the scene's girls in a group photo, written by the scene's first call.
-  requests: { scene: (request, { cast }) => withGroupPhotoRequest(request, cast) },
+  requests: {
+    scene: (request, { cast }) => withGroupPhotoRequest(request, cast),
+    // Which of the slot's posts carry a picture, decided by the game, not the model.
+    'slot-intro': (request, { input }) => withFeedPicturesRequest(request, input)
+  },
   afterSceneReply: (ctx) => fileGroupPhoto(ctx),
 
   dmHistoryNote: (message) =>
@@ -124,7 +133,14 @@ registerHooks(PHOTO_FEATURE_ID, {
     ),
 
   characterFromDraft: (draft, { baseAppearance }) =>
-    writeBody(bodyOfDraft(draft.body as DraftBody | undefined, baseAppearance)),
+    writeBody(
+      bodyOfDraft(
+        draft.body as DraftBody | undefined,
+        baseAppearance,
+        undefined,
+        bodyDraftGender(draft, baseAppearance)
+      )
+    ),
 
   // Her streamed decision starts drawing; the completed reply claims that same render.
   dmReplyLead: ({ charId, character, lead, signal }) =>
@@ -150,8 +166,18 @@ registerHooks(PHOTO_FEATURE_ID, {
   // and the posts are waiting on the feed when he is free again.
   playerActs: () => startHeldPostPhoto(),
 
+  // Each slot asks again whether ComfyUI-ppm is there, so a ComfyUI started or given ppm mid-game
+  // is noticed by the next slot's pictures. Main keeps the answer for a minute, so this is cheap.
+  slotSettled: () => {
+    void refreshPhotoPpm()
+  },
+
   // A picture whose render outlived the save that asked for it: found on disk, or given up on.
   gameEntered: () => {
+    cancelPhotoRedraws()
+    const pid = gameFacts().playthroughId
+    if (pid) void photoInvoke('sweep', [pid])
+    void refreshPhotoPpm()
     clearEarlyPhotos()
     void settlePendingPhotos()
   },
@@ -159,6 +185,7 @@ registerHooks(PHOTO_FEATURE_ID, {
   // Switched back on mid-game: a render that landed while it was off could not be written, so its
   // bubble is still waiting.
   switchedOn: ({ atBoot }) => {
+    void refreshPhotoPpm()
     if (!atBoot) void settlePendingPhotos()
   },
 

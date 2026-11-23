@@ -5,6 +5,7 @@ import {
   PHOTO_FEATURE_ID,
   type PhotoSwitches
 } from '../../shared/photoSwitches'
+import { usePhotoPpmState } from './photoPpm'
 import { useModOn, useModOption, useNoNsfwImages } from '@vx/modkit/renderer'
 
 /** Photo Feature's switches in a component, which redraws when one moves. */
@@ -15,6 +16,7 @@ export function usePhotoSwitches(): PhotoSwitches {
   useModOption(PHOTO_FEATURE_ID, 'webp')
   useModOption(PHOTO_FEATURE_ID, 'body')
   useModOption(PHOTO_FEATURE_ID, 'duo')
+  usePhotoPpmState()
   useModOption(PHOTO_FEATURE_ID, 'loader-bunny')
   useModOption(PHOTO_FEATURE_ID, 'loader-shimmer')
   useModOption(PHOTO_FEATURE_ID, 'loader-dots')

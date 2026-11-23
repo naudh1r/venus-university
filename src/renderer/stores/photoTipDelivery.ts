@@ -1,3 +1,4 @@
+import { type PhotoGender } from '../../shared/photoGender'
 import { bunnybotSays } from '@vx/modkit/renderer'
 import {
   bunnybotDmPhotoTexts,
@@ -9,8 +10,10 @@ import { character } from '@vx/modkit/renderer'
 import { PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 
 /** BunnyBot's DM photo tip, the first time a girl sends the reader a picture. */
-export function tellAboutDmPhotos(firstName: string): void {
-  bunnybotSays(PHOTO_FEATURE_ID, bunnybotDmPhotoTexts(firstName), { once: DM_PHOTO_TIP_MARK })
+export function tellAboutDmPhotos(firstName: string, gender: PhotoGender = 'female'): void {
+  bunnybotSays(PHOTO_FEATURE_ID, bunnybotDmPhotoTexts(firstName, gender), {
+    once: DM_PHOTO_TIP_MARK
+  })
 }
 
 /**

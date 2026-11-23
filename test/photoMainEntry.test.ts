@@ -11,7 +11,9 @@ import { handleModProtocol } from '../src/main/mods/protocol'
 let root = ''
 const mocks = vi.hoisted(() => ({ handle: vi.fn(),
   reservePhotoName: vi.fn(), carryPhotos: vi.fn(), photoLanded: vi.fn(), readPhotoBytes: vi.fn(),
-  storeWebpPhoto: vi.fn(), importChatPhoto: vi.fn(), photoInfo: vi.fn(), dropPhoto: vi.fn(), retirePhoto: vi.fn(),
+  storeWebpPhoto: vi.fn(), importChatPhoto: vi.fn(), photoInfo: vi.fn(), dropPhoto: vi.fn(),
+  reserveRedrawName: vi.fn(), replacePhoto: vi.fn(), sweepPhotos: vi.fn(), sweepAllPhotos: vi.fn(),
+  photoPpmState: vi.fn(), soloPhotoOrientation: vi.fn(),
   generatePhoto: vi.fn(), generateDuoPhoto: vi.fn(), validatePhotoOverrides: vi.fn() }))
 vi.mock('electron', () => ({ protocol: { handle: mocks.handle }, net: { fetch: vi.fn() },
   app: { isPackaged: false, getAppPath: () => root, getPath: () => root },
@@ -33,7 +35,10 @@ it('reaches every Photo handler through the real start/result dispatch with the 
   const girl = character({ charId: 'lia' }), friend = character({ charId: 'bea' })
   const bytes = new Uint8Array([1, 2, 3]), file = 'lia_chat_001.png'
   const cases = [
-    ['reserve-name', mocks.reservePhotoName, ['100', girl, 'chat', []]],
+    ['reserve-name', mocks.reservePhotoName, ['100', girl, []]],
+    ['reserve-redraw', mocks.reserveRedrawName, ['100', girl, []]],
+    ['ppm-state', mocks.photoPpmState, []],
+    ['solo-orientation', mocks.soloPhotoOrientation, [girl, 'everyday', 'At the cafe']],
     ['carry', mocks.carryPhotos, ['100', '200', ['lia']]],
     ['landed', mocks.photoLanded, ['100', 'lia', file]],
     ['read', mocks.readPhotoBytes, ['100', 'lia', file]],
@@ -46,7 +51,9 @@ it('reaches every Photo handler through the real start/result dispatch with the 
   ] as const
   const invocations = new ModInvocations()
   invocations.replace(result.table, result.invokes)
-  expect([...result.invokes.get('photo-feature')!.keys()].sort()).toEqual(cases.map(c => c[0]).sort())
+  // Sweeping, replacing a redraw and installing ppm are reached through their own paths.
+  const own = ['sweep', 'replace', 'install-ppm']
+  expect([...result.invokes.get('photo-feature')!.keys()].sort()).toEqual([...cases.map(c => c[0]), ...own].sort())
   for (const [name, service, args] of cases) {
     service.mockResolvedValueOnce(file)
     const requestId = invocations.dispatch(1, 'photo-feature', { kind: 'start', name, args: [...args] })

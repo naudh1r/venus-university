@@ -1,20 +1,22 @@
 import { invoke } from '@vx/modkit/renderer'
 import type { Result, Character } from '@vx/modkit/shared'
-import type { PhotoInfo, PhotoRenderOptions } from '../../shared/photoTypes'
+import type { PhotoInfo, PhotoOrientation, PhotoPpmState, PhotoRenderOptions } from '../../shared/photoTypes'
 import { PHOTO_FEATURE_ID } from '../../shared/photoSwitches'
 
 export type PhotoCalls = {
       /**
-       * The name the next picture of `kind` will land under, settled before it is drawn so the
+       * The random name the next picture will land under, settled before it is drawn so the
        * bubble waiting for it carries that name into the save immediately. `inSave` is every
        * name the save already points at for her, which is never handed out again.
        */
       reserveName: (
         playthroughId: string,
         character: Character,
-        kind: string,
         inSave: readonly string[]
       ) => Promise<Result<string>>
+      reserveRedraw: (pid: string, character: Character, saved: readonly string[]) => Promise<Result<string>>
+      replace: (pid: string, charId: string, file: string, temporary: string) => Promise<Result<void>>
+      sweep: (pid: string) => Promise<Result<void>>
       /**
        * Whether a picture a bubble is still waiting for is on disk after all. Asked on load: a
        * render can finish after the save that was waiting for it was written.
@@ -22,7 +24,10 @@ export type PhotoCalls = {
       landed: (playthroughId: string, charId: string, file: string) => Promise<Result<boolean>>
       /** The bytes of a picture on disk, whichever of PNG or WebP it is under. */
       read: (playthroughId: string, charId: string, file: string) => Promise<Result<Uint8Array>>
-      /** The recorded prompt, or a current build; rebuilding retains a recorded seed. */
+      /**
+       * The recorded prompt, or a current build; rebuilding retains a recorded seed. Old duo
+       * halves are rebuilt for ppm while their scene and negative stay as recorded.
+       */
       info: (
         playthroughId: string,
         character: Character,
@@ -30,14 +35,19 @@ export type PhotoCalls = {
         tier: string,
         scene: string,
         file: string,
-        rebuild?: boolean
+        rebuild?: boolean,
+        orientation?: PhotoOrientation
       ) => Promise<Result<PhotoInfo>>
-      /** Cancels one render, retires a replacement, or removes an unused picture. */
+      /** Whether the selected ComfyUI has the pack needed for photos of two. */
+      ppmState: () => Promise<Result<PhotoPpmState>>
+      /** Installs ComfyUI-ppm into the game's own ComfyUI, restarting it on the next render. */
+      installPpm: () => Promise<Result<void>>
+      /** Cancels one render or removes an unused picture. */
       drop: (
         playthroughId: string,
         charId: string,
         file: string,
-        options?: { cancelOnly?: boolean; replacement?: string }
+        options?: { cancelOnly?: boolean }
       ) => Promise<Result<void>>
       /** Keeps the WebP encoded from a picture that landed as PNG, and drops the PNG. */
       storeWebp: (
@@ -56,6 +66,12 @@ export type PhotoCalls = {
         toPlaythroughId: string,
         charIds?: string[]
       ) => Promise<Result<void>>
+      /** The shape her next photo alone is drawn in, settled before it is drawn. */
+      soloOrientation: (
+        character: Character,
+        tier: string,
+        photoPrompt: string
+      ) => Promise<Result<PhotoOrientation>>
       /**
        * Resolves with the file name when the queued render finishes. `tier` has already been
        * settled by `photoGate`; nothing downstream re-opens it.

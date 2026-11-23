@@ -16,6 +16,22 @@ import { describe, expect, it } from 'vitest'
 
 /** Danbooru vocabulary checked against the API or the catalog cited beside its entries. */
 const VERIFIED = new Set([
+  // Hand gestures a caption names, from the published Danbooru catalog cited below.
+  'double_v',
+  'middle_finger',
+  'ok_sign',
+  'salute',
+  'finger_gun',
+  'claw_pose',
+  'pointing_at_viewer',
+  'pointing_at_self',
+  'shushing',
+  'covering_own_mouth',
+  'facepalm',
+  'hands_on_own_cheeks',
+  'fist_pump',
+  'shrugging',
+  'hands_on_own_hips',
   // Checked against the published Danbooru catalog cited below.
   'one_eye_closed',
   'finger_in_own_mouth',
@@ -319,7 +335,8 @@ function constantTags(text: string, name: string): string[] {
     .join('')
     .split(',')
     .map((tag) => tag.trim())
-    .filter(Boolean)
+    // A placeholder filled in per photo, such as the people a negative names, is not a tag.
+    .filter((tag) => tag && !/^__[A-Z]+__$/.test(tag))
 }
 
 /** A weighted tag, `(huge_ass:0.6)`, is its tag at another weight: the tag is what is checked. */

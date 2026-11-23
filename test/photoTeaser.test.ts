@@ -61,6 +61,6 @@ describe('the post photo brief', () => {
     const off = postPhotoLines(false)
     expect(off).toHaveLength(1)
     expect(off[0]).toContain('Leave "image" empty')
-    expect(postPhotoLines(true).join(' ')).toContain('Describe it in "image"')
+    expect(postPhotoLines(true).join(' ')).toContain('describe it in "image"')
   })
 })

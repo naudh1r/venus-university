@@ -65,7 +65,7 @@ export async function settlePendingPhotos(): Promise<void> {
       })
       settled = true
       console.log(
-        `[texting] her picture was still waiting: ${photo.file ?? 'unnamed'} — ${
+        `[texting] a picture was still waiting: ${photo.file ?? 'unnamed'} — ${
           found ? 'found it' : 'gone'
         }`
       )

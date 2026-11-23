@@ -1,11 +1,12 @@
 import { motion } from 'motion/react'
 import { Fragment, useEffect, useState, type JSX } from 'react'
 import { postIsOut } from '../../shared/heldPosts'
+import { useRevisedPhotoUrl } from '../stores/photoRevision'
 import { photoUrl } from '../../shared/photoFiles'
 import type { ChatPhoto } from '../../shared/photoTypes'
 import type { SocialPost, TimeSlot } from '@vx/modkit/shared'
 import { PhotoInfoButton, PhotoRedrawFailure } from '../components/PhotoInfo'
-import { photoRedrawKey, usePhotoRedraw } from '../stores/photoRedraw'
+import { photoRedrawKey, usePhotoRedraw, usePhotoRedrawReason, usePhotoRedrawOrientation } from '../stores/photoRedraw'
 import { redrawMessagePhoto } from '../stores/photoTurn'
 import { redrawPostPhoto } from '../stores/photoPost'
 import { PhotoWait, openShot } from '../components/PhotoBubble'
@@ -17,7 +18,6 @@ import {
   modIsOn,
   quietLift,
   quietPress,
-  useModOn,
   type ContactTabProps,
   EyeIcon,
   EyeOffIcon
@@ -25,9 +25,12 @@ import {
 import { useExplicitBlocked, usePhotosVisible } from '../stores/photoSwitchHooks'
 import { useCharacter, useGameFacts, useConversation, useFeed } from '@vx/modkit/renderer'
 import { messagePhoto, postPhoto } from '../stores/photoRecords'
-import { EchoPanel } from './EchoPanel'
 import { photosVisible } from '../../shared/photoSwitches'
+import { loadedPhotoOrientation, useExpectedPhotoOrientation, usePhotoOrientation } from '../stores/photoOrientation'
 import '../vu_styles/ContactGallery.css'
+
+/** A tile's hover: a 4% lift stays inside the grid's 16px gaps, for portrait and wide tiles alike. */
+const TILE_LIFT = { ...quietLift, scale: 1.04 }
 
 /**
  * Her gallery: every picture of her, the ones she sent on the thread and the ones she posted on
@@ -62,11 +65,11 @@ const SHOT_FILTERS: readonly { key: ShotFilter; label: string }[] = [
 ]
 
 /**
- * Whether a picture finished: it has its name, and is neither still being drawn nor failed. A
- * name is given before the render starts, so having one says nothing about a file on disk.
+ * A named picture keeps its tile while it is drawn or after a failure. Held posts are still
+ * excluded by the feed visibility rule before reaching this grid.
  */
-function landed(photo: ChatPhoto | null | undefined): photo is ChatPhoto & { file: string } {
-  return Boolean(photo?.file) && !photo?.pending && !photo?.failed
+function namedPhoto(photo: ChatPhoto | null | undefined): photo is ChatPhoto & { file: string } {
+  return Boolean(photo?.file)
 }
 
 /**
@@ -91,7 +94,14 @@ function Shot({
   const tier = photo.tier
   const character = useCharacter(charId)
   const friend = useCharacter(photo.with ?? '')
-  const redraw = usePhotoRedraw(photoRedrawKey(playthroughId, charId, file))
+  const key = photoRedrawKey(playthroughId, charId, file)
+  const redraw = usePhotoRedraw(key)
+  const refusal = usePhotoRedrawReason(key)
+  const requested = usePhotoRedrawOrientation(key)
+  const src = useRevisedPhotoUrl(playthroughId ? photoUrl(playthroughId, charId, file) : null)
+  const loaded = usePhotoOrientation(src)
+  const expected = useExpectedPhotoOrientation(photo, src)
+  const orientation = (redraw === 'drawing' ? requested : undefined) ?? loaded ?? expected
   const [opened, setShown] = useState(tier !== 'explicit')
   // An undressed picture while they are forbidden stays covered, and cannot be opened.
   const explicitBlocked = useExplicitBlocked()
@@ -100,19 +110,24 @@ function Shot({
   // A picture the save names but the folder does not hold — one a save brought along without
   // its pictures — is left out of the grid rather than drawn as an empty frame.
   const [missing, setMissing] = useState(false)
-  useEffect(() => { setMissing(false) }, [file])
+  useEffect(() => { setMissing(false) }, [src])
   if (!playthroughId) return <li className="vu-gallery-item" />
   if (missing) return null
 
-  const src = photoUrl(playthroughId, charId, file)
   return (
     <motion.li
-      className="vu-gallery-item vu-contact-shot-item"
-      {...gestures(locked, quietLift, quietPress)}
+      className={`vu-gallery-item vu-contact-shot-item${orientation === 'wide' ? ' vu-contact-shot-item--wide' : ''}`}
+      {...gestures(locked, TILE_LIFT, quietPress)}
     >
-      {redraw === 'drawing' ? (
+      {redraw === 'drawing' || photo.pending ? (
         <div className="vu-contact-shot-wait">
-          <PhotoWait />
+          <PhotoWait orientation={orientation} />
+        </div>
+      ) : photo.failed ? (
+        <div className="vu-contact-shot-wait">
+          <div className={`vu-bb-photo vu-bb-photo--failed${orientation === 'wide' ? ' vu-bb-photo--wide' : ''}`}>
+            The photo never came through.
+          </div>
         </div>
       ) : (
         <button
@@ -120,22 +135,23 @@ function Shot({
           type="button"
           disabled={locked}
           title={locked ? 'Explicit photos are switched off' : undefined}
-          onClick={() => (shown ? openShot(src) : setShown(true))}
+          onClick={() => (shown ? openShot(src!) : setShown(true))}
         >
           {/* Covered the way the thread covers it: the picture itself, blurred past reading. */}
           <img
             className={`vu-gallery-img${shown ? '' : ' vu-contact-shot-img--veiled'}`}
-            src={src}
+            src={src!}
             alt=""
             decoding="async"
+            onLoad={(event) => loadedPhotoOrientation(event.currentTarget)}
             onError={() => setMissing(true)}
           />
-          <span className="vu-contact-shot-from">{from === 'dm' ? 'DM' : 'Feed'}</span>
         </button>
       )}
+      <span className="vu-contact-shot-from">{from === 'dm' ? 'DM' : 'Feed'}</span>
       {/* The thread's own eye, so an explicit one can be covered again once seen. Beside the cell
           rather than in it, since a button cannot sit inside another. */}
-      {redraw !== 'drawing' && tier === 'explicit' && !locked && (
+      {redraw !== 'drawing' && !photo.pending && !photo.failed && tier === 'explicit' && !locked && (
         <button
           type="button"
           className={`vu-bb-photo-eye vu-contact-shot-eye${shown ? '' : ' vu-bb-photo-eye--covered'}`}
@@ -151,7 +167,7 @@ function Shot({
           {shown ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
         </button>
       )}
-      {shown && character && (!photo.with || friend) && (
+      {shown && !photo.pending && !photo.failed && character && (!photo.with || friend) && (
         <PhotoInfoButton
           playthroughId={playthroughId}
           character={character}
@@ -164,7 +180,7 @@ function Shot({
           }}
         />
       )}
-      <PhotoRedrawFailure failed={redraw === 'failed'} />
+      <PhotoRedrawFailure failed={redraw === 'failed'} reason={refusal} />
     </motion.li>
   )
 }
@@ -177,19 +193,20 @@ function Shot({
  * photograph adds to a cell, which is the covering.
  */
 /** Her gallery, as a tab beside Profile on her contact page. */
-export function GalleryPanel({ charId, isContact, theme }: ContactTabProps): JSX.Element {
+export function GalleryPanel({ charId, isContact }: ContactTabProps): JSX.Element {
   const [filter, setFilter] = useState<ShotFilter>('all')
   const visible = usePhotosVisible()
-  const echoOn = useModOn('echo')
   const playthroughId = useGameFacts().playthroughId
   const conversation = useConversation(charId)
   const feed = useFeed(charId)
 
+  const messages = conversation?.messages ?? []
+
   // The thread's newest first, then merged with her posts by the slot each was sent in. The sort
   // is stable, so two pictures from one slot keep the order they arrived in.
-  const sent: GalleryShot[] = [...(conversation?.messages ?? [])].reverse().flatMap((message) => {
+  const sent: GalleryShot[] = [...messages].reverse().flatMap((message) => {
     const photo = messagePhoto.read(message)
-    return landed(photo)
+    return namedPhoto(photo)
       ? [
           {
             id: message.id,
@@ -205,7 +222,7 @@ export function GalleryPanel({ charId, isContact, theme }: ContactTabProps): JSX
   })
   const posted: GalleryShot[] = (feed ?? []).filter(postIsOut).flatMap((post) => {
     const photo = postPhoto.read(post)
-    return landed(photo)
+    return namedPhoto(photo)
       ? [
           {
             id: `post:${post.id}`,
@@ -260,26 +277,27 @@ export function GalleryPanel({ charId, isContact, theme }: ContactTabProps): JSX
           </div>
           {shown.length === 0 ? (
             <p className="vu-contact-empty">
-              {filter === 'dm' ? 'No photos in DMs yet.' : 'No photos on her feed yet.'}
+              {filter === 'dm' ? 'No photos in DMs yet.' : 'No photos on this feed yet.'}
             </p>
           ) : (
-            <ul className="vu-gallery-grid vu-contact-shots">
-              {shown.map((shot) => (
-                <Shot
-                  key={shot.id}
-                  charId={charId}
-                  playthroughId={playthroughId}
-                  file={shot.file}
-                  photo={shot.photo}
-                  itemId={shot.itemId}
-                  from={shot.from}
-                />
-              ))}
-            </ul>
+            <div className="vu-contact-shot-grid">
+              <ul className="vu-gallery-grid vu-contact-shots">
+                {shown.map((shot) => (
+                  <Shot
+                    key={shot.id}
+                    charId={charId}
+                    playthroughId={playthroughId}
+                    file={shot.file}
+                    photo={shot.photo}
+                    itemId={shot.itemId}
+                    from={shot.from}
+                  />
+                ))}
+              </ul>
+            </div>
           )}
         </>
       )}
-      {isContact && echoOn && <EchoPanel hidden={false} gallery owner={charId} theme={theme} />}
     </Card>
   )
 }
@@ -298,8 +316,8 @@ export function PostPhotoLink({
 }): JSX.Element | null {
   const playthroughId = useGameFacts().playthroughId
   const visible = usePhotosVisible()
-  if (!visible || !playthroughId || !photo?.file) return null
-  const src = photoUrl(playthroughId, charId, photo.file)
+  const src = useRevisedPhotoUrl(playthroughId && photo?.file ? photoUrl(playthroughId, charId, photo.file) : null)
+  if (!visible || !src) return null
   return (
     <motion.button
       className="vu-contact-like vu-contact-photo"
