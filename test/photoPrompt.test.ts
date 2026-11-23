@@ -756,3 +756,29 @@ describe('the finished prompt for back shots', () => {
     expect(outfit('Standing, knees up, showing off her new sneakers')).toContain('white_sneakers')
   })
 })
+
+describe('back-shot cues in everyday captions', () => {
+  it('turns around only a picture taken from behind, not a bag, a seat or a courtyard', async () => {
+    const { isBackShot, isRearView } = await import('../src/shared/photoWords')
+    const { photoRuleText } = await import('../src/shared/photoGender')
+    const read = (caption: string) => {
+      const text = photoRuleText(caption)
+      return [isBackShot(text), isRearView(text)]
+    }
+    for (const caption of [
+      'a selfie with her tote bag slung over her shoulder at the cafe',
+      'sitting in the back of the bus, a selfie from the back row',
+      'a photo of the rear courtyard with her waving',
+      'her phone face down on the table while she reads',
+      'she turned away from the window to smile at the camera'
+    ]) expect(read(caption)).toEqual([false, false])
+    for (const caption of [
+      'naked, glaring back over her shoulder at the camera',
+      'a photo of her bare rear',
+      'standing turned away from the camera, naked',
+      'naked in the shower, shot from the back',
+      'looking back over his shoulder at the camera'
+    ]) expect(read(caption)).toEqual([true, true])
+    expect(read('lying face down on her bed, naked')).toEqual([false, true])
+  })
+})
