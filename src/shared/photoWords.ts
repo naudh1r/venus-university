@@ -58,15 +58,29 @@ export function saysAny(text: string, cues: readonly string[]): boolean {
   return cues.some((cue) => says(text, cue))
 }
 
-export const LOOKING_BACK_CUES = ['looking back', 'glancing back', 'over her shoulder']
+/**
+ * Turned to look back at the camera. "Over her shoulder" alone also reads a bag slung over it, so
+ * only a look over it counts.
+ */
+export const LOOKING_BACK_CUES = [
+  'looking back', 'glancing back', 'peeking back', 'back over her shoulder',
+  'looking over her shoulder', 'glancing over her shoulder', 'peeking over her shoulder',
+  'smiling over her shoulder', 'over her shoulder at the camera', 'over her shoulder at the viewer',
+  'over her shoulder toward the camera', 'over her shoulder towards the camera'
+]
 
 const BACK_SHOT_CUES = [
   ...LOOKING_BACK_CUES,
-  'from behind', 'back view', 'rear view', 'back turned', 'facing away', 'turned away',
-  'turning away', 'back to the camera', 'from the back', 'backs to the camera'
+  'from behind', 'back view', 'rear view', 'back turned', 'facing away',
+  'back to the camera', 'backs to the camera'
 ]
 
-export const FACE_DOWN_CUES = ['on her stomach', 'on her front', 'face down', 'face-down', 'prone']
+/** Lying on her front. "Face down" alone is also a phone on a table. */
+export const FACE_DOWN_CUES = [
+  'on her stomach', 'on her front', 'lying face down', 'lying face-down', 'lies face down',
+  'lies face-down', 'lay face down', 'lay face-down', 'face down on the bed', 'face down on her bed',
+  'face-down on the bed', 'face-down on her bed', 'prone'
+]
 export const ALL_FOURS_CUES = ['all fours', 'hands and knees']
 export const BENT_OVER_CUES = ['bent over', 'bending over', 'bent forward']
 
@@ -79,7 +93,8 @@ export const SPREAD_CHEEKS_CUES = [
 
 /** A rear-focused caption names the subject of the shot or calls out bare skin. */
 export function focusesOnBackside(text: string): boolean {
-  const rear = '(?:ass|butt|booty|backside|bum|rear)(?![\\w-])'
+  // "Rear" only as hers: "a photo of the rear courtyard" is a place.
+  const rear = '(?:ass|butt|booty|backside|bum|(?<=her (?:bare )?)rear)(?![\\w-])'
   const focus = new RegExp(
     `\\b(?:of|showing(?: off)?|focusing on|focused on|framing|showcases?) (?:her |the |a |that )?(?:bare )?${rear}` +
       `|^\\s*(?:her|the) (?:bare )?${rear}\\b` +
@@ -91,9 +106,18 @@ export function focusesOnBackside(text: string): boolean {
   return !coveredFront && focus.test(text)
 }
 
+/**
+ * Turned away, unless from something else: "turned away from the window to smile" faces the
+ * camera. From the back, unless of a place: "the back of the bus", "the back row".
+ */
+const TURNED_AWAY = /(?<![a-z0-9])turn(?:s|ed|ing)? away(?! from (?!the camera|the viewer|the lens))(?![a-z0-9])/
+const FROM_THE_BACK =
+  /(?<![a-z0-9])from the back(?! (?:of|row|rows|seat|seats|door|entrance|corner|table|booth|bench))(?![a-z0-9])/
+
 /** Caption text here is already normalised to the shared pronouns. */
 export function isBackShot(text: string): boolean {
-  return saysAny(text, BACK_SHOT_CUES) || focusesOnBackside(text) || saysAny(text, SPREAD_CHEEKS_CUES)
+  return saysAny(text, BACK_SHOT_CUES) || TURNED_AWAY.test(text) || FROM_THE_BACK.test(text) ||
+    focusesOnBackside(text) || saysAny(text, SPREAD_CHEEKS_CUES)
 }
 
 /** In a face-down pose the camera sees the back of the body even without a facing cue. */
