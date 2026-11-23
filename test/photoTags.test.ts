@@ -315,7 +315,8 @@ const QUALITY = new Set([
 const ROOT = join(__dirname, '..')
 
 function source(rel: string): string {
-  return readFileSync(join(ROOT, rel), 'utf-8')
+  // A Windows checkout ends lines with CRLF, which the blank-line bounds below would read past.
+  return readFileSync(join(ROOT, rel), 'utf-8').replace(/\r\n/g, '\n')
 }
 
 /** Every quoted string inside the brackets or braces that follow each match of `opener`. */
