@@ -716,6 +716,8 @@ describe('the finished prompt for back shots', () => {
     expect(tagList(subject, `A photo of ${possessive} bare ass in the mirror`)).toEqual(
       expect.arrayContaining(['from_behind', 'ass_focus'])
     )
+    const fragment = tagList(subject, `${possessive} backside in the mirror`)
+    expect(fragment).toEqual(expect.arrayContaining(['from_behind', 'ass_focus']))
     const closeRear = tagList(subject, `A close-up of ${possessive} backside`)
     expect(closeRear).toEqual(expect.arrayContaining(['from_behind', 'ass_focus']))
     expect(closeRear).not.toContain('portrait')
