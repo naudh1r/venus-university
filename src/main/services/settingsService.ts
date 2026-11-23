@@ -1,3 +1,4 @@
+import { syncComfyObjectInfoSource } from './comfyObjectInfo'
 import { mkdir } from 'fs/promises'
 import { safeStorage } from 'electron'
 import { appError, messageOf } from '@shared/errors'
@@ -107,6 +108,7 @@ async function writeFileShape(file: SettingsFile): Promise<void> {
 /** Serializes runtime settings to the on-disk shape and writes them atomically. */
 async function writeSettingsFile(settings: Settings): Promise<void> {
   await writeFileShape(fileShapeOf(settings))
+  syncComfyObjectInfoSource(settings)
 }
 
 /**
@@ -122,6 +124,7 @@ export async function getSettings(): Promise<Settings> {
     onMissing: defaultSettings
   })
   const { settings: candidate, upgraded } = upgradeSettings(read)
+  syncComfyObjectInfoSource(candidate)
   if (upgraded) await writeFileShape(candidate)
 
   const {

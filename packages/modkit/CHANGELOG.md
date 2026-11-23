@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Main code can pin a ComfyUI custom-node pack of its own with `registerComfyNodePack`, install it
+  into the game's managed ComfyUI on demand with `installComfyNodePack`, and read it with
+  `comfyNodePackState`. `renderComfyImage` refuses a graph naming a class the server lacks as
+  `COMFY_NODES_MISSING`, naming the pack.
+- `comfyNodePackState` checks the loaded classes on the player's own ComfyUI, with a short
+  deadline and a one-minute cache cleared when its source or address changes. The existing
+  `subscribeLocalImageSource` also notifies mods when the external address changes.
+- `optionControls` draws a mod's own control under one of its ungrouped options on the Mods screen.
 - `gameFacts` and `useGameFacts` include the reader's pronouns. Shared `readerWordsOf` gives mods the
   same pronoun forms the game uses.
 

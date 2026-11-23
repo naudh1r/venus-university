@@ -100,6 +100,7 @@ export const HOOKS = [
   { name: 'saveChoice', side: 'renderer', kind: 'first', dispatch: ['saveChoice', 'prepareWayOn'], since: '0.1.0' },
   { name: 'modDetail', side: 'renderer', kind: 'first', dispatch: ['modDetail'], since: '0.1.0' },
   { name: 'optionPreviews', side: 'renderer', kind: 'add', dispatch: ['optionPreview'], askedWhenOff: true, since: '0.1.0' },
+  { name: 'optionControls', side: 'renderer', kind: 'add', dispatch: ['optionControl'], askedWhenOff: true, since: '0.8.0' },
 
   // Screens
   { name: 'bunnyboardPage', side: 'renderer', kind: 'add', dispatch: ['bunnyboardPages'], since: '0.1.0' },
@@ -430,8 +431,11 @@ export const KIT_APIS = [
   'renderer:writeModFields',
   'main:backupPart',
   'main:characterTransferPart',
+  'main:comfyNodePackState',
+  'main:installComfyNodePack',
   'main:modDataPath',
   'main:registerComfyLaunchEnvironment',
+  'main:registerComfyNodePack',
   'main:registerFinalRequest',
   'main:readJsonFile',
   'main:requiredBackupPart',

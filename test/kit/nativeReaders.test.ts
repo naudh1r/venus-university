@@ -151,6 +151,15 @@ it('isolates provider configuration and local-source subscriptions, including lo
   expect(sources).toEqual(['managed', 'external', null])
 })
 
+it('notifies a mod when the selected external address changes without exposing the address', () => {
+  const calls: (string | null)[] = []
+  useSettingsStore.setState({ settings: { comfySource: 'external', comfyUrl: 'http://localhost:8190' } as never })
+  const stop = readers.subscribeLocalImageSource(() => calls.push(readers.localImageSource()))
+  useSettingsStore.setState({ settings: { comfySource: 'external', comfyUrl: 'http://localhost:8191' } as never })
+  expect(calls).toEqual(['external'])
+  stop()
+})
+
 it('draws emoji from the current native bag without spending handles', () => {
   const handles = [FEED_HANDLE_POOL[0].key]
   useGrabBagStore.setState({ bags: {
