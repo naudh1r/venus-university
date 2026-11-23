@@ -13,6 +13,7 @@ export type {
   LikesAsk,
   ModDetailProps,
   ModHooks,
+  OptionControlProps,
   OptionPreviewProps,
   PostCommentsProps,
   PostCommentsSpot,

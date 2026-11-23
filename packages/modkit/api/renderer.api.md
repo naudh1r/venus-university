@@ -503,6 +503,7 @@ export interface ModHooks {
     mapOverlay?: ComponentType<ScreenSlotProps['mapOverlay']>;
     messageAttachment?: ComponentType<ScreenSlotProps['messageAttachment']>;
     modDetail?: (mod: ModDef) => ComponentType<ModDetailProps> | undefined;
+    optionControls?: Record<string, ComponentType<OptionControlProps>>;
     optionPreviews?: Record<string, ComponentType<OptionPreviewProps>>;
     panelLayer?: ComponentType<ScreenSlotProps['panelLayer']>;
     phoneOverlay?: ComponentType<ScreenSlotProps['phoneOverlay']>;
@@ -609,6 +610,14 @@ export function openPanel(id: string, arg?: string): boolean;
 
 // @public
 export function openSceneExchange(modId: string): SceneExchange | null;
+
+// @public
+export interface OptionControlProps {
+    // (undocumented)
+    on: boolean;
+    // (undocumented)
+    optionId: string;
+}
 
 // @public
 export interface OptionPreviewProps {
