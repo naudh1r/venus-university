@@ -13,15 +13,16 @@ import {
   NARRATIVE_LOCATIONS,
   type Character
 } from '@vx/modkit/shared'
-import { bodyAppearance, bodyNegative, bodyOf } from './characterBody'
+import { bodyAppearance, bodyNegative, bodyOf, isChestSizeTag } from './characterBody'
 import {
   bodyTagsFor,
   describesNothingOn,
   partialExposureIn,
   type PartialPhotoExposure
 } from './photoBody'
-import { framingInTags, framingOf, type Framing } from './photoFraming'
+import { framingInTags, framingOf, framingTags, type Framing } from './photoFraming'
 import {
+  LOW_POSITIONS,
   PHOTO_CLAUSE_END,
   photoPose,
   withoutCameraHold,
@@ -39,9 +40,11 @@ import {
   photoWardrobe,
   photoWardrobeNames,
   photoWardrobeFromGarment,
-  filterPhotoWardrobe
+  feetInShot,
+  filterPhotoWardrobe,
+  isFootwearOrSocks
 } from './photoWardrobe'
-import { says, saysAny } from './photoWords'
+import { LOOKING_BACK_CUES, isBackShot, isRearView, says, saysAny } from './photoWords'
 
 /**
  * The prompt one phone photo is drawn from. Built like the CG prompt — her appearance tags
@@ -272,8 +275,12 @@ function escaped(name: string): string {
  * Her appearance with her body in it, as a photo draws it. A guy's chest is said only as
  * `pectorals` where he has them: `flat_chest` in his prompt is a tag for a girl's chest.
  */
-function photoAppearance(character: Character): string[] {
+function photoAppearance(character: Character, scene = ''): string[] {
+  const text = photoRuleText(scene)
   const appearance = bodyAppearance(character, 'photo')
+  if (isRearView(text)) {
+    return appearance.filter((tag) => !isChestSizeTag(tag))
+  }
   return genderOf(character) === 'male'
     ? appearance.filter((tag) => tag !== 'flat_chest')
     : appearance
@@ -549,12 +556,13 @@ export function buildPhotoPrompt(
   // wears it, not her undressing, and the tags pulled the picture towards it.
   if (tier === 'everyday') pose.tags = pose.tags.filter((tag) => !EVERYDAY_DROPS.has(tag))
   // Her body as far as the shot reaches: a selfie from the waist up names no hips.
-  const selected = wardrobeForPhoto(character, tier, scene, dressed, framingInTags(pose.tags))
+  const framing = framingOf(scene) ?? framingInTags(pose.tags)
+  const selected = wardrobeForPhoto(character, tier, scene, dressed, framing)
   const body = bodyTagsFor(
     bodyOf(character),
     scene,
     bare,
-    framingInTags(pose.tags),
+    framing,
     selected.exposure,
     genderOf(character)
   )
@@ -564,12 +572,14 @@ export function buildPhotoPrompt(
   // unweighted, to keep her dressed at the neckline.
   const face = !bare && saysAny(photoRuleText(scene), FACE_SHOT_CUES)
   const shown = face ? faceShotTags(pose.tags) : pose.tags
-  const worn = face ? faceShotTop(selected.tags) : selected.tags
+  const worn = face
+    ? [...faceShotTop(selected.tags), ...selected.tags.filter(isFootwearOrSocks).map(withoutWeight)]
+    : selected.tags
   const wardrobe = plainColours((face ? worn : worn.map(heldColour)).join(', '))
 
   // Her appearance, with her build and her chest in it while the body switch is on. It opens on
   // the subject tag where she has one, so the base does not say it a second time.
-  const appearance = photoAppearance(character)
+  const appearance = photoAppearance(character, scene)
   const base = photoBase(character)
     .split(', ')
     .filter((tag) => !appearance.includes(tag))
@@ -584,10 +594,7 @@ export function buildPhotoPrompt(
       tag.replace(/^\(|:[\d.]+\)$/g, '').trim()
     )
   )
-  // Knees up is drawn with `cowboy_shot` only standing; on the floor, a bed or a chair it is left
-  // to the sentence. The framing still decides what of her outfit and body is in shot.
-  const notStanding = shown.some((tag) => NOT_STANDING.has(tag))
-  const posed = shown.filter((tag) => !earlier.has(tag) && !(notStanding && tag === 'cowboy_shot'))
+  const posed = shown.filter((tag) => !earlier.has(tag))
 
   const positive = [
     `${PHOTO_QUALITY}, ${base}`,
@@ -643,20 +650,6 @@ const FACE_SHOT_CUES = [
   'headshot',
   'her face filling'
 ]
-
-/** Poses that are not standing: `cowboy_shot` is a standing framing and is kept off them. */
-const NOT_STANDING: ReadonlySet<string> = new Set([
-  'sitting',
-  'kneeling',
-  'lying',
-  'on_back',
-  'on_side',
-  'on_stomach',
-  'all_fours',
-  'squatting',
-  'seiza',
-  'indian_style'
-])
 
 /** Where the rest of the photo would put her body, her arms and the camera, out of a face shot. */
 const NOT_IN_A_FACE_SHOT: ReadonlySet<string> = new Set([
@@ -751,7 +744,8 @@ function wardrobeForPhoto(
           'nude',
           'completely_nude',
           BARE_POSITIVE,
-          ...(male ? ['bare_arms', 'bare_legs', 'bare_shoulders', 'barefoot'] : [])
+          ...(male ? ['bare_arms', 'bare_legs', 'bare_shoulders'] : []),
+          ...(male && feetInShot(scene, framing) ? ['barefoot'] : [])
         ]
     : [...visibleOutfit, ...(tier === 'suggestive' ? suggestiveReveals(scene) : [])]
   const gendered = genderedTags(tags, genderOf(character)).filter(
@@ -770,7 +764,10 @@ function wardrobeForPhoto(
         'bare_shoulders'
       ]
     : gendered
-  return { tags: [...new Set(shown)], names, exposure }
+  const visible = isRearView(photoRuleText(scene))
+    ? shown.filter((tag) => tag !== 'bare_chest' && tag !== 'breasts_out')
+    : shown
+  return { tags: [...new Set(visible)], names, exposure }
 }
 
 /** Pose tags an everyday photo never carries. */
@@ -1093,13 +1090,6 @@ function duoExpressions(text: string): { left: string[]; right: string[] } {
   return { left: both, right: both }
 }
 
-/**
- * What is at or below her waist: out of a picture of two drawn from the waist up. A skirt, jeans
- * or a belt in either half drew both of them down to the hips, where their sides met and fused.
- */
-const BELOW_WAIST =
-  /(?:thigh[_\s-]?high|socks?|stockings?|pantyhose|tights|legwear|leggings|shoes|sneakers|boots|heels|loafers|sandals|mary_janes|skirt|jeans|pants|trousers|shorts|bottoms?|buruma|bloomers|belt|^navel$|^midriff$|^thighs$|^bare_legs$)/i
-
 /** How each half may hold herself: her pose, never a hand placement or a framing. */
 const DUO_POSTURE: ReadonlySet<string> = new Set([
   'standing',
@@ -1116,32 +1106,31 @@ const DUO_POSTURE: ReadonlySet<string> = new Set([
   'crossed_legs'
 ])
 
-/** Where the two of them are drawn, from what the caption asks for. */
-function duoFraming(text: string, armOut = false): { tags: string[]; scene: string[] } {
-  if (
-    saysAny(text, ['from behind', 'back view', 'backs to', 'looking back', 'over her shoulder'])
-  ) {
-    // Each half turns on its own, and one of them faced the camera unless both were told.
-    return {
-      tags: ['(from_behind:1.3)', 'looking_back', '(upper_body:1.3)'],
-      scene: ['both with their backs to the viewer']
-    }
+/** The caption frames the shared ppm image, with room for an arm in an unframed selfie. */
+function duoFraming(
+  text: string,
+  armOut: boolean,
+  posture: readonly string[]
+): { framing: Framing; tags: readonly string[]; scene: string[] } {
+  const requested = framingOf(text)
+  const framing = requested ?? (armOut ? 'knees' : 'waist')
+  const back = isBackShot(text)
+  const crop =
+    framing === 'face'
+      ? ['(close-up:1.3)', '(portrait:1.3)']
+      : framing === 'knees' && posture.some((tag) => LOW_POSITIONS.has(tag))
+        ? []
+        : !requested && framing === 'waist' && !back
+          ? ['upper_body']
+          : framingTags(framing)
+  const facing = back
+    ? ['(from_behind:1.3)', ...(saysAny(text, LOOKING_BACK_CUES) ? ['looking_back'] : [])]
+    : []
+  return {
+    framing,
+    tags: [...facing, ...crop],
+    scene: [...(back ? ['both with their backs to the viewer'] : []), 'same height']
   }
-  // A close-up needed the framing weighted in both halves before either was drawn close.
-  if (framingOf(text) === 'face') {
-    return { tags: ['(close-up:1.3)', '(portrait:1.3)'], scene: [] }
-  }
-  // A held-out arm needs room: waist up cropped it out of the picture. A close-up stays close.
-  if (armOut && !saysAny(text, ['close-up', 'close up', 'closeup'])) {
-    return { tags: ['cowboy_shot'], scene: ['same height'] }
-  }
-  // Waist up, always: a whole-body shot of two drew one of them smaller, as if a step behind,
-  // and her legs folded to fit her half. A close-up keeps the weighted framing; any other shot
-  // takes it plain. No room is asked between them: the words fenced each into a boxed-off corner.
-  if (saysAny(text, ['close-up', 'close up', 'closeup'])) {
-    return { tags: ['(upper_body:1.3)'], scene: ['same height'] }
-  }
-  return { tags: ['upper_body'], scene: ['same height'] }
 }
 
 /**
@@ -1164,6 +1153,7 @@ function duoHalf(
   girl: Character,
   tier: PhotoTier,
   scene: string,
+  framing: Framing,
   posture: readonly string[],
   extra: readonly string[]
 ): { prompt: string; worn: string; names: readonly string[] } {
@@ -1173,21 +1163,21 @@ function duoHalf(
     tag === '1girl' || tag === '1boy' || SOLO_TAGS.has(tag)
   // Her hair colour weighted: two people under one attention, it held only weighted, the
   // other's colour landing on her otherwise. Length and style tags stay as they are.
-  const appearance = photoAppearance(girl)
+  const appearance = photoAppearance(girl, scene)
     .filter((tag) => !alone(tag))
     .map((tag) => (isHairColourTag(tag) ? `(${tag}:1.3)` : tag))
-  const selected = wardrobeForPhoto(girl, tier, scene, dressed)
+  const selected = wardrobeForPhoto(girl, tier, scene, dressed, framing)
   const body = bodyTagsFor(
     bodyOf(girl),
     scene,
     bare,
-    'waist',
+    framing,
     selected.exposure,
-    genderOf(girl)
-  ).filter((tag) => bare || !BELOW_WAIST.test(tag))
+    genderOf(girl),
+    false
+  )
   const wardrobe = selected.tags
-    .filter((tag) => bare || !BELOW_WAIST.test(tag))
-    .map((tag) => (bare ? tag : waistUpDress(tag)))
+    .map((tag) => (framing === 'waist' || framing === 'face' ? waistUpDress(tag) : tag))
     .map(heldColour)
   return {
     prompt: plainColours(
@@ -1349,7 +1339,7 @@ export function buildDuoPhotoPrompt(
   const selfie = says(text, 'selfie') || mirror
   const lying = posture.includes('lying')
   const armOut = selfie && !mirror && !lying
-  const framing = duoFraming(text, armOut)
+  const framing = duoFraming(text, armOut, posture)
   const holds = mirror
     ? ['holding_phone']
     : armOut
@@ -1360,8 +1350,8 @@ export function buildDuoPhotoPrompt(
 
   const shared = [...framing.tags]
   const faces = duoExpressions(photoRuleText(text))
-  const left = duoHalf(sender, tier, scene, posture, [...faces.left, ...shared, ...holds])
-  const right = duoHalf(friend, tier, scene, posture, [...faces.right, ...shared])
+  const left = duoHalf(sender, tier, scene, framing.framing, posture, [...faces.left, ...shared, ...holds])
+  const right = duoHalf(friend, tier, scene, framing.framing, posture, [...faces.right, ...shared])
   const dressedScene = withoutOutfitName(scene, [...left.names, ...right.names])
   // A selfie lying down did not hold for two, so it is said as the photo it is drawn as.
   const sentence = lookingAtViewer(
@@ -1400,7 +1390,11 @@ export function buildDuoPhotoPrompt(
     ...SPILL_NEGATIVE.filter(([, said]) => !said.test(text)).map(([tag]) => tag),
     ...phoneNegative,
     ...(mirror || saysAny(text, ['camera']) ? [] : ['camera']),
-    ...new Set([...bodyNegative(sender), ...bodyNegative(friend)])
+    ...new Set(
+      [sender, friend]
+        .filter((one) => genderOf(one) === 'female' || genderOf(sender) === genderOf(friend))
+        .flatMap(bodyNegative)
+    )
   ].join(', ')
 
   return {

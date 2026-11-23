@@ -10,6 +10,7 @@ import {
   bodyPoolsFor,
   cleanBody,
   drawBody,
+  drawnFieldsFor,
   type BodyField,
   type CharacterBody
 } from '../../shared/characterBody'
@@ -32,15 +33,13 @@ const LABELS: Readonly<Record<BodyField, string>> = {
   breasts: 'Breasts',
   hipsThighs: 'Hips and thighs',
   buttocks: 'Backside',
+  penis: 'Penis',
   pubicHair: 'Pubic hair'
 }
 
 /** What an empty field is drawn as. */
-function noneLabel(field: BodyField, baseAppearance: readonly string[]): string {
-  if (field === 'breasts')
-    return `From appearance (${bodyTagLabel(appearanceBreasts(baseAppearance))})`
-  if (field === 'pubicHair') return 'Clean'
-  return 'Average'
+function noneLabel(field: BodyField): string {
+  return field === 'pubicHair' ? 'Clean' : 'Average'
 }
 
 /** Her body on a character, moved from the old key when the character is written. */
@@ -119,8 +118,9 @@ export function BodyFieldsSection({
       <div className="vu-edit-body-head">
         <span className="vu-field-label">Body</span>
         <span className="vu-check-note">
-          Pick a build and chest, and the rest is drawn to fit. Reroll for another combination. The
-          chest starts from the appearance tags. Used in sprites, CGs and photos when drawn again.
+          {gender === 'male'
+            ? 'Pick a build and chest, then set his other details or reroll them. Penis size is used in explicit solo photos when visible.'
+            : 'Pick a build and chest, and the rest is drawn to fit. Reroll for another combination. The chest starts from the appearance tags. Used in sprites, CGs and photos when drawn again.'}
         </span>
       </div>
       <label className="vu-field" htmlFor="edit-body-build">
@@ -140,7 +140,7 @@ export function BodyFieldsSection({
           ))}
         </select>
       </label>
-      {hasBody && (
+      {(hasBody || gender === 'male') && (
         <label className="vu-field" htmlFor="edit-body-breasts">
           <span className="vu-field-label">{gender === 'male' ? 'Chest' : LABELS.breasts}</span>
           <select
@@ -161,12 +161,31 @@ export function BodyFieldsSection({
           </select>
         </label>
       )}
-      {hasBody && (
+      {gender === 'male' &&
+        drawnFieldsFor(gender).map((field) => (
+          <label className="vu-field" htmlFor={`edit-body-${field}`} key={field}>
+            <span className="vu-field-label">{LABELS[field]}</span>
+            <select
+              id={`edit-body-${field}`}
+              className="vu-input vu-select"
+              value={body[field] ?? ''}
+              onChange={(e) => change({ ...body, [field]: e.target.value })}
+            >
+              <option value="">{noneLabel(field)}</option>
+              {pools[field].map((tag) => (
+                <option key={tag} value={tag}>
+                  {bodyTagLabel(tag)}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      {(hasBody || gender === 'male') && (
         <div className="vu-edit-body-drawn">
           <span className="vu-check-note">
-            {DRAWN_FIELDS.map(
+            {drawnFieldsFor(gender).map(
               (field) =>
-                `${LABELS[field]}: ${body[field] ? bodyTagLabel(body[field]) : noneLabel(field, baseAppearance)}`
+                `${LABELS[field]}: ${body[field] ? bodyTagLabel(body[field]) : noneLabel(field)}`
             ).join(' · ')}
           </span>
           <motion.button
@@ -189,9 +208,6 @@ export function BodyFieldsSection({
 /** The build dropdown's two answers that are not a tag. */
 const NOT_SET = 'not-set'
 const AVERAGE = 'average'
-
-/** What the engine drew, shown under her build and her chest. */
-const DRAWN_FIELDS: readonly BodyField[] = ['hipsThighs', 'buttocks', 'pubicHair']
 
 /** Her body as a field in the character editor: read off her, edited, and written back clean. */
 export const BODY_EDITOR_FIELD: EditorField = {
