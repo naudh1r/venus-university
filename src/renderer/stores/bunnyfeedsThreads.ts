@@ -333,6 +333,7 @@ export async function armFeedThreads(showAt: 'now' | 'next' = 'now'): Promise<vo
     {
       playthroughId: game.playthroughId ?? 'unsaved',
       stats: game.stats,
+      readerPronouns: game.readerPronouns,
       lessNsfwText: lessNsfwText(),
       date: game.date,
       season: game.calendar.season,
