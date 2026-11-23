@@ -941,6 +941,12 @@ const TOUCHING = new RegExp(
   'gi'
 )
 
+/**
+ * Kept off every picture of two: the sentence is stripped of touching, but a boy and a girl side by
+ * side were still drawn cuddling, one lying on the other, as a couple.
+ */
+const APART_NEGATIVE = ['couple', 'hug', 'cuddling', 'kiss', 'lying_on_person']
+
 /** The sentence without the two of them touching. */
 export function withoutTouching(scene: string): string {
   return scene
@@ -1389,6 +1395,7 @@ export function buildDuoPhotoPrompt(
         )),
     ...SPILL_NEGATIVE.filter(([, said]) => !said.test(text)).map(([tag]) => tag),
     ...phoneNegative,
+    ...APART_NEGATIVE,
     ...(mirror || saysAny(text, ['camera']) ? [] : ['camera']),
     ...new Set(
       [sender, friend]
