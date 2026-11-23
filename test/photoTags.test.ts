@@ -16,6 +16,12 @@ import { describe, expect, it } from 'vitest'
 
 /** Danbooru vocabulary checked against the API or the catalog cited beside its entries. */
 const VERIFIED = new Set([
+  // Kept off a picture of two, from the published Danbooru catalog cited below.
+  'couple',
+  'hug',
+  'cuddling',
+  'kiss',
+  'lying_on_person',
   // Bare body details and skin marks, checked against the published Danbooru catalog below.
   'small_penis',
   'large_penis',
