@@ -196,6 +196,7 @@ If a photo leaves out a pose or a gesture her sentence asked for, look in `data/
   when the caption mentions them.
 - Shoes and ankle socks appear only when the feet are in the picture.
 - A photo of two can be full body or knees-up when the caption asks for it.
+- The two in a photo of two stand side by side, not cuddling, hugging or lying on each other.
 - A scene's photo of two shows a pair who are friends or a couple, as the feed's does. Two
   people who only share the scene get a photo of one of them instead.
 
