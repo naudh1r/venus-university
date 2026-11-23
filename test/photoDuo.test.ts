@@ -4,29 +4,31 @@ import { buildDuoPhotoPrompt, duoHeadCount, faceHalfOf, withoutTouching } from '
 import { character } from './fixtures'
 
 describe('who is in a group photo', () => {
-  it('takes two different girls from the scene, and nobody from a scene with fewer', () => {
-    expect(groupPhotoPair(['risa', 'ana', 'lia'], {}, () => 0)).toEqual({ poster: 'risa', friend: 'ana' })
-    expect(groupPhotoPair(['risa', 'ana', 'lia'], {}, () => 0.99)).toEqual({ poster: 'lia', friend: 'ana' })
-    expect(groupPhotoPair(['risa', 'risa'], {}, () => 0)).toBeNull()
-    expect(groupPhotoPair(['risa'], {})).toBeNull()
+  it('takes two different people from the scene, and nobody from a scene with fewer', () => {
+    const friends = { 'ana|lia': { affinity: 4 }, 'ana|risa': { affinity: 5 }, 'lia|risa': { affinity: 6 } }
+    expect(groupPhotoPair(['risa', 'ana', 'lia'], friends, () => 0)).toEqual({ poster: 'risa', friend: 'ana' })
+    expect(groupPhotoPair(['risa', 'ana', 'lia'], friends, () => 0.99)).toEqual({ poster: 'lia', friend: 'ana' })
+    expect(groupPhotoPair(['risa', 'risa'], friends, () => 0)).toBeNull()
+    expect(groupPhotoPair(['risa'], friends)).toBeNull()
   })
 
-  it('skips every enemy pair, still takes acquaintances, and refuses a scene of enemies only', () => {
+  it('takes only friends or a couple, as the feed does', () => {
     const relationships = {
       'ana|risa': { affinity: -4 },
-      'lia|risa': { affinity: -6 },
-      'ana|lia': { affinity: -3 }
+      'lia|risa': { affinity: 2 },
+      'ana|lia': { affinity: 4 }
     }
     for (const roll of [0, 0.25, 0.5, 0.99]) {
       const pair = groupPhotoPair(['risa', 'ana', 'lia'], relationships, () => roll)!
       expect([pair.poster, pair.friend].sort()).toEqual(['ana', 'lia'])
     }
+    // Acquaintances and strangers who only share the scene get no photo together.
+    expect(groupPhotoPair(['risa', 'lia'], relationships)).toBeNull()
+    expect(groupPhotoPair(['risa', 'lia'], {})).toBeNull()
     expect(groupPhotoPair(['risa', 'ana'], relationships)).toBeNull()
-    expect(groupPhotoPair(['risa', 'ana', 'lia'], {
-      ...relationships, 'ana|lia': { affinity: -4 }
-    })).toBeNull()
-    expect(groupPhotoPair(['ana', 'lia'], { 'ana|lia': { affinity: 4 } }, () => 0))
-      .toEqual({ poster: 'ana', friend: 'lia' })
+    // A couple counts whatever their affinity.
+    expect(groupPhotoPair(['risa', 'lia'], { 'lia|risa': { affinity: 0, dating: 3 } }, () => 0))
+      .toEqual({ poster: 'risa', friend: 'lia' })
   })
 })
 
