@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `gameFacts` and `useGameFacts` include the reader's pronouns. Shared `readerWordsOf` gives mods the
+  same pronoun forms the game uses.
+
 - Scene exchange context includes each participant's normalized `gender` and
   `scene.readerPronouns`, so auxiliary scenes preserve 0.9 identities without
   inferring them from names.

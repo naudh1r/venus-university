@@ -463,7 +463,10 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
 - `modsOnLine()` and `buildLabel()` (`renderer`): the mods that are on, each with its version, as
   the log lists them, and the build's name and version: for a bug report.
 - `gameFacts()` and `useGameFacts()` (`renderer`): the playthrough being played, or null, and the
-  reader's first name.
+  reader's first name and `readerPronouns` (`'he' | 'she' | 'they'`, with he/him for old saves).
+- `readerWordsOf(pronouns, beside?)` (`shared`): the game's `ReaderWords`, including capitalized
+  forms. The subject is “the reader” for they/them, so it takes a singular verb. Pass a character's
+  gender as `beside` if they share the reader's pronouns and the line needs to distinguish them.
 - `useScenePersona()` (`renderer`): the cast-scene persona the player set in Settings, or
   undefined where none is set or the settings are not read yet.
 - `showError(error)` (`renderer`): the game's own error modal, for an `AppError` a mod's call answered.
