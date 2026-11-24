@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { newExtraMatch, extraSummary, extraThrow, extraModeUnavailable, planExtraVisit, applyExtraPlan, targetRegion, scoreHit, type ExtraDartsMatch, type ExtraDartsMode } from '../src/shared/minigameRules/darts'
+import { newExtraMatch, extraModeTitle, extraDescription, extraSituation, extraSummary, extraThrow, extraModeUnavailable, planExtraVisit, applyExtraPlan, targetRegion, scoreHit, type ExtraDartsMatch, type ExtraDartsMode } from '../src/shared/minigameRules/darts'
+import { stubApi } from './fixtures'
+
+stubApi({ jobs: { onProgress: () => () => {} } })
+const { dartsNextThrow } = await import('../src/renderer/minigames/games/DartsHelp')
+
 const seats = [
  { id:'reader',name:'You',kind:'reader' as const },
  { id:'a',name:'Ana',kind:'npc' as const,skill:5,traits:{version:1,accuracy:90,consistency:90,composure:90} },
@@ -12,30 +17,42 @@ const visit=(g:ExtraDartsMatch,points=0)=>{const index=extraSummary(g).visit;whi
 
 describe('additional mode gates',()=>{
  it('enforces companion counts and inclusive skill boundaries',()=>{
-  expect(extraModeUnavailable('girls-team',[1,1])).toBeNull();expect(extraModeUnavailable('girls-team',[5])).toBeTruthy()
+  expect(extraModeUnavailable('pair',[1,1])).toBeNull();expect(extraModeUnavailable('pair',[5])).toBeTruthy()
   expect(extraModeUnavailable('leader',[1,1])).toBeNull();expect(extraModeUnavailable('precision',[3])).toBeTruthy()
   expect(extraModeUnavailable('precision',[4])).toBeNull();expect(extraModeUnavailable('precision',[5,5])).toBeTruthy()
   expect(extraModeUnavailable('exact',[2])).toBeTruthy();expect(extraModeUnavailable('exact',[3])).toBeNull()
   expect(()=>newExtraMatch({id:'low',mode:'precision',seed:1,seats:[seats[0],{...seats[1],skill:3}]})).toThrow(/tier 4/)
  })
 })
-describe('two girls versus the reader',()=>{
- it('shares the girls balance and orders girl 1, girl 2, reader',()=>{
-  let g=fresh('girls-team');expect(extraSummary(g).currentSeatId).toBe('a')
-  g=visit(g,20);expect(extraSummary(g).girlsBalance).toBe(241);expect(extraSummary(g).currentSeatId).toBe('b')
-  g=visit(g,10);expect(extraSummary(g).girlsBalance).toBe(211);expect(extraSummary(g).balances.reader).toBe(301);expect(extraSummary(g).currentSeatId).toBe('reader')
-  g=visit(g,5);expect(extraSummary(g).balances.reader).toBe(286);expect(extraSummary(g).girlsBalance).toBe(211)
+describe('two companions versus the reader',()=>{
+ it('uses the two first names in the title', () => {
+  expect(extraModeTitle('pair', ['Lina', 'Mika'])).toBe('Player vs Lina & Mika')
  })
- it('cancels a bust visit, preserves the other girl’s earlier points, and skips unused darts',()=>{
-  let g=fresh('girls-team');for(let i=0;i<5;i++)g=dart(g,20,'triple'); // team at 1; first girl contributed 180
-  g=dart(g,2);expect(extraSummary(g).girlsBalance).toBe(121);expect(extraSummary(g).currentSeatId).toBe('reader');expect(extraSummary(g).visits.at(-1)?.bust).toBe(true)
+ it('names both companions in throw order', () => {
+  expect(extraDescription(fresh('pair'))).toContain('Order: Ana, Bea, you.')
  })
- it('ends immediately on either side’s checkout and credits both girls',()=>{
-  let g=fresh('girls-team');for(let i=0;i<5;i++)g=dart(g,20,'triple');g=dart(g,1)
-  expect(extraSummary(g)).toMatchObject({done:true,outcome:'lost',winnerIds:['a','b'],girlsBalance:0});expect(()=>miss(g)).toThrow()
+ it('names both companions in the score summary', () => {
+  expect(extraSituation(fresh('pair'))).toBe('You have 301 remaining. Ana & Bea have 301 remaining.')
+ })
+ it('uses a male companion’s subject pronoun when his name is unknown', () => {
+  expect(dartsNextThrow({ name: 'him', gender: 'male' })).toBe('He throws next.')
+ })
+ it('shares the pair balance and orders the two companions before the reader',()=>{
+  let g=fresh('pair');expect(extraSummary(g).currentSeatId).toBe('a')
+  g=visit(g,20);expect(extraSummary(g).pairBalance).toBe(241);expect(extraSummary(g).currentSeatId).toBe('b')
+  g=visit(g,10);expect(extraSummary(g).pairBalance).toBe(211);expect(extraSummary(g).balances.reader).toBe(301);expect(extraSummary(g).currentSeatId).toBe('reader')
+  g=visit(g,5);expect(extraSummary(g).balances.reader).toBe(286);expect(extraSummary(g).pairBalance).toBe(211)
+ })
+ it('cancels a bust visit, preserves the other companion’s earlier points, and skips unused darts',()=>{
+  let g=fresh('pair');for(let i=0;i<5;i++)g=dart(g,20,'triple'); // team at 1; first companion contributed 180
+  g=dart(g,2);expect(extraSummary(g).pairBalance).toBe(121);expect(extraSummary(g).currentSeatId).toBe('reader');expect(extraSummary(g).visits.at(-1)?.bust).toBe(true)
+ })
+ it('ends immediately on either side’s checkout and credits both companions',()=>{
+  let g=fresh('pair');for(let i=0;i<5;i++)g=dart(g,20,'triple');g=dart(g,1)
+  expect(extraSummary(g)).toMatchObject({done:true,outcome:'lost',winnerIds:['a','b'],pairBalance:0});expect(()=>miss(g)).toThrow()
  })
  it('limits both sides to three rounds and uses lower remaining balance',()=>{
-  let g=fresh('girls-team');for(let i=0;i<27;i++)g=miss(g)
+  let g=fresh('pair');for(let i=0;i<27;i++)g=miss(g)
   expect(extraSummary(g)).toMatchObject({done:true,outcome:'draw',visit:9});expect(g.throws.filter(d=>d.seatId==='reader')).toHaveLength(9)
  })
 })
@@ -44,7 +61,7 @@ describe('chase the leader',()=>{
   let g=fresh('leader');g=visit(g,10);g=visit(g,10);g=visit(g,20)
   expect(extraSummary(g).points).toEqual({reader:0,a:1,b:1})
  })
- it('reports a reader loss when the two girls share first place',()=>{
+ it('reports a reader loss when the two companions share first place',()=>{
   let g=fresh('leader');g=visit(g);g=visit(g,20);g=visit(g,20)
   g=visit(g,20);g=visit(g,20);g=visit(g)
   g=visit(g,20);g=visit(g);g=visit(g,20)
@@ -98,7 +115,7 @@ describe('exact total',()=>{
  })
 })
 describe('mode-specific NPC simulation',()=>{
- it.each(['girls-team','leader','precision','exact'] as const)('plans deterministic visits and rejects reapplication in %s',mode=>{
+ it.each(['pair','leader','precision','exact'] as const)('plans deterministic visits and rejects reapplication in %s',mode=>{
   let g=fresh(mode)
   if(extraSummary(g).currentSeatId==='reader')g=visit(g)
   const saved=JSON.stringify(g),plan=planExtraVisit(g);expect(plan).toEqual(planExtraVisit(g));expect(JSON.stringify(g)).toBe(saved)
