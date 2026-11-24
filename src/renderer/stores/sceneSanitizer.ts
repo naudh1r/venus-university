@@ -249,7 +249,9 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
 
         // A CG names no character; every other action does.
         if (parsed.kind !== 'cg' && !knownKeys.has(parsed.charKey)) {
-          console.warn(`[scene] unknown character "${parsed.charKey}" in ${rawAction} — dropping it.`)
+          console.warn(
+            `[scene] unknown character "${parsed.charKey}" in ${rawAction} — dropping it.`
+          )
           continue
         }
 
@@ -259,7 +261,9 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
             continue
           }
           if (onScreen.size >= PORTRAIT_SLOTS) {
-            console.warn(`[scene] ${rawAction} would put a fourth character on screen — dropping it.`)
+            console.warn(
+              `[scene] ${rawAction} would put a fourth character on screen — dropping it.`
+            )
             continue
           }
           onScreen.add(parsed.charKey)
@@ -267,14 +271,18 @@ export function createSceneSanitizer(options: SanitizerOptions = {}): {
           kept.push(rawAction)
         } else if (parsed.kind === 'hide') {
           if (!onScreen.has(parsed.charKey)) {
-            console.warn(`[scene] ${rawAction} but "${parsed.charKey}" is not on screen — ignoring it.`)
+            console.warn(
+              `[scene] ${rawAction} but "${parsed.charKey}" is not on screen — ignoring it.`
+            )
             continue
           }
           onScreen.delete(parsed.charKey)
           kept.push(rawAction)
         } else if (parsed.kind === 'sprite') {
           if (!onScreen.has(parsed.charKey)) {
-            console.warn(`[scene] ${rawAction} but "${parsed.charKey}" is not on screen — dropping it.`)
+            console.warn(
+              `[scene] ${rawAction} but "${parsed.charKey}" is not on screen — dropping it.`
+            )
             continue
           }
           // A set not fully rendered for her degrades to the bare emotion, as does a custom
@@ -415,11 +423,13 @@ export function ledgerMemories(ledger: LedgerResponse, log = true): ValidMemory[
   for (const entry of ledger.memories ?? []) {
     const charId = charKeyToId[entry?.charKey ?? '']
     if (!charId) {
-      if (log) console.warn(`[ledger] memory for unknown character "${entry?.charKey}" — dropping it.`)
+      if (log)
+        console.warn(`[ledger] memory for unknown character "${entry?.charKey}" — dropping it.`)
       continue
     }
     if (!MEMORY_TYPES.includes(entry.type)) {
-      if (log) console.warn(`[ledger] memory type "${entry.type}" is not valid — dropping the entry.`)
+      if (log)
+        console.warn(`[ledger] memory type "${entry.type}" is not valid — dropping the entry.`)
       continue
     }
     if (!entry.desc?.trim()) {
@@ -460,7 +470,8 @@ function ledgerTextMemories(ledger: LedgerResponse, log = true): ValidMemory[] {
       continue
     }
     if (seen.has(charId)) {
-      if (log) console.warn(`[ledger] a second texting memory for "${entry.charKey}" — dropping it.`)
+      if (log)
+        console.warn(`[ledger] a second texting memory for "${entry.charKey}" — dropping it.`)
       continue
     }
     seen.add(charId)
@@ -482,7 +493,8 @@ export function ledgerActs(ledger: LedgerResponse | null, log = true): IntimateA
 
   for (const entry of ledger.acts ?? []) {
     if (!kinds.has(entry?.kind)) {
-      if (log) console.warn(`[ledger] act kind "${String(entry?.kind)}" is not valid — dropping it.`)
+      if (log)
+        console.warn(`[ledger] act kind "${String(entry?.kind)}" is not valid — dropping it.`)
       continue
     }
     const charIds: string[] = []
@@ -501,7 +513,12 @@ export function ledgerActs(ledger: LedgerResponse | null, log = true): IntimateA
     }
     const game = useGameStore.getState()
     // Drop the whole pairing, rather than inventing a different act without one participant.
-    if (charIds.some(id => blocksNewRomance(game.characters[id], game.stats, game.charInfo[id]?.flags))) continue
+    if (
+      charIds.some((id) =>
+        blocksNewRomance(game.characters[id], game.stats, game.charInfo[id]?.flags)
+      )
+    )
+      continue
     const pairing = `${entry.kind}|${[...charIds].sort().join('|')}`
     const held = byPairing.get(pairing)
     // Seen once is seen: the same pairing reported twice is one act, public if either row was.
@@ -527,7 +544,8 @@ function ledgerEvents(ledger: LedgerResponse, log = true): Map<string, Relations
   for (const entry of ledger.events ?? []) {
     const charId = charKeyToId[entry?.charKey ?? '']
     if (!charId) {
-      if (log) console.warn(`[ledger] event for unknown character "${entry?.charKey}" — dropping it.`)
+      if (log)
+        console.warn(`[ledger] event for unknown character "${entry?.charKey}" — dropping it.`)
       continue
     }
     if (!isRelationshipEvent(entry.event)) {
@@ -939,11 +957,18 @@ export function projectLedger(
 
   // Last, like the apply, so the cap evicts in the same order.
   const game = useGameStore.getState()
-  const { characters } = game
   const byChar = ledgerEvents(ledger, false)
   for (const [charId, events] of byChar) {
-    const holder = genderOf(characters[charId])
-    projected[charId] = foldRelationshipEvents(entryFor(charId), events, date, holder, { character: characters[charId], stats: game.stats })
+    projected[charId] = foldRelationshipEvents(
+      entryFor(charId),
+      events,
+      date,
+      genderOf(game.characters[charId]),
+      {
+        character: game.characters[charId],
+        stats: game.stats
+      }
+    )
   }
 
   const dating = settleDating(datingInputOf(charInfo, projected, date, closedOf(byChar)))

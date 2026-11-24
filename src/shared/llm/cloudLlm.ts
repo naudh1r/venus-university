@@ -220,7 +220,7 @@ export async function completeStructured<T>(
   const model = modelToRun(settings, request.kind)
   // Against the model that will actually run, so a secondary that takes fewer levels than the
   // primary falls to its own default rather than 400ing.
-  const thinkingLevel = reasoningToSend(settings, model.id, request.thinking)
+  const thinkingLevel = reasoningToSend(settings, model.id, request.thinking, request.minThinking)
   // Absent is `priority` under Gemini, and none at all for a custom endpoint.
   const serviceTier = serviceTierToSend(settings)
   // The player's own cap where a custom endpoint names one, else the pinned ceiling.

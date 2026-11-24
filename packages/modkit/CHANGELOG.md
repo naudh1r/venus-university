@@ -1,31 +1,37 @@
 # @vx/modkit
 
-## 0.8.2
+## Unreleased
 
-- Venus University 0.9.x makes a request's `thinking` required and drops `minThinking` and `raiseThinking`. `completeStructured` and `completeModStructured` still take a request without `thinking`, and run it at the `scenes` row, as before.
-- `comfyNodePackState` checks the loaded classes on the player's own ComfyUI, with a short
-  deadline and a one-minute cache cleared when its source or address changes. The existing
-  `subscribeLocalImageSource` also notifies mods when the external address changes.
+- Optional `ModDef.game` declares supported Venus University versions. Manifest `game`
+  ranges now propagate to mod-menu metadata; undeclared or out-of-range support is
+  shown with advisory confirmation before enabling mods and game entry.
 - Main code can pin a ComfyUI custom-node pack of its own with `registerComfyNodePack`, install it
   into the game's managed ComfyUI on demand with `installComfyNodePack`, and read it with
   `comfyNodePackState`. `renderComfyImage` refuses a graph naming a class the server lacks as
   `COMFY_NODES_MISSING`, naming the pack.
+- `comfyNodePackState` checks the loaded classes on the player's own ComfyUI, with a short
+  deadline and a one-minute cache cleared when its source or address changes. The existing
+  `subscribeLocalImageSource` also notifies mods when the external address changes.
 - `optionControls` draws a mod's own control under one of its ungrouped options on the Mods screen.
+- `gameFacts` and `useGameFacts` include the reader's pronouns. Shared `readerWordsOf` gives mods the
+  same pronoun forms the game uses.
+- `genderOf`, `pronounsOf`, `PRONOUNS`, `fillPronouns`, `pronounTag` and `readerGenderOf`
+  (`shared`), with the `Gender` and `Pronouns` types, are the game's own words for a character's
+  gender, so a mod's text about a character can follow it as the game's does.
 
-## 0.8.1
+- Scene exchange context includes each participant's normalized `gender` and
+  `scene.readerPronouns`, so auxiliary scenes preserve 0.9 identities without
+  inferring them from names.
 
-- `gameFacts` and `useGameFacts` include the reader's pronouns. Shared `readerWordsOf` gives mods the same pronoun forms the game uses.
+- Venus University 0.9.2 integration keeps the existing positional prompt helpers,
+  second-person memory status calls, and requests without a `thinking` row working.
+  New calls can use upstream's gender, attraction and reader-pronoun arguments and
+  per-task reasoning rows; legacy `minThinking` still raises the selected level.
+  Scene prompt hooks keep the older `subjectTags` list and add `subjectTagsByGender`.
+- New Game's prompt-text edits and custom class counts apply to the new split
+  requests, including combined profile/secrets calls and later-semester students.
+  Editable defaults now match upstream's gender-neutral prose and `lowrise` answer.
 
-## 0.8.0
-
-naudh1r-core: the org's unreleased kit changes and After Hours' hooks.
-
-- `NativeGameSave` gains optional `heldNightLedger` and `morningOpening`: a late-night hold's
-  paid texting ledger, and the morning opening its ending wrote, kept so a reload pays for neither again.
-- `threadStartedBy` gives the thread to the reader when her first text in the slot is a late
-  answer to his earlier texts, not a reach-out or an invitation.
-- Shared exports `EMOTIONS`, the sprite expressions a dialogue line's `emotion` may name, such as
-  a staged opening's line.
 - Activities can call `setSceneSuggestionsPaused` to pause optional scene suggestions for
   the loaded game. Providers can query `sceneSuggestionsPaused`, render from
   `useSceneSuggestionsPaused` or observe boolean changes with `subscribeSceneSuggestionsPaused`.
@@ -112,14 +118,18 @@ naudh1r-core: the org's unreleased kit changes and After Hours' hooks.
 - A filed post that `postVisible` keeps off the feed gets no BunnyBot first-post nudge; the mod
   that shows it nudges.
 
+- `NativeGameSave` gains optional `heldNightLedger` and `morningOpening`: a late-night hold's
+  paid texting ledger, and the morning opening its ending wrote, kept so a reload pays for neither again.
+- `threadStartedBy` gives the thread to the reader when her first text in the slot is a late
+  answer to his earlier texts, not a reach-out or an invitation.
+- Shared exports `EMOTIONS`, the sprite expressions a dialogue line's `emotion` may name, such as
+  a staged opening's line.
 - `openingLook` receives the written opening reply and returns `OpeningLook`, with optional
   room, one cast member and an `until` boundary. Opening dialogue uses the scene's expression,
   name box and voice without starting a scene. Saved openings keep their reply and playback
   position; their thumbnails use the ordinary landing.
-
 - `NativeGameSave.heldNight` records the late night a save opens on for listing and
   thumbnail purposes. It does not control slot entry.
-
 - Interlude rows accept `line`, played as Relax narration before their ending. `relaxLine`
   replaces only Relax’s own line; extra Relax rows retain the default.
 - A busy-time text waits through a shared next class without a reply call. Its boundary
@@ -127,22 +137,18 @@ naudh1r-core: the org's unreleased kit changes and After Hours' hooks.
   turns recover when due, and the pending class clock carries across semesters.
 - Held replies due at a landing exclude that girl from reach-outs and invitations,
   including plan reminders and occasion fallback picks.
-
 - `openingLook` chooses a girl's ready room behind a slot's opening narration, including
   after a reload. The landing returns to its usual room when the narration is read.
-
 - A late-night interlude defers the next opening until its row settles the night's
   texting ledger, displays its status lines, and claims the messages before saving.
 - `interludeSettled` receives that ledger synchronously while the hold still stands,
   before its opening and save. `slotSettled` never sees this extra ending.
 - Remove the saved `heldOpening`. Ordinary scene endings still retain their paid
   opening and boundary results on the scene for replaying the ending after a reload.
-
 - Interlude rows can set `card: true` to use a plan card without a category chip.
   Rows without it remain quiet choices.
 - A held `clock: 'late-night'` interlude labels the landing header Night, on the
   finished slot's date.
-
 - `hangoutCheck` replaces `hangoutVerdict`: any false answer skips the immediate-meetup
   classifier before the call, for ordinary and regenerated replies. Interludes skip it
   without asking mods. Standing invitation settlement remains unchanged.
@@ -151,7 +157,6 @@ naudh1r-core: the org's unreleased kit changes and After Hours' hooks.
 - Remove `HangoutVerdict`, `HangoutVerdictCtx`, `TextingPromptState.answeringInvite`,
   `useInterludeNow`, and the unused `held` member of `afterDmReply`'s context. `chatClock`
   remains available to message views.
-
 - Interludes are narration and simple choices only. Private-room routes, confirmation and
   transition fields, bonus scenes and their settlement flags, and the kit's commitment reader
   are removed. Existing scene saves still load; obsolete bonus fields have no effect.
@@ -161,32 +166,26 @@ naudh1r-core: the org's unreleased kit changes and After Hours' hooks.
   request context carry the preceding scene's ledger, or null without a scene.
 - Night holds show contacts in their own dorms, with away and sick statuses taking priority.
   Manual saves retain the banked opening so a held landing reload keeps its morning narration.
-
 - `interludePreview(ctx)`: asked when a boundary's curtain falls; a mod that will hold the coming slot
   on the finished one's look answers `{ at: 'from' }`, and the curtain announces that slot instead of
   the next. Pure: it writes nothing.
-
 - The former `TextingPromptState.answeringInvite` (removed in 0.18.0): the reader's new text answers an invitation of hers that was
   still standing, so a `prompts.dm` hook can tell it apart even though the invitation is cleared as he
   sends.
-
 - Core's previews and scene histories leave out messages not shown yet. The conversation readers
   keep handing out the whole thread; `chatClock()` (renderer) with `messageShown` and
   `shownMessages` (shared) let a mod that shows messages filter them the same way. Recovery finds
   waiting texts behind saved errors; semester carry moves held delivery dates with their messages.
 - Shared exports `threadStartedBy`.
-
 - `textWhileBusy` can open a character's composer during a class or shift. Her reply is
   generated immediately for the next slot, hidden until that slot opens, and never classified
   for a hangout. DM prompts receive `heldUntil` and `commitment`; `afterDmReply` originally received `held` (removed in 0.18.0).
   Later message attachments share the hold, and saved unfinished turns resume on load.
-
 - `slotInterlude` can hold a slot opening on the finished slot's landing with narration,
   choices and a working phone. `interludeNow` reads the hold; the unused reactive reader was removed in 0.18.0.
 - A `late-night` clock keeps texts in the new slot's ledger while their stamps, prompts,
   weather and availability read as late on the preceding night.
 - `relaxLabel` replaces the Relax row's words without changing what it does.
-
 - The former verdict pipeline (replaced by `hangoutCheck` in 0.18.0) let mods change or drop a texting classifier verdict, with who
   started the slot's thread and whether the exchange answers her standing invitation.
   Its public verdict types were removed in 0.18.0.

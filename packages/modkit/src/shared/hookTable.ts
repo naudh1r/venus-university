@@ -109,7 +109,7 @@ export const HOOKS = [
   { name: 'saveChoice', side: 'renderer', kind: 'first', dispatch: ['saveChoice', 'prepareWayOn'], since: '0.1.0' },
   { name: 'modDetail', side: 'renderer', kind: 'first', dispatch: ['modDetail'], since: '0.1.0' },
   { name: 'optionPreviews', side: 'renderer', kind: 'add', dispatch: ['optionPreview'], askedWhenOff: true, since: '0.1.0' },
-  { name: 'optionControls', side: 'renderer', kind: 'add', dispatch: ['optionControl'], askedWhenOff: true, since: '0.8.2' },
+  { name: 'optionControls', side: 'renderer', kind: 'add', dispatch: ['optionControl'], askedWhenOff: true, since: '0.8.0' },
 
   // Screens
   { name: 'bunnyboardPage', side: 'renderer', kind: 'add', dispatch: ['bunnyboardPages'], since: '0.1.0' },
@@ -258,6 +258,12 @@ export const KIT_APIS = [
   'renderer:invoke',
   'shared:BACKUP_ZIP_LIMITS',
   'shared:readerWordsOf',
+  'shared:fillPronouns',
+  'shared:genderOf',
+  'shared:PRONOUNS',
+  'shared:pronounsOf',
+  'shared:pronounTag',
+  'shared:readerGenderOf',
   'shared:readerize',
   'shared:DEFAULT_PLAYER_STATS',
   'renderer:CloseIcon',

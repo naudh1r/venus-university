@@ -80,8 +80,10 @@ export interface StructuredRequest {
    * Absent on every call that is never routed, which is most of them.
    */
   kind?: PromptKind
-  /** The Settings row this call takes its level from, or the level it always runs at. */
-  thinking: ThinkingRow | ThinkingLevel
+  /** The Settings row or fixed level. Older mods without one use the Scenes row. */
+  thinking?: ThinkingRow | ThinkingLevel
+  /** Legacy mod requests may still raise the selected level to this minimum. */
+  minThinking?: ThinkingLevel
   /** Images attached to the user turn, base64 without the `data:` prefix. */
   images?: ReferenceImage[]
   /**
