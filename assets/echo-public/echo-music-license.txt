@@ -1,0 +1,19 @@
+Reckoning music — separate asset license
+
+Track owner: themaestroai
+Suno profile: https://suno.com/@themaestroai
+
+Breakthrough_ Victory & Hope.mp3 (replacement version of Breakthrough)
+Packaged as assets/sound/community/reckoning/reckoning_breakthrough.mp3
+
+Bloom.mp3
+Packaged as assets/sound/community/reckoning/reckoning_bloom.mp3
+
+Rise from the Dark.mp3
+Packaged as assets/sound/community/reckoning/reckoning_rise_from_the_dark.mp3
+
+Made by Maestro with Suno on a paid plan; may be redistributed with Venus Extracurriculars
+
+This notice applies to these three music assets. The game's source code retains
+its own license. The Megaten Style LoRA retains its separate creator permissions
+and model license in echo-model-license.txt; it was not made by Maestro or Suno.

@@ -53,6 +53,32 @@ function inGame(over: Partial<NonNullable<SoundFacts['game']>> = {}): SoundFacts
 }
 
 describe('the title theme', () => {
+  it('plays the dungeon cue on entry and after questions, with question/victory music taking priority',()=>{
+    const scene=inGame({landing:false,inScene:true})
+    const dungeon={...scene,dungeon:true}
+    expect(soundscapeOf(dungeon)).toMatchObject({music:{key:'reckoning_dungeon'},ambience:{key:null}})
+    expect(soundscapeOf({...dungeon,reckoning:true}).music).toMatchObject({key:'reckoning'})
+    expect(soundscapeOf({...dungeon,reckoning:true,reckoningVictory:true}).music).toMatchObject({key:'reckoning_victory'})
+    expect(soundscapeOf({...dungeon,reckoning:false,reckoningVictory:false}).music).toMatchObject({key:'reckoning_dungeon'})
+    expect(soundscapeOf({...dungeon,dungeon:false})).toEqual(soundscapeOf(scene))
+  })
+  it('uses the Reckoning track only for the active game encounter and restores the normal mix on exit', () => {
+    const scene = inGame({ landing: false, inScene: true })
+    const normal = soundscapeOf(scene)
+    const during = soundscapeOf({ ...scene, reckoning: true })
+    expect(during.music).toMatchObject({ key: 'reckoning' })
+    expect(during.ambience).toMatchObject({key:null})
+    expect(soundscapeOf({...scene,reckoning:true,reckoningVictory:true}).music).toMatchObject({key:'reckoning_victory'})
+    expect(soundscapeOf({...scene,reckoning:false,reckoningVictory:true})).toEqual(normal)
+    expect(soundscapeOf({ ...scene, reckoning: false })).toEqual(normal)
+    expect(soundscapeOf({ ...facts(), reckoning: true }).music).not.toEqual(during.music)
+  })
+  it('requests an enabled replacement again on menu visits, then returns to the native rule when off', () => {
+    const done = facts({ titleStarted: true, titleDone: true })
+    expect(soundscapeOf({ ...done, customTitle: true }).music).toEqual({ key: 'title', fade: .5 })
+    expect(soundscapeOf({ ...done, customTitle: true }).ambience).toEqual({ key: null, fade: 1.5 })
+    expect(soundscapeOf({ ...done, customTitle: false }).music).toEqual({ key: null, fade: 30 })
+  })
   it('plays on the first Main Menu and is never asked for again', () => {
     expect(soundscapeOf(facts()).music).toEqual({ key: 'title', fade: 0.5 })
 

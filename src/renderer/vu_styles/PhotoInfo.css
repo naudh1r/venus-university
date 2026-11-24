@@ -1,0 +1,97 @@
+/* The eye's shape and ink, mirrored into the picture's lower corner. */
+.vu-bb-photo-info {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vu-accent-shadow) 62%, transparent);
+  color: var(--night-text);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.14s ease-out;
+}
+.vu-bb-photo-frame:hover .vu-bb-photo-info,
+.vu-contact-shot-item:hover .vu-bb-photo-info,
+.vu-bb-photo-info:focus-visible {
+  opacity: 1;
+}
+.vu-bb-photo-info:hover {
+  background: color-mix(in srgb, var(--vu-accent-shadow) 82%, transparent);
+}
+.vu-photo-info {
+  --paper-offset: 12px 11px;
+  --paper-shadow: var(--vu-panel-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: min(1100px, 100% - 60px);
+  max-height: calc(100% - 100px);
+  padding: 78px 48px 32px 80px;
+  border-radius: 100px 0 0 100px;
+  color: var(--vu-text);
+  font-family: var(--font-body);
+}
+.vu-photo-info-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 12px 8px 0;
+}
+.vu-photo-info-meta {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 13px/1.5 var(--font-mono);
+  overflow-wrap: anywhere;
+}
+.vu-photo-info-note {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 16px/1.5 var(--font-body);
+}
+.vu-photo-info-rebuild { align-self: flex-start; }
+.vu-photo-info .vu-foot-stack { flex: none; }
+.vu-photo-info .vu-foot { flex-wrap: wrap; }
+.vu-photo-redraw-failure {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  display: block;
+  padding: 7px 11px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vu-accent-shadow) 86%, transparent);
+  color: var(--night-text);
+  font: 700 12px/1.4 var(--font-mono);
+  text-align: center;
+  pointer-events: none;
+}
+.vu-contact-shot-wait {
+  display: grid;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.vu-contact-shot-wait .vu-bb-photo {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Fields keep their fitted height in the panel's scrolling body and remain hand-resizable. */
+.vu-photo-info-body .vu-field {
+  flex-shrink: 0;
+}
+
+.vu-photo-info-body .vu-input--multiline {
+  box-sizing: border-box;
+  resize: vertical;
+  overflow-y: auto;
+}

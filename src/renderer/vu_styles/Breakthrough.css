@@ -1,0 +1,50 @@
+.vu-breakthrough, .vu-breakthrough-flourish {
+  --breakthrough-gold: #b99547;
+  --breakthrough-gold-muted: #b9954766;
+}
+.vu-breakthrough {
+  position: absolute; top: 24px; right: 28px; z-index: 4;
+  width: 340px; padding: 18px; border-radius: 18px 0 18px 18px;
+  color: var(--vu-text); font-family: var(--font-body);
+  --paper-face: var(--vu-surface); --paper-shadow: var(--vu-panel-shadow); --paper-offset: 7px 6px;
+}
+.vu-breakthrough-heading {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; padding: 0 0 12px; background: none; border: 0; color: inherit;
+  font: 20px var(--font-display); cursor: pointer;
+}
+.vu-breakthrough-heading small { font: 12px var(--font-mono); }
+.vu-breakthrough select, .vu-breakthrough textarea {
+  width: 100%; min-width: 0; border: 1px solid var(--vu-border); border-radius: 8px;
+  padding: 8px; color: var(--vu-text); background: var(--vu-recessed); font: 15px var(--font-body);
+}
+.vu-breakthrough-track { height: 9px; border-radius: 6px; background: var(--vu-recessed); margin-top: 12px; overflow: hidden; }
+.vu-breakthrough-track span { display: block; height: 100%; background: var(--vu-accent); }
+.vu-breakthrough[data-ready='true'] { --paper-border: 1px solid var(--breakthrough-gold); }
+.vu-breakthrough[data-ready='true']::after { box-shadow: 0 0 18px #bc963333; }
+.vu-breakthrough[data-ready='true'] .vu-breakthrough-track span { background: linear-gradient(90deg, #ae822e, #ead091); }
+.vu-breakthrough-detail { padding: 8px 6px 0 0; font-size: 15px; line-height: 1.5; max-height: 480px; overflow-y: auto; overflow-x: hidden; }
+.vu-breakthrough textarea { display: block; resize: vertical; max-height: 160px; margin-top: 8px; }
+.vu-breakthrough-detail .vu-btn { font-size: 18px; margin: 8px 0; max-width: calc(100% - 8px); white-space: normal; }
+.vu-breakthrough [role='alert'] { color: var(--vu-accent); }
+.vu-breakthrough-flourish { position: absolute; inset: 0; z-index: 30; pointer-events: none; overflow: hidden; display: grid; place-items: center; color: var(--vu-text); }
+.vu-breakthrough-halo { position: absolute; inset: -20%; background: radial-gradient(ellipse at center, #dcb56830 0%, #dcb56812 35%, transparent 65%); opacity: 0; }
+.vu-breakthrough-banner {
+  position: relative; box-sizing: border-box; width: min(560px, 88%); padding: 24px 32px;
+  background: var(--vu-surface); border-block: 1px solid var(--breakthrough-gold);
+  box-shadow: 0 12px 70px #0005, 0 0 45px #cda34733;
+  text-align: center; overflow-wrap: anywhere;
+}
+.vu-breakthrough-banner::before {
+  content: ''; position: absolute; inset: 7px;
+  border-block: 1px solid var(--breakthrough-gold-muted); pointer-events: none;
+}
+.vu-breakthrough-banner small { display: block; font: 11px var(--font-mono); letter-spacing: .2em; text-transform: uppercase; margin: 9px 0; }
+.vu-breakthrough-banner strong { display: block; font: 58px/1.2 var(--font-display); letter-spacing: -.025em; }
+.vu-breakthrough-banner > span { display: block; font: 13px var(--font-body); margin-top: 14px; }
+.vu-breakthrough-ornament { color: var(--breakthrough-gold); font: 18px var(--font-display); letter-spacing: .2em; margin-top: 10px; }
+.vu-echo-breakthrough{margin:12px 0;padding:12px;border:1px solid var(--breakthrough-gold-muted);border-radius:10px;background:var(--vu-recessed)}
+.vu-echo-breakthrough>small{display:block;font:11px/1.5 var(--font-mono);color:var(--vu-text-body)}
+.vu-echo-breakthrough>strong{display:block;margin:5px 0;font:22px/1.3 var(--font-display);color:var(--vu-text)}
+.vu-echo-breakthrough>p{margin:7px 0;font-size:14px}
+.vu-breakthrough-banner[data-echo] strong{font-size:38px}

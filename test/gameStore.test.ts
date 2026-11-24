@@ -30,7 +30,12 @@ import {
 // The store resolves a gift by id, so the fakes the gifting tests give have to resolve too.
 vi.mock('@shared/shop', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@shared/shop')>()
-  const { item } = await import('./fixtures')
+  // Keep this hoisted factory independent of fixtures: their bundled-mod imports
+  // can reach shop again while Vitest is still resolving this mock.
+  const item = (over: Partial<ItemDef>): ItemDef => ({
+    id: 'item-1', shopId: 'shop-1', name: 'Test Item', emoji: '🎁',
+    price: 20, description: 'A present.', categories: ['cozy'], ...over
+  })
   const fakes: Record<string, ItemDef> = {
     rose: item({ id: 'rose', name: 'Rose', categories: ['romantic'] }),
     coin: item({ id: 'coin', name: 'Coin', categories: ['romantic', 'novelty'] })
@@ -1662,6 +1667,13 @@ describe('toGameSave', () => {
       'droppedClasses',
       'endingArtWanted',
       'events',
+      'exBreakthrough',
+      'exEcho',
+      'exNpcWatch',
+      'exReckoning',
+      'exStoryMemory',
+      'exTalents',
+      'exVenusWhisper',
       'expelled',
       'farewellsDone',
       'feedExtras',

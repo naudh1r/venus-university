@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SlotReplay } from '@shared/replays'
 import { READER_SPEAKER, type GameSave, type Result, type SceneState } from '@shared/types'

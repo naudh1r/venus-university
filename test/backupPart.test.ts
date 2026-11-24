@@ -98,7 +98,7 @@ function tapePart(seen: Seen, fail: { prepare?: boolean; commit?: boolean } = {}
       seen.json = json
       seen.list = files.list
       seen.legacy = legacy
-      const music = legacy.dirs.find((dir) => dir.endsWith('exMusic'))
+      const music = legacy.dirs.find((dir) => dir.endsWith('exTape'))
       if (music) seen.legacyFile = await readFile(join(music, 'song.txt'), 'utf8')
       if (fail.prepare) throw new Error('the tape is chewed')
       const bytes = await readFile(join(files.dir, 'songs', 'side-a.bin'))
@@ -299,9 +299,9 @@ describe('a backup part', () => {
     const unpacked = await tempDir('venus-university-backup-legacy-')
     await extractZip(archive, unpacked)
     const backup = JSON.parse(await readFile(join(unpacked, BACKUP_NAME), 'utf8')) as Record<string, unknown>
-    await writeFile(join(unpacked, BACKUP_NAME), JSON.stringify({ ...backup, exMusic: { volume: 7 } }))
-    await mkdir(join(unpacked, 'exMusic'), { recursive: true })
-    await writeFile(join(unpacked, 'exMusic', 'song.txt'), 'la la')
+    await writeFile(join(unpacked, BACKUP_NAME), JSON.stringify({ ...backup, exTape: { volume: 7 } }))
+    await mkdir(join(unpacked, 'exTape'), { recursive: true })
+    await writeFile(join(unpacked, 'exTape', 'song.txt'), 'la la')
     const legacyArchive = join(await tempDir('venus-university-backup-legacy-zip-'), 'legacy.zip')
     await createZip(unpacked, legacyArchive)
 
@@ -309,7 +309,7 @@ describe('a backup part', () => {
     const seen: Seen = { committed: false, discarded: false }
     tapePart(seen)
     await importBackup(legacyArchive)
-    expect(seen.legacy?.record).toEqual({ exMusic: { volume: 7 } })
+    expect(seen.legacy?.record).toEqual({ exTape: { volume: 7 } })
     expect(seen.legacy?.dirs).toHaveLength(1)
     expect(seen.legacy?.archive).toBe(legacyArchive)
     expect(seen.legacyFile).toBe('la la')
@@ -324,9 +324,9 @@ describe('a backup part', () => {
     await extractZip(archive, unpacked)
     const backup = JSON.parse(await readFile(join(unpacked, BACKUP_NAME), 'utf8'))
     expect(backup.mods).toBeUndefined()
-    await writeFile(join(unpacked, BACKUP_NAME), JSON.stringify({ ...backup, exMusic: { volume: 7 } }))
-    await mkdir(join(unpacked, 'exMusic'), { recursive: true })
-    await writeFile(join(unpacked, 'exMusic', 'song.txt'), 'legacy song')
+    await writeFile(join(unpacked, BACKUP_NAME), JSON.stringify({ ...backup, exTape: { volume: 7 } }))
+    await mkdir(join(unpacked, 'exTape'), { recursive: true })
+    await writeFile(join(unpacked, 'exTape', 'song.txt'), 'legacy song')
     const legacyArchive = join(await tempDir('venus-university-legacy-only-final-'), 'legacy.zip')
     await createZip(unpacked, legacyArchive)
 
@@ -335,8 +335,8 @@ describe('a backup part', () => {
       expect(json).toBeUndefined()
       expect(files.list).toEqual([])
       expect(await readdir(files.dir)).toEqual([])
-      expect(legacy.record.exMusic).toEqual({ volume: 7 })
-      const folder = legacy.dirs.find((dir) => dir.endsWith('exMusic'))
+      expect(legacy.record.exTape).toEqual({ volume: 7 })
+      const folder = legacy.dirs.find((dir) => dir.endsWith('exTape'))
       if (!folder) throw new Error('Legacy music folder not provided')
       const bytes = await readFile(join(folder, 'song.txt'))
       return {

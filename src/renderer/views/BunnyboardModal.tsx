@@ -2,8 +2,10 @@ import { shownConversation, shownMessages } from '@shared/chatVisibility'
 import { textWhileBusy } from '../mods/hooks'
 import { charCommitmentAt } from '../stores/timetable'
 import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
+import { useModsStore, useModOn } from '../stores/modsStore'
+import { INCOMING_TEXTS, OUTGOING_IMAGE_STORAGE_MOD } from '@shared/modEntries/incoming-texts'
+import { isWebBuild } from '../platform'
 import { ModSlot } from '../mods/ModSlot'
-import { useModsStore } from '../stores/modsStore'
 import {
   Fragment,
   memo,
@@ -18,8 +20,11 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
+import type { PostComment } from '@shared/postComments'
 import {
   fullNameOf,
+  OUTGOING_PHOTO_DESCRIPTION_LIMIT,
+  OUTGOING_PHOTO_FILE_LIMIT,
   type Character,
   type CharInfo,
   type ChatMessage,
@@ -37,6 +42,7 @@ import { formatMoney } from '@shared/money'
 import { formatTokens } from '@shared/tallies'
 import { affectionFor, emptyFlags, relationshipTagOf } from '@shared/relationship'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { CheckField } from '../components/CheckField'
 import { EmojiTool, SentText, useBareMessage, useEmojiTool } from '../components/TextSpots'
 import { DeadNote } from '../components/DeadNote'
 import { promptEditable } from '../components/LlmFailureModal'
@@ -84,7 +90,9 @@ import {
   sceneActiveOf,
   sendBossMessage,
   sendFriendRequest,
-  sendMessage
+  sendMessage,
+  sendIncomingMessage,
+  sendOutgoingPhoto
 } from '../stores/textingLoop'
 import {
   charBusyNow,
@@ -128,7 +136,6 @@ import {
   MapIcon
 } from './screenIcons'
 import { LettersFilter, lettersUrl } from '../components/LettersMark'
-import type { PostComment } from '@shared/postComments'
 import '../vu_styles/Bunnyboard.css'
 
 export interface BunnyboardModalProps {
@@ -494,7 +501,7 @@ function useHiddenThreads(): (charId: string) => boolean {
 function previewOf(conversation: Conversation): string {
   const last = conversation.messages[conversation.messages.length - 1]
   if (!last) return ''
-  return last.sender === 'player' ? `You: ${last.text}` : last.text
+  return last.sender === 'player' ? `You: ${last.text || (last.outgoingPhoto ? 'Photo' : '')}` : last.text
 }
 
 /**
@@ -1030,6 +1037,42 @@ function ConversationView({
   const sceneActive = useGameStore(sceneActiveOf)
   const epilogue = useGameStore(epilogueOf)
   const [draft, setDraft] = useState('')
+  const incomingOn = useModOn(INCOMING_TEXTS)
+  const [incoming, setIncoming] = useState(false)
+  const photoModOn = useModOn(OUTGOING_IMAGE_STORAGE_MOD)
+  const [photo, setPhoto] = useState<string | File | null>(null)
+  const [photoError, setPhotoError] = useState('')
+  const [sendingPhoto, setSendingPhoto] = useState(false)
+  const canAttachImage = photoModOn && !isWebBuild()
+  const outgoingPhoto = incomingOn && !incoming && (typeof photo === 'string' || canAttachImage)
+    ? photo : null
+  useEffect(() => {
+    if (!incomingOn || (!canAttachImage && photo instanceof File)) {
+      setPhoto(null)
+      setPhotoError('')
+    }
+  }, [incomingOn, canAttachImage, photo])
+
+  /** Updates the draft with a supported image from the picker or clipboard. */
+  function choosePhoto(file: File): void {
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      setPhotoError('Choose a PNG, JPEG or WebP image.')
+      return
+    }
+    if (!file.size || file.size > OUTGOING_PHOTO_FILE_LIMIT) {
+      setPhotoError('Choose an image up to 20 MB.')
+      return
+    }
+    setPhotoError('')
+    setPhoto(file)
+  }
+  // A direction must never become an ordinary outgoing text when the mod is disabled.
+  useEffect(() => {
+    if (!incomingOn && incoming) {
+      setDraft('')
+      setIncoming(false)
+    }
+  }, [incomingOn, incoming])
   const [scrollBox, setScrollBox] = useState<HTMLDivElement | null>(null)
 
   const shownClock = useGameStore(s => s.chatShownThrough)
@@ -1105,13 +1148,28 @@ function ConversationView({
   }, [scrollBox])
 
   // The reasons the composer is shut, shared by the field, Send and the emoji bar.
-  const composerClosed = epilogue || sceneActive || unavailable || busy || blocked
+  const composerClosed = epilogue || sceneActive || unavailable || busy || blocked || sendingPhoto
 
   function onSend(): void {
     const value = draft.trim()
-    if (!value || composerClosed) return
+    if (composerClosed || (incoming && !incomingOn)) return
+    if (outgoingPhoto !== null) {
+      if (typeof outgoingPhoto === 'string' && !outgoingPhoto.trim()) return
+      setSendingPhoto(true)
+      setPhotoError('')
+      void sendOutgoingPhoto(charId, value, outgoingPhoto).then(() => {
+        setDraft('')
+        setPhoto(null)
+      }, (error: unknown) => {
+        setPhotoError(error instanceof Error ? error.message : 'Could not send the photo.')
+      }).finally(() => setSendingPhoto(false))
+      return
+    }
+    if (!value) return
     setDraft('')
-    void sendMessage(charId, value)
+    setIncoming(false)
+    if (incoming) void sendIncomingMessage(charId, value)
+    else void sendMessage(charId, value)
   }
 
   // Her handle sits beside her name, and under the pair a lamp and the one line the app is
@@ -1192,7 +1250,6 @@ function ConversationView({
       </div>
 
       {!bot && <ModSlot slot="conversationFoot" props={{ charId }} />}
-
       <div className="vu-bb-foot">
         {boss ? (
           <BossActions
@@ -1291,6 +1348,19 @@ function ConversationView({
           />
         ) : (
           <Composer
+            incomingAvailable={incomingOn}
+            canAttachImage={canAttachImage}
+            photo={outgoingPhoto}
+            photoError={photoError}
+            onChoosePhoto={choosePhoto}
+            onPhoto={(value) => { setPhoto(value); setPhotoError('') }}
+            incoming={incoming}
+            onIncoming={(value) => {
+              setDraft('')
+              setIncoming(value)
+              setPhoto(null)
+              setPhotoError('')
+            }}
             closed={composerClosed}
             draft={draft}
             placeholder={
@@ -1309,7 +1379,7 @@ function ConversationView({
                         ? `${name} will reply to you when she is available.`
                         : busy
                         ? `Waiting for ${name}...`
-                        : 'Message'
+                        : incoming ? `Describe the text ${name} sends you` : 'Message'
             }
             onDraft={setDraft}
             onSend={onSend}
@@ -1364,12 +1434,28 @@ function ConversationView({
  * arrangement. Everything here is shut together, for the four reasons the thread decides.
  */
 function Composer({
+  incomingAvailable,
+  canAttachImage,
+  photo,
+  photoError,
+  onChoosePhoto,
+  onPhoto,
+  incoming,
+  onIncoming,
   closed,
   draft,
   placeholder,
   onDraft,
   onSend
 }: {
+  incomingAvailable: boolean
+  canAttachImage: boolean
+  photo: string | File | null
+  photoError: string
+  onChoosePhoto: (file: File) => void
+  onPhoto: (photo: string | null) => void
+  incoming: boolean
+  onIncoming: (value: boolean) => void
   closed: boolean
   draft: string
   placeholder: string
@@ -1378,6 +1464,22 @@ function Composer({
   onSend: () => void
 }): JSX.Element {
   const field = useRef<HTMLTextAreaElement>(null)
+  const picker = useRef<HTMLInputElement>(null)
+  const [showPhotoOptions, setShowPhotoOptions] = useState(false)
+  const [preview, setPreview] = useState('')
+  const photosAvailable = incomingAvailable && !incoming
+  useEffect(() => {
+    if (!(photo instanceof File)) {
+      setPreview('')
+      return
+    }
+    const url = URL.createObjectURL(photo)
+    setPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [photo])
+  useEffect(() => {
+    if (!photosAvailable || closed) setShowPhotoOptions(false)
+  }, [photosAvailable, closed])
   // A mod's emoji tool stands beside the field in place of the row of quick emoji.
   const ownTool = useEmojiTool()
   // A mod's emoji goes in at the caret, which then stands after it.
@@ -1401,6 +1503,59 @@ function Composer({
         onSend()
       }}
     >
+      {incomingAvailable && (
+        <div className="vu-bb-incoming">
+          <CheckField
+            id="bb-incoming"
+            label="Incoming text"
+            note="Your direction is not sent. Only her texts appear."
+            checked={incoming}
+            disabled={closed}
+            onChange={onIncoming}
+          />
+        </div>
+      )}
+      {photosAvailable && (showPhotoOptions || photo !== null) && (
+        <div className="vu-bb-photo-draft">
+          {showPhotoOptions ? (
+            <>
+              <button type="button" className="vu-btn vu-btn--quiet" disabled={closed}
+                onClick={() => { onPhoto(''); setShowPhotoOptions(false) }}>
+                Describe a photo
+              </button>
+              {canAttachImage && (
+                <button type="button" className="vu-btn vu-btn--quiet" disabled={closed}
+                  onClick={() => picker.current?.click()}>
+                  Choose an image
+                </button>
+              )}
+            </>
+          ) : typeof photo === 'string' ? (
+            <textarea className="vu-input vu-bb-photo-description" rows={2}
+              aria-label="Photo description" placeholder="What does the photo show?"
+              maxLength={OUTGOING_PHOTO_DESCRIPTION_LIMIT} value={photo} disabled={closed}
+              onChange={(e) => onPhoto(e.target.value)} />
+          ) : preview && <img className="vu-bb-photo-preview" src={preview} alt="Image to send" />}
+          {photo !== null && (
+            <button type="button" className="vu-btn vu-btn--quiet" disabled={closed}
+              onClick={() => { onPhoto(null); setShowPhotoOptions(false) }}>
+              Remove photo
+            </button>
+          )}
+        </div>
+      )}
+      {photoError && photosAvailable && <div className="vu-bb-photo-error" role="alert">{photoError}</div>}
+      {photosAvailable && canAttachImage && (
+        <input ref={picker} type="file" hidden accept="image/png,image/jpeg,image/webp"
+          onChange={(e) => {
+            const file = e.currentTarget.files?.[0]
+            e.currentTarget.value = ''
+            if (file && !closed) {
+              onChoosePhoto(file)
+              setShowPhotoOptions(false)
+            }
+          }} />
+      )}
       <div className="vu-bb-compose">
         <textarea
           ref={field}
@@ -1409,12 +1564,34 @@ function Composer({
           className="vu-input vu-bb-input vu-bb-input--multiline"
           value={draft}
           disabled={closed}
-          placeholder={placeholder}
+          placeholder={photo !== null && !closed ? 'Caption (optional)' : placeholder}
           onChange={(e) => onDraft(e.target.value)}
+          onPaste={(e) => {
+            if (!photosAvailable || !canAttachImage || closed) return
+            const file = Array.from(e.clipboardData.files).find(item => item.type.startsWith('image/'))
+            if (!file) return
+            e.preventDefault()
+            onChoosePhoto(file)
+            setShowPhotoOptions(false)
+          }}
         />
+        {photosAvailable && (
+          <button type="button" className="vu-square vu-bb-photo-tool"
+            aria-label="Photo options" aria-expanded={showPhotoOptions}
+            title={canAttachImage ? 'Photo options (paste an image in the message field)' : 'Photo options'}
+            disabled={closed} onClick={() => setShowPhotoOptions(open => !open)}>
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 7h4l2-3h6l2 3h4v13H3z" />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
+          </button>
+        )}
         {ownTool && <EmojiTool dead={closed} onPick={addEmoji} />}
-        <PrimaryButton id="bb-send" dead={closed || !draft.trim()} onClick={onSend}>
-          Send
+        <PrimaryButton id="bb-send"
+          dead={closed || (typeof photo === 'string' ? !photo.trim() : photo === null && !draft.trim())}
+          onClick={onSend}>
+          {incoming ? 'Generate' : 'Send'}
         </PrimaryButton>
       </div>
 
@@ -1449,6 +1626,8 @@ const MessageBubble = memo(function MessageBubble({
 }: {
   message: ChatMessage
 }): JSX.Element {
+  const photo = message.outgoingPhoto
+  const imagesVisible = useModOn(OUTGOING_IMAGE_STORAGE_MOD) && !isWebBuild()
   // A message drawn bare stands with no bubble behind it, as a mod drawing sent text says.
   const bare = useBareMessage(message.text)
   if (message.sender === 'system') {
@@ -1464,6 +1643,15 @@ const MessageBubble = memo(function MessageBubble({
   // only an attachment draws no empty bubble.
   return (
     <>
+      {photo?.kind === 'description' && (
+        <div className="vu-bb-bubble vu-bb-bubble--mine vu-bb-photo-described">
+          <strong>Photo</strong>
+          <div>{photo.description}</div>
+        </div>
+      )}
+      {photo?.kind === 'image' && !imagesVisible && (
+        <div className="vu-bb-bubble vu-bb-bubble--mine">Photo</div>
+      )}
       {message.text && (
         <div
           className={`vu-bb-bubble vu-bb-bubble--${message.sender === 'player' ? 'mine' : 'theirs'}${bare ? ' vu-bb-bubble--bare' : ''}`}

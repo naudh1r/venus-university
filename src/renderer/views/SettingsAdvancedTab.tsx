@@ -282,6 +282,7 @@ export function SettingsAdvancedTab({
             >
               Edit system prompt
             </motion.button>
+            <ModSlot slot="advancedSettingsEntry" props={{ theme, busy }} />
             <span className="vu-settings-heading">Context</span>
             {MEMORY_FIELDS.map((field) => (
               <TextField
@@ -304,7 +305,6 @@ export function SettingsAdvancedTab({
               maxLength={3}
               onBlur={() => void commitSecrets()}
             />
-            <ModSlot slot="advancedSettingsEntry" props={{ theme, busy }} />
             <span className="vu-settings-heading">Other</span>
             <TextField
               id="advanced-ending-picture"

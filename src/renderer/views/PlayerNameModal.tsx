@@ -1,3 +1,4 @@
+import { MIN_CHALLENGE_TIER, type StartingChallenge } from '@shared/startingChallenge'
 import { useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
@@ -7,11 +8,12 @@ import {
   STARTING_TIER,
   STAT_KEYS,
   STAT_LABELS,
-  statsForTiers,
-  tierNameOf,
-  tierOf,
+  statsForStartingTiers,
+  pointsForStartingTier,
+  tierName,
+  displayedTierOf,
   type StatKey,
-  type StatTier
+  type StartingStatTier
 } from '@shared/playerStats'
 import type { ApplicationReader } from '@shared/application'
 import {
@@ -81,6 +83,7 @@ export interface PlayerNameModalProps {
   onSubmit: (reader: NamedReader) => void
   /** Whether the bio, the stat rows and the picture are on offer; Quickstart asks the name alone. */
   askDetails?: boolean
+  challenge?: StartingChallenge
   /** Where the reader's picture is kept while the modal edits it; absent offers no picture. */
   picture?: PictureHome
   /** Drawn by the screen that opened this — a portal inherits neither palette nor state rules. */
@@ -104,6 +107,7 @@ function shownName(name: string | undefined, fallback: string): string {
 export function PlayerNameModal({
   onSubmit,
   askDetails = true,
+  challenge,
   picture,
   theme,
   initial
@@ -118,18 +122,19 @@ export function PlayerNameModal({
     shownName(initial?.lastName, DEFAULT_PLAYER_LAST_NAME)
   )
   const [bio, setBio] = useState(initial?.bio ?? '')
-  const [tiers, setTiers] = useState<Record<StatKey, StatTier>>(() =>
+  const [tiers, setTiers] = useState<Record<StatKey, StartingStatTier>>(() =>
     initial
       ? {
-          brain: tierOf(initial.stats.brain),
-          body: tierOf(initial.stats.body),
-          heart: tierOf(initial.stats.heart)
+          brain: displayedTierOf(initial.stats.brain),
+          body: displayedTierOf(initial.stats.body),
+          heart: displayedTierOf(initial.stats.heart)
         }
       : { brain: STARTING_TIER, body: STARTING_TIER, heart: STARTING_TIER }
   )
+  const minimum: StartingStatTier = challenge ? MIN_CHALLENGE_TIER : MIN_TIER
 
   function step(key: StatKey, delta: 1 | -1): void {
-    setTiers((prev) => ({ ...prev, [key]: (prev[key] + delta) as StatTier }))
+    setTiers((prev) => ({ ...prev, [key]: Math.max(minimum, Math.min(MAX_TIER, prev[key] + delta)) as StartingStatTier }))
   }
 
   /** Placeholders are real values: a blank field submits the name shown. */
@@ -138,7 +143,7 @@ export function PlayerNameModal({
       firstName: firstName.trim() || DEFAULT_PLAYER_FIRST_NAMES[pronouns],
       lastName: lastName.trim() || DEFAULT_PLAYER_LAST_NAME,
       pronouns,
-      stats: statsForTiers(tiers),
+      stats: statsForStartingTiers(tiers),
       bio: bio.trim()
     })
   }
@@ -228,6 +233,10 @@ export function PlayerNameModal({
                 placeholder="Optional, can be left blank. You can change this at any time in-game."
                 hint={`This is put in every prompt so try to keep it short and sweet. Use third-person past tense and continue this paragraph: ${readerYearLine('<Name>', 0, pronouns)} The reader is <description based on selected stats>. The reader is...`}
               />
+            </>
+          )}
+          {(askDetails || challenge) && (
+            <>
               <div className="vu-who-stats">
                 <span className="vu-field-label">Starting stats</span>
                 {STAT_KEYS.map((key) => {
@@ -238,16 +247,16 @@ export function PlayerNameModal({
                         <Icon />
                         {STAT_LABELS[key]}
                       </span>
-                      <Step statKey={key} tier={tiers[key]} step={-1} onStep={step} />
+                      <Step statKey={key} tier={tiers[key]} minimum={minimum} step={-1} onStep={step} />
                       {/* The tier by name, never the points behind it. */}
-                      <span className="vu-who-stat-tier">{tierNameOf(tiers[key])}</span>
-                      <Step statKey={key} tier={tiers[key]} step={1} onStep={step} />
+                      <span className="vu-who-stat-tier">{tierName(pointsForStartingTier(tiers[key]))}</span>
+                      <Step statKey={key} tier={tiers[key]} minimum={minimum} step={1} onStep={step} />
                     </div>
                   )
                 })}
               </div>
               <p className="vu-who-whisper">
-                Unremarkable is recommended. Godly is the maximum tier.
+                {challenge ? 'Choose each stat separately. Unremarkable is the normal start. Lower stats take longer to recover.' : 'Unremarkable is recommended. Godly is the maximum tier.'}
               </p>
             </>
           )}
@@ -288,16 +297,18 @@ const NO_PICTURE: PictureHome = {
 function Step({
   statKey,
   tier,
+  minimum,
   step,
   onStep
 }: {
   statKey: StatKey
-  tier: StatTier
+  tier: StartingStatTier
+  minimum: StartingStatTier
   /** -1 lowers the stat, +1 raises it. */
   step: -1 | 1
   onStep: (key: StatKey, delta: 1 | -1) => void
 }): JSX.Element {
-  const dead = step < 0 ? tier <= MIN_TIER : tier >= MAX_TIER
+  const dead = step < 0 ? tier <= minimum : tier >= MAX_TIER
   return (
     <motion.button
       className="vu-square vu-square--step"

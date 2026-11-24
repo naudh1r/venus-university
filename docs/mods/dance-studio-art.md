@@ -1,0 +1,15 @@
+# Dance Studio artwork
+
+Created with the built-in OpenAI image-generation tool for City Life. Final day/night PNGs are in `assets/bg/interior/`; quarter-size WebP thumbnails are in `assets/bg_thumbs/interior/`. Both versions use the revised framing requested during review, with less foreground floor. No external stock photographs or user data were used.
+
+## Initial day prompt
+
+Use case: photorealistic-natural. Asset type: wide 16:9 visual novel game background, 1920x1080 or 2048x1152. Create a polished photorealistic empty downtown dance studio interior for a university life game. Daytime. A welcoming professional space with a large warm maple sprung dance floor, a mirrored wall with a wooden ballet barre, tall windows overlooking a modest leafy downtown street, small speaker system and a tidy bench with cubbies along a side wall. Natural warm sunlight and realistic reflections; mirrors reflect this same empty room consistently. Eye-level wide view from one corner toward the open dance floor. Leave generous clear floor in the foreground and center for character sprites and dialogue overlays. Inviting, realistic contemporary interior photography, clean detailed materials, natural proportions. No people, no silhouettes or people in mirrors, no readable text, no logos, no watermark, no UI. This is a usable full-frame scene, not a collage or mockup.
+
+## Revised day prompt (final composition)
+
+Edit this empty DAY dance studio background to correct composition: there is much too much foreground floor in the current image. Reframe the SAME studio with the camera aimed more horizontally toward the walls, with a tighter, natural eye-level view. The floor should occupy only the bottom 30–35 percent of the frame, NOT over half. Show substantially more of the windows, mirrors, barre, wall and a little ceiling above them. Bring the back wall and mirror visually closer; this is a cozy teaching studio, not a vast hall. Preserve the maple flooring, cubby bench, plants, existing speakers, day sunlight and downtown view, consistent mirror reflections, and realistic visual-novel background style. Keep a clear lower area for character sprites but make the room itself the focus. Horizontal 16:9 full-frame landscape, no people, text, logos or UI.
+
+## Matching night prompt
+
+Edit target: this reframed DAY Dance Studio background. Create its NIGHT version by changing only lighting and time of day. Preserve the EXACT revised framing and camera, the same room dimensions, windows, mirror, ceiling, barre, cubby bench, plants and speakers. Keep the reduced amount of floor in the bottom third. Outside is dark blue nighttime, with a few streetlights and warm building windows. The existing ceiling lights illuminate the studio in a welcoming warm-neutral light, with matching realistic reflections and no sunbeams. Bright enough to read the room during gameplay. No people including reflections, no text, logos, UI, or added objects. Wide 16:9 full-frame photo-realistic visual novel background.

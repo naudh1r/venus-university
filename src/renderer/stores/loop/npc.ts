@@ -1,3 +1,4 @@
+import { locationAvailable } from '@shared/cityLife'
 import { studentsOf } from '@shared/classes'
 import { dormBuildingOf } from '@shared/dorms'
 import {
@@ -154,6 +155,7 @@ export function rollNpcOverlayNow(
   const sky = weatherAt(game.weather, date, time)
   const spots = OUTING_LOCATIONS.filter(
     (id) =>
+      locationAvailable(id) &&
       isLocationOpen(id, shiftSlotOf(shiftWeekdayOf(date), time)) &&
       !isRainedOut(id, sky) &&
       !worked.has(id)

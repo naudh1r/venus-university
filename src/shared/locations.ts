@@ -1,3 +1,4 @@
+import { CITY_LIFE_LOCATIONS } from './cityLifeCatalog'
 /**
  * The location vocabulary: every place a character can be found in, and the one blurb
  * ever written about each. The ids are the lorebook's own; `lorebook.test.ts` asserts
@@ -68,6 +69,7 @@ const NIGHTS_AND_WEEKEND_DAYS: readonly ShiftSlot[] = [1, 3, 5, 7, 9, 10, 11, 12
 
 /** Every location a character can be placed at, in id order. */
 export const LOCATIONS: readonly LocationDef[] = [
+  ...CITY_LIFE_LOCATIONS,
   {
     id: 'agora',
     label: 'the Agora',
@@ -274,6 +276,7 @@ export const NARRATIVE_LOCATIONS: readonly LocationDef[] = [
 
 /** Where a group goes when it goes out; filtered by the place's hours at the roll. */
 export const OUTING_LOCATIONS: readonly string[] = [
+  ...CITY_LIFE_LOCATIONS.map(def => def.id),
   'future_cinema',
   'lotterdale_market',
   'pastel_palace',
@@ -335,6 +338,7 @@ export const MEAL_LOCATIONS: Readonly<Record<string, string>> = {
 }
 
 export const FUN_LOCATIONS: Readonly<Record<string, string>> = {
+  bowling: 'bowling_alley', roller_skating: 'roller_rink', cat_cafe: 'cat_cafe', dance: 'dance_studio',
   lounge: 'pino_cola_lounge',
   cutetea: 'cutetea',
   arcade: 'btb_arcade',
@@ -343,6 +347,7 @@ export const FUN_LOCATIONS: Readonly<Record<string, string>> = {
 }
 
 export const ACTIVITY_LOCATIONS: Readonly<Record<string, string>> = {
+  bowling: 'bowling_alley', roller_skating: 'roller_rink', cat_cafe: 'cat_cafe', dance: 'dance_studio',
   park: 'green_hill_park',
   stadium: 'palaestra_stadium',
   music_hall: 'thorne_auditorium',

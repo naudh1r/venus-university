@@ -470,6 +470,14 @@ A few of the game's own readers, each declared as `renderer:<name>` or `shared:<
 - `readerWordsOf(pronouns, beside?)` (`shared`): the game's `ReaderWords`, including capitalized
   forms. The subject is “the reader” for they/them, so it takes a singular verb. Pass a character's
   gender as `beside` if they share the reader's pronouns and the line needs to distinguish them.
+- `genderOf(character)` and `pronounsOf(character)` (`shared`): a character's gender (`'female'`
+  or `'male'`) and the game's `Pronouns` for it: `they`, `them`, `their`, `theirs`, `themself`,
+  each also capitalized, plus `noun` and `partner`. `PRONOUNS[gender]` is the same set by gender,
+  `pronounTag(gender)` is `she/her` or `he/him` for a character sheet, and
+  `fillPronouns(template, gender, name?)` fills a template's `{they}`-style tokens and `{name}`.
+  `readerGenderOf(pronouns)` is the reader's own gender, or null for they/them: where a line names
+  several characters, pass `readerWordsOf` that gender as `beside` if one of them has it. A mod's
+  text takes its words from these wherever it would otherwise write "she" or "he".
 - `useScenePersona()` (`renderer`): the cast-scene persona the player set in Settings, or
   undefined where none is set or the settings are not read yet.
 - `showError(error)` (`renderer`): the game's own error modal, for an `AppError` a mod's call answered.
@@ -1118,7 +1126,7 @@ optionGroups: [{ id: 'loader', label: 'Loading animation', hint: 'The animation 
 
 Shared code holds no switches. Where a rule there has to follow one, give the rule a flag with
 a setter, and set it from `modsStore.ts` at boot and whenever a switch moves
-(`useModsStore.subscribe`). Continuing Semesters does this for its seniors option.
+(`useModsStore.subscribe`). Echo does this for its bonus, and Photo Feature for its switches.
 
 ## Sprite and CG prompt drafts
 
@@ -1312,7 +1320,7 @@ else names it.
 | `messageAttachment` | `BunnyboardModal.tsx` | Draw a component after a phone message's text bubble, or alone where the message has no text. Props: `message` |
 | `contactPostExtra` | `ContactPage.tsx` | Draw a component beside a post's like, in the feed on her contact page. Props: `charId`, `post` |
 | `contactTab` | `ContactPage.tsx` | Add a reading of her beside Profile on her contact page: a tab, and a panel drawn in place of her cards |
-| `advancedSettingsEntry` | `SettingsAdvancedTab.tsx` | Draw a component on the Advanced tab of app settings, under its own controls. Props: `theme`, `busy` (a backup or restore is running) |
+| `advancedSettingsEntry` | `SettingsAdvancedTab.tsx` | Draw a component on the Advanced tab of app settings, after Upload custom BG and Edit system prompt. Props: `theme`, `busy` (a backup or restore is running) |
 | `promptText` | `loop/promptState.ts`, `textingLoop.ts`, `applicationStore.ts` and the other stores that build a request | Rewrite the game's own prompt text and the class call's pool sizes; one mod at a time |
 | `sceneCall` | `loop/stream.ts` | Tag a scene call as it goes out, for the mod's request hook in main |
 | `sceneReplyLanded` | `loop/stream.ts`, `loop/turn.ts` | Read every scene call's reply once it has landed, the closing's included, with what main handed back |
@@ -1954,3 +1962,8 @@ and other thread consumers follow that rule; storage, carry and delivery keep th
 from the first non-system message in that slot, defaulting to the reader for an empty thread. Her
 first text counts as the reader's when it answers his earlier texts (a reply that arrived late, the
 last message before it being his) rather than being flagged as a reach-out or an invitation.
+### Showing supported game versions
+
+Built-in `ModDef` entries may declare `game`, using the same version-range syntax as `vxmod.json` (for example `game: ">=0.9.2 <0.10.0"`). Declare only versions the author supports; do not copy the current version into every mod automatically. This is the Venus University version, not the mod version or VE kit version.
+
+The Mods menu shows the supported range and running game version. Missing declarations are shown as not declared. Enabling a mod with undeclared or out-of-range support asks for confirmation. New Game, Continue and loading a saved game also warn for affected enabled mods; saved games use their recorded per-playthrough enrollment. Warnings are advisory and preserve switches and saved data. They do not claim that a declaration proves testing or that an old declaration means a mod is broken.

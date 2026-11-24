@@ -1,0 +1,284 @@
+/* Pool: an eight-ball table from above, with each side's group and balls over it and the power
+   meter under it. Drawn on the mini-game board. */
+
+/* The balls and pockets are things, not themed paper: an ivory ball reads as the cue ball and a
+   black one as the eight by day or by night, and a pocket is a hole. */
+.vu-pool {
+  --pool-ivory: #f7f0e6;
+  --pool-black: #1c171d;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Over the table: the reader's side, the rack score, her side. */
+.vu-pool-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  width: 680px;
+}
+
+.vu-pool-side {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 270px;
+  padding-left: 10px;
+  border-left: 4px solid transparent;
+}
+
+.vu-pool-side--hers {
+  align-items: flex-end;
+  padding: 0 10px 0 0;
+  border-left: 0;
+  border-right: 4px solid transparent;
+  text-align: right;
+}
+
+/* Whose shot it is: the accent down that side's edge. */
+.vu-pool-side[data-turn] {
+  border-color: var(--vu-accent);
+}
+
+/* Who it is and what they are on, on one line. */
+.vu-pool-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+}
+
+.vu-pool-side--hers .vu-pool-name {
+  justify-content: flex-end;
+}
+
+.vu-pool-who {
+  margin: 0;
+  color: var(--vu-text);
+  font: 400 22px var(--font-display);
+  line-height: 1.1;
+}
+
+.vu-pool-group,
+.vu-pool-terms {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+}
+
+/* Once the table is no longer open, which balls are whose is said in the accent. */
+.vu-pool-group[data-set] {
+  color: var(--vu-accent);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.vu-pool-tray {
+  display: block;
+  width: 154px;
+  height: 22px;
+}
+
+.vu-pool-match {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.vu-pool-racks {
+  margin: 0;
+  color: var(--vu-text);
+  font: 400 34px var(--font-display);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* The table is a container: the wood drawn in the surface, the cloth recessed in it. */
+.vu-pool-table {
+  flex: none;
+  border-radius: 26px;
+  box-shadow: 6px 6px 0 var(--vu-panel-shadow);
+  line-height: 0;
+}
+
+/* Sized to the table's own shape: a pointer is read through the drawing, whatever the stage's scale. */
+.vu-pool-field {
+  display: block;
+  width: 680px;
+  height: 361px;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.vu-pool-field[data-phase='her'],
+.vu-pool-field[data-phase='her-aim'],
+.vu-pool-field[data-phase='rolling'],
+.vu-pool-field[data-phase='settled'],
+.vu-pool-field[data-phase='between'],
+.vu-pool-field[data-phase='over'] {
+  cursor: default;
+}
+
+.vu-pool-rail {
+  fill: var(--vu-surface);
+  stroke: var(--vu-border);
+  stroke-width: 3.5;
+}
+
+.vu-pool-cloth {
+  fill: var(--vu-recessed);
+  stroke: var(--vu-border);
+  stroke-width: 2;
+}
+
+.vu-pool-mark {
+  stroke: var(--vu-text-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 6;
+  opacity: 0.4;
+}
+
+.vu-pool-spot {
+  fill: var(--vu-text-muted);
+  opacity: 0.5;
+}
+
+.vu-pool-pocket {
+  fill: var(--pool-black);
+  stroke: var(--vu-border);
+  stroke-width: 2;
+}
+
+/* The balls: the cue ball ivory, a solid filled in the accent, a stripe ivory with a band of
+   it, the eight black. On the table they carry no number; in the trays each does, on a disc. */
+.vu-pool-ball {
+  stroke: var(--vu-border);
+  stroke-width: 1.5;
+}
+
+.vu-pool-ball--cue {
+  fill: var(--pool-ivory);
+  stroke-width: 2;
+}
+
+.vu-pool-ball--solid {
+  fill: var(--vu-accent);
+}
+
+.vu-pool-ball--stripe {
+  fill: var(--pool-ivory);
+}
+
+.vu-pool-ball--eight {
+  fill: var(--pool-black);
+}
+
+.vu-pool-band {
+  fill: var(--vu-accent);
+}
+
+.vu-pool-disc {
+  fill: var(--pool-ivory);
+}
+
+.vu-pool-number {
+  fill: var(--pool-black);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* The line of aim, the cue ball as it will land, and the way the ball it meets is sent. */
+.vu-pool-aim {
+  pointer-events: none;
+}
+
+.vu-pool-aimline {
+  stroke: var(--vu-text);
+  stroke-width: 2.5;
+  stroke-dasharray: 8 6;
+  stroke-linecap: round;
+}
+
+.vu-pool-sendline {
+  stroke: var(--vu-text);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.vu-pool-ghost {
+  fill: var(--pool-ivory);
+  fill-opacity: 0.55;
+  stroke: var(--vu-text);
+  stroke-width: 2.5;
+}
+
+/* The cue ball in the reader's hand. */
+.vu-pool-hand {
+  fill: var(--pool-ivory);
+  stroke: var(--vu-accent);
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+
+/* Under the table: what to do, and the power as it is brought up. */
+.vu-pool-foot {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  width: 680px;
+}
+
+/* The line wraps rather than cutting off: what to do is read in full, beside the meter or not. */
+.vu-pool-status {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--vu-text-body);
+  font: 700 13px/1.4 var(--font-mono);
+  text-wrap: pretty;
+}
+
+/* The last shot told, in full ink: it stays until the next. */
+.vu-pool-status[data-told] {
+  color: var(--vu-text);
+  font: 600 13px/1.4 var(--font-body);
+}
+
+.vu-pool-meter {
+  flex: none;
+  margin-top: 2px;
+  width: 240px;
+  height: 14px;
+  border: 2.5px solid var(--vu-border);
+  border-radius: 8px;
+  background: var(--vu-recessed);
+  overflow: hidden;
+  opacity: 0.45;
+}
+
+.vu-pool-meter[data-live] {
+  opacity: 1;
+}
+
+/* Not his shot to play: the line under the table has the width. */
+.vu-pool-meter[data-idle] {
+  display: none;
+}
+
+.vu-pool-meterfill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--vu-accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+}

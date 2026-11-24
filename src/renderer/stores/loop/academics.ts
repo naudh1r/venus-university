@@ -22,6 +22,7 @@ import {
   type ExamPeriod
 } from '@shared/academics'
 import { tierOf, type StatContext, type StatusText } from '@shared/playerStats'
+import { talentAssessment } from '@shared/talentPerks'
 import type { ClassEntry, CourseEntry, LedgerResponse } from '@shared/types'
 import {
   examDateOf,
@@ -149,18 +150,21 @@ function freezeDueScores(): void {
       const difficulty = entry.difficulty
 
       if (entry.kind === 'lecture') {
+        const correct = record?.[exam]?.correct ?? 0
+        const asked = record?.[exam]?.asked ?? 0
+        const skipped = skippedFactMeetings(entry, examDate, record, state.calendar)
         state.setClassScore(
           code,
           exam,
-          examScore({
+          talentAssessment(state.exTalents, examScore({
             present,
-            correct: record?.[exam]?.correct ?? 0,
-            asked: record?.[exam]?.asked ?? 0,
-            skipped: skippedFactMeetings(entry, examDate, record, state.calendar),
+            correct,
+            asked,
+            skipped,
             brain: state.stats.brain,
             difficulty,
             exam
-          })
+          }), 'exam', present, asked > 0, asked > 0 && correct >= asked + Math.max(0, skipped))
         )
         continue
       }
@@ -174,10 +178,12 @@ function freezeDueScores(): void {
         difficulty,
         exam
       }
-      const score = projectScore(showcase)
+      const assess = (heart: number): number => talentAssessment(state.exTalents,
+        projectScore({...showcase, heart}), 'showcase', present, showcase.worked > 0, showcase.worked >= showcase.needed)
+      const score = assess(showcase.heart)
       // The tier is frozen with the score, and only where charm moved it — re-scored with no
       // Heart, which also stays quiet when the cap at 100 swallowed the bonus.
-      const improved = score > projectScore({ ...showcase, heart: 0 })
+      const improved = score > assess(0)
       state.setClassScore(code, exam, score, improved ? tierOf(state.stats.heart) : undefined)
     }
   }

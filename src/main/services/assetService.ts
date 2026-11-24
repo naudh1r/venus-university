@@ -145,8 +145,8 @@ async function readQuickstart(): Promise<QuickstartBundle> {
   return validateQuickstart(parsed, path)
 }
 
-/** The shape a sound's name must have: one of the five group folders and a lowercase `.ogg`. */
-const SAFE_AUDIO_FILE = /^(music|ambient_music|ambient|nsfw|sfx)\/[a-z0-9_]+\.ogg$/
+/** Stock OGG files and community audio use relative, lowercase paths under the sound folder. */
+const SAFE_AUDIO_FILE = /^(?:(music|ambient_music|ambient|nsfw|sfx)\/[a-z0-9_]+\.ogg|community\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.(?:ogg|mp3|wav))$/
 
 /** The bytes of one shipped sound, or `null` if it is not on disk. */
 export async function readAudio(file: string): Promise<Uint8Array | null> {

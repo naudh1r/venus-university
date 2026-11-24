@@ -9,7 +9,7 @@ import {
   type NpcRelationshipMap
 } from './npcRelationships'
 import { HONEYMOON_DAYS } from './odds'
-import { STAT_KEYS, type StatKey, type StatTier, pointsForTier, type PlayerStats } from './playerStats'
+import { type StatKey, type StartingStatTier, statsForStartingTiers, type PlayerStats } from './playerStats'
 import { affectionOfDisposition, emptyFlags, type Disposition } from './relationship'
 import { hasTrait } from './traits'
 import type {
@@ -70,7 +70,7 @@ export interface SceneReader {
   lastName: string
   /** Absent on a scene saved before pronouns were asked, read as he/him. */
   pronouns?: ReaderPronouns
-  tiers: Record<StatKey, StatTier>
+  tiers: Record<StatKey, StartingStatTier>
   bio: string
 }
 
@@ -436,9 +436,7 @@ export function weatherTableOf(date: number, time: TimeSlot, weather: Weather): 
 
 /** The reader's stats as points, each tier at the fewest points that buy it. */
 export function statsOfReader(reader: Pick<SceneReader, 'tiers'>): PlayerStats {
-  const stats = {} as PlayerStats
-  for (const key of STAT_KEYS) stats[key] = pointsForTier(reader.tiers[key])
-  return stats
+  return statsForStartingTiers(reader.tiers)
 }
 
 /** Whether Start can be pressed: somebody is cast and the opening says something. */

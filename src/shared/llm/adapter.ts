@@ -19,6 +19,8 @@ export type { StructuredRequest }
 /** What one SSE frame contributed: its text, and whether it ended the reply. */
 export interface StreamDelta {
   text: string
+  /** The model's reasoning prose this frame carried, kept apart from `text` and only logged. */
+  reasoning?: string
   /** True once the frame carries a `finishReason`; EOF without one is a cut-off reply. */
   finished: boolean
   /** The raw `finishReason`, kept for logging; `finished` is the decision. */
@@ -104,6 +106,9 @@ export interface LlmAdapter {
 
   /** Pulls assistant text from a whole response, throwing `AppError` for 200-level blocks. */
   contentOf(rawBody: string, label: string): string
+
+  /** The reasoning prose a whole response carried, for the log; empty when none. Never throws. */
+  reasoningOf?(rawBody: string): string
 
   /** Pulls one SSE text delta, throwing `AppError` for mid-stream errors or blocks. */
   deltaOf(payload: string, label: string): StreamDelta

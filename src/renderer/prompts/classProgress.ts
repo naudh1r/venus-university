@@ -1,3 +1,4 @@
+import { projectWorkUnits } from '@shared/talentPerks'
 import type {
   AddedClass,
   Character,
@@ -194,7 +195,7 @@ function sessionsOf(
 
 /** How many sessions have gone into `period`'s project so far. */
 export function workedOn(record: ClassRecord | undefined, exam: ExamPeriod): number {
-  return sessionsOf(record, exam).length
+  return sessionsOf(record, exam).reduce((sum, session) => sum + projectWorkUnits(session), 0)
 }
 
 /**
@@ -301,7 +302,7 @@ export function projectSceneContextOf(
   const last = sessions[sessions.length - 1]
   return {
     ...(last ? { lastSession: last } : {}),
-    progress: projectProgress(sessions.length, period.needed)
+    progress: projectProgress(workedOn(record, period.exam), period.needed)
   }
 }
 
@@ -348,7 +349,7 @@ export function courseStandingOf(
   const last = sessions[sessions.length - 1]
   return {
     kind: 'project',
-    worked: sessions.length,
+    worked: workedOn(record, period.exam),
     needed: period.needed,
     ...(last ? { lastSession: last } : {})
   }

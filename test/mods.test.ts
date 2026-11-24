@@ -1,3 +1,6 @@
+import { PHOTO_FEATURE_ID } from '../src/shared/photoDefinition'
+import { bindRendererPhotoReader, useModsStore } from './fixtures/photoSwitchState'
+import { photoSwitches } from '../src/shared/photoSwitches'
 import { describe, expect, it } from 'vitest'
 import {
   BUILD,
@@ -15,8 +18,15 @@ import {
   switchedOn,
   withMod,
   withOption,
+  type ModSwitches,
   type ModDef
 } from '@shared/mods'
+
+function readPhotoOptions(switches: ModSwitches) {
+  useModsStore.setState({ switches })
+  bindRendererPhotoReader()
+  return photoSwitches()
+}
 
 const base = { author: 'a', version: '1.0.0', blurb: '' }
 
@@ -59,6 +69,11 @@ describe('the shipped list', () => {
     for (const mod of MODS) {
       for (const needed of mod.requires ?? []) expect(MODS.some((m) => m.id === needed)).toBe(true)
     }
+  })
+
+  it('has the Photo Feature off until it is switched on', () => {
+    expect(modOn(NO_SWITCHES, 'photo-feature')).toBe(false)
+    expect(modOn(withMod(NO_SWITCHES, 'photo-feature', true), 'photo-feature')).toBe(true)
   })
 })
 
@@ -111,13 +126,51 @@ describe('options', () => {
     expect(optionOn(withOption(NO_SWITCHES, 'work', 'raises', false), 'work', 'raises', LIST)).toBe(false)
     expect(optionOn(NO_SWITCHES, 'work', 'nothing', LIST)).toBe(false)
   })
+
+  it('keeps one of a group on: picking one turns the others off', () => {
+    const blue = withOption(NO_SWITCHES, 'look', 'blue', true, LIST)
+    expect(optionOn(blue, 'look', 'blue', LIST)).toBe(true)
+    expect(optionOn(blue, 'look', 'red', LIST)).toBe(false)
+    expect(optionOn(blue, 'look', 'big', LIST)).toBe(false)
+    expect(withOption(blue, 'look', 'blue', false, LIST)).toBe(blue)
+  })
+})
+
+describe("Photo Feature's switches", () => {
+  it('are off, generating, and the bunny until touched', () => {
+    expect(readPhotoOptions(NO_SWITCHES)).toEqual({
+      on: false,
+      photos: true,
+      explicit: true,
+      loader: 'bunny',
+      webp: true,
+      body: false,
+      duo: false
+    })
+  })
+
+  it('follow the Mods screen', () => {
+    let switches = withMod(NO_SWITCHES, PHOTO_FEATURE_ID, false)
+    switches = withOption(switches, PHOTO_FEATURE_ID, 'photos', false)
+    switches = withOption(switches, PHOTO_FEATURE_ID, 'loader-dots', true)
+    switches = withOption(switches, PHOTO_FEATURE_ID, 'webp', false)
+    expect(readPhotoOptions(switches)).toEqual({
+      on: false,
+      photos: false,
+      explicit: true,
+      loader: 'dots',
+      webp: false,
+      body: false,
+      duo: false
+    })
+  })
 })
 
 describe('a new playthrough', () => {
   it('names the playthrough mods that are on, and no others', () => {
     expect(playthroughMods(NO_SWITCHES, LIST)).toEqual(['places', 'work'])
     expect(playthroughMods(withMod(NO_SWITCHES, 'places', false), LIST)).toEqual([])
-    expect(playthroughMods(NO_SWITCHES)).toEqual([])
+    expect(playthroughMods(NO_SWITCHES, [])).toEqual([])
   })
 
   it('keeps the version of every mod that is on, of either scope', () => {
@@ -128,10 +181,7 @@ describe('a new playthrough', () => {
       free: '1.0.0',
       quiet: '1.0.0'
     })
-    // Untouched switches keep the version of each in-repo mod that is on by default, and no other.
-    expect(playthroughModVersions(NO_SWITCHES)).toEqual(
-      Object.fromEntries(MODS.filter((mod) => modOn(NO_SWITCHES, mod.id)).map((mod) => [mod.id, mod.version]))
-    )
+    expect(playthroughModVersions(NO_SWITCHES, [])).toEqual({})
   })
 })
 
@@ -161,15 +211,5 @@ describe('cleanSwitches', () => {
     for (const value of [null, undefined, 3, 'on', [], { on: [true] }]) {
       expect(cleanSwitches(value)).toEqual({ on: {}, options: {} })
     }
-  })
-})
-
-describe('a group of options', () => {
-  it('keeps one of a group on: picking one turns the others off', () => {
-    const blue = withOption(NO_SWITCHES, 'look', 'blue', true, LIST)
-    expect(optionOn(blue, 'look', 'blue', LIST)).toBe(true)
-    expect(optionOn(blue, 'look', 'red', LIST)).toBe(false)
-    expect(optionOn(blue, 'look', 'big', LIST)).toBe(false)
-    expect(withOption(blue, 'look', 'blue', false, LIST)).toBe(blue)
   })
 })

@@ -1,0 +1,288 @@
+/* PARADISO: a dance machine's screen. The song's bar across the top; under it the reader's
+   board, the lanes the arrows climb (hers beside his, narrower, when she is on the second pad)
+   and her board. Drawn on the mini-game board surface; the button is base.css's. The frame
+   loop places the notes and hands the root `--beat` and `--through`. */
+
+.vu-paradiso {
+  --beat: 0;
+  --through: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+/* How far through the song is: a recessed rail, filled in the accent from the left. */
+.vu-paradiso-song {
+  position: relative;
+  width: min(1100px, 100%);
+  height: 12px;
+  overflow: hidden;
+  border: 2.5px solid var(--vu-border);
+  border-radius: 999px;
+  background: var(--vu-recessed);
+}
+
+.vu-paradiso-through {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--vu-accent);
+  transform: scaleX(var(--through));
+  transform-origin: left center;
+}
+
+/* The halfway mark on the rail: a notch, in the text colour once the song is past it. */
+.vu-paradiso-half {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--vu-border);
+}
+
+.vu-paradiso-half[data-passed] {
+  background: var(--vu-text);
+}
+
+.vu-paradiso-screen {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 36px;
+  max-width: 100%;
+}
+
+/* One dancer's board: who, the score, the last judgement, the combo, the four counts. */
+.vu-paradiso-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  /* The boards give way before the lanes do, on a surface too narrow for all of it. */
+  flex: 0 1 230px;
+  min-width: 0;
+  color: var(--vu-text);
+}
+
+.vu-paradiso-who {
+  font: 400 26px var(--font-display);
+}
+
+.vu-paradiso-score {
+  font: 700 34px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.vu-paradiso-judgement {
+  min-height: 52px;
+  font: 400 44px var(--font-display);
+  line-height: 52px;
+}
+
+.vu-paradiso-judgement[data-judgement='perfect'] {
+  color: var(--vu-accent);
+}
+
+.vu-paradiso-judgement[data-judgement='great'] {
+  color: var(--vu-good);
+}
+
+.vu-paradiso-judgement[data-judgement='good'] {
+  color: var(--vu-warn);
+}
+
+.vu-paradiso-judgement[data-judgement='miss'] {
+  color: var(--vu-danger);
+}
+
+.vu-paradiso-grade {
+  min-height: 52px;
+  color: var(--vu-accent);
+  font: 400 52px var(--font-display);
+  line-height: 52px;
+}
+
+.vu-paradiso-combo {
+  font: 700 20px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.vu-paradiso-counts {
+  color: var(--vu-text-muted);
+  font: 700 13px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The two sets of lanes side by side, and the card that stands over them before the song. */
+.vu-paradiso-pads {
+  position: relative;
+  display: flex;
+  flex: none;
+  gap: 22px;
+}
+
+/* A set of lanes: 340 tall, the targets 14 down from its top, as Paradiso.tsx has them: short
+   enough that the cabinet stands clear of the dialogue box and who is talking in it. */
+.vu-paradiso-pad {
+  --lane: 92px;
+  position: relative;
+  width: calc(var(--lane) * 4);
+  height: 340px;
+  overflow: hidden;
+  border: 3.5px solid var(--vu-border);
+  border-radius: 22px;
+  background: var(--vu-recessed);
+  box-sizing: content-box;
+}
+
+.vu-paradiso-pad--hers {
+  --lane: 60px;
+}
+
+.vu-paradiso-targets {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  display: flex;
+}
+
+/* A target: the arrow's outline, swelling a little on every beat. */
+.vu-paradiso-target {
+  display: block;
+  width: var(--lane);
+  height: var(--lane);
+  padding: 0;
+  border: 0;
+  background: none;
+  transform: scale(calc(1 + var(--beat) * 0.07));
+}
+
+.vu-paradiso-target svg,
+.vu-paradiso-note svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 9%;
+  box-sizing: border-box;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.vu-paradiso-target svg {
+  fill: var(--vu-tint);
+  stroke: var(--vu-text-muted);
+  opacity: calc(0.6 + var(--beat) * 0.4);
+}
+
+/* Stepped on: the target fills for a moment. */
+.vu-paradiso-target[data-lit] svg {
+  fill: var(--vu-accent);
+  stroke: var(--vu-border);
+  opacity: 1;
+}
+
+/* A note: placed down the lane by the frame loop, hidden until it climbs into view. */
+.vu-paradiso-note {
+  position: absolute;
+  top: 0;
+  display: none;
+  width: var(--lane);
+  height: var(--lane);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.vu-paradiso-note svg {
+  fill: var(--vu-accent);
+  stroke: var(--vu-border);
+}
+
+/* A step between two beats is drawn in the ink instead. */
+.vu-paradiso-note[data-off] svg {
+  fill: var(--vu-text);
+}
+
+/* A note that went by unstepped drifts on, spent. */
+.vu-paradiso-note[data-past] {
+  opacity: 0.3;
+}
+
+/* Each lane's place across the pad, and which way its arrow points. */
+.vu-paradiso-note[data-lane='left'] {
+  left: 0;
+}
+
+.vu-paradiso-note[data-lane='down'] {
+  left: var(--lane);
+}
+
+.vu-paradiso-note[data-lane='up'] {
+  left: calc(var(--lane) * 2);
+}
+
+.vu-paradiso-note[data-lane='right'] {
+  left: calc(var(--lane) * 3);
+}
+
+[data-lane='left'] > svg {
+  rotate: -90deg;
+}
+
+[data-lane='down'] > svg {
+  rotate: 180deg;
+}
+
+[data-lane='right'] > svg {
+  rotate: 90deg;
+}
+
+/* Before the song: how it is played and the way in, on a card over the lanes. */
+.vu-paradiso-ready {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 330px;
+  padding: 22px 24px 26px;
+  border: 3.5px solid var(--vu-border);
+  border-radius: 22px;
+  background: var(--vu-surface);
+  translate: -50% -50%;
+  text-align: center;
+}
+
+.vu-paradiso-how {
+  margin: 0;
+  color: var(--vu-text-body);
+  font: 500 15px var(--font-body);
+  line-height: 1.5;
+}
+
+/* The song stopped for a window that went away: said on the same card. */
+.vu-paradiso-paused {
+  margin: 0;
+  color: var(--vu-text);
+  font: 400 34px var(--font-display);
+}
+
+.vu-paradiso[data-paused] .vu-paradiso-pad {
+  opacity: 0.45;
+}
+
+.vu-paradiso-level {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+}
+
+/* The song over: the lanes stand back and the grades have the screen. */
+.vu-paradiso[data-phase='over'] .vu-paradiso-pads {
+  opacity: 0.45;
+}

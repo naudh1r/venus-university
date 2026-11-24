@@ -6,6 +6,7 @@ import {
   type NpcRelationshipMap
 } from '@shared/npcRelationships'
 import { tierOf, type PlayerStats } from '@shared/playerStats'
+import { talentColdProtection } from '@shared/talentPerks'
 import type { ColdPass, LedgerResponse } from '@shared/types'
 import { isGraduationSlot } from '../../prompts/graduation'
 import { useGameStore } from '../gameStore'
@@ -87,6 +88,7 @@ export function rollColdPass(
     girls: game.charInfo,
     reader: { cold: game.readerCold ?? undefined, coldsHad: game.readerColdsHad },
     bodyTier: tierOf(stats.body),
+    ...talentColdProtection(game.exTalents),
     contacts
   })
 }

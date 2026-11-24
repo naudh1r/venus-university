@@ -1,5 +1,6 @@
 import type { Application } from './application'
 import { isCharFileRel } from './characterFiles'
+import { ECHO_ART_DIR, echoArtIdOf } from './echoArtwork'
 import { readCharacterRecord, SAFE_CHAR_ID } from './characterRules'
 import { isArchiveCruft } from './characterTransfer'
 import {
@@ -10,6 +11,7 @@ import {
   type CustomBackground
 } from './customBackgrounds'
 import { appError } from './errors'
+import { SOUNDTRACK_FILE, SOUNDTRACK_BACKUP_DIR } from './soundtracks'
 import { isSafeEntryName, modPartEntryOf, MOD_PARTS_DIR } from './modParts'
 import { MOD_ID_RULE } from '@vx/modkit/host/shared'
 import { validateRecord, type ValidateRecordOptions } from './jsonValidate'
@@ -56,7 +58,9 @@ const CORE_DIRS = [
   PROFILE_SOURCES_DIR,
   PHOTOS_DIR,
   BACKGROUNDS_DIR,
-  MOD_PARTS_DIR
+  MOD_PARTS_DIR,
+  // The in-repo mods' own folders, written and read back by their code here.
+  ECHO_ART_DIR.split('/')[0]
 ]
 
 /** Whether a top-level folder of a backup is none this build writes: a mod's, or a newer build's. */
@@ -111,6 +115,10 @@ export interface BackupModPart {
 
 /** Everything a backup carries beside the images. */
 export interface BackupFile {
+  /** Optional desktop reflection images and positions, including shipped characters. */
+  exReflections?: Record<string, unknown>
+  /** Immutable Echo PNG IDs, with bytes under echoes/art; absent in older backups. */
+  exEchoArt?: string[]
   schemaVersion: number
   /** As the renderer sees them, so no backup can ever carry the API key. */
   settings: RendererSettings
@@ -146,7 +154,8 @@ export interface BackupFile {
 }
 
 /** Every key of the record this build reads; any other key is a mod's or a newer build's, kept for the mods' parts. */
-const BACKUP_KEYS: Record<keyof BackupFile, true> = {
+// Custom Soundtracks owns its legacy key; keep every other backup field accounted for.
+const BACKUP_KEYS: Record<Exclude<keyof BackupFile, 'exMusic'>, true> = {
   schemaVersion: true,
   settings: true,
   grabbags: true,
@@ -163,7 +172,10 @@ const BACKUP_KEYS: Record<keyof BackupFile, true> = {
   lorebooks: true,
   mods: true,
   applications: true,
-  characters: true
+  characters: true,
+  // The in-repo mods' own fields, written and read back by their code here.
+  exEchoArt: true,
+  exReflections: true
 }
 
 /** The record's own keys this build does not read, with their values as read. */
@@ -425,7 +437,9 @@ function isBackgroundPicture(name: string): boolean {
  * (`legacy`, kept for the mods' parts), something the archive carries that no unpack keeps, or
  * something this build never wrote.
  */
-export function classifyBackupEntry(name: string): 'record' | 'image' | 'file' | 'legacy' | 'skip' | 'reject' {
+export function classifyBackupEntry(name: string): 'record' | 'image' | 'audio' | 'file' | 'legacy' | 'skip' | 'reject' {
+  if (echoArtIdOf(name)) return 'image'
+  if (name.startsWith(SOUNDTRACK_BACKUP_DIR + '/') && SOUNDTRACK_FILE.test(name.slice(SOUNDTRACK_BACKUP_DIR.length + 1))) return 'audio'
   if (name === BACKUP_NAME) return 'record'
   if (isArchiveCruft(name)) return 'skip'
   if (charFileOf(name)) return 'image'

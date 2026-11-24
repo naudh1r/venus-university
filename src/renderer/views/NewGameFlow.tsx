@@ -1,3 +1,4 @@
+import type { StartingChallenge } from '@shared/startingChallenge'
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -277,6 +278,7 @@ function blurActive(): void {
 }
 
 export interface NewGameFlowProps {
+  challenge?: StartingChallenge
   theme: 'day' | 'night'
   /** The application Load Game or Continue reopened, or null for a fresh New Game. */
   staged: StagedApplication | null
@@ -306,6 +308,7 @@ export interface NewGameFlowProps {
  */
 export function NewGameFlow({
   theme,
+  challenge,
   staged,
   continuation,
   onComposed
@@ -896,6 +899,7 @@ export function NewGameFlow({
         )}
         {step === 'naming' && (
           <PlayerNameModal
+            challenge={challenge}
             key="naming"
             theme={theme}
             initial={draft?.reader}

@@ -10,6 +10,8 @@ const { version } = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as
 
 /** The browser build: `src/web` wires the bridge, then hands over to the renderer. */
 export default defineConfig({
+  publicDir: resolve('assets/echo-public'),
+  worker: { format: 'es' },
   root: resolve('src/web'),
   // itch serves a game from a folder it picks, so every URL has to be relative.
   base: './',

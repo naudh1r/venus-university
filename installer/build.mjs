@@ -125,8 +125,8 @@ function sameText(ours, theirs) {
 
 /**
  * The files this build adds beside the game's code, in `resources/assets`. Only folders the
- * release itself ships from the repository are looked at; the cast and the music come from
- * elsewhere. One of the release's own files that differs here stops the build.
+ * release itself ships from the repository and the community sound folder are included.
+ * The official cast and music come from the player's game. A differing official file stops the build.
  */
 async function externals() {
   const manifest = JSON.parse(await readFile(MANIFEST, 'utf8'))
@@ -141,7 +141,7 @@ async function externals() {
   const assets = ASSETS
   const found = []
   for (const rel of await files(assets)) {
-    if (!shipped.has(rel.split('/')[0]) || /(^|\/)(\.gitkeep|README\.md)$/.test(rel)) continue
+    if ((!shipped.has(rel.split('/')[0]) && !rel.startsWith('sound/community/')) || /(^|\/)(\.gitkeep|README\.md)$/.test(rel)) continue
     const theirs = official.get(PREFIX + rel)
     const ours = await readFile(join(assets, rel))
     if (theirs === undefined) found.push({ rel: PREFIX + rel, sha256: sha256(ours) })

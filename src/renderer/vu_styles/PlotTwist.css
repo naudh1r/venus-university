@@ -1,0 +1,36 @@
+/* A paper editor using the game's day/night palette and motion vocabulary. Only the text
+   well scrolls, so the title, counter, and actions stay visible at the logical game size. */
+.vu-plot-twist {
+  --paper-offset: 12px 11px;
+  --paper-shadow: var(--vu-panel-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(1000px, 100% - 60px);
+  max-height: calc(100% - 100px);
+  padding: 78px 56px 32px 90px;
+  border-radius: 120px 0 0 120px;
+  color: var(--vu-text);
+  font-family: var(--font-body);
+}
+.vu-plot-twist-hint,
+.vu-plot-twist-count,
+.vu-plot-twist-status {
+  margin: 0;
+  flex: none;
+  color: var(--vu-text-muted);
+  font-size: 16px;
+  line-height: 1.5;
+}
+.vu-plot-twist-count {
+  text-align: right;
+  font: 13px var(--font-mono);
+}
+.vu-plot-twist-status { min-height: 24px; }
+.vu-plot-twist .vu-field { min-height: 0; flex: 1 1 auto; }
+.vu-plot-twist .vu-input--multiline {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden auto;
+  resize: none;
+}

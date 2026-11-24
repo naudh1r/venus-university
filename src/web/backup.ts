@@ -31,6 +31,7 @@ import {
   type SemesterPicture
 } from '@shared/backup'
 import { namedRel, storedRel } from '@shared/characterFiles'
+import { assertEchoPng, assertSameEchoArt, echoArtEntry, echoArtIds } from '@shared/echoArtwork'
 import { SAFE_CHAR_ID } from '@shared/characterRules'
 import {
   BG_VARIANTS,
@@ -42,6 +43,7 @@ import {
 import { imageTypeOf } from '@shared/imageBytes'
 import { validateRecord } from '@shared/jsonValidate'
 import { readLorebookRecord, type LorebookRecord } from '@shared/lorebookRecord'
+import { MOD_PARTS_DIR } from '@shared/modParts'
 import { assertSafePhotoId } from '@shared/photos'
 import type { ProfileFrame } from '@shared/profilePicture'
 import { validateReplay } from '@shared/replays'
@@ -59,6 +61,8 @@ import { isPackRead, loadCopied } from './copies'
 import { buildPack } from './packs'
 import { currentSettings, forgetSettings, rendererSettings, rowFor } from './settings'
 import { encodeJson, openArchive, packagedRel, pickFile, readJsonEntry, ZIP_TYPE } from './transfer'
+import { prepareSoundtrackBackupPart, prepareSoundtrackSnapshot, SOUNDTRACK_BACKUP_DIR, SOUNDTRACK_MOD } from '@shared/soundtracks'
+import { soundtrackLibrary, soundtrackHash } from './soundtracks'
 
 /**
  * The player's whole browser storage as one zip. A browser's storage belongs to the host and
@@ -230,6 +234,7 @@ export async function exportBackup(): Promise<string> {
     }
 
     const backup: BackupFile = {
+      exEchoArt: echoArtIds(await db.getAllKeys('echoArt')),
       schemaVersion: BACKUP_SCHEMA_VERSION,
       settings: await rendererSettings(),
       grabbags: (await db.get('grabbags', 'grabbags')) ?? {},
@@ -249,9 +254,20 @@ export async function exportBackup(): Promise<string> {
         (character) => !isPackRead(character.charId)
       )
     }
+    for (const id of backup.exEchoArt!) {
+      const blob = await db.get('echoArt', id)
+      if (!blob) throw Error('Echo artwork changed during backup. Please retry.')
+      const bytes = await bytesOf(blob); assertEchoPng(bytes)
+      files[echoArtEntry(id)] = bytes
+    }
     return backup
   })
 
+  const music = await soundtrackLibrary.snapshotForBackup()
+  if (music) {
+    record.exMusic = music.map
+    for (const [file, bytes] of Object.entries(music.files)) files[SOUNDTRACK_BACKUP_DIR + '/' + file] = bytes
+  }
   files[BACKUP_NAME] = encodeJson(record)
   return offerDownload(backupName(), buildPack(files), ZIP_TYPE)
 }
@@ -275,6 +291,26 @@ export async function importBackup(): Promise<boolean> {
   )
 
   preflightBackup(record)
+
+  const musicPart = record.mods?.[SOUNDTRACK_MOD]
+  const music = musicPart && (musicPart.json !== undefined || musicPart.files.length > 0)
+    ? await prepareSoundtrackBackupPart(musicPart.json,
+        async file => entries[MOD_PARTS_DIR + '/' + SOUNDTRACK_MOD + '/' + file], soundtrackHash)
+    : await prepareSoundtrackSnapshot(record.exMusic,
+        async file => entries[SOUNDTRACK_BACKUP_DIR + '/' + file], soundtrackHash)
+
+  const echoImages = new Map<string, Uint8Array>()
+  const existingEchoImages = new Set<string>()
+  const echoDb = await database()
+  for (const id of echoArtIds(record.exEchoArt)) {
+    const bytes = entries[echoArtEntry(id)]
+    if (!bytes) throw Error('This backup is missing Echo artwork it names.')
+    assertEchoPng(bytes)
+    const existing = await echoDb.get('echoArt', id)
+    if (existing) existingEchoImages.add(id)
+    assertSameEchoArt(existing ? await bytesOf(existing) : undefined, bytes)
+    echoImages.set(id, bytes)
+  }
 
   // Everything the record says is checked before anything here is written. Remembered keys
   // stay, as do the switches this build fixes and whether it remembers keys at all.
@@ -304,7 +340,7 @@ export async function importBackup(): Promise<boolean> {
   // would put a file where this build never looks for one.
   const updatedAt = Date.now()
 
-  await storage('restore the backup', async () => {
+  await soundtrackLibrary.exclusive(() => storage('restore the backup', async () => {
     const db = await database()
     const tx = db.transaction(
       [
@@ -321,18 +357,36 @@ export async function importBackup(): Promise<boolean> {
         'backgrounds',
         'scenes',
         'replays',
+        'soundtrackMeta',
+        'soundtrackFiles',
+        'echoArt',
         'lorebooks',
         'applications'
       ],
       'readwrite'
     )
-    // Observe rejection immediately; a synchronous write failure must abort too.
+    // Observe transaction rejection immediately; a synchronous write failure must abort too.
     void tx.done.catch(() => {})
     try {
       // Every value is in hand, so each step below is a database request and the transaction
       // stays open across all of them.
       await tx.objectStore('settings').put(settings, 'settings')
+      for (const [id, bytes] of echoImages) {
+        const existing = await tx.objectStore('echoArt').get(id)
+        // The preflight already compared bytes; a concurrent new entry aborts the transaction.
+        if (existing && !existingEchoImages.has(id)) {
+          tx.abort()
+          throw Error('Echo artwork changed during restore. Please retry.')
+        }
+        if (!existing) await tx.objectStore('echoArt').add(imageBlob(bytes), id)
+      }
       await tx.objectStore('grabbags').put(record.grabbags, 'grabbags')
+      if (music) {
+        await tx.objectStore('soundtrackMeta').put(music.map, 'tracks')
+        for (const [file, bytes] of Object.entries(music.files)) {
+          await tx.objectStore('soundtrackFiles').put(new Blob([new Uint8Array(bytes)]), file)
+        }
+      }
 
       const playthroughs = tx.objectStore('playthroughs')
       await playthroughs.clear()
@@ -444,13 +498,14 @@ export async function importBackup(): Promise<boolean> {
         if (twin !== at.rel && (entries[charFileEntry(at.charId, twin)]?.length ?? 0) > 0) continue
         await charFiles.put({ blob: imageBlob(bytes), updatedAt }, [at.charId, rel])
       }
+
       await tx.done
     } catch (err) {
       try { tx.abort() } catch { /* Already aborted by a failed request. */ }
       await tx.done.catch(() => {})
       throw err
     }
-  })
+  }))
 
   forgetSettings()
   forgetRels()

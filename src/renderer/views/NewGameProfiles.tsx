@@ -1,3 +1,4 @@
+import { availableLocationMenu } from '@shared/cityLife'
 import { memo, useMemo, useState, type JSX, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -25,8 +26,8 @@ import {
 } from '@shared/application'
 import { yearLabel } from '@shared/classes'
 import { DORM_IDS, dormLabel, type DormId } from '@shared/dorms'
+import { availableJobs } from '@shared/jobs'
 import { genderOf, pronounsOf } from '@shared/gender'
-import { JOB_CATALOG } from '@shared/jobs'
 import { ACTIVITY_LOCATIONS, FUN_LOCATIONS, MEAL_LOCATIONS, STUDY_LOCATIONS } from '@shared/locations'
 import { pairKeyOf, type NpcRelationshipMap } from '@shared/npcRelationships'
 import { DISPOSITION_LABELS } from '@shared/relationship'
@@ -304,7 +305,7 @@ const ProfilePane = memo(function ProfilePane({ character, roster, onOpen }: Pan
             value={job === null ? 'none' : (job?.jobId ?? '')}
             options={withBlank([
               { value: 'none', label: 'No job' },
-              ...JOB_CATALOG.map((def) => ({ value: def.id, label: `${def.employer}, ${def.title}` }))
+              ...availableJobs().map((def) => ({ value: def.id, label: `${def.employer}, ${def.title}` }))
             ])}
             onChange={(value) => {
               const count = job?.count
@@ -337,7 +338,7 @@ const ProfilePane = memo(function ProfilePane({ character, roster, onOpen }: Pan
             value={profile.study === null ? 'none' : (profile.study ?? '')}
             options={withBlank([
               { value: 'none', label: `${pronounsOf(character).Their} room` },
-              ...placeOptions(STUDY_LOCATIONS)
+              ...placeOptions(availableLocationMenu(STUDY_LOCATIONS))
             ])}
             onChange={(value) => set('study', value === 'none' ? null : value === '' ? undefined : value)}
           />
@@ -345,14 +346,14 @@ const ProfilePane = memo(function ProfilePane({ character, roster, onOpen }: Pan
             id="profile-meal"
             label="Eats out at"
             value={profile.meal === null ? 'none' : (profile.meal ?? '')}
-            options={withBlank([{ value: 'none', label: 'Nowhere' }, ...placeOptions(MEAL_LOCATIONS)])}
+            options={withBlank([{ value: 'none', label: 'Nowhere' }, ...placeOptions(availableLocationMenu(MEAL_LOCATIONS))])}
             onChange={(value) => set('meal', value === 'none' ? null : value === '' ? undefined : value)}
           />
           <SelectField
             id="profile-fun"
             label="Goes out to"
             value={fun === undefined ? '' : fun.length === 0 ? 'none' : fun[0]}
-            options={withBlank([{ value: 'none', label: 'Nowhere' }, ...placeOptions(FUN_LOCATIONS)])}
+            options={withBlank([{ value: 'none', label: 'Nowhere' }, ...placeOptions(availableLocationMenu(FUN_LOCATIONS))])}
             onChange={(value) => {
               if (value === '') set('fun', undefined)
               else if (value === 'none') set('fun', [])
@@ -365,7 +366,7 @@ const ProfilePane = memo(function ProfilePane({ character, roster, onOpen }: Pan
             value={fun?.[1] ?? ''}
             options={
               fun && fun.length > 0
-                ? withBlank(placeOptions(FUN_LOCATIONS, fun[0]), 'Nowhere else')
+                ? withBlank(placeOptions(availableLocationMenu(FUN_LOCATIONS), fun[0]), 'Nowhere else')
                 : withBlank([])
             }
             disabled={!fun || fun.length === 0}
@@ -378,7 +379,7 @@ const ProfilePane = memo(function ProfilePane({ character, roster, onOpen }: Pan
             id="profile-activity"
             label="Weekly activity at"
             value={activity === null ? 'none' : (activity?.location ?? '')}
-            options={withBlank([{ value: 'none', label: 'None' }, ...placeOptions(ACTIVITY_LOCATIONS)])}
+            options={withBlank([{ value: 'none', label: 'None' }, ...placeOptions(availableLocationMenu(ACTIVITY_LOCATIONS))])}
             onChange={(value) => {
               const doing = activity?.doing
               if (value === 'none') set('activity', null)

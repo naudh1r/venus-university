@@ -1,9 +1,11 @@
+import { talentPrice } from '@shared/campusTalents'
+import { useModOn } from '../stores/modsStore'
 /**
  * The BunnyShop: a browser with five tabs, one merchant's shelf behind each, and the reader's
  * balance in the corner. The shell is the app's; a shop owns its field, shapes, tab and
  * signature (`vu_styles/Shop.css`). `Yes` spends with no affordability check; else backs out.
  */
-import { useCallback, useMemo, useState, type CSSProperties, type JSX } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 
@@ -15,6 +17,7 @@ import { useGameStore } from '../stores/gameStore'
 import type { ScreenTheme } from './clockTheme'
 import { InventoryModal } from './InventoryModal'
 import { ItemCard } from './ItemCard'
+import { TalentGiftSuggestions, useTalentGiftAdvice } from './TalentGiftSuggestions'
 import {
   SHOP_TABS_DEAL,
   dealt,
@@ -116,6 +119,9 @@ export interface ShopModalProps {
 }
 
 export function ShopModal({ theme, onClose }: ShopModalProps): JSX.Element | null {
+  const talents=useGameStore(s=>s.exTalents), talentsOn=useModOn('campus-talents')
+  const realGame=useGameStore(s=>!!s.playthroughId&&!s.replaying&&!s.createdScene)
+  const price=(item:ItemDef):ItemDef=>talentsOn&&realGame?{...item,price:talentPrice(talents,item.price)}:item
   const money = useGameStore((s) => s.money)
   const inventory = useGameStore((s) => s.inventory)
   const { host, overlayProps } = useModalShell(onClose)
@@ -127,7 +133,15 @@ export function ShopModal({ theme, onClose }: ShopModalProps): JSX.Element | nul
   /** What the balance stood at before the last purchase — what its count walks *from*. */
   const [spentFrom, setSpentFrom] = useState<number | undefined>(undefined)
 
-  const items = useMemo(() => itemsInShop(shopId), [shopId])
+  const allItems = useMemo(() => SHOPS.flatMap(shop=>itemsInShop(shop.id)).map(price), [talents,talentsOn,realGame])
+  const items = useMemo(() => allItems.filter(item=>item.shopId===shopId), [shopId,allItems])
+  const advice=useTalentGiftAdvice(allItems)
+  const shelfRef=useRef<HTMLDivElement>(null),[giftFocus,setGiftFocus]=useState<string|null>(null)
+  useEffect(()=>{
+    if(!giftFocus)return
+    const card=shelfRef.current?.querySelector<HTMLElement>(`[data-item-id="${CSS.escape(giftFocus)}"]`)
+    if(card){card.scrollIntoView({block:'center'});card.querySelector<HTMLButtonElement>('button')?.focus({preventScroll:true});setGiftFocus(null)}
+  },[giftFocus,shopId])
 
   /**
    * The reader has walked away from the question. The functional form is what keeps a scroll on
@@ -142,7 +156,8 @@ export function ShopModal({ theme, onClose }: ShopModalProps): JSX.Element | nul
 
   const shop = shopDefOf(shopId) ?? SHOPS[0]
   // A pending id came from the catalog a moment ago; `?? null` makes the impossible a non-event.
-  const asked = pending ? (itemDefOf(pending) ?? null) : null
+  const askedBase = pending ? (itemDefOf(pending) ?? null) : null
+  const asked = askedBase ? price(askedBase) : null
   const carried = inventory.reduce((total, line) => total + line.count, 0)
 
   function pickShop(id: string): void {
@@ -161,7 +176,7 @@ export function ShopModal({ theme, onClose }: ShopModalProps): JSX.Element | nul
     // No affordability check: buying past the debt floor is the player's call, and it ends the
     // playthrough at the next slot opening — or, on the goodbye menu, on the next button —
     // rather than here.
-    useGameStore.getState().buyItem(item.id, item.price)
+    useGameStore.getState().buyItem(item.id, itemDefOf(item.id)?.price ?? item.price)
   }
 
   return createPortal(
@@ -286,16 +301,22 @@ export function ShopModal({ theme, onClose }: ShopModalProps): JSX.Element | nul
                 it was about, so it puts it back. */}
             <motion.div
               key={shopId}
+              ref={shelfRef}
               className="vu-shop-grid"
               variants={SHELF_DEAL}
               initial="hidden"
               animate="shown"
               onScroll={drop}
             >
+              <TalentGiftSuggestions advice={advice} onPick={item=>{
+                pickShop(item.shopId)
+                setGiftFocus(item.id)
+              }}/>
               {items.map((item) => (
                 <ItemCard
                   key={item.id}
                   item={item}
+                  recommendation={advice.best?.item.id===item.id?`Best gift for ${advice.name}`:undefined}
                   word="Buy"
                   asking={pending === item.id}
                   onAnswer={() => setPending(item.id)}

@@ -197,3 +197,8 @@ const WELCOME_LINES: readonly string[] = [
 export function tutorialLines(): string[] {
   return [...WELCOME_LINES]
 }
+
+/** A shared past may be unfriendly; let the saved history decide its tone. */
+export function orientationAcquaintancePremise(firstName: string, leader: boolean): string {
+  return `The reader is standing with their orientation group in the Venus Quad. ${firstName}, ${leader ? 'the upperclassman leading the group' : 'another freshman'}, is someone the reader already knows. Let their established history and current feelings shape this first-day encounter. Do not introduce them as strangers, invent a reunion after a specific absence, or assume their past is friendly. Leave room for what happens next.`
+}

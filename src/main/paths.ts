@@ -407,6 +407,31 @@ export function getSceneFilePath(id: string): string {
   return join(getScenesPath(), `${id}.json`)
 }
 
+/** `/data/presets` — Prompt Studio's presets, one `{id}.json` each beside `index.json`. */
+export function getPresetsPath(): string {
+  return join(getDataPath(), 'presets')
+}
+
+/** `/data/presets/{id}.json`; the id is checked by the caller. */
+export function getPresetFilePath(id: string): string {
+  return join(getPresetsPath(), `${id}.json`)
+}
+
+/** `/data/presets/index.json` — which preset is in force. */
+export function getPresetIndexPath(): string {
+  return join(getPresetsPath(), 'index.json')
+}
+
+/** `/data/prompt-studio` — what Prompt Studio keeps apart from the presets: the game's own prompts. */
+export function getPromptStudioPath(): string {
+  return join(getDataPath(), 'prompt-studio')
+}
+
+/** `/data/prompt-studio/prompts.json` */
+export function getStudioPromptsPath(): string {
+  return join(getPromptStudioPath(), 'prompts.json')
+}
+
 /** `/data/characters` */
 export function getCharactersPath(): string {
   return join(getDataPath(), 'characters')

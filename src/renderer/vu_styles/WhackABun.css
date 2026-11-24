@@ -1,0 +1,340 @@
+/* Whack-a-Bun: the reader's cabinet of nine holes beside the clock and a card for each cabinet's
+   count. Drawn on the mini-game board; the button is base.css's. */
+
+.vu-whack {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 34px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* The cabinet: the board, and whatever is said over it. The board is 300 by 353 of its own units,
+   taller than wide so that no row's art reaches the next; the cabinet keeps that shape. */
+.vu-whack-cabinet {
+  position: relative;
+  flex: none;
+  width: 374px;
+  height: 440px;
+  border-radius: 28px;
+  background: var(--vu-recessed);
+}
+
+.vu-whack-board {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.vu-whack[data-phase='ready'] .vu-whack-board,
+.vu-whack[data-phase='over'] .vu-whack-board {
+  cursor: default;
+}
+
+/* A hole, and the near edge of it drawn over whatever stands in it. */
+.vu-whack-hole {
+  fill: var(--vu-text);
+  opacity: 0.82;
+}
+
+.vu-whack-lip {
+  fill: none;
+  stroke: var(--vu-border);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.vu-whack-key {
+  fill: var(--vu-text-muted);
+  font: 700 9px var(--font-mono);
+  letter-spacing: 0.12em;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* What is in a hole waits below its rim and comes up through it. */
+.vu-whack-critter {
+  transform: translateY(96px);
+  transition: transform 110ms ease-out;
+}
+
+.vu-whack-critter[data-up] {
+  transform: translateY(0);
+}
+
+.vu-whack[data-still] .vu-whack-critter {
+  transition: none;
+}
+
+/* A bunny is the surface, inked; a golden one wears the warm role and a crown. */
+.vu-whack-fur {
+  fill: var(--vu-surface);
+  stroke: var(--vu-text);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.vu-whack-eye,
+.vu-whack-nose {
+  fill: var(--vu-text);
+}
+
+.vu-whack-bun--gold .vu-whack-fur {
+  fill: var(--vu-warn);
+}
+
+.vu-whack-crown {
+  fill: var(--vu-surface);
+  stroke: var(--vu-text);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.vu-whack-spark {
+  fill: var(--vu-warn);
+  stroke: var(--vu-text);
+  stroke-width: 0.8;
+}
+
+/* A carrot: no ears and no face, a root under a spray of leaves. */
+.vu-whack-root {
+  fill: var(--vu-danger);
+  stroke: var(--vu-text);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.vu-whack-leaf {
+  fill: var(--vu-good);
+  stroke: var(--vu-text);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.vu-whack-rib {
+  fill: none;
+  stroke: var(--vu-text);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+/* What a swing came to, over its hole for a moment. */
+.vu-whack-flash {
+  fill: var(--vu-text);
+  font: 700 17px var(--font-mono);
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--vu-surface);
+  stroke-width: 4;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.vu-whack-flash[data-swing='hit'],
+.vu-whack-flash[data-swing='gold'] {
+  fill: var(--vu-good);
+}
+
+.vu-whack-flash[data-swing='resting'] {
+  fill: var(--vu-text-muted);
+  font-size: 13px;
+}
+
+.vu-whack-flash[data-swing='decoy'],
+.vu-whack-flash[data-swing='stray'] {
+  fill: var(--vu-danger);
+}
+
+/* Said over the board: how it is played, the count-in, the pause, the buzzer. */
+.vu-whack-over {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px 40px;
+  border-radius: inherit;
+  background: var(--vu-surface);
+  text-align: center;
+}
+
+/* The count and the buzzer stand over the board without covering it. */
+.vu-whack-over--clear {
+  background: none;
+  pointer-events: none;
+}
+
+.vu-whack-mark {
+  width: 46px;
+  height: 46px;
+  color: var(--vu-accent);
+}
+
+.vu-whack-how {
+  margin: 0;
+  color: var(--vu-text-body);
+  font: 500 15px/1.5 var(--font-body);
+}
+
+.vu-whack-terms {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vu-whack-paused {
+  margin: 0;
+  color: var(--vu-text);
+  font: 400 30px var(--font-display);
+}
+
+.vu-whack-count {
+  padding: 4px 26px;
+  border-radius: 22px;
+  background: var(--vu-surface);
+  color: var(--vu-accent);
+  font: 400 76px/1.1 var(--font-display);
+}
+
+.vu-whack-side {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The clock: the seconds left, and a bar that runs down with them. */
+.vu-whack-clock {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.vu-whack-left {
+  flex: none;
+  width: 58px;
+  color: var(--vu-text);
+  font: 700 22px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.vu-whack-track {
+  flex: 1;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--vu-recessed);
+}
+
+.vu-whack-bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--vu-accent);
+  transform-origin: left center;
+}
+
+.vu-whack-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* One cabinet's count: the name and the score on a line, the run and the last thing under them. */
+.vu-whack-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px 96px;
+  grid-template-rows: auto auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  padding: 10px 16px;
+  border-radius: 16px;
+  background: var(--vu-recessed);
+  box-shadow: inset 4px 0 0 transparent;
+}
+
+/* Whoever is alone on top: a tinted plate, an accent bar, and the word for it. */
+.vu-whack-card[data-first] {
+  background: var(--vu-tint);
+  box-shadow: inset 4px 0 0 var(--vu-accent);
+}
+
+.vu-whack-who {
+  overflow: hidden;
+  color: var(--vu-text);
+  font: 400 22px var(--font-display);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vu-whack-lead {
+  color: var(--vu-accent);
+  font: 700 12px var(--font-mono);
+  white-space: pre;
+}
+
+.vu-whack-score {
+  color: var(--vu-text);
+  font: 700 26px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.vu-whack-run {
+  grid-column: 1 / 3;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+  white-space: pre;
+}
+
+.vu-whack-last {
+  justify-self: end;
+  color: var(--vu-text-body);
+  font: 700 12px var(--font-mono);
+  white-space: pre;
+  transform-origin: right center;
+}
+
+.vu-whack-last[data-swing='hit'],
+.vu-whack-last[data-swing='gold'] {
+  color: var(--vu-good);
+}
+
+.vu-whack-last[data-swing='decoy'],
+.vu-whack-last[data-swing='stray'] {
+  color: var(--vu-danger);
+}
+
+/* Three girls and the reader: shorter cards, so the column stands no taller than the cabinet. */
+.vu-whack-cards[data-many] {
+  gap: 8px;
+}
+
+.vu-whack-cards[data-many] .vu-whack-card {
+  padding: 6px 16px;
+}
+
+.vu-whack-cards[data-many] .vu-whack-who {
+  font-size: 19px;
+}
+
+.vu-whack-cards[data-many] .vu-whack-score {
+  font-size: 22px;
+}
+
+.vu-whack-legend {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 500 12px var(--font-body);
+}

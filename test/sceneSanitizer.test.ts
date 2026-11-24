@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_PLAYER_STATS, statsForTiers } from '@shared/playerStats'
 import { emptyFlags } from '@shared/relationship'

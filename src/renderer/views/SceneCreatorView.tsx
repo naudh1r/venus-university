@@ -13,7 +13,8 @@ import {
   READER_PRONOUNS
 } from '@shared/gender'
 import { isCustomOutfitSlot, outfitLabelOf } from '@shared/outfits'
-import { STAT_KEYS, STAT_LABELS, MAX_TIER, MIN_TIER, tierNameOf, type StatTier } from '@shared/playerStats'
+import { STAT_KEYS, STAT_LABELS, MAX_TIER, MIN_TIER, tierName, pointsForStartingTier, type StartingStatTier } from '@shared/playerStats'
+import { MIN_CHALLENGE_TIER, STARTING_CHALLENGE_MOD } from '@shared/startingChallenge'
 import { DISPOSITION_LABELS, type Disposition } from '@shared/relationship'
 import {
   effectiveDisposition,
@@ -44,6 +45,7 @@ import { SelectField } from '../components/SelectField'
 import { TextField } from '../components/TextField'
 import { formatGameDate, formatWeekday, slotHalf } from '../prompts/gameDate'
 import { useAssetStore } from '../stores/assetStore'
+import { useModOn } from '../stores/modsStore'
 import {
   profileUrl,
   readyOutfitSets,
@@ -115,9 +117,9 @@ const WEATHER_OPTIONS = WEATHER_KINDS.map((weather) => ({
   label: WEATHER_LABELS[weather]
 }))
 
-const TIER_OPTIONS = Array.from({ length: MAX_TIER - MIN_TIER + 1 }, (_, i) => {
-  const tier = (MIN_TIER + i) as StatTier
-  return { value: String(tier), label: tierNameOf(tier) }
+const TIER_OPTIONS = Array.from({ length: MAX_TIER - MIN_CHALLENGE_TIER + 1 }, (_, i) => {
+  const tier = (MIN_CHALLENGE_TIER + i) as StartingStatTier
+  return { value: String(tier), label: tierName(pointsForStartingTier(tier)) }
 })
 
 /** The wardrobes she can open the scene in: her main one, and every set whole on disk not withheld. */
@@ -525,6 +527,7 @@ const PRONOUN_OPTIONS = READER_PRONOUNS.map((value) => ({
  */
 function ReaderColumn({ draft }: { draft: SceneDraft }): JSX.Element {
   const store = useSceneCreatorStore.getState()
+  const challengeEnabled = useModOn(STARTING_CHALLENGE_MOD)
   const { reader } = draft
   const pronouns = asReaderPronouns(reader.pronouns)
   return (
@@ -562,9 +565,12 @@ function ReaderColumn({ draft }: { draft: SceneDraft }): JSX.Element {
             id={`scene-reader-${key}`}
             label={STAT_LABELS[key]}
             value={String(reader.tiers[key])}
-            options={TIER_OPTIONS}
+            // A rank copied from a save stays visible even if the mod was switched off.
+            options={TIER_OPTIONS.filter((option) =>
+              challengeEnabled || Number(option.value) >= MIN_TIER || Number(option.value) === reader.tiers[key]
+            )}
             onChange={(value) =>
-              store.patchReader({ tiers: { ...reader.tiers, [key]: Number(value) as StatTier } })
+              store.patchReader({ tiers: { ...reader.tiers, [key]: Number(value) as StartingStatTier } })
             }
           />
         ))}

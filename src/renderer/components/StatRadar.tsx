@@ -259,7 +259,7 @@ function StatBadge({
   return (
     <motion.div className={`vu-radar-seat vu-radar-seat--${stat}`} variants={variants}>
     <motion.div
-      className="vu-radar-badge"
+      className={`vu-radar-badge${points < -60 || (was !== undefined && was < -60) ? ' vu-radar-badge--deep-challenge' : ''}`}
       variants={pulse}
       style={{ '--stat': `var(--vu-stat-${stat})` } as CSSProperties}
     >

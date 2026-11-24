@@ -1,0 +1,222 @@
+/* Blackjack: the girls' hands over the reader's, the count of hands and the two moves. Drawn on
+   the mini-game table; the buttons are base.css's. */
+
+.vu-blackjack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 380px;
+}
+
+.vu-blackjack-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The girls' hands side by side, in the order they play. */
+.vu-blackjack-girls {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+}
+
+/* Several girls: each keeps a column of one width, so a hand that grows moves nobody. */
+.vu-blackjack-girls[data-several] > .vu-blackjack-side {
+  width: 150px;
+}
+
+/* A hand is a row of cards, tall enough to stand empty without the table jumping. */
+.vu-blackjack-hand {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  min-height: 108px;
+}
+
+.vu-blackjack-seat {
+  display: flex;
+}
+
+/* A long hand closes up, each card over the edge of the last, to stay inside the table. */
+.vu-blackjack-hand[data-many] {
+  gap: 0;
+}
+
+.vu-blackjack-hand[data-many] > .vu-blackjack-seat + .vu-blackjack-seat {
+  margin-left: -26px;
+}
+
+/* A card is a container: a rounded rectangle on the surface, its rank over its suit. */
+.vu-blackjack-card,
+.vu-blackjack-back {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 76px;
+  height: 106px;
+  border: 3px solid var(--vu-border);
+  border-radius: 12px;
+}
+
+.vu-blackjack-card {
+  background: var(--vu-surface);
+  color: var(--vu-text);
+}
+
+.vu-blackjack-card--red {
+  color: var(--vu-accent);
+}
+
+.vu-blackjack-rank {
+  font: 400 38px var(--font-display);
+  line-height: 1;
+}
+
+.vu-blackjack-suit {
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* Her card face down: the card's own box, filled in the accent. */
+.vu-blackjack-back {
+  background: var(--vu-accent);
+  color: var(--vu-accent-ink);
+  box-shadow: 4px 4px 0 var(--vu-accent-shadow);
+}
+
+/* The mark on the card back: a third of the card's width, quiet against the accent. */
+.vu-blackjack-back svg {
+  width: 32px;
+  height: 32px;
+  opacity: 0.85;
+}
+
+/* Whose hand it is, with what it comes to beside it. */
+.vu-blackjack-who {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+}
+
+.vu-blackjack-total {
+  color: var(--vu-text);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The count of hands, with which hand it is beside it in the quieter voice. */
+.vu-blackjack-count {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  margin: 4px 0 0;
+  color: var(--vu-text);
+  font: 700 15px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.vu-blackjack-round {
+  color: var(--vu-text-muted);
+  font-size: 12px;
+}
+
+/* How the hand just finished came out, after which hand it was, in the accent. */
+.vu-blackjack-said {
+  margin-left: 10px;
+  color: var(--vu-accent);
+}
+
+/* What a side has done that its cards do not show: stood, or gone over. */
+.vu-blackjack-did {
+  color: var(--vu-text-muted);
+  white-space: nowrap;
+}
+
+.vu-blackjack-moves {
+  display: flex;
+  gap: 26px;
+  padding: 0 12px 10px 0;
+}
+
+/* A move swells about its own centre, as an answer in a foot does. */
+.vu-blackjack-moves > button {
+  transform-origin: center;
+}
+
+/* Her move, or the hand over: the moves stand back. */
+.vu-blackjack-moves[data-waiting] {
+  opacity: 0.35;
+}
+
+/* Around a table of several the girls' cards are smaller, and their hands close up sooner. */
+.vu-blackjack-girls[data-several] .vu-blackjack-hand {
+  gap: 8px;
+  min-height: 80px;
+}
+
+.vu-blackjack-girls[data-several] .vu-blackjack-hand[data-many] {
+  gap: 0;
+}
+
+/* A long hand there is a fan: each card shows its corner past the next, the hand's cards
+   sharing what the column has beyond one card's width. */
+.vu-blackjack-girls[data-several] .vu-blackjack-hand[data-many] > .vu-blackjack-seat + .vu-blackjack-seat {
+  margin-left: calc(min(32px, 94px / (var(--vu-blackjack-cards, 3) - 1)) - 56px);
+}
+
+/* In a fan a card is read by its corner: rank over suit at the top left, small enough to show. */
+.vu-blackjack-girls[data-several] .vu-blackjack-hand[data-many] .vu-blackjack-card {
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 1px;
+  padding: 4px 0 0 4px;
+}
+
+.vu-blackjack-girls[data-several] .vu-blackjack-hand[data-many] .vu-blackjack-rank {
+  font-size: 17px;
+  letter-spacing: -0.04em;
+}
+
+.vu-blackjack-girls[data-several] .vu-blackjack-hand[data-many] .vu-blackjack-suit {
+  font-size: 13px;
+}
+
+.vu-blackjack-girls[data-several] :is(.vu-blackjack-card, .vu-blackjack-back) {
+  width: 56px;
+  height: 78px;
+  border-radius: 10px;
+}
+
+.vu-blackjack-girls[data-several] .vu-blackjack-rank {
+  font-size: 28px;
+}
+
+.vu-blackjack-girls[data-several] .vu-blackjack-suit {
+  font-size: 18px;
+}
+
+.vu-blackjack-girls[data-several] .vu-blackjack-back svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* The hands a girl has won, under her cards in the quieter voice. */
+.vu-blackjack-won {
+  margin: 0;
+  color: var(--vu-text-muted);
+  font: 700 12px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Whose move it is: the name over that hand is said in the accent. */
+.vu-blackjack-side[data-turn] > .vu-blackjack-who {
+  color: var(--vu-accent);
+}

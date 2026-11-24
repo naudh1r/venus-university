@@ -1,0 +1,230 @@
+/* Cat Pairs: a grid of small cards, each a café cat's face or a paw-print back, and the count
+   under it. Drawn on the mini-game table. Every colour is a theme role. */
+
+.vu-catpairs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Three rows however many pairs there are; a short last row keeps to the left, so a place's
+   column and row follow from its number alone. The card's size and the gap are set by the
+   component, which moves a swapped card by the same numbers. */
+.vu-catpairs-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--vu-catpairs-cols), var(--vu-catpairs-w));
+  grid-auto-rows: var(--vu-catpairs-h);
+  gap: var(--vu-catpairs-gap);
+  justify-content: start;
+}
+
+.vu-catpairs-place {
+  position: relative;
+  width: var(--vu-catpairs-w);
+  height: var(--vu-catpairs-h);
+}
+
+/* The two cards a cat is moving ride over the rest and are marked, which says the swap even to
+   a reader who has asked for less motion and sees no travel. */
+.vu-catpairs-place[data-swapping] {
+  z-index: 2;
+}
+
+.vu-catpairs-place[data-swapping] .vu-catpairs-card {
+  border-color: var(--vu-text);
+  border-style: dashed;
+  box-shadow: 0 0 0 4px var(--vu-accent-shadow);
+}
+
+/* A card is a container: a rounded rectangle, the same box face up or down. */
+.vu-catpairs-card {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 3px solid var(--vu-border);
+  border-radius: 13px;
+  background: var(--vu-surface);
+  color: var(--vu-text);
+  font: inherit;
+  transform-origin: center;
+  overflow: hidden;
+}
+
+.vu-catpairs-card:not([data-up]) {
+  background: var(--vu-accent);
+  box-shadow: 3px 3px 0 var(--vu-accent-shadow);
+}
+
+/* A pair taken stays where it was found, stood back; the reader's own keep the accent's edge. */
+.vu-catpairs-card[data-taken] {
+  opacity: 0.5;
+}
+
+.vu-catpairs-card[data-mine] {
+  border-color: var(--vu-accent);
+}
+
+.vu-catpairs-face,
+.vu-catpairs-back {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.vu-catpairs-paw {
+  width: 40px;
+  height: 40px;
+  fill: var(--vu-accent-ink);
+  opacity: 0.85;
+}
+
+.vu-catpairs-cat {
+  flex: none;
+  width: calc(var(--vu-catpairs-w) - 22px);
+  height: calc(var(--vu-catpairs-w) - 22px);
+  overflow: visible;
+}
+
+/* A coat sets four roles for its drawing: the fill, what is marked on it, the eyes and the nose. */
+.vu-catpairs-cat[data-coat='light'] {
+  --vu-catpairs-coat: var(--vu-surface);
+  --vu-catpairs-mark: var(--vu-text);
+  --vu-catpairs-eye: var(--vu-text);
+  --vu-catpairs-nose: var(--vu-accent);
+}
+
+.vu-catpairs-cat[data-coat='dark'] {
+  --vu-catpairs-coat: var(--vu-text);
+  --vu-catpairs-mark: var(--vu-surface);
+  --vu-catpairs-eye: var(--vu-surface);
+  --vu-catpairs-nose: var(--vu-accent);
+}
+
+.vu-catpairs-cat[data-coat='accent'] {
+  --vu-catpairs-coat: var(--vu-accent);
+  --vu-catpairs-mark: var(--vu-accent-ink);
+  --vu-catpairs-eye: var(--vu-accent-ink);
+  --vu-catpairs-nose: var(--vu-accent-ink);
+}
+
+.vu-catpairs-cat[data-coat='grey'] {
+  --vu-catpairs-coat: var(--vu-text-muted);
+  --vu-catpairs-mark: var(--vu-surface);
+  --vu-catpairs-eye: var(--vu-surface);
+  --vu-catpairs-nose: var(--vu-text);
+}
+
+.vu-catpairs-coat {
+  fill: var(--vu-catpairs-coat);
+}
+
+.vu-catpairs-edge {
+  stroke: var(--vu-text);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.vu-catpairs-mark {
+  fill: var(--vu-catpairs-mark);
+}
+
+.vu-catpairs-stroke {
+  fill: none;
+  stroke: var(--vu-catpairs-mark);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.vu-catpairs-eye {
+  fill: var(--vu-catpairs-eye);
+}
+
+.vu-catpairs-nose {
+  fill: var(--vu-catpairs-nose);
+}
+
+/* A line drawn on the coat, and the same on a marking. */
+.vu-catpairs-ink,
+.vu-catpairs-ink--coat {
+  fill: none;
+  stroke: var(--vu-catpairs-eye);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.vu-catpairs-ink--coat {
+  stroke: var(--vu-catpairs-coat);
+}
+
+.vu-catpairs-whisker {
+  fill: none;
+  stroke: var(--vu-text-muted);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+}
+
+.vu-catpairs-bow {
+  fill: var(--vu-accent);
+  stroke: var(--vu-text);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.vu-catpairs-catname {
+  max-width: calc(var(--vu-catpairs-w) - 8px);
+  color: var(--vu-text);
+  font: 700 11px var(--font-body);
+  line-height: 1.05;
+  text-align: center;
+}
+
+/* Whose pair it is, in the corner of a card taken. */
+.vu-catpairs-owner {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  max-width: 44px;
+  overflow: hidden;
+  color: var(--vu-text);
+  font: 700 9px var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The café cat crossing the table: over the cards, and no pointer's business. */
+.vu-catpairs-walker {
+  position: absolute;
+  z-index: 3;
+  font-size: 44px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* The count, each player's pairs in a row, with whose turn it is beside it in the quieter voice. */
+.vu-catpairs-count {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: baseline;
+  justify-content: center;
+  margin: 0;
+  color: var(--vu-text);
+  font: 700 15px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.vu-catpairs-seat[data-turn] {
+  box-shadow: 0 3px 0 var(--vu-accent);
+}
+
+.vu-catpairs-round {
+  color: var(--vu-text-muted);
+  font-size: 12px;
+}

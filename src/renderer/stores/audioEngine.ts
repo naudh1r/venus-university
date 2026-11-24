@@ -1,3 +1,6 @@
+import { isSoundtrackKey, type SoundtrackKey } from '@shared/soundtracks'
+import { clearSoundtrackAudio, customSoundtrackBuffer } from './soundtrackAudio'
+import { useSoundtrackStore } from './soundtrackStore'
 import SignalsmithStretch, { type StretchNode } from 'signalsmith-stretch'
 import { AUDIO_FILES, AUDIO_GROUPS, busGain, dbToGain } from '@shared/audio'
 import type { AudioFile, AudioGroup, AudioKey, Treatment, Volumes } from '@shared/audio'
@@ -33,11 +36,15 @@ const SNIPPET_CUT_S = 0.06
 /** On a treatment's filters Q is decibels of resonance at the corner, and the default of 1 whistles. */
 const FILTER_Q = 0.7
 
+const replacementBuffers = new WeakSet<AudioBuffer>()
 let ctx: AudioContext | null = null
 let buses: Record<AudioGroup, GainNode> | null = null
+/** Continuous music/ambience pass here; previews bypass these gains but keep user volumes. */
+let backgroundGains: Partial<Record<AudioGroup, GainNode>> = {}
 
 /** One sounding thing: its source, the two gains under it, and the clock its end is on. */
 interface Layer {
+  replacement?: boolean
   key: AudioKey
   semitones: number
   /** Null where the file could not be read: the channel holds the key and plays nothing. */
@@ -83,7 +90,7 @@ let endedCb: ((channel: AudioChannel, key: AudioKey) => void) | null = null
 
 /** A stretch of one file playing beside the channels: its source, its gains and its clocks. */
 interface Snippet {
-  source: StretchNode
+  source: AudioBufferSourceNode | StretchNode
   trim: GainNode
   fade: GainNode
   timers: ReturnType<typeof setTimeout>[]
@@ -118,6 +125,11 @@ export function start(): void {
   }
   ctx = made
   buses = gains
+  for (const group of ['music', 'ambience'] as const) {
+    const gain = made.createGain()
+    gain.connect(gains[group])
+    backgroundGains[group] = gain
+  }
   // A context can open suspended; nothing plays until it is running, and a browser holds one
   // suspended until the page has been touched, leaving the resume below pending until then.
   void made.resume().catch(() => {})
@@ -198,52 +210,100 @@ export function playOneShot(key: AudioKey, semitones = 0): void {
  * seconds: in over its attack, out over its last stretch, and unhooked at the end. Whatever was
  * playing is retired first, so only one snippet is ever sounding.
  */
-export function playSnippet(key: AudioKey, semitones: number, seconds: number): void {
+export function playSnippet(key: AudioKey, semitones: number, seconds: number, ready?: AudioBuffer): void {
   stopSnippet()
-  const token = ++snippetToken
+  const token = snippetToken
+  void beginSnippet(key, semitones, seconds, token, ready).catch(() => {
+    if (snippetToken === token) stopSnippet()
+  })
+}
 
-  void (async () => {
-    const buffer = await bufferFor(key)
-    if (!buffer || !ctx || !buses || snippetToken !== token) return
+/** The preview owns only its mix gate, never the title's playback or completion clocks. */
+function backgroundPreview(active: boolean): void {
+  for (const gain of Object.values(backgroundGains)) ramp(gain.gain, active ? 0 : 1, SNIPPET_CUT_S)
+}
 
-    const file: AudioFile = AUDIO_FILES[key]
-    const trim = ctx.createGain()
-    trim.gain.value = dbToGain(file.trimDb)
-    const fade = ctx.createGain()
-    fade.gain.value = 0
-    trim.connect(fade)
-    fade.connect(buses[file.group])
+async function beginSnippet(key: AudioKey, semitones: number, seconds: number, token: number, ready?: AudioBuffer, plain = false): Promise<void> {
+  const buffer = ready ?? await bufferFor(key)
+  if (!buffer || !ctx || !buses || snippetToken !== token) return
 
-    // Building the pitched source awaits the worklet, which another call can outrun.
-    const source = await pitchedSource(buffer, semitones, trim)
-    if (!source || snippetToken !== token) {
+  const file: AudioFile = AUDIO_FILES[key]
+  const trim = ctx.createGain()
+  trim.gain.value = dbToGain(file.trimDb)
+  const fade = ctx.createGain()
+  fade.gain.value = 0
+  trim.connect(fade)
+  fade.connect(buses[file.group])
+
+  // Unpitched soundtrack previews need no voice-processing worklet.
+  let source: AudioBufferSourceNode | StretchNode | null
+  try {
+    source = plain ? loopingSource(buffer, key, trim, 0, true) : await pitchedSource(buffer, semitones, trim)
+  } catch (error) {
+    trim.disconnect()
+    fade.disconnect()
+    throw error
+  }
+  if (!source || snippetToken !== token) {
+    trim.disconnect()
+    fade.disconnect()
+    if (source) disconnectSource(source)
+    return
+  }
+
+  const live: Snippet = { source, trim, fade, timers: [] }
+  snippet = live
+  ramp(fade.gain, 1, SNIPPET_IN_S)
+  live.timers.push(
+    setTimeout(() => ramp(fade.gain, 0, SNIPPET_OUT_S), Math.max(0, seconds - SNIPPET_OUT_S) * 1000),
+    setTimeout(() => {
+      if (snippet === live) { snippet = null; backgroundPreview(false) }
+      disconnectSource(source)
       trim.disconnect()
       fade.disconnect()
-      if (source) disconnectSource(source)
-      return
-    }
+    }, seconds * 1000)
+  )
+}
 
-    const live: Snippet = { source, trim, fade, timers: [] }
-    snippet = live
-    ramp(fade.gain, 1, SNIPPET_IN_S)
-    live.timers.push(
-      setTimeout(
-        () => ramp(fade.gain, 0, SNIPPET_OUT_S),
-        Math.max(0, seconds - SNIPPET_OUT_S) * 1000
-      ),
-      setTimeout(() => {
-        if (snippet === live) snippet = null
-        disconnectSource(source)
-        trim.disconnect()
-        fade.disconnect()
-      }, seconds * 1000)
-    )
-  })()
+/** Preview loading is cancelled by closing the panel, choosing another cue or switching the mod. */
+export async function previewSoundtrack(key: SoundtrackKey): Promise<void> {
+  start()
+  stopSnippet()
+  const token = snippetToken
+  backgroundPreview(true)
+  try {
+    await ctx!.resume()
+    if (token !== snippetToken) return
+    const buffer = await bufferFor(key)
+    if (token !== snippetToken) return
+    if (!buffer) throw Error('This track could not be loaded.')
+    await beginSnippet(key, 0, 10, token, buffer, true)
+  } catch (error) {
+    if (token !== snippetToken) return
+    stopSnippet()
+    throw error
+  }
+}
+
+/** Re-enter only music cues; native effects and their clocks are left alone. */
+export function refreshSoundtracks(keys?: SoundtrackKey[]): void {
+  clearSoundtrackAudio(keys)
+  stopSnippet()
+  for (const channel of ['music', 'ambience'] as const) {
+    const state = channels[channel]
+    const wanted = state.wanted
+    if (!wanted.key || !isSoundtrackKey(wanted.key) || (keys && !keys.includes(wanted.key))) continue
+    // Replacing bytes for the same cue is not the end of the stock title session.
+    const token = ++state.token
+    retire(channel, 0.35, false)
+    void begin(channel, wanted.key, wanted.semitones, 0.35, token)
+  }
 }
 
 /** Takes the snippet away, whether it is playing or still loading. */
 export function stopSnippet(): void {
   snippetToken++
+  backgroundPreview(false)
   const live = snippet
   if (!live) return
   snippet = null
@@ -314,17 +374,20 @@ async function begin(
   }
 
   const file: AudioFile = AUDIO_FILES[key]
+  const replacement = replacementBuffers.has(buffer)
+  const loop = replacement && isSoundtrackKey(key) ? useSoundtrackStore.getState().map[key]?.loop !== false : file.loop
   const trim = ctx.createGain()
   trim.gain.value = dbToGain(file.trimDb)
   const fadeGain = ctx.createGain()
   fadeGain.gain.value = 0
   trim.connect(fadeGain)
-  fadeGain.connect(buses[file.group])
+  fadeGain.connect(backgroundGains[file.group] ?? buses[file.group])
 
   // A treated file plays into its wall and the wall into the trim; anything else plays straight in.
   const chain = file.treatment ? treatmentChain(file.treatment, trim) : { input: trim, nodes: [] }
 
   const layer: Layer = {
+    replacement,
     key,
     semitones,
     source: null,
@@ -337,7 +400,7 @@ async function begin(
   const source =
     channel === 'breath'
       ? await pitchedSource(buffer, semitones, chain.input)
-      : loopingSource(buffer, key, chain.input, file.treatment ? Math.random() * buffer.duration : 0)
+      : loopingSource(buffer, key, chain.input, file.treatment && loop ? Math.random() * buffer.duration : 0, loop)
 
   // Building a pitched source awaits the worklet, which the channel can outrun.
   if (state.token !== token || !source) {
@@ -353,7 +416,7 @@ async function begin(
   state.live = layer
   ramp(fadeGain.gain, 1, fade)
 
-  if (!file.loop) armEnd(channel, layer, source, buffer.duration)
+  if (!loop) armEnd(channel, layer, source, buffer.duration)
 }
 
 /**
@@ -446,12 +509,13 @@ function loopingSource(
   buffer: AudioBuffer,
   key: AudioKey,
   into: AudioNode,
-  offset = 0
+  offset = 0,
+  loop = AUDIO_FILES[key].loop
 ): AudioBufferSourceNode | null {
   if (!ctx) return null
   const source = ctx.createBufferSource()
   source.buffer = buffer
-  source.loop = AUDIO_FILES[key].loop
+  source.loop = loop
   source.connect(into)
   source.start(0, offset)
   return source
@@ -493,7 +557,7 @@ function armEnd(
   source: AudioBufferSourceNode | StretchNode,
   duration: number
 ): void {
-  layer.endingTimer = setTimeout(
+  if (!layer.replacement) layer.endingTimer = setTimeout(
     () => {
       if (channels[channel].live === layer) endingCb?.(channel, layer.key)
     },
@@ -505,15 +569,16 @@ function armEnd(
     const state = channels[channel]
     if (state.live !== layer) return
     state.live = null
-    state.wanted = { key: null, semitones: 0 }
+    // Finished replacements and the victory song stay claimed until their screen is left.
+    if (!layer.replacement && layer.key !== 'reckoning_victory') state.wanted = { key: null, semitones: 0 }
     if (layer.endingTimer !== null) clearTimeout(layer.endingTimer)
     teardown(layer, channel)
-    report(channel, layer.key)
+    if (!layer.replacement) report(channel, layer.key)
   }
 }
 
 /** Fades the channel's live layer out and lets go of it. */
-function retire(channel: AudioChannel, fade: number): void {
+function retire(channel: AudioChannel, fade: number, reportEnd = true): void {
   const state = channels[channel]
   const layer = state.live
   if (!layer) return
@@ -522,7 +587,7 @@ function retire(channel: AudioChannel, fade: number): void {
 
   if (!layer.source || !layer.fade || !ctx) {
     teardown(layer, channel)
-    report(channel, layer.key)
+    if (reportEnd && !layer.replacement) report(channel, layer.key)
     return
   }
 
@@ -538,7 +603,7 @@ function retire(channel: AudioChannel, fade: number): void {
     teardown(layer, channel)
   }, fade * 1000 + 50)
 
-  report(channel, layer.key)
+  if (reportEnd && !layer.replacement) report(channel, layer.key)
 }
 
 /** Stops and unhooks one source, whichever of the two kinds it is. */
@@ -580,7 +645,15 @@ function ramp(param: AudioParam, target: number, seconds: number): void {
 }
 
 /** The decoded buffer for one key, decoding it once however many callers ask at once. */
-function bufferFor(key: AudioKey): Promise<AudioBuffer | null> {
+async function bufferFor(key: AudioKey): Promise<AudioBuffer | null> {
+  if (ctx) {
+    const custom = await customSoundtrackBuffer(key, ctx)
+    if (custom) { replacementBuffers.add(custom); return custom }
+  }
+  return originalBufferFor(key)
+}
+
+function originalBufferFor(key: AudioKey): Promise<AudioBuffer | null> {
   const cached = decodedByKey.get(key)
   if (cached) return Promise.resolve(cached)
   let load = decodeLoads.get(key)

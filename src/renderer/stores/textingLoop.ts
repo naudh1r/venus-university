@@ -1,5 +1,7 @@
 import { chatClockOf, messageShown, shownConversation, shownMessages, unreadAfterOpening, type ChatClock } from '@shared/chatVisibility'
 import { textingClockOf } from '@shared/textingClock'
+import { currentStorySnapshot } from './storyMemory'
+import { BREAKTHROUGH_MOD } from '@shared/breakthrough'
 /**
  * The Bunnyboard texting loop (the game loop's little sibling): sends the player's texts, streams
  * the character's replies into the conversation, evaluates friend requests at slot boundaries, and
@@ -7,6 +9,11 @@ import { textingClockOf } from '@shared/textingClock'
  */
 
 import { formatDateBanner, nextSlot, prevSlot, shiftWeekdayOf } from '../prompts/gameDate'
+import { TEXT_REGENERATION_MOD, latestTextReply, beforeTextReply, textReplyFingerprint, checkedTextReplacement, replaceTextReply } from '@shared/textRegeneration'
+import { OUTGOING_PHOTO_DESCRIPTION_LIMIT, type Result, type OutgoingPhoto } from '@shared/types'
+import { currentRun, invoke, saveChanges } from '@vx/modkit/renderer'
+import { isWebBuild } from '../platform'
+import { modIsOn } from './modsStore'
 import type {
   CalendarEvent,
   CharInfo,
@@ -118,6 +125,7 @@ import { useGameStore } from './gameStore'
 import { heldReplyDueAt, sharedReplyClass } from '@shared/heldReplies'
 import { threadStartedBy, waitingText } from '@shared/textingThread'
 import { afterDmReply, afterReachOut, dmReplyLead, hangoutCheck, textWhileBusy, promptTextEdits } from '../mods/hooks'
+import { INCOMING_TEXTS, OUTGOING_IMAGE_STORAGE_MOD } from '@shared/modEntries/incoming-texts'
 import { lorebookNow } from './lorebookStore'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
 import { createRetryGate } from './retryGate'
@@ -199,7 +207,7 @@ const failedTurns = new Map<
   string,
   {
     request: Parameters<typeof window.api.llm.completeTexting>[0]
-    sent: ChatMessage
+    sent: ChatMessage | null
     conversation: Conversation | undefined
     released: number
     invited: Conversation['pendingHangout'] | null
@@ -557,20 +565,81 @@ function deliverBunnybotInvitationTip(): void {
 
 /** Sends one player text and requests the character's reply. */
 export async function sendMessage(charId: string, text: string): Promise<void> {
-  return sendText(charId, text)
+  return sendText(charId, text, false)
 }
 
-/** Adds the player's message and starts the reply turn. */
-async function sendText(charId: string, text: string): Promise<void> {
+/** A writing direction requests her texts without adding a player message. */
+export async function sendIncomingMessage(charId: string, direction: string): Promise<void> {
+  const game = useGameStore.getState()
+  const ui = useBunnyboardStore.getState()
+  if (
+    !modIsOn(INCOMING_TEXTS) || sceneActiveOf(game) || epilogueOf(game) ||
+    charBusyNow(charId) || game.charInfo[charId]?.flags.blocked ||
+    !game.bunnyboard.conversations[charId] || ui.armedHangout ||
+    ui.busyCharIds.includes(charId) || failedTurns.has(charId)
+  ) return
+  return sendText(charId, direction, true)
+}
+
+/** Checks the current thread before adding a reader-supplied photo. */
+function photoThreadOpen(charId: string): boolean {
+  const game = useGameStore.getState()
+  const ui = useBunnyboardStore.getState()
+  return modIsOn(INCOMING_TEXTS) && Boolean(game.playthroughId && game.characters[charId]) &&
+    Boolean(game.bunnyboard.conversations[charId]) && !sceneActiveOf(game) && !epilogueOf(game) &&
+    !charBusyNow(charId) && !game.charInfo[charId]?.flags.blocked && !ui.armedHangout &&
+    !ui.busyCharIds.includes(charId) && !failedTurns.has(charId) && !inFlight.has(charId)
+}
+
+/** Sends a photo description or stores a local image and includes it in the first reply request. */
+export async function sendOutgoingPhoto(
+  charId: string, caption: string, attachment: string | File
+): Promise<void> {
+  const game = useGameStore.getState()
+  if (!game.playthroughId || !photoThreadOpen(charId)) throw Error('This conversation is unavailable.')
+  if (typeof attachment === 'string') {
+    const description = attachment.trim()
+    if (!description || description.length > OUTGOING_PHOTO_DESCRIPTION_LIMIT) {
+      throw Error('Enter a photo description of up to 4,000 characters.')
+    }
+    void sendText(charId, caption, false, { kind: 'description', description })
+    return
+  }
+  if (isWebBuild() || !modIsOn(OUTGOING_IMAGE_STORAGE_MOD)) throw Error('Image attachments require the desktop Photo mod.')
+  const bytes = new Uint8Array(await attachment.arrayBuffer())
+  const current = (): boolean => {
+    const live = useGameStore.getState()
+    return live.playthroughId === game.playthroughId && live.loads === game.loads &&
+      live.date === game.date && live.time === game.time && photoThreadOpen(charId)
+  }
+  if (!current()) throw Error('The conversation changed. Try sending the image again.')
+  const result = await invoke<{ file: string; data: string }>(
+    OUTGOING_IMAGE_STORAGE_MOD, 'import-chat-photo', [game.playthroughId, charId, bytes]
+  )
+  if (!result.ok) throw Error(result.error.message)
+  const { file, data } = result.data
+  if (!current()) {
+    await invoke(OUTGOING_IMAGE_STORAGE_MOD, 'drop', [game.playthroughId, charId, file])
+    throw Error('The conversation changed. Try sending the image again.')
+  }
+  void sendText(charId, caption, false, { kind: 'image', file }, data)
+}
+
+/** Adds the player's message, if any, and starts the reply turn. */
+async function sendText(
+  charId: string, text: string, incoming: boolean, outgoingPhoto?: OutgoingPhoto, imageData?: string
+): Promise<void> {
   const trimmed = text.trim()
-  if (!trimmed || inFlight.has(charId)) return
+  if ((!trimmed && !outgoingPhoto) || inFlight.has(charId)) return
   // No bot can be written for: their composers are buttons or nothing at all.
   if (isBossChat(charId) || isVenusChat(charId) || isBunnybotChat(charId)) return
 
   let game = useGameStore.getState()
   // Texting her anything settles an ignored invitation and answers one put away with No.
-  game.setIgnoredInvitation(charId, false)
-  game.setPendingHangout(charId, null)
+  if (!incoming) {
+    game.setIgnoredInvitation(charId, false)
+    game.setPendingHangout(charId, null)
+  }
 
   // The thread as it stood *before* this message; the new one rides separately in the prompt.
   let conversation = game.bunnyboard.conversations[charId]
@@ -586,7 +655,7 @@ async function sendText(charId: string, text: string): Promise<void> {
   const sentAt = firstText?.late ? prevSlot(firstText.date, firstText.time) : firstText
   const commitment = sentAt ? charCommitmentAt(charId, sentAt.date, sentAt.time)
     : game.interlude?.now.clock === 'late-night' ? null : charCommitmentAt(charId)
-  let held = (previousHold && !previousHold.opened
+  let held = incoming ? undefined : (previousHold && !previousHold.opened
     ? previousHold.until
     : commitment && textWhileBusy({ charId, commitment }) ? nextSlot(game.date, game.time) : undefined)
   const next = nextSlot(game.date, game.time)
@@ -607,8 +676,9 @@ async function sendText(charId: string, text: string): Promise<void> {
     } } }))
     conversation = useGameStore.getState().bunnyboard.conversations[charId]
   }
-  const sent = {
+  const sent = incoming ? null : {
     ...chatMessage('player', trimmed),
+    ...(outgoingPhoto ? { outgoingPhoto } : {}),
     ...(held ? { awaitingReply: true as const } : {})
   }
   if (sent) game.appendChatMessage(charId, sent, 0)
@@ -637,10 +707,13 @@ async function sendText(charId: string, text: string): Promise<void> {
       character,
       game.charInfo[charId],
       conversation,
-      trimmed,
+      incoming ? '' : trimmed,
       { ...textingState(game, charId), ...(held ? { heldUntil: held, ...(commitment ? { commitment } : {}) } : {}) },
       // The same reader block a scene gets, grades and all.
-      readerBlockOf({ ...game, ...textingClockOf(game) })
+      readerBlockOf({ ...game, ...textingClockOf(game) }),
+      incoming ? trimmed : undefined,
+      outgoingPhoto,
+      imageData
     )
 
     const reply = runReply(charId, character, conversation, sent, request, 0, invited, held)
@@ -661,19 +734,30 @@ async function runReply(
   charId: string,
   character: Character,
   conversation: Conversation | undefined,
-  sent: ChatMessage,
+  sent: ChatMessage | null,
   request: Parameters<typeof window.api.llm.completeTexting>[0],
   skip: number,
   invited: Conversation['pendingHangout'] | null,
   held?: ChatClock,
   quietFailure = false
 ): Promise<void> {
+  if (sent && skip === 0 && modIsOn(TEXT_REGENERATION_MOD)) {
+    useGameStore.setState(s => ({ bunnyboard: { ...s.bunnyboard, conversations: {
+      ...s.bunnyboard.conversations,
+      [charId]: { ...s.bunnyboard.conversations[charId], exTextBase: {
+        replyTo: sent.id, summary: conversation?.summary ?? null, regenerable: !invited
+      } }
+    } } }))
+  }
   // Every text goes through the pacer, one at a time at typing speed.
   // `released` counts what actually landed, which a retry must not repeat.
   let released = skip
   const pacer = createTypingPacer(charId, (text) => {
     released += 1
     const message = chatMessage('contact', text)
+    // Keep this boundary even with regeneration off: it may be enabled after a reload.
+    if (!sent) message.exReplyTo = 'incoming-texts:incoming'
+    else if (modIsOn(TEXT_REGENERATION_MOD)) message.exReplyTo = sent.id
     deliver(charId, message)
   })
   const leadController = new AbortController()
@@ -744,6 +828,23 @@ async function runReply(
     }
 
     const data: TextingResponse = result.data
+    const photo = sent?.outgoingPhoto
+    const description = typeof data.outgoingPhotoDescription === 'string'
+      ? data.outgoingPhotoDescription.trim().slice(0, OUTGOING_PHOTO_DESCRIPTION_LIMIT)
+      : ''
+    if (sent && photo?.kind === 'image' && description) {
+      const outgoingPhoto = { ...photo, description }
+      useGameStore.setState(state => {
+        const thread = state.bunnyboard.conversations[charId]
+        if (!thread) return state
+        return { bunnyboard: { ...state.bunnyboard, conversations: {
+          ...state.bunnyboard.conversations,
+          [charId]: { ...thread, messages: thread.messages.map(message =>
+            message.id === sent.id ? { ...message, outgoingPhoto } : message
+          ) }
+        } } }
+      })
+    }
     const messages = (data.messages ?? []).map((text) => text.trim()).filter(Boolean)
     if (held) {
       for (const text of messages) deliver(charId, chatMessage('contact', text))
@@ -781,6 +882,12 @@ async function runReply(
     await pacer.drain()
     if (entry.abandoned) return
 
+    if (sent?.outgoingPhoto) {
+      void saveChanges(INCOMING_TEXTS, { run: currentRun() }).then(result => {
+        if (!result.ok) console.warn('[texting] could not save the photo turn:', result.error)
+      })
+    }
+
     // The block lands under her last text, ahead of the scene check: a scene with somebody
     // *else* does not unmake a reply that landed. Nothing is left to classify, so the turn ends.
     if (blocked) {
@@ -804,6 +911,16 @@ async function runReply(
   }
 }
 
+/** The same availability rule is used by the button and the command. */
+export function textRegenerationTarget(charId: string): ReturnType<typeof latestTextReply> {
+  const game = useGameStore.getState()
+  if (!modIsOn(TEXT_REGENERATION_MOD) || !game.playthroughId || !game.characters[charId] ||
+      sceneActiveOf(game) || epilogueOf(game) || game.charInfo[charId]?.flags.blocked ||
+      inFlight.has(charId) || failedTurns.has(charId) ||
+      useBunnyboardStore.getState().armedHangout !== null) return null
+  return latestTextReply(game.bunnyboard.conversations[charId], game.date, game.time)
+}
+
 /** Both delivery paths provide the same current continuity to every DM hook. */
 function textingState(game: ReturnType<typeof useGameStore.getState>, charId: string): Parameters<typeof buildTextingPrompt>[4] {
   const now = textingClockOf(game)
@@ -816,10 +933,16 @@ function textingState(game: ReturnType<typeof useGameStore.getState>, charId: st
   return {
     ...now,
     ...(game.interlude?.now.clock === 'late-night' ? { lateNight: game.interlude.now.from } : {}),
+    romance: game.romance,
+    readerPronouns: game.playerPronouns,
+    ages: agesNow([charId]),
+    storyMemory: currentStorySnapshot(),
     stats: game.stats,
+    breakthrough: modIsOn(BREAKTHROUGH_MOD) ? game.exBreakthrough : undefined,
     roster: others,
     lorebook: lorebookNow(),
     charInfo: game.charInfo,
+    exCharacterDynamics: game.exCharacterDynamics,
     npcRelationships: game.npcRelationships,
     classes: game.classes,
     playerSchedule: game.playerSchedule,
@@ -833,8 +956,6 @@ function textingState(game: ReturnType<typeof useGameStore.getState>, charId: st
     playerJob: game.job,
     calendar: game.calendar,
     weather: game.weather,
-    romance: game.romance,
-    readerPronouns: game.playerPronouns,
     // Where she is texting from; never a class or shift, as the composer is shut then.
     charLocation: charHiddenLocationNow(charId, now.date, now.time),
     // Who is with her: the same group the location came from.
@@ -845,7 +966,6 @@ function textingState(game: ReturnType<typeof useGameStore.getState>, charId: st
     springBreakAway: game.springBreakAway,
     // The one day a graduate's thread is from somebody in town.
     ...(visitor ? { homecomingVisitor: visitor } : {}),
-    ages: agesNow([charId]),
     // From this slot on: texting comes before the slot's scene, so its own plan is still ahead.
     upcomingPlans: upcomingPlanLines(
       game.events,
@@ -857,6 +977,61 @@ function textingState(game: ReturnType<typeof useGameStore.getState>, charId: st
     secretBudget: secretBudgetOf(useSettingsStore.getState().settings ?? {}),
     history: game.history,
     globalTextEdits: promptTextEdits()?.global
+  }
+}
+
+/** Generate privately, check for changed plans, then persist and replace the entire response. */
+export async function regenerateTextReply(charId: string, commit: (
+  charId: string, conversation: Conversation, isCurrent: () => boolean
+) => Promise<Result<null>>): Promise<{ replaced: number; created: number }> {
+  const game = useGameStore.getState(), target = textRegenerationTarget(charId)
+  if (!target) throw Error('Regenerate a completed reply in this time slot, before a scene or hangout starts.')
+  let fingerprint = textReplyFingerprint(target.conversation)
+  const entry = { abandoned: false, pacer: {
+    push: (_text: string): void => {}, drain: async (): Promise<void> => {},
+    cancel: (): void => { entry.abandoned = true }
+  }, abortLead: (): void => {} }
+  inFlight.set(charId, entry)
+  useBunnyboardStore.getState().setTextBusy(charId, true)
+  const isCurrent = (): boolean => {
+    const live = useGameStore.getState()
+    return !entry.abandoned && inFlight.get(charId) === entry && modIsOn(TEXT_REGENERATION_MOD) &&
+      live.playthroughId === game.playthroughId && live.loads === game.loads && live.date === game.date &&
+      live.time === game.time && !sceneActiveOf(live) && !epilogueOf(live) &&
+      !live.charInfo[charId]?.flags.blocked && useBunnyboardStore.getState().armedHangout === null &&
+      textReplyFingerprint(live.bunnyboard.conversations[charId]) === fingerprint
+  }
+  const check = (): void => { if (!isCurrent()) throw Error('The game or conversation changed. Your original reply was kept.') }
+  try {
+    const prior = beforeTextReply(target), character = game.characters[charId]
+    const request = buildTextingPrompt(character, game.charInfo[charId], prior, target.sent.text, {
+      ...textingState(game, charId),
+      historyLimit: prior.summary === null ? 160 : undefined
+    }, readerBlockOf(game), undefined, target.sent.outgoingPhoto)
+    const result = await window.api.llm.completeTexting(request, `texting:${charId}`)
+    check()
+    if (!result.ok) throw Error(result.error.message)
+    const replacement = checkedTextReplacement(result.data)
+    const verdict = await window.api.llm.classifyHangout(buildHangoutClassifierPrompt(
+      character.firstName, prior.messages, target.sent,
+      replacement.messages.map(text => chatMessage('contact', text)),
+      { date: game.date, time: game.time, weather: game.weather, season: game.calendar.season }
+    ))
+    check()
+    if (!verdict.ok) throw Error('The plan check failed. Your original reply was kept.')
+    if (verdict.data.playerAsked !== false || verdict.data.characterOffered !== false) throw Error('The replacement would make a new hangout, or its plan check was unclear. Your original reply was kept; send a new message to make plans.')
+    const next = replaceTextReply(target, replacement, () => crypto.randomUUID())
+    const saved = await commit(charId, next, isCurrent)
+    if (!saved.ok) throw Error(saved.error.message)
+    // Commit installs the replacement; check that exact accepted thread before side effects.
+    fingerprint = textReplyFingerprint(next)
+    if (isCurrent()) afterDmReply({ charId, character, reply: result.data })
+    return { replaced: target.replies.length, created: replacement.messages.length }
+  } finally {
+    if (inFlight.get(charId) === entry) {
+      inFlight.delete(charId)
+      useBunnyboardStore.getState().setTextBusy(charId, false)
+    }
   }
 }
 
@@ -973,7 +1148,7 @@ function shouldCheckHangout(charId: string): boolean {
 async function classifyHangout(
   character: Character,
   conversation: Conversation | undefined,
-  sent: ChatMessage,
+  sent: ChatMessage | null,
   replies: readonly string[]
 ): Promise<HangoutVerdict | null> {
   if (replies.length === 0 || !shouldCheckHangout(character.charId)) return null

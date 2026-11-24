@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { STAT_KEYS } from '@shared/playerStats'
 import { blocksNewRomance, registerRomanceRequirement, romanceMinimumsOf } from '@shared/romanceRequirements'

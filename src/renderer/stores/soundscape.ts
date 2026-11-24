@@ -53,11 +53,16 @@ export interface Soundscape {
 
 /** Everything the mix is decided from, read off the stores by the caller. */
 export interface SoundFacts {
+  dungeon?: boolean
+  reckoning?: boolean
+  reckoningVictory?: boolean
   view: ViewName
   /** The half the menu is drawn in, which its ambience follows. */
   menuTheme: DayHalf
   titleStarted: boolean
   titleDone: boolean
+  /** A replacement title follows menu visits, independently of the one-time stock intro. */
+  customTitle?: boolean
   /** What the music channel is on now, which is what a scene opening's cover decides by. */
   music: AudioKey | null
   crossing: { phase: CrossingPhase; splash: boolean; waited: boolean }
@@ -130,6 +135,8 @@ const LANDING_THEMES: readonly AudioKey[] = [
 
 /** What the four channels play, from the whole of what is on screen. */
 export function soundscapeOf(facts: SoundFacts): Soundscape {
+  if(facts.view==='game'&&facts.game&&!facts.game.gameOver&&facts.reckoning)return {...silence(.5),music:{key:facts.reckoningVictory?'reckoning_victory':'reckoning',fade:.7}}
+  if(facts.view==='game'&&facts.game&&!facts.game.gameOver&&facts.dungeon)return {...silence(.5),music:{key:'reckoning_dungeon',fade:.7}}
   if (facts.view === 'game') return facts.game ? gameMix(facts) : silence(SILENCE)
   if (MENU_VIEWS.includes(facts.view)) return menuMix(facts)
   return silence(SILENCE)
@@ -156,6 +163,11 @@ function noCg(): Pick<Soundscape, 'act' | 'breath'> {
  * reaches, not the Main Menu alone.
  */
 function menuMix(facts: SoundFacts): Soundscape {
+  if (facts.customTitle) return {
+    music: { key: 'title', fade: TITLE_IN },
+    ambience: { key: null, fade: MENU_AMBIENCE_OUT },
+    ...noCg()
+  }
   if (!facts.titleDone) {
     const first = facts.view === 'mainMenu' && !facts.titleStarted
     return {

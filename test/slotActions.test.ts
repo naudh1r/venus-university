@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { describe, expect, it } from 'vitest'
 import { slotOf } from '@shared/classes'
 import { newJobState } from '@shared/jobs'

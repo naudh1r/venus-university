@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   READER_SPEAKER,
@@ -64,7 +65,7 @@ function deferredCall(): { call: SceneCall; resolve: (result: Awaited<SceneCall>
 function replied(texts: string[], summary: string | null = 'they talked'): Awaited<SceneCall> {
   return {
     ok: true,
-    data: { lines: sceneLines(...texts), summary, end: false, applied: true, reply: { lines: [] } }
+    data: { lines: sceneLines(...texts), summary, end: false, applied: true, at: 0, reply: { lines: [] } }
   }
 }
 

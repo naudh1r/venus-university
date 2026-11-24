@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { asReaderPronouns, readerPronounsOf } from '@shared/gender'
 import { pairKeyOf } from '@shared/npcRelationships'
-import { STARTING_TIER, STAT_KEYS, tierOf, type StatKey, type StatTier } from '@shared/playerStats'
+import { STARTING_TIER, STAT_KEYS, displayedTierOf, type StatKey, type StartingStatTier } from '@shared/playerStats'
 import {
   DEFAULT_SCENE_DATE,
   defaultMilestones,
@@ -58,7 +58,7 @@ function freshEntry(charId: string): SceneCastEntry {
 
 /** The reader New Game opens on, for a machine with no save to read one off. */
 function defaultReader(): SceneReader {
-  const tiers = {} as Record<StatKey, StatTier>
+  const tiers = {} as Record<StatKey, StartingStatTier>
   for (const key of STAT_KEYS) tiers[key] = STARTING_TIER
   return {
     firstName: DEFAULT_PLAYER_FIRST_NAMES.he,
@@ -92,9 +92,9 @@ async function newestReader(): Promise<SceneReader | null> {
   if (!saves.loaded) await saves.loadPlaythroughs()
   const newest = newestPlaythrough(useSaveStore.getState().playthroughs)
   if (!newest) return null
-  const tiersOf = (stats: Record<StatKey, number>): Record<StatKey, StatTier> => {
-    const tiers = {} as Record<StatKey, StatTier>
-    for (const key of STAT_KEYS) tiers[key] = tierOf(stats[key])
+  const tiersOf = (stats: Record<StatKey, number>): Record<StatKey, StartingStatTier> => {
+    const tiers = {} as Record<StatKey, StartingStatTier>
+    for (const key of STAT_KEYS) tiers[key] = displayedTierOf(stats[key])
     return tiers
   }
   if (newest.applying) {

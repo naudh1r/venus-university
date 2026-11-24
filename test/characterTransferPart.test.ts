@@ -133,14 +133,14 @@ describe('a character transfer part', () => {
         exportedAt: '2015-01-19T00:00:00.000Z',
         firstName: 'Mina',
         lastName: 'Aoki',
-        exReflection: { mood: 'wistful' }
+        exTape: { mood: 'wistful' }
       })
     )
     const archive = join(root, 'legacy.zip')
     await createZip(dir, archive)
 
     const imported = await importCharacter(archive)
-    expect(seen).toEqual([{ json: undefined, legacy: { exReflection: { mood: 'wistful' } } }])
+    expect(seen).toEqual([{ json: undefined, legacy: { exTape: { mood: 'wistful' } } }])
     expect(await readFile(join(noteDir(), `${imported.charId}.txt`), 'utf8')).toBe('none|')
   })
 })

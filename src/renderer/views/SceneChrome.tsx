@@ -636,6 +636,7 @@ function RailSeat({ label, badge, state, onClick, children }: RailSeatProps): JS
     <motion.button
       className="vu-scene-seat vu-paper"
       aria-label={label}
+      title={label}
       disabled={dead}
       variants={seat}
       initial="hidden"

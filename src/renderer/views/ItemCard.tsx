@@ -14,6 +14,8 @@ import '../vu_styles/ItemCard.css'
 
 export interface ItemCardProps {
   item: ItemDef
+  /** Optional Campus Talents gift pick, supplied only by the shop. */
+  recommendation?: string
   /** How many he is carrying, in the price's seat: the inventory's reading rather than a price. */
   count?: number
   /** A present's giver and day, in the count's seat; the count stands beside it only past one. */
@@ -32,6 +34,7 @@ export interface ItemCardProps {
 
 export function ItemCard({
   item,
+  recommendation,
   count,
   from,
   word,
@@ -43,12 +46,13 @@ export function ItemCard({
 }: ItemCardProps): JSX.Element {
   return (
     // It deals itself in on the throw both callers want; the list above it owns the stagger.
-    <motion.div className="vu-item vu-paper" variants={slideInQuick}>
+    <motion.div className="vu-item vu-paper" data-item-id={item.id} data-recommended={!!recommendation||undefined} variants={slideInQuick}>
       <span className="vu-item-pocket" aria-hidden="true">
         {item.emoji}
       </span>
 
       <div className="vu-item-body">
+        {recommendation&&<span className="vu-item-recommendation">{recommendation}</span>}
         <span className="vu-item-name">{item.name}</span>
         {/* The shop's own copy, and the whole of what the card sells: an item's categories and
             her side of the comparison are never drawn — either is the answer key. */}

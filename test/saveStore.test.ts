@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PlaythroughSummary, Result } from '@shared/types'
 import { useSaveStore, type ResolvedSave } from '../src/renderer/stores/saveStore'
-import { playthroughRecord, restoreApi, stubApi } from './fixtures'
+import { character, enrollment, playthroughRecord, restoreApi, stubApi } from './fixtures'
+import { stampEnrollment } from '@shared/saveRules'
 
 /**
  * Deleting a save — the one action in the app that destroys a save on purpose. The file
@@ -60,5 +61,22 @@ describe('removeSave', () => {
     await useSaveStore.getState().removeSave('s1')
     expect(remove).toHaveBeenCalledWith('p1', 's1', undefined)
     expect(useSaveStore.getState().saves.map((entry) => entry.saveId)).toEqual(['s2'])
+  })
+})
+
+describe('continued registration switches', () => {
+  it.each([{ selected: ['character-dynamics'] }, { selected: [] }])('reads the existing record instead of stale registration or global choices: $selected', async ({ selected }) => {
+    const saved = stampEnrollment(enrollment({ mods: ['stale-mod'], continued: {
+      id: '200', index: 1, alumni: [], priorProfiles: {}, pursuits: {}, carry: {} as never
+    } }), 1)
+    const record = playthroughRecord({ mods: selected })
+    stubApi({ saves: {
+      enrollment: async () => ({ ok: true, data: saved }),
+      list: async () => ({ ok: true, data: { record, error: null, saves: [] } })
+    } })
+    useSaveStore.setState({ characters: new Map([['a', character({ charId: 'a' })]]) })
+    const resumed = await useSaveStore.getState().resolveEnrollment(PLAYTHROUGH)
+    expect(resumed?.enrollment.mods).toEqual(selected)
+    expect(saved.mods).toEqual(['stale-mod'])
   })
 })

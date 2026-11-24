@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { globalSlotOf } from '@shared/jobs'
 import { pairKeyOf } from '@shared/npcRelationships'

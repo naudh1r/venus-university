@@ -1,3 +1,4 @@
+import './fixtures/maestroModelKit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Conversation, GameSave, Result, TextingResponse } from '@shared/types'
 import { useGameStore } from '../src/renderer/stores/gameStore'

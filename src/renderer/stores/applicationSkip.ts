@@ -1,3 +1,4 @@
+import { availableLocationMenu } from '@shared/cityLife'
 import {
   CATALOG_POOLS,
   isReturning,
@@ -14,8 +15,8 @@ import {
   type ProfileField
 } from '@shared/application'
 import { DORM_IDS, type DormId } from '@shared/dorms'
+import { availableJobs } from '@shared/jobs'
 import { fillPronouns, genderOf } from '@shared/gender'
-import { JOB_CATALOG } from '@shared/jobs'
 import { FUN_LOCATIONS, MEAL_LOCATIONS, STUDY_LOCATIONS } from '@shared/locations'
 import {
   SKIP_ACTIVITY_CHANCE,
@@ -247,16 +248,16 @@ export function rollProfileOf(
   }
   if (blank('homeSlots')) out.homeSlots = 1 + weightedIndex(SKIP_HOME_SLOTS_WEIGHTS, rand)
   if (blank('study')) {
-    out.study = rand() < SKIP_STUDY_CHANCE ? pick(Object.values(STUDY_LOCATIONS), rand) : null
+    out.study = rand() < SKIP_STUDY_CHANCE ? pick(Object.values(availableLocationMenu(STUDY_LOCATIONS)), rand) : null
   }
   if (blank('fun')) {
-    out.fun = shuffle(Object.values(FUN_LOCATIONS), rand).slice(
+    out.fun = shuffle(Object.values(availableLocationMenu(FUN_LOCATIONS)), rand).slice(
       0,
       weightedIndex(SKIP_FUN_WEIGHTS, rand)
     )
   }
   if (blank('meal')) {
-    out.meal = rand() < SKIP_MEAL_CHANCE ? pick(Object.values(MEAL_LOCATIONS), rand) : null
+    out.meal = rand() < SKIP_MEAL_CHANCE ? pick(Object.values(availableLocationMenu(MEAL_LOCATIONS)), rand) : null
   }
   if (blank('activity')) {
     if (rand() < SKIP_ACTIVITY_CHANCE) wantsActivity = true
@@ -315,7 +316,7 @@ function rollProfiles(
     rand
   )
   const employers = shuffle(
-    JOB_CATALOG.map((def) => def.id),
+    availableJobs().map((def) => def.id),
     rand
   )
   let lowrise = 0

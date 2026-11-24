@@ -1,3 +1,4 @@
+import { availableLocationMenu, jobAvailable } from '@shared/cityLife'
 import { blockText, type GlobalTextId, type TextEdits } from '@shared/promptText'
 import { withAdditions } from './promptBlocks'
 import {
@@ -18,7 +19,7 @@ import {
   type ProfileField
 } from '@shared/application'
 import { DORM_IDS, FALLBACK_DORM, isDorm, type DormId } from '@shared/dorms'
-import { JOB_CATALOG, jobDefOf, type JobDef } from '@shared/jobs'
+import { availableJobs, jobDefOf, type JobDef } from '@shared/jobs'
 import {
   ACTIVITY_LOCATIONS,
   FUN_LOCATIONS,
@@ -184,14 +185,14 @@ const CLASSES_TAKEN_LINES = [
  * The employers as the profile prompt lists them: the catalog's order with the library last, the
  * job a student weighed alone reaches for first.
  */
-const PROMPT_EMPLOYERS: readonly JobDef[] = [
-  ...JOB_CATALOG.filter((def) => def.id !== 'kendall_library'),
-  ...JOB_CATALOG.filter((def) => def.id === 'kendall_library')
-]
+function promptEmployers(): readonly JobDef[] {
+  const jobs = availableJobs()
+  return [...jobs.filter(def => def.id !== 'kendall_library'), ...jobs.filter(def => def.id === 'kendall_library')]
+}
 
 /** Her job, and the employers she may hold one at. */
 function workLines(): string[] {
-  const menu = PROMPT_EMPLOYERS.map(
+  const menu = promptEmployers().map(
     (def) => `${def.id} — ${def.employer}, ${def.title}: ${def.blurb}`
   )
   return [
@@ -350,7 +351,7 @@ function hauntLines(
     field: ProfileField,
     heading: string,
     locations: Readonly<Record<string, string>>
-  ) => (asked.has(field) ? ['', heading, ...locationMenuLines(locations)] : [])
+  ) => (asked.has(field) ? ['', heading, ...locationMenuLines(availableLocationMenu(locations))] : [])
   return [
     'WHERE THEY SPEND THEIR FREE TIME',
     'Decide some places where they go by habit. Answer with the keys below, exactly as written:',
@@ -467,23 +468,23 @@ function profileProperties(asked: ReadonlySet<ProfileField>): Record<string, unk
     majorClassesTaken: intField(1, 3),
     dorm: { type: 'string', enum: [LOWRISE, 'elysium'] },
     // Closed: the employer list is code, identical in every save, in the menu's order.
-    job: { type: 'string', enum: ['', ...PROMPT_EMPLOYERS.map((def) => def.id)] },
+    job: { type: 'string', enum: ['', ...promptEmployers().map((def) => def.id)] },
     jobShifts: intField(0, MAX_NPC_SHIFTS),
     homeSlots: intField(MIN_HOME_SLOTS, MAX_HOME_SLOTS),
     // Closed for `job`'s reason; `''` is legal in the two optional ones and is the ordinary answer.
-    study: { type: 'string', enum: ['', ...Object.keys(STUDY_LOCATIONS)] },
+    study: { type: 'string', enum: ['', ...Object.keys(availableLocationMenu(STUDY_LOCATIONS))] },
     fun: {
       type: 'array',
       maxItems: MAX_FUN_LOCATIONS,
-      items: { type: 'string', enum: [...Object.keys(FUN_LOCATIONS)] }
+      items: { type: 'string', enum: [...Object.keys(availableLocationMenu(FUN_LOCATIONS))] }
     },
     // Her own phrase, unlike the closed menus: the place it happens at rides `activityLocation`.
     activity: { type: 'string' },
     handle: { type: 'string' },
     winterPosts: { type: 'array', maxItems: MAX_WINTER_POSTS, items: { type: 'string' } },
     springBreakPlans: { type: 'string' },
-    activityLocation: { type: 'string', enum: ['', ...Object.keys(ACTIVITY_LOCATIONS)] },
-    meal: { type: 'string', enum: ['', ...Object.keys(MEAL_LOCATIONS)] }
+    activityLocation: { type: 'string', enum: ['', ...Object.keys(availableLocationMenu(ACTIVITY_LOCATIONS))] },
+    meal: { type: 'string', enum: ['', ...Object.keys(availableLocationMenu(MEAL_LOCATIONS))] }
   }
   const wanted = new Set(
     [...asked].flatMap((field) => (field === 'major' ? [] : REPLY_FIELDS[field]))
@@ -930,7 +931,7 @@ function validatedProfile(
 ): CharProfileDraft {
   const { posts = true, plans = true } = opts
   const job = (profile.job ?? '').trim()
-  const known = job !== '' && Boolean(jobDefOf(job))
+  const known = job !== '' && Boolean(jobDefOf(job)) && jobAvailable(job)
   if (job !== '' && !known) {
     console.warn(`[profiles] ${key} was given the unknown employer "${job}"; leaving her jobless.`)
   }
@@ -948,7 +949,7 @@ function validatedProfile(
   const menuKey = (menu: Record<string, string>, value: unknown, field: string): string => {
     const raw = typeof value === 'string' ? value.trim() : ''
     if (raw === '') return ''
-    if (locationForKey(menu, raw) === null) {
+    if (locationForKey(availableLocationMenu(menu), raw) === null) {
       console.warn(`[profiles] ${key} ${field} was the unknown location "${raw}"; dropping it.`)
       return ''
     }
