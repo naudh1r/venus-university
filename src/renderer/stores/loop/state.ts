@@ -31,7 +31,8 @@ export interface TurnSnapshot {
   action: string
   /** The agreed hangout this turn is, so a retry replays it as one. */
   charId?: string
-  hangoutReminders?: readonly import('../bunnyboardStore').HangoutReminder[]
+  /** The calendar event behind an answered reminder, including on retry. */
+  hangoutPlanId?: string
   /** In-memory native invitation retry; never serialized into a save. */
   retryInvitation?: (action: string) => void
   /** This turn handed over a gift; abandoning it hands the item back. */

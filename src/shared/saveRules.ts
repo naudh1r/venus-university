@@ -166,11 +166,12 @@ export const SAVE_READ: ValidateRecordOptions<GameSave> = {
   check: assertSaveFields
 }
 
-/** Whether `value` is a game clock: a whole day and one of the two halves. */
+/** Whether `value` is a nonblank calendar event id. */
 function isPlanId(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
+/** Whether `value` is a game clock: a whole day and one of the two halves. */
 function isClock(value: unknown): boolean {
   return isPlainObject(value) && Number.isSafeInteger(value.date) && (value.time === 0 || value.time === 1)
 }

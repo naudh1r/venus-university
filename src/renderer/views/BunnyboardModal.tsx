@@ -658,10 +658,6 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
               if (!identity.known) return null
               const last = conversation.messages[conversation.messages.length - 1]
               const on = conversation.charId === viewingCharId
-              const pending = conversation.pendingHangout
-              const anotherPlan = armed?.reminders && pending?.planId && !pending.dismissed &&
-                !armed.reminders.some(({ planId }) => planId === pending.planId)
-              const threadLocked = Boolean(armed && armed.charId !== conversation.charId && !anotherPlan)
               return (
                 <motion.li key={conversation.charId} variants={slideInQuick}>
                   {/* The card is a row of two controls rather than one: her face opens her page
@@ -671,7 +667,8 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
                       the two children cover every pixel of it. */}
                   <motion.div
                     className={`vu-row vu-bb-chat${on ? ' vu-bb-chat--on' : ''}`}
-                    {...gestures(threadLocked, rowLift, rowPress)}
+                    // Nothing navigates while a hangout is armed.
+                    {...gestures(Boolean(armed), rowLift, rowPress)}
                   >
                     {!identity.bot && (
                       <FaceButton
@@ -690,7 +687,7 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
                     <button
                       className={`vu-bb-chat-hit${identity.bot ? ' vu-bb-chat-hit--whole' : ''}`}
                       type="button"
-                      disabled={threadLocked}
+                      disabled={Boolean(armed)}
                       onClick={() => viewChar(conversation.charId)}
                     >
                       {identity.bot && <Portrait emoji={identity.emoji} mark={identity.mark} />}
@@ -1074,7 +1071,6 @@ function ConversationView({
     plan !== null &&
     events.some((other) => other.id !== plan.id && other.date === date && other.time === time)
   const canReschedule =
-    !armed &&
     askingOut &&
     plan !== null &&
     (playerClassNow() !== null || shiftNow() !== null || doubleBooked)
@@ -1261,7 +1257,7 @@ function ConversationView({
             <div className="vu-bb-answers-row">
               <CancelButton
                 id="bb-hangout-no"
-                dead={sceneActive || Boolean(armed)}
+                dead={sceneActive}
                 onClick={() => answerHangout(charId, false)}
               >
                 No

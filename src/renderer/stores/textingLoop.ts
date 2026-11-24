@@ -796,9 +796,7 @@ async function runReply(
 
     // An unsolicited text is not an answer to a standing invitation.
     if (!sent && invited) return
-    const verdict = await classifyHangout(
-      character, conversation, sent, messages, invited?.planId ? invited.description : undefined
-    )
+    const verdict = await classifyHangout(character, conversation, sent, messages)
     if (!useGameStore.getState().interlude) handleHangout(charId, verdict, invited?.planId)
     if (sent && invited) settleAnsweredInvitation(charId, invited.occasionId)
   } finally {
@@ -976,8 +974,7 @@ async function classifyHangout(
   character: Character,
   conversation: Conversation | undefined,
   sent: ChatMessage,
-  replies: readonly string[],
-  planReminder?: string
+  replies: readonly string[]
 ): Promise<HangoutVerdict | null> {
   if (replies.length === 0 || !shouldCheckHangout(character.charId)) return null
 
@@ -988,8 +985,7 @@ async function classifyHangout(
     conversation?.messages ?? [],
     sent,
     replies.map((text) => chatMessage('contact', text)),
-    hangoutClockOf(game),
-    planReminder
+    hangoutClockOf(game)
   )
 
   for (;;) {
@@ -1043,26 +1039,12 @@ function armHangout(charId: string, description: string, planId?: string): void 
   // He is coming, so whatever she was counting against him is spent.
   useGameStore.getState().resetDeclined(charId)
   const ui = useBunnyboardStore.getState()
-  const armed = ui.armedHangout
-  if (armed?.reminders && planId) {
-    ui.setArmedHangout({
-      ...armed,
-      description: [armed.description, description].join('\n'),
-      reminders: [...armed.reminders, { charId, planId }]
-    })
-    ui.viewChar(armed.charId)
-    return
-  }
-  const reminders = planId ? [{ charId, planId }] : undefined
-  ui.setArmedHangout({ charId, description, reminders })
+  ui.setArmedHangout({ charId, description, ...(planId ? { planId } : {}) })
   ui.openApp()
   ui.viewChar(charId)
-  // Prefetch casts and settles the slot, so wait for Begin if another plan can still be accepted.
-  const conversations = useGameStore.getState().bunnyboard.conversations
-  const canAddPlan = reminders && Object.values(conversations).some(({ pendingHangout }) =>
-    pendingHangout?.planId && pendingHangout.planId !== planId && !pendingHangout.dismissed
-  )
-  if (!canAddPlan) void prefetchHangoutScene(charId, description, reminders)
+  // The scene starts being written now, behind the reply the player is reading.
+  // Never awaited: Begin consumes it if it is there and does the work itself if it is not.
+  void prefetchHangoutScene(charId, description, planId)
 }
 
 /**
@@ -1078,7 +1060,7 @@ export async function beginHangout(): Promise<void> {
   // The game view's own spinner is the loading state from here.
   useBunnyboardStore.getState().closeApp()
   useBunnyboardStore.getState().setLocked(false)
-  await startHangoutScene(armed.charId, armed.description, armed.reminders)
+  await startHangoutScene(armed.charId, armed.description, armed.planId)
 }
 
 /** The line under a meet-up agreed with a girl who has left campus for spring break. */
@@ -1112,9 +1094,6 @@ export function answerHangout(charId: string, yes: boolean): void {
   if (!pending) return
 
   if (yes) {
-    const armed = useBunnyboardStore.getState().armedHangout
-    if (armed && (!armed.reminders || !pending.planId || pending.dismissed ||
-      armed.reminders.some(({ planId }) => planId === pending.planId))) return
     sayYes(charId)
     // An invitation raised before she left and accepted after it.
     if (charAwayNow(charId)) {

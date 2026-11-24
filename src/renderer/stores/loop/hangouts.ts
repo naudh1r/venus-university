@@ -50,13 +50,13 @@ export interface HangoutPrefetch {
 async function prefetchHangoutScene(
   charId: string,
   description: string,
-  hangoutReminders?: TurnSnapshot['hangoutReminders']
+  planId?: string
 ): Promise<void> {
   const game = useGameStore.getState()
   if (game.busy || loopState.hangoutPrefetch) return
 
   // Before any mutation, so a failed turn rewinds to the reader's own state.
-  const snapshot: TurnSnapshot = { scene: game.captureScene(), action: description, charId, hangoutReminders }
+  const snapshot: TurnSnapshot = { scene: game.captureScene(), action: description, charId, hangoutPlanId: planId }
 
   // Claimed before the first await: a Begin during the classify takes it and every checkpoint
   // below bails, or two scene calls would cross their deltas on the one broadcast channel.
@@ -110,7 +110,7 @@ export async function startHangoutScene(
   description: string,
   preset?: Verdict,
   sceneEvents?: TurnSnapshot['sceneEvents'],
-  hangoutReminders?: TurnSnapshot['hangoutReminders']
+  planId?: string
 ): Promise<void> {
   const run = currentRun()
   const game = useGameStore.getState()
@@ -128,7 +128,7 @@ export async function startHangoutScene(
     scene: game.captureScene(),
     action: description,
     charId,
-    hangoutReminders,
+    hangoutPlanId: planId,
     // A retry arrives with the verdict its failed attempt settled and what it rolled; a first
     // Begin with neither, and classifies below.
     ...(preset ? { preset } : {}),
@@ -216,11 +216,8 @@ async function castHangout(
 
   // The plan she has with him this slot, if any: every attendee comes, named or not, and her
   // class or her shift is over by the time they meet.
-  const reminders = snapshot.hangoutReminders ?? [{ charId, planId: undefined }]
-  const attendees = reminders.flatMap(reminder => {
-    const event = reminderPlan(reminder.charId, game.date, game.time, reminder.planId, game.events)
-    return event ? planAttendees(event) : []
-  })
+  const event = reminderPlan(charId, game.date, game.time, snapshot.hangoutPlanId, game.events)
+  const attendees = event ? planAttendees(event) : []
 
   // A hangout rolls like a named typed action: the pinned character is the naming. Named, so a
   // haunt is the crash-the-party roll, except for whoever she is out with this slot.
@@ -257,7 +254,8 @@ async function castHangout(
   await applyCast(cast, {
     ...composed.scene,
     ...events,
-    // The thread that opened the scene is already answered.
+    // The texts that arranged this are not a plan he still owes her; her thread alone,
+    // since only one attendee ever texts about a plan.
     textLedgerSkip: charId,
     mentions: verdict.mentionedOnly.filter((id) => !cast.includes(id)),
     location: sceneLocation || null,

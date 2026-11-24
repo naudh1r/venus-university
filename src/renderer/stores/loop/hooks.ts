@@ -35,7 +35,7 @@ interface HangoutEntry {
   prefetchHangoutScene: (
     charId: string,
     description: string,
-    reminders?: TurnSnapshot['hangoutReminders']
+    planId?: string
   ) => Promise<void>
   /**
    * Opens the scene an agreed hangout became — the Begin button, and a
@@ -46,7 +46,7 @@ interface HangoutEntry {
     description: string,
     preset?: Verdict,
     sceneEvents?: TurnSnapshot['sceneEvents'],
-    reminders?: TurnSnapshot['hangoutReminders']
+    planId?: string
   ) => Promise<void>
 }
 
@@ -103,15 +103,15 @@ export function claimTextLedger(date: number, time: TimeSlot): Promise<LedgerRes
 export function prefetchHangoutScene(
   charId: string,
   description: string,
-  reminders?: TurnSnapshot['hangoutReminders']
+  planId?: string
 ): Promise<void> {
-  return need(hangoutEntry, 'the hangout entry').prefetchHangoutScene(charId, description, reminders)
+  return need(hangoutEntry, 'the hangout entry').prefetchHangoutScene(charId, description, planId)
 }
 
 export function startHangoutScene(
   charId: string,
   description: string,
-  reminders?: TurnSnapshot['hangoutReminders']
+  planId?: string
 ): Promise<void> {
-  return need(hangoutEntry, 'the hangout entry').startHangoutScene(charId, description, undefined, undefined, reminders)
+  return need(hangoutEntry, 'the hangout entry').startHangoutScene(charId, description, undefined, undefined, planId)
 }

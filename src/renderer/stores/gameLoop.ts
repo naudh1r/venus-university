@@ -1607,7 +1607,7 @@ function dispatchTurn(snapshot: TurnSnapshot): void {
   else if (snapshot.retryInvitation) snapshot.retryInvitation(snapshot.action)
   else if (snapshot.charId)
     void startHangoutScene(
-      snapshot.charId, snapshot.action, snapshot.preset, snapshot.sceneEvents, snapshot.hangoutReminders
+      snapshot.charId, snapshot.action, snapshot.preset, snapshot.sceneEvents, snapshot.hangoutPlanId
     )
   else {
     void submitAction(
