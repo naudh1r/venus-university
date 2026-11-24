@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
+import { readerWordsOf } from '@vx/modkit/shared'
+import { gameFacts } from '@vx/modkit/renderer'
 import { gestures, lift, press, useAway, useReducedMotion, useEffectsGain, type GamePlay, type Opponent, type TableExpression } from '../kit'
 import { aimEllipse, movingDot, scoreHit, traitsFor, applySessionPlan, newSession, planNpcVisit, sessionSummary, sessionThrow, type Ellipse, type Flight, type Impact, type Point, type DartsMode, type DartsSession, type SessionPlanItem } from '../../../shared/minigameRules/darts'
 import { Board } from './dartsBoard'
 import { DartsAudio } from './dartsAudio'
-import { DartsControlGuide, DartsSectorLabel, dartsTurnLabel } from './DartsHelp'
+import { DartsControlGuide, DartsSectorLabel, dartsNextThrow, dartsOpponentName, dartsOpponentPronouns, dartsTurnLabel } from './DartsHelp'
 import '../../vu_styles/Darts.css'
 
 type Phase = 'player' | 'preparing' | 'handover' | 'partners' | 'my-turn' | 'finished'
@@ -21,10 +23,10 @@ function accountOf(session: DartsSession): string[] {
   const state = sessionSummary(session)
   return [
     `${session.mode === 'house' ? session.seats.length === 1 ? 'Solo Beat the House' : 'Cooperative Beat the House' : '301 Rival Match'} with ${session.seats.map((seat) => seat.name).join(', ')}.`,
-    ...state.visits.map((visit) => `${session.seats.find((seat) => seat.id === visit.seatId)?.name}, visit ${visit.index + 1}: ${visit.darts.map((dart) => scoreHit(dart.x, dart.y).label).join(', ')}; ${visit.points} credited${visit.bust ? ', bust restored the visit opening score' : ''}; ${visit.balance} remaining.`),
+    ...state.visits.map((visit) => `${session.seats.find((seat) => seat.id === visit.seatId)?.name}, visit ${visit.index + 1}: ${visit.darts.map((dart) => scoreHit(dart.x, dart.y).label).join(', ')}. ${visit.points} credited${visit.bust ? ', bust restored the visit opening score' : ''}. ${visit.balance} remaining.`),
     session.mode === 'house'
-      ? `${state.teamBalance} remains from ${session.target}; ${state.outcome === 'won' ? session.seats.length === 1 ? 'you beat the house' : 'the team beat the house' : state.done ? 'the house won' : 'the match is unfinished'}.`
-      : `${session.seats.map((seat) => `${seat.name}: ${state.balances[seat.id]} remaining`).join('; ')}. ${state.done ? state.winnerIds.length === 1 ? `${session.seats.find((seat) => seat.id === state.winnerIds[0])?.name} won.` : 'The match ended in a draw.' : 'The match is unfinished.'}`
+      ? `${state.teamBalance} remains from ${session.target}. ${state.outcome === 'won' ? session.seats.length === 1 ? 'You beat the house' : 'The team beat the house' : state.done ? 'The house won' : 'The match is unfinished'}.`
+      : `${session.seats.map((seat) => `${seat.name}: ${state.balances[seat.id]} remaining`).join(', ')}. ${state.done ? state.winnerIds.length === 1 ? `${session.seats.find((seat) => seat.id === state.winnerIds[0])?.name} won.` : 'The match ended in a draw.' : 'The match is unfinished.'}`
   ]
 }
 
@@ -48,7 +50,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
     id: crypto.randomUUID(), seed: crypto.getRandomValues(new Uint32Array(1))[0], mode, target,
     seats: [
       { id: 'reader', name: 'You', kind: 'reader' },
-      ...opponents.map((girl) => ({ id: girl.charId, name: girl.name, kind: 'npc' as const, traits: traitsFor(girl.skill, girl.charId, girl.biases) }))
+      ...opponents.map((opponent, index) => ({ id: opponent.charId, name: dartsOpponentName(opponent, index), kind: 'npc' as const, traits: traitsFor(opponent.skill, opponent.charId, opponent.biases) }))
     ]
   }))
   const [phase, setPhase] = useState<Phase>('player')
@@ -85,7 +87,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
     latest.current.session = next; setSession(next)
     const state = sessionSummary(next)
     const scores = next.mode === 'house' ? `${state.teamBalance} of ${next.target} left` : next.seats.map((seat) => `${seat.name} ${state.balances[seat.id]}`).join(', ')
-    latest.current.play.situation(`${next.mode === 'house' ? opponents.length ? 'Cooperative Beat the House' : 'Solo Beat the House' : '301 Rival Match'} darts. ${scores}. ${state.done ? 'The match is complete.' : `${seatName(next, state.currentSeatId)} throws next.`}`)
+    latest.current.play.situation(`${next.mode === 'house' ? opponents.length ? 'Cooperative Beat the House' : 'Solo Beat the House' : '301 Rival Match'} darts. ${scores}. ${state.done ? 'The match is complete.' : dartsNextThrow(opponents.find(opponent => opponent.charId === state.currentSeatId))}`)
     latest.current.play.progress(accountOf(next))
   }
 
@@ -122,7 +124,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
       outcome: state.outcome ?? 'draw',
       summary: next.mode === 'house'
         ? opponents.length
-          ? won ? `You and ${opponents.map((girl) => girl.name).join(' and ')} beat the house at darts.` : `Your team lost to the house with ${state.teamBalance} remaining.`
+          ? won ? `You and ${next.seats.slice(1).map(seat => seat.name).join(' and ')} beat the house at darts.` : `Your team lost to the house with ${state.teamBalance} remaining.`
           : won ? 'You beat the house at darts on your own.' : `You lost to the house at darts with ${state.teamBalance} remaining.`
         : winner ? `${winner} won the 301 Rival Match against ${next.seats.filter((seat) => seat.name !== winner).map((seat) => seat.name).join(' and ')}.` : 'The 301 Rival Match ended in a draw.',
       account: accountOf(next)
@@ -134,7 +136,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
     const scripts: VisitScript[] = []
     while (!sessionSummary(preview).done && sessionSummary(preview).currentSeatId !== 'reader') {
       const seatId = sessionSummary(preview).currentSeatId
-      const seat = opponents.find((girl) => girl.charId === seatId)
+      const seat = opponents.find((opponent) => opponent.charId === seatId)
       if (!seat) throw Error('Darts speaker is missing')
       const plan = planNpcVisit(preview, seatId), script = fallback(preview, seat, plan)
       const noteworthy = plan.find((item) => !item.outcome && (item.bust || item.hit.kind === 'miss' || item.hit.points >= 40)) ?? plan.find((item) => !item.outcome)
@@ -151,12 +153,14 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
         fields[`${prefix}Intro`] = 'text'; fields[`${prefix}IntroExpression`] = EXPRESSIONS
         for (const item of script.plan) if (script.spoken.has(item.throwId)) { fields[`${prefix}Dart${item.throwId}Line`] = 'text'; fields[`${prefix}Dart${item.throwId}Expression`] = EXPRESSIONS }
         if (play.chattiness === 'lots' && !script.plan.at(-1)?.outcome) { fields[`${prefix}Outro`] = 'text'; fields[`${prefix}OutroExpression`] = EXPRESSIONS }
-        facts.push(`${prefix} speaker is ${script.seat.name} (${script.seat.charId}).`, ...script.plan.map((item) => `${prefix} dart ${item.throwId}: ${item.hit.label}, ${item.hit.points} points, remaining ${item.balanceBefore} to ${item.balanceAfter}, bust ${item.bust}, outcome ${item.outcome ?? 'unfinished'}.`))
+        const words = dartsOpponentPronouns(script.seat)
+        facts.push(`${prefix} speaker is ${seatName(next, script.seat.charId)} (${script.seat.charId}, pronouns ${words.they}/${words.them}/${words.their}).`, ...script.plan.map((item) => `${prefix} dart ${item.throwId}: ${item.hit.label}, ${item.hit.points} points, remaining ${item.balanceBefore} to ${item.balanceAfter}, bust ${item.bust}, outcome ${item.outcome ?? 'unfinished'}.`))
       }
       const before = sessionSummary(next)
       const got = await latest.current.play.round({ fields, brief: [
-        `Write one chronological, cached companion script for ${scripts.map((script) => script.seat.name).join(' and ')} playing darts with the reader. This is character banter, not sports commentary.`,
+        `Write one chronological, cached companion script for ${scripts.map(script => seatName(next, script.seat.charId)).join(' and ')} playing darts with the reader. This is character banter, not sports commentary.`,
         `Mode ${next.mode}; reader's last visit scored ${before.visits.at(-1)?.points ?? 0}. Engine results below are final. Never alter a landing or reveal a later result early.`,
+        `Use ${readerWordsOf(gameFacts().readerPronouns).list} when referring to the reader by pronoun.`,
         ...facts,
         'Each pNIntro occurs immediately before that named speaker begins. Each Dart line occurs only after its exact landing. Each Outro passes naturally to the next person.',
         'Use scores only to understand the moment. Do not mechanically repeat numbers or hit labels already on screen. Vary teasing, encouragement, rivalry, flirting, jokes, nerves, confidence or light strategy according to personality, relationships and current scene. Do not force a beat or invent shared history.',
@@ -175,7 +179,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
       if (!(await speak(scripts[0].seat, scripts[0].intro, token))) return
     }
     if (!alive.current || token !== generation.current) return
-    setStatus(`${scripts[0]?.seat.name ?? 'Partners'} ready`); setPhase('handover')
+    setStatus(`${scripts[0] ? seatName(next, scripts[0].seat.charId) : 'Partners'} ready`); setPhase('handover')
   }
 
   async function land(targetPoint: Point, token: number, item?: SessionPlanItem): Promise<DartsSession | null> {
@@ -332,9 +336,9 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
   const statusText = ended ? live.outcome === 'won' ? 'You won.' : live.outcome === 'draw' ? 'A hard-fought draw.' : 'Next time.' : phase === 'preparing' || status === 'Your turn' || status === turnLabel ? '' : status
   const modeTitle = session.mode === 'rival' ? '301 Rival Match' : opponents.length ? 'Co-op Beat the House' : 'Solo Beat the House'
   const modeDescription = session.mode === 'rival'
-    ? `Each player starts at 301 with a separate balance. You each get 3 visits of up to 3 darts. Reach exactly 0 to win. Otherwise, the lowest balance wins; equal lowest balances tie.`
+    ? `Each player starts at 301 with a separate balance. You each get 3 visits of up to 3 darts. Reach exactly 0 to win. Otherwise, the lowest balance wins. Players with the same lowest balance tie.`
     : opponents.length
-      ? `Share a ${session.target}-point countdown with your ${opponents.length === 1 ? 'companion' : 'companions'}. Order: you, then each companion. You get 3 visits; each companion gets 2. Up to 3 darts per visit. Reach exactly 0 together.`
+      ? `Share a ${session.target}-point countdown with your ${opponents.length === 1 ? 'companion' : 'companions'}. Order: you, then each companion. You get 3 visits and each companion gets 2. Up to 3 darts per visit. Reach exactly 0 together.`
       : `Reach exactly 0 from ${session.target} within 5 visits (15 darts). Each visit gives you up to 3 darts. Select Next round to continue. If points remain after visit 5, the house wins.`
 
   return <div className="vu-darts" data-info={modeInfo || undefined} data-guide={guide || undefined} data-finished={phase === 'finished' || undefined}>

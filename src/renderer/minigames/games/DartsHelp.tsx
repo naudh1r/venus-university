@@ -1,4 +1,6 @@
 import { useLayoutEffect, useRef, useState, type JSX } from 'react'
+import { pronounsOf } from '@vx/modkit/shared'
+import type { Opponent } from '../kit'
 
 export function DartsControlGuide(): JSX.Element {
   return <section className="vu-darts-control-help" aria-label="Mouse controls">
@@ -40,4 +42,20 @@ export function dartsTurnLabel(phase: string, hasOpponents: boolean, playingName
   if (phase === 'preparing') return 'Preparing next turn…'
   if (phase === 'finished') return 'Match complete'
   return "You're playing"
+}
+
+// Roster records omit the gender field for female characters.
+export function dartsOpponentPronouns(opponent: Pick<Opponent, 'gender'>): ReturnType<typeof pronounsOf> {
+  return pronounsOf({ gender: opponent.gender === 'male' ? 'male' : undefined })
+}
+
+// The table supplies a first name once known, and an object pronoun otherwise.
+export function dartsOpponentName(opponent: Opponent, index: number): string {
+  return opponent.name === dartsOpponentPronouns(opponent).them ? `Companion ${index + 1}` : opponent.name
+}
+
+export function dartsNextThrow(opponent?: Pick<Opponent, 'name' | 'gender'>): string {
+  if (!opponent) return 'You throw next.'
+  const words = dartsOpponentPronouns(opponent)
+  return `${opponent.name === words.them ? words.They : opponent.name} throws next.`
 }

@@ -1,7 +1,7 @@
 # Darts
 
 Darts is a PC mini-game in **[Nd] Arcade & Bar Games** by naudh1r. Play solo against
-the house, team up with one or two girls, or compete in a 301 Rival Match. The board
+the house, team up with one or two companions, or compete in a 301 Rival Match. The board
 fills the game screen while keeping the current Venus scene behind it. Dialogue and
 character expressions use the scene's own text box and sprites.
 
@@ -81,8 +81,8 @@ everyone subtracts from the same team balance.
 | Participants | Turn order | Visits available |
 | --- | --- | --- |
 | Solo | Player | Five player visits, up to 15 darts |
-| Player + one girl | Player → girl → player → girl → player | Three player visits and two NPC visits |
-| Player + two girls | Player → first girl → second girl → repeat, ending with the player | Three player visits and two visits per NPC |
+| Player + one companion | Player → companion → player → companion → player | Three player visits and two NPC visits |
+| Player + two companions | Player → first companion → second companion → repeat, ending with the player | Three player visits and two visits per NPC |
 
 Reaching zero wins immediately. If the last visit ends with points remaining, the house
 wins. During solo play, **Next round** starts each new visit. Solo uses Beat the House; modes that require companions show their participant
@@ -90,37 +90,38 @@ requirements when selected without them.
 
 ### 301 Rival Match
 
-Play against **one or two girls**. Every participant starts with a separate **301**
-balance and gets up to three visits, alternating player, first girl and second girl
+Play against **one or two companions**. Every participant starts with a separate **301**
+balance and gets up to three visits, alternating player, first companion and second companion
 where present. The first checkout wins immediately. If nobody checks out, the lowest
 remaining balance wins; equal lowest balances draw. The house starting-score option
 does not change Rival Match's 301 starting balance.
 
-### Player vs Girls Team
+### Player vs Pair
 
-Exactly two girls share a countdown balance against your separate balance. Choose
-301, 501 or 701. Turn order is girl 1 → girl 2 → player for three rounds, with
-three darts per visit. Exact zero wins immediately; otherwise the lower balance
-wins at the round limit. A bust cancels only that visit. The girls deliberately
-have twice as many darts: this is a 1-vs-2 challenge.
+The game shows the companions’ first names in this mode’s title once the reader
+knows them. Two companions share a countdown balance against your separate balance.
+Choose 301, 501 or 701. The first companion throws, then the second, then you.
+Each player gets three darts per visit for three rounds. Exact zero wins immediately.
+Otherwise, the lower balance wins at the round limit. A bust cancels only that visit.
+Your opponents have twice as many darts in this 1-vs-2 challenge.
 
 ### Chase the Leader
 
-Three players: you and two girls. Choose three quick rounds or nine full rounds;
+You play alongside two companions. Choose three quick rounds or nine full rounds;
 each participant leads equally often. The leader sets a three-dart total. Each
 challenger who matches or beats it earns one point. The leader earns one point
 only if both challengers fail. Highest points wins; tied leaders share first place.
 
 ### Precision Duel
 
-One girl with cached Darts skill tier **4 or higher**. Both players face the same
+One companion with cached Darts skill tier **4 or higher**. Both players face the same
 five seeded targets: two doubles, two triples and one bullseye, in shuffled order.
 Three darts each per target. Only the exact number and ring count; every correct
 hit earns one point. Most points wins.
 
 ### Exact Total
 
-One girl with cached Darts skill tier **3 or higher**. Five shared, seeded totals
+One companion with cached Darts skill tier **3 or higher**. Five shared, seeded totals
 above 20, each reachable in one double, triple or bullseye, or several singles.
 Use up to three darts per target. A successful finish beats a failure; fewer darts
 wins the target. Overshooting resets the accumulated total to zero without refunding
@@ -164,8 +165,8 @@ framework can try the judgment again next time.
 ## Dialogue and turn pacing
 
 After the player's visit ends, the engine plans the upcoming NPC throws before asking
-the model for dialogue and expressions. With two girls, both consecutive NPC visits
-are included in **one batch call**, rather than a call for every dart or girl.
+the model for dialogue and expressions. With two companions, both consecutive NPC visits
+are included in **one batch call**.
 
 The model sees the player's last visit and the planned NPC results. It writes reactions
 for those exact moments: character banter, encouragement, teasing, rivalry or nerves,
@@ -180,8 +181,8 @@ the engine's results. Invalid or unavailable responses use fallback dialogue.
 
 For Some and Lots, the first intro is shown before **Change turn** unlocks. After the
 player clicks it, the NPC pauses briefly, throws, and the score and LED effects respond
-at impact. Her bound reaction and expression appear about **350 ms after landing**.
-Each reaction finishes before the next throw; another brief pause separates the girls.
+at impact. Their bound reaction and expression appear about **350 ms after landing**.
+Each reaction finishes before the next throw; another brief pause separates the companions.
 **My turn** becomes available only after the whole NPC block and its dialogue finish.
 Native reader-paced settings and text overflow sequencing remain in effect.
 
@@ -317,7 +318,7 @@ and the diagram's visible top rim; it is not a screen title. Control has no titl
 away keeps a light background and red text, including while hovered or pressed.
 
 The turn button stays visible throughout the match. It shows **You’re playing**,
-the active girl's name while she plays, preparation status, or match complete. It
+the active companion’s name, preparation status, or match complete. It
 is disabled in these states. **Change turn**, **My turn** and solo **Next round**
 become clickable only at the existing handover points, after dialogue has finished.
 Preparation status appears only on the turn button. Final win/draw/loss text uses
@@ -325,3 +326,8 @@ the reserved status row above that button, without adding a footer below the gui
 **Next time.** appears for a completed loss, never as the result of an interrupted match.
 The guide buttons sit below a separate gap. Back buttons have additional right and
 bottom clearance. Walk away uses the same offset paper shadow as the other game buttons.
+
+## 0.2.1
+
+- The pair mode shows the companions’ first names. Darts uses neutral wording
+  for generic roles and the seated companions’ pronouns in turn and reaction prompts.
