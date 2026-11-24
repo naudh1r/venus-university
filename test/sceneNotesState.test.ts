@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-const state = vi.hoisted(() => ({ field: null as any, game: { currentSceneTranscript: [] as any[], createdScene: {} as any }, legacy: null as any }))
-vi.mock('@vx/modkit/renderer', () => ({ scene: () => ({lines:state.game.currentSceneTranscript,created:Boolean(state.game.createdScene)}), sceneField: () => ({ read: () => state.field, set: (v: unknown) => { state.field = v } }) }))
+const state = vi.hoisted(() => ({ field: null as any, game: { currentSceneTranscript: [] as any[], createdScene: {} as any }, legacy: null as any, saves:0 }))
+vi.mock('@vx/modkit/renderer', () => ({ scene: () => ({lines:state.game.currentSceneTranscript,created:Boolean(state.game.createdScene)}), sceneField: () => ({ read: () => state.field, set: (v: unknown) => { state.field = v }, save: async(v:unknown)=>{state.saves++;state.field=v;return {ok:true,data:null}} }) }))
 vi.mock('../src/renderer/sceneNotes/host', () => ({ legacyNotes: () => state.legacy, notesAvailable: () => true }))
 vi.mock('@vx/modkit/shared', () => ({ sharedModOn: vi.fn(() => true) }))
 import { sharedModOn } from '@vx/modkit/shared'
@@ -78,4 +78,63 @@ it.each(['library', 'study preview'])('retains an oversized %s document in the s
   await saveSceneNotes(small)
   expect(readSceneNotes()).toEqual(small)
   expect(promptLines().join('\n')).toContain('Replacement.')
+})
+
+it('defaults continuing study off, preserves explicit choices, and clears it on removal',async()=>{
+ const first={name:'cloud.txt',text:'First topic.'}
+ await saveSceneNotes(first)
+ expect(promptLines().join(' ')).not.toContain('CONTINUING DOCUMENT STUDY')
+ const revision=notesConversationScope().revision
+ await saveSceneNotes(first,true)
+ expect(notesConversationScope().revision).toBe(revision)
+ state.field=JSON.parse(JSON.stringify(state.field))
+ expect(promptLines().join(' ')).toContain('CONTINUING DOCUMENT STUDY')
+ expect(promptLines().join(' ')).toContain('never answer for them')
+ await saveSceneNotes({name:'next.txt',text:'Next topic.'})
+ expect(promptLines().join(' ')).not.toContain('CONTINUING DOCUMENT STUDY')
+ await saveSceneNotes(readSceneNotes(),false)
+ expect(promptLines().join(' ')).not.toContain('CONTINUING DOCUMENT STUDY')
+ await saveSceneNotes(readSceneNotes(),true)
+ await saveSceneNotes(null)
+ expect(state.field.continueStudying).toBe(false)
+ expect(promptLines().join(' ')).not.toContain('CONTINUING DOCUMENT STUDY')
+ await saveSceneNotes(first)
+ expect(promptLines().join(' ')).not.toContain('CONTINUING DOCUMENT STUDY')
+})
+
+it('persists the continuing-study choice using the normal story save path',async()=>{
+ state.game.createdScene=null
+ const before=state.saves
+ await saveSceneNotes({name:'story.txt',text:'Study this.'},true)
+ expect(state.saves).toBe(before+1)
+ state.field=JSON.parse(JSON.stringify(state.field))
+ expect(promptLines().join(' ')).toContain('CONTINUING DOCUMENT STUDY')
+ await saveSceneNotes(null)
+ expect(state.field.continueStudying).toBe(false)
+})
+
+it('defaults legacy documents off without overriding an explicitly saved on choice',()=>{
+ state.field={document:{name:'old.txt',text:'Legacy document.'}}
+ expect(promptLines().join(' ')).not.toContain('CONTINUING DOCUMENT STUDY')
+ state.field.continueStudying=true
+ expect(promptLines().join(' ')).toContain('CONTINUING DOCUMENT STUDY')
+})
+
+it.each([true,false])('turns a previous lesson off explicitly and resets same-name replacements in created=%s',async created=>{
+ state.game.createdScene=created?{}:null
+ const first={name:'notes.txt',text:'Original lesson.'}
+ await saveSceneNotes(first,true)
+ expect(promptLines().join(' ')).not.toContain('DOCUMENT STUDY MODE: OFF')
+ await saveSceneNotes(first,false)
+ state.field=JSON.parse(JSON.stringify(state.field))
+ expect(promptLines().join(' ')).toContain('DOCUMENT STUDY MODE: OFF')
+ expect(promptLines().join(' ')).toContain('Cancel that standing lesson')
+ await saveSceneNotes(first,true)
+ expect(promptLines().join(' ')).toContain('CONTINUING DOCUMENT STUDY')
+ await saveSceneNotes({name:'notes.txt',text:'Replacement lesson.'})
+ expect(state.field.continueStudying).toBe(false)
+ expect(promptLines().join(' ')).toContain('DOCUMENT STUDY MODE: OFF')
+ expect(promptLines().join(' ')).not.toContain('Original lesson.')
+ await saveSceneNotes(readSceneNotes(),true)
+ expect(promptLines().join(' ')).toContain('CONTINUING DOCUMENT STUDY')
 })

@@ -2,7 +2,7 @@ import { scene, sceneField, type ModHooks } from '@vx/modkit/renderer'
 import { sharedModOn } from '@vx/modkit/shared'
 import { DOCUMENT_SIZE_ERROR, fitsDocumentLimit, SCENE_NOTES, sceneDocumentLines, type SceneDocument } from '../../shared/sceneNotes'
 import { legacyNotes, notesAvailable } from './host'
-export const sceneNotes = sceneField<{ document: SceneDocument | null; historyStart?: number; revision?: string } | null>(SCENE_NOTES, { empty: null })
+export const sceneNotes = sceneField<{ document: SceneDocument | null; historyStart?: number; revision?: string; continueStudying?: boolean } | null>(SCENE_NOTES, { empty: null })
 export function readStoredSceneNotes(): SceneDocument | null {
   const saved = sceneNotes.read()
   return saved ? saved.document : legacyNotes()
@@ -12,7 +12,7 @@ export function readSceneNotes(): SceneDocument | null {
   const document = readStoredSceneNotes()
   return document && fitsDocumentLimit(document) ? document : null
 }
-export async function saveSceneNotes(document: SceneDocument | null) {
+export async function saveSceneNotes(document: SceneDocument | null, continueStudying?: boolean) {
   if (!sharedModOn(SCENE_NOTES)) return { ok: false as const, error: { code: 'NOTES_DISABLED', message: 'Enable a mod that uses Shared document before changing it.' } }
   if (!notesAvailable()) return { ok: false as const, error: { code: 'NOTES_NO_SCENE', message: 'Open notes while a scene is active.' } }
   if (document && !fitsDocumentLimit(document)) return { ok: false as const, error: { code: 'NOTES_TOO_LARGE', message: DOCUMENT_SIZE_ERROR } }
@@ -20,7 +20,7 @@ export async function saveSceneNotes(document: SceneDocument | null) {
   const changed = previous?.name !== document?.name || previous?.text !== document?.text
   const historyStart = changed && (previous || saved?.historyStart !== undefined)
     ? (scene()?.lines.length ?? 0) : saved?.historyStart
-  const next = { document, historyStart, revision: changed ? crypto.randomUUID() : saved?.revision }
+  const next = { document, historyStart, continueStudying: Boolean(document && (continueStudying ?? (!changed && saved?.continueStudying === true))), revision: changed ? crypto.randomUUID() : saved?.revision }
   // Created scenes have no playthrough autosave; keep notes on the active scene.
   if (scene()?.created) {
     sceneNotes.set(next)
@@ -37,12 +37,13 @@ export function notesConversationScope() {
 interface NotesPromptState {
   document: SceneDocument | null
   unavailable: boolean
+  continueStudying?: boolean
 }
 
 export const sceneNotesHooks: Pick<ModHooks, 'promptState' | 'prompts'> = {
   promptState: { scene: (): NotesPromptState => {
     const stored = readStoredSceneNotes()
-    if (stored && fitsDocumentLimit(stored)) return { document: stored, unavailable: false }
+    if (stored && fitsDocumentLimit(stored)) return { document: stored, unavailable: false, continueStudying: sceneNotes.read()?.continueStudying === true }
     return {
       document: null,
       unavailable: Boolean(stored || sceneNotes.read()?.historyStart !== undefined)
@@ -50,9 +51,9 @@ export const sceneNotesHooks: Pick<ModHooks, 'promptState' | 'prompts'> = {
   } },
   prompts: { scene: { lines: ({ state }) => {
     const notes = state.ex?.[SCENE_NOTES] as NotesPromptState | undefined
-    if (notes?.document) return sceneDocumentLines(notes.document)
+    if (notes?.document) return sceneDocumentLines(notes.document, notes.continueStudying)
     return notes?.unavailable
-      ? ['No uploaded document is currently available. Do not use previous uploads or their discussion as reference material.']
+      ? ['No uploaded document is currently available. Cancel any continuing document lesson and unanswered document question. Do not use previous uploads or their discussion as reference material.']
       : []
   } } }
 }

@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { DOCUMENT_LIMIT, readSceneDocument, restoreSceneDocument, sceneDocumentLines } from '../src/shared/sceneNotes'
 
 describe('shared scene documents', () => {
+  it('grounds requested studying in the document and reserves the answer for the player',()=>{
+    const lines=sceneDocumentLines({name:'cloud.txt',text:'Private cloud serves one organization.'})
+    expect(lines[0]).toContain('When the reader asks to study')
+    expect(lines[0]).toContain('Ask the question without revealing its correct choice or solution in the same reply')
+    expect(lines[0]).toContain('stop before the reader responds')
+    expect(lines[0]).toContain('do not rush to a question or require one in every reply')
+    expect(lines[0]).toContain('wait for the player’s actual typed answer')
+    expect(lines[0]).toContain('does not become a quiz unless the reader requests study')
+  })
   it('shares exactly 512,000 bytes and preserves Markdown line breaks and literal dollar signs', () => {
     expect(DOCUMENT_LIMIT).toBe(512_000)
     const text = 'BEGIN\n' + 'x'.repeat(DOCUMENT_LIMIT - 10) + '\nEND'
