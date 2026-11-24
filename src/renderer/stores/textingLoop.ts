@@ -830,7 +830,8 @@ async function classifyHangout(
   sent: ChatMessage,
   replies: readonly string[]
 ): Promise<HangoutVerdict | null> {
-  if (replies.length === 0) return null
+  // A girl off campus can meet him nowhere, so nothing she agrees to is judged.
+  if (replies.length === 0 || charAwayNow(character.charId)) return null
 
   const game = useGameStore.getState()
   // Built once, outside the loop: a retry re-sends the identical request.

@@ -80,6 +80,7 @@ import {
   sendMessage
 } from '../stores/textingLoop'
 import {
+  charAwayNow,
   charBusyNow,
   charHiddenLocationNow,
   charJobNow,
@@ -1005,6 +1006,9 @@ function ConversationView({
   // No bot has a timetable.
   const atWork = !bot && charJobNow(charId) !== null
   const unavailable = !bot && charBusyNow(charId)
+  // Off campus: textable, but nowhere he can meet her.
+  const away = !bot && charAwayNow(charId)
+  const graduated = useGameStore((s) => s.alumni.includes(charId))
   // Her reply plus the hangout classifier that reads it.
   const busy = useBunnyboardStore((s) => s.busyCharIds.includes(charId))
   // Texts written and waiting out their typing delay.
@@ -1263,7 +1267,11 @@ function ConversationView({
                       ? `${name} is ${atWork ? 'at work' : 'in class'} right now.`
                       : busy
                         ? `Waiting for ${name}...`
-                        : 'Message'
+                        : away
+                          ? graduated
+                            ? `${name} graduated and moved away from Veridan.`
+                            : `${name} is away for spring break.`
+                          : 'Message'
             }
             onDraft={setDraft}
             onSend={onSend}
