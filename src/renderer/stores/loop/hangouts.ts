@@ -254,8 +254,7 @@ async function castHangout(
   await applyCast(cast, {
     ...composed.scene,
     ...events,
-    // The texts that arranged this are not a plan he still owes her; her thread alone,
-    // since only one attendee ever texts about a plan.
+    // The thread the reader answered already led to this scene.
     textLedgerSkip: charId,
     mentions: verdict.mentionedOnly.filter((id) => !cast.includes(id)),
     location: sceneLocation || null,

@@ -1,4 +1,4 @@
-import { pickPlanReminderSender } from '@shared/calendarEvents'
+import { planRemindersFor } from '@shared/calendarEvents'
 import { describe, expect, it } from 'vitest'
 import {
   filterEventsByAttendance,
@@ -235,16 +235,24 @@ describe('the PLANS half of the ledger request', () => {
   })
 })
 
-describe('pickPlanReminderSender', () => {
-  it('prefers reachable makers, favoring free attendees within each group', () => {
-    const charIds = ['guest', 'maker-a', 'maker-b']
-    const plan = event({ charIds, madeWith: ['maker-a', 'maker-b'] })
-    const busy = (id: string) => id === 'maker-a'
-    expect(pickPlanReminderSender(plan, charIds, busy)).toBe('maker-b')
-    expect(pickPlanReminderSender(plan, ['guest', 'maker-a'], busy)).toBe('maker-a')
-    expect(pickPlanReminderSender(plan, ['guest'], busy)).toBe('guest')
-    expect(pickPlanReminderSender(plan, [], busy)).toBeUndefined()
-    expect(pickPlanReminderSender(event({ charIds }), charIds, busy)).toBe('guest')
+describe('planRemindersFor', () => {
+  it('chooses one reminder per reachable attendee and prefers the first plan they made', () => {
+    const solo = event({ id: 'solo', madeWith: ['char-1'] })
+    const group = event({ id: 'group', charIds: ['char-1', 'char-2', 'away'], madeWith: ['char-2'] })
+    const later = event({ id: 'later', charIds: ['char-1', 'char-2'], madeWith: ['char-2'] })
+
+    for (const plans of [[solo, group, later], [group, solo, later]]) {
+      const reminders = planRemindersFor(plans, (id) => id !== 'away')
+      expect(reminders).toEqual(new Map([['char-1', solo], ['char-2', group]]))
+    }
+  })
+
+  it('uses the first plan involving an attendee who made none, including legacy plans', () => {
+    const first = event({ id: 'first' })
+    const second = event({ id: 'second', charIds: ['char-1', 'char-2'], madeWith: ['char-2'] })
+
+    expect(planRemindersFor([first, second], () => true).get('char-1')).toBe(first)
+    expect(planRemindersFor([second, first], () => true).get('char-1')).toBe(second)
   })
 })
 

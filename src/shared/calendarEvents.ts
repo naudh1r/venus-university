@@ -7,13 +7,20 @@ export function withPlanAttendees(event: CalendarEvent, charIds: string[]): Cale
   return { ...plan, charIds, ...(makers?.length ? { madeWith: makers } : {}) }
 }
 
-/** Prefer reachable makers, with a free sender first within either group. */
-export function pickPlanReminderSender(
-  event: CalendarEvent,
-  reachable: readonly string[],
-  isBusy: (charId: string) => boolean
-): string | undefined {
-  const makers = reachable.filter((charId) => event.madeWith?.includes(charId))
-  const candidates = makers.length > 0 ? makers : reachable
-  return candidates.find((charId) => !isBusy(charId)) ?? candidates[0]
+/** Assign each reachable attendee one plan, preferring the first one they helped make. */
+export function planRemindersFor(
+  events: readonly CalendarEvent[],
+  isReachable: (charId: string) => boolean
+): Map<string, CalendarEvent> {
+  const reminders = new Map<string, CalendarEvent>()
+  for (const event of events) {
+    for (const charId of event.charIds) {
+      if (!isReachable(charId)) continue
+      const previous = reminders.get(charId)
+      if (!previous || (event.madeWith?.includes(charId) && !previous.madeWith?.includes(charId))) {
+        reminders.set(charId, event)
+      }
+    }
+  }
+  return reminders
 }

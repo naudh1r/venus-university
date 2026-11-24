@@ -575,7 +575,7 @@ function askerBlock(input: SlotIntroInput): string[] {
             (commitment || planMakerName ? closedSentence(plan.description) : plan.description) +
             (commitment ? commitmentSentence(character, commitment, input.time) : '') +
             (planMakerName
-              ? ` ${planMakerName} set this up with the reader, and you are coming along. Ask if the reader is still up for meeting with ${planMakerName}.`
+              ? ` ${planMakerName} set this up with the reader. ${charKey} is coming along and asks if the reader is still up for meeting with ${planMakerName}.`
               : '')
         : occasion
           ? `- ${charKey} — asking ${readerWords(input.readerPronouns, g).him} to come to ${occasion.title} with ${PRONOUNS[g].them}`

@@ -1831,14 +1831,12 @@ export async function submitAction(
     if (!cast) return
     if (runStale(run)) return
     plan = cast
-    // A plan's own button is his yes to her reminder about it, so those texts only arranged the
-    // meeting and the ledger skips her thread, as it does a hangout begun from it. Before the
-    // cast is applied, which would clear the reminder unanswered; backfilled onto the snapshot,
-    // since a retry finds the reminder already answered.
+    // The landing answers the standing reminders about this plan before the cast clears them.
+    // Keep the first answered thread off the ledger, including on retry.
     const event = planOf(snapshot)
     if (event && !snapshot.answeredReminder) {
       const attendees = planAttendees(event).filter((charId) => cast.cast.includes(charId))
-      const [answered] = answerPlanReminders(attendees)
+      const [answered] = answerPlanReminders(event, attendees)
       if (answered) snapshot.answeredReminder = answered
     }
     if (snapshot.answeredReminder) {

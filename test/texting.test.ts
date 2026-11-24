@@ -113,8 +113,7 @@ function seed(
 }
 
 /**
- * Two characters on one plan for the current slot, one of whom is the one
- * holding its invitation — the shape the slot opening produces for every planned event.
+ * Two characters on one plan for the current slot, with one legacy reminder standing.
  */
 function seedPlan(): void {
   useGameStore.getState().reset()
@@ -341,8 +340,9 @@ describe('answerHangout — No', () => {
 })
 
 describe('rescheduleHangout', () => {
-  it('moves the plan, takes her reminder down and says where it went', () => {
+  it('moves the plan, clears both reminders and says where it went', () => {
     seedPlan()
+    useGameStore.getState().setPendingHangout('b', { description: 'dinner', planId: 'e1' })
     rescheduleHangout('a', 'e1', 9, 1)
 
     const game = useGameStore.getState()
@@ -350,6 +350,7 @@ describe('rescheduleHangout', () => {
     // The footer comes down because the invitation is answered — moving the hour
     // is an answer, where a No only puts the footer away.
     expect(game.bunnyboard.conversations.a?.pendingHangout).toBeUndefined()
+    expect(game.bunnyboard.conversations.b?.pendingHangout).toBeUndefined()
     expect(game.charInfo.a?.ignoredInvitation ?? false).toBe(false)
 
     // What the app owns is that the calendar moved, so the line is a system one
@@ -360,16 +361,21 @@ describe('rescheduleHangout', () => {
     expect(messages[0].text).toBe('You rescheduled Dinner to Wednesday, January 28. Night.')
   })
 
-  // The one attendee who reminded him is the one who hears about it: two
-  // messages about one plan read as a bug, exactly as two reminders would.
-  it('writes into the thread of the girl who asked and nobody else', () => {
+  it('notifies both attendees and preserves a footer for another plan', () => {
     seedPlan()
+    const game = useGameStore.getState()
+    game.setPendingHangout('b', { description: 'coffee', planId: 'e2' })
+    game.setIgnoredInvitation('b', true)
+    game.bumpDeclined('b')
     rescheduleHangout('a', 'e1', 9, 1)
 
-    const conversations = useGameStore.getState().bunnyboard.conversations
-    expect(conversations.b?.messages ?? []).toEqual([])
-    // The plan itself still belongs to both of them.
-    expect(useGameStore.getState().events[0].charIds).toEqual(['a', 'b'])
+    const state = useGameStore.getState()
+    const other = state.bunnyboard.conversations.b
+    expect(other?.messages).toMatchObject([{ sender: 'system' }])
+    expect(other?.pendingHangout?.planId).toBe('e2')
+    expect(other?.declined).toBe(1)
+    expect(state.charInfo.b?.ignoredInvitation).toBe(true)
+    expect(state.events[0].charIds).toEqual(['a', 'b'])
   })
 
   it('does nothing at all for a plan that is no longer on the calendar', () => {
@@ -401,11 +407,11 @@ describe('reminderPlan', () => {
 })
 
 describe('pickSlotAskers', () => {
-  it('sends exactly one attendee per plan, and never the same one twice', () => {
+  it('sends every reachable attendee of a plan', () => {
     seedPlan()
     // Nobody has contact info, so the ordinary roll can pick nobody: whoever
     // comes back is here because of the plan.
-    expect(pickSlotAskers()).toEqual(['sarah_rose'])
+    expect(pickSlotAskers()).toEqual(['sarah_rose', 'mina_okafor'])
   })
 
   // The slot opening is written at an ending, off a projection of the ledger it
@@ -422,7 +428,7 @@ describe('pickSlotAskers', () => {
       charInfo: useGameStore.getState().charInfo,
       npcRelationships: {}
     }
-    expect(pickSlotAskers(7, 0, view)).toEqual(['sarah_rose'])
+    expect(pickSlotAskers(7, 0, view)).toEqual(['sarah_rose', 'mina_okafor'])
   })
 
   // She just spent the hour with him. The prefetch runs while the
@@ -485,19 +491,17 @@ describe('pickSlotAskers', () => {
     const { date, time } = useGameStore.getState()
     useGameStore.setState({ job: newJobState('fast_eats', [shiftSlotOf(date % 7, time)], 0) })
 
-    expect(pickSlotAskers()).toEqual(['sarah_rose'])
+    expect(pickSlotAskers()).toEqual(['sarah_rose', 'mina_okafor'])
   })
 
-  // A plan outranks her timetable, so she texts the reminder from class; a free attendee is
-  // still the one who sends it when the plan has one.
-  it('sends an attendee in class when nobody on the plan is free, a free one first', () => {
+  it('sends all attendees even when some have class', () => {
     seedPlan()
     const inClass = charInfo({ nameKnown: true, schedule: { [slotOf(0, 0)]: 'BIO 210' } })
     useGameStore.setState({ charInfo: { a: inClass, b: charInfo({ nameKnown: true }) } })
-    expect(pickSlotAskers()).toEqual(['mina_okafor'])
+    expect(pickSlotAskers()).toEqual(['sarah_rose', 'mina_okafor'])
 
     useGameStore.setState({ charInfo: { a: inClass, b: inClass } })
-    expect(pickSlotAskers()).toEqual(['sarah_rose'])
+    expect(pickSlotAskers()).toEqual(['sarah_rose', 'mina_okafor'])
   })
 
   /** Three lovers, all with his number and all free, so only the cap can thin them. */
@@ -563,18 +567,15 @@ describe('pickSlotAskers', () => {
   // on a second one — but a plan already on the calendar is still reminded of.
   it('rolls nobody spontaneous right after an invitation, and still reminds him of a plan', () => {
     seedPlan()
-    const lover = (charId: string) => ({
-      ...useGameStore.getState().charInfo[charId],
-      flags: { ...emptyFlags(), gaveContactInfo: true, isLover: true }
-    })
-    useGameStore.setState({ charInfo: { a: lover('a'), b: lover('b') } })
+    const { events } = useGameStore.getState()
+    seedThreeLovers()
+    useGameStore.setState({ events })
 
     const rand = vi.spyOn(Math, 'random').mockReturnValue(0)
     try {
-      // Sarah on the plan, Mina on the dice.
-      expect(pickSlotAskers(7, 0).sort()).toEqual(['mina_okafor', 'sarah_rose'])
+      expect(pickSlotAskers(7, 0)).toEqual(['sarah_rose', 'mina_okafor', 'yuki_tanaka'])
 
-      // An invitation the slot before: the dice go quiet, the reminder does not.
+      // An invitation the slot before: the dice go quiet, the reminders do not.
       useGameStore.getState().appendChatMessage(
         'b',
         {
@@ -587,7 +588,7 @@ describe('pickSlotAskers', () => {
         },
         0
       )
-      expect(pickSlotAskers(7, 0)).toEqual(['sarah_rose'])
+      expect(pickSlotAskers(7, 0)).toEqual(['sarah_rose', 'mina_okafor'])
     } finally {
       rand.mockRestore()
     }
@@ -609,8 +610,7 @@ describe('pickSlotAskers', () => {
       charInfo: blocked,
       npcRelationships: {}
     }
-    // Mina is the next free attendee on the same plan, so it still gets its one
-    // reminder — from somebody who is still speaking to him.
+    // Only Mina is still speaking to him.
     expect(pickSlotAskers(7, 0, view)).toEqual(['mina_okafor'])
   })
 })

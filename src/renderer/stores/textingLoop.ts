@@ -1,4 +1,4 @@
-import { pickPlanReminderSender } from '@shared/calendarEvents'
+import { planRemindersFor } from '@shared/calendarEvents'
 import { chatClockOf, messageShown, shownConversation, shownMessages, unreadAfterOpening, type ChatClock } from '@shared/chatVisibility'
 import { textingClockOf } from '@shared/textingClock'
 /**
@@ -1150,10 +1150,12 @@ export function answerAdvice(charId: string, index: number): void {
  * one put away with No too — as her Yes would, read and with no reply asked for. Returns whose
  * reminders it answered.
  */
-export function answerPlanReminders(charIds: readonly string[]): string[] {
-  const answered = charIds.filter(
-    (charId) => useGameStore.getState().bunnyboard.conversations[charId]?.pendingHangout
-  )
+export function answerPlanReminders(event: CalendarEvent, charIds: readonly string[]): string[] {
+  const { conversations } = useGameStore.getState().bunnyboard
+  const answered = charIds.filter((charId) => {
+    const pending = conversations[charId]?.pendingHangout
+    return pending && (pending.planId === undefined || pending.planId === event.id)
+  })
   for (const charId of answered) {
     sayYes(charId)
     useGameStore.getState().markConversationRead(charId)
@@ -1162,8 +1164,8 @@ export function answerPlanReminders(charIds: readonly string[]): string[] {
 }
 
 /**
- * Moves a plan the reader cannot keep to a slot he can, and takes her reminder down with it.
- * The third answer to an invitation, beside {@link answerHangout}'s two.
+ * Moves a plan, tells its attendees and clears the reminders for that plan.
+ * Only the thread the reader answered has its invitation counters reset.
  */
 export function rescheduleHangout(
   charId: string,
@@ -1173,18 +1175,22 @@ export function rescheduleHangout(
 ): void {
   const game = useGameStore.getState()
   const event = game.events.find((entry) => entry.id === eventId)
-  if (!event) return
+  if (!event || event.noShow || (event.date === date && event.time === time)) return
 
   game.rescheduleEvent(eventId, date, time)
-  game.setPendingHangout(charId, null)
   // Moving a date is engaging with her, exactly as a Yes is.
   game.setIgnoredInvitation(charId, false)
   game.resetDeclined(charId)
-  // A `system` line: what the app owns is that the calendar moved.
-  deliver(
-    charId,
-    chatMessage('system', `You rescheduled ${event.title} to ${formatDateBanner(date, time, game.calendar.season)}`)
-  )
+  const notice = `You rescheduled ${event.title} to ${formatDateBanner(date, time, game.calendar.season)}`
+  for (const attendeeId of event.charIds) {
+    const pending = game.bunnyboard.conversations[attendeeId]?.pendingHangout
+    if (pending && (pending.planId === eventId || (attendeeId === charId &&
+      reminderPlan(charId, game.date, game.time, pending.planId, game.events)?.id === eventId))) {
+      game.setPendingHangout(attendeeId, null)
+    }
+    // A system line in each thread records the calendar move.
+    deliver(attendeeId, chatMessage('system', notice))
+  }
 }
 
 /** The player hits "Add Friend" on someone they know of. */
@@ -1339,7 +1345,7 @@ export function expireHangoutInvitations(
     if (settled.has(conversation.charId)) continue
     const live = useGameStore.getState()
     live.setPendingHangout(conversation.charId, null)
-    // She is in the room: the invitation is answered by his being here.
+    // She is in the room: being here answers her reminder or invitation.
     if (cast.has(conversation.charId)) continue
 
     live.setIgnoredInvitation(conversation.charId, true)
@@ -1561,21 +1567,14 @@ export function pickSlotAskers(
     if (plan) reminderPlans?.set(charKey, plan)
   }
 
-  for (const event of view.events) {
-    if (event.date !== day || event.time !== half) continue
-    // Every attendee in the city not already asking about another plan. A plan overrides the
-    // dice but not a block, so the block is tested here as well.
-    const reachable = event.charIds.filter(
-      (charId) =>
-        !chosen.has(charId) &&
-        !heldReplyDueAt(game.bunnyboard.conversations[charId]?.heldReply, day, half) &&
-        game.characters[charId] &&
-        !view.charInfo[charId]?.flags?.blocked &&
-        !charAwayNow(charId, day)
-    )
-    const messenger = pickPlanReminderSender(event, reachable, (charId) => charBusyNow(charId, day, half))
-    if (messenger) take(messenger, event)
-  }
+  const plans = view.events.filter((event) => event.date === day && event.time === half)
+  const reminders = planRemindersFor(plans, (charId) =>
+    Boolean(game.characters[charId]) &&
+    !view.charInfo[charId]?.flags?.blocked &&
+    !charAwayNow(charId, day) &&
+    !heldReplyDueAt(game.bunnyboard.conversations[charId]?.heldReply, day, half)
+  )
+  for (const [charId, event] of reminders) take(charId, event)
 
   // A booked slot rolls nobody; the plan branch above stays outside this.
   if (booked) return picked
