@@ -1,3 +1,4 @@
+import { pickPlanReminderSender } from '@shared/calendarEvents'
 import { describe, expect, it } from 'vitest'
 import {
   filterEventsByAttendance,
@@ -43,6 +44,22 @@ function event(over: Partial<CalendarEvent> = {}): CalendarEvent {
 }
 
 describe('normalizeSchedule', () => {
+  it('keeps scene cast and text thread makers among the plan attendees', () => {
+    const chars = ['sarah_rose', 'mina_okafor']
+    const plans = [
+      entry({ chars: [chars[0]], thread: chars[0] }),
+      entry({ chars }),
+      entry({ chars, thread: chars[0] }),
+      entry({ chars: [chars[1]], thread: chars[0] }),
+      entry({ chars })
+    ]
+    const events = normalizeSchedule({ plans }, CHAR_KEYS, MADE_ON, { planCount: 2, cast: ['char-2'] })
+    expect(events.map(({ madeWith }) => madeWith)).toEqual([
+      undefined, ['char-2'], ['char-1'], undefined, undefined
+    ])
+    expect(events[2].charIds).toEqual(['char-1', 'char-2'])
+  })
+
   it('decodes a slot id into its date and time', () => {
     // 3 = date 1, night.
     const [placed] = normalizeSchedule({ plans: [entry({ slot: 3 })] }, CHAR_KEYS, MADE_ON)
@@ -218,7 +235,30 @@ describe('the PLANS half of the ledger request', () => {
   })
 })
 
+describe('pickPlanReminderSender', () => {
+  it('prefers reachable makers, favoring free attendees within each group', () => {
+    const charIds = ['guest', 'maker-a', 'maker-b']
+    const plan = event({ charIds, madeWith: ['maker-a', 'maker-b'] })
+    const busy = (id: string) => id === 'maker-a'
+    expect(pickPlanReminderSender(plan, charIds, busy)).toBe('maker-b')
+    expect(pickPlanReminderSender(plan, ['guest', 'maker-a'], busy)).toBe('maker-a')
+    expect(pickPlanReminderSender(plan, ['guest'], busy)).toBe('guest')
+    expect(pickPlanReminderSender(plan, [], busy)).toBeUndefined()
+    expect(pickPlanReminderSender(event({ charIds }), charIds, busy)).toBe('guest')
+  })
+})
+
 describe('filterEventsByAttendance', () => {
+  it('drops makers who can no longer attend and omits an empty maker list', () => {
+    const plan = event({
+      date: SPRING_BREAK_LEAVE,
+      charIds: ['char-1', 'char-2', 'guest'],
+      madeWith: ['char-1', 'char-2']
+    })
+    expect(filterEventsByAttendance([plan], ['char-1']).events[0].madeWith).toEqual(['char-2'])
+    expect(filterEventsByAttendance([plan], ['char-1', 'char-2']).events[0].madeWith).toBeUndefined()
+  })
+
   it('drops a character who has left campus for the week, and says which reason', () => {
     const result = filterEventsByAttendance(
       [event({ charIds: ['char-1', 'char-2'], date: SPRING_BREAK_LEAVE })],

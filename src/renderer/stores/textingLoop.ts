@@ -1,3 +1,4 @@
+import { pickPlanReminderSender } from '@shared/calendarEvents'
 import { chatClockOf, messageShown, shownConversation, shownMessages, unreadAfterOpening, type ChatClock } from '@shared/chatVisibility'
 import { textingClockOf } from '@shared/textingClock'
 /**
@@ -1572,9 +1573,7 @@ export function pickSlotAskers(
         !view.charInfo[charId]?.flags?.blocked &&
         !charAwayNow(charId, day)
     )
-    // A free one first; one with class or work texts anyway, to meet him before or after it.
-    const messenger =
-      reachable.find((charId) => !charBusyNow(charId, day, half)) ?? reachable[0]
+    const messenger = pickPlanReminderSender(event, reachable, (charId) => charBusyNow(charId, day, half))
     if (messenger) take(messenger, event)
   }
 

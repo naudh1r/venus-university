@@ -1,3 +1,4 @@
+import { withPlanAttendees } from '@shared/calendarEvents'
 import { readDeferredOpeningNotes } from '@shared/opening'
 import type { DeferredOpeningNotes } from '@shared/types'
 import { blocksNewRomance } from '@shared/romanceRequirements'
@@ -3630,7 +3631,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           continue
         }
         touched = true
-        if (kept.length > 0) events.push({ ...event, charIds: kept })
+        if (kept.length > 0) events.push(withPlanAttendees(event, kept))
       }
       // Same-object return when nothing moved, so the save is not dirtied.
       return touched ? { events } : {}

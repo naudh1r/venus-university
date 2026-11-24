@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `CalendarEvent` is exported from `@vx/modkit/shared`. Its optional `madeWith` field lists which attendees agreed to the plan with the reader.
+
 - `Conversation.pendingHangout.planId` optionally identifies the calendar event behind a plan reminder.
 
 ## 0.8.2

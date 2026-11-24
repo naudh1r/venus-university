@@ -84,7 +84,7 @@ function textLedgerSchema(
         }
       }
     },
-    plans: plansSchema(rosterKeys)
+    plans: plansSchema(rosterKeys, textedKeys)
   })
 }
 
@@ -144,6 +144,22 @@ export function buildTextLedgerPrompt(
     cacheKey: 'text-ledger',
     thinking: 'ledger',
     logFrom: preamble.length + 1
+  }
+}
+
+/** Keep a text plan's source only when the ledger actually read that thread. */
+export function scopeTextPlanThreads(
+  reply: LedgerResponse,
+  textedKeys: readonly string[]
+): LedgerResponse {
+  if (!Array.isArray(reply.plans)) return reply
+  return {
+    ...reply,
+    plans: reply.plans.map((plan) => {
+      if (!plan || typeof plan !== 'object' || !('thread' in plan)) return plan
+      const { thread, ...rest } = plan
+      return typeof thread === 'string' && textedKeys.includes(thread) ? plan : rest
+    })
   }
 }
 

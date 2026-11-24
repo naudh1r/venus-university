@@ -162,6 +162,42 @@ describe('loadSave', () => {
     })
   })
 
+  it('loads plans with optional makers and rejects malformed maker lists', async () => {
+    const plan = {
+      id: 'coffee-plan', date: 1, time: 0, madeOn: { date: 0, time: 0 },
+      title: 'Coffee', description: 'Coffee with Mia and Lina', charIds: ['mia', 'lina']
+    }
+    const linked = { ...plan, madeWith: ['lina'] }
+    const opening = { lines: [], hangouts: [], cancellations: [] }
+    const withPlans = (event: object) => ({
+      ...draft(), events: [event], morningOpening: { ...opening, events: [event] },
+      scene: { opening: { ...opening, events: [event] } }
+    })
+
+    for (const [index, event] of [plan, linked].entries()) {
+      const id = String(index + 1)
+      await seed('1', id, withPlans(event))
+      const save = await saveService.loadSave('1', id)
+      expect(save.events).toEqual([event])
+      expect(save.morningOpening?.events).toEqual([event])
+      expect(save.scene?.opening?.events).toEqual([event])
+    }
+
+    const invalid = { ...plan, madeWith: ['not-attending'] }
+    const bad = [
+      [{ ...withPlans(linked), events: [{ ...plan, madeWith: 'lina' }] }, 'events[0].madeWith'],
+      [{ ...withPlans(linked), morningOpening: { ...opening, events: [invalid] } }, 'morningOpening.events[0].madeWith'],
+      [{ ...withPlans(linked), scene: { opening: { ...opening, events: [invalid] } } }, 'scene.opening.events[0].madeWith']
+    ] as const
+    for (const [index, [body, field]] of bad.entries()) {
+      const id = String(index + 3)
+      await seed('1', id, body)
+      await expect(saveService.loadSave('1', id)).rejects.toMatchObject({
+        code: 'SAVE_MALFORMED', detail: expect.stringContaining(field)
+      })
+    }
+  })
+
   it('loads legacy and linked hangout footers and rejects a malformed plan id', async () => {
     const base = draft()
     const footer = { description: 'Coffee' }

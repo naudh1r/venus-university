@@ -3,6 +3,7 @@ export type {
   AppError,
   BackgroundSets,
   BunnyboardState,
+  CalendarEvent,
   Character,
   CharacterTrait,
   CharacterTraitDefinition,

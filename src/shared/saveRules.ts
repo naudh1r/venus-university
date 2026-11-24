@@ -233,7 +233,7 @@ function morningOpeningProblem(opening: unknown): string | null {
 
 /**
  * Refuses a save whose native optional fields are present but malformed: the held-reply clock and
- * hold, the late-night marker and its paid ledger, a resumable or banked opening, reminder links
+ * hold, the late-night marker and its paid ledger, a resumable or banked opening, plan makers, reminder links
  * and the literal message flags. Older saves may lack these fields; what mods keep is not looked at.
  */
 export function assertSaveFields(save: GameSave, where: string): void {
@@ -262,6 +262,23 @@ export function assertSaveFields(save: GameSave, where: string): void {
     if (!isPlainObject(opening) || opening.reminderPlanIds === undefined) continue
     if (!isPlainObject(opening.reminderPlanIds) || !Object.values(opening.reminderPlanIds).every(isPlanId)) {
       malformed(`${path}.reminderPlanIds`)
+    }
+  }
+  const eventLists = [
+    ['events', fields.events],
+    ['morningOpening.events', isPlainObject(fields.morningOpening) ? fields.morningOpening.events : undefined],
+    ['scene.opening.events', isPlainObject(banked) ? banked.events : undefined],
+    ['heldOpening.events', isPlainObject(fields.heldOpening) ? fields.heldOpening.events : undefined]
+  ] as const
+  for (const [path, events] of eventLists) {
+    if (!Array.isArray(events)) continue
+    for (const [index, event] of events.entries()) {
+      if (!isPlainObject(event) || event.madeWith === undefined) continue
+      const { madeWith, charIds } = event
+      if (!Array.isArray(madeWith) || madeWith.length === 0 || new Set(madeWith).size !== madeWith.length ||
+        !Array.isArray(charIds) || !madeWith.every((id) => isPlanId(id) && charIds.includes(id))) {
+        malformed(`${path}[${index}].madeWith`)
+      }
     }
   }
   const conversations = isPlainObject(fields.bunnyboard) ? fields.bunnyboard.conversations : undefined

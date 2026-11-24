@@ -1223,6 +1223,8 @@ export interface CalendarEvent {
   description: string
   /** Who is going. charKeys that resolve to nobody are dropped. */
   charIds: string[]
+  /** Attendees who agreed to this plan with the reader. */
+  madeWith?: string[]
   /** The slot the plan was made in — what dates the record. */
   madeOn: { date: number; time: TimeSlot }
   /**

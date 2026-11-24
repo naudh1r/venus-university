@@ -9,6 +9,7 @@ export type {
   AppError,
   BackgroundSets,
   BunnyboardState,
+  CalendarEvent,
   Character,
   CharInfo,
   Conversation,

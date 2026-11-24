@@ -1944,7 +1944,9 @@ manual saves use their own clock; unopened boundary saves use the preceding slot
 ### Plan reminders
 
 `Conversation.pendingHangout.planId` is optional and identifies the calendar event a plan
-reminder belongs to.
+reminder belongs to. `CalendarEvent.madeWith` from `@vx/modkit/shared` is optional and lists the attendee IDs who agreed
+to the plan with the reader. In a text plan it names the other person in the thread. In a scene
+plan it lists the attendees who were in the cast. When present, its IDs are a subset of `charIds`.
 
 ### Shown conversation messages
 

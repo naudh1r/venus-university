@@ -128,6 +128,8 @@ export interface IntroAsker {
    * Absent for a contact the slot's roll picked out of nowhere.
    */
   plan?: CalendarEvent
+  /** Who arranged the plan, when the sender is coming along. */
+  planMakerName?: string
   /**
    * The class or the shift she has in the slot, beside a {@link plan} she is meeting him before
    * or after. Absent when she is free.
@@ -560,18 +562,21 @@ function askerBlock(input: SlotIntroInput): string[] {
     `Each of these characters is texting the reader right now to ask ${readerAmongCast(input.readerPronouns).him} to spend this part of the day with them, doing what is listed beside them where anything is. Write one entry in "hangouts" for each, and nothing for anyone else. They are described under LOREBOOK.`,
     ...(anyPlans(input)
       ? [
-          'Where a plan is listed beside a character, they are not inviting the reader out of nowhere: the two of them agreed to this already, and they are writing about that plan, for everyone going. Their message reads as a reminder or a "still on?", not as a new idea.'
+          input.askers.some(({ planMakerName }) => planMakerName)
+            ? 'Where a plan is listed, write a reminder for everyone going. The sender agreed to it with the reader unless the entry says someone else set it up.'
+            : 'Where a plan is listed beside a character, they are not inviting the reader out of nowhere: the two of them agreed to this already, and they are writing about that plan, for everyone going. Their message reads as a reminder or a "still on?", not as a new idea.'
         ]
       : []),
-    ...input.askers.map(({ character, charKey, plan, commitment, occasion, invite }) => {
+    ...input.askers.map(({ character, charKey, plan, planMakerName, commitment, occasion, invite }) => {
       const g = genderOf(character)
       // The plan, the occasion and the rolled ask ride the key, not the lorebook entry.
       return plan
         ? `- ${charKey} — already planned for this part of the day: ` +
-            (commitment
-              ? closedSentence(plan.description) +
-                commitmentSentence(character, commitment, input.time)
-              : plan.description)
+            (commitment || planMakerName ? closedSentence(plan.description) : plan.description) +
+            (commitment ? commitmentSentence(character, commitment, input.time) : '') +
+            (planMakerName
+              ? ` ${planMakerName} set this up with the reader, and you are coming along. Ask if the reader is still up for meeting with ${planMakerName}.`
+              : '')
         : occasion
           ? `- ${charKey} — asking ${readerWords(input.readerPronouns, g).him} to come to ${occasion.title} with ${PRONOUNS[g].them}`
           : invite
@@ -820,7 +825,9 @@ export function buildSlotIntroPrompt(
           '',
           'Then fill "hangouts", one entry per character under ASKING TO HANG OUT. "char" is their key exactly as written there. "text" is the message they send, in their own texting voice — lowercase, slang, typos and emoji are all fine if that is how they type — and it is ONLY about meeting up: what they want to do and where, asked as a question' +
             (planned
-              ? ' — or, where they have a plan listed, that plan, asked as a "we\'re still on, right?"'
+              ? input.askers.some(({ planMakerName }) => planMakerName)
+                ? ' — or, where they have a plan listed, a "still on?" from the role listed beside it'
+                : ' — or, where they have a plan listed, that plan, asked as a "we\'re still on, right?"'
               : '') +
             (committed
               ? `, and where they have class or work, they say whether they will meet ${rf.him} before or after it`

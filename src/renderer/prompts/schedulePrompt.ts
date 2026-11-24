@@ -1,6 +1,7 @@
 import { formatDateBanner, formatDatePart, slotHalf } from './gameDate'
 import { isAwayForSpringBreak } from './springBreak'
 import type { ExamPeriod } from '@shared/academics'
+import { withPlanAttendees } from '@shared/calendarEvents'
 import { FINAL_DATE } from '@shared/classes'
 import { globalSlotOf, slotFromId } from '@shared/jobs'
 import { andList } from '@shared/sentences'
@@ -151,7 +152,7 @@ export function transcriptStubs(
 /**
  * The rules half of a `PLANS` section, worded for whichever material the call reads.
  */
-function planRules(source: string): string[] {
+function planRules(source: 'THE SCENE' | 'THE MESSAGES'): string[] {
   return [
     'PLANS',
     `Report one entry in "plans" for every plan ${source} settled on that happens at one of the times in SLOTS.`,
@@ -161,6 +162,9 @@ function planRules(source: string): string[] {
     '"title" is a few plain words for the calendar, like "Dinner with Mina" or "Study session".',
     '"description" is one sentence: who is going, where, and what they are doing.',
     '"chars" lists who is going apart from the reader, as the keys on the left of the CHARACTERS lines, copied exactly. Never invent one.',
+    ...(source === 'THE MESSAGES' ? [
+      '"thread" is the TEXTERS key of the person whose message thread contains the agreement. Copy one key exactly. Name the person the reader agreed with there, even if they invited someone else along.'
+    ] : []),
     '',
     'Report no plan at all when:',
     '- nobody named a time you can find in SLOTS — "sometime", "soon", "we should do this again", "let\'s hang out more"',
@@ -214,7 +218,7 @@ export const PLANS_INSTRUCTIONS: readonly string[] = [
 export const TEXT_PLANS_INSTRUCTIONS: readonly string[] = [
   ...planRules('THE MESSAGES'),
   'MESSAGES "YOU: brunch tomorrow with you and colette?" / "HAZEL: yesss 11am" (read on Wednesday night)',
-  '{"plans":[{"slot":72,"title":"Brunch with Hazel and Colette","description":"The reader has brunch with Hazel and Colette on Thursday.","chars":["hazel_kim","colette_dubois"]}]}',
+  '{"plans":[{"slot":72,"title":"Brunch with Hazel and Colette","description":"The reader has brunch with Hazel and Colette on Thursday.","chars":["hazel_kim","colette_dubois"],"thread":"hazel_kim"}]}',
   '',
   'MESSAGES "MINA: we should do something soon!!" / "YOU: definitely"',
   '{"plans":[]}',
@@ -303,7 +307,10 @@ function threadBlocks(input: SchedulePromptInput): string[] {
 }
 
 /** The `plans` schema fragment, roster-scoped. */
-export function plansSchema(charKeys: readonly string[]): Record<string, unknown> {
+export function plansSchema(
+  charKeys: readonly string[],
+  threadKeys?: readonly string[]
+): Record<string, unknown> {
   // An empty `enum` is invalid JSON Schema, so a roster of nobody degrades to a free string.
   const chars =
     charKeys.length > 0
@@ -316,12 +323,13 @@ export function plansSchema(charKeys: readonly string[]): Record<string, unknown
       type: 'object',
       additionalProperties: false,
       // The slot first, so the time is settled before the plan is written.
-      required: ['slot', 'title', 'description', 'chars'],
+      required: ['slot', 'title', 'description', 'chars', ...(threadKeys ? ['thread'] : [])],
       properties: {
         slot: { type: 'integer' },
         title: { type: 'string' },
         description: { type: 'string' },
-        chars
+        chars,
+        ...(threadKeys ? { thread: { type: 'string', enum: [...threadKeys] } } : {})
       }
     }
   }
@@ -329,19 +337,20 @@ export function plansSchema(charKeys: readonly string[]): Record<string, unknown
 
 /**
  * Turns a parsed reply's `plans` into calendar events, dropping everything that cannot be
- * filed.
+ * filed. The merged ledger lists its scene plans first.
  */
 export function normalizeSchedule(
   parsed: unknown,
   charKeyToId: Record<string, string>,
-  madeOn: { date: number; time: TimeSlot }
+  madeOn: { date: number; time: TimeSlot },
+  scene?: { planCount: number; cast: readonly string[] }
 ): CalendarEvent[] {
   const reply = (parsed ?? {}) as Partial<LedgerResponse>
   const first = globalSlotOf(madeOn.date, madeOn.time) + 1
   const last = globalSlotOf(Math.min(FINAL_DATE, madeOn.date + SCHEDULE_HORIZON_DAYS), 1)
 
   const events: CalendarEvent[] = []
-  for (const entry of reply.plans ?? []) {
+  for (const [index, entry] of (reply.plans ?? []).entries()) {
     const id = entry?.slot
     if (typeof id !== 'number' || !Number.isInteger(id) || id < first || id > last) continue
 
@@ -354,12 +363,20 @@ export function normalizeSchedule(
       .map((charKey) => charKeyToId[charKey])
       .filter((charId, index, all): charId is string => Boolean(charId) && all.indexOf(charId) === index)
 
+    const thread = 'thread' in entry && typeof entry.thread === 'string'
+      ? charKeyToId[entry.thread]
+      : undefined
+    const madeWith = scene && index < scene.planCount
+      ? charIds.filter((charId) => scene.cast.includes(charId))
+      : charIds.filter((charId) => charId === thread)
+
     events.push({
       id: crypto.randomUUID(),
       ...slotFromId(id),
       title,
       description,
       charIds,
+      ...(madeWith.length > 0 ? { madeWith } : {}),
       madeOn
     })
   }
@@ -390,7 +407,7 @@ export function filterEventsByAttendance(
 
     // Nobody left to meet, including an event whose every charKey resolved to nobody.
     if (free.length === 0) continue
-    kept.push(free.length === event.charIds.length ? event : { ...event, charIds: free })
+    kept.push(free.length === event.charIds.length ? event : withPlanAttendees(event, free))
   }
 
   return { events: kept, cancellations }

@@ -113,7 +113,7 @@ import {
   type SchedulePromptInput
 } from '../prompts/schedulePrompt'
 import { composeTextingSummary, hasTexted } from '../prompts/textingPrompt'
-import { buildTextLedgerPrompt, mergeLedgerReplies } from '../prompts/textLedgerPrompt'
+import { buildTextLedgerPrompt, mergeLedgerReplies, scopeTextPlanThreads } from '../prompts/textLedgerPrompt'
 import { dealEverydayAsk, rollReachOutTopic } from './slotAskers'
 import {
   buildClosingPrompt,
@@ -1136,6 +1136,10 @@ async function fetchSlotIntro(
     if (!character || !info) continue
     // Off the view's calendar, which carries the plans the finished scene just settled.
     const plan = reminderPlans.get(charKey)
+    const makers = plan?.madeWith
+    const planMakerName = makers?.length && !makers.includes(charId)
+      ? makers.map((id) => game.characters[id]?.firstName).find(Boolean) ?? 'another attendee'
+      : undefined
     // The class or the shift she meets him before or after.
     const commitment = plan ? charCommitmentAt(charId, date, time) : null
     // What she asks for, when it is neither a plan nor the occasion.
@@ -1154,6 +1158,7 @@ async function fetchSlotIntro(
       info,
       texted: hasTexted(shownConversation(game.bunnyboard.conversations[charId], chatClockOf(game))),
       ...(plan ? { plan } : {}),
+      ...(planMakerName ? { planMakerName } : {}),
       ...(commitment ? { commitment } : {}),
       // A girl with a plan is writing about that; anybody else is asking him to the occasion.
       ...(occasion && !plan ? { occasion } : {}),
@@ -1576,10 +1581,14 @@ function settlePlans(
   date: number,
   time: TimeSlot,
   /** The spring break pick the same ending is settling, which the store does not hold yet. */
-  springBreakPick: readonly string[] | null = null
+  springBreakPick: readonly string[] | null = null,
+  scenePlanCount = 0
 ): { events: CalendarEvent[]; cancellations: EventCancellation[] } {
   const game = useGameStore.getState()
-  const placed = normalizeSchedule(ledger, game.charKeyToId, { date, time })
+  const placed = normalizeSchedule(ledger, game.charKeyToId, { date, time }, {
+    planCount: scenePlanCount,
+    cast: game.cast
+  })
   const settled = filterEventsByAttendance(placed, springBreakPick ?? game.springBreakAway)
 
   // An event that loses every attendee is dropped whole, and named here.
@@ -2182,7 +2191,9 @@ async function runEnding(goodbye: boolean): Promise<void> {
   unpark()
 
   // The opening waits for every transfer still out, whose failure is raised at the ending's wait.
-  const opening = await endingAwaitingTransfers(fetchEndingOpening(merged, dropped))
+  const opening = await endingAwaitingTransfers(
+    fetchEndingOpening(merged, dropped, merged, books.plans?.length ?? 0)
+  )
   if (!opening) return
   if (runStale(run) || dropped()) return
 
@@ -2252,7 +2263,8 @@ function introBreakupsOf(projected: ProjectedLedger): IntroBreakup[] {
 async function fetchEndingOpening(
   ledger: LedgerResponse,
   dropped: () => boolean = () => false,
-  sceneLedger: LedgerResponse | null = ledger
+  sceneLedger: LedgerResponse | null = ledger,
+  scenePlanCount = 0
 ): Promise<BankedOpening | null> {
   const game = useGameStore.getState()
   const { date, time } = nextSlot(game.date, game.time)
@@ -2315,7 +2327,7 @@ async function fetchEndingOpening(
   // off the affection the projection leaves and banked for the boundary to assign, so the texts
   // the opening writes and the pick the save keeps are one answer.
   const springBreakPick = springBreakPickFor(date, charInfo)
-  const plans = settlePlans(ledger, game.date, game.time, springBreakPick)
+  const plans = settlePlans(ledger, game.date, game.time, springBreakPick, scenePlanCount)
   // Who is back for Homecoming, when the slot about to open is its morning, banked on the same
   // terms; a girl ending it with him tonight is not the one coming back to see him.
   const homecomingPick = homecomingPickFor(
@@ -2576,8 +2588,9 @@ function startTextLedger(
       const result = await window.api.llm.completeLedger(request, LOOP_LLM_GROUP)
       if (runStale(run) || stale()) return null
       if (result.ok) {
-        bankTextLedger({ key: textLedgerKeyOf(schedule), reply: result.data })
-        return result.data
+        const reply = scopeTextPlanThreads(result.data, textLedgerCharKeys(schedule))
+        bankTextLedger({ key: textLedgerKeyOf(schedule), reply })
+        return reply
       }
 
       console.warn('[text-ledger] the texting bookkeeping call failed:', result.error)

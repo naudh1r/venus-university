@@ -59,6 +59,24 @@ export interface BunnyboardState {
 }
 
 // @public
+export interface CalendarEvent {
+    charIds: string[];
+    date: number;
+    description: string;
+    id: string;
+    madeOn: {
+        date: number;
+        time: TimeSlot;
+    };
+    madeWith?: string[];
+    noShow?: string[];
+    seen?: boolean;
+    // (undocumented)
+    time: TimeSlot;
+    title: string;
+}
+
+// @public
 export function carryModFiles(context: TermFilesContext): Promise<void>;
 
 // @public
