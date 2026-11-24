@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { gameFacts, readerWordsOf, gestures, lift, press, useAway, useReducedMotion, useEffectsGain, type GamePlay, type Opponent, type TableExpression } from '../kit'
+import { gestures, lift, press, useAway, useReducedMotion, useEffectsGain, type GamePlay, type Opponent, type TableExpression } from '../kit'
 import { aimEllipse, movingDot, scoreHit, traitsFor, newExtraMatch, extraSummary, extraThrow, planExtraVisit, applyExtraPlan, extraSituation, extraTargetLabel, extraDescription, extraModeTitle, type Ellipse, type Flight, type Impact, type Point, type ExtraDartsMode, type ExtraDartsMatch, type ExtraPlanItem } from '../../../shared/minigameRules/darts'
 import { Board } from './dartsBoard'
 import { DartsAudio } from './dartsAudio'
-import { DartsControlGuide, DartsSectorLabel, dartsNextThrow, dartsOpponentName, dartsOpponentPronouns, dartsTurnLabel } from './DartsHelp'
+import { DartsControlGuide, DartsSectorLabel, dartsNextThrow, dartsOpponentName, dartsOpponentPronouns, dartsReaderList, dartsTurnLabel } from './DartsHelp'
 import '../../vu_styles/Darts.css'
 
 type Phase = 'player' | 'preparing' | 'handover' | 'partners' | 'my-turn' | 'finished'
@@ -142,7 +142,7 @@ export function DartsExtra({ play }: { play: GamePlay }): JSX.Element {
         `Write one chronological, cached companion script for ${scripts.map(script => seatName(next, script.seat.charId)).join(' and ')} playing darts with the reader. This is character banter, not sports commentary.`,
         `Mode: ${matchTitle(next)}. ${extraDescription(next)} Current situation: ${extraSituation(next)} The reader’s most recent visit total was ${[...before.visits].reverse().find(v => v.seatId === 'reader')?.total ?? 0}. Engine results below are final. Never alter a landing or reveal a later result early.`,
         before.visits.some(v => v.seatId === 'reader') ? 'The reader has already played. React only to the recorded visit.' : 'The reader has not thrown yet. Do not imply a previous reader visit.',
-        `Use ${readerWordsOf(gameFacts().readerPronouns).list} when referring to the reader by pronoun.`,
+        `Use ${dartsReaderList(play.reader, scripts.map(script => script.seat))} when referring to the reader by pronoun.`,
         ...facts,
         next.mode === 'pair'
           ? `${next.seats.slice(1).map(seat => seat.name).join(' and ')} team up only in this mode. They share one score.`

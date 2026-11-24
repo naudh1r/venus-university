@@ -53,6 +53,7 @@
   "src/renderer/minigames/games/ClawMachine.tsx -> ../../vu_styles/ClawMachine.css",
   "src/renderer/minigames/games/ClawMachine.tsx -> @shared/minigameKit",
   "src/renderer/minigames/games/ClawMachine.tsx -> @shared/minigameRules/clawMachine",
+  "src/renderer/minigames/games/DartsHelp.tsx -> @shared/minigameKit",
   "src/renderer/minigames/games/FootRace.tsx -> ../../vu_styles/FootRace.css",
   "src/renderer/minigames/games/FootRace.tsx -> @shared/minigameKit",
   "src/renderer/minigames/games/FootRace.tsx -> @shared/minigameRules/footRace",

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { gameFacts, readerWordsOf, gestures, lift, press, useAway, useReducedMotion, useEffectsGain, type GamePlay, type Opponent, type TableExpression } from '../kit'
+import { gestures, lift, press, useAway, useReducedMotion, useEffectsGain, type GamePlay, type Opponent, type TableExpression } from '../kit'
 import { aimEllipse, movingDot, scoreHit, traitsFor, applySessionPlan, newSession, planNpcVisit, sessionSummary, sessionThrow, type Ellipse, type Flight, type Impact, type Point, type DartsMode, type DartsSession, type SessionPlanItem } from '../../../shared/minigameRules/darts'
 import { Board } from './dartsBoard'
 import { DartsAudio } from './dartsAudio'
-import { DartsControlGuide, DartsSectorLabel, dartsNextThrow, dartsOpponentName, dartsOpponentPronouns, dartsTurnLabel } from './DartsHelp'
+import { DartsControlGuide, DartsSectorLabel, dartsNextThrow, dartsOpponentName, dartsOpponentPronouns, dartsReaderList, dartsTurnLabel } from './DartsHelp'
 import '../../vu_styles/Darts.css'
 
 type Phase = 'player' | 'preparing' | 'handover' | 'partners' | 'my-turn' | 'finished'
@@ -158,7 +158,7 @@ export function Darts({ play }: { play: GamePlay }): JSX.Element {
       const got = await latest.current.play.round({ fields, brief: [
         `Write one chronological, cached companion script for ${scripts.map(script => seatName(next, script.seat.charId)).join(' and ')} playing darts with the reader. This is character banter, not sports commentary.`,
         `Mode ${next.mode}; reader's last visit scored ${before.visits.at(-1)?.points ?? 0}. Engine results below are final. Never alter a landing or reveal a later result early.`,
-        `Use ${readerWordsOf(gameFacts().readerPronouns).list} when referring to the reader by pronoun.`,
+        `Use ${dartsReaderList(play.reader, scripts.map(script => script.seat))} when referring to the reader by pronoun.`,
         ...facts,
         'Each pNIntro occurs immediately before that named speaker begins. Each Dart line occurs only after its exact landing. Each Outro passes naturally to the next person.',
         'Use scores only to understand the moment. Do not mechanically repeat numbers or hit labels already on screen. Vary teasing, encouragement, rivalry, flirting, jokes, nerves, confidence or light strategy according to personality, relationships and current scene. Do not force a beat or invent shared history.',

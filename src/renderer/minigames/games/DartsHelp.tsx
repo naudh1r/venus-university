@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type JSX } from 'react'
-import { pronounsOf, type Opponent } from '../kit'
+import { readerAmong, wordsOf, type Pronouns, type ReaderPronouns } from '@shared/minigameKit'
+import type { Opponent } from '../kit'
 
 export function DartsControlGuide(): JSX.Element {
   return <section className="vu-darts-control-help" aria-label="Mouse controls">
@@ -43,9 +44,14 @@ export function dartsTurnLabel(phase: string, hasOpponents: boolean, playingName
   return "You're playing"
 }
 
-// Roster records omit the gender field for female characters.
-export function dartsOpponentPronouns(opponent: Pick<Opponent, 'gender'>): ReturnType<typeof pronounsOf> {
-  return pronounsOf({ gender: opponent.gender === 'male' ? 'male' : undefined })
+/** An opponent's words, from the gender the table seats them with. */
+export function dartsOpponentPronouns(opponent: Pick<Opponent, 'gender'>): Pronouns {
+  return wordsOf(opponent.gender)
+}
+
+/** The reader's pronouns, quoted for a brief that names these opponents too. */
+export function dartsReaderList(reader: ReaderPronouns, opponents: readonly Pick<Opponent, 'gender'>[]): string {
+  return readerAmong(reader, opponents.map((one) => one.gender)).list
 }
 
 // The table supplies a first name once known, and an object pronoun otherwise.
