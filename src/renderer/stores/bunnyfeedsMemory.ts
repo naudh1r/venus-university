@@ -2,6 +2,7 @@ import { BUNNYFEEDS, type HeldFeedMemory } from '../../shared/bunnyfeeds'
 import { memoryStatusLine, type CharMemory, type Result, type SceneLine } from '@vx/modkit/shared'
 import { addMemory, currentRun, modIsOn, modOptionOn } from '@vx/modkit/renderer'
 import { TEXT_LEDGER_FEED_LINES } from '../prompts/bunnyfeedsPrompt'
+import { feedPronounsOf } from '../../shared/bunnyfeedsGender'
 import { commentData, postData } from './bunnyfeedsData'
 import { readBunnyfeedsContext } from './bunnyfeedsReadContext'
 
@@ -9,12 +10,14 @@ import { readBunnyfeedsContext } from './bunnyfeedsReadContext'
 const FEED_MEMORY_TAG = ', on the feed'
 
 /** How a feed memory is found again to be replaced, earlier test builds' wordings included. */
-const FEED_MEMORY_END = /, (on the feed|on Bunnyboard|on her post|under [^,]+'s post)$/
+const FEED_MEMORY_END = /, (on the feed|on Bunnyboard|on (?:her|his) post|under [^,]+'s post)$/
 
-/** Where a feed memory says it happened: her own post, or the girl's she answered under. */
+/** Where a feed memory says it happened: their own post, or the poster's they answered under. */
 function whereTag(charId: string, posterId: string | undefined): string {
   if (!posterId) return FEED_MEMORY_TAG
-  if (posterId === charId) return ', on her post'
+  if (posterId === charId) {
+    return `, on ${feedPronounsOf(readBunnyfeedsContext().characters[charId]).their} post`
+  }
   const poster = readBunnyfeedsContext().characters[posterId]
   return poster ? `, under ${poster.firstName}'s post` : FEED_MEMORY_TAG
 }
@@ -89,10 +92,18 @@ function dueFeedMemories(through: number): HeldFeedMemory[] {
 export function feedStatusLines(through: number): SceneLine[] {
   if (!modIsOn(BUNNYFEEDS) || !modOptionOn(BUNNYFEEDS, 'announce')) return []
   const game = readBunnyfeedsContext()
-  return dueFeedMemories(through).map(({ charId, type, desc, posterId }) => {
+  return dueFeedMemories(through).map(({ charId, type, desc, youDesc, posterId }) => {
     const character = game.characters[charId]
     const name = character && game.charInfo[charId]?.nameKnown ? character.firstName : '???'
-    return memoryStatusLine(name, { type, desc: `${desc}${whereTag(charId, posterId)}` })
+    const where = whereTag(charId, posterId)
+    // Words already said to the reader as "you" have no "the reader" left to turn, so they stand.
+    if (youDesc) return memoryStatusLine(name, { type, desc: `${youDesc}${where}` })
+    // An older memory has only its third-person words. Turning them into "you" reads every "him"
+    // and "his" as the reader's, which is right only for a girl's memory of a reader who is he;
+    // otherwise the reader is named.
+    const guessable = character?.gender !== 'male' && game.readerPronouns === 'he'
+    const said = guessable ? desc : desc.replace(/\bthe reader\b/gi, game.playerFirstName || 'the reader')
+    return memoryStatusLine(name, { type, desc: `${said}${where}` })
   })
 }
 
