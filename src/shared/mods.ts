@@ -49,6 +49,8 @@ export interface ModDef {
   name: string
   author: string
   version: string
+  /** Author-declared supported Venus University range; omitted means not declared. */
+  game?: string
   scope: ModScope
   /** Whether the mod is on for a player who has never touched its switch. */
   defaultOn: boolean

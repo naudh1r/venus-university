@@ -1,3 +1,4 @@
+import { ModCompatibilityWarning } from './views/ModCompatibilityWarning'
 import { useEffect, useState, type JSX } from 'react'
 import { AnimatePresence } from 'motion/react'
 import { writerReady } from '@shared/settingsRules'
@@ -180,6 +181,7 @@ function App(): JSX.Element {
           is the one that steps under it, and says so itself. */}
       <Crossing />
       <ModalHost />
+      <ModCompatibilityWarning />
       {/* The gate itself is what a closing modal has to outlive, so it is the presence's
           child: the exits run inside it, and it unmounts once they finish. */}
       <AnimatePresence>

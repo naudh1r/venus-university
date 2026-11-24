@@ -20,7 +20,7 @@ afterEach(() => { enabled = false })
 
 function state(historyLimit?: number): TextingPromptState {
   return {
-    romance: { female: 'sexuality', male: 'none' }, readerPronouns: 'he',
+    romance: { male: 'sexuality', female: 'sexuality' }, readerPronouns: 'he',
     historyLimit, date: 7, time: 0, roster: [], lorebook: [], charInfo: {},
     npcRelationships: {}, classes: {}, playerSchedule: {}, classRosters: {},
     playerJob: null, calendar: { season: 'fall', generated: [], fixedEdits: {} }, memoryBudget: 10, history: {}

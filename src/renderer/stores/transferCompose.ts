@@ -8,6 +8,7 @@ import { freeClassCode } from '@shared/classes'
 import type { DormId } from '@shared/dorms'
 import { globalSlotOf, JOB_CATALOG, placeNpcShifts } from '@shared/jobs'
 import { attractionOf, initialFlags } from '@shared/relationship'
+import type { GlobalTextId, TextEdits } from '@shared/promptText'
 import { SECRET_TIERS, secretText } from '@shared/secrets'
 import { pick } from '@shared/shuffle'
 import {
@@ -98,6 +99,7 @@ export interface TransferContext {
   /** Who leaves for spring break, or null while nobody has been picked. */
   springBreakAway: readonly string[] | null
   setting: string
+  textEdits?: TextEdits<GlobalTextId>
 }
 
 /** One transfer's profile as validated, in the profile reply's vocabulary, her major load set. */
@@ -199,11 +201,14 @@ function validatedOf(profiles: ProfileGenDraft, key: string): TransferProfile {
 /** The one-girl majors request, told the majors already held. */
 export function transferMajorRequest(ctx: TransferContext): StructuredRequest {
   // One student is always asked, so a request is always built.
-  return buildMajorPrompt({
-    students: [ctx.character],
-    otherMajors: knownMajorsOf(ctx),
-    setting: ctx.setting
-  }) as StructuredRequest
+  return buildMajorPrompt(
+    {
+      students: [ctx.character],
+      otherMajors: knownMajorsOf(ctx),
+      setting: ctx.setting
+    },
+    ctx.textEdits
+  ) as StructuredRequest
 }
 
 /**
@@ -225,13 +230,16 @@ function secretsEntryOf(ctx: TransferContext): SecretsEntry {
 /** The student request: every field asked of her and her three secrets, told her major. */
 export function transferStudentRequest(ctx: TransferContext, major: string): StructuredRequest {
   // Her secrets are always asked, so a request is always built.
-  return buildStudentPrompt({
-    character: ctx.character,
-    decided: { major },
-    fields: transferFields(ctx),
-    secrets: secretsEntryOf(ctx),
-    setting: ctx.setting
-  }) as StructuredRequest
+  return buildStudentPrompt(
+    {
+      character: ctx.character,
+      decided: { major },
+      fields: transferFields(ctx),
+      secrets: secretsEntryOf(ctx),
+      setting: ctx.setting
+    },
+    ctx.textEdits
+  ) as StructuredRequest
 }
 
 /**
@@ -409,7 +417,7 @@ function coursesOf(
 
 /** The interest class request: one course she would take for its own sake, told her major. */
 export function transferInterestRequest(ctx: TransferContext, major: string): StructuredRequest {
-  return buildClassPartPrompt(interestAskOf(ctx, major), ctx.setting)
+  return buildClassPartPrompt(interestAskOf(ctx, major), ctx.setting, ctx.textEdits)
 }
 
 /** Her interest class out of its reply, decorated and unslotted; throws on a reply giving none. */
@@ -431,7 +439,7 @@ export function transferMajorClassesRequest(
   major: string,
   count: number
 ): StructuredRequest {
-  return buildClassPartPrompt(majorAskOf(ctx, major, count), ctx.setting)
+  return buildClassPartPrompt(majorAskOf(ctx, major, count), ctx.setting, ctx.textEdits)
 }
 
 /**

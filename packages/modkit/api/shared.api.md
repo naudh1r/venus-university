@@ -306,6 +306,9 @@ export function emptyFlags(): CharFlags;
 export function fallbackHandleOf(firstName: string, lastName: string, rand?: () => number): string;
 
 // @public
+export function fillPronouns(template: string, gender: Gender, name?: string): string;
+
+// @public
 export function fullNameOf(char: {
     firstName: string;
     lastName: string;
@@ -317,6 +320,12 @@ export type GameOverReason = 'debt' | 'expulsion' | 'gameComplete' | 'endingDebt
 // @public
 export interface GameSave extends NativeGameSave {
 }
+
+// @public
+export type Gender = 'female' | 'male';
+
+// @public
+export function genderOf(c: Pick<Character, 'gender'> | null | undefined): Gender;
 
 // @public
 export const GLOBAL_TEXT_IDS: readonly ['persona.solo', 'persona.texting', 'persona.narration', 'persona.designer', 'newgame.classes.system', 'newgame.classes.additions', 'newgame.classes.instructions', 'newgame.profiles.system', 'newgame.profiles.additions', 'newgame.profiles.instructions', 'newgame.profiles.housing', 'newgame.profiles.freeTime', 'newgame.profiles.handle', 'newgame.profiles.springBreak', 'newgame.profiles.next.newcomers', 'newgame.profiles.next.housing', 'newgame.profiles.next.graduates', 'newgame.occasions.system', 'newgame.occasions.additions', 'newgame.occasions.instructions', 'newgame.occasions.fillers', 'newgame.occasions.gala', 'newgame.occasions.dance', 'newgame.occasions.careerFair', 'newgame.occasions.concert', 'newgame.secrets.system', 'newgame.secrets.additions', 'newgame.secrets.instructions', 'newgame.secrets.tiers'];
@@ -696,7 +705,7 @@ export const HOOKS: readonly [{
     readonly kind: 'add';
     readonly dispatch: readonly ["optionControl"];
     readonly askedWhenOff: true;
-    readonly since: '0.8.2';
+    readonly since: '0.8.0';
 }, {
     readonly name: 'bunnyboardPage';
     readonly side: 'renderer';
@@ -899,10 +908,10 @@ export interface JobDef {
 }
 
 // @public
-export const KIT_APIS: readonly ['renderer:character', 'renderer:useCharacter', 'renderer:subscribeCharacter', 'renderer:characterInfo', 'renderer:useCharacterInfo', 'renderer:subscribeCharacterInfo', 'renderer:rosterIds', 'renderer:subscribeRosterIds', 'renderer:useRosterIds', 'renderer:conversation', 'renderer:useConversation', 'renderer:subscribeConversation', 'renderer:feed', 'renderer:useFeed', 'renderer:subscribeFeed', 'renderer:npcRelationships', 'renderer:useNpcRelationships', 'renderer:subscribeNpcRelationships', 'renderer:clock', 'renderer:chatClock', 'renderer:useClock', 'renderer:subscribeClock', 'renderer:playerStats', 'renderer:usePlayerStats', 'renderer:subscribePlayerStats', 'renderer:playerProfilePicture', 'renderer:usePlayerProfilePicture', 'renderer:subscribePlayerProfilePicture', 'renderer:feedReadThrough', 'renderer:useFeedReadThrough', 'renderer:subscribeFeedReadThrough', 'renderer:sceneActive', 'renderer:useSceneActive', 'renderer:subscribeSceneActive', 'renderer:readerPromptText', 'renderer:useReaderPromptText', 'renderer:subscribeReaderPromptText', 'renderer:useProfileImageUrl', 'renderer:profileImageUrl', 'renderer:subscribeProfileImageUrl', 'renderer:scene', 'renderer:useScene', 'renderer:subscribeScene', 'renderer:holdTurn', 'renderer:setSceneSuggestionsPaused', 'renderer:sceneSuggestionsPaused', 'renderer:useSceneSuggestionsPaused', 'renderer:subscribeSceneSuggestionsPaused', 'shared:SAFE_CHAR_ID', 'shared:assertSafeCharId', 'shared:SAFE_NUMERIC_ID', 'shared:assertSafePlaythroughId', 'shared:appError', 'shared:imageTypeOf', 'shared:characterLoraOf', 'shared:DORM_IDS', 'shared:dormLabel', 'shared:EMOTIONS', 'shared:LOCATIONS', 'shared:NARRATIVE_LOCATIONS', 'shared:customOutfitSlotsIn', 'shared:outfitTagsFor', 'shared:affectionFor', 'shared:dispositionOf', 'shared:dedupedMemoriesFor', 'shared:emptyFlags', 'shared:relationshipTagOf', 'shared:areNpcFriends', 'shared:npcFriendsOf', 'shared:npcPairOf', 'shared:zoneOf', 'shared:hashString', 'shared:seededRand', 'shared:threadStartedBy', 'shared:messageShown', 'shared:shownMessages', 'shared:fullNameOf', 'shared:slotFromId', 'shared:shownComments', 'shared:fallbackHandleOf', 'shared:rollPostLikes', 'renderer:invoke', 'shared:BACKUP_ZIP_LIMITS', 'shared:readerWordsOf', 'shared:readerize', 'shared:DEFAULT_PLAYER_STATS', 'renderer:CloseIcon', 'renderer:HeartIcon', 'renderer:BunnyMark', 'renderer:EyeIcon', 'renderer:EyeOffIcon', 'renderer:formatNumericGameDate', 'renderer:formatShortGameDate', 'renderer:slotHalf', 'renderer:SETTING', 'renderer:hasTexted', 'renderer:isFeedContact', 'renderer:FEED_PAGE', 'renderer:newestFirst', 'renderer:FEED_EMOJI', 'renderer:FEED_EMOJI_BAG', 'renderer:FEED_HANDLE_BAG', 'renderer:FEED_HANDLE_POOL', 'main:extractZip', 'main:sniffImageFile', 'main:modOptionOn', 'main:modIsOn', 'main:completeModStructured', 'main:createDesktopSurface', 'main:hasExpressionArt', 'main:renderComfyImage', 'shared:carryModFiles', 'shared:charKeyOf', 'shared:DEPRECATED_HOOKS', 'shared:globalSlotOf', 'shared:hasTrait', 'shared:HOOKS', 'shared:KIT_APIS', 'shared:KIT_VERSION', 'shared:MAX_TIER', 'shared:memoryStatusLine', 'shared:messageOf', 'shared:modById', 'shared:modOn', 'shared:optionKey', 'shared:optionOn', 'shared:pointsForTier', 'shared:READER_SPEAKER', 'shared:registerCharacterTrait', 'shared:registerImagePromptDraft', 'shared:registerPostCarry', 'shared:registerRomanceRequirement', 'shared:registerTermCarry', 'shared:registerTermFiles', 'shared:REMOVED_HOOKS', 'shared:sharedModOn', 'shared:assertSafeId', 'shared:blockText', 'shared:CLASS_CATALOG_RANGES', 'shared:DEFAULT_CLASS_CATALOG', 'shared:GLOBAL_TEXT_IDS', 'shared:PROMPT_PARTS', 'shared:SCENE_TEXT_IDS', 'shared:validateRecord', 'renderer:addMemory', 'renderer:addPostComments', 'renderer:boxParts', 'renderer:buildLabel', 'renderer:bunnybotSays', 'renderer:bunnyHop', 'renderer:cancelCalls', 'renderer:Card', 'renderer:CheckField', 'renderer:ChevronIcon', 'renderer:ConfirmModal', 'renderer:defaultBlockText', 'renderer:gameFacts', 'renderer:interludeNow', 'renderer:isNewGameBlock', 'renderer:PlusIcon', 'renderer:PROMPT_BLOCKS', 'renderer:showError', 'renderer:TextEditModal', 'renderer:useGameFacts', 'renderer:useScenePersona', 'renderer:completeStructured', 'renderer:currentRun', 'renderer:dealt', 'renderer:dropTransientLines', 'renderer:EmojiTool', 'renderer:fadeIn', 'renderer:fileLatePost', 'renderer:finishSlotActivity', 'renderer:gestures', 'renderer:isGraduationSlot', 'renderer:isOrientationSlot', 'renderer:lessNsfwText', 'renderer:lift', 'renderer:Lightbox', 'renderer:memoryLines', 'renderer:profileLines', 'renderer:relationshipLines', 'renderer:spaced', 'renderer:Locked', 'renderer:modIsOn', 'renderer:noNsfwImages', 'renderer:subscribeNoNsfwImages', 'renderer:useNoNsfwImages', 'renderer:imageApiConfigured', 'renderer:spriteUrl', 'renderer:profileUrl', 'renderer:useSpriteVersion', 'renderer:subscribeImageApiConfigured', 'renderer:useImageApiConfigured', 'renderer:localImageSource', 'renderer:subscribeLocalImageSource', 'renderer:useLocalImageSource', 'renderer:canRenderLocalImages', 'renderer:subscribeCanRenderLocalImages', 'renderer:phoneOpen', 'renderer:viewingThread', 'renderer:subscribePhoneView', 'renderer:useViewingThread', 'renderer:drawFeedHandles', 'renderer:drawFeedEmoji', 'renderer:modOptionOn', 'renderer:modsOnLine', 'renderer:modState', 'renderer:noteIn', 'renderer:objectSchema', 'renderer:openPanel', 'renderer:ownsPostComments', 'renderer:panelUnderTab', 'renderer:PostCommentAction', 'renderer:PostCommentsView', 'renderer:PostPicture', 'renderer:postVisible', 'renderer:press', 'renderer:promptFields', 'renderer:promptLines', 'renderer:promptRequired', 'renderer:quietLift', 'renderer:quietPress', 'renderer:reachTurn', 'renderer:readerSaysInScene', 'renderer:recordField', 'renderer:registerHooks', 'renderer:retrySilently', 'renderer:rowLift', 'renderer:rowPress', 'renderer:runStale', 'renderer:safePoint', 'renderer:saveChanges', 'renderer:saveField', 'renderer:canInviteToScene', 'renderer:canRecordSceneTurn', 'renderer:freeForInvitation', 'renderer:hasDesktopSurfaces', 'renderer:openSceneExchange', 'renderer:sceneExchangeContext', 'renderer:startInvitedScene', 'renderer:subscribeInvitations', 'renderer:subscribeSceneTurns', 'renderer:sayInScene', 'renderer:sceneField', 'renderer:SceneDivider', 'renderer:SelectField', 'renderer:SentText', 'renderer:slideInQuick', 'renderer:submitAction', 'renderer:takeTurnFromReply', 'renderer:TextField', 'renderer:TitleTab', 'renderer:toggleFeedLike', 'renderer:toggleLift', 'renderer:TurnField', 'renderer:typingDot', 'renderer:useBareMessage', 'renderer:useDismissLayer', 'renderer:useEmojiTool', 'renderer:useLessNsfwText', 'renderer:useModalShell', 'renderer:useModOn', 'renderer:useModOption', 'renderer:useSafePoint', 'renderer:useSceneInput', 'renderer:useSfxGain', 'renderer:veilIn', 'renderer:writeModField', 'renderer:writeModFields', 'main:backupPart', 'main:characterTransferPart', 'main:comfyNodePackState', 'main:installComfyNodePack', 'main:modDataPath', 'main:registerComfyLaunchEnvironment', 'main:registerComfyNodePack', 'main:registerFinalRequest', 'main:readJsonFile', 'main:requiredBackupPart', 'main:writeAtomicBytes', 'main:writeAtomicJson'];
+export const KIT_APIS: readonly ['renderer:character', 'renderer:useCharacter', 'renderer:subscribeCharacter', 'renderer:characterInfo', 'renderer:useCharacterInfo', 'renderer:subscribeCharacterInfo', 'renderer:rosterIds', 'renderer:subscribeRosterIds', 'renderer:useRosterIds', 'renderer:conversation', 'renderer:useConversation', 'renderer:subscribeConversation', 'renderer:feed', 'renderer:useFeed', 'renderer:subscribeFeed', 'renderer:npcRelationships', 'renderer:useNpcRelationships', 'renderer:subscribeNpcRelationships', 'renderer:clock', 'renderer:chatClock', 'renderer:useClock', 'renderer:subscribeClock', 'renderer:playerStats', 'renderer:usePlayerStats', 'renderer:subscribePlayerStats', 'renderer:playerProfilePicture', 'renderer:usePlayerProfilePicture', 'renderer:subscribePlayerProfilePicture', 'renderer:feedReadThrough', 'renderer:useFeedReadThrough', 'renderer:subscribeFeedReadThrough', 'renderer:sceneActive', 'renderer:useSceneActive', 'renderer:subscribeSceneActive', 'renderer:readerPromptText', 'renderer:useReaderPromptText', 'renderer:subscribeReaderPromptText', 'renderer:useProfileImageUrl', 'renderer:profileImageUrl', 'renderer:subscribeProfileImageUrl', 'renderer:scene', 'renderer:useScene', 'renderer:subscribeScene', 'renderer:holdTurn', 'renderer:setSceneSuggestionsPaused', 'renderer:sceneSuggestionsPaused', 'renderer:useSceneSuggestionsPaused', 'renderer:subscribeSceneSuggestionsPaused', 'shared:SAFE_CHAR_ID', 'shared:assertSafeCharId', 'shared:SAFE_NUMERIC_ID', 'shared:assertSafePlaythroughId', 'shared:appError', 'shared:imageTypeOf', 'shared:characterLoraOf', 'shared:DORM_IDS', 'shared:dormLabel', 'shared:EMOTIONS', 'shared:LOCATIONS', 'shared:NARRATIVE_LOCATIONS', 'shared:customOutfitSlotsIn', 'shared:outfitTagsFor', 'shared:affectionFor', 'shared:dispositionOf', 'shared:dedupedMemoriesFor', 'shared:emptyFlags', 'shared:relationshipTagOf', 'shared:areNpcFriends', 'shared:npcFriendsOf', 'shared:npcPairOf', 'shared:zoneOf', 'shared:hashString', 'shared:seededRand', 'shared:threadStartedBy', 'shared:messageShown', 'shared:shownMessages', 'shared:fullNameOf', 'shared:slotFromId', 'shared:shownComments', 'shared:fallbackHandleOf', 'shared:rollPostLikes', 'renderer:invoke', 'shared:BACKUP_ZIP_LIMITS', 'shared:readerWordsOf', 'shared:fillPronouns', 'shared:genderOf', 'shared:PRONOUNS', 'shared:pronounsOf', 'shared:pronounTag', 'shared:readerGenderOf', 'shared:readerize', 'shared:DEFAULT_PLAYER_STATS', 'renderer:CloseIcon', 'renderer:HeartIcon', 'renderer:BunnyMark', 'renderer:EyeIcon', 'renderer:EyeOffIcon', 'renderer:formatNumericGameDate', 'renderer:formatShortGameDate', 'renderer:slotHalf', 'renderer:SETTING', 'renderer:hasTexted', 'renderer:isFeedContact', 'renderer:FEED_PAGE', 'renderer:newestFirst', 'renderer:FEED_EMOJI', 'renderer:FEED_EMOJI_BAG', 'renderer:FEED_HANDLE_BAG', 'renderer:FEED_HANDLE_POOL', 'main:extractZip', 'main:sniffImageFile', 'main:modOptionOn', 'main:modIsOn', 'main:completeModStructured', 'main:createDesktopSurface', 'main:hasExpressionArt', 'main:renderComfyImage', 'shared:carryModFiles', 'shared:charKeyOf', 'shared:DEPRECATED_HOOKS', 'shared:globalSlotOf', 'shared:hasTrait', 'shared:HOOKS', 'shared:KIT_APIS', 'shared:KIT_VERSION', 'shared:MAX_TIER', 'shared:memoryStatusLine', 'shared:messageOf', 'shared:modById', 'shared:modOn', 'shared:optionKey', 'shared:optionOn', 'shared:pointsForTier', 'shared:READER_SPEAKER', 'shared:registerCharacterTrait', 'shared:registerImagePromptDraft', 'shared:registerPostCarry', 'shared:registerRomanceRequirement', 'shared:registerTermCarry', 'shared:registerTermFiles', 'shared:REMOVED_HOOKS', 'shared:sharedModOn', 'shared:assertSafeId', 'shared:blockText', 'shared:CLASS_CATALOG_RANGES', 'shared:DEFAULT_CLASS_CATALOG', 'shared:GLOBAL_TEXT_IDS', 'shared:PROMPT_PARTS', 'shared:SCENE_TEXT_IDS', 'shared:validateRecord', 'renderer:addMemory', 'renderer:addPostComments', 'renderer:boxParts', 'renderer:buildLabel', 'renderer:bunnybotSays', 'renderer:bunnyHop', 'renderer:cancelCalls', 'renderer:Card', 'renderer:CheckField', 'renderer:ChevronIcon', 'renderer:ConfirmModal', 'renderer:defaultBlockText', 'renderer:gameFacts', 'renderer:interludeNow', 'renderer:isNewGameBlock', 'renderer:PlusIcon', 'renderer:PROMPT_BLOCKS', 'renderer:showError', 'renderer:TextEditModal', 'renderer:useGameFacts', 'renderer:useScenePersona', 'renderer:completeStructured', 'renderer:currentRun', 'renderer:dealt', 'renderer:dropTransientLines', 'renderer:EmojiTool', 'renderer:fadeIn', 'renderer:fileLatePost', 'renderer:finishSlotActivity', 'renderer:gestures', 'renderer:isGraduationSlot', 'renderer:isOrientationSlot', 'renderer:lessNsfwText', 'renderer:lift', 'renderer:Lightbox', 'renderer:memoryLines', 'renderer:profileLines', 'renderer:relationshipLines', 'renderer:spaced', 'renderer:Locked', 'renderer:modIsOn', 'renderer:noNsfwImages', 'renderer:subscribeNoNsfwImages', 'renderer:useNoNsfwImages', 'renderer:imageApiConfigured', 'renderer:spriteUrl', 'renderer:profileUrl', 'renderer:useSpriteVersion', 'renderer:subscribeImageApiConfigured', 'renderer:useImageApiConfigured', 'renderer:localImageSource', 'renderer:subscribeLocalImageSource', 'renderer:useLocalImageSource', 'renderer:canRenderLocalImages', 'renderer:subscribeCanRenderLocalImages', 'renderer:phoneOpen', 'renderer:viewingThread', 'renderer:subscribePhoneView', 'renderer:useViewingThread', 'renderer:drawFeedHandles', 'renderer:drawFeedEmoji', 'renderer:modOptionOn', 'renderer:modsOnLine', 'renderer:modState', 'renderer:noteIn', 'renderer:objectSchema', 'renderer:openPanel', 'renderer:ownsPostComments', 'renderer:panelUnderTab', 'renderer:PostCommentAction', 'renderer:PostCommentsView', 'renderer:PostPicture', 'renderer:postVisible', 'renderer:press', 'renderer:promptFields', 'renderer:promptLines', 'renderer:promptRequired', 'renderer:quietLift', 'renderer:quietPress', 'renderer:reachTurn', 'renderer:readerSaysInScene', 'renderer:recordField', 'renderer:registerHooks', 'renderer:retrySilently', 'renderer:rowLift', 'renderer:rowPress', 'renderer:runStale', 'renderer:safePoint', 'renderer:saveChanges', 'renderer:saveField', 'renderer:canInviteToScene', 'renderer:canRecordSceneTurn', 'renderer:freeForInvitation', 'renderer:hasDesktopSurfaces', 'renderer:openSceneExchange', 'renderer:sceneExchangeContext', 'renderer:startInvitedScene', 'renderer:subscribeInvitations', 'renderer:subscribeSceneTurns', 'renderer:sayInScene', 'renderer:sceneField', 'renderer:SceneDivider', 'renderer:SelectField', 'renderer:SentText', 'renderer:slideInQuick', 'renderer:submitAction', 'renderer:takeTurnFromReply', 'renderer:TextField', 'renderer:TitleTab', 'renderer:toggleFeedLike', 'renderer:toggleLift', 'renderer:TurnField', 'renderer:typingDot', 'renderer:useBareMessage', 'renderer:useDismissLayer', 'renderer:useEmojiTool', 'renderer:useLessNsfwText', 'renderer:useModalShell', 'renderer:useModOn', 'renderer:useModOption', 'renderer:useSafePoint', 'renderer:useSceneInput', 'renderer:useSfxGain', 'renderer:veilIn', 'renderer:writeModField', 'renderer:writeModFields', 'main:backupPart', 'main:characterTransferPart', 'main:comfyNodePackState', 'main:installComfyNodePack', 'main:modDataPath', 'main:registerComfyLaunchEnvironment', 'main:registerComfyNodePack', 'main:registerFinalRequest', 'main:readJsonFile', 'main:requiredBackupPart', 'main:writeAtomicBytes', 'main:writeAtomicJson'];
 
 // @public
-export const KIT_VERSION = "0.8.2";
+export const KIT_VERSION = "0.7.0";
 
 // @public (undocumented)
 export type KitApiName = (typeof KIT_APIS)[number];
@@ -991,6 +1000,7 @@ export interface ModDef {
     author: string;
     blurb: string;
     defaultOn: boolean;
+    game?: string;
     hooks?: readonly string[];
     id: string;
     library?: boolean;
@@ -1273,7 +1283,45 @@ export interface PromptPart {
 export type PromptPartId = (typeof PROMPT_PARTS)[number];
 
 // @public
+export const PRONOUNS: Readonly<Record<Gender, Pronouns>>;
+
+// @public
+export interface Pronouns {
+    noun: string;
+    partner: string;
+    // (undocumented)
+    Their: string;
+    // (undocumented)
+    their: string;
+    // (undocumented)
+    Theirs: string;
+    // (undocumented)
+    theirs: string;
+    // (undocumented)
+    Them: string;
+    // (undocumented)
+    them: string;
+    // (undocumented)
+    Themself: string;
+    // (undocumented)
+    themself: string;
+    // (undocumented)
+    They: string;
+    // (undocumented)
+    they: string;
+}
+
+// @public
+export function pronounsOf(c: Pick<Character, 'gender'> | null | undefined): Pronouns;
+
+// @public
+export function pronounTag(gender: Gender): string;
+
+// @public
 export const READER_SPEAKER = "reader";
+
+// @public
+export function readerGenderOf(reader: ReaderPronouns): Gender | null;
 
 // @public
 export function readerize(text: string): string;
@@ -1481,6 +1529,7 @@ export interface StructuredRequest {
     images?: ReferenceImage[];
     kind?: PromptKind;
     logFrom?: number;
+    minThinking?: ThinkingLevel;
     modTags?: Record<string, unknown>;
     parts?: PromptPart[];
     sceneSpot?: SceneSpotTag;
@@ -1490,7 +1539,7 @@ export interface StructuredRequest {
     };
     // (undocumented)
     system: string;
-    thinking: ThinkingRow | ThinkingLevel;
+    thinking?: ThinkingRow | ThinkingLevel;
     // (undocumented)
     user: string;
 }

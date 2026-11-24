@@ -383,6 +383,7 @@ export function modDefOf(manifest: Manifest): ModDef {
     name: manifest.name,
     author: manifest.author,
     version: manifest.version,
+    ...(manifest.game !== undefined && { game: manifest.game }),
     scope: manifest.scope,
     defaultOn: manifest.defaultOn,
     blurb: manifest.blurb,
