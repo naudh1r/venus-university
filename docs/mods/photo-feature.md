@@ -127,8 +127,9 @@ or hair, the two can still meet in the middle and their colours can bleed. A wid
 that rarer, but not always, and a reroll usually fixes it. A portrait photo of two leaves each
 person only half of a narrow picture: once they lean together, one's hair and colours land on the
 other, so wide is the shape to keep them apart in. A guy beside a girl is drawn taller, so in a portrait photo
-or a close-up his head often leaves the top of the picture. Wide, from the waist up, keeps both
-whole. Hair colour spills less often since
+or a close-up his head often leaves the top of the picture. This is the game's own photo
+checkpoint, novaAnimeXL; others, such as DaSiWa, keep his head in. Wide, from the waist up, keeps
+both whole. Hair colour spills less often since
 each colour is weighted. A long dress beside a top can pull one person further down. A chin resting on a hand stays in
 the sentence, since tagging it made elbows merge across the picture.
 
