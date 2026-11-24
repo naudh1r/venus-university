@@ -4,11 +4,14 @@ import SWIM_RACE from '../minigameEntries/swim-race'
 import ROLLER_DERBY from '../minigameEntries/roller-derby'
 
 /** A pack: one mod bringing several games, each with a switch of its own among the options. */
-export default packMod({
-  id: 'morrowkiln-sports',
-  name: '[MK] Sports',
-  author: 'morrowkiln',
-  version: '0.1.1',
-  blurb: 'Races on foot, in the water and on skates, alone against the clock or against whoever is there.',
-  games: [FOOT_RACE, SWIM_RACE, ROLLER_DERBY]
-})
+export default {
+  ...packMod({
+    id: 'morrowkiln-sports',
+    name: '[MK] Sports',
+    author: 'morrowkiln',
+    version: '0.1.1',
+    blurb: 'Races on foot, in the water and on skates, alone against the clock or against whoever is there.',
+    games: [FOOT_RACE, SWIM_RACE, ROLLER_DERBY]
+  }),
+  game: '0.9.2'
+}
