@@ -229,14 +229,16 @@ const LOVE_TOPIC_PHRASE: Record<
   LoveText['kind'],
   (p: Pronouns, r: ReaderWords, about: string, seeing?: string | null) => string
 > = {
-  vent: (p, r, about) => `venting to ${r.him} after an argument with ${about}, whom ${p.they} is dating`,
+  vent: (p, r, about) =>
+    `venting to ${r.him} after an argument with ${about}, whom ${p.they} is dating`,
   crush: (p, r, about) =>
     `asking ${r.him} whether ${p.they} should ask out ${about}, whom ${p.they} has a crush on`,
   together: (p, r, about) =>
     `telling ${r.him} ${p.they} took ${r.his} advice and asked out ${about}, who said yes, so the two of them are dating now`,
   turnedDown: (p, r, about, seeing) =>
     `telling ${r.him} ${p.they} took ${r.his} advice and asked out ${about}, who ${seeing ? `is already dating ${seeing}` : 'does not feel the same way'} and so turned ${p.them} down`,
-  brokeUp: (p, r, about) => `telling ${r.him} ${p.they} took ${r.his} advice and broke up with ${about}`
+  brokeUp: (p, r, about) =>
+    `telling ${r.him} ${p.they} took ${r.his} advice and broke up with ${about}`
 }
 
 /** A contact this slot rolled in to text the reader just to talk, about one rolled topic. */
@@ -465,19 +467,16 @@ function weatherBlock(input: SlotIntroInput): string[] {
 function campusBlock(input: SlotIntroInput): string[] {
   const leadUps = input.occasionLeadUps ?? []
   const lookahead = examLookaheadLine(input.date, input.season)
-  const back = input.backOnCampus !== undefined ? backOnCampusLine(input.backOnCampus, input.readerPronouns) : null
+  const back =
+    input.backOnCampus !== undefined
+      ? backOnCampusLine(input.backOnCampus, input.readerPronouns)
+      : null
   const transfers = newTransfersLine(input.newTransfers ?? 0)
-  if (
-    input.occasions.length === 0 &&
-    leadUps.length === 0 &&
-    !lookahead &&
-    !back &&
-    !transfers
-  ) {
+  if (input.occasions.length === 0 && leadUps.length === 0 && !lookahead && !back && !transfers) {
     return []
   }
   return [
-    'WHAT\'S GOING ON',
+    "WHAT'S GOING ON",
     ...(back ? [`- ${back}`] : []),
     ...(transfers ? [`- ${transfers}`] : []),
     ...input.occasions.map((occasion) => `- ${occasion.title} — ${occasion.description}`),
@@ -494,7 +493,17 @@ function backOnCampusLine(semesterIndex: number, reader: ReaderPronouns): string
 }
 
 /** Counts of transfer students as a sentence opens with them, from two up. */
-const TRANSFER_COUNT_WORDS = ['Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten']
+const TRANSFER_COUNT_WORDS = [
+  'Two',
+  'Three',
+  'Four',
+  'Five',
+  'Six',
+  'Seven',
+  'Eight',
+  'Nine',
+  'Ten'
+]
 
 /** That `count` unnamed transfer students start today, or null when none do. */
 function newTransfersLine(count: number): string | null {
@@ -507,11 +516,7 @@ function newTransfersLine(count: number): string | null {
 /** A place worth going, for a slot with nothing and nobody in it. */
 function rumorBlock(input: SlotIntroInput): string[] {
   if (!input.rumorPlace) return []
-  return [
-    'SOMEWHERE TO GO',
-    loreText(input.rumorPlace),
-    '',
-  ]
+  return ['SOMEWHERE TO GO', loreText(input.rumorPlace), '']
 }
 
 /**
@@ -647,7 +652,10 @@ function reachOutBlock(input: SlotIntroInput): string[] {
         typeof topic === 'string'
           ? REACH_OUT_TOPIC_PHRASE[topic](PRONOUNS[g], r)
           : LOVE_TOPIC_PHRASE[topic.kind](PRONOUNS[g], r, topic.about, topic.seeing)
-      return [`- ${charKey} — ${phrase}`, ...promptLines('slot-reach-outs', { character, info, date: input.date })]
+      return [
+        `- ${charKey} — ${phrase}`,
+        ...promptLines('slot-reach-outs', { character, info, date: input.date })
+      ]
     })
   ]
 }
@@ -801,7 +809,7 @@ export function buildSlotIntroPrompt(
     ...spaced(reachOutBlock(input)),
     ...spaced(rumor),
     'YOUR TURN',
-    'Hey RITA, a new part of the reader\'s day is starting. Set the mood for them before they decide what to do with it.',
+    "Hey RITA, a new part of the reader's day is starting. Set the mood for them before they decide what to do with it.",
     'Continue where the OPENING LINE left off with three to five short lines of narration. Don\'t include the OPENING LINE in your response. Each line is one entry in "lines".',
     // The three beats, named: without them the call writes a to-do list.
     waking
@@ -812,7 +820,9 @@ export function buildSlotIntroPrompt(
       ? 'Also keep in mind what happened recently and how it is making the reader feel right now.'
       : '',
     ...(rumor.length > 0
-      ? ['End by inventing something spicy about SOMEWHERE TO GO. A rumor, a limited-time thing, etc that encourages the reader to go there.']
+      ? [
+          'End by inventing something spicy about SOMEWHERE TO GO. A rumor, a limited-time thing, etc that encourages the reader to go there.'
+        ]
       : []),
     'Second person, present tense, no dialogue and nobody else on screen. Do NOT restate the date or prompt the player with "What would you like to do?" as something else does that already.',
     ...(input.askers.length > 0
@@ -894,20 +904,24 @@ export function buildSlotIntroPrompt(
         ])
   ].join('\n')
 
-  return modRequest('slot-intro', { input, ledger }, {
-    system: [
-      narrationPersonaFor(input.lessNsfwText, input.globalTextEdits, input.readerPronouns),
-      '',
-      'SETTING',
-      setting,
-      '',
-      'READER',
-      reader
-    ].join('\n'),
-    user,
-    schema: slotIntroSchema(),
-    cacheKey: input.playthroughId,
-    thinking: 'intros',
-    kind: 'slotIntro'
-  })
+  return modRequest(
+    'slot-intro',
+    { input, ledger },
+    {
+      system: [
+        narrationPersonaFor(input.lessNsfwText, input.globalTextEdits, input.readerPronouns),
+        '',
+        'SETTING',
+        setting,
+        '',
+        'READER',
+        reader
+      ].join('\n'),
+      user,
+      schema: slotIntroSchema(),
+      cacheKey: input.playthroughId,
+      thinking: 'intros',
+      kind: 'slotIntro'
+    }
+  )
 }

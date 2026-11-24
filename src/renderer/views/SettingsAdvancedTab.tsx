@@ -304,6 +304,7 @@ export function SettingsAdvancedTab({
               maxLength={3}
               onBlur={() => void commitSecrets()}
             />
+            <ModSlot slot="advancedSettingsEntry" props={{ theme, busy }} />
             <span className="vu-settings-heading">Other</span>
             <TextField
               id="advanced-ending-picture"
@@ -314,7 +315,6 @@ export function SettingsAdvancedTab({
               maxLength={2}
               onBlur={() => void commitEnding()}
             />
-            <ModSlot slot="advancedSettingsEntry" props={{ theme, busy }} />
           </div>
           <div className="vu-scroll-fade" />
         </div>

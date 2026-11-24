@@ -36,11 +36,7 @@ import {
 } from '../../prompts/classProgress'
 import { formatChatDivider, formatGameDate } from '../../prompts/gameDate'
 import { firstMeetingAfter } from '../../prompts/occasions'
-import {
-  slotOptions,
-  type SchedulePromptInput,
-  type SlotDuty
-} from '../../prompts/schedulePrompt'
+import { slotOptions, type SchedulePromptInput, type SlotDuty } from '../../prompts/schedulePrompt'
 import type {
   AddedNotice,
   ClassSceneContext,
@@ -50,11 +46,7 @@ import type {
 } from '../../prompts/scenePrompt'
 import { recentLines, SCENE_WINDOW_WORDS, windowFloor } from '../../prompts/sceneWindow'
 import { readerBlockOf } from '../../prompts/setting'
-import {
-  composeTextingSummary,
-  hasTexted,
-  unansweredReachOuts
-} from '../../prompts/textingPrompt'
+import { composeTextingSummary, hasTexted, unansweredReachOuts } from '../../prompts/textingPrompt'
 import { upcomingPlanLines } from '../../prompts/upcomingPlans'
 import { useAssetStore } from '../assetStore'
 import { lorebookNow } from '../lorebookStore'
@@ -456,14 +448,13 @@ export function promptState(): PromptState {
       ? game.cast.filter((charId) => {
           const info = game.charInfo[charId]
           return (
-            charId !== visitor &&
-            info?.flags?.hasMet === true &&
-            (info.metSlots?.length ?? 0) === 0
+            charId !== visitor && info?.flags?.hasMet === true && (info.metSlots?.length ?? 0) === 0
           )
         })
       : []
 
   const goodbyeWith = game.sceneFarewell ? game.characters[game.sceneFarewell] : undefined
+  const subjectTags = subjectTagsByGender(defaultTagsOf(useSettingsStore.getState().settings))
   const farewell = goodbyeWith
     ? {
         firstName: goodbyeWith.firstName,
@@ -568,7 +559,9 @@ export function promptState(): PromptState {
       if (!character || !item) return []
       // Her own present going back to her says when she gave it.
       const returnedOn =
-        gift.returned && gift.from ? formatGameDate(gift.from.date, game.calendar.season) : undefined
+        gift.returned && gift.from
+          ? formatGameDate(gift.from.date, game.calendar.season)
+          : undefined
       return [
         giftLoreNote(
           character.firstName,
@@ -592,7 +585,8 @@ export function promptState(): PromptState {
     // Absent when the player has set no custom one, which is what `scenePersonaFor` reads as.
     ...(scenePersona !== undefined ? { scenePersona } : {}),
     ...(textEdits !== undefined ? { textEdits } : {}),
-    subjectTags: subjectTagsByGender(defaultTagsOf(useSettingsStore.getState().settings)),
+    subjectTags: subjectTags.female,
+    subjectTagsByGender: subjectTags,
     memoryBudgets: memoryBudgetsNow(),
     secretBudget: secretBudgetNow(),
     history: game.history,

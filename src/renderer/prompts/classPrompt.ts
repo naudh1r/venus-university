@@ -1,4 +1,10 @@
-import { blockText, CLASS_CATALOG_RANGES, DEFAULT_CLASS_CATALOG, type ClassCatalogEdits, type ClassCatalogKey, type GlobalTextId, type TextEdits } from '@shared/promptText'
+import {
+  CLASS_CATALOG_RANGES,
+  DEFAULT_CLASS_CATALOG,
+  type ClassCatalogEdits,
+  type ClassCatalogKey
+} from '@shared/promptText'
+import { blockText, type GlobalTextId, type TextEdits } from '@shared/promptText'
 import { withAdditions } from './promptBlocks'
 import {
   charKeyOf,
@@ -10,11 +16,7 @@ import {
   type StructuredRequest
 } from '@shared/types'
 import { rollDifficulty, rollProfessor, type ClassKind } from '@shared/academics'
-import {
-  CATALOG_POOLS,
-  type CatalogEntry,
-  type CatalogPool
-} from '@shared/application'
+import { CATALOG_POOLS, type CatalogEntry, type CatalogPool } from '@shared/application'
 import { freeClassCode } from '@shared/classes'
 import type { DormId } from '@shared/dorms'
 import { appError } from '@shared/errors'
@@ -173,7 +175,6 @@ function askedOf(student: ClassStudent): { interestClass: boolean } {
   return { interestClass: student.interest === undefined }
 }
 
-/** One pool size: the one a mod handed the call where it is a whole number in range, else the shipped one. */
 export function catalogSize(catalog: ClassCatalogEdits | undefined, key: ClassCatalogKey): number {
   const size = catalog?.[key]
   const { min, max } = CLASS_CATALOG_RANGES[key]
@@ -188,15 +189,24 @@ export function shortfallOf(input: ClassPromptInput): {
   majors: [string, number][]
 } {
   const pools = Object.fromEntries(
-    CATALOG_POOLS.map((pool) => [pool, Math.max(0, catalogSize(input.catalog, pool === 'pe' ? 'pe' : 'filler') - input.filled[pool].length)])
+    CATALOG_POOLS.map((pool) => [
+      pool,
+      Math.max(
+        0,
+        catalogSize(input.catalog, pool === 'pe' ? 'pe' : 'filler') - input.filled[pool].length
+      )
+    ])
   ) as Record<CatalogPool, number>
   const decided = [...new Set(input.students.flatMap((s) => (s.major ? [s.major] : [])))]
   const majors = decided.map(
     (major) =>
-      [major, Math.max(0, catalogSize(input.catalog, 'perMajor') - (input.filled.major[major]?.length ?? 0))] as [
-        string,
-        number
-      ]
+      [
+        major,
+        Math.max(
+          0,
+          catalogSize(input.catalog, 'perMajor') - (input.filled.major[major]?.length ?? 0)
+        )
+      ] as [string, number]
   )
   return { pools, majors }
 }
@@ -248,7 +258,11 @@ export function classAsksOf(
   input: ClassPromptInput,
   notes: Readonly<Record<string, string>> = {}
 ): ClassAsk[] {
-  return [...poolAsksOf(input.filled, input.taken, input.catalog), ...majorAsksOf(input), ...interestAsksOf(input, notes)]
+  return [
+    ...poolAsksOf(input.filled, input.taken, input.catalog),
+    ...majorAsksOf(input),
+    ...interestAsksOf(input, notes)
+  ]
 }
 
 /** The pool parts a catalog asks, read off the written pools and the history alone. */
@@ -258,7 +272,10 @@ export function poolAsksOf(
   catalog?: ClassCatalogEdits
 ): ClassAsk[] {
   return CATALOG_POOLS.flatMap((pool): ClassAsk[] => {
-    const count = Math.max(0, catalogSize(catalog, pool === 'pe' ? 'pe' : 'filler') - filled[pool].length)
+    const count = Math.max(
+      0,
+      catalogSize(catalog, pool === 'pe' ? 'pe' : 'filler') - filled[pool].length
+    )
     if (count === 0) return []
     return [
       {
@@ -275,17 +292,19 @@ export function poolAsksOf(
 /** The major parts a catalog asks, every major short of classes, sorted by name. */
 function majorAsksOf(input: ClassPromptInput): ClassAsk[] {
   const taken = input.taken ?? []
-  return shortfallOf(input)
-    .majors.filter(([, count]) => count > 0)
-    // Code-unit order, never the locale's, so the parts read the same on every machine.
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([major, count]) => ({
-      kind: 'major',
-      major,
-      count,
-      written: input.filled.major[major] ?? [],
-      taken: taken.filter((entry) => entry.category === 'major' && entry.major === major)
-    }))
+  return (
+    shortfallOf(input)
+      .majors.filter(([, count]) => count > 0)
+      // Code-unit order, never the locale's, so the parts read the same on every machine.
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([major, count]) => ({
+        kind: 'major',
+        major,
+        count,
+        written: input.filled.major[major] ?? [],
+        taken: taken.filter((entry) => entry.category === 'major' && entry.major === major)
+      }))
+  )
 }
 
 /** The interest parts a catalog asks, one per student without one written. */
@@ -321,13 +340,25 @@ function partCourseSchema(kind: boolean): Record<string, unknown> {
 }
 
 /** Builds one part's request. */
-export function buildClassPartPrompt(ask: ClassAsk, setting: string, textEdits?: TextEdits<GlobalTextId>): StructuredRequest {
+export function buildClassPartPrompt(
+  ask: ClassAsk,
+  setting: string,
+  textEdits?: TextEdits<GlobalTextId>
+): StructuredRequest {
   const system = [
-    withAdditions(blockText(textEdits, 'newgame.classes.system', [
-    'You are a university registrar building a course catalog.',
-    'You return a single JSON object matching the provided schema exactly.',
-    'Course codes follow real university convention: a subject prefix and a three-digit number, like "BIO 210".',
-    ].join('\n')), textEdits, 'newgame.classes.additions'),
+    withAdditions(
+      blockText(
+        textEdits,
+        'newgame.classes.system',
+        [
+          'You are a university registrar building a course catalog.',
+          'You return a single JSON object matching the provided schema exactly.',
+          'Course codes follow real university convention: a subject prefix and a three-digit number, like "BIO 210".'
+        ].join('\n')
+      ),
+      textEdits,
+      'newgame.classes.additions'
+    ),
     '',
     'SETTING',
     setting
@@ -338,7 +369,11 @@ export function buildClassPartPrompt(ask: ClassAsk, setting: string, textEdits?:
     const preamble = [
       'interestClass: one course this specific student would sign up for out of pure personal interest.',
       'It should read like something only they would pick.',
-      blockText(textEdits, 'newgame.classes.instructions', [DESCRIPTION_LINE, '', ...KIND_LINES].join('\n')),
+      blockText(
+        textEdits,
+        'newgame.classes.instructions',
+        [DESCRIPTION_LINE, '', ...KIND_LINES].join('\n')
+      ),
       '---',
       ''
     ].join('\n')
@@ -379,7 +414,11 @@ export function buildClassPartPrompt(ask: ClassAsk, setting: string, textEdits?:
           'Classes listed under ALREADY IN THE CATALOG are written already: never reuse one of their codes, and never write one of them again under another code.'
         ]
       : []),
-    blockText(textEdits, 'newgame.classes.instructions', [DESCRIPTION_LINE, ...(kind ? ['', ...KIND_LINES] : [])].join('\n')),
+    blockText(
+      textEdits,
+      'newgame.classes.instructions',
+      [DESCRIPTION_LINE, ...(kind ? ['', ...KIND_LINES] : [])].join('\n')
+    ),
     '---',
     ''
   ].join('\n')
@@ -390,7 +429,11 @@ export function buildClassPartPrompt(ask: ClassAsk, setting: string, textEdits?:
       ? ['ALREADY TAKEN', ...ask.taken.map((entry) => `${entry.code} — ${entry.name}`), '']
       : []),
     ...(ask.written.length > 0
-      ? ['ALREADY IN THE CATALOG', ...ask.written.map((entry) => `${entry.code} — ${entry.title}`), '']
+      ? [
+          'ALREADY IN THE CATALOG',
+          ...ask.written.map((entry) => `${entry.code} — ${entry.title}`),
+          ''
+        ]
       : [])
   ].join('\n')
 
@@ -638,7 +681,10 @@ export interface DealtClasses {
  * each pool's entries under its category, the open ones as major classes of no major, and an
  * interest class for every student without one of her own.
  */
-export function dealtClassReply(dealt: DealtClasses, students: readonly ClassStudent[]): ClassReply {
+export function dealtClassReply(
+  dealt: DealtClasses,
+  students: readonly ClassStudent[]
+): ClassReply {
   const characters: ClassCharacterReply[] = []
   for (const student of students) {
     if (student.interest) continue

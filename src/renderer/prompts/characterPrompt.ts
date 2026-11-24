@@ -122,7 +122,6 @@ export interface CharacterDraft {
   voice: string
 }
 
-
 /** The five behaviour fields, in the order the prompt introduces them. */
 const BEHAVIOR_KEYS = [
   'withStrangers',
@@ -158,7 +157,7 @@ function referenceBlock(gender: Gender, reference?: ReferenceImage): string[] {
     '',
     'REFERENCE IMAGE',
     `A picture of the character is attached. Use it as inspiration for ${p.their} appearance and ${p.their} default outfit, noting the colors and vibe.`,
-    `Don't copy the image exactly, try and imagine how ${p.they}'d look as a university student in our world.`,
+    `Don't copy the image exactly, try and imagine how ${p.they}'d look as a university student in our world.`
   ]
 }
 
@@ -203,10 +202,10 @@ const OUTFIT_LINES: Readonly<Record<Gender, readonly string[]>> = {
     `Lock in the exact characteristics of the outfit by naming what skin is exposed using these tags: ${OUTFIT_SKIN_EXPOSURE.join(', ')}`,
     'bare_legs is only for fully bare legs, use "thighs" if you want to describe the bit of skin showing above thighhighs or socks.',
     'Pick as many items as you want, just keep in mind: Fashionable characters ONLY!',
-    'Just because she\'s shy or silly doesn\'t mean she\'s allowed to be frumpy. Everyone has to SLAY with a cute, hot, or sexy fit',
+    "Just because she's shy or silly doesn't mean she's allowed to be frumpy. Everyone has to SLAY with a cute, hot, or sexy fit",
     'Try layering, accessorizing, or skin exposure. You can even combine all three if it makes sense.',
     'Take inspiration from modern Asian fashion and anime character design.',
-    'Oh, and this is her casual, everyday outfit: NOT a costume. She can wear a fancy dress if that\'s who she is, but no tutus for ballet dancers or scrubs for med students. Her interests and activities do not dress her.',
+    "Oh, and this is her casual, everyday outfit: NOT a costume. She can wear a fancy dress if that's who she is, but no tutus for ballet dancers or scrubs for med students. Her interests and activities do not dress her.",
     'And do NOT make her carry anything: no handbags, backpacks, totes, umbrellas, phones. Her hands are empty.',
     'Nothing on her head either, like hats or cat ears. Accessories like earrings go in headAccessories above.'
   ],
@@ -214,9 +213,9 @@ const OUTFIT_LINES: Readonly<Record<Gender, readonly string[]>> = {
     'What outfit does he rock? Time to go shopping, RITA! Pick out a wardrobe and describe it in booru-style comma separated tags.',
     'Be specific! Every clothing item must ALSO name at least one colour or material inside the tag. Use common words like "green" or "leather".',
     'Pick as many items as you want, just keep in mind: Fashionable characters ONLY!',
-    'Just because he\'s shy or nerdy doesn\'t mean he\'s allowed to be a slob. Everyone has to SLAY with a sharp, hot, or sexy fit. Try layering and/or accessorizing.',
+    "Just because he's shy or nerdy doesn't mean he's allowed to be a slob. Everyone has to SLAY with a sharp, hot, or sexy fit. Try layering and/or accessorizing.",
     'Take inspiration from modern Asian fashion and anime character design.',
-    'Oh, and this is his casual, everyday outfit: NOT a costume. He can wear a suit if that\'s who he is, but no jerseys for jocks or scrubs for med students. His interests and activities do not dress him.',
+    "Oh, and this is his casual, everyday outfit: NOT a costume. He can wear a suit if that's who he is, but no jerseys for jocks or scrubs for med students. His interests and activities do not dress him.",
     'And do NOT make him carry anything: no bags, backpacks, guitars, umbrellas, phones. His hands are empty.',
     'Nothing on his head either, like hats or cat ears. Accessories like earrings go in headAccessories above.'
   ]
@@ -225,7 +224,7 @@ const OUTFIT_LINES: Readonly<Record<Gender, readonly string[]>> = {
 /** The SWIMSUIT section, asked of a female character only. */
 const SWIMSUIT_LINES: readonly string[] = [
   'SWIMSUIT',
-  'And something for the pool or the beach. You\'ll probably use most of the skin exposure tags here.',
+  "And something for the pool or the beach. You'll probably use most of the skin exposure tags here.",
   ''
 ]
 
@@ -531,7 +530,7 @@ export function buildCharacterPrompt(
         }
       },
       // Closed: a trait is a switch code branches on. Empty is the usual answer.
-      traits: enumArray(traits.map(trait => trait.value)),
+      traits: enumArray(traits.map((trait) => trait.value)),
       // Closed and single-valued: she is drawn to exactly one.
       preferredStat: enumField(STAT_KEYS),
       appearance: appearanceSchemaOf(gender),
@@ -679,7 +678,7 @@ export function draftToCharacter(
     dislikes: cleanTags(draft.dislikes),
     giftPreferences: giftPreferencesOf(draft.giftPreferences),
     // Filtered to the vocabulary: an unrecognized trait switches nothing.
-    traits: (draft.traits ?? []).filter(value => traits.some(trait => trait.value === value)),
+    traits: (draft.traits ?? []).filter((value) => traits.some((trait) => trait.value === value)),
     // Charm on anything outside the vocabulary.
     preferredStat: isStatKey(draft.preferredStat) ? draft.preferredStat : 'heart',
     baseAppearance,
@@ -705,9 +704,14 @@ export function draftToCharacter(
 }
 
 /** The draft's category picks, filtered to the vocabulary and de-conflicted. */
-function giftPreferencesOf(drafted: CharacterDraft['giftPreferences'] | undefined): GiftPreferences {
+function giftPreferencesOf(
+  drafted: CharacterDraft['giftPreferences'] | undefined
+): GiftPreferences {
   const liked = uniqueCategories(drafted?.liked)
-  return { liked, disliked: uniqueCategories(drafted?.disliked).filter((cat) => !liked.includes(cat)) }
+  return {
+    liked,
+    disliked: uniqueCategories(drafted?.disliked).filter((cat) => !liked.includes(cat))
+  }
 }
 
 function uniqueCategories(values: string[] | undefined): GiftCategory[] {

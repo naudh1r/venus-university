@@ -32,11 +32,11 @@ export const TEXT_EVENT_GLOSS: ReadonlyArray<readonly [string, string]> = [
   ['broke_up', 'their relationship ended in these texts'],
   [
     'friendzoned_by_reader',
-    'the reader turned the character down in these texts or made it clear they\'re just friends'
+    "the reader turned the character down in these texts or made it clear they're just friends"
   ],
   [
     'friendzoned_reader',
-    'the character turned the reader down in these texts or made it clear they\'re just friends'
+    "the character turned the reader down in these texts or made it clear they're just friends"
   ],
   [
     'agreed_to_harem',
@@ -92,7 +92,7 @@ function textLedgerSchema(
 export function buildTextLedgerPrompt(
   schedule: SchedulePromptInput,
   charInfo: Record<string, CharInfo>,
-  reader: ReaderPronouns = 'he',
+  reader: ReaderPronouns,
   textEdits?: TextEdits<GlobalTextId>
 ): StructuredRequest {
   const textedKeys = textLedgerCharKeys(schedule)
@@ -105,8 +105,8 @@ export function buildTextLedgerPrompt(
 
   const preamble = [
     'YOUR TASK',
-    'Hey Rita! The reader spent part of this day texting on Bunnyboard. Let\'s take THE MESSAGES below and create some notes for us to reference later.',
-    'Judge the texts alone: anything a scene did face to face is another call\'s business.',
+    "Hey Rita! The reader spent part of this day texting on Bunnyboard. Let's take THE MESSAGES below and create some notes for us to reference later.",
+    "Judge the texts alone: anything a scene did face to face is another call's business.",
     '',
     'EVENTS',
     'List any of these milestones that actually happened IN THESE MESSAGES:',

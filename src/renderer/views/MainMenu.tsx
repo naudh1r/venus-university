@@ -1,3 +1,4 @@
+import { confirmModCompatibility, confirmSetupCompatibility } from './ModCompatibilityWarning'
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { toAppError } from '@shared/errors'
@@ -180,7 +181,7 @@ export function MainMenu(): JSX.Element {
   }, [queue])
 
   /** Opens the save the player left off on, or hands the question to Load Game. */
-  function onResumed(result: Result<Resumed | null>): void {
+  async function onResumed(result: Result<Resumed | null>): Promise<void> {
     setResuming(null)
     // A failed listing has already reported itself.
     const resumed = result.ok ? result.data : null
@@ -190,6 +191,7 @@ export function MainMenu(): JSX.Element {
     // this cover, so it holds its quiet second and opens again. A roster it can no longer be
     // played with is explained by its own card.
     if (resumed && (isEnrollment(resumed) || isApplication(resumed))) {
+      if (!(await confirmSetupCompatibility(resumed.playthroughId))) return
       if (resumed.unloadable) {
         openModal('loadGame')
         return
@@ -216,6 +218,7 @@ export function MainMenu(): JSX.Element {
       return
     }
 
+    if (!(await confirmModCompatibility(resumed.record))) return
     const { save, record, characters } = resumed
     // The read is over, so the game is handed to `coverSwap` separately, with `enterGame`
     // deciding when the curtain may open, wherever the save lands it.
@@ -396,7 +399,9 @@ export function MainMenu(): JSX.Element {
                 // semester and the roster it names are read by the view behind the curtain,
                 // which owns the crossing's end — the same shape as the other two ways into
                 // a game.
-                beginCrossing(() => setView('quickstart'))
+                void confirmModCompatibility().then((ok) => {
+                  if (ok) beginCrossing(() => setView('quickstart'))
+                })
               }}
             >
               Quickstart
@@ -408,7 +413,7 @@ export function MainMenu(): JSX.Element {
             variants={playDead ? dealtItemDead : dealtItem}
             {...gestures(playDead, lift, press)}
             disabled={playDead}
-            onClick={() => setView('newGame')}
+            onClick={() => { void confirmModCompatibility().then((ok) => { if (ok) setView('newGame') }) }}
           >
             New Game
           </motion.button>

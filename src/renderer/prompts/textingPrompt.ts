@@ -9,12 +9,7 @@ import {
 } from '@shared/relationship'
 import { ROOM_LOCATION } from '@shared/locations'
 import { worstInSlot } from '@shared/colds'
-import {
-  genderOf,
-  pronounsOf,
-  readerWords,
-  type ReaderPronouns
-} from '@shared/gender'
+import { genderOf, pronounsOf, readerWords, type ReaderPronouns } from '@shared/gender'
 import { globalSlotOf } from '@shared/jobs'
 import { readerCrushFactorOf, type NpcRelationshipMap } from '@shared/npcRelationships'
 import type { SemesterCalendar } from '@shared/semesters'
@@ -76,7 +71,13 @@ import {
   whereaboutsLine,
   type NpcCompanions
 } from './npcRelationship'
-import { modRequest, dmHistoryNotes, promptFields, promptLines, promptRequired } from '../mods/hooks'
+import {
+  modRequest,
+  dmHistoryNotes,
+  promptFields,
+  promptLines,
+  promptRequired
+} from '../mods/hooks'
 import { relationshipLines } from './relationship'
 import { herColdLine } from './colds'
 import { weatherLines } from './weather'
@@ -350,9 +351,7 @@ function whereSheIs(
   time: TimeSlot = 0
 ): string[] {
   if (!location) return []
-  return [
-    whereaboutsLine(who, location, companions ?? { knownNames: [], unknown: 0 }, haunt, time)
-  ]
+  return [whereaboutsLine(who, location, companions ?? { knownNames: [], unknown: 0 }, haunt, time)]
 }
 
 /**
@@ -610,15 +609,19 @@ export function buildTextingPrompt(
     `Write it in third person, refer to the MC as "the reader", and keep anything ${name} should still remember later. Don't include concrete dates, and leave out old or unimportant information.`
   ].join('\n')
 
-  return modRequest('dm', { character, info, state, newMessage }, {
-    system: textingPersonaFor(state.globalTextEdits),
-    user,
-    schema: textingSchema(),
-    // Constant, like the ledger's: nothing above the seam varies by save.
-    cacheKey: 'texting',
-    thinking: 'texts',
-    kind: 'texting'
-  })
+  return modRequest(
+    'dm',
+    { character, info, state, newMessage },
+    {
+      system: textingPersonaFor(state.globalTextEdits),
+      user,
+      schema: textingSchema(),
+      // Constant, like the ledger's: nothing above the seam varies by save.
+      cacheKey: 'texting',
+      thinking: 'texts',
+      kind: 'texting'
+    }
+  )
 }
 
 /**
@@ -632,14 +635,16 @@ function textingSchema(): {
   const trailingFields = promptFields('dm', 'trailing')
   const leadRequired = promptRequired('dm', 'lead')
   const trailingRequired = promptRequired('dm', 'trailing')
-  return objectSchema('texting', [...new Set([
-    ...leadRequired, 'messages', 'summary', 'blocked', ...trailingRequired
-  ])], {
-    ...leadFields,
-    messages: { type: 'array', items: { type: 'string' } },
-    summary: { type: 'string' },
-    // Required: an optional boolean drifts into never being considered.
-    blocked: { type: 'boolean' },
-    ...trailingFields
-  })
+  return objectSchema(
+    'texting',
+    [...new Set([...leadRequired, 'messages', 'summary', 'blocked', ...trailingRequired])],
+    {
+      ...leadFields,
+      messages: { type: 'array', items: { type: 'string' } },
+      summary: { type: 'string' },
+      // Required: an optional boolean drifts into never being considered.
+      blocked: { type: 'boolean' },
+      ...trailingFields
+    }
+  )
 }

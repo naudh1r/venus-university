@@ -96,7 +96,7 @@ describe("a mod's lines in the texting bookkeeping", () => {
     })
     hooks.registerHooks('off', { prompts: { 'text-ledger': { lines: () => ['OFF'] } } })
 
-    const { user } = build(schedule([thread('mina_okafor', 'Mina')]), { 'char-2': charInfo() })
+    const { user } = build(schedule([thread('mina_okafor', 'Mina')]), { 'char-2': charInfo() }, 'he')
     expect(user.endsWith('FEED mina_okafor')).toBe(true)
     expect(user).not.toContain('OFF')
   })

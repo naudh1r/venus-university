@@ -81,7 +81,11 @@ function agreeing(subject: string, verbs: Record<string, string>) {
  * "yourself" the reader's own reflexive, and "the two of you broke up" puts the holder's pronoun
  * beside the reader.
  */
-export function readerize(text: string, holder: Gender, reader: ReaderPronouns): string {
+export function readerize(
+  text: string,
+  holder: Gender = 'female',
+  reader: ReaderPronouns = 'he'
+): string {
   // The reflexive turns first, so the verb rule sees "you himself were" and lands the reader's
   // verb behind it.
   return text
@@ -101,11 +105,7 @@ export function readerize(text: string, holder: Gender, reader: ReaderPronouns):
  * A memory as it is filed: trimmed, in the reader's voice as its holder's gender has it, and
  * opening lower-case, since it completes "<Name> liked that …".
  */
-export function storedMemoryDesc(
-  text: string,
-  holder: Gender,
-  reader: ReaderPronouns
-): string {
+export function storedMemoryDesc(text: string, holder: Gender, reader: ReaderPronouns): string {
   return readerize(text.trim(), holder, reader).replace(/^The reader\b/, 'the reader')
 }
 
@@ -173,4 +173,29 @@ export function typedMemoryDesc(
   reader: ReaderPronouns
 ): string {
   return storedMemoryDesc(unnamedReader(text, name), holder, reader)
+}
+
+/** Legacy 0.8.0 status lines used by existing mods, with their original second-person wording. */
+const TO_SECOND_PERSON: Record<string, string> = { was: 'were', is: 'are', has: 'have', does: 'do' }
+const THIRD_PERSON_VERB = subjectVerbPattern('the reader', TO_SECOND_PERSON)
+const HE_VERB = subjectVerbPattern('he', TO_SECOND_PERSON)
+
+export function secondPerson(text: string): string {
+  if (!/\bthe reader\b/i.test(text)) return text
+  // The verb agrees before the reflexive turns, so "the reader himself was" reads "you yourself
+  // were"; the reflexive turns before the subject, so a bare "the reader himself" reads too.
+  return (
+    text
+      .replace(/\bthe reader['’]s\b/gi, (m) => matchCase(m, 'your'))
+      .replace(/\bhis\b(?=\s*(?:[.,;:!?]|$))/gi, (m) => matchCase(m, 'yours'))
+      .replace(/\bhis\b/gi, (m) => matchCase(m, 'your'))
+      .replace(THIRD_PERSON_VERB, agreeing('you', TO_SECOND_PERSON))
+      .replace(HE_VERB, agreeing('you', TO_SECOND_PERSON))
+      .replace(/\bhimself\b/gi, (m) => matchCase(m, 'yourself'))
+      .replace(/\bhim\b/gi, (m) => matchCase(m, 'you'))
+      // A bare "he" turns, and "he'll" and "he'd" with it; "he's" stays as written, being "he is"
+      // or "he has".
+      .replace(/\bhe\b(?!['’]s\b)/gi, (m) => matchCase(m, 'you'))
+      .replace(/\bthe reader\b/gi, (m) => matchCase(m, 'you'))
+  )
 }

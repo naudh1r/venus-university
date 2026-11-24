@@ -4,7 +4,13 @@ import { blocksNewRomance } from '@shared/romanceRequirements'
 import type { HeldInterlude } from '../mods/interlude'
 import { savedModScene } from '@shared/modScene'
 import { sceneCut, statFloor } from '../mods/hooks'
-import { bindGameBoundary, bindSaveFieldStore, bindSceneFieldStore, readModSlices, writeModSlices } from '@vx/modkit/host/renderer'
+import {
+  bindGameBoundary,
+  bindSaveFieldStore,
+  bindSceneFieldStore,
+  readModSlices,
+  writeModSlices
+} from '@vx/modkit/host/renderer'
 import { useModSessionStore } from './modSessionStore'
 import { openingStagedAt, type OpeningLook, type OpeningPlayback } from '@shared/opening'
 import { parseAction } from '@shared/sceneActions'
@@ -1562,7 +1568,10 @@ type SceneRecords = Pick<
  * would have met. A box showing one shows the log's last line kept that is not the reader's.
  * Null where no record holds such a line.
  */
-export function sceneWithout(state: SceneRecords, gone: (line: SceneLine) => boolean): SceneRecords | null {
+export function sceneWithout(
+  state: SceneRecords,
+  gone: (line: SceneLine) => boolean
+): SceneRecords | null {
   const { currentSceneTranscript: transcript, sceneLog, pendingLines } = state
   if (!transcript.some(gone) && !sceneLog.some(gone) && !pendingLines.some(gone)) return null
   const keep = (line: SceneLine): boolean => !gone(line)
@@ -1591,7 +1600,8 @@ export function sceneWithout(state: SceneRecords, gone: (line: SceneLine) => boo
       const at = gift.at - goneBefore(gift.at)
       return at === gift.at ? gift : { ...gift, at }
     }),
-    endingEditAt: state.endingEditAt === null ? null : state.endingEditAt - goneBefore(state.endingEditAt),
+    endingEditAt:
+      state.endingEditAt === null ? null : state.endingEditAt - goneBefore(state.endingEditAt),
     reread: Math.max(0, reread),
     currentLine:
       state.currentLine && gone(state.currentLine)
@@ -1638,10 +1648,7 @@ function cutLengthOf(
   state: Pick<GameStoreState, 'currentSceneTranscript' | 'pendingLines'>
 ): number {
   const transcript = state.currentSceneTranscript
-  return Math.max(
-    transcript.length - state.pendingLines.length,
-    firstReaderIndexOf(transcript) + 1
-  )
+  return Math.max(transcript.length - state.pendingLines.length, firstReaderIndexOf(transcript) + 1)
 }
 
 /**
@@ -1669,7 +1676,10 @@ function giftsWithin(
   if (taken.length === 0) return {}
   return {
     sceneGifts: state.sceneGifts.filter((gift) => !cut(gift)),
-    inventory: taken.reduce((inventory, gift) => withItem(inventory, pickOfGift(gift)), state.inventory)
+    inventory: taken.reduce(
+      (inventory, gift) => withItem(inventory, pickOfGift(gift)),
+      state.inventory
+    )
   }
 }
 
@@ -1683,8 +1693,8 @@ function foldedStageOf(
 ): Pick<GameStoreState, 'bg' | 'slots' | 'emotions' | 'flipped' | 'offStage' | 'departed'> {
   const ctx = stageContextOf(state)
   const stage = stageAt(sceneLog, ctx)
-  const shown = displaySlotsOf(stage.slots, state.stageOverride).filter(
-    (id): id is string => Boolean(id)
+  const shown = displaySlotsOf(stage.slots, state.stageOverride).filter((id): id is string =>
+    Boolean(id)
   )
   const emotions = retireCgs(
     stage.emotions,
@@ -2130,9 +2140,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }),
 
   markReplayOver: () =>
-    set((state) =>
-      state.replaying && !state.replaying.over ? { replaying: { over: true } } : {}
-    ),
+    set((state) => (state.replaying && !state.replaying.over ? { replaying: { over: true } } : {})),
 
   setReplay: (date, time, id) =>
     set((state) => ({
@@ -2234,9 +2242,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       ...(state.sceneTurnedDown.length > 0
         ? { turnedDownInvites: [...state.sceneTurnedDown] }
         : {}),
-      ...(state.sceneIgnoredVents.length > 0
-        ? { ignoredVents: [...state.sceneIgnoredVents] }
-        : {}),
+      ...(state.sceneIgnoredVents.length > 0 ? { ignoredVents: [...state.sceneIgnoredVents] } : {}),
       ...(state.sceneVisitJob ? { visitJobId: state.sceneVisitJob } : {}),
       ...(state.sceneMentions.length > 0 ? { mentions: [...state.sceneMentions] } : {}),
       ...(state.sceneLocation ? { location: state.sceneLocation } : {}),
@@ -2246,9 +2252,16 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       ...(state.sceneEvent ? { event: { ...state.sceneEvent } } : {}),
       ...(state.sceneReceivedGift ? { receivedGift: { ...state.sceneReceivedGift } } : {}),
       ...(state.sceneRedraft ? { redraft: true as const } : {}),
-      ...(records.sceneGifts.length > 0 ? { gifts: records.sceneGifts.map((g) => ({ ...g })) } : {}),
+      ...(records.sceneGifts.length > 0
+        ? { gifts: records.sceneGifts.map((g) => ({ ...g })) }
+        : {}),
       ...(state.sceneQuiz
-        ? { quiz: { ...state.sceneQuiz, questions: state.sceneQuiz.questions.map((q) => ({ ...q })) } }
+        ? {
+            quiz: {
+              ...state.sceneQuiz,
+              questions: state.sceneQuiz.questions.map((q) => ({ ...q }))
+            }
+          }
         : {}),
       transcript: [...records.currentSceneTranscript],
       summary: state.sceneSummary,
@@ -2710,7 +2723,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     // The verdict is stamped here and nowhere else: the action line says it out loud. The cap on
     // a present made for the other gender is already in it, ahead of the medicine below.
     const item = itemDefOf(itemId)
-    const tasted: GiftReaction = item ? giftReactionOf(item, state.characters[charId], repeat) : 'neutral'
+    const tasted: GiftReaction = item
+      ? giftReactionOf(item, state.characters[charId], repeat)
+      : 'neutral'
     // Medicine pleases anyone who is sick, whatever their taste, and nobody else.
     const reaction: GiftReaction = returned
       ? 'unimpressed'
@@ -2994,7 +3009,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   applyRelationshipEvents: (charId, events, date) =>
     set((state) =>
       patchCharInfo(state, charId, (info = blankCharInfo()) =>
-        foldRelationshipEvents(info, events, date ?? state.date, genderOf(state.characters[charId]), { character: state.characters[charId], stats: state.stats })
+        foldRelationshipEvents(info, events, date ?? state.date, genderOf(state.characters[charId]), {
+          character: state.characters[charId],
+          stats: state.stats
+        })
       )
     ),
 
@@ -3088,7 +3106,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   markConversationRead: (charId) =>
     set((state) =>
-      patchConversation(state, charId, (chat) => (chat.unread === 0 ? null : { ...chat, unread: 0 }))
+      patchConversation(state, charId, (chat) =>
+        chat.unread === 0 ? null : { ...chat, unread: 0 }
+      )
     ),
 
   setConversationSummary: (charId, summary) =>
@@ -3258,7 +3278,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set((state) =>
       patchCharInfo(state, charId, (info = blankCharInfo()) => {
         const flags = info.flags ?? emptyFlags()
-        return flags.gaveContactInfo ? null : { ...info, flags: { ...flags, gaveContactInfo: true } }
+        return flags.gaveContactInfo
+          ? null
+          : { ...info, flags: { ...flags, gaveContactInfo: true } }
       })
     ),
 
@@ -3305,7 +3327,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set((state) => {
       // Same-object return when there is nothing new, so the save is not dirtied.
       if (state.events.every((event) => event.seen)) return {}
-      return { events: state.events.map((event) => (event.seen ? event : { ...event, seen: true })) }
+      return {
+        events: state.events.map((event) => (event.seen ? event : { ...event, seen: true }))
+      }
     }),
 
   markEventNoShow: (eventId, charIds) =>
@@ -3381,8 +3405,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
     }),
 
-  updateJob: (patch) =>
-    set((state) => (state.job ? { job: { ...state.job, ...patch } } : {})),
+  updateJob: (patch) => set((state) => (state.job ? { job: { ...state.job, ...patch } } : {})),
 
   endJob: (left) =>
     set((state) => {
@@ -3861,9 +3884,7 @@ export function gendersOf(
 
 /** The stored conversation with `charId`, or a fresh empty one. */
 function conversationWith(bunnyboard: BunnyboardState, charId: string): Conversation {
-  return (
-    bunnyboard.conversations[charId] ?? { charId, messages: [], unread: 0, summary: null }
-  )
+  return bunnyboard.conversations[charId] ?? { charId, messages: [], unread: 0, summary: null }
 }
 
 /**

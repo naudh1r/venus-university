@@ -51,6 +51,12 @@ describe('shared rules in main', () => {
     await installBroken(data)
     await setModSwitches({ on: {}, options: {} })
     startModSession()
+    // Startup records known mods in the background. Let that write finish before a test
+    // changes the switches or teardown removes its directory (and the next test changes root).
+    await vi.waitFor(() => {
+      const known = JSON.parse(readFileSync(join(data, 'mods', 'known.json'), 'utf8'))
+      expect(known.mods).toHaveProperty('hello-mod')
+    })
   })
   afterEach(async () => {
     await rm(root, { recursive: true, force: true })

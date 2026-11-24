@@ -205,6 +205,7 @@ export const dealt: (startDelay: number, each?: number) => Variants;
 export function defaultBlockText(id: TextBlockId, settings: {
     lessNsfwText: boolean;
     scenePersona?: string;
+    readerPronouns?: ReaderPronouns;
 }): string;
 
 // @public
@@ -945,7 +946,8 @@ export interface PromptState {
     slotRumor?: LoreRumor;
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
-    subjectTags?: Readonly<Record<Gender, readonly string[]>>;
+    subjectTags?: readonly string[];
+    subjectTagsByGender?: Readonly<Record<Gender, readonly string[]>>;
     textEdits?: TextEditSet;
     textedWith?: readonly string[];
     textingSummaries?: Record<string, string[]>;
@@ -1180,7 +1182,9 @@ export interface SceneExchangeContext {
     // (undocumented)
     people: Array<{
         id: string;
-        profile: Pick<Character, 'charId' | 'firstName' | 'lastName' | 'personality' | 'behavior' | 'backstory' | 'likes' | 'dislikes'>;
+        profile: Pick<Character, 'charId' | 'firstName' | 'lastName' | 'personality' | 'behavior' | 'backstory' | 'likes' | 'dislikes'> & {
+            gender: Gender;
+        };
         relationship: Pick<CharInfo, 'memories' | 'flags' | 'nameKnown' | 'notes'> & {
             disposition?: Disposition;
         };
@@ -1193,6 +1197,7 @@ export interface SceneExchangeContext {
         location: string | null;
         summary: string | null;
         readerBio: string;
+        readerPronouns: ReaderPronouns;
         premise?: string;
         relationships?: NpcRelationshipMap;
     };

@@ -213,8 +213,23 @@ export function relationshipLines(
   nameKnown: boolean,
   affection: number,
   progress: RelationshipProgress | undefined,
-  ctx: RelationshipContext
+  context?: RelationshipContext | PlayerStats,
+  legacyMedium?: RelationshipMedium,
+  legacyMood?: RelationshipContext['mood'],
+  legacyAttractionGate?: boolean
 ): string[] {
+  // Keep the kit's positional 0.8.0 call valid; current core passes the full context.
+  const ctx: RelationshipContext =
+    context && 'romanceable' in context
+      ? context
+      : {
+          stats: context,
+          medium: legacyMedium,
+          mood: legacyMood,
+          attractionGate: legacyAttractionGate,
+          romanceable: true,
+          readerPronouns: 'he'
+        }
   const {
     stats = DEFAULT_PLAYER_STATS,
     medium = IN_PERSON,
@@ -233,9 +248,12 @@ export function relationshipLines(
   const modBlocked = attractionGate && blocksNewRomance(character, stats, flags)
   if (modBlocked) {
     const minimums = romanceMinimumsOf(character)
-    const required = STAT_KEYS.filter(key => minimums[key] !== undefined)
-      .map(key => `${STAT_LABELS[key]} at ${tierNameOf(tierOf(minimums[key]!))}`)
-    lines.push(`${name} requires ${andList(required)} before starting a romance. The reader has not met those requirements. ${name} will not initiate or accept romantic or sexual advances, kisses, hookups or becoming lovers. Friendship and ordinary affection can grow. Gifts, persuasion, mood and abilities do not override these requirements.`)
+    const required = STAT_KEYS.filter((key) => minimums[key] !== undefined).map(
+      (key) => `${STAT_LABELS[key]} at ${tierNameOf(tierOf(minimums[key]!))}`
+    )
+    lines.push(
+      `${name} requires ${andList(required)} before starting a romance. The reader has not met those requirements. ${name} will not initiate or accept romantic or sexual advances, kisses, hookups or becoming lovers. Friendship and ordinary affection can grow. Gifts, persuasion, mood and abilities do not override these requirements.`
+    )
     // A crush saved before the trait was added must not contradict the new requirement.
     // This is prompt context only: no saved relationship flags are rewritten.
     flags = { ...flags, hasCrush: false, benefits: false, harem: false }
@@ -296,7 +314,7 @@ export function relationshipLines(
           : `${name} is down to fuck today.`
       )
     } else if (missingStat && attractionGate && !modBlocked) {
-      // The reader is named outright where the reader's pronoun would read as the character's.
+      // Name the reader when a pronoun would be ambiguous.
       lines.push(
         `${name} doesn't feel any attraction towards the reader ${flags.brokenUp > 0 ? 'anymore' : 'yet'}. ${r.He} needs to be ${STAT_REQUIREMENT_PHRASES[missingStat]} first. ${name} won't make or accept romantic advances.`
       )
