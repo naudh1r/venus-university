@@ -20,7 +20,7 @@ const PARADISO: MiniGameDef = {
   blurb:
     'an arcade dance machine: arrows climb the screen and the dancer stamps the matching pad on the beat',
   format:
-    'One song, a little under a minute. Arrows rise up the screen in four lanes, left, down, up and right, and each is stepped on as it reaches the top; a step is judged Perfect, Great, Good or a Miss by how close to the beat it lands, steps in a row without a miss build a combo, and the score is graded from AAA down to D. Alone the reader dances for a grade. With a girl the two stand side by side on the two pads and dance the same steps at the same time, and the higher score wins; equal scores are a draw.',
+    'One song, a little under a minute. Arrows rise up the screen in four lanes, left, down, up and right, and each is stepped on as it reaches the top; a step is judged Perfect, Great, Good or a Miss by how close to the beat it lands, steps in a row without a miss build a combo, and the score is graded from AAA down to D. Alone the reader dances for a grade. With another player the two stand side by side on the two pads and dance the same steps at the same time, and the higher score wins; equal scores are a draw.',
   options: [
     {
       id: 'difficulty',
@@ -41,7 +41,7 @@ const PARADISO: MiniGameDef = {
   players: { min: 0, max: 1 },
   controls: 'Arrow keys, or D F J K, as each arrow reaches the top. The targets can be clicked too.',
   skillBrief:
-    'A good dancer has rhythm, some dance or music behind her, the fitness to keep it up for a whole song and hours already spent on arcade machines; a poor one is stiff, off the beat, quickly winded or has never stood on a dance pad.'
+    'A good dancer has rhythm, some dance or music behind them, the fitness to keep it up for a whole song and hours already spent on arcade machines; a poor one is stiff, off the beat, quickly winded or has never stood on a dance pad.'
 }
 
 export default PARADISO

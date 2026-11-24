@@ -11,7 +11,7 @@ const CAT_PAIRS: MiniGameDef = {
   blurb:
     "a calm memory game with the café's own deck: cards lie face down, each café cat is on two of them, and players turn two at a time looking for pairs",
   format:
-    "The cards are laid face down in a grid, every café cat on exactly two of them. The player whose turn it is turns two cards face up for everyone to see: if they show the same cat it is a pair, which that player keeps, and the same player goes again; if not, both are turned face down again where they lay and the turn passes. The reader goes first, then each girl in the order they sit. It ends when every pair is taken: most pairs wins, and sharing the most is a draw. With the café cat in play, a couple of times a game, between turns and never while cards are face up, a cat walks across the table and two face-down cards trade places in plain sight. Played alone it is the same table with nobody to beat, counted in turns.",
+    "The cards are laid face down in a grid, every café cat on exactly two of them. The player whose turn it is turns two cards face up for everyone to see: if they show the same cat it is a pair, which that player keeps, and the same player goes again; if not, both are turned face down again where they lay and the turn passes. The reader goes first, then each of the others in the order they sit. It ends when every pair is taken: most pairs wins, and sharing the most is a draw. With the café cat in play, a couple of times a game, between turns and never while cards are face up, a cat walks across the table and two face-down cards trade places in plain sight. Played alone it is the same table with nobody to beat, counted in turns.",
   options: [
     {
       id: 'pairs',

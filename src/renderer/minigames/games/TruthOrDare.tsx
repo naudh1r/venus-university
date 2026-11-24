@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { motion } from 'motion/react'
-import { listed } from '@shared/minigameKit'
+import { listed, readerWords } from '@shared/minigameKit'
 import {
   HEAT_WORD,
   READER,
@@ -122,6 +122,8 @@ export function TruthOrDare({ play }: { play: GamePlay }): JSX.Element {
   // The table as it was when the game opened: who sits where does not change under a game.
   const [terms] = useState<Terms>(() => ({
     names: play.opponents.map((girl) => girl.name),
+    genders: play.opponents.map((girl) => girl.gender),
+    reader: play.reader,
     rounds: play.options.rounds ?? 2,
     heat: heatOf(play.options.heat),
     manner: play.opponents.map((girl) => mannerOf(girl.skill, girl.style))
@@ -338,7 +340,7 @@ export function TruthOrDare({ play }: { play: GamePlay }): JSX.Element {
       remarks.current++
       saying.current = true
       const said = Promise.resolve()
-        .then(() => latest.current.say(charOf(watcher), remarkCue(terms, turn)))
+        .then(() => latest.current.say(charOf(watcher), remarkCue(terms, turn, watcher)))
         .catch(() => undefined)
         .then(() => {
           saying.current = false
@@ -432,7 +434,7 @@ export function TruthOrDare({ play }: { play: GamePlay }): JSX.Element {
     } else {
       latest.current.readerSays(reply)
       tell(
-        `The reader was ${kind === 'truth' ? 'asked' : 'dared'}: "${prompt}" and ${kind === 'truth' ? 'answered' : 'says he does this'}: "${reply}"`
+        `The reader was ${kind === 'truth' ? 'asked' : 'dared'}: "${prompt}" and ${kind === 'truth' ? 'answered' : `says ${readerWords(terms.reader).he} does this`}: "${reply}"`
       )
     }
     const got = await round(

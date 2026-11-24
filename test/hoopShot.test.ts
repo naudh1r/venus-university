@@ -301,7 +301,7 @@ describe('Hoop Shot, the result', () => {
       shot([])
     ]
     const summary = versusSummary(names, shooters)
-    const account = versusAccount(names, shooters, [2, 6, 2, 0], 30000).join('\n')
+    const account = versusAccount(names, shooters, [2, 6, 2, 0], 30000, 'he').join('\n')
     for (const name of names) {
       expect(summary).toContain(name)
       expect(account).toContain(name)
@@ -317,6 +317,6 @@ describe('Hoop Shot, the result', () => {
     expect(versusSummary(['Ana', 'Bea'], [shooters[2], shooters[1], shooters[1]])).toContain('Ana and Bea share the win')
     // Alone there is an account as well as a summary.
     expect(soloSummary(shooters[0], 30000)).toContain(String(shooters[0].score))
-    expect(soloAccount(shooters[0], 30000).length).toBeGreaterThanOrEqual(3)
+    expect(soloAccount(shooters[0], 30000, 'he').length).toBeGreaterThanOrEqual(3)
   })
 })

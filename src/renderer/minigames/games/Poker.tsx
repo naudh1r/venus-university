@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { motion } from 'motion/react'
-import { freshDeck, rankMark, type Card, type Suit } from '@shared/minigameKit'
+import { freshDeck, rankMark, wordsOf, type Card, type Suit } from '@shared/minigameKit'
 import { listed } from '@shared/minigameKit'
 import {
   BIG_BLIND,
@@ -249,7 +249,7 @@ export function Poker({ play }: { play: GamePlay }): JSX.Element | null {
     const timer = setTimeout(() => {
       const dealer = names[names.length - 1]
       tell(
-        `${dealer} shuffles and deals hold'em for ${listed(['you', ...names.slice(0, -1), 'herself'])}: ${stack} in play chips each, blinds ${SMALL_BLIND} and ${BIG_BLIND}, up to ${hands} hands, and the most chips at the end wins.`
+        `${dealer} shuffles and deals hold'em for ${listed(['you', ...names.slice(0, -1), wordsOf(girls[girls.length - 1].gender).themself])}: ${stack} in play chips each, blinds ${SMALL_BLIND} and ${BIG_BLIND}, up to ${hands} hands, and the most chips at the end wins.`
       )
       tell(dealLine(names, hand))
     }, 0)
@@ -414,7 +414,7 @@ export function Poker({ play }: { play: GamePlay }): JSX.Element | null {
     )
     play.situation(
       [
-        `The game is Texas hold'em for play chips between the reader and ${listed(names)}, each for herself: ${hands} hands at most, blinds ${SMALL_BLIND} and ${BIG_BLIND}, everyone started with ${stack}, and the most chips at the end wins. The chips are only counters.`,
+        `The game is Texas hold'em for play chips between the reader and ${listed(names)}, each playing for themselves: ${hands} hands at most, blinds ${SMALL_BLIND} and ${BIG_BLIND}, everyone started with ${stack}, and the most chips at the end wins. The chips are only counters.`,
         `Chips: ${chipsLine(names, chips, 'the reader')}.`,
         hand.over
           ? `Hand ${hand.no} has just finished.`
@@ -426,7 +426,7 @@ export function Poker({ play }: { play: GamePlay }): JSX.Element | null {
             : hand.toAct === null
               ? 'The betting is closed and the next card is about to come.'
               : `It is ${who(hand.toAct)}'s move${owedBy(hand, hand.toAct) > 0 ? `, with ${owedBy(hand, hand.toAct)} to call` : ''}.`,
-        'Everyone keeps her own two cards to herself: nobody says what she holds while a hand is on, and a folded hand is never shown.',
+        'Everyone keeps their own two cards to themselves: nobody says what they hold while a hand is on, and a folded hand is never shown.',
         ...(play.stake ? [`Riding on the game: ${play.stake}`] : [])
       ].join(' ')
     )

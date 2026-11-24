@@ -29,6 +29,7 @@ import {
   type RaceEvent,
   type Stride
 } from '@shared/minigameRules/rollerDerby'
+import { readerWords, wordsOf } from '@shared/minigameKit'
 import { typingIn, useWindowKeydown } from '../kit'
 import { gestures, lift, press } from '../kit'
 import type { GamePlay } from '../kit'
@@ -157,6 +158,8 @@ interface Live {
 export function RollerDerby({ play }: { play: GamePlay }): JSX.Element {
   const girls = play.opponents
   const names = girls.map((girl) => girl.name)
+  /** The reader's words, in a line that names nobody else. */
+  const r = readerWords(play.reader)
   const laps = lapsOf(play.options.laps)
   // Everyone is put on the line once, as the rink is rolled onto.
   const [race] = useState<Race>(() =>
@@ -311,7 +314,7 @@ export function RollerDerby({ play }: { play: GamePlay }): JSX.Element {
     held.current.finish({
       outcome: outcomeOf(race),
       summary: summary(race, names),
-      account: account(race, names)
+      account: account(race, names, girls.map((girl) => girl.gender))
     })
   }
 
@@ -326,8 +329,8 @@ export function RollerDerby({ play }: { play: GamePlay }): JSX.Element {
         held.current.narrate(fallLine(names, event.who))
         remark(
           event.who === 0
-            ? `The reader just took a bend too fast without leaning and went down on the boards on lap ${lapOf(race, 0)}; he is scrambling back onto his skates.`
-            : `${who(event.who)} just took a bend too fast without leaning and fell on lap ${lapOf(race, event.who)}; she is scrambling back up as the others go by.`,
+            ? `The reader just took a bend too fast without leaning and went down on the boards on lap ${lapOf(race, 0)}; ${r.he} is scrambling back onto ${r.his} skates.`
+            : `${who(event.who)} just took a bend too fast without leaning and fell on lap ${lapOf(race, event.who)}; ${wordsOf(girls[event.who - 1].gender).they} is scrambling back up as the others go by.`,
           event.who
         )
       } else if (event.kind === 'lap' && event.first) {
@@ -351,7 +354,7 @@ export function RollerDerby({ play }: { play: GamePlay }): JSX.Element {
         held.current.narrate(homeLine(race, names, event.who))
       } else if (lots && event.kind === 'wobble') {
         remark(
-          `${who(event.who)} just ran wide in a bend and wobbled off the boards, losing most of ${event.who === 0 ? 'his' : 'her'} speed.`,
+          `${who(event.who)} just ran wide in a bend and wobbled off the boards, losing most of ${event.who === 0 ? r.his : wordsOf(girls[event.who - 1].gender).their} speed.`,
           event.who
         )
       } else if (lots && event.kind === 'clip') {

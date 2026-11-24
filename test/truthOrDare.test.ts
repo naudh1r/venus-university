@@ -30,7 +30,13 @@ import {
 
 /** Truth or Dare's bookkeeping: who goes and who asks, what a round is told, and what is kept. */
 
-const table = (names: string[], rounds = 2, heat: 1 | 2 | 3 | 4 = 2): Terms => ({ names, rounds, heat })
+const table = (names: string[], rounds = 2, heat: 1 | 2 | 3 | 4 = 2): Terms => ({
+  names,
+  genders: names.map(() => 'female' as const),
+  reader: 'he',
+  rounds,
+  heat
+})
 
 const turn = (over: Partial<Turn>): Turn => ({
   player: READER,
@@ -245,7 +251,7 @@ describe('Truth or Dare', () => {
       for (const plan of plans) {
         expect(plan.brief).toContain('never sexually explicit')
         expect(plan.brief).toContain('nothing physical beyond a kiss')
-        expect(plan.brief).toContain('in her own character and voice')
+        expect(plan.brief).toContain('in their own character and voice')
       }
     }
   })
@@ -286,9 +292,9 @@ describe('Truth or Dare', () => {
     expect(account).toContain('Nobody dodged or backed out.')
     // Not carried into later briefs, nor to whoever remarks on it.
     expect(chooseRound(table(['Ana', 'Bea'], 2, 1), [hers]).brief).not.toContain('OFFENDING')
-    expect(remarkCue(terms, hers)).not.toContain('OFFENDING')
-    expect(remarkCue(terms, his)).not.toContain('OFFENDING')
-    expect(remarkCue(terms, hers)).toContain('void')
+    expect(remarkCue(terms, hers, 2)).not.toContain('OFFENDING')
+    expect(remarkCue(terms, his, 1)).not.toContain('OFFENDING')
+    expect(remarkCue(terms, hers, 2)).toContain('void')
   })
 
   it('lets the reader lose a turn on merit', () => {
@@ -310,7 +316,7 @@ describe('Truth or Dare', () => {
 
   it('holds the remark of a girl watching to the same limit and heat', () => {
     const terms = table(['Ana', 'Bea'], 1, 2)
-    const cue = remarkCue(terms, turn({ asker: 2, reply: 'you, obviously', verdict: 'dodged' }))
+    const cue = remarkCue(terms, turn({ asker: 2, reply: 'you, obviously', verdict: 'dodged' }), 1)
     expect(cue).toContain('"you, obviously"')
     expect(cue).toContain('never sexually explicit')
     expect(cue).toContain('flirty')
@@ -322,7 +328,7 @@ describe('Truth or Dare', () => {
     for (const plan of [poseRound(terms, [], 'truth'), chooseRound(terms, [turn({ asker: 2 })])]) {
       expect(plan.brief).toContain('Everyone at the table is an adult.')
       expect(plan.brief).toContain('never lifts that limit')
-      expect(plan.brief).toContain('by how she has been with him')
+      expect(plan.brief).toContain('by how they have been with him')
       expect(plan.brief).toContain('Ana is bold and quick at this game')
       expect(plan.brief).toContain('teases, fearless. Bea is cautious at this game')
     }
@@ -365,13 +371,13 @@ describe('Truth or Dare', () => {
     for (const plan of plans) {
       expect(plan.brief).toContain('Heat is 4 of 4')
       expect(plan.brief).toContain('may be sexually explicit')
-      expect(plan.brief).toContain('only as far as she really would with him')
+      expect(plan.brief).toContain('only as far as they really would with him')
       expect(plan.brief).toContain('anyone may back out of anything')
       expect(plan.brief).toContain('Everyone at the table is an adult.')
       expect(plan.brief).toContain('never lifts that limit')
       expect(plan.brief).not.toContain('never sexually explicit')
     }
-    expect(remarkCue(terms, turn({}))).toContain('may be sexually explicit')
+    expect(remarkCue(terms, turn({}), 1)).toContain('may be sexually explicit')
     // Its stand-ins stop at bold: nothing past that is written in ahead of the model.
     expect(stock('dare', 4, [], 50)).toEqual(stock('dare', 3, [], 50))
     expect(stock('truth', 4, [], 50)).toEqual(stock('truth', 3, [], 50))

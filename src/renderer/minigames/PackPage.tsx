@@ -215,8 +215,8 @@ function GamePage({ game, onBack }: { game: MiniGameDef; onBack: () => void }): 
       {game.players.max > 0 && (
         <SelectField
           id={`minigame-pref-${game.id}-suggest`}
-          label="How readily a girl suggests it"
-          hint="Wherever it is played. You can always ask her yourself."
+          label="How readily someone suggests it"
+          hint="Wherever it is played. You can always ask yourself."
           value={prefs?.suggest ?? ''}
           onChange={(value) =>
             setPrefs(game.id, { ...prefs, suggest: (value || undefined) as SuggestRate | undefined })

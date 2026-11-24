@@ -23,7 +23,7 @@ import {
   type HitMade,
   type TableHand
 } from '@shared/minigameRules/blackjack'
-import { freshDeck, rankMark, rankWord, type Card, type Suit } from '@shared/minigameKit'
+import { freshDeck, rankMark, rankWord, wordsOf, type Card, type Suit } from '@shared/minigameKit'
 import { listed } from '@shared/minigameKit'
 import { gestures, lift, press } from '../kit'
 import { BunnyMark } from '../kit'
@@ -204,6 +204,7 @@ function Hand({
 export function Blackjack({ play }: { play: GamePlay }): JSX.Element | null {
   const girls = play.opponents
   const names = girls.map((girl) => girl.name)
+  const genders = girls.map((girl) => girl.gender)
   const several = girls.length > 1
   // Three hands unless the table settled on another number.
   const hands = play.options.hands ?? HANDS
@@ -251,9 +252,9 @@ export function Blackjack({ play }: { play: GamePlay }): JSX.Element | null {
     // On the next tick, so a mount that is at once undone and redone (StrictMode's) says it once.
     const timer = setTimeout(() => {
       play.narrate(
-        `${names[0]} shuffles and deals${several ? ` for ${listed(['you', ...names.slice(1), 'herself'])}` : ''}. ${hands === 1 ? 'One hand decides it' : several ? `${hands} hands, most won takes it` : `Best of ${hands} hands`}, your move first each time.`
+        `${names[0]} shuffles and deals${several ? ` for ${listed(['you', ...names.slice(1), wordsOf(genders[0]).themself])}` : ''}. ${hands === 1 ? 'One hand decides it' : several ? `${hands} hands, most won takes it` : `Best of ${hands} hands`}, your move first each time.`
       )
-      play.narrate(tableDeal(names, 1, table.mine, table.seats.map((seat) => seat.cards[0])))
+      play.narrate(tableDeal(names, genders, 1, table.mine, table.seats.map((seat) => seat.cards[0])))
     }, 0)
     return () => clearTimeout(timer)
     // Once, as the table opens.
@@ -279,7 +280,7 @@ export function Blackjack({ play }: { play: GamePlay }): JSX.Element | null {
     }
     const done = [...table.done, hand]
     const won = tableWon(done, girls.length)
-    const line = play.narrate(`${tableResult(names, hand)} ${countLine('You', names, won)}.`)
+    const line = play.narrate(`${tableResult(names, genders, hand)} ${countLine('You', names, won)}.`)
     if (paced) {
       // The hands stay as they lie until he has read the move that ended it.
       closing.current = true
@@ -304,7 +305,7 @@ export function Blackjack({ play }: { play: GamePlay }): JSX.Element | null {
     const result = {
       outcome: gameOutcome(won),
       summary: tableSummary(names, won),
-      account: tableAccount(names, done, hands)
+      account: tableAccount(names, genders, play.reader, done, hands)
     }
     // Told on the box, the result has had its time there; otherwise the table holds it.
     if (play.playByPlay) play.finish(result)
@@ -326,7 +327,7 @@ export function Blackjack({ play }: { play: GamePlay }): JSX.Element | null {
     // At his own pace a hand can be over before her last line has come: never two at once.
     if (play.stepped && saying.current) return
     const last = done[done.length - 1]
-    const told = tableTold(names, last, done.length)
+    const told = tableTold(names, genders, play.reader, last, done.length)
     const won = tableWon(done, girls.length)
     const [first, second = 0] = [...won].sort((a, b) => b - a)
     const deciding = done.length + 1 === hands && first - second <= 1
@@ -405,7 +406,8 @@ export function Blackjack({ play }: { play: GamePlay }): JSX.Element | null {
     /** Says a step; false where it is not to be made after all. */
     const told = async (text: string): Promise<boolean> => (await reached(play.narrate(text))) && !gone()
     if (!seat.turned) {
-      const line = `${name} turns her card: ${rankWord(seat.cards[1].rank)}. She has ${totalWord(seat.cards)}.`
+      const p = wordsOf(genders[at])
+      const line = `${name} turns ${p.their} card: ${rankWord(seat.cards[1].rank)}. ${p.They} has ${totalWord(seat.cards)}.`
       if (!paced) play.narrate(line)
       else if (!(await told(line))) return
       setTable({ ...table, seats: put({ ...seat, turned: true }) })
@@ -459,7 +461,7 @@ export function Blackjack({ play }: { play: GamePlay }): JSX.Element | null {
       const { total } = handTotal(seat.cards)
       if (table.phase === 'over') return `${names[i]} ${total}`
       if (!seat.turned) {
-        return `${names[i]} shows ${rankWord(seat.cards[0].rank)} with a card face down that only she knows`
+        return `${names[i]} shows ${rankWord(seat.cards[0].rank)} with a card face down that only ${wordsOf(genders[i]).they} knows`
       }
       return `${names[i]} ${total > 21 ? `has bust with ${total}` : `holds ${total}`}`
     })
@@ -509,7 +511,7 @@ export function Blackjack({ play }: { play: GamePlay }): JSX.Element | null {
         if (finished.current) return
         const next = deal(table.deck, table.done, girls.length)
         const line = play.narrate(
-          tableDeal(names, next.done.length + 1, next.mine, next.seats.map((seat) => seat.cards[0]))
+          tableDeal(names, genders, next.done.length + 1, next.mine, next.seats.map((seat) => seat.cards[0]))
         )
         // At his own pace the cards are dealt once he has read how the last hand came out.
         if (paced && (!(await reached(line)) || off)) return

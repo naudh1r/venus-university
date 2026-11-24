@@ -34,7 +34,7 @@ const SWIM_RACE: MiniGameDef = {
   controls:
     'Hold Space (or J) for each stroke and let go to glide. W or ↑ takes a breath, S or ↓ turns at the wall. The buttons under the water do the same for a pointer.',
   skillBrief:
-    'A good swimmer has a long, even stroke learned in lessons or on a team, breathes without breaking her rhythm, turns cleanly and has the fitness to hold her pace to the end; a poor one thrashes, comes up gasping, fumbles her turns and fades after the first length.'
+    'A good swimmer has a long, even stroke learned in lessons or on a team, breathes without breaking their rhythm, turns cleanly and has the fitness to hold their pace to the end; a poor one thrashes, comes up gasping, fumbles their turns and fades after the first length.'
 }
 
 export default SWIM_RACE

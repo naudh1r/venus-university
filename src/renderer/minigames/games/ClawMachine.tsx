@@ -28,7 +28,7 @@ import {
   type Tier,
   type Toy
 } from '@shared/minigameRules/clawMachine'
-import { seededRand } from '@shared/minigameKit'
+import { seededRand, wordsOf } from '@shared/minigameKit'
 import {
   gestures,
   lift,
@@ -258,6 +258,9 @@ function ToyMarks({ wanted }: { wanted: boolean }): JSX.Element | null {
  */
 export function ClawMachine({ play }: { play: GamePlay }): JSX.Element {
   const her = play.opponents[0]
+  // Her gender, read only where she is there: alone, nobody's words are used.
+  const gender = her?.gender ?? 'female'
+  const p = wordsOf(gender)
   const tries = play.options.tries ?? 3
   const [live] = useState<Live>(() => {
     const rand = seededRand(`claw-${Math.random()}`)
@@ -375,12 +378,12 @@ export function ClawMachine({ play }: { play: GamePlay }): JSX.Element {
     live.left = COUNTDOWN_MS
     const name = her?.name ?? null
     const left = tries - live.goes.length
-    const told = play.narrate(goTold(go, live.wanted?.id ?? null))
+    const told = play.narrate(goTold(go, live.wanted?.id ?? null, gender))
     if (left > 0) {
-      play.progress(accountOf(name, live.wanted, live.goes, tries))
+      play.progress(accountOf(name, gender, play.reader, live.wanted, live.goes, tries))
       if (her) {
         // A catch, a slip, a near miss, and the last go coming; talkative, any go at all.
-        const cue = cueOf(go, her.name, live.wanted, live.goes, left)
+        const cue = cueOf(go, her.name, her.gender, play.reader, live.wanted, live.goes, left)
         if (cue.notable || left === 1 || play.chattiness === 'lots') remark(cue.text)
       }
       if (!play.stepped) {
@@ -401,8 +404,8 @@ export function ClawMachine({ play }: { play: GamePlay }): JSX.Element {
     to('over')
     const result = {
       outcome: outcomeOf(live.goes, her ? (live.wanted?.id ?? '') : null),
-      summary: summaryOf(name, live.wanted, live.goes, tries),
-      account: accountOf(name, live.wanted, live.goes, tries)
+      summary: summaryOf(name, gender, live.wanted, live.goes, tries),
+      account: accountOf(name, gender, play.reader, live.wanted, live.goes, tries)
     }
     // Told on the box, the last go has its time there; otherwise it stands on the front a moment.
     if (play.playByPlay) {
@@ -427,9 +430,9 @@ export function ClawMachine({ play }: { play: GamePlay }): JSX.Element {
       void Promise.resolve()
         .then(() => play.speak(her.charId, got.line))
         .catch(() => undefined)
-      told = play.narrate(`She means the ${wanted.name}: it is the one marked behind the glass. The first go is yours.`)
+      told = play.narrate(`${p.They} means the ${wanted.name}: it is the one marked behind the glass. The first go is yours.`)
     } else {
-      told = play.narrate(`${her.name} taps the glass over the ${wanted.name}: that is the one she has her eye on. The first go is yours.`)
+      told = play.narrate(`${her.name} taps the glass over the ${wanted.name}: that is the one ${p.they} has ${p.their} eye on. The first go is yours.`)
     }
     // The first go is his once that line is on the box, which is after what she said: timed, her
     // line has had its time by then; at his own pace, he has stepped past it.
@@ -446,11 +449,11 @@ export function ClawMachine({ play }: { play: GamePlay }): JSX.Element {
     if (opened.current || !her) return
     opened.current = true
     begun.current = true
-    play.situation(standingTold(her.name, null, [], tries))
+    play.situation(standingTold(her.name, her.gender, play.reader, null, [], tries))
     play.narrate(
       `You feed the claw machine for ${tries} ${tries === 1 ? 'go' : 'goes'} while ${her.name} looks over the toys behind the glass.`
     )
-    const asked = pickAsk(her.name, live.pile, tries)
+    const asked = pickAsk(her.name, her.gender, play.reader, live.pile, tries)
     void Promise.resolve()
       .then(() =>
         play.round({
@@ -476,7 +479,7 @@ export function ClawMachine({ play }: { play: GamePlay }): JSX.Element {
   useEffect(() => {
     if (!her) return
     play.situation(
-      `${standingTold(her.name, live.wanted, live.goes, tries)}${play.stake ? ` Riding on it: ${play.stake}` : ''}`
+      `${standingTold(her.name, her.gender, play.reader, live.wanted, live.goes, tries)}${play.stake ? ` Riding on it: ${play.stake}` : ''}`
     )
   }, [phase])
 
@@ -688,7 +691,7 @@ export function ClawMachine({ play }: { play: GamePlay }): JSX.Element {
   const backDead = phase !== 'ready-z' && phase !== 'moving-z'
   const prompt =
     phase === 'picking'
-      ? `${her?.name ?? 'She'} is choosing which toy she wants…`
+      ? `${her?.name ?? p.They} is choosing which toy ${p.they} wants…`
       : phase === 'ready-x'
         ? 'Hold → to run the claw across'
         : phase === 'moving-x'
@@ -708,7 +711,7 @@ export function ClawMachine({ play }: { play: GamePlay }): JSX.Element {
   const toyClass = (toy: Toy): string =>
     `vu-claw-toy${pinnedBy(live.pile, toy) ? ' vu-claw-toy--pinned' : ''}`
   const label = (toy: Toy): string =>
-    `${toy.name} (${tierOf(toy)} to hold${pinnedBy(live.pile, toy) ? ', pinned under another' : ''}${toy.id === live.wanted?.id ? ', the one she wants' : ''})`
+    `${toy.name} (${tierOf(toy)} to hold${pinnedBy(live.pile, toy) ? ', pinned under another' : ''}${toy.id === live.wanted?.id ? `, the one ${p.they} wants` : ''})`
 
   return (
     <div className="vu-claw">
@@ -716,7 +719,7 @@ export function ClawMachine({ play }: { play: GamePlay }): JSX.Element {
         className="vu-claw-cabinet"
         viewBox={`0 0 ${FRONT.width} ${FRONT.height}`}
         role="img"
-        aria-label={`The cabinet from the front: ${live.pile.length} toys on the floor${lastGo ? `; go ${live.goes.length}: ${goShown(lastGo, live.wanted?.id ?? null)}` : ''}`}
+        aria-label={`The cabinet from the front: ${live.pile.length} toys on the floor${lastGo ? `; go ${live.goes.length}: ${goShown(lastGo, live.wanted?.id ?? null, gender)}` : ''}`}
       >
         <rect className="vu-claw-back" x="0" y="0" width={FRONT.width} height={FRONT.height} rx="2" />
         <path
@@ -729,7 +732,7 @@ export function ClawMachine({ play }: { play: GamePlay }): JSX.Element {
         {/* How the last go came out, on the front under the glass, beside the chute. */}
         {lastGo && (
           <text className="vu-claw-told" x="58.5" y={(FRONT.floor + FRONT.height) / 2}>
-            {`Go ${live.goes.length}: ${goShown(lastGo, live.wanted?.id ?? null)}`}
+            {`Go ${live.goes.length}: ${goShown(lastGo, live.wanted?.id ?? null, gender)}`}
           </text>
         )}
         <path className="vu-claw-track" d={`M 1 ${railY(0)} L 4 ${railY(DEPTH)} M 99 ${railY(0)} L 96 ${railY(DEPTH)}`} />

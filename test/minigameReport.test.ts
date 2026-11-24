@@ -31,7 +31,7 @@ describe('a bug report about a game', () => {
     })
     expect(text).toContain('Mini-game report: Cards (cards)')
     expect(text).toContain('Text: moves on by itself; play-by-play off')
-    expect(text).toContain('Girls playing: 2')
+    expect(text).toContain('Others playing: 2')
     expect(text).toContain('Options: hands 3')
     expect(text).toContain('  You lead 2 to 1.')
     expect(text.trim().endsWith('What happened (your words):')).toBe(true)

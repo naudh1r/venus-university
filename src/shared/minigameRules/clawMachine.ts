@@ -8,6 +8,8 @@
  * each axis, once a go.
  */
 
+import { readerWords, wordsOf, type Gender, type ReaderPronouns } from '../minigameKit'
+
 export const WIDTH = 100
 export const DEPTH = 60
 
@@ -340,7 +342,15 @@ export function pickToy(pile: readonly Toy[], rand: () => number, tries = PINNED
  * What she is asked before the first go: the toys she may name, and the round's brief, which
  * says of any toy among them that is held down what lies on top of it.
  */
-export function pickAsk(her: string, pile: readonly Toy[], tries: number): { names: string[]; brief: string } {
+export function pickAsk(
+  her: string,
+  gender: Gender,
+  reader: ReaderPronouns,
+  pile: readonly Toy[],
+  tries: number
+): { names: string[]; brief: string } {
+  const p = wordsOf(gender)
+  const r = readerWords(reader, gender)
   const choices = choicesOf(pile, tries)
   const names = choices.map((toy) => toy.name)
   const held = choices.flatMap((toy) => {
@@ -351,7 +361,7 @@ export function pickAsk(her: string, pile: readonly Toy[], tries: number): { nam
   })
   return {
     names,
-    brief: `${her} is watching the reader play a claw machine and does not play herself. He has paid for ${tries} ${tries === 1 ? 'go' : 'goes'}. Before his first go she says which one of the plush toys in the cabinet she has her eye on. "toy" is that toy, one of: ${names.join(', ')}. The small ones are easy for the claw to hold; the giant bear and the big whale are very hard.${held.join('')} "line" is what she says out loud to him about it, in one short sentence that names the toy.`
+    brief: `${her} is watching the reader play a claw machine and does not play ${p.themself}. ${r.He} has paid for ${tries} ${tries === 1 ? 'go' : 'goes'}. Before ${r.his} first go ${p.they} says which one of the plush toys in the cabinet ${p.they} has ${p.their} eye on. "toy" is that toy, one of: ${names.join(', ')}. The small ones are easy for the claw to hold; the giant bear and the big whale are very hard.${held.join('')} "line" is what ${p.they} says out loud to ${r.him} about it, in one short sentence that names the toy.`
   }
 }
 
@@ -390,8 +400,12 @@ export function strayOf(go: Go): string {
 
 const perHundred = (chance: number): string => `about ${Math.round(chance * 100)} times in 100`
 
-/** What a grab owed to the reader and what to the machine, for a catch or a slip. */
-export function luckOf(go: Go): string {
+/**
+ * What a grab owed to the reader and what to the machine, for a catch or a slip. `beside` is the
+ * gender of the one player the line names with the reader, null where it names none.
+ */
+export function luckOf(go: Go, reader: ReaderPronouns, beside: Gender | null): string {
+  const r = readerWords(reader, beside ?? undefined)
   if (go.kind === 'catch') {
     if (go.chance >= 0.65) return 'skill: a well-centred grab on a toy the claw holds'
     if (go.chance < 0.4) return `the machine being kind: a grab like that holds ${perHundred(go.chance)}`
@@ -403,18 +417,19 @@ export function luckOf(go: Go): string {
   const wide = go.off > 0.6
   if (wide && grip - go.chance > 1 - grip) {
     return go.meant
-      ? 'a grab well off its middle, because he was aiming at the toy under it'
-      : 'a poorly centred grab, his own doing'
+      ? `a grab well off its middle, because ${r.he} was aiming at the toy under it`
+      : `a poorly centred grab, ${r.his} own doing`
   }
   if (go.chance >= 0.65) return 'plain bad luck: a good grab the claw let go of'
   if (wide) {
-    return `the machine more than his aim: dead centre the claw holds that toy ${perHundred(grip)}, and that grab holds ${perHundred(go.chance)}`
+    return `the machine more than ${r.his} aim: dead centre the claw holds that toy ${perHundred(grip)}, and that grab holds ${perHundred(go.chance)}`
   }
   return `a toy the claw hardly holds: even a grab that good holds ${perHundred(go.chance)}`
 }
 
-/** A go, as the scene's narration tells it. */
-export function goTold(go: Go, wanted: string | null): string {
+/** A go, as the scene's narration tells it. `gender` is that of whoever wants `wanted`. */
+export function goTold(go: Go, wanted: string | null, gender: Gender): string {
+  const p = wordsOf(gender)
   const toy = go.aimed
   if (!toy) return 'The claw comes down on bare floor and comes up empty.'
   const stray = strayOf(go)
@@ -424,8 +439,8 @@ export function goTold(go: Go, wanted: string | null): string {
     : null
   switch (go.kind) {
     case 'catch':
-      if (over) return `${over} and holds all the way to the chute. ${toy.id === wanted ? `You have ${the(toy)}: the one she wanted.` : `You have ${the(toy)}.`}`
-      return `The claw drops ${stray === 'dead on' ? 'square onto' : 'onto'} ${the(toy)}, closes, and holds it all the way to the chute. ${toy.id === wanted ? `You have ${the(toy)}: the one she wanted.` : `You have ${the(toy)}.`}`
+      if (over) return `${over} and holds all the way to the chute. ${toy.id === wanted ? `You have ${the(toy)}: the one ${p.they} wanted.` : `You have ${the(toy)}.`}`
+      return `The claw drops ${stray === 'dead on' ? 'square onto' : 'onto'} ${the(toy)}, closes, and holds it all the way to the chute. ${toy.id === wanted ? `You have ${the(toy)}: the one ${p.they} wanted.` : `You have ${the(toy)}.`}`
     case 'slip':
       return go.slipAt <= LIFT_SHARE
         ? `${over ?? `The claw closes on ${the(toy)}${stray === 'dead on' ? '' : `, ${stray}`}`}, and lifts it, but it slides out before it is clear of the pile.`
@@ -441,14 +456,15 @@ export function goTold(go: Go, wanted: string | null): string {
 
 /**
  * How a go came out, in a few words: what the machine's front shows until the next go, the
- * dialogue box keeping to what people say. `wanted` is the id of the toy she wants.
+ * dialogue box keeping to what people say. `wanted` is the id of the toy she wants, and `gender`
+ * hers.
  */
-export function goShown(go: Go, wanted: string | null): string {
+export function goShown(go: Go, wanted: string | null, gender: Gender): string {
   const toy = go.aimed
   if (!toy) return 'Missed: bare floor'
   switch (go.kind) {
     case 'catch':
-      return toy.id === wanted ? `Won the ${toy.name} she wanted!` : `Won the ${toy.name}!`
+      return toy.id === wanted ? `Won the ${toy.name} ${wordsOf(gender).they} wanted!` : `Won the ${toy.name}!`
     case 'slip':
       return `The ${toy.name} slipped free`
     case 'nudge':
@@ -467,48 +483,68 @@ export function goShown(go: Go, wanted: string | null): string {
 export function cueOf(
   go: Go,
   her: string,
+  gender: Gender,
+  reader: ReaderPronouns,
   wanted: Toy | null,
   goes: readonly Go[],
   left: number
 ): { notable: boolean; text: string } {
+  const p = wordsOf(gender)
+  const r = readerWords(reader, gender)
   const toy = go.aimed
   const hers = toy !== null && toy.id === wanted?.id
-  const which = toy ? `${the(toy)}${hers ? `, the toy ${her} said she wanted` : ''}` : 'nothing'
+  const which = toy ? `${the(toy)}${hers ? `, the toy ${her} said ${p.they} wanted` : ''}` : 'nothing'
   const what =
     go.kind === 'catch'
-      ? `The reader's claw caught ${which} and carried it to the chute: he has won it. It was ${luckOf(go)}.`
+      ? `The reader's claw caught ${which} and carried it to the chute: ${r.he} has won it. It was ${luckOf(go, reader, gender)}.`
       : go.kind === 'slip'
-        ? `The reader's claw picked up ${which}, and it slipped out ${go.slipAt <= LIFT_SHARE ? 'on the lift' : 'part-way back to the chute'}: ${luckOf(go)}.`
+        ? `The reader's claw picked up ${which}, and it slipped out ${go.slipAt <= LIFT_SHARE ? 'on the lift' : 'part-way back to the chute'}: ${luckOf(go, reader, gender)}.`
         : go.kind === 'nudge'
           ? `A near miss: the reader's claw came down just wide of ${which}, ${strayOf(go)}, and only knocked it aside.`
           : go.kind === 'pinned'
             ? `The reader's claw closed on ${which}, which is pinned under ${go.top ? the(go.top) : 'another toy'} and did not come.`
             : `The reader's claw came down wide of ${which}, ${strayOf(go)}, and came up empty.`
   const meant = go.meant
-    ? ` He was going for ${the(go.meant)}${go.meant.id === wanted?.id ? `, the toy ${her} said she wanted` : ''}, which is pinned under ${go.top ? the(go.top) : 'another toy'}: his stop was right for it, and the claw took ${toy ? the(toy) : 'the toy'} lying over it instead.`
+    ? ` ${r.He} was going for ${the(go.meant)}${go.meant.id === wanted?.id ? `, the toy ${her} said ${p.they} wanted` : ''}, which is pinned under ${go.top ? the(go.top) : 'another toy'}: ${r.his} stop was right for it, and the claw took ${toy ? the(toy) : 'the toy'} lying over it instead.`
     : ''
   const won = wonIn(goes)
   const last =
-    left === 1 ? ` He has one go left${won.length === 0 ? ' and nothing won yet' : ''}.` : ''
+    left === 1 ? ` ${r.He} has one go left${won.length === 0 ? ' and nothing won yet' : ''}.` : ''
   return { notable: go.kind === 'catch' || go.kind === 'slip' || go.kind === 'nudge', text: `${what}${meant}${last}` }
 }
 
-/** How the game stands, for anything said at the glass. */
-export function standingTold(her: string | null, wanted: Toy | null, goes: readonly Go[], tries: number): string {
+/** How the game stands, for anything said at the glass. `gender` is hers, read only where she is there. */
+export function standingTold(
+  her: string | null,
+  gender: Gender,
+  reader: ReaderPronouns,
+  wanted: Toy | null,
+  goes: readonly Go[],
+  tries: number
+): string {
+  const p = wordsOf(gender)
+  const r = readerWords(reader, her ? gender : undefined)
   const won = wonIn(goes)
   const left = tries - goes.length
   return [
     `The reader is playing a claw machine full of plush toys, ${tries} ${tries === 1 ? 'go' : 'goes'} paid for.`,
-    ...(her ? [`${her} is beside him at the glass, watching: she does not play.`] : []),
-    ...(her && wanted ? [`She has her eye on ${the(wanted)}, ${TIER_TOLD[tierOf(wanted)]}.`] : []),
+    ...(her ? [`${her} is beside ${r.him} at the glass, watching: ${p.they} does not play.`] : []),
+    ...(her && wanted ? [`${p.They} has ${p.their} eye on ${the(wanted)}, ${TIER_TOLD[tierOf(wanted)]}.`] : []),
     goes.length === 0
-      ? 'He has not had a go yet.'
-      : `He has had ${goes.length} of them and won ${won.length > 0 ? all(won) : 'nothing so far'}; ${left === 0 ? 'that was the last' : `${left} left`}.`
+      ? `${r.He} has not had a go yet.`
+      : `${r.He} has had ${goes.length} of them and won ${won.length > 0 ? all(won) : 'nothing so far'}; ${left === 0 ? 'that was the last' : `${left} left`}.`
   ].join(' ')
 }
 
-/** The result as the scene narrates it: what he holds now, and that it is his to give. */
-export function summaryOf(her: string | null, wanted: Toy | null, goes: readonly Go[], tries: number): string {
+/** The result as the scene narrates it: what he holds now, and that it is his to give. `gender` is hers. */
+export function summaryOf(
+  her: string | null,
+  gender: Gender,
+  wanted: Toy | null,
+  goes: readonly Go[],
+  tries: number
+): string {
+  const p = wordsOf(gender)
   const won = wonIn(goes)
   const paid = `${tries} ${tries === 1 ? 'go' : 'goes'}`
   const holds = won.length === 1 ? 'It is in your hands now' : 'They are in your hands now'
@@ -518,13 +554,13 @@ export function summaryOf(her: string | null, wanted: Toy | null, goes: readonly
       : `You play the claw machine, ${paid}, and come away with nothing.`
   }
   if (won.length === 0) {
-    return `You play the claw machine with ${her} watching, ${paid}, and come away with nothing: ${the(wanted)} she had her eye on stays behind the glass.`
+    return `You play the claw machine with ${her} watching, ${paid}, and come away with nothing: ${the(wanted)} ${p.they} had ${p.their} eye on stays behind the glass.`
   }
   if (won.some((toy) => toy.id === wanted.id)) {
     const more = won.filter((toy) => toy.id !== wanted.id)
-    return `You play the claw machine with ${her} watching, ${paid}, and win ${the(wanted)} she had her eye on${more.length > 0 ? `, and ${all(more)} besides` : ''}. ${holds}, yours to give.`
+    return `You play the claw machine with ${her} watching, ${paid}, and win ${the(wanted)} ${p.they} had ${p.their} eye on${more.length > 0 ? `, and ${all(more)} besides` : ''}. ${holds}, yours to give.`
   }
-  return `You play the claw machine with ${her} watching, ${paid}. ${her} had her eye on ${the(wanted)}; you win ${all(won)} instead. ${holds}, yours to keep or to give.`
+  return `You play the claw machine with ${her} watching, ${paid}. ${her} had ${p.their} eye on ${the(wanted)}; you win ${all(won)} instead. ${holds}, yours to keep or to give.`
 }
 
 /**
@@ -532,23 +568,33 @@ export function summaryOf(her: string | null, wanted: Toy | null, goes: readonly
  * the machine, and what the reader now holds. Said again after every go, so `tries` may be more
  * than the goes had.
  */
-export function accountOf(her: string | null, wanted: Toy | null, goes: readonly Go[], tries: number): string[] {
+export function accountOf(
+  her: string | null,
+  gender: Gender,
+  reader: ReaderPronouns,
+  wanted: Toy | null,
+  goes: readonly Go[],
+  tries: number
+): string[] {
+  const p = wordsOf(gender)
+  const beside = her ? gender : null
+  const r = readerWords(reader, beside ?? undefined)
   const won = wonIn(goes)
   const over = goes.length >= tries
   const lines = [
     `A claw machine full of plush toys, ${tries} ${tries === 1 ? 'go' : 'goes'} paid for, worked by the reader${her ? `; ${her} watched at the glass and did not play` : ' alone'}.`,
-    ...(her && wanted ? [`${her} said she had her eye on ${the(wanted)}: ${TIER_TOLD[tierOf(wanted)]}.`] : []),
+    ...(her && wanted ? [`${her} said ${p.they} had ${p.their} eye on ${the(wanted)}: ${TIER_TOLD[tierOf(wanted)]}.`] : []),
     ...goes.map((go, index) => {
       const toy = go.aimed
       if (!toy) return `Go ${index + 1}: the claw came down on bare floor.`
       const where = go.meant
-        ? `he went for ${the(go.meant)}, which is under ${go.top ? the(go.top) : 'another toy'}, and stopped ${strayOf(go)}; the claw took ${the(toy)} instead`
-        : `he went for ${the(toy)} and stopped ${strayOf(go)}`
+        ? `${r.he} went for ${the(go.meant)}, which is under ${go.top ? the(go.top) : 'another toy'}, and stopped ${strayOf(go)}; the claw took ${the(toy)} instead`
+        : `${r.he} went for ${the(toy)} and stopped ${strayOf(go)}`
       const result =
         go.kind === 'catch'
-          ? `grabbed and held to the chute: ${luckOf(go)}`
+          ? `grabbed and held to the chute: ${luckOf(go, reader, beside)}`
           : go.kind === 'slip'
-            ? `grabbed, and ${go.meant ? the(toy) : 'it'} slipped out ${go.slipAt <= LIFT_SHARE ? 'on the lift' : 'part-way back'}: ${luckOf(go)}`
+            ? `grabbed, and ${go.meant ? the(toy) : 'it'} slipped out ${go.slipAt <= LIFT_SHARE ? 'on the lift' : 'part-way back'}: ${luckOf(go, reader, beside)}`
             : go.kind === 'nudge'
               ? 'a near miss that knocked it aside'
               : go.kind === 'pinned'
@@ -558,15 +604,15 @@ export function accountOf(her: string | null, wanted: Toy | null, goes: readonly
     })
   ]
   if (!over) {
-    return [...lines, `So far he has won ${won.length > 0 ? all(won) : 'nothing'}, with ${tries - goes.length} to go.`]
+    return [...lines, `So far ${r.he} has won ${won.length > 0 ? all(won) : 'nothing'}, with ${tries - goes.length} to go.`]
   }
   if (won.length === 0) {
-    return [...lines, `He won nothing${her && wanted ? `: ${the(wanted)} is still in the machine` : ''}.`]
+    return [...lines, `${r.He} won nothing${her && wanted ? `: ${the(wanted)} is still in the machine` : ''}.`]
   }
   const hers = wanted !== null && won.some((toy) => toy.id === wanted.id)
   return [
     ...lines,
-    `He won ${all(won)}${her && wanted ? (hers ? `: the toy ${her} wanted` : `, not ${the(wanted)} ${her} wanted`) : ''}.`,
-    `The reader is holding ${won.length === 1 ? 'that plush toy' : 'those plush toys'} now. Nothing has been handed to anyone: whether he gives ${won.length === 1 ? 'it' : 'any'} away${her ? `, to ${her} or otherwise,` : ''} and how that goes is for the scene.`
+    `${r.He} won ${all(won)}${her && wanted ? (hers ? `: the toy ${her} wanted` : `, not ${the(wanted)} ${her} wanted`) : ''}.`,
+    `The reader is holding ${won.length === 1 ? 'that plush toy' : 'those plush toys'} now. Nothing has been handed to anyone: whether ${r.he} gives ${won.length === 1 ? 'it' : 'any'} away${her ? `, to ${her} or otherwise,` : ''} and how that goes is for the scene.`
   ]
 }

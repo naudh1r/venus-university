@@ -1,4 +1,4 @@
-import { listed } from '../minigameKit'
+import { listed, readerWords, type ReaderPronouns } from '../minigameKit'
 
 /**
  * Hoop Shot's rules: the clock, the power meter and the band on it that drops a ball, what a
@@ -274,12 +274,16 @@ export function touchOf(shooter: Shooter): Touch {
   return rate >= 0.45 ? 'steady' : 'cold'
 }
 
-const TOUCH_TOLD: Readonly<Record<Touch, string>> = {
-  rushed: 'The reader rushed: he kept hammering the button before the ball was back in his hand, and threw away his rhythm.',
-  clean: 'The reader shot cleanly: an even rhythm, most of his baskets dropping without touching the rim. That was touch, not luck.',
-  streaky: 'The reader was streaky: most of his baskets came in one hot run, with cold spells either side of it.',
-  steady: 'The reader shot steadily without ever getting hot.',
-  cold: 'The reader never found the range: more of his shots missed than went in.'
+function touchTold(touch: Touch, reader: ReaderPronouns): string {
+  const r = readerWords(reader)
+  const told: Readonly<Record<Touch, string>> = {
+    rushed: `The reader rushed: ${r.he} kept hammering the button before the ball was back in ${r.his} hand, and threw away ${r.his} rhythm.`,
+    clean: `The reader shot cleanly: an even rhythm, most of ${r.his} baskets dropping without touching the rim. That was touch, not luck.`,
+    streaky: `The reader was streaky: most of ${r.his} baskets came in one hot run, with cold spells either side of it.`,
+    steady: 'The reader shot steadily without ever getting hot.',
+    cold: `The reader never found the range: more of ${r.his} shots missed than went in.`
+  }
+  return told[touch]
 }
 
 const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
@@ -372,11 +376,11 @@ const TERMS =
   'a basket was 2 points, 3 in the last third once the hoop started sliding from side to side, and three in a row put a shooter on fire for 1 more a basket'
 
 /** A round shot alone as the scene's writer is told it. */
-export function soloAccount(mine: Shooter, lengthMs: number): string[] {
+export function soloAccount(mine: Shooter, lengthMs: number, reader: ReaderPronouns): string[] {
   return [
     `The reader shot one ${lengthMs / 1000}-second round alone on the Hoop Shot arcade basketball machine: ${TERMS}.`,
     shotLine('the reader', mine),
-    ...(mine.attempts ? [TOUCH_TOLD[touchOf(mine)]] : [])
+    ...(mine.attempts ? [touchTold(touchOf(mine), reader)] : [])
   ]
 }
 
@@ -390,7 +394,8 @@ export function versusAccount(
   names: readonly string[],
   shooters: readonly Shooter[],
   mark: readonly number[] | null,
-  lengthMs: number
+  lengthMs: number,
+  reader: ReaderPronouns
 ): string[] {
   const who = ['the reader', ...names]
   const scores = shooters.map((shooter) => shooter.score)
@@ -415,7 +420,7 @@ export function versusAccount(
         : `When the hoop started to move ${listed(led.map((seat) => who[seat]))} led${led.length > 1 ? ' together' : ''}, ${listed(who.map((name, seat) => `${name} ${mark[seat]}`))}${turn}.`
     )
   }
-  if (shooters[0].attempts) lines.push(TOUCH_TOLD[touchOf(shooters[0])])
+  if (shooters[0].attempts) lines.push(touchTold(touchOf(shooters[0]), reader))
   lines.push(
     first.length === who.length
       ? `It ended level, everyone on ${scores[0]}: a draw.`

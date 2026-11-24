@@ -91,7 +91,7 @@ kits do not have, the thing to do is add it to the kit, for every pack.
 
 | Kit | For | What is in it |
 | --- | --- | --- |
-| `@shared/minigameKit` | Games on paper, the pack's entry, the rules | `MiniGameDef` and its types, `packMod`, `listed`, `fewestWith`, `SkillLevel`; playing cards (`Card`, `Suit`, `freshDeck`, `rankMark`, `rankWord`); `seededRand`, `shuffle`, `pick` |
+| `@shared/minigameKit` | Games on paper, the pack's entry, the rules | `MiniGameDef` and its types, `packMod`, `listed`, `fewestWith`, `SkillLevel`; playing cards (`Card`, `Suit`, `freshDeck`, `rankMark`, `rankWord`); `seededRand`, `shuffle`, `pick`; the words a line is written in (`wordsOf`, `PRONOUNS`, `readerWords`, `readerAmong`, and the `Gender`, `Pronouns`, `ReaderPronouns` and `ReaderWords` types) |
 | `src/renderer/minigames/kit` | The component and the entry that registers it | `GamePlay` and its types, `registerGame`; the game's own controls (`gestures`, `lift`, `press`, `quietLift`, `quietPress`, `toggleLift`, `TextField`, `BunnyMark`); `useWindowKeydown` and `typingIn`; and the helpers below |
 
 | Helper | What it saves writing |
@@ -219,7 +219,8 @@ draws what is between.
 
 | Member | What it is, and when to use it |
 | --- | --- |
-| `opponents` | The girls playing, in the order they sit: `{ charId, name, skill, style }`. Empty for a game alone. `name` is what the reader calls her, and is `her` until he knows her name. |
+| `opponents` | Everyone playing, in the order they sit: `{ charId, name, gender, skill, style }`. Empty for a game alone. `name` is what the reader calls her, and is `her` (`him` for a guy) until he knows her name. `gender` is `female` or `male`. |
+| `reader` | The reader's pronouns: `he`, `she` or `they`. |
 | `stake` | What is riding on it, as the scene settled it, in a sentence; empty where nothing is. |
 | `chattiness` | `quiet`, `some` or `lots`, as the player has it set. |
 | `options` | Every option the game declares, by id. |
@@ -289,6 +290,26 @@ The rules that matter:
 - **The reader's line to the table is not yours.** The framework shows the field wherever there
   is an opponent, has the girl he names answer (or each in turn), and does not hold the game for
   it. There is nothing to handle.
+
+## Her, him and the reader
+
+An opponent is a girl or a guy, and the player chooses whether the reader is he, she or they. No
+line a game writes may assume either: not its narration, not a summary, not a cue or an account
+for the model, not its `format` or `skillBrief`.
+
+- A line about one opponent takes her words from `wordsOf(opponent.gender)`: `they`, `them`,
+  `their`, `theirs`, `themself`, and each with a capital. `${name} turns ${p.their} card` reads
+  "her card" or "his card".
+- A line for the model that speaks of the reader takes `readerWords(play.reader, gender)`, where
+  `gender` is the one opponent the line also names: `he`, `him`, `his`, `hers`, `himself`, `He`,
+  `Him`, `His`. Where the reader's pronouns are that opponent's too, they all come back as "the
+  reader", so the line cannot be read two ways. A they/them reader's `he` is "the reader": the verb
+  after it is always singular. `readerAmong(play.reader, genders)` is the same for a line that
+  names several opponents.
+- Text about players in general says "a player", "the others" or "they".
+- What is said to the player stays "you".
+
+Rules that write lines take the gender and the reader's pronouns as arguments, so they stay pure.
 
 ## Her skill
 
@@ -416,6 +437,7 @@ for the stake to the two of them. The component is simply unmounted.
 - [ ] Nothing is said or dealt twice in development.
 - [ ] Keys do nothing while the reader types to her.
 - [ ] The summary reads as narration to "you" and says who won; the account tells play from luck.
+- [ ] No line says "she" or "he" outright: played against a guy, and as a reader who is not "he".
 - [ ] Played in the day and the night theme, with one girl, with the most it seats, and alone.
 
 ## Testing a pack
@@ -439,6 +461,16 @@ quickest way to a table is a game with `min: 0`, which opens from the dice seat 
 asked.
 
 ## What changed
+
+### 0.2.5
+
+Venus University 0.9 put guys on the roster and lets the player choose the reader's pronouns.
+An opponent now carries a `gender`, and `play.reader` holds the reader's pronouns. The framework's
+own prompts (a line at the table, a round, a skill judgement, an offer and a proposal) tag each
+character and the reader and take their words from both, and its settings no longer speak of
+girls only. A pack whose lines say "she" or "he" outright keeps working but reads wrong for a guy
+or for a reader who is not "he": see "Her, him and the reader". The four packs that come with the
+build are changed with it.
 
 ### 0.2.4
 

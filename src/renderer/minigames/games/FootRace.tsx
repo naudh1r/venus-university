@@ -34,7 +34,7 @@ import {
   type Strides,
   type Told
 } from '@shared/minigameRules/footRace'
-import { listed } from '@shared/minigameKit'
+import { listed, readerWords, wordsOf } from '@shared/minigameKit'
 import { typingIn, useWindowKeydown } from '../kit'
 import { gestures, lift, press } from '../kit'
 import type { GamePlay } from '../kit'
@@ -183,6 +183,10 @@ export function FootRace({ play }: { play: GamePlay }): JSX.Element {
   const pace = useRef<HTMLSpanElement>(null)
 
   const who = (seat: number): string => (seat === 0 ? 'the reader' : names[seat - 1])
+  /** The reader's words, in a line that names nobody else. */
+  const r = readerWords(play.reader)
+  /** A seat's own word for "herself": the reader's, or the girl's in it. */
+  const self = (seat: number): string => (seat === 0 ? r.himself : wordsOf(girls[seat - 1].gender).themself)
   const lead = (): number => Math.max(...live.current.runners.map((runner) => runner.pos)) / course.metres
 
   /** How the race stands, for anything said beside the track. */
@@ -276,7 +280,7 @@ export function FootRace({ play }: { play: GamePlay }): JSX.Element {
     } else {
       game.jumped = true
       latest.current.narrate(`${who(seat)} goes before the gun: a false start. A warning, and back to the marks.`)
-      remark(seat, `${who(seat)} herself just went before the gun: a false start, a warning, and everyone is called back to the line.`)
+      remark(seat, `${who(seat)} ${self(seat)} just went before the gun: a false start, a warning, and everyone is called back to the line.`)
     }
   }
 
@@ -328,14 +332,14 @@ export function FootRace({ play }: { play: GamePlay }): JSX.Element {
       latest.current.finish({
         outcome: 'played',
         summary: soloSummary(course, told[0]),
-        account: account(course, told)
+        account: account(course, told, play.reader)
       })
       return
     }
     latest.current.finish({
       outcome: outcomeOf(placesOf(told.map((one) => one.time))),
       summary: versusSummary(course, told),
-      account: account(course, told)
+      account: account(course, told, play.reader)
     })
   }
 
@@ -367,7 +371,7 @@ export function FootRace({ play }: { play: GamePlay }): JSX.Element {
       const left = Math.round(course.metres - runner.pos)
       if (runner.stumbled && !game.stumbleTold[seat]) {
         game.stumbleTold[seat] = true
-        remark(seat, `${who(seat)} herself just stumbled mid-stride and lost ground, with ${left} m to go.`)
+        remark(seat, `${who(seat)} ${self(seat)} just stumbled mid-stride and lost ground, with ${left} m to go.`)
       }
       if (runner.spentAt === null || game.fadeTold[seat]) return
       game.fadeTold[seat] = true
@@ -375,8 +379,8 @@ export function FootRace({ play }: { play: GamePlay }): JSX.Element {
       remark(
         seat,
         seat === 0
-          ? `The reader went out too fast and has nothing left with ${left} m to go: he is fading.`
-          : `${who(seat)} herself went out too fast and has nothing left with ${left} m to go: she is fading.`
+          ? `The reader went out too fast and has nothing left with ${left} m to go: ${r.he} is fading.`
+          : `${who(seat)} ${self(seat)} went out too fast and has nothing left with ${left} m to go: ${wordsOf(girls[seat - 1].gender).they} is fading.`
       )
     })
 
@@ -392,7 +396,7 @@ export function FootRace({ play }: { play: GamePlay }): JSX.Element {
         const left = Math.round(course.metres - game.runners[passer].pos)
         remark(
           passer > 0 ? passer : passed,
-          `${who(passer)}${passer > 0 ? ' herself' : ''} has just kicked past ${who(passed)} with ${left} m to go.`
+          `${who(passer)}${passer > 0 ? ` ${self(passer)}` : ''} has just kicked past ${who(passed)} with ${left} m to go.`
         )
       }
     }

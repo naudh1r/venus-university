@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import type { Emotion } from '@shared/types'
+import type { Gender, ReaderPronouns } from '@shared/minigameKit'
 import type { Chattiness } from '@shared/minigames'
 import type { RoundAsk } from './round'
 
@@ -33,11 +34,13 @@ export interface PlayResult {
   account?: readonly string[]
 }
 
-/** A girl at the table. */
+/** Someone at the table with the reader. */
 export interface Opponent {
   charId: string
   /** What the reader calls her. */
   name: string
+  /** Her gender: what a line about her takes its pronouns from, by `PRONOUNS[gender]`. */
+  gender: Gender
   /** How well she plays, from 1 to 5. */
   skill: 1 | 2 | 3 | 4 | 5
   /** How she plays, in a few words; empty where nothing was judged. */
@@ -47,8 +50,10 @@ export interface Opponent {
 }
 
 export interface GamePlay {
-  /** The girls playing against the reader; none for a game played alone. */
+  /** Everyone playing against the reader; none for a game played alone. */
   opponents: readonly Opponent[]
+  /** The reader's pronouns: what a line about the reader takes its words from, by `readerWords`. */
+  reader: ReaderPronouns
   /** The id of the place the scene is at, or null where it has none: a pool, or the sea. */
   location: string | null
   /**

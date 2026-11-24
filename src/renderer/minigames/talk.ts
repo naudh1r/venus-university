@@ -1,6 +1,15 @@
 import { MINI_GAMES } from '@shared/minigames'
-import { character, completeStructured, objectSchema, scene } from '@vx/modkit/renderer'
-import { READER_SPEAKER, type Character, type StructuredRequest } from '@vx/modkit/shared'
+import { readerTag } from '@shared/minigameKit'
+import { character, completeStructured, gameFacts, objectSchema, scene } from '@vx/modkit/renderer'
+import {
+  genderOf,
+  pronounsOf,
+  pronounTag,
+  READER_SPEAKER,
+  readerWordsOf,
+  type Character,
+  type StructuredRequest
+} from '@vx/modkit/shared'
 
 /**
  * A line a girl says at the table, written by the model: one short line, in her voice, from a
@@ -24,13 +33,16 @@ function recentScene(): string[] {
 
 function request(character: Character, situation: string, cue: string): StructuredRequest {
   const name = character.firstName
+  const reader = gameFacts().readerPronouns
+  const p = pronounsOf(character)
+  const r = readerWordsOf(reader, genderOf(character))
   return {
     system: [
-      'You write dialogue for one character in an interactive visual novel, a college dating sim. The reader is the main character and is spoken to as "you".',
+      `You write dialogue for one character in an interactive visual novel, a college dating sim. The reader is the main character (${readerTag(reader)}) and is spoken to as "you".`,
       'Answer in JSON only.'
     ].join('\n'),
     user: [
-      `CHARACTER: ${name} ${character.lastName}`.trim(),
+      `CHARACTER: ${`${name} ${character.lastName}`.trim()} (${pronounTag(genderOf(character))})`,
       character.personality,
       ...(character.likes.length > 0 ? [`Likes: ${character.likes.join(', ')}`] : []),
       ...(character.dislikes.length > 0 ? [`Dislikes: ${character.dislikes.join(', ')}`] : []),
@@ -45,7 +57,7 @@ function request(character: Character, situation: string, cue: string): Structur
       'RIGHT NOW',
       cue,
       '',
-      `Write the ONE thing ${name} says out loud at this moment, in her own voice and as she is with him in this scene. At most 20 words. Her spoken words only: no narration, no actions, no quotation marks, no name in front. She does not explain the rules, read out the score, or say what is going to happen next in the game.`
+      `Write the ONE thing ${name} says out loud at this moment, in ${p.their} own voice and as ${p.they} is with ${r.him} in this scene. At most 20 words. ${p.Their} spoken words only: no narration, no actions, no quotation marks, no name in front. ${p.They} does not explain the rules, read out the score, or say what is going to happen next in the game.`
     ].join('\n'),
     schema: objectSchema('minigame_line', ['line'], { line: { type: 'string' } })
   }

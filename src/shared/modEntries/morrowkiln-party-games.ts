@@ -7,7 +7,7 @@ export default packMod({
   id: 'morrowkiln-party-games',
   name: '[MK] Party Games',
   author: 'morrowkiln',
-  version: '0.1.0-beta',
+  version: '0.1.1',
   blurb: 'Games for a drink and a dare among adults: the kind an evening turns on.',
   games: [BEER_PONG, TRUTH_OR_DARE]
 })

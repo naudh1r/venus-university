@@ -224,8 +224,8 @@ describe('the toy she wants', () => {
       const buried = toys.find((each) => pinnedBy(toys, each)) as Toy
       for (const tries of [1, 2]) {
         expect(choicesOf(toys, tries)).toHaveLength(11)
-        expect(pickAsk('Lia', toys, tries).names).not.toContain(buried.name)
-        expect(pickAsk('Lia', toys, tries).brief).not.toContain('pinned')
+        expect(pickAsk('Lia', 'female', 'he', toys, tries).names).not.toContain(buried.name)
+        expect(pickAsk('Lia', 'female', 'he', toys, tries).brief).not.toContain('pinned')
         for (let pick = 0; pick < 30; pick++) expect(pickToy(toys, rand, tries).id).not.toBe(buried.id)
       }
       expect(choicesOf(toys, 3)).toHaveLength(12)
@@ -239,7 +239,7 @@ describe('the toy she wants', () => {
     const toys = pile()
     const buried = toys.find((each) => pinnedBy(toys, each)) as Toy
     const top = pinnedBy(toys, buried) as Toy
-    const asked = pickAsk('Lia', toys, 3)
+    const asked = pickAsk('Lia', 'female', 'he', toys, 3)
     expect(asked.names).toContain(buried.name)
     expect(asked.brief).toContain(`The ${buried.name} lies pinned under the ${top.name}`)
     expect(asked.brief).toContain(asked.names.join(', '))
@@ -268,17 +268,17 @@ describe('a go at the pinned toy', () => {
     const caught = takeGo(toys, over(buried), () => 0)
     const slipped = takeGo(toys, over(buried), () => 0.999)
     for (const go of [caught, slipped]) {
-      const line = accountOf('Lia', buried, [go], 3)[2]
+      const line = accountOf('Lia', 'female', 'he', buried, [go], 3)[2]
       expect(line).toContain(`he went for the ${buried.name}, which is under the ${top.name}, and stopped dead on; the claw took the ${top.name} instead`)
-      expect(goTold(go, buried.id)).toContain(`comes down over the ${buried.name}, but the ${top.name} lies across it`)
-      expect(goTold(go, buried.id)).not.toContain('too far')
-      expect(cueOf(go, 'Lia', buried, [go], 2).text).toContain(`He was going for the ${buried.name}, the toy Lia said she wanted`)
+      expect(goTold(go, buried.id, 'female')).toContain(`comes down over the ${buried.name}, but the ${top.name} lies across it`)
+      expect(goTold(go, buried.id, 'female')).not.toContain('too far')
+      expect(cueOf(go, 'Lia', 'female', 'he', buried, [go], 2).text).toContain(`He was going for the ${buried.name}, the toy Lia said she wanted`)
     }
-    expect(luckOf(slipped)).not.toContain('his own doing')
+    expect(luckOf(slipped, 'he', 'female')).not.toContain('his own doing')
     // A go at the toy on top itself is told as it always was.
     const plain = takeGo(toys, over(top), () => 0)
     expect(plain.meant).toBeNull()
-    expect(accountOf('Lia', buried, [plain], 3)[2]).toContain(`he went for the ${top.name} and stopped dead on`)
+    expect(accountOf('Lia', 'female', 'he', buried, [plain], 3)[2]).toContain(`he went for the ${top.name} and stopped dead on`)
   })
 })
 
@@ -291,11 +291,11 @@ describe('whose doing a slip was', () => {
     const onWhale = wide(whale)
     expect(onWhale.kind).toBe('slip')
     expect(onWhale.off).toBeGreaterThan(0.6)
-    expect(luckOf(onWhale)).not.toContain('his own doing')
-    expect(luckOf(onWhale)).toContain('about 25 times in 100')
-    expect(luckOf(onWhale)).toContain(`about ${Math.round(onWhale.chance * 100)} times in 100`)
-    expect(luckOf(wide(duck))).toContain('his own doing')
-    expect(luckOf(takeGo([duck], over(duck), () => 0.999))).toContain('plain bad luck')
+    expect(luckOf(onWhale, 'he', 'female')).not.toContain('his own doing')
+    expect(luckOf(onWhale, 'he', 'female')).toContain('about 25 times in 100')
+    expect(luckOf(onWhale, 'he', 'female')).toContain(`about ${Math.round(onWhale.chance * 100)} times in 100`)
+    expect(luckOf(wide(duck), 'he', 'female')).toContain('his own doing')
+    expect(luckOf(takeGo([duck], over(duck), () => 0.999), 'he', 'female')).toContain('plain bad luck')
   })
 })
 
@@ -305,13 +305,13 @@ describe('what the front shows of a go', () => {
     const duck = toy(toys, 'duckling')
     const whale = toy(toys, 'whale')
     const caught = takeGo(toys, over(duck), () => 0.5)
-    expect(goShown(caught, null)).toBe('Won the duckling!')
-    expect(goShown(caught, 'duckling')).toBe('Won the duckling she wanted!')
-    expect(goShown(caught, 'whale')).toBe('Won the duckling!')
-    expect(goShown(takeGo(toys, over(whale), () => 0.5), null)).toBe('The big whale slipped free')
-    expect(goShown(takeGo(toys, { x: HOME.x, z: HOME.z }, never), null)).toMatch(/^Missed/)
+    expect(goShown(caught, null, 'female')).toBe('Won the duckling!')
+    expect(goShown(caught, 'duckling', 'female')).toBe('Won the duckling she wanted!')
+    expect(goShown(caught, 'whale', 'female')).toBe('Won the duckling!')
+    expect(goShown(takeGo(toys, over(whale), () => 0.5), null, 'female')).toBe('The big whale slipped free')
+    expect(goShown(takeGo(toys, { x: HOME.x, z: HOME.z }, never), null, 'female')).toMatch(/^Missed/)
     // Short enough for the machine's front, whatever the toy.
-    for (const each of toys) expect(`Go 5: ${goShown({ ...caught, aimed: each }, each.id)}`.length).toBeLessThanOrEqual(40)
+    for (const each of toys) expect(`Go 5: ${goShown({ ...caught, aimed: each }, each.id, 'female')}`.length).toBeLessThanOrEqual(40)
   })
 })
 

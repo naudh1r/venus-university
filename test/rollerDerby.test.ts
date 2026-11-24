@@ -37,6 +37,8 @@ import {
 /** Rink Race's rules: the stride, the bends, how the girls skate, the order and the account. */
 
 const SKILLS: Skill[] = [1, 2, 3, 4, 5]
+/** Each named racer a girl, as every race here has them. */
+const girlsOf = (names: readonly string[]): 'female'[] => names.map(() => 'female')
 const never = (): number => {
   throw new Error('guessed')
 }
@@ -312,7 +314,7 @@ describe('Rink Race result', () => {
       advance(race, 10, rand)
     }
     finishOut(race, rand)
-    const told = account(race, names).join('\n')
+    const told = account(race, names, girlsOf(names)).join('\n')
     const said = summary(race, names)
     for (const name of names) {
       expect(told).toContain(name)
@@ -328,7 +330,7 @@ describe('Rink Race result', () => {
     const alone = newRace(2, [])
     skate(alone, 90000, BEAT_MS, inBend)
     expect(outcomeOf(alone)).toBe('played')
-    expect(account(alone, []).join('\n')).toContain('alone')
+    expect(account(alone, [], []).join('\n')).toContain('alone')
     expect(summary(alone, []).startsWith('You ')).toBe(true)
   })
 })
@@ -472,24 +474,24 @@ describe('Rink Race fixes', () => {
         advance(race, 10, rand)
       }
       finishOut(race, rand)
-      const texts = [startLine(2, names), standing(race, names), summary(race, names), ...account(race, names), ...soFar(race, names)]
+      const texts = [startLine(2, names), standing(race, names), summary(race, names), ...account(race, names, girlsOf(names)), ...soFar(race, names)]
       for (const text of texts) {
         expect(text).not.toMatch(/(You|reader), \w+ (roll|are|raced|were)/)
         expect(text).not.toMatch(/undefined|NaN/)
       }
       if (i === 0) {
         expect(standing(race, names)).toBe('')
-        expect(account(race, names)[0]).toContain('The reader skated a timed run alone')
+        expect(account(race, names, girlsOf(names))[0]).toContain('The reader skated a timed run alone')
         expect(soFar(race, names)[0]).toContain('The reader was skating')
         return
       }
       const who = `The reader${i === 1 ? ' ' : ''}${wanted[i]}`
       expect(standing(race, names)).toContain(`${who.replace('The', 'the')} are racing`)
-      expect(account(race, names)[0].startsWith(`${who} raced`)).toBe(true)
+      expect(account(race, names, girlsOf(names))[0].startsWith(`${who} raced`)).toBe(true)
       expect(soFar(race, names)[0].startsWith(`${who} were racing`)).toBe(true)
       const few = i === 1 ? 'both of them' : 'all of them'
       expect(standing(race, names)).toContain(few)
-      expect(account(race, names).at(-1)).toContain(few)
+      expect(account(race, names, girlsOf(names)).at(-1)).toContain(few)
     })
   })
 
@@ -502,7 +504,7 @@ describe('Rink Race fixes', () => {
     expect(wobbles).toBeGreaterThan(0)
     expect(me.wobbles).toBe(wobbles)
     expect(me.wide).toBe(0)
-    const told = account(slow, []).join('\n')
+    const told = account(slow, [], []).join('\n')
     expect(told).toContain('wobbled off the boards')
     expect(told).not.toContain('ran wide')
 
@@ -517,7 +519,7 @@ describe('Rink Race fixes', () => {
     skate(late, 90000, BEAT_MS, (dist) => inBend(dist - 4))
     expect(late.skaters[0].falls.length + late.skaters[0].wobbles).toBe(0)
     expect(late.skaters[0].wide).toBeGreaterThan(0)
-    expect(account(late, []).join('\n')).toContain('ran wide in a bend')
+    expect(account(late, [], []).join('\n')).toContain('ran wide in a bend')
 
     // A girl's one slide into the boards is one loss of the line.
     for (let seed = 0; seed < 40; seed++) {
@@ -563,6 +565,6 @@ describe('Rink Race fixes', () => {
     const def = MINI_GAMES_LIST.find((entry) => entry.id === 'roller-derby')
     if (!def) throw new Error('no Rink Race')
     expect(def.controls).toMatch(/let go on the straights/)
-    expect(def.format).toMatch(/straightens as each bend ends/)
+    expect(def.format).toMatch(/straighten as each bend ends/)
   })
 })

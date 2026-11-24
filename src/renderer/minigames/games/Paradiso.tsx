@@ -23,6 +23,7 @@ import {
   type Lane,
   type Tally
 } from '@shared/minigameRules/paradiso'
+import { wordsOf } from '@shared/minigameKit'
 import { typingIn, useWindowKeydown } from '../kit'
 import { gestures, lift, press } from '../kit'
 import type { GamePlay } from '../kit'
@@ -260,7 +261,7 @@ export function Paradiso({ play }: { play: GamePlay }): JSX.Element {
     return [
       `The game is PARADISO, a dance machine: the reader and ${her.name} are side by side on its two pads, dancing the same steps at difficulty ${chart.difficulty} of 5, both too busy and too out of breath to say much.`,
       where,
-      `The score is the reader ${points(a.score)}, ${her.name} ${points(b.score)}; the reader's combo is ${a.combo} with ${a.counts.miss} missed, hers ${b.combo} with ${b.counts.miss} missed.`,
+      `The score is the reader ${points(a.score)}, ${her.name} ${points(b.score)}; the reader's combo is ${a.combo} with ${a.counts.miss} missed, ${wordsOf(her.gender).theirs} ${b.combo} with ${b.counts.miss} missed.`,
       ...(held.current.stake ? [`Riding on it: ${held.current.stake}`] : [])
     ].join(' ')
   }

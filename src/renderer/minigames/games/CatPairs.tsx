@@ -28,7 +28,7 @@ import {
   type Game,
   type Memory
 } from '@shared/minigameRules/catPairs'
-import { listed } from '@shared/minigameKit'
+import { listed, wordsOf } from '@shared/minigameKit'
 import { gestures, quietPress, toggleLift } from '../kit'
 import type { GamePlay } from '../kit'
 import '../../vu_styles/CatPairs.css'
@@ -250,7 +250,7 @@ export function CatPairs({ play }: { play: GamePlay }): JSX.Element {
     // On the next tick, so a mount that is at once undone and redone says it once.
     const timer = setTimeout(() => {
       play.narrate(
-        `${names[0]} lays out ${pairs} pairs of the café's cats face down${several ? ` for ${listed(['you', ...names.slice(1), 'herself'])}` : ''}. Two cards a turn, a pair earns another go, and you turn first.${withCat ? ' The café cats are loose, so watch the table.' : ''}`
+        `${names[0]} lays out ${pairs} pairs of the café's cats face down${several ? ` for ${listed(['you', ...names.slice(1), wordsOf(girls[0].gender).themself])}` : ''}. Two cards a turn, a pair earns another go, and you turn first.${withCat ? ' The café cats are loose, so watch the table.' : ''}`
       )
     }, 0)
     return () => clearTimeout(timer)

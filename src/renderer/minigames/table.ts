@@ -18,7 +18,7 @@ import {
 } from '@vx/modkit/renderer'
 import { create } from 'zustand'
 import { gamesOffered, gameSwitchOn, listed, type MiniGameDef } from '@shared/minigames'
-import { modById, optionKey, READER_SPEAKER } from '@vx/modkit/shared'
+import { modById, optionKey, pronounsOf, READER_SPEAKER } from '@vx/modkit/shared'
 import type { Emotion } from '@shared/types'
 import { useModsStore, modIsOn } from '../stores/modsStore'
 import { gameComponent, type PlayResult } from './play'
@@ -67,10 +67,13 @@ function presentOf(view: SceneView | null): readonly string[] {
   return view?.present ?? NOBODY
 }
 
-/** What the reader calls a girl: her first name once he has been told it, "her" until then. */
+/**
+ * What the reader calls someone: her first name once he has been told it, and until then "her",
+ * or "him" for a guy.
+ */
 export function nameOf(charId: string): string {
   const known = characterInfo(charId)?.nameKnown
-  return (known && character(charId)?.firstName) || 'her'
+  return (known && character(charId)?.firstName) || pronounsOf(character(charId)).them
 }
 
 /** The reader is standing at his own turn, with nothing left to read. */
@@ -433,7 +436,7 @@ function deliverResult(result: PlayResult, played: PlayedWith, tries = 0): void 
             `The reader and ${who} were playing ${played.game.name} for real, at the table, between your last lines and now. The reader walked away from it before it was over. Nobody won it.`,
             ...(result.account ?? []),
             ...(played.stake ? [`Riding on it, as they agreed: ${played.stake}`] : []),
-            `Let ${who} react in character to him walking away. What it means, for the game and for anything riding on it, is for them to settle in the scene.`
+            `Let ${who} react in character to the reader walking away. What it means, for the game and for anything riding on it, is for them to settle in the scene.`
           ]
         : [
             'MINI-GAME RESULT',
@@ -463,7 +466,7 @@ function deliverResult(result: PlayResult, played: PlayedWith, tries = 0): void 
       next: true,
       brief: [
         'MINI-GAME',
-        `The reader has just played ${played.game.name} on his own, for real, in this scene. It is over: do not replay it or change how it came out. Anyone here saw it and may bring it up.`,
+        `The reader has just played ${played.game.name} alone, for real, in this scene. It is over: do not replay it or change how it came out. Anyone here saw it and may bring it up.`,
         ...(result.account ?? []),
         ...(sceneMiniGame().match ? played.game.resultBrief ?? [] : [])
       ]

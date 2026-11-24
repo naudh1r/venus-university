@@ -1,6 +1,6 @@
 import { MINI_GAMES, type MiniGameDef } from '@shared/minigames'
 import { completeStructured, gameFacts, objectSchema } from '@vx/modkit/renderer'
-import type { Character, StructuredRequest } from '@vx/modkit/shared'
+import { genderOf, pronounsOf, pronounTag, type Character, type StructuredRequest } from '@vx/modkit/shared'
 
 /**
  * How well a girl plays a game: judged once from who she is, by the model, and kept for the
@@ -26,13 +26,14 @@ function request(character: Character, game: MiniGameDef): StructuredRequest {
     `bias_${axis.id}`,
     { type: 'string', enum: ['-2', '-1', '0', '1', '2'] }
   ]))
+  const p = pronounsOf(character)
   return {
     system: [
-      'You judge how good a fictional character would be at a game, from who she is.',
+      `You judge how good a fictional character would be at a game, from who ${p.they} is.`,
       'Answer in JSON only.'
     ].join('\n'),
     user: [
-      `CHARACTER: ${character.firstName} ${character.lastName}`.trim(),
+      `CHARACTER: ${`${character.firstName} ${character.lastName}`.trim()} (${pronounTag(genderOf(character))})`,
       `Personality: ${character.personality}`,
       `Traits: ${character.traits.join(', ')}`,
       `Likes: ${character.likes.join(', ')}`,
@@ -41,9 +42,9 @@ function request(character: Character, game: MiniGameDef): StructuredRequest {
       `GAME: ${game.name}, ${game.blurb}.`,
       game.skillBrief,
       '',
-      '"skill": how well she plays, from "1" (hopeless) to "5" (hard to beat). Most people are a "2" or a "3"; give a "5" only where who she is really earns it.',
-      '"style": how she plays, in under ten words, as a note on her at the table.',
-      ...axes.map((axis) => `"bias_${axis.id}": ${axis.label}, from "-2" (clear weakness) through "0" (ordinary for her overall skill) to "2" (clear strength). ${axis.brief}`)
+      `"skill": how well ${p.they} plays, from "1" (hopeless) to "5" (hard to beat). Most people are a "2" or a "3"; give a "5" only where who ${p.they} is really earns it.`,
+      `"style": how ${p.they} plays, in under ten words, as a note on ${p.them} at the table.`,
+      ...axes.map((axis) => `"bias_${axis.id}": ${axis.label}, from "-2" (clear weakness) through "0" (ordinary for ${p.their} overall skill) to "2" (clear strength). ${axis.brief}`)
     ].join('\n'),
     schema: objectSchema('minigame_skill', ['skill', 'style', ...Object.keys(biasFields)], {
       skill: { type: 'string', enum: ['1', '2', '3', '4', '5'] },
