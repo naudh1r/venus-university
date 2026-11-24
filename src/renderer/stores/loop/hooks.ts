@@ -32,12 +32,22 @@ interface SlotCycle {
 
 interface HangoutEntry {
   /** Starts an armed hangout's scene while the player is still reading. */
-  prefetchHangoutScene: (charId: string, description: string) => Promise<void>
+  prefetchHangoutScene: (
+    charId: string,
+    description: string,
+    reminders?: TurnSnapshot['hangoutReminders']
+  ) => Promise<void>
   /**
    * Opens the scene an agreed hangout became — the Begin button, and a
    * retry, which carries back the verdict the failed attempt settled.
    */
-  startHangoutScene: (charId: string, description: string, preset?: Verdict) => Promise<void>
+  startHangoutScene: (
+    charId: string,
+    description: string,
+    preset?: Verdict,
+    sceneEvents?: TurnSnapshot['sceneEvents'],
+    reminders?: TurnSnapshot['hangoutReminders']
+  ) => Promise<void>
 }
 
 let slotCycle: SlotCycle | null = null
@@ -90,14 +100,18 @@ export function claimTextLedger(date: number, time: TimeSlot): Promise<LedgerRes
   return need(slotCycle, 'the slot cycle').claimTextLedger(date, time)
 }
 
-export function prefetchHangoutScene(charId: string, description: string): Promise<void> {
-  return need(hangoutEntry, 'the hangout entry').prefetchHangoutScene(charId, description)
+export function prefetchHangoutScene(
+  charId: string,
+  description: string,
+  reminders?: TurnSnapshot['hangoutReminders']
+): Promise<void> {
+  return need(hangoutEntry, 'the hangout entry').prefetchHangoutScene(charId, description, reminders)
 }
 
 export function startHangoutScene(
   charId: string,
   description: string,
-  preset?: Verdict
+  reminders?: TurnSnapshot['hangoutReminders']
 ): Promise<void> {
-  return need(hangoutEntry, 'the hangout entry').startHangoutScene(charId, description, preset)
+  return need(hangoutEntry, 'the hangout entry').startHangoutScene(charId, description, undefined, undefined, reminders)
 }

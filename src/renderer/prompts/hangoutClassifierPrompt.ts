@@ -46,7 +46,8 @@ export function buildHangoutClassifierPrompt(
   recent: readonly ChatMessage[],
   playerMessage: ChatMessage,
   replyMessages: readonly ChatMessage[],
-  state: HangoutClassifierState
+  state: HangoutClassifierState,
+  planReminder?: string
 ): StructuredRequest {
   const background = stampedStubs(recent.slice(-HANGOUT_CONTEXT_CAP), firstName, state.season)
 
@@ -106,6 +107,11 @@ export function buildHangoutClassifierPrompt(
     'THE MESSAGE "what are you up to" / THE REPLY "hazel and colette dragged me to the arcade, come meet us"',
     '{"playerAsked":false,"characterOffered":true,"description":"BTB Arcade with Mina, Hazel and Colette."}',
     '',
+    ...(planReminder ? [
+      `THE CONTACT'S STANDING REMINDER: ${planReminder}`,
+      'If THE MESSAGE accepts this reminder and THE REPLY does not turn it down, set "playerAsked" to true even for a short answer like "yes" or "sure". Write the description from the reminder and the exchange.',
+      ''
+    ] : []),
     'Fill in "playerAsked", "characterOffered", and "description" for the exchange above.'
   ].join('\n')
 

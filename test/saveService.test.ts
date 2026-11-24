@@ -162,6 +162,50 @@ describe('loadSave', () => {
     })
   })
 
+  it('loads legacy and linked hangout footers and rejects a malformed plan id', async () => {
+    const base = draft()
+    const footer = { description: 'Coffee' }
+    const linked = { ...footer, planId: 'coffee-plan' }
+    for (const [index, pendingHangout] of [footer, linked, { ...footer, planId: 42 }].entries()) {
+      const id = String(index + 1)
+      await seed('1', id, { ...base, bunnyboard: { ...base.bunnyboard, conversations: {
+        mia: { charId: 'mia', messages: [], unread: 0, summary: null, pendingHangout }
+      } } })
+      const load = saveService.loadSave('1', id)
+      if (index < 2) {
+        const save = await load
+        expect(save.bunnyboard.conversations.mia.pendingHangout).toEqual(pendingHangout)
+      } else {
+        await expect(load).rejects.toMatchObject({
+          code: 'SAVE_MALFORMED', detail: expect.stringContaining('pendingHangout.planId')
+        })
+      }
+    }
+  })
+
+  it('loads legacy and linked banked openings and rejects malformed reminder links', async () => {
+    const opening = { lines: [], hangouts: [], events: [], cancellations: [] }
+    const links = { mia_rose: 'coffee-plan' }
+    const paths = ['morningOpening', 'scene.opening'] as const
+    for (const path of paths) {
+      for (const [index, entry] of [opening, { ...opening, reminderPlanIds: links },
+        { ...opening, reminderPlanIds: { mia_rose: null } }].entries()) {
+        const id = String(index + 1)
+        const body = path === 'morningOpening' ? { morningOpening: entry } : { scene: { opening: entry } }
+        await seed('1', id, { ...draft(), ...body })
+        const load = saveService.loadSave('1', id)
+        if (index < 2) {
+          const save = await load
+          expect(path === 'morningOpening' ? save.morningOpening : save.scene?.opening).toEqual(entry)
+        } else {
+          await expect(load).rejects.toMatchObject({
+            code: 'SAVE_MALFORMED', detail: expect.stringContaining(`${path}.reminderPlanIds`)
+          })
+        }
+      }
+    }
+  })
+
   describe('the held-reply, late-night, chat-clock and opening fields', () => {
     const clock = { date: 4, time: 1 }
     const text = { id: 't1', sender: 'player', text: 'Out yet?', date: 4, time: 0 }

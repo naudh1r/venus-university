@@ -197,7 +197,6 @@ import {
   pickSlotAskers,
   pickSlotLoveTexts,
   pickSlotReachOut,
-  plannedWith,
   openChatSlot,
   releaseHeldReplies,
   resetTextingLoop,
@@ -684,7 +683,8 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
     opening.hangouts,
     opening.askOccasionId,
     opening.everydayAsks,
-    opening.inviteKinds
+    opening.inviteKinds,
+    opening.reminderPlanIds
   )
 
   // The texts the girls he left wrote, filed on the same terms.
@@ -1116,7 +1116,8 @@ async function fetchSlotIntro(
   const occasion = askOccasionFor(date, time, view)
 
   // Who is texting the reader an invitation this slot.
-  const askerKeys = pickSlotAskers(date, time, view)
+  const reminderPlans = new Map<string, CalendarEvent>()
+  const askerKeys = pickSlotAskers(date, time, view, reminderPlans)
   // Somebody asks him to the occasion even on a slot the dice picked nobody for.
   if (occasion && askerKeys.length === 0) {
     const fallback = pickOccasionAsker(date, time, view, npcOverlay)
@@ -1134,7 +1135,7 @@ async function fetchSlotIntro(
     const info = view.charInfo[charId]
     if (!character || !info) continue
     // Off the view's calendar, which carries the plans the finished scene just settled.
-    const plan = plannedWith(charId, date, time, view.events)
+    const plan = reminderPlans.get(charKey)
     // The class or the shift she meets him before or after.
     const commitment = plan ? charCommitmentAt(charId, date, time) : null
     // What she asks for, when it is neither a plan nor the occasion.
@@ -1410,6 +1411,9 @@ async function fetchSlotIntro(
         lineIndices: [...prefix.map(() => 0), ...pages.map(page => page.index)],
         reply: rawReply,
         hangouts: reply.hangouts,
+        reminderPlanIds: Object.fromEntries(
+          Array.from(reminderPlans, ([charKey, plan]) => [charKey, plan.id])
+        ),
         breakups: reply.breakups,
         ...(occasion ? { askOccasionId: occasion.id } : {}),
         ...(Object.keys(everydayAsks).length > 0 ? { everydayAsks } : {}),
@@ -1602,7 +1606,9 @@ function dispatchTurn(snapshot: TurnSnapshot): void {
   else if (snapshot.farewell) void startFarewellScene(snapshot.farewell)
   else if (snapshot.retryInvitation) snapshot.retryInvitation(snapshot.action)
   else if (snapshot.charId)
-    void startHangoutScene(snapshot.charId, snapshot.action, snapshot.preset, snapshot.sceneEvents)
+    void startHangoutScene(
+      snapshot.charId, snapshot.action, snapshot.preset, snapshot.sceneEvents, snapshot.hangoutReminders
+    )
   else {
     void submitAction(
       snapshot.action,

@@ -243,6 +243,7 @@ export interface Conversation {
         description: string;
         dismissed?: boolean;
         occasionId?: string;
+        planId?: string;
     };
     summary: string | null;
     turnedDown?: true;

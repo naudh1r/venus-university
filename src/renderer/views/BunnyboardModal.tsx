@@ -78,7 +78,7 @@ import {
   epilogueOf,
   failedTextingCode,
   failedTextingPrompt,
-  plannedWith,
+  reminderPlan,
   replyFromBoss,
   retryFailedMessage,
   sceneActiveOf,
@@ -658,6 +658,10 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
               if (!identity.known) return null
               const last = conversation.messages[conversation.messages.length - 1]
               const on = conversation.charId === viewingCharId
+              const pending = conversation.pendingHangout
+              const anotherPlan = armed?.reminders && pending?.planId && !pending.dismissed &&
+                !armed.reminders.some(({ planId }) => planId === pending.planId)
+              const threadLocked = Boolean(armed && armed.charId !== conversation.charId && !anotherPlan)
               return (
                 <motion.li key={conversation.charId} variants={slideInQuick}>
                   {/* The card is a row of two controls rather than one: her face opens her page
@@ -667,8 +671,7 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
                       the two children cover every pixel of it. */}
                   <motion.div
                     className={`vu-row vu-bb-chat${on ? ' vu-bb-chat--on' : ''}`}
-                    // Nothing navigates while a hangout is armed.
-                    {...gestures(Boolean(armed), rowLift, rowPress)}
+                    {...gestures(threadLocked, rowLift, rowPress)}
                   >
                     {!identity.bot && (
                       <FaceButton
@@ -687,7 +690,7 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
                     <button
                       className={`vu-bb-chat-hit${identity.bot ? ' vu-bb-chat-hit--whole' : ''}`}
                       type="button"
-                      disabled={Boolean(armed)}
+                      disabled={threadLocked}
                       onClick={() => viewChar(conversation.charId)}
                     >
                       {identity.bot && <Portrait emoji={identity.emoji} mark={identity.mark} />}
@@ -1066,11 +1069,12 @@ function ConversationView({
   const armedHere = armed?.charId === charId
   // Reschedule needs a real `CalendarEvent` to move and an hour already spoken for: his class,
   // his shift or another plan, which drops the button once that plan has moved off the hour.
-  const plan = bot ? null : plannedWith(charId, date, time, events)
+  const plan = bot ? null : reminderPlan(charId, date, time, pendingHangout?.planId, events)
   const doubleBooked =
     plan !== null &&
     events.some((other) => other.id !== plan.id && other.date === date && other.time === time)
   const canReschedule =
+    !armed &&
     askingOut &&
     plan !== null &&
     (playerClassNow() !== null || shiftNow() !== null || doubleBooked)
@@ -1257,7 +1261,7 @@ function ConversationView({
             <div className="vu-bb-answers-row">
               <CancelButton
                 id="bb-hangout-no"
-                dead={sceneActive}
+                dead={sceneActive || Boolean(armed)}
                 onClick={() => answerHangout(charId, false)}
               >
                 No

@@ -28,6 +28,7 @@ import {
   pickOccasionAsker,
   pickSlotAskers,
   pickSlotReachOut,
+  reminderPlan,
   resolveFriendRequests,
   sceneActiveOf,
   sceneOnScreenOf,
@@ -379,6 +380,23 @@ describe('rescheduleHangout', () => {
     expect(game.events[0]).toMatchObject({ date: 7, time: 0 })
     expect(game.bunnyboard.conversations.a?.pendingHangout).toEqual({ description: 'dinner' })
     expect(game.bunnyboard.conversations.a?.messages).toEqual([])
+  })
+})
+
+describe('reminderPlan', () => {
+  it('resolves overlapping plans by reminder id and keeps the first-plan fallback', () => {
+    const solo: CalendarEvent = {
+      id: 'solo', title: 'Coffee', description: 'Coffee with Mika', charIds: ['mika'],
+      date: 7, time: 0, madeOn: { date: 6, time: 1 }
+    }
+    const group: CalendarEvent = { ...solo, id: 'group', title: 'Lunch', charIds: ['lina', 'mika'] }
+    for (const events of [[solo, group], [group, solo]]) {
+      expect(reminderPlan('mika', 7, 0, solo.id, events)?.charIds).toEqual(['mika'])
+      expect(reminderPlan('lina', 7, 0, group.id, events)?.charIds).toEqual(['lina', 'mika'])
+      expect(reminderPlan('mika', 7, 0, undefined, events)).toEqual(events[0])
+      expect(reminderPlan('mika', 7, 0, 'deleted', events)).toEqual(events[0])
+    }
+    expect(reminderPlan('mika', 7, 0, solo.id, [group, { ...solo, date: 8 }])).toEqual(group)
   })
 })
 

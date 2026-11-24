@@ -8,11 +8,17 @@ import { create } from 'zustand'
  */
 export type BunnyboardTab = 'chats' | 'friends' | 'updates' | 'profile' | 'photos' | 'lorebook' | (string & {})
 
+export interface HangoutReminder {
+  charId: string
+  planId: string
+}
+
 /** An agreed hangout waiting on the player's "Begin hangout". */
 interface ArmedHangout {
   charId: string
   /** The plan, as the reply described it — the scene's opening action. */
   description: string
+  reminders?: readonly HangoutReminder[]
 }
 
 /** Transient UI state for the Bunnyboard modal. */
@@ -34,7 +40,7 @@ interface BunnyboardUiState {
   locked: boolean
   /**
    * An agreed hangout the player has not started yet: the thread shows "Begin hangout" instead
-   * of the composer, and nothing else on the Bunnyboard responds until they press it.
+   * of the composer, and only other standing plan reminders can be opened before Begin.
    */
   armedHangout: ArmedHangout | null
   /**

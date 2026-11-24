@@ -1944,8 +1944,9 @@ manual saves use their own clock; unopened boundary saves use the preceding slot
 ### Shown conversation messages
 
 `conversation`, `useConversation` and `subscribeConversation` hand out the whole thread as saved,
-held messages included, so a mod can still find and change a message that is not shown yet (Photo
-Feature puts its photo on her held reply). A mod that **shows** messages to the player filters them
+held messages included. `Conversation.pendingHangout.planId` is optional and identifies the
+calendar event a plan reminder belongs to. A mod can still find and change a held message before it
+is shown (Photo Feature puts its photo on her held reply). A mod that **shows** messages to the player filters them
 first: `shownMessages(messages, chatClock())`, with `messageShown` and `shownMessages` from
 `@vx/modkit/shared` and `chatClock()` from `@vx/modkit/renderer`. Core's own previews, scene histories
 and other thread consumers follow that rule; storage, carry and delivery keep the complete thread.

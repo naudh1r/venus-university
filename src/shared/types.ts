@@ -1129,7 +1129,7 @@ export interface Conversation {
    * Her unanswered ask-out; judged at the next slot boundary if still up. `occasionId` is the
    * occasion she asked him to, when she asked him to one, so a decline is filed against it.
    */
-  pendingHangout?: { description: string; dismissed?: boolean; occasionId?: string }
+  pendingHangout?: { description: string; dismissed?: boolean; occasionId?: string; planId?: string }
   /**
    * Her vent about her partner, or her question about her crush, standing its three answers
    * under her thread until he picks one; `answer` is the pick the slot's ending acts on. Gone at
@@ -1579,6 +1579,8 @@ export interface SlotOpening {
    * at step 1. Absent for an opening that rolled none.
    */
   inviteKinds?: Record<string, InviteKind>
+  /** Each reminder sender’s calendar event id, by charKey. */
+  reminderPlanIds?: Record<string, string>
   /** The plans the merged ledger found, normalized and attendance-filtered. */
   events: CalendarEvent[]
   /** Who that filtering took off an event, announced by text at step 1. */

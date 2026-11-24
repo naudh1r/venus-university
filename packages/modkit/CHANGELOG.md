@@ -1,5 +1,9 @@
 # @vx/modkit
 
+## Unreleased
+
+- `Conversation.pendingHangout.planId` optionally identifies the calendar event behind a plan reminder.
+
 ## 0.8.2
 
 - Venus University 0.9.x makes a request's `thinking` required and drops `minThinking` and `raiseThinking`. `completeStructured` and `completeModStructured` still take a request without `thinking`, and run it at the `scenes` row, as before.

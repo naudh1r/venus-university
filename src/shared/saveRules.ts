@@ -167,6 +167,10 @@ export const SAVE_READ: ValidateRecordOptions<GameSave> = {
 }
 
 /** Whether `value` is a game clock: a whole day and one of the two halves. */
+function isPlanId(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
 function isClock(value: unknown): boolean {
   return isPlainObject(value) && Number.isSafeInteger(value.date) && (value.time === 0 || value.time === 1)
 }
@@ -228,9 +232,8 @@ function morningOpeningProblem(opening: unknown): string | null {
 
 /**
  * Refuses a save whose native optional fields are present but malformed: the held-reply clock and
- * hold, the late-night marker and its paid ledger, a resumable or banked opening and the literal
- * message flags. A save written
- * before any of them, which lacks them, is valid; what mods keep is not looked at.
+ * hold, the late-night marker and its paid ledger, a resumable or banked opening, reminder links
+ * and the literal message flags. Older saves may lack these fields; what mods keep is not looked at.
  */
 export function assertSaveFields(save: GameSave, where: string): void {
   const malformed = (detail: string): never => {
@@ -253,10 +256,21 @@ export function assertSaveFields(save: GameSave, where: string): void {
     const problem = playbackProblem(scene.slotOpening)
     if (problem) malformed(`scene.slotOpening ${problem}`)
   }
+  const banked = isPlainObject(scene) ? scene.opening : undefined
+  for (const [path, opening] of [['morningOpening', fields.morningOpening], ['scene.opening', banked]] as const) {
+    if (!isPlainObject(opening) || opening.reminderPlanIds === undefined) continue
+    if (!isPlainObject(opening.reminderPlanIds) || !Object.values(opening.reminderPlanIds).every(isPlanId)) {
+      malformed(`${path}.reminderPlanIds`)
+    }
+  }
   const conversations = isPlainObject(fields.bunnyboard) ? fields.bunnyboard.conversations : undefined
   if (!isPlainObject(conversations)) return
   for (const [charId, chat] of Object.entries(conversations)) {
     if (!isPlainObject(chat)) continue
+    const pending = chat.pendingHangout
+    if (isPlainObject(pending) && pending.planId !== undefined && !isPlanId(pending.planId)) {
+      malformed(`conversation ${charId} pendingHangout.planId`)
+    }
     if (chat.heldReply !== undefined) {
       const problem = heldReplyProblem(chat.heldReply)
       if (problem) malformed(`conversation ${charId} heldReply ${problem}`)
