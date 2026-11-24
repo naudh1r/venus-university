@@ -286,3 +286,33 @@ it('hides only desktop characters when focus pauses sharing and restores them on
  expect(overlay.visible).toBe(true)
  expect(companionState().sharing).toBe(true)
 })
+
+
+it.each(['minimize', 'hide'])('does not mistake a companion %s focus handoff for returning to the game', async event => {
+ await startCompanion('girl','screen:fixture',20)
+ mocks.windows[1].emit(event)
+ mocks.windows[0].emit('focus')
+ expect(companionState().sharing).toBe(true)
+ expect(mocks.windows[2].visible).toBe(true)
+ // The exemption is consumed: an independent return to the game still pauses.
+ mocks.windows[0].emit('focus')
+ expect(companionState().sharing).toBe(false)
+ expect(mocks.windows[2].visible).toBe(false)
+})
+it('expires an unused companion handoff exemption', async()=>{
+ await startCompanion('girl','screen:fixture',20)
+ mocks.windows[1].emit('minimize')
+ await vi.advanceTimersByTimeAsync(300)
+ mocks.windows[0].emit('focus')
+ expect(companionState().sharing).toBe(false)
+})
+it('keeps desktop characters visible when sharing is paused explicitly or a reaction fails', async()=>{
+ await startCompanion('girl','screen:fixture',20)
+ pauseCompanion()
+ expect(mocks.windows[2].visible).toBe(true)
+ mocks.complete.mockRejectedValue(Error('Synthetic provider failure'))
+ await startCompanion('girl','screen:fixture',20)
+ await vi.advanceTimersByTimeAsync(3000)
+ expect(companionState().sharing).toBe(false)
+ expect(mocks.windows[2].visible).toBe(true)
+})

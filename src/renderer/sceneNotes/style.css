@@ -57,16 +57,6 @@
 .shared-document-notes button { padding: 4px 10px; margin-left: 10px; }
 .shared-document-notes small, .shared-document-disclosure { font-weight: 400; color: var(--vu-text-muted); font-size: 12px; line-height: 1.4; }
 .shared-document-error { color: var(--vu-text); font-weight: bold; margin: 0; }
-.shared-document-notes input::file-selector-button {
-  font: inherit;
-  padding: 7px 13px;
-  margin-right: 10px;
-  border: 0;
-  border-radius: 16px 0;
-  background: var(--vu-accent);
-  color: var(--vu-accent-ink);
-  cursor: pointer;
-}
 
 .vu-shared-document label.shared-document-continue {
   display: grid;

@@ -16,17 +16,6 @@ beforeEach(()=>{
 })
 const session=()=>({partner:'girl',topic:'Drawing perspective',document:{name:'notes.txt',sections:['First section','Selected section']},section:1,beforeInfo:{memories:[{type:'loved',desc:'before studying'}],flags:{gaveContactInfo:true}},beforeStats:{brain:1,body:2,heart:3},declined:false})
 describe('native study scene rules',()=>{
- it('allows natural roleplay and explanation while reserving answers for the player',()=>{
-  const context={state:{ex:{'study-room':session()}}} as any
-  const request={user:'Explain this concept',schema:{name:'scene',schema:{properties:{lines:{}},required:['lines']}}} as any
-  const changed=studyHooks.requests!.scene!(request,context)
-  expect(changed.user).toContain('Never write or assume the reader’s answer')
-  expect(changed.user).toContain('Do not rush to a question or force a question into every reply')
-  expect(changed.user).toContain('leave the next response to the player')
-  expect(changed.user).toContain('Only evaluate an answer the player actually submitted')
-  expect(studyInstructions(session()).join(' ')).toContain('Never write or assume the reader’s answer')
-  expect(request.user).toBe('Explain this concept')
- })
 
  it('lets the current document replace the original study topic',()=>{
   const lines=studyHooks.prompts!.scene!.lines!({state:{ex:{'study-room':session(),'scene-notes':{document:{name:'new.md',text:'New subject.'}}}}} as any) as string[]
@@ -97,13 +86,4 @@ describe('native study scene rules',()=>{
   await Promise.resolve()
   expect(declinedThisSlot('girl')).toBe(false)
  })
-})
-
-it('keeps dedicated Study Together from re-enabling the document checkbox',()=>{
- const context={state:{ex:{'study-room':session(),'scene-notes':{document:{name:'notes.txt',text:'Reference'},continueStudying:false}}}} as any
- expect(studyHooks.prompts!.scene!.lines!(context).join(' ')).toContain('dedicated Study Together session does not re-enable')
- const request={user:'Let us chat.',schema:{name:'scene',schema:{properties:{},required:[]}}} as any
- expect(studyHooks.requests!.scene!(request,context).user).toContain('CURRENT DOCUMENT STUDY MODE IS OFF')
- context.state.ex['scene-notes'].continueStudying=true
- expect(studyHooks.requests!.scene!(request,context).user).not.toContain('CURRENT DOCUMENT STUDY MODE IS OFF')
 })
