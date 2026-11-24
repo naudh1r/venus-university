@@ -14,13 +14,21 @@ import {
   type SlotStamp
 } from './crossingStore'
 import { useGameStore } from './gameStore'
-import { interludePreview } from '../mods/hooks'
+import { canHoldSlot, interludePreview } from '../mods/hooks'
 
 /**
  * The game's own crossings: the slot boundary (curtain up over the boundary's work, announcing
  * the opening slot while down) and the scene opening (curtain up on click, off on the scene's
  * first line). The rest of the app knows only the calls below, not the layer.
  */
+
+/**
+ * The held night a save was taken on, while a mod is on that can hold it again: with none, the
+ * save opens on the morning after it, and is announced as that morning.
+ */
+function heldNightOf(save: GameSave): GameSave['heldNight'] {
+  return save.heldNight && canHoldSlot() ? save.heldNight : undefined
+}
 
 /**
  * The half the game on screen is being drawn in, the epilogue's own evening included — it falls
@@ -34,7 +42,8 @@ function gameThemeNow(): ScreenTheme {
 
 /** {@link gameThemeNow} for a save being opened, read off the file instead of the store. */
 function saveTheme(save: GameSave): ScreenTheme {
-  if (save.heldNight) return slotHalf(save.heldNight.time)
+  const night = heldNightOf(save)
+  if (night) return slotHalf(night.time)
   return isEpilogueNight(save.date, save.time, save.graduationSeen) ? 'night' : slotHalf(save.time)
 }
 
@@ -87,7 +96,7 @@ export function entryCrossing(
   const semester = semesterOf(record, save.semester)
   const calendar = semesterCalendarOf(semester)
   // A save taken on a held night announces that night, as the curtain into it did.
-  const night = save.heldNight
+  const night = heldNightOf(save)
   const splash = save.graduationSeen
     ? goodbyesStamp(calendar)
     : night

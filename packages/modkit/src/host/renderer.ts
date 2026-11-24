@@ -10,6 +10,7 @@ export {
   afterReachOut,
   afterSceneReply,
   bunnyboardPages,
+  canHoldSlot,
   characterFromDraft,
   classCatalogEdits,
   contactTabs,
