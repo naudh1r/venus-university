@@ -16,6 +16,7 @@ beforeEach(()=>{
 })
 const session=()=>({partner:'girl',topic:'Drawing perspective',document:{name:'notes.txt',sections:['First section','Selected section']},section:1,beforeInfo:{memories:[{type:'loved',desc:'before studying'}],flags:{gaveContactInfo:true}},beforeStats:{brain:1,body:2,heart:3},declined:false})
 describe('native study scene rules',()=>{
+
  it('lets the current document replace the original study topic',()=>{
   const lines=studyHooks.prompts!.scene!.lines!({state:{ex:{'study-room':session(),'scene-notes':{document:{name:'new.md',text:'New subject.'}}}}} as any) as string[]
   expect(lines.join(' ')).toContain('Work only from the current reference document')

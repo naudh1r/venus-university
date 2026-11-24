@@ -57,13 +57,23 @@
 .shared-document-notes button { padding: 4px 10px; margin-left: 10px; }
 .shared-document-notes small, .shared-document-disclosure { font-weight: 400; color: var(--vu-text-muted); font-size: 12px; line-height: 1.4; }
 .shared-document-error { color: var(--vu-text); font-weight: bold; margin: 0; }
-.shared-document-notes input::file-selector-button {
-  font: inherit;
-  padding: 7px 13px;
-  margin-right: 10px;
-  border: 0;
-  border-radius: 16px 0;
-  background: var(--vu-accent);
-  color: var(--vu-accent-ink);
-  cursor: pointer;
+
+.vu-shared-document label.shared-document-continue {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  gap: 4px 9px;
 }
+.shared-document-continue input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+}
+.shared-document-continue small { grid-column: 2; }
+
+.shared-document-heading { display: grid; gap: 4px; margin-bottom: 12px; }
+.shared-document-upload { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.shared-document-upload button { flex: 0 0 auto; margin: 0; padding: 8px 14px; }
+.shared-document-filename { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.4; }
+.shared-document-continue { border-top: 1px solid var(--vu-border); padding-top: 14px; }
+.shared-document-continue small { font-weight: 400; color: var(--vu-text-muted); font-size: 12px; line-height: 1.4; }

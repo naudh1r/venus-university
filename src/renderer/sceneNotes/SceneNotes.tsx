@@ -1,4 +1,4 @@
-import { useState, type JSX } from 'react'
+import { useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
 import { openPanel, useModalShell, TitleTab, veilIn, panelUnderTab, currentRun, runStale, useScene, type SceneSeatProps, type GameModalProps } from '@vx/modkit/renderer'
@@ -13,16 +13,17 @@ export function NotesSeat({ Seat, visible }: SceneSeatProps) {
   return <Seat label="Shared document" state={!available || !visible ? 'gone' : dead ? 'dim' : 'shown'} onClick={() => { if (!dead && notesAvailable()) openPanel(SCENE_NOTES) }}><NotesIcon/></Seat>
 }
 export function SceneNotes({ theme, onClose }: GameModalProps): JSX.Element | null {
+  const fileInput = useRef<HTMLInputElement>(null)
   const stored = sceneNotes.use()
   const document = stored ? stored.document : legacyNotes()
   const [busy, setBusy] = useState(false), [error, setError] = useState('')
   const [run] = useState(currentRun)
   const shell = useModalShell(onClose)
-  async function apply(next: SceneDocument | null) {
+  async function apply(next: SceneDocument | null, continueStudying?: boolean) {
     if (runStale(run)) { onClose(); return }
     setBusy(true)
     try {
-      const result = await saveSceneNotes(next)
+      const result = await saveSceneNotes(next, continueStudying)
       if (runStale(run)) return
       setError(result.ok ? '' : `Could not save the notes change. ${result.error.message}`)
     } catch (err) { setError((err as Error).message) }
@@ -33,8 +34,9 @@ export function SceneNotes({ theme, onClose }: GameModalProps): JSX.Element | nu
     <motion.section className="vu-shared-document vu-paper" role="dialog" aria-modal="true" aria-label="Shared document" variants={panelUnderTab} onKeyDown={e => e.stopPropagation()}>
       <TitleTab>Shared document</TitleTab><button className="shared-document-close" aria-label="Close Shared document" onClick={onClose}>×</button>
       <div className="shared-document-work">
-        <div className="shared-document-notes"><label>Share a document <small>.md or .txt · UTF-8 · up to {DOCUMENT_LIMIT_LABEL}</small>
-          <input aria-label="Attach notes" type="file" accept=".md,.txt,text/plain,text/markdown" disabled={busy} onClick={e => { e.currentTarget.value = '' }} onChange={async e => {
+        <div className="shared-document-notes"><div className="shared-document-heading">Share a document<small>.md or .txt · UTF-8 · up to {DOCUMENT_LIMIT_LABEL}</small></div>
+          <div className="shared-document-upload"><button type="button" disabled={busy} onClick={() => fileInput.current?.click()}>Choose file</button>
+          <input ref={fileInput} hidden aria-label="Attach notes" type="file" accept=".md,.txt,text/plain,text/markdown" disabled={busy} onClick={e => { e.currentTarget.value = '' }} onChange={async e => {
             const file = e.target.files?.[0]; if (!file) return
             setBusy(true)
             try {
@@ -44,16 +46,18 @@ export function SceneNotes({ theme, onClose }: GameModalProps): JSX.Element | nu
               await apply(next)
             } catch (err) { setError((err as Error).message) }
             finally { setBusy(false) }
-          }}/></label>
-          {document && <p role="status"><b>{document.name}</b>{fitsDocumentLimit(document) && " · Active in this scene"}<button disabled={busy} onClick={() => void apply(null)}>Remove</button></p>}
+          }}/>
+          <span className="shared-document-filename" role="status">{document?.name ?? 'No document selected'}</span>
+          {document && <button type="button" disabled={busy} onClick={() => void apply(null)}>Remove</button>}</div>
           {document && (fitsDocumentLimit(document)
             ? <small>Roughly {Math.ceil(document.text.length / 4).toLocaleString()} tokens per request. The count varies by model and language.</small>
             : <p role="status">This saved document exceeds {DOCUMENT_LIMIT_LABEL}. It stays in your save. Choose a smaller file to share it again.</p>)}
           <p>The characters in this scene can use the active document while studying or sharing your laptop.</p>
         </div>
         {error && <p role="alert" className="shared-document-error">{error}</p>}
-        <div className="shared-document-actions"><button disabled={busy} onClick={onClose}>Done</button></div>
         <small className="shared-document-disclosure">Your configured AI provider receives the full active document with every scene request, including the closing.</small>
+          {document && fitsDocumentLimit(document) && <label className="shared-document-continue"><input type="checkbox" checked={stored?.continueStudying === true} disabled={busy} onChange={e => void apply(document, e.target.checked)}/> Keep studying this document until removed<small>Work through the material naturally across replies, leaving questions for you to answer. You can turn this off at any time.</small></label>}
+        <div className="shared-document-actions"><button disabled={busy} onClick={onClose}>Done</button></div>
       </div>
     </motion.section>
   </motion.div>, shell.host)

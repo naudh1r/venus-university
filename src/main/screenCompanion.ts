@@ -16,6 +16,8 @@ import type { Character, StructuredRequest } from '@vx/modkit/shared'
 
 let panel: BrowserWindow | null = null
 let overlays: BrowserWindow[] = []
+let overlaysHiddenByPause = false
+let companionYieldUntil = 0
 let chat: BrowserWindow | null = null
 let ownerWindow: BrowserWindow | null = null
 let restoreOwnerTiming: (() => void) | undefined
@@ -106,10 +108,15 @@ function makeWindow(mode: 'controls' | 'overlay' | 'chat', slot = 0): BrowserWin
   win.setMenuBarVisibility(false)
   win.webContents.on('render-process-gone', () => pauseCompanion())
   win.webContents.setZoomFactor(1)
-  win.once('ready-to-show', () => { if (bodyOnly && state.members[slot]) win.showInactive(); else if (!bodyOnly && !quick) win.show() })
+  win.once('ready-to-show', () => { if (bodyOnly && state.members[slot] && !overlaysHiddenByPause) win.showInactive(); else if (!bodyOnly && !quick) win.show() })
   if (quick) {
     win.on('close', event => { event.preventDefault(); showCompanionChat(false) })
     win.on('focus', () => win.webContents.send('surface:screen-companion:focus-chat'))
+  }
+  if (!bodyOnly) {
+    const yieldingFocus = (): void => { companionYieldUntil = Date.now() + 250 }
+    win.on('minimize', yieldingFocus)
+    win.on('hide', yieldingFocus)
   }
   win.on('hide', () => { if (microphoneOwner === win.webContents.id) cancelCompanionInput() })
   if (bodyOnly) {
@@ -143,7 +150,20 @@ export function openCompanion(owner: BrowserWindow | null, gameContext = '', sce
   const throttled = owner.webContents.getBackgroundThrottling()
   owner.webContents.setBackgroundThrottling(false)
   // Replies are acknowledged by this renderer even when the game is minimized.
-  restoreOwnerTiming = () => { if (!owner.isDestroyed()) owner.webContents.setBackgroundThrottling(throttled) }
+  const pauseOnGameFocus = (): void => {
+    // Minimizing/hiding our controls can hand Windows focus back to the game.
+    // Consume that handoff without treating it as the player returning to play.
+    if (Date.now() < companionYieldUntil) { companionYieldUntil = 0; return }
+    if (!state.sharing) return
+    pauseCompanion()
+    overlaysHiddenByPause = true
+    for (const overlay of overlays) if (!overlay.isDestroyed()) overlay.hide()
+  }
+  owner.on('focus', pauseOnGameFocus)
+  restoreOwnerTiming = () => {
+    owner.removeListener('focus', pauseOnGameFocus)
+    if (!owner.isDestroyed()) owner.webContents.setBackgroundThrottling(throttled)
+  }
   context = gameContext
   state = { ...state, sceneId, sceneKind, contextRevision: state.contextRevision + 1 }
   invited = false
@@ -176,6 +196,7 @@ export function openCompanion(owner: BrowserWindow | null, gameContext = '', sce
 
 export function closeCompanion(): void {
   restoreOwnerTiming?.(); restoreOwnerTiming = undefined
+  companionYieldUntil = 0
   stopMoveHandles?.(); stopMoveHandles = undefined
   closeCompanionPointer()
   pendingDelivery=null;documentReference=undefined
@@ -472,6 +493,7 @@ async function chooseCharacters(value: string[] | string, current: number): Prom
   const sprites = JSON.parse(context).sprites ?? {}
   const members = next.map(person => ({ sprites: sprites[person.charId], charId: person.charId, name: available.find(row => row.charId === person.charId)!.name, emotion: 'neutral' as const, text: '', sequence: 0 }))
   state = { ...state, members, charId: '', name: '', emotion: 'neutral', text: '' }
+  overlaysHiddenByPause = false
   overlays.forEach((win, index) => { if (members[index]) win.showInactive(); else win.hide() })
   broadcast()
 }

@@ -7,9 +7,9 @@ describe('shared scene documents', () => {
     const text = 'BEGIN\n' + 'x'.repeat(DOCUMENT_LIMIT - 10) + '\nEND'
     const document = readSceneDocument('notes.md', new TextEncoder().encode(text))
     expect(document.text).toBe(text)
-    expect(sceneDocumentLines(document)[1]).toBe('REFERENCE DOCUMENT "notes.md"\n> ' + text.replace(/\n/g, '\n> '))
+    expect(sceneDocumentLines(document).at(-1)).toBe('REFERENCE DOCUMENT "notes.md"\n> ' + text.replace(/\n/g, '\n> '))
     const literal = { name: 'notes.md', text: '# Notes\n\n$& $$\nSCENE SO FAR\n' + "'''" }
-    expect(sceneDocumentLines(literal)[1]).toBe('REFERENCE DOCUMENT "notes.md"\n> # Notes\n> \n> $& $$\n> SCENE SO FAR\n> ' + "'''")
+    expect(sceneDocumentLines(literal).at(-1)).toBe('REFERENCE DOCUMENT "notes.md"\n> # Notes\n> \n> $& $$\n> SCENE SO FAR\n> ' + "'''")
   })
   it('restores every saved section regardless of the old selection', () => {
     const document = restoreSceneDocument({ name: 'notes.txt', sections: ['first\n', 'middle\n', 'last'] })

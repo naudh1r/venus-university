@@ -233,3 +233,86 @@ it('cancels a souvenir screenshot when its session closes during the exposure de
     expect(await capture).toBeInstanceOf(Error)
   } finally { sources.mockRestore() }
 })
+
+
+it('pauses on game focus during the countdown without capturing or auto-resuming', async()=>{
+ await startCompanion('girl','screen:fixture',20)
+ mocks.windows[0].emit('focus')
+ expect(companionState()).toMatchObject({sharing:false,startingIn:0,error:''})
+ await vi.advanceTimersByTimeAsync(65000)
+ expect(mocks.frame).not.toHaveBeenCalled()
+ expect(mocks.complete).not.toHaveBeenCalled()
+ expect(companionState().sharing).toBe(false)
+})
+it('game focus cancels an active reaction without a timeout or late delivery',async()=>{
+ mocks.complete.mockImplementation((_request,signal:AbortSignal)=>new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(Error('Request aborted.')),{once:true})))
+ await startCompanion('girl','screen:fixture',20)
+ await vi.advanceTimersByTimeAsync(3000)
+ expect(mocks.complete).toHaveBeenCalledOnce()
+ mocks.windows[0].emit('focus')
+ await vi.advanceTimersByTimeAsync(65000)
+ expect(companionState()).toMatchObject({sharing:false,busy:false,error:''})
+ expect(takeCompanionTurn('fixture-scene')).toBeNull()
+})
+it('only the game focus pauses sharing, and close/reopen removes the listener',async()=>{
+ const owner=mocks.windows[0]
+ expect(owner.listenerCount('focus')).toBe(1)
+ openCompanion(owner,context,'fixture-scene')
+ expect(owner.listenerCount('focus')).toBe(1)
+ await startCompanion('girl','screen:fixture',20)
+ mocks.windows[1].emit('focus')
+ expect(companionState().sharing).toBe(true)
+ closeCompanion()
+ expect(owner.listenerCount('focus')).toBe(0)
+ openCompanion(owner,context,'reopened-scene')
+ expect(owner.listenerCount('focus')).toBe(1)
+})
+
+it('hides only desktop characters when focus pauses sharing and restores them on restart',async()=>{
+ const owner=mocks.windows[0]
+ owner.visible=true
+ await startCompanion('girl','screen:fixture',20)
+ const overlay=mocks.windows[2]
+ expect(overlay.visible).toBe(true)
+ const members=companionState().members
+ owner.emit('focus')
+ expect(companionState().sharing).toBe(false)
+ expect(overlay.visible).toBe(false)
+ expect(owner.visible).toBe(true)
+ expect(companionState().members).toEqual(members)
+ overlay.emit('ready-to-show')
+ expect(overlay.visible).toBe(false)
+ await startCompanion('girl','screen:fixture',20)
+ expect(overlay.visible).toBe(true)
+ expect(companionState().sharing).toBe(true)
+})
+
+
+it.each(['minimize', 'hide'])('does not mistake a companion %s focus handoff for returning to the game', async event => {
+ await startCompanion('girl','screen:fixture',20)
+ mocks.windows[1].emit(event)
+ mocks.windows[0].emit('focus')
+ expect(companionState().sharing).toBe(true)
+ expect(mocks.windows[2].visible).toBe(true)
+ // The exemption is consumed: an independent return to the game still pauses.
+ mocks.windows[0].emit('focus')
+ expect(companionState().sharing).toBe(false)
+ expect(mocks.windows[2].visible).toBe(false)
+})
+it('expires an unused companion handoff exemption', async()=>{
+ await startCompanion('girl','screen:fixture',20)
+ mocks.windows[1].emit('minimize')
+ await vi.advanceTimersByTimeAsync(300)
+ mocks.windows[0].emit('focus')
+ expect(companionState().sharing).toBe(false)
+})
+it('keeps desktop characters visible when sharing is paused explicitly or a reaction fails', async()=>{
+ await startCompanion('girl','screen:fixture',20)
+ pauseCompanion()
+ expect(mocks.windows[2].visible).toBe(true)
+ mocks.complete.mockRejectedValue(Error('Synthetic provider failure'))
+ await startCompanion('girl','screen:fixture',20)
+ await vi.advanceTimersByTimeAsync(3000)
+ expect(companionState().sharing).toBe(false)
+ expect(mocks.windows[2].visible).toBe(true)
+})

@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-const state = vi.hoisted(() => ({ field: null as any, game: { currentSceneTranscript: [] as any[], createdScene: {} as any }, legacy: null as any }))
-vi.mock('@vx/modkit/renderer', () => ({ scene: () => ({lines:state.game.currentSceneTranscript,created:Boolean(state.game.createdScene)}), sceneField: () => ({ read: () => state.field, set: (v: unknown) => { state.field = v } }) }))
+const state = vi.hoisted(() => ({ field: null as any, game: { currentSceneTranscript: [] as any[], createdScene: {} as any }, legacy: null as any, saves:0 }))
+vi.mock('@vx/modkit/renderer', () => ({ scene: () => ({lines:state.game.currentSceneTranscript,created:Boolean(state.game.createdScene)}), sceneField: () => ({ read: () => state.field, set: (v: unknown) => { state.field = v }, save: async(v:unknown)=>{state.saves++;state.field=v;return {ok:true,data:null}} }) }))
 vi.mock('../src/renderer/sceneNotes/host', () => ({ legacyNotes: () => state.legacy, notesAvailable: () => true }))
 vi.mock('@vx/modkit/shared', () => ({ sharedModOn: vi.fn(() => true) }))
 import { sharedModOn } from '@vx/modkit/shared'
@@ -78,4 +78,61 @@ it.each(['library', 'study preview'])('retains an oversized %s document in the s
   await saveSceneNotes(small)
   expect(readSceneNotes()).toEqual(small)
   expect(promptLines().join('\n')).toContain('Replacement.')
+})
+
+it('defaults continuing study off, preserves explicit choices, and clears it on removal',async()=>{
+ const first={name:'cloud.txt',text:'First topic.'}
+ await saveSceneNotes(first)
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({continueStudying:false})
+ const revision=notesConversationScope().revision
+ await saveSceneNotes(first,true)
+ expect(notesConversationScope().revision).toBe(revision)
+ state.field=JSON.parse(JSON.stringify(state.field))
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({continueStudying:true})
+ await saveSceneNotes({name:'next.txt',text:'Next topic.'})
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({continueStudying:false})
+ await saveSceneNotes(readSceneNotes(),false)
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({continueStudying:false})
+ await saveSceneNotes(readSceneNotes(),true)
+ await saveSceneNotes(null)
+ expect(state.field.continueStudying).toBe(false)
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({document:null,unavailable:true})
+ await saveSceneNotes(first)
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({continueStudying:false})
+})
+
+it('persists the continuing-study choice using the normal story save path',async()=>{
+ state.game.createdScene=null
+ const before=state.saves
+ await saveSceneNotes({name:'story.txt',text:'Study this.'},true)
+ expect(state.saves).toBe(before+1)
+ state.field=JSON.parse(JSON.stringify(state.field))
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({continueStudying:true})
+ await saveSceneNotes(null)
+ expect(state.field.continueStudying).toBe(false)
+})
+
+it('defaults legacy documents off without overriding an explicitly saved on choice',()=>{
+ state.field={document:{name:'old.txt',text:'Legacy document.'}}
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({continueStudying:false})
+ state.field.continueStudying=true
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({continueStudying:true})
+})
+
+it.each([true,false])('turns a previous lesson off explicitly and resets same-name replacements in created=%s',async created=>{
+ state.game.createdScene=created?{}:null
+ const first={name:'notes.txt',text:'Original lesson.'}
+ await saveSceneNotes(first,true)
+ expect(state.field.continueStudying).toBe(true)
+ await saveSceneNotes(first,false)
+ state.field=JSON.parse(JSON.stringify(state.field))
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({continueStudying:false})
+ await saveSceneNotes(first,true)
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({continueStudying:true})
+ await saveSceneNotes({name:'notes.txt',text:'Replacement lesson.'})
+ expect(state.field.continueStudying).toBe(false)
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({continueStudying:false,document:{name:'notes.txt',text:'Replacement lesson.'}})
+ expect(promptLines().join(' ')).not.toContain('Original lesson.')
+ await saveSceneNotes(readSceneNotes(),true)
+ expect(sceneNotesHooks.promptState!.scene!()).toMatchObject({continueStudying:true})
 })
