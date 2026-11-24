@@ -1,5 +1,5 @@
 import type {ModDef} from '@vx/modkit/shared'
-const mod:ModDef={id:'screen-companion',name:'Share Your Laptop',author: 'Maestro Leeds',version:'0.1.0',hooks: [
+const mod:ModDef={id:'screen-companion',name:'Share Your Laptop',author: 'Maestro Leeds',version:'0.1.0', game: '0.9.2',hooks: [
     'invoke',
     'renderer:setSceneSuggestionsPaused',
     'scenePlay',
