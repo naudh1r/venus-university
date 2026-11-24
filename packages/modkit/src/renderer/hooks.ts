@@ -1017,6 +1017,11 @@ export function openingLook(ctx: { date: number; time: TimeSlot; reply: Readonly
   return null
 }
 
+/** Whether any enabled mod can hold a slot's opening, so a held night saved earlier can stand again. */
+export function canHoldSlot(): boolean {
+  return activeEntries().some(({ hooks }) => hooks.slotInterlude !== undefined)
+}
+
 /** Asks enabled mods, first answer wins, which slot the boundary's curtain should announce. */
 export function interludePreview(ctx: InterludeCtx): { at: 'from' | 'to'; clock?: 'late-night' } | null {
   for (const { modId, hooks } of activeEntries()) {
