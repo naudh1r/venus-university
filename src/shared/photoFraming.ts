@@ -1,4 +1,5 @@
-import { saysAny } from './photoWords'
+import { photoRuleText } from './photoGender'
+import { focusesOnBackside, saysAny } from './photoWords'
 
 /**
  * How much of her a photo shows, read once off the caption and shared by what places her in it
@@ -12,13 +13,14 @@ import { saysAny } from './photoWords'
 export type Framing = 'face' | 'lower' | 'waist' | 'knees' | 'full'
 
 const CLOSE_UP = ['close-up', 'closeup', 'close up']
+const FACE_ONLY_CUES = ['face shot', 'face only', 'just her face', 'headshot', 'her face filling']
 const MEDIUM_CLOSE_UP = ['medium close-up', 'medium close up']
 
 const FRAMINGS: readonly { framing: Framing; cues: readonly string[]; tags: readonly string[] }[] =
   [
     {
       framing: 'face',
-      cues: ['face shot', 'face only', 'just her face', 'headshot', 'her face filling', ...CLOSE_UP],
+      cues: [...FACE_ONLY_CUES, ...CLOSE_UP],
       tags: ['close-up', 'portrait']
     },
     {
@@ -29,17 +31,34 @@ const FRAMINGS: readonly { framing: Framing; cues: readonly string[]; tags: read
     {
       framing: 'waist',
       cues: [
-        'waist up', 'waist-up', 'waist-high', 'from the waist', 'upper body',
-        'chest up', 'bust shot', 'shoulders up',
-        'medium shot', 'half body', 'half-body', ...MEDIUM_CLOSE_UP
+        'waist up',
+        'waist-up',
+        'waist-high',
+        'from the waist',
+        'upper body',
+        'chest up',
+        'bust shot',
+        'shoulders up',
+        'medium shot',
+        'half body',
+        'half-body',
+        ...MEDIUM_CLOSE_UP
       ],
       tags: ['(upper_body:1.3)']
     },
     {
       framing: 'knees',
       cues: [
-        'knees up', 'from the knees', 'thighs up', 'thigh up', 'mid-thigh', 'mid thigh',
-        'three-quarter', 'three quarter', 'cowboy shot', 'from the thighs'
+        'knees up',
+        'from the knees',
+        'thighs up',
+        'thigh up',
+        'mid-thigh',
+        'mid thigh',
+        'three-quarter',
+        'three quarter',
+        'cowboy shot',
+        'from the thighs'
       ],
       tags: ['cowboy_shot']
     },
@@ -61,18 +80,19 @@ const FRAMINGS: readonly { framing: Framing; cues: readonly string[]; tags: read
 
 /** The framing the caption asks for, closest first, or null where it names none. */
 export function framingOf(caption: string): Framing | null {
-  const text = caption.toLowerCase()
+  const text = photoRuleText(caption)
   // A lower crop is explicit even when the caption also calls it a close-up.
   const lower = FRAMINGS.find((row) => row.framing === 'lower')
   if (lower && saysAny(text, lower.cues)) return lower.framing
   // A medium close-up includes her chest; a phone at arm's length does too.
-  if (
-    saysAny(text, MEDIUM_CLOSE_UP) ||
-    (saysAny(text, CLOSE_UP) && saysAny(text, ['selfie']))
-  ) {
+  if (saysAny(text, MEDIUM_CLOSE_UP) || (saysAny(text, CLOSE_UP) && saysAny(text, ['selfie']))) {
     return 'waist'
   }
-  return FRAMINGS.find((row) => saysAny(text, row.cues))?.framing ?? null
+  const rearCloseUp = focusesOnBackside(text) && !saysAny(text, FACE_ONLY_CUES)
+  return (
+    FRAMINGS.find((row) => !(rearCloseUp && row.framing === 'face') && saysAny(text, row.cues))
+      ?.framing ?? null
+  )
 }
 
 /** The tags one framing is drawn with. */

@@ -12,10 +12,25 @@ export interface PhotoPrompts {
   right?: string
 }
 
-/** Optional overrides for a redraw; omitted values use today's builder and a fresh seed. */
+/** The shape a picture is drawn in: 832x1216 standing up, or 1216x832 lying on its side. */
+export type PhotoOrientation = 'portrait' | 'wide'
+
+/** The method holding each person to their own half of a photo of two. */
+export type PhotoCouple = 'ppm'
+
+/** Whether ComfyUI has the pack that draws photos of two. */
+export type PhotoPpmState = 'installed' | 'missing' | 'invalid' | 'unmanaged'
+
+/**
+ * Optional overrides for a redraw; omitted values use today's builder and a fresh seed, and an
+ * omitted orientation the default for the picture.
+ */
 export interface PhotoRenderOptions {
   seed?: number
   prompts?: PhotoPrompts
+  orientation?: PhotoOrientation
+  /** The method the supplied duo prompts were built for; ppm when the supplied halves already use it. */
+  couple?: PhotoCouple
 }
 
 /** What reached ComfyUI, kept beside the picture rather than in the save. */
@@ -24,6 +39,10 @@ export interface PhotoSidecar extends PhotoPrompts {
   seed: number
   tier: string
   lora?: { name: string; weight: number }
+  /** Written only for a wide picture; absent, it was drawn portrait. */
+  orientation?: 'wide'
+  /** Present only for a photo of two drawn with ComfyUI-ppm. */
+  couple?: 'ppm'
 }
 
 /** A recorded prompt, or today's reconstruction for a picture without a usable sidecar. */
@@ -32,6 +51,8 @@ export interface PhotoInfo extends PhotoPrompts {
   seed?: number
   tier: string
   lora?: { name: string; weight: number }
+  orientation: PhotoOrientation
+  couple?: 'ppm'
 }
 
 /** One picture on a thread, in whichever state the render left it. */

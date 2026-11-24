@@ -40,26 +40,16 @@ afterEach(async () => {
 })
 
 describe('reservePhotoName', () => {
-  it('passes over the names the save already points at, with no file behind them', async () => {
-    const name = await reservePhotoName('100', april, 'chat', [
-      'april_chat_001.png',
-      'april_chat_002.png'
-    ])
-    expect(name).toBe('april_chat_003.png')
-  })
-
-  it('counts what is on disk as well', async () => {
-    const folder = join(root, 'data', 'saves', '200', 'mod-data', 'photo-feature', 'april-1')
-    await mkdir(folder, { recursive: true })
-    await writeFile(join(folder, 'april_chat_004.png'), '')
-    expect(await reservePhotoName('200', april, 'chat', ['april_chat_001.png'])).toBe(
-      'april_chat_005.png'
-    )
+  it('gives a random name outside the names the save already points at', async () => {
+    const saved = ['april_chat_001.png', 'abcdefghij.png']
+    const name = await reservePhotoName('100', april, saved)
+    expect(name).toMatch(/^[a-z0-9]{10}\.png$/)
+    expect(saved).not.toContain(name)
   })
 
   it('ignores anything in the list that is not one of its names', async () => {
-    expect(await reservePhotoName('300', april, 'chat', ['../escape.png', 42, null])).toBe(
-      'april_chat_001.png'
+    expect(await reservePhotoName('300', april, ['../escape.png', 42, null])).toMatch(
+      /^[a-z0-9]{10}\.png$/
     )
   })
 })
@@ -86,12 +76,8 @@ describe('photos saved as WebP', () => {
 
   beforeEach(async () => setModSwitches(withOption(await getModSwitches(), 'photo-feature', 'webp', true)))
 
-  it('names a new picture as WebP, counting the PNGs already there', async () => {
-    await mkdir(folder(), { recursive: true })
-    await writeFile(join(folder(), 'april_chat_002.png'), '')
-    expect(await reservePhotoName('400', april, 'chat', ['april_chat_001.webp'])).toBe(
-      'april_chat_003.webp'
-    )
+  it('names a new picture as WebP', async () => {
+    expect(await reservePhotoName('400', april, [])).toMatch(/^[a-z0-9]{10}\.webp$/)
   })
 
   it('finds a WebP that is still only its PNG', async () => {

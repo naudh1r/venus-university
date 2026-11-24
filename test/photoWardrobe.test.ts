@@ -49,7 +49,7 @@ describe('photoWardrobe', () => {
       'A mirror selfie of her in her everyday clothes holding an empty token cup ' +
         'beside a row of brightly lit arcade cabinets.'
     )
-    expect(positive).toContain('A mirror selfie of her beside a row of brightly lit arcade cabinets')
+    expect(positive).toContain('A photo of her beside a row of brightly lit arcade cabinets')
     expect(positive).toContain('pink_cardigan')
     expect(positive).not.toMatch(/everyday clothes|token cup/)
   })
@@ -60,7 +60,7 @@ describe('photoWardrobe', () => {
       'A mirror selfie of her in her room wearing her everyday clothes, ' +
         'smiling sweetly at the viewer.'
     )
-    expect(positive).toContain('A mirror selfie of her in her room, smiling sweetly at the viewer')
+    expect(positive).toContain('A photo of her in her room, smiling sweetly at the viewer')
     expect(positive).not.toContain('everyday clothes')
   })
 

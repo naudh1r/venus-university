@@ -16,6 +16,33 @@ import { describe, expect, it } from 'vitest'
 
 /** Danbooru vocabulary checked against the API or the catalog cited beside its entries. */
 const VERIFIED = new Set([
+  // Kept off a picture of two, from the published Danbooru catalog cited below.
+  'couple',
+  'hug',
+  'cuddling',
+  'kiss',
+  'lying_on_person',
+  // Bare body details and skin marks, checked against the published Danbooru catalog below.
+  'small_penis',
+  'large_penis',
+  'huge_penis',
+  'handprint',
+  // Hand gestures a caption names, from the published Danbooru catalog cited below.
+  'double_v',
+  'middle_finger',
+  'ok_sign',
+  'salute',
+  'finger_gun',
+  'claw_pose',
+  'pointing_at_viewer',
+  'pointing_at_self',
+  'shushing',
+  'covering_own_mouth',
+  'facepalm',
+  'hands_on_own_cheeks',
+  'fist_pump',
+  'shrugging',
+  'hands_on_own_hips',
   // Checked against the published Danbooru catalog cited below.
   'one_eye_closed',
   'finger_in_own_mouth',
@@ -294,7 +321,8 @@ const QUALITY = new Set([
 const ROOT = join(__dirname, '..')
 
 function source(rel: string): string {
-  return readFileSync(join(ROOT, rel), 'utf-8')
+  // A Windows checkout ends lines with CRLF, which the blank-line bounds below would read past.
+  return readFileSync(join(ROOT, rel), 'utf-8').replace(/\r\n/g, '\n')
 }
 
 /** Every quoted string inside the brackets or braces that follow each match of `opener`. */
@@ -319,7 +347,8 @@ function constantTags(text: string, name: string): string[] {
     .join('')
     .split(',')
     .map((tag) => tag.trim())
-    .filter(Boolean)
+    // A placeholder filled in per photo, such as the people a negative names, is not a tag.
+    .filter((tag) => tag && !/^__[A-Z]+__$/.test(tag))
 }
 
 /** A weighted tag, `(huge_ass:0.6)`, is its tag at another weight: the tag is what is checked. */
@@ -367,6 +396,7 @@ function emittedTags(): string[] {
     // A selfie her hands are too full to take, drawn as somebody else's picture.
     ...quoted(pose, /\.\.\.camera, ('selfie', 'outstretched_arm')\]/g),
     ...quoted(pose, /,\s*('crossed_legs')\]/g),
+    ...quoted(pose, /tags\.push\(('handprint')\)/g),
     ...quoted(pose, /\.\.\.tags, ('indian_style')\]/g),
     ...quoted(pose, /'looking_at_viewer'\), ('looking_away')\]/g),
     ...quoted(body, /BARE_TAGS[^=]*=\s*\{([^}]*)\}/g),

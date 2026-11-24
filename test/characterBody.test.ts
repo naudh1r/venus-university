@@ -45,7 +45,7 @@ const at = (fraction: number) => () => fraction
 
 describe('the pools', () => {
   it('holds one list per field, and nothing past large_breasts', () => {
-    expect(BODY_FIELDS).toEqual(['build', 'breasts', 'hipsThighs', 'buttocks', 'pubicHair'])
+    expect(BODY_FIELDS).toEqual(['build', 'breasts', 'hipsThighs', 'buttocks', 'penis', 'pubicHair'])
     expect(BODY_POOLS.breasts).not.toContain('huge_breasts')
     expect(BODY_POOLS.build).not.toContain('skinny')
   })
@@ -363,7 +363,7 @@ describe('withBodyTags', () => {
 
 describe('body storage', () => {
   const body: CharacterBody = {
-    build: 'petite', breasts: 'large_breasts', hipsThighs: 'wide_hips'
+    build: 'petite', breasts: 'large_breasts', hipsThighs: 'narrow_waist'
   }
 
   it('reads a legacy character file without making body a core field', () => {
@@ -414,3 +414,35 @@ describe('body storage', () => {
 
 function spriteDraft(c: Parameters<typeof nativeSpriteDraft>[0], poses: Parameters<typeof nativeSpriteDraft>[1], set: Parameters<typeof nativeSpriteDraft>[2]) { return nativeSpriteDraft(c, poses, set, SHIPPED_DEFAULT_TAGS) }
 function cgSetDraft(c: Parameters<typeof nativeCgSetDraft>[0]) { return nativeCgSetDraft(c, SHIPPED_DEFAULT_TAGS) }
+
+describe('a guy’s saved and drawn body details', () => {
+  it.each(['huge_ass', '(huge_ass:0.6)'])('drops obsolete male fields and %s on read', (buttocks) => {
+    const data = { breasts: 'pectorals', hipsThighs: 'long_legs', buttocks }
+    const guy = character({ gender: 'male', ex: { 'photo-feature': { v: '1.9.0', data } } })
+    expect(cleanBody(data, 'male')).toEqual({ breasts: 'pectorals' })
+    expect(bodyOf(guy)).toEqual({ breasts: 'pectorals' })
+    expect(guy.ex?.['photo-feature']?.data).toEqual(data)
+  })
+
+  it('validates the new field against the character’s gender', () => {
+    const data = { buttocks: '(flat_ass:0.6)', penis: 'large_penis' }
+    expect(cleanBody(data, 'male')).toEqual(data)
+    expect(cleanBody(data, 'female')).toEqual({ buttocks: '(flat_ass:0.6)' })
+  })
+
+  it('draws only his own pools, with average most often for backside and penis', () => {
+    let averageBackside = 0
+    let averagePenis = 0
+    for (let i = 0; i < 100; i++) {
+      const body = drawBody('toned', [], at(i / 100), 'pectorals', 'male')
+      expect(body.hipsThighs).toBeUndefined()
+      expect([undefined, 'flat_ass', '(flat_ass:0.6)']).toContain(body.buttocks)
+      expect([undefined, 'small_penis', 'large_penis', 'huge_penis']).toContain(body.penis)
+      expect(body.pubicHair).not.toBe('female_pubic_hair')
+      if (!body.buttocks) averageBackside++
+      if (!body.penis) averagePenis++
+    }
+    expect(averageBackside).toBeGreaterThan(50)
+    expect(averagePenis).toBeGreaterThan(50)
+  })
+})

@@ -1,32 +1,34 @@
 import { describe, expect, it } from 'vitest'
 import { groupPhotoPair, photoFriendHandle } from '../src/shared/photoDuo'
-import { buildDuoPhotoPrompt, withoutTouching } from '../src/shared/photoPrompt'
+import { buildDuoPhotoPrompt, duoHeadCount, faceHalfOf, withoutTouching } from '../src/shared/photoPrompt'
 import { character } from './fixtures'
 
 describe('who is in a group photo', () => {
-  it('takes two different girls from the scene, and nobody from a scene with fewer', () => {
-    expect(groupPhotoPair(['risa', 'ana', 'lia'], {}, () => 0)).toEqual({ poster: 'risa', friend: 'ana' })
-    expect(groupPhotoPair(['risa', 'ana', 'lia'], {}, () => 0.99)).toEqual({ poster: 'lia', friend: 'ana' })
-    expect(groupPhotoPair(['risa', 'risa'], {}, () => 0)).toBeNull()
-    expect(groupPhotoPair(['risa'], {})).toBeNull()
+  it('takes two different people from the scene, and nobody from a scene with fewer', () => {
+    const friends = { 'ana|lia': { affinity: 4 }, 'ana|risa': { affinity: 5 }, 'lia|risa': { affinity: 6 } }
+    expect(groupPhotoPair(['risa', 'ana', 'lia'], friends, () => 0)).toEqual({ poster: 'risa', friend: 'ana' })
+    expect(groupPhotoPair(['risa', 'ana', 'lia'], friends, () => 0.99)).toEqual({ poster: 'lia', friend: 'ana' })
+    expect(groupPhotoPair(['risa', 'risa'], friends, () => 0)).toBeNull()
+    expect(groupPhotoPair(['risa'], friends)).toBeNull()
   })
 
-  it('skips every enemy pair, still takes acquaintances, and refuses a scene of enemies only', () => {
+  it('takes only friends or a couple, as the feed does', () => {
     const relationships = {
       'ana|risa': { affinity: -4 },
-      'lia|risa': { affinity: -6 },
-      'ana|lia': { affinity: -3 }
+      'lia|risa': { affinity: 2 },
+      'ana|lia': { affinity: 4 }
     }
     for (const roll of [0, 0.25, 0.5, 0.99]) {
       const pair = groupPhotoPair(['risa', 'ana', 'lia'], relationships, () => roll)!
       expect([pair.poster, pair.friend].sort()).toEqual(['ana', 'lia'])
     }
+    // Acquaintances and strangers who only share the scene get no photo together.
+    expect(groupPhotoPair(['risa', 'lia'], relationships)).toBeNull()
+    expect(groupPhotoPair(['risa', 'lia'], {})).toBeNull()
     expect(groupPhotoPair(['risa', 'ana'], relationships)).toBeNull()
-    expect(groupPhotoPair(['risa', 'ana', 'lia'], {
-      ...relationships, 'ana|lia': { affinity: -4 }
-    })).toBeNull()
-    expect(groupPhotoPair(['ana', 'lia'], { 'ana|lia': { affinity: 4 } }, () => 0))
-      .toEqual({ poster: 'ana', friend: 'lia' })
+    // A couple counts whatever their affinity.
+    expect(groupPhotoPair(['risa', 'lia'], { 'lia|risa': { affinity: 0, dating: 3 } }, () => 0))
+      .toEqual({ poster: 'risa', friend: 'lia' })
   })
 })
 
@@ -51,6 +53,23 @@ describe('the friend tagged under a photo', () => {
 describe('a picture of two', () => {
   const risa = character({ charId: 'risa', firstName: 'Risa', lastName: 'Vale', outfit: ['pink_top', 'black_thighhighs', 'white_sneakers'] })
   const ana = character({ charId: 'ana', firstName: 'Ana', lastName: 'Moss', outfit: ['brown_sweater'] })
+
+  it('counts the heads of each pairing for the scene, and opens each half on its own subject', () => {
+    const kai = character({ charId: 'kai', firstName: 'Kai', gender: 'male', baseAppearance: ['1boy', 'male_focus', 'black_hair'] })
+    const ren = character({ charId: 'ren', firstName: 'Ren', gender: 'male', baseAppearance: ['1boy', 'brown_hair'] })
+    expect(duoHeadCount(risa, ana)).toEqual(['2girls', 'multiple_girls'])
+    expect(duoHeadCount(risa, kai)).toEqual(['1girl', '1boy'])
+    expect(duoHeadCount(kai, risa)).toEqual(['1girl', '1boy'])
+    expect(duoHeadCount(kai, ren)).toEqual(['2boys', 'multiple_boys'])
+    const wide = buildDuoPhotoPrompt(kai, risa, 'everyday', 'Kai and Risa at the cafe', 'ppm')
+    expect(wide.left).toMatch(/^masterpiece, best_quality, very_aesthetic, 1boy, /)
+    expect(wide.right).toMatch(/^masterpiece, best_quality, very_aesthetic, 1girl, /)
+    expect(wide.scene).toContain('1girl, 1boy')
+    for (const half of [wide.left, wide.right]) {
+      expect(half).not.toMatch(/\bsolo\b|male_focus|1girl, 1boy|multiple_/)
+    }
+  })
+
 
   it('draws them apart, never touching, and leaves her legs out of a shot from the waist up', () => {
     const prompts = buildDuoPhotoPrompt(risa, ana, 'everyday', 'Me and Ana at the cafe, hugging and smiling at the camera')
@@ -82,6 +101,23 @@ describe('a picture of two', () => {
     const both = buildDuoPhotoPrompt(risa, ana, 'everyday', caption)
     expect(both.left).toMatch(/\bone_eye_closed\b/)
     expect(both.right).toMatch(/\bone_eye_closed\b/)
+  })
+
+  it("reads her friend's face past a comma, and keeps what both of them do", () => {
+    const shy = buildDuoPhotoPrompt(
+      risa, ana, 'suggestive',
+      'Her and her friend at the pool, with her winking while her friend gives an awkward, shy smile, side by side.'
+    )
+    expect(shy.left).toMatch(/\bone_eye_closed\b/)
+    expect(shy.right).toMatch(/\bsmile\b/)
+    expect(shy.right).not.toMatch(/\bone_eye_closed\b/)
+    const laughing = buildDuoPhotoPrompt(
+      risa, ana, 'everyday', 'Her and her friend at the cafe, her pouting while her friend looks away, both laughing.'
+    )
+    expect(laughing.left).toMatch(/\bpout\b/)
+    expect(laughing.left).toMatch(/\blaughing\b/)
+    expect(laughing.right).toMatch(/\blaughing\b/)
+    expect(laughing.right).not.toMatch(/\bpout\b/)
   })
 
   it('splits a prefixed caption at its later contrast', () => {
@@ -209,7 +245,7 @@ describe('a picture of two', () => {
     expect(buildDuoPhotoPrompt(risa, ana, 'everyday', 'A selfie of me and Ana at the park').scene).toContain('cowboy_shot')
     const photo = buildDuoPhotoPrompt(risa, ana, 'everyday', 'A photo of me and Ana at the park')
     expect(photo.scene).toContain('upper_body')
-    expect(photo.scene).toContain('a little space between them')
+    expect(photo.scene).not.toContain('space between them')
     expect(photo.scene).not.toContain('(upper_body:1.3)')
   })
 
@@ -217,5 +253,50 @@ describe('a picture of two', () => {
     const prompts = buildDuoPhotoPrompt(risa, ana, 'everyday', 'A selfie of me and Ana at the park')
     expect(prompts.left).toContain('outstretched_arm')
     expect(prompts.right).not.toContain('outstretched_arm')
+  })
+
+  it("gives the face pass each person's own subject, eyes, glasses, face and expression alone", () => {
+    const half = 'masterpiece, best_quality, very_aesthetic, 1girl, mature_female, (light_blonde_hair:1.3), blue_eyes, medium_hair, pink_flower_hairclip, silver_round_glasses, medium_breasts, (yellow_cropped_zip_hoodie:1.2), standing, one_eye_closed, v, selfie, (outstretched_arm:1.3), upper_body'
+    expect(faceHalfOf(half, risa)).toBe('masterpiece, best_quality, very_aesthetic, 1girl, solo, blue_eyes, silver_round_glasses, one_eye_closed')
+    const old = 'masterpiece, 1girl, 1boy, light_blue_eyes, short_hair, stubble, tan, smirk, upper_body'
+    expect(faceHalfOf(old, { ...ana, gender: 'male' } as typeof ana)).toBe('masterpiece, best_quality, very_aesthetic, 1boy, solo, male_focus, light_blue_eyes, stubble, tan, smirk')
+    const made = 'masterpiece, 1girl, dark_skin, freckles, pink_eyeshadow, red_lipstick, green_eyes, black_hair, smile'
+    expect(faceHalfOf(made, risa)).toBe('masterpiece, best_quality, very_aesthetic, 1girl, solo, dark_skin, freckles, pink_eyeshadow, red_lipstick, green_eyes, smile')
+    const spaced = 'masterpiece, 1girl, light pink eyes, black eyeshadow, silver hoop earrings, silver ear_piercing, facial scar, red scarf, pink_flower_hairclip, grin'
+    expect(faceHalfOf(spaced, risa)).toBe('masterpiece, best_quality, very_aesthetic, 1girl, solo, light pink eyes, black eyeshadow, silver hoop earrings, silver ear_piercing, facial scar, grin')
+  })
+})
+
+it.each([
+  ['full body', 'full_body', true, true],
+  ['knees up', 'cowboy_shot', false, true],
+  ['waist down', 'lower_body', true, true],
+  ['face only', '(portrait:1.3)', false, false],
+  ['', 'upper_body', false, false]
+] as const)('frames both wardrobes with a %s caption', (crop, framing, shoes, bottoms) => {
+  const left = character({
+    firstName: 'Risa', outfit: ['white_top', 'blue_skirt', 'white_sneakers']
+  })
+  const right = character({
+    firstName: 'Kai', gender: 'male', outfit: ['green_shirt', 'blue_jeans', 'black_trainers']
+  })
+  const prompt = buildDuoPhotoPrompt(left, right, 'everyday', `Risa and Kai standing together, ${crop}`)
+  for (const part of [prompt.scene, prompt.left, prompt.right]) expect(part.split(', ')).toContain(framing)
+  expect(prompt.scene).toContain('same height')
+  expect(prompt.left.includes('white_sneakers')).toBe(shoes)
+  expect(prompt.right.includes('black_trainers')).toBe(shoes)
+  expect(prompt.left.includes('blue_skirt')).toBe(bottoms)
+  expect(prompt.right.includes('blue_jeans')).toBe(bottoms)
+})
+
+describe('a picture of two kept apart', () => {
+  it('keeps hugging, cuddling, kissing and lying on each other off every pairing', () => {
+    const girl = character({ charId: 'risa', firstName: 'Risa' })
+    const her = character({ charId: 'ana', firstName: 'Ana' })
+    const guy = character({ charId: 'kai', firstName: 'Kai', gender: 'male' })
+    for (const [a, b] of [[girl, guy], [girl, her], [guy, girl]] as const) {
+      const negative = buildDuoPhotoPrompt(a, b, 'everyday', 'Me and my friend at the park', 'ppm').negative.split(/,\s*/)
+      expect(negative).toEqual(expect.arrayContaining(['couple', 'hug', 'cuddling', 'kiss', 'lying_on_person']))
+    }
   })
 })

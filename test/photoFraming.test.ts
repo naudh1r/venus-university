@@ -49,7 +49,7 @@ describe('the framing a caption names', () => {
     expect(face).toEqual(expect.arrayContaining(['on_side', 'close-up', 'portrait']))
     expect(face).not.toContain('(upper_body:1.3)')
     const knees = photoPose('A three-quarter selfie sitting in a booth', 'everyday').tags
-    expect(knees).toContain('cowboy_shot')
+    expect(knees).not.toContain('cowboy_shot')
     expect(knees).not.toContain('full_body')
   })
 
