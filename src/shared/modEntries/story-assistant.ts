@@ -5,7 +5,7 @@ const mod: ModDef = {
   id: STORY_ASSISTANT,
   name: 'Story Assistant',
   author: 'Sharp',
-  version: '1.0.0',
+  version: '1.0.0', game: '0.9.2',
   scope: 'anytime',
   defaultOn: false,
   blurb:

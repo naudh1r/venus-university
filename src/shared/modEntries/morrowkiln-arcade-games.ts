@@ -9,20 +9,23 @@ import WHACK_A_BUN from "../minigameEntries/whack-a-bun";
 import CLAW_MACHINE from "../minigameEntries/claw-machine";
 
 /** A pack: one mod bringing several games, each with a switch of its own among the options. */
-export default packMod({
-  id: "morrowkiln-arcade-games",
-  name: '[MK] Arcade & Bar Games',
-  author: "morrowkiln",
-  version: "0.1.1",
-  blurb: "What the arcade, the bar and the bowling alley are for.",
-  games: [
-    AIR_HOCKEY,
-    PARADISO,
-    POOL,
-    BOWLING,
-    SKEE_BALL,
-    HOOP_SHOT,
-    WHACK_A_BUN,
-    CLAW_MACHINE,
-  ],
-});
+export default {
+  ...packMod({
+    id: "morrowkiln-arcade-games",
+    name: '[MK] Arcade & Bar Games',
+    author: "morrowkiln",
+    version: "0.1.1",
+    blurb: "What the arcade, the bar and the bowling alley are for.",
+    games: [
+      AIR_HOCKEY,
+      PARADISO,
+      POOL,
+      BOWLING,
+      SKEE_BALL,
+      HOOP_SHOT,
+      WHACK_A_BUN,
+      CLAW_MACHINE,
+    ],
+  }),
+  game: '0.9.2'
+};

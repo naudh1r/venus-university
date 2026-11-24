@@ -5,7 +5,7 @@ const mod: ModDef = {
   id: 'reckoning',
   name: 'Breaking Through the Silence',
   author: 'Maestro Leeds',
-  version: '0.7.12',
+  version: '0.7.12', game: '0.9.2',
   scope: 'anytime',
   defaultOn: false,
   requires: ['breakthrough'],
