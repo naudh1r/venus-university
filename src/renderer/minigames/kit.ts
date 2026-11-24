@@ -28,6 +28,9 @@ export {
 // The game's own controls, so a pack's buttons and fields behave as every other does.
 export { gestures, lift, press, quietLift, quietPress, TextField, toggleLift } from '@vx/modkit/renderer'
 export { BunnyMark } from '../views/screenIcons'
+// The reader and companion pronouns for a game's dialogue.
+export { gameFacts } from '@vx/modkit/renderer'
+export { pronounsOf, readerWordsOf } from '@vx/modkit/shared'
 /** Keys for a game played on the keyboard; `typingIn` is true for a key meant for a text field. */
 export { typingIn, useWindowKeydown } from '../components/useWindowKeydown'
 /** True where the player has asked for less motion: skip a flourish, never an input. */

@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef, useState, type JSX } from 'react'
-import { pronounsOf } from '@vx/modkit/shared'
-import type { Opponent } from '../kit'
+import { pronounsOf, type Opponent } from '../kit'
 
 export function DartsControlGuide(): JSX.Element {
   return <section className="vu-darts-control-help" aria-label="Mouse controls">

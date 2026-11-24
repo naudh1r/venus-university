@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { dartsNextThrow } from '../src/renderer/minigames/games/DartsHelp'
 import { newExtraMatch, extraModeTitle, extraDescription, extraSituation, extraSummary, extraThrow, extraModeUnavailable, planExtraVisit, applyExtraPlan, targetRegion, scoreHit, type ExtraDartsMatch, type ExtraDartsMode } from '../src/shared/minigameRules/darts'
+import { stubApi } from './fixtures'
+
+stubApi({ jobs: { onProgress: () => () => {} } })
+const { dartsNextThrow } = await import('../src/renderer/minigames/games/DartsHelp')
+
 const seats = [
  { id:'reader',name:'You',kind:'reader' as const },
  { id:'a',name:'Ana',kind:'npc' as const,skill:5,traits:{version:1,accuracy:90,consistency:90,composure:90} },
