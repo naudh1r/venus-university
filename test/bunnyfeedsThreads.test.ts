@@ -6,10 +6,23 @@ import { useGrabBagStore } from '../src/renderer/stores/grabBagStore'
 import { FEED_HANDLE_BAG, FEED_EMOJI_BAG } from '../src/renderer/prompts/feedRandoms'
 import { useModsStore } from '../src/renderer/stores/modsStore'
 import { writesSettled } from '../src/renderer/stores/loop/saves'
+import { commentData } from '../src/renderer/stores/bunnyfeedsData'
 import { charKeyOf } from '@vx/modkit/shared'
 import { resetLoopState } from '../src/renderer/stores/loop/state'
 import { character, restoreApi, stubApi } from './fixtures'
 import { legacyCharInfo as charInfo } from './bunnyfeedsFixtures'
+
+// Photo Feature is a separate mod, not part of this build: its switch alone stands for it being
+// installed, so the picture it leaves on a post is read only while that switch is on.
+vi.mock('@vx/modkit/renderer', async (original) => {
+  const kit = await original<typeof import('@vx/modkit/renderer')>()
+  const { useModsStore: mods } = await import('../src/renderer/stores/modsStore')
+  return {
+    ...kit,
+    modIsOn: (id: string, record?: Parameters<typeof kit.modIsOn>[1]) =>
+      id === 'photo-feature' ? mods.getState().switches.on[id] === true : kit.modIsOn(id, record)
+  }
+})
 
 // The thread call needs no generation-job subscription.
 vi.mock('../src/renderer/stores/jobStore', () => ({ useJobStore: {} }))
@@ -141,8 +154,9 @@ describe('feed thread identity draws', () => {
     { from: 'poster', handle: 'known', bags: [] },
     { from: 'poster', handle: undefined, bags: [FEED_HANDLE_BAG] },
     { from: '@old', handle: 'known', bags: [] },
-    { from: '', handle: 'known', bags: [FEED_HANDLE_BAG, FEED_EMOJI_BAG] }
-  ])('keeps the existing identity for $from with poster handle $handle', async ({ from, handle, bags }) => {
+    { from: '', handle: 'known', bags: [FEED_HANDLE_BAG, FEED_EMOJI_BAG] },
+    { from: 'poster', handle: 'known', bags: [], night: true }
+  ])('keeps the existing identity for $from with poster handle $handle', async ({ from, handle, bags, night }) => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
     const draw = vi.spyOn(useGrabBagStore.getState(), 'drawMany')
     useGameStore.setState({
@@ -171,12 +185,26 @@ describe('feed thread identity draws', () => {
         ? charKeyOf(character().firstName, character().lastName) : from, text: 'answer' }], memories: [] }
     }) }, saves: { autosave: async () => ({ ok: true, data: {} as never }) } })
 
-    await armFeedThreads()
+    if (night) {
+      useGameStore.setState({
+        date: 3,
+        time: 0,
+        interlude: {
+          now: { from: { date: 2, time: 1 }, to: { date: 3, time: 0 }, clock: 'late-night',
+            owner: 'test', semesterIndex: 0, ledger: null },
+          interlude: { lines: [], rows: [] },
+          pick: () => {}
+        }
+      })
+    }
+    await armFeedThreads(night ? 'next' : 'now')
 
     expect(draw.mock.calls.map(([bag, , count]) => [bag, count]))
       .toEqual(bags.map(bag => [bag, 1]))
     const reply = useGameStore.getState().charInfo.poster.feed?.[0].comments?.at(-1)
     expect(reply?.text).toBe('answer')
+    expect(commentData.read(reply!).night).toBe(night)
+    if (night) expect(reply?.at).toBe(6)
     if (from === '@old') expect(reply).toMatchObject({ handle: 'old', emoji: '' })
   })
 })

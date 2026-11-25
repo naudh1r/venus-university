@@ -3,7 +3,6 @@ import {
   globalSlotOf,
   registerPostCarry,
   readerWordsOf,
-  shownComments,
   type Character,
   charKeyOf
 } from '@vx/modkit/shared'
@@ -34,7 +33,7 @@ import { feedStatusLines, fileDueFeedMemories, textLedgerFeedLines } from '../st
 import { takeCommented } from '../stores/bunnyfeedsVisit'
 import { settleFeedReadMark, unreadFeedNotesOf } from '../stores/bunnyfeedsNotes'
 import { readBunnyfeedsContext } from '../stores/bunnyfeedsReadContext'
-import { carriedThread, commentData } from '../stores/bunnyfeedsData'
+import { carriedThread, commentData, visibleFeedComments } from '../stores/bunnyfeedsData'
 import { feedPronounsOf } from '../../shared/bunnyfeedsGender'
 import { pictureOf } from '../stores/bunnyfeedsPicture'
 
@@ -90,7 +89,7 @@ const RECENT_POSTS = 2
  * he wrote under it.
  */
 function recentPostLines(characters: readonly Character[]): string[] {
-  const { charInfo, date, time, calendar, readerPronouns } = readBunnyfeedsContext()
+  const { charInfo, date, time, heldSlot, calendar, readerPronouns } = readBunnyfeedsContext()
   return characters.flatMap((character) => {
     const posts = (charInfo[character.charId]?.feed ?? [])
       .filter(postVisible)
@@ -101,7 +100,7 @@ function recentPostLines(characters: readonly Character[]): string[] {
     return [
       `${name}'s latest feed posts, which everyone can see:`,
       ...posts.flatMap((post) => {
-        const said = shownComments(post.comments, date, time)
+        const said = visibleFeedComments(post.comments, globalSlotOf(date, time), heldSlot)
         const hers = said.filter(
           (one) =>
             commentData.read(one).charId === character.charId &&
@@ -127,6 +126,13 @@ function recentPostLines(characters: readonly Character[]): string[] {
 /** The thread call, loaded the first time it is needed. */
 function threads(): Promise<typeof import('../stores/bunnyfeedsThreads')> {
   return import('../stores/bunnyfeedsThreads')
+}
+
+/** Files the memories due by the next slot and asks for any answers still owed. */
+function settleFeed(): void {
+  const { date, time } = readBunnyfeedsContext()
+  fileDueFeedMemories(globalSlotOf(date, time) + 1)
+  void threads().then((module) => module.armFeedThreads('next'))
 }
 
 // Closing the phone ends a visit: everything he commented during it goes out as one call.
@@ -204,11 +210,9 @@ registerHooks(BUNNYFEEDS, {
 
   // Held memories whose answers show next slot are filed now, so the boundary save carries them;
   // then whatever the phone-close call never answered is asked for.
-  slotSettled: () => {
-    const { date, time } = readBunnyfeedsContext()
-    fileDueFeedMemories(globalSlotOf(date, time) + 1)
-    void threads().then((module) => module.armFeedThreads('next'))
-  },
+  slotSettled: settleFeed,
+  // A late night held before the morning settles the same way, read as the evening it follows.
+  interludeSettled: settleFeed,
 
   // Files the replies too. A post another mod is putting a picture on (its "image") draws more.
   fileFeedPost: (filing) => {

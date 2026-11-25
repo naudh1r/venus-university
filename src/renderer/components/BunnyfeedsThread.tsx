@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { create } from 'zustand'
 import { motion } from 'motion/react'
-import { shownComments, type PostComment, fullNameOf } from '@vx/modkit/shared'
+import { globalSlotOf, type PostComment, fullNameOf } from '@vx/modkit/shared'
 import {
   isFeedContact,
   EmojiTool,
@@ -24,7 +24,7 @@ import {
   useBareMessage
 } from '@vx/modkit/renderer'
 import { useProfileImageUrl, useSceneActive, toggleFeedLike, isGraduationSlot } from '@vx/modkit/renderer'
-import { commentData } from '../stores/bunnyfeedsData'
+import { commentData, visibleFeedComments } from '../stores/bunnyfeedsData'
 import { useBunnyfeedsContext } from '../stores/bunnyfeedsReadContext'
 import { leavePlayerComment } from '../stores/bunnyfeedsThreads'
 import { FollowerFace } from './BunnyfeedsFaces'
@@ -90,9 +90,9 @@ function grouped(said: readonly PostComment[]): {
 
 /** The comments that have arrived under a post, read off the clock. */
 function useShown(comments: readonly PostComment[]): PostComment[] {
-  const date = useBunnyfeedsContext((s) => s.date)
-  const time = useBunnyfeedsContext((s) => s.time)
-  return shownComments(comments, date, time)
+  return useBunnyfeedsContext(({ date, time, heldSlot }) =>
+    visibleFeedComments(comments, globalSlotOf(date, time), heldSlot)
+  )
 }
 
 /** Whether he may write under this post: a contact's own, outside the epilogue and any scene. */
