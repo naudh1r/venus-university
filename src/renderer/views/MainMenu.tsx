@@ -2,7 +2,7 @@ import { confirmModCompatibility, confirmSetupCompatibility } from './ModCompati
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { toAppError } from '@shared/errors'
-import { buildLine, modsOn } from '@shared/mods'
+import { buildLine, modsOnCount } from '@shared/mods'
 import { seasonOf } from '@shared/semesters'
 import { writerReady } from '@shared/settingsRules'
 import { shuffle } from '@shared/shuffle'
@@ -472,7 +472,7 @@ export function MainMenu(): JSX.Element {
               onClick={() => openModal('mods')}
             >
               Mods
-              <span className="vu-menu-mods-count">{modsOn(modSwitches).length}</span>
+              <span className="vu-menu-mods-count">{modsOnCount(modSwitches)}</span>
             </motion.button>
           </div>
           {/* Ungated and last. */}

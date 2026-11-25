@@ -280,12 +280,17 @@ export function modNames(mods: readonly ModDef[] = MODS): string {
   return mods.map((mod) => `${mod.name} ${mod.version}`).join(', ')
 }
 
+/** How many mods the player has on, leaving out libraries, which have no switch of their own. */
+export function modsOnCount(switches: ModSwitches, mods: readonly ModDef[] = MODS): number {
+  return modsOn(switches, mods).filter((mod) => !mod.library).length
+}
+
 /**
  * The line the main menu prints under the version, so a screenshot of the menu says whose build
  * this is. It counts the mods that are on rather than naming them; the Mods screen names them.
  */
 export function buildLine(switches: ModSwitches, mods: readonly ModDef[] = MODS): string {
-  const count = modsOn(switches, mods).length
+  const count = modsOnCount(switches, mods)
   return `${BUILD.name} ${BUILD.version} · ${count} ${count === 1 ? 'mod' : 'mods'} on · unofficial`
 }
 
