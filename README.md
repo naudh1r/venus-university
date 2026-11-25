@@ -5,10 +5,10 @@ catalogue the game's mods browser reads them from. They run on `naudh1r-core`.
 
 | Mod | Release | What it does |
 |---|---|---|
-| Photo Feature | 1.8.0 | Characters send photos in their DMs and post them on their feeds, drawn by ComfyUI |
-| Bunnyfeeds | 1.1.7 | Comments under their posts, and replies to yours |
-| Emoji Extended | 1.0.0 | Every emoji on the phone, and big emoji in texts |
-| After Hours | 0.7.1 | A Busy status, and a night in your room to text before you sleep |
+| Photo Feature | 1.9.0 | Characters send photos in their DMs and post them on their feeds, drawn by ComfyUI |
+| Bunnyfeeds | 1.1.8 | Comments under their posts, and replies to yours |
+| Emoji Extended | 1.0.1 | Every emoji on the phone, and big emoji in texts |
+| After Hours | 0.7.2 | A Busy status, and a night in your room to text before you sleep |
 
 ## Installing
 
@@ -45,9 +45,9 @@ whether its `main.js` was approved.
 ## naudh1r-core
 
 The game these releases are built for: the org's `core`, plus Venus Dev's latest game, After
-Hours' hooks, a few fixes and the mods browser. Its kit is **0.8.1**, ahead of the org's 0.7.0, and moves ahead again
-whenever the org's does. Every release asks for the kit it was built on or newer, so a newer core
-keeps running them.
+Hours' hooks, a few fixes and the mods browser. Its kit's version follows the org's, **0.7.0** for
+Venus University 0.9.2. Every release asks for the kit it was built on or newer, so a newer core
+keeps running them, and names the game version it was played on.
 
 ## Branches
 

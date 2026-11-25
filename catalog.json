@@ -11,6 +11,40 @@
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/photo-feature/cover.webp",
       "releases": [
         {
+          "version": "1.9.0",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/photo-feature-1.9.0.zip",
+          "sha256": "6c695474d8334b40823ba196d66c92e1701b236d508e223d841624696f79b6d6",
+          "kit": ">=0.7.0",
+          "game": "0.9.2",
+          "main": true,
+          "reviewed": false,
+          "released": "2026-11-25",
+          "changes": [
+            "Redrawing replaces the old picture, including in older saves and replays, even if you quit without saving. Pictures left over from earlier redraws are cleared up.",
+            "New photos are saved under a random name instead of a numbered one. Clearing up old pictures frees their numbers, and a number handed out again could show a new picture in an older save that still expects the old one. Existing photos keep their names.",
+            "Wide photos on feed posts and in DMs keep the height of a portrait photo, and can open twice as wide in the full view. Portrait photos keep their usual size.",
+            "Wide photos take two tiles in a contact's gallery, cropped at the centre. Opening one shows the whole picture. Portraits fill the gaps, so the newest photos may stand slightly out of order.",
+            "A photo's waiting frame follows the shape being drawn, including when switching between wide and portrait. A failed redraw brings back the old picture in its old shape.",
+            "Photos of two need ComfyUI-ppm, installed under Two in one photo in Mods. On your own ComfyUI, install the pack there. Without it, every new photo shows one person.",
+            "Photos of two start wide and can be redrawn portrait with ppm too.",
+            "Older photos of two stay visible. Their next redraw uses ppm, with new halves shown in the info panel first. The recorded scene, negative and seed are kept.",
+            "The photo info panel can switch a photo between wide and portrait and redraw it.",
+            "A new photo of one person is wide about half the time. A standing head-to-toe shot or a standing mirror selfie stays portrait.",
+            "In a photo of two, each person keeps their own hair colour more often, without the other's colour streaking into it.",
+            "A face in a photo of two no longer shows a seam where the two meet in the middle.",
+            "A guy and a girl in one photo keep their own looks: his no longer end up on her and hers on him.",
+            "A feed post's picture shows what the post talks about, such as the rain or the coffee it names.",
+            "A guy's own name in his caption becomes \"him\" or \"his\" instead of leaving a gap, and his photos no longer ask for a flat chest.",
+            "A guy's body details are build, chest, backside, penis size and pubic hair.",
+            "Photos from behind leave out the parts of the body facing away from the camera.",
+            "Photos from behind keep poses such as kneeling or lying face down, and show handprints when the caption mentions them.",
+            "Shoes and ankle socks appear only when the feet are in the picture.",
+            "A photo of two can be full body or knees-up when the caption asks for it.",
+            "The two in a photo of two stand side by side, not cuddling, hugging or lying on each other.",
+            "A scene's photo of two shows a pair who are friends or a couple, as the feed's does. Two people who only share the scene get a photo of one of them instead."
+          ]
+        },
+        {
           "version": "1.8.0",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/photo-feature-1.8.0.zip",
           "sha256": "21c6a682d928b5338991bbe431872073ef0f4568bc075ee847a51720e2198eb3",
@@ -194,6 +228,19 @@
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/bunnyfeeds/cover.webp",
       "releases": [
         {
+          "version": "1.1.8",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/bunnyfeeds-1.1.8.zip",
+          "sha256": "f8592b34942bebf8af0b8c1fd7a65ddb17155405b06dcdd63379fbd14a48f024",
+          "kit": ">=0.7.0",
+          "game": "0.9.2",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-25",
+          "changes": [
+            "Replies at night: with a mod that adds a night after the evening, replies to what you wrote in the evening show under the post, and in Notifications, that night. Replies to what you write during the night still arrive in the morning."
+          ]
+        },
+        {
           "version": "1.1.7",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/bunnyfeeds-1.1.7.zip",
           "sha256": "bfd7b5c77f870ea7f926727a0daf75caba49fddb5c00ef8eb31cf4dfbc1602ec",
@@ -312,6 +359,19 @@
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/emoji-extended/cover.webp",
       "releases": [
         {
+          "version": "1.0.1",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/emoji-extended-1.0.1.zip",
+          "sha256": "8da06a192f9365e24f11c3a1b7a15c665c5576b86314364716584c7e3829c7e2",
+          "kit": ">=0.7.0",
+          "game": "0.9.2",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-25",
+          "changes": [
+            "Installs on Venus University 0.9.2. Nothing else changes."
+          ]
+        },
+        {
           "version": "1.0.0",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/emoji-extended-1.0.0.zip",
           "sha256": "632e02c45a5432d8b936e216d81142c68def0cfdafbfaa232f0f365b90b376e0",
@@ -354,6 +414,19 @@
       "source": "https://github.com/naudh1r/venus-university/tree/mod/after-hours-kit",
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
       "releases": [
+        {
+          "version": "0.7.2",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.2.zip",
+          "sha256": "d8f3fb77ff35f587894c370cef12484e0d2aef85a96fe3c241d168f3efcfd52e",
+          "kit": ">=0.7.0",
+          "game": "0.9.2",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-25",
+          "changes": [
+            "The evening before graduation has no night: the ceremony follows it, as in the game itself."
+          ]
+        },
         {
           "version": "0.7.1",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.1.zip",

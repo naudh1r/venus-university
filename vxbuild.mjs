@@ -63,7 +63,7 @@ const deps = (key) => {
   if (Array.isArray(v)) throw new Error(`${key} is a list; the manifest needs { id: range }`)
   return { [key]: v }
 }
-const manifest = { manifest: 1, id: def.id, name: def.name, author: def.author, version: def.version, blurb: def.blurb, source: 'https://github.com/venus-extracurriculars/build', kit: `>=${KIT}`, hooks: [...new Set([...(def.hooks ?? []), ...kitNames])].filter((h) => !h.endsWith(':*')).sort(), main: hasMain, scope: def.scope, defaultOn: def.defaultOn, ...(def.offNote ? { offNote: def.offNote } : {}), ...(def.options ? { options: def.options } : {}), ...(def.optionGroups ? { optionGroups: def.optionGroups } : {}), ...deps('requires'), ...deps('optional'), ...(def.dataPath ? { dataPath: def.dataPath } : {}) }
+const manifest = { manifest: 1, id: def.id, name: def.name, author: def.author, version: def.version, blurb: def.blurb, source: `https://github.com/naudh1r/venus-university/tree/mod/${id}-kit`, kit: `>=${KIT}`, ...(def.game ? { game: def.game } : {}), hooks: [...new Set([...(def.hooks ?? []), ...kitNames])].filter((h) => !h.endsWith(':*')).sort(), main: hasMain, scope: def.scope, defaultOn: def.defaultOn, ...(def.offNote ? { offNote: def.offNote } : {}), ...(def.options ? { options: def.options } : {}), ...(def.optionGroups ? { optionGroups: def.optionGroups } : {}), ...deps('requires'), ...deps('optional'), ...(def.dataPath ? { dataPath: def.dataPath } : {}) }
 writeFileSync(join(out, 'vxmod.json'), JSON.stringify(manifest, null, 2))
 // Which game files went into the bundle, beyond the mod's own.
 const own = JSON.parse(process.env.OWN_GLOBS ?? '[]').map((g) => new RegExp('^' + g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '\0').replace(/\*/g, '[^/]*').replace(/\0/g, '.*') + '$'))
