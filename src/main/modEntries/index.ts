@@ -1,6 +1,5 @@
 import screenCompanion from './screen-companion'
 import sceneNotes from './scene-notes'
-import { photoMainEntry } from './photo-feature'
 import type { InvokeHandler } from '../mods/invoke'
 import type { RouteHandler } from '../mods/loader'
 
@@ -15,4 +14,4 @@ interface MainEntry {
  * from `./<id>` and list it here. Each synchronously returns `{ invoke?, protocols? }`.
  * Keep setup inside the function: the loader catches a throw and switches off only its mod.
  */
-export const BUILT_IN_MAIN_ENTRIES: Readonly<Record<string, () => MainEntry>> = { 'photo-feature': photoMainEntry, 'scene-notes': sceneNotes, 'screen-companion': screenCompanion }
+export const BUILT_IN_MAIN_ENTRIES: Readonly<Record<string, () => MainEntry>> = { 'scene-notes': sceneNotes, 'screen-companion': screenCompanion }
