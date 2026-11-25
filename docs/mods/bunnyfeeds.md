@@ -98,11 +98,14 @@ on them, from any mod that puts one there, get threads like any other post.
 - After New Game+ the count starts over with the new semester: last semester's replies are still
   listed, as read.
 
-## 1.1.7
+## 1.1.8
 
 - **Replies at night**: with a mod that adds a night after the evening, replies to what you wrote
   in the evening show under the post, and in Notifications, that night. Replies to what you write
   during the night still arrive in the morning.
+
+## 1.1.7
+
 - **Boys on the feed**: replies, memories and the AI's instructions follow each character's
   gender, so a boy's post, his picture and his replies are written about him, not her.
 - **Your pronouns**: replies, memories and the AI's instructions follow the pronouns you chose
