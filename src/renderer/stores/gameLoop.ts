@@ -1,7 +1,17 @@
 import { readDeferredOpeningNotes } from '@shared/opening'
 import { claimLedgerMessages } from '@shared/textingThread'
 import { chatClockOf, shownConversation } from '@shared/chatVisibility'
-import { filterSceneLedger, promptTextEdits, exercisedStats, projectSlotMemories, settleSceneStats, slotActivityAvailable, slotSettled, slotStatusLines, statFloor } from '../mods/hooks'
+import {
+  filterSceneLedger,
+  promptTextEdits,
+  exercisedStats,
+  projectSlotMemories,
+  settleSceneStats,
+  slotActivityAvailable,
+  slotSettled,
+  slotStatusLines,
+  statFloor
+} from '../mods/hooks'
 import { withSlotActivityPrompt } from '../prompts/slotActivity'
 import { GAME_OVER_SCENES, gameCompleteSceneOf, gameOverReasonOf } from '@shared/gameOver'
 import { earnLine, spendLine, spentOf } from '@shared/money'
@@ -235,12 +245,7 @@ import {
   workingHereNote
 } from './loop/casting'
 import { shownAt } from './whereabouts'
-import {
-  classOutcomeNow,
-  gradeOutcomeNow,
-  recordAcademics,
-  settleGrades
-} from './loop/academics'
+import { classOutcomeNow, gradeOutcomeNow, recordAcademics, settleGrades } from './loop/academics'
 import { applyCrushSettle, rollCrushSettle } from './loop/crushes'
 import { startExam } from './loop/exams'
 import { startHangoutScene } from './loop/hangouts'
@@ -740,27 +745,28 @@ async function startOrientationScene(): Promise<void> {
   const met = (charId: string): boolean => game.charInfo[charId]?.flags?.hasMet === true
   const freshman = (charId: string): boolean => game.charInfo[charId]?.year === 1
   const unmet = game.chars.filter((charId) => !met(charId))
-  const pool = [
-    unmet.filter(freshman),
-    unmet,
-    game.chars.filter(freshman),
-    game.chars
-  ].find((candidates) => candidates.length > 0) ?? []
+  const pool =
+    [unmet.filter(freshman), unmet, game.chars.filter(freshman), game.chars].find(
+      (candidates) => candidates.length > 0
+    ) ?? []
   if (pool.length === 0) {
     console.warn('[intro] no characters on the roster; orientation plays solo')
   }
   const picked = pool.length > 0 ? anyOf(pool) : null
   const cast = picked ? [picked] : []
   const pickedCharacter = picked ? game.characters[picked] : undefined
-  const action = orientationPremise({
-    who: {
-      firstName: pickedCharacter?.firstName || 'someone',
-      gender: pickedCharacter?.gender
+  const action = orientationPremise(
+    {
+      who: {
+        firstName: pickedCharacter?.firstName || 'someone',
+        gender: pickedCharacter?.gender
+      },
+      freshman: picked === null || freshman(picked),
+      met: picked !== null && met(picked),
+      knowsSomebody: game.chars.some(met)
     },
-    freshman: picked === null || freshman(picked),
-    met: picked !== null && met(picked),
-    knowsSomebody: game.chars.some(met)
-  }, game.playerPronouns)
+    game.playerPronouns
+  )
 
   const snapshot: TurnSnapshot = { scene: game.captureScene(), action, intro: true }
   loopState.lastTurn = snapshot
@@ -881,7 +887,13 @@ async function startCreatedOpening(): Promise<void> {
   const castCharacters = castCharactersOf(cast)
   const openingOutfits = Object.fromEntries(setup.cast.map((entry) => [entry.charId, entry.outfit]))
   const request = buildOrFail(snapshot, () =>
-    buildScenePrompt(castCharacters, action, { ...promptState(), openingOutfits }, settingNow(), reader())
+    buildScenePrompt(
+      castCharacters,
+      action,
+      { ...promptState(), openingOutfits },
+      settingNow(),
+      reader()
+    )
   )
   if (!request) return
   await runSceneTurn(
@@ -1335,7 +1347,9 @@ async function fetchSlotIntro(
           romance: game.romance,
           readerPronouns: game.playerPronouns,
           npcRelationships: view.npcRelationships,
-          people: [...game.chars, ...game.alumni].flatMap((charId) => game.characters[charId] ? [game.characters[charId]] : []),
+          people: [...game.chars, ...game.alumni].flatMap((charId) =>
+            game.characters[charId] ? [game.characters[charId]] : []
+          ),
           opening,
           lessNsfwText: lessNsfwTextNow(),
           globalTextEdits: promptTextEdits()?.global,
@@ -1432,9 +1446,7 @@ async function fetchSlotIntro(
         cancellations: [...cancellations],
         // Banked with the narration it was rolled beside.
         ...(npcOverlay ? { npcOverlay } : {}),
-        ...(said && rumorPlace?.id
-          ? { slotRumor: { placeId: rumorPlace.id, sentence: said } }
-          : {})
+        ...(said && rumorPlace?.id ? { slotRumor: { placeId: rumorPlace.id, sentence: said } } : {})
       }
     }
 
@@ -1452,7 +1464,6 @@ async function fetchSlotIntro(
     if (answer.prompt !== undefined) request = { ...request, user: answer.prompt }
   }
 }
-
 
 /**
  * Whether the player is genuinely blocked on the loop's own machinery: parked on
@@ -1541,7 +1552,11 @@ async function buildOrAsk<T>(
       return build()
     } catch (err) {
       console.error('[ending] could not build the request:', err)
-      const error = appError('SCENE_BUILD_FAILED', 'The request could not be prepared.', messageOf(err))
+      const error = appError(
+        'SCENE_BUILD_FAILED',
+        'The request could not be prepared.',
+        messageOf(err)
+      )
       const answer = await askToRetry(error, setError, stale)
       if (!answer.retry || runStale(run) || stale()) return null
     }
@@ -1848,13 +1863,18 @@ export async function submitAction(
   useGameStore.getState().logPlayerAction(plan.sceneAction, isContinuation)
 
   // A solo scene opens and closes in this one call, so it is never a continuation.
-  const solo = (!isContinuation || Boolean(useGameStore.getState().sceneActivity)) && plan.cast.length === 0
+  const solo =
+    (!isContinuation || Boolean(useGameStore.getState().sceneActivity)) && plan.cast.length === 0
 
-  const request = buildOrFail(snapshot, () => buildTurnRequest(plan.sceneAction, castCharacters, isContinuation, solo))
+  const request = buildOrFail(snapshot, () =>
+    buildTurnRequest(plan.sceneAction, castCharacters, isContinuation, solo)
+  )
   if (!request) return
   // Only the call that opens a scene repairs a forgotten entrance.
   await runSceneTurn(
-    streamScene(withSlotActivityPrompt(request, useGameStore.getState().sceneActivity), undefined, { forceShowSpeakers: !isContinuation && !solo }),
+    streamScene(withSlotActivityPrompt(request, useGameStore.getState().sceneActivity), undefined, {
+      forceShowSpeakers: !isContinuation && !solo
+    }),
     snapshot,
     plan.cast,
     castCharacters,
@@ -1972,7 +1992,12 @@ async function castClassTurn(
     return null
   }
 
-  return { cast: resolved.cast, sceneAction, scene: { classCode: resolved.classCode }, passerby: null }
+  return {
+    cast: resolved.cast,
+    sceneAction,
+    scene: { classCode: resolved.classCode },
+    passerby: null
+  }
 }
 
 /** A `job` verdict: one shift. */
@@ -1984,7 +2009,10 @@ function castJobTurn(
   // Both refusals are composed from the save; the model was never told.
   const kind = sceneKindOf('job')
   if (kind.kind !== 'shift') {
-    failTurn(rejection(kind.kind === 'none' && kind.reason ? kind.reason : NO_JOB_MESSAGE), snapshot)
+    failTurn(
+      rejection(kind.kind === 'none' && kind.reason ? kind.reason : NO_JOB_MESSAGE),
+      snapshot
+    )
     return null
   }
   const { job, def } = kind
@@ -2413,7 +2441,15 @@ async function runClosing(dropped: () => boolean): Promise<boolean> {
   // Built once and re-sent verbatim: live state moves under the goodbye's own summary.
   // The block guard and a hand edit replace it in place.
   const built = await buildOrAsk(
-    () => buildClosingPrompt(cast, sceneSoFar(), promptState(), settingNow(), reader(), game.sceneSummary),
+    () =>
+      buildClosingPrompt(
+        cast,
+        sceneSoFar(),
+        promptState(),
+        settingNow(),
+        reader(),
+        game.sceneSummary
+      ),
     useGameStore.getState().setClosingError,
     dropped
   )
@@ -2558,7 +2594,13 @@ function startTextLedger(
 
   return (async () => {
     const built = await buildOrAsk(
-      () => buildTextLedgerPrompt(schedule, useGameStore.getState().charInfo, useGameStore.getState().playerPronouns, promptTextEdits()?.global),
+      () =>
+        buildTextLedgerPrompt(
+          schedule,
+          useGameStore.getState().charInfo,
+          useGameStore.getState().playerPronouns,
+          promptTextEdits()?.global
+        ),
       useGameStore.getState().setTextLedgerError,
       stale
     )
@@ -2714,7 +2756,8 @@ function projectStatusLines(): string[] {
   const period = projectPeriodOf(entry, game.date, game.calendar)
   if (!period) return []
   // The session being reported is not banked until the boundary, so it is counted in here.
-  const worked = workedOn(game.classRecords[loopState.projectWork.code], loopState.projectWork.exam) + 1
+  const worked =
+    workedOn(game.classRecords[loopState.projectWork.code], loopState.projectWork.exam) + 1
   return [projectProgressLine(entry.name, projectProgress(worked, period.needed))]
 }
 
@@ -3024,7 +3067,13 @@ export function interject(action: string): boolean {
  */
 export function endScene(): boolean {
   const game = useGameStore.getState()
-  if (game.createdScene || game.turnError || (game.sceneActivity && !game.sceneActivity.closed) || !endSceneOpenOf(game)) return false
+  if (
+    game.createdScene ||
+    game.turnError ||
+    (game.sceneActivity && !game.sceneActivity.closed) ||
+    !endSceneOpenOf(game)
+  )
+    return false
 
   abortSceneCall()
   loopState.turnStartedAt = null
@@ -3207,7 +3256,10 @@ function askMemoryEdits(
 /** Files what the answers changed: a filed memory rewritten or dropped, a blank row recorded. */
 function fileMemoryEdits(rows: readonly MemoryEditRow[], answers: readonly MemoryAnswer[]): void {
   const { date, characters, playerPronouns, playerFirstName } = useGameStore.getState()
-  const genders = gendersOf(rows.map(({ charId }) => charId), characters)
+  const genders = gendersOf(
+    rows.map(({ charId }) => charId),
+    characters
+  )
   const edits = memoryEditsOf(rows, answers, date, genders, playerPronouns, playerFirstName)
   for (const { charId, match, next } of edits) {
     if (match) useGameStore.getState().replaceMemory(charId, match, next)
@@ -3332,8 +3384,9 @@ async function crossSlotBoundary(): Promise<void> {
     const seenWith = banked.rumorPass.sightings
       .flatMap(({ subjects }) => subjects)
       .map((charId) => ({ charId, character: useGameStore.getState().characters[charId] }))
-      .find(({ charId, character }) => character && useGameStore.getState().charInfo[charId]?.nameKnown)
-      ?.character
+      .find(
+        ({ charId, character }) => character && useGameStore.getState().charInfo[charId]?.nameKnown
+      )?.character
     if (
       seenWith &&
       !useGameStore.getState().bunnybotSeenTipSent &&
@@ -3500,6 +3553,28 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
     }
   }
   loopState.pendingLedgerResult = ledger
+  // The morning's opening is asked for now, off the ledger projected by value, so it is written
+  // while the status lines are read; the ledger itself is applied after them, as before.
+  const ahead = useGameStore.getState()
+  const projected = projectLedger(ahead.charInfo, ledger, now.from.date)
+  const plans = settlePlans(ledger, now.from.date, now.from.time)
+  const parted = withCouplesLeft(ahead.npcRelationships, projected.left, now.from.date)
+  const overlay = rollNpcOverlayNow(now.to.date, now.to.time, parted)
+  const springBreak = springBreakPickFor(now.to.date, projected.charInfo)
+  const homecoming = homecomingPickFor(
+    now.to.date, now.to.time, projected.charInfo, new Set(breakupsAheadOf(projected).map(entry => entry.charId))
+  )
+  const openingCall = isGraduationSlot(now.to.date, now.to.time)
+    ? Promise.resolve({ lines: [], hangouts: [], events: plans.events, cancellations: plans.cancellations })
+    : fetchSlotIntro(
+      now.to.date, now.to.time, plans.events, plans.cancellations, introBreakupsOf(projected),
+      springBreak, homecoming, undefined, overlay,
+      { charInfo: projected.charInfo, stats: ahead.stats, events: [...ahead.events, ...plans.events], npcRelationships: parted },
+      { group: ENDING_LLM_GROUP, ledger: null },
+      openingNotes?.love ?? { argued: [], outcomes: [] }, openingNotes?.newTransfers ?? 0
+    )
+  // Awaited after the status lines; a failure before then must not surface as unhandled.
+  openingCall.catch(() => {})
   game.setEndingInFlight(false)
   await new Promise<void>(resolve => {
     loopState.interludeStatusDone = resolve
@@ -3514,7 +3589,6 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
   const dating = applyLedger(ledger, now.from.date)
   const settled = useGameStore.getState()
   settled.setNpcRelationships(withCouplesLeft(settled.npcRelationships, dating.left ?? [], now.from.date))
-  const plans = settlePlans(ledger, now.from.date, now.from.time)
   addPlanContacts(plans.events)
   useGameStore.getState().addEvents(plans.events)
   const ids = new Set(schedule.threads.flatMap(thread => thread.messages.map(message => message.id)))
@@ -3531,20 +3605,7 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
   loopState.nightLedger = null
   interludeSettled({ ...now, ledger })
   if (runStale(run)) return
-  const live = useGameStore.getState()
-  const overlay = rollNpcOverlayNow(now.to.date, now.to.time)
-  const springBreak = springBreakPickFor(now.to.date, live.charInfo)
-  const homecoming = homecomingPickFor(
-    now.to.date, now.to.time, live.charInfo, new Set(dating.breakups.map(entry => entry.charId))
-  )
-  const opening = isGraduationSlot(now.to.date, now.to.time)
-    ? { lines: [], hangouts: [], events: plans.events, cancellations: plans.cancellations }
-    : await fetchSlotIntro(
-      now.to.date, now.to.time, plans.events, plans.cancellations,
-      introBreakupsOf({ charInfo: live.charInfo, scene: live.charInfo, breakups: dating.breakups, left: dating.left ?? [] }),
-      springBreak, homecoming, undefined, overlay, liveView(), { group: ENDING_LLM_GROUP, ledger: null },
-      openingNotes?.love ?? { argued: [], outcomes: [] }, openingNotes?.newTransfers ?? 0
-    )
+  const opening = await openingCall
   if (!opening || runStale(run)) return
   const ready: SlotOpening = {
     ...opening,

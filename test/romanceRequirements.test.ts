@@ -172,7 +172,10 @@ describe('additive romance requirements', () => {
   it('does not contradict the requirement on a Promiscuous day or after an old crush', () => {
     const who = character({ traits: ['Materialist', 'Promiscuous', 'Mood-swings'] })
     const flags = { ...emptyFlags(), hasCrush: true, benefits: true, hasMet: true }
-    const lines = relationshipLines(who, flags, true, 999, undefined, { stats: game().stats, medium: { texting: true, texted: true }, mood: { date: 6, offset: 7 }, romanceable: true, readerPronouns: 'he' }).join(' ')
+    const lines = relationshipLines(who, flags, true, 999, undefined, {
+      stats: game().stats, romanceable: true, readerPronouns: 'he',
+      medium: { texting: true, texted: true }, mood: { date: 6, offset: 7 }
+    }).join(' ')
     expect(lines).toContain('Brain at Godly, Body at Godly and Heart at Godly')
     expect(lines).toContain('will not initiate or accept')
     expect(lines).not.toContain('down to fuck')
@@ -181,7 +184,9 @@ describe('additive romance requirements', () => {
   })
 
   it('preserves the native created-scene attraction override', () => {
-    const lines = relationshipLines(gatedCharacter, emptyFlags(), true, 0, undefined, { stats: game().stats, medium: { texting: false, texted: false }, attractionGate: false, romanceable: true, readerPronouns: 'he' }).join(' ')
+    const lines = relationshipLines(gatedCharacter, emptyFlags(), true, 0, undefined, {
+      stats: game().stats, romanceable: true, readerPronouns: 'he', attractionGate: false
+    }).join(' ')
     expect(lines).not.toContain('requires Brain')
   })
 

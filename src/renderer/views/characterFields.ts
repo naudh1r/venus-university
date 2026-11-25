@@ -3,14 +3,7 @@ import { PRONOUNS } from '@shared/gender'
 import { STAT_KEYS, STAT_LABELS } from '@shared/playerStats'
 import { GIFT_CATEGORIES } from '@shared/shop'
 import { characterTraitOptions } from '@shared/traits'
-import type {
-  CgSfx,
-  CgVoice,
-  CharacterBehavior,
-  Gender,
-  OutfitSet,
-  SetTarget
-} from '@shared/types'
+import type { CgSfx, CgVoice, CharacterBehavior, Gender, OutfitSet, SetTarget } from '@shared/types'
 
 /**
  * What a character panel shows, and in what order — shared by the editor and the read-only

@@ -113,7 +113,10 @@ export interface ProfileGenReply {
 
 /** A handle as it will be printed, or `''` when nothing is salvageable: strips a leading `@` and anything outside the prompt's character set. */
 export function normalizeHandle(raw: string): string {
-  const stripped = raw.replace(/^@+/, '').toLowerCase().replace(/[^a-z0-9._]/g, '')
+  const stripped = raw
+    .replace(/^@+/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9._]/g, '')
   return /[a-z]/.test(stripped) ? stripped : ''
 }
 
@@ -153,10 +156,18 @@ function invalid(detail: string): never {
 /** Who the profile calls are written by, and the world the students live in. */
 function profileSystem(setting: string, textEdits?: TextEdits<GlobalTextId>): string {
   return [
-    withAdditions(blockText(textEdits, 'newgame.profiles.system', [
-      'You are a university student affairs office profiling enrolled students.',
-      'You return a single JSON object matching the provided schema exactly.'
-    ].join(' ')), textEdits, 'newgame.profiles.additions'),
+    withAdditions(
+      blockText(
+        textEdits,
+        'newgame.profiles.system',
+        [
+          'You are a university student affairs office profiling enrolled students.',
+          'You return a single JSON object matching the provided schema exactly.'
+        ].join(' ')
+      ),
+      textEdits,
+      'newgame.profiles.additions'
+    ),
     '',
     'SETTING',
     setting
@@ -180,7 +191,9 @@ const PROMPT_EMPLOYERS: readonly JobDef[] = [
 
 /** Her job, and the employers she may hold one at. */
 function workLines(): string[] {
-  const menu = PROMPT_EMPLOYERS.map((def) => `${def.id} — ${def.employer}, ${def.title}: ${def.blurb}`)
+  const menu = PROMPT_EMPLOYERS.map(
+    (def) => `${def.id} — ${def.employer}, ${def.title}: ${def.blurb}`
+  )
   return [
     'PART-TIME WORK',
     'If the student works a part-time job, you can describe it as follows:',
@@ -192,7 +205,6 @@ function workLines(): string[] {
     ''
   ]
 }
-
 
 /** How her handle is asked for. */
 const HANDLE_LINE =
@@ -207,7 +219,7 @@ function breakPostsLine(field: string, breakName: string): string {
 const SPRING_BREAK_LINES = [
   'SPRING BREAK',
   'springBreakPlans: what they do with the week off in March, as one short phrase in the infinitive, ending in a full stop: "Go home to Russia to see family.", "Drive down to an aunt\'s place on the coast with a roommate."',
-  'All plans must include leaving campus and don\'t include other students or the reader.'
+  "All plans must include leaving campus and don't include other students or the reader."
 ]
 
 /**
@@ -250,7 +262,10 @@ export interface MajorPromptInput {
 }
 
 /** Builds the majors request, or null when nobody is left without one. */
-export function buildMajorPrompt(input: MajorPromptInput, textEdits?: TextEdits<GlobalTextId>): StructuredRequest | null {
+export function buildMajorPrompt(
+  input: MajorPromptInput,
+  textEdits?: TextEdits<GlobalTextId>
+): StructuredRequest | null {
   if (input.students.length === 0) return null
   const { keys, cast } = rosterCastLines(input.students)
   const notes = input.notes ?? {}
@@ -326,15 +341,23 @@ const HAUNT_FIELDS = ['homeSlots', 'study', 'fun', 'activity', 'meal'] as const
 const LOWRISE = 'lowrise'
 
 /** Her free time: the lines of the habits asked, and the menus they are picked from. */
-function hauntLines(asked: ReadonlySet<ProfileField>, textEdits?: TextEdits<GlobalTextId>): string[] {
+function hauntLines(
+  asked: ReadonlySet<ProfileField>,
+  textEdits?: TextEdits<GlobalTextId>
+): string[] {
   if (!HAUNT_FIELDS.some((field) => asked.has(field))) return []
-  const menu = (field: ProfileField, heading: string, locations: Readonly<Record<string, string>>) =>
-    asked.has(field) ? ['', heading, ...locationMenuLines(locations)] : []
+  const menu = (
+    field: ProfileField,
+    heading: string,
+    locations: Readonly<Record<string, string>>
+  ) => (asked.has(field) ? ['', heading, ...locationMenuLines(locations)] : [])
   return [
     'WHERE THEY SPEND THEIR FREE TIME',
     'Decide some places where they go by habit. Answer with the keys below, exactly as written:',
     ...(asked.has('homeSlots')
-      ? [`homeSlots: how many times a week they stay in their own room, ${MIN_HOME_SLOTS} to ${MAX_HOME_SLOTS}.`]
+      ? [
+          `homeSlots: how many times a week they stay in their own room, ${MIN_HOME_SLOTS} to ${MAX_HOME_SLOTS}.`
+        ]
       : []),
     ...(asked.has('study')
       ? ['study: where they go to study, or an empty string if they study in their own room.']
@@ -344,19 +367,27 @@ function hauntLines(asked: ReadonlySet<ProfileField>, textEdits?: TextEdits<Glob
           `fun: 0 to ${MAX_FUN_LOCATIONS} places they go out to enjoy themselves. Leave it empty for somebody who does not go out.`
         ]
       : []),
-    ...(asked.has('activity') || asked.has('meal') ? [blockText(textEdits, 'newgame.profiles.freeTime', [
-    ...(asked.has('activity')
+    ...(asked.has('activity') || asked.has('meal')
       ? [
-          'activity: a specific interest of theirs that they pursue somewhere every week, as one short lowercase phrase starting with an -ing verb that names both what they do and where they do it: "sketching at the Whitman Greenhouse", "jogging at Green Hill Park", "practicing cello in the practice rooms under Thorne Auditorium". It has to be something they do over and over, not a one-off, and it must happen at one of the ACTIVITY LOCATIONS. An empty string for a student with no such interest, which is most of them.',
-          'activityLocation: the key of the place activity names, exactly as written below. An empty string when activity is empty.'
+          blockText(
+            textEdits,
+            'newgame.profiles.freeTime',
+            [
+              ...(asked.has('activity')
+                ? [
+                    'activity: a specific interest of theirs that they pursue somewhere every week, as one short lowercase phrase starting with an -ing verb that names both what they do and where they do it: "sketching at the Whitman Greenhouse", "jogging at Green Hill Park", "practicing cello in the practice rooms under Thorne Auditorium". It has to be something they do over and over, not a one-off, and it must happen at one of the ACTIVITY LOCATIONS. An empty string for a student with no such interest, which is most of them.',
+                    'activityLocation: the key of the place activity names, exactly as written below. An empty string when activity is empty.'
+                  ]
+                : []),
+              ...(asked.has('meal')
+                ? [
+                    'meal: one place they eat out at, about once a week. An empty string for somebody who cooks for themselves or eats in the dorm kitchens.'
+                  ]
+                : [])
+            ].join('\n')
+          )
         ]
       : []),
-    ...(asked.has('meal')
-      ? [
-          'meal: one place they eat out at, about once a week. An empty string for somebody who cooks for themselves or eats in the dorm kitchens.'
-        ]
-      : []),
-    ].join('\n'))] : []),
     ...menu('study', 'STUDY LOCATIONS', STUDY_LOCATIONS),
     ...menu('fun', 'FUN LOCATIONS', FUN_LOCATIONS),
     ...menu('meal', 'MEAL LOCATIONS', MEAL_LOCATIONS),
@@ -366,11 +397,18 @@ function hauntLines(asked: ReadonlySet<ProfileField>, textEdits?: TextEdits<Glob
 }
 
 /** The rules of each profile field asked of one student, and only those. */
-function profileLines(asked: ReadonlySet<ProfileField>, decided: boolean, textEdits?: TextEdits<GlobalTextId>, next = false): string[] {
+function profileLines(
+  asked: ReadonlySet<ProfileField>,
+  decided: boolean,
+  textEdits?: TextEdits<GlobalTextId>,
+  next = false
+): string[] {
   const has = (field: ProfileField): boolean => asked.has(field)
   const academics = [
     ...(has('year') ? ['year: 1 = Freshman, 2 = Sophomore, 3 = Junior, 4 = Senior.'] : []),
-    ...(has('classesTaken') ? [blockText(textEdits, 'newgame.profiles.instructions', CLASSES_TAKEN_LINES.join('\n'))] : []),
+    ...(has('classesTaken')
+      ? [blockText(textEdits, 'newgame.profiles.instructions', CLASSES_TAKEN_LINES.join('\n'))]
+      : []),
     ...(has('majorClassesTaken')
       ? ['majorClassesTaken: how many of those classes are in their major, from 1 to 3.']
       : [])
@@ -386,19 +424,32 @@ function profileLines(asked: ReadonlySet<ProfileField>, decided: boolean, textEd
   ]
   return [
     'FOR THIS STUDENT',
-    ...(next ? [blockText(textEdits, 'newgame.profiles.next.newcomers', '')].filter(line => line.trim() !== '') : []),
     ...(academics.length > 0 ? [...academics, ''] : []),
     ...(has('job') ? workLines() : []),
     ...(has('dorm')
       ? [
           'HOUSING',
-          blockText(textEdits, next ? 'newgame.profiles.next.housing' : 'newgame.profiles.housing', `dorm: where they live on campus. ${LOWRISE} is the Lowrises, the ordinary apartment-style dorms that house the bulk of students; elysium is Elysium Village, the coveted upperclassman townhouses claimed through a housing lottery.`),
+          blockText(
+            textEdits,
+            next ? 'newgame.profiles.next.housing' : 'newgame.profiles.housing',
+            `dorm: where they live on campus. ${LOWRISE} is the Lowrises, the ordinary apartment-style dorms that house the bulk of students; elysium is Elysium Village, the coveted upperclassman townhouses claimed through a housing lottery.`
+          ),
           ''
         ]
       : []),
     ...hauntLines(asked, textEdits),
     ...(social.length > 0 ? ['SOCIAL MEDIA', ...social, ''] : []),
-    ...(has('springBreakPlans') ? [blockText(textEdits, 'newgame.profiles.springBreak', SPRING_BREAK_LINES.join('\n')), ''] : []),
+    ...(has('springBreakPlans')
+      ? [
+          'SPRING BREAK',
+          blockText(
+            textEdits,
+            'newgame.profiles.springBreak',
+            SPRING_BREAK_LINES.slice(1).join('\n')
+          ),
+          ''
+        ]
+      : []),
     ...(decided
       ? [
           'DECIDED FIELDS',
@@ -441,18 +492,30 @@ function profileProperties(asked: ReadonlySet<ProfileField>): Record<string, unk
 }
 
 /** The system prompt of a call writing her profile, her secrets, or both. */
-function studentSystem(setting: string, profile: boolean, secrets: boolean, textEdits?: TextEdits<GlobalTextId>): string {
+function studentSystem(
+  setting: string,
+  profile: boolean,
+  secrets: boolean,
+  textEdits?: TextEdits<GlobalTextId>
+): string {
   if (profile && !secrets) return profileSystem(setting, textEdits)
   const role =
     profile && secrets
       ? 'You are a novelist writing up one student of a story set at a university: their student affairs profile and the secrets they keep.'
       : SECRETS_ROLE
-  let editedRole = blockText(textEdits, secrets ? 'newgame.secrets.system' : 'newgame.profiles.system', role)
-  if (profile) editedRole = withAdditions(blockText(textEdits, 'newgame.profiles.system', editedRole), textEdits, 'newgame.profiles.additions')
-  if (secrets) editedRole = withAdditions(editedRole, textEdits, 'newgame.secrets.additions')
-  return [`${editedRole} You return a single JSON object matching the provided schema exactly.`, '', 'SETTING', setting].join(
-    '\n'
-  )
+  let system = `${role} You return a single JSON object matching the provided schema exactly.`
+  if (profile)
+    system = withAdditions(
+      blockText(textEdits, 'newgame.profiles.system', system),
+      textEdits,
+      'newgame.profiles.additions'
+    )
+  if (secrets) {
+    const secretRole = blockText(textEdits, 'newgame.secrets.system', '')
+    if (secretRole) system = profile ? `${system}\n\n${secretRole}` : secretRole
+    system = withAdditions(system, textEdits, 'newgame.secrets.additions')
+  }
+  return [system, '', 'SETTING', setting].join('\n')
 }
 
 /** What a student's secrets may not touch, where the same reply writes more of her. */
@@ -474,7 +537,6 @@ function studentLines(character: Character, decided: string | null, notes?: stri
 
 /** One new girl the student call writes for: the fields and secrets left to her. */
 export interface StudentPromptInput {
-  next?: boolean
   character: Character
   /** Her decided fields in the reply's own vocabulary, her major among them. */
   decided: Partial<CharProfileDraft>
@@ -485,22 +547,31 @@ export interface StudentPromptInput {
   /** The player's notes on her. */
   notes?: string
   setting: string
+  /** Whether this is a new student in a later semester. */
+  next?: boolean
 }
 
 /**
  * Builds one new girl's request: every profile field she left blank but her major, and every
  * secret tier she left blank, written in one reply; null when nothing is left.
  */
-export function buildStudentPrompt(input: StudentPromptInput, textEdits?: TextEdits<GlobalTextId>): StructuredRequest | null {
+export function buildStudentPrompt(
+  input: StudentPromptInput,
+  textEdits?: TextEdits<GlobalTextId>
+): StructuredRequest | null {
   const asked = new Set(input.fields.filter((field) => field !== 'major'))
   const secrets = input.secrets && input.secrets.tiers.length > 0 ? input.secrets : undefined
   const profile = asked.size > 0
   if (!profile && !secrets) return null
   // Her decided fields are not in the schema: the model only reads them.
   const decided = decidedLine(input.decided, 'Already decided')
+  const newcomers = profile && input.next
+    ? blockText(textEdits, 'newgame.profiles.next.newcomers', '')
+    : ''
 
   const preamble = [
     ...(profile ? profileLines(asked, decided !== null, textEdits, input.next) : []),
+    ...(newcomers.trim() ? [newcomers] : []),
     ...(profile && secrets ? [''] : []),
     ...(secrets ? secretLines(secrets.tiers, profile ? BESIDE : undefined, textEdits) : []),
     '---',
@@ -539,14 +610,25 @@ export interface ReturningPromptInput {
 }
 
 /** Builds one returning girl's request: her posts over the break, her plans before a spring, her new secrets. */
-export function buildReturningPrompt(input: ReturningPromptInput, textEdits?: TextEdits<GlobalTextId>): StructuredRequest {
+export function buildReturningPrompt(
+  input: ReturningPromptInput,
+  textEdits?: TextEdits<GlobalTextId>
+): StructuredRequest {
   const spring = input.season === 'spring'
   const secrets = input.secrets && input.secrets.tiers.length > 0 ? input.secrets : undefined
   const preamble = [
     'FOR THIS RETURNING STUDENT',
     breakPostsLine('breakPosts', breakNameOf(input.season)),
     'They get at least one.',
-    ...(spring ? [blockText(textEdits, 'newgame.profiles.springBreak', SPRING_BREAK_LINES.slice(1).join('\n'))] : []),
+    ...(spring
+      ? [
+          blockText(
+            textEdits,
+            'newgame.profiles.springBreak',
+            SPRING_BREAK_LINES.slice(1).join('\n')
+          )
+        ]
+      : []),
     ...(secrets ? ['', ...secretLines(secrets.tiers, BESIDE, textEdits)] : []),
     '---',
     ''
@@ -582,7 +664,10 @@ export interface GraduatePromptInput {
 }
 
 /** Builds one graduate's request: her life since, and her posts over the break. */
-export function buildGraduatePrompt(input: GraduatePromptInput, textEdits?: TextEdits<GlobalTextId>): StructuredRequest {
+export function buildGraduatePrompt(
+  input: GraduatePromptInput,
+  textEdits?: TextEdits<GlobalTextId>
+): StructuredRequest {
   const { graduate } = input
   const preamble = [
     'FOR THIS GRADUATE',
@@ -715,7 +800,9 @@ export function decidedProfileOf(
     })
   }
   if (decided('activity')) {
-    const key = profile.activity ? menuKeyOf(ACTIVITY_LOCATIONS, profile.activity.location ?? '') : ''
+    const key = profile.activity
+      ? menuKeyOf(ACTIVITY_LOCATIONS, profile.activity.location ?? '')
+      : ''
     if (key !== null) {
       out.activity = profile.activity?.doing?.trim() ?? ''
       out.activityLocation = key
@@ -800,7 +887,8 @@ export function validateProfileDraft(
 
   const spell = majorSpeller()
   for (const major of opts.knownMajors ?? []) spell(major)
-  for (const character of roster) spell(decided[charKeyOf(character.firstName, character.lastName)]?.major)
+  for (const character of roster)
+    spell(decided[charKeyOf(character.firstName, character.lastName)]?.major)
 
   for (const character of roster) {
     const key = charKeyOf(character.firstName, character.lastName)
@@ -818,7 +906,12 @@ export function validateProfileDraft(
     characters[key] = {
       ...validatedProfile(character, key, profile, opts),
       major,
-      majorClassesTaken: clamp(profile.majorClassesTaken as number, 1, 3, `${key} majorClassesTaken`)
+      majorClassesTaken: clamp(
+        profile.majorClassesTaken as number,
+        1,
+        3,
+        `${key} majorClassesTaken`
+      )
     }
   }
 
@@ -846,7 +939,9 @@ function validatedProfile(
   // An unknown dorm is repaired to the fallback, like the job, not fatal.
   const dorm = (profile.dorm ?? '').trim()
   if (!isDorm(dorm)) {
-    console.warn(`[profiles] ${key} was housed in the unknown dorm "${dorm}"; using ${FALLBACK_DORM}.`)
+    console.warn(
+      `[profiles] ${key} was housed in the unknown dorm "${dorm}"; using ${FALLBACK_DORM}.`
+    )
   }
 
   // An unknown haunt is dropped, like the job, not fatal.
@@ -1022,7 +1117,6 @@ export function validateNextProfiles(
 
   return { breakPosts, springBreakPlans, pursuits }
 }
-
 
 /** The academic half of one profile: all the scheduler reads of it. */
 export type ProfileAcademics = Pick<

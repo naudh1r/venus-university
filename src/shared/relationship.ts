@@ -13,7 +13,7 @@ import {
   type StatKey,
   type StatTier
 } from './playerStats'
-import { shownMemoryDesc } from './readerVoice'
+import { secondPerson, shownMemoryDesc } from './readerVoice'
 import { markedLine, markedRuns } from './statusMark'
 import { hasTrait } from './traits'
 import type {
@@ -50,10 +50,7 @@ function weightFor(daysAgo: number): number {
  * Splices one entry in **after** the last entry not newer than it, so a scene memory from the
  * same slot still reads first.
  */
-function spliceByDate(
-  memories: readonly CharMemory[],
-  entry: CharMemory
-): readonly CharMemory[] {
+function spliceByDate(memories: readonly CharMemory[], entry: CharMemory): readonly CharMemory[] {
   let at = memories.length
   while (at > 0 && memories[at - 1].date > entry.date) at--
   return [...memories.slice(0, at), entry, ...memories.slice(at)]
@@ -78,9 +75,7 @@ export function mergedMemories(
 
 /** {@link mergedMemories} straight off a `CharInfo`, absent lists included. */
 export function memoriesFor(
-  info:
-    | Pick<CharInfo, 'memories' | 'textMemory' | 'jealousyMemories' | 'giftMemories'>
-    | undefined
+  info: Pick<CharInfo, 'memories' | 'textMemory' | 'jealousyMemories' | 'giftMemories'> | undefined
 ): readonly CharMemory[] {
   return mergedMemories(
     info?.memories ?? [],
@@ -177,9 +172,7 @@ export function dedupedMemories(memories: readonly CharMemory[]): readonly CharM
 
 /** {@link dedupedMemories} over {@link memoriesFor} — the folded list every reader reads. */
 export function dedupedMemoriesFor(
-  info:
-    | Pick<CharInfo, 'memories' | 'textMemory' | 'jealousyMemories' | 'giftMemories'>
-    | undefined
+  info: Pick<CharInfo, 'memories' | 'textMemory' | 'jealousyMemories' | 'giftMemories'> | undefined
 ): readonly CharMemory[] {
   return dedupedMemories(memoriesFor(info))
 }
@@ -282,11 +275,22 @@ const MEMORY_TONES: Record<MemoryType, TextMark['tone']> = {
 export function memoryStatusLine(
   name: string,
   entry: SpokenMemory,
-  readerName: string,
-  holder: Gender,
-  reader: ReaderPronouns
+  readerName?: string,
+  holder: Gender = 'female',
+  reader: ReaderPronouns = 'he'
 ): SceneLine {
-  const { before, run, after } = memoryParts(name, entry, readerName, holder, reader)
+  // Existing mods use two arguments and expect the former second-person status line.
+  const spoken =
+    readerName === undefined
+      ? { ...entry, youDesc: entry.youDesc ?? secondPerson(entry.desc) }
+      : entry
+  const { before, run, after } = memoryParts(
+    name,
+    spoken,
+    readerName ?? 'the reader',
+    holder,
+    reader
+  )
   return markedLine(before, run, after, MEMORY_TONES[entry.type])
 }
 
@@ -446,27 +450,26 @@ export const DISPOSITION_PREDICATE: Record<Disposition, string> = {
 const UPPER_HALVES: Record<
   UpperHalf,
   { from: number; to: number; first: (him: string) => string; again: (him: string) => string }
-> =
-  {
-    neutral: {
-      from: FRIENDLY_FLOOR / 2,
-      to: FRIENDLY_FLOOR,
-      first: () => 'is warming up to the reader',
-      again: () => 'is on good terms with the reader'
-    },
-    friendly: {
-      from: (FRIENDLY_FLOOR + TRUSTED_FLOOR) / 2,
-      to: TRUSTED_FLOOR,
-      first: (him) => `is friends with the reader and is confiding in ${him} more and more`,
-      again: (him) => `is close friends with the reader and confides in ${him}`
-    },
-    trusted: {
-      from: (TRUSTED_FLOOR + DEVOTED_FLOOR) / 2,
-      to: DEVOTED_FLOOR,
-      first: (him) => `trusts the reader deeply and is appreciating ${him} more and more`,
-      again: (him) => `trusts the reader deeply and appreciates ${him}`
-    }
+> = {
+  neutral: {
+    from: FRIENDLY_FLOOR / 2,
+    to: FRIENDLY_FLOOR,
+    first: () => 'is warming up to the reader',
+    again: () => 'is on good terms with the reader'
+  },
+  friendly: {
+    from: (FRIENDLY_FLOOR + TRUSTED_FLOOR) / 2,
+    to: TRUSTED_FLOOR,
+    first: (him) => `is friends with the reader and is confiding in ${him} more and more`,
+    again: (him) => `is close friends with the reader and confides in ${him}`
+  },
+  trusted: {
+    from: (TRUSTED_FLOOR + DEVOTED_FLOOR) / 2,
+    to: DEVOTED_FLOOR,
+    first: (him) => `trusts the reader deeply and is appreciating ${him} more and more`,
+    again: (him) => `trusts the reader deeply and appreciates ${him}`
   }
+}
 
 const UPPER_HALF_KEYS = Object.keys(UPPER_HALVES) as UpperHalf[]
 
@@ -609,10 +612,7 @@ export function isNegative(affection: number): boolean {
 }
 
 /** Picks which {@link CharacterBehavior} stage is live; first match wins. */
-export function behaviorLevelOf(
-  flags: CharFlags,
-  affection: number
-): keyof CharacterBehavior {
+export function behaviorLevelOf(flags: CharFlags, affection: number): keyof CharacterBehavior {
   if (flags.isLover) return 'withLover'
   if (flags.hasCrush) return 'withCrush'
   if (isNegative(affection) || flags.brokenUp > 0) return 'withEnemy'
@@ -718,13 +718,20 @@ export function foldRelationshipEvents(
   events: readonly RelationshipEvent[],
   date: number,
   holder: Gender,
-  romance?: { character: Pick<Character, 'traits' | 'preferredStat'> | undefined; stats: PlayerStats }
+  romance?: {
+    character: Pick<Character, 'traits' | 'preferredStat'> | undefined
+    stats: PlayerStats
+  }
 ): CharInfo {
   const before = info.flags ?? emptyFlags()
   let flags = before
   for (const event of events) {
-    if (romance && blocksNewRomance(romance.character, romance.stats, flags) &&
-      ['kissed', 'sex', 'became_lovers', 'agreed_to_harem'].includes(event)) continue
+    if (
+      romance &&
+      blocksNewRomance(romance.character, romance.stats, flags) &&
+      ['kissed', 'sex', 'became_lovers', 'agreed_to_harem'].includes(event)
+    )
+      continue
     flags = applyEvent(flags, event)
   }
   const { them } = PRONOUNS[holder]
@@ -996,10 +1003,7 @@ export function meetsCrushStandards(character: CrushCharacter, stats: PlayerStat
 }
 
 /** The first stat keeping the reader below her crush requirements, for prompt guidance. */
-export function missingCrushStatOf(
-  character: CrushCharacter,
-  stats: PlayerStats
-): StatKey | null {
+export function missingCrushStatOf(character: CrushCharacter, stats: PlayerStats): StatKey | null {
   const extra = missingRomanceStatOf(character, stats)
   if (extra) return extra
   const preferred = preferredStatOf(character)
@@ -1017,7 +1021,8 @@ function crushRequirementOf(character: CrushCharacter, stat: StatKey): StatTier 
 
 /** How a status line names what she is waiting on — all three for a girl who wants all three. */
 function hintSubject(character: CrushCharacter, stat: StatKey): string {
-  return hasTrait(character, 'High Standards') || STAT_KEYS.every(key => romanceMinimumsOf(character)[key] !== undefined)
+  return hasTrait(character, 'High Standards') ||
+    STAT_KEYS.every((key) => romanceMinimumsOf(character)[key] !== undefined)
     ? `${STAT_LABELS.brain}, ${STAT_LABELS.body}, and ${STAT_LABELS.heart}`
     : STAT_LABELS[stat]
 }
