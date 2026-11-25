@@ -1188,8 +1188,13 @@ export function rescheduleHangout(
       reminderPlan(charId, game.date, game.time, pending.planId, game.events)?.id === eventId))) {
       game.setPendingHangout(attendeeId, null)
     }
-    // A system line in each thread records the calendar move.
-    deliver(attendeeId, chatMessage('system', notice))
+    // A system line records the calendar move: in the thread he answered, and in every other
+    // attendee's where she has given him her number and has not blocked him, so no thread is
+    // opened with anyone else.
+    const flags = game.charInfo[attendeeId]?.flags
+    if (attendeeId === charId || (flags?.gaveContactInfo === true && !flags.blocked)) {
+      deliver(attendeeId, chatMessage('system', notice))
+    }
   }
 }
 

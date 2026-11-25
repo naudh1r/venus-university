@@ -363,6 +363,8 @@ describe('rescheduleHangout', () => {
 
   it('notifies both attendees and preserves a footer for another plan', () => {
     seedPlan()
+    useGameStore.setState(state => ({ charInfo: { ...state.charInfo,
+      b: { ...state.charInfo.b!, flags: { ...emptyFlags(), gaveContactInfo: true } } } }))
     const game = useGameStore.getState()
     game.setPendingHangout('b', { description: 'coffee', planId: 'e2' })
     game.setIgnoredInvitation('b', true)
@@ -376,6 +378,22 @@ describe('rescheduleHangout', () => {
     expect(other?.declined).toBe(1)
     expect(state.charInfo.b?.ignoredInvitation).toBe(true)
     expect(state.events[0].charIds).toEqual(['a', 'b'])
+  })
+
+  it('opens no thread with an attendee who is not his contact or has blocked him', () => {
+    for (const flags of [emptyFlags(), { ...emptyFlags(), gaveContactInfo: true, blocked: true }]) {
+      seedPlan()
+      useGameStore.setState(state => {
+        const { b: _, ...conversations } = state.bunnyboard.conversations
+        return { charInfo: { ...state.charInfo, b: { ...state.charInfo.b!, flags } },
+          bunnyboard: { ...state.bunnyboard, conversations } }
+      })
+      rescheduleHangout('a', 'e1', 9, 1)
+      const game = useGameStore.getState()
+      expect(game.bunnyboard.conversations.b).toBeUndefined()
+      expect(game.bunnyboard.conversations.a?.messages).toMatchObject([{ sender: 'system' }])
+      expect(game.events[0]).toMatchObject({ date: 9, time: 1 })
+    }
   })
 
   it('does nothing at all for a plan that is no longer on the calendar', () => {
