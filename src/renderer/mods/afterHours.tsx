@@ -1,12 +1,13 @@
 import { useEffect, useId, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { charKeyOf, EMOTIONS, globalSlotOf, seededRand, threadStartedBy } from '@vx/modkit/shared'
+import { charKeyOf, EMOTIONS, globalSlotOf, seededRand, threadStartedBy, type TimeSlot } from '@vx/modkit/shared'
 import {
   character,
   conversation,
   fadeIn,
   gestures,
   interludeNow,
+  isGraduationSlot,
   modOptionOn,
   quietLift,
   quietPress,
@@ -36,6 +37,14 @@ function gameCharacters(): NonNullable<ReturnType<typeof character>>[] {
     return contact ? [contact] : []
   })
 }
+/**
+ * Whether an evening has a night after it: not the one before graduation morning, which opens on
+ * the ceremony.
+ */
+function nightAfter(date: number, time: TimeSlot): boolean {
+  return time === 1 && !isGraduationSlot(date + 1, 0)
+}
+
 function nightHolds(): boolean {
   const hold = interludeNow()
   return hold?.owner === AFTER_HOURS_MOD && hold.clock === 'late-night'
@@ -127,10 +136,11 @@ registerHooks(AFTER_HOURS_MOD, {
   chatsHeader: StatusChip,
   textWhileBusy: () => modOptionOn(AFTER_HOURS_MOD, 'busy-texts'),
   interludePreview: ({ to, ledger }) =>
-    modOptionOn(AFTER_HOURS_MOD, 'night') && nightOwed(to, status.read()) && !stayOverOf(ledger, gameCharacters())
+    modOptionOn(AFTER_HOURS_MOD, 'night') && nightOwed(to, status.read()) && !isGraduationSlot(to.date, to.time) &&
+      !stayOverOf(ledger, gameCharacters())
       ? { at: 'from', clock: 'late-night' } : null,
   slotInterlude: ({ to }) => {
-    if (!modOptionOn(AFTER_HOURS_MOD, 'night') || !nightOwed(to, status.read())) return null
+    if (!modOptionOn(AFTER_HOURS_MOD, 'night') || !nightOwed(to, status.read()) || isGraduationSlot(to.date, to.time)) return null
     // Seeded by the night, so a reload of the same night reads the same lines.
     const night = globalSlotOf(to.date, to.time)
     const pick = (pool: readonly string[], use: string): string =>
@@ -147,7 +157,7 @@ registerHooks(AFTER_HOURS_MOD, {
       clock: 'late-night'
     }
   },
-  relaxLine: ({ time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? afterHoursText.relaxLine : undefined,
+  relaxLine: ({ date, time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && nightAfter(date, time) ? afterHoursText.relaxLine : undefined,
   // The morning opens with the stay-over partner on stage until the two part.
   openingLook: ({ date, time, reply }) => {
     const stay = status.read().stayOver
@@ -159,21 +169,21 @@ registerHooks(AFTER_HOURS_MOD, {
       until: stagedUntil(reply, charKeyOf(contact.firstName, contact.lastName))
     }
   },
-  relaxRows: ({ date, time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? [{
+  relaxRows: ({ date, time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && nightAfter(date, time) ? [{
     label: afterHoursText.skipTomorrow,
     onPick: () => status.set({ ...status.read(), nightDone: globalSlotOf(date, time) + 1 })
   }] : [],
   slotSettled: ({ before, ledger }) => {
     const slot = globalSlotOf(before.date, before.time)
     const { stayOver: past, ...data } = status.read()
-    const stay = before.time === 1 ? stayOverOf(ledger, gameCharacters()) : null
+    const stay = nightAfter(before.date, before.time) ? stayOverOf(ledger, gameCharacters()) : null
     status.set(stay
       ? { ...data, nightDone: slot + 1, stayOver: { charId: stay.partner.charId, room: stay.room, morning: slot + 1 } }
       : { ...data, ...(past && past.morning > slot ? { stayOver: past } : {}) })
   },
   requests: {
     ledger: (request, { state, charKeys }) => {
-      if (state.time !== 1 || !modOptionOn(AFTER_HOURS_MOD, 'night')) return request
+      if (!nightAfter(state.date, state.time) || !modOptionOn(AFTER_HOURS_MOD, 'night')) return request
       const schema = request.schema.schema
       return { ...request, user: `${request.user}\n${stayOverLedgerInstruction(state.readerPronouns)}`, schema: { ...request.schema, schema: {
         ...schema,
@@ -218,10 +228,10 @@ registerHooks(AFTER_HOURS_MOD, {
   },
   hangoutCheck: ({ startedBy }) =>
     !busyPromptApplies(modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy, startedBy),
-  relaxLabel: ({ time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && time === 1 ? afterHoursText.relax : undefined,
+  relaxLabel: ({ date, time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && nightAfter(date, time) ? afterHoursText.relax : undefined,
   prompts: {
     scene: {
-      lines: ({ state }) => state.time === 1 && modOptionOn(AFTER_HOURS_MOD, 'night') ? [stayOverPrompt] : []
+      lines: ({ state }) => nightAfter(state.date, state.time) && modOptionOn(AFTER_HOURS_MOD, 'night') ? [stayOverPrompt] : []
     },
     dm: {
       lines: ({ character, state }) => {
