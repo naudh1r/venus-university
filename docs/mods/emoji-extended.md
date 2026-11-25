@@ -72,6 +72,10 @@ Raise `MAX_VERSION` in the script once Windows draws a newer Emoji version.
 
 ## Changelog
 
+### 1.0.1
+
+- Installs on Venus University 0.9.2. Nothing else changes.
+
 ### 1.0.0
 
 - The panel: every emoji in tabs, search, the ones you used last first and one skin tone for

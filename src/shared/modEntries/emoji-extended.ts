@@ -4,7 +4,7 @@ const mod: ModDef = {
   id: 'emoji-extended',
   name: 'Emoji Extended',
   author: 'naudh1r',
-  version: '1.0.0', game: '0.9.2',
+  version: '1.0.1', game: '0.9.2',
   scope: 'anytime',
   defaultOn: false,
   blurb:
