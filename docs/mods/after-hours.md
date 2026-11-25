@@ -62,7 +62,8 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - A reply held until a night you skip arrives on the morning landing instead.
 - A save taken at night loads back into the night. The night's texts are marked **late night**
   and counted once, when you go to sleep, never again with the morning's.
-- The night before graduation comes too; **Go to sleep** opens the ceremony.
+- The evening before graduation has no night, and nobody stays over. Its **Relax** is the game's
+  own, and the ceremony comes next.
 - Turn **The night** off to keep the evening's own Relax, with no extra row or new night.
   A night already on screen stays until you sleep.
 
@@ -78,6 +79,10 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   usual morning lines follow, then the normal landing. The night itself is not summed up again.
 - Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
+
+## 0.7.2
+
+- The evening before graduation has no night: the ceremony follows it, as in the game itself.
 
 ## 0.7.1
 
