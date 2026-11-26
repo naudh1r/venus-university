@@ -3582,6 +3582,28 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
     }
   }
   loopState.pendingLedgerResult = ledger
+  // The morning's opening is asked for now, off the ledger projected by value, so it is written
+  // while the status lines are read; the ledger itself is applied after them, as before.
+  const ahead = useGameStore.getState()
+  const projected = projectLedger(ahead.charInfo, ledger, now.from.date)
+  const plans = settlePlans(ledger, now.from.date, now.from.time)
+  const parted = withCouplesLeft(ahead.npcRelationships, projected.left, now.from.date)
+  const overlay = rollNpcOverlayNow(now.to.date, now.to.time, parted)
+  const springBreak = springBreakPickFor(now.to.date, projected.charInfo)
+  const homecoming = homecomingPickFor(
+    now.to.date, now.to.time, projected.charInfo, new Set(breakupsAheadOf(projected).map(entry => entry.charId))
+  )
+  const openingCall = isGraduationSlot(now.to.date, now.to.time)
+    ? Promise.resolve({ lines: [], hangouts: [], events: plans.events, cancellations: plans.cancellations })
+    : fetchSlotIntro(
+      now.to.date, now.to.time, plans.events, plans.cancellations, introBreakupsOf(projected),
+      springBreak, homecoming, undefined, overlay,
+      { charInfo: projected.charInfo, stats: ahead.stats, events: [...ahead.events, ...plans.events], npcRelationships: parted },
+      { group: ENDING_LLM_GROUP, ledger: null },
+      openingNotes?.love ?? { argued: [], outcomes: [] }, openingNotes?.newTransfers ?? 0
+    )
+  // Awaited after the status lines; a failure before then must not surface as unhandled.
+  openingCall.catch(() => {})
   game.setEndingInFlight(false)
   await new Promise<void>(resolve => {
     loopState.interludeStatusDone = resolve
@@ -3596,7 +3618,6 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
   const dating = applyLedger(ledger, now.from.date)
   const settled = useGameStore.getState()
   settled.setNpcRelationships(withCouplesLeft(settled.npcRelationships, dating.left ?? [], now.from.date))
-  const plans = settlePlans(ledger, now.from.date, now.from.time)
   addPlanContacts(plans.events)
   useGameStore.getState().addEvents(plans.events)
   const ids = new Set(schedule.threads.flatMap(thread => thread.messages.map(message => message.id)))
@@ -3613,20 +3634,7 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
   loopState.nightLedger = null
   interludeSettled({ ...now, ledger })
   if (runStale(run)) return
-  const live = useGameStore.getState()
-  const overlay = rollNpcOverlayNow(now.to.date, now.to.time)
-  const springBreak = springBreakPickFor(now.to.date, live.charInfo)
-  const homecoming = homecomingPickFor(
-    now.to.date, now.to.time, live.charInfo, new Set(dating.breakups.map(entry => entry.charId))
-  )
-  const opening = isGraduationSlot(now.to.date, now.to.time)
-    ? { lines: [], hangouts: [], events: plans.events, cancellations: plans.cancellations }
-    : await fetchSlotIntro(
-      now.to.date, now.to.time, plans.events, plans.cancellations,
-      introBreakupsOf({ charInfo: live.charInfo, scene: live.charInfo, breakups: dating.breakups, left: dating.left ?? [] }),
-      springBreak, homecoming, undefined, overlay, liveView(), { group: ENDING_LLM_GROUP, ledger: null },
-      openingNotes?.love ?? { argued: [], outcomes: [] }, openingNotes?.newTransfers ?? 0
-    )
+  const opening = await openingCall
   if (!opening || runStale(run)) return
   const ready: SlotOpening = {
     ...opening,
