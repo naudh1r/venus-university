@@ -52,7 +52,7 @@ import {
   type ResolvedSave
 } from '../stores/saveStore'
 import { usePhotoStore } from '../stores/photoStore'
-import { prepareWayOn, saveChoice, type SaveChoice, type WayOn } from '../mods/hooks'
+import { canHoldSlot, prepareWayOn, saveChoice, type SaveChoice, type WayOn } from '../mods/hooks'
 import { entryCrossing, menuCrossing } from '../stores/slotCrossing'
 import { useUiStore } from '../stores/uiStore'
 import { saveThumbUrl } from './bgAssets'
@@ -148,11 +148,22 @@ function saveDateBanner(save: Pick<SaveSummary, 'date' | 'time' | 'heldNight'>, 
 }
 
 /**
+ * A save as it will open: one taken on a held night opens on the morning after it while no mod
+ * can hold the night, so it is shown as that morning, without the night's stored picture.
+ */
+function openedSummary(summary: SaveSummary): SaveSummary {
+  if (!summary.heldNight || canHoldSlot()) return summary
+  const { heldNight: _night, thumbnail: _picture, ...morning } = summary
+  return morning
+}
+
+/**
  * A save as its card draws it: where it sits in its semester, when it was written, its gate;
  * the semester is named once the playthrough has more than one.
  */
 function cardOf(entry: ResolvedSave, sticker: string): SaveGridCard {
-  const { saveId, savedAt, summary, unloadable } = entry
+  const { saveId, savedAt, unloadable } = entry
+  const summary = entry.summary && openedSummary(entry.summary)
   const semester = semesterOfSave(entry)
   const season: Season = semester?.season ?? 'spring'
   const named =
