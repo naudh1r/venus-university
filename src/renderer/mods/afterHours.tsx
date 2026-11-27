@@ -168,6 +168,7 @@ registerHooks(AFTER_HOURS_MOD, {
   chatsHeader: StatusChip,
   ownMeetupAsks: () => true,
   warnBeforeMeetup: () => true,
+  readReceipts: () => true,
   textWhileBusy: () => modOptionOn(AFTER_HOURS_MOD, 'busy-texts'),
   interludePreview: ({ to, ledger }) =>
     modOptionOn(AFTER_HOURS_MOD, 'night') && nightOwed(to, status.read()) && !isGraduationSlot(to.date, to.time) &&
