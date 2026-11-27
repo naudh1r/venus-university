@@ -537,6 +537,28 @@
   position: relative;
 }
 
+/* The whole last word can move. A long word can still break inside this box. */
+.vu-bb-receipt-word {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: baseline;
+}
+
+.vu-bb-receipt-end {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* A word joiner binds the invisible space to the last part of a mod's inline output. */
+.vu-bb-receipt-joined-space::before {
+  content: "\2060\a0";
+  word-spacing: var(--vu-bb-receipt-width);
+}
+
+.vu-bb-receipt-rendered--break {
+  word-break: break-all;
+}
+
 .vu-bb-receipt-spacer {
   display: inline-block;
   width: calc(var(--vu-bb-receipt-width) + 0.25em);

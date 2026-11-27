@@ -39,7 +39,7 @@ import { formatMoney } from '@shared/money'
 import { formatTokens } from '@shared/tallies'
 import { affectionFor, emptyFlags, relationshipTagOf } from '@shared/relationship'
 import { ConfirmModal } from '../components/ConfirmModal'
-import { EmojiTool, SentText, useBareMessage, useEmojiTool } from '../components/TextSpots'
+import { EmojiTool, ReceiptSentText, SentText, useBareMessage, useEmojiTool } from '../components/TextSpots'
 import { DeadNote } from '../components/DeadNote'
 import { promptEditable } from '../components/LlmFailureModal'
 import { TextField } from '../components/TextField'
@@ -1522,21 +1522,17 @@ const MessageBubble = memo(function MessageBubble({
         <div
           className={`vu-bb-bubble vu-bb-bubble--${message.sender === 'player' ? 'mine' : 'theirs'}${bare ? ' vu-bb-bubble--bare' : ''}${hasReceipt ? ' vu-bb-bubble--receipt' : ''}`}
         >
-          <SentText text={message.text} />
+          {hasReceipt ? <ReceiptSentText text={message.text} /> : <SentText text={message.text} />}
           {hasReceipt && (
-            <>
-              <wbr />
-              <span className="vu-bb-receipt-spacer" aria-hidden="true" />
-              <svg
-                className={`vu-bb-receipt${read ? ' vu-bb-receipt--read' : ''}`}
-                viewBox="0 0 22 14"
-                role="img"
-                aria-label={read ? 'Read' : 'Sent'}
-              >
-                <path d="m7 8 4 4 9-10" />
-                {read && <path d="m2 8 4 4 2-2.2m2-2.2 5-5.6" />}
-              </svg>
-            </>
+            <svg
+              className={`vu-bb-receipt${read ? ' vu-bb-receipt--read' : ''}`}
+              viewBox="0 0 22 14"
+              role="img"
+              aria-label={read ? 'Read' : 'Sent'}
+            >
+              <path d="m7 8 4 4 9-10" />
+              {read && <path d="m2 8 4 4 2-2.2m2-2.2 5-5.6" />}
+            </svg>
           )}
         </div>
       )}
