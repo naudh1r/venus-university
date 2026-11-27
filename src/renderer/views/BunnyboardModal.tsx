@@ -1064,11 +1064,10 @@ function ConversationView({
   const busy = useBunnyboardStore((s) => s.busyCharIds.includes(charId))
   // Texts written and waiting out their typing delay.
   const typing = useBunnyboardStore((s) => s.typingCharIds.includes(charId))
-  // A reply for now, not one held for a later slot: out to the model, then streaming back.
-  const reading = useBunnyboardStore((s) => s.readingCharIds.includes(charId))
-  const answering = busy && !(conversation?.heldReply && !conversation.heldReply.opened)
+  // A reply for now: nothing until the model answers, then streaming back, then its first text written.
+  const stage = useBunnyboardStore((s) => s.replyStage[charId])
   const receiptOf = receipts
-    ? receiptsOf(conversation?.messages ?? [], messages, reading || typing ? 'read' : answering ? 'delivered' : undefined)
+    ? receiptsOf(conversation?.messages ?? [], messages, typing ? 'read' : stage)
     : undefined
   // Her last turn failed and is parked on Retry.
   const failed = useBunnyboardStore((s) => s.failedCharIds.includes(charId))
