@@ -1562,7 +1562,7 @@ export interface SlotSettled {
     closingCast: readonly Character[];
     // (undocumented)
     ledger: LedgerResponse | null;
-    ownMeetupsLapsed: readonly {
+    ownMeetupsLapsed?: readonly {
         charId: string;
         description: string;
     }[];
