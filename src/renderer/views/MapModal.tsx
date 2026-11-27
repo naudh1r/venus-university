@@ -185,6 +185,7 @@ function Face({
  * decides only where a bubble fits (`mapLayout.ts`) and offers the one thing it can do about it.
  */
 export function MapModal({ theme, onClose, onGo }: MapModalProps): JSX.Element | null {
+  const interlude = useGameStore(s => s.interlude)
   const date = useGameStore((s) => s.date)
   const time = useGameStore((s) => s.time)
   const characters = useGameStore((s) => s.characters)
@@ -200,7 +201,7 @@ export function MapModal({ theme, onClose, onGo }: MapModalProps): JSX.Element |
   const [tip, setTip] = useState<string | null>(null)
 
   // The slot cannot turn over while the map is open, so the whole reading is taken once.
-  const rows = useMemo(() => knownWhereabouts(date, time), [date, time])
+  const rows = useMemo(() => knownWhereabouts(date, time), [date, time, interlude])
   // Held in the order their anchors stand on the drawing, west to east: the deal below runs on
   // DOM order, so this is what starts the bubbles left to right across the city.
   const sections = useMemo(() => {
@@ -313,7 +314,7 @@ export function MapModal({ theme, onClose, onGo }: MapModalProps): JSX.Element |
   // A Go leaves with the handler and with the sections, and motion reports no hover ending for a
   // control that unmounts under the cursor, so the hover is dropped with what it names. Keyed on
   // whether there is a handler, not on which: the screen hands down a new closure every render.
-  const canGo = onGo !== undefined
+  const canGo = !interlude && onGo !== undefined
   useEffect(() => {
     setTip(null)
   }, [canGo, shape])
@@ -429,7 +430,7 @@ export function MapModal({ theme, onClose, onGo }: MapModalProps): JSX.Element |
                           </motion.span>
                         ))}
                       </motion.span>
-                      {onGo && destination && (
+                      {canGo && onGo && destination && (
                         <motion.button
                           className="vu-btn vu-btn--primary vu-paper vu-map-go"
                           type="button"

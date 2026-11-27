@@ -121,6 +121,15 @@ describe('manual saves', () => {
     })
   })
 
+  it('validates the saved chat clock on reload', async () => {
+    const { playthroughId } = await saves.writeEnrollment(enrollment())
+    await saves.createPlaythrough(record(), draft(), playthroughId)
+    await saves.writeManualSave(playthroughId, 4, draft({ chatShownThrough: { date: Number.NaN, time: 0 } }))
+    await expect(saves.readSave(playthroughId, 'manual04')).rejects.toMatchObject({ code: 'SAVE_MALFORMED' })
+    await saves.writeManualSave(playthroughId, 5, draft({ chatShownThrough: { date: 2, time: 0 } }))
+    await expect(saves.readSave(playthroughId, 'manual05')).resolves.toMatchObject({ save: { saveId: 'manual05' } })
+  })
+
   it('stand for the playthrough when one was written last', async () => {
     const { playthroughId } = await saves.writeEnrollment(enrollment())
     await saves.createPlaythrough(record(), draft({ date: 1 }), playthroughId)

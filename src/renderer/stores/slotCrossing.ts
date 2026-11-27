@@ -1,5 +1,5 @@
 import { semesterCalendarOf, semesterOf, type SemesterCalendar } from '@shared/semesters'
-import type { GameSave, PlaythroughRecord, TimeSlot } from '@shared/types'
+import type { GameSave, LedgerResponse, PlaythroughRecord, TimeSlot } from '@shared/types'
 import type { Weather } from '@shared/weather'
 import { nextSlot, slotHalf } from '../prompts/gameDate'
 import { GOODBYES_SPLASH, isEpilogueNight } from '../prompts/graduation'
@@ -14,6 +14,7 @@ import {
   type SlotStamp
 } from './crossingStore'
 import { useGameStore } from './gameStore'
+import { canHoldSlot, interludePreview } from '../mods/hooks'
 
 /**
  * The game's own crossings: the slot boundary (curtain up over the boundary's work, announcing
@@ -22,16 +23,27 @@ import { useGameStore } from './gameStore'
  */
 
 /**
+ * The held night a save was taken on, while a mod is on that can hold it again: with none, the
+ * save opens on the morning after it, and is announced as that morning.
+ */
+function heldNightOf(save: GameSave): GameSave['heldNight'] {
+  return save.heldNight && canHoldSlot() ? save.heldNight : undefined
+}
+
+/**
  * The half the game on screen is being drawn in, the epilogue's own evening included — it falls
  * on a morning slot the clock alone would call day.
  */
 function gameThemeNow(): ScreenTheme {
-  const { date, time, graduationSeen } = useGameStore.getState()
+  const { date, time, graduationSeen, interlude } = useGameStore.getState()
+  if (interlude) return slotHalf(interlude.now.from.time)
   return isEpilogueNight(date, time, graduationSeen) ? 'night' : slotHalf(time)
 }
 
 /** {@link gameThemeNow} for a save being opened, read off the file instead of the store. */
 function saveTheme(save: GameSave): ScreenTheme {
+  const night = heldNightOf(save)
+  if (night) return slotHalf(night.time)
   return isEpilogueNight(save.date, save.time, save.graduationSeen) ? 'night' : slotHalf(save.time)
 }
 
@@ -83,9 +95,13 @@ export function entryCrossing(
 ): CrossingOptions {
   const semester = semesterOf(record, save.semester)
   const calendar = semesterCalendarOf(semester)
+  // A save taken on a held night announces that night, as the curtain into it did.
+  const night = heldNightOf(save)
   const splash = save.graduationSeen
     ? goodbyesStamp(calendar)
-    : slotStampOf(
+    : night
+      ? { ...slotStampOf(night.date, night.time, calendar, slotWeather(semester.weather, night.date, night.time, false)), lateNight: true }
+      : slotStampOf(
         save.date,
         save.time,
         calendar,
@@ -124,21 +140,24 @@ function untilPhase(done: (phase: string) => boolean): Promise<void> {
  * work. Resolves through idle too, so a refused or torn-down crossing can never strand it. With
  * `ask`, the curtain holds flat once down until the boundary's question is answered.
  */
-export async function coverSlotCrossing(ask = false): Promise<void> {
-  const { date, time, calendar, weather, graduationSeen } = useGameStore.getState()
-  const next = nextSlot(date, time)
+export async function coverSlotCrossing(ask = false, ledger: LedgerResponse | null = null): Promise<void> {
+  const { date, time, calendar, weather, graduationSeen, semesterIndex } = useGameStore.getState()
+  // A slot a mod will hold on the finished one's look is announced as that look.
+  const preview = interludePreview({ from: { date, time }, to: nextSlot(date, time), semesterIndex, ledger })
+  const held = preview?.at === 'from'
+  const next = held ? { date, time } : nextSlot(date, time)
   // No load is declared: the ending paid for the ledger and for the next slot's opening before
   // the status lines were read, so this cover has a boundary to hide and nothing to wait on.
   // `beginSlot` says otherwise where it finds a call it still owes.
   beginCrossing(undefined, {
-    from: slotHalf(time),
+    from: gameThemeNow(),
     to: slotHalf(next.time),
-    splash: slotStampOf(
+    splash: { ...slotStampOf(
       next.date,
       next.time,
       calendar,
       slotWeather(weather, next.date, next.time, graduationSeen)
-    ),
+    ), ...(held && preview.clock === 'late-night' ? { lateNight: true } : {}) },
     ask
   })
   await untilPhase((phase) => phase === 'holding' || phase === 'idle')
@@ -226,4 +245,25 @@ export function revealSceneOpening(): void {
   if (!openingCover) return
   openingCover = false
   endCrossing()
+}
+
+/** Covers the held landing before the clock's slot opens, without advancing it. */
+export async function coverInterludeOpening(): Promise<void> {
+  const game = useGameStore.getState()
+  const held = game.interlude
+  if (!held) return
+  beginCrossing(undefined, {
+    from: slotHalf(held.now.from.time),
+    to: slotHalf(game.time),
+    splash: slotStampOf(game.date, game.time, game.calendar, slotWeather(game.weather, game.date, game.time, game.graduationSeen))
+  })
+  await untilPhase(phase => phase === 'holding' || phase === 'idle')
+}
+
+/** Reveals a held boundary in the finished slot's theme without announcing the new slot. */
+export function showInterludeLanding(from: { date: number; time: TimeSlot }): void {
+  const crossing = useCrossingStore.getState()
+  if (crossing.phase === 'idle') return
+  const to = slotHalf(from.time)
+  useCrossingStore.setState({ to, fade: crossing.from !== null && crossing.from !== to, splash: null })
 }

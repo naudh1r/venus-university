@@ -53,7 +53,7 @@ export function DayChangeSplash({
   x: MotionValue<number> | null
   onDone: () => void
 }): JSX.Element {
-  const day = stamp.time === 0
+  const day = !stamp.lateNight && stamp.time === 0
   // What the mark is: the half's own sun or crescent, or the sky over the slot the curtain is
   // opening onto.
   const kind = halfMarkKindOf(stamp.weather, !day)
@@ -133,7 +133,7 @@ export function DayChangeSplash({
               <motion.span variants={splashMetaItem}>{stamp.words.meta}</motion.span>
             ) : (
               <>
-                <motion.span variants={splashMetaItem}>{day ? 'Morning' : 'Evening'}</motion.span>
+                <motion.span variants={splashMetaItem}>{stamp.lateNight ? 'Night' : day ? 'Morning' : 'Evening'}</motion.span>
                 <motion.span variants={splashMetaItem}>Week {weekOf(stamp.date) + 1}</motion.span>
                 <motion.span className="vu-splash-figure" variants={splashMetaItem}>
                   {formatNumericGameDate(stamp.date, stamp.season)}

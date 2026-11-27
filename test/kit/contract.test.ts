@@ -1,6 +1,6 @@
 import { globSync, readFileSync } from 'fs'
 import { resolve } from 'path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as sharedKit from '@vx/modkit/shared'
 import * as mainKit from '@vx/modkit/main'
 import * as hostShared from '@vx/modkit/host/shared'
@@ -449,6 +449,13 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   dmReplyLead: fn('dmReplyLead', undefined, (host) => host.dmReplyLead({ charId: 'c', character: never, lead: {}, signal: new AbortController().signal })),
   afterDmReply: fn('afterDmReply', undefined, (host) => host.afterDmReply({ charId: 'c', character: never, reply: never })),
   sceneReplyLanded: fn('sceneReplyLanded', undefined, (host) => host.sceneReplyLanded({ reply: {}, modReply: {}, spot: { spot: 'opening', cast: [] }, at: 0 })),
+  hangoutCheck: fn('hangoutCheck', false, host => host.hangoutCheck({ charId: 'c', startedBy: 'her' })),
+  slotInterlude: fn('slotInterlude', { lines: [], rows: [] }, host => host.slotInterlude({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0, ledger: null })),
+  relaxRows: fn('relaxRows', [], host => host.relaxRows({ date: 0, time: 0 })),
+  relaxLabel: fn('relaxLabel', 'Rest', host => host.relaxLabel({ date: 0, time: 0 })),
+  relaxLine: fn('relaxLine', 'A quiet hour.', host => host.relaxLine({ date: 0, time: 0 })),
+  openingLook: fn('openingLook', { room: { kind: 'herRoom', charId: 'c' } }, host => host.openingLook({ date: 0, time: 0, reply: {} })),
+  interludePreview: fn('interludePreview', { at: 'from' }, host => host.interludePreview({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0, ledger: null })),
   sceneCut: fn('sceneCut', undefined, (host) => host.sceneCut({ length: 0 })),
   switchedOn: fn('switchedOn', undefined, (host) => host.startSwitchedOn()),
   afterSceneReply: fn('afterSceneReply', undefined, (host) => host.afterSceneReply({ reply: {}, cast: [], solo: true, ending: false })),
@@ -456,6 +463,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   playerActs: fn('playerActs', undefined, (host) => host.playerActs()),
   gameEntered: fn('gameEntered', undefined, (host) => host.gameEntered()),
   keepSceneLedgerEntry: fn('keepSceneLedgerEntry', true, host => host.filterSceneLedger({memories:[{charKey:'test',type:'liked',desc:'test'}]})),
+  interludeSettled: fn('interludeSettled', undefined, host => host.interludeSettled(never)),
   slotSettled: fn('slotSettled', undefined, (host) => host.slotSettled(never)),
   slotStatusLines: fn('slotStatusLines', [], (host) => host.slotStatusLines({ nextSlot: 1 })),
   projectSlotMemories: fn('projectSlotMemories', {}, (host) => host.projectSlotMemories(never, {})),
@@ -528,6 +536,45 @@ describe('every hook in the table', () => {
   // One mod per row, on only while its row is asked; the registrations stay, as in the game.
   let on = ''
   hooksShim.setHookRules({ isOn: (id) => id === on, order: () => 0 })
+
+  it('checks hangouts by default, logs a failed hook and lets any enabled veto skip the check', () => {
+    const ids = ['probe:check-yes', 'probe:check-failed', 'probe:check-no']
+    rendererKit.registerHooks(ids[0], { hangoutCheck: () => true })
+    rendererKit.registerHooks(ids[1], { hangoutCheck: () => { throw Error('failed') } })
+    rendererKit.registerHooks(ids[2], { hangoutCheck: () => false })
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const ctx = { charId: 'c', startedBy: 'reader' as const }
+    try {
+      hooksShim.setHookRules({ isOn: () => false, order: () => 0 })
+      expect(hooksShim.hangoutCheck(ctx)).toBe(true)
+      hooksShim.setHookRules({ isOn: id => ids.slice(0, 2).includes(id), order: id => ids.indexOf(id) })
+      expect(hooksShim.hangoutCheck(ctx)).toBe(true)
+      expect(warning).toHaveBeenCalled()
+      hooksShim.setHookRules({ isOn: id => ids.includes(id), order: id => ids.indexOf(id) })
+      expect(hooksShim.hangoutCheck(ctx)).toBe(false)
+    } finally {
+      warning.mockRestore()
+      hooksShim.setHookRules({ isOn: id => id === on, order: () => 0 })
+    }
+  })
+
+  it('collects enabled Relax rows in mod order and skips a failed hook', () => {
+    const first = { label: 'First', onPick: () => undefined }
+    const second = { label: 'Second', onPick: () => undefined }
+    const ids = ['probe:relax-later', 'probe:relax-failed', 'probe:relax-first', 'probe:relax-off']
+    rendererKit.registerHooks(ids[0], { relaxRows: () => [second] })
+    rendererKit.registerHooks(ids[1], { relaxRows: () => { throw new Error('failed') } })
+    rendererKit.registerHooks(ids[2], { relaxRows: () => [first] })
+    rendererKit.registerHooks(ids[3], { relaxRows: () => [second] })
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    hooksShim.setHookRules({ isOn: id => ids.slice(0, 3).includes(id), order: id => -ids.indexOf(id) })
+    try {
+      expect(hooksShim.relaxRows({ date: 1, time: 1 })).toEqual([first, second])
+    } finally {
+      warning.mockRestore()
+      hooksShim.setHookRules({ isOn: id => id === on, order: () => 0 })
+    }
+  })
 
   for (const row of HOOKS) {
     if (row.side !== 'renderer') continue

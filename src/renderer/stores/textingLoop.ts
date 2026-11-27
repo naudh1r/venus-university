@@ -1,3 +1,5 @@
+import { chatClockOf, shownConversation, shownMessages, unreadAfterOpening, type ChatClock } from '@shared/chatVisibility'
+import { textingClockOf } from '@shared/textingClock'
 import { currentStorySnapshot } from './storyMemory'
 import { BREAKTHROUGH_MOD } from '@shared/breakthrough'
 /**
@@ -100,6 +102,7 @@ import { coldStageAt, isSymptomatic } from '@shared/colds'
 import {
   buildHangoutClassifierPrompt,
   normalizeHangout,
+  type HangoutClassifierState,
   type HangoutVerdict
 } from '../prompts/hangoutClassifierPrompt'
 import { buildTextingPrompt, unansweredReachOuts } from '../prompts/textingPrompt'
@@ -119,7 +122,8 @@ import {
 } from '@shared/types'
 import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
-import { afterDmReply, afterReachOut, dmReplyLead, promptTextEdits } from '../mods/hooks'
+import { threadStartedBy } from '@shared/textingThread'
+import { afterDmReply, afterReachOut, dmReplyLead, hangoutCheck, promptTextEdits } from '../mods/hooks'
 import { INCOMING_TEXTS, OUTGOING_IMAGE_STORAGE_MOD } from '@shared/modEntries/incoming-texts'
 import { lorebookNow } from './lorebookStore'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
@@ -172,9 +176,9 @@ import { isFeedContact } from './feedView'
 import type { NpcCompanions } from '../prompts/npcRelationship'
 
 /** Who is with `charId` this slot, as the sentence naming them reads. */
-function companionsOf(charId: string): NpcCompanions {
+function companionsOf(charId: string, at: ChatClock): NpcCompanions {
   const game = useGameStore.getState()
-  const group = charOverlayGroupNow(charId)
+  const group = charOverlayGroupNow(charId, at.date, at.time)
   const knownNames: string[] = []
   let unknown = 0
   for (const member of group?.members ?? []) {
@@ -215,10 +219,12 @@ const failedTurns = new Map<
  */
 export function sceneActiveOf(state: {
   busy: boolean
+  sceneEnding?: boolean
+  interlude?: unknown
   currentSceneTranscript: readonly unknown[]
   sceneSummary: string | null
 }): boolean {
-  return state.busy || state.currentSceneTranscript.length > 0 || state.sceneSummary !== null
+  return state.busy || Boolean(state.interlude && state.sceneEnding) || state.currentSceneTranscript.length > 0 || state.sceneSummary !== null
 }
 
 /**
@@ -226,7 +232,7 @@ export function sceneActiveOf(state: {
  * Bunnyboard can subscribe to it.
  */
 export function epilogueOf(state: { date: number; time: TimeSlot }): boolean {
-  return isGraduationSlot(state.date, state.time)
+  return !('interlude' in state && state.interlude) && isGraduationSlot(state.date, state.time)
 }
 
 /**
@@ -266,7 +272,8 @@ function chatMessage(sender: ChatSender, text: string, error = false): ChatMessa
     sender,
     text,
     date: game.date,
-    time: game.time
+    time: game.time,
+    ...(game.interlude?.now.clock === 'late-night' ? { late: true as const } : {})
   }
   if (error) message.error = true
   return message
@@ -632,7 +639,7 @@ async function sendText(
   }
 
   // The thread as it stood *before* this message; the new one rides separately in the prompt.
-  const conversation = game.bunnyboard.conversations[charId]
+  const conversation = shownConversation(game.bunnyboard.conversations[charId], chatClockOf(game))
   // The ask-out she had standing, so this exchange is his answer to it — and to whatever
   // occasion it was about.
   const invited = conversation?.pendingHangout ?? null
@@ -659,7 +666,7 @@ async function sendText(
       incoming ? '' : trimmed,
       textingState(game, charId),
       // The same reader block a scene gets, grades and all.
-      readerBlockOf(game),
+      readerBlockOf({ ...game, ...textingClockOf(game) }),
       incoming ? trimmed : undefined,
       outgoingPhoto,
       imageData
@@ -823,7 +830,8 @@ async function runReply(
 
     // An unsolicited text is not an answer to a standing invitation.
     if (!sent && invited) return
-    handleHangout(charId, await classifyHangout(character, conversation, sent, messages))
+    const verdict = await classifyHangout(character, conversation, sent, messages)
+    if (!useGameStore.getState().interlude) handleHangout(charId, verdict)
     if (sent && invited) settleAnsweredInvitation(charId, invited.occasionId)
   } finally {
     abortLead()
@@ -842,18 +850,19 @@ export function textRegenerationTarget(charId: string): ReturnType<typeof latest
 
 /** Both delivery paths provide the same current continuity to every DM hook. */
 function textingState(game: ReturnType<typeof useGameStore.getState>, charId: string): Parameters<typeof buildTextingPrompt>[4] {
+  const now = textingClockOf(game)
   // Everyone else on the roster and every graduate, for the lorebook's character entries.
   const others = [...game.chars, ...game.alumni]
     .filter((id) => id !== charId)
     .map((id) => game.characters[id])
     .filter((other): other is Character => Boolean(other))
-  const visitor = homecomingVisitorNow()
+  const visitor = homecomingVisitorNow(now.date)
   return {
+    ...now,
+    ...(game.interlude?.now.clock === 'late-night' ? { lateNight: game.interlude.now.from } : {}),
     romance: game.romance,
     readerPronouns: game.playerPronouns,
     ages: agesNow([charId]),
-    date: game.date,
-    time: game.time,
     storyMemory: currentStorySnapshot(),
     stats: game.stats,
     breakthrough: modIsOn(BREAKTHROUGH_MOD) ? game.exBreakthrough : undefined,
@@ -875,11 +884,11 @@ function textingState(game: ReturnType<typeof useGameStore.getState>, charId: st
     calendar: game.calendar,
     weather: game.weather,
     // Where she is texting from; never a class or shift, as the composer is shut then.
-    charLocation: charHiddenLocationNow(charId),
+    charLocation: charHiddenLocationNow(charId, now.date, now.time),
     // Who is with her: the same group the location came from.
-    charCompanions: companionsOf(charId),
+    charCompanions: companionsOf(charId, now),
     // What she is there for, on a slot she is standing at her own haunt.
-    charHaunt: charStandingHauntNow(charId),
+    charHaunt: charStandingHauntNow(charId, now.date, now.time),
     // The one absence a thread survives, so her block has to say it.
     springBreakAway: game.springBreakAway,
     // The one day a graduate's thread is from somebody in town.
@@ -888,7 +897,7 @@ function textingState(game: ReturnType<typeof useGameStore.getState>, charId: st
     upcomingPlans: upcomingPlanLines(
       game.events,
       game.characters,
-      globalSlotOf(game.date, game.time),
+      globalSlotOf(now.date, now.time),
       game.calendar.season
     ),
     memoryBudget: memoryBudgetsOf(useSettingsStore.getState().settings ?? {}).one,
@@ -1038,6 +1047,26 @@ export function abandonHangoutClassify(): void {
   hangoutGate.answer(false)
 }
 
+/** The clock and weather every hangout classification reads, including a regenerated reply. */
+function hangoutClockOf(game: ReturnType<typeof useGameStore.getState>): HangoutClassifierState {
+  return {
+    date: game.date,
+    time: game.time,
+    season: game.calendar.season,
+    weather: game.weather
+  }
+}
+
+/** Interludes suppress the check before any mod or classifier is asked. */
+function shouldCheckHangout(charId: string): boolean {
+  const game = useGameStore.getState()
+  if (game.interlude) return false
+  return hangoutCheck({
+    charId,
+    startedBy: threadStartedBy(shownMessages(game.bunnyboard.conversations[charId]?.messages ?? [], chatClockOf(game)), game.date, game.time)
+  })
+}
+
 /**
  * Asks the hangout classifier whether the exchange that just happened was somebody proposing to
  * meet up right now.
@@ -1048,7 +1077,7 @@ async function classifyHangout(
   sent: ChatMessage | null,
   replies: readonly string[]
 ): Promise<HangoutVerdict | null> {
-  if (replies.length === 0) return null
+  if (replies.length === 0 || !shouldCheckHangout(character.charId)) return null
 
   const game = useGameStore.getState()
   // Built once, outside the loop: a retry re-sends the identical request.
@@ -1057,7 +1086,7 @@ async function classifyHangout(
     conversation?.messages ?? [],
     sent,
     replies.map((text) => chatMessage('contact', text)),
-    { date: game.date, time: game.time, season: game.calendar.season, weather: game.weather }
+    hangoutClockOf(game)
   )
 
   for (;;) {
@@ -1545,7 +1574,7 @@ export function pickOccasionAsker(
   overlay: NpcSlotOverlay | null = null
 ): string | null {
   const game = useGameStore.getState()
-  const conversations = game.bunnyboard.conversations
+  const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => [id, shownConversation(chat, chatClockOf(game))!]))
   const target = globalSlotOf(day, half)
 
   // Everybody the overlay for this slot has spending it with somebody.
@@ -1648,7 +1677,7 @@ export function pickSlotAskers(
   if (booked) return picked
 
   const target = globalSlotOf(day, half)
-  const conversations = game.bunnyboard.conversations
+  const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => [id, shownConversation(chat, chatClockOf(game))!]))
   // One invitation, then a spell of quiet, whoever sent it.
   let newest: number | null = null
   for (const conversation of Object.values(conversations)) {
@@ -1687,7 +1716,7 @@ export function pickSlotReachOut(
   taken: ReadonlySet<string>
 ): string | null {
   const game = useGameStore.getState()
-  const conversations = game.bunnyboard.conversations
+  const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => [id, shownConversation(chat, chatClockOf(game))!]))
   const target = globalSlotOf(date, time)
 
   // One reach-out, then a spell of quiet, whoever sent it.
@@ -1708,7 +1737,7 @@ export function pickSlotReachOut(
     const info = view.charInfo[charId]
     if (!info || !isFeedContact(info)) continue
     // Her thread has to have gone quiet, and longer for every reach-out of hers left unanswered.
-    const gap = reachOutGapSlots(unansweredReachOuts(conversation?.messages ?? []).length)
+    const gap = reachOutGapSlots(unansweredReachOuts(shownMessages(conversation?.messages ?? [], chatClockOf(game))).length)
     if (!askCooldownOver(lastTextSlotOf(conversation), target, gap)) continue
     const chance = reachOutChanceOf(
       info.flags?.isLover ?? false,
@@ -1892,9 +1921,10 @@ function outingsFor(info: CharInfo, date: number, time: TimeSlot, intimate: bool
 
 /** The everyday asks dealt in the round still open, read off every invitation they marked. */
 export function everydayRoundNow(): ReadonlySet<EverydayAsk> {
+  const game = useGameStore.getState()
   const bySlot = new Map<number, EverydayAsk[]>()
   for (const conversation of Object.values(useGameStore.getState().bunnyboard.conversations)) {
-    for (const message of conversation.messages) {
+    for (const message of shownMessages(conversation.messages, chatClockOf(game))) {
       if (message.sender !== 'contact' || !message.everydayAsk) continue
       const slot = globalSlotOf(message.date, message.time)
       bySlot.set(slot, [...(bySlot.get(slot) ?? []), message.everydayAsk])
@@ -2135,4 +2165,16 @@ export function deliverEventCancellations(
       )
     )
   }
+}
+
+/** A slot's messages become available at its landing, or at an interlude held before it. */
+export function openChatSlot(): void {
+  const game = useGameStore.getState()
+  const clock = { date: game.date, time: game.time }
+  const before = chatClockOf(game)
+  const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => {
+    const unread = unreadAfterOpening(chat, before, clock)
+    return [id, unread === chat.unread ? chat : { ...chat, unread }]
+  }))
+  useGameStore.setState({ chatShownThrough: clock, bunnyboard: { ...game.bunnyboard, conversations } })
 }

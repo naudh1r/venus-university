@@ -1,3 +1,4 @@
+import { chatClockOf, shownMessages, type ChatClock } from '@shared/chatVisibility'
 import { SOUNDTRACK_MOD, SOUNDTRACK_LABELS, type SoundtrackKey } from '@shared/soundtracks'
 import { modOn } from '@shared/mods'
 import { useModsStore } from './modsStore'
@@ -255,7 +256,8 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
 
   const inScene = game.currentSceneTranscript.length > 0 || game.sceneSummary !== null
   // The place on stage: what the player picked wins over what the scene reports, as on the layer.
-  const base = game.bgOverride ?? game.bg ?? SLOT_BG
+  const base = game.interlude ? SLOT_BG : game.bgOverride ?? game.bg ?? SLOT_BG
+  const at = game.interlude?.now.from ?? game
   const cg = displayedCgOf({
     shown: displaySlotsOf(game.slots, game.stageOverride),
     emotions: game.emotions,
@@ -269,7 +271,7 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
     noNsfwImages: noNsfwImagesOf(useSettingsStore.getState())
   })
   const character = cg ? game.characters[cg.charId] : null
-  const epilogue = isEpilogueNight(game.date, game.time, game.graduationSeen)
+  const epilogue = !game.interlude && isEpilogueNight(game.date, game.time, game.graduationSeen)
 
   return {
     gameOver: game.activeGameOver !== null,
@@ -280,9 +282,9 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
     // `busy` is no part of it: the scroll is read while the next call is still out.
     narrating: !inScene && !game.awaitingInput && !game.waitingForLine,
     bg: venueFacts(base),
-    half: epilogue ? 'night' : slotHalf(game.time),
-    weekend: weekendSaturdayOf(game.date) !== null,
-    weather: slotWeather(game.weather, game.date, game.time, game.graduationSeen),
+    half: epilogue ? 'night' : slotHalf(at.time),
+    weekend: weekendSaturdayOf(at.date) !== null,
+    weather: slotWeather(game.weather, at.date, at.time, game.interlude ? false : game.graduationSeen),
     epilogue,
     cg:
       cg && character
@@ -295,12 +297,13 @@ function gameFactsOf(): NonNullable<SoundFacts['game']> {
     loads: game.loads,
     modal: game.statusModal,
     line: game.currentLine,
-    texts: textsOf(game.bunnyboard.conversations),
+    texts: textsOf(game.bunnyboard.conversations, chatClockOf(game)),
     quizRight: game.sceneQuiz?.correct ?? 0
   }
 }
 
 /** The conversations the counts below were taken from, and what they came to. */
+let countedSlot = -1
 let countedFrom: Record<string, Conversation> | null = null
 let counted = { in: 0, out: 0 }
 
@@ -308,18 +311,20 @@ let counted = { in: 0, out: 0 }
  * How many texts have landed and been sent, counted afresh only when the conversations
  * themselves change: the game store moves on every streamed line, and they do not.
  */
-function textsOf(conversations: Record<string, Conversation>): { in: number; out: number } {
-  if (conversations === countedFrom) return counted
+function textsOf(conversations: Record<string, Conversation>, clock: ChatClock): { in: number; out: number } {
+  const slot = clock.date * 2 + clock.time
+  if (conversations === countedFrom && countedSlot === slot) return counted
 
   let landed = 0
   let sent = 0
   for (const conversation of Object.values(conversations)) {
-    for (const message of conversation.messages) {
+    for (const message of shownMessages(conversation.messages, clock)) {
       if (message.sender === 'contact') landed++
       else if (message.sender === 'player') sent++
     }
   }
 
+  countedSlot = slot
   countedFrom = conversations
   counted = { in: landed, out: sent }
   return counted

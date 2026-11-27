@@ -144,3 +144,36 @@ describe('enterGame', () => {
     expect(loopState.slotSaveId).toBeNull()
   })
 })
+
+describe('a save the night ending wrote', () => {
+  it('keeps the night\'s paid ledger for its row to claim', () => {
+    const narration = sceneLines('Late.')
+    const save = saveOf({ ...openingScene([]), sceneLog: narration, currentLine: narration[0] })
+    const bank = { key: '15|mia:t1', reply: { stats: {} } as LedgerResponse }
+    enterGame({ ...save, heldNightLedger: bank }, playthroughRecord(), {})
+    expect(loopState.nightLedger).toEqual(bank)
+
+    enterGame(save, playthroughRecord(), {})
+    expect(loopState.nightLedger).toBeNull()
+  })
+
+  it('opens the morning from the opening it already wrote, without asking for another', async () => {
+    const slotIntro = vi.fn()
+    stubApi({
+      saves: {
+        readProfilePicture: vi.fn(async (): Promise<Result<Uint8Array<ArrayBuffer> | null>> => ({ ok: true, data: null })),
+        overwrite: vi.fn(async (): Promise<Result<GameSave>> => ({ ok: true, data: {} as GameSave }))
+      },
+      lorebook: { read: vi.fn(async (): Promise<Result<LorebookRecord | null>> => ({ ok: true, data: null })) },
+      // Any request at all fails the test; delta listeners only subscribe.
+      llm: new Proxy({}, { get: (_, name) => String(name).startsWith('on') ? () => () => {} : slotIntro })
+    })
+    const morningOpening = { lines: sceneLines('You wake to the hall waking up.'), hangouts: [], events: [], cancellations: [] }
+    // An ordinary morning, past move-in week's authored openings.
+    enterGame({ ...saveOf(null as unknown as SceneState, '1700000000000'), date: 15, time: 0, scene: null, morningOpening },
+      playthroughRecord(), {})
+
+    await vi.waitFor(() => expect(useGameStore.getState().currentLine?.text).toBe('You wake to the hall waking up.'))
+    expect(slotIntro).not.toHaveBeenCalled()
+  })
+})

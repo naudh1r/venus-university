@@ -56,6 +56,7 @@ export { appError } from '@shared/errors'
 export { imageTypeOf } from '@shared/imageBytes'
 export { characterLoraOf } from '@shared/comfyModels'
 export { DORM_IDS, dormLabel } from '@shared/dorms'
+export { EMOTIONS } from '@shared/emotions'
 export { LOCATIONS, NARRATIVE_LOCATIONS } from '@shared/locations'
 export { customOutfitSlotsIn, outfitTagsFor } from '@shared/outfits'
 export { affectionFor, dispositionOf, dedupedMemoriesFor, emptyFlags, relationshipTagOf } from '@shared/relationship'
@@ -96,3 +97,6 @@ export {
 } from '@shared/promptText'
 
 export type { DesktopSurfaceBridge } from '../../../../src/shared/desktopSurface'
+
+export { threadStartedBy } from '../../../../src/shared/textingThread'
+export { messageShown, shownMessages } from '../../../../src/shared/chatVisibility'

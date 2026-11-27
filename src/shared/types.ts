@@ -1,3 +1,4 @@
+import type { OpeningPlayback } from './opening'
 import type { ReckoningState } from './reckoning'
 import type { EchoState } from './echo'
 import type { StoryMemory, StoryRecallRequest } from './storyMemory'
@@ -22,6 +23,7 @@ import type { ModPlaythroughFields } from './mods'
 import type { PostComment } from './postComments'
 import type { GiftPreferences, GiftReaction } from './shop'
 import type {
+  NpcAdviceOutcome,
   NpcCouple,
   NpcFriendship,
   NpcRelationshipMap,
@@ -1087,6 +1089,10 @@ export const OUTGOING_PHOTO_FILE_LIMIT = 20 * 1024 * 1024
 
 /** One Bunnyboard text message. */
 export interface ChatMessage {
+  /** Already included in a completed texting ledger. */
+  ledgered?: true
+  /** Sent late on the night preceding its stored slot. */
+  late?: true
   outgoingPhoto?: OutgoingPhoto
   /** Optional response grouping retained by the Text Regeneration mod. */
   exReplyTo?: string
@@ -1396,6 +1402,8 @@ export interface SceneSummaryMark {
 
 /** Mid-scene save/rewind snapshot — of a drained scene or a queued reply. */
 export interface SceneState {
+  /** A resumable slot opening, independent of scene bookkeeping. */
+  slotOpening?: OpeningPlayback
   /** Optional interactive training chosen before this scene was cast. */
   activity?: import('./slotActivity').SlotActivity
   /** What mods keep with this scene, under fields they declare on `ModSceneFields`. */
@@ -1561,7 +1569,11 @@ export interface SlotRumor {
 
 /** Everything the slot opening needs, produced once at the previous scene's end. */
 export interface SlotOpening {
-  /** The narration, as playback lines — the action prompt included. */
+  /** The written reply, including fields added by mods. */
+  reply?: Record<string, unknown>
+  /** Each playback page’s index in reply.lines; authored leading pages use zero. */
+  lineIndices?: number[]
+  /** Opening playback pages, before the landing’s own question. */
   lines: SceneLine[]
   /** The invitations the opening rolled, delivered to the phone at step 1. */
   hangouts: SlotIntroResponse['hangouts']
@@ -1641,8 +1653,23 @@ export interface SlotOpening {
 }
 
 /** A {@link SlotOpening} an ending banked: the three settles it rolled are always on it. */
+/** Inputs the next opening keeps while a late-night hold delays its narration. */
+export interface DeferredOpeningNotes {
+  newTransfers: number
+  love: {
+    argued: readonly Pick<NpcCouple, 'a' | 'b'>[]
+    outcomes: readonly NpcAdviceOutcome[]
+  }
+}
+
 export type BankedOpening = SlotOpening &
-  Required<Pick<SlotOpening, 'rumorPass' | 'crushes' | 'npcRelationships'>>
+  Required<Pick<SlotOpening, 'rumorPass' | 'crushes' | 'npcRelationships'>> & {
+    /** Only boundary results are ready; a held night writes the narration when it ends. */
+    deferred?: true
+    openingNotes?: DeferredOpeningNotes
+    /** The scene ledger this opening follows; absent on older saves. */
+    ledger?: LedgerResponse | null
+  }
 
 /** The slot's texting-ledger reply, paid for mid-scene and held until the ending merges it. */
 export interface BankedTextLedger {
@@ -1676,6 +1703,19 @@ export interface BreakupOwed {
 
 /** On-disk save file — `/data/saves/{playthroughId}/{saveId}.json`. */
 export interface NativeGameSave {
+  /** The late night this save opens on, used only for its listing and thumbnail. */
+  heldNight?: { date: number; time: TimeSlot }
+  /** The chat clock whose shown messages have already contributed to unread counts. */
+  chatShownThrough?: { date: number; time: TimeSlot }
+  /**
+   * A late-night hold's texting ledger, paid for once its row was picked: reloading the night
+   * reuses it when the night's texts are still the ones it read.
+   */
+  heldNightLedger?: BankedTextLedger
+  /** The opening inputs retained across a held night and its reloads. */
+  heldNightOpening?: DeferredOpeningNotes
+  /** The morning opening a finished night wrote, opened on load instead of being written again. */
+  morningOpening?: SlotOpening
   schemaVersion: 13
   /**
    * The playthrough this save belongs to. Derived from the containing folder
@@ -2033,6 +2073,8 @@ export const FIRST_SLOT: { date: number; time: TimeSlot } = { date: 0, time: 0 }
  * plus that playthrough's newest save alone.
  */
 export interface PlaythroughSummary {
+  /** The late night the newest save opens on. */
+  heldNight?: { date: number; time: TimeSlot }
   playthroughId: string
   /** What Load Game calls it: the player's {@link name}, or `Playthrough N` at its {@link position}. */
   label: string
@@ -2092,6 +2134,8 @@ export interface PlaythroughSummary {
 
 /** What the load grid shows of one save, read off it without shipping the save itself. */
 export interface SaveSummary {
+  /** The late night this save opens on. */
+  heldNight?: { date: number; time: TimeSlot }
   /** In-game position of the save. */
   date: number
   time: TimeSlot
@@ -2935,11 +2979,10 @@ export interface LedgerResponse {
 }
 
 /**
- * The slot-opening narration. Narration only: it carries no
- * speaker, emotion, action or bg, so nothing in it can touch the stage.
+ * The default slot opening asks for text alone; a mod may ask for dialogue in its lines.
  */
 export interface SlotIntroResponse {
-  lines: Array<{ text: string }>
+  lines: Array<string | { text: string; speaker?: string; emotion?: string }>
   /**
    * One text-message invitation per character the slot rolled in: `char` is her
    * charKey, `text` the message and `description` the plan a yes starts the scene from.

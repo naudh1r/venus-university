@@ -1,3 +1,4 @@
+import { chatClockOf, shownMessages } from '@shared/chatVisibility'
 import { MOD_ID_RULE } from '@vx/modkit/host/shared'
 import { BUNNYBOT_CHAT_ID, FRIENDS_INTRO_SLOT } from '../prompts/bunnybot'
 import { useGameStore } from '../stores/gameStore'
@@ -16,7 +17,8 @@ export function bunnybotSays(
   if (!MOD_ID_RULE.test(modId) || lines.length === 0) return false
   const game = useGameStore.getState()
   if (game.bunnybotThrough < FRIENDS_INTRO_SLOT) return false
-  const messages = game.bunnyboard.conversations[BUNNYBOT_CHAT_ID]?.messages
+  const thread = game.bunnyboard.conversations[BUNNYBOT_CHAT_ID]
+  const messages = thread && shownMessages(thread.messages, chatClockOf(game))
   if (options.once !== undefined && messages?.some((message) => message.text === options.once)) {
     return false
   }

@@ -1258,6 +1258,14 @@ else names it.
 | Hook | Where the game asks | What a mod can do |
 | --- | --- | --- |
 | `prompts.dm` | `textingPrompt.ts` | Add lines to her DM prompt, and fields to its reply. `lead: true` puts those fields ahead of her messages, so they stream in first |
+| `openingLook` | `gameLoop.ts` | Stage part of an opening, using its written reply |
+| `slotInterlude` | `gameLoop.ts` (`beginSlot`) | Hold the slot opening on the finished slot’s landing with narration and choices |
+| `relaxLabel` | `slotActions.ts` | Replace the Relax row’s label, keeping its behavior |
+| `relaxLine` | `relax.ts` | Replace Relax’s narration; extra rows keep the default |
+| `relaxRows` | `GameView.tsx` | Add rows under Relax; each calls its handler, then runs the normal Relax flow |
+| `interludeSettled` | `gameLoop.ts` | Observe the held night's applied texting ledger before its opening and save, while the hold stands |
+| `interludePreview` | `slotCrossing.ts` | Say, without writing anything, that the coming slot will be held on the finished one's look, so the boundary's curtain announces that slot (`{ at: 'from' }`) |
+| `hangoutCheck` | `textingLoop.ts` | Return false before the immediate-meetup classifier to skip the call and its result |
 | `prompts['slot-posts']` | `slotIntroPrompt.ts` | Add lines about status posts, and fields to each post |
 | `prompts['slot-poster']` | `slotIntroPrompt.ts` | Add lines under each girl posting, by her name, given the slot the opening is for |
 | `prompts['slot-reach-outs']` | `slotIntroPrompt.ts` | Add lines under a girl texting first, and fields to her entry |
@@ -1802,3 +1810,25 @@ and hints, and read/edit/export with a missing provider. No particular mod trait
 Built-in `ModDef` entries may declare `game`, using the same version-range syntax as `vxmod.json` (for example `game: ">=0.9.2 <0.10.0"`). Declare only versions the author supports; do not copy the current version into every mod automatically. This is the Venus University version, not the mod version or VE kit version.
 
 The Mods menu shows the supported range and running game version. Missing declarations are shown as not declared. Enabling a mod with undeclared or out-of-range support asks for confirmation. New Game, Continue and loading a saved game also warn for affected enabled mods; saved games use their recorded per-playthrough enrollment. Warnings are advisory and preserve switches and saved data. They do not claim that a declaration proves testing or that an old declaration means a mod is broken.
+
+### Held landings and staged openings
+
+`slotInterlude(ctx)` can hold the next landing with narration, choices and an optional
+`clock: 'late-night'`. Its context carries the two slots, semester and preceding ledger.
+`interludePreview(ctx)` is a pure prediction for the crossing and opening. A late-night hold
+settles its own texting ledger before the morning opens. `interludeSettled(ctx)` runs after
+applying that ledger. `interludeNow()` reads the live hold and `chatClock()` reads the last
+landing open to texts. `messageShown`, `shownMessages` and `threadStartedBy` let callers use
+the same visibility and slot rules when reading messages.
+
+Use `relaxLabel` or `relaxLine` to change Relax's label or narration. `relaxRows` adds choices
+that run their handler before spending the slot on Relax. A held row may supply a `line` to
+play before it ends, or use `card: true` to draw a plan card.
+
+`openingLook({ date, time, reply })` stages a portion of an opening with an optional room,
+cast and `until` index. The `slot-intro` request exposes the preceding ledger. Mods can ask
+for lines with `speaker`, `text` and `emotion` fields using the shared `EMOTIONS` list. The
+ordinary opening still asks for narration. Staged dialogue is part of the opening.
+
+`hangoutCheck({ charId, startedBy })` returns false to skip the immediate meet-up classifier.
+Without a veto it runs as usual. Core skips the classifier on a held interlude.

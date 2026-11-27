@@ -1,4 +1,5 @@
 /** `@vx/modkit/renderer`: what a mod may import in the window. */
+export { interludeNow } from '../bridge/renderer'
 export type { GameFacts } from '../bridge/renderer'
 export type {
   BunnyboardPage,
@@ -10,10 +11,14 @@ export type {
   EndingChoice,
   GameMenuItemProps,
   GameModalProps,
+  Interlude,
+  InterludeCtx,
+  InterludeRow,
   LandingToolProps,
   LikesAsk,
   ModDetailProps,
   ModHooks,
+  OpeningLook,
   OptionControlProps,
   OptionPreviewProps,
   PostCommentsProps,
@@ -220,6 +225,7 @@ export {
   npcRelationships,
   useNpcRelationships,
   subscribeNpcRelationships,
+  chatClock,
   clock,
   useClock,
   subscribeClock,

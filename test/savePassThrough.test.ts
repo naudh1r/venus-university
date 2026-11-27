@@ -357,6 +357,20 @@ afterEach(() => {
 })
 
 describe('a stranger’s key on a save', () => {
+  it('round-trips deferred opening inputs as native data and clears them with the night', () => {
+    const save = fileOf(referenceDraft())
+    save.heldNight = { date: 7, time: 1 }
+    save.heldNightOpening = {
+      newTransfers: 2,
+      love: { argued: [{ a: 'a', b: 'b' }], outcomes: [{ charId: 'a', about: 'b', result: 'together' }] }
+    }
+    const out = loadAndSave(save)
+    expect(out.heldNightOpening).toEqual(save.heldNightOpening)
+    expect(useGameStore.getState().saveRest).not.toHaveProperty('heldNightOpening')
+    useGameStore.getState().loadSave(fileOf(referenceDraft()), RECORD, CHARACTERS)
+    expect(useGameStore.getState().toGameSave()).not.toHaveProperty('heldNightOpening')
+  })
+
   it('survives a load and a save, and the core keys come out as without it', () => {
     const out = loadAndSave(strangerSave())
     // Core's own keys first, so a lost stranger cannot hide a changed core field.

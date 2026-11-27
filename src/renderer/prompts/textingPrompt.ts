@@ -1,3 +1,4 @@
+import { messageSlotOf } from '@shared/chatVisibility'
 import { type StorySnapshot } from '@shared/storyMemory'
 import type { BreakthroughState } from '@shared/breakthrough'
 import type { CharacterDynamics } from '@shared/characterDynamics'
@@ -32,10 +33,12 @@ import {
 import { DEFAULT_PLAYER_STATS, type PlayerStats } from '@shared/playerStats'
 import type { Weather } from '@shared/weather'
 import {
-  formatChatDivider,
+  formatMessageSlot,
   formatDateBanner,
+  formatGameDate,
   formatRelativeSlot,
-  formatSemesterProgress
+  formatSemesterProgress,
+  nextSlot
 } from './gameDate'
 import {
   ambientLoreCharacters,
@@ -113,6 +116,8 @@ export interface TextingPromptState {
   exCharacterDynamics?: CharacterDynamics
   date: number
   time: TimeSlot
+  /** The night the held boundary displays, while texts keep the current slot. */
+  lateNight?: { date: number; time: TimeSlot }
   /** The reader's accumulated stats, used for relationship requirement guidance. */
   stats?: PlayerStats
   /**
@@ -212,7 +217,7 @@ export function stampedStubs(
   const lines: string[] = []
   let stamped: string | null = null
   for (const message of window) {
-    const stamp = formatChatDivider(message.date, message.time, season)
+    const stamp = formatMessageSlot(message, season)
     if (stamp !== stamped) {
       lines.push(`[${stamp}]`)
       stamped = stamp
@@ -261,7 +266,10 @@ function hangoutTail(
   if (last.sender === 'contact') {
     if (last.invite || conversation.pendingHangout) return { ask: last }
     const reachOut = unansweredReachOuts(messages).at(-1)
-    if (!reachOut || reachOut.date !== last.date || reachOut.time !== last.time) return null
+    if (!reachOut) return null
+    const fromSlot = messageSlotOf(reachOut)
+    const lastSlot = messageSlotOf(last)
+    if (fromSlot.date !== lastSlot.date || fromSlot.time !== lastSlot.time) return null
     // Her texts from the reach-out's first to the end of its slot, nothing of his among them.
     const from = messages.indexOf(reachOut)
     const text = messages
@@ -309,12 +317,13 @@ export function composeTextingSummary(
   const last = conversation.messages[conversation.messages.length - 1]
   // An untexted thread holds only the friend-request system line; say when that add happened.
   if (!hasTexted(conversation) && conversation.messages.length > 0) {
-    const first = conversation.messages[0]
+    const first = messageSlotOf(conversation.messages[0])
     lines.push(
       `The reader and ${firstName} added each other on Bunnyboard ${formatRelativeSlot(first.date, first.time, now.date, now.time)}, but haven't texted yet.`
     )
   } else if (last) {
-    const when = formatRelativeSlot(last.date, last.time, now.date, now.time)
+    const at = messageSlotOf(last)
+    const when = formatRelativeSlot(at.date, at.time, now.date, now.time)
     const tail = hangoutTail(conversation)
     // Her ask and his Sure never pass through a texting call, so no summary holds them:
     // the scene is shown the texts themselves.
@@ -404,11 +413,17 @@ export function buildTextingPrompt(
     (info?.pursuing !== undefined && !visiting) ||
     isAwayForSpringBreak(state.springBreakAway, character.charId, state.date)
   const pending: ChatMessage = {
-    id: 'pending', sender: 'player', text: newMessage, date: state.date, time: state.time,
+    id: 'pending',
+    sender: 'player',
+    text: newMessage,
+    ...(state.lateNight ? nextSlot(state.lateNight.date, state.lateNight.time)
+      : { date: state.date, time: state.time }),
+    ...(state.lateNight ? { late: true as const } : {}),
     ...(outgoingPhoto ? { outgoingPhoto } : {})
   }
   const recent = (conversation?.messages ?? []).slice(-historyLimitOf(state.historyLimit))
   const thread = [...recent, pending]
+  // The new text is the last line of the log, so it gets its own stamp when it lands in a new slot.
   const history = stampedStubs(
     incomingDirection === undefined ? thread : recent,
     name,
@@ -457,7 +472,10 @@ export function buildTextingPrompt(
     // Only this slot's texts: an older one's "last night" was a different night.
     ...recapLore(
       thread
-        .filter((message) => message.date === state.date && message.time === state.time)
+        .filter((message) => {
+          const at = messageSlotOf(message)
+          return at.date === state.date && at.time === state.time
+        })
         .map((message) => message.text)
         .join('\n'),
       state.date,
@@ -563,12 +581,14 @@ export function buildTextingPrompt(
     ...characterBlock,
     '',
     'NOW',
-    `It is ${formatDateBanner(state.date, state.time, state.calendar.season)}`,
+    state.lateNight ? `It is late on ${formatGameDate(state.lateNight.date, state.calendar.season)} night`
+      : `It is ${formatDateBanner(state.date, state.time, state.calendar.season)}`,
     formatSemesterProgress(state.date),
     // Texting happens before the slot's scene; without this she treats the day as over.
-    state.time === 0 ? 'Morning classes are starting soon.' : 'Night classes are starting soon.',
-    ...(state.weather ? weatherLines(state.weather, state.date, state.time) : []),
-    ...whereSheIs(character, state.charLocation, state.charCompanions, state.charHaunt, state.time),
+    ...(state.lateNight ? [] : [state.time === 0 ? 'Morning classes are starting soon.' : 'Night classes are starting soon.']),
+    ...(state.weather ? weatherLines(state.weather, state.lateNight?.date ?? state.date, state.lateNight?.time ?? state.time) : []),
+    ...(state.lateNight ? [`${name} is ${info?.pursuing !== undefined ? 'at home' : `in ${p.their} dorm room`} for the night.`]
+      : whereSheIs(character, state.charLocation, state.charCompanions, state.charHaunt, state.time)),
     '',
     ...lore,
     ...(summary ? ['TEXTING SO FAR', '"' + summary + '"', ''] : []),
@@ -597,14 +617,7 @@ export function buildTextingPrompt(
       'Earlier messages are background, not a new message to answer.'
     ]),
     `Stay in ${p.their} voice and keep it text-length: this is a phone thread, not prose.`,
-    ...meetUpLines(
-      character,
-      state.charLocation,
-      state.charHaunt,
-      state.time,
-      away,
-      state.readerPronouns
-    ),
+    ...(state.lateNight ? [] : meetUpLines(character, state.charLocation, state.charHaunt, state.time, away, state.readerPronouns)),
     '',
     ...promptLines('dm', { character, info, state }),
     'BLOCKING',

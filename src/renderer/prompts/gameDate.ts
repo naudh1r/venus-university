@@ -1,5 +1,7 @@
-import type { CharJob, Season, TimeSlot } from '@shared/types'
+import { messageSlotOf } from '@shared/chatVisibility'
+import type { CharJob, ChatMessage, Season, TimeSlot } from '@shared/types'
 import { shiftSlotOf } from '@shared/jobs'
+import { canHoldSlot } from '../mods/hooks'
 
 /**
  * In-game calendar helpers; fixed non-leap anchor keeps dates deterministic. 2015
@@ -235,4 +237,16 @@ export function formatRelativeSlot(
   if (days > 1) return `${days} days ago`
   if (days === -1) return time === 1 ? 'tomorrow night' : 'tomorrow'
   return `in ${-days} days`
+}
+
+/**
+ * Prints the slot a text was sent in. A text from a late night reads as that night while a mod
+ * can hold one, and as the evening it belongs to otherwise.
+ */
+export function formatMessageSlot(message: Pick<ChatMessage, 'date' | 'time' | 'late'>, season: Season): string {
+  if (!message.late) return formatChatDivider(message.date, message.time, season)
+  const from = messageSlotOf(message)
+  return canHoldSlot()
+    ? `${formatShortGameDate(from.date, season)}, late night`
+    : formatChatDivider(from.date, from.time, season)
 }

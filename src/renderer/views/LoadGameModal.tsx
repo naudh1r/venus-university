@@ -2,6 +2,7 @@ import { confirmModCompatibility, confirmSetupCompatibility } from './ModCompati
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, type AnimationPlaybackControls } from 'motion/react'
+import { weatherAt } from '@shared/weather'
 import { appError, toAppError } from '@shared/errors'
 import { classifySaveId, manualSlotOf } from '@shared/saveRules'
 import { seasonOf, semesterName, semesterOf, type SemesterView } from '@shared/semesters'
@@ -12,6 +13,7 @@ import {
   type GameSave,
   type PlaythroughRecord,
   type PlaythroughSummary,
+  type SaveSummary,
   type Season
 } from '@shared/types'
 import { ConfirmModal } from '../components/ConfirmModal'
@@ -27,7 +29,7 @@ import { MaskedFace } from '../components/Spoiler'
 import { typingIn, useWindowKeydown } from '../components/useWindowKeydown'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
-import { formatDateBanner } from '../prompts/gameDate'
+import { formatDateBanner, formatDatePart } from '../prompts/gameDate'
 import { GOODBYES_SAVE_LABEL } from '../prompts/graduation'
 import { profileUrl, useCharacterStore } from '../stores/characterStore'
 import { beginCrossing, coverSwap, endCrossing, useCrossingStore } from '../stores/crossingStore'
@@ -50,7 +52,7 @@ import {
   type ResolvedSave
 } from '../stores/saveStore'
 import { usePhotoStore } from '../stores/photoStore'
-import { prepareWayOn, saveChoice, type SaveChoice, type WayOn } from '../mods/hooks'
+import { canHoldSlot, prepareWayOn, saveChoice, type SaveChoice, type WayOn } from '../mods/hooks'
 import { entryCrossing, menuCrossing } from '../stores/slotCrossing'
 import { useUiStore } from '../stores/uiStore'
 import { saveThumbUrl } from './bgAssets'
@@ -138,12 +140,30 @@ function semesterOfSave(entry: ResolvedSave): SemesterView | null {
   }
 }
 
+/** The slot a save opens on, including a held night before its stored morning. */
+function saveDateBanner(save: Pick<SaveSummary, 'date' | 'time' | 'heldNight'>, season: Season): string {
+  return save.heldNight
+    ? `${formatDatePart(save.heldNight.date, season)}. Late night.`
+    : formatDateBanner(save.date, save.time, season)
+}
+
+/**
+ * A save as it will open: one taken on a held night opens on the morning after it while no mod
+ * can hold the night, so it is shown as that morning, without the night's stored picture.
+ */
+function openedSummary(summary: SaveSummary): SaveSummary {
+  if (!summary.heldNight || canHoldSlot()) return summary
+  const { heldNight: _night, thumbnail: _picture, ...morning } = summary
+  return morning
+}
+
 /**
  * A save as its card draws it: where it sits in its semester, when it was written, its gate;
  * the semester is named once the playthrough has more than one.
  */
 function cardOf(entry: ResolvedSave, sticker: string): SaveGridCard {
-  const { saveId, savedAt, summary, unloadable } = entry
+  const { saveId, savedAt, unloadable } = entry
+  const summary = entry.summary && openedSummary(entry.summary)
   const semester = semesterOfSave(entry)
   const season: Season = semester?.season ?? 'spring'
   const named =
@@ -158,11 +178,12 @@ function cardOf(entry: ResolvedSave, sticker: string): SaveGridCard {
     headline: summary
       ? summary.graduationSeen
         ? GOODBYES_SAVE_LABEL
-        : formatDateBanner(summary.date, summary.time, season)
+        : saveDateBanner(summary, season)
       : 'Unreadable save',
     meta: `${named}Saved ${writtenAtShort(savedAt)}`,
     reason: unloadable ? `Cannot load — ${unloadable}` : null,
-    thumbSrc: summary ? saveThumbUrl(summary) : null,
+    thumbSrc: summary ? saveThumbUrl(summary, Boolean(summary.heldNight && semester &&
+      weatherAt(semester.weather, summary.heldNight.date, summary.heldNight.time) !== 'clear')) : null,
     dead: Boolean(unloadable),
     deletable: true
   }
@@ -966,11 +987,7 @@ function PlaythroughRow({
               : 'New Game'
             : playthrough.enrolling
               ? 'Class registration'
-              : formatDateBanner(
-                playthrough.date,
-                playthrough.time,
-                seasonOf(playthrough.semesterIndex ?? 0)
-              )}
+              : saveDateBanner(playthrough, seasonOf(playthrough.semesterIndex ?? 0))}
       </span>
 
       {/* The faces stand where a list of their names would: recognised, not read. */}

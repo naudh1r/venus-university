@@ -978,6 +978,20 @@ describe('the threesome fold', () => {
  * projection and apply stop agreeing, the opening describes a girl the save then contradicts.
  */
 describe('projectLedger', () => {
+  it("keeps a held night's third-person memories on the day being settled", () => {
+    useGameStore.setState({ date: 8, chars: ['a'], charInfo: { a: charInfo() } })
+    const ledger: LedgerResponse = {
+      memories: [{ charKey: 'sarah_rose', type: 'liked', desc: 'the reader lent her notes' }],
+      textMemories: [{ charKey: 'sarah_rose', type: 'loved', desc: 'the reader texted after class' }]
+    }
+    const projected = projectLedger(useGameStore.getState().charInfo, ledger, 7)
+    applyLedger(ledger, 7)
+    const actual = useGameStore.getState().charInfo.a
+    expect(actual.memories).toEqual(projected.scene.a.memories)
+    expect(actual.memories[0]).toMatchObject({ date: 7, desc: 'the reader lent her notes' })
+    expect(actual.textMemory).toMatchObject({ date: 7, desc: 'the reader texted after class' })
+  })
+
   it('reaches exactly what the boundary will bank, for every kind of row at once', () => {
     useGameStore.setState({
       // A roster, so the dating pass the two seams share has somebody to fold over.

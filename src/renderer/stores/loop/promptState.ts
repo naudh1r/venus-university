@@ -1,3 +1,4 @@
+import { chatClockOf, shownConversation, shownMessages } from '@shared/chatVisibility'
 import { currentStorySnapshot } from '../storyMemory'
 import { BREAKTHROUGH_MOD } from '@shared/breakthrough'
 import { cityLifeBackgrounds } from '@shared/cityLife'
@@ -70,11 +71,17 @@ import { partsForAWhile } from './farewells'
 import { prefetchTextLedger } from './hooks'
 import { currentRun, runStale } from './state'
 
+import { ledgerMessages } from '@shared/textingThread'
+
 /** The projection of `gameStore` every prompt builder is written against. */
 
 /** The plans half of the ledger request, for the slot that just finished. */
 export function scheduleInput(date: number, time: TimeSlot): SchedulePromptInput {
   const game = useGameStore.getState()
+
+  const hold = game.interlude?.now
+  const night = hold?.clock === 'late-night' && hold.to.date === date && hold.to.time === time
+  const at = night ? hold.from : { date, time }
 
   const threads = Object.values(game.bunnyboard.conversations)
     // The hour's own company is not a correspondent, and neither is anyone he left on read.
@@ -89,7 +96,7 @@ export function scheduleInput(date: number, time: TimeSlot): SchedulePromptInput
         // Empty for the boss and Venus threads, whose ids are not charIds; the filter drops them.
         charKey: character ? charKeyOf(character.firstName, character.lastName) : '',
         firstName: character?.firstName ?? '',
-        messages: conversation.messages.filter((m) => m.date === date && m.time === time)
+        messages: ledgerMessages(shownMessages(conversation.messages, chatClockOf(game)), date, time, night)
       }
     })
     // Nor is a girl who reached out to him and was never answered.
@@ -101,8 +108,8 @@ export function scheduleInput(date: number, time: TimeSlot): SchedulePromptInput
     )
 
   return {
-    date,
-    time,
+    ...at,
+    ...(night ? { lateNight: true as const } : {}),
     season: game.calendar.season,
     threads,
     // Plans are made on campus: a graduate texts, but no plan can name her.
@@ -116,9 +123,9 @@ export function scheduleInput(date: number, time: TimeSlot): SchedulePromptInput
     ),
     // Only the plans still ahead.
     planned: game.events.filter(
-      (event) => globalSlotOf(event.date, event.time) > globalSlotOf(date, time)
+      (event) => globalSlotOf(event.date, event.time) > globalSlotOf(at.date, at.time)
     ),
-    timetable: timetableAhead(date, time)
+    timetable: timetableAhead(at.date, at.time)
   }
 }
 
@@ -410,9 +417,9 @@ export function promptState(): PromptState {
   for (const [charId, conversation] of Object.entries(game.bunnyboard.conversations)) {
     const character = game.characters[charId]
     if (!character) continue
-    if (hasTexted(conversation)) textedWith.push(charId)
+    if (hasTexted(shownConversation(conversation, chatClockOf(game)))) textedWith.push(charId)
     const lines = composeTextingSummary(
-      conversation,
+      shownConversation(conversation, chatClockOf(game)),
       game.charInfo[charId]?.ignoredInvitation === true,
       character,
       { date: game.date, time: game.time },
