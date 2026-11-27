@@ -39,6 +39,24 @@ export function ledgerMessages(
     !message.ledgered && (!night || message.late === true))
 }
 
+/**
+ * The reader's texts a slot's first reply answers, when they were sent in an earlier slot or
+ * already counted: a held reply lands a slot after its question. Context only, never judged again.
+ */
+export function ledgerContext(all: readonly ChatMessage[], taken: readonly ChatMessage[]): ChatMessage[] {
+  const first = taken.find(message => message.sender !== 'system')
+  // A reach-out or an ask starts something new: only a reply answers what came before it.
+  if (!first || first.sender !== 'contact' || first.reachOut || first.invite) return []
+  const context: ChatMessage[] = []
+  for (let i = all.indexOf(first) - 1; i >= 0; i--) {
+    const message = all[i]
+    if (message.sender === 'system') continue
+    if (message.sender !== 'player') break
+    context.unshift(message)
+  }
+  return context
+}
+
 /** Marks the exact messages a completed ledger took, leaving later arrivals unclaimed. */
 export function claimLedgerMessages(messages: readonly ChatMessage[], ids: ReadonlySet<string>): ChatMessage[] {
   return messages.map(message => ids.has(message.id) ? { ...message, ledgered: true } : message)
