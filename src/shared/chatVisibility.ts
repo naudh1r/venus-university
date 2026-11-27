@@ -39,15 +39,17 @@ export type Receipt = 'sent' | 'delivered' | 'read'
 /**
  * Each player message's receipt. `all` is the whole thread, held replies included; `shown` is the
  * part the phone shows now. A later contact message in `shown` reads it; one only in `all` is a
- * reply already written and held for later.
+ * reply already written and held for later. While the contact is `typing`, every text is read.
  */
 export function receiptsOf(
   all: readonly Pick<ChatMessage, 'id' | 'sender'>[],
-  shown: readonly Pick<ChatMessage, 'id' | 'sender'>[]
+  shown: readonly Pick<ChatMessage, 'id' | 'sender'>[],
+  typing = false
 ): Map<string, Receipt> {
   const visible = new Set(shown.map(message => message.id))
   const receipts = new Map<string, Receipt>()
-  let replied: Receipt = 'sent'
+  // A contact typing a reply has read every text before it.
+  let replied: Receipt = typing ? 'read' : 'sent'
   for (let i = all.length - 1; i >= 0; i--) {
     const { id, sender } = all[i]
     if (sender === 'contact' && replied !== 'read') replied = visible.has(id) ? 'read' : 'delivered'
