@@ -95,13 +95,10 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
 
-## 0.7.5
-
-- Two grey ticks mean their reply is written and waits until they're out.
-
 ## 0.7.4
 
-- Your texts show a sent tick, then two blue ticks when the reply appears.
+- Your texts show one grey tick once sent, two grey ticks when their reply is written and waits
+  until they're out, and two blue ticks when the reply arrives.
 
 ## 0.7.3
 
