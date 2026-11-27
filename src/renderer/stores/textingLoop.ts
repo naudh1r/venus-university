@@ -6,7 +6,7 @@ import { textingClockOf } from '@shared/textingClock'
  * turns an agreed hangout into a real scene.
  */
 
-import { formatDateBanner, nextSlot, prevSlot, shiftWeekdayOf } from '../prompts/gameDate'
+import { formatDateBanner, idleReplyUntil, nextSlot, prevSlot, shiftWeekdayOf, weekendSaturdayOf } from '../prompts/gameDate'
 import type {
   CalendarEvent,
   CharInfo,
@@ -114,6 +114,7 @@ import {
   type TimeSlot
 } from '@shared/types'
 import { useBunnyboardStore } from './bunnyboardStore'
+import { knownWhereabouts } from './whereabouts'
 import { useGameStore } from './gameStore'
 import { heldReplyDueAt, sharedReplyClass } from '@shared/heldReplies'
 import { threadStartedBy, waitingText } from '@shared/textingThread'
@@ -130,6 +131,7 @@ import {
   charClassNow,
   charCommitmentAt,
   charHiddenLocationNow,
+  charJobNow,
   charOverlayGroupNow,
   charStandingHauntAt,
   charStandingHauntNow,
@@ -560,9 +562,24 @@ export async function sendMessage(charId: string, text: string): Promise<void> {
   return sendText(charId, text)
 }
 
-/** Whether a mod has the contact asleep during the late-night hold. */
-export function contactAsleep(charId: string): boolean {
-  return useGameStore.getState().interlude?.now.clock === 'late-night' && asleepNow({ charId })
+/** Whether a mod has the contact away from the phone. */
+export function contactIdle(charId: string): boolean {
+  const game = useGameStore.getState()
+  const { date, time } = textingClockOf(game)
+  return asleepNow({ charId, date, time })
+}
+
+/** Supplies the opening's settled home contacts before any contact deliveries. */
+export function prepareContactIdle(openingEvents: readonly CalendarEvent[]): void {
+  const { date, time, events } = useGameStore.getState()
+  const plans = [...events, ...openingEvents]
+  const homeContacts = Object.freeze(knownWhereabouts(date, time).filter(({ charId, source, kind }) => {
+    if (source !== 'told' || kind !== 'room' || charJobNow(charId, date, time) !== null) return false
+    const host = charOverlayGroupNow(charId, date, time)?.host
+    return (!host || host === charId) && !plannedWith(charId, date, time, plans)
+  }).map(({ charId }) => charId))
+  const opening = Object.freeze({ weekend: weekendSaturdayOf(date) !== null, homeContacts })
+  for (const charId of homeContacts) asleepNow({ charId, date, time, opening })
 }
 
 /** Adds the player's message and starts the reply turn. */
@@ -589,24 +606,29 @@ async function sendText(charId: string, text: string): Promise<void> {
   if (!character) return
 
   const previousHold = conversation?.heldReply
-  const asleep = (previousHold?.asleep === true && !previousHold.opened) || contactAsleep(charId)
-  const morning = asleep ? game.interlude?.now.to : undefined
+  const pendingHold = previousHold?.opened ? undefined : previousHold
+  const night = game.interlude?.now.clock === 'late-night' ? game.interlude.now : null
+  const idleNow = contactIdle(charId)
+  const asleep = pendingHold?.asleep === true || (idleNow && night !== null)
+  const away = asleep ? undefined : pendingHold?.away ?? (idleNow ? game.time : undefined)
+  const idle = asleep || away !== undefined
   const firstText = previousHold && !previousHold.opened
     ? conversation?.messages.find(message => message.id === previousHold.firstPlayerId) : undefined
   const sentAt = firstText?.late ? prevSlot(firstText.date, firstText.time) : firstText
-  const commitment = asleep ? null : sentAt ? charCommitmentAt(charId, sentAt.date, sentAt.time)
+  const commitment = idle ? null : sentAt ? charCommitmentAt(charId, sentAt.date, sentAt.time)
     : game.interlude?.now.clock === 'late-night' ? null : charCommitmentAt(charId)
-  let held = morning ?? (previousHold && !previousHold.opened
-    ? previousHold.until
-    : commitment && textWhileBusy({ charId, commitment }) ? nextSlot(game.date, game.time) : undefined)
+  let held = idle
+    ? idleReplyUntil(game.date, game.time, night?.to ??
+      (pendingHold?.asleep || pendingHold?.away !== undefined ? pendingHold.until : undefined))
+    : pendingHold?.until ?? (commitment && textWhileBusy({ charId, commitment }) ? nextSlot(game.date, game.time) : undefined)
   const next = nextSlot(game.date, game.time)
-  const contactClass = held && !asleep && !charAwayNow(charId, next.date)
+  const contactClass = held && !idle && !charAwayNow(charId, next.date)
     ? charClassNow(charId, next.date, next.time) : null
   const sharedCode = held ? sharedReplyClass(contactClass ? { kind: 'class', code: contactClass } : null,
     playerClassNow(next.date, next.time)) : null
   // A photo is answered now, while its image can still be shown to her; a reply written after the
   // class would see only that a photo was sent.
-  const afterClass = held && !asleep
+  const afterClass = held && !idle
     ? previousHold?.afterClass ?? (sharedCode ? { ...next, code: sharedCode } : undefined) : undefined
   if (afterClass) held = nextSlot(afterClass.date, afterClass.time)
   if (held && previousHold) {
@@ -628,7 +650,8 @@ async function sendText(charId: string, text: string): Promise<void> {
       [charId]: { ...state.bunnyboard.conversations[charId], heldReply: {
         until: held, firstPlayerId: previousHold?.firstPlayerId ?? sent.id, messageIds: [],
         ...(afterClass ? { afterClass } : {}),
-        ...(asleep ? { asleep: true } : {})
+        ...(asleep ? { asleep: true } : {}),
+        ...(away === undefined ? {} : { away })
       } }
     } } }))
     game = useGameStore.getState()
@@ -653,7 +676,8 @@ async function sendText(charId: string, text: string): Promise<void> {
         ...textingState(game, charId),
         ...(held ? { heldUntil: held } : {}),
         ...(commitment && held ? { commitment } : {}),
-        ...(asleep ? { asleep: true } : {})
+        ...(asleep ? { asleep: true } : {}),
+        ...(away === undefined ? {} : { away })
       },
       // The same reader block a scene gets, grades and all.
       readerBlockOf({ ...game, ...textingClockOf(game) })
@@ -1929,7 +1953,7 @@ export function deliverSlotHangouts(
   for (const hangout of hangouts ?? []) {
     const game = useGameStore.getState()
     const charId = game.charKeyToId[hangout.char]
-    if (!charId || contactAsleep(charId)) continue
+    if (!charId || contactIdle(charId)) continue
 
     const text = hangout.text?.trim()
     const description = hangout.description?.trim()
@@ -2021,7 +2045,7 @@ export function deliverSlotReachOuts(
   for (const entry of reachOuts ?? []) {
     const game = useGameStore.getState()
     const charId = game.charKeyToId[entry.char]
-    if (!charId || contactAsleep(charId)) continue
+    if (!charId || contactIdle(charId)) continue
 
     // She can only text a number he has, and not one she has blocked him on.
     if (!isFeedContact(game.charInfo[charId])) continue
@@ -2055,7 +2079,7 @@ function deliverContactTexts(
   cap: number,
   reachOut = false
 ): number {
-  if (contactAsleep(charId)) return 0
+  if (contactIdle(charId)) return 0
   // A custom endpoint's JSON is not held to the schema, so a lone string is not a run of texts.
   const kept = (Array.isArray(texts) ? texts : [])
     .map((text) => (typeof text === 'string' ? text.trim() : ''))
@@ -2180,6 +2204,7 @@ function resumeHeldReply(chat: Conversation, atBoundary = false): Promise<void> 
   const character = game.characters[chat.charId]
   if (!character) return null
   const asleep = chat.heldReply?.asleep
+  const away = chat.heldReply?.away
   const afterClass = chat.heldReply?.afterClass
   if (afterClass && !atBoundary && !heldReplyDueAt(chat.heldReply, game.date, game.time)) return null
   const waitingIndex = chat.messages.indexOf(last)
@@ -2187,7 +2212,7 @@ function resumeHeldReply(chat: Conversation, atBoundary = false): Promise<void> 
   const first = afterClass ? messages.find(message => message.id === chat.heldReply?.firstPlayerId) : undefined
   const source = first ?? last
   const sentAt = source.late ? prevSlot(source.date, source.time) : source
-  const due = (afterClass || asleep) ? chat.heldReply!.until : nextSlot(sentAt.date, sentAt.time)
+  const due = (afterClass || asleep || away !== undefined) ? chat.heldReply!.until : nextSlot(sentAt.date, sentAt.time)
   const held = messageShown(due, game) ? { date: game.date, time: game.time } : due
   useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
     ...state.bunnyboard.conversations,
@@ -2196,6 +2221,7 @@ function resumeHeldReply(chat: Conversation, atBoundary = false): Promise<void> 
       heldReply: { until: held, firstPlayerId: chat.heldReply?.firstPlayerId ?? last.id, messageIds: [],
         ...(afterClass ? { afterClass } : {}),
         ...(asleep ? { asleep } : {}),
+        ...(away === undefined ? {} : { away }),
         ...(messageShown({ ...held, afterNight: asleep }, chatClockOf(game)) ? { opened: true as const } : {})
       } }
   } } }))
@@ -2207,8 +2233,8 @@ function resumeHeldReply(chat: Conversation, atBoundary = false): Promise<void> 
     : undefined
   const request = buildTextingPrompt(character, game.charInfo[chat.charId], conversation, last.text,
     { ...textingState(game, chat.charId), heldUntil: held,
-      commitment: asleep ? undefined : shared ? { kind: 'class', name: shared.name } : charCommitmentAt(chat.charId, sentAt.date, sentAt.time) ?? undefined,
-      ...(shared ? { sharedClass: shared } : {}), ...(asleep ? { asleep } : {}) }, readerBlockOf({ ...game, ...textingClockOf(game) }))
+      commitment: asleep || away !== undefined ? undefined : shared ? { kind: 'class', name: shared.name } : charCommitmentAt(chat.charId, sentAt.date, sentAt.time) ?? undefined,
+      ...(shared ? { sharedClass: shared } : {}), ...(asleep ? { asleep } : {}), ...(away === undefined ? {} : { away }) }, readerBlockOf({ ...game, ...textingClockOf(game) }))
   if (afterClass) {
     failedTurns.delete(chat.charId)
     useBunnyboardStore.getState().setTextFailed(chat.charId, false)

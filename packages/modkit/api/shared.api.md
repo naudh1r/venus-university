@@ -224,6 +224,7 @@ export interface Conversation {
     ex?: Record<string, ModSlice>;
     heldReply?: {
         asleep?: true;
+        away?: TimeSlot;
         afterClass?: {
             date: number;
             time: TimeSlot;

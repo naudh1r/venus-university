@@ -197,6 +197,7 @@ import {
   deliverSlotBreakups,
   deliverSlotHangouts,
   deliverSlotReachOuts,
+  prepareContactIdle,
   deliverSpringBreakTexts,
   deliverHomecomingTexts,
   deliverVenusColdTip,
@@ -656,6 +657,7 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
   if (playback) await chooseOpeningRoom(playback)
   if (runStale(run)) return
   const ready = useGameStore.getState()
+  prepareContactIdle(opening.events)
   openChatSlot()
   ready.appendPendingLines(lines)
   ready.setWaitingForLine(false)

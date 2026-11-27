@@ -513,8 +513,14 @@ export interface ModHooks {
   statusWords?: () => boolean
   /** Shows every contact's status light beside their name in the Chats list. */
   chatListLights?: () => boolean
-  /** Whether this contact sleeps through the current late-night hold. */
-  asleepNow?: (ctx: { charId: string }) => boolean
+  /** Whether the contact is idle and replies at the next landing. */
+  asleepNow?: (ctx: {
+    charId: string
+    date: number
+    time: TimeSlot
+    /** Present at an ordinary slot's opening, before contact deliveries. */
+    opening?: { weekend: boolean; homeContacts: readonly string[] }
+  }) => boolean
   /** Opens only the timetable gate on the contact's composer. */
   textWhileBusy?: (ctx: { charId: string; commitment: Commitment }) => boolean
   /** After her reply in a DM has landed. */
@@ -1529,16 +1535,20 @@ export function readReceipts(): boolean {
   return false
 }
 
-/** Asks which contacts are sleeping only when the current interlude is late night. */
-export function asleepNow(ctx: { charId: string }): boolean {
+/** Asks whether a contact is idle, letting every mod see an opening snapshot. */
+export function asleepNow(ctx: Parameters<NonNullable<ModHooks['asleepNow']>>[0]): boolean {
+  let idle = false
   for (const { modId, hooks } of activeEntries()) {
     try {
-      if (hooks.asleepNow?.(ctx) === true) return true
+      if (hooks.asleepNow?.(ctx) === true) {
+        if (!ctx.opening) return true
+        idle = true
+      }
     } catch (error) {
       console.warn(`[mods] ${modId}: asleepNow failed`, error)
     }
   }
-  return false
+  return idle
 }
 
 /** Whether an enabled mod wants the phone to warn before accepting a meet-up. */

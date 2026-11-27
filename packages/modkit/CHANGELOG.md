@@ -6,8 +6,9 @@
 
 - `chatListLights` shows every contact's status light in the Chats list.
 
-- `asleepNow` lets a renderer mod mark contacts idle during a late-night hold. Their DM replies
-  are written immediately and shown on the morning landing. The DM prompt state exposes `asleep`.
+- `asleepNow` also lets a renderer mod mark contacts idle in ordinary slots, with an opening
+  snapshot of contacts in their own rooms and free of shifts and plans. The DM prompt state
+  exposes `away` for a reply held to the next landing and `asleep` for a reply held through the night.
 
 - `readReceipts` opts into sent, delivered and read ticks for the player's phone messages. They
   follow the reply, written and held or shown, and add no saved data.
