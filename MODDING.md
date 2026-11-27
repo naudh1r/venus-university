@@ -1432,7 +1432,7 @@ follow-up, excluding the closing cast. The entries carry `charId` and `descripti
 
 `readReceipts()` opts into receipt ticks for the player's ordinary text bubbles: one grey tick
 while no reply is written, two grey ticks while a written reply is held for a later slot, and two
-blue ticks once the contact starts typing or a later contact message shows. The game saves no receipt state.
+blue ticks once a reply for now is being written (the request is out) or a later contact message shows. The game saves no receipt state.
 
 `warnBeforeMeetup()` opts into the native commitment confirm on the phone's Yes. With no
 commitment, Yes proceeds immediately. Landing buttons, including planned events, go ahead directly.
