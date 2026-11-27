@@ -71,9 +71,17 @@ import { partsForAWhile } from './farewells'
 import { prefetchTextLedger } from './hooks'
 import { currentRun, runStale } from './state'
 
-import { ledgerMessages } from '@shared/textingThread'
+import { ledgerContext, ledgerMessages } from '@shared/textingThread'
+import type { ChatMessage } from '@shared/types'
 
 /** The projection of `gameStore` every prompt builder is written against. */
+
+/** A thread's messages for the ledger, with the earlier texts its first reply answers. */
+function threadOf(shown: readonly ChatMessage[], date: number, time: TimeSlot, night: boolean) {
+  const messages = ledgerMessages(shown, date, time, night)
+  const context = ledgerContext(shown, messages)
+  return { messages, ...(context.length > 0 ? { context } : {}) }
+}
 
 /** The plans half of the ledger request, for the slot that just finished. */
 export function scheduleInput(date: number, time: TimeSlot): SchedulePromptInput {
@@ -96,7 +104,7 @@ export function scheduleInput(date: number, time: TimeSlot): SchedulePromptInput
         // Empty for the boss and Venus threads, whose ids are not charIds; the filter drops them.
         charKey: character ? charKeyOf(character.firstName, character.lastName) : '',
         firstName: character?.firstName ?? '',
-        messages: ledgerMessages(shownMessages(conversation.messages, chatClockOf(game)), date, time, night)
+        ...threadOf(shownMessages(conversation.messages, chatClockOf(game)), date, time, night)
       }
     })
     // Nor is a girl who reached out to him and was never answered.

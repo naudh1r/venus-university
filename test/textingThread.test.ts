@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatMessage } from '@shared/types'
-import { claimLedgerMessages, ledgerMessages, threadStartedBy, waitingText } from '@shared/textingThread'
+import { claimLedgerMessages, ledgerContext, ledgerMessages, threadStartedBy, waitingText } from '@shared/textingThread'
 
 describe('who opened a slot\'s DM thread, which decides whether a mod may drop her hangout', () => {
   it('reads the first non-system sender in this slot only', () => {
@@ -51,5 +51,23 @@ describe('claiming a held night for its texting ledger', () => {
     expect(ledgerMessages(claimed, 8, 0, true)).toEqual([])
     expect(ledgerMessages(claimed, 7, 1)).toEqual([earlier])
     expect(messages[1].ledgered).toBeUndefined()
+  })
+})
+
+describe('the earlier texts a held reply answers', () => {
+  const at = (id: string, sender: ChatMessage['sender'], time: 0 | 1, extra: Partial<ChatMessage> = {}): ChatMessage =>
+    ({ id, sender, text: id, date: 8, time, ...extra })
+
+  it('gives the slot the question its first reply answers, already counted, as context only', () => {
+    const asked = at('asked', 'player', 0, { late: true, ledgered: true })
+    const reply = at('reply', 'contact', 0)
+    const all = [at('older', 'contact', 0, { ledgered: true }), asked, at('note', 'system', 0), reply]
+    expect(ledgerMessages(all, 8, 0).map(m => m.id)).toEqual(['note', 'reply'])
+    expect(ledgerContext(all, ledgerMessages(all, 8, 0)).map(m => m.id)).toEqual(['asked'])
+  })
+
+  it('adds nothing when the slot opens on the reader', () => {
+    const all = [at('asked', 'player', 0, { ledgered: true }), at('again', 'player', 1), at('reply', 'contact', 1)]
+    expect(ledgerContext(all, ledgerMessages(all, 8, 1))).toEqual([])
   })
 })

@@ -60,6 +60,8 @@ export interface SchedulePromptInput {
     charKey: string
     firstName: string
     messages: readonly ChatMessage[]
+    /** The reader's earlier texts the first message answers, shown but already counted. */
+    context?: readonly ChatMessage[]
   }>
   /** The on-campus roster, keyed by charId — the keys `chars` may name. */
   characters: Record<string, Character>
@@ -293,11 +295,16 @@ function scheduleRosterLines(characters: Record<string, Character>): string[] {
 /** The messages sent this slot, one block per character. */
 function threadBlocks(input: SchedulePromptInput): string[] {
   const lines: string[] = []
-  for (const { firstName, messages } of input.threads) {
+  for (const { firstName, messages, context } of input.threads) {
     if (messages.length === 0) continue
     // Blank line between blocks only; the first sits flush against the caller's header.
     if (lines.length > 0) lines.push('')
-    lines.push(`— texts with ${firstName} —`, ...stampedStubs(messages, firstName, input.season))
+    lines.push(`— texts with ${firstName} —`)
+    // A held reply's question, sent before this part of the day: read it, but count only what follows.
+    if (context && context.length > 0) {
+      lines.push('(earlier, already counted — context only)', ...stampedStubs(context, firstName, input.season), '(this part of the day)')
+    }
+    lines.push(...stampedStubs(messages, firstName, input.season))
   }
   return lines
 }
