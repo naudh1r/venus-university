@@ -1152,10 +1152,16 @@ export interface Conversation {
   /** Rolling recap of the texting so far — prior summary + recent messages, merged. */
   summary: string | null
   /**
-   * Her unanswered ask-out; judged at the next slot boundary if still up. `occasionId` is the
-   * occasion she asked him to, when she asked him to one, so a decline is filed against it.
+   * A meet-up awaiting the reader's answer, with an occasion on contact invitations where relevant.
+   * A reader-owned meet-up can also record a follow-up after dismissal.
    */
-  pendingHangout?: { description: string; dismissed?: boolean; occasionId?: string }
+  pendingHangout?: {
+    description: string
+    dismissed?: boolean
+    occasionId?: string
+    mine?: true
+    followedUp?: true
+  }
   /**
    * Her vent about her partner, or her question about her crush, standing its three answers
    * under her thread until he picks one; `answer` is the pick the slot's ending acts on. Gone at

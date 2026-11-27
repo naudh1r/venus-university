@@ -269,7 +269,7 @@ function hangoutTail(
   const last = messages[messages.length - 1]
   if (!last) return null
   if (last.sender === 'contact') {
-    if (last.invite || conversation.pendingHangout) return { ask: last }
+    if (last.invite || (conversation.pendingHangout && !conversation.pendingHangout.mine)) return { ask: last }
     const reachOut = unansweredReachOuts(messages).at(-1)
     if (!reachOut) return null
     const fromSlot = messageSlotOf(reachOut)

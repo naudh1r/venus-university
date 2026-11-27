@@ -197,6 +197,8 @@ export interface SlotSettled {
   before: ReturnType<typeof useGameStore.getState>
   ledger: LedgerResponse | null
   closingCast: readonly Character[]
+  /** Player-owned meet-up footers left unanswered or dismissed without a follow-up. */
+  ownMeetupsLapsed: readonly { charId: string; description: string }[]
 }
 
 /** A read-only preview of the finished scene, before the crush roll and next opening. */
@@ -501,7 +503,11 @@ export interface ModHooks {
   }) => void
   /** Return false to skip the immediate-meetup classifier for this exchange. */
   hangoutCheck?: (ctx: { charId: string; startedBy: 'reader' | 'her' }) => boolean
-  /** Opens only the timetable gate on her composer. */
+  /** Gives a reader-initiated meetup a Yes/No footer. */
+  ownMeetupAsks?: (ctx: { charId: string; description: string }) => boolean
+  /** Warns about a current commitment before accepting a meetup on the phone. */
+  warnBeforeMeetup?: () => boolean
+  /** Opens only the timetable gate on the contact's composer. */
   textWhileBusy?: (ctx: { charId: string; commitment: Commitment }) => boolean
   /** After her reply in a DM has landed. */
   afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void
@@ -1467,7 +1473,31 @@ export function saveNotes(scene: Readonly<ModSceneFields>): string[] {
   })
 }
 
-/** Any enabled mod may open a composer's timetable gate. */
+/** Whether an enabled mod wants a Yes/No footer for a player-owned meetup. */
+export function ownMeetupAsks(ctx: { charId: string; description: string }): boolean {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.ownMeetupAsks?.(ctx) === true) return true
+    } catch (error) {
+      console.warn(`[mods] ${modId}: ownMeetupAsks failed`, error)
+    }
+  }
+  return false
+}
+
+/** Whether an enabled mod wants the phone to warn before accepting a meet-up. */
+export function warnBeforeMeetup(): boolean {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.warnBeforeMeetup?.() === true) return true
+    } catch (error) {
+      console.warn(`[mods] ${modId}: warnBeforeMeetup failed`, error)
+    }
+  }
+  return false
+}
+
+/** Whether an enabled mod lets the reader text a busy contact. */
 export function textWhileBusy(ctx: { charId: string; commitment: Commitment }): boolean {
   for (const { modId, hooks } of activeEntries()) {
     try {

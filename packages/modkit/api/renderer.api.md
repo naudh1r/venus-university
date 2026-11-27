@@ -582,6 +582,10 @@ export interface ModHooks {
     }) => OpeningLook | null;
     optionControls?: Record<string, ComponentType<OptionControlProps>>;
     optionPreviews?: Record<string, ComponentType<OptionPreviewProps>>;
+    ownMeetupAsks?: (ctx: {
+        charId: string;
+        description: string;
+    }) => boolean;
     panelLayer?: ComponentType<ScreenSlotProps['panelLayer']>;
     phoneOverlay?: ComponentType<ScreenSlotProps['phoneOverlay']>;
     photosPageSection?: ComponentType<ScreenSlotProps['photosPageSection']>;
@@ -653,6 +657,7 @@ export interface ModHooks {
         commitment: Commitment;
     }) => boolean;
     updatesTab?: UpdatesTab;
+    warnBeforeMeetup?: () => boolean;
 }
 
 // @public
@@ -695,6 +700,12 @@ export function noNsfwImages(): boolean;
 
 // @public
 export const noteIn: Variants;
+
+// @public
+export function noteInThread(charId: string, text: string, at?: {
+    date: number;
+    time: TimeSlot;
+}): void;
 
 // @public
 export const npcRelationships: () => Readonly<NpcRelationshipMap> | undefined;
@@ -1563,6 +1574,10 @@ export interface SlotSettled {
     closingCast: readonly Character[];
     // (undocumented)
     ledger: LedgerResponse | null;
+    ownMeetupsLapsed: readonly {
+        charId: string;
+        description: string;
+    }[];
 }
 
 // @public

@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import { readerPronounsOf, type ReaderPronouns } from '@shared/gender'
-import type { AppError } from '@shared/types'
+import type { AppError, TimeSlot } from '@shared/types'
 import { busGain, volumesOf } from '@shared/audio'
 import { BUILD, modNames, modsOn } from '@shared/mods'
 import { useModsStore } from '../stores/modsStore'
@@ -65,6 +65,19 @@ export function useGameFacts(): GameFacts {
   const readerName = useGameStore((state) => state.playerFirstName)
   const readerPronouns = useGameStore(readerPronounsOf)
   return useMemo(() => ({ playthroughId, readerName, readerPronouns }), [playthroughId, readerName, readerPronouns])
+}
+
+/** Appends a quiet system note to a loaded character's thread. */
+export function noteInThread(charId: string, text: string, at?: { date: number; time: TimeSlot }): void {
+  const game = useGameStore.getState()
+  if (!game.playthroughId || !game.characters[charId] || !text.trim()) return
+  game.appendChatMessage(charId, {
+    id: crypto.randomUUID(),
+    sender: 'system',
+    text,
+    date: at?.date ?? game.date,
+    time: at?.time ?? game.time
+  }, 0, at !== undefined)
 }
 
 /** The cast-scene persona the player has stored, or undefined until settings are read or when none is stored. */

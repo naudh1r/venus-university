@@ -1233,7 +1233,7 @@ interface GameStoreState {
    * Appends one Bunnyboard message, creating the conversation on first use.
    * `unreadDelta` is 1 for a message that should light the badge, 0 otherwise.
    */
-  appendChatMessage: (charId: string, message: ChatMessage, unreadDelta: number) => void
+  appendChatMessage: (charId: string, message: ChatMessage, unreadDelta: number, keepStamp?: boolean) => void
   /** Takes one message out of a conversation by id; the unread count is left alone. */
   removeChatMessage: (charId: string, messageId: string) => void
   /** The player opened the conversation — its unread count clears. */
@@ -3143,10 +3143,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       return { charInfo }
     }),
 
-  appendChatMessage: (charId, message, unreadDelta) =>
+  appendChatMessage: (charId, message, unreadDelta, keepStamp) =>
     set((state) => patchConversation(state, charId, (chat) => {
       const held = chat.heldReply
-      let stamped = state.interlude?.now.clock === 'late-night'
+      let stamped = !keepStamp && state.interlude?.now.clock === 'late-night'
         ? { ...message, date: state.date, time: state.time, late: true as const } : message
       if (held && !held.opened && message.sender === 'contact' && !message.error) {
         stamped = { ...message, ...held.until }

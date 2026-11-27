@@ -1275,6 +1275,8 @@ else names it.
 | `relaxRows` | `GameView.tsx` | Add rows under Relax; each calls its handler, then runs the normal Relax flow |
 | `interludeSettled` | `gameLoop.ts` | Observe the held night's applied texting ledger before its opening and save, while the hold stands |
 | `interludePreview` | `slotCrossing.ts` | Say, without writing anything, that the coming slot will be held on the finished one's look, so the boundary's curtain announces that slot (`{ at: 'from' }`) |
+| `ownMeetupAsks` | `textingLoop.ts` | Return true to ask Yes/No before arming a reader-initiated meetup |
+| `warnBeforeMeetup` | `BunnyboardModal.tsx` | Return true to warn about a current class, assessment or shift before the phone's Yes |
 | `hangoutCheck` | `textingLoop.ts` | Return false before the immediate-meetup classifier to skip the call and its result |
 | `afterDmReply` | `textingLoop.ts` | Act after her reply in a DM has landed |
 | `afterSceneReply` | `loop/turn.ts` | Read a landed scene reply as the model wrote it, fields a mod asked for included. A turn's reply only: a scene's closing reply is not handed over |
@@ -1420,6 +1422,17 @@ the same Relax line, wait and boundary. A failing row-producing hook is logged a
 
 While any interlude holds, core skips the immediate-meetup classifier without asking
 `hangoutCheck`. It cannot arm a hangout. Plans for another slot work normally.
+
+`ownMeetupAsks({ charId, description })` offers a Yes/No footer for a meetup the reader started.
+The footer is marked `mine` and does not count as a contact invitation. A text sent after No marks
+a follow-up. `slotSettled.ownMeetupsLapsed` lists the unanswered or dismissed reader offers without
+follow-up, excluding the closing cast. The entries carry `charId` and `description`.
+
+`warnBeforeMeetup()` opts into the native commitment confirm on the phone's Yes. With no
+commitment, Yes proceeds immediately. Landing buttons, including planned events, go ahead directly.
+
+`noteInThread(charId, text, at?)` (`renderer`) appends a quiet system message to a character's thread
+without increasing unread. Pass `{ date, time }` to stamp it at a specific slot, or omit it for now.
 
 `hangoutCheck({ charId, startedBy })` runs before every immediate-meetup classification,
 including a regenerated reply's plan check. `startedBy` is `'reader'` or `'her'`, from the
