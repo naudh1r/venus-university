@@ -118,7 +118,9 @@ export interface TextingPromptState {
   time: TimeSlot
   /** The night the held boundary displays, while texts keep the current slot. */
   lateNight?: { date: number; time: TimeSlot }
-  /** The reply is composed now for delivery after this commitment. */
+  /** The contact went to sleep and replies after the night. */
+  asleep?: true
+  /** The slot when the reply can reach the reader. */
   heldUntil?: { date: number; time: TimeSlot }
   commitment?: import('./slotIntroPrompt').Commitment
   /** Her shared class has ended, with the reader's attendance read from its class record. */
@@ -416,7 +418,9 @@ export function buildTextingPrompt(
   const gender = genderOf(character)
   const p = pronounsOf(character)
   // The reader is named outright where the reader's pronoun would read as hers.
-  const readerHim = readerWords(state.readerPronouns, gender).him
+  const readerPronoun = readerWords(state.readerPronouns, gender)
+  const readerHim = readerPronoun.him
+  const be = p.they === 'they' ? 'are' : 'is'
   // Off campus: away for the break, or graduated and gone from Veridan but for Homecoming.
   const visiting = state.homecomingVisitor === character.charId
   const away =
@@ -600,9 +604,9 @@ export function buildTextingPrompt(
     ...(state.heldUntil ? [] : state.lateNight ? [`${name} is ${info?.pursuing !== undefined ? 'at home' : `in ${p.their} dorm room`} for the night.`]
       : whereSheIs(character, state.charLocation, state.charCompanions, state.charHaunt, state.time)),
     '',
-    ...(state.heldUntil && !state.sharedClass ? [`The reader is texting ${name} while she is ${state.commitment?.kind === 'class' ? `in ${state.commitment.name}` : `working at ${state.commitment?.kind === 'shift' ? state.commitment.employer : 'her job'}`}. Write the reply she will send once she is out; she is not answering during her commitment.`] : []),
+    ...(state.heldUntil && !state.sharedClass && !state.asleep ? [`The reader is texting ${name} while ${p.they} ${be} ${state.commitment?.kind === 'class' ? `in ${state.commitment.name}` : `working at ${state.commitment?.kind === 'shift' ? state.commitment.employer : `${p.their} job`}`}. Write the reply ${p.they} will send once ${p.they} ${be} out. ${p.They} ${be} not answering during ${p.their} commitment.`] : []),
     ...(state.sharedClass ? [
-      `${name} has just finished ${state.sharedClass.name}. The reader ${state.sharedClass.attended ? 'attended that class' : 'did not attend that class'}. Her reply can follow up on that and all the messages he sent while she was busy.`
+      `${name} has just finished ${state.sharedClass.name}. The reader ${state.sharedClass.attended ? 'attended that class' : 'did not attend that class'}. ${p.Their} reply can follow up on that and all the messages ${readerPronoun.he} sent while ${p.they} ${p.they === 'they' ? 'were' : 'was'} busy.`
     ] : []),
     ...lore,
     ...(summary ? ['TEXTING SO FAR', '"' + summary + '"', ''] : []),

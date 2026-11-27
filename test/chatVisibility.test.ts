@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import type { Conversation } from '../src/shared/types'
-import { messageShown, receiptsOf, shownMessages, unreadAfterOpening } from '../src/shared/chatVisibility'
+import { heldReplyShown, messageShown, receiptsOf, shownMessages, unreadAfterOpening } from '../src/shared/chatVisibility'
 
 describe('held message visibility', () => {
+  it('holds a sleep reply until the morning landing without delaying other replies', () => {
+    const morning = { date: 8, time: 0 as const }
+    const night = { ...morning, night: true as const }
+    const reply = { ...morning, afterNight: true as const }
+    const hold = { until: morning, firstPlayerId: 'player', messageIds: ['reply'], asleep: true as const }
+    expect(shownMessages([morning, reply], night)).toEqual([morning])
+    expect(heldReplyShown(hold, night)).toBe(false)
+    expect(shownMessages([morning, reply], morning)).toEqual([morning, reply])
+    expect(heldReplyShown(hold, morning)).toBe(true)
+    expect(messageShown(reply, { date: 9, time: 0, night: true })).toBe(true)
+  })
+
   it('leaves hidden messages out of a thread projection', () => {
     const earlier = { date: 7, time: 1 as const }
     const future = { date: 8, time: 0 as const }

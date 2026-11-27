@@ -1,4 +1,4 @@
-import { chatClockOf, messageShown, shownConversation, shownMessages, unreadAfterOpening, type ChatClock } from '@shared/chatVisibility'
+import { chatClockOf, heldReplyShown, messageShown, shownConversation, shownMessages, unreadAfterOpening, type ChatClock } from '@shared/chatVisibility'
 import { textingClockOf } from '@shared/textingClock'
 import { currentStorySnapshot } from './storyMemory'
 import { BREAKTHROUGH_MOD } from '@shared/breakthrough'
@@ -124,7 +124,7 @@ import { useBunnyboardStore } from './bunnyboardStore'
 import { useGameStore } from './gameStore'
 import { heldReplyDueAt, sharedReplyClass } from '@shared/heldReplies'
 import { threadStartedBy, waitingText } from '@shared/textingThread'
-import { afterDmReply, afterReachOut, dmReplyLead, hangoutCheck, ownMeetupAsks, textWhileBusy, promptTextEdits } from '../mods/hooks'
+import { afterDmReply, afterReachOut, asleepNow, dmReplyLead, hangoutCheck, ownMeetupAsks, textWhileBusy, promptTextEdits } from '../mods/hooks'
 import { INCOMING_TEXTS, OUTGOING_IMAGE_STORAGE_MOD } from '@shared/modEntries/incoming-texts'
 import { lorebookNow } from './lorebookStore'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
@@ -568,13 +568,18 @@ export async function sendMessage(charId: string, text: string): Promise<void> {
   return sendText(charId, text, false)
 }
 
+/** Whether a mod has the contact asleep during the late-night hold. */
+export function contactAsleep(charId: string): boolean {
+  return useGameStore.getState().interlude?.now.clock === 'late-night' && asleepNow({ charId })
+}
+
 /** A writing direction requests her texts without adding a player message. */
 export async function sendIncomingMessage(charId: string, direction: string): Promise<void> {
   const game = useGameStore.getState()
   const ui = useBunnyboardStore.getState()
   if (
     !modIsOn(INCOMING_TEXTS) || sceneActiveOf(game) || epilogueOf(game) ||
-    charBusyNow(charId) || game.charInfo[charId]?.flags.blocked ||
+    charBusyNow(charId) || contactAsleep(charId) || game.charInfo[charId]?.flags.blocked ||
     !game.bunnyboard.conversations[charId] || ui.armedHangout ||
     ui.busyCharIds.includes(charId) || failedTurns.has(charId)
   ) return
@@ -653,22 +658,24 @@ async function sendText(
   if (!character) return
 
   const previousHold = conversation?.heldReply
+  const asleep = (previousHold?.asleep === true && !previousHold.opened) || contactAsleep(charId)
+  const morning = asleep ? game.interlude?.now.to : undefined
   const firstText = previousHold && !previousHold.opened
     ? conversation?.messages.find(message => message.id === previousHold.firstPlayerId) : undefined
   const sentAt = firstText?.late ? prevSlot(firstText.date, firstText.time) : firstText
-  const commitment = sentAt ? charCommitmentAt(charId, sentAt.date, sentAt.time)
+  const commitment = asleep ? null : sentAt ? charCommitmentAt(charId, sentAt.date, sentAt.time)
     : game.interlude?.now.clock === 'late-night' ? null : charCommitmentAt(charId)
-  let held = incoming ? undefined : (previousHold && !previousHold.opened
+  let held = incoming ? undefined : morning ?? (previousHold && !previousHold.opened
     ? previousHold.until
     : commitment && textWhileBusy({ charId, commitment }) ? nextSlot(game.date, game.time) : undefined)
   const next = nextSlot(game.date, game.time)
-  const herClass = held && !charAwayNow(charId, next.date)
+  const contactClass = held && !asleep && !charAwayNow(charId, next.date)
     ? charClassNow(charId, next.date, next.time) : null
-  const sharedCode = held ? sharedReplyClass(herClass ? { kind: 'class', code: herClass } : null,
+  const sharedCode = held ? sharedReplyClass(contactClass ? { kind: 'class', code: contactClass } : null,
     playerClassNow(next.date, next.time)) : null
   // A photo is answered now, while its image can still be shown to her; a reply written after the
   // class would see only that a photo was sent.
-  const afterClass = held
+  const afterClass = held && !asleep
     ? previousHold?.afterClass ?? (sharedCode ? { ...next, code: sharedCode } : undefined) : undefined
   if (afterClass) held = nextSlot(afterClass.date, afterClass.time)
   if (held && previousHold) {
@@ -690,7 +697,8 @@ async function sendText(
       ...state.bunnyboard.conversations,
       [charId]: { ...state.bunnyboard.conversations[charId], heldReply: {
         until: held, firstPlayerId: previousHold?.firstPlayerId ?? sent.id, messageIds: [],
-        ...(afterClass ? { afterClass } : {})
+        ...(afterClass ? { afterClass } : {}),
+        ...(asleep ? { asleep: true } : {})
       } }
     } } }))
     game = useGameStore.getState()
@@ -711,7 +719,12 @@ async function sendText(
       game.charInfo[charId],
       conversation,
       incoming ? '' : trimmed,
-      { ...textingState(game, charId), ...(held ? { heldUntil: held, ...(commitment ? { commitment } : {}) } : {}) },
+      {
+        ...textingState(game, charId),
+        ...(held ? { heldUntil: held } : {}),
+        ...(commitment && held ? { commitment } : {}),
+        ...(asleep ? { asleep: true } : {})
+      },
       // The same reader block a scene gets, grades and all.
       readerBlockOf({ ...game, ...textingClockOf(game) }),
       incoming ? trimmed : undefined,
@@ -2082,7 +2095,7 @@ export function deliverSlotHangouts(
   for (const hangout of hangouts ?? []) {
     const game = useGameStore.getState()
     const charId = game.charKeyToId[hangout.char]
-    if (!charId) continue
+    if (!charId || contactAsleep(charId)) continue
 
     const text = hangout.text?.trim()
     const description = hangout.description?.trim()
@@ -2174,7 +2187,7 @@ export function deliverSlotReachOuts(
   for (const entry of reachOuts ?? []) {
     const game = useGameStore.getState()
     const charId = game.charKeyToId[entry.char]
-    if (!charId) continue
+    if (!charId || contactAsleep(charId)) continue
 
     // She can only text a number he has, and not one she has blocked him on.
     if (!isFeedContact(game.charInfo[charId])) continue
@@ -2208,6 +2221,7 @@ function deliverContactTexts(
   cap: number,
   reachOut = false
 ): number {
+  if (contactAsleep(charId)) return 0
   // A custom endpoint's JSON is not held to the schema, so a lone string is not a run of texts.
   const kept = (Array.isArray(texts) ? texts : [])
     .map((text) => (typeof text === 'string' ? text.trim() : ''))
@@ -2275,7 +2289,7 @@ export function releaseHeldReplies(): void {
   const game = useGameStore.getState()
   for (const chat of Object.values(game.bunnyboard.conversations)) {
     const held = chat.heldReply
-    if (!held || !messageShown(held.until, chatClockOf(game))) continue
+    if (!held || !heldReplyShown(held, chatClockOf(game))) continue
     const pending = chat.messages.some(message => message.awaitingReply)
     const { heldReply: _held, ...rest } = chat
     useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
@@ -2293,7 +2307,8 @@ export function releaseHeldReplies(): void {
 /** A slot's messages become available at its landing, or at an interlude held before it. */
 export function openChatSlot(): void {
   const game = useGameStore.getState()
-  const clock = { date: game.date, time: game.time }
+  const clock: ChatClock = { date: game.date, time: game.time,
+    ...(game.interlude?.now.clock === 'late-night' ? { night: true } : {}) }
   const before = chatClockOf(game)
   const conversations = Object.fromEntries(Object.entries(game.bunnyboard.conversations).map(([id, chat]) => {
     const unread = unreadAfterOpening(chat, before, clock)
@@ -2330,6 +2345,7 @@ function resumeHeldReply(chat: Conversation, atBoundary = false): Promise<void> 
   if (!last || inFlight.has(chat.charId)) return null
   const character = game.characters[chat.charId]
   if (!character) return null
+  const asleep = chat.heldReply?.asleep
   const afterClass = chat.heldReply?.afterClass
   if (afterClass && !atBoundary && !heldReplyDueAt(chat.heldReply, game.date, game.time)) return null
   const waitingIndex = chat.messages.indexOf(last)
@@ -2337,7 +2353,7 @@ function resumeHeldReply(chat: Conversation, atBoundary = false): Promise<void> 
   const first = afterClass ? messages.find(message => message.id === chat.heldReply?.firstPlayerId) : undefined
   const source = first ?? last
   const sentAt = source.late ? prevSlot(source.date, source.time) : source
-  const due = afterClass ? chat.heldReply!.until : nextSlot(sentAt.date, sentAt.time)
+  const due = (afterClass || asleep) ? chat.heldReply!.until : nextSlot(sentAt.date, sentAt.time)
   const held = messageShown(due, game) ? { date: game.date, time: game.time } : due
   useGameStore.setState(state => ({ bunnyboard: { ...state.bunnyboard, conversations: {
     ...state.bunnyboard.conversations,
@@ -2345,7 +2361,8 @@ function resumeHeldReply(chat: Conversation, atBoundary = false): Promise<void> 
       messages: messages.filter(message => !chat.heldReply?.messageIds.includes(message.id)),
       heldReply: { until: held, firstPlayerId: chat.heldReply?.firstPlayerId ?? last.id, messageIds: [],
         ...(afterClass ? { afterClass } : {}),
-        ...(messageShown(held, chatClockOf(game)) ? { opened: true as const } : {})
+        ...(asleep ? { asleep } : {}),
+        ...(messageShown({ ...held, afterNight: asleep }, chatClockOf(game)) ? { opened: true as const } : {})
       } }
   } } }))
   const conversation = { ...useGameStore.getState().bunnyboard.conversations[chat.charId], messages: [...shownMessages(messages.filter(message => message.id !== last.id && !chat.heldReply?.messageIds.includes(message.id)), chatClockOf(game))] }
@@ -2356,8 +2373,8 @@ function resumeHeldReply(chat: Conversation, atBoundary = false): Promise<void> 
     : undefined
   const request = buildTextingPrompt(character, game.charInfo[chat.charId], conversation, last.text,
     { ...textingState(game, chat.charId), heldUntil: held,
-      commitment: shared ? { kind: 'class', name: shared.name } : charCommitmentAt(chat.charId, sentAt.date, sentAt.time) ?? undefined,
-      ...(shared ? { sharedClass: shared } : {}) }, readerBlockOf({ ...game, ...textingClockOf(game) }))
+      commitment: asleep ? undefined : shared ? { kind: 'class', name: shared.name } : charCommitmentAt(chat.charId, sentAt.date, sentAt.time) ?? undefined,
+      ...(shared ? { sharedClass: shared } : {}), ...(asleep ? { asleep } : {}) }, readerBlockOf({ ...game, ...textingClockOf(game) }))
   if (afterClass) {
     failedTurns.delete(chat.charId)
     useBunnyboardStore.getState().setTextFailed(chat.charId, false)

@@ -509,6 +509,8 @@ export interface ModHooks {
   warnBeforeMeetup?: () => boolean
   /** Shows sent, delivered and read ticks on the player's phone bubbles. */
   readReceipts?: () => boolean
+  /** Whether this contact sleeps through the current late-night hold. */
+  asleepNow?: (ctx: { charId: string }) => boolean
   /** Opens only the timetable gate on the contact's composer. */
   textWhileBusy?: (ctx: { charId: string; commitment: Commitment }) => boolean
   /** After her reply in a DM has landed. */
@@ -1494,6 +1496,18 @@ export function readReceipts(): boolean {
       if (hooks.readReceipts?.() === true) return true
     } catch (error) {
       console.warn(`[mods] ${modId}: readReceipts failed`, error)
+    }
+  }
+  return false
+}
+
+/** Asks which contacts are sleeping only when the current interlude is late night. */
+export function asleepNow(ctx: { charId: string }): boolean {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.asleepNow?.(ctx) === true) return true
+    } catch (error) {
+      console.warn(`[mods] ${modId}: asleepNow failed`, error)
     }
   }
   return false
