@@ -317,6 +317,7 @@ import {
   announceableDrops,
   applyCast,
   lessNsfwTextNow,
+  idleHeldReplies,
   loadCgReady,
   promptState,
   reader,
@@ -2727,6 +2728,19 @@ function claimTextLedger(date: number, time: TimeSlot): Promise<LedgerResponse |
   return record.promise
 }
 
+/** Marks an idle contact's held reply as counted by the ledger that read it with its question. */
+function claimIdleHeldReplies(): void {
+  useGameStore.setState(state => ({
+    bunnyboard: {
+      ...state.bunnyboard,
+      conversations: Object.fromEntries(Object.entries(state.bunnyboard.conversations).map(([id, thread]) => {
+        const ids = new Set(idleHeldReplies(thread).map(message => message.id))
+        return [id, ids.size > 0 ? { ...thread, messages: claimLedgerMessages(thread.messages, ids) } : thread]
+      }))
+    }
+  }))
+}
+
 /** What the finished scene did to the reader's stats, and the lines that say so. */
 function resolveScene(): { deltas: PlayerStats; lines: StatusText[] } {
   const ctx: StatContext = {
@@ -3302,7 +3316,10 @@ async function crossSlotBoundary(): Promise<void> {
   // rings only where the phone is shown, so they land under the cover below and the landing
   // rings for them once on its own arrival.
   const owedTexts: Array<() => void> = []
-  if (ledger) applyLedger(ledger)
+  if (ledger) {
+    applyLedger(ledger)
+    claimIdleHeldReplies()
+  }
   // Before the deltas land: an exam is graded on the Brain he walked in with.
   recordAcademics(ledger)
   loopState.projectWork = null
@@ -3598,7 +3615,7 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
   settled.setNpcRelationships(withCouplesLeft(settled.npcRelationships, dating.left ?? [], now.from.date))
   addPlanContacts(plans.events)
   useGameStore.getState().addEvents(plans.events)
-  const ids = new Set(schedule.threads.flatMap(thread => thread.messages.map(message => message.id)))
+  const ids = new Set(schedule.threads.flatMap(thread => [...thread.messages, ...(thread.heldReplies ?? [])].map(message => message.id)))
   useGameStore.setState(state => ({
     bunnyboard: {
       ...state.bunnyboard,
