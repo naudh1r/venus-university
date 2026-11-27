@@ -105,9 +105,13 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
 
-## 0.7.8
+## 0.7.9
 
 - Contacts at home on weekends can be Idle and answer at the next landing.
+- Yes on a meet-up says something warmer than "Sure", picked from a few lines: "omw!", "see you
+  there", "sure, let's do it". When you suggested it, the line just says you're on your way.
+
+## 0.7.8
 - Your status reads Available or Busy.
 - A contact's thread says Available, Busy or Idle, then where they are: Available · At the Lowrises,
   Busy · In Calculus class, Busy · Working at the café, Idle · At the Lowrises.

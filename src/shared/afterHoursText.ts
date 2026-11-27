@@ -14,6 +14,25 @@ export const afterHoursText = {
   busyTextsHint: "Text someone during class or work. They reply when they're out, in the next half of the day.",
   nightOption: 'The night',
   idleOption: 'Not everyone answers right away',
+  /** The reader's Yes to a contact's invitation. */
+  acceptTheirs: [
+    "sure, i'm coming now!",
+    "sure, let's do it",
+    'see you there',
+    'omw!',
+    'be there soon',
+    'yes! give me a few minutes',
+    'sounds good, heading over',
+    'count me in'
+  ],
+  /** The reader's Yes once the contact agreed to the reader's own suggestion. */
+  acceptMine: [
+    'see you there',
+    'omw!',
+    'be there soon',
+    'perfect, heading over now',
+    'great, see you in a bit'
+  ],
   chatLightsOption: 'Status lights in Chats',
   chatLightsHint: 'A light beside each name in Chats: green when free, orange in class or at work, yellow when idle.',
   idleHint: 'At night and on weekends, some people at home are asleep or away from their phone. Their light is yellow, and they reply later.',

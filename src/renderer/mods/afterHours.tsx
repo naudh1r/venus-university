@@ -206,6 +206,11 @@ registerHooks(AFTER_HOURS_MOD, {
   warnBeforeMeetup: () => true,
   readReceipts: () => true,
   statusWords: () => true,
+  acceptLine: ({ charId, mine }) => {
+    const pool = mine ? afterHoursText.acceptMine : afterHoursText.acceptTheirs
+    const thread = conversation(charId)?.messages.length ?? 0
+    return pool[Math.floor(seededRand(`${AFTER_HOURS_MOD}:accept:${charId}:${thread}`)() * pool.length)]
+  },
   chatListLights: () => modOptionOn(AFTER_HOURS_MOD, 'chat-lights'),
   asleepNow: ({ charId, date, time, opening }) => {
     if (opening?.weekend) recordWeekendIdle(date, time, opening.homeContacts)
