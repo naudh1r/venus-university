@@ -454,6 +454,22 @@
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
       "releases": [
         {
+          "version": "0.7.6",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.6.zip",
+          "sha256": "bf3c8da4d00c245db50b08e504bf13ebfe84d6be1ff967d9a9fb2dd7aa4ae77b",
+          "kit": ">=0.7.0",
+          "game": "0.9.2",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-27",
+          "changes": [
+            "Every contact in Chats has a light beside their name: green when free, orange in class or at work, yellow when idle.",
+            "An idle contact's thread says Idle beside where they are.",
+            "Your ticks follow the reply as it happens: two grey ticks once it starts coming back, two blue ticks once the first text is written, before the typing.",
+            "Needs naudh1r-core from November 27 or later, which has the hooks these use."
+          ]
+        },
+        {
           "version": "0.7.5",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.5.zip",
           "sha256": "3f9fd0c146890a79dd3f3b85e60f8d0c291bde49aed6c1b4780f40e26c75d4ed",
@@ -570,6 +586,14 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.7.6",
+          "changes": [
+            "Every contact in Chats has a light beside their name: green when free, orange in class or at work, yellow when idle.",
+            "An idle contact's thread says Idle beside where they are.",
+            "Your ticks follow the reply as it happens: two grey ticks once it starts coming back, two blue ticks once the first text is written, before the typing."
+          ]
+        },
         {
           "version": "0.7.5",
           "changes": [
