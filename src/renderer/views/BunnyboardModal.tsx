@@ -1,5 +1,6 @@
 import { shownConversation, shownMessages } from '@shared/chatVisibility'
-import { textWhileBusy } from '../mods/hooks'
+import { textWhileBusy, warnBeforeMeetup } from '../mods/hooks'
+import { meetupCommitmentNow } from '../stores/slotActions'
 import { charCommitmentAt } from '../stores/timetable'
 import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
 import { ModSlot } from '../mods/ModSlot'
@@ -1060,7 +1061,7 @@ function ConversationView({
   const [editing, setEditing] = useState(false)
   // Her ask-out, only while it is still asking: a No dismisses it, invitation still standing.
   const pendingHangout = conversation?.pendingHangout
-  const askingOut = Boolean(pendingHangout && !pendingHangout.dismissed)
+  const askingOut = Boolean(pendingHangout && !pendingHangout.dismissed && !(pendingHangout.mine && sceneActive))
   // Her vent or her question about a crush, while it still waits on his answer.
   const advice = conversation?.advice && !conversation.advice.answer ? conversation.advice : null
   const armedHere = armed?.charId === charId
@@ -1071,10 +1072,36 @@ function ConversationView({
     plan !== null &&
     events.some((other) => other.id !== plan.id && other.date === date && other.time === time)
   const canReschedule =
-    askingOut &&
+    askingOut && !pendingHangout?.mine &&
     plan !== null &&
     (playerClassNow() !== null || shiftNow() !== null || doubleBooked)
   const [rescheduling, setRescheduling] = useState(false)
+  const [meetupWarning, setMeetupWarning] = useState<{
+    charId: string
+    pending: NonNullable<typeof pendingHangout>
+    title: string
+    message: string
+  } | null>(null)
+
+  /** Confirms the cost of a phone meet-up before sending the answer. */
+  function acceptMeetup(): void {
+    const commitment = warnBeforeMeetup() ? meetupCommitmentNow() : null
+    if (!commitment || !pendingHangout) {
+      answerHangout(charId, true)
+      return
+    }
+    const copy = commitment.kind === 'class'
+      ? commitment.assessment
+        ? { title: `Miss your ${commitment.name} ${commitment.assessment}?`, message: `Meeting ${name} now means skipping it.` }
+        : { title: `Skip ${commitment.name}?`, message: `Meeting ${name} now means missing your class.` }
+      : {
+          title: `Miss your shift at ${commitment.employer}?`,
+          message: commitment.lastStrike
+            ? 'It would be your third strike, and you would lose the job.'
+            : `A missed shift is a strike. You have ${commitment.strikes} of ${commitment.limit}.`
+        }
+    setMeetupWarning({ charId, pending: pendingHangout, ...copy })
+  }
   // She has him blocked: readable to the end of the slot, nothing sendable.
   const blocked = useGameStore((s) => s.charInfo[charId]?.flags?.blocked === true)
   // Retrying is sending; the composer's own reasons to be shut apply, the editor's included.
@@ -1253,7 +1280,9 @@ function ConversationView({
           </div>
         ) : !epilogue && askingOut ? (
           <div className="vu-bb-answers">
-            <span className="vu-bb-answers-text">{name} wants to hang out. Are you down?</span>
+            <span className="vu-bb-answers-text">
+              {pendingHangout?.mine ? `Meet up with ${name}?` : `${name} wants to hang out. Are you down?`}
+            </span>
             <div className="vu-bb-answers-row">
               <CancelButton
                 id="bb-hangout-no"
@@ -1277,7 +1306,7 @@ function ConversationView({
               <PrimaryButton
                 id="bb-hangout-yes"
                 dead={sceneActive}
-                onClick={() => answerHangout(charId, true)}
+                onClick={acceptMeetup}
               >
                 Yes
               </PrimaryButton>
@@ -1319,6 +1348,25 @@ function ConversationView({
 
       {/* A sibling of the app's own veil, so a click in it does not reach that veil's handler. */}
       <AnimatePresence propagate>
+        {meetupWarning && meetupWarning.charId === charId && meetupWarning.pending === pendingHangout &&
+          askingOut && !sceneActive && !epilogue && (
+          <ConfirmModal
+            key="meetup-warning"
+            id="bb-meetup-warning"
+            theme={theme}
+            title={meetupWarning.title}
+            message={meetupWarning.message}
+            cancelText="Cancel"
+            confirmText="Meet anyway"
+            onCancel={() => setMeetupWarning(null)}
+            onConfirm={() => {
+              setMeetupWarning(null)
+              if (useGameStore.getState().bunnyboard.conversations[charId]?.pendingHangout === meetupWarning.pending) {
+                answerHangout(charId, true)
+              }
+            }}
+          />
+        )}
         {rescheduling && plan && (
           <RescheduleModal
             key="reschedule"
