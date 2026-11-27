@@ -719,8 +719,7 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
                       <span className="vu-bb-chat-main">
                         <span className="vu-bb-chat-top">
                           <span className="vu-bb-name">{identity.name}</span>
-                          {status ? <BusyLed busy={status.busy} idle={status.idle} label={status.text} />
-                            : asleep && <BusyLed busy={false} idle label="Idle" />}
+                          {status && <BusyLed busy={status.busy} idle={status.idle} label={status.text} />}
                           {identity.bot && (
                             <span className="vu-bb-kind">
                               {jobDefForChat(conversation.charId) ? 'BOSS' : 'BOT'}
