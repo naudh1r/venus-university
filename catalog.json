@@ -454,6 +454,22 @@
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
       "releases": [
         {
+          "version": "0.7.9",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.9.zip",
+          "sha256": "9f9f6585d78e7a5178aa41d585712f4967e07eace72cf8a3a09bb8e72bfe955d",
+          "kit": ">=0.7.0",
+          "game": "0.9.2",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-27",
+          "changes": [
+            "On weekends, some people at home can be Idle. Their reply arrives at the next landing, written as if they were away from the phone.",
+            "The switch for it is now called Not everyone answers right away, and covers the night and weekends.",
+            "Yes on a meet-up says something warmer than \"Sure\", picked from a few lines such as \"omw!\" or \"see you there\".",
+            "Needs naudh1r-core from November 27 or later, which has the hooks these use."
+          ]
+        },
+        {
           "version": "0.7.8",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.8.zip",
           "sha256": "03fa1b8ba0875e270b638bbd51ec4c699aee2c7117e4b0e5bac69f73671d5ca7",
@@ -615,6 +631,14 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.7.9",
+          "changes": [
+            "On weekends, some people at home can be Idle. Their reply arrives at the next landing, written as if they were away from the phone.",
+            "The switch for it is now called Not everyone answers right away, and covers the night and weekends.",
+            "Yes on a meet-up says something warmer than \"Sure\", picked from a few lines such as \"omw!\" or \"see you there\"."
+          ]
+        },
         {
           "version": "0.7.8",
           "changes": [
