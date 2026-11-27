@@ -1513,16 +1513,17 @@ const MessageBubble = memo(function MessageBubble({
       </div>
     )
   }
+  const hasReceipt = !bare && message.sender === 'player' && read !== undefined
   // What a mod attaches to the message follows its text, in a bubble of its own: a message that is
   // only an attachment draws no empty bubble.
   return (
     <>
       {message.text && (
         <div
-          className={`vu-bb-bubble vu-bb-bubble--${message.sender === 'player' ? 'mine' : 'theirs'}${bare ? ' vu-bb-bubble--bare' : ''}`}
+          className={`vu-bb-bubble vu-bb-bubble--${message.sender === 'player' ? 'mine' : 'theirs'}${bare ? ' vu-bb-bubble--bare' : ''}${hasReceipt ? ' vu-bb-bubble--receipt' : ''}`}
         >
           <SentText text={message.text} />
-          {!bare && message.sender === 'player' && read !== undefined && (
+          {hasReceipt && (
             <svg
               className={`vu-bb-receipt${read ? ' vu-bb-receipt--read' : ''}`}
               viewBox="0 0 20 14"

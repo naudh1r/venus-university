@@ -506,9 +506,11 @@
    four-liner keeps that same cap: the curve beside the squared corner is the same on every
    height, and one padding serves every one of them. */
 .vu-bb-bubble {
+  --vu-bb-bubble-block: 10px;
+  --vu-bb-bubble-inline: 18px;
   max-width: 440px;
-  padding: 10px 18px;
-  border-radius: calc(0.5lh + 10px);
+  padding: var(--vu-bb-bubble-block) var(--vu-bb-bubble-inline);
+  border-radius: calc(0.5lh + var(--vu-bb-bubble-block));
   font: 500 15.5px/1.45 var(--font-body);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -528,15 +530,20 @@
   color: var(--vu-accent-ink);
 }
 
-/* A neutral backing keeps the ticks legible against the outgoing bubble. */
+/* Reserve the tick's corner only on bubbles that draw one. */
+.vu-bb-bubble--receipt {
+  --vu-bb-receipt-width: 18px;
+  --vu-bb-receipt-inset: calc(var(--vu-bb-bubble-inline) / 2);
+  position: relative;
+  padding-right: calc(var(--vu-bb-receipt-width) + var(--vu-bb-bubble-inline));
+}
+
 .vu-bb-receipt {
-  float: right;
-  width: 20px;
+  position: absolute;
+  right: var(--vu-bb-receipt-inset);
+  bottom: var(--vu-bb-bubble-block);
+  width: var(--vu-bb-receipt-width);
   height: 14px;
-  padding: 1px 2px;
-  margin: 3px 0 0 8px;
-  border-radius: 999px;
-  background: var(--vu-ground);
   color: var(--vu-text-muted);
   fill: none;
   stroke: currentColor;
