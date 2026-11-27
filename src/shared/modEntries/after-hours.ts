@@ -5,7 +5,7 @@ const mod: ModDef = {
   id: AFTER_HOURS_MOD,
   name: afterHoursText.name,
   author: 'naudh1r',
-  version: '0.7.4', game: '0.9.2',
+  version: '0.7.5', game: '0.9.2',
   scope: 'anytime',
   defaultOn: true,
   requires: [],
@@ -14,7 +14,8 @@ const mod: ModDef = {
   options: [
     { id: 'busy-status', label: afterHoursText.option, hint: afterHoursText.hint, default: true },
     { id: 'busy-texts', label: afterHoursText.busyTextsOption, hint: afterHoursText.busyTextsHint, default: true },
-    { id: 'night', label: afterHoursText.nightOption, hint: afterHoursText.nightHint, default: true }
+    { id: 'night', label: afterHoursText.nightOption, hint: afterHoursText.nightHint, default: true },
+    { id: 'night-sleep', label: afterHoursText.nightSleepOption, hint: afterHoursText.nightSleepHint, default: true }
   ]
 }
 

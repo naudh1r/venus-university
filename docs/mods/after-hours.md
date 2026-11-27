@@ -69,6 +69,11 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   activity choice or map travel. The phone stays available for texts and Bunnyboard comments.
 - Each contact is in their own room; their chat names their dorm. Nobody goes anywhere tonight,
   and a DM cannot begin a hangout. Plans for another time still work normally.
+- **Not everyone stays up** is on by default. Some contacts go to sleep for the night. Their
+  light turns yellow and **Online** changes to **Idle**. You can still text them. Two grey ticks
+  mean their reply is ready, and it arrives when the morning opens. Close friends, partners and
+  people you saw that evening are more likely to stay up. Turn this option off to chat as usual.
+
 - **Go to sleep** plays a line of you falling asleep, picked for that night from a handful, as
   Relax plays its own, then ends the night the way Relax ends a slot: the night's texts are counted and
   their results shown, then the new-day curtain and the morning's narration, texts, posts and
@@ -94,6 +99,11 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   usual morning lines follow, then the normal landing. The night itself is not summed up again.
 - Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
+
+## 0.7.5
+
+- Some contacts go to sleep at night. Look for a yellow light. You can still text them, and
+  their reply shows up in the morning.
 
 ## 0.7.4
 

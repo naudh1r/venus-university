@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { charKeyOf } from '@vx/modkit/shared'
 import { character } from './fixtures'
-import { busyPromptApplies, nightOwed, normalize, stagedUntil, stayOverOf } from '../src/shared/afterHours'
+import { asleepTonight, busyPromptApplies, nightOwed, normalize, stagedUntil, stayOverOf } from '../src/shared/afterHours'
 
 describe('Busy restrictions on chats the reader starts', () => {
   it('restricts his chat while Busy and leaves her chat unchanged', () => {
@@ -126,5 +126,24 @@ describe('where the staged morning after a night together ends', () => {
     expect(stagedUntil({ lines: ['You wake beside her.', 'You walk home.'] }, 'mia_lee')).toBe(1)
     expect(stagedUntil({ lines: ['You wake beside her.'] }, 'mia_lee')).toBe(1)
     expect(stagedUntil({}, 'mia_lee')).toBe(0)
+  })
+})
+
+describe('who stays awake through the night', () => {
+  it('keeps the same roll for the same character and evening', () => {
+    const evenings = Array.from({ length: 32 }, (_, date) => date)
+    const rolls = () => evenings.map(date => asleepTonight('sarah_adams', date, { metThisEvening: false, close: true }))
+    expect(rolls()).toEqual(rolls())
+  })
+
+  it('uses the evening scene before the relationship when weighting the roll', () => {
+    const evenings = Array.from({ length: 5000 }, (_, date) => date)
+    const awake = (metThisEvening: boolean, close: boolean) =>
+      evenings.map(date => !asleepTonight('sarah_adams', date, { metThisEvening, close }))
+    const rate = (rolls: boolean[]) => rolls.filter(Boolean).length / rolls.length
+    expect(rate(awake(false, false))).toBeCloseTo(0.5, 1)
+    expect(rate(awake(false, true))).toBeCloseTo(0.6, 1)
+    expect(rate(awake(true, true))).toBeCloseTo(0.8, 1)
+    expect(awake(true, true)).toEqual(awake(true, false))
   })
 })

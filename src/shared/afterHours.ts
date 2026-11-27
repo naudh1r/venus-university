@@ -1,6 +1,8 @@
-import { charKeyOf, globalSlotOf, readerWordsOf, type Character, type ReaderPronouns, type TimeSlot } from '@vx/modkit/shared'
+import { charKeyOf, globalSlotOf, pronounsOf, readerWordsOf, seededRand, type Character, type ReaderPronouns, type TimeSlot } from '@vx/modkit/shared'
 
-export { AFTER_HOURS_MOD } from './afterHoursText'
+import { AFTER_HOURS_MOD } from './afterHoursText'
+
+export { AFTER_HOURS_MOD }
 
 /** A night spent together, kept until the morning it ends on has opened. */
 export interface StayOver {
@@ -9,24 +11,49 @@ export interface StayOver {
   morning: number
 }
 
-/** The reader's phone status, the morning whose night has ended, and a night spent together. */
+interface NightSleep {
+  date: number
+  cast: string[]
+  asleep?: string[]
+}
+
+/** The reader's phone status and what is kept about the current night. */
 export interface AfterHours {
   busy: boolean
   nightDone?: number
   stayOver?: StayOver
+  sleep?: NightSleep
 }
 
-/** Restores the phone status, completed-night marker and a well-formed stay-over. */
+/** Restores the phone status and valid night data. */
 export function normalize(stored: unknown): AfterHours {
   const data = typeof stored === 'object' && stored !== null ? stored as Partial<AfterHours> : {}
+  const sleep = data.sleep
+  const validSleep = sleep && Number.isInteger(sleep.date) &&
+    Array.isArray(sleep.cast) && sleep.cast.every(id => typeof id === 'string')
+  const asleep = validSleep && Array.isArray(sleep.asleep) && sleep.asleep.every(id => typeof id === 'string')
+    ? sleep.asleep : undefined
   const stay = data.stayOver
   const validStay = stay && typeof stay === 'object' && typeof stay.charId === 'string' && stay.charId.length > 0 &&
     (stay.room === 'herRoom' || stay.room === 'hisRoom') && Number.isInteger(stay.morning)
   return {
     busy: data.busy === true,
     ...(typeof data.nightDone === 'number' && Number.isInteger(data.nightDone) ? { nightDone: data.nightDone } : {}),
+    ...(validSleep ? { sleep: { date: sleep.date, cast: sleep.cast, ...(asleep ? { asleep } : {}) } } : {}),
     ...(validStay ? { stayOver: { charId: stay.charId, room: stay.room, morning: stay.morning } } : {})
   }
+}
+
+const AWAKE_AFTER_MEETING = 0.8
+const AWAKE_WHEN_CLOSE = 0.6
+const AWAKE_OTHERWISE = 0.5
+
+/** Decides whether a contact has gone to sleep based on the evening just ended. */
+export function asleepTonight(
+  charKey: string, date: number, { metThisEvening, close }: { metThisEvening: boolean; close: boolean }
+): boolean {
+  const awake = metThisEvening ? AWAKE_AFTER_MEETING : close ? AWAKE_WHEN_CLOSE : AWAKE_OTHERWISE
+  return seededRand(`${AFTER_HOURS_MOD}:sleep:${date}:${charKey}`)() >= awake
 }
 
 /** The character in the cast the ledger says is staying over, in a room they can share. */
@@ -70,9 +97,8 @@ type Contact = Pick<Character, 'firstName' | 'gender'>
 
 /** A contact's words in a prompt about the two of them. */
 function contactWords(contact: Contact) {
-  return contact.gender === 'male'
-    ? { subject: 'he', Subject: 'He', object: 'him', possessive: 'his' }
-    : { subject: 'she', Subject: 'She', object: 'her', possessive: 'her' }
+  const p = pronounsOf(contact)
+  return { subject: p.they, Subject: p.They, object: p.them, possessive: p.their }
 }
 
 /** Keeps the contact from suggesting a meet-up while the reader stays in. */
@@ -114,6 +140,12 @@ export function morningReturnPrompt(
   const example = atTheirs ? 'Pull the door shut on your way out.' : "I'll text you after class."
   const home = atTheirs ? 'the line where the reader gets home' : `the first line after ${name} has gone`
   return `Last night the reader stayed over with ${name} in ${place} (see the latest scene). This morning's opening is the one time dialogue and someone else on screen are allowed. Write it as short lines, one beat each: ${beats} Do not sum up or describe what happened between them last night. Every entry in "lines" has "speaker" and "emotion": "" for both on narration; ${p.possessive} own words are never written into a narration line. For example: {"text": "${example}", "speaker": "${key}", "emotion": "happy"}. Set "homeLine" to the index in "lines" of ${home}.`
+}
+
+/** The contact is catching up in the morning after going to sleep. */
+export function sleepingTextPrompt(contact: Contact): string {
+  const p = pronounsOf(contact)
+  return `${contact.firstName} fell asleep before reading the reader's messages. Write the reply ${p.they} sends in the morning after reading them. ${p.They} can mention falling asleep, but there's no need to make a topic of it.`
 }
 
 /** The reply catches up after the commitment, without making it a required topic. */

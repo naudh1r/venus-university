@@ -1,9 +1,13 @@
 import { useEffect, useId, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { charKeyOf, EMOTIONS, globalSlotOf, LOCATIONS, NARRATIVE_LOCATIONS, seededRand, threadStartedBy, type TimeSlot } from '@vx/modkit/shared'
+import {
+  affectionFor, charKeyOf, EMOTIONS, emptyFlags, globalSlotOf, LOCATIONS, NARRATIVE_LOCATIONS,
+  relationshipTagOf, seededRand, threadStartedBy, type TimeSlot
+} from '@vx/modkit/shared'
 import {
   addMemory,
   character,
+  characterInfo,
   conversation,
   fadeIn,
   gestures,
@@ -25,8 +29,8 @@ import {
   type SlotSettled
 } from '@vx/modkit/renderer'
 import {
-  AFTER_HOURS_MOD, busyPrompt, busyPromptApplies, busyTextPrompt, morningReturnPrompt,
-  nightOwed, nightPrompt, normalize, stagedUntil, stayOverLedgerInstruction, stayOverOf, stayOverPrompt,
+  AFTER_HOURS_MOD, asleepTonight, busyPrompt, busyPromptApplies, busyTextPrompt, morningReturnPrompt,
+  nightOwed, nightPrompt, normalize, sleepingTextPrompt, stagedUntil, stayOverLedgerInstruction, stayOverOf, stayOverPrompt,
   type AfterHours
 } from '../../shared/afterHours'
 import { afterHoursText } from '../../shared/afterHoursText'
@@ -48,11 +52,29 @@ function nightAfter(date: number, time: TimeSlot): boolean {
   return time === 1 && !isGraduationSlot(date + 1, 0)
 }
 
-function nightHolds(): boolean {
+function heldNight() {
   const hold = interludeNow()
-  return hold?.owner === AFTER_HOURS_MOD && hold.clock === 'late-night'
+  return hold?.owner === AFTER_HOURS_MOD && hold.clock === 'late-night' ? hold : null
 }
+
+const CLOSE_TAGS = new Set(['Friend', 'Best Friend', 'BFF', 'Lover'])
 const hintIn = fadeIn(0)
+
+/** Keeps the night's sleepers fixed once the held landing opens. */
+function recordSleepers(date: number): void {
+  const data = status.read()
+  const sleep = data.sleep?.date === date ? data.sleep : { date, cast: [] }
+  if (sleep.asleep) return
+  const asleep = gameCharacters().filter(contact => {
+    const info = characterInfo(contact.charId)
+    const tag = relationshipTagOf(info?.flags ?? emptyFlags(), affectionFor(info, date, contact))
+    return asleepTonight(charKeyOf(contact.firstName, contact.lastName), date, {
+      metThisEvening: sleep.cast.includes(contact.charId),
+      close: CLOSE_TAGS.has(tag)
+    })
+  }).map(contact => contact.charId)
+  status.set({ ...data, sleep: { ...sleep, asleep } })
+}
 
 /** The reader's face, name and status. Clicking the chip switches the status. */
 function StatusChip({ theme }: ScreenSlotProps['chatsHeader']): JSX.Element | null {
@@ -169,13 +191,20 @@ registerHooks(AFTER_HOURS_MOD, {
   ownMeetupAsks: () => true,
   warnBeforeMeetup: () => true,
   readReceipts: () => true,
+  asleepNow: ({ charId }) => {
+    if (!modOptionOn(AFTER_HOURS_MOD, 'night') || !modOptionOn(AFTER_HOURS_MOD, 'night-sleep')) return false
+    const hold = heldNight()
+    const sleep = status.read().sleep
+    return hold !== null && sleep?.date === hold.from.date && sleep.asleep?.includes(charId) === true
+  },
   textWhileBusy: () => modOptionOn(AFTER_HOURS_MOD, 'busy-texts'),
   interludePreview: ({ to, ledger }) =>
     modOptionOn(AFTER_HOURS_MOD, 'night') && nightOwed(to, status.read()) && !isGraduationSlot(to.date, to.time) &&
       !stayOverOf(ledger, gameCharacters())
       ? { at: 'from', clock: 'late-night' } : null,
-  slotInterlude: ({ to }) => {
+  slotInterlude: ({ from, to }) => {
     if (!modOptionOn(AFTER_HOURS_MOD, 'night') || !nightOwed(to, status.read()) || isGraduationSlot(to.date, to.time)) return null
+    recordSleepers(from.date)
     // Seeded by the night, so a reload of the same night reads the same lines.
     const night = globalSlotOf(to.date, to.time)
     const pick = (pool: readonly string[], use: string): string =>
@@ -217,11 +246,18 @@ registerHooks(AFTER_HOURS_MOD, {
     noteMeetup({ before, closingCast })
 
     const slot = globalSlotOf(before.date, before.time)
-    const { stayOver: past, ...data } = status.read()
+    const { stayOver: past, sleep: _sleep, ...data } = status.read()
+    const evening = modOptionOn(AFTER_HOURS_MOD, 'night') && nightAfter(before.date, before.time)
     const stay = nightAfter(before.date, before.time) ? stayOverOf(ledger, gameCharacters()) : null
     status.set(stay
       ? { ...data, nightDone: slot + 1, stayOver: { charId: stay.partner.charId, room: stay.room, morning: slot + 1 } }
-      : { ...data, ...(past && past.morning > slot ? { stayOver: past } : {}) })
+      : {
+          ...data,
+          ...(past && past.morning > slot ? { stayOver: past } : {}),
+          ...(evening && data.nightDone !== slot + 1 ? {
+            sleep: { date: before.date, cast: closingCast.length > 0 ? closingCast.map(contact => contact.charId) : [...before.cast] }
+          } : {})
+        })
   },
   requests: {
     ledger: (request, { state, charKeys }) => {
@@ -283,9 +319,10 @@ registerHooks(AFTER_HOURS_MOD, {
           threadStartedBy(thread?.messages ?? [], state.date, state.time)
         )
         return [
+          ...(state.asleep ? [sleepingTextPrompt(character)] : []),
           // A reply written after a class they share is told so by the game itself.
           ...(state.heldUntil && state.commitment && !state.sharedClass ? [busyTextPrompt(character, state.commitment, state.readerPronouns)] : []),
-          ...(nightHolds() ? [nightPrompt(character)] : []),
+          ...(!state.asleep && heldNight() ? [nightPrompt(character)] : []),
           ...(busy ? [busyPrompt(character)] : [])
         ]
       }
