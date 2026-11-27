@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `chatListLights` shows every contact's status light in the Chats list.
+
 - `asleepNow` lets a renderer mod mark contacts idle during a late-night hold. Their DM replies
   are written immediately and shown on the morning landing. The DM prompt state exposes `asleep`.
 

@@ -80,6 +80,7 @@ export const HOOKS = [
   { name: 'ownMeetupAsks', side: 'renderer', kind: 'any', dispatch: ['ownMeetupAsks'], since: '0.7.0' },
   { name: 'asleepNow', side: 'renderer', kind: 'any', dispatch: ['asleepNow'], since: '0.7.0' },
   { name: 'readReceipts', side: 'renderer', kind: 'any', dispatch: ['readReceipts'], since: '0.7.0' },
+  { name: 'chatListLights', side: 'renderer', kind: 'any', dispatch: ['chatListLights'], since: '0.7.0' },
   { name: 'warnBeforeMeetup', side: 'renderer', kind: 'any', dispatch: ['warnBeforeMeetup'], since: '0.7.0' },
   { name: 'hangoutCheck', side: 'renderer', kind: 'any', dispatch: ['hangoutCheck'], since: '0.18.0' },
   { name: 'sceneCut', side: 'renderer', kind: 'event', dispatch: ['sceneCut'], since: '0.7.0' },

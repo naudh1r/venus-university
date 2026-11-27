@@ -459,6 +459,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   ownMeetupAsks: fn('ownMeetupAsks', true, host => host.ownMeetupAsks({ charId: 'c', description: 'Meet' })),
   asleepNow: fn('asleepNow', true, host => host.asleepNow({ charId: 'test' })),
   readReceipts: fn('readReceipts', true, host => host.readReceipts()),
+  chatListLights: fn('chatListLights', true, host => host.chatListLights()),
   warnBeforeMeetup: fn('warnBeforeMeetup', true, host => host.warnBeforeMeetup()),
   hangoutCheck: fn('hangoutCheck', false, host => host.hangoutCheck({ charId: 'c', startedBy: 'her' })),
   slotInterlude: fn('slotInterlude', { lines: [], rows: [] }, host => host.slotInterlude({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0, ledger: null })),

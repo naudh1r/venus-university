@@ -1,5 +1,5 @@
 import { receiptsOf, shownConversation, type Receipt, shownMessages } from '@shared/chatVisibility'
-import { readReceipts, subscribeHookRules, textWhileBusy, warnBeforeMeetup } from '../mods/hooks'
+import { chatListLights, readReceipts, subscribeHookRules, textWhileBusy, warnBeforeMeetup } from '../mods/hooks'
 import { meetupCommitmentNow } from '../stores/slotActions'
 import { charCommitmentAt } from '../stores/timetable'
 import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
@@ -595,27 +595,28 @@ function presenceOf(
   time: TimeSlot,
   asleep = contactAsleep(charId)
 ): Presence {
-  const idle = asleep ? { idle: true as const } : {}
+  // Idle keeps the place: the lamp alone says it, and the thread header adds the word.
+  if (asleep) return { idle: true, busy: false, text: presenceOf(placed, charId, date, time, false).text }
   if (!placed || placed.source !== 'told' || placed.kind === 'unknown') {
-    return { ...idle, busy: false, text: asleep ? 'Idle' : 'Online' }
+    return { busy: false, text: 'Online' }
   }
-  if (placed.kind === 'away' || placed.kind === 'sick') return { ...idle, busy: false, text: placed.placeLabel }
+  if (placed.kind === 'away' || placed.kind === 'sick') return { busy: false, text: placed.placeLabel }
   if (placed.kind === 'class') {
     // The class's own name, not the code the map files it under: this is a sentence about her.
     const named = placed.classCode ? useGameStore.getState().classes[placed.classCode]?.name : null
-    return { ...idle, busy: !asleep, text: `In class — ${named ?? placed.classCode}` }
+    return { busy: true, text: `In class — ${named ?? placed.classCode}` }
   }
   // A shift reads as a place on the map; on a phone it is worth saying it is work.
   if (useGameStore.getState().interlude?.now.clock !== 'late-night' && charJobNow(charId, date, time) !== null) {
     return { busy: true, text: `Working @ ${placed.placeLabel}` }
   }
-  return { ...idle, busy: false, text: `At ${placed.placeLabel}` }
+  return { busy: false, text: `At ${placed.placeLabel}` }
 }
 
 /** Whether the hour has a claim on her — a class or a shift, which is what the lamp says. */
 function BusyLed({ busy, idle, label }: Pick<Presence, 'busy' | 'idle'> & { label?: string }): JSX.Element {
   return <span className={`vu-bb-led${idle ? ' vu-bb-led--idle' : busy ? ' vu-bb-led--busy' : ''}`}
-    role={label ? 'img' : undefined} aria-label={label} title={label} />
+    role={label ? 'img' : undefined} aria-label={label} />
 }
 
 /** The Chats tab's conversation list, which stands beside the open thread rather than under it. */
@@ -630,6 +631,19 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
   const openPage = useBunnyboardStore((s) => s.openPage)
   const armed = useBunnyboardStore((s) => s.armedHangout)
   const hiddenOf = useHiddenThreads()
+  const lights = useSyncExternalStore(subscribeHookRules, chatListLights)
+  const charInfo = useGameStore((s) => s.charInfo)
+  const alumni = useGameStore((s) => s.alumni)
+  const interlude = useGameStore((s) => s.interlude)
+  const epilogue = useGameStore(epilogueOf)
+  const visitor = useGameStore((s) =>
+    isHomecomingVisit(s.calendar.season, s.date) ? s.homecomingVisitor : null
+  )
+  // One reading of the map for every row, under the same rules as the thread header's lamp.
+  const placed = lights && !epilogue && !(interlude && interlude.now.clock !== 'late-night')
+    ? new Map([...knownWhereabouts(date, time),
+        ...alumni.filter((charId) => charId !== visitor).map(awayWhereabouts)].map((row) => [row.charId, row] as const))
+    : null
 
   // Newest activity first.
   const shownClock = useGameStore(s => s.chatShownThrough)
@@ -664,6 +678,9 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
               const identity = chatIdentityOf(conversation.charId, characters[conversation.charId])
               if (!identity.known) return null
               const asleep = !identity.bot && contactAsleep(conversation.charId)
+              const status = placed && !identity.bot && !charInfo[conversation.charId]?.flags?.blocked
+                ? presenceOf(placed.get(conversation.charId), conversation.charId, date, time, asleep)
+                : null
               const last = conversation.messages[conversation.messages.length - 1]
               const on = conversation.charId === viewingCharId
               return (
@@ -702,7 +719,8 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
                       <span className="vu-bb-chat-main">
                         <span className="vu-bb-chat-top">
                           <span className="vu-bb-name">{identity.name}</span>
-                          {asleep && <BusyLed busy={false} idle label="Idle" />}
+                          {status ? <BusyLed busy={status.busy} idle={status.idle} label={status.text} />
+                            : asleep && <BusyLed busy={false} idle label="Idle" />}
                           {identity.bot && (
                             <span className="vu-bb-kind">
                               {jobDefForChat(conversation.charId) ? 'BOSS' : 'BOT'}
@@ -1193,7 +1211,7 @@ function ConversationView({
               {status && (
                 <>
                   <BusyLed busy={status.busy} idle={status.idle} />
-                  {status.text}
+                  {status.idle ? (status.text === 'Online' ? 'Idle' : `Idle — ${status.text}`) : status.text}
                 </>
               )}
             </span>

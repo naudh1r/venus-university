@@ -552,6 +552,12 @@ export const HOOKS: readonly [{
     readonly dispatch: readonly ["readReceipts"];
     readonly since: '0.7.0';
 }, {
+    readonly name: 'chatListLights';
+    readonly side: 'renderer';
+    readonly kind: 'any';
+    readonly dispatch: readonly ["chatListLights"];
+    readonly since: '0.7.0';
+}, {
     readonly name: 'warnBeforeMeetup';
     readonly side: 'renderer';
     readonly kind: 'any';
