@@ -795,8 +795,10 @@ async function runReply(
     const unsubscribe = window.api.llm.onTextingDelta((deltaGroup, delta) => {
       if (deltaGroup !== group) return
       if (entry.abandoned) return
-      // The first streamed output of a reply for now: the model has read the thread.
-      if (!held) useBunnyboardStore.getState().setReading(charId, true)
+      // The stream coming back proves the model has the request.
+      if (!held && !useBunnyboardStore.getState().replyStage[charId]) {
+        useBunnyboardStore.getState().setReplyStage(charId, 'delivered')
+      }
       const lead = leadReader.feed(delta)
       if (lead) dmReplyLead({ charId, character, lead, signal: leadController.signal })
       if (held) return
@@ -804,6 +806,8 @@ async function runReply(
         const clean = message.trim()
         if (!clean) continue
         seen += 1
+        // Its first text is written: the contact has read the thread and knows what to say.
+        useBunnyboardStore.getState().setReplyStage(charId, 'read')
         if (seen > skip) pacer.push(clean)
       }
     })
@@ -886,6 +890,8 @@ async function runReply(
       releaseHeldReplies()
       return
     }
+    // A reply that did not stream is delivered and read in one step, ahead of its typing.
+    if (messages.length > 0) useBunnyboardStore.getState().setReplyStage(charId, 'read')
     // Anything the preview did not already queue — nor an earlier attempt release.
     for (const text of messages.slice(Math.max(seen, skip))) {
       pacer.push(text)
@@ -926,7 +932,7 @@ async function runReply(
     if (sent && invited) settleAnsweredInvitation(charId, invited.occasionId)
   } finally {
     abortLead()
-    if (inFlight.get(charId) === entry) useBunnyboardStore.getState().setReading(charId, false)
+    if (inFlight.get(charId) === entry) useBunnyboardStore.getState().setReplyStage(charId, null)
   }
 }
 

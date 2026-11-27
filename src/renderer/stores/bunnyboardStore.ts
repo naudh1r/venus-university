@@ -47,8 +47,11 @@ interface BunnyboardUiState {
    * `...` bubble, and nothing else. Owned by the pacer in `textingPace.ts`.
    */
   typingCharIds: string[]
-  /** Contacts whose reply for now has started streaming back: the model has read the thread. */
-  readingCharIds: string[]
+  /**
+   * Where each reply for now stands once the model answers: streaming back ('delivered'), then its
+   * first text complete ('read'). Absent while the request is out with nothing back.
+   */
+  replyStage: Record<string, 'delivered' | 'read'>
   /** charIds whose last turn failed and is parked on the thread's Retry. */
   failedCharIds: string[]
 
@@ -67,7 +70,7 @@ interface BunnyboardUiState {
   setArmedHangout: (armed: ArmedHangout | null) => void
   setTextBusy: (charId: string, busy: boolean) => void
   setTyping: (charId: string, typing: boolean) => void
-  setReading: (charId: string, reading: boolean) => void
+  setReplyStage: (charId: string, stage: 'delivered' | 'read' | null) => void
   setTextFailed: (charId: string, failed: boolean) => void
   /** Back to the blank closed app — the leave-game teardown. */
   reset: () => void
@@ -82,7 +85,7 @@ export const useBunnyboardStore = create<BunnyboardUiState>((set) => ({
   armedHangout: null,
   busyCharIds: [],
   typingCharIds: [],
-  readingCharIds: [],
+  replyStage: {},
   failedCharIds: [],
 
   openApp: () => set({ open: true, tab: 'chats', viewingCharId: null, pageCharId: null }),
@@ -119,14 +122,11 @@ export const useBunnyboardStore = create<BunnyboardUiState>((set) => ({
       }
     }),
   // Same shape, same same-array rule, for the same selector reason.
-  setReading: (charId, reading) =>
+  setReplyStage: (charId, stage) =>
     set((state) => {
-      if (state.readingCharIds.includes(charId) === reading) return state
-      return {
-        readingCharIds: reading
-          ? [...state.readingCharIds, charId]
-          : state.readingCharIds.filter((id) => id !== charId)
-      }
+      if ((state.replyStage[charId] ?? null) === stage) return state
+      const { [charId]: _was, ...rest } = state.replyStage
+      return { replyStage: stage ? { ...rest, [charId]: stage } : rest }
     }),
   setTyping: (charId, typing) =>
     set((state) => {
@@ -148,7 +148,7 @@ export const useBunnyboardStore = create<BunnyboardUiState>((set) => ({
       armedHangout: null,
       busyCharIds: [],
       typingCharIds: [],
-      readingCharIds: [],
+      replyStage: {},
       failedCharIds: []
     })
 }))
