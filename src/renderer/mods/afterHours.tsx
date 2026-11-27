@@ -1,7 +1,8 @@
 import { useEffect, useId, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { charKeyOf, EMOTIONS, globalSlotOf, seededRand, threadStartedBy, type TimeSlot } from '@vx/modkit/shared'
+import { charKeyOf, EMOTIONS, globalSlotOf, LOCATIONS, NARRATIVE_LOCATIONS, seededRand, threadStartedBy, type TimeSlot } from '@vx/modkit/shared'
 import {
+  addMemory,
   character,
   conversation,
   fadeIn,
@@ -9,6 +10,7 @@ import {
   interludeNow,
   isGraduationSlot,
   modOptionOn,
+  noteInThread,
   quietLift,
   quietPress,
   registerHooks,
@@ -19,7 +21,8 @@ import {
   useGameFacts,
   useModOption,
   usePlayerProfilePicture,
-  type ScreenSlotProps
+  type ScreenSlotProps,
+  type SlotSettled
 } from '@vx/modkit/renderer'
 import {
   AFTER_HOURS_MOD, busyPrompt, busyPromptApplies, busyTextPrompt, morningReturnPrompt,
@@ -132,8 +135,35 @@ function StatusChip({ theme }: ScreenSlotProps['chatsHeader']): JSX.Element | nu
   )
 }
 
+/** Joins the names of the contacts who kept the meet-up. */
+function meetupNames(names: readonly string[]): string {
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0]
+}
+
+/** Records a completed phone meet-up in the conversation that arranged it. */
+function noteMeetup({ before, closingCast }: Pick<SlotSettled, 'before' | 'closingCast'>): void {
+  const charId = before.sceneTextLedgerSkip
+  const contact = closingCast.find(person => person.charId === charId)
+  if (!contact) return
+
+  const action = before.currentSceneTranscript[0]?.text.split('\n', 1)[0]
+  const plan = before.events.find(event =>
+    event.date === before.date && event.time === before.time && event.charIds.includes(contact.charId) &&
+    (event.title === action || event.description === action)
+  )
+  const others = closingCast.filter(person =>
+    person.charId !== contact.charId && plan?.charIds.includes(person.charId)
+  )
+  const names = meetupNames([contact.firstName, ...others.map(person => person.firstName)])
+  const place = [...LOCATIONS, ...NARRATIVE_LOCATIONS].find(location => location.id === before.sceneLocation)?.label
+  noteInThread(contact.charId, `You met up with ${names}${place ? ` at ${place}` : ''}.`,
+    { date: before.date, time: before.time })
+}
+
 registerHooks(AFTER_HOURS_MOD, {
   chatsHeader: StatusChip,
+  ownMeetupAsks: () => true,
+  warnBeforeMeetup: () => true,
   textWhileBusy: () => modOptionOn(AFTER_HOURS_MOD, 'busy-texts'),
   interludePreview: ({ to, ledger }) =>
     modOptionOn(AFTER_HOURS_MOD, 'night') && nightOwed(to, status.read()) && !isGraduationSlot(to.date, to.time) &&
@@ -173,7 +203,14 @@ registerHooks(AFTER_HOURS_MOD, {
     label: afterHoursText.skipTomorrow,
     onPick: () => status.set({ ...status.read(), nightDone: globalSlotOf(date, time) + 1 })
   }] : [],
-  slotSettled: ({ before, ledger }) => {
+  slotSettled: ({ before, ledger, closingCast, ownMeetupsLapsed }) => {
+    for (const { charId } of ownMeetupsLapsed) {
+      addMemory(AFTER_HOURS_MOD, charId, {
+        date: before.date, type: 'disliked', desc: 'you asked to meet up and then changed your mind'
+      })
+    }
+    noteMeetup({ before, closingCast })
+
     const slot = globalSlotOf(before.date, before.time)
     const { stayOver: past, ...data } = status.read()
     const stay = nightAfter(before.date, before.time) ? stayOverOf(ledger, gameCharacters()) : null

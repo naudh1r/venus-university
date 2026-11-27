@@ -25,6 +25,19 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   Your saved status stays, ready for when you switch it back on.
 - Changing status costs nothing and makes no extra model call.
 
+### Meeting up from Chats
+
+- When someone agrees to meet up now after you ask, you get **Yes** and **No**. **Yes** opens
+  **Begin hangout**. **No** brings the text box back without sending anything.
+- If you leave your own offer unanswered, or say **No** and leave it there, the contact remembers
+  that you changed your mind. Text again that slot and the conversation speaks for itself. If the
+  contact ends up in your scene that slot, there is no extra memory.
+- If you have class, an assessment or a shift, **Yes** in Chats warns you about what you would miss.
+  **Cancel** leaves the offer open. **Meet anyway** accepts it. Plans started from the landing
+  still go straight ahead.
+- After a meet-up arranged in Chats, the thread notes who you met and where. A plan started from
+  the landing by answering its reminder gets the same note.
+
 ### Texting while they're busy
 
 - **Text people when they're busy** is on by default. Their DM box stays open during class or work,
@@ -79,6 +92,12 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   usual morning lines follow, then the normal landing. The night itself is not summed up again.
 - Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
+
+## 0.7.3
+
+- When someone agrees to meet up after you ask, you get a choice before the hangout opens.
+- The phone warns you before a meet-up would cost you a class, assessment or shift.
+- The thread keeps a short note of when you met, so later messages can place the meeting.
 
 ## 0.7.2
 
