@@ -257,15 +257,17 @@
   color: var(--vu-accent);
 }
 
-/* Where she is right now, as a lamp rather than a sentence: green when she is free, amber while
-   a class or a shift has her. It is never the only thing said — the words beside it place her —
-   so nothing here is carried by colour alone. */
+/* A contact's lamp: green when free, amber during a commitment and yellow when idle. */
 .vu-bb-led {
   flex: none;
   width: 10px;
   height: 10px;
   border-radius: 999px;
   background: var(--vu-good);
+}
+
+.vu-bb-led--idle {
+  background: var(--vu-idle);
 }
 
 .vu-bb-led--busy {

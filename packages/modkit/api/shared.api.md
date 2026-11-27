@@ -173,6 +173,7 @@ export interface CharMemory {
 
 // @public
 export interface ChatMessage {
+    afterNight?: true;
     awaitingReply?: true;
     date: number;
     error?: boolean;
@@ -222,6 +223,7 @@ export interface Conversation {
     declined?: number;
     ex?: Record<string, ModSlice>;
     heldReply?: {
+        asleep?: true;
         afterClass?: {
             date: number;
             time: TimeSlot;
@@ -536,6 +538,12 @@ export const HOOKS: readonly [{
     readonly side: 'renderer';
     readonly kind: 'any';
     readonly dispatch: readonly ["ownMeetupAsks"];
+    readonly since: '0.7.0';
+}, {
+    readonly name: 'asleepNow';
+    readonly side: 'renderer';
+    readonly kind: 'any';
+    readonly dispatch: readonly ["asleepNow"];
     readonly since: '0.7.0';
 }, {
     readonly name: 'readReceipts';
@@ -1005,7 +1013,7 @@ export type MemoryType = 'liked' | 'disliked' | 'loved' | 'hated';
 export function messageOf(err: unknown): string;
 
 // @public
-export function messageShown(message: Pick<ChatMessage, 'date' | 'time' | 'late'>, clock: ChatClock): boolean;
+export function messageShown(message: Pick<ChatMessage, 'date' | 'time' | 'late' | 'afterNight'>, clock: ChatClock): boolean;
 
 // @public (undocumented)
 export function modById(id: string, mods?: readonly ModDef[]): ModDef | undefined;
@@ -1117,6 +1125,7 @@ export interface NativeGameSave {
     chatShownThrough?: {
         date: number;
         time: TimeSlot;
+        night?: true;
     };
     classRecords: Record<string, ClassRecord>;
     date: number;
@@ -1464,7 +1473,7 @@ export function sharedModOn(modId: string): boolean;
 export function shownComments(comments: readonly PostComment[] | undefined, date: number, time: TimeSlot): PostComment[];
 
 // @public
-export function shownMessages<T extends Pick<ChatMessage, 'date' | 'time' | 'late'>>(messages: readonly T[], clock: ChatClock): readonly T[];
+export function shownMessages<T extends Pick<ChatMessage, 'date' | 'time' | 'late' | 'afterNight'>>(messages: readonly T[], clock: ChatClock): readonly T[];
 
 // @public
 export interface SlotActivity extends SlotActivityOffer {
