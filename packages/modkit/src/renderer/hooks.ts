@@ -416,6 +416,11 @@ export interface ModHooks {
   relaxLabel?: (ctx: { date: number; time: TimeSlot }) => string | undefined
   /** The first answer replaces narration for the Relax row itself. */
   relaxLine?: (ctx: { date: number; time: TimeSlot }) => string | undefined
+  /**
+   * The reader's text when Yes is pressed on a meet-up footer: `mine` when the reader suggested
+   * it. Undefined leaves the game's own "Sure".
+   */
+  acceptLine?: (ctx: { charId: string; mine: boolean }) => string | undefined
   /** Extra choices that call their handler before spending the slot on Relax. */
   relaxRows?: (ctx: { date: number; time: TimeSlot }) => readonly { label: string; onPick: () => void }[]
   /**
@@ -513,8 +518,14 @@ export interface ModHooks {
   statusWords?: () => boolean
   /** Shows every contact's status light beside their name in the Chats list. */
   chatListLights?: () => boolean
-  /** Whether this contact sleeps through the current late-night hold. */
-  asleepNow?: (ctx: { charId: string }) => boolean
+  /** Whether the contact is idle and replies at the next landing. */
+  asleepNow?: (ctx: {
+    charId: string
+    date: number
+    time: TimeSlot
+    /** Present at an ordinary slot's opening, before contact deliveries. */
+    opening?: { weekend: boolean; homeContacts: readonly string[] }
+  }) => boolean
   /** Opens only the timetable gate on the contact's composer. */
   textWhileBusy?: (ctx: { charId: string; commitment: Commitment }) => boolean
   /** After her reply in a DM has landed. */
@@ -1075,6 +1086,19 @@ export function relaxLine(ctx: { date: number; time: TimeSlot }): string | undef
   return undefined
 }
 
+/** The first enabled mod's text for the reader's Yes on a meet-up footer. */
+export function acceptLine(ctx: { charId: string; mine: boolean }): string | undefined {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      const line = hooks.acceptLine?.(ctx)
+      if (typeof line === 'string' && line.trim()) return line.trim()
+    } catch (error) {
+      console.warn(`[mods] ${modId}: acceptLine failed`, error)
+    }
+  }
+  return undefined
+}
+
 /** Any enabled mod may skip an exchange's immediate-meetup classifier. */
 export function hangoutCheck(ctx: { charId: string; startedBy: 'reader' | 'her' }): boolean {
   for (const { modId, hooks } of activeEntries()) {
@@ -1529,16 +1553,20 @@ export function readReceipts(): boolean {
   return false
 }
 
-/** Asks which contacts are sleeping only when the current interlude is late night. */
-export function asleepNow(ctx: { charId: string }): boolean {
+/** Asks whether a contact is idle, letting every mod see an opening snapshot. */
+export function asleepNow(ctx: Parameters<NonNullable<ModHooks['asleepNow']>>[0]): boolean {
+  let idle = false
   for (const { modId, hooks } of activeEntries()) {
     try {
-      if (hooks.asleepNow?.(ctx) === true) return true
+      if (hooks.asleepNow?.(ctx) === true) {
+        if (!ctx.opening) return true
+        idle = true
+      }
     } catch (error) {
       console.warn(`[mods] ${modId}: asleepNow failed`, error)
     }
   }
-  return false
+  return idle
 }
 
 /** Whether an enabled mod wants the phone to warn before accepting a meet-up. */

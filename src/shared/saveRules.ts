@@ -176,6 +176,7 @@ function heldReplyProblem(held: unknown): string | null {
   if (!Array.isArray(held.messageIds) || !held.messageIds.every(id => typeof id === 'string')) {
     return 'has no valid "messageIds"'
   }
+  if (held.away !== undefined && held.away !== 0 && held.away !== 1) return 'has an invalid "away"'
   const after = held.afterClass
   if (after !== undefined && !(isClock(after) && typeof (after as Record<string, unknown>).code === 'string')) {
     return 'has an invalid "afterClass"'

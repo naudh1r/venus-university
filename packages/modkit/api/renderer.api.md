@@ -519,6 +519,10 @@ export interface ModDetailProps {
 
 // @public (undocumented)
 export interface ModHooks {
+    acceptLine?: (ctx: {
+        charId: string;
+        mine: boolean;
+    }) => string | undefined;
     advancedSettingsEntry?: ComponentType<ScreenSlotProps['advancedSettingsEntry']>;
     afterDmReply?: (ctx: {
         charId: string;
@@ -533,6 +537,12 @@ export interface ModHooks {
     afterSceneReply?: (ctx: SceneReplied) => void;
     asleepNow?: (ctx: {
         charId: string;
+        date: number;
+        time: TimeSlot;
+        opening?: {
+            weekend: boolean;
+            homeContacts: readonly string[];
+        };
     }) => boolean;
     // (undocumented)
     bunnyboardPage?: BunnyboardPage;
@@ -1724,6 +1734,7 @@ export interface TextFieldProps {
 export interface TextingPromptState {
     ages?: Readonly<Record<string, number>>;
     asleep?: true;
+    away?: TimeSlot;
     breakthrough?: BreakthroughState;
     calendar: SemesterCalendar;
     charCompanions?: NpcCompanions;

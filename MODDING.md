@@ -1276,8 +1276,9 @@ else names it.
 | `interludeSettled` | `gameLoop.ts` | Observe the held night's applied texting ledger before its opening and save, while the hold stands |
 | `interludePreview` | `slotCrossing.ts` | Say, without writing anything, that the coming slot will be held on the finished one's look, so the boundary's curtain announces that slot (`{ at: 'from' }`) |
 | `ownMeetupAsks` | `textingLoop.ts` | Return true to ask Yes/No before arming a reader-initiated meetup |
-| `asleepNow` | `textingLoop.ts` | Return true to mark a contact idle through a late-night hold and deliver the reply in the morning |
+| `asleepNow` | `textingLoop.ts` | Return true to mark a contact idle and hold the reply to the next landing |
 | `readReceipts` | `BunnyboardModal.tsx` | Return true to show sent, delivered and read ticks on outgoing text bubbles |
+| `acceptLine` | `textingLoop.ts` | Return the reader's text for Yes on a meet-up footer, `mine` when the reader suggested it; undefined keeps "Sure" |
 | `statusWords` | `BunnyboardModal.tsx` | Return true to word a contact's thread header as Available, Busy or Idle, then where |
 | `chatListLights` | `BunnyboardModal.tsx` | Return true to show every contact's status light beside their name in the Chats list |
 | `warnBeforeMeetup` | `BunnyboardModal.tsx` | Return true to warn about a current class, assessment or shift before the phone's Yes |
@@ -1946,9 +1947,17 @@ and hints, and read/edit/export with a missing provider. No particular mod trait
 
 ### Texting during a commitment
 
-`asleepNow({ charId })` is an `any` renderer hook asked only while a late-night hold stands.
-The contact appears idle and can still be texted. The reply is written immediately and delivered
-when the morning opens. DM prompt hooks can use `state.asleep` to describe why the reply arrives then.
+`asleepNow({ charId, date, time, opening? })` is an `any` renderer hook. An idle contact can
+still be texted and sends no opening texts. The reply is written immediately. From an ordinary
+slot it shows at the next landing (which may be a late-night hold). From a late-night hold it
+shows when the morning opens. DM prompt hooks receive `state.away` with the sending half for the
+first case and `state.asleep` for the second.
+
+Before an ordinary landing delivers texts, the hook receives an `opening` snapshot for each
+contact on its `homeContacts` list. The list uses the map's told route and includes only contacts
+in their own dorm room with no shift or plan with the reader in that slot. `opening.weekend`
+follows the game's Saturday and Sunday calendar. Mods can use this snapshot to fix a slot's idle
+roster before checking individual contacts.
 
 `textWhileBusy({ charId, commitment })` is an `any` renderer hook. Any enabled mod returning
 `true` opens only the composer's class/shift gate; scene, block, failed-turn, reply-in-flight
