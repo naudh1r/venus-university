@@ -17,15 +17,16 @@ interface NightSleep {
   asleep?: string[]
 }
 
-/** The reader's phone status and what is kept about the current night. */
+/** The reader's phone status and the availability fixed at each landing. */
 export interface AfterHours {
   busy: boolean
   nightDone?: number
   stayOver?: StayOver
   sleep?: NightSleep
+  weekendIdle?: { slot: number; charIds: string[] }
 }
 
-/** Restores the phone status and valid night data. */
+/** Restores the phone status and valid availability snapshots. */
 export function normalize(stored: unknown): AfterHours {
   const data = typeof stored === 'object' && stored !== null ? stored as Partial<AfterHours> : {}
   const sleep = data.sleep
@@ -33,12 +34,16 @@ export function normalize(stored: unknown): AfterHours {
     Array.isArray(sleep.cast) && sleep.cast.every(id => typeof id === 'string')
   const asleep = validSleep && Array.isArray(sleep.asleep) && sleep.asleep.every(id => typeof id === 'string')
     ? sleep.asleep : undefined
+  const idle = data.weekendIdle
+  const validIdle = idle && Number.isInteger(idle.slot) &&
+    Array.isArray(idle.charIds) && idle.charIds.every(id => typeof id === 'string')
   const stay = data.stayOver
   const validStay = stay && typeof stay === 'object' && typeof stay.charId === 'string' && stay.charId.length > 0 &&
     (stay.room === 'herRoom' || stay.room === 'hisRoom') && Number.isInteger(stay.morning)
   return {
     busy: data.busy === true,
     ...(typeof data.nightDone === 'number' && Number.isInteger(data.nightDone) ? { nightDone: data.nightDone } : {}),
+    ...(validIdle ? { weekendIdle: { slot: idle.slot, charIds: idle.charIds } } : {}),
     ...(validSleep ? { sleep: { date: sleep.date, cast: sleep.cast, ...(asleep ? { asleep } : {}) } } : {}),
     ...(validStay ? { stayOver: { charId: stay.charId, room: stay.room, morning: stay.morning } } : {})
   }
@@ -47,6 +52,7 @@ export function normalize(stored: unknown): AfterHours {
 const AWAKE_AFTER_MEETING = 0.8
 const AWAKE_WHEN_CLOSE = 0.6
 const AWAKE_OTHERWISE = 0.5
+const WEEKEND_IDLE_CHANCE = 0.4
 
 /** Decides whether a contact has gone to sleep based on the evening just ended. */
 export function asleepTonight(
@@ -54,6 +60,11 @@ export function asleepTonight(
 ): boolean {
   const awake = metThisEvening ? AWAKE_AFTER_MEETING : close ? AWAKE_WHEN_CLOSE : AWAKE_OTHERWISE
   return seededRand(`${AFTER_HOURS_MOD}:sleep:${date}:${charKey}`)() >= awake
+}
+
+/** Rolls a weekend contact's availability for a single slot. */
+export function idleAtHome(charKey: string, date: number, time: TimeSlot): boolean {
+  return seededRand(`${AFTER_HOURS_MOD}:away:${date}:${time}:${charKey}`)() < WEEKEND_IDLE_CHANCE
 }
 
 /** The character in the cast the ledger says is staying over, in a room they can share. */
@@ -146,6 +157,15 @@ export function morningReturnPrompt(
 export function sleepingTextPrompt(contact: Contact): string {
   const p = pronounsOf(contact)
   return `${contact.firstName} fell asleep before reading the reader's messages. Write the reply ${p.they} sends in the morning after reading them. ${p.They} can mention falling asleep, but there's no need to make a topic of it.`
+}
+
+/** The contact catches up after some time at home away from the phone. */
+export function awayTextPrompt(contact: Contact, time: TimeSlot): string {
+  const p = pronounsOf(contact)
+  const possibilities = time === 0
+    ? 'Sleeping in is as possible as being on a call or doing something around the room.'
+    : 'A call or something around the room would fit. A nap is possible if it suits the contact and the evening.'
+  return `${contact.firstName} was at home and away from the phone when the reader's messages came in. Decide what ${p.they} had been doing, to suit the character and the time. ${possibilities} Write the reply that comes later, when ${p.they} can catch up. ${p.They} can mention the delay without making a topic of it.`
 }
 
 /** The reply catches up after the commitment, without making it a required topic. */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { charKeyOf } from '@vx/modkit/shared'
 import { character } from './fixtures'
-import { asleepTonight, busyPromptApplies, nightOwed, normalize, stagedUntil, stayOverOf } from '../src/shared/afterHours'
+import { asleepTonight, busyPromptApplies, idleAtHome, nightOwed, normalize, stagedUntil, stayOverOf } from '../src/shared/afterHours'
 
 describe('Busy restrictions on chats the reader starts', () => {
   it('restricts his chat while Busy and leaves her chat unchanged', () => {
@@ -145,5 +145,19 @@ describe('who stays awake through the night', () => {
     expect(rate(awake(false, true))).toBeCloseTo(0.6, 1)
     expect(rate(awake(true, true))).toBeCloseTo(0.8, 1)
     expect(awake(true, true)).toEqual(awake(true, false))
+  })
+})
+
+describe('weekend availability at home', () => {
+  const roll = (slot: number) => idleAtHome('sarah_adams', Math.floor(slot / 2), slot % 2 === 0 ? 0 : 1)
+
+  it('repeats the roll for the same character and slot', () => {
+    const slots = Array.from({ length: 32 }, (_, slot) => slot)
+    expect(slots.map(roll)).toEqual(slots.map(roll))
+  })
+
+  it('rolls close to forty percent idle', () => {
+    const slots = Array.from({ length: 5000 }, (_, slot) => slot)
+    expect(slots.filter(roll).length / slots.length).toBeCloseTo(0.4, 1)
   })
 })

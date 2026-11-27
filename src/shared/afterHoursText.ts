@@ -13,10 +13,10 @@ export const afterHoursText = {
   busyTextsOption: "Text people when they're busy",
   busyTextsHint: "Text someone during class or work. They reply when they're out, in the next half of the day.",
   nightOption: 'The night',
-  nightSleepOption: 'Not everyone stays up',
+  idleOption: 'Not everyone answers right away',
   chatLightsOption: 'Status lights in Chats',
   chatLightsHint: 'A light beside each name in Chats: green when free, orange in class or at work, yellow when idle.',
-  nightSleepHint: 'At night, some people have gone to sleep. Their light is yellow, and they reply in the morning.',
+  idleHint: 'At night and on weekends, some people at home are asleep or away from their phone. Their light is yellow, and they reply later.',
   nightHint: 'After the evening, stay up texting before you sleep. An evening in their room or yours can last the night.',
   /** One is picked for each night's landing; each leaves the reader awake in their room with their phone. */
   nightLines: [

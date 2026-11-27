@@ -15,7 +15,7 @@ const mod: ModDef = {
     { id: 'busy-status', label: afterHoursText.option, hint: afterHoursText.hint, default: true },
     { id: 'busy-texts', label: afterHoursText.busyTextsOption, hint: afterHoursText.busyTextsHint, default: true },
     { id: 'night', label: afterHoursText.nightOption, hint: afterHoursText.nightHint, default: true },
-    { id: 'night-sleep', label: afterHoursText.nightSleepOption, hint: afterHoursText.nightSleepHint, default: true },
+    { id: 'night-sleep', label: afterHoursText.idleOption, hint: afterHoursText.idleHint, default: true },
     { id: 'chat-lights', label: afterHoursText.chatLightsOption, hint: afterHoursText.chatLightsHint, default: true }
   ]
 }

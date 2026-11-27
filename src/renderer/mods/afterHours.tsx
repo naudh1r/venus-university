@@ -29,7 +29,7 @@ import {
   type SlotSettled
 } from '@vx/modkit/renderer'
 import {
-  AFTER_HOURS_MOD, asleepTonight, busyPrompt, busyPromptApplies, busyTextPrompt, morningReturnPrompt,
+  AFTER_HOURS_MOD, asleepTonight, awayTextPrompt, busyPrompt, busyPromptApplies, busyTextPrompt, idleAtHome, morningReturnPrompt,
   nightOwed, nightPrompt, normalize, sleepingTextPrompt, stagedUntil, stayOverLedgerInstruction, stayOverOf, stayOverPrompt,
   type AfterHours
 } from '../../shared/afterHours'
@@ -74,6 +74,20 @@ function recordSleepers(date: number): void {
     })
   }).map(contact => contact.charId)
   status.set({ ...data, sleep: { ...sleep, asleep } })
+}
+
+/** Fixes the daytime idle list once, excluding the person in the morning goodbye. */
+function recordWeekendIdle(date: number, time: TimeSlot, homeContacts: readonly string[]): void {
+  const data = status.read()
+  const slot = globalSlotOf(date, time)
+  if (data.weekendIdle?.slot === slot) return
+  const overnightGuest = data.stayOver?.morning === slot ? data.stayOver.charId : null
+  const charIds = homeContacts.filter(id => {
+    if (id === overnightGuest) return false
+    const contact = character(id)
+    return contact !== undefined && idleAtHome(charKeyOf(contact.firstName, contact.lastName), date, time)
+  })
+  status.set({ ...data, weekendIdle: { slot, charIds } })
 }
 
 /** The reader's face, name and status. Clicking the chip switches the status. */
@@ -193,11 +207,16 @@ registerHooks(AFTER_HOURS_MOD, {
   readReceipts: () => true,
   statusWords: () => true,
   chatListLights: () => modOptionOn(AFTER_HOURS_MOD, 'chat-lights'),
-  asleepNow: ({ charId }) => {
-    if (!modOptionOn(AFTER_HOURS_MOD, 'night') || !modOptionOn(AFTER_HOURS_MOD, 'night-sleep')) return false
-    const hold = heldNight()
-    const sleep = status.read().sleep
-    return hold !== null && sleep?.date === hold.from.date && sleep.asleep?.includes(charId) === true
+  asleepNow: ({ charId, date, time, opening }) => {
+    if (opening?.weekend) recordWeekendIdle(date, time, opening.homeContacts)
+    if (!modOptionOn(AFTER_HOURS_MOD, 'night-sleep')) return false
+    const data = status.read()
+    const hold = interludeNow()
+    if (hold) {
+      return hold.owner === AFTER_HOURS_MOD && hold.clock === 'late-night' && modOptionOn(AFTER_HOURS_MOD, 'night') &&
+        data.sleep?.date === hold.from.date && data.sleep.asleep?.includes(charId) === true
+    }
+    return data.weekendIdle?.slot === globalSlotOf(date, time) && data.weekendIdle.charIds.includes(charId)
   },
   textWhileBusy: () => modOptionOn(AFTER_HOURS_MOD, 'busy-texts'),
   interludePreview: ({ to, ledger }) =>
@@ -322,9 +341,10 @@ registerHooks(AFTER_HOURS_MOD, {
         )
         return [
           ...(state.asleep ? [sleepingTextPrompt(character)] : []),
+          ...(state.away !== undefined ? [awayTextPrompt(character, state.away)] : []),
           // A reply written after a class they share is told so by the game itself.
           ...(state.heldUntil && state.commitment && !state.sharedClass ? [busyTextPrompt(character, state.commitment, state.readerPronouns)] : []),
-          ...(!state.asleep && heldNight() ? [nightPrompt(character)] : []),
+          ...(!state.asleep && state.away === undefined && heldNight() ? [nightPrompt(character)] : []),
           ...(busy ? [busyPrompt(character)] : [])
         ]
       }

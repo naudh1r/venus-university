@@ -69,10 +69,15 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   activity choice or map travel. The phone stays available for texts and Bunnyboard comments.
 - Each contact is in their own room; their chat names their dorm. Nobody goes anywhere tonight,
   and a DM cannot begin a hangout. Plans for another time still work normally.
-- **Not everyone stays up** is on by default. Some contacts go to sleep for the night. Their
-  light turns yellow and their thread says **Idle**. You can still text them. Two grey ticks
-  mean their reply is ready, and it arrives when the morning opens. Close friends, partners and
-  people you saw that evening are more likely to stay up. Turn this option off to chat as usual.
+- **Not everyone answers right away** is on by default. Some contacts go to sleep at night.
+  Their light turns yellow and their thread says **Idle**. You can still text them. Two grey
+  ticks mean their reply is ready, and it arrives when the morning opens. Close friends,
+  partners and people you saw that evening are more likely to stay up.
+- On Saturday and Sunday, some contacts in their own rooms are away from their phones. They
+  show as **Idle** too, and reply at the next landing. A reply to a weekend evening text can
+  arrive at night, or in the morning if you skip the night. A shift or a plan with you still
+  holds, and someone you stayed over with won’t be idle that morning. You can still visit
+  a contact who's idle from the map. Turn this option off to chat as usual.
 
 - **Go to sleep** plays a line of you falling asleep, picked for that night from a handful, as
   Relax plays its own, then ends the night the way Relax ends a slot: the night's texts are counted and
@@ -102,6 +107,7 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 
 ## 0.7.8
 
+- Contacts at home on weekends can be Idle and answer at the next landing.
 - Your status reads Available or Busy.
 - A contact's thread says Available, Busy or Idle, then where they are: Available · At the Lowrises,
   Busy · In Calculus class, Busy · Working at the café, Idle · At the Lowrises.
