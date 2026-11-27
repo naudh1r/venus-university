@@ -46,6 +46,7 @@ export {
   promptStateParts,
   promptTextEdits,
   readReceipts,
+  chatListLights,
   relaxLabel,
   relaxLine,
   relaxRows,

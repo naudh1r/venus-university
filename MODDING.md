@@ -1278,6 +1278,7 @@ else names it.
 | `ownMeetupAsks` | `textingLoop.ts` | Return true to ask Yes/No before arming a reader-initiated meetup |
 | `asleepNow` | `textingLoop.ts` | Return true to mark a contact idle through a late-night hold and deliver the reply in the morning |
 | `readReceipts` | `BunnyboardModal.tsx` | Return true to show sent, delivered and read ticks on outgoing text bubbles |
+| `chatListLights` | `BunnyboardModal.tsx` | Return true to show every contact's status light beside their name in the Chats list |
 | `warnBeforeMeetup` | `BunnyboardModal.tsx` | Return true to warn about a current class, assessment or shift before the phone's Yes |
 | `hangoutCheck` | `textingLoop.ts` | Return false before the immediate-meetup classifier to skip the call and its result |
 | `afterDmReply` | `textingLoop.ts` | Act after her reply in a DM has landed |
@@ -1434,6 +1435,10 @@ follow-up, excluding the closing cast. The entries carry `charId` and `descripti
 while no reply is written, two grey ticks while a written reply is held for a later slot, and two
 blue ticks once a later contact message shows. A reply written for now shows two grey ticks once its
 stream starts coming back and two blue ticks once its first text is complete, before the typing. The game saves no receipt state.
+
+`chatListLights()` puts each contact's status light beside their name in the Chats list, the same
+light the thread header shows: green when free, amber during a class or shift, yellow when idle.
+Without it, the list shows only the idle light.
 
 `warnBeforeMeetup()` opts into the native commitment confirm on the phone's Yes. With no
 commitment, Yes proceeds immediately. Landing buttons, including planned events, go ahead directly.
