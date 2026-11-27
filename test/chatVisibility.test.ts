@@ -87,8 +87,10 @@ describe('receipts from the thread', () => {
     expect(of(thread, reply)).toEqual({ sent: 'read', next: 'read' })
   })
 
-  it('reads every text while the contact is writing a reply for now', () => {
-    expect(Object.fromEntries(receiptsOf([sent, next], [sent, next], true))).toEqual({ sent: 'read', next: 'read' })
+  it('marks the texts after the last reply with where a reply for now stands', () => {
+    const shown = [sent, { ...reply, date: 7, time: 1 as const }, next]
+    expect(Object.fromEntries(receiptsOf(shown, shown, 'delivered'))).toEqual({ sent: 'read', next: 'delivered' })
+    expect(Object.fromEntries(receiptsOf(shown, shown, 'read'))).toEqual({ sent: 'read', next: 'read' })
   })
 
   it('keeps earlier texts read when a later reply is held', () => {

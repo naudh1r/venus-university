@@ -795,6 +795,8 @@ async function runReply(
     const unsubscribe = window.api.llm.onTextingDelta((deltaGroup, delta) => {
       if (deltaGroup !== group) return
       if (entry.abandoned) return
+      // The first streamed output of a reply for now: the model has read the thread.
+      if (!held) useBunnyboardStore.getState().setReading(charId, true)
       const lead = leadReader.feed(delta)
       if (lead) dmReplyLead({ charId, character, lead, signal: leadController.signal })
       if (held) return
@@ -924,6 +926,7 @@ async function runReply(
     if (sent && invited) settleAnsweredInvitation(charId, invited.occasionId)
   } finally {
     abortLead()
+    if (inFlight.get(charId) === entry) useBunnyboardStore.getState().setReading(charId, false)
   }
 }
 
