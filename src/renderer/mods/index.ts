@@ -26,8 +26,10 @@ const styles = new Map<string, HTMLLinkElement>()
 
 /** Enables each mod's stylesheet while its mod is on: a stylesheet cannot ask whether its mod is. */
 function followSwitches(isOn: (id: string) => boolean): void {
+  // `media`, not `disabled`: Chromium never fetches a sheet disabled before it loads, so a mod off
+  // at start would come on later unstyled. A sheet on `not all` still loads, and applies nowhere.
   const apply = (): void => {
-    for (const [id, link] of styles) link.disabled = !isOn(id)
+    for (const [id, link] of styles) link.media = isOn(id) ? 'all' : 'not all'
   }
   apply()
   subscribeHookRules(apply)
