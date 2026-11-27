@@ -1,5 +1,5 @@
 import { receiptsOf, shownConversation, type Receipt, shownMessages } from '@shared/chatVisibility'
-import { chatListLights, readReceipts, subscribeHookRules, textWhileBusy, warnBeforeMeetup } from '../mods/hooks'
+import { chatListLights, readReceipts, statusWords, subscribeHookRules, textWhileBusy, warnBeforeMeetup } from '../mods/hooks'
 import { meetupCommitmentNow } from '../stores/slotActions'
 import { charCommitmentAt } from '../stores/timetable'
 import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
@@ -581,6 +581,8 @@ interface Presence {
   busy: boolean
   /** The one line beside it, which is never empty. */
   text: string
+  /** The thread header's line when a mod words it as a state first. */
+  header?: string
 }
 
 /**
@@ -595,22 +597,31 @@ function presenceOf(
   time: TimeSlot,
   asleep = contactAsleep(charId)
 ): Presence {
+  const worded = statusWords()
   // Idle keeps the place: the lamp alone says it, and the thread header adds the word.
-  if (asleep) return { idle: true, busy: false, text: presenceOf(placed, charId, date, time, false).text }
+  if (asleep) {
+    const where = presenceOf(placed, charId, date, time, false)
+    const unplaced = where.text === 'Online'
+    return { idle: true, busy: false, text: where.text,
+      header: worded ? (unplaced ? 'Idle' : `Idle · ${where.text}`) : unplaced ? 'Idle' : `Idle — ${where.text}` }
+  }
   if (!placed || placed.source !== 'told' || placed.kind === 'unknown') {
-    return { busy: false, text: 'Online' }
+    return { busy: false, text: 'Online', ...(worded ? { header: 'Available' } : {}) }
   }
   if (placed.kind === 'away' || placed.kind === 'sick') return { busy: false, text: placed.placeLabel }
   if (placed.kind === 'class') {
     // The class's own name, not the code the map files it under: this is a sentence about her.
     const named = placed.classCode ? useGameStore.getState().classes[placed.classCode]?.name : null
-    return { busy: true, text: `In class — ${named ?? placed.classCode}` }
+    return { busy: true, text: `In class — ${named ?? placed.classCode}`,
+      ...(worded ? { header: `Busy · In ${named ?? placed.classCode} class` } : {}) }
   }
   // A shift reads as a place on the map; on a phone it is worth saying it is work.
   if (useGameStore.getState().interlude?.now.clock !== 'late-night' && charJobNow(charId, date, time) !== null) {
-    return { busy: true, text: `Working @ ${placed.placeLabel}` }
+    return { busy: true, text: `Working @ ${placed.placeLabel}`,
+      ...(worded ? { header: `Busy · Working at ${placed.placeLabel}` } : {}) }
   }
-  return { busy: false, text: `At ${placed.placeLabel}` }
+  return { busy: false, text: `At ${placed.placeLabel}`,
+    ...(worded ? { header: `Available · At ${placed.placeLabel}` } : {}) }
 }
 
 /** Whether the hour has a claim on her — a class or a shift, which is what the lamp says. */
@@ -1210,7 +1221,7 @@ function ConversationView({
               {status && (
                 <>
                   <BusyLed busy={status.busy} idle={status.idle} />
-                  {status.idle ? (status.text === 'Online' ? 'Idle' : `Idle — ${status.text}`) : status.text}
+                  {status.header ?? status.text}
                 </>
               )}
             </span>

@@ -459,6 +459,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   ownMeetupAsks: fn('ownMeetupAsks', true, host => host.ownMeetupAsks({ charId: 'c', description: 'Meet' })),
   asleepNow: fn('asleepNow', true, host => host.asleepNow({ charId: 'test' })),
   readReceipts: fn('readReceipts', true, host => host.readReceipts()),
+  statusWords: fn('statusWords', true, host => host.statusWords()),
   chatListLights: fn('chatListLights', true, host => host.chatListLights()),
   warnBeforeMeetup: fn('warnBeforeMeetup', true, host => host.warnBeforeMeetup()),
   hangoutCheck: fn('hangoutCheck', false, host => host.hangoutCheck({ charId: 'c', startedBy: 'her' })),
