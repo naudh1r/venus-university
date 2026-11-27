@@ -228,8 +228,9 @@ export function sceneActiveOf(state: {
   sceneEnding?: boolean
   currentSceneTranscript: readonly unknown[]
   sceneSummary: string | null
+  interlude?: unknown
 }): boolean {
-  return state.busy || state.sceneEnding === true || state.currentSceneTranscript.length > 0 || state.sceneSummary !== null
+  return state.busy || Boolean(state.interlude && state.sceneEnding) || state.currentSceneTranscript.length > 0 || state.sceneSummary !== null
 }
 
 /**
