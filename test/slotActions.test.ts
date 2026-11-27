@@ -1,10 +1,11 @@
 import './fixtures/maestroModelKit'
 import { describe, expect, it } from 'vitest'
 import { slotOf } from '@shared/classes'
-import { newJobState } from '@shared/jobs'
+import { MAX_STRIKES, newJobState } from '@shared/jobs'
 import { calendarOf } from '@shared/semesters'
+import { examDateOf } from '../src/renderer/prompts/classProgress'
 import { meetingDatesOf } from '../src/renderer/prompts/occasions'
-import { resetFillerCache, slotActionsNow } from '../src/renderer/stores/slotActions'
+import { meetupCommitmentOf, resetFillerCache, slotActionsNow } from '../src/renderer/stores/slotActions'
 import { useGameStore } from '../src/renderer/stores/gameStore'
 import { useGrabBagStore } from '../src/renderer/stores/grabBagStore'
 import { calendarEvent, classEntry } from './fixtures'
@@ -180,5 +181,29 @@ describe('slotActionsNow', () => {
     // A recompute in the same slot draws nothing new: the same sentences come back.
     const again = slotActionsNow()
     expect(again.map((action) => action.text)).toEqual(actions.map((action) => action.text))
+  })
+})
+
+
+describe('the commitment a phone meet-up would skip', () => {
+  it('reports the class and its assessment, including a project showcase', () => {
+    const lecture = classEntry({ kind: 'lecture', slot: MONDAY_DAY })
+    const project = classEntry({ kind: 'project', slot: MONDAY_DAY })
+    expect(meetupCommitmentOf(lecture, MONDAY, SPRING)).toMatchObject({ kind: 'class', assessment: null })
+    expect(meetupCommitmentOf(lecture, examDateOf(lecture, 'midterm', SPRING)!, SPRING))
+      .toMatchObject({ kind: 'class', assessment: 'midterm' })
+    expect(meetupCommitmentOf(lecture, examDateOf(lecture, 'final', SPRING)!, SPRING))
+      .toMatchObject({ kind: 'class', assessment: 'final' })
+    expect(meetupCommitmentOf(project, examDateOf(project, 'final', SPRING)!, SPRING))
+      .toMatchObject({ kind: 'class', assessment: 'showcase' })
+  })
+
+  it('reports the current strike count and whether the next one costs the job', () => {
+    expect(meetupCommitmentOf(undefined, MONDAY, SPRING)).toBeNull()
+    const employer = 'CuteTea'
+    for (const strikes of [0, MAX_STRIKES - 1]) {
+      expect(meetupCommitmentOf(undefined, MONDAY, SPRING, { employer, strikes }))
+        .toEqual({ kind: 'shift', employer, strikes, limit: MAX_STRIKES, lastStrike: strikes > 0 })
+    }
   })
 })

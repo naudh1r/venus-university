@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Renderer hooks can give reader-initiated meet-ups a Yes/No footer with `ownMeetupAsks` and
+  opt into a phone commitment warning with `warnBeforeMeetup`. `slotSettled` supplies lapsed
+  reader offers separately from contact invitations.
+- `noteInThread` adds a quiet system message to a character's thread at a chosen slot.
+
 - Optional `ModDef.game` declares supported Venus University versions. Manifest `game`
   ranges now propagate to mod-menu metadata; undeclared or out-of-range support is
   shown with advisory confirmation before enabling mods and game entry.

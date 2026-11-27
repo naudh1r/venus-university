@@ -104,6 +104,7 @@ export {
   fileLatePost,
   finishSlotActivity,
   gameFacts,
+  noteInThread,
   gestures,
   isGraduationSlot,
   isNewGameBlock,

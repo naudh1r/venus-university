@@ -33,6 +33,7 @@ export {
   openingLook,
   optionControl,
   optionPreview,
+  ownMeetupAsks,
   ownedComments,
   playerActs,
   postCommentsOwner,
@@ -68,7 +69,8 @@ export {
   statFloor,
   subscribeHookRules,
   textWhileBusy,
-  updatesTabs
+  updatesTabs,
+  warnBeforeMeetup
 } from '../renderer/hooks'
 export type { DeclaredHooks } from '../renderer/hooks'
 export { bindModWrites, bindRecordWrites, bindSaveFieldStore, carryModSlices, readModSlices, saveFields, writeModSlices } from '../renderer/saveField'
