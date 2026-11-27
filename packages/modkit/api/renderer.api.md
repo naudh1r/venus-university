@@ -606,6 +606,7 @@ export interface ModHooks {
     };
     promptText?: PromptTextSpot;
     railButton?: ComponentType<ScreenSlotProps['railButton']>;
+    readReceipts?: () => boolean;
     relaxLabel?: (ctx: {
         date: number;
         time: TimeSlot;
