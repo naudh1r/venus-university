@@ -118,7 +118,7 @@ import { knownWhereabouts } from './whereabouts'
 import { useGameStore } from './gameStore'
 import { heldReplyDueAt, sharedReplyClass } from '@shared/heldReplies'
 import { threadStartedBy, waitingText } from '@shared/textingThread'
-import { afterDmReply, afterReachOut, asleepNow, dmReplyLead, hangoutCheck, ownMeetupAsks, textWhileBusy, promptTextEdits } from '../mods/hooks'
+import { acceptLine, afterDmReply, afterReachOut, asleepNow, dmReplyLead, hangoutCheck, ownMeetupAsks, textWhileBusy, promptTextEdits } from '../mods/hooks'
 import { lorebookNow } from './lorebookStore'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
 import { createRetryGate } from './retryGate'
@@ -1139,7 +1139,7 @@ function sayYes(charId: string, mine = false): void {
     game.setIgnoredInvitation(charId, false)
     game.resetDeclined(charId)
   }
-  game.appendChatMessage(charId, chatMessage('player', 'Sure'), 0)
+  game.appendChatMessage(charId, chatMessage('player', acceptLine({ charId, mine }) ?? 'Sure'), 0)
 }
 
 /** The Yes/No footer under her pending ask-out. */

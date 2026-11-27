@@ -416,6 +416,11 @@ export interface ModHooks {
   relaxLabel?: (ctx: { date: number; time: TimeSlot }) => string | undefined
   /** The first answer replaces narration for the Relax row itself. */
   relaxLine?: (ctx: { date: number; time: TimeSlot }) => string | undefined
+  /**
+   * The reader's text when Yes is pressed on a meet-up footer: `mine` when the reader suggested
+   * it. Undefined leaves the game's own "Sure".
+   */
+  acceptLine?: (ctx: { charId: string; mine: boolean }) => string | undefined
   /** Extra choices that call their handler before spending the slot on Relax. */
   relaxRows?: (ctx: { date: number; time: TimeSlot }) => readonly { label: string; onPick: () => void }[]
   /**
@@ -1076,6 +1081,19 @@ export function relaxLine(ctx: { date: number; time: TimeSlot }): string | undef
       if (line !== undefined) return line
     } catch (error) {
       console.warn(`[mods] ${modId}: relaxLine failed`, error)
+    }
+  }
+  return undefined
+}
+
+/** The first enabled mod's text for the reader's Yes on a meet-up footer. */
+export function acceptLine(ctx: { charId: string; mine: boolean }): string | undefined {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      const line = hooks.acceptLine?.(ctx)
+      if (typeof line === 'string' && line.trim()) return line.trim()
+    } catch (error) {
+      console.warn(`[mods] ${modId}: acceptLine failed`, error)
     }
   }
   return undefined

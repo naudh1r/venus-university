@@ -519,6 +519,10 @@ export interface ModDetailProps {
 
 // @public (undocumented)
 export interface ModHooks {
+    acceptLine?: (ctx: {
+        charId: string;
+        mine: boolean;
+    }) => string | undefined;
     advancedSettingsEntry?: ComponentType<ScreenSlotProps['advancedSettingsEntry']>;
     afterDmReply?: (ctx: {
         charId: string;
