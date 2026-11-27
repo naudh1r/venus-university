@@ -135,9 +135,10 @@
      The identity-colour rule puts them on the icon and the stat word ONLY — points, pips and tiers
      stay in the accent, or three sub-accents would be loose in a palette that allows one. */
   --vu-stat-brain: var(--stat-brain);
-  --vu-read: #4e79a8;
   --vu-stat-body: var(--stat-body);
   --vu-stat-heart: var(--stat-heart);
+  /* Read ticks on the phone: Brain's values copied, not aliased, so a stat retune leaves them. */
+  --vu-read: #4e79a8;
 
   /* The wordmark is a bitmap, so a turn of its hue is the only handle the theme has on it —
      and it is a role rather than a screen's filter, so night is still derived in this file
@@ -231,9 +232,9 @@
      `--vu-good`'s night value by arithmetic and not by aliasing: a sage stat and a complete
      set agree today by coincidence, and one of them may be retuned without the other. */
   --vu-stat-brain: #8fb0d4;
-  --vu-read: #8fb0d4;
   --vu-stat-body: #a3b581;
   --vu-stat-heart: #e393b5;
+  --vu-read: #8fb0d4;
 
   /* Wine is at 338° and the night surfaces sit at 283–292°: the turn takes the script to the
      cool end the rest of the screen has already gone to, rather than leaving one warm crimson
