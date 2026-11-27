@@ -27,6 +27,18 @@ export function shownMessages<T extends Pick<ChatMessage, 'date' | 'time' | 'lat
     ? messages : messages.filter(message => messageShown(message, clock))
 }
 
+/** Player messages that have a later contact reply in the shown thread. */
+export function readPlayerIds(messages: readonly Pick<ChatMessage, 'id' | 'sender'>[]): Set<string> {
+  const read = new Set<string>()
+  let replied = false
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const { id, sender } = messages[i]
+    if (sender === 'contact') replied = true
+    else if (sender === 'player' && replied) read.add(id)
+  }
+  return read
+}
+
 const threads = new WeakMap<Conversation, { slot: number; value: Conversation }>()
 
 /** Caches each native thread's projection by the opened slot. */

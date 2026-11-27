@@ -1,5 +1,5 @@
-import { shownConversation, shownMessages } from '@shared/chatVisibility'
-import { textWhileBusy, warnBeforeMeetup } from '../mods/hooks'
+import { readPlayerIds, shownConversation, shownMessages } from '@shared/chatVisibility'
+import { readReceipts, subscribeHookRules, textWhileBusy, warnBeforeMeetup } from '../mods/hooks'
 import { meetupCommitmentNow } from '../stores/slotActions'
 import { charCommitmentAt } from '../stores/timetable'
 import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
@@ -14,6 +14,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type Dispatch,
   type JSX,
   type ReactNode,
@@ -44,7 +45,7 @@ import { formatTokens } from '@shared/tallies'
 import { affectionFor, emptyFlags, relationshipTagOf } from '@shared/relationship'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { CheckField } from '../components/CheckField'
-import { EmojiTool, SentText, useBareMessage, useEmojiTool } from '../components/TextSpots'
+import { EmojiTool, ReceiptSentText, SentText, useBareMessage, useEmojiTool } from '../components/TextSpots'
 import { DeadNote } from '../components/DeadNote'
 import { promptEditable } from '../components/LlmFailureModal'
 import { TextField } from '../components/TextField'
@@ -1080,6 +1081,8 @@ function ConversationView({
   const nowDate = useGameStore(s => s.date)
   const nowTime = useGameStore(s => s.time)
   const messages = shownMessages(conversation?.messages ?? [], shownClock ?? { date: nowDate, time: nowTime })
+  const receipts = useSyncExternalStore(subscribeHookRules, readReceipts)
+  const readIds = receipts ? readPlayerIds(messages) : undefined
   const identity = chatIdentityOf(charId, character)
   const boss = jobDefForChat(charId)
   const bot = identity.bot
@@ -1260,7 +1263,7 @@ function ConversationView({
                   <span>{stamp.split(', ')[1]}</span>
                 </div>
               )}
-              <MessageBubble message={message} />
+              <MessageBubble message={message} read={message.sender === 'player' ? readIds?.has(message.id) : undefined} />
             </Fragment>
           )
         })}
@@ -1670,9 +1673,11 @@ function Composer({
  * above it, so typing redraws the box and not every message in the thread.
  */
 const MessageBubble = memo(function MessageBubble({
-  message
+  message,
+  read
 }: {
   message: ChatMessage
+  read?: boolean
 }): JSX.Element {
   const photo = message.outgoingPhoto
   const imagesVisible = useModOn(OUTGOING_IMAGE_STORAGE_MOD) && !isWebBuild()
@@ -1687,6 +1692,7 @@ const MessageBubble = memo(function MessageBubble({
       </div>
     )
   }
+  const hasReceipt = !bare && message.sender === 'player' && read !== undefined
   // What a mod attaches to the message follows its text, in a bubble of its own: a message that is
   // only an attachment draws no empty bubble.
   return (
@@ -1702,9 +1708,20 @@ const MessageBubble = memo(function MessageBubble({
       )}
       {message.text && (
         <div
-          className={`vu-bb-bubble vu-bb-bubble--${message.sender === 'player' ? 'mine' : 'theirs'}${bare ? ' vu-bb-bubble--bare' : ''}`}
+          className={`vu-bb-bubble vu-bb-bubble--${message.sender === 'player' ? 'mine' : 'theirs'}${bare ? ' vu-bb-bubble--bare' : ''}${hasReceipt ? ' vu-bb-bubble--receipt' : ''}`}
         >
-          <SentText text={message.text} />
+          {hasReceipt ? <ReceiptSentText text={message.text} /> : <SentText text={message.text} />}
+          {hasReceipt && (
+            <svg
+              className={`vu-bb-receipt${read ? ' vu-bb-receipt--read' : ''}`}
+              viewBox="0 0 22 14"
+              role="img"
+              aria-label={read ? 'Read' : 'Sent'}
+            >
+              <path d="m7 8 4 4 9-10" />
+              {read && <path d="m2 8 4 4 2-2.2m2-2.2 5-5.6" />}
+            </svg>
+          )}
         </div>
       )}
       <ModSlot slot="messageAttachment" props={{ message }} />
