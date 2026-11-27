@@ -35,7 +35,7 @@ export const afterHoursText = {
   ],
   chatLightsOption: 'Status lights in Chats',
   chatLightsHint: 'A light beside each name in Chats: green when free, orange in class or at work, yellow when idle.',
-  idleHint: 'At night and on weekends, some people at home are asleep or away from their phone. Their light is yellow, and they reply later.',
+  idleHint: 'Some people are asleep or away from their phone. Their light is yellow, and they reply later.',
   nightHint: 'After the evening, stay up texting before you sleep. An evening in their room or yours can last the night.',
   /** One is picked for each night's landing; each leaves the reader awake in their room with their phone. */
   nightLines: [
