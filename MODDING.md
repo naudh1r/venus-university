@@ -1438,7 +1438,7 @@ stream starts coming back and two blue ticks once its first text is complete, be
 
 `chatListLights()` puts each contact's status light beside their name in the Chats list, the same
 light the thread header shows: green when free, amber during a class or shift, yellow when idle.
-Without it, the list shows only the idle light.
+Without it, the list shows no lights.
 
 `warnBeforeMeetup()` opts into the native commitment confirm on the phone's Yes. With no
 commitment, Yes proceeds immediately. Landing buttons, including planned events, go ahead directly.
