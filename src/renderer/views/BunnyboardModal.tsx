@@ -1513,25 +1513,30 @@ const MessageBubble = memo(function MessageBubble({
       </div>
     )
   }
+  const hasReceipt = !bare && message.sender === 'player' && read !== undefined
   // What a mod attaches to the message follows its text, in a bubble of its own: a message that is
   // only an attachment draws no empty bubble.
   return (
     <>
       {message.text && (
         <div
-          className={`vu-bb-bubble vu-bb-bubble--${message.sender === 'player' ? 'mine' : 'theirs'}${bare ? ' vu-bb-bubble--bare' : ''}`}
+          className={`vu-bb-bubble vu-bb-bubble--${message.sender === 'player' ? 'mine' : 'theirs'}${bare ? ' vu-bb-bubble--bare' : ''}${hasReceipt ? ' vu-bb-bubble--receipt' : ''}`}
         >
           <SentText text={message.text} />
-          {!bare && message.sender === 'player' && read !== undefined && (
-            <svg
-              className={`vu-bb-receipt${read ? ' vu-bb-receipt--read' : ''}`}
-              viewBox="0 0 20 14"
-              role="img"
-              aria-label={read ? 'Read' : 'Sent'}
-            >
-              <path d="m7 8 3 3 7-8" />
-              {read && <path d="m2 8 3 3 2-2.3m2-2.2 3-3.5" />}
-            </svg>
+          {hasReceipt && (
+            <>
+              <wbr />
+              <span className="vu-bb-receipt-spacer" aria-hidden="true" />
+              <svg
+                className={`vu-bb-receipt${read ? ' vu-bb-receipt--read' : ''}`}
+                viewBox="0 0 22 14"
+                role="img"
+                aria-label={read ? 'Read' : 'Sent'}
+              >
+                <path d="m7 8 4 4 9-10" />
+                {read && <path d="m2 8 4 4 2-2.2m2-2.2 5-5.6" />}
+              </svg>
+            </>
           )}
         </div>
       )}
