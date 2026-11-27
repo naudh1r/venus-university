@@ -507,6 +507,8 @@ export interface ModHooks {
   ownMeetupAsks?: (ctx: { charId: string; description: string }) => boolean
   /** Warns about a current commitment before accepting a meetup on the phone. */
   warnBeforeMeetup?: () => boolean
+  /** Shows sent and read ticks on the player's phone bubbles. */
+  readReceipts?: () => boolean
   /** Opens only the timetable gate on the contact's composer. */
   textWhileBusy?: (ctx: { charId: string; commitment: Commitment }) => boolean
   /** After her reply in a DM has landed. */
@@ -1480,6 +1482,18 @@ export function ownMeetupAsks(ctx: { charId: string; description: string }): boo
       if (hooks.ownMeetupAsks?.(ctx) === true) return true
     } catch (error) {
       console.warn(`[mods] ${modId}: ownMeetupAsks failed`, error)
+    }
+  }
+  return false
+}
+
+/** Whether an enabled mod shows sent and read ticks in the phone. */
+export function readReceipts(): boolean {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.readReceipts?.() === true) return true
+    } catch (error) {
+      console.warn(`[mods] ${modId}: readReceipts failed`, error)
     }
   }
   return false

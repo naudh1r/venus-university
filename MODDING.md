@@ -1276,6 +1276,7 @@ else names it.
 | `interludeSettled` | `gameLoop.ts` | Observe the held night's applied texting ledger before its opening and save, while the hold stands |
 | `interludePreview` | `slotCrossing.ts` | Say, without writing anything, that the coming slot will be held on the finished one's look, so the boundary's curtain announces that slot (`{ at: 'from' }`) |
 | `ownMeetupAsks` | `textingLoop.ts` | Return true to ask Yes/No before arming a reader-initiated meetup |
+| `readReceipts` | `BunnyboardModal.tsx` | Return true to show sent and read ticks on outgoing text bubbles |
 | `warnBeforeMeetup` | `BunnyboardModal.tsx` | Return true to warn about a current class, assessment or shift before the phone's Yes |
 | `hangoutCheck` | `textingLoop.ts` | Return false before the immediate-meetup classifier to skip the call and its result |
 | `afterDmReply` | `textingLoop.ts` | Act after her reply in a DM has landed |
@@ -1427,6 +1428,10 @@ While any interlude holds, core skips the immediate-meetup classifier without as
 The footer is marked `mine` and does not count as a contact invitation. A text sent after No marks
 a follow-up. `slotSettled.ownMeetupsLapsed` lists the unanswered or dismissed reader offers without
 follow-up, excluding the closing cast. The entries carry `charId` and `description`.
+
+`readReceipts()` opts into sent and read ticks for the player's ordinary text bubbles.
+A later contact message in the visible thread marks earlier player texts as read. A held reply
+does so only when shown, and the game saves no receipt state.
 
 `warnBeforeMeetup()` opts into the native commitment confirm on the phone's Yes. With no
 commitment, Yes proceeds immediately. Landing buttons, including planned events, go ahead directly.

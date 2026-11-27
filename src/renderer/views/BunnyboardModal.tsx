@@ -1,5 +1,5 @@
-import { shownConversation, shownMessages } from '@shared/chatVisibility'
-import { textWhileBusy, warnBeforeMeetup } from '../mods/hooks'
+import { readPlayerIds, shownConversation, shownMessages } from '@shared/chatVisibility'
+import { readReceipts, subscribeHookRules, textWhileBusy, warnBeforeMeetup } from '../mods/hooks'
 import { meetupCommitmentNow } from '../stores/slotActions'
 import { charCommitmentAt } from '../stores/timetable'
 import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
@@ -12,6 +12,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type Dispatch,
   type JSX,
   type ReactNode,
@@ -1037,6 +1038,8 @@ function ConversationView({
   const nowDate = useGameStore(s => s.date)
   const nowTime = useGameStore(s => s.time)
   const messages = shownMessages(conversation?.messages ?? [], shownClock ?? { date: nowDate, time: nowTime })
+  const receipts = useSyncExternalStore(subscribeHookRules, readReceipts)
+  const readIds = receipts ? readPlayerIds(messages) : undefined
   const identity = chatIdentityOf(charId, character)
   const boss = jobDefForChat(charId)
   const bot = identity.bot
@@ -1202,7 +1205,7 @@ function ConversationView({
                   <span>{stamp.split(', ')[1]}</span>
                 </div>
               )}
-              <MessageBubble message={message} />
+              <MessageBubble message={message} read={message.sender === 'player' ? readIds?.has(message.id) : undefined} />
             </Fragment>
           )
         })}
@@ -1493,9 +1496,11 @@ function Composer({
  * above it, so typing redraws the box and not every message in the thread.
  */
 const MessageBubble = memo(function MessageBubble({
-  message
+  message,
+  read
 }: {
   message: ChatMessage
+  read?: boolean
 }): JSX.Element {
   // A message drawn bare stands with no bubble behind it, as a mod drawing sent text says.
   const bare = useBareMessage(message.text)
@@ -1517,6 +1522,17 @@ const MessageBubble = memo(function MessageBubble({
           className={`vu-bb-bubble vu-bb-bubble--${message.sender === 'player' ? 'mine' : 'theirs'}${bare ? ' vu-bb-bubble--bare' : ''}`}
         >
           <SentText text={message.text} />
+          {!bare && message.sender === 'player' && read !== undefined && (
+            <svg
+              className={`vu-bb-receipt${read ? ' vu-bb-receipt--read' : ''}`}
+              viewBox="0 0 20 14"
+              role="img"
+              aria-label={read ? 'Read' : 'Sent'}
+            >
+              <path d="m7 8 3 3 7-8" />
+              {read && <path d="m2 8 3 3 2-2.3m2-2.2 3-3.5" />}
+            </svg>
+          )}
         </div>
       )}
       <ModSlot slot="messageAttachment" props={{ message }} />

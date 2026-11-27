@@ -135,6 +135,7 @@
      The identity-colour rule puts them on the icon and the stat word ONLY — points, pips and tiers
      stay in the accent, or three sub-accents would be loose in a palette that allows one. */
   --vu-stat-brain: var(--stat-brain);
+  --vu-read: #4e79a8;
   --vu-stat-body: var(--stat-body);
   --vu-stat-heart: var(--stat-heart);
 
@@ -230,6 +231,7 @@
      `--vu-good`'s night value by arithmetic and not by aliasing: a sage stat and a complete
      set agree today by coincidence, and one of them may be retuned without the other. */
   --vu-stat-brain: #8fb0d4;
+  --vu-read: #8fb0d4;
   --vu-stat-body: #a3b581;
   --vu-stat-heart: #e393b5;
 
