@@ -2079,7 +2079,6 @@ function deliverContactTexts(
   cap: number,
   reachOut = false
 ): number {
-  if (contactIdle(charId)) return 0
   // A custom endpoint's JSON is not held to the schema, so a lone string is not a run of texts.
   const kept = (Array.isArray(texts) ? texts : [])
     .map((text) => (typeof text === 'string' ? text.trim() : ''))
