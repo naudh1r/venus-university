@@ -454,6 +454,21 @@
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
       "releases": [
         {
+          "version": "0.7.8",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.8.zip",
+          "sha256": "03fa1b8ba0875e270b638bbd51ec4c699aee2c7117e4b0e5bac69f73671d5ca7",
+          "kit": ">=0.7.0",
+          "game": "0.9.2",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-27",
+          "changes": [
+            "Your status reads Available or Busy.",
+            "A contact's thread says Available, Busy or Idle, then where they are: Available · At the Lowrises, Busy · In Calculus class, Busy · Working at a shop, Idle · At the Lowrises.",
+            "Needs naudh1r-core from November 27 or later, which has the hooks these use."
+          ]
+        },
+        {
           "version": "0.7.7",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.7.zip",
           "sha256": "10ef2455e95602559a1c8a25affd2f648d50a5ba6e4d778f4f4b8f2a848281e4",
@@ -600,6 +615,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.7.8",
+          "changes": [
+            "Your status reads Available or Busy.",
+            "A contact's thread says Available, Busy or Idle, then where they are: Available · At the Lowrises, Busy · In Calculus class, Busy · Working at a shop, Idle · At the Lowrises."
+          ]
+        },
         {
           "version": "0.7.7",
           "changes": [
