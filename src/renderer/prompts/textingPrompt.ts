@@ -120,6 +120,8 @@ export interface TextingPromptState {
   lateNight?: { date: number; time: TimeSlot }
   /** The contact went to sleep and replies after the night. */
   asleep?: true
+  /** The half when the contact was away from the phone. */
+  away?: TimeSlot
   /** The slot when the reply can reach the reader. */
   heldUntil?: { date: number; time: TimeSlot }
   commitment?: import('./slotIntroPrompt').Commitment
@@ -604,7 +606,7 @@ export function buildTextingPrompt(
     ...(state.heldUntil ? [] : state.lateNight ? [`${name} is ${info?.pursuing !== undefined ? 'at home' : `in ${p.their} dorm room`} for the night.`]
       : whereSheIs(character, state.charLocation, state.charCompanions, state.charHaunt, state.time)),
     '',
-    ...(state.heldUntil && !state.sharedClass && !state.asleep ? [`The reader is texting ${name} while ${p.they} ${be} ${state.commitment?.kind === 'class' ? `in ${state.commitment.name}` : `working at ${state.commitment?.kind === 'shift' ? state.commitment.employer : `${p.their} job`}`}. Write the reply ${p.they} will send once ${p.they} ${be} out. ${p.They} ${be} not answering during ${p.their} commitment.`] : []),
+    ...(state.heldUntil && !state.sharedClass && !state.asleep && state.away === undefined ? [`The reader is texting ${name} while ${p.they} ${be} ${state.commitment?.kind === 'class' ? `in ${state.commitment.name}` : `working at ${state.commitment?.kind === 'shift' ? state.commitment.employer : `${p.their} job`}`}. Write the reply ${p.they} will send once ${p.they} ${be} out. ${p.They} ${be} not answering during ${p.their} commitment.`] : []),
     ...(state.sharedClass ? [
       `${name} has just finished ${state.sharedClass.name}. The reader ${state.sharedClass.attended ? 'attended that class' : 'did not attend that class'}. ${p.Their} reply can follow up on that and all the messages ${readerPronoun.he} sent while ${p.they} ${p.they === 'they' ? 'were' : 'was'} busy.`
     ] : []),

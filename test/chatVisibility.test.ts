@@ -1,8 +1,27 @@
 import { describe, expect, it } from 'vitest'
+import { idleReplyUntil } from '../src/renderer/prompts/gameDate'
 import type { Conversation } from '../src/shared/types'
 import { heldReplyShown, messageShown, receiptsOf, shownMessages, unreadAfterOpening } from '../src/shared/chatVisibility'
 
 describe('held message visibility', () => {
+  it('delivers a weekend idle reply at the next slot, with or without a late-night hold', () => {
+    const morning = { date: 5, time: 0 as const }
+    const evening = { date: 5, time: 1 as const }
+    const nextMorning = { date: 6, time: 0 as const }
+    const hold = (until: ReturnType<typeof idleReplyUntil>) => ({ until, firstPlayerId: 'player', messageIds: ['reply'] })
+
+    expect(idleReplyUntil(morning.date, morning.time)).toEqual(evening)
+    const daytime = hold(idleReplyUntil(morning.date, morning.time))
+    expect(heldReplyShown(daytime, morning)).toBe(false)
+    expect(heldReplyShown(daytime, evening)).toBe(true)
+
+    const overnight = hold(idleReplyUntil(evening.date, evening.time))
+    expect(overnight.until).toEqual(nextMorning)
+    expect(heldReplyShown(overnight, evening)).toBe(false)
+    expect(heldReplyShown(overnight, { ...nextMorning, night: true })).toBe(true)
+    expect(heldReplyShown(overnight, nextMorning)).toBe(true)
+  })
+
   it('holds a sleep reply until the morning landing without delaying other replies', () => {
     const morning = { date: 8, time: 0 as const }
     const night = { ...morning, night: true as const }

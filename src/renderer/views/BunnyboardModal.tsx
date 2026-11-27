@@ -82,7 +82,7 @@ import {
   askVenusForGrades,
   beginHangout,
   blockedThreadHidden,
-  contactAsleep,
+  contactIdle,
   dismissFailedMessage,
   epilogueOf,
   failedTextingCode,
@@ -602,11 +602,11 @@ function presenceOf(
   charId: string,
   date: number,
   time: TimeSlot,
-  asleep = contactAsleep(charId)
+  idle = contactIdle(charId)
 ): Presence {
   const worded = statusWords()
   // Idle keeps the place: the lamp alone says it, and the thread header adds the word.
-  if (asleep) {
+  if (idle) {
     const where = presenceOf(placed, charId, date, time, false)
     const unplaced = where.text === 'Online'
     return { idle: true, busy: false, text: where.text,
@@ -695,9 +695,9 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
             {conversations.map((conversation) => {
               const identity = chatIdentityOf(conversation.charId, characters[conversation.charId])
               if (!identity.known) return null
-              const asleep = !identity.bot && contactAsleep(conversation.charId)
+              const idle = !identity.bot && contactIdle(conversation.charId)
               const status = placed && !identity.bot && !charInfo[conversation.charId]?.flags?.blocked
-                ? presenceOf(placed.get(conversation.charId), conversation.charId, date, time, asleep)
+                ? presenceOf(placed.get(conversation.charId), conversation.charId, date, time, idle)
                 : null
               const last = conversation.messages[conversation.messages.length - 1]
               const on = conversation.charId === viewingCharId
@@ -1123,7 +1123,7 @@ function ConversationView({
   const name = character?.firstName ?? '???'
   // No bot has a timetable.
   const interlude = useGameStore(s => s.interlude)
-  const asleep = !bot && contactAsleep(charId)
+  const idle = !bot && contactIdle(charId)
   const words = pronounsOf(character)
   const atWork = !bot && interlude?.now.clock !== 'late-night' && charJobNow(charId) !== null
   const commitment = !bot ? charCommitmentAt(charId) : null
@@ -1256,7 +1256,7 @@ function ConversationView({
   // A blocked thread says nothing about where she is: the map has dropped her to what he
   // remembers, and the composer under it already says she blocked him. Neither does a screen
   // set sometime after graduation, which pins nobody to an hour.
-  const status = bot || blocked || epilogue || (interlude && interlude.now.clock !== 'late-night') ? null : presenceOf(placed, charId, date, time, asleep)
+  const status = bot || blocked || epilogue || (interlude && interlude.now.clock !== 'late-night') ? null : presenceOf(placed, charId, date, time, idle)
 
   return (
     <div className="vu-bb-thread">
@@ -1446,7 +1446,7 @@ function ConversationView({
                   : // Blocked outranks the other two.
                     blocked
                     ? `${name} blocked you.`
-                    : asleep
+                    : idle
                       ? `${name} is away or asleep right now. ${words.They} will reply later.`
                       : unavailable
                         ? `${name} is ${atWork ? 'at work' : 'in class'} right now.`

@@ -234,6 +234,7 @@ export interface Conversation {
     };
     heldReply?: {
         asleep?: true;
+        away?: TimeSlot;
         afterClass?: {
             date: number;
             time: TimeSlot;
@@ -515,6 +516,12 @@ export const HOOKS: readonly [{
     readonly kind: 'first';
     readonly dispatch: readonly ["slotInterlude"];
     readonly since: '0.9.0';
+}, {
+    readonly name: 'acceptLine';
+    readonly side: 'renderer';
+    readonly kind: 'first';
+    readonly dispatch: readonly ["acceptLine"];
+    readonly since: '0.7.0';
 }, {
     readonly name: 'relaxLine';
     readonly side: 'renderer';

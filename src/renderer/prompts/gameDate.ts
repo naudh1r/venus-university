@@ -205,6 +205,11 @@ export function nextSlot(date: number, time: TimeSlot): { date: number; time: Ti
   return { date: time === 1 ? date + 1 : date, time: time === 0 ? 1 : 0 }
 }
 
+/** When a reply to an idle contact reaches the phone. */
+export function idleReplyUntil(date: number, time: TimeSlot, heldMorning?: { date: number; time: TimeSlot }) {
+  return heldMorning ?? nextSlot(date, time)
+}
+
 /** {@link nextSlot} run backwards — the slot that finished before this one began. */
 export function prevSlot(date: number, time: TimeSlot): { date: number; time: TimeSlot } {
   return time === 0 ? { date: date - 1, time: 1 } : { date, time: 0 }
