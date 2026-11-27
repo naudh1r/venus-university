@@ -1089,7 +1089,6 @@ function ConversationView({
   const nowTime = useGameStore(s => s.time)
   const messages = shownMessages(conversation?.messages ?? [], shownClock ?? { date: nowDate, time: nowTime })
   const receipts = useSyncExternalStore(subscribeHookRules, readReceipts)
-  const receiptOf = receipts ? receiptsOf(conversation?.messages ?? [], messages) : undefined
   const identity = chatIdentityOf(charId, character)
   const boss = jobDefForChat(charId)
   const bot = identity.bot
@@ -1108,6 +1107,7 @@ function ConversationView({
   const busy = useBunnyboardStore((s) => s.busyCharIds.includes(charId))
   // Texts written and waiting out their typing delay.
   const typing = useBunnyboardStore((s) => s.typingCharIds.includes(charId))
+  const receiptOf = receipts ? receiptsOf(conversation?.messages ?? [], messages, typing) : undefined
   // Her last turn failed and is parked on Retry.
   const failed = useBunnyboardStore((s) => s.failedCharIds.includes(charId))
   // Edit prompt stands beside Retry unless the failure is one the prompt cannot answer.
