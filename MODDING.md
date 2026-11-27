@@ -1278,6 +1278,7 @@ else names it.
 | `ownMeetupAsks` | `textingLoop.ts` | Return true to ask Yes/No before arming a reader-initiated meetup |
 | `asleepNow` | `textingLoop.ts` | Return true to mark a contact idle through a late-night hold and deliver the reply in the morning |
 | `readReceipts` | `BunnyboardModal.tsx` | Return true to show sent, delivered and read ticks on outgoing text bubbles |
+| `statusWords` | `BunnyboardModal.tsx` | Return true to word a contact's thread header as Available, Busy or Idle, then where |
 | `chatListLights` | `BunnyboardModal.tsx` | Return true to show every contact's status light beside their name in the Chats list |
 | `warnBeforeMeetup` | `BunnyboardModal.tsx` | Return true to warn about a current class, assessment or shift before the phone's Yes |
 | `hangoutCheck` | `textingLoop.ts` | Return false before the immediate-meetup classifier to skip the call and its result |
@@ -1439,6 +1440,11 @@ stream starts coming back and two blue ticks once its first text is complete, be
 `chatListLights()` puts each contact's status light beside their name in the Chats list, the same
 light the thread header shows: green when free, amber during a class or shift, yellow when idle.
 Without it, the list shows no lights.
+
+`statusWords()` words a contact's thread header as a state, then where: `Available · At the Lowrises`
+(or `Available` where the map cannot place them), `Busy · In Calculus class`, `Busy · Working at …`,
+`Idle · At the Lowrises`. Away and home sick keep their own words. Without it, the header reads
+`Online`, `In class — …` and `Working @ …`.
 
 `warnBeforeMeetup()` opts into the native commitment confirm on the phone's Yes. With no
 commitment, Yes proceeds immediately. Landing buttons, including planned events, go ahead directly.
