@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Conversation } from '../src/shared/types'
-import { messageShown, shownMessages, unreadAfterOpening } from '../src/shared/chatVisibility'
+import { messageShown, readPlayerIds, shownMessages, unreadAfterOpening } from '../src/shared/chatVisibility'
 
 describe('held message visibility', () => {
   it('leaves hidden messages out of a thread projection', () => {
@@ -47,5 +47,28 @@ describe('unread counts when a chat slot opens', () => {
     expect(unreadAfterOpening({ ...thread, heldReply: {
       until: clock, firstPlayerId: 'reader', messageIds: ['due']
     } }, before, clock)).toBe(3)
+  })
+})
+
+describe('read receipts from the visible thread', () => {
+  const sent = { id: 'sent', sender: 'player' as const, date: 7, time: 1 as const }
+  const next = { ...sent, id: 'next' }
+  const reply = { id: 'reply', sender: 'contact' as const, date: 8, time: 0 as const }
+  const system = { ...sent, id: 'system', sender: 'system' as const }
+
+  it('marks only player messages before a visible reply, even across a system line', () => {
+    expect(readPlayerIds([sent, next, system, reply, { ...sent, id: 'latest' }]))
+      .toEqual(new Set([sent.id, next.id]))
+  })
+
+  it('leaves a message sent when nothing or only a system line follows', () => {
+    expect(readPlayerIds([sent])).toEqual(new Set())
+    expect(readPlayerIds([sent, system])).toEqual(new Set())
+  })
+
+  it('marks all earlier texts together only when a held reply is shown', () => {
+    const thread = [sent, next, reply]
+    expect(readPlayerIds(shownMessages(thread, sent))).toEqual(new Set())
+    expect(readPlayerIds(shownMessages(thread, reply))).toEqual(new Set([sent.id, next.id]))
   })
 })

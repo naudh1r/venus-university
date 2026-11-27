@@ -528,6 +528,27 @@
   color: var(--vu-accent-ink);
 }
 
+/* A neutral backing keeps the ticks legible against the outgoing bubble. */
+.vu-bb-receipt {
+  float: right;
+  width: 20px;
+  height: 14px;
+  padding: 1px 2px;
+  margin: 3px 0 0 8px;
+  border-radius: 999px;
+  background: var(--vu-ground);
+  color: var(--vu-text-muted);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.vu-bb-receipt--read {
+  color: var(--vu-read);
+}
+
 /* A message a mod draws bare: what was sent, with no bubble behind it. */
 .vu-bb-bubble--bare {
   padding: 0 2px;

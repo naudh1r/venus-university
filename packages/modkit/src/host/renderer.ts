@@ -44,6 +44,7 @@ export {
   projectSlotMemories,
   promptStateParts,
   promptTextEdits,
+  readReceipts,
   relaxLabel,
   relaxLine,
   relaxRows,

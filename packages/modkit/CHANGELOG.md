@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `readReceipts` opts into sent and read ticks for the player's phone messages. Read status
+  follows the visible reply and adds no saved data.
+
 - Renderer hooks can give reader-initiated meet-ups a Yes/No footer with `ownMeetupAsks` and
   opt into a phone commitment warning with `warnBeforeMeetup`. `slotSettled` supplies lapsed
   reader offers separately from contact invitations.
