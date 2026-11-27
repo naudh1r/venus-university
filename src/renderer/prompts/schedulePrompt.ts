@@ -15,7 +15,7 @@ import type {
   Season,
   TimeSlot
 } from '@shared/types'
-import { stampedStubs } from './textingPrompt'
+import { messageStub, stampedStubs } from './textingPrompt'
 
 /**
  * The scheduling question — what the reader has now agreed to do later — and the two
@@ -62,6 +62,8 @@ export interface SchedulePromptInput {
     messages: readonly ChatMessage[]
     /** The reader's earlier texts the first message answers, shown but already counted. */
     context?: readonly ChatMessage[]
+    /** The reply already written to these texts, which the reader sees at a later landing. */
+    heldReplies?: readonly ChatMessage[]
   }>
   /** The on-campus roster, keyed by charId — the keys `chars` may name. */
   characters: Record<string, Character>
@@ -295,7 +297,7 @@ function scheduleRosterLines(characters: Record<string, Character>): string[] {
 /** The messages sent this slot, one block per character. */
 function threadBlocks(input: SchedulePromptInput): string[] {
   const lines: string[] = []
-  for (const { firstName, messages, context } of input.threads) {
+  for (const { firstName, messages, context, heldReplies } of input.threads) {
     if (messages.length === 0) continue
     // Blank line between blocks only; the first sits flush against the caller's header.
     if (lines.length > 0) lines.push('')
@@ -305,6 +307,11 @@ function threadBlocks(input: SchedulePromptInput): string[] {
       lines.push('(earlier, already counted — context only)', ...stampedStubs(context, firstName, input.season), '(this part of the day)')
     }
     lines.push(...stampedStubs(messages, firstName, input.season))
+    // An idle contact's answer, written now and read by the reader later: it counts with this part of the day.
+    if (heldReplies && heldReplies.length > 0) {
+      lines.push(`(${firstName} was away from the phone and answers these later — the reply, which counts now)`,
+        ...heldReplies.map(message => messageStub(message, firstName)))
+    }
   }
   return lines
 }

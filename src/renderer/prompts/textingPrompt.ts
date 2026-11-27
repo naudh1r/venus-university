@@ -195,7 +195,7 @@ function flatText(text: string): string {
 }
 
 /** `"YOU: hey"` / `"MINA: hey yourself"` / `"SYSTEM: ..."` — one history stub. */
-function messageStub(message: ChatMessage, firstName: string): string {
+export function messageStub(message: ChatMessage, firstName: string): string {
   if (message.sender === 'player') return `YOU: ${flatText(message.text)}`
   if (message.sender === 'system') return `SYSTEM: ${flatText(message.text)}`
   return `${firstName.toUpperCase()}: ${flatText(message.text)}${flatText(dmHistoryNotes(message))}`
