@@ -466,6 +466,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   slotInterlude: fn('slotInterlude', { lines: [], rows: [] }, host => host.slotInterlude({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0, ledger: null })),
   relaxRows: fn('relaxRows', [], host => host.relaxRows({ date: 0, time: 0 })),
   relaxLabel: fn('relaxLabel', 'Rest', host => host.relaxLabel({ date: 0, time: 0 })),
+  acceptLine: fn('acceptLine', 'omw!', host => host.acceptLine({ charId: 'c', mine: false })),
   relaxLine: fn('relaxLine', 'A quiet hour.', host => host.relaxLine({ date: 0, time: 0 })),
   openingLook: fn('openingLook', { room: { kind: 'herRoom', charId: 'c' } }, host => host.openingLook({ date: 0, time: 0, reply: {} })),
   interludePreview: fn('interludePreview', { at: 'from' }, host => host.interludePreview({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0, ledger: null })),

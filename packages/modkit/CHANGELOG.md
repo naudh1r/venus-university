@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `acceptLine` lets a mod word the reader's Yes on a meet-up footer instead of "Sure".
+
 - `statusWords` words a contact's thread header as Available, Busy or Idle, then where.
 
 - `chatListLights` shows every contact's status light in the Chats list.
