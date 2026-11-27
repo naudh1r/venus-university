@@ -456,15 +456,15 @@
         {
           "version": "0.7.4",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.4.zip",
-          "sha256": "2fe32d50ca9cc4a5494114194ac7532b5f0e24097f61fd6783e5e86e55ce733d",
+          "sha256": "1a67a2960e17e56f554092442610890f646f2eb3bc9b8ba6688ccc8dddf68a0e",
           "kit": ">=0.7.0",
           "game": "0.9.2",
           "main": false,
           "reviewed": false,
           "released": "2026-11-27",
           "changes": [
-            "Your texts show a grey tick once sent, and two blue ticks when the reply appears.",
-            "Texts sent while they're in class or at work keep one tick until they're out and reply.",
+            "Your texts show one grey tick once sent, and two blue ticks when the reply arrives.",
+            "Texts sent while they're in class or at work show two grey ticks once their reply is written, until they're out and it arrives.",
             "Needs naudh1r-core from November 27 or later, which has the hook the ticks use."
           ]
         },
@@ -556,8 +556,8 @@
         {
           "version": "0.7.4",
           "changes": [
-            "Your texts show a grey tick once sent, and two blue ticks when the reply appears.",
-            "Texts sent while they're in class or at work keep one tick until they're out and reply."
+            "Your texts show one grey tick once sent, and two blue ticks when the reply arrives.",
+            "Texts sent while they're in class or at work show two grey ticks once their reply is written, until they're out and it arrives."
           ]
         },
         {
