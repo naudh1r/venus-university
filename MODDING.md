@@ -1267,6 +1267,13 @@ else names it.
 | `interludePreview` | `slotCrossing.ts` | Say, without writing anything, that the coming slot will be held on the finished one's look, so the boundary's curtain announces that slot (`{ at: 'from' }`) |
 | `hangoutCheck` | `textingLoop.ts` | Return false before the immediate-meetup classifier to skip the call and its result |
 | `asleepNow` | `textingLoop.ts` | Return true to mark a contact idle and hold the reply to the next landing |
+| `acceptLine` | `textingLoop.ts` | Return the reader's text for Yes on a meet-up footer, `mine` when the reader suggested it; undefined keeps "Sure" |
+| `ownMeetupAsks` | `textingLoop.ts` | Return true to ask Yes/No before arming a reader-initiated meetup |
+| `warnBeforeMeetup` | `BunnyboardModal.tsx` | Return true to warn about a current class, assessment or shift before the phone's Yes |
+| `readReceipts` | `BunnyboardModal.tsx` | Return true to show sent, delivered and read ticks on outgoing text bubbles |
+| `chatListLights` | `BunnyboardModal.tsx` | Return true to show every contact's status light beside their name in the Chats list |
+| `statusWords` | `BunnyboardModal.tsx` | Return true to word a contact's thread header as Available, Busy or Idle, then where |
+| `chatsHeader` | `BunnyboardModal.tsx` | Draw beside the Chats title while the conversation list shows. Props: `theme` (`'day'` or `'night'`) |
 | `prompts['slot-posts']` | `slotIntroPrompt.ts` | Add lines about status posts, and fields to each post |
 | `prompts['slot-poster']` | `slotIntroPrompt.ts` | Add lines under each girl posting, by her name, given the slot the opening is for |
 | `prompts['slot-reach-outs']` | `slotIntroPrompt.ts` | Add lines under a girl texting first, and fields to her entry |
@@ -1847,3 +1854,14 @@ Daytime replies arrive at the next landing. Replies to late-night texts arrive i
 The DM prompt state exposes `heldUntil`, `commitment`, `sharedClass`, `away` or `asleep` as
 appropriate. The slot that asked can claim an idle reply already written. Earlier questions
 quoted for context do not count again.
+
+### Phone presentation and confirmations
+
+`readReceipts()` enables sent, delivered and read ticks. `statusWords()` adds Available,
+Busy or Idle to the thread header, and `chatListLights()` adds presence lights to Chats.
+`chatsHeader` can draw a control beside the Chats title.
+
+`ownMeetupAsks({ charId, description })` gives a reader-initiated meet-up a Yes/No footer.
+`warnBeforeMeetup()` enables the current commitment warning. `acceptLine({ charId, mine })`
+can supply the reader's Yes text. Lapsed reader-initiated meet-ups appear on
+`slotSettled.ownMeetupsLapsed`. `noteInThread` appends a quiet system note at a chosen slot.

@@ -47,6 +47,11 @@ interface BunnyboardUiState {
    * `...` bubble, and nothing else. Owned by the pacer in `textingPace.ts`.
    */
   typingCharIds: string[]
+  /**
+   * Where each reply for now stands once the model answers: streaming back ('delivered'), then its
+   * first text complete ('read'). Absent while the request is out with nothing back.
+   */
+  replyStage: Record<string, 'delivered' | 'read'>
   /** charIds whose last turn failed and is parked on the thread's Retry. */
   failedCharIds: string[]
 
@@ -65,6 +70,7 @@ interface BunnyboardUiState {
   setArmedHangout: (armed: ArmedHangout | null) => void
   setTextBusy: (charId: string, busy: boolean) => void
   setTyping: (charId: string, typing: boolean) => void
+  setReplyStage: (charId: string, stage: 'delivered' | 'read' | null) => void
   setTextFailed: (charId: string, failed: boolean) => void
   /** Back to the blank closed app — the leave-game teardown. */
   reset: () => void
@@ -79,6 +85,7 @@ export const useBunnyboardStore = create<BunnyboardUiState>((set) => ({
   armedHangout: null,
   busyCharIds: [],
   typingCharIds: [],
+  replyStage: {},
   failedCharIds: [],
 
   openApp: () => set({ open: true, tab: 'chats', viewingCharId: null, pageCharId: null }),
@@ -115,6 +122,12 @@ export const useBunnyboardStore = create<BunnyboardUiState>((set) => ({
       }
     }),
   // Same shape, same same-array rule, for the same selector reason.
+  setReplyStage: (charId, stage) =>
+    set((state) => {
+      if ((state.replyStage[charId] ?? null) === stage) return state
+      const { [charId]: _was, ...rest } = state.replyStage
+      return { replyStage: stage ? { ...rest, [charId]: stage } : rest }
+    }),
   setTyping: (charId, typing) =>
     set((state) => {
       const held = state.typingCharIds.includes(charId)
@@ -135,6 +148,7 @@ export const useBunnyboardStore = create<BunnyboardUiState>((set) => ({
       armedHangout: null,
       busyCharIds: [],
       typingCharIds: [],
+      replyStage: {},
       failedCharIds: []
     })
 }))

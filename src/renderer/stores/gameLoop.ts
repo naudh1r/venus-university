@@ -215,6 +215,7 @@ import {
   pickSlotAskers,
   pickSlotLoveTexts,
   pickSlotReachOut,
+  expireOwnMeetups,
   plannedWith,
   openChatSlot,
   releaseHeldReplies,
@@ -3506,7 +3507,11 @@ async function crossSlotBoundary(): Promise<void> {
 
   // Before the clock moves, so each text is stamped with the slot the scene ran in, and before
   // the boundary save, which records them.
-  slotSettled({ before: game, ledger, closingCast: loopState.closingCast ?? [] })
+  const closingCast = loopState.closingCast ?? []
+  const ownMeetupsLapsed = expireOwnMeetups(
+    loopState.closingCast ? closingCast.map(character => character.charId) : game.cast
+  )
+  slotSettled({ before: game, ledger, closingCast, ownMeetupsLapsed })
   for (const send of owedTexts) send()
 
   if (banked?.deferred) {

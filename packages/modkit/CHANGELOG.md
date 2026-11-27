@@ -4,6 +4,7 @@
 
 - Mods can hold a landing through a late night, stage an opening, extend Relax, and veto a DM meet-up check.
 - Mods can open texting during commitments and mark contacts idle, with saved delayed replies and their texting ledger context.
+- Mods can opt into phone receipts, presence wording and lights, a Chats header, meet-up confirmation and custom acceptance text, and quiet thread notes.
 
 - Optional `ModDef.game` declares supported Venus University versions. Manifest `game`
   ranges now propagate to mod-menu metadata; undeclared or out-of-range support is

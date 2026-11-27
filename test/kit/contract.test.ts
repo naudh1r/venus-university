@@ -290,6 +290,11 @@ describe('the entry points', () => {
     expect(rendererKit.bunnybotSays).toBe(native.bunnybotSays)
   })
 
+  it('hands mods the native quiet thread note writer', async () => {
+    const native = await import('../../src/renderer/mods/readers')
+    expect(rendererKit.noteInThread).toBe(native.noteInThread)
+  })
+
   it("hands mods the game's own scene lines and turn, so a mod's line is the scene's", async () => {
     const native = await import('../../src/renderer/stores/sceneLines')
     for (const name of ['boxParts', 'dropTransientLines', 'reachTurn', 'readerSaysInScene', 'sayInScene'] as const) {
@@ -449,12 +454,18 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   dmReplyLead: fn('dmReplyLead', undefined, (host) => host.dmReplyLead({ charId: 'c', character: never, lead: {}, signal: new AbortController().signal })),
   afterDmReply: fn('afterDmReply', undefined, (host) => host.afterDmReply({ charId: 'c', character: never, reply: never })),
   sceneReplyLanded: fn('sceneReplyLanded', undefined, (host) => host.sceneReplyLanded({ reply: {}, modReply: {}, spot: { spot: 'opening', cast: [] }, at: 0 })),
-  asleepNow: fn('asleepNow', true, host => host.asleepNow({ charId: 'test', date: 5, time: 0 })),
   textWhileBusy: fn('textWhileBusy', true, host => host.textWhileBusy({ charId: 'c', commitment: { kind: 'class', name: 'Math' } })),
+  ownMeetupAsks: fn('ownMeetupAsks', true, host => host.ownMeetupAsks({ charId: 'c', description: 'Meet' })),
+  asleepNow: fn('asleepNow', true, host => host.asleepNow({ charId: 'test', date: 5, time: 0 })),
+  readReceipts: fn('readReceipts', true, host => host.readReceipts()),
+  statusWords: fn('statusWords', true, host => host.statusWords()),
+  chatListLights: fn('chatListLights', true, host => host.chatListLights()),
+  warnBeforeMeetup: fn('warnBeforeMeetup', true, host => host.warnBeforeMeetup()),
   hangoutCheck: fn('hangoutCheck', false, host => host.hangoutCheck({ charId: 'c', startedBy: 'her' })),
   slotInterlude: fn('slotInterlude', { lines: [], rows: [] }, host => host.slotInterlude({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0, ledger: null })),
   relaxRows: fn('relaxRows', [], host => host.relaxRows({ date: 0, time: 0 })),
   relaxLabel: fn('relaxLabel', 'Rest', host => host.relaxLabel({ date: 0, time: 0 })),
+  acceptLine: fn('acceptLine', 'omw!', host => host.acceptLine({ charId: 'c', mine: false })),
   relaxLine: fn('relaxLine', 'A quiet hour.', host => host.relaxLine({ date: 0, time: 0 })),
   openingLook: fn('openingLook', { room: { kind: 'herRoom', charId: 'c' } }, host => host.openingLook({ date: 0, time: 0, reply: {} })),
   interludePreview: fn('interludePreview', { at: 'from' }, host => host.interludePreview({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0, ledger: null })),
@@ -521,6 +532,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   portraitOverlay: slot('portraitOverlay'),
   phoneOverlay: slot('phoneOverlay'),
   conversationFoot: slot('conversationFoot'),
+  chatsHeader: slot('chatsHeader'),
   mapOverlay: slot('mapOverlay'),
   photosPageSection: slot('photosPageSection'),
   editCharacterImages: slot('editCharacterImages'),

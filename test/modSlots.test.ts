@@ -21,6 +21,7 @@ const PROPS: { [S in ScreenSlot]: ScreenSlotProps[S] } = {
   portraitOverlay: { charId: 'c1' },
   phoneOverlay: {},
   conversationFoot: { charId: 'c1' },
+  chatsHeader: { theme: 'day' },
   mapOverlay: { canTravel: true, close: () => {} },
   photosPageSection: { theme: 'night' },
   editCharacterImages: { charId: 'c1', name: 'Mina', theme: 'day', height: 1 },

@@ -1,5 +1,6 @@
-import { shownConversation, shownMessages } from '@shared/chatVisibility'
-import { textWhileBusy } from '../mods/hooks'
+import { receiptsOf, shownConversation, type Receipt, shownMessages } from '@shared/chatVisibility'
+import { chatListLights, readReceipts, statusWords, subscribeHookRules, textWhileBusy, warnBeforeMeetup } from '../mods/hooks'
+import { meetupCommitmentNow } from '../stores/slotActions'
 import { charCommitmentAt } from '../stores/timetable'
 import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
 import { useModsStore, useModOn } from '../stores/modsStore'
@@ -13,6 +14,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type Dispatch,
   type JSX,
   type ReactNode,
@@ -43,7 +45,7 @@ import { formatTokens } from '@shared/tallies'
 import { affectionFor, emptyFlags, relationshipTagOf } from '@shared/relationship'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { CheckField } from '../components/CheckField'
-import { EmojiTool, SentText, useBareMessage, useEmojiTool } from '../components/TextSpots'
+import { EmojiTool, ReceiptSentText, SentText, useBareMessage, useEmojiTool } from '../components/TextSpots'
 import { DeadNote } from '../components/DeadNote'
 import { promptEditable } from '../components/LlmFailureModal'
 import { TextField } from '../components/TextField'
@@ -80,6 +82,7 @@ import {
   askVenusForGrades,
   beginHangout,
   blockedThreadHidden,
+  contactIdle,
   dismissFailedMessage,
   epilogueOf,
   failedTextingCode,
@@ -444,7 +447,7 @@ export function BunnyboardModal({
                     is what takes a back button out of the thread's own header. */}
                 {tab === 'chats' && (
                   <>
-                    <ChatList />
+                    <ChatList theme={theme} />
                     {viewingCharId ? (
                       <ConversationView
                         key={viewingCharId}
@@ -580,10 +583,13 @@ function FaceButton({
 
 /** Where the app is willing to say she is, and whether the hour has a claim on her. */
 interface Presence {
+  idle?: true
   /** A class or a shift has her — what the lamp says. */
   busy: boolean
   /** The one line beside it, which is never empty. */
   text: string
+  /** The thread header's line when a mod words it as a state first. */
+  header?: string
 }
 
 /**
@@ -595,31 +601,44 @@ function presenceOf(
   placed: Whereabouts | undefined,
   charId: string,
   date: number,
-  time: TimeSlot
+  time: TimeSlot,
+  idle = contactIdle(charId)
 ): Presence {
+  const worded = statusWords()
+  // Idle keeps the place: the lamp alone says it, and the thread header adds the word.
+  if (idle) {
+    const where = presenceOf(placed, charId, date, time, false)
+    const unplaced = where.text === 'Online'
+    return { idle: true, busy: false, text: where.text,
+      header: worded ? (unplaced ? 'Idle' : `Idle · ${where.text}`) : unplaced ? 'Idle' : `Idle — ${where.text}` }
+  }
   if (!placed || placed.source !== 'told' || placed.kind === 'unknown') {
-    return { busy: false, text: 'Online' }
+    return { busy: false, text: 'Online', ...(worded ? { header: 'Available' } : {}) }
   }
   if (placed.kind === 'away' || placed.kind === 'sick') return { busy: false, text: placed.placeLabel }
   if (placed.kind === 'class') {
     // The class's own name, not the code the map files it under: this is a sentence about her.
     const named = placed.classCode ? useGameStore.getState().classes[placed.classCode]?.name : null
-    return { busy: true, text: `In class — ${named ?? placed.classCode}` }
+    return { busy: true, text: `In class — ${named ?? placed.classCode}`,
+      ...(worded ? { header: `Busy · In ${named ?? placed.classCode} class` } : {}) }
   }
   // A shift reads as a place on the map; on a phone it is worth saying it is work.
   if (useGameStore.getState().interlude?.now.clock !== 'late-night' && charJobNow(charId, date, time) !== null) {
-    return { busy: true, text: `Working @ ${placed.placeLabel}` }
+    return { busy: true, text: `Working @ ${placed.placeLabel}`,
+      ...(worded ? { header: `Busy · Working at ${placed.placeLabel}` } : {}) }
   }
-  return { busy: false, text: `At ${placed.placeLabel}` }
+  return { busy: false, text: `At ${placed.placeLabel}`,
+    ...(worded ? { header: `Available · At ${placed.placeLabel}` } : {}) }
 }
 
 /** Whether the hour has a claim on her — a class or a shift, which is what the lamp says. */
-function BusyLed({ busy }: { busy: boolean }): JSX.Element {
-  return <span className={`vu-bb-led${busy ? ' vu-bb-led--busy' : ''}`} />
+function BusyLed({ busy, idle, label }: Pick<Presence, 'busy' | 'idle'> & { label?: string }): JSX.Element {
+  return <span className={`vu-bb-led${idle ? ' vu-bb-led--idle' : busy ? ' vu-bb-led--busy' : ''}`}
+    role={label ? 'img' : undefined} aria-label={label} />
 }
 
 /** The Chats tab's conversation list, which stands beside the open thread rather than under it. */
-function ChatList(): JSX.Element {
+function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
   const bunnyboard = useGameStore((s) => s.bunnyboard)
   const characters = useGameStore((s) => s.characters)
   const date = useGameStore((s) => s.date)
@@ -630,6 +649,19 @@ function ChatList(): JSX.Element {
   const openPage = useBunnyboardStore((s) => s.openPage)
   const armed = useBunnyboardStore((s) => s.armedHangout)
   const hiddenOf = useHiddenThreads()
+  const lights = useSyncExternalStore(subscribeHookRules, chatListLights)
+  const charInfo = useGameStore((s) => s.charInfo)
+  const alumni = useGameStore((s) => s.alumni)
+  const interlude = useGameStore((s) => s.interlude)
+  const epilogue = useGameStore(epilogueOf)
+  const visitor = useGameStore((s) =>
+    isHomecomingVisit(s.calendar.season, s.date) ? s.homecomingVisitor : null
+  )
+  // One reading of the map for every row, under the same rules as the thread header's lamp.
+  const placed = lights && !epilogue && !(interlude && interlude.now.clock !== 'late-night')
+    ? new Map([...knownWhereabouts(date, time),
+        ...alumni.filter((charId) => charId !== visitor).map(awayWhereabouts)].map((row) => [row.charId, row] as const))
+    : null
 
   // Newest activity first.
   const shownClock = useGameStore(s => s.chatShownThrough)
@@ -652,6 +684,7 @@ function ChatList(): JSX.Element {
     <div className="vu-bb-side">
       <div className="vu-title vu-bb-title">
         <h2 className="vu-title-text">Chats</h2>
+        <ModSlot slot="chatsHeader" props={{ theme }} />
       </div>
 
       {conversations.length === 0 ? (
@@ -662,6 +695,10 @@ function ChatList(): JSX.Element {
             {conversations.map((conversation) => {
               const identity = chatIdentityOf(conversation.charId, characters[conversation.charId])
               if (!identity.known) return null
+              const idle = !identity.bot && contactIdle(conversation.charId)
+              const status = placed && !identity.bot && !charInfo[conversation.charId]?.flags?.blocked
+                ? presenceOf(placed.get(conversation.charId), conversation.charId, date, time, idle)
+                : null
               const last = conversation.messages[conversation.messages.length - 1]
               const on = conversation.charId === viewingCharId
               return (
@@ -700,6 +737,7 @@ function ChatList(): JSX.Element {
                       <span className="vu-bb-chat-main">
                         <span className="vu-bb-chat-top">
                           <span className="vu-bb-name">{identity.name}</span>
+                          {status && <BusyLed busy={status.busy} idle={status.idle} label={status.text} />}
                           {identity.bot && (
                             <span className="vu-bb-kind">
                               {jobDefForChat(conversation.charId) ? 'BOSS' : 'BOT'}
@@ -1078,13 +1116,15 @@ function ConversationView({
   const nowDate = useGameStore(s => s.date)
   const nowTime = useGameStore(s => s.time)
   const messages = shownMessages(conversation?.messages ?? [], shownClock ?? { date: nowDate, time: nowTime })
+  const receipts = useSyncExternalStore(subscribeHookRules, readReceipts)
   const identity = chatIdentityOf(charId, character)
   const boss = jobDefForChat(charId)
   const bot = identity.bot
   const name = character?.firstName ?? '???'
-  const words = pronounsOf(character)
   // No bot has a timetable.
   const interlude = useGameStore(s => s.interlude)
+  const idle = !bot && contactIdle(charId)
+  const words = pronounsOf(character)
   const atWork = !bot && interlude?.now.clock !== 'late-night' && charJobNow(charId) !== null
   const commitment = !bot ? charCommitmentAt(charId) : null
   const committed = !bot && interlude?.now.clock !== 'late-night' && charBusyNow(charId)
@@ -1095,6 +1135,11 @@ function ConversationView({
   const busy = useBunnyboardStore((s) => s.busyCharIds.includes(charId))
   // Texts written and waiting out their typing delay.
   const typing = useBunnyboardStore((s) => s.typingCharIds.includes(charId))
+  // A reply for now: nothing until the model answers, then streaming back, then its first text written.
+  const stage = useBunnyboardStore((s) => s.replyStage[charId])
+  const receiptOf = receipts
+    ? receiptsOf(conversation?.messages ?? [], messages, typing ? 'read' : stage)
+    : undefined
   // Her last turn failed and is parked on Retry.
   const failed = useBunnyboardStore((s) => s.failedCharIds.includes(charId))
   // Edit prompt stands beside Retry unless the failure is one the prompt cannot answer.
@@ -1103,7 +1148,7 @@ function ConversationView({
   const [editing, setEditing] = useState(false)
   // Her ask-out, only while it is still asking: a No dismisses it, invitation still standing.
   const pendingHangout = conversation?.pendingHangout
-  const askingOut = Boolean(pendingHangout && !pendingHangout.dismissed)
+  const askingOut = Boolean(pendingHangout && !pendingHangout.dismissed && !(pendingHangout.mine && sceneActive))
   // Her vent or her question about a crush, while it still waits on his answer.
   const advice = conversation?.advice && !conversation.advice.answer ? conversation.advice : null
   const armedHere = armed?.charId === charId
@@ -1114,10 +1159,36 @@ function ConversationView({
     plan !== null &&
     events.some((other) => other.id !== plan.id && other.date === date && other.time === time)
   const canReschedule =
-    askingOut &&
+    askingOut && !pendingHangout?.mine &&
     plan !== null &&
     (playerClassNow() !== null || shiftNow() !== null || doubleBooked)
   const [rescheduling, setRescheduling] = useState(false)
+  const [meetupWarning, setMeetupWarning] = useState<{
+    charId: string
+    pending: NonNullable<typeof pendingHangout>
+    title: string
+    message: string
+  } | null>(null)
+
+  /** Confirms the cost of a phone meet-up before sending the answer. */
+  function acceptMeetup(): void {
+    const commitment = warnBeforeMeetup() ? meetupCommitmentNow() : null
+    if (!commitment || !pendingHangout) {
+      answerHangout(charId, true)
+      return
+    }
+    const copy = commitment.kind === 'class'
+      ? commitment.assessment
+        ? { title: `Miss your ${commitment.name} ${commitment.assessment}?`, message: `Meeting ${name} now means skipping it.` }
+        : { title: `Skip ${commitment.name}?`, message: `Meeting ${name} now means missing your class.` }
+      : {
+          title: `Miss your shift at ${commitment.employer}?`,
+          message: commitment.lastStrike
+            ? 'It would be your third strike, and you would lose the job.'
+            : `A missed shift is a strike. You have ${commitment.strikes} of ${commitment.limit}.`
+        }
+    setMeetupWarning({ charId, pending: pendingHangout, ...copy })
+  }
   // She has him blocked: readable to the end of the slot, nothing sendable.
   const blocked = useGameStore((s) => s.charInfo[charId]?.flags?.blocked === true)
   // Retrying is sending; the composer's own reasons to be shut apply, the editor's included.
@@ -1185,7 +1256,7 @@ function ConversationView({
   // A blocked thread says nothing about where she is: the map has dropped her to what he
   // remembers, and the composer under it already says she blocked him. Neither does a screen
   // set sometime after graduation, which pins nobody to an hour.
-  const status = bot || blocked || epilogue || (interlude && interlude.now.clock !== 'late-night') ? null : presenceOf(placed, charId, date, time)
+  const status = bot || blocked || epilogue || (interlude && interlude.now.clock !== 'late-night') ? null : presenceOf(placed, charId, date, time, idle)
 
   return (
     <div className="vu-bb-thread">
@@ -1207,8 +1278,8 @@ function ConversationView({
               {identity.subtitle}
               {status && (
                 <>
-                  <BusyLed busy={status.busy} />
-                  {status.text}
+                  <BusyLed busy={status.busy} idle={status.idle} />
+                  {status.header ?? status.text}
                 </>
               )}
             </span>
@@ -1233,7 +1304,7 @@ function ConversationView({
                   <span>{stamp.split(', ')[1]}</span>
                 </div>
               )}
-              <MessageBubble message={message} />
+              <MessageBubble message={message} receipt={message.sender === 'player' ? receiptOf?.get(message.id) : undefined} />
             </Fragment>
           )
         })}
@@ -1310,7 +1381,9 @@ function ConversationView({
           </div>
         ) : !epilogue && askingOut ? (
           <div className="vu-bb-answers">
-            <span className="vu-bb-answers-text">{name} wants to hang out. Are you down?</span>
+            <span className="vu-bb-answers-text">
+              {pendingHangout?.mine ? `Meet up with ${name}?` : `${name} wants to hang out. Are you down?`}
+            </span>
             <div className="vu-bb-answers-row">
               <CancelButton
                 id="bb-hangout-no"
@@ -1334,7 +1407,7 @@ function ConversationView({
               <PrimaryButton
                 id="bb-hangout-yes"
                 dead={sceneActive}
-                onClick={() => answerHangout(charId, true)}
+                onClick={acceptMeetup}
               >
                 Yes
               </PrimaryButton>
@@ -1373,13 +1446,15 @@ function ConversationView({
                   : // Blocked outranks the other two.
                     blocked
                     ? `${name} blocked you.`
-                    : unavailable
-                      ? `${name} is ${atWork ? 'at work' : 'in class'} right now.`
-                      : heldOpen
-                        ? `${name} will reply to you when ${words.they} ${words.they === 'they' ? 'are' : 'is'} available.`
-                        : busy
-                        ? `Waiting for ${name}...`
-                        : incoming ? `Describe the text ${name} sends you` : 'Message'
+                    : idle
+                      ? `${name} is away or asleep right now. ${words.They} will reply later.`
+                      : unavailable
+                        ? `${name} is ${atWork ? 'at work' : 'in class'} right now.`
+                        : heldOpen
+                          ? `${name} will reply to you when ${words.they} ${words.they === 'they' ? 'are' : 'is'} available.`
+                          : busy
+                            ? `Waiting for ${name}...`
+                            : incoming ? `Describe the text ${name} sends you` : 'Message'
             }
             onDraft={setDraft}
             onSend={onSend}
@@ -1389,6 +1464,25 @@ function ConversationView({
 
       {/* A sibling of the app's own veil, so a click in it does not reach that veil's handler. */}
       <AnimatePresence propagate>
+        {meetupWarning && meetupWarning.charId === charId && meetupWarning.pending === pendingHangout &&
+          askingOut && !sceneActive && !epilogue && (
+          <ConfirmModal
+            key="meetup-warning"
+            id="bb-meetup-warning"
+            theme={theme}
+            title={meetupWarning.title}
+            message={meetupWarning.message}
+            cancelText="Cancel"
+            confirmText="Meet anyway"
+            onCancel={() => setMeetupWarning(null)}
+            onConfirm={() => {
+              setMeetupWarning(null)
+              if (useGameStore.getState().bunnyboard.conversations[charId]?.pendingHangout === meetupWarning.pending) {
+                answerHangout(charId, true)
+              }
+            }}
+          />
+        )}
         {rescheduling && plan && (
           <RescheduleModal
             key="reschedule"
@@ -1622,9 +1716,11 @@ function Composer({
  * above it, so typing redraws the box and not every message in the thread.
  */
 const MessageBubble = memo(function MessageBubble({
-  message
+  message,
+  receipt
 }: {
   message: ChatMessage
+  receipt?: Receipt
 }): JSX.Element {
   const photo = message.outgoingPhoto
   const imagesVisible = useModOn(OUTGOING_IMAGE_STORAGE_MOD) && !isWebBuild()
@@ -1639,6 +1735,7 @@ const MessageBubble = memo(function MessageBubble({
       </div>
     )
   }
+  const hasReceipt = !bare && message.sender === 'player' && receipt !== undefined
   // What a mod attaches to the message follows its text, in a bubble of its own: a message that is
   // only an attachment draws no empty bubble.
   return (
@@ -1654,9 +1751,20 @@ const MessageBubble = memo(function MessageBubble({
       )}
       {message.text && (
         <div
-          className={`vu-bb-bubble vu-bb-bubble--${message.sender === 'player' ? 'mine' : 'theirs'}${bare ? ' vu-bb-bubble--bare' : ''}`}
+          className={`vu-bb-bubble vu-bb-bubble--${message.sender === 'player' ? 'mine' : 'theirs'}${bare ? ' vu-bb-bubble--bare' : ''}${hasReceipt ? ' vu-bb-bubble--receipt' : ''}`}
         >
-          <SentText text={message.text} />
+          {hasReceipt ? <ReceiptSentText text={message.text} /> : <SentText text={message.text} />}
+          {hasReceipt && (
+            <svg
+              className={`vu-bb-receipt${receipt === 'read' ? ' vu-bb-receipt--read' : ''}`}
+              viewBox="0 0 22 14"
+              role="img"
+              aria-label={receipt === 'read' ? 'Read' : receipt === 'delivered' ? 'Delivered' : 'Sent'}
+            >
+              <path d="m7 8 4 4 9-10" />
+              {receipt !== 'sent' && <path d="m2 8 4 4 2-2.2m2-2.2 5-5.6" />}
+            </svg>
+          )}
         </div>
       )}
       <ModSlot slot="messageAttachment" props={{ message }} />
@@ -2029,7 +2137,7 @@ function ContactCard({
             {yearLabel(info.year)} · {info.major}
           </span>
           {status && <span className="vu-bb-where">
-            <BusyLed busy={status.busy} />
+            <BusyLed busy={status.busy} idle={status.idle} />
             {status.text}
           </span>}
         </span>

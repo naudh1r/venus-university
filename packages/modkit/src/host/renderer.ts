@@ -6,6 +6,7 @@
  * test holds them so).
  */
 export {
+  acceptLine,
   afterDmReply,
   afterReachOut,
   afterSceneReply,
@@ -13,6 +14,7 @@ export {
   bunnyboardPages,
   canHoldSlot,
   characterFromDraft,
+  chatListLights,
   classCatalogEdits,
   contactTabs,
   dmHistoryNotes,
@@ -34,6 +36,7 @@ export {
   openingLook,
   optionControl,
   optionPreview,
+  ownMeetupAsks,
   ownedComments,
   playerActs,
   postCommentsOwner,
@@ -44,6 +47,7 @@ export {
   projectSlotMemories,
   promptStateParts,
   promptTextEdits,
+  readReceipts,
   relaxLabel,
   relaxLine,
   relaxRows,
@@ -67,9 +71,11 @@ export {
   startSwitchedOn,
   statActivities,
   statFloor,
+  statusWords,
   subscribeHookRules,
   textWhileBusy,
-  updatesTabs
+  updatesTabs,
+  warnBeforeMeetup
 } from '../renderer/hooks'
 export type { DeclaredHooks } from '../renderer/hooks'
 export { bindModWrites, bindRecordWrites, bindSaveFieldStore, carryModSlices, readModSlices, saveFields, writeModSlices } from '../renderer/saveField'

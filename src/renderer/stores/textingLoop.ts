@@ -125,7 +125,7 @@ import { knownWhereabouts } from './whereabouts'
 import { useGameStore } from './gameStore'
 import { heldReplyDueAt, sharedReplyClass } from '@shared/heldReplies'
 import { threadStartedBy, waitingText } from '@shared/textingThread'
-import { afterDmReply, afterReachOut, asleepNow, dmReplyLead, hangoutCheck, textWhileBusy, promptTextEdits } from '../mods/hooks'
+import { acceptLine, afterDmReply, afterReachOut, asleepNow, dmReplyLead, hangoutCheck, ownMeetupAsks, textWhileBusy, promptTextEdits } from '../mods/hooks'
 import { INCOMING_TEXTS, OUTGOING_IMAGE_STORAGE_MOD } from '@shared/modEntries/incoming-texts'
 import { lorebookNow } from './lorebookStore'
 import { prefetchHangoutScene, startHangoutScene } from './loop/hooks'
@@ -659,16 +659,19 @@ async function sendText(
 
   let game = useGameStore.getState()
   // Texting her anything settles an ignored invitation and answers one put away with No.
+  const pending = game.bunnyboard.conversations[charId]?.pendingHangout
   if (!incoming) {
     game.setIgnoredInvitation(charId, false)
-    game.setPendingHangout(charId, null)
+    // Keep the reader's dismissed offer for the boundary, with the follow-up recorded.
+    game.setPendingHangout(charId, pending?.mine && pending.dismissed
+      ? { ...pending, followedUp: true } : null)
   }
 
   // The thread as it stood *before* this message; the new one rides separately in the prompt.
   let conversation = game.bunnyboard.conversations[charId]
   // The ask-out she had standing, so this exchange is his answer to it — and to whatever
   // occasion it was about.
-  const invited = conversation?.pendingHangout ?? null
+  const invited = pending?.mine ? null : pending ?? null
   const character = game.characters[charId]
   if (!character) return
 
@@ -817,6 +820,10 @@ async function runReply(
     const unsubscribe = window.api.llm.onTextingDelta((deltaGroup, delta) => {
       if (deltaGroup !== group) return
       if (entry.abandoned) return
+      // The stream coming back proves the model has the request.
+      if (!held && !useBunnyboardStore.getState().replyStage[charId]) {
+        useBunnyboardStore.getState().setReplyStage(charId, 'delivered')
+      }
       const lead = leadReader.feed(delta)
       if (lead) dmReplyLead({ charId, character, lead, signal: leadController.signal })
       if (held) return
@@ -824,6 +831,8 @@ async function runReply(
         const clean = message.trim()
         if (!clean) continue
         seen += 1
+        // Its first text is written: the contact has read the thread and knows what to say.
+        useBunnyboardStore.getState().setReplyStage(charId, 'read')
         if (seen > skip) pacer.push(clean)
       }
     })
@@ -906,6 +915,8 @@ async function runReply(
       releaseHeldReplies()
       return
     }
+    // A reply that did not stream is delivered and read in one step, ahead of its typing.
+    if (messages.length > 0) useBunnyboardStore.getState().setReplyStage(charId, 'read')
     // Anything the preview did not already queue — nor an earlier attempt release.
     for (const text of messages.slice(Math.max(seen, skip))) {
       pacer.push(text)
@@ -946,6 +957,7 @@ async function runReply(
     if (sent && invited) settleAnsweredInvitation(charId, invited.occasionId)
   } finally {
     abortLead()
+    if (inFlight.get(charId) === entry) useBunnyboardStore.getState().setReplyStage(charId, null)
   }
 }
 
@@ -1239,6 +1251,10 @@ function handleHangout(charId: string, hangout: HangoutVerdict | null): void {
     return
   }
 
+  if (ownMeetupAsks({ charId, description: hangout.description })) {
+    game.setPendingHangout(charId, { description: hangout.description, mine: true })
+    return
+  }
   armHangout(charId, hangout.description)
 }
 
@@ -1292,12 +1308,14 @@ function deliverAwayNotice(charId: string): void {
 }
 
 /** What a Yes says and settles: her ask answered with "Sure", and none of it held against him. */
-function sayYes(charId: string): void {
+function sayYes(charId: string, mine = false): void {
   const game = useGameStore.getState()
   game.setPendingHangout(charId, null)
-  game.setIgnoredInvitation(charId, false)
-  game.resetDeclined(charId)
-  game.appendChatMessage(charId, chatMessage('player', 'Sure'), 0)
+  if (!mine) {
+    game.setIgnoredInvitation(charId, false)
+    game.resetDeclined(charId)
+  }
+  game.appendChatMessage(charId, chatMessage('player', acceptLine({ charId, mine }) ?? 'Sure'), 0)
 }
 
 /** The Yes/No footer under her pending ask-out. */
@@ -1307,7 +1325,7 @@ export function answerHangout(charId: string, yes: boolean): void {
   if (!pending) return
 
   if (yes) {
-    sayYes(charId)
+    sayYes(charId, pending.mine)
     // An invitation raised before she left and accepted after it.
     if (charAwayNow(charId)) {
       deliverAwayNotice(charId)
@@ -1364,7 +1382,10 @@ export function answerAdvice(charId: string, index: number): void {
  */
 export function answerPlanReminders(charIds: readonly string[]): string[] {
   const answered = charIds.filter(
-    (charId) => useGameStore.getState().bunnyboard.conversations[charId]?.pendingHangout
+    (charId) => {
+      const pending = useGameStore.getState().bunnyboard.conversations[charId]?.pendingHangout
+      return pending && !pending.mine
+    }
   )
   for (const charId of answered) {
     sayYes(charId)
@@ -1508,6 +1529,20 @@ export function cancelAllTexts(): void {
   }
 }
 
+/** Collects player-owned footers at the boundary, then clears them all. */
+export function expireOwnMeetups(castIds: readonly string[]): { charId: string; description: string }[] {
+  const game = useGameStore.getState()
+  const lapsed: { charId: string; description: string }[] = []
+  for (const { charId, pendingHangout: pending } of Object.values(game.bunnyboard.conversations)) {
+    if (!pending?.mine) continue
+    if ((!pending.dismissed || !pending.followedUp) && !castIds.includes(charId)) {
+      lapsed.push({ charId, description: pending.description })
+    }
+    game.setPendingHangout(charId, null)
+  }
+  return lapsed
+}
+
 /**
  * Every plan the reader is standing up, every invitation he never answered, every one he
  * turned down by text and every vent or question about a crush he left standing is settled, run
@@ -1529,7 +1564,8 @@ export function expireHangoutInvitations(
     for (const charId of stood) {
       const live = useGameStore.getState()
       settled.add(charId)
-      if (live.bunnyboard.conversations[charId]?.pendingHangout) {
+      const pending = live.bunnyboard.conversations[charId]?.pendingHangout
+      if (pending && !pending.mine) {
         live.setPendingHangout(charId, null)
         live.setIgnoredInvitation(charId, true)
       }
@@ -1547,7 +1583,7 @@ export function expireHangoutInvitations(
 
   const ignored: string[] = []
   for (const conversation of Object.values(useGameStore.getState().bunnyboard.conversations)) {
-    if (!conversation.pendingHangout) continue
+    if (!conversation.pendingHangout || conversation.pendingHangout.mine) continue
     if (settled.has(conversation.charId)) continue
     const live = useGameStore.getState()
     live.setPendingHangout(conversation.charId, null)

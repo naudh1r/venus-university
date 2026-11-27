@@ -519,6 +519,10 @@ export interface ModDetailProps {
 
 // @public (undocumented)
 export interface ModHooks {
+    acceptLine?: (ctx: {
+        charId: string;
+        mine: boolean;
+    }) => string | undefined;
     advancedSettingsEntry?: ComponentType<ScreenSlotProps['advancedSettingsEntry']>;
     afterDmReply?: (ctx: {
         charId: string;
@@ -545,6 +549,8 @@ export interface ModHooks {
     characterFromDraft?: (draft: Readonly<Record<string, unknown>>, ctx: {
         baseAppearance: readonly string[];
     }) => Partial<Character>;
+    chatListLights?: () => boolean;
+    chatsHeader?: ComponentType<ScreenSlotProps['chatsHeader']>;
     contactPostExtra?: ComponentType<ScreenSlotProps['contactPostExtra']>;
     contactTab?: ContactTab;
     conversationFoot?: ComponentType<ScreenSlotProps['conversationFoot']>;
@@ -590,6 +596,10 @@ export interface ModHooks {
     }) => OpeningLook | null;
     optionControls?: Record<string, ComponentType<OptionControlProps>>;
     optionPreviews?: Record<string, ComponentType<OptionPreviewProps>>;
+    ownMeetupAsks?: (ctx: {
+        charId: string;
+        description: string;
+    }) => boolean;
     panelLayer?: ComponentType<ScreenSlotProps['panelLayer']>;
     phoneOverlay?: ComponentType<ScreenSlotProps['phoneOverlay']>;
     photosPageSection?: ComponentType<ScreenSlotProps['photosPageSection']>;
@@ -610,6 +620,7 @@ export interface ModHooks {
     };
     promptText?: PromptTextSpot;
     railButton?: ComponentType<ScreenSlotProps['railButton']>;
+    readReceipts?: () => boolean;
     relaxLabel?: (ctx: {
         date: number;
         time: TimeSlot;
@@ -653,6 +664,7 @@ export interface ModHooks {
     stageLayer?: ComponentType<ScreenSlotProps['stageLayer']>;
     statActivities?: (stat: StatKey) => readonly SlotActivityOffer[];
     statFloor?: (key: StatKey) => number | undefined;
+    statusWords?: () => boolean;
     switchedOn?: (ctx: {
         atBoot: boolean;
     }) => void | Promise<void>;
@@ -661,6 +673,7 @@ export interface ModHooks {
         commitment: Commitment;
     }) => boolean;
     updatesTab?: UpdatesTab;
+    warnBeforeMeetup?: () => boolean;
 }
 
 // @public
@@ -703,6 +716,12 @@ export function noNsfwImages(): boolean;
 
 // @public
 export const noteIn: Variants;
+
+// @public
+export function noteInThread(charId: string, text: string, at?: {
+    date: number;
+    time: TimeSlot;
+}): void;
 
 // @public
 export const npcRelationships: () => Readonly<NpcRelationshipMap> | undefined;
@@ -1365,6 +1384,10 @@ export interface ScreenSlotProps {
         busy: boolean;
     };
     // (undocumented)
+    chatsHeader: {
+        theme: 'day' | 'night';
+    };
+    // (undocumented)
     contactPostExtra: {
         charId: string;
         post: SocialPost;
@@ -1563,6 +1586,10 @@ export interface SlotSettled {
     closingCast: readonly Character[];
     // (undocumented)
     ledger: LedgerResponse | null;
+    ownMeetupsLapsed?: readonly {
+        charId: string;
+        description: string;
+    }[];
 }
 
 // @public

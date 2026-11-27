@@ -26,6 +26,7 @@ import {
   deliverBunnybotMessages,
   deliverSlotHangouts,
   expireHangoutInvitations,
+  expireOwnMeetups,
   pickOccasionAsker,
   pickSlotAskers,
   pickSlotReachOut,
@@ -343,6 +344,49 @@ describe('answerHangout — No', () => {
     expect(info?.memories).toEqual([
       { date: 7, type: 'disliked', desc: 'the reader ignored her text' }
     ])
+  })
+})
+
+describe('player-owned meet-ups at the boundary', () => {
+  it('records a reader text after No without settling a contact invitation', async () => {
+    seed()
+    const game = useGameStore.getState()
+    game.setPendingHangout('a', { description: 'coffee', mine: true })
+    answerHangout('a', false)
+    stubApi({ llm: {
+      onTextingDelta: () => () => {},
+      completeTexting: async () => ({ ok: true, data: { messages: [], summary: '' } }),
+      classifyHangout: async () => ({ ok: true, data: { playerAsked: false, characterOffered: false, description: '' } })
+    } })
+    try {
+      await sendMessage('a', 'How is your day going?')
+      const chat = useGameStore.getState().bunnyboard.conversations.a
+      expect(chat?.pendingHangout).toMatchObject({ mine: true, dismissed: true, followedUp: true })
+      expect(chat?.declined).toBeUndefined()
+      expect(expireOwnMeetups([])).toEqual([])
+    } finally {
+      restoreApi()
+    }
+  })
+
+  it.each([
+    { dismissed: false, followedUp: undefined, cast: [], lapses: true },
+    { dismissed: true, followedUp: undefined, cast: [], lapses: true },
+    { dismissed: true, followedUp: true as const, cast: [], lapses: false },
+    { dismissed: true, followedUp: undefined, cast: ['a'], lapses: false }
+  ])('keeps contact invitation bookkeeping separate from the own offer (%j)', ({ dismissed, followedUp, cast, lapses }) => {
+    seed()
+    const game = useGameStore.getState()
+    game.setPendingHangout('a', { description: 'coffee', mine: true, dismissed, followedUp, occasionId: 'gala' })
+    expect(expireHangoutInvitations(cast)).toEqual({ ignored: [], turnedDown: [], ignoredVents: [] })
+    expect(expireOwnMeetups(cast)).toEqual(lapses ? [{ charId: 'a', description: 'coffee' }] : [])
+    const live = useGameStore.getState()
+    expect(live.bunnyboard.conversations.a).not.toHaveProperty('pendingHangout')
+    expect(live.bunnyboard.conversations.a?.declined).toBeUndefined()
+    expect(live.bunnyboard.conversations.a?.turnedDown).toBeUndefined()
+    expect(live.charInfo.a?.ignoredInvitation).toBeFalsy()
+    expect(live.charInfo.a?.memories).toEqual([])
+    expect(live.occasionsDeclined).toEqual([])
   })
 })
 

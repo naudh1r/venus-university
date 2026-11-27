@@ -56,6 +56,7 @@ export { isGraduationSlot } from '../../../../src/renderer/prompts/graduation'
 export {
   buildLabel,
   gameFacts,
+  noteInThread,
   lessNsfwText,
   modsOnLine,
   showError,

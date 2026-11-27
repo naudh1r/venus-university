@@ -114,6 +114,7 @@ export {
   modIsOn,
   modsOnLine,
   noteIn,
+  noteInThread,
   objectSchema,
   panelUnderTab,
   PostCommentAction,

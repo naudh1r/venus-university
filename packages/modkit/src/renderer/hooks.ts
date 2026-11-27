@@ -197,6 +197,8 @@ export interface SlotSettled {
   before: ReturnType<typeof useGameStore.getState>
   ledger: LedgerResponse | null
   closingCast: readonly Character[]
+  /** Player-owned meet-up footers left unanswered or dismissed without a follow-up. */
+  ownMeetupsLapsed?: readonly { charId: string; description: string }[]
 }
 
 /** A read-only preview of the finished scene, before the crush roll and next opening. */
@@ -414,6 +416,11 @@ export interface ModHooks {
   relaxLabel?: (ctx: { date: number; time: TimeSlot }) => string | undefined
   /** The first answer replaces narration for the Relax row itself. */
   relaxLine?: (ctx: { date: number; time: TimeSlot }) => string | undefined
+  /**
+   * The reader's text when Yes is pressed on a meet-up footer: `mine` when the reader suggested
+   * it. Undefined leaves the game's own "Sure".
+   */
+  acceptLine?: (ctx: { charId: string; mine: boolean }) => string | undefined
   /** Extra choices that call their handler before spending the slot on Relax. */
   relaxRows?: (ctx: { date: number; time: TimeSlot }) => readonly { label: string; onPick: () => void }[]
   /**
@@ -501,6 +508,16 @@ export interface ModHooks {
   }) => void
   /** Return false to skip the immediate-meetup classifier for this exchange. */
   hangoutCheck?: (ctx: { charId: string; startedBy: 'reader' | 'her' }) => boolean
+  /** Gives a reader-initiated meetup a Yes/No footer. */
+  ownMeetupAsks?: (ctx: { charId: string; description: string }) => boolean
+  /** Warns about a current commitment before accepting a meetup on the phone. */
+  warnBeforeMeetup?: () => boolean
+  /** Shows sent, delivered and read ticks on the player's phone bubbles. */
+  readReceipts?: () => boolean
+  /** Words a contact's thread header as a state first: Available, Busy or Idle, then where. */
+  statusWords?: () => boolean
+  /** Shows every contact's status light beside their name in the Chats list. */
+  chatListLights?: () => boolean
   /** Whether the contact is idle and replies at the next landing. */
   asleepNow?: (ctx: {
     charId: string
@@ -509,7 +526,7 @@ export interface ModHooks {
     /** Present at an ordinary slot's opening, before contact deliveries. */
     opening?: { weekend: boolean; homeContacts: readonly string[] }
   }) => boolean
-  /** Opens only the timetable gate on her composer. */
+  /** Opens only the timetable gate on the contact's composer. */
   textWhileBusy?: (ctx: { charId: string; commitment: Commitment }) => boolean
   /** After her reply in a DM has landed. */
   afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void
@@ -589,6 +606,8 @@ export interface ModHooks {
   phoneOverlay?: ComponentType<ScreenSlotProps['phoneOverlay']>
   /** Below a person's message history, before the native composer. Not drawn for bot threads. */
   conversationFoot?: ComponentType<ScreenSlotProps['conversationFoot']>
+  /** Drawn beside the Chats title while the conversation list is showing. */
+  chatsHeader?: ComponentType<ScreenSlotProps['chatsHeader']>
   /** Drawn on the map, under the places and above its foot. */
   mapOverlay?: ComponentType<ScreenSlotProps['mapOverlay']>
   /** Drawn on the Photos page, under the grid of photos. */
@@ -640,6 +659,7 @@ export interface ScreenSlotProps {
   }
   portraitOverlay: { charId: string }
   phoneOverlay: Record<string, never>
+  chatsHeader: { theme: 'day' | 'night' }
   conversationFoot: {
     /** The open person's conversation key. The contribution remounts when the thread changes. */
     charId: string
@@ -1066,6 +1086,19 @@ export function relaxLine(ctx: { date: number; time: TimeSlot }): string | undef
   return undefined
 }
 
+/** The first enabled mod's text for the reader's Yes on a meet-up footer. */
+export function acceptLine(ctx: { charId: string; mine: boolean }): string | undefined {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      const line = hooks.acceptLine?.(ctx)
+      if (typeof line === 'string' && line.trim()) return line.trim()
+    } catch (error) {
+      console.warn(`[mods] ${modId}: acceptLine failed`, error)
+    }
+  }
+  return undefined
+}
+
 /** Any enabled mod may skip an exchange's immediate-meetup classifier. */
 export function hangoutCheck(ctx: { charId: string; startedBy: 'reader' | 'her' }): boolean {
   for (const { modId, hooks } of activeEntries()) {
@@ -1472,6 +1505,54 @@ export function saveNotes(scene: Readonly<ModSceneFields>): string[] {
   })
 }
 
+/** Whether an enabled mod wants a Yes/No footer for a player-owned meetup. */
+export function ownMeetupAsks(ctx: { charId: string; description: string }): boolean {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.ownMeetupAsks?.(ctx) === true) return true
+    } catch (error) {
+      console.warn(`[mods] ${modId}: ownMeetupAsks failed`, error)
+    }
+  }
+  return false
+}
+
+/** Whether an enabled mod words thread headers as Available, Busy or Idle. */
+export function statusWords(): boolean {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.statusWords?.() === true) return true
+    } catch (error) {
+      console.warn(`[mods] ${modId}: statusWords failed`, error)
+    }
+  }
+  return false
+}
+
+/** Whether an enabled mod shows every contact's status light in the Chats list. */
+export function chatListLights(): boolean {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.chatListLights?.() === true) return true
+    } catch (error) {
+      console.warn(`[mods] ${modId}: chatListLights failed`, error)
+    }
+  }
+  return false
+}
+
+/** Whether an enabled mod shows sent, delivered and read ticks in the phone. */
+export function readReceipts(): boolean {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.readReceipts?.() === true) return true
+    } catch (error) {
+      console.warn(`[mods] ${modId}: readReceipts failed`, error)
+    }
+  }
+  return false
+}
+
 /** Asks whether a contact is idle, letting every mod see an opening snapshot. */
 export function asleepNow(ctx: Parameters<NonNullable<ModHooks['asleepNow']>>[0]): boolean {
   let idle = false
@@ -1488,7 +1569,19 @@ export function asleepNow(ctx: Parameters<NonNullable<ModHooks['asleepNow']>>[0]
   return idle
 }
 
-/** Any enabled mod may open a composer's timetable gate. */
+/** Whether an enabled mod wants the phone to warn before accepting a meet-up. */
+export function warnBeforeMeetup(): boolean {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.warnBeforeMeetup?.() === true) return true
+    } catch (error) {
+      console.warn(`[mods] ${modId}: warnBeforeMeetup failed`, error)
+    }
+  }
+  return false
+}
+
+/** Whether an enabled mod lets the reader text a busy contact. */
 export function textWhileBusy(ctx: { charId: string; commitment: Commitment }): boolean {
   for (const { modId, hooks } of activeEntries()) {
     try {

@@ -1,7 +1,7 @@
 import { relaxLabel, statActivities } from '../mods/hooks'
 import type { SlotActivityOffer } from '@shared/slotActivity'
 import { kindOf } from '@shared/academics'
-import { jobDefOf } from '@shared/jobs'
+import { jobDefOf, MAX_STRIKES } from '@shared/jobs'
 import { LOWRISE_LOCATION } from '@shared/locations'
 import { STAT_KEYS, statsLowestFirst, type StatKey } from '@shared/playerStats'
 import type { SemesterCalendar } from '@shared/semesters'
@@ -75,6 +75,36 @@ function classActionText(entry: ClassEntry, date: number, calendar: SemesterCale
   return kindOf(entry) === 'project'
     ? `Go to ${entry.code} ${exam} showcase`
     : `Take ${entry.code} ${exam}`
+}
+
+type MeetupCommitment =
+  | { kind: 'class'; name: string; assessment: 'midterm' | 'final' | 'showcase' | null }
+  | { kind: 'shift'; employer: string; strikes: number; limit: number; lastStrike: boolean }
+
+/** Which commitment a meet-up would spend, with the class taking priority over a shift. */
+export function meetupCommitmentOf(
+  entry: ClassEntry | undefined,
+  date: number,
+  calendar: SemesterCalendar,
+  shift?: { employer: string; strikes: number }
+): MeetupCommitment | null {
+  if (entry) {
+    const exam = examOn(entry, date, calendar)
+    return { kind: 'class', name: entry.name, assessment: exam && kindOf(entry) === 'project' ? 'showcase' : exam }
+  }
+  if (!shift) return null
+  return { kind: 'shift', ...shift, limit: MAX_STRIKES, lastStrike: shift.strikes + 1 >= MAX_STRIKES }
+}
+
+/** Reads the same class and shift the current landing offers. */
+export function meetupCommitmentNow(): MeetupCommitment | null {
+  const game = useGameStore.getState()
+  if (game.interlude) return null
+  const code = playerClassNow()
+  const job = game.job
+  const def = job && shiftNow() !== null ? jobDefOf(job.jobId) : undefined
+  return meetupCommitmentOf(code ? game.classes[code] : undefined, game.date, game.calendar,
+    def && job ? { employer: def.employer, strikes: job.strikes } : undefined)
 }
 
 /**

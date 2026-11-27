@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { idleReplyUntil } from '../src/renderer/prompts/gameDate'
 import type { Conversation } from '../src/shared/types'
-import { heldReplyShown, messageShown, shownMessages, unreadAfterOpening } from '../src/shared/chatVisibility'
+import { heldReplyShown, messageShown, receiptsOf, shownMessages, unreadAfterOpening } from '../src/shared/chatVisibility'
 
 describe('held message visibility', () => {
   it('delivers a weekend idle reply at the next slot, with or without a late-night hold', () => {
@@ -78,5 +78,42 @@ describe('unread counts when a chat slot opens', () => {
     expect(unreadAfterOpening({ ...thread, heldReply: {
       until: clock, firstPlayerId: 'reader', messageIds: ['due']
     } }, before, clock)).toBe(3)
+  })
+})
+
+describe('receipts from the thread', () => {
+  const sent = { id: 'sent', sender: 'player' as const, date: 7, time: 1 as const }
+  const next = { ...sent, id: 'next' }
+  const reply = { id: 'reply', sender: 'contact' as const, date: 8, time: 0 as const }
+  const system = { ...sent, id: 'system', sender: 'system' as const }
+  const of = (all: typeof thread, clock: { date: number; time: 0 | 1 }) =>
+    Object.fromEntries(receiptsOf(all, shownMessages(all, clock)))
+  const thread: { id: string; sender: 'player' | 'contact' | 'system'; date: number; time: 0 | 1 }[] =
+    [sent, next, reply]
+
+  it('reads only player texts before a shown reply, even across a system line', () => {
+    const all = [sent, next, system, { ...reply, date: 7, time: 1 as const }, { ...sent, id: 'latest' }]
+    expect(of(all, sent)).toEqual({ sent: 'read', next: 'read', latest: 'sent' })
+  })
+
+  it('leaves a text sent when nothing or only a system line follows', () => {
+    expect(of([sent], sent)).toEqual({ sent: 'sent' })
+    expect(of([sent, system], sent)).toEqual({ sent: 'sent' })
+  })
+
+  it('marks texts delivered while their written reply is held, and read once it shows', () => {
+    expect(of(thread, sent)).toEqual({ sent: 'delivered', next: 'delivered' })
+    expect(of(thread, reply)).toEqual({ sent: 'read', next: 'read' })
+  })
+
+  it('marks the texts after the last reply with where a reply for now stands', () => {
+    const shown = [sent, { ...reply, date: 7, time: 1 as const }, next]
+    expect(Object.fromEntries(receiptsOf(shown, shown, 'delivered'))).toEqual({ sent: 'read', next: 'delivered' })
+    expect(Object.fromEntries(receiptsOf(shown, shown, 'read'))).toEqual({ sent: 'read', next: 'read' })
+  })
+
+  it('keeps earlier texts read when a later reply is held', () => {
+    const all = [sent, { ...reply, id: 'early', date: 7, time: 1 as const }, next, reply]
+    expect(of(all, sent)).toEqual({ sent: 'read', next: 'delivered' })
   })
 })
