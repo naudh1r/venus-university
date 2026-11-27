@@ -198,7 +198,7 @@ export interface SlotSettled {
   ledger: LedgerResponse | null
   closingCast: readonly Character[]
   /** Player-owned meet-up footers left unanswered or dismissed without a follow-up. */
-  ownMeetupsLapsed: readonly { charId: string; description: string }[]
+  ownMeetupsLapsed?: readonly { charId: string; description: string }[]
 }
 
 /** A read-only preview of the finished scene, before the crush roll and next opening. */
