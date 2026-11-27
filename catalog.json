@@ -454,6 +454,23 @@
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
       "releases": [
         {
+          "version": "0.7.5",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.5.zip",
+          "sha256": "3f9fd0c146890a79dd3f3b85e60f8d0c291bde49aed6c1b4780f40e26c75d4ed",
+          "kit": ">=0.7.0",
+          "game": "0.9.2",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-27",
+          "changes": [
+            "At night, some people have gone to sleep. Their light is yellow and their status reads Idle.",
+            "You can still text them. Their reply is written straight away and arrives when the morning opens.",
+            "Someone you spent the evening with is more likely to stay up, then friends and partners.",
+            "A switch for it under After Hours: Not everyone stays up.",
+            "Needs naudh1r-core from November 27 or later, which has the hook these use."
+          ]
+        },
+        {
           "version": "0.7.4",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.4.zip",
           "sha256": "1a67a2960e17e56f554092442610890f646f2eb3bc9b8ba6688ccc8dddf68a0e",
@@ -553,6 +570,15 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.7.5",
+          "changes": [
+            "At night, some people have gone to sleep. Their light is yellow and their status reads Idle.",
+            "You can still text them. Their reply is written straight away and arrives when the morning opens.",
+            "Someone you spent the evening with is more likely to stay up, then friends and partners.",
+            "A switch for it under After Hours: Not everyone stays up."
+          ]
+        },
         {
           "version": "0.7.4",
           "changes": [
