@@ -87,7 +87,7 @@ describe('receipts from the thread', () => {
     expect(of(thread, reply)).toEqual({ sent: 'read', next: 'read' })
   })
 
-  it('reads every text while the contact is typing', () => {
+  it('reads every text while the contact is writing a reply for now', () => {
     expect(Object.fromEntries(receiptsOf([sent, next], [sent, next], true))).toEqual({ sent: 'read', next: 'read' })
   })
 

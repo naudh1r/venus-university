@@ -1107,7 +1107,9 @@ function ConversationView({
   const busy = useBunnyboardStore((s) => s.busyCharIds.includes(charId))
   // Texts written and waiting out their typing delay.
   const typing = useBunnyboardStore((s) => s.typingCharIds.includes(charId))
-  const receiptOf = receipts ? receiptsOf(conversation?.messages ?? [], messages, typing) : undefined
+  // Her reply is being written for now, not held for a later slot: she has read what came before.
+  const reading = typing || (busy && !(conversation?.heldReply && !conversation.heldReply.opened))
+  const receiptOf = receipts ? receiptsOf(conversation?.messages ?? [], messages, reading) : undefined
   // Her last turn failed and is parked on Retry.
   const failed = useBunnyboardStore((s) => s.failedCharIds.includes(charId))
   // Edit prompt stands beside Retry unless the failure is one the prompt cannot answer.
