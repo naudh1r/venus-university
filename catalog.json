@@ -415,6 +415,22 @@
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
       "releases": [
         {
+          "version": "0.7.3",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.3.zip",
+          "sha256": "664d389a7cddb52562d5e4cc278ca15ba7c41e537395f3f030b3bba7b87a6515",
+          "kit": ">=0.7.0",
+          "game": "0.9.2",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-27",
+          "changes": [
+            "When someone agrees to meet up after you ask, you get a choice before the hangout opens.",
+            "The phone warns you before a meet-up would cost you a class, assessment or shift.",
+            "The thread keeps a short note of when you met, so later messages can place the meeting.",
+            "Needs naudh1r-core from November 27 or later, which has the hooks these use."
+          ]
+        },
+        {
           "version": "0.7.2",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.2.zip",
           "sha256": "d8f3fb77ff35f587894c370cef12484e0d2aef85a96fe3c241d168f3efcfd52e",
