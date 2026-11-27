@@ -519,7 +519,10 @@ export function LandingChrome(props: LandingChromeProps): JSX.Element {
       )}
 
       {/* The way back and the way out, in the corner the row leaves empty. */}
+      {/* Keyed on the theme: a hover leaves the colour it lifted from on the button, so a landing
+          that turns from night to morning draws its tools fresh rather than in the night's ink. */}
       <motion.div
+        key={theme}
         className="vu-landing-tools"
         variants={landingApps}
         initial="hidden"
