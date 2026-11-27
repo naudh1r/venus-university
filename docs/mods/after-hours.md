@@ -100,6 +100,10 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
 
+## 0.7.7
+
+- The lights in Chats have a switch of their own: Status lights in Chats.
+
 ## 0.7.6
 
 - Every contact in Chats has a light beside their name: green when free, orange in class or at
