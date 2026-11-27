@@ -168,6 +168,26 @@ function isClock(value: unknown): boolean {
   return isPlainObject(value) && Number.isSafeInteger(value.date) && (value.time === 0 || value.time === 1)
 }
 
+/** The first problem with a conversation's pending held reply, or null when it is well formed. */
+function heldReplyProblem(held: unknown): string | null {
+  if (!isPlainObject(held)) return 'is not an object'
+  if (!isClock(held.until)) return 'has no valid "until"'
+  if (typeof held.firstPlayerId !== 'string') return 'has no valid "firstPlayerId"'
+  if (!Array.isArray(held.messageIds) || !held.messageIds.every(id => typeof id === 'string')) {
+    return 'has no valid "messageIds"'
+  }
+  if (held.away !== undefined && held.away !== 0 && held.away !== 1) return 'has an invalid "away"'
+  const after = held.afterClass
+  if (after !== undefined && !(isClock(after) && typeof (after as Record<string, unknown>).code === 'string')) {
+    return 'has an invalid "afterClass"'
+  }
+  for (const flag of ['opened', 'blocked', 'asleep'] as const) {
+    if (held[flag] !== undefined && held[flag] !== true) return `has an invalid "${flag}"`
+  }
+  if (held.summary !== undefined && typeof held.summary !== 'string') return 'has an invalid "summary"'
+  return null
+}
+
 /** The first problem with a saved opening's playback, or null when it is well formed. */
 function playbackProblem(playback: unknown): string | null {
   if (!isPlainObject(playback)) return 'is not an object'
@@ -205,8 +225,8 @@ function morningOpeningProblem(opening: unknown): string | null {
 }
 
 /**
- * Refuses a save whose native optional fields are present but malformed: the opened chat clock,
- * the late-night marker and its paid ledger, a resumable or banked opening and the literal
+ * Refuses a save whose native optional fields are present but malformed: the held-reply clock and
+ * hold, the late-night marker and its paid ledger, a resumable or banked opening and the literal
  * message flags. A save written
  * before any of them, which lacks them, is valid; what mods keep is not looked at.
  */
@@ -218,6 +238,8 @@ export function assertSaveFields(save: GameSave, where: string): void {
   for (const key of ['chatShownThrough', 'heldNight'] as const) {
     if (fields[key] !== undefined && !isClock(fields[key])) malformed(key)
   }
+  const shown = fields.chatShownThrough
+  if (isPlainObject(shown) && shown.night !== undefined && shown.night !== true) malformed('chatShownThrough.night')
   const ledger = fields.heldNightLedger
   if (ledger !== undefined && !(isPlainObject(ledger) && typeof ledger.key === 'string' && isPlainObject(ledger.reply))) {
     malformed('heldNightLedger')
@@ -235,10 +257,14 @@ export function assertSaveFields(save: GameSave, where: string): void {
   if (!isPlainObject(conversations)) return
   for (const [charId, chat] of Object.entries(conversations)) {
     if (!isPlainObject(chat)) continue
+    if (chat.heldReply !== undefined) {
+      const problem = heldReplyProblem(chat.heldReply)
+      if (problem) malformed(`conversation ${charId} heldReply ${problem}`)
+    }
     if (!Array.isArray(chat.messages)) continue
     for (const message of chat.messages) {
       if (!isPlainObject(message)) continue
-      for (const flag of ['ledgered', 'late'] as const) {
+      for (const flag of ['awaitingReply', 'ledgered', 'late', 'afterNight'] as const) {
         if (message[flag] !== undefined && message[flag] !== true) {
           malformed(`conversation ${charId} message ${String(message.id)} has an invalid "${flag}"`)
         }

@@ -4,6 +4,7 @@ import { declaredHooksNow, refusedAsForeign } from './attribution'
 import type { StructuredRequest, LedgerResponse } from '../bridge/shared'
 import type { OpeningLook } from '../bridge/renderer'
 export type { OpeningLook } from '../bridge/renderer'
+import type { Commitment } from '../bridge/renderer'
 import type { PromptState } from '../bridge/renderer'
 import type { SlotIntroInput } from '../bridge/renderer'
 import type { useGameStore } from '../bridge/renderer'
@@ -500,6 +501,16 @@ export interface ModHooks {
   }) => void
   /** Return false to skip the immediate-meetup classifier for this exchange. */
   hangoutCheck?: (ctx: { charId: string; startedBy: 'reader' | 'her' }) => boolean
+  /** Whether the contact is idle and replies at the next landing. */
+  asleepNow?: (ctx: {
+    charId: string
+    date: number
+    time: TimeSlot
+    /** Present at an ordinary slot's opening, before contact deliveries. */
+    opening?: { weekend: boolean; homeContacts: readonly string[] }
+  }) => boolean
+  /** Opens only the timetable gate on her composer. */
+  textWhileBusy?: (ctx: { charId: string; commitment: Commitment }) => boolean
   /** After her reply in a DM has landed. */
   afterDmReply?: (ctx: { charId: string; character: Character; reply: TextingResponse }) => void
   /** After a scene reply has landed and its lines are on the transcript. */
@@ -1459,6 +1470,34 @@ export function saveNotes(scene: Readonly<ModSceneFields>): string[] {
     const note = hooks.saveNote?.(scene)
     return note ? [note] : []
   })
+}
+
+/** Asks whether a contact is idle, letting every mod see an opening snapshot. */
+export function asleepNow(ctx: Parameters<NonNullable<ModHooks['asleepNow']>>[0]): boolean {
+  let idle = false
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.asleepNow?.(ctx) === true) {
+        if (!ctx.opening) return true
+        idle = true
+      }
+    } catch (error) {
+      console.warn(`[mods] ${modId}: asleepNow failed`, error)
+    }
+  }
+  return idle
+}
+
+/** Any enabled mod may open a composer's timetable gate. */
+export function textWhileBusy(ctx: { charId: string; commitment: Commitment }): boolean {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.textWhileBusy?.(ctx) === true) return true
+    } catch (error) {
+      console.warn(`[mods] ${modId}: textWhileBusy failed`, error)
+    }
+  }
+  return false
 }
 
 /** Every enabled mod's extra Relax choices, in mod order. */

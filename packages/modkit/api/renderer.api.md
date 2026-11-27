@@ -124,6 +124,15 @@ export const clock: () => Readonly<{
 export function CloseIcon(): JSX.Element;
 
 // @public
+export type Commitment = {
+    kind: 'class';
+    name: string;
+} | {
+    kind: 'shift';
+    employer: string;
+};
+
+// @public
 export function completeStructured<T>(modId: string, request: StructuredRequest, options?: {
     group?: string;
 }): Promise<Result<T>>;
@@ -522,6 +531,15 @@ export interface ModHooks {
         reply: Readonly<Record<string, unknown>>;
     }) => void;
     afterSceneReply?: (ctx: SceneReplied) => void;
+    asleepNow?: (ctx: {
+        charId: string;
+        date: number;
+        time: TimeSlot;
+        opening?: {
+            weekend: boolean;
+            homeContacts: readonly string[];
+        };
+    }) => boolean;
     // (undocumented)
     bunnyboardPage?: BunnyboardPage;
     characterFromDraft?: (draft: Readonly<Record<string, unknown>>, ctx: {
@@ -638,6 +656,10 @@ export interface ModHooks {
     switchedOn?: (ctx: {
         atBoot: boolean;
     }) => void | Promise<void>;
+    textWhileBusy?: (ctx: {
+        charId: string;
+        commitment: Commitment;
+    }) => boolean;
     updatesTab?: UpdatesTab;
 }
 
@@ -1680,6 +1702,8 @@ export interface TextFieldProps {
 // @public
 export interface TextingPromptState {
     ages?: Readonly<Record<string, number>>;
+    asleep?: true;
+    away?: TimeSlot;
     breakthrough?: BreakthroughState;
     calendar: SemesterCalendar;
     charCompanions?: NpcCompanions;
@@ -1689,10 +1713,16 @@ export interface TextingPromptState {
     classes: Record<string, ClassEntry>;
     classRosters: Readonly<Record<string, ClassRoster>>;
     // (undocumented)
+    commitment?: Commitment;
+    // (undocumented)
     date: number;
     // (undocumented)
     exCharacterDynamics?: CharacterDynamics;
     globalTextEdits?: TextEdits<GlobalTextId>;
+    heldUntil?: {
+        date: number;
+        time: TimeSlot;
+    };
     history: GameHistory;
     historyLimit?: number;
     homecomingVisitor?: string;
@@ -1709,6 +1739,10 @@ export interface TextingPromptState {
     romance: RomanceSetting;
     roster: readonly Character[];
     secretBudget?: number;
+    sharedClass?: {
+        name: string;
+        attended: boolean;
+    };
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
     // (undocumented)

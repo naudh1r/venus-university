@@ -1,4 +1,6 @@
 import { shownConversation, shownMessages } from '@shared/chatVisibility'
+import { textWhileBusy } from '../mods/hooks'
+import { charCommitmentAt } from '../stores/timetable'
 import { bunnyboardPages, updatesTabs, type UpdatesTab } from '../mods/hooks'
 import { useModsStore, useModOn } from '../stores/modsStore'
 import { INCOMING_TEXTS, OUTGOING_IMAGE_STORAGE_MOD } from '@shared/modEntries/incoming-texts'
@@ -32,7 +34,7 @@ import {
 } from '@shared/types'
 import type { NpcCouple, NpcFriendship } from '@shared/npcRelationships'
 import { gpaOf, gradedCourses } from '@shared/academics'
-import type { ReaderPronouns } from '@shared/gender'
+import { pronounsOf, type ReaderPronouns } from '@shared/gender'
 import { sickInSlot } from '@shared/colds'
 import { globalSlotOf, jobDefForChat, shiftSlotOf } from '@shared/jobs'
 import { locationLabel, ROOM_LOCATION } from '@shared/locations'
@@ -1080,12 +1082,15 @@ function ConversationView({
   const boss = jobDefForChat(charId)
   const bot = identity.bot
   const name = character?.firstName ?? '???'
+  const words = pronounsOf(character)
   // No bot has a timetable.
   const interlude = useGameStore(s => s.interlude)
   const atWork = !bot && interlude?.now.clock !== 'late-night' && charJobNow(charId) !== null
+  const commitment = !bot ? charCommitmentAt(charId) : null
   const committed = !bot && interlude?.now.clock !== 'late-night' && charBusyNow(charId)
   // A mod can keep her box open through a class or shift; her answer then waits for her to be free.
-  const unavailable = committed
+  const heldOpen = committed && commitment !== null && textWhileBusy({ charId, commitment })
+  const unavailable = committed && !heldOpen
   // Her reply plus the hangout classifier that reads it.
   const busy = useBunnyboardStore((s) => s.busyCharIds.includes(charId))
   // Texts written and waiting out their typing delay.
@@ -1370,7 +1375,9 @@ function ConversationView({
                     ? `${name} blocked you.`
                     : unavailable
                       ? `${name} is ${atWork ? 'at work' : 'in class'} right now.`
-                      : busy
+                      : heldOpen
+                        ? `${name} will reply to you when ${words.they} ${words.they === 'they' ? 'are' : 'is'} available.`
+                        : busy
                         ? `Waiting for ${name}...`
                         : incoming ? `Describe the text ${name} sends you` : 'Message'
             }

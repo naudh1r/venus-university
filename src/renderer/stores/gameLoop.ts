@@ -204,6 +204,7 @@ import {
   deliverSlotBreakups,
   deliverSlotHangouts,
   deliverSlotReachOuts,
+  prepareContactIdle,
   deliverSpringBreakTexts,
   deliverHomecomingTexts,
   deliverVenusColdTip,
@@ -216,7 +217,10 @@ import {
   pickSlotReachOut,
   plannedWith,
   openChatSlot,
+  releaseHeldReplies,
   resetTextingLoop,
+  resumeHeldReplies,
+  settleClassReplies,
   resolveFriendRequests,
   rollAskerInvite,
   type LoveTextInput
@@ -319,6 +323,7 @@ import {
   announceableDrops,
   applyCast,
   lessNsfwTextNow,
+  idleHeldReplies,
   loadCgReady,
   promptState,
   reader,
@@ -400,6 +405,17 @@ function breakDecayLines(): SceneLine[] {
     (charId) => game.characters[charId] && game.charInfo[charId]?.nameKnown
   )
   return decay.stats.length > 0 || cooled ? [breakDecayLine()] : []
+}
+
+/**
+ * Rewrites the held replies a save left unfinished once the playthrough's lorebook is read, so each
+ * request carries its own world. The conversations are read again after the wait, and a reply
+ * already in flight is not sent twice.
+ */
+async function resumeHeldRepliesOnceRead(run: object): Promise<void> {
+  await lorebookLoaded()
+  if (runStale(run)) return
+  resumeHeldReplies()
 }
 
 /** Opens a slot: the transition, the narration, and the action prompt. */
@@ -648,6 +664,7 @@ async function beginSlot(released = false, readyOpening?: SlotOpening): Promise<
   if (playback) await chooseOpeningRoom(playback)
   if (runStale(run)) return
   const ready = useGameStore.getState()
+  prepareContactIdle(opening.events)
   openChatSlot()
   ready.appendPendingLines(lines)
   ready.setWaitingForLine(false)
@@ -2739,6 +2756,19 @@ function claimTextLedger(date: number, time: TimeSlot): Promise<LedgerResponse |
   return record.promise
 }
 
+/** Marks an idle contact's held reply as counted by the ledger that read it with its question. */
+function claimIdleHeldReplies(): void {
+  useGameStore.setState(state => ({
+    bunnyboard: {
+      ...state.bunnyboard,
+      conversations: Object.fromEntries(Object.entries(state.bunnyboard.conversations).map(([id, thread]) => {
+        const ids = new Set(idleHeldReplies(thread).map(message => message.id))
+        return [id, ids.size > 0 ? { ...thread, messages: claimLedgerMessages(thread.messages, ids) } : thread]
+      }))
+    }
+  }))
+}
+
 /** What the finished scene did to the reader's stats, and the lines that say so. */
 function resolveScene(): { deltas: PlayerStats; lines: StatusText[] } {
   const ctx: StatContext = {
@@ -3314,7 +3344,10 @@ async function crossSlotBoundary(): Promise<void> {
   // rings only where the phone is shown, so they land under the cover below and the landing
   // rings for them once on its own arrival.
   const owedTexts: Array<() => void> = []
-  if (ledger) applyLedger(ledger)
+  if (ledger) {
+    applyLedger(ledger)
+    claimIdleHeldReplies()
+  }
   // Before the deltas land: an exam is graded on the Brain he walked in with.
   recordAcademics(ledger)
   loopState.projectWork = null
@@ -3466,6 +3499,11 @@ async function crossSlotBoundary(): Promise<void> {
     }
   }
 
+  if (!over) {
+    await settleClassReplies(markCrossingWait)
+    if (runStale(run)) return
+  }
+
   // Before the clock moves, so each text is stamped with the slot the scene ran in, and before
   // the boundary save, which records them.
   slotSettled({ before: game, ledger, closingCast: loopState.closingCast ?? [] })
@@ -3601,7 +3639,7 @@ async function finishInterlude(now: InterludeCtx, line?: string): Promise<void> 
   settled.setNpcRelationships(withCouplesLeft(settled.npcRelationships, dating.left ?? [], now.from.date))
   addPlanContacts(plans.events)
   useGameStore.getState().addEvents(plans.events)
-  const ids = new Set(schedule.threads.flatMap(thread => thread.messages.map(message => message.id)))
+  const ids = new Set(schedule.threads.flatMap(thread => [...thread.messages, ...(thread.heldReplies ?? [])].map(message => message.id)))
   useGameStore.setState(state => ({
     bunnyboard: {
       ...state.bunnyboard,
@@ -3701,6 +3739,8 @@ export function enterGame(
   useGameStore.setState({ chatShownThrough: save.chatShownThrough ?? (save.scene || !isSlotSaveId(save.saveId)
     ? { date: save.date, time: save.time } : prevSlot(save.date, save.time)) })
   gameEntered()
+  releaseHeldReplies()
+  void resumeHeldRepliesOnceRead(currentRun())
   // The file a slot opening is folded back into: a boundary's own save, never the autosave or a
   // manual one.
   loopState.slotSaveId = isSlotSaveId(save.saveId) ? save.saveId : null

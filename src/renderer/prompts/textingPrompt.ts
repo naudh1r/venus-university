@@ -118,6 +118,15 @@ export interface TextingPromptState {
   time: TimeSlot
   /** The night the held boundary displays, while texts keep the current slot. */
   lateNight?: { date: number; time: TimeSlot }
+  /** The contact went to sleep and replies after the night. */
+  asleep?: true
+  /** The half when the contact was away from the phone. */
+  away?: TimeSlot
+  /** The slot when the reply can reach the reader. */
+  heldUntil?: { date: number; time: TimeSlot }
+  commitment?: import('./slotIntroPrompt').Commitment
+  /** Her shared class has ended, with the reader's attendance read from its class record. */
+  sharedClass?: { name: string; attended: boolean }
   /** The reader's accumulated stats, used for relationship requirement guidance. */
   stats?: PlayerStats
   /**
@@ -193,7 +202,7 @@ function flatText(text: string): string {
 }
 
 /** `"YOU: hey"` / `"MINA: hey yourself"` / `"SYSTEM: ..."` — one history stub. */
-function messageStub(message: ChatMessage, firstName: string): string {
+export function messageStub(message: ChatMessage, firstName: string): string {
   const photo = message.outgoingPhoto
   if (message.sender === 'player' && photo) {
     const visual = photo.description ? JSON.stringify(photo.description) : 'image attachment'
@@ -403,10 +412,17 @@ export function buildTextingPrompt(
   imageData?: string
 ): StructuredRequest {
   const name = character.firstName
+  const firstHeld = conversation?.heldReply?.firstPlayerId
+  const heldIndex = firstHeld ? conversation!.messages.findIndex(message => message.id === firstHeld) : -1
+  const historyLimit = state.heldUntil && heldIndex >= 0
+    ? Math.max(historyLimitOf(state.historyLimit), conversation!.messages.length - heldIndex)
+    : historyLimitOf(state.historyLimit)
   const gender = genderOf(character)
   const p = pronounsOf(character)
   // The reader is named outright where the reader's pronoun would read as hers.
-  const readerHim = readerWords(state.readerPronouns, gender).him
+  const readerPronoun = readerWords(state.readerPronouns, gender)
+  const readerHim = readerPronoun.him
+  const be = p.they === 'they' ? 'are' : 'is'
   // Off campus: away for the break, or graduated and gone from Veridan but for Homecoming.
   const visiting = state.homecomingVisitor === character.charId
   const away =
@@ -421,7 +437,7 @@ export function buildTextingPrompt(
     ...(state.lateNight ? { late: true as const } : {}),
     ...(outgoingPhoto ? { outgoingPhoto } : {})
   }
-  const recent = (conversation?.messages ?? []).slice(-historyLimitOf(state.historyLimit))
+  const recent = (conversation?.messages ?? []).slice(-historyLimit)
   const thread = [...recent, pending]
   // The new text is the last line of the log, so it gets its own stamp when it lands in a new slot.
   const history = stampedStubs(
@@ -585,11 +601,15 @@ export function buildTextingPrompt(
       : `It is ${formatDateBanner(state.date, state.time, state.calendar.season)}`,
     formatSemesterProgress(state.date),
     // Texting happens before the slot's scene; without this she treats the day as over.
-    ...(state.lateNight ? [] : [state.time === 0 ? 'Morning classes are starting soon.' : 'Night classes are starting soon.']),
+    ...(state.lateNight || state.heldUntil ? [] : [state.time === 0 ? 'Morning classes are starting soon.' : 'Night classes are starting soon.']),
     ...(state.weather ? weatherLines(state.weather, state.lateNight?.date ?? state.date, state.lateNight?.time ?? state.time) : []),
-    ...(state.lateNight ? [`${name} is ${info?.pursuing !== undefined ? 'at home' : `in ${p.their} dorm room`} for the night.`]
+    ...(state.heldUntil ? [] : state.lateNight ? [`${name} is ${info?.pursuing !== undefined ? 'at home' : `in ${p.their} dorm room`} for the night.`]
       : whereSheIs(character, state.charLocation, state.charCompanions, state.charHaunt, state.time)),
     '',
+    ...(state.heldUntil && !state.sharedClass && !state.asleep && state.away === undefined ? [`The reader is texting ${name} while ${p.they} ${be} ${state.commitment?.kind === 'class' ? `in ${state.commitment.name}` : `working at ${state.commitment?.kind === 'shift' ? state.commitment.employer : `${p.their} job`}`}. Write the reply ${p.they} will send once ${p.they} ${be} out. ${p.They} ${be} not answering during ${p.their} commitment.`] : []),
+    ...(state.sharedClass ? [
+      `${name} has just finished ${state.sharedClass.name}. The reader ${state.sharedClass.attended ? 'attended that class' : 'did not attend that class'}. ${p.Their} reply can follow up on that and all the messages ${readerPronoun.he} sent while ${p.they} ${p.they === 'they' ? 'were' : 'was'} busy.`
+    ] : []),
     ...lore,
     ...(summary ? ['TEXTING SO FAR', '"' + summary + '"', ''] : []),
     ...(thread.some(message => message.outgoingPhoto) ? [

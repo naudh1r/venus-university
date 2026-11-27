@@ -175,6 +175,8 @@ export interface CharMemory {
 
 // @public
 export interface ChatMessage {
+    afterNight?: true;
+    awaitingReply?: true;
     date: number;
     error?: boolean;
     everydayAsk?: EverydayAsk;
@@ -229,6 +231,24 @@ export interface Conversation {
         replyTo: string;
         summary: string | null;
         regenerable?: boolean;
+    };
+    heldReply?: {
+        asleep?: true;
+        away?: TimeSlot;
+        afterClass?: {
+            date: number;
+            time: TimeSlot;
+            code: string;
+        };
+        until: {
+            date: number;
+            time: TimeSlot;
+        };
+        firstPlayerId: string;
+        messageIds: string[];
+        opened?: true;
+        blocked?: true;
+        summary?: string;
     };
     // (undocumented)
     messages: ChatMessage[];
@@ -524,6 +544,18 @@ export const HOOKS: readonly [{
     readonly kind: 'event';
     readonly dispatch: readonly ["interludeSettled"];
     readonly since: '0.20.0';
+}, {
+    readonly name: 'asleepNow';
+    readonly side: 'renderer';
+    readonly kind: 'any';
+    readonly dispatch: readonly ["asleepNow"];
+    readonly since: '0.7.0';
+}, {
+    readonly name: 'textWhileBusy';
+    readonly side: 'renderer';
+    readonly kind: 'any';
+    readonly dispatch: readonly ["textWhileBusy"];
+    readonly since: '0.13.0';
 }, {
     readonly name: 'hangoutCheck';
     readonly side: 'renderer';
@@ -976,7 +1008,7 @@ export type MemoryType = 'liked' | 'disliked' | 'loved' | 'hated';
 export function messageOf(err: unknown): string;
 
 // @public
-export function messageShown(message: Pick<ChatMessage, 'date' | 'time' | 'late'>, clock: ChatClock): boolean;
+export function messageShown(message: Pick<ChatMessage, 'date' | 'time' | 'late' | 'afterNight'>, clock: ChatClock): boolean;
 
 // @public (undocumented)
 export function modById(id: string, mods?: readonly ModDef[]): ModDef | undefined;
@@ -1088,6 +1120,7 @@ export interface NativeGameSave {
     chatShownThrough?: {
         date: number;
         time: TimeSlot;
+        night?: true;
     };
     classRecords: Record<string, ClassRecord>;
     date: number;
@@ -1435,7 +1468,7 @@ export function sharedModOn(modId: string): boolean;
 export function shownComments(comments: readonly PostComment[] | undefined, date: number, time: TimeSlot): PostComment[];
 
 // @public
-export function shownMessages<T extends Pick<ChatMessage, 'date' | 'time' | 'late'>>(messages: readonly T[], clock: ChatClock): readonly T[];
+export function shownMessages<T extends Pick<ChatMessage, 'date' | 'time' | 'late' | 'afterNight'>>(messages: readonly T[], clock: ChatClock): readonly T[];
 
 // @public
 export interface SlotActivity extends SlotActivityOffer {

@@ -1,8 +1,39 @@
 import { describe, expect, it } from 'vitest'
+import { idleReplyUntil } from '../src/renderer/prompts/gameDate'
 import type { Conversation } from '../src/shared/types'
-import { messageShown, shownMessages, unreadAfterOpening } from '../src/shared/chatVisibility'
+import { heldReplyShown, messageShown, shownMessages, unreadAfterOpening } from '../src/shared/chatVisibility'
 
 describe('held message visibility', () => {
+  it('delivers a weekend idle reply at the next slot, with or without a late-night hold', () => {
+    const morning = { date: 5, time: 0 as const }
+    const evening = { date: 5, time: 1 as const }
+    const nextMorning = { date: 6, time: 0 as const }
+    const hold = (until: ReturnType<typeof idleReplyUntil>) => ({ until, firstPlayerId: 'player', messageIds: ['reply'] })
+
+    expect(idleReplyUntil(morning.date, morning.time)).toEqual(evening)
+    const daytime = hold(idleReplyUntil(morning.date, morning.time))
+    expect(heldReplyShown(daytime, morning)).toBe(false)
+    expect(heldReplyShown(daytime, evening)).toBe(true)
+
+    const overnight = hold(idleReplyUntil(evening.date, evening.time))
+    expect(overnight.until).toEqual(nextMorning)
+    expect(heldReplyShown(overnight, evening)).toBe(false)
+    expect(heldReplyShown(overnight, { ...nextMorning, night: true })).toBe(true)
+    expect(heldReplyShown(overnight, nextMorning)).toBe(true)
+  })
+
+  it('holds a sleep reply until the morning landing without delaying other replies', () => {
+    const morning = { date: 8, time: 0 as const }
+    const night = { ...morning, night: true as const }
+    const reply = { ...morning, afterNight: true as const }
+    const hold = { until: morning, firstPlayerId: 'player', messageIds: ['reply'], asleep: true as const }
+    expect(shownMessages([morning, reply], night)).toEqual([morning])
+    expect(heldReplyShown(hold, night)).toBe(false)
+    expect(shownMessages([morning, reply], morning)).toEqual([morning, reply])
+    expect(heldReplyShown(hold, morning)).toBe(true)
+    expect(messageShown(reply, { date: 9, time: 0, night: true })).toBe(true)
+  })
+
   it('leaves hidden messages out of a thread projection', () => {
     const earlier = { date: 7, time: 1 as const }
     const future = { date: 8, time: 0 as const }
@@ -41,5 +72,11 @@ describe('unread counts when a chat slot opens', () => {
   it('keeps the saved unread count when loading an already opened slot', () => {
     expect(unreadAfterOpening({ ...thread, unread: 4 }, clock, clock)).toBe(4)
     expect(unreadAfterOpening(thread, before, before)).toBe(3)
+  })
+
+  it('leaves a held reply to its delivery pass instead of counting it twice', () => {
+    expect(unreadAfterOpening({ ...thread, heldReply: {
+      until: clock, firstPlayerId: 'reader', messageIds: ['due']
+    } }, before, clock)).toBe(3)
   })
 })

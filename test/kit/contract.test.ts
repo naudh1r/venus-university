@@ -449,6 +449,8 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   dmReplyLead: fn('dmReplyLead', undefined, (host) => host.dmReplyLead({ charId: 'c', character: never, lead: {}, signal: new AbortController().signal })),
   afterDmReply: fn('afterDmReply', undefined, (host) => host.afterDmReply({ charId: 'c', character: never, reply: never })),
   sceneReplyLanded: fn('sceneReplyLanded', undefined, (host) => host.sceneReplyLanded({ reply: {}, modReply: {}, spot: { spot: 'opening', cast: [] }, at: 0 })),
+  asleepNow: fn('asleepNow', true, host => host.asleepNow({ charId: 'test', date: 5, time: 0 })),
+  textWhileBusy: fn('textWhileBusy', true, host => host.textWhileBusy({ charId: 'c', commitment: { kind: 'class', name: 'Math' } })),
   hangoutCheck: fn('hangoutCheck', false, host => host.hangoutCheck({ charId: 'c', startedBy: 'her' })),
   slotInterlude: fn('slotInterlude', { lines: [], rows: [] }, host => host.slotInterlude({ from: { date: 0, time: 1 }, to: { date: 1, time: 0 }, semesterIndex: 0, ledger: null })),
   relaxRows: fn('relaxRows', [], host => host.relaxRows({ date: 0, time: 0 })),

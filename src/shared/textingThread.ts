@@ -22,12 +22,39 @@ export function threadStartedBy(
   return before?.sender === 'player' ? 'reader' : 'her'
 }
 
+/** Finds the latest player turn whose held reply still needs to be written. */
+export function waitingText(messages: readonly ChatMessage[]): ChatMessage | undefined {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]
+    if (message.sender === 'player' && message.awaitingReply === true) return message
+  }
+  return undefined
+}
+
 /** The unclaimed texts filed at a slot's ending, or only its held late-night exchange. */
 export function ledgerMessages(
   messages: readonly ChatMessage[], date: number, time: TimeSlot, night = false
 ): ChatMessage[] {
   return messages.filter(message => message.date === date && message.time === time &&
     !message.ledgered && (!night || message.late === true))
+}
+
+/**
+ * The reader's texts a slot's first reply answers, when they were sent in an earlier slot or
+ * already counted: a held reply lands a slot after its question. Context only, never judged again.
+ */
+export function ledgerContext(all: readonly ChatMessage[], taken: readonly ChatMessage[]): ChatMessage[] {
+  const first = taken.find(message => message.sender !== 'system')
+  // A reach-out or an ask starts something new: only a reply answers what came before it.
+  if (!first || first.sender !== 'contact' || first.reachOut || first.invite) return []
+  const context: ChatMessage[] = []
+  for (let i = all.indexOf(first) - 1; i >= 0; i--) {
+    const message = all[i]
+    if (message.sender === 'system') continue
+    if (message.sender !== 'player') break
+    context.unshift(message)
+  }
+  return context
 }
 
 /** Marks the exact messages a completed ledger took, leaving later arrivals unclaimed. */

@@ -121,12 +121,18 @@ describe('manual saves', () => {
     })
   })
 
-  it('validates the saved chat clock on reload', async () => {
+  it('refuse a save whose held reply or chat clock is malformed, and read it once well formed', async () => {
     const { playthroughId } = await saves.writeEnrollment(enrollment())
     await saves.createPlaythrough(record(), draft(), playthroughId)
+    const base = draft()
+    const held = (heldReply: object): SaveDraft => ({ ...base, bunnyboard: { ...base.bunnyboard, conversations: {
+      mia: { charId: 'mia', messages: [], unread: 0, summary: null, heldReply }
+    } } } as SaveDraft)
+    await saves.writeManualSave(playthroughId, 3, held({}))
+    await expect(saves.readSave(playthroughId, 'manual03')).rejects.toMatchObject({ code: 'SAVE_MALFORMED' })
     await saves.writeManualSave(playthroughId, 4, draft({ chatShownThrough: { date: Number.NaN, time: 0 } }))
     await expect(saves.readSave(playthroughId, 'manual04')).rejects.toMatchObject({ code: 'SAVE_MALFORMED' })
-    await saves.writeManualSave(playthroughId, 5, draft({ chatShownThrough: { date: 2, time: 0 } }))
+    await saves.writeManualSave(playthroughId, 5, held({ until: { date: 2, time: 0 }, firstPlayerId: 't', messageIds: [] }))
     await expect(saves.readSave(playthroughId, 'manual05')).resolves.toMatchObject({ save: { saveId: 'manual05' } })
   })
 

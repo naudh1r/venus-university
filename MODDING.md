@@ -1266,6 +1266,7 @@ else names it.
 | `interludeSettled` | `gameLoop.ts` | Observe the held night's applied texting ledger before its opening and save, while the hold stands |
 | `interludePreview` | `slotCrossing.ts` | Say, without writing anything, that the coming slot will be held on the finished one's look, so the boundary's curtain announces that slot (`{ at: 'from' }`) |
 | `hangoutCheck` | `textingLoop.ts` | Return false before the immediate-meetup classifier to skip the call and its result |
+| `asleepNow` | `textingLoop.ts` | Return true to mark a contact idle and hold the reply to the next landing |
 | `prompts['slot-posts']` | `slotIntroPrompt.ts` | Add lines about status posts, and fields to each post |
 | `prompts['slot-poster']` | `slotIntroPrompt.ts` | Add lines under each girl posting, by her name, given the slot the opening is for |
 | `prompts['slot-reach-outs']` | `slotIntroPrompt.ts` | Add lines under a girl texting first, and fields to her entry |
@@ -1832,3 +1833,17 @@ ordinary opening still asks for narration. Staged dialogue is part of the openin
 
 `hangoutCheck({ charId, startedBy })` returns false to skip the immediate meet-up classifier.
 Without a veto it runs as usual. Core skips the classifier on a held interlude.
+
+### Delayed DM replies
+
+`textWhileBusy({ charId, commitment })` opens a contact's composer during class or work.
+A reply is generally due at the next landing. An eligible reply for contacts who share the
+reader's next class can wait until that class ends and read whether the reader attended.
+
+`asleepNow({ charId, date, time, opening? })` marks a contact idle. Before contact deliveries,
+ordinary openings provide a snapshot with `weekend` and `homeContacts`: known contacts in
+their own rooms with no shift or plan with the reader. An idle reply is written immediately.
+Daytime replies arrive at the next landing. Replies to late-night texts arrive in the morning.
+The DM prompt state exposes `heldUntil`, `commitment`, `sharedClass`, `away` or `asleep` as
+appropriate. The slot that asked can claim an idle reply already written. Earlier questions
+quoted for context do not count again.

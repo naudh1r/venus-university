@@ -9,6 +9,7 @@ export {
   afterDmReply,
   afterReachOut,
   afterSceneReply,
+  asleepNow,
   bunnyboardPages,
   canHoldSlot,
   characterFromDraft,
@@ -67,6 +68,7 @@ export {
   statActivities,
   statFloor,
   subscribeHookRules,
+  textWhileBusy,
   updatesTabs
 } from '../renderer/hooks'
 export type { DeclaredHooks } from '../renderer/hooks'

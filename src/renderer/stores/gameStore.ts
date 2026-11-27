@@ -3145,10 +3145,16 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   appendChatMessage: (charId, message, unreadDelta) =>
     set((state) => patchConversation(state, charId, (chat) => {
-      const stamped = state.interlude?.now.clock === 'late-night'
+      const held = chat.heldReply
+      let stamped = state.interlude?.now.clock === 'late-night'
         ? { ...message, date: state.date, time: state.time, late: true as const } : message
+      if (held && !held.opened && message.sender === 'contact' && !message.error) {
+        stamped = { ...message, ...held.until, ...(held.asleep ? { afterNight: true as const } : {}) }
+        delete stamped.late
+      }
       return {
         ...chat,
+        ...(held && !held.opened && message.sender === 'contact' ? { heldReply: { ...held, messageIds: [...held.messageIds, message.id] } } : {}),
         messages: [...chat.messages, stamped],
         unread: chat.unread + (messageShown(stamped, chatClockOf(state)) ? unreadDelta : 0)
       }
@@ -3823,7 +3829,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     return {
       // First, so a key core owns always wins; a save with nothing foreign adds nothing here.
       ...state.saveRest,
-      chatShownThrough: { date: opened.date, time: opened.time },
+      chatShownThrough: { date: opened.date, time: opened.time, ...(opened.night ? { night: true } : {}) },
       ...(state.interlude?.now.clock === 'late-night'
         ? { heldNight: { ...state.interlude.now.from } } : {}),
       ...(state.heldNightOpening ? { heldNightOpening: state.heldNightOpening } : {}),
