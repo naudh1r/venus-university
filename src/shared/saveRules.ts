@@ -180,7 +180,7 @@ function heldReplyProblem(held: unknown): string | null {
   if (after !== undefined && !(isClock(after) && typeof (after as Record<string, unknown>).code === 'string')) {
     return 'has an invalid "afterClass"'
   }
-  for (const flag of ['opened', 'blocked'] as const) {
+  for (const flag of ['opened', 'blocked', 'asleep'] as const) {
     if (held[flag] !== undefined && held[flag] !== true) return `has an invalid "${flag}"`
   }
   if (held.summary !== undefined && typeof held.summary !== 'string') return 'has an invalid "summary"'
@@ -237,6 +237,8 @@ export function assertSaveFields(save: GameSave, where: string): void {
   for (const key of ['chatShownThrough', 'heldNight'] as const) {
     if (fields[key] !== undefined && !isClock(fields[key])) malformed(key)
   }
+  const shown = fields.chatShownThrough
+  if (isPlainObject(shown) && shown.night !== undefined && shown.night !== true) malformed('chatShownThrough.night')
   const ledger = fields.heldNightLedger
   if (ledger !== undefined && !(isPlainObject(ledger) && typeof ledger.key === 'string' && isPlainObject(ledger.reply))) {
     malformed('heldNightLedger')
@@ -261,7 +263,7 @@ export function assertSaveFields(save: GameSave, where: string): void {
     if (!Array.isArray(chat.messages)) continue
     for (const message of chat.messages) {
       if (!isPlainObject(message)) continue
-      for (const flag of ['awaitingReply', 'ledgered', 'late'] as const) {
+      for (const flag of ['awaitingReply', 'ledgered', 'late', 'afterNight'] as const) {
         if (message[flag] !== undefined && message[flag] !== true) {
           malformed(`conversation ${charId} message ${String(message.id)} has an invalid "${flag}"`)
         }

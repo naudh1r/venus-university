@@ -78,6 +78,7 @@ export const HOOKS = [
   { name: 'interludeSettled', side: 'renderer', kind: 'event', dispatch: ['interludeSettled'], since: '0.20.0' },
   { name: 'textWhileBusy', side: 'renderer', kind: 'any', dispatch: ['textWhileBusy'], since: '0.13.0' },
   { name: 'ownMeetupAsks', side: 'renderer', kind: 'any', dispatch: ['ownMeetupAsks'], since: '0.7.0' },
+  { name: 'asleepNow', side: 'renderer', kind: 'any', dispatch: ['asleepNow'], since: '0.7.0' },
   { name: 'readReceipts', side: 'renderer', kind: 'any', dispatch: ['readReceipts'], since: '0.7.0' },
   { name: 'warnBeforeMeetup', side: 'renderer', kind: 'any', dispatch: ['warnBeforeMeetup'], since: '0.7.0' },
   { name: 'hangoutCheck', side: 'renderer', kind: 'any', dispatch: ['hangoutCheck'], since: '0.18.0' },
