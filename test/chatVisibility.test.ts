@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Conversation } from '../src/shared/types'
-import { messageShown, readPlayerIds, shownMessages, unreadAfterOpening } from '../src/shared/chatVisibility'
+import { messageShown, receiptsOf, shownMessages, unreadAfterOpening } from '../src/shared/chatVisibility'
 
 describe('held message visibility', () => {
   it('leaves hidden messages out of a thread projection', () => {
@@ -50,25 +50,33 @@ describe('unread counts when a chat slot opens', () => {
   })
 })
 
-describe('read receipts from the visible thread', () => {
+describe('receipts from the thread', () => {
   const sent = { id: 'sent', sender: 'player' as const, date: 7, time: 1 as const }
   const next = { ...sent, id: 'next' }
   const reply = { id: 'reply', sender: 'contact' as const, date: 8, time: 0 as const }
   const system = { ...sent, id: 'system', sender: 'system' as const }
+  const of = (all: typeof thread, clock: { date: number; time: 0 | 1 }) =>
+    Object.fromEntries(receiptsOf(all, shownMessages(all, clock)))
+  const thread: { id: string; sender: 'player' | 'contact' | 'system'; date: number; time: 0 | 1 }[] =
+    [sent, next, reply]
 
-  it('marks only player messages before a visible reply, even across a system line', () => {
-    expect(readPlayerIds([sent, next, system, reply, { ...sent, id: 'latest' }]))
-      .toEqual(new Set([sent.id, next.id]))
+  it('reads only player texts before a shown reply, even across a system line', () => {
+    const all = [sent, next, system, { ...reply, date: 7, time: 1 as const }, { ...sent, id: 'latest' }]
+    expect(of(all, sent)).toEqual({ sent: 'read', next: 'read', latest: 'sent' })
   })
 
-  it('leaves a message sent when nothing or only a system line follows', () => {
-    expect(readPlayerIds([sent])).toEqual(new Set())
-    expect(readPlayerIds([sent, system])).toEqual(new Set())
+  it('leaves a text sent when nothing or only a system line follows', () => {
+    expect(of([sent], sent)).toEqual({ sent: 'sent' })
+    expect(of([sent, system], sent)).toEqual({ sent: 'sent' })
   })
 
-  it('marks all earlier texts together only when a held reply is shown', () => {
-    const thread = [sent, next, reply]
-    expect(readPlayerIds(shownMessages(thread, sent))).toEqual(new Set())
-    expect(readPlayerIds(shownMessages(thread, reply))).toEqual(new Set([sent.id, next.id]))
+  it('marks texts delivered while their written reply is held, and read once it shows', () => {
+    expect(of(thread, sent)).toEqual({ sent: 'delivered', next: 'delivered' })
+    expect(of(thread, reply)).toEqual({ sent: 'read', next: 'read' })
+  })
+
+  it('keeps earlier texts read when a later reply is held', () => {
+    const all = [sent, { ...reply, id: 'early', date: 7, time: 1 as const }, next, reply]
+    expect(of(all, sent)).toEqual({ sent: 'read', next: 'delivered' })
   })
 })
