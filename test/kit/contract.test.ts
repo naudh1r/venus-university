@@ -457,7 +457,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   sceneReplyLanded: fn('sceneReplyLanded', undefined, (host) => host.sceneReplyLanded({ reply: {}, modReply: {}, spot: { spot: 'opening', cast: [] }, at: 0 })),
   textWhileBusy: fn('textWhileBusy', true, host => host.textWhileBusy({ charId: 'c', commitment: { kind: 'class', name: 'Math' } })),
   ownMeetupAsks: fn('ownMeetupAsks', true, host => host.ownMeetupAsks({ charId: 'c', description: 'Meet' })),
-  asleepNow: fn('asleepNow', true, host => host.asleepNow({ charId: 'test' })),
+  asleepNow: fn('asleepNow', true, host => host.asleepNow({ charId: 'test', date: 5, time: 0 })),
   readReceipts: fn('readReceipts', true, host => host.readReceipts()),
   statusWords: fn('statusWords', true, host => host.statusWords()),
   chatListLights: fn('chatListLights', true, host => host.chatListLights()),

@@ -533,6 +533,12 @@ export interface ModHooks {
     afterSceneReply?: (ctx: SceneReplied) => void;
     asleepNow?: (ctx: {
         charId: string;
+        date: number;
+        time: TimeSlot;
+        opening?: {
+            weekend: boolean;
+            homeContacts: readonly string[];
+        };
     }) => boolean;
     // (undocumented)
     bunnyboardPage?: BunnyboardPage;
@@ -1711,6 +1717,7 @@ export interface TextFieldProps {
 export interface TextingPromptState {
     ages?: Readonly<Record<string, number>>;
     asleep?: true;
+    away?: TimeSlot;
     calendar: SemesterCalendar;
     charCompanions?: NpcCompanions;
     charHaunt?: Haunt | null;

@@ -1110,6 +1110,8 @@ export interface Conversation {
   /** Pending delivery, including messages appended by mods after the reply. */
   heldReply?: {
     asleep?: true
+    /** The half when the contact was away from the phone. */
+    away?: TimeSlot
     /** The shared class whose ending writes this reply; its due slot is the one after it. */
     afterClass?: { date: number; time: TimeSlot; code: string }
     until: { date: number; time: TimeSlot }
