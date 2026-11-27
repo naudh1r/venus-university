@@ -509,6 +509,8 @@ export interface ModHooks {
   warnBeforeMeetup?: () => boolean
   /** Shows sent, delivered and read ticks on the player's phone bubbles. */
   readReceipts?: () => boolean
+  /** Words a contact's thread header as a state first: Available, Busy or Idle, then where. */
+  statusWords?: () => boolean
   /** Shows every contact's status light beside their name in the Chats list. */
   chatListLights?: () => boolean
   /** Whether this contact sleeps through the current late-night hold. */
@@ -1486,6 +1488,18 @@ export function ownMeetupAsks(ctx: { charId: string; description: string }): boo
       if (hooks.ownMeetupAsks?.(ctx) === true) return true
     } catch (error) {
       console.warn(`[mods] ${modId}: ownMeetupAsks failed`, error)
+    }
+  }
+  return false
+}
+
+/** Whether an enabled mod words thread headers as Available, Busy or Idle. */
+export function statusWords(): boolean {
+  for (const { modId, hooks } of activeEntries()) {
+    try {
+      if (hooks.statusWords?.() === true) return true
+    } catch (error) {
+      console.warn(`[mods] ${modId}: statusWords failed`, error)
     }
   }
   return false
