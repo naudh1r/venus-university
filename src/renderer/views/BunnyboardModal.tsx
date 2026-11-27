@@ -1524,15 +1524,19 @@ const MessageBubble = memo(function MessageBubble({
         >
           <SentText text={message.text} />
           {hasReceipt && (
-            <svg
-              className={`vu-bb-receipt${read ? ' vu-bb-receipt--read' : ''}`}
-              viewBox="0 0 20 14"
-              role="img"
-              aria-label={read ? 'Read' : 'Sent'}
-            >
-              <path d="m7 8 3 3 7-8" />
-              {read && <path d="m2 8 3 3 2-2.3m2-2.2 3-3.5" />}
-            </svg>
+            <>
+              <wbr />
+              <span className="vu-bb-receipt-spacer" aria-hidden="true" />
+              <svg
+                className={`vu-bb-receipt${read ? ' vu-bb-receipt--read' : ''}`}
+                viewBox="0 0 22 14"
+                role="img"
+                aria-label={read ? 'Read' : 'Sent'}
+              >
+                <path d="m7 8 4 4 9-10" />
+                {read && <path d="m2 8 4 4 2-2.2m2-2.2 5-5.6" />}
+              </svg>
+            </>
           )}
         </div>
       )}

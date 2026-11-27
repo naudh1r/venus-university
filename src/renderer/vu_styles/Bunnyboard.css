@@ -530,12 +530,17 @@
   color: var(--vu-accent-ink);
 }
 
-/* Reserve the tick's corner only on bubbles that draw one. */
+/* Anchor the tick inside its bubble and reserve room at the end of the text. */
 .vu-bb-bubble--receipt {
-  --vu-bb-receipt-width: 18px;
+  --vu-bb-receipt-width: 1.4em;
   --vu-bb-receipt-inset: calc(var(--vu-bb-bubble-inline) / 2);
   position: relative;
-  padding-right: calc(var(--vu-bb-receipt-width) + var(--vu-bb-bubble-inline));
+}
+
+.vu-bb-receipt-spacer {
+  display: inline-block;
+  width: calc(var(--vu-bb-receipt-width) + 0.25em);
+  height: 1cap;
 }
 
 .vu-bb-receipt {
@@ -543,11 +548,11 @@
   right: var(--vu-bb-receipt-inset);
   bottom: var(--vu-bb-bubble-block);
   width: var(--vu-bb-receipt-width);
-  height: 14px;
+  height: 1cap;
   color: var(--vu-text-muted);
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
