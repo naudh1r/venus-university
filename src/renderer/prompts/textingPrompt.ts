@@ -202,7 +202,7 @@ function flatText(text: string): string {
 }
 
 /** `"YOU: hey"` / `"MINA: hey yourself"` / `"SYSTEM: ..."` — one history stub. */
-function messageStub(message: ChatMessage, firstName: string): string {
+export function messageStub(message: ChatMessage, firstName: string): string {
   const photo = message.outgoingPhoto
   if (message.sender === 'player' && photo) {
     const visual = photo.description ? JSON.stringify(photo.description) : 'image attachment'
