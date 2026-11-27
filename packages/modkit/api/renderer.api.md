@@ -531,6 +531,9 @@ export interface ModHooks {
         reply: Readonly<Record<string, unknown>>;
     }) => void;
     afterSceneReply?: (ctx: SceneReplied) => void;
+    asleepNow?: (ctx: {
+        charId: string;
+    }) => boolean;
     // (undocumented)
     bunnyboardPage?: BunnyboardPage;
     characterFromDraft?: (draft: Readonly<Record<string, unknown>>, ctx: {
@@ -1705,6 +1708,7 @@ export interface TextFieldProps {
 // @public
 export interface TextingPromptState {
     ages?: Readonly<Record<string, number>>;
+    asleep?: true;
     calendar: SemesterCalendar;
     charCompanions?: NpcCompanions;
     charHaunt?: Haunt | null;

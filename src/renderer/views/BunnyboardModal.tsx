@@ -31,7 +31,7 @@ import {
 } from '@shared/types'
 import type { NpcCouple, NpcFriendship } from '@shared/npcRelationships'
 import { gpaOf, gradedCourses } from '@shared/academics'
-import type { ReaderPronouns } from '@shared/gender'
+import { pronounsOf, type ReaderPronouns } from '@shared/gender'
 import { sickInSlot } from '@shared/colds'
 import { globalSlotOf, jobDefForChat, shiftSlotOf } from '@shared/jobs'
 import { locationLabel, ROOM_LOCATION } from '@shared/locations'
@@ -76,6 +76,7 @@ import {
   askVenusForGrades,
   beginHangout,
   blockedThreadHidden,
+  contactAsleep,
   dismissFailedMessage,
   epilogueOf,
   failedTextingCode,
@@ -575,6 +576,7 @@ function FaceButton({
 
 /** Where the app is willing to say she is, and whether the hour has a claim on her. */
 interface Presence {
+  idle?: true
   /** A class or a shift has her — what the lamp says. */
   busy: boolean
   /** The one line beside it, which is never empty. */
@@ -590,27 +592,30 @@ function presenceOf(
   placed: Whereabouts | undefined,
   charId: string,
   date: number,
-  time: TimeSlot
+  time: TimeSlot,
+  asleep = contactAsleep(charId)
 ): Presence {
+  const idle = asleep ? { idle: true as const } : {}
   if (!placed || placed.source !== 'told' || placed.kind === 'unknown') {
-    return { busy: false, text: 'Online' }
+    return { ...idle, busy: false, text: asleep ? 'Idle' : 'Online' }
   }
-  if (placed.kind === 'away' || placed.kind === 'sick') return { busy: false, text: placed.placeLabel }
+  if (placed.kind === 'away' || placed.kind === 'sick') return { ...idle, busy: false, text: placed.placeLabel }
   if (placed.kind === 'class') {
     // The class's own name, not the code the map files it under: this is a sentence about her.
     const named = placed.classCode ? useGameStore.getState().classes[placed.classCode]?.name : null
-    return { busy: true, text: `In class — ${named ?? placed.classCode}` }
+    return { ...idle, busy: !asleep, text: `In class — ${named ?? placed.classCode}` }
   }
   // A shift reads as a place on the map; on a phone it is worth saying it is work.
   if (useGameStore.getState().interlude?.now.clock !== 'late-night' && charJobNow(charId, date, time) !== null) {
     return { busy: true, text: `Working @ ${placed.placeLabel}` }
   }
-  return { busy: false, text: `At ${placed.placeLabel}` }
+  return { ...idle, busy: false, text: `At ${placed.placeLabel}` }
 }
 
 /** Whether the hour has a claim on her — a class or a shift, which is what the lamp says. */
-function BusyLed({ busy }: { busy: boolean }): JSX.Element {
-  return <span className={`vu-bb-led${busy ? ' vu-bb-led--busy' : ''}`} />
+function BusyLed({ busy, idle, label }: Pick<Presence, 'busy' | 'idle'> & { label?: string }): JSX.Element {
+  return <span className={`vu-bb-led${idle ? ' vu-bb-led--idle' : busy ? ' vu-bb-led--busy' : ''}`}
+    role={label ? 'img' : undefined} aria-label={label} title={label} />
 }
 
 /** The Chats tab's conversation list, which stands beside the open thread rather than under it. */
@@ -658,6 +663,7 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
             {conversations.map((conversation) => {
               const identity = chatIdentityOf(conversation.charId, characters[conversation.charId])
               if (!identity.known) return null
+              const asleep = !identity.bot && contactAsleep(conversation.charId)
               const last = conversation.messages[conversation.messages.length - 1]
               const on = conversation.charId === viewingCharId
               return (
@@ -696,6 +702,7 @@ function ChatList({ theme }: { theme: 'day' | 'night' }): JSX.Element {
                       <span className="vu-bb-chat-main">
                         <span className="vu-bb-chat-top">
                           <span className="vu-bb-name">{identity.name}</span>
+                          {asleep && <BusyLed busy={false} idle label="Idle" />}
                           {identity.bot && (
                             <span className="vu-bb-kind">
                               {jobDefForChat(conversation.charId) ? 'BOSS' : 'BOT'}
@@ -1046,6 +1053,8 @@ function ConversationView({
   const name = character?.firstName ?? '???'
   // No bot has a timetable.
   const interlude = useGameStore(s => s.interlude)
+  const asleep = !bot && contactAsleep(charId)
+  const words = pronounsOf(character)
   const atWork = !bot && interlude?.now.clock !== 'late-night' && charJobNow(charId) !== null
   const commitment = !bot ? charCommitmentAt(charId) : null
   const committed = !bot && interlude?.now.clock !== 'late-night' && charBusyNow(charId)
@@ -1157,7 +1166,7 @@ function ConversationView({
   // A blocked thread says nothing about where she is: the map has dropped her to what he
   // remembers, and the composer under it already says she blocked him. Neither does a screen
   // set sometime after graduation, which pins nobody to an hour.
-  const status = bot || blocked || epilogue || (interlude && interlude.now.clock !== 'late-night') ? null : presenceOf(placed, charId, date, time)
+  const status = bot || blocked || epilogue || (interlude && interlude.now.clock !== 'late-night') ? null : presenceOf(placed, charId, date, time, asleep)
 
   return (
     <div className="vu-bb-thread">
@@ -1179,7 +1188,7 @@ function ConversationView({
               {identity.subtitle}
               {status && (
                 <>
-                  <BusyLed busy={status.busy} />
+                  <BusyLed busy={status.busy} idle={status.idle} />
                   {status.text}
                 </>
               )}
@@ -1335,13 +1344,15 @@ function ConversationView({
                   : // Blocked outranks the other two.
                     blocked
                     ? `${name} blocked you.`
-                    : unavailable
-                      ? `${name} is ${atWork ? 'at work' : 'in class'} right now.`
-                      : heldOpen
-                        ? `${name} will reply to you when she is available.`
-                        : busy
-                        ? `Waiting for ${name}...`
-                        : 'Message'
+                    : asleep
+                      ? `${name} is away or asleep right now. ${words.They} will reply later.`
+                      : unavailable
+                        ? `${name} is ${atWork ? 'at work' : 'in class'} right now.`
+                        : heldOpen
+                          ? `${name} will reply to you when ${words.they} ${words.they === 'they' ? 'are' : 'is'} available.`
+                          : busy
+                            ? `Waiting for ${name}...`
+                            : 'Message'
             }
             onDraft={setDraft}
             onSend={onSend}
@@ -1906,7 +1917,7 @@ function ContactCard({
             {yearLabel(info.year)} · {info.major}
           </span>
           {status && <span className="vu-bb-where">
-            <BusyLed busy={status.busy} />
+            <BusyLed busy={status.busy} idle={status.idle} />
             {status.text}
           </span>}
         </span>

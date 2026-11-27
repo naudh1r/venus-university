@@ -1072,6 +1072,8 @@ export type InviteKind = (typeof INVITE_KINDS)[number]
 export interface ChatMessage {
   /** A held reply is still being written for this player text. */
   awaitingReply?: true
+  /** Delivered when the morning opens, after any late-night hold on this slot. */
+  afterNight?: true
   /** Already included in a completed texting ledger. */
   ledgered?: true
   /** Sent late on the night preceding its stored slot. */
@@ -1107,6 +1109,7 @@ export interface ChatMessage {
 export interface Conversation {
   /** Pending delivery, including messages appended by mods after the reply. */
   heldReply?: {
+    asleep?: true
     /** The shared class whose ending writes this reply; its due slot is the one after it. */
     afterClass?: { date: number; time: TimeSlot; code: string }
     until: { date: number; time: TimeSlot }
@@ -1699,7 +1702,7 @@ export interface NativeGameSave {
   /** The late night this save opens on, used only for its listing and thumbnail. */
   heldNight?: { date: number; time: TimeSlot }
   /** The chat clock whose shown messages have already contributed to unread counts. */
-  chatShownThrough?: { date: number; time: TimeSlot }
+  chatShownThrough?: { date: number; time: TimeSlot; night?: true }
   /**
    * A late-night hold's texting ledger, paid for once its row was picked: reloading the night
    * reuses it when the night's texts are still the ones it read.

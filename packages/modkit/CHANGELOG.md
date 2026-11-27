@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `asleepNow` lets a renderer mod mark contacts idle during a late-night hold. Their DM replies
+  are written immediately and shown on the morning landing. The DM prompt state exposes `asleep`.
+
 - `readReceipts` opts into sent, delivered and read ticks for the player's phone messages. They
   follow the reply, written and held or shown, and add no saved data.
 

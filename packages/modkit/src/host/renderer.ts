@@ -9,6 +9,7 @@ export {
   afterDmReply,
   afterReachOut,
   afterSceneReply,
+  asleepNow,
   bunnyboardPages,
   canHoldSlot,
   characterFromDraft,
