@@ -40,7 +40,8 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 
 ### Texting while they're busy
 
-- **Text people when they're busy** is on by default. Their DM box stays open during class or work,
+- **Replies can wait** is on by default. It covers texting people who are busy, asleep or away.
+  Their DM box stays open during class or work,
   and reads that they will reply when they are available.
 - Send them a message now; their reply arrives in the next half of the day, as they would send it
   once they are out. They can mention class or work without having to make a topic of it.
@@ -69,7 +70,7 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   activity choice or map travel. The phone stays available for texts and Bunnyboard comments.
 - Each contact is in their own room; their chat names their dorm. Nobody goes anywhere tonight,
   and a DM cannot begin a hangout. Plans for another time still work normally.
-- **Not everyone answers right away** is on by default. Some contacts go to sleep at night.
+- With **Replies can wait** on, some contacts go to sleep at night.
   Their light turns yellow and their thread says **Idle**. You can still text them. Two grey
   ticks mean their reply is ready, and it arrives when the morning opens. Close friends,
   partners and people you saw that evening are more likely to stay up.
@@ -104,6 +105,10 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   usual morning lines follow, then the normal landing. The night itself is not summed up again.
 - Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
+
+## 0.7.10
+
+- Texting busy people and people asleep or away share one switch: Replies can wait.
 
 ## 0.7.9
 

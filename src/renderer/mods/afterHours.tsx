@@ -214,7 +214,7 @@ registerHooks(AFTER_HOURS_MOD, {
   chatListLights: () => modOptionOn(AFTER_HOURS_MOD, 'chat-lights'),
   asleepNow: ({ charId, date, time, opening }) => {
     if (opening?.weekend) recordWeekendIdle(date, time, opening.homeContacts)
-    if (!modOptionOn(AFTER_HOURS_MOD, 'night-sleep')) return false
+    if (!modOptionOn(AFTER_HOURS_MOD, 'busy-texts')) return false
     const data = status.read()
     const hold = interludeNow()
     if (hold) {

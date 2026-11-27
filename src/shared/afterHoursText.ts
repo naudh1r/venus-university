@@ -10,10 +10,9 @@ export const afterHoursText = {
   online: 'Available',
   busy: 'Busy',
   hint: "Busy: no meeting up right now in chats you start.",
-  busyTextsOption: "Text people when they're busy",
-  busyTextsHint: "Text someone during class or work. They reply when they're out, in the next half of the day.",
+  busyTextsOption: 'Replies can wait',
+  busyTextsHint: 'Text anyone anytime. People in class, at work, asleep or away reply later. Their light shows which.',
   nightOption: 'The night',
-  idleOption: 'Not everyone answers right away',
   /** The reader's Yes to a contact's invitation. */
   acceptTheirs: [
     "sure, i'm coming now!",
@@ -35,7 +34,6 @@ export const afterHoursText = {
   ],
   chatLightsOption: 'Status lights in Chats',
   chatLightsHint: 'A light beside each name in Chats: green when free, orange in class or at work, yellow when idle.',
-  idleHint: 'Some people are asleep or away from their phone. Their light is yellow, and they reply later.',
   nightHint: 'After the evening, stay up texting before you sleep. An evening in their room or yours can last the night.',
   /** One is picked for each night's landing; each leaves the reader awake in their room with their phone. */
   nightLines: [
