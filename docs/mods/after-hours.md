@@ -45,7 +45,8 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - Send them a message now; their reply arrives in the next half of the day, as they would send it
   once they are out. They can mention class or work without having to make a topic of it.
 - Send again before it arrives and one replacement reply catches up on both messages.
-- A grey tick means your text was sent. It turns into two blue ticks when the reply appears.
+- One grey tick means your text was sent. Two grey ticks mean their reply is written and waits until
+  they're out. Two blue ticks mean the reply has arrived.
 - A late reply never starts an immediate hangout. Plans for another time still work normally.
 - With Photo Feature on, they may include a photo under its own rules. It arrives with their reply.
 - Text someone during an evening class and the reply arrives on the night screen, after class.
@@ -93,6 +94,10 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   usual morning lines follow, then the normal landing. The night itself is not summed up again.
 - Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
+
+## 0.7.5
+
+- Two grey ticks mean their reply is written and waits until they're out.
 
 ## 0.7.4
 
