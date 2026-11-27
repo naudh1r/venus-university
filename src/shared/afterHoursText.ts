@@ -7,7 +7,7 @@ export const afterHoursText = {
   blurb: "A Busy status for the phone, texting people while they're busy, and a night after the evening. While you're Busy, a chat you start won't turn into meeting up right now, though they can still ask you out themselves. Text someone during their class or work, and they reply once they're out. After the evening, a night in your room to text before you sleep, or, if you spent it with someone, a short goodbye the next morning.",
   offNote: 'Switching it off keeps your status. People can ask you out again, and the evening goes straight to the morning.',
   option: 'Busy status',
-  online: 'Online',
+  online: 'Available',
   busy: 'Busy',
   hint: "Busy: no meeting up right now in chats you start.",
   busyTextsOption: "Text people when they're busy",

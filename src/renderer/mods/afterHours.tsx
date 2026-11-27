@@ -191,6 +191,7 @@ registerHooks(AFTER_HOURS_MOD, {
   ownMeetupAsks: () => true,
   warnBeforeMeetup: () => true,
   readReceipts: () => true,
+  statusWords: () => true,
   chatListLights: () => modOptionOn(AFTER_HOURS_MOD, 'chat-lights'),
   asleepNow: ({ charId }) => {
     if (!modOptionOn(AFTER_HOURS_MOD, 'night') || !modOptionOn(AFTER_HOURS_MOD, 'night-sleep')) return false

@@ -10,17 +10,17 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 
 - **After Hours** and its **Busy status** option are on by default in Mods.
 - Open Bunnyboard's **Chats** tab. Beside **Chats** stands your own card: your picture (or
-  your initial), your name, and a dot with **Online** or **Busy**. Click it to switch.
+  your initial), your name, and a dot with **Available** or **Busy**. Click it to switch.
 - While Busy, a chat you start this slot won't turn into a meet-up right now, whether they
   ask or you do, even if you are answering an earlier invitation of theirs. Their text may agree,
-  but it opens no Yes/No footer and arms no hangout. Switch to **Online** to meet up now.
+  but it opens no Yes/No footer and arms no hangout. Switch to **Available** to meet up now.
 - Chats they start this slot — their reach-outs and slot-change invitations — work as before,
   including the Yes/No footer.
 - They are not told you are Busy, so they don't make a topic of it. Plans for another time
   still work normally.
 - Chats you start while Busy answer faster: there is no hangout check.
 - The status lasts until you switch it, and is kept with your save. A new semester
-  starts **Online**.
+  starts **Available**.
 - Switching the mod or its option off hides the chip and lets people ask you out again.
   Your saved status stays, ready for when you switch it back on.
 - Changing status costs nothing and makes no extra model call.
@@ -70,7 +70,7 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - Each contact is in their own room; their chat names their dorm. Nobody goes anywhere tonight,
   and a DM cannot begin a hangout. Plans for another time still work normally.
 - **Not everyone stays up** is on by default. Some contacts go to sleep for the night. Their
-  light turns yellow and **Online** changes to **Idle**. You can still text them. Two grey ticks
+  light turns yellow and their thread says **Idle**. You can still text them. Two grey ticks
   mean their reply is ready, and it arrives when the morning opens. Close friends, partners and
   people you saw that evening are more likely to stay up. Turn this option off to chat as usual.
 
@@ -99,6 +99,12 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   usual morning lines follow, then the normal landing. The night itself is not summed up again.
 - Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
+
+## 0.7.8
+
+- Your status reads Available or Busy.
+- A contact's thread says Available, Busy or Idle, then where they are: Available · At the Lowrises,
+  Busy · In Calculus class, Busy · Working at the café, Idle · At the Lowrises.
 
 ## 0.7.7
 
