@@ -143,7 +143,11 @@ function meetupNames(names: readonly string[]): string {
 /** Records a completed phone meet-up in the conversation that arranged it. */
 function noteMeetup({ before, closingCast }: Pick<SlotSettled, 'before' | 'closingCast'>): void {
   const charId = before.sceneTextLedgerSkip
-  const contact = closingCast.find(person => person.charId === charId)
+  // An ending resumed from a save has no closing cast of its own; the saved cast stands in for it.
+  const cast = closingCast.length > 0
+    ? closingCast
+    : before.cast.flatMap(id => before.characters[id] ? [before.characters[id]] : [])
+  const contact = cast.find(person => person.charId === charId)
   if (!contact) return
 
   const action = before.currentSceneTranscript[0]?.text.split('\n', 1)[0]
@@ -151,7 +155,7 @@ function noteMeetup({ before, closingCast }: Pick<SlotSettled, 'before' | 'closi
     event.date === before.date && event.time === before.time && event.charIds.includes(contact.charId) &&
     (event.title === action || event.description === action)
   )
-  const others = closingCast.filter(person =>
+  const others = cast.filter(person =>
     person.charId !== contact.charId && plan?.charIds.includes(person.charId)
   )
   const names = meetupNames([contact.firstName, ...others.map(person => person.firstName)])
