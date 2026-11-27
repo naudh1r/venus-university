@@ -208,7 +208,7 @@ registerHooks(AFTER_HOURS_MOD, {
     onPick: () => status.set({ ...status.read(), nightDone: globalSlotOf(date, time) + 1 })
   }] : [],
   slotSettled: ({ before, ledger, closingCast, ownMeetupsLapsed }) => {
-    for (const { charId } of ownMeetupsLapsed) {
+    for (const { charId } of ownMeetupsLapsed ?? []) {
       addMemory(AFTER_HOURS_MOD, charId, {
         date: before.date, type: 'disliked', desc: 'you asked to meet up and then changed your mind'
       })
