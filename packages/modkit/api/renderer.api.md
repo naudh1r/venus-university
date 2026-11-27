@@ -539,6 +539,7 @@ export interface ModHooks {
     characterFromDraft?: (draft: Readonly<Record<string, unknown>>, ctx: {
         baseAppearance: readonly string[];
     }) => Partial<Character>;
+    chatListLights?: () => boolean;
     chatsHeader?: ComponentType<ScreenSlotProps['chatsHeader']>;
     contactPostExtra?: ComponentType<ScreenSlotProps['contactPostExtra']>;
     contactTab?: ContactTab;
