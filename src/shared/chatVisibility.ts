@@ -27,16 +27,27 @@ export function shownMessages<T extends Pick<ChatMessage, 'date' | 'time' | 'lat
     ? messages : messages.filter(message => messageShown(message, clock))
 }
 
-/** Player messages that have a later contact reply in the shown thread. */
-export function readPlayerIds(messages: readonly Pick<ChatMessage, 'id' | 'sender'>[]): Set<string> {
-  const read = new Set<string>()
-  let replied = false
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const { id, sender } = messages[i]
-    if (sender === 'contact') replied = true
-    else if (sender === 'player' && replied) read.add(id)
+/** Where a player's text stands: no reply written, a reply written but not shown yet, or a reply shown. */
+export type Receipt = 'sent' | 'delivered' | 'read'
+
+/**
+ * Each player message's receipt. `all` is the whole thread, held replies included; `shown` is the
+ * part the phone shows now. A later contact message in `shown` reads it; one only in `all` is a
+ * reply already written and held for later.
+ */
+export function receiptsOf(
+  all: readonly Pick<ChatMessage, 'id' | 'sender'>[],
+  shown: readonly Pick<ChatMessage, 'id' | 'sender'>[]
+): Map<string, Receipt> {
+  const visible = new Set(shown.map(message => message.id))
+  const receipts = new Map<string, Receipt>()
+  let replied: Receipt = 'sent'
+  for (let i = all.length - 1; i >= 0; i--) {
+    const { id, sender } = all[i]
+    if (sender === 'contact' && replied !== 'read') replied = visible.has(id) ? 'read' : 'delivered'
+    else if (sender === 'player' && visible.has(id)) receipts.set(id, replied)
   }
-  return read
+  return receipts
 }
 
 const threads = new WeakMap<Conversation, { slot: number; value: Conversation }>()

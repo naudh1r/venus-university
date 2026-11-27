@@ -1,4 +1,4 @@
-import { readPlayerIds, shownConversation, shownMessages } from '@shared/chatVisibility'
+import { receiptsOf, shownConversation, type Receipt, shownMessages } from '@shared/chatVisibility'
 import { readReceipts, subscribeHookRules, textWhileBusy, warnBeforeMeetup } from '../mods/hooks'
 import { meetupCommitmentNow } from '../stores/slotActions'
 import { charCommitmentAt } from '../stores/timetable'
@@ -1082,7 +1082,7 @@ function ConversationView({
   const nowTime = useGameStore(s => s.time)
   const messages = shownMessages(conversation?.messages ?? [], shownClock ?? { date: nowDate, time: nowTime })
   const receipts = useSyncExternalStore(subscribeHookRules, readReceipts)
-  const readIds = receipts ? readPlayerIds(messages) : undefined
+  const receiptOf = receipts ? receiptsOf(conversation?.messages ?? [], messages) : undefined
   const identity = chatIdentityOf(charId, character)
   const boss = jobDefForChat(charId)
   const bot = identity.bot
@@ -1263,7 +1263,7 @@ function ConversationView({
                   <span>{stamp.split(', ')[1]}</span>
                 </div>
               )}
-              <MessageBubble message={message} read={message.sender === 'player' ? readIds?.has(message.id) : undefined} />
+              <MessageBubble message={message} receipt={message.sender === 'player' ? receiptOf?.get(message.id) : undefined} />
             </Fragment>
           )
         })}
@@ -1674,10 +1674,10 @@ function Composer({
  */
 const MessageBubble = memo(function MessageBubble({
   message,
-  read
+  receipt
 }: {
   message: ChatMessage
-  read?: boolean
+  receipt?: Receipt
 }): JSX.Element {
   const photo = message.outgoingPhoto
   const imagesVisible = useModOn(OUTGOING_IMAGE_STORAGE_MOD) && !isWebBuild()
@@ -1692,7 +1692,7 @@ const MessageBubble = memo(function MessageBubble({
       </div>
     )
   }
-  const hasReceipt = !bare && message.sender === 'player' && read !== undefined
+  const hasReceipt = !bare && message.sender === 'player' && receipt !== undefined
   // What a mod attaches to the message follows its text, in a bubble of its own: a message that is
   // only an attachment draws no empty bubble.
   return (
@@ -1713,13 +1713,13 @@ const MessageBubble = memo(function MessageBubble({
           {hasReceipt ? <ReceiptSentText text={message.text} /> : <SentText text={message.text} />}
           {hasReceipt && (
             <svg
-              className={`vu-bb-receipt${read ? ' vu-bb-receipt--read' : ''}`}
+              className={`vu-bb-receipt${receipt === 'read' ? ' vu-bb-receipt--read' : ''}`}
               viewBox="0 0 22 14"
               role="img"
-              aria-label={read ? 'Read' : 'Sent'}
+              aria-label={receipt === 'read' ? 'Read' : receipt === 'delivered' ? 'Delivered' : 'Sent'}
             >
               <path d="m7 8 4 4 9-10" />
-              {read && <path d="m2 8 4 4 2-2.2m2-2.2 5-5.6" />}
+              {receipt !== 'sent' && <path d="m2 8 4 4 2-2.2m2-2.2 5-5.6" />}
             </svg>
           )}
         </div>
