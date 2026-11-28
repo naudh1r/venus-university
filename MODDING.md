@@ -218,6 +218,11 @@ data/mods/installed.json             the installer's record of each install, by 
                                      where the zip came from, its hash, whether the source is approved
 ```
 
+The Mods screen can uninstall a release tracked by the installer. It queues the id in
+`installed.json` and removes its installed versions before loading mods on the next start.
+If a folder cannot be removed, the loader skips it and the next start tries again.
+Save slices, mod data and option settings stay in place for a future install.
+
 `<id>` follows the id rule above and `<version>` is strict `major.minor.patch`; both must match the
 manifest. One version of an id is in use at a time: the one `current` names, else the only one,
 else the highest, with a line in the log. The loader deletes nothing and writes nothing.

@@ -1,11 +1,11 @@
 import { MOD_ID_RULE, RESERVED_MOD_IDS, parseManifest } from '@vx/modkit/host/shared'
 import { KIT_VERSION } from '../../../packages/modkit/src/shared/version'
 import { parseRange, parseVersion, satisfies } from '../../../packages/modkit/src/shared/range'
-import type { CatalogMod, CatalogRelease } from '@shared/modCatalog'
+import type { CatalogMod, CatalogRelease, InstalledModRemoval } from '@shared/modCatalog'
 import { imageTypeOf } from '@shared/imageBytes'
 import { appError } from '@shared/errors'
 import { randomUUID } from 'crypto'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { mkdir, readFile, rename, rm } from 'fs/promises'
 import { join } from 'path'
 import {
@@ -14,8 +14,9 @@ import {
   type DownloadOutcome
 } from '../services/downloadService'
 import { writeAtomicBytes, writeAtomicJson } from '../services/jsonFile'
-import { findInstalledMods, type InstalledFile } from './layout'
+import { findInstalledMods } from './layout'
 import { unpackRelease } from './unpack'
+import { INSTALL_RECORD, readInstallRecord, recordedInstall, removableId, removalFolder } from './removal'
 
 export const DEFAULT_CATALOG_URL =
   'https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/catalog.json'
@@ -227,11 +228,55 @@ export class ModCatalog {
     }))
   }
 
+  removalStatus(): InstalledModRemoval[] {
+    const record = readInstallRecord(this.root)
+    const dependents = new Map<string, string[]>()
+    for (const { id, version, folder } of findInstalledMods(this.root, new Set(record.pendingRemoval)).mods) {
+      if (!version) continue
+      try {
+        const parsed = parseManifest(JSON.parse(readFileSync(join(folder, 'vxmod.json'), 'utf8')), { id, version })
+        if (!parsed.ok) continue
+        for (const required of Object.keys(parsed.manifest.requires ?? {})) {
+          const names = dependents.get(required) ?? []
+          names.push(parsed.manifest.name)
+          dependents.set(required, names)
+        }
+      } catch {
+        // An unreadable manifest has no requirements the loader can act on.
+      }
+    }
+    return Object.keys(record.mods).flatMap((id) => {
+      if (!removableId(id, this.builtIn) || !recordedInstall(record, id)) return []
+      return [{ id, pending: record.pendingRemoval?.includes(id) ?? false, dependents: dependents.get(id) ?? [] }]
+    })
+  }
+
+  uninstall(id: unknown, isDeveloper: (id: string) => boolean = () => false): Promise<void> {
+    return this.enqueue(async () => {
+      const record = readInstallRecord(this.root)
+      if (!removableId(id, this.builtIn) || !recordedInstall(record, id) || isDeveloper(id))
+        throw new Error('That mod is not an installed release.')
+      removalFolder(this.root, id)
+      if (record.pendingRemoval?.includes(id)) return
+      await writeAtomicJson(
+        join(this.root, INSTALL_RECORD),
+        { ...record, pendingRemoval: [...(record.pendingRemoval ?? []), id] },
+        { code: 'MOD_UNINSTALL_RECORD', message: 'Could not schedule the mod for uninstall.' }
+      )
+    })
+  }
+
+  private enqueue(action: () => Promise<void>): Promise<void> {
+    const run = this.queue.then(action)
+    this.queue = run.catch(() => {})
+    return run
+  }
+
   installRelease(id: string, version: string, approved = false): Promise<void> {
     // Capture only a release main has read, never an address supplied by the window.
     const mod = this.mods.find((one) => one.id === id)
     const release = mod?.releases.find((one) => one.version === version)
-    const run = this.queue.then(async () => {
+    return this.enqueue(async () => {
       if (!release) throw new Error('That release is not in the catalogue. Try again.')
       if (this.builtIn.includes(id))
         throw new Error('This mod is already built into this copy of the game.')
@@ -240,11 +285,11 @@ export class ModCatalog {
         throw new Error('Installing code outside the game window needs your approval.')
       await this.install(id, release, approved === true)
     })
-    this.queue = run.catch(() => {})
-    return run
   }
 
   private async install(id: string, release: CatalogRelease, approved: boolean): Promise<void> {
+    if (readInstallRecord(this.root).pendingRemoval?.includes(id))
+      throw new Error('Restart to finish uninstalling this mod before you install it again.')
     const folder = join(this.root, id)
     const target = join(folder, release.version)
     if (existsSync(target))
@@ -270,15 +315,7 @@ export class ModCatalog {
         existsSync(join(temp, 'main.js')) !== release.main
       )
         throw new Error('Release main code does not match the catalogue and manifest.')
-      // Refuse a malformed existing record rather than replace somebody's history.
-      let records: InstalledFile = { schemaVersion: 1, mods: {} }
-      try {
-        records = JSON.parse(await readFile(join(this.root, 'installed.json'), 'utf8'))
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-      }
-      if (!object(records) || records.schemaVersion !== 1 || !object(records.mods))
-        throw new Error('installed.json cannot be safely updated.')
+      const records = readInstallRecord(this.root)
       try {
         previousCurrent = await readFile(join(folder, 'current'))
       } catch (error) {

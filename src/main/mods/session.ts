@@ -12,6 +12,7 @@ import { getSettings } from '../services/settingsService'
 import { patchStoredSettings } from '../services/settingsService'
 import { writeKnownMods } from './known'
 import { addDevFolder, devFolders, removeDevFolder, watchDevFolder, type DevChangeKind } from './devFolders'
+import { finishPendingRemovals, hasDeveloperFolder } from './removal'
 import { loadMods, type LoaderResult } from './loader'
 import { handleModProtocol } from './protocol'
 import type { MainContext } from './require'
@@ -23,6 +24,7 @@ import { ModInvocations } from './invoke'
  * everything it does before `ready` is synchronous.
  */
 
+let removing: ReadonlySet<string> = new Set()
 let result: LoaderResult | null = null
 const invocations = new ModInvocations()
 
@@ -71,9 +73,11 @@ function safeStartOf(): SafeStart {
 /** Runs the loader. Called once, before the schemes are registered. */
 export function startModSession(): void {
   const { devFolders, allowUnreviewedMain } = loaderSettings()
+  removing = finishPendingRemovals(getModsDirPath(), BUILT_IN_IDS, console.warn, devFolders)
   hold(
     loadMods({
       modsDir: getModsDirPath(),
+      removing,
       devFolders,
       allowUnreviewedMain,
       builtIn: BUILT_IN_IDS,
@@ -121,6 +125,7 @@ export function rerunModChecks(): void {
   const { devFolders, allowUnreviewedMain } = loaderSettings()
   const next = loadMods({
     modsDir: getModsDirPath(),
+    removing,
     devFolders,
     allowUnreviewedMain,
     builtIn: BUILT_IN_IDS,
@@ -208,6 +213,11 @@ type Handle = <Args extends unknown[], T>(
 export function registerModIpc(handle: Handle): void {
   const catalog = new ModCatalog(getModsDirPath(), undefined, BUILT_IN_IDS)
   handle('mods:catalog', async () => catalog.read((await getSettings()).modCatalogUrl ?? DEFAULT_CATALOG_URL))
+  const isDeveloper = (id: string): boolean =>
+    modSession().mods.some((mod) => mod.id === id && mod.dev) ||
+    hasDeveloperFolder(getModsDirPath(), id, loaderSettings().devFolders)
+  handle('mods:removalStatus', () => catalog.removalStatus().filter((mod) => !isDeveloper(mod.id)))
+  handle('mods:uninstall', (_event, id: unknown) => catalog.uninstall(id, isDeveloper))
   handle('mods:catalogInstalled', () => catalog.list())
   handle('mods:installRelease', (_event, id: string, version: string, approved: boolean) => catalog.installRelease(id, version, approved))
   // Synchronous: `MODS` has to hold the installed mods before any module in the window reads it.
