@@ -454,6 +454,21 @@
       "cover": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/art/after-hours/cover.webp",
       "releases": [
         {
+          "version": "0.7.12",
+          "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.12.zip",
+          "sha256": "b32b6ad9521ba3ff54a6e7316d01fa2dffb69f5fbf7bdffd2b4a03f06f344dbc",
+          "kit": ">=0.7.0",
+          "game": "0.9.2",
+          "main": false,
+          "reviewed": false,
+          "released": "2026-11-28",
+          "changes": [
+            "Busy now applies to every text you send, whoever started the chat. You can still say Yes to an invitation they send on their own.",
+            "Yes on a meet-up is put together from a few words, with more variety, and never says who goes where. It is never the same as your last Yes in that chat.",
+            "Needs naudh1r-core from November 27 or later, which has the hooks these use."
+          ]
+        },
+        {
           "version": "0.7.11",
           "url": "https://raw.githubusercontent.com/naudh1r/venus-university/notes/standalone-mods/releases/after-hours-0.7.11.zip",
           "sha256": "ee2af15ea26dc63e12e0e43d6c22fde07fa481e008a541be2854db27faf324a9",
@@ -659,6 +674,13 @@
         }
       ],
       "changelog": [
+        {
+          "version": "0.7.12",
+          "changes": [
+            "Busy now applies to every text you send, whoever started the chat. You can still say Yes to an invitation they send on their own.",
+            "Yes on a meet-up is put together from a few words, with more variety, and never says who goes where. It is never the same as your last Yes in that chat."
+          ]
+        },
         {
           "version": "0.7.11",
           "changes": [
