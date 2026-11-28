@@ -292,3 +292,74 @@ D	test/kit/promptReaders.test.ts
 D	test/modCatalog.test.ts
 M	test/openaiAdapter.test.ts
 ```
+
+## Branch 4
+
+`mod/after-hours-built-in` · `3e36552be034dbe3da31dfa41a34cec5e4eb389a` · **After Hours: a built-in mod**
+
+The branch starts at `ah-core/3-phone` (`a69475df`) and takes After Hours 0.7.10 from
+`mod/after-hours-kit` (`e08ea793`). It adds 1,077 lines in nine files and removes none.
+
+| File | Added |
+| --- | ---: |
+| `docs/mods/after-hours.md` | 182 |
+| `src/renderer/modEntries/after-hours.ts` | 1 |
+| `src/renderer/mods/afterHours.tsx` | 358 |
+| `src/renderer/vu_styles/AfterHours.css` | 106 |
+| `src/shared/afterHours.ts` | 182 |
+| `src/shared/afterHoursText.ts` | 60 |
+| `src/shared/modEntries/after-hours.ts` | 22 |
+| `test/afterHours.test.ts` | 163 |
+| `test/kit/modFiles.ts` | 3 |
+
+The shared entry is picked up by the existing built-in list, which also supplies the
+main process's built-in IDs. The renderer entry loads its hooks through the existing
+built-in glob. The test registry declares the additional files for the boundary scan.
+There are zero new boundary allowlist entries. Like other opt-in built-ins, After Hours
+ships with `defaultOn: false`. Its four options default on once it is enabled.
+The guide explains enabling it and keeps the existing changelog.
+
+All of After Hours' required kit hooks are present in branch 3. No core files or kit
+reports changed in branch 4.
+
+### Draft PR description
+
+Add After Hours 0.7.10 to Mods as an opt-in built-in. Stay up texting after the evening,
+skip to tomorrow, or wake up beside the person you spent the night with and hear their
+goodbye. Chats show receipts and give you a chance to confirm a meet-up, including a
+warning if you have a commitment.
+
+- **Busy status** lets you skip immediate meet-ups in chats you start.
+- **Replies can wait** lets you text contacts who are in class, working, asleep or away.
+  Their replies arrive when they are available.
+- **The night** adds the late-night landing and the morning goodbye after a stay-over.
+- **Status lights in Chats** shows who is available, busy or idle.
+
+This depends on the night, held-reply and phone hooks in branches 1–3. After Hours is
+off by default. With it off, the game plays as usual.
+
+### Checks
+
+- `npm ci` installed 456 packages from the lockfile. The existing Electron binary
+  was reused.
+- `npm run typecheck` passed for main, renderer and tests.
+- `npm run report:check` reported all three kit API reports current.
+- `npm run build` passed for main, preload and renderer.
+- `npm test -- --maxWorkers=2` covered 438 files: 432 passed, three failed and three
+  were skipped. Of 5,614 tests, 5,607 passed, three failed and four were skipped.
+  The known Linux `getComfyOutputFilePath` assertion remains. The two other failures
+  were timeouts. `rollerDerby.test.ts` passed all 26 on its own.
+  `photoBrowserInvoke.test.ts` timed out on its first isolated retry, then passed
+  with the default timeout on both branch 3 and branch 4. It also passed with a
+  longer timeout on branch 4.
+- After Hours, mod entry, mod switch and boundary tests passed together (53 tests,
+  four files). After Hours alone passed all 23.
+- Chromium showed version 0.7.10 with the built-in label and the switch off.
+  Enabling it turned on the four options and activated the receipts, own meet-up
+  and chat-list light hooks. Disabling it again deactivated all three hooks.
+- The branch diff contains only the files in the table. The commit's SSH signature
+  was verified locally.
+
+The browser smoke check covered registration and switch behavior. A full in-game
+playthrough comparison against `test/org-main-after-hours` with 0.7.10 installed
+remains unverified.
