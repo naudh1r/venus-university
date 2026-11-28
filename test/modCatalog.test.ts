@@ -1,15 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createHash } from 'crypto'
-import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'fs/promises'
-import { existsSync } from 'fs'
+import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'fs/promises'
+import { existsSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { zipSync, strToU8 } from 'fflate'
 import { ModCatalog, parseCatalog } from '../src/main/mods/catalog'
+import { finishPendingRemovals, readInstallRecord } from '../src/main/mods/removal'
+import { findInstalledMods } from '../src/main/mods/layout'
 import type { DownloadOptions } from '../src/main/services/downloadService'
 import { downloadFile } from '../src/main/services/downloadService'
 import * as atomic from '../src/main/services/jsonFile'
 import { KIT_VERSION } from '../packages/modkit/src/shared/version'
+
+vi.mock('fs', async (importOriginal) => {
+  const fs = await importOriginal<typeof import('fs')>()
+  return { ...fs, rmSync: vi.fn(fs.rmSync) }
+})
 
 const folders: string[] = []
 afterEach(async () => {
@@ -267,5 +274,107 @@ describe('store catalogue fields', () => {
     expect(parsed.screenshots).toHaveLength(8)
     expect(parsed.screenshots?.[0]).toEqual({ url: 'https://example.com/bare.png' })
     expect(parsed.screenshots?.[1]).toEqual(shot(0))
+  })
+})
+
+describe('uninstalling an installed release', () => {
+  it('queues removal, keeps other files and records, and allows reinstall after startup', async () => {
+    const { root, catalog } = await setup()
+    catalog.setIndex(index())
+    await catalog.installRelease('test-mod', '1.0.0')
+    const record = readInstallRecord(root)
+    await writeFile(join(root, 'installed.json'), JSON.stringify({
+      ...record,
+      mods: { ...record.mods, other: record.mods['test-mod'] }
+    }))
+    await mkdir(join(root, 'other', '1.0.0'), { recursive: true })
+    await writeFile(join(root, 'other', '1.0.0', 'vxmod.json'), JSON.stringify({
+      ...manifest('1.0.0', 'other'), name: 'Dependent', requires: { 'test-mod': '*' }
+    }))
+    const data = await mkdtemp(join(tmpdir(), 'catalog-save-'))
+    folders.push(data)
+    await mkdir(join(data, 'mod-data', 'test-mod'), { recursive: true })
+    const saved = join(data, 'mod-data', 'test-mod', 'progress.json')
+    await writeFile(saved, '{}')
+
+    expect(catalog.removalStatus()).toContainEqual({
+      id: 'test-mod', pending: false, dependents: ['Dependent']
+    })
+    await catalog.uninstall('test-mod')
+
+    expect(catalog.list()[0].installedVersion).toBe('1.0.0')
+    expect(readInstallRecord(root).pendingRemoval).toEqual(['test-mod'])
+    await expect(catalog.installRelease('test-mod', '1.0.0')).rejects.toThrow()
+    expect(finishPendingRemovals(root).size).toBe(0)
+
+    expect(existsSync(join(root, 'test-mod'))).toBe(false)
+    expect(existsSync(join(root, 'other'))).toBe(true)
+    expect(await readFile(saved, 'utf8')).toBe('{}')
+    expect(readInstallRecord(root)).toMatchObject({
+      mods: { other: record.mods['test-mod'] }, pendingRemoval: []
+    })
+    expect(Object.keys(readInstallRecord(root).mods)).toEqual(['other'])
+    expect(catalog.list()[0].installedVersion).toBeNull()
+    await catalog.installRelease('test-mod', '1.0.0')
+    expect(catalog.list()[0].installedVersion).toBe('1.0.0')
+  })
+
+  it('refuses unknown, developer, built-in and escaping ids even with a forged record', async () => {
+    const { root, catalog } = await setup()
+    catalog.setIndex(index())
+    await catalog.installRelease('test-mod', '1.0.0')
+    const record = readInstallRecord(root)
+    const forged = { ...record, mods: { ...record.mods, '../escape': record.mods['test-mod'] } }
+    await writeFile(join(root, 'installed.json'), JSON.stringify(forged))
+
+    await expect(catalog.uninstall('unknown')).rejects.toThrow()
+    await expect(catalog.uninstall('../escape')).rejects.toThrow()
+    await expect(catalog.uninstall('test-mod', () => true)).rejects.toThrow()
+    await expect(new ModCatalog(root, undefined, ['test-mod']).uninstall('test-mod')).rejects.toThrow()
+    expect(readInstallRecord(root)).toEqual(forged)
+  })
+
+  it('keeps a locked folder queued and retries it at a later start', async () => {
+    const { root, catalog } = await setup()
+    catalog.setIndex(index())
+    await catalog.installRelease('test-mod', '1.0.0')
+    await catalog.uninstall('test-mod')
+    const folder = join(root, 'test-mod')
+    vi.mocked(rmSync).mockImplementationOnce(() => {
+      throw Object.assign(new Error('folder in use'), { code: 'EBUSY' })
+    })
+
+    const skipped = finishPendingRemovals(root, [], vi.fn())
+    expect(skipped.has('test-mod')).toBe(true)
+    expect(readInstallRecord(root).pendingRemoval).toEqual(['test-mod'])
+    expect(existsSync(folder)).toBe(true)
+
+    expect(finishPendingRemovals(root).size).toBe(0)
+    expect(readInstallRecord(root).mods).toEqual({})
+    expect(existsSync(folder)).toBe(false)
+  })
+
+  it('refuses a folder that becomes unsafe after scheduling and keeps it out of the startup scan', async () => {
+    const { root, catalog } = await setup()
+    const outside = await mkdtemp(join(tmpdir(), 'catalog-outside-'))
+    folders.push(outside)
+    await writeFile(join(outside, 'keep'), 'keep')
+    catalog.setIndex(index())
+    await catalog.installRelease('test-mod', '1.0.0')
+    await catalog.uninstall('test-mod')
+    const folder = join(root, 'test-mod')
+    await rm(folder, { recursive: true })
+    await symlink(outside, folder, 'junction')
+
+    await expect(catalog.uninstall('test-mod')).rejects.toThrow()
+    const blocked = finishPendingRemovals(root, [], vi.fn())
+    expect(blocked.has('test-mod')).toBe(true)
+    expect(findInstalledMods(root, blocked).mods).toEqual([])
+    expect(readInstallRecord(root).pendingRemoval).toEqual(['test-mod'])
+    expect(await readFile(join(outside, 'keep'), 'utf8')).toBe('keep')
+
+    await rm(folder)
+    expect(finishPendingRemovals(root).size).toBe(0)
+    expect(readInstallRecord(root).mods).toEqual({})
   })
 })

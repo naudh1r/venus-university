@@ -214,6 +214,8 @@ export function buildApi(): VenusUniversityApi {
     mods: {
       catalog: () => desktopOnly('mod catalogue'),
       catalogInstalled: () => desktopOnly('mod catalogue'),
+      removalStatus: () => desktopOnly('mod uninstall'),
+      uninstall: () => desktopOnly('mod uninstall'),
       installRelease: () => desktopOnly('mod install'),
       invokeStart: () => desktopOnly('mod.invoke'),
       invokeResult: () => desktopOnly('mod.invoke'),
