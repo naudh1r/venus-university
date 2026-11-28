@@ -22,6 +22,11 @@ describe('parseSource', () => {
     json.mods[0].withdrawn[0].reason = 'changed'
     expect(parsed.source.mods[0].releases[0].manifest.hooks).toEqual([])
     expect(parsed.source.mods[0].withdrawn?.[0].reason).toBe('Bad save writes.')
+    expect(Object.isFrozen(parsed.source)).toBe(true)
+    expect(Object.isFrozen(parsed.source.mods)).toBe(true)
+    expect(Object.isFrozen(parsed.source.mods[0].releases[0].manifest.hooks)).toBe(true)
+    expect(Object.isFrozen(parsed.source.mods[0].releases[0].approved)).toBe(true)
+    expect(Object.isFrozen(parsed.source.mods[0].withdrawn?.[0])).toBe(true)
   })
   const refusals: [string, (json: any) => unknown][] = [
     ['non-object', () => []],
@@ -297,18 +302,32 @@ describe('parseSource', () => {
       (j) => {
         j.mods[0].cover = 'http://example.com/cover.webp'
       }
-    ]
+    ],
+    ['non-list screenshots', (j) => { j.mods[0].screenshots = 'bad' }],
+    ['non-object screenshot', (j) => { j.mods[0].screenshots = [null] }],
+    ['missing screenshot URL', (j) => { j.mods[0].screenshots = [{ caption: 'A shot' }] }],
+    ['insecure screenshot URL', (j) => { j.mods[0].screenshots = [{ url: 'http://example.com/no' }] }],
+    ['unknown screenshot field', (j) => {
+      j.mods[0].screenshots = [{ url: 'https://example.com/shot', extra: true }]
+    }],
+    ['non-string screenshot caption', (j) => {
+      j.mods[0].screenshots = [{ url: 'https://example.com/shot', caption: 7 }]
+    }],
+    ['blank screenshot caption', (j) => {
+      j.mods[0].screenshots = [{ url: 'https://example.com/shot', caption: ' ' }]
+    }],
+    ['oversize screenshot caption', (j) => {
+      j.mods[0].screenshots = [{ url: 'https://example.com/shot', caption: 'a'.repeat(201) }]
+    }],
+    ['too many screenshots', (j) => {
+      j.mods[0].screenshots = Array.from({ length: 9 }, () => ({ url: 'https://example.com/shot' }))
+    }]
   ]
   it.each(refusals)('refuses the whole source: %s', (_name, change) => {
     const result = error(change)
     expect(result).toBeTypeOf('string')
   })
-  it('identifies a newer source and names the duplicate or disagreeing entry', () => {
-    expect(
-      error((j) => {
-        j.source = 2
-      })
-    ).toContain('newer game')
+  it('identifies the duplicate or disagreeing entry', () => {
     expect(
       error((j) => {
         j.mods.push(j.mods[0])
@@ -320,28 +339,19 @@ describe('parseSource', () => {
       })
     ).toContain('hello-mod@1.0.0')
   })
-  it('accepts https art, drops bad screenshot entries and retains at most eight valid screenshots', () => {
+  it('accepts an HTTPS cover and eight screenshots with optional captions', () => {
     const json = valid()
     json.mods[0].cover = 'https://example.com/cover.webp'
     json.mods[0].screenshots = [
-      null,
-      { url: 'http://example.com/no' },
-      { url: 'https://example.com/no', caption: 7 },
-      { url: 'https://example.com/no', extra: true },
-      ...Array.from({ length: 12 }, (_, i) => ({
+      { url: 'https://example.com/shot.webp' },
+      ...Array.from({ length: 7 }, (_, i) => ({
         url: `https://example.com/${i}.webp`,
         caption: `Shot ${i}`
       }))
     ]
     const parsed = parseSource(json)
-    expect(parsed.ok).toBe(true)
+    expect(parsed).toEqual({ ok: true, source: json })
     if (!parsed.ok) return
-    expect(parsed.source.mods[0].cover).toBe(json.mods[0].cover)
-    expect(parsed.source.mods[0].screenshots).toEqual(json.mods[0].screenshots.slice(4, 12))
-    json.mods[0].screenshots = 'bad'
-    expect(parseSource(json)).toEqual({
-      ok: true,
-      source: { ...parsed.source, mods: [{ ...parsed.source.mods[0], screenshots: undefined }] }
-    })
+    expect(Object.isFrozen(parsed.source.mods[0].screenshots?.[0])).toBe(true)
   })
 })

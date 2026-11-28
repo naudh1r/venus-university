@@ -17,7 +17,7 @@ vi.mock('../../src/main/services/settingsService', () => ({
     return storage.settings
   }
 }))
-const { ModSourceReader, MOD_SOURCE_MAX_BYTES, addModSource, removeModSource, modSources } =
+const { ModSourceReader, MOD_SOURCE_MAX_BYTES, addModSource, removeModSource, modSources, readModSources } =
   await import('../../src/main/mods/sources')
 const response = (json: unknown, headers?: HeadersInit): Response =>
   new Response(JSON.stringify(json), { headers })
@@ -28,6 +28,31 @@ afterEach(async () => {
 })
 
 describe('bounded source fetching', () => {
+  it('returns each source outcome in settings order with credentials removed from refusals', async () => {
+    const unusable = 'https://example.com/offline?sig=signed&jwt=secret'
+    const working = 'https://example.com/list'
+    storage.settings = { ...defaultSettings(), modSources: [unusable, 'http://example.com', working] }
+    const fetcher: typeof fetch = vi.fn(async (address) =>
+      address === unusable ? new Response(null, { status: 404 }) : response(list())
+    )
+    vi.stubGlobal('fetch', fetcher)
+    try {
+      const results = await readModSources()
+      expect(results).toMatchObject([
+        { ok: true, data: { url: APPROVED_MOD_SOURCE, approvedList: true } },
+        {
+          ok: false,
+          url: 'https://example.com/offline?sig=REDACTED&jwt=REDACTED',
+          error: { code: 'MOD_SOURCE_HTTP' }
+        },
+        { ok: false, error: { code: 'MOD_SOURCE_ADDRESS' } },
+        { ok: true, data: { url: working, approvedList: false } }
+      ])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('fetches the fixed approved list and ignores custom approval claims', async () => {
     const json: any = list()
     json.mods[0].releases[0].approved = { by: 'tester', pr: 1, at: '2026-11-10' }
@@ -351,8 +376,10 @@ describe('GitHub repo sources', () => {
 
 describe('main-owned modSources', () => {
   it('deduplicates additions, removes sources, and preserves them across renderer patches', async () => {
-    storage.settings = defaultSettings()
+    storage.settings = {} as Settings
     expect(await modSources()).toEqual([])
+    storage.settings = defaultSettings()
+    expect(storage.settings.modSources).toEqual([])
     await addModSource('https://example.com/list')
     await addModSource('https://example.com/list')
     await addModSource(APPROVED_MOD_SOURCE)

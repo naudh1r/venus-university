@@ -74,6 +74,7 @@ describe('the import boundary', () => {
         `${FIXTURES}/bad-mod/preload/bridge.ts -> electron`,
         `${FIXTURES}/bad-mod/renderer/entry.ts -> ../../../../../src/renderer/stores/gameStore`,
         `${FIXTURES}/bad-mod/renderer/entry.ts -> @vx/modkit/host/renderer`,
+        `${FIXTURES}/bad-mod/renderer/entry.ts -> @vx/modkit/host/shared`,
         `${FIXTURES}/bad-mod/renderer/entry.ts -> electron`,
         `${FIXTURES}/bad-mod/renderer/entry.ts -> node:fs`,
         `${FIXTURES}/bad-mod/shared/entry.ts -> ../../good-mod/shared/rules`,

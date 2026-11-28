@@ -150,6 +150,8 @@ export function resolveInstall(input: InstallInput): InstallResolution {
   function exportProblem(id: string, library: InstalledMod, replacing: ReadonlySet<string>) {
     for (const [by, dependent] of selected) {
       if (by === id || replacing.has(by)) continue
+      const optionalRange = own(dependent.optional ?? {}, id)
+      if (optionalRange !== undefined && !satisfies(library.version, optionalRange)) continue
       const problem = libraryExportProblem(dependent.hooks ?? [], (libraryId) =>
         libraryId === id ? { ...library, name: library.name ?? id } : undefined
       )
@@ -229,7 +231,10 @@ export function resolveInstall(input: InstallInput): InstallResolution {
   for (const [id, mod] of selected) {
     const problem = libraryExportProblem(mod.hooks ?? [], (libraryId) => {
       const library = selected.get(libraryId)
-      return library ? { ...library, name: library.name ?? libraryId } : undefined
+      if (!library) return undefined
+      const optionalRange = own(mod.optional ?? {}, libraryId)
+      if (optionalRange !== undefined && !satisfies(library.version, optionalRange)) return undefined
+      return { ...library, name: library.name ?? libraryId }
     })
     if (problem) return refused(`${id}: ${problem.message}`)
   }
@@ -248,7 +253,12 @@ export function resolveInstall(input: InstallInput): InstallResolution {
 }
 
 export type RemovalResolution =
-  | { readonly ok: true; readonly remove: readonly string[]; readonly orphaned: readonly string[] }
+  | {
+      readonly ok: true
+      readonly remove: readonly string[]
+      /** Orphaned libraries offered as default-selected removals. */
+      readonly orphaned: readonly string[]
+    }
   | { readonly ok: false; readonly error: string }
 
 /** Refuses required removals; orphaned libraries are offers, never silently removed. */

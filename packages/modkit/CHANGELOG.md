@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The host freezes parsed source listings and validates their artwork metadata. Main returns an
+  independent result for each configured source. Out-of-range optional libraries are left out of
+  the install planner and loader's export checks.
+
 - Install planning checks library exports with the loader's shared rule, including retained
   dependents. Source stream cleanup preserves deadlines and the original refusal.
 

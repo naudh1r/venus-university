@@ -10,7 +10,7 @@
 
 ## 1. What the game is
 
-- A local, single-player, AI-driven dating sim in visual-novel form: an Electron desktop app for Windows with an NVIDIA or an AMD (RDNA 3 or 4) GPU, and a browser build of the same renderer that itch.io hosts. React 19, TypeScript (strict), Zustand, Motion (`motion/react`), Vitest, plain CSS. No server, no accounts, no env vars — everything the player configures lives in `data/settings.json` on the desktop and in the browser's own storage on the web.
+- A local, single-player, AI-driven dating sim in visual-novel form: an Electron desktop app for Windows with an NVIDIA or an AMD (RDNA 3 or 4) GPU, and a browser build of the same renderer that itch.io hosts. React 19, TypeScript (strict), Zustand, Motion (`motion/react`), Vitest, plain CSS. No server or accounts. Player settings live in `data/settings.json` on the desktop and in the browser's own storage on the web.
 - **The writer is a cloud LLM.** By default it is Google Gemini over the native API; the player may instead name any endpoint that speaks OpenAI chat completions, with its own key, model id and reasoning efforts. It invents characters, writes every scene as structured JSON the app plays back VN-style, answers two cheap classifiers, and keeps the books between scenes. The persona it writes as is RITA. The cloud pictures — rooms, the graduation picture, the phone's photos — are Gemini's image models on the Gemini key under Gemini; under a custom endpoint they go to its own images endpoint, Google's by default or anything speaking OpenRouter's Images API, on the one model the player names for every picture but a photo, which may be drawn on any model that endpoint offers. Either way they are skipped without a key.
 - **The artist is a locally managed ComfyUI**, installed under `data/services` by the app itself, or a ComfyUI the player runs themselves at an address they name, on this machine or another. It is optional: creating characters needs it, playing does not. Either draws with the models the player picks, slot by slot. The browser build has no ComfyUI at all: every control that needs it is dead there under one notice, and the cloud renders — rooms, the graduation picture — still run.
 - **The premise is fixed**: the reader starts as a freshman at Venus University in the city of Veridan, and a playthrough runs a semester at a time, spring and fall alternating from his first spring, until he graduates at his senior fall's ceremony. A spring runs from January 19 (a Monday, day 0) to Friday May 22, a fall from Monday August 17 to Friday December 18, on the same day numbers. Two slots a day, day and night; a slot holds at most one scene.
@@ -99,6 +99,7 @@ src/main                 Electron main: on the desktop, the only process that to
                          calls a network
   services/              the ComfyUI install, saves, characters, settings, assets — the disk edge of the rules
                          in src/shared
+  mods/                  the installed-mod loader, developer folders and source fetching
   updateHelper.ts        the second main entry: the file swap an update runs after the app has quit
 src/preload              api.d.ts is the one authoring site of the bridge; index.ts exposes it
 src/renderer

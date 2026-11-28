@@ -3,6 +3,7 @@ import { parseVersion } from './range'
 
 export const SOURCE_SCHEMA = 1
 export const MAX_SOURCE_SCREENSHOTS = 8
+const MAX_SCREENSHOT_CAPTION_LENGTH = 200
 
 /** A release's approval record. Only the host's approved source can confer trust. */
 export interface SourceApproval {
@@ -165,26 +166,22 @@ function readWithdrawal(
   return { version: v, reason: withdrawal.reason }
 }
 
-/** Keeps the first eight valid HTTPS screenshots in their listed order. */
-function readScreenshots(value: unknown): SourceScreenshot[] {
-  const screenshots: SourceScreenshot[] = []
-  if (!Array.isArray(value)) return screenshots
-  for (const shot of value) {
-    if (
-      !object(shot) ||
-      Object.keys(shot).some((key) => key !== 'url' && key !== 'caption') ||
-      !https(shot.url) ||
-      (shot.caption !== undefined && !text(shot.caption))
-    ) {
-      continue
-    }
-    screenshots.push({
-      url: shot.url,
-      ...(shot.caption !== undefined ? { caption: shot.caption as string } : {})
-    })
-    if (screenshots.length === MAX_SOURCE_SCREENSHOTS) break
+function readScreenshots(value: unknown, id: string): SourceScreenshot[] {
+  const where = `${id}.screenshots`
+  const screenshots = list(value, where)
+  if (screenshots.length > MAX_SOURCE_SCREENSHOTS) {
+    refuse(`${where} may contain at most ${MAX_SOURCE_SCREENSHOTS} entries`)
   }
-  return screenshots
+  return screenshots.map((item, index) => {
+    const entry = `${where}[${index}]`
+    const { url, caption } = fields(item, ['url', 'caption'], entry)
+    const httpsUrl = address(url, `${entry}.url`)
+    if (caption === undefined) return { url: httpsUrl }
+    if (!text(caption) || caption.length > MAX_SCREENSHOT_CAPTION_LENGTH) {
+      refuse(`${entry}.caption must be nonblank text of at most ${MAX_SCREENSHOT_CAPTION_LENGTH} characters`)
+    }
+    return { url: httpsUrl, caption }
+  })
 }
 
 /** Reads one mod's releases, withdrawal metadata and artwork. */
@@ -212,7 +209,6 @@ function readMod(value: unknown, ids: Set<string>): SourceMod<ListedRelease> {
       : list(mod.withdrawn, `${id}.withdrawn`).map((withdrawal) =>
           readWithdrawal(withdrawal, id, withdrawnVersions)
         )
-  const screenshots = readScreenshots(mod.screenshots)
   return {
     id,
     repo,
@@ -222,11 +218,20 @@ function readMod(value: unknown, ids: Set<string>): SourceMod<ListedRelease> {
       : {}),
     ...(withdrawn !== undefined ? { withdrawn } : {}),
     ...(mod.cover !== undefined ? { cover: address(mod.cover, `${id}.cover`) } : {}),
-    ...(screenshots.length ? { screenshots } : {})
+    ...(mod.screenshots !== undefined ? { screenshots: readScreenshots(mod.screenshots, id) } : {})
   }
 }
 
-/** Reads a whole vxsource.json, isolating malformed screenshot entries. */
+/** The parsed source and its nested JSON values are all fresh copies. */
+function freezeSource<T>(value: T): T {
+  if (value && typeof value === 'object') {
+    for (const child of Object.values(value)) freezeSource(child)
+    Object.freeze(value)
+  }
+  return value
+}
+
+/** Reads and freezes a whole vxsource.json. */
 export function parseSource(json: unknown): ParsedSource {
   try {
     if (!object(json)) refuse('vxsource.json is not an object')
@@ -239,7 +244,10 @@ export function parseSource(json: unknown): ParsedSource {
     if (!text(json.name)) refuse('"name" is missing or empty')
     const ids = new Set<string>()
     const mods = list(json.mods, '"mods"').map((mod) => readMod(mod, ids))
-    return { ok: true, source: { source: SOURCE_SCHEMA, name: json.name, mods } }
+    return {
+      ok: true,
+      source: freezeSource({ source: SOURCE_SCHEMA, name: json.name, mods })
+    }
   } catch (error) {
     if (error instanceof Refusal) return { ok: false, error: error.error }
     throw error

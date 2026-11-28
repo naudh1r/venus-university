@@ -239,6 +239,17 @@ describe('the loader on the folders', () => {
     expect(messageOf(result, 'uses-lib')).toBe('needs `lib:greet`, which Lib 1.0.0 no longer has')
   })
 
+  it('ignores export differences in an out-of-range optional library', () => {
+    const file = join(root, 'mods', 'uses-lib', '1.0.0', 'vxmod.json')
+    const { requires: _requires, ...manifest } = JSON.parse(readFileSync(file, 'utf8'))
+    writeFileSync(file, JSON.stringify({ ...manifest, optional: { lib: '^2.0.0' } }))
+    const libraryFile = join(root, 'mods', 'lib', '1.0.0', 'vxmod.json')
+    const library = JSON.parse(readFileSync(libraryFile, 'utf8'))
+    writeFileSync(libraryFile, JSON.stringify({ ...library, exports: ['wave'] }))
+
+    expect(statusOf(run(), 'uses-lib')).toBe('loaded')
+  })
+
   it('blocks a mod whose requirement is missing', () => {
     installFixture(root, 'uses-lib')
     expect(messageOf(run(), 'uses-lib')).toBe('needs lib, which is not installed')

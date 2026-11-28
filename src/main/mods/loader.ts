@@ -291,7 +291,12 @@ function orderCandidates(candidates: Candidate[], input: LoaderInput): { order: 
     if (!candidate || !manifest || candidate.entry.status !== 'loaded') continue
     const problem = libraryExportProblem(
       manifest.hooks,
-      (library) => byId.get(library)?.entry.manifest ?? undefined
+      (library) => {
+        if (Object.hasOwn(manifest.optional ?? {}, library) && !ordered.optionalPresent[id]?.includes(library)) {
+          return undefined
+        }
+        return byId.get(library)?.entry.manifest ?? undefined
+      }
     )
     if (problem) fail(candidate, 'needs-update', problem.message)
   }

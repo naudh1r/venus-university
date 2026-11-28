@@ -1,8 +1,9 @@
 import { app } from 'electron'
 import { createReadStream } from 'fs'
 import { fileURLToPath } from 'url'
-import { appError } from '@shared/errors'
+import { appError, toAppError } from '@shared/errors'
 import { APPROVED_MOD_SOURCE } from '@shared/modSource'
+import type { Result } from '@shared/types'
 import {
   parseManifest,
   parseSource,
@@ -11,6 +12,7 @@ import {
   type SourceMod,
   type SourceRelease
 } from '@vx/modkit/host/shared'
+import { redactUrl } from '../services/downloadService'
 import { getSettings, patchStoredSettings } from '../services/settingsService'
 
 export const MOD_SOURCE_MAX_BYTES = 2 * 1024 * 1024
@@ -23,6 +25,13 @@ export interface FetchedModSource {
   readonly approvedList: boolean
   readonly source: ModSource
 }
+
+export type ModSourceResult =
+  | Extract<Result<FetchedModSource>, { ok: true }>
+  | (Extract<Result<FetchedModSource>, { ok: false }> & {
+      readonly url?: string
+      readonly approvedList: boolean
+    })
 
 function fail(code: string, message: string): never {
   throw appError(code, message)
@@ -164,6 +173,28 @@ export class ModSourceReader {
   /** Custom sources never gain approval from a block they supplied themselves. */
   async readCustom(address: string): Promise<FetchedModSource> {
     return this.readAddress(modSourceAddress(address), false, false)
+  }
+
+  /** Reports the approved list first, followed by each custom source in settings order. */
+  readAll(customAddresses: readonly string[]): Promise<ModSourceResult[]> {
+    return Promise.all([
+      this.readResult(() => this.approvedAddress(), true),
+      ...customAddresses.map((address) =>
+        this.readResult(() => modSourceAddress(address), false)
+      )
+    ])
+  }
+
+  private async readResult(addressOf: () => string, approvedList: boolean): Promise<ModSourceResult> {
+    let url: string | undefined
+    try {
+      const address = addressOf()
+      url = redactUrl(address)
+      return { ok: true, data: await this.readAddress(address, approvedList, approvedList) }
+    } catch (caught) {
+      const error = toAppError(caught, 'MOD_SOURCE_FETCH')
+      return { ok: false, url, approvedList, error: appError(error.code, error.message) }
+    }
   }
 
   private readAddress(
@@ -345,6 +376,21 @@ export class ModSourceReader {
 
 /** Shared by future IPC callers for the lifetime of the main process. Nothing fetches at boot. */
 export const modSourceReader = new ModSourceReader()
+
+/** Fetches the current source settings for callers in main. */
+export async function readModSources(): Promise<ModSourceResult[]> {
+  const { modSources = [] } = await getSettings()
+  if (Array.isArray(modSources)) return modSourceReader.readAll(modSources)
+  const results = await modSourceReader.readAll([])
+  return [
+    ...results,
+    {
+      ok: false,
+      approvedList: false,
+      error: appError('MOD_SOURCE_SETTINGS', 'The stored mod sources are not a list of addresses.')
+    }
+  ]
+}
 
 function storedSources(value: unknown): string[] {
   if (value === undefined) return []

@@ -323,6 +323,21 @@ describe('library exports in install plans', () => {
     expect(error).toContain('uses-lib')
     expect(error).toContain('lib:greet')
   })
+
+  it('treats an out-of-range optional library as absent even when its exports differ', () => {
+    const value = input({
+      installed: { 'uses-lib': { version: '1.0.0', optional: { lib: '^1.0.0' }, hooks: ['lib:greet'] } },
+      request: { lib: { version: '2.0.0', source: url } },
+      sources: [{ url, source: sourceList(lib1, lib2) }]
+    })
+    const result = resolveInstall(value)
+
+    expect(result).toMatchObject({
+      ok: true,
+      install: [{ id: 'lib', release: { version: '2.0.0' } }],
+      optionalPresent: {}
+    })
+  })
 })
 
 describe('resolveRemoval', () => {
