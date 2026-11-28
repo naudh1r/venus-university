@@ -64,6 +64,12 @@ describe('redactUrl', () => {
     expect(redactUrl('not a url?token=hunter2')).toBe('not a url?token=REDACTED')
     expect(redactUrl('')).toBe('')
   })
+
+  it('blanks signatures and JWTs on release download URLs', () => {
+    const address = 'https://release-assets.githubusercontent.com/release?sig=secret&jwt=token&v=1'
+    const { searchParams } = new URL(redactUrl(address))
+    expect(Object.fromEntries(searchParams)).toEqual({ sig: 'REDACTED', jwt: 'REDACTED', v: '1' })
+  })
 })
 
 describe('writeAtomicJson', () => {

@@ -41,6 +41,8 @@ const SECRET_PARAMS = [
   'api_key',
   'apikey',
   'access_token',
+  'sig',
+  'jwt',
   'X-Amz-Signature',
   'X-Amz-Credential',
   'X-Amz-Security-Token'
