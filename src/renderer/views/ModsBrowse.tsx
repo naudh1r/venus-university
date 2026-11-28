@@ -183,34 +183,37 @@ export function ModsBrowse({
                   </p>
                 </div>
                 <div className="vu-mods-store-action">
-                  <motion.button
-                    id="mods-install"
-                    className={
-                      selected.installedVersion === release.version
-                        ? 'vu-btn vu-btn--quiet'
-                        : 'vu-btn vu-btn--primary vu-paper vu-btn--panel'
-                    }
-                    disabled={
-                      busy || removalPending(selected.id) ||
-                      !!release.incompatible ||
-                      selected.installedVersion === release.version
-                    }
-                    {...gestures(
-                      busy || removalPending(selected.id) ||
-                        !!release.incompatible ||
-                        selected.installedVersion === release.version,
-                      lift,
-                      press
-                    )}
-                    onClick={() =>
-                      release.main
-                        ? setAsking({ mod: selected, release })
-                        : void install(selected, release, false)
-                    }
-                  >
-                    {busy ? 'Installing…' : action(selected, release)}
-                  </motion.button>
-                  {removalAction(selected.id, selected.name, busy)}
+                  {/* One spot: the release installed, or one waiting to be removed, offers Uninstall in Install's place. */}
+                  {((selected.installedVersion === release.version || removalPending(selected.id)) &&
+                    removalAction(selected.id, selected.name, busy)) || (
+                      <motion.button
+                        id="mods-install"
+                        className={
+                          selected.installedVersion === release.version
+                            ? 'vu-btn vu-btn--quiet'
+                            : 'vu-btn vu-btn--primary vu-paper vu-btn--panel'
+                        }
+                        disabled={
+                          busy || removalPending(selected.id) ||
+                          !!release.incompatible ||
+                          selected.installedVersion === release.version
+                        }
+                        {...gestures(
+                          busy || removalPending(selected.id) ||
+                            !!release.incompatible ||
+                            selected.installedVersion === release.version,
+                          lift,
+                          press
+                        )}
+                        onClick={() =>
+                          release.main
+                            ? setAsking({ mod: selected, release })
+                            : void install(selected, release, false)
+                        }
+                      >
+                        {busy ? 'Installing…' : action(selected, release)}
+                      </motion.button>
+                  )}
                   {release.incompatible && <p className="vu-mods-about">{release.incompatible}</p>}
                   {notice && operationId === selected.id && (
                     <p className="vu-mods-about" role="status">
