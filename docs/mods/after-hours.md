@@ -11,14 +11,13 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
 - **After Hours** and its **Busy status** option are on by default in Mods.
 - Open Bunnyboard's **Chats** tab. Beside **Chats** stands your own card: your picture (or
   your initial), your name, and a dot with **Available** or **Busy**. Click it to switch.
-- While Busy, a chat you start this slot won't turn into a meet-up right now, whether they
-  ask or you do, even if you are answering an earlier invitation of theirs. Their text may agree,
-  but it opens no Yes/No footer and arms no hangout. Switch to **Available** to meet up now.
-- Chats they start this slot — their reach-outs and slot-change invitations — work as before,
-  including the Yes/No footer.
+- While Busy, nothing you text turns into a meet-up right now, whoever started the chat.
+  Switch to **Available** to arrange a meet-up by text.
+- Their reach-outs and slot-change invitations still arrive. An invitation still has its
+  **Yes** and **No** buttons, and **Yes** still works while you're Busy.
 - They are not told you are Busy, so they don't make a topic of it. Plans for another time
   still work normally.
-- Chats you start while Busy answer faster: there is no hangout check.
+- Texts you send while Busy get faster replies because there is no hangout check.
 - The status lasts until you switch it, and is kept with your save. A new semester
   starts **Available**.
 - Switching the mod or its option off hides the chip and lets people ask you out again.
@@ -105,6 +104,11 @@ A Busy status for Bunnyboard, and a night in your room after the evening to text
   usual morning lines follow, then the normal landing. The night itself is not summed up again.
 - Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
+
+## 0.7.12
+
+- Busy now applies to every text you send, whoever started the chat. You can still say
+  **Yes** to an invitation they send on their own.
 
 ## 0.7.11
 

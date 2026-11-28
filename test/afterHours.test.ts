@@ -1,17 +1,32 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { registerHooks } from '@vx/modkit/renderer'
 import { charKeyOf } from '@vx/modkit/shared'
 import { character } from './fixtures'
-import { asleepTonight, busyPromptApplies, idleAtHome, nightOwed, normalize, stagedUntil, stayOverOf } from '../src/shared/afterHours'
+import { asleepTonight, idleAtHome, nightOwed, normalize, stagedUntil, stayOverOf } from '../src/shared/afterHours'
+import '../src/renderer/mods/afterHours'
 
-describe('Busy restrictions on chats the reader starts', () => {
-  it('restricts his chat while Busy and leaves her chat unchanged', () => {
-    expect(busyPromptApplies(true, 'reader')).toBe(true)
-    expect(busyPromptApplies(true, 'her')).toBe(false)
-  })
+const busyStatus = vi.hoisted(() => ({ enabled: true, busy: false }))
+vi.mock('@vx/modkit/renderer', () => ({
+  fadeIn: () => ({}),
+  modOptionOn: () => busyStatus.enabled,
+  registerHooks: vi.fn(),
+  saveField: () => ({ read: () => ({ busy: busyStatus.busy }) })
+}))
 
-  it('leaves either opener unrestricted while Online', () => {
-    expect(busyPromptApplies(false, 'reader')).toBe(false)
-    expect(busyPromptApplies(false, 'her')).toBe(false)
+describe('Busy restrictions on outgoing texts', () => {
+  it.each(['reader', 'her'] as const)('reads the current status in a chat started by %s', startedBy => {
+    const hooks = vi.mocked(registerHooks).mock.calls[0]?.[1]
+    const ctx = { charId: 'contact', startedBy }
+
+    busyStatus.enabled = true
+    busyStatus.busy = false
+    expect(hooks?.hangoutCheck?.(ctx)).toBe(true)
+
+    busyStatus.busy = true
+    expect(hooks?.hangoutCheck?.(ctx)).toBe(false)
+
+    busyStatus.enabled = false
+    expect(hooks?.hangoutCheck?.(ctx)).toBe(true)
   })
 })
 
