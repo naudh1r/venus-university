@@ -29,7 +29,7 @@ import {
   type SlotSettled
 } from '@vx/modkit/renderer'
 import {
-  AFTER_HOURS_MOD, asleepTonight, awayTextPrompt, busyPrompt, busyPromptApplies, busyTextPrompt, idleAtHome, morningReturnPrompt,
+  AFTER_HOURS_MOD, asleepTonight, awayTextPrompt, busyPrompt, busyPromptApplies, busyTextPrompt, heldReplyWhen, idleAtHome, morningReturnPrompt,
   nightOwed, nightPrompt, normalize, sleepingTextPrompt, stagedUntil, stayOverLedgerInstruction, stayOverOf, stayOverPrompt,
   type AfterHours
 } from '../../shared/afterHours'
@@ -350,6 +350,7 @@ registerHooks(AFTER_HOURS_MOD, {
           // A reply written after a class they share is told so by the game itself.
           ...(state.heldUntil && state.commitment && !state.sharedClass ? [busyTextPrompt(character, state.commitment, state.readerPronouns)] : []),
           ...(!state.asleep && state.away === undefined && heldNight() ? [nightPrompt(character)] : []),
+          ...(state.heldUntil && !state.sharedClass ? [heldReplyWhen(character, state.asleep === true, state.heldUntil)] : []),
           ...(busy ? [busyPrompt(character)] : [])
         ]
       }
