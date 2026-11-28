@@ -1093,7 +1093,7 @@ options: [
 optionGroups: [{ id: 'loader', label: 'Loading animation', hint: 'The animation shown while…' }]
 ```
 
-## Install source preparation
+## Install sources and pending changes
 
 Core's host shared entry exports `parseSource(json)` for schema-1 `vxsource.json` lists,
 `resolveInstall(input)` and `resolveRemoval(id, installed, builtIn?)`. These are host APIs,
@@ -1121,6 +1121,14 @@ a deadline. Repo answers are cached for the session; custom approval blocks are 
 Custom addresses are kept in main-written `Settings.modSources`; ordinary settings patches
 preserve this field. `readModSources()` returns the approved result followed by each custom
 source's listing or refusal in settings order.
+
+Main recomputes install plans from the current source and dependency snapshots before it
+downloads anything. Release archives must match the listed manifest and any pinned hash.
+Verified copies are unpacked under the mods directory and activated through `pending.json`
+on restart. Removals and rollbacks also go through that journal. Startup replays it before
+the loader even on safe starts. Older copies are kept through the first successful normal
+mod boot, then scheduled for cleanup on the following start. The approved list can withdraw
+a release and clear its recorded approval while leaving its installed files in place.
 
 ## Where the code is
 

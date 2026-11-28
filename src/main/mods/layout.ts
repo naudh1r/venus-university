@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync, type Dirent } from 'fs'
+import { lstatSync, readdirSync, readFileSync, statSync, type Dirent } from 'fs'
 import { join, resolve } from 'path'
 import { compareVersions, parseVersion, type Version } from '../../../packages/modkit/src/shared/range'
 
@@ -17,10 +17,13 @@ import { compareVersions, parseVersion, type Version } from '../../../packages/m
 const MOD_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
 /** The file in an id folder that names the version in use. */
-const CURRENT_FILE = 'current'
+export const CURRENT_FILE = 'current'
+
+/** A release unpacked by the installer and waiting for activation. */
+export const INACTIVE_RELEASE = '.vx-inactive'
 
 /** The installer's record, beside the id folders. */
-const INSTALLED_FILE = 'installed.json'
+export const INSTALLED_FILE = 'installed.json'
 
 /** One install as the installer recorded it. */
 export interface InstallRecord {
@@ -105,14 +108,21 @@ function highest(versions: readonly string[]): string {
  * Picks the version folder of one mod: the one `current` names, else the only one, else the
  * highest. Subdirectories that are not versions are noted and ignored, as are files.
  */
-function pickVersion(id: string, idFolder: string): ModFolder {
+function pickVersion(id: string, idFolder: string): ModFolder | null {
   const entries = listFolder(idFolder)
   const notes: string[] = []
   const versions: string[] = []
+  let staging = false
   for (const entry of entries) {
     if (!isDirectory(idFolder, entry)) continue
-    if (parseVersion(entry.name)) versions.push(entry.name)
-    else notes.push(`${id}: ignored folder "${entry.name}"`)
+    if (parseVersion(entry.name)) {
+      const inactive = lstatSync(join(idFolder, entry.name, INACTIVE_RELEASE), { throwIfNoEntry: false })
+      if (inactive) staging = true
+      else versions.push(entry.name)
+    } else {
+      if (entry.name.endsWith('.partial') && parseVersion(entry.name.slice(0, -8))) staging = true
+      notes.push(`${id}: ignored folder "${entry.name}"`)
+    }
   }
 
   const picked = (version: string): ModFolder => ({ id, version, folder: join(idFolder, version), problem: null, notes })
@@ -122,7 +132,7 @@ function pickVersion(id: string, idFolder: string): ModFolder {
   if (current !== null) {
     return versions.includes(current) ? picked(current) : unpicked(`current names ${current}, which is not there`)
   }
-  if (versions.length === 0) return unpicked('no version folder')
+  if (versions.length === 0) return staging ? null : unpicked('no version folder')
   if (versions.length === 1) return picked(versions[0])
   const version = highest(versions)
   notes.push(`${id}: several versions and no "current"; using ${version}`)
@@ -135,6 +145,10 @@ export function readInstalled(modsDir: string): InstalledRecords {
   const notes: string[] = []
   let mods: Record<string, Record<string, { approved?: unknown } | undefined> | undefined> = {}
   try {
+    if (!lstatSync(path).isFile()) {
+      notes.push(`${INSTALLED_FILE} is not a plain file; no install counts as approved`)
+      return { approved: () => false, notes }
+    }
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as { mods?: unknown } | null
     if (parsed && typeof parsed === 'object' && parsed.mods && typeof parsed.mods === 'object') mods = parsed.mods as typeof mods
     else notes.push(`${INSTALLED_FILE} has no "mods"; no install counts as approved`)
@@ -143,7 +157,7 @@ export function readInstalled(modsDir: string): InstalledRecords {
       notes.push(`${INSTALLED_FILE} cannot be read: ${(error as Error).message}; no install counts as approved`)
     }
   }
-  return { approved: (id, version) => mods[id]?.[version]?.approved === true, notes }
+  return { approved: (id, version) => Object.hasOwn(mods, id) && mods[id]?.[version]?.approved === true, notes }
 }
 
 /** Lists the mods installed under `modsDir`, one entry per id folder, sorted by id. A missing `modsDir` is no mods. */
@@ -157,7 +171,8 @@ export function findInstalledMods(modsDir: string): InstalledMods {
       notes.push(`skipped "${entry.name}": not a mod id`)
       continue
     }
-    mods.push(pickVersion(entry.name, join(root, entry.name)))
+    const picked = pickVersion(entry.name, join(root, entry.name))
+    if (picked) mods.push(picked)
   }
   return { mods, notes }
 }

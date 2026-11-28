@@ -2,7 +2,7 @@ import { createHash, type Hash } from 'crypto'
 import { createReadStream, createWriteStream } from 'fs'
 import { mkdir, rename, rm, stat } from 'fs/promises'
 import { dirname } from 'path'
-import { Readable } from 'stream'
+import { Readable, Transform } from 'stream'
 import { pipeline } from 'stream/promises'
 import { appError, messageOf } from '@shared/errors'
 
@@ -21,11 +21,16 @@ export interface DownloadOptions {
   destPath: string
   /** Rejects the download if the finished size differs; unset where the size is unknown. */
   expectedBytes?: number
+  /** Cuts off the stream as soon as it exceeds this many bytes. */
+  maxBytes?: number
   /** Case-insensitive hex SHA256, verified from the same pass as the write; unset where there is none. */
   expectedSha256?: string
   headers?: Record<string, string>
   onProgress?: (progress: DownloadProgress) => void
   signal?: AbortSignal
+  fetch?: typeof fetch
+  /** Validates every redirect before following it. */
+  httpsOnlyRedirects?: boolean
 }
 
 export interface DownloadOutcome {
@@ -63,15 +68,31 @@ export function redactUrl(url: string): string {
 }
 
 /** Refuses any address that is not https, an unparseable one included. */
-function assertHttps(url: string): void {
-  let protocol: string | undefined
+function assertHttps(url: string, original = url): void {
+  let parsed: URL | undefined
   try {
-    protocol = new URL(url).protocol
+    parsed = new URL(url)
   } catch {
-    protocol = undefined
+    parsed = undefined
   }
-  if (protocol !== 'https:') {
-    throw appError('DOWNLOAD_SCHEME', 'That download address is not https.', redactUrl(url))
+  if (parsed?.protocol !== 'https:' || parsed.username || parsed.password) {
+    throw appError('DOWNLOAD_SCHEME', 'That download address is not a credential-free HTTPS URL.', redactUrl(original))
+  }
+}
+
+async function openDownload(options: DownloadOptions): Promise<Response> {
+  const { url, headers, signal, httpsOnlyRedirects, fetch: fetcher = fetch } = options
+  if (!httpsOnlyRedirects) return fetcher(url, { headers, signal, redirect: 'follow' })
+  let address = url
+  for (let hops = 0; ; hops++) {
+    assertHttps(address, url)
+    const response = await fetcher(address, { headers, signal, redirect: 'manual' })
+    if (response.url) assertHttps(response.url, url)
+    if (![301, 302, 303, 307, 308].includes(response.status)) return response
+    void response.body?.cancel().catch(() => {})
+    const location = response.headers.get('location')
+    if (!location || hops >= 5) throw appError('DOWNLOAD_REDIRECT', 'The download redirect could not be followed.', redactUrl(url))
+    address = new URL(location, address).href
   }
 }
 
@@ -109,7 +130,7 @@ function progressListener(
  * the write to avoid a second multi-GB pass, and checks the size and hash the caller named.
  */
 export async function downloadFile(options: DownloadOptions): Promise<DownloadOutcome> {
-  const { url, destPath, expectedBytes, expectedSha256, headers, onProgress, signal } = options
+  const { url, destPath, expectedBytes, expectedSha256, maxBytes, onProgress, signal } = options
   const partialPath = `${destPath}.partial`
   const safeUrl = redactUrl(url)
 
@@ -121,15 +142,18 @@ export async function downloadFile(options: DownloadOptions): Promise<DownloadOu
 
   let response: Response
   try {
-    response = await fetch(url, { headers, signal, redirect: 'follow' })
+    response = await openDownload(options)
   } catch (err) {
-    throw appError('DOWNLOAD_NETWORK', `Could not reach ${safeUrl}.`, messageOf(err))
+    if (err && typeof err === 'object' && 'code' in err &&
+        (err.code === 'DOWNLOAD_SCHEME' || err.code === 'DOWNLOAD_REDIRECT')) throw err
+    throw appError('DOWNLOAD_NETWORK', `Could not reach ${safeUrl}.`, options.httpsOnlyRedirects ? undefined : messageOf(err))
   }
 
   // The fetch follows redirects, so the address the bytes actually come from is checked too.
-  assertHttps(response.url)
+  if (response.url || !options.httpsOnlyRedirects) assertHttps(response.url, url)
 
   if (!response.ok) {
+    void response.body?.cancel().catch(() => {})
     // 4xx other than 408/429 is a wrong request, not the network.
     const permanent =
       response.status >= 400 &&
@@ -143,7 +167,8 @@ export async function downloadFile(options: DownloadOptions): Promise<DownloadOu
         : permanent
           ? 'DOWNLOAD_HTTP_PERMANENT'
           : 'DOWNLOAD_HTTP',
-      `Download failed with HTTP ${response.status} ${response.statusText}.`,
+      options.httpsOnlyRedirects ? `Download failed with HTTP ${response.status}.`
+        : `Download failed with HTTP ${response.status} ${response.statusText}.`,
       safeUrl
     )
   }
@@ -153,19 +178,35 @@ export async function downloadFile(options: DownloadOptions): Promise<DownloadOu
 
   const lengthHeader = response.headers.get('content-length')
   const bytesTotal = lengthHeader ? Number(lengthHeader) : expectedBytes
+  const tooLarge = () => appError('DOWNLOAD_SIZE_LIMIT', 'The download exceeds its size limit.', safeUrl)
+  if (maxBytes !== undefined && Number(lengthHeader) > maxBytes) {
+    void response.body.cancel().catch(() => {})
+    throw tooLarge()
+  }
   const hash = createHash('sha256')
 
   const source = Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0])
-  source.on('data', progressListener(hash, bytesTotal, onProgress).listener)
+  const progress = progressListener(hash, bytesTotal, onProgress)
+  const measured = new Transform({
+    transform(chunk: Buffer, _encoding, done) {
+      if (maxBytes !== undefined && progress.bytesDone() + chunk.length > maxBytes) {
+        done(Object.assign(new Error('Download exceeded size limit'), { code: 'DOWNLOAD_SIZE_LIMIT' }))
+        return
+      }
+      progress.listener(chunk)
+      done(null, chunk)
+    }
+  })
 
   try {
-    await pipeline(source, createWriteStream(partialPath), { signal })
+    await pipeline(source, measured, createWriteStream(partialPath), { signal })
   } catch (err) {
     await rm(partialPath, { force: true })
+    if (err && typeof err === 'object' && 'code' in err && err.code === 'DOWNLOAD_SIZE_LIMIT') throw tooLarge()
     throw appError(
       signal?.aborted ? 'DOWNLOAD_ABORTED' : 'DOWNLOAD_STREAM',
       signal?.aborted ? 'Download was cancelled.' : 'The download was interrupted.',
-      messageOf(err)
+      options.httpsOnlyRedirects ? safeUrl : messageOf(err)
     )
   }
 

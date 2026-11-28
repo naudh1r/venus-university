@@ -189,6 +189,13 @@ export function buildApi(): VenusUniversityApi {
       removeDevFolder: () => Promise.resolve({ ok: true, data: undefined }),
       devFolders: () => Promise.resolve({ ok: true, data: [] }),
       onDevChanged: () => () => {},
+      sources: () => desktopOnly('mods.sources'),
+      plan: () => desktopOnly('mods.plan'),
+      install: () => desktopOnly('mods.install'),
+      remove: () => desktopOnly('mods.remove'),
+      undoPending: () => desktopOnly('mods.undoPending'),
+      onInstallProgress: () => () => {},
+      booted: () => desktopOnly('mods.booted'),
       restart: () => Promise.resolve({ ok: true, data: undefined })
     },
     app: {

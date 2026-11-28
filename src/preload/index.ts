@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { ModInstallProgress } from '@shared/modInstall'
 import type { VenusUniversityApi } from './api'
 
 /**
@@ -40,6 +41,17 @@ const api: VenusUniversityApi = {
       ipcRenderer.on('mods:devChanged', wrapped)
       return () => ipcRenderer.removeListener('mods:devChanged', wrapped)
     },
+    sources: () => ipcRenderer.invoke('mods:sources'),
+    plan: (request) => ipcRenderer.invoke('mods:plan', request),
+    install: (plan) => ipcRenderer.invoke('mods:install', plan),
+    remove: (id, orphaned) => ipcRenderer.invoke('mods:remove', id, orphaned),
+    undoPending: (id) => ipcRenderer.invoke('mods:undoPending', id),
+    onInstallProgress: (listener) => {
+      const wrapped = (_event: unknown, progress: ModInstallProgress): void => listener(progress)
+      ipcRenderer.on('mods:installProgress', wrapped)
+      return () => ipcRenderer.removeListener('mods:installProgress', wrapped)
+    },
+    booted: () => ipcRenderer.invoke('mods:booted'),
     restart: () => ipcRenderer.invoke('mods:restart')
   },
   app: {

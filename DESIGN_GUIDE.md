@@ -99,7 +99,7 @@ src/main                 Electron main: on the desktop, the only process that to
                          calls a network
   services/              the ComfyUI install, saves, characters, settings, assets — the disk edge of the rules
                          in src/shared
-  mods/                  the installed-mod loader, developer folders and source fetching
+  mods/                  the installed-mod loader, developer folders, sources and staged installs
   updateHelper.ts        the second main entry: the file swap an update runs after the app has quit
 src/preload              api.d.ts is the one authoring site of the bridge; index.ts exposes it
 src/renderer

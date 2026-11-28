@@ -3,12 +3,11 @@ import { createReadStream } from 'fs'
 import { fileURLToPath } from 'url'
 import { appError, toAppError } from '@shared/errors'
 import { APPROVED_MOD_SOURCE } from '@shared/modSource'
-import type { Result } from '@shared/types'
+import type { FetchedModSource, ModSourceResult } from '@shared/modInstall'
 import {
   parseManifest,
   parseSource,
   type Manifest,
-  type ModSource,
   type SourceMod,
   type SourceRelease
 } from '@vx/modkit/host/shared'
@@ -17,21 +16,6 @@ import { getSettings, patchStoredSettings } from '../services/settingsService'
 
 export const MOD_SOURCE_MAX_BYTES = 2 * 1024 * 1024
 export const MOD_SOURCE_TIMEOUT_MS = 30_000
-
-export interface FetchedModSource {
-  readonly url: string
-  readonly kind: 'list' | 'repo'
-  /** Source identity only; a release still needs its own approval and pinned hash. */
-  readonly approvedList: boolean
-  readonly source: ModSource
-}
-
-export type ModSourceResult =
-  | Extract<Result<FetchedModSource>, { ok: true }>
-  | (Extract<Result<FetchedModSource>, { ok: false }> & {
-      readonly url?: string
-      readonly approvedList: boolean
-    })
 
 function fail(code: string, message: string): never {
   throw appError(code, message)

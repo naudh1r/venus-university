@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { readFileSync } from 'fs'
 import { basename, resolve } from 'path'
 import { toAppError } from '@shared/errors'
+import type { PendingModChanges } from '@shared/modInstall'
 import type { ModSessionTable, ModStatus, SafeStart } from '@shared/modSession'
 import { BUILD, MODS, setInstalledMods, type ModSwitches } from '@shared/mods'
 import type { Settings } from '@shared/types'
@@ -14,11 +15,13 @@ import { loadMods, type LoaderResult } from './loader'
 import { handleModProtocol } from './protocol'
 import type { MainContext } from './require'
 import { ModInvocations } from './invoke'
+import { ModInstaller } from './installer'
+import { applyPending } from './pending'
+import { readModSources } from './sources'
 
 /**
  * The one mod session of this run: the loader's result, held for the protocol, the bridge and
- * the Mods screen. Started at the top of `main/index.ts`, before the schemes are registered;
- * everything it does before `ready` is synchronous.
+ * the Mods screen. Started before the window opens and after pending changes are applied.
  */
 
 let result: LoaderResult | null = null
@@ -28,7 +31,20 @@ const invocations = new ModInvocations()
  * The ids of the mods built into this copy of the game, read before the loader adds an installed one
  * to the list: what it refuses a second copy of.
  */
-const BUILT_IN_IDS: readonly string[] = MODS.map((mod) => mod.id)
+const BUILT_IN = [...MODS]
+const BUILT_IN_IDS: readonly string[] = BUILT_IN.map((mod) => mod.id)
+const installer = new ModInstaller({
+  root: getModsDirPath,
+  builtIn: () => Object.fromEntries(BUILT_IN.map((mod) => [
+    mod.id, { ...mod, requires: Object.fromEntries((mod.requires ?? []).map((id) => [id, '*'])) }
+  ])),
+  dev: () => Object.fromEntries(modSession().mods.flatMap((row) =>
+    row.dev && row.manifest ? [[row.id, row.manifest]] : [])),
+  allowUnreviewedMain: () => loaderSettings().allowUnreviewedMain,
+  readSources: readModSources
+})
+let bootConfirmed = false
+let pendingReplayFailed = false
 
 /**
  * Holds a loader run as the session's, and makes the installed part of `MODS` what its table carries,
@@ -47,9 +63,8 @@ function hold(next: LoaderResult): void {
 let hostNames: Readonly<Record<string, readonly string[]>> | null = null
 
 /**
- * The two loader fields of `settings.json`, read without the settings service: the loader runs
- * before `ready`, synchronously, and a settings file that will not read is the renderer's to
- * report. Either field missing or malformed reads as its default.
+ * The two loader fields of `settings.json`, read without the settings service.
+ * Either field missing or malformed reads as its default.
  */
 function loaderSettings(): { devFolders: string[]; allowUnreviewedMain: boolean } {
   try {
@@ -63,27 +78,37 @@ function loaderSettings(): { devFolders: string[]; allowUnreviewedMain: boolean 
 
 /** `--no-mods` on the command line: the game starts as core, with the installed mods listed but not run. */
 function safeStartOf(): SafeStart {
-  return app.commandLine.hasSwitch('no-mods') ? 'flag' : null
+  return pendingReplayFailed || app.commandLine.hasSwitch('no-mods') ? 'flag' : null
 }
 
-/** Runs the loader. Called once, before the schemes are registered. */
-export function startModSession(): void {
+function holdStartupStatus(next: LoaderResult): void {
+  if (pendingReplayFailed) next.table.loaderError ??= 'Pending mod changes could not be applied.'
+  hold(next)
+}
+
+/** Replays installer changes before loading mods, even on a safe start. */
+export async function startModSession(): Promise<void> {
+  bootConfirmed = false
+  pendingReplayFailed = !await applyPending(getModsDirPath())
   const { devFolders, allowUnreviewedMain } = loaderSettings()
-  hold(
-    loadMods({
-      modsDir: getModsDirPath(),
-      devFolders,
-      allowUnreviewedMain,
-      builtIn: BUILT_IN_IDS,
-      coreVersion: BUILD.version,
-      gameVersion: app.getVersion(),
-      safeStart: safeStartOf(),
-      log: (line) => console.log(line),
-      warn: (line) => console.warn(line)
-    })
-  )
+  holdStartupStatus(loadMods({
+    modsDir: getModsDirPath(),
+    devFolders,
+    allowUnreviewedMain,
+    builtIn: BUILT_IN_IDS,
+    coreVersion: BUILD.version,
+    gameVersion: app.getVersion(),
+    safeStart: safeStartOf(),
+    log: (line) => console.log(line),
+    warn: (line) => console.warn(line)
+  }))
   bindModSession(modSession)
   void recordKnownMods()
+}
+
+/** Queues an older version for the next start. The Mods screen supplies the choice. */
+export function rollbackMod(id: string, version: string): Promise<PendingModChanges> {
+  return installer.rollback(id, version)
 }
 
 /**
@@ -136,7 +161,7 @@ export function rerunModChecks(): void {
   })
   // The routes a `main.js` registered at start stand for the session.
   const invokes = new Map([...next.invokes].map(([id, handlers]) => [id, before?.invokes.get(id) ?? handlers]))
-  hold(before ? { ...next, routes: before.routes, invokes } : next)
+  holdStartupStatus(before ? { ...next, routes: before.routes, invokes } : next)
 }
 
 /** Dispatches the start/result handshake; main makes the request id before the window can cancel it. */
@@ -231,7 +256,22 @@ export function registerModIpc(handle: Handle): void {
   })
   handle('mods:removeDevFolder', (_event, folder: string) => removeDevFolder(folder))
   handle('mods:devFolders', () => devFolders())
-  handle('mods:restart', () => {
+  handle('mods:sources', () => installer.sources())
+  handle('mods:plan', (_event, request: unknown) => installer.plan(request))
+  handle('mods:install', (event, plan: unknown) =>
+    installer.install(plan, (progress) => {
+      if (!event.sender.isDestroyed()) event.sender.send('mods:installProgress', progress)
+    })
+  )
+  handle('mods:remove', (_event, id: unknown, orphaned: unknown) => installer.remove(id, orphaned))
+  handle('mods:undoPending', (_event, id: unknown) => installer.undo(id))
+  handle('mods:booted', async () => {
+    if (bootConfirmed) return
+    await installer.booted(modSession())
+    bootConfirmed = true
+  })
+  handle('mods:restart', async () => {
+    await installer.idle()
     app.relaunch()
     app.exit(0)
   })

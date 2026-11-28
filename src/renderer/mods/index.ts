@@ -100,6 +100,8 @@ export async function loadInstalledMods(isOn: (id: string) => boolean): Promise<
       if (mod.style && useModSessionStore.getState().running(id)) addStyle(id, mod.style)
     }
     followSwitches(isOn)
+    const booted = await window.api.mods.booted()
+    if (!booted.ok) console.warn('[mods] old release cleanup was not scheduled:', booted.error.message)
   }
 
   useModSessionStore.getState().noticeAtStart(useSettingsStore.getState().settings?.modNoticesSeen ?? {})

@@ -12,13 +12,14 @@ import { FIXTURES, installFixture, recordInstall } from './mods/fixtureMods'
  * from disk says so; off whatever its switch while its `main.js` failed. Only Electron is a stub.
  */
 let root = ''
+let noMods = false
 vi.mock('electron', () => ({
   app: {
     isPackaged: false,
     getAppPath: () => root,
     getPath: () => root,
     getVersion: () => '0.6.0',
-    commandLine: { hasSwitch: () => false }
+    commandLine: { hasSwitch: (name: string) => name === 'no-mods' && noMods }
   },
   BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { on: () => {}, handle: () => {} },
@@ -45,12 +46,13 @@ async function installBroken(data: string): Promise<void> {
 
 describe('shared rules in main', () => {
   beforeEach(async () => {
+    noMods = false
     root = await mkdtemp(join(tmpdir(), 'vu-mods-'))
     const data = join(root, 'data')
     installFixture(data, 'hello-mod')
     await installBroken(data)
     await setModSwitches({ on: {}, options: {} })
-    startModSession()
+    await startModSession()
     // Startup records known mods in the background. Let that write finish before a test
     // changes the switches or teardown removes its directory (and the next test changes root).
     await vi.waitFor(() => {
@@ -60,6 +62,17 @@ describe('shared rules in main', () => {
   })
   afterEach(async () => {
     await rm(root, { recursive: true, force: true })
+  })
+
+  it('applies pending removal before loading with --no-mods', async () => {
+    const folder = join(root, 'data', 'mods')
+    await writeFile(join(folder, 'pending.json'), JSON.stringify({ pending: 1, current: {}, remove: ['broken'] }))
+    noMods = true
+    await startModSession()
+    expect(modSession().safeStart).toBe('flag')
+    expect(modSession().mods.map((row) => row.id)).not.toContain('broken')
+    const records = JSON.parse(readFileSync(join(folder, 'installed.json'), 'utf8'))
+    expect(records.mods).not.toHaveProperty('broken')
   })
 
   it('list the installed mods, and answer for a loaded one from the switches main last read or wrote', async () => {

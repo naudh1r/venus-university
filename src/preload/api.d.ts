@@ -8,6 +8,7 @@ import type {
 } from '@shared/customBackgrounds'
 import type { PromptEdit } from '@shared/imagePrompt'
 import type { ModSwitches } from '@shared/mods'
+import type { ModInstallPlan, ModInstallProgress, ModPlan, ModPlanRequest, ModSourceResult, PendingModChanges } from '@shared/modInstall'
 import type { ModSessionTable, ModStatus } from '@shared/modSession'
 import type { LorebookRecord, WorldInfoFile, WorldInfoImport } from '@shared/lorebookRecord'
 import type { OccasionsFile, OccasionsImport } from '@shared/occasionsFile'
@@ -143,6 +144,14 @@ export interface VenusUniversityApi {
     devFolders: () => Promise<Result<string[]>>
     /** A developer folder changed on disk: its `renderer.js` or assets (a reload shows it), or its `main.js` (a restart does). */
     onDevChanged: (listener: (change: { id: string; kind: 'renderer' | 'main' }) => void) => () => void
+    sources: () => Promise<Result<ModSourceResult[]>>
+    plan: (request: ModPlanRequest) => Promise<Result<ModPlan>>
+    install: (plan: ModInstallPlan) => Promise<Result<PendingModChanges>>
+    remove: (id: string, orphaned?: readonly string[]) => Promise<Result<PendingModChanges>>
+    undoPending: (id: string) => Promise<Result<PendingModChanges>>
+    onInstallProgress: (listener: (progress: ModInstallProgress) => void) => () => void
+    /** Confirms the normal renderer mod boot completed so main can schedule old-release cleanup. */
+    booted: () => Promise<Result<void>>
     /** Starts the app again, for a `main.js` that changed. */
     restart: () => Promise<Result<void>>
   }
