@@ -18,7 +18,6 @@ Enable **After Hours** in Mods to play. Its options are on by default.
   **Yes** and **No** buttons, and **Yes** still works while you're Busy.
 - They are not told you are Busy, so they don't make a topic of it. Plans for another time
   still work normally.
-- Texts you send while Busy get faster replies because there is no hangout check.
 - The status lasts until you switch it, and is kept with your save. A new semester
   starts **Available**.
 - Switching the mod or its option off hides the chip and lets people ask you out again.
@@ -110,6 +109,8 @@ Enable **After Hours** in Mods to play. Its options are on by default.
 
 - Busy now applies to every text you send, whoever started the chat. You can still say
   **Yes** to an invitation they send on their own.
+- Yes on a meet-up is put together from a few words, with more variety, and never says who goes
+  where. It is never the same as your last Yes in that chat.
 
 ## 0.7.11
 

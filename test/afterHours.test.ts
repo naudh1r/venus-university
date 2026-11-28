@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { registerHooks } from '@vx/modkit/renderer'
 import { charKeyOf } from '@vx/modkit/shared'
 import { character } from './fixtures'
-import { asleepTonight, idleAtHome, nightOwed, normalize, stagedUntil, stayOverOf } from '../src/shared/afterHours'
+import { asleepTonight, composeYes, idleAtHome, nightOwed, normalize, stagedUntil, stayOverOf } from '../src/shared/afterHours'
 import '../src/renderer/mods/afterHours'
 
 const busyStatus = vi.hoisted(() => ({ enabled: true, busy: false }))
@@ -174,5 +174,31 @@ describe('weekend availability at home', () => {
   it('rolls close to forty percent idle', () => {
     const slots = Array.from({ length: 5000 }, (_, slot) => slot)
     expect(slots.filter(roll).length / slots.length).toBeCloseTo(0.4, 1)
+  })
+})
+
+describe('the reader\'s composed Yes', () => {
+  const parts = { reactions: ['sure,', 'yes!', 'okay,'], followUps: ["let's do it", 'count me in', "i'm in"] }
+  const seq = (values: number[]) => { let i = 0; return () => values[i++ % values.length] }
+
+  it('joins a calm reaction with a comma and an excited one with a space', () => {
+    expect(composeYes(parts, seq([0.9, 0, 0]))).toBe("sure, let's do it")
+    expect(composeYes(parts, seq([0.9, 0.4, 0]))).toBe("yes! let's do it")
+  })
+
+  it('never doubles an agreement', () => {
+    for (let n = 0; n < 200; n++) {
+      const line = composeYes(parts, seq([0.9, 0.8, (n % 10) / 10]))
+      expect(line).not.toMatch(/^okay, (count me in|i'm in)$/)
+    }
+  })
+
+  it('stands one part alone without its comma', () => {
+    expect(composeYes(parts, seq([0.1, 0.2, 0]))).toBe('sure')
+    expect(composeYes(parts, seq([0.1, 0.7, 0.4]))).toBe('count me in')
+  })
+
+  it('never repeats the previous Yes', () => {
+    expect(composeYes(parts, seq([0.9, 0, 0, 0.9, 0.4, 0]), "sure, let's do it")).toBe("yes! let's do it")
   })
 })
