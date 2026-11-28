@@ -129,7 +129,8 @@ This is install plan §11 step 2. It depends on #363 and should be reviewed afte
 
 Main resolves installs and updates, checks compatibility and source trust, verifies the zip's
 size, hash and manifest, then writes the install records and stages activation for restart
-(§2 and §6). Under §3 and decision 5, startup replays `pending.json` before loading mods.
+(§2 and §6). Under §3 and decision 5, startup replays `pending.json` synchronously before
+loading mods. The session is built before Electron is ready.
 Old versions are kept until the new version has loaded, with a main-side rollback path.
 Required mods cannot be removed and orphaned libraries can be included (§4). Under decision 6,
 an approved-list withdrawal clears recorded approval and keeps the files.
@@ -137,3 +138,40 @@ an approved-list withdrawal clears recorded approval and keeps the files.
 Desktop IPC exposes source results, planning, installs, removal, undo and per-release progress.
 Install, update, cleanup and removal passed in the built Electron app. The Mods screen
 belongs to step 3.
+
+## Fix: synchronous start
+
+Commit `959163f5`, **core: apply pending mod changes before ready, synchronously**,
+is a direct child of `6b350828`. It uses the requested author and has no co-author
+trailer. A signing key was unavailable.
+
+`startModSession()` runs just after `installConsoleLog()`, before scheme registration and
+`app.whenReady()`. It replays pending changes synchronously, then loads the manifests and
+requires each installed mod's `main.js`. The preload sees the completed session table.
+Startup writes the current pointers and installed records through same-directory temporary
+files and atomic renames, with the existing rename retry schedule. Replay keeps the same
+path and journal checks, removes the journal last, and still runs on safe starts. The new
+regression verifies that a failed replay reports the loader error immediately, leaves the
+journal available for retry, and skips installed main code.
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed for Node, web and test. |
+| Kit `npm run report:check` | Passed. The API report is current. |
+| Focused transaction, layout, loader, developer reload and startup tests | 58 passed across 5 files. |
+| `npm run build` | Passed. |
+| `npm run build:web` | Passed. |
+| `git diff --check` | Passed. |
+| Full `npm test` | 2,960 passed, 4 skipped and 1 failed across 225 files. 221 files passed, 3 skipped and 1 failed. |
+
+The sole failure was the known Linux ComfyUI output-path case at
+`test/mainServices.test.ts:188`.
+
+Re-ran the Electron IPC flow with
+`node /tmp/venus-step2-local/electron-install-sync.mjs` under Xvfb on display `:94`.
+The script used fresh temporary data, the approved-list override and the loopback HTTPS fixtures.
+Installation loaded `hello-mod` 1.0.0 and its library after relaunch. Updating loaded 1.1.0
+and kept 1.0.0 until the following launch. Removal took effect on relaunch and preserved the
+sentinel under `mod-data/hello-mod`. The fixture captured both `app.isReady()` and the
+window count at the top of `main.js`. The smoke test checked `false` and zero windows on
+both the initial install and update launches.
