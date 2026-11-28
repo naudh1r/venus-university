@@ -1845,5 +1845,6 @@ ordinary openings provide a snapshot with `weekend` and `homeContacts`: known co
 their own rooms with no shift or plan with the reader. An idle reply is written immediately.
 Daytime replies arrive at the next landing. Replies to late-night texts arrive in the morning.
 The DM prompt state exposes `heldUntil`, `commitment`, `sharedClass`, `away` or `asleep` as
-appropriate. The slot that asked can claim an idle reply already written. Earlier questions
-quoted for context do not count again.
+appropriate. The slot that asked claims any held reply already written, busy or idle; a reply
+due after a shared class is judged by its own slot. Earlier questions quoted for context do not
+count again.
