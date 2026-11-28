@@ -240,6 +240,8 @@ describe('the loader on the folders', () => {
   })
 
   it('ignores export differences in an out-of-range optional library', () => {
+    installFixture(root, 'lib')
+    installFixture(root, 'uses-lib')
     const file = join(root, 'mods', 'uses-lib', '1.0.0', 'vxmod.json')
     const { requires: _requires, ...manifest } = JSON.parse(readFileSync(file, 'utf8'))
     writeFileSync(file, JSON.stringify({ ...manifest, optional: { lib: '^2.0.0' } }))
