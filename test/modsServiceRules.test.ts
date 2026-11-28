@@ -52,7 +52,7 @@ describe('shared rules in main', () => {
     installFixture(data, 'hello-mod')
     await installBroken(data)
     await setModSwitches({ on: {}, options: {} })
-    await startModSession()
+    startModSession()
     // Startup records known mods in the background. Let that write finish before a test
     // changes the switches or teardown removes its directory (and the next test changes root).
     await vi.waitFor(() => {
@@ -70,7 +70,7 @@ describe('shared rules in main', () => {
     await rm(known)
     await writeFile(join(folder, 'pending.json'), JSON.stringify({ pending: 1, current: {}, remove: ['broken'] }))
     noMods = true
-    await startModSession()
+    startModSession()
     expect(modSession().safeStart).toBe('flag')
     expect(modSession().mods.map((row) => row.id)).not.toContain('broken')
     const records = JSON.parse(readFileSync(join(folder, 'installed.json'), 'utf8'))
@@ -78,6 +78,27 @@ describe('shared rules in main', () => {
     await vi.waitFor(() => {
       const snapshot = JSON.parse(readFileSync(known, 'utf8'))
       expect(snapshot.mods).not.toHaveProperty('broken')
+    })
+  })
+
+  it('reports a replay failure synchronously and skips installed main code', async () => {
+    const folder = join(root, 'data', 'mods')
+    const known = join(folder, 'known.json')
+    const pending = join(folder, 'pending.json')
+    const journal = JSON.stringify({ pending: 1, current: { 'hello-mod': '1.0.0' }, remove: [] })
+    await rm(known)
+    await mkdir(join(folder, 'hello-mod', 'current'))
+    await writeFile(pending, journal)
+
+    startModSession()
+
+    const session = modSession()
+    expect(session.safeStart).toBe('flag')
+    expect(session.loaderError).toBeTruthy()
+    expect(session.mods.find((mod) => mod.id === 'broken')?.status).not.toBe('failed')
+    expect(readFileSync(pending, 'utf8')).toBe(journal)
+    await vi.waitFor(() => {
+      expect(JSON.parse(readFileSync(known, 'utf8')).mods).toHaveProperty('hello-mod')
     })
   })
 

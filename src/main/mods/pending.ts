@@ -1,13 +1,13 @@
-import { readdirSync } from 'fs'
+import { readdirSync, rmSync } from 'fs'
 import { mkdir, rm } from 'fs/promises'
 import { appError, toAppError } from '@shared/errors'
 import type { ModSessionTable } from '@shared/modSession'
 import type { PendingModChanges } from '@shared/modInstall'
-import { writeAtomicBytes, writeAtomicJson } from '../services/jsonFile'
+import { writeAtomicJson, writeAtomicTextSync } from '../services/jsonFile'
 import { CURRENT_FILE, INACTIVE_RELEASE } from './layout'
 import {
   directoryExists, isModId, isModVersion, isRecord, modPath, readInstalledFile, readModText,
-  writeInstalledFile
+  writeInstalledFileSync
 } from './installFiles'
 
 const PENDING_FILE = 'pending.json'
@@ -76,11 +76,11 @@ function oldVersions(root: string, pending: PendingModChanges): [string, readonl
 type ApplyPhase = 'current' | 'remove' | 'cleanup'
 
 /** The journal is removed last so a stopped boot can repeat each completed step. */
-export async function applyPending(
+export function applyPending(
   root: string,
   warn: (line: string) => void = console.warn,
   afterPhase?: (phase: ApplyPhase) => void
-): Promise<boolean> {
+): boolean {
   let replaying = false
   try {
     const pending = readPending(root)
@@ -101,25 +101,25 @@ export async function applyPending(
 
     replaying = true
     for (const entry of current) {
-      await writeAtomicBytes(entry.path, Buffer.from(entry.version + '\n'), {
+      writeAtomicTextSync(entry.path, entry.version + '\n', {
         code: 'MOD_PENDING_WRITE', message: 'Could not set a current mod version.'
       })
-      await rm(entry.marker, { force: true })
+      rmSync(entry.marker, { force: true })
     }
     afterPhase?.('current')
 
-    for (const path of removals) await rm(path, { recursive: true, force: true })
+    for (const path of removals) rmSync(path, { recursive: true, force: true })
     afterPhase?.('remove')
 
-    for (const path of cleanup) await rm(path, { recursive: true, force: true })
+    for (const path of cleanup) rmSync(path, { recursive: true, force: true })
     for (const id of idFolders(root)) {
       for (const entry of readdirSync(modPath(root, id), { withFileTypes: true })) {
         if (entry.isDirectory() && entry.name.endsWith('.partial') && isModVersion(entry.name.slice(0, -8))) {
-          await rm(modPath(root, id, entry.name), { recursive: true, force: true })
+          rmSync(modPath(root, id, entry.name), { recursive: true, force: true })
         }
       }
     }
-    await rm(staging, { recursive: true, force: true })
+    rmSync(staging, { recursive: true, force: true })
     if (installed) {
       const mods = { ...installed.mods }
       for (const id of pending.remove) delete mods[id]
@@ -129,11 +129,11 @@ export async function applyPending(
         for (const version of versions) delete records[version]
         mods[id] = records
       }
-      await writeInstalledFile(root, { ...installed, mods })
+      writeInstalledFileSync(root, { ...installed, mods })
     }
     afterPhase?.('cleanup')
 
-    await rm(modPath(root, PENDING_FILE), { force: true })
+    rmSync(modPath(root, PENDING_FILE), { force: true })
     return true
   } catch (error) {
     const failure = toAppError(error)

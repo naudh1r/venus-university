@@ -4,7 +4,7 @@ import { MOD_ID_RULE, RESERVED_MOD_IDS } from '@vx/modkit/host/shared'
 import { appError } from '@shared/errors'
 import { isWindowsDeviceName } from '@shared/zipRules'
 import { parseVersion } from '../../../packages/modkit/src/shared/range'
-import { writeAtomicJson } from '../services/jsonFile'
+import { writeAtomicJson, writeAtomicTextSync } from '../services/jsonFile'
 import { INSTALLED_FILE, type InstalledFile } from './layout'
 
 export function isModId(id: unknown): id is string {
@@ -64,8 +64,14 @@ export function readInstalledFile(root: string): InstalledFile {
   return file as unknown as InstalledFile
 }
 
+const installedWriteError = {
+  code: 'MOD_INSTALL_RECORD', message: 'Could not write installed.json.'
+}
+
 export function writeInstalledFile(root: string, file: InstalledFile): Promise<void> {
-  return writeAtomicJson(modPath(root, INSTALLED_FILE), file, {
-    code: 'MOD_INSTALL_RECORD', message: 'Could not write installed.json.'
-  })
+  return writeAtomicJson(modPath(root, INSTALLED_FILE), file, installedWriteError)
+}
+
+export function writeInstalledFileSync(root: string, file: InstalledFile): void {
+  writeAtomicTextSync(modPath(root, INSTALLED_FILE), JSON.stringify(file, null, 2), installedWriteError)
 }

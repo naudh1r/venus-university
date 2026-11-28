@@ -56,7 +56,7 @@ describe('a developer folder reloaded while the game runs', () => {
     await mkdir(data, { recursive: true })
     await writeFile(join(data, 'settings.json'), JSON.stringify({ devModFolders: [dev] }))
     await setModSwitches({ on: {}, options: {} })
-    await startModSession()
+    startModSession()
     expect(row('hello-mod')?.status).toBe('loaded')
     expect(sharedModOn('hello-mod')).toBe(true)
   })

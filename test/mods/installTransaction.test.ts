@@ -98,7 +98,7 @@ describe('install transaction', () => {
       source: url, sha256: item.release.sha256, approved: true, installedAt: expect.any(String)
     })
     expect(tx.progress.map((event) => event.phase)).toEqual(['downloading', 'downloading', 'checking', 'unpacking', 'recorded'])
-    await applyPending(root)
+    applyPending(root)
     expect(findInstalledMods(root).mods[0].version).toBe('1.0.0')
     expect(existsSync(join(root, 'hello-mod', '1.0.0', INACTIVE_RELEASE))).toBe(false)
   })
@@ -152,7 +152,7 @@ describe('install transaction', () => {
     await expect(tx.run()).rejects.toMatchObject({ code: 'DOWNLOAD_HTTP' })
     expect(existsSync(join(root, 'pending.json'))).toBe(false)
     expect(findInstalledMods(root).mods[0].version).toBe('1.0.0')
-    await applyPending(root)
+    applyPending(root)
     expect(findInstalledMods(root).mods[0].version).toBe('1.0.0')
     expect(existsSync(join(root, 'hello-mod', '1.1.0', INACTIVE_RELEASE))).toBe(true)
   })
@@ -220,19 +220,19 @@ describe('pending changes', () => {
   it.each(['current', 'remove', 'cleanup'] as const)('repeats safely after interruption in %s', async (phase) => {
     const first = transaction([bundle('hello-mod'), bundle('removed')])
     await first.run()
-    await applyPending(root)
+    applyPending(root)
     await transaction([bundle('hello-mod', '1.1.0')]).run()
     const pending = readPending(root)
     await writePending(root, { ...pending, remove: ['removed'] })
     await mkdir(join(root, 'hello-mod', '1.2.0.partial'))
     await mkdir(join(root, '.staging'), { recursive: true })
     const warn = vi.fn()
-    expect(await applyPending(root, warn, (step) => {
+    expect(applyPending(root, warn, (step) => {
       if (step === phase) throw new Error('interruption')
     })).toBe(false)
     expect(warn).toHaveBeenCalledTimes(1)
     expect(readPending(root).remove).toEqual(['removed'])
-    expect(await applyPending(root)).toBe(true)
+    expect(applyPending(root)).toBe(true)
     expect(readFileSync(join(root, 'hello-mod', 'current'), 'utf8').trim()).toBe('1.1.0')
     expect(existsSync(join(root, 'hello-mod', '1.0.0'))).toBe(true)
     expect(existsSync(join(root, 'hello-mod', '1.2.0.partial'))).toBe(false)
@@ -247,7 +247,7 @@ describe('pending changes', () => {
     const text = JSON.stringify({ pending, current: {}, remove: ['hello-mod'] })
     await writeFile(join(root, 'pending.json'), text)
     const warn = vi.fn()
-    await applyPending(root, warn)
+    applyPending(root, warn)
     expect(warn).toHaveBeenCalledTimes(1)
     expect(readFileSync(join(root, 'pending.json'), 'utf8')).toBe(text)
     expect(existsSync(join(root, 'hello-mod', '1.0.0'))).toBe(true)
@@ -262,7 +262,7 @@ describe('pending changes', () => {
     const warn = vi.fn()
     for (const id of ['../outside', 'link']) {
       await writeFile(join(root, 'pending.json'), JSON.stringify({ pending: 1, current: {}, remove: [id] }))
-      await applyPending(root, warn)
+      applyPending(root, warn)
       expect(existsSync(join(outside, 'keep'))).toBe(true)
       expect(existsSync(join(root, 'pending.json'))).toBe(true)
     }
@@ -274,7 +274,7 @@ describe('pending changes', () => {
     const newer = bundle('hello-mod', '1.1.0')
     for (const item of [older, newer]) {
       await transaction([item]).run()
-      await applyPending(root)
+      applyPending(root)
     }
     const row = {
       id: 'hello-mod', manifest: newer.release.manifest, dev: false, status: 'loaded'
@@ -285,14 +285,14 @@ describe('pending changes', () => {
     expect(existsSync(join(root, 'pending.json'))).toBe(false)
     expect(existsSync(join(root, 'hello-mod', '1.0.0'))).toBe(true)
     await service().rollback('hello-mod', '1.0.0')
-    await applyPending(root)
+    applyPending(root)
     expect(findInstalledMods(root).mods[0].version).toBe('1.0.0')
     expect(existsSync(join(root, 'hello-mod', '1.1.0'))).toBe(true)
     await service().rollback('hello-mod', '1.1.0')
-    await applyPending(root)
+    applyPending(root)
     await scheduleOldVersionCleanup(root, table)
     expect(existsSync(join(root, 'hello-mod', '1.0.0'))).toBe(true)
-    await applyPending(root)
+    applyPending(root)
     expect(existsSync(join(root, 'hello-mod', '1.0.0'))).toBe(false)
     expect(Object.keys(readInstalledFile(root).mods['hello-mod'])).toEqual(['1.1.0'])
   })
@@ -314,7 +314,7 @@ describe('removal and withdrawal', () => {
     expect((await installer.undo('hello-mod')).remove).toEqual([])
     expect(existsSync(join(root, 'pending.json'))).toBe(false)
     await installer.remove('hello-mod', ['lib'])
-    await applyPending(root)
+    applyPending(root)
     expect(findInstalledMods(root).mods).toEqual([])
     expect(existsSync(join(saved, 'keep.json'))).toBe(true)
   })
@@ -322,7 +322,7 @@ describe('removal and withdrawal', () => {
   it('clears approval only on withdrawal from the approved list and leaves the release unpacked', async () => {
     const item = bundle()
     await transaction([item]).run()
-    await applyPending(root)
+    applyPending(root)
     const source = listing([item.release])
     const withdrawn = { ...source.source, mods: source.source.mods.map((mod) => ({
       ...mod, withdrawn: [{ version: '1.0.0', reason: 'Fixture' }]

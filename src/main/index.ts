@@ -211,6 +211,10 @@ function createWindow(fullscreen: boolean): void {
 // Before anything can print: the app log wraps the console for the whole run.
 installConsoleLog()
 
+// Apply pending changes, then check the installed manifests and require each `main.js` before
+// Electron is ready. The session is built synchronously so the preload reads a complete table.
+startModSession()
+
 // Custom schemes must be declared before the app is ready, in one call.
 registerImageSchemes([modScheme()])
 
@@ -219,8 +223,6 @@ app
   .then(async () => {
     electronApp.setAppUserModelId(APP_ID)
 
-    // Replay pending changes and load main code before the window's preload reads the session.
-    await startModSession()
     handleImageProtocols()
     handleModSession()
 

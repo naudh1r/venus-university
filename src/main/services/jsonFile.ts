@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+import { renameSync, rmSync, writeFileSync } from 'fs'
 import { readFile, rename, rm, writeFile } from 'fs/promises'
 import { appError, messageOf } from '@shared/errors'
 import { validateRecord, type ValidateRecordOptions } from '@shared/jsonValidate'
@@ -121,6 +122,36 @@ export async function writeAtomicBytes(
     await renameWithPatience(tempPath, path)
   } catch (err) {
     await rm(tempPath, { force: true }).catch(() => {})
+    throw appError(opts.code, opts.message, detailOf(path, err))
+  }
+}
+
+/** The startup path must finish its atomic writes before Electron can become ready. */
+export function writeAtomicTextSync(
+  path: string,
+  data: string,
+  opts: { code: string; message: string }
+): void {
+  const tempPath = `${path}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`
+  try {
+    writeFileSync(tempPath, data, { encoding: 'utf8', flag: 'wx' })
+    const pause = new Int32Array(new SharedArrayBuffer(4))
+    for (const wait of RENAME_RETRY_WAITS_MS) {
+      try {
+        renameSync(tempPath, path)
+        return
+      } catch (err) {
+        if (!isHeldError(err)) throw err
+        Atomics.wait(pause, 0, 0, wait)
+      }
+    }
+    renameSync(tempPath, path)
+  } catch (err) {
+    try {
+      rmSync(tempPath, { force: true })
+    } catch {
+      // Report the original write failure.
+    }
     throw appError(opts.code, opts.message, detailOf(path, err))
   }
 }

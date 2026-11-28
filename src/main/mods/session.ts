@@ -21,7 +21,7 @@ import { readModSources } from './sources'
 
 /**
  * The one mod session of this run: the loader's result, held for the protocol, the bridge and
- * the Mods screen. Started before the window opens and after pending changes are applied.
+ * the Mods screen. It applies pending changes and loads mods synchronously before Electron is ready.
  */
 
 let result: LoaderResult | null = null
@@ -87,9 +87,9 @@ function holdStartupStatus(next: LoaderResult): void {
 }
 
 /** Replays installer changes before loading mods, even on a safe start. */
-export async function startModSession(): Promise<void> {
+export function startModSession(): void {
   bootConfirmed = false
-  pendingReplayFailed = !await applyPending(getModsDirPath())
+  pendingReplayFailed = !applyPending(getModsDirPath())
   const { devFolders, allowUnreviewedMain } = loaderSettings()
   holdStartupStatus(loadMods({
     modsDir: getModsDirPath(),
