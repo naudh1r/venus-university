@@ -1855,6 +1855,9 @@ export function GameView(): JSX.Element {
       void finishSlotActivity(slotActivity.owner, slotActivity.id, false, 'The activity is no longer available, so it ended without being completed.')
     }
   }, [slotActivity, busy, awaitingInput, replaying, turnError, sceneEnding, activitySwitches])
+  // The Relax row's words and a mod's extra rows, re-read whenever a mod is switched, so they follow its switch.
+  const relaxText = useSyncExternalStore(subscribeHookRules, () =>
+    [relaxAction(time).text, ...relaxRows({ date, time }).map(row => row.label)].join('\n'))
   const slotActions = useMemo<LandingRow[]>(
     // A created scene and a replay have no slot, and their landing is never drawn.
     () => (interlude ? interlude.interlude.rows.map((row, index) => ({
@@ -1865,7 +1868,7 @@ export function GameView(): JSX.Element {
       verdict: null
     }))
       : created || replaying ? [] : [...slotActionsNow(), relaxAction(time), ...relaxRows({ date, time }).map((row, index) => ({ key: `relax:${index}`, text: row.label, tone: 'idle' as const, verdict: null, relaxPick: row.onPick }))]),
-    [date, time, events, classes, job, playerSchedule, classRecords, calendar, activitySwitches, interlude]
+    [date, time, events, classes, job, playerSchedule, classRecords, calendar, activitySwitches, interlude, relaxText]
   )
 
   /** The epilogue's own row, in the slot actions' place: a button per goodbye still owed. */
