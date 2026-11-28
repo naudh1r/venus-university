@@ -107,6 +107,11 @@ Enable **After Hours** in Mods to play. Its options are on by default.
 - Their parting words are part of the morning's narration, not a scene: nothing more is counted for
   them, and the landing after is the ordinary one.
 
+## 0.7.11
+
+- A reply that waits is written for when it is sent: this evening, later tonight or tomorrow morning,
+  so it no longer talks about the afternoon in the evening.
+
 ## 0.7.10
 
 - Texting busy people and people asleep or away share one switch: Replies can wait.

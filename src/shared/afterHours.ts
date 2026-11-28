@@ -169,6 +169,17 @@ export function awayTextPrompt(contact: Contact, time: TimeSlot): string {
 }
 
 /** The reply catches up after the commitment, without making it a required topic. */
+/**
+ * When a held reply is sent, which is when the contact is back on the phone: one asleep sends it in
+ * the morning, one held to an evening sends it then, and one held from the evening sends it later
+ * that night (read the next morning when the night is skipped, still as last night's reply).
+ */
+export function heldReplyWhen(contact: Contact, asleep: boolean, until: { time: TimeSlot }): string {
+  const p = contactWords(contact)
+  const when = asleep ? 'tomorrow morning' : until.time === 1 ? 'this evening' : 'later tonight'
+  return `${contact.firstName} sends this reply ${when}, when ${p.subject} ${p.subject === 'they' ? 'are' : 'is'} back on the phone. Write it from then: anything from earlier in the day is already past.`
+}
+
 export function busyTextPrompt(
   contact: Contact,
   commitment: { kind: 'class'; name: string } | { kind: 'shift'; employer: string },
