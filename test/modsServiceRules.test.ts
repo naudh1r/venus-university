@@ -66,6 +66,8 @@ describe('shared rules in main', () => {
 
   it('applies pending removal before loading with --no-mods', async () => {
     const folder = join(root, 'data', 'mods')
+    const known = join(folder, 'known.json')
+    await rm(known)
     await writeFile(join(folder, 'pending.json'), JSON.stringify({ pending: 1, current: {}, remove: ['broken'] }))
     noMods = true
     await startModSession()
@@ -73,6 +75,10 @@ describe('shared rules in main', () => {
     expect(modSession().mods.map((row) => row.id)).not.toContain('broken')
     const records = JSON.parse(readFileSync(join(folder, 'installed.json'), 'utf8'))
     expect(records.mods).not.toHaveProperty('broken')
+    await vi.waitFor(() => {
+      const snapshot = JSON.parse(readFileSync(known, 'utf8'))
+      expect(snapshot.mods).not.toHaveProperty('broken')
+    })
   })
 
   it('list the installed mods, and answer for a loaded one from the switches main last read or wrote', async () => {
