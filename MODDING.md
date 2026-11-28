@@ -1267,7 +1267,7 @@ else names it.
 | `interludePreview` | `slotCrossing.ts` | Say, without writing anything, that the coming slot will be held on the finished one's look, so the boundary's curtain announces that slot (`{ at: 'from' }`) |
 | `hangoutCheck` | `textingLoop.ts` | Return false before the immediate-meetup classifier to skip the call and its result |
 | `asleepNow` | `textingLoop.ts` | Return true to mark a contact idle and hold the reply to the next landing |
-| `acceptLine` | `textingLoop.ts` | Return the reader's text for Yes on a meet-up footer, `mine` when the reader suggested it; undefined keeps "Sure" |
+| `acceptLine` | `textingLoop.ts` | Return the reader's text for Yes on a meet-up footer, `mine` when the reader suggested it; undefined keeps "Sure". A worded Yes shows as read once sent |
 | `ownMeetupAsks` | `textingLoop.ts` | Return true to ask Yes/No before arming a reader-initiated meetup |
 | `warnBeforeMeetup` | `BunnyboardModal.tsx` | Return true to warn about a current class, assessment or shift before the phone's Yes |
 | `readReceipts` | `BunnyboardModal.tsx` | Return true to show sent, delivered and read ticks on outgoing text bubbles |

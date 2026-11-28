@@ -106,6 +106,11 @@ describe('receipts from the thread', () => {
     expect(of(thread, reply)).toEqual({ sent: 'read', next: 'read' })
   })
 
+  it('reads an accepted meet-up as soon as it is sent', () => {
+    expect(Object.fromEntries(receiptsOf([{ ...sent, accepted: true }], [{ ...sent, accepted: true }])))
+      .toEqual({ sent: 'read' })
+  })
+
   it('marks the texts after the last reply with where a reply for now stands', () => {
     const shown = [sent, { ...reply, date: 7, time: 1 as const }, next]
     expect(Object.fromEntries(receiptsOf(shown, shown, 'delivered'))).toEqual({ sent: 'read', next: 'delivered' })

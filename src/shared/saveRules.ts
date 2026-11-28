@@ -264,7 +264,7 @@ export function assertSaveFields(save: GameSave, where: string): void {
     if (!Array.isArray(chat.messages)) continue
     for (const message of chat.messages) {
       if (!isPlainObject(message)) continue
-      for (const flag of ['awaitingReply', 'ledgered', 'late', 'afterNight'] as const) {
+      for (const flag of ['awaitingReply', 'ledgered', 'late', 'afterNight', 'accepted'] as const) {
         if (message[flag] !== undefined && message[flag] !== true) {
           malformed(`conversation ${charId} message ${String(message.id)} has an invalid "${flag}"`)
         }
