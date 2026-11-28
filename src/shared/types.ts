@@ -1095,6 +1095,8 @@ export interface ChatMessage {
   afterNight?: true
   /** Already included in a completed texting ledger. */
   ledgered?: true
+  /** The reader's Yes to a meet-up, worded by a mod: read as soon as it is sent. */
+  accepted?: true
   /** Sent late on the night preceding its stored slot. */
   late?: true
   outgoingPhoto?: OutgoingPhoto

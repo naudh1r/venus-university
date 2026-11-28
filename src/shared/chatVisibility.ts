@@ -43,17 +43,17 @@ export type Receipt = 'sent' | 'delivered' | 'read'
  * the model ('delivered') or streaming back ('read'); it covers the texts after the last reply.
  */
 export function receiptsOf(
-  all: readonly Pick<ChatMessage, 'id' | 'sender'>[],
-  shown: readonly Pick<ChatMessage, 'id' | 'sender'>[],
+  all: readonly Pick<ChatMessage, 'id' | 'sender' | 'accepted'>[],
+  shown: readonly Pick<ChatMessage, 'id' | 'sender' | 'accepted'>[],
   pending?: Receipt
 ): Map<string, Receipt> {
   const visible = new Set(shown.map(message => message.id))
   const receipts = new Map<string, Receipt>()
   let replied: Receipt = pending ?? 'sent'
   for (let i = all.length - 1; i >= 0; i--) {
-    const { id, sender } = all[i]
+    const { id, sender, accepted } = all[i]
     if (sender === 'contact' && replied !== 'read') replied = visible.has(id) ? 'read' : 'delivered'
-    else if (sender === 'player' && visible.has(id)) receipts.set(id, replied)
+    else if (sender === 'player' && visible.has(id)) receipts.set(id, accepted ? 'read' : replied)
   }
   return receipts
 }
