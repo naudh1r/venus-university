@@ -309,7 +309,7 @@ function threadBlocks(input: SchedulePromptInput): string[] {
     lines.push(...stampedStubs(messages, firstName, input.season))
     // An idle contact's answer, written now and read by the reader later: it counts with this part of the day.
     if (heldReplies && heldReplies.length > 0) {
-      lines.push(`(${firstName} was away from the phone and answers these later — the reply, which counts now)`,
+      lines.push(`(${firstName} answers these later, once free — the reply, which counts now)`,
         ...heldReplies.map(message => messageStub(message, firstName)))
     }
   }
