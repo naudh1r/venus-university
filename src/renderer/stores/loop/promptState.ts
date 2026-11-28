@@ -73,12 +73,13 @@ import type { ChatMessage, Conversation } from '@shared/types'
 /** The projection of `gameStore` every prompt builder is written against. */
 
 /**
- * The reply an idle contact has already written to this slot's texts, held for a later landing:
- * the slot that sent the texts judges it, and the later one leaves it as counted.
+ * The reply a busy, asleep or idle contact has already written to this slot's texts, held for a
+ * later landing: the slot that sent the texts judges it, and the later one leaves it as counted.
+ * A reply after a shared class is not written until the class ends, so its own slot judges it.
  */
 export function idleHeldReplies(conversation: Conversation): ChatMessage[] {
   const held = conversation.heldReply
-  if (!held || held.opened || !(held.asleep || held.away !== undefined)) return []
+  if (!held || held.opened || held.afterClass) return []
   const ids = new Set(held.messageIds)
   return conversation.messages.filter(message => ids.has(message.id) && !message.ledgered && message.sender === 'contact')
 }
