@@ -14,24 +14,19 @@ export const afterHoursText = {
   busyTextsHint: 'Text anyone anytime. People in class, at work, asleep or away reply later. Their light shows which.',
   nightOption: 'The night',
   /** The reader's Yes to a contact's invitation. */
-  acceptTheirs: [
-    "sure, i'm coming now!",
-    "sure, let's do it",
-    'see you there',
-    'omw!',
-    'be there soon',
-    'yes! give me a few minutes',
-    'sounds good, heading over',
-    'count me in'
-  ],
+  /**
+   * The reader's Yes to a contact's invitation, composed from a reaction and a follow-up. A reaction
+   * carries its own punctuation: a comma joins a calm one, a "!" an excited one. None says who goes where.
+   */
+  acceptTheirs: {
+    reactions: ['sure,', 'yes!', 'ooh yes,', 'okay,', 'omg yes!'],
+    followUps: ["let's do it", 'count me in', 'see you soon', "can't wait", "i'm in"]
+  },
   /** The reader's Yes once the contact agreed to the reader's own suggestion. */
-  acceptMine: [
-    'see you there',
-    'omw!',
-    'be there soon',
-    'perfect, heading over now',
-    'great, see you in a bit'
-  ],
+  acceptMine: {
+    reactions: ['perfect,', 'great,', 'awesome,', 'yay!'],
+    followUps: ['see you soon', 'see you in a bit', "can't wait"]
+  },
   chatLightsOption: 'Status lights in Chats',
   chatLightsHint: 'A light beside each name in Chats: green when free, orange in class or at work, yellow when idle.',
   nightHint: 'After the evening, stay up texting before you sleep. An evening in their room or yours can last the night.',

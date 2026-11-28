@@ -29,7 +29,7 @@ import {
   type SlotSettled
 } from '@vx/modkit/renderer'
 import {
-  AFTER_HOURS_MOD, asleepTonight, awayTextPrompt, busyPrompt, busyTextPrompt, heldReplyWhen, idleAtHome, morningReturnPrompt,
+  AFTER_HOURS_MOD, asleepTonight, awayTextPrompt, busyPrompt, busyTextPrompt, composeYes, heldReplyWhen, idleAtHome, morningReturnPrompt,
   nightOwed, nightPrompt, normalize, sleepingTextPrompt, stagedUntil, stayOverLedgerInstruction, stayOverOf, stayOverPrompt,
   type AfterHours
 } from '../../shared/afterHours'
@@ -212,9 +212,10 @@ registerHooks(AFTER_HOURS_MOD, {
   readReceipts: () => true,
   statusWords: () => true,
   acceptLine: ({ charId, mine }) => {
-    const pool = mine ? afterHoursText.acceptMine : afterHoursText.acceptTheirs
-    const thread = conversation(charId)?.messages.length ?? 0
-    return pool[Math.floor(seededRand(`${AFTER_HOURS_MOD}:accept:${charId}:${thread}`)() * pool.length)]
+    const messages = conversation(charId)?.messages ?? []
+    const previous = [...messages].reverse().find(message => message.sender === 'player' && message.accepted)?.text
+    return composeYes(mine ? afterHoursText.acceptMine : afterHoursText.acceptTheirs,
+      seededRand(`${AFTER_HOURS_MOD}:accept:${charId}:${messages.length}`), previous)
   },
   chatListLights: () => modOptionOn(AFTER_HOURS_MOD, 'chat-lights'),
   asleepNow: ({ charId, date, time, opening }) => {

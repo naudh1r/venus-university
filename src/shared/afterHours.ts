@@ -164,6 +164,34 @@ export function awayTextPrompt(contact: Contact, time: TimeSlot): string {
 }
 
 /** The reply catches up after the commitment, without making it a required topic. */
+/** Agreements that say the same thing twice: never a reaction and a follow-up from one pair. */
+const DOUBLED_YES: ReadonlyArray<readonly [string, string]> = [['okay,', 'count me in'], ['okay,', "i'm in"]]
+
+/**
+ * The reader's Yes, composed from a reaction and a follow-up: about one in four is one part alone, a
+ * pair never agrees twice, and the line is never the reader's previous Yes in the thread.
+ */
+export function composeYes(
+  parts: { reactions: readonly string[]; followUps: readonly string[] },
+  rand: () => number,
+  previous?: string
+): string {
+  const pick = <T,>(list: readonly T[]): T => list[Math.floor(rand() * list.length)]
+  const bare = (reaction: string): string => reaction.replace(/,$/, '')
+  let line = ''
+  for (let tries = 0; tries < 8; tries++) {
+    if (rand() < 0.25) {
+      line = rand() < 0.5 ? bare(pick(parts.reactions)) : pick(parts.followUps)
+    } else {
+      const reaction = pick(parts.reactions)
+      const followUps = parts.followUps.filter(followUp => !DOUBLED_YES.some(([r, f]) => r === reaction && f === followUp))
+      line = `${reaction} ${pick(followUps)}`
+    }
+    if (line !== previous) return line
+  }
+  return line
+}
+
 /**
  * When a held reply is sent, which is when the contact is back on the phone: one asleep sends it in
  * the morning, one held to an evening sends it then, and one held from the evening sends it later
