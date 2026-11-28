@@ -175,6 +175,7 @@ export interface CharMemory {
 
 // @public
 export interface ChatMessage {
+    accepted?: true;
     afterNight?: true;
     awaitingReply?: true;
     date: number;
