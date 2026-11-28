@@ -5,6 +5,7 @@ import { SelectField } from '../components/SelectField'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { Lightbox } from '../components/Lightbox'
 import { useDismissLayer } from '../components/useModalShell'
+import { ModsRestartOffer } from './ModsRestartOffer'
 import { gestures, lift, press, cardLift } from './motion'
 
 /** Kept mounted while tabs change so an install and its result stay visible. */
@@ -12,12 +13,18 @@ export function ModsBrowse({
   theme,
   active,
   selectedId,
-  setSelectedId
+  setSelectedId,
+  removalPending,
+  removalAction,
+  refreshRemoval
 }: {
   theme: 'day' | 'night'
   active: boolean
   selectedId: string | null
   setSelectedId: (id: string | null) => void
+  removalPending: (id: string) => boolean
+  removalAction: (id: string, name: string, disabled?: boolean) => JSX.Element | null
+  refreshRemoval: () => Promise<void>
 }): JSX.Element {
   const [mods, setMods] = useState<CatalogMod[]>([])
   const [loading, setLoading] = useState(false)
@@ -73,6 +80,7 @@ export function ModsBrowse({
         setNotice(result.error.message)
         return
       }
+      void refreshRemoval()
       const refreshed = await window.api.mods.catalogInstalled()
       if (refreshed.ok) setMods(refreshed.data)
       else
@@ -183,12 +191,12 @@ export function ModsBrowse({
                         : 'vu-btn vu-btn--primary vu-paper vu-btn--panel'
                     }
                     disabled={
-                      busy ||
+                      busy || removalPending(selected.id) ||
                       !!release.incompatible ||
                       selected.installedVersion === release.version
                     }
                     {...gestures(
-                      busy ||
+                      busy || removalPending(selected.id) ||
                         !!release.incompatible ||
                         selected.installedVersion === release.version,
                       lift,
@@ -202,6 +210,7 @@ export function ModsBrowse({
                   >
                     {busy ? 'Installing…' : action(selected, release)}
                   </motion.button>
+                  {removalAction(selected.id, selected.name, busy)}
                   {release.incompatible && <p className="vu-mods-about">{release.incompatible}</p>}
                   {notice && operationId === selected.id && (
                     <p className="vu-mods-about" role="status">
@@ -210,30 +219,8 @@ export function ModsBrowse({
                   )}
                 </div>
               </header>
-              {restart && operationId === selected.id && (
-                <div className="vu-mods-note">
-                  <p>Save any game in progress before restarting.</p>
-                  <div className="vu-foot">
-                    <motion.button
-                      className="vu-btn vu-btn--quiet"
-                      {...gestures(false, lift, press)}
-                      onClick={() => setRestart(false)}
-                    >
-                      Later
-                    </motion.button>
-                    <motion.button
-                      className="vu-btn vu-btn--primary vu-paper vu-btn--panel"
-                      {...gestures(false, lift, press)}
-                      onClick={() => {
-                        void window.api.mods.restart().then((r) => {
-                          if (!r.ok) setNotice(r.error.message)
-                        })
-                      }}
-                    >
-                      Restart now
-                    </motion.button>
-                  </div>
-                </div>
+              {restart && operationId === selected.id && !removalPending(selected.id) && (
+                <ModsRestartOffer onLater={() => setRestart(false)} onError={setNotice} />
               )}
               {selected.screenshotData && (
                 <section>

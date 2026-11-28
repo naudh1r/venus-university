@@ -64,6 +64,8 @@ const api: VenusUniversityApi = {
   mods: {
     catalog: () => ipcRenderer.invoke('mods:catalog'),
     catalogInstalled: () => ipcRenderer.invoke('mods:catalogInstalled'),
+    removalStatus: () => ipcRenderer.invoke('mods:removalStatus'),
+    uninstall: (id) => ipcRenderer.invoke('mods:uninstall', id),
     installRelease: (id, version, approved) => ipcRenderer.invoke('mods:installRelease', id, version, approved),
     invokeStart: (id, name, args) => ipcRenderer.invoke('mod:invoke', id, { kind: 'start', name, args }),
     invokeResult: (id, requestId) => ipcRenderer.invoke('mod:invoke', id, { kind: 'result', requestId }),
