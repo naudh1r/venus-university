@@ -1980,6 +1980,10 @@ his texts waiting; the due landing or a later reload recovers them. A girl whose
 is due at an opening, written or still pending, is left out of that opening's reach-outs,
 plan invitations and occasion invitations.
 
+A held reply already written when a slot ends is read by that slot's texting ledger, with the
+texts it answers, and marked counted, so the slot it shows in does not judge it again. A reply due
+after a shared class is written later and judged by its own slot.
+
 The reader's message is shown immediately. The normal DM call receives `heldUntil` (the next
 slot's date and time) and `commitment` in `TextingPromptState`. Its reply does not stream or
 show typing dots, and is not classified for a hangout. Every contact message appended
