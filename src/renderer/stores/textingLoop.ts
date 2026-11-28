@@ -1140,7 +1140,9 @@ function sayYes(charId: string, mine = false): void {
     game.setIgnoredInvitation(charId, false)
     game.resetDeclined(charId)
   }
-  game.appendChatMessage(charId, chatMessage('player', acceptLine({ charId, mine }) ?? 'Sure'), 0)
+  const line = acceptLine({ charId, mine })
+  // A mod's Yes answers a plan the contact just made: it is read as it is sent.
+  game.appendChatMessage(charId, { ...chatMessage('player', line ?? 'Sure'), ...(line ? { accepted: true as const } : {}) }, 0)
 }
 
 /** The Yes/No footer under her pending ask-out. */
