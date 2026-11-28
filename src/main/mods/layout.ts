@@ -39,6 +39,7 @@ export interface InstallRecord {
  */
 export interface InstalledFile {
   readonly schemaVersion: 1
+  readonly pendingRemoval?: readonly string[]
   readonly mods: Readonly<Record<string, Readonly<Record<string, InstallRecord>>>>
 }
 
@@ -147,12 +148,12 @@ export function readInstalled(modsDir: string): InstalledRecords {
 }
 
 /** Lists the mods installed under `modsDir`, one entry per id folder, sorted by id. A missing `modsDir` is no mods. */
-export function findInstalledMods(modsDir: string): InstalledMods {
+export function findInstalledMods(modsDir: string, excluded?: ReadonlySet<string>): InstalledMods {
   const root = resolve(modsDir)
   const mods: ModFolder[] = []
   const notes: string[] = []
   for (const entry of listFolder(root)) {
-    if (!isDirectory(root, entry)) continue
+    if (excluded?.has(entry.name) || !isDirectory(root, entry)) continue
     if (!MOD_ID.test(entry.name)) {
       notes.push(`skipped "${entry.name}": not a mod id`)
       continue

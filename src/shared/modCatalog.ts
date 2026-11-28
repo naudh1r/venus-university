@@ -27,3 +27,10 @@ export interface CatalogMod {
   releases: CatalogRelease[]
   installedVersion: string | null
 }
+
+/** An install recorded on disk and whether it is queued for removal. */
+export interface InstalledModRemoval {
+  id: string
+  pending: boolean
+  dependents: string[]
+}

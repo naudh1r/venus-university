@@ -1,4 +1,4 @@
-import { useState, type JSX } from 'react'
+import { useEffect, useState, type JSX } from 'react'
 import { compatibilityWarning } from '@shared/modCompatibility'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
@@ -20,6 +20,8 @@ import { modDetail, optionControl, optionPreview } from '../mods/hooks'
 import { SlotBoundary } from '../mods/ModSlot'
 import { isWebBuild } from '../platform'
 import { ModsBrowse } from './ModsBrowse'
+import { ModsRestartOffer } from './ModsRestartOffer'
+import type { InstalledModRemoval } from '@shared/modCatalog'
 import { ModsAuthorsFold } from './ModsAuthorsFold'
 import { notRunningLine, useModSessionStore } from '../stores/modSessionStore'
 import { useModsStore } from '../stores/modsStore'
@@ -149,9 +151,86 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
   const running = useModSessionStore((s) => s.running)
   const dataNotes = useModSessionStore((s) => s.dataNotes)
   // A library has no switch and no row; the mods that need it name it on theirs.
+  const [removals, setRemovals] = useState<InstalledModRemoval[]>([])
+  const [uninstalling, setUninstalling] = useState<string | null>(null)
+  const [uninstallAsk, setUninstallAsk] = useState<{ id: string; name: string; dependents: string[] } | null>(null)
+  const [uninstallError, setUninstallError] = useState('')
+  const [restartForRemoval, setRestartForRemoval] = useState(false)
+
+  async function refreshRemoval(): Promise<void> {
+    try {
+      const result = await window.api.mods.removalStatus()
+      if (result.ok) {
+        setRemovals((current) => result.data.map((row) => ({
+          ...row,
+          pending: row.pending || current.some((one) => one.id === row.id && one.pending)
+        })))
+      } else setUninstallError(result.error.message)
+    } catch {
+      setUninstallError('Could not read installed mods.')
+    }
+  }
+
+  useEffect(() => {
+    if (!isWebBuild()) void refreshRemoval()
+  }, [table])
+
+  const removalOf = (id: string) => removals.find((row) => row.id === id)
+  const removalPending = (id: string) => removalOf(id)?.pending === true
+
+  async function uninstall(id: string): Promise<void> {
+    setUninstallAsk(null)
+    setUninstalling(id)
+    setUninstallError('')
+    try {
+      const result = await window.api.mods.uninstall(id)
+      if (!result.ok) {
+        setUninstallError(result.error.message)
+        return
+      }
+      setRemovals((rows) => rows.map((row) => row.id === id ? { ...row, pending: true } : row))
+      setRestartForRemoval(true)
+    } catch {
+      setUninstallError('Could not uninstall the mod. Try again.')
+    } finally {
+      setUninstalling(null)
+    }
+  }
+
+  function removalAction(id: string, name: string, busy = false): JSX.Element | null {
+    const removal = removalOf(id)
+    if (!removal || table.mods.some((row) => row.id === id && row.dev)) return null
+    if (removal.pending) {
+      return (
+        <div className="vu-mods-note">
+          <p role="status">Will be removed on restart.</p>
+          {!restartForRemoval && (
+            <motion.button type="button" className="vu-btn vu-btn--quiet"
+              {...gestures(false, lift, press)} onClick={() => setRestartForRemoval(true)}>
+              Restart…
+            </motion.button>
+          )}
+        </div>
+      )
+    }
+    const disabled = busy || uninstalling !== null
+    return (
+      <motion.button type="button" className="vu-btn vu-btn--quiet" disabled={disabled}
+        {...gestures(disabled, lift, press)}
+        onClick={() => setUninstallAsk({ id, name, dependents: removal.dependents })}>
+        Uninstall
+      </motion.button>
+    )
+  }
+
   const listed = MODS.filter((mod) => !mod.library)
   // A folder whose manifest could not be read has no entry in the list: it gets a row of its own, by folder.
   const unreadable = table.mods.filter((mod) => mod.def === null)
+  // Libraries, new installs and a folder still waiting on cleanup can have no switch row.
+  const recordedOnly = removals.filter(({ id }) =>
+    !listed.some((mod) => mod.id === id) && !unreadable.some((mod) => mod.id === id) &&
+    !table.mods.some((mod) => mod.id === id && mod.dev)
+  )
   const sessionOf = (id: string): ModSessionEntry | undefined => sessionRow(table, id)
   const [selectedId, setSelectedId] = useState(listed[0]?.id ?? null)
 
@@ -206,10 +285,16 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
             role="tab" aria-selected={tab === name} className="vu-btn vu-btn--quiet"
             {...gestures(false, lift, press)} onClick={() => setTab(name)}>{name === 'installed' ? 'Installed' : 'Browse'}</motion.button>)}
         </div>}
-        {!isWebBuild() && <ModsBrowse theme={theme} active={tab === 'browse'} selectedId={browseModId} setSelectedId={setBrowseModId} />}
+        {!isWebBuild() && <ModsBrowse theme={theme} active={tab === 'browse'} selectedId={browseModId}
+          setSelectedId={setBrowseModId} removalPending={removalPending}
+          removalAction={removalAction} refreshRemoval={refreshRemoval} />}
+        {uninstallError && <p className="vu-mods-note" role="status">{uninstallError}</p>}
+        {restartForRemoval && (
+          <ModsRestartOffer onLater={() => setRestartForRemoval(false)} onError={setUninstallError} />
+        )}
         <div className="vu-mods-installed" hidden={tab !== 'installed'}>
         <div className="vu-mods-panes">
-          {listed.length === 0 && unreadable.length === 0 && (
+          {listed.length === 0 && unreadable.length === 0 && recordedOnly.length === 0 && (
             <p id="mods-none" className="vu-mods-blurb">
               This build carries no mods yet. It is the game as released, with this screen ready
               for them.
@@ -242,6 +327,7 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
                     {session && isRunning && session.warnings.length > 0 && (
                       <span className="vu-mods-row-line">{session.warnings.join(' · ')}</span>
                     )}
+                    {removalPending(mod.id) && <span className="vu-mods-row-line">Will be removed on restart.</span>}
                     {dataNotes[mod.id] && <span className="vu-mods-row-line">{dataNotes[mod.id]}</span>}
                   </button>
                   <span className="vu-mods-standing" data-kind={standing.kind}>
@@ -260,6 +346,18 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
                 </li>
               )
             })}
+            {recordedOnly.map(({ id }) => {
+              const name = sessionOf(id)?.manifest?.name ?? id
+              return (
+                <li key={id} className="vu-mods-row">
+                  <span className="vu-mods-pick">
+                    <span className="vu-mods-name">{name}</span>
+                    <span className="vu-mods-meta">installed folder</span>
+                  </span>
+                  {removalAction(id, name)}
+                </li>
+              )
+            })}
             {unreadable.map((mod) => (
               <li key={`unreadable-${mod.folder}`} className="vu-mods-row" data-kind="unreadable">
                 <span className="vu-mods-pick">
@@ -269,6 +367,7 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
                     Not running this session: {mod.message}
                   </span>
                 </span>
+                {removalAction(mod.id, folderName(mod.folder))}
               </li>
             ))}
           </ul>
@@ -300,6 +399,7 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
                   {selectedSession.dev ? selectedSession.folder : selectedSession.manifest.source}
                 </p>
               )}
+              {removalAction(selected.id, selected.name)}
               {selected.offNote && <p className="vu-mods-note">{selected.offNote}</p>}
               {selectedSession && !running(selected.id) && (
                 <p className="vu-mods-note" data-kind="needs">
@@ -453,6 +553,26 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
               setAsking(null)
             }}
             onCancel={() => setAsking(null)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {uninstallAsk && (
+          <ConfirmModal
+            key="uninstall"
+            id="mods-uninstall-confirm"
+            theme={theme}
+            title={`Uninstall ${uninstallAsk.name}?`}
+            message={[
+              'Its files are removed after a restart. What it saved in your games stays, and comes back if you install it again.',
+              ...(uninstallAsk.dependents.length
+                ? [`These mods require it and will stop loading: ${uninstallAsk.dependents.join(', ')}.`]
+                : [])
+            ]}
+            confirmText="Uninstall"
+            cancelText="Cancel"
+            onCancel={() => setUninstallAsk(null)}
+            onConfirm={() => void uninstall(uninstallAsk.id)}
           />
         )}
       </AnimatePresence>

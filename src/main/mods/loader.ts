@@ -25,6 +25,7 @@ export type RouteHandler = (request: Request) => Response | Promise<Response> | 
 export interface LoaderInput {
   /** `data/mods`. */
   readonly modsDir: string
+  readonly removing?: ReadonlySet<string>
   /** The developer folders `settings.json` names, each an unzipped release. */
   readonly devFolders: readonly string[]
   /** Whether main-process code from a source the build has not reviewed may run. */
@@ -190,7 +191,7 @@ function isBuiltIn(candidate: Candidate): boolean {
 
 /** Every folder's candidate: the installed mods, then the developer folders, one entry per id. */
 function findCandidates(input: LoaderInput): Candidate[] {
-  const found = findInstalledMods(input.modsDir)
+  const found = findInstalledMods(input.modsDir, input.removing)
   const installed = readInstalled(input.modsDir)
   for (const note of [...found.notes, ...installed.notes]) input.log(`[mods] ${note}`)
   const candidates: Candidate[] = []
