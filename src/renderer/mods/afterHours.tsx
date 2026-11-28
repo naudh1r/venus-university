@@ -2,7 +2,7 @@ import { useEffect, useId, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   affectionFor, charKeyOf, EMOTIONS, emptyFlags, globalSlotOf, LOCATIONS, NARRATIVE_LOCATIONS,
-  relationshipTagOf, seededRand, threadStartedBy, type TimeSlot
+  relationshipTagOf, seededRand, type TimeSlot
 } from '@vx/modkit/shared'
 import {
   addMemory,
@@ -29,7 +29,7 @@ import {
   type SlotSettled
 } from '@vx/modkit/renderer'
 import {
-  AFTER_HOURS_MOD, asleepTonight, awayTextPrompt, busyPrompt, busyPromptApplies, busyTextPrompt, heldReplyWhen, idleAtHome, morningReturnPrompt,
+  AFTER_HOURS_MOD, asleepTonight, awayTextPrompt, busyPrompt, busyTextPrompt, heldReplyWhen, idleAtHome, morningReturnPrompt,
   nightOwed, nightPrompt, normalize, sleepingTextPrompt, stagedUntil, stayOverLedgerInstruction, stayOverOf, stayOverPrompt,
   type AfterHours
 } from '../../shared/afterHours'
@@ -37,6 +37,11 @@ import { afterHoursText } from '../../shared/afterHoursText'
 import '../vu_styles/AfterHours.css'
 
 const status = saveField<AfterHours>(AFTER_HOURS_MOD, { empty: { busy: false }, normalize })
+
+function isBusy(): boolean {
+  return modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy
+}
+
 /** The loaded roster and graduates whose keys an opening can name. */
 function gameCharacters(): NonNullable<ReturnType<typeof character>>[] {
   return rosterIds({ alumni: true }).flatMap(id => {
@@ -330,30 +335,22 @@ registerHooks(AFTER_HOURS_MOD, {
       }
     }
   },
-  hangoutCheck: ({ startedBy }) =>
-    !busyPromptApplies(modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy, startedBy),
+  hangoutCheck: () => !isBusy(),
   relaxLabel: ({ date, time }) => modOptionOn(AFTER_HOURS_MOD, 'night') && nightAfter(date, time) ? afterHoursText.relax : undefined,
   prompts: {
     scene: {
       lines: ({ state }) => nightAfter(state.date, state.time) && modOptionOn(AFTER_HOURS_MOD, 'night') ? [stayOverPrompt] : []
     },
     dm: {
-      lines: ({ character, state }) => {
-        const thread = conversation(character.charId)
-        const busy = busyPromptApplies(
-          modOptionOn(AFTER_HOURS_MOD, 'busy-status') && status.read().busy,
-          threadStartedBy(thread?.messages ?? [], state.date, state.time)
-        )
-        return [
-          ...(state.asleep ? [sleepingTextPrompt(character)] : []),
-          ...(state.away !== undefined ? [awayTextPrompt(character, state.away)] : []),
-          // A reply written after a class they share is told so by the game itself.
-          ...(state.heldUntil && state.commitment && !state.sharedClass ? [busyTextPrompt(character, state.commitment, state.readerPronouns)] : []),
-          ...(!state.asleep && state.away === undefined && heldNight() ? [nightPrompt(character)] : []),
-          ...(state.heldUntil && !state.sharedClass ? [heldReplyWhen(character, state.asleep === true, state.heldUntil)] : []),
-          ...(busy ? [busyPrompt(character)] : [])
-        ]
-      }
+      lines: ({ character, state }) => [
+        ...(state.asleep ? [sleepingTextPrompt(character)] : []),
+        ...(state.away !== undefined ? [awayTextPrompt(character, state.away)] : []),
+        // A reply written after a class they share is told so by the game itself.
+        ...(state.heldUntil && state.commitment && !state.sharedClass ? [busyTextPrompt(character, state.commitment, state.readerPronouns)] : []),
+        ...(!state.asleep && state.away === undefined && heldNight() ? [nightPrompt(character)] : []),
+        ...(state.heldUntil && !state.sharedClass ? [heldReplyWhen(character, state.asleep === true, state.heldUntil)] : []),
+        ...(isBusy() ? [busyPrompt(character)] : [])
+      ]
     }
   }
 })

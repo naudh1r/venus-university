@@ -82,11 +82,6 @@ export function nightOwed(to: { date: number; time: TimeSlot }, data: AfterHours
   return to.time === 0 && to.date > 0 && data.nightDone !== globalSlotOf(to.date, to.time)
 }
 
-/** Busy keeps a chat the reader opened from becoming a meet-up now. */
-export function busyPromptApplies(busy: boolean, startedBy: 'reader' | 'her'): boolean {
-  return busy && startedBy === 'reader'
-}
-
 /**
  * The first opening line after the staged part of a morning after a night together: the line the
  * reply names as the one where they have parted, else the line after the partner's last words, else the line

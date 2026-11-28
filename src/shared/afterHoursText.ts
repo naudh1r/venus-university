@@ -4,12 +4,12 @@ export const AFTER_HOURS_MOD = 'after-hours'
 /** The mod's catalogue copy, status labels and night choices. */
 export const afterHoursText = {
   name: 'After Hours',
-  blurb: "A Busy status for the phone, texting people while they're busy, and a night after the evening. While you're Busy, a chat you start won't turn into meeting up right now, though they can still ask you out themselves. Text someone during their class or work, and they reply once they're out. After the evening, a night in your room to text before you sleep, or, if you spent it with someone, a short goodbye the next morning.",
+  blurb: "A Busy status for the phone, texting people while they're busy, and a night after the evening. While you're Busy, nothing you text turns into meeting up right now. You can still say Yes to an invitation they send on their own. Text someone during their class or work, and they reply once they're out. After the evening, a night in your room to text before you sleep, or, if you spent it with someone, a short goodbye the next morning.",
   offNote: 'Switching it off keeps your status. People can ask you out again, and the evening goes straight to the morning.',
   option: 'Busy status',
   online: 'Available',
   busy: 'Busy',
-  hint: "Busy: no meeting up right now in chats you start.",
+  hint: 'Busy: nothing you text turns into meeting up right now.',
   busyTextsOption: 'Replies can wait',
   busyTextsHint: 'Text anyone anytime. People in class, at work, asleep or away reply later. Their light shows which.',
   nightOption: 'The night',
