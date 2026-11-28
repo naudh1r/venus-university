@@ -64,7 +64,7 @@ describe('buildTextLedgerPrompt', () => {
   const info = { 'char-2': charInfo() }
 
   it('requires all three fields and scopes each to its own key list', () => {
-    const { schema } = buildTextLedgerPrompt(schedule([thread('mina_okafor', 'Mina')]), info)
+    const { schema } = buildTextLedgerPrompt(schedule([thread('mina_okafor', 'Mina')]), info, 'he')
     expect(schema.schema.required).toEqual(['events', 'textMemories', 'plans'])
     const properties = schema.schema.properties as Record<string, Record<string, unknown>>
 
@@ -96,7 +96,7 @@ describe("a mod's lines in the texting bookkeeping", () => {
     })
     hooks.registerHooks('off', { prompts: { 'text-ledger': { lines: () => ['OFF'] } } })
 
-    const { user } = build(schedule([thread('mina_okafor', 'Mina')]), { 'char-2': charInfo() })
+    const { user } = build(schedule([thread('mina_okafor', 'Mina')]), { 'char-2': charInfo() }, 'he')
     expect(user.endsWith('FEED mina_okafor')).toBe(true)
     expect(user).not.toContain('OFF')
   })

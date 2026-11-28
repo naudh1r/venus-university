@@ -274,6 +274,12 @@
   font: 500 13px var(--font-body);
 }
 
+/* A mod's own control under one option's hint, set a little apart from the words above it. */
+.vu-mods-option-control {
+  display: block;
+  margin-top: 6px;
+}
+
 /* A group of options of which one is on: its label and hint once, then a row for each. */
 .vu-mods-group {
   flex-direction: column;

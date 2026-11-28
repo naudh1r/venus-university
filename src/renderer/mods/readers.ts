@@ -1,4 +1,5 @@
 import { useMemo, useSyncExternalStore } from 'react'
+import { readerPronounsOf, type ReaderPronouns } from '@shared/gender'
 import type { AppError } from '@shared/types'
 import { busGain, volumesOf } from '@shared/audio'
 import { BUILD, modNames, modsOn } from '@shared/mods'
@@ -11,7 +12,7 @@ import { useBunnyboardStore } from '../stores/bunnyboardStore'
 import { useGrabBagStore } from '../stores/grabBagStore'
 import { FEED_HANDLE_BAG, FEED_HANDLE_POOL, FEED_EMOJI_BAG, FEED_EMOJI } from '../prompts/feedRandoms'
 import { pictureKeySet } from '@shared/settingsRules'
-import { comfySourceOf } from '@shared/comfyModels'
+import { comfySourceOf, comfyUrlOf } from '@shared/comfyModels'
 
 /**
  * The player has Less NSFW text on: the game's own writing is toned down, and a mod's should be.
@@ -46,17 +47,24 @@ export function showError(error: AppError): void {
   useUiStore.getState().showError(error)
 }
 
-/** The playthrough being played, if any, and the reader's first name. */
-export function gameFacts(): { playthroughId: string | null; readerName: string } {
-  const game = useGameStore.getState()
-  return { playthroughId: game.playthroughId, readerName: game.playerFirstName }
+export interface GameFacts {
+  playthroughId: string | null
+  readerName: string
+  readerPronouns: ReaderPronouns
 }
 
-/** {@link gameFacts} for a component: it renders again when either changes. */
-export function useGameFacts(): { playthroughId: string | null; readerName: string } {
+/** The current playthrough and the reader's first name and pronouns. */
+export function gameFacts(): GameFacts {
+  const game = useGameStore.getState()
+  return { playthroughId: game.playthroughId, readerName: game.playerFirstName, readerPronouns: readerPronounsOf(game) }
+}
+
+/** {@link gameFacts} for a component: it renders again when a fact changes. */
+export function useGameFacts(): GameFacts {
   const playthroughId = useGameStore((state) => state.playthroughId)
   const readerName = useGameStore((state) => state.playerFirstName)
-  return useMemo(() => ({ playthroughId, readerName }), [playthroughId, readerName])
+  const readerPronouns = useGameStore(readerPronounsOf)
+  return useMemo(() => ({ playthroughId, readerName, readerPronouns }), [playthroughId, readerName, readerPronouns])
 }
 
 /** The cast-scene persona the player has stored, or undefined until settings are read or when none is stored. */
@@ -106,11 +114,18 @@ export function localImageSource(): 'managed' | 'external' | null {
   return settings ? comfySourceOf(settings) : null
 }
 
-/** Fires only when the selected source changes, independently of setup readiness. */
+/** The selected source and external address, kept inside the subscription. */
+function localImageTarget(): string | null {
+  const settings = useSettingsStore.getState().settings
+  const source = localImageSource()
+  return settings && source ? `${source} ${source === 'external' ? comfyUrlOf(settings) : ''}` : null
+}
+
+/** Fires when the selected source or external address changes, independently of setup readiness. */
 export function subscribeLocalImageSource(onChange: () => void): () => void {
-  let before = localImageSource()
+  let before = localImageTarget()
   return useSettingsStore.subscribe(() => {
-    const next = localImageSource()
+    const next = localImageTarget()
     if (next !== before) { before = next; onChange() }
   })
 }

@@ -62,6 +62,7 @@ export {
   useScenePersona,
   useSfxGain
 } from '../../../../src/renderer/mods/readers'
+export type { GameFacts } from '../../../../src/renderer/mods/readers'
 export { cancelCalls, completeStructured } from '../../../../src/renderer/mods/llm'
 export type { SilentRetryOptions } from '../../../../src/renderer/stores/silentRetry'
 export { retrySilently } from '../../../../src/renderer/stores/silentRetry'

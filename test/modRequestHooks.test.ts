@@ -10,7 +10,7 @@ it('composes enabled request extensions in list order without losing earlier fie
   hooks.registerHooks('first', { requests: { dm: request => ({ ...request, user: request.user + ' first' }) } })
   const disabled = vi.fn(() => { throw Error('Disabled extension ran') })
   hooks.registerHooks('off', { requests: { dm: disabled } })
-  const original: StructuredRequest = { system: 'system', user: 'base', schema: { name: 'reply', schema: { type: 'object' } } }
+  const original: StructuredRequest = { thinking: 'texts', system: 'system', user: 'base', schema: { name: 'reply', schema: { type: 'object' } } }
   const result = hooks.modRequest('dm', {} as RequestSpots['dm'], original)
   expect(result).toEqual({ ...original, user: 'base first second' })
   expect(original.user).toBe('base')

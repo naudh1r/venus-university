@@ -1,3 +1,4 @@
+import { fetchObjectInfo, forgetExternalObjectInfo } from './comfyObjectInfo'
 import { MOD_ID_RULE } from '@vx/modkit/host/shared'
 import { enqueue } from '@shared/jobQueue'
 import { spawn, type ChildProcess } from 'child_process'
@@ -14,6 +15,7 @@ import {
 } from '@shared/imagePrompt'
 import { defaultTagsOf, type DefaultTags } from '@shared/defaultTags'
 import { COMFY_HOST } from '@shared/setupManifest'
+import { registeredNodePacks } from './comfyNodePacks'
 import {
   characterLoraOf,
   COMFY_MODEL_SLOTS,
@@ -94,7 +96,6 @@ const STATS_TIMEOUT_MS = 5_000
 const UPLOAD_TIMEOUT_MS = 60_000
 const SUBMIT_TIMEOUT_MS = 30_000
 const VIEW_TIMEOUT_MS = 120_000
-const OBJECT_INFO_TIMEOUT_MS = 30_000
 
 /** Which ComfyUI one job draws on, read off the settings once, when the job is queued. */
 export interface ComfyTarget {
@@ -193,6 +194,25 @@ const HANDS_NODE = {
   sourceImage: '10',
   paintImage: '80',
   poseImage: '39',
+  detailer: '20',
+  saveImage: '9',
+  regionSaveImage: '79'
+} as const
+
+/**
+ * Node ids overwritten in `assets/workflows/characterRepaint.json`; `sourceImage` is the neutral
+ * sprite flattened on white, `paintImage` the strokes laid over it and `maskImage` everything
+ * painted or marked, and the graph has two sinks as the hands graph does.
+ */
+const REPAINT_NODE = {
+  seed: '14',
+  characterLora: CHARACTER_LORA_NODE,
+  positivePrompt: '4',
+  negativePrompt: '5',
+  sourceImage: '10',
+  paintImage: '80',
+  maskImage: '90',
+  detailer: '20',
   saveImage: '9',
   regionSaveImage: '79'
 } as const
@@ -285,6 +305,7 @@ const verified = new Map<string, Record<string, unknown>>()
 
 /** Forgets every verification of a player's own server. */
 function forgetExternal(): void {
+  forgetExternalObjectInfo()
   for (const key of [...verified.keys()]) if (key.startsWith('external ')) verified.delete(key)
 }
 
@@ -494,23 +515,6 @@ async function workflowClasses(): Promise<Set<string>> {
   return wanted
 }
 
-/** The server's whole `/object_info` listing: every class it loaded, with each input's options. */
-async function fetchObjectInfo(baseUrl: string): Promise<Record<string, unknown>> {
-  try {
-    const response = await fetch(`${baseUrl}/object_info`, {
-      signal: AbortSignal.timeout(OBJECT_INFO_TIMEOUT_MS)
-    })
-    if (!response.ok) throw new Error(`HTTP ${response.status} from /object_info`)
-    return (await response.json()) as Record<string, unknown>
-  } catch (err) {
-    throw appError(
-      'COMFY_UNREACHABLE',
-      'Could not ask ComfyUI which nodes it loaded.',
-      messageOf(err)
-    )
-  }
-}
-
 /** The classes the workflows name that a listing lacks, sorted. */
 async function missingClasses(objectInfo: Record<string, unknown>): Promise<string[]> {
   return [...(await workflowClasses())].filter((name) => !(name in objectInfo)).sort()
@@ -518,7 +522,7 @@ async function missingClasses(objectInfo: Record<string, unknown>): Promise<stri
 
 /** The lines naming what a server lacks, each pack's classes under it and ComfyUI's own last. */
 function missingNodeLines(classes: readonly string[]): string {
-  return groupMissingNodes(classes)
+  return groupMissingNodes(classes, registeredNodePacks())
     .map((group) =>
       group.pack === null
         ? `Missing core nodes (update ComfyUI, tested on v0.34): ${group.classes.join(', ')}.`
@@ -638,8 +642,9 @@ function missingModel(
 
 /**
  * Refuses a graph naming a model the server does not list, asking the server again once first,
- * since the player may have added the file since the listing was kept. Her own LoRA's loader,
- * where the graph keeps one, is named as hers, and a custom pair's as the CG's.
+ * since the player may have added the file since the listing was kept. The character's own
+ * LoRA's loader, where the graph keeps one, is named as the character's, and a custom pair's as
+ * the CG's.
  */
 async function assertGraphModels(
   target: ComfyTarget,
@@ -655,22 +660,22 @@ async function assertGraphModels(
   if (missing && missing.node === characterLoraNode) {
     throw appError(
       'COMFY_MODEL_MISSING',
-      `ComfyUI does not have her LoRA, ${missing.value}.`,
-      "Add it to ComfyUI's LoRA folder, or pick another under her Generation settings."
+      `LoRA ${missing.value} is missing.`,
+      "Please re-upload it to the folder and try again."
     )
   }
   if (missing && missing.node === positionLoraNode) {
     throw appError(
       'COMFY_MODEL_MISSING',
-      `ComfyUI does not have the CG's position LoRA, ${missing.value}.`,
-      "Add it to ComfyUI's LoRA folder, or pick another when you regenerate the CG."
+      `Position LoRA ${missing.value} is missing.`,
+      "Please re-upload it to the folder and try again."
     )
   }
   if (missing) {
     throw appError(
       'COMFY_MODEL_MISSING',
-      `ComfyUI does not have the ${missing.label.toLowerCase()} ${missing.value}.`,
-      'Pick another on the ComfyUI tab of Settings.'
+      `${missing.label} ${missing.value} is missing.`,
+      'Please pick another on the ComfyUI tab of Settings.'
     )
   }
 }
@@ -1155,10 +1160,14 @@ interface GenerationNodes {
   detailerPositivePrompt?: string
   /** ControlNet skeleton `LoadImage`; every graph has one. */
   poseImage?: string
-  /** Source `LoadImage`; the expression, cutout and hands graphs. */
+  /** Source `LoadImage`; the expression, cutout, hands and repaint graphs. */
   sourceImage?: string
-  /** The painted-strokes `LoadImage`; the hands graph only. */
+  /** The painted-strokes `LoadImage`; the hands and repaint graphs. */
   paintImage?: string
+  /** The `LoadImage` of everything to redraw; the repaint graph only. */
+  maskImage?: string
+  /** The detailer whose denoise a job sets; the hands and repaint graphs. */
+  detailer?: string
   /** Her own LoRA's loader; every graph that samples. */
   characterLora?: string
   /** A custom CG pair's position LoRA's loader; the CG graph only. */
@@ -1196,6 +1205,10 @@ interface GenerationSpec {
   sourceImageName?: string
   /** Staged filename for `nodes.paintImage`, if the graph has one. */
   paintImageName?: string
+  /** Staged filename for `nodes.maskImage`, if the graph has one. */
+  maskImageName?: string
+  /** What `nodes.detailer`'s denoise is set to, where the graph names one. */
+  denoise?: number
   /** Where the finished image lands. */
   destPath: string
   /** How the finished image and the hand fix's region are kept; the face mask is lossless. */
@@ -1295,6 +1308,12 @@ async function runGraph(spec: GenerationSpec, options: RunOptions): Promise<stri
   }
   if (nodes.paintImage && spec.paintImageName) {
     node(nodes.paintImage).inputs.image = spec.paintImageName
+  }
+  if (nodes.maskImage && spec.maskImageName) {
+    node(nodes.maskImage).inputs.image = spec.maskImageName
+  }
+  if (nodes.detailer && spec.denoise !== undefined) {
+    node(nodes.detailer).inputs.denoise = spec.denoise
   }
 
   // Only a job that wants the face mask keeps its branch.
@@ -1405,6 +1424,30 @@ export interface ComfyRenderRequest {
   texts?: Record<string, string>
 }
 
+/**
+ * Refuses a mod's graph that names a class the server did not load, each one named under the
+ * pack that provides it, before anything is uploaded or queued.
+ */
+async function assertGraphClasses(
+  modId: string,
+  workflow: ComfyRenderRequest['workflow'],
+  target: ComfyTarget
+): Promise<void> {
+  const listing = await listingFor(target)
+  const missing = [...new Set(Object.values(workflow).map((node) => node.class_type))]
+    .filter((name) => !Object.hasOwn(listing, name))
+    .sort()
+  if (missing.length === 0) return
+  throw appError(
+    'COMFY_NODES_MISSING',
+    `ComfyUI is missing nodes ${modId}'s image needs.`,
+    missingNodeLines(missing) +
+      (target.source === 'external'
+        ? '\nInstall what is missing in your ComfyUI and restart it.'
+        : `\nComfyUI's log: ${getComfyLogPath()}`)
+  )
+}
+
 /** Queues a mod's graph through core's renderer and returns its checked image bytes. */
 export async function renderComfyImage(
   modId: string,
@@ -1452,6 +1495,8 @@ export async function renderComfyImage(
         throwIfCancelled(jobSignal)
         await start(target, report)
         throwIfCancelled(jobSignal)
+        await assertGraphClasses(modId, owned.workflow, target)
+        throwIfCancelled(jobSignal)
         await mkdir(getTempPath(), { recursive: true })
         scratch = await mkdtemp(join(getTempPath(), 'mod-render-'))
         const destPath = join(scratch, 'image.png')
@@ -1484,6 +1529,7 @@ export async function renderComfyImage(
         if (!imageTypeOf(bytes)) throw appError('RENDER_NOT_IMAGE', 'ComfyUI returned no readable image.')
         return new Uint8Array(bytes)
       } catch (err) {
+        if (target.source === 'external') forgetExternal()
         throwIfCancelled(jobSignal)
         throw toAppError(err, 'RENDER_FAILED')
       } finally {
@@ -1655,13 +1701,15 @@ async function ensureCutBase(
 }
 
 /**
- * Hands the player's strokes to the server for the hands graph's `LoadImage`, under
- * {@link stageBase}'s scoped-name rule. **The alpha channel is the whole input** — node `80`'s
- * MASK is `1 − alpha`, so a PNG saved without one hands the graph an all-painted mask.
+ * Hands one layer the player drew to the server for a repair graph's `LoadImage`, under
+ * {@link stageBase}'s scoped-name rule, `name` saying which repair and which layer it is.
+ * **The alpha channel is the whole input** — a `LoadImage`'s MASK is `1 − alpha`, so a PNG
+ * saved without one hands the graph an all-painted mask.
  */
 async function stagePaint(
   charId: string,
   scope: string,
+  name: string,
   paint: Buffer,
   target: ComfyTarget
 ): Promise<string> {
@@ -1673,7 +1721,7 @@ async function stagePaint(
     )
   }
 
-  return uploadInput(target, `hands_paint_${charId}_${scope}.png`, paint)
+  return uploadInput(target, `${name}_${charId}_${scope}.png`, paint)
 }
 
 /**
@@ -1859,6 +1907,7 @@ export async function fixHands(
   character: Character,
   set: OutfitSet | null,
   paint: Buffer,
+  denoise: number,
   seed: number,
   jobOptions: JobOptions = {}
 ): Promise<{ cutout: Buffer; region: Buffer }> {
@@ -1878,7 +1927,7 @@ export async function fixHands(
   const { poseTags, skeletonName } = await stagePose(character, target)
   // Live only: a fix repairs the set on disk, and a staged run is a different set of images.
   const { sourceName } = await stageBase(charId, basePath, basePath, false, scope, target)
-  const paintName = await stagePaint(charId, scope, paint, target)
+  const paintName = await stagePaint(charId, scope, 'hands_paint', paint, target)
 
   // Both frames land in scratch and are read back: neither belongs in her folder, since what
   // is kept is the strokes and the sprites they repaired.
@@ -1898,11 +1947,12 @@ export async function fixHands(
         poseImageName: skeletonName,
         sourceImageName: sourceName,
         paintImageName: paintName,
+        denoise,
         destPath: join(scratch, 'cutout.png'),
         regionDestPath: join(scratch, 'region.png'),
         format: 'raw',
         label: `${charId} / hands${suffix}`,
-        logContext: `pose=${character.pose}, seed=${seed}${logged}`
+        logContext: `pose=${character.pose}, seed=${seed}, denoise=${denoise}${logged}`
       },
       options
     )
@@ -1913,6 +1963,77 @@ export async function fixHands(
     }
   } finally {
     // A cancel between the two sinks leaves one PNG behind; nothing else sweeps this folder.
+    await rm(scratch, { recursive: true, force: true })
+  }
+}
+
+/**
+ * Redraws what the player painted or marked over one wardrobe: the cutout and the region
+ * changed, for the renderer to place, as the hand fix answers. **The source is the neutral
+ * sprite the strokes were drawn over, not the base frame**: the other repairs write the sprites
+ * and leave that frame behind, so it can be missing what the player sees. The graph leaves her
+ * face out of the region, since one patch over seven expressions would give them all one face.
+ */
+export async function repaintWardrobe(
+  character: Character,
+  set: OutfitSet | null,
+  source: Buffer,
+  paint: Buffer,
+  mask: Buffer,
+  denoise: number,
+  seed: number,
+  jobOptions: JobOptions = {}
+): Promise<{ cutout: Buffer; region: Buffer }> {
+  assertSafeCharId(character.charId)
+  if (set !== null) assertVocab(set, isOutfitSet, 'OUTFIT_SET_UNKNOWN', 'an outfit set')
+  throwIfCancelled(jobOptions.signal)
+  jobOptions.onProgress?.('Preparing')
+  const options = await runOptionsOf(jobOptions)
+  const { target } = options
+
+  const { charId } = character
+  const scope = set ?? 'default'
+  const suffix = set ? `_${set}` : ''
+
+  const { lora, logged } = loraOfJob(character)
+  // The pose's tags reach the prompt; its skeleton does not, since a crop is no full body.
+  const poseTags = await resolvePoseTags(character)
+  const sourceName = await uploadInput(target, `repaint_src_${charId}_${scope}.png`, source)
+  const paintName = await stagePaint(charId, scope, 'repaint_paint', paint, target)
+  const maskName = await stagePaint(charId, scope, 'repaint_mask', mask, target)
+
+  // Both frames land in scratch and are read back: nothing is hers until the player says yes.
+  const scratch = join(getTempPath(), `repaint-${randomUUID()}`)
+  try {
+    await mkdir(scratch, { recursive: true })
+    await runGenerationJob(
+      {
+        // The set's base prompt, no expression group, as the hand fix sends.
+        workflowFile: 'characterRepaint.json',
+        nodes: REPAINT_NODE,
+        prompts: set
+          ? buildOutfitBasePrompt(character, poseTags, set, target.tags)
+          : buildBasePrompt(character, poseTags, target.tags),
+        seed,
+        lora,
+        sourceImageName: sourceName,
+        paintImageName: paintName,
+        maskImageName: maskName,
+        denoise,
+        destPath: join(scratch, 'cutout.png'),
+        regionDestPath: join(scratch, 'region.png'),
+        format: 'raw',
+        label: `${charId} / repaint${suffix}`,
+        logContext: `pose=${character.pose}, seed=${seed}, denoise=${denoise}${logged}`
+      },
+      options
+    )
+
+    return {
+      cutout: await readFile(join(scratch, 'cutout.png')),
+      region: await readFile(join(scratch, 'region.png'))
+    }
+  } finally {
     await rm(scratch, { recursive: true, force: true })
   }
 }
@@ -2091,7 +2212,7 @@ export async function probe(url: string): Promise<ComfyProbe> {
   for (const slot of COMFY_MODEL_SLOTS) folders[slot.role] = located[slot.role].length > 0
   return {
     version,
-    missingNodes: groupMissingNodes(await missingClasses(objectInfo)),
+    missingNodes: groupMissingNodes(await missingClasses(objectInfo), registeredNodePacks()),
     models: modelListsOf(objectInfo),
     folders
   }

@@ -1,3 +1,4 @@
+import type { ReaderPronouns } from '@shared/gender'
 import {
   charKeyOf,
   MEMORY_TYPES,
@@ -8,7 +9,7 @@ import {
 import { promptLines } from '../mods/hooks'
 import { objectSchema } from './schema'
 import type { GlobalTextId, TextEdits } from '@shared/promptText'
-import { milestoneCastLines } from './scenePrompt'
+import { memoryVoiceLines, milestoneCastLines } from './scenePrompt'
 import { textLedgerPersonaFor } from './promptBlocks'
 import {
   messagesBlock,
@@ -31,15 +32,19 @@ export const TEXT_EVENT_GLOSS: ReadonlyArray<readonly [string, string]> = [
   ['broke_up', 'their relationship ended in these texts'],
   [
     'friendzoned_by_reader',
-    'the reader turned her down in these texts or made it clear they\'re just friends'
+    "the reader turned the character down in these texts or made it clear they're just friends"
   ],
   [
     'friendzoned_reader',
-    'she turned the reader down in these texts or made it clear they\'re just friends'
+    "the character turned the reader down in these texts or made it clear they're just friends"
   ],
   [
     'agreed_to_harem',
-    'she agreed in these texts to an open relationship and/or to share the reader with other girls, and not to be jealous about them'
+    'the character agreed in these texts to an open relationship and/or to share the reader with others, and not to be jealous about them'
+  ],
+  [
+    'agreed_to_closed',
+    'the character, a lover who had agreed to share the reader, agreed in these texts that the two of them see only each other from now on'
   ]
 ]
 
@@ -70,11 +75,12 @@ function textLedgerSchema(
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['charKey', 'type', 'desc'],
+        required: ['charKey', 'type', 'desc', 'youDesc'],
         properties: {
           charKey,
           type: { type: 'string', enum: [...MEMORY_TYPES] },
-          desc: { type: 'string' }
+          desc: { type: 'string' },
+          youDesc: { type: 'string' }
         }
       }
     },
@@ -86,6 +92,7 @@ function textLedgerSchema(
 export function buildTextLedgerPrompt(
   schedule: SchedulePromptInput,
   charInfo: Record<string, CharInfo>,
+  reader: ReaderPronouns,
   textEdits?: TextEdits<GlobalTextId>
 ): StructuredRequest {
   const textedKeys = textLedgerCharKeys(schedule)
@@ -98,8 +105,8 @@ export function buildTextLedgerPrompt(
 
   const preamble = [
     'YOUR TASK',
-    'Hey Rita! The reader spent part of this day texting on Bunnyboard. Let\'s take THE MESSAGES below and create some notes for us to reference later.',
-    'Judge the texts alone: anything a scene did face to face is another call\'s business.',
+    "Hey Rita! The reader spent part of this day texting on Bunnyboard. Let's take THE MESSAGES below and create some notes for us to reference later.",
+    "Judge the texts alone: anything a scene did face to face is another call's business.",
     '',
     'EVENTS',
     'List any of these milestones that actually happened IN THESE MESSAGES:',
@@ -107,10 +114,10 @@ export function buildTextLedgerPrompt(
     'A milestone that did not happen in these messages is simply left out. If one happened again — they broke up again — report it again; the app knows which time it was.',
     '',
     'TEXT MEMORIES',
-    'For each girl the reader texted, write at most ONE memory of what the texting left her with, in "textMemories".',
+    'For each character the reader texted, write at most ONE memory of what the texting left them with, in "textMemories".',
     'Each desc completes the sentence "<Name> <type> that ...", in the past tense, e.g. "the reader asked how her recital went".',
-    'Call the reader "the reader" every time, never "you", "he" or "him": "the reader lent her the reader\'s notes", not "he lent her his notes".',
-    'Small talk that left her feeling nothing gets no entry. Give a girl nothing rather than something invented.',
+    ...memoryVoiceLines(reader),
+    'Small talk that left them feeling nothing gets no entry. Give a character nothing rather than something invented.',
     '',
     ...TEXT_PLANS_INSTRUCTIONS,
     ''
@@ -135,9 +142,8 @@ export function buildTextLedgerPrompt(
     schema: textLedgerSchema(textedKeys, rosterKeys),
     // Constant: everything save-varying sits below the seam.
     cacheKey: 'text-ledger',
-    logFrom: preamble.length + 1,
-    // The bookkeeping is judged better at high, whatever the setting says.
-    minThinking: 'high'
+    thinking: 'ledger',
+    logFrom: preamble.length + 1
   }
 }
 

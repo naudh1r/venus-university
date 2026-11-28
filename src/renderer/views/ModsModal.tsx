@@ -1,4 +1,5 @@
 import { useState, type JSX } from 'react'
+import { compatibilityWarning } from '@shared/modCompatibility'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -15,7 +16,8 @@ import { isBuiltInRow, sessionRow, type ModSessionEntry } from '@shared/modSessi
 import { ConfirmModal } from '../components/ConfirmModal'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
-import { modDetail, optionPreview } from '../mods/hooks'
+import { modDetail, optionControl, optionPreview } from '../mods/hooks'
+import { SlotBoundary } from '../mods/ModSlot'
 import { isWebBuild } from '../platform'
 import { ModsAuthorsFold } from './ModsAuthorsFold'
 import { notRunningLine, useModSessionStore } from '../stores/modSessionStore'
@@ -121,7 +123,13 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
 
   /** Makes a change, or asks first where the screen underneath says it costs something. */
   function request(change: ModChange): void {
-    const warning = warn?.(change) ?? null
+    const existing = warn?.(change) ?? null
+    const mod = MODS.find((entry) => entry.id === change.modId)
+    const compatibility = change.on && change.optionId === null && mod
+      ? compatibilityWarning(mod, __APP_VERSION__) : null
+    const warning = compatibility
+      ? { title: 'Compatibility unconfirmed', message: [compatibility, existing?.message].filter(Boolean).join('\n\n'), confirmText: existing?.confirmText ?? 'Enable anyway' }
+      : existing
     if (warning) setAsking({ change, warning })
     else apply(change)
   }
@@ -260,6 +268,14 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
                   by {selected.author} · version {selected.version}
                 </p>
               </div>
+              <p className="vu-mods-note">
+                Supports Venus University: {selected.game ?? 'not declared'} · running {__APP_VERSION__}
+              </p>
+              {compatibilityWarning(selected, __APP_VERSION__) && (
+                <p className="vu-mods-note" data-kind="needs" role="status">
+                  {compatibilityWarning(selected, __APP_VERSION__)}
+                </p>
+              )}
               <p className="vu-mods-blurb">{selected.blurb}</p>
               <p className="vu-mods-tags">
                 <span className="vu-mods-tag">{originWords(selectedSession)}</span>
@@ -309,11 +325,22 @@ export function ModsModal({ theme, onClose, inGame = false, warn }: ModsModalPro
                 <ul className="vu-mods-options">
                   {selected.options.map((option, index, all) => {
                     if (!option.group) {
+                      const Control = optionControl(selected.id, option.id)
                       return (
                         <li key={option.id} className="vu-mods-option">
                           <span className="vu-mods-option-text">
                             <span className="vu-mods-option-label">{option.label}</span>
                             <span className="vu-mods-option-hint">{option.hint}</span>
+                            {Control && (
+                              <span className="vu-mods-option-control">
+                                <SlotBoundary slot="optionControls" modId={selected.id}>
+                                  <Control
+                                    optionId={option.id}
+                                    on={optionOn(switches, selected.id, option.id)}
+                                  />
+                                </SlotBoundary>
+                              </span>
+                            )}
                           </span>
                           <Switch
                             id={`mods-option-${selected.id}-${option.id}`}

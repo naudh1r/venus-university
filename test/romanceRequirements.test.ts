@@ -95,7 +95,7 @@ describe('additive romance requirements', () => {
     setOn(false)
     expect(meetsCrushStandards(gatedCharacter, stats)).toBe(true)
     expect(gatedCharacter.traits).toEqual(['Materialist'])
-    expect(relationshipLines(gatedCharacter, emptyFlags(), true, 0, undefined, stats).join(' ')).not.toContain('requires Brain')
+    expect(relationshipLines(gatedCharacter, emptyFlags(), true, 0, undefined, { stats, romanceable: true, readerPronouns: 'he' }).join(' ')).not.toContain('requires Brain')
     setOn(true)
     expect(meetsCrushStandards(gatedCharacter, stats)).toBe(false)
   })
@@ -159,9 +159,9 @@ describe('additive romance requirements', () => {
     const stats = { brain: 60, body: 60, heart: 60 }
     const ctx = { character: gatedCharacter, stats }
     expect(blocksNewRomance(gatedCharacter, stats, info.flags)).toBe(false)
-    expect(foldRelationshipEvents(info, ['kissed'], 7, ctx).flags).toMatchObject({ isLover: true, hasKissed: true })
-    expect(foldRelationshipEvents(info, ['broke_up', 'became_lovers', 'sex'], 7, ctx).flags).toMatchObject({ isLover: false, hadSex: false })
-    expect(relationshipLines(gatedCharacter, info.flags, true, 50, info, stats).join(' ')).not.toContain('requires Brain')
+    expect(foldRelationshipEvents(info, ['kissed'], 7, 'female', ctx).flags).toMatchObject({ isLover: true, hasKissed: true })
+    expect(foldRelationshipEvents(info, ['broke_up', 'became_lovers', 'sex'], 7, 'female', ctx).flags).toMatchObject({ isLover: false, hadSex: false })
+    expect(relationshipLines(gatedCharacter, info.flags, true, 50, info, { stats, romanceable: true, readerPronouns: 'he' }).join(' ')).not.toContain('requires Brain')
   })
 
   it('allows nonromantic events while locked', () => {
@@ -172,8 +172,10 @@ describe('additive romance requirements', () => {
   it('does not contradict the requirement on a Promiscuous day or after an old crush', () => {
     const who = character({ traits: ['Materialist', 'Promiscuous', 'Mood-swings'] })
     const flags = { ...emptyFlags(), hasCrush: true, benefits: true, hasMet: true }
-    const lines = relationshipLines(who, flags, true, 999, undefined, game().stats,
-      { texting: true, texted: true }, { date: 6, offset: 7 }).join(' ')
+    const lines = relationshipLines(who, flags, true, 999, undefined, {
+      stats: game().stats, romanceable: true, readerPronouns: 'he',
+      medium: { texting: true, texted: true }, mood: { date: 6, offset: 7 }
+    }).join(' ')
     expect(lines).toContain('Brain at Godly, Body at Godly and Heart at Godly')
     expect(lines).toContain('will not initiate or accept')
     expect(lines).not.toContain('down to fuck')
@@ -182,8 +184,9 @@ describe('additive romance requirements', () => {
   })
 
   it('preserves the native created-scene attraction override', () => {
-    const lines = relationshipLines(gatedCharacter, emptyFlags(), true, 0, undefined, game().stats,
-      { texting: false, texted: false }, undefined, false).join(' ')
+    const lines = relationshipLines(gatedCharacter, emptyFlags(), true, 0, undefined, {
+      stats: game().stats, romanceable: true, readerPronouns: 'he', attractionGate: false
+    }).join(' ')
     expect(lines).not.toContain('requires Brain')
   })
 

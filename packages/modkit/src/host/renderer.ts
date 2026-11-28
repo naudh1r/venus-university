@@ -24,6 +24,7 @@ export {
   gameModal,
   modDetail,
   modRequest,
+  optionControl,
   optionPreview,
   ownedComments,
   playerActs,

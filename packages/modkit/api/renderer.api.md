@@ -190,6 +190,7 @@ export const dealt: (startDelay: number, each?: number) => Variants;
 export function defaultBlockText(id: TextBlockId, settings: {
     lessNsfwText: boolean;
     scenePersona?: string;
+    readerPronouns?: ReaderPronouns;
 }): string;
 
 // @public
@@ -305,11 +306,18 @@ export function formatShortGameDate(date: number, season: Season): string;
 // @public
 export function freeForInvitation(id: string): boolean;
 
-// @public
-export function gameFacts(): {
+// @public (undocumented)
+export interface GameFacts {
+    // (undocumented)
     playthroughId: string | null;
+    // (undocumented)
     readerName: string;
-};
+    // (undocumented)
+    readerPronouns: ReaderPronouns;
+}
+
+// @public
+export function gameFacts(): GameFacts;
 
 // @public
 export interface GameMenuItemProps {
@@ -417,7 +425,7 @@ export function Locked(input: {
 export type ManualSaveOffer = 'open' | 'waiting' | 'none';
 
 // @public
-export function memoryLines(character: Character, memories: readonly CharMemory[], textMemory: CharMemory | undefined, season: Season): string[];
+export function memoryLines(character: Character, memories: readonly CharMemory[], textMemory: CharMemory | undefined, season: Season, reader?: ReaderPronouns): string[];
 
 // @public
 export interface ModalShell {
@@ -502,6 +510,7 @@ export interface ModHooks {
     mapOverlay?: ComponentType<ScreenSlotProps['mapOverlay']>;
     messageAttachment?: ComponentType<ScreenSlotProps['messageAttachment']>;
     modDetail?: (mod: ModDef) => ComponentType<ModDetailProps> | undefined;
+    optionControls?: Record<string, ComponentType<OptionControlProps>>;
     optionPreviews?: Record<string, ComponentType<OptionPreviewProps>>;
     panelLayer?: ComponentType<ScreenSlotProps['panelLayer']>;
     phoneOverlay?: ComponentType<ScreenSlotProps['phoneOverlay']>;
@@ -610,6 +619,14 @@ export function openPanel(id: string, arg?: string): boolean;
 export function openSceneExchange(modId: string): SceneExchange | null;
 
 // @public
+export interface OptionControlProps {
+    // (undocumented)
+    on: boolean;
+    // (undocumented)
+    optionId: string;
+}
+
+// @public
 export interface OptionPreviewProps {
     // (undocumented)
     optionId: string | null;
@@ -689,7 +706,7 @@ export const press: TargetAndTransition;
 export const profileImageUrl: (id: string) => string | undefined;
 
 // @public
-export function profileLines(character: Character, flags: CharFlags, castSize?: number): string[];
+export function profileLines(character: Character, flags: CharFlags, attractionOrCastSize?: Attraction | number, castSize?: number): string[];
 
 // @public
 export function profileUrl(charId: string, version?: number, staged?: boolean): string;
@@ -769,6 +786,7 @@ export interface PromptSpots {
 export interface PromptState {
     addedNotices?: readonly AddedNotice[];
     affection?: Record<string, number>;
+    ages?: Readonly<Record<string, number>>;
     backFromBreak?: readonly string[];
     backgrounds: BackgroundSets;
     bg: string | null;
@@ -811,7 +829,10 @@ export interface PromptState {
     projectClass: string | null;
     projectRecap?: readonly ClassMeetingRecap[];
     projectScene?: ProjectSceneContext;
+    readerPronouns: ReaderPronouns;
     receivedGift?: ReceivedGift;
+    redraft?: boolean;
+    romance: RomanceSetting;
     roomReady: Record<string, boolean>;
     roster: readonly Character[];
     sceneEvent?: SceneEvent;
@@ -823,11 +844,13 @@ export interface PromptState {
     springBreakAway?: readonly string[] | null;
     stats?: PlayerStats;
     subjectTags?: readonly string[];
+    subjectTagsByGender?: Readonly<Record<Gender, readonly string[]>>;
     textEdits?: TextEditSet;
     textedWith?: readonly string[];
     textingSummaries?: Record<string, string[]>;
     // (undocumented)
     time: TimeSlot;
+    transferEntrances?: readonly TransferEntrance[];
     upcomingPlans?: Record<string, string[]>;
     visitJobId: string | null;
     weather?: readonly Weather[];
@@ -910,11 +933,7 @@ export interface RecordWriteOptions {
 export function registerHooks(modId: string, hooks: ModHooks): void;
 
 // @public
-export function relationshipLines(character: Character, flags: CharFlags, nameKnown: boolean, affection: number, progress: RelationshipProgress | undefined, stats?: PlayerStats, medium?: RelationshipMedium, mood?: {
-    date: number;
-    offset: number;
-    sick?: boolean;
-}, attractionGate?: boolean): string[];
+export function relationshipLines(character: Character, flags: CharFlags, nameKnown: boolean, affection: number, progress: RelationshipProgress | undefined, context?: RelationshipContext | PlayerStats, legacyMedium?: RelationshipMedium, legacyMood?: RelationshipContext['mood'], legacyAttractionGate?: boolean): string[];
 
 // @public
 export interface RelationshipMedium {
@@ -1055,7 +1074,9 @@ export interface SceneExchangeContext {
     // (undocumented)
     people: Array<{
         id: string;
-        profile: Pick<Character, 'charId' | 'firstName' | 'lastName' | 'personality' | 'behavior' | 'backstory' | 'likes' | 'dislikes'>;
+        profile: Pick<Character, 'charId' | 'firstName' | 'lastName' | 'personality' | 'behavior' | 'backstory' | 'likes' | 'dislikes'> & {
+            gender: Gender;
+        };
         relationship: Pick<CharInfo, 'memories' | 'flags' | 'nameKnown' | 'notes'> & {
             disposition?: Disposition;
         };
@@ -1068,6 +1089,7 @@ export interface SceneExchangeContext {
         location: string | null;
         summary: string | null;
         readerBio: string;
+        readerPronouns: ReaderPronouns;
         premise?: string;
         relationships?: NpcRelationshipMap;
     };
@@ -1374,6 +1396,7 @@ export function slotHalf(time: TimeSlot): 'day' | 'night';
 
 // @public
 export interface SlotIntroInput {
+    ages?: Readonly<Record<string, number>>;
     askers: readonly IntroAsker[];
     backgroundLore?: readonly string[];
     backOnCampus?: number;
@@ -1383,13 +1406,18 @@ export interface SlotIntroInput {
     homecomingVisitor?: string;
     leavers: readonly IntroLeaver[];
     lessNsfwText: boolean;
+    newTransfers?: number;
+    npcRelationships: NpcRelationshipMap;
     occasionLeadUps?: readonly string[];
     occasions: readonly Occasion[];
     opening: string;
+    people: readonly Character[];
     playthroughId: string;
     posters: readonly IntroPoster[];
     reachOuts: readonly IntroReachOut[];
+    readerPronouns: ReaderPronouns;
     recent: readonly string[];
+    romance: RomanceSetting;
     rumorPlace?: LoreEntry;
     season: Season;
     secretBudget?: number;
@@ -1548,6 +1576,7 @@ export interface TextFieldProps {
 
 // @public
 export interface TextingPromptState {
+    ages?: Readonly<Record<string, number>>;
     calendar: SemesterCalendar;
     charCompanions?: NpcCompanions;
     charHaunt?: Haunt | null;
@@ -1566,6 +1595,8 @@ export interface TextingPromptState {
     npcRelationships: NpcRelationshipMap;
     playerJob: JobState | null;
     playerSchedule: Record<number, string>;
+    readerPronouns: ReaderPronouns;
+    romance: RomanceSetting;
     roster: readonly Character[];
     secretBudget?: number;
     springBreakAway?: readonly string[] | null;
@@ -1671,10 +1702,7 @@ export const useFeed: (id: string) => readonly Readonly<SocialPost>[];
 export const useFeedReadThrough: () => number | undefined;
 
 // @public
-export function useGameFacts(): {
-    playthroughId: string | null;
-    readerName: string;
-};
+export function useGameFacts(): GameFacts;
 
 // @public (undocumented)
 export function useImageApiConfigured(): boolean;

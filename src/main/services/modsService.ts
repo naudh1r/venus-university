@@ -59,6 +59,13 @@ interface ModsFile extends ModSwitches {
  * options. With no file yet, every mod is at its default.
  */
 export async function getModSwitches(): Promise<ModSwitches> {
+  known = await readModSwitches()
+  for (const listener of [...switchListeners]) listener()
+  return known
+}
+
+/** `mods.json` as {@link getModSwitches} reads it, without making it main's current switches. */
+export async function readModSwitches(): Promise<ModSwitches> {
   const file = await readValidatedJson<ModsFile>(getModsPath(), {
     label: 'mods.json',
     unreadable: { code: 'MODS_UNREADABLE', message: 'Could not read mods.json.' },
@@ -71,9 +78,7 @@ export async function getModSwitches(): Promise<ModSwitches> {
     required: { schemaVersion: true },
     onMissing: () => ({ schemaVersion: SCHEMA_VERSION, ...NO_SWITCHES })
   })
-  known = cleanSwitches(file)
-  for (const listener of [...switchListeners]) listener()
-  return known
+  return cleanSwitches(file)
 }
 
 /** Writes every switch and option atomically. */

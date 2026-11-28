@@ -19,7 +19,7 @@ describe('committed slot activities', () => {
     expect(activityEnding(closed, true)).toBe(true)
   })
   it('keeps setup and aftermath prompts separate without changing the reply schema', () => {
-    const request: StructuredRequest = { system: 'Base', user: 'Action', schema: { name: 'scene', schema: {} } }
+    const request: StructuredRequest = { thinking: 'scenes', system: 'Base', user: 'Action', schema: { name: 'scene', schema: {} } }
     expect(withSlotActivityPrompt(request, null)).toBe(request)
     const opening = withSlotActivityPrompt(request, activity)
     expect(opening.system).toContain('Stop before play begins')

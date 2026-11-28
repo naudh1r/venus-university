@@ -249,6 +249,14 @@ describe('the entry points', () => {
     expect(sharedKit.BACKUP_ZIP_LIMITS).toBe(backup.BACKUP_ZIP_LIMITS)
     const readerVoice = await import('../../src/shared/readerVoice')
     expect(sharedKit.readerize).toBe(readerVoice.readerize)
+    const gender = await import('../../src/shared/gender')
+    expect(sharedKit.fillPronouns).toBe(gender.fillPronouns)
+    expect(sharedKit.genderOf).toBe(gender.genderOf)
+    expect(sharedKit.PRONOUNS).toBe(gender.PRONOUNS)
+    expect(sharedKit.pronounsOf).toBe(gender.pronounsOf)
+    expect(sharedKit.pronounTag).toBe(gender.pronounTag)
+    expect(sharedKit.readerGenderOf).toBe(gender.readerGenderOf)
+    expect(sharedKit.readerWordsOf).toBe(gender.readerWords)
     const playerStats = await import('../../src/shared/playerStats')
     expect(sharedKit.DEFAULT_PLAYER_STATS).toBe(playerStats.DEFAULT_PLAYER_STATS)
     const icons = await import('../../src/renderer/views/screenIcons')
@@ -492,6 +500,7 @@ const PROBES: Record<RendererHook, (id: string) => Probe> = {
   modDetail: fn('modDetail', Comp, (host) => host.modDetail(never)),
   // Asked by the mod's own id, on or off, so a player sees the preview before switching the mod on.
   optionPreviews: thing('optionPreviews', { group: Comp }, (host, id) => host.optionPreview(id, 'group') === Comp),
+  optionControls: thing('optionControls', { option: Comp }, (host, id) => host.optionControl(id, 'option') === Comp),
   bunnyboardPage: (id) => thing('bunnyboardPage', { id, word: 'W', Mark: Comp, Page: Comp }, (host) => host.bunnyboardPages().some((page) => page.id === id))(id),
   updatesTab: (id) => thing('updatesTab', { id, word: 'W', Page: Comp }, (host) => host.updatesTabs().some((tab) => tab.id === id))(id),
   scenePlay: thing('scenePlay', { Seat: Comp, Panel: Comp }, (host, id) => host.scenePlays().some((one) => one.modId === id)),

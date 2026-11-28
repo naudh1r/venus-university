@@ -1,3 +1,4 @@
+import { externalObjectInfo } from './comfyObjectInfo'
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
 import {
@@ -10,8 +11,8 @@ import {
   nodeZipWrapperDir,
   runtimeAssetUrl,
   type ComfyGpu,
+  type NodePack,
   type PinnedModel,
-  type PinnedNode,
   type PinnedRuntime
 } from '@shared/setupManifest'
 import type {
@@ -31,6 +32,7 @@ import {
   getTempPath
 } from '../paths'
 import { extract7z, extractZip, renameExtractedDir, stripWrapperDir } from './archiveService'
+import { registeredNodePack } from './comfyNodePacks'
 import { stop as stopComfy } from './comfyService'
 import { downloadFile, hashFile } from './downloadService'
 import { resolveComfyGpu } from './gpuService'
@@ -38,6 +40,7 @@ import { getSettings } from './settingsService'
 import { findMissingModules, hasRequirements, pipInstallRequirements } from './pythonService'
 import { withRetry } from '@shared/retry'
 import { appError, toAppError } from '@shared/errors'
+import { comfySourceOf, comfyUrlOf } from '@shared/comfyModels'
 
 /** Progress reporter passed down into each component's install routine. */
 type Report = (step: string, percent?: number, bytes?: { done: number; total?: number }) => void
@@ -172,26 +175,7 @@ async function checkComfyRuntime(gpu: ComfyGpu): Promise<SetupComponent> {
  */
 async function checkCustomNodes(): Promise<SetupComponent[]> {
   console.log(`[verify] checking ${PINNED_NODES.length} ComfyUI custom nodes`)
-  const present = await Promise.all(
-    PINNED_NODES.map((node) => dirExists(getComfyCustomNodePath(node.dirName)))
-  )
-
-  // One probe answers for every node that is on disk; each row then reads its own names off it.
-  const wanted = [...new Set(PINNED_NODES.filter((_, i) => present[i]).flatMap((n) => n.modules))]
-  let missing = new Set<string>()
-  let probeError: string | null = null
-  if (wanted.length > 0 && (await fileSize(getComfyPythonPath())) !== null) {
-    try {
-      missing = new Set(await findMissingModules(wanted))
-      console.log(
-        `[verify] node dependencies: ${wanted.length} names checked, ` +
-          `${missing.size === 0 ? 'none missing' : `missing ${[...missing].join(', ')}`}`
-      )
-    } catch (err) {
-      probeError = toAppError(err).message
-      console.log(`[verify] node dependencies: probe failed — ${probeError}`)
-    }
-  }
+  const { present, missing, probeError } = await probeNodes(PINNED_NODES)
 
   return PINNED_NODES.map((node, i): SetupComponent => {
     const base: Omit<SetupComponent, 'state' | 'detail'> = {
@@ -221,6 +205,36 @@ async function checkCustomNodes(): Promise<SetupComponent[]> {
     console.log(`[verify] node:${node.id} (${node.dirName}): ok`)
     return { ...base, state: 'ok' }
   })
+}
+
+/**
+ * Which of `nodes` have their folder on disk, and which of the import names those present need
+ * do not resolve: one probe answers for all of them. A failed probe is reported, not thrown.
+ */
+async function probeNodes(nodes: readonly NodePack[]): Promise<{
+  present: boolean[]
+  missing: Set<string>
+  probeError: string | null
+}> {
+  const present = await Promise.all(
+    nodes.map((node) => dirExists(getComfyCustomNodePath(node.dirName)))
+  )
+  const wanted = [...new Set(nodes.filter((_, i) => present[i]).flatMap((n) => n.modules))]
+  let missing = new Set<string>()
+  let probeError: string | null = null
+  if (wanted.length > 0 && (await fileSize(getComfyPythonPath())) !== null) {
+    try {
+      missing = new Set(await findMissingModules(wanted))
+      console.log(
+        `[verify] node dependencies: ${wanted.length} names checked, ` +
+          `${missing.size === 0 ? 'none missing' : `missing ${[...missing].join(', ')}`}`
+      )
+    } catch (err) {
+      probeError = toAppError(err).message
+      console.log(`[verify] node dependencies: probe failed — ${probeError}`)
+    }
+  }
+  return { present, missing, probeError }
 }
 
 /**
@@ -328,17 +342,19 @@ async function installRuntimeArchive(
 
 /**
  * Downloads and extracts one custom node, then installs its Python deps and proves they
- * import. `depsOnly` repairs a folder that is already on disk, so nothing is re-downloaded.
+ * import. `depsOnly` repairs a folder that is already on disk, so nothing is re-downloaded;
+ * `signal` cancels the download, and the steps after it once the one running ends.
  */
 async function installCustomNode(
-  node: PinnedNode,
+  node: NodePack,
   report: Report,
-  depsOnly: boolean
+  depsOnly: boolean,
+  signal?: AbortSignal
 ): Promise<void> {
   if (!depsOnly) {
     const tempDir = getTempPath()
     await mkdir(tempDir, { recursive: true })
-    const archivePath = join(tempDir, `${node.id}.zip`)
+    const archivePath = join(tempDir, `${node.dirName}.zip`)
 
     report('Downloading', 0)
     await downloadFile({
@@ -346,10 +362,12 @@ async function installCustomNode(
       destPath: archivePath,
       expectedBytes: node.bytes,
       expectedSha256: node.sha256,
+      signal,
       onProgress: ({ percent, bytesDone, bytesTotal }) =>
         report('Downloading', percent, { done: bytesDone, total: bytesTotal })
     })
 
+    signal?.throwIfAborted()
     report('Extracting')
     const customNodesDir = getComfyCustomNodesPath()
     await extractZip(archivePath, customNodesDir)
@@ -365,6 +383,7 @@ async function installCustomNode(
   }
 
   const nodeDir = getComfyCustomNodePath(node.dirName)
+  signal?.throwIfAborted()
   if (await hasRequirements(nodeDir)) {
     report('Installing dependencies')
     await pipInstallRequirements(nodeDir, (line) => report(`pip: ${line}`))
@@ -462,11 +481,29 @@ export async function verifyModel(componentId: string, report: Report): Promise<
   return getSetupStatus()
 }
 
+/** The install running now; the next waits for it, so two never write the same tree at once. */
+let installing: Promise<unknown> = Promise.resolve()
+
+/** Runs `work` once every install queued before it has settled. */
+function serialized<T>(work: () => Promise<T>): Promise<T> {
+  const run = installing.then(work, work)
+  installing = run.catch(() => undefined)
+  return run
+}
+
 /**
  * Installs missing or damaged setup components idempotently, isolating per-item
  * failures and returning refreshed status plus errors.
  */
-export async function runInstall(
+export function runInstall(
+  jobId: string,
+  emit: (progress: InstallProgress) => void
+): Promise<InstallResult> {
+  return serialized(() => installMissing(jobId, emit))
+}
+
+/** The Setup install itself, run one at a time by `runInstall`. */
+async function installMissing(
   jobId: string,
   emit: (progress: InstallProgress) => void
 ): Promise<InstallResult> {
@@ -556,4 +593,81 @@ export async function runInstall(
   await rm(getTempPath(), { recursive: true, force: true })
 
   return { status: await getSetupStatus(), errors }
+}
+
+/** Where a mod's registered node pack stands in the install that renders now. */
+export type ComfyNodePackState = 'installed' | 'missing' | 'invalid' | 'unmanaged'
+
+/**
+ * A mod's registered pack read the way Setup reads core's: `missing` without its folder (or
+ * without the managed runtime), `invalid` where its folder is there but an import name it needs
+ * does not resolve. A player's own server is checked for the pack's classes, or answers
+ * `unmanaged` when it cannot be reached within the short probe deadline.
+ */
+export async function comfyNodePackState(modId: string, packId: string): Promise<ComfyNodePackState> {
+  const pack = registeredNodePack(modId, packId)
+  const settings = await getSettings()
+  if (comfySourceOf(settings) === 'external') {
+    const listing = await externalObjectInfo(comfyUrlOf(settings))
+    return listing === null ? 'unmanaged' : pack.classes.every(name => Object.hasOwn(listing, name)) ? 'installed' : 'missing'
+  }
+  if ((await fileSize(getComfyPythonPath())) === null) return 'missing'
+  const { present, missing, probeError } = await probeNodes([pack])
+  if (!present[0]) return 'missing'
+  if (probeError !== null || pack.modules.some((name) => missing.has(name))) return 'invalid'
+  return 'installed'
+}
+
+/**
+ * Installs a mod's registered pack into the managed install, pinned and gated as core's nodes
+ * are, one install at a time with Setup's. A running managed server is stopped first, so the
+ * next render boots one that loads the pack. Refused while the player's own ComfyUI is the
+ * source or before the managed runtime is installed; a pack already installed is left alone.
+ */
+export function installComfyNodePack(
+  modId: string,
+  packId: string,
+  { signal, onProgress }: { signal?: AbortSignal; onProgress?: (step: string, percent?: number) => void } = {}
+): Promise<void> {
+  const pack = registeredNodePack(modId, packId)
+  return serialized(async () => {
+    if (signal?.aborted) throw appError('DOWNLOAD_ABORTED', 'The install was cancelled.')
+    if (comfySourceOf(await getSettings()) === 'external') {
+      throw appError(
+        'COMFY_NODE_PACK_UNMANAGED',
+        `${pack.label} installs only into the game's own ComfyUI.`,
+        'Your own ComfyUI is the image source: install the pack there yourself and restart it.'
+      )
+    }
+    const state = await comfyNodePackState(modId, packId)
+    if (state === 'installed') return
+    if ((await fileSize(getComfyPythonPath())) === null) {
+      throw appError(
+        'COMFY_RUNTIME_REQUIRED',
+        `${pack.label} needs the ComfyUI runtime. Open Setup and run Install missing first.`
+      )
+    }
+    const report: Report = (step, percent) => {
+      try {
+        onProgress?.(step, percent)
+      } catch (err) {
+        console.warn(`[setup] ${modId} node pack progress failed`, err)
+      }
+    }
+    stopComfy()
+    console.log(`[setup] installing ${modId}'s node pack ${pack.id} (${pack.dirName})`)
+    try {
+      await withRetry(() => installCustomNode(pack, report, state === 'invalid', signal), {
+        signal,
+        onRetry: (attempt, waitMs) =>
+          report(`Attempt ${attempt} failed — retrying in ${Math.round(waitMs / 1000)}s`)
+      })
+    } catch (err) {
+      const error = signal?.aborted
+        ? appError('DOWNLOAD_ABORTED', 'The install was cancelled.')
+        : toAppError(err, 'INSTALL_FAILED')
+      console.warn(`[setup] ${modId} node pack ${pack.id} failed: ${error.message}${error.detail ? ` — ${error.detail}` : ''}`)
+      throw error
+    }
+  })
 }

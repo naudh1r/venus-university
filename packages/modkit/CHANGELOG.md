@@ -8,6 +8,36 @@
 - Host shared parses strict `vxsource.json` lists and plans greedy installs and removals with
   the loader's dependency ordering. Main reads bounded list/repo sources and owns `modSources`;
   fetching does not confer approval on custom sources. No screen or install IPC is added.
+- Optional `ModDef.game` declares supported Venus University versions. Manifest `game`
+  ranges now propagate to mod-menu metadata; undeclared or out-of-range support is
+  shown with advisory confirmation before enabling mods and game entry.
+- Main code can pin a ComfyUI custom-node pack of its own with `registerComfyNodePack`, install it
+  into the game's managed ComfyUI on demand with `installComfyNodePack`, and read it with
+  `comfyNodePackState`. `renderComfyImage` refuses a graph naming a class the server lacks as
+  `COMFY_NODES_MISSING`, naming the pack.
+- `comfyNodePackState` checks the loaded classes on the player's own ComfyUI, with a short
+  deadline and a one-minute cache cleared when its source or address changes. The existing
+  `subscribeLocalImageSource` also notifies mods when the external address changes.
+- `optionControls` draws a mod's own control under one of its ungrouped options on the Mods screen.
+- `gameFacts` and `useGameFacts` include the reader's pronouns. Shared `readerWordsOf` gives mods the
+  same pronoun forms the game uses.
+- `genderOf`, `pronounsOf`, `PRONOUNS`, `fillPronouns`, `pronounTag` and `readerGenderOf`
+  (`shared`), with the `Gender` and `Pronouns` types, are the game's own words for a character's
+  gender, so a mod's text about a character can follow it as the game's does.
+
+- Scene exchange context includes each participant's normalized `gender` and
+  `scene.readerPronouns`, so auxiliary scenes preserve 0.9 identities without
+  inferring them from names.
+
+- Venus University 0.9.2 integration keeps the existing positional prompt helpers,
+  second-person memory status calls, and requests without a `thinking` row working.
+  New calls can use upstream's gender, attraction and reader-pronoun arguments and
+  per-task reasoning rows; legacy `minThinking` still raises the selected level.
+  Scene prompt hooks keep the older `subjectTags` list and add `subjectTagsByGender`.
+- New Game's prompt-text edits and custom class counts apply to the new split
+  requests, including combined profile/secrets calls and later-semester students.
+  Editable defaults now match upstream's gender-neutral prose and `lowrise` answer.
+
 - Activities can call `setSceneSuggestionsPaused` to pause optional scene suggestions for
   the loaded game. Providers can query `sceneSuggestionsPaused`, render from
   `useSceneSuggestionsPaused` or observe boolean changes with `subscribeSceneSuggestionsPaused`.

@@ -1,5 +1,6 @@
 import { volumesOf } from './audio'
 import { endpointProblem, normalizeImageEndpoint, sameEndpointHost } from './endpoint'
+import { MAX_ENDING_FRIENDS } from './endingPicture'
 import { appError } from './errors'
 import { validateRecord, type ValidateRecordOptions } from './jsonValidate'
 import {
@@ -7,7 +8,16 @@ import {
   defaultModelFor,
   defaultSecondaryModelFor,
   IMAGE_MODEL_ID,
-  imageApiFor
+  imageApiFor,
+  isThinkingLevel,
+  isThinkingRow,
+  storedLevelFor,
+  THINKING_ROW_DEFAULTS,
+  THINKING_ROWS,
+  type ProviderApi,
+  type ThinkingLevel,
+  type ThinkingRow,
+  type ThinkingRowLevels
 } from './providers'
 import type { MemoryBudgets, RendererSettings, Settings, SettingsPatch } from './types'
 
@@ -17,13 +27,13 @@ import type { MemoryBudgets, RendererSettings, Settings, SettingsPatch } from '.
 export const SETTINGS_SCHEMA_VERSION = 1
 
 /**
- * What the settings must carry; the three keys, the custom endpoint's URL, model ids, effort,
- * tier and reply cap, its images URL and model, the two dev switches, the service tier, the
- * hand-edited stream switch, the hand-edited ComfyUI build, which ComfyUI draws with its URL
- * and both sources' model picks and LoRA weights, the default tags, Gemini's secondary model,
- * the group volumes, the browser build's key-remembering, the sampling fields, the memory and
- * secret budgets, the custom scene persona and the installed mods' three main-written fields are
- * all optional.
+ * What the settings must carry; the three keys, Gemini's other thinking rows, the custom
+ * endpoint's URL, model ids, efforts, tier and reply cap, its images URL and model, the two dev
+ * switches, the service tier, the hand-edited stream switch, the hand-edited ComfyUI build,
+ * which ComfyUI draws with its URL and both sources' model picks and LoRA weights, the default
+ * tags, Gemini's secondary model, the group volumes, the browser build's key-remembering, the
+ * sampling fields, the memory and secret budgets, the graduation picture's cap and the custom
+ * scene persona and the installed mods’ three main-written fields are all optional.
  */
 const SETTINGS_REQUIRED: Record<
   keyof Omit<
@@ -35,6 +45,8 @@ const SETTINGS_REQUIRED: Record<
     | 'endpointModel'
     | 'endpointSecondaryModel'
     | 'reasoningEffort'
+    | 'reasoningEfforts'
+    | 'thinkingLevels'
     | 'endpointServiceTier'
     | 'maxOutputTokens'
     | 'imageEndpointUrl'
@@ -55,6 +67,7 @@ const SETTINGS_REQUIRED: Record<
     | 'fullscreen'
     | 'warnEndingInterrupt'
     | 'warnEndingEdit'
+    | 'matchCgBiology'
     | 'showProfilePictureInScenes'
     | 'askProfilePictureInScenes'
     | 'newGameWelcome'
@@ -70,6 +83,7 @@ const SETTINGS_REQUIRED: Record<
     | 'topK'
     | 'memoryBudgets'
     | 'secretBudget'
+    | 'endingPictureMax'
     | 'scenePersona'
     | 'devModFolders'
     | 'modSources'
@@ -102,10 +116,17 @@ export const SETTINGS_READ: ValidateRecordOptions<Settings> = {
   required: SETTINGS_REQUIRED
 }
 
-/** The fields the upgrade reads and moves: which model each provider runs on, and the volumes. */
+/**
+ * The fields the upgrade reads and moves: which model each provider runs on, the levels each
+ * runs at, and the volumes.
+ */
 type UpgradeFields = Pick<
   Settings,
   | 'apiProvider'
+  | 'thinkingLevel'
+  | 'thinkingLevels'
+  | 'reasoningEffort'
+  | 'reasoningEfforts'
   | 'apiModel'
   | 'secondaryModel'
   | 'endpointModel'
@@ -123,7 +144,8 @@ export function upgradeSettings<T extends UpgradeFields>(
   const endpoint = upgradeEndpointModels(settings)
   const sound = upgradeNsfwSound(endpoint)
   const cast = upgradeCastSwitch(sound)
-  return { settings: cast, upgraded: cast !== settings }
+  const rows = upgradeThinkingRows(cast)
+  return { settings: rows, upgraded: rows !== settings }
 }
 
 /**
@@ -163,6 +185,78 @@ function upgradeCastSwitch<T extends UpgradeFields>(settings: T): T {
   return rest as T
 }
 
+/**
+ * Each provider's thinking rows brought up to this build. A provider with no rows stored, as
+ * every file from before them has, starts every row at its default, its one level included; a
+ * record that named the ledgers' row History names it Ledger, and anything else it holds that is
+ * no row and level of this build is dropped. Rows already as this build writes them are left.
+ */
+function upgradeThinkingRows<T extends UpgradeFields>(settings: T): T {
+  const gemini = settings.thinkingLevels
+  const custom = settings.reasoningEfforts
+  const next: Partial<UpgradeFields> = {}
+  if (gemini === undefined) {
+    next.thinkingLevel = THINKING_ROW_DEFAULTS.scenes
+    next.thinkingLevels = {}
+  } else {
+    const rows = rowsOf(gemini)
+    if (rows !== gemini) next.thinkingLevels = rows
+  }
+  if (custom === undefined) {
+    next.reasoningEfforts = {}
+  } else {
+    const rows = rowsOf(custom)
+    if (rows !== custom) next.reasoningEfforts = rows
+  }
+  if (Object.keys(next).length === 0) return settings
+  if (custom !== undefined) return { ...settings, ...next }
+  const { reasoningEffort: _single, ...rest } = settings
+  return { ...rest, ...next } as T
+}
+
+/**
+ * A stored record as this build's rows, the History row moved to Ledger and anything else that is
+ * not one of its rows at one of its levels left out; the record itself where nothing changes.
+ */
+function rowsOf(record: unknown): ThinkingRowLevels {
+  const entries = typeof record === 'object' && record !== null ? Object.entries(record) : []
+  const rows: ThinkingRowLevels = {}
+  for (const [key, level] of entries) {
+    const row = key === 'history' ? 'ledger' : key
+    if (!isThinkingRow(row) || row === 'scenes' || !isThinkingLevel(level)) continue
+    if (key === 'history' && entries.some(([other]) => other === 'ledger')) continue
+    rows[row] = level
+  }
+  const same =
+    entries.length === Object.keys(rows).length &&
+    entries.every(([key, level]) => rows[key as keyof ThinkingRowLevels] === level)
+  return same ? (record as ThinkingRowLevels) : rows
+}
+
+/**
+ * The fields that store `levels` as `provider`'s rows: the Scenes row as its own level, and
+ * each other row written into its record only where it differs from what that row reads as now,
+ * so a row left at its default stays absent and follows the default.
+ */
+export function thinkingRowsPatch(
+  stored: Parameters<typeof storedLevelFor>[0],
+  provider: ProviderApi,
+  levels: Record<ThinkingRow, ThinkingLevel>
+): Partial<
+  Pick<SettingsPatch, 'thinkingLevel' | 'thinkingLevels' | 'reasoningEffort' | 'reasoningEfforts'>
+> {
+  const custom = provider === 'openai'
+  const record: ThinkingRowLevels = { ...(custom ? stored.reasoningEfforts : stored.thinkingLevels) }
+  for (const row of THINKING_ROWS) {
+    if (row !== 'scenes' && levels[row] !== storedLevelFor(stored, provider, row)) {
+      record[row] = levels[row]
+    }
+  }
+  return custom
+    ? { reasoningEffort: levels.scenes, reasoningEfforts: record }
+    : { thinkingLevel: levels.scenes, thinkingLevels: record }
+}
+
 /** Raised when the settings are there but cannot be read. */
 export const SETTINGS_UNREADABLE = {
   code: 'SETTINGS_UNREADABLE',
@@ -177,7 +271,11 @@ export function defaultSettings(): Settings {
     // From the provider table.
     apiModel: defaultModelFor('gemini').id,
     apiKey: '',
-    thinkingLevel: defaultModelFor('gemini').defaultThinkingLevel,
+    thinkingLevel: THINKING_ROW_DEFAULTS.scenes,
+    // Every other row at its default, under each provider, written empty so the file is never
+    // taken for one from before the rows.
+    thinkingLevels: {},
+    reasoningEfforts: {},
     // The cheaper model the routable kinds run on. `secondaryModelFor` stays
     // absent beside it, which is what routes the default set (`DEFAULT_SECONDARY_KINDS`)
     // until the panel says otherwise.
@@ -402,6 +500,8 @@ export function mergePatch(current: Settings, patch: SettingsPatch): Settings {
     apiProvider: patch.apiProvider,
     apiModel: patch.apiModel,
     thinkingLevel: patch.thinkingLevel,
+    // Absent stays absent, and an absent row is its default.
+    thinkingLevels: patch.thinkingLevels,
     secondaryModel: patch.secondaryModel,
     secondaryModelFor: patch.secondaryModelFor,
     // Every custom-endpoint field rides every patch, so a provider switched away and back finds
@@ -411,6 +511,7 @@ export function mergePatch(current: Settings, patch: SettingsPatch): Settings {
     endpointModel: patch.endpointModel ?? '',
     endpointSecondaryModel: patch.endpointSecondaryModel,
     reasoningEffort: patch.reasoningEffort,
+    reasoningEfforts: patch.reasoningEfforts,
     // Absent stays absent, and absent is not sent.
     endpointServiceTier: patch.endpointServiceTier,
     maxOutputTokens: patch.maxOutputTokens,
@@ -445,6 +546,8 @@ export function mergePatch(current: Settings, patch: SettingsPatch): Settings {
     newGameWelcome: patch.newGameWelcome,
     noNsfwImages: patch.noNsfwImages,
     lessNsfwText: patch.lessNsfwText,
+    // Absent stays absent, and absent is matching.
+    matchCgBiology: patch.matchCgBiology,
     sfwAsked: patch.sfwAsked,
     // Absent stays absent, `JSON.stringify` dropping the key, which is full volume.
     volumes: patch.volumes,
@@ -458,6 +561,8 @@ export function mergePatch(current: Settings, patch: SettingsPatch): Settings {
     // Absent stays absent, and absent is the default budgets.
     memoryBudgets: patch.memoryBudgets,
     secretBudget: patch.secretBudget,
+    // Absent stays absent, and absent is as many friends as the picture can hold.
+    endingPictureMax: patch.endingPictureMax,
     // Absent stays absent, and absent is the shipped persona.
     scenePersona: patch.scenePersona,
     ...secretsAfter(current, patch)
@@ -669,6 +774,27 @@ export function secretBudgetOf(settings: Pick<Settings, 'secretBudget'>): number
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 999
     ? value
     : DEFAULT_SECRET_BUDGET
+}
+
+/** The one line naming why the graduation picture's typed cap is not a count it can draw; blank is never a problem. */
+export function endingPictureMaxProblem(label: string, text: string): string | null {
+  const trimmed = text.trim()
+  if (trimmed === '') return null
+  if (!/^\d+$/.test(trimmed) || Number(trimmed) < 1 || Number(trimmed) > MAX_ENDING_FRIENDS) {
+    return `${label} must be a whole number from 1 to ${MAX_ENDING_FRIENDS}`
+  }
+  return null
+}
+
+/** The graduation picture's cap as stored, falling back to the most it can draw where it is not a valid count. */
+export function endingPictureMaxOf(settings: Pick<Settings, 'endingPictureMax'>): number {
+  const value = settings.endingPictureMax
+  return typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= MAX_ENDING_FRIENDS
+    ? value
+    : MAX_ENDING_FRIENDS
 }
 
 /** Which of the three stored budgets a cast of `castSize` spends. */

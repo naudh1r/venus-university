@@ -1,3 +1,4 @@
+import { confirmModCompatibility, confirmSetupCompatibility } from './ModCompatibilityWarning'
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, type AnimationPlaybackControls } from 'motion/react'
@@ -352,6 +353,7 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
   async function load(playthroughId: string, entry: ResolvedSave): Promise<void> {
     const whole = await readSave(playthroughId, entry.saveId)
     if (!whole || whole.unloadable) return
+    if (!(await confirmModCompatibility(whole.record))) return
     // The cover goes up on the click and the game is hydrated under it, wearing the hour the
     // save is set in rather than the panel's. A refused cover — only reachable from the Game
     // menu, when a game is already running — drops the click rather than racing a timing fix.
@@ -443,6 +445,7 @@ export function LoadGameModal({ theme, onClose }: LoadGameModalProps): JSX.Eleme
       )
       return
     }
+    if (!(await confirmSetupCompatibility(resolved.playthroughId))) return
     /** Stages what was read and raises the screen that reopens on it. */
     const reopen = (): void => {
       if (isApplication(resolved)) {

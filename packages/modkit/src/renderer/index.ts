@@ -1,4 +1,5 @@
 /** `@vx/modkit/renderer`: what a mod may import in the window. */
+export type { GameFacts } from '../bridge/renderer'
 export type {
   BunnyboardPage,
   ContactTab,
@@ -13,6 +14,7 @@ export type {
   LikesAsk,
   ModDetailProps,
   ModHooks,
+  OptionControlProps,
   OptionPreviewProps,
   PostCommentsProps,
   PostCommentsSpot,

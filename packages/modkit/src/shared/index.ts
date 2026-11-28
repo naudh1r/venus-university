@@ -129,3 +129,6 @@ export {
 export type { CharFlags, CustomOutfitSlot, Season, NpcRelationshipMap } from '../bridge/shared'
 
 export type { DesktopSurfaceBridge } from '../bridge/shared'
+export { readerWordsOf, type ReaderPronouns, type ReaderWords } from '../bridge/shared'
+export { fillPronouns, genderOf, PRONOUNS, pronounsOf, pronounTag, readerGenderOf } from '../bridge/shared'
+export type { Gender, Pronouns } from '../bridge/shared'

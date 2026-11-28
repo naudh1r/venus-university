@@ -18,6 +18,14 @@ import {
   STAT_REQUIREMENT_PHRASES,
   type PlayerStats
 } from '@shared/playerStats'
+import {
+  genderOf,
+  pronounsOf,
+  readerWords,
+  type Pronouns,
+  type ReaderPronouns,
+  type ReaderWords
+} from '@shared/gender'
 import { hasTrait } from '@shared/traits'
 import type { CharFlags, CharInfo, Character } from '@shared/types'
 import { isMoodLustful } from './moods'
@@ -43,10 +51,13 @@ export type RelationshipProgress = Pick<CharInfo, 'romanceScenes' | 'upperHalves
 
 /**
  * Status lines, most specific first — only the first match is emitted; the chain is lossy.
- * `romanceScenes` present means a crush or a relationship is still new.
+ * `romanceScenes` present means a crush or a relationship is still new; `p` is the character's
+ * pronouns and `r` how a line beside them names the reader.
  */
 function statusLine(
   name: string,
+  p: Pronouns,
+  r: ReaderWords,
   flags: CharFlags,
   affection: number,
   medium: RelationshipMedium,
@@ -76,13 +87,13 @@ function statusLine(
 
   if (flags.benefits) {
     if (flags.hasCrush && flags.friendZoned) {
-      return `${name} and the reader are friends with benefits. She wants to be his girlfriend, but the reader has friendzoned her.`
+      return `${name} and the reader are friends with benefits. ${p.They} wants to be ${r.his} ${p.partner}, but the reader has friendzoned ${p.them}.`
     }
     if (flags.hasCrush) {
-      return `${name} and the reader are friends with benefits, but she wants to make things official.`
+      return `${name} and the reader are friends with benefits, but ${p.they} wants to make things official.`
     }
     if (flags.friendZoned || flags.friendZonedBy) {
-      return `${name} and the reader are friends with benefits, and she's okay with that.`
+      return `${name} and the reader are friends with benefits, and ${p.they}'s okay with that.`
     }
     return isNegative(affection)
       ? `${name} and the reader have an enemies with benefits relationship.`
@@ -111,9 +122,10 @@ function statusLine(
     const kissed = `${name} and the reader have kissed but are not lovers yet.`
     // A kiss has already given her crush away, so it skips the stage where she hides it.
     if (flags.hasCrush && !flags.friendZoned && !flags.friendZonedBy) {
+      const crush = `${p.They} has a crush on ${r.him}`
       return romanceScenes === undefined
-        ? `${kissed} She has a crush on him and wants to be lovers.`
-        : `${kissed} She has a crush on him.`
+        ? `${kissed} ${crush} and wants to be lovers.`
+        : `${kissed} ${crush}.`
     }
     return kissed
   }
@@ -172,11 +184,28 @@ export function readerStandingLine(
   return null
 }
 
+/** What the relationship lines are read against beyond the character and the milestones. */
+export interface RelationshipContext {
+  /** The reader's stats, weighed against her bar; the defaults where absent. */
+  stats?: PlayerStats
+  /** Where the lines are read; in person where absent. */
+  medium?: RelationshipMedium
+  /** The day, for a Promiscuous character's lustful days, which the worst of a cold calls off. */
+  mood?: { date: number; offset: number; sick?: boolean }
+  /** False drops the line saying his stats are under her bar; true where absent. */
+  attractionGate?: boolean
+  /** Whether the playthrough's romance setting, or her history with him, lets her be romanced. */
+  romanceable: boolean
+  /** She is dating somebody else happily and is not open. */
+  loyal?: boolean
+  /** The pronouns the reader goes by. */
+  readerPronouns: ReaderPronouns
+}
+
 /**
- * Third-person prose, ready to inject verbatim under the personality. `mood`, when given,
- * lets a Promiscuous girl's attraction line give way to a DTF one on her lustful days, unless she
- * is in the worst of a cold (`sick`);
- * `attractionGate` false drops the line saying his stats are under her bar.
+ * Third-person prose, ready to inject verbatim under the personality. `ctx.mood`, when given,
+ * lets a Promiscuous character's attraction line give way to a DTF one on a lustful day, unless
+ * they are in the worst of a cold; one who is not romanceable is told to refuse him for good.
  */
 export function relationshipLines(
   character: Character,
@@ -184,20 +213,47 @@ export function relationshipLines(
   nameKnown: boolean,
   affection: number,
   progress: RelationshipProgress | undefined,
-  stats: PlayerStats = DEFAULT_PLAYER_STATS,
-  medium: RelationshipMedium = IN_PERSON,
-  mood?: { date: number; offset: number; sick?: boolean },
-  attractionGate = true
+  context?: RelationshipContext | PlayerStats,
+  legacyMedium?: RelationshipMedium,
+  legacyMood?: RelationshipContext['mood'],
+  legacyAttractionGate?: boolean
 ): string[] {
+  // Keep the kit's positional 0.8.0 call valid; current core passes the full context.
+  const ctx: RelationshipContext =
+    context && 'romanceable' in context
+      ? context
+      : {
+          stats: context,
+          medium: legacyMedium,
+          mood: legacyMood,
+          attractionGate: legacyAttractionGate,
+          romanceable: true,
+          readerPronouns: 'he'
+        }
+  const {
+    stats = DEFAULT_PLAYER_STATS,
+    medium = IN_PERSON,
+    mood,
+    attractionGate = true,
+    romanceable,
+    loyal = false,
+    readerPronouns
+  } = ctx
   const name = character.firstName
+  const p = pronounsOf(character)
+  const g = genderOf(character)
+  const r = readerWords(readerPronouns, g)
   const lines: string[] = []
 
   const modBlocked = attractionGate && blocksNewRomance(character, stats, flags)
   if (modBlocked) {
     const minimums = romanceMinimumsOf(character)
-    const required = STAT_KEYS.filter(key => minimums[key] !== undefined)
-      .map(key => `${STAT_LABELS[key]} at ${tierNameOf(tierOf(minimums[key]!))}`)
-    lines.push(`${name} requires ${andList(required)} before starting a romance. The reader has not met those requirements. ${name} will not initiate or accept romantic or sexual advances, kisses, hookups or becoming lovers. Friendship and ordinary affection can grow. Gifts, persuasion, mood and abilities do not override these requirements.`)
+    const required = STAT_KEYS.filter((key) => minimums[key] !== undefined).map(
+      (key) => `${STAT_LABELS[key]} at ${tierNameOf(tierOf(minimums[key]!))}`
+    )
+    lines.push(
+      `${name} requires ${andList(required)} before starting a romance. The reader has not met those requirements. ${name} will not initiate or accept romantic or sexual advances, kisses, hookups or becoming lovers. Friendship and ordinary affection can grow. Gifts, persuasion, mood and abilities do not override these requirements.`
+    )
     // A crush saved before the trait was added must not contradict the new requirement.
     // This is prompt context only: no saved relationship flags are rewritten.
     flags = { ...flags, hasCrush: false, benefits: false, harem: false }
@@ -208,7 +264,13 @@ export function relationshipLines(
   if (behavior) lines.push(behavior)
 
   // A crush is the louder fact, so it takes the slot of a line saying she doesn't care.
-  const feeling = dispositionPredicateOf(affection, progress?.upperHalves, flags.isLover)
+  const feeling = dispositionPredicateOf(
+    affection,
+    progress?.upperHalves,
+    flags.isLover,
+    readerPronouns,
+    g
+  )
   if (!flags.hasCrush || feeling !== DISPOSITION_PREDICATE.neutral) {
     lines.push(`${name} ${feeling}.`)
   }
@@ -224,45 +286,61 @@ export function relationshipLines(
   }
 
   // Independent of the status chain; `brokenUp` only changes the tense.
-  if (!flags.isLover && !flags.hasCrush && !flags.benefits) {
+  const unattached = !flags.isLover && !flags.hasCrush && !flags.benefits
+  if (unattached && !romanceable) {
+    // A gender the playthrough has turned off, with no history to override it: no bar to clear
+    // and no lustful day, since no crush roll will ever come.
+    lines.push(
+      `${name} doesn't feel any attraction towards the reader and never will. ${name} won't make or accept romantic advances.`
+    )
+  } else if (unattached && loyal) {
+    // Happily with somebody else, so no bar to clear and no lustful day.
+    lines.push(`${name} won't make or accept romantic advances from anyone else.`)
+  } else if (unattached) {
     const missingStat = missingCrushStatOf(character, stats)
     const lustful =
       !modBlocked &&
       mood !== undefined &&
       !mood.sick &&
       hasTrait(character, 'Promiscuous') &&
-      isMoodLustful(mood.date, mood.offset, hasTrait(character, 'Mood-swings'))
-    // A Promiscuous girl on a lustful day is DTF whether or not he has cleared her bar; otherwise the
-    // refusal only stands while he is short, since once he clears it the crush roll is live.
+      isMoodLustful(character, mood.date, mood.offset)
+    // A Promiscuous character on a lustful day is DTF whether or not he has cleared her bar;
+    // otherwise the refusal only stands while he is short, since once he clears it the crush roll
+    // is live.
     if (lustful) {
       lines.push(
         missingStat
-          ? `${name} isn't usually attracted to the reader, but she's down to fuck today.`
+          ? `${name} isn't usually attracted to the reader, but ${p.they}'s down to fuck today.`
           : `${name} is down to fuck today.`
       )
     } else if (missingStat && attractionGate && !modBlocked) {
+      // Name the reader when a pronoun would be ambiguous.
       lines.push(
-        `${name} doesn't feel any attraction towards the reader ${flags.brokenUp > 0 ? 'anymore' : 'yet'}. He needs to be ${STAT_REQUIREMENT_PHRASES[missingStat]} first. ${name} won't make or accept romantic advances.`
+        `${name} doesn't feel any attraction towards the reader ${flags.brokenUp > 0 ? 'anymore' : 'yet'}. ${r.He} needs to be ${STAT_REQUIREMENT_PHRASES[missingStat]} first. ${name} won't make or accept romantic advances.`
       )
     }
   }
 
-  const status = statusLine(name, flags, affection, medium, progress?.romanceScenes)
+  const status = statusLine(name, p, r, flags, affection, medium, progress?.romanceScenes)
   if (status) lines.push(status)
 
   // Outside the lossy status chain, so it stands beside whatever they are.
   if (flags.harem && (flags.isLover || flags.hasCrush || flags.benefits)) {
     lines.push(
       hasTrait(character, 'Promiscuous')
-        ? `${name} is promiscuous and won't get jealous about other girls.`
+        ? `${name} is promiscuous and won't get jealous about the reader's other partners.`
         : `${name} has agreed to share the reader with others and won't get jealous.`
     )
+  }
+  // A Promiscuous lover who shared him and agreed to be his alone.
+  if (!flags.harem && flags.isLover && hasTrait(character, 'Promiscuous')) {
+    lines.push(`${name} has agreed to see only the reader.`)
   }
 
   // `nameKnown` is not `hasMet`; dropped once named, else RITA introduces her twice.
   if (!nameKnown) {
     lines.push(
-      `The reader doesn't know ${name}'s name yet. Don't use her name in narration or dialogue until it's been revealed in the scene.`
+      `The reader doesn't know ${name}'s name yet. Don't use ${p.their} name in narration or dialogue until it's been revealed in the scene.`
     )
   }
 

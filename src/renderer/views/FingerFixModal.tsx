@@ -3,14 +3,16 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { EMOTIONS } from '@shared/emotions'
 import { appError, messageOf } from '@shared/errors'
+import { HANDS_DENOISE_INITIAL } from '@shared/outfits'
 import type { Emotion, OutfitSet } from '@shared/types'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { DENOISE_SCALE, DenoiseField } from '../components/DenoiseField'
 import { LayerPainter, toPngBase64, type PainterStage } from '../components/LayerPainter'
 import { useModalShell } from '../components/useModalShell'
 import { TitleTab } from '../components/TitleTab'
 import { useCharacterStore, useSpriteVersion } from '../stores/characterStore'
 import { useUiStore } from '../stores/uiStore'
-import { HandPreviewModal } from './HandPreviewModal'
+import { RegionPreviewModal } from './RegionPreviewModal'
 import { gestures, lift, panelUnderTab, press, quietLift, quietPress, veilIn } from './motion'
 
 export interface FingerFixModalProps {
@@ -44,7 +46,9 @@ export function FingerFixModal({
   const [dirty, setDirty] = useState(false)
   const [painted, setPainted] = useState(false)
   const [hasBase, setHasBase] = useState(true)
-  const [previewing, setPreviewing] = useState<string | null>(null)
+  const [denoise, setDenoise] = useState(Math.round(HANDS_DENOISE_INITIAL * DENOISE_SCALE))
+  /** What the press handed the render: the strokes and the denoise as they stood then. */
+  const [previewing, setPreviewing] = useState<{ paint: string; denoise: number } | null>(null)
   const [discarding, setDiscarding] = useState(false)
 
   const swept = useRef(false)
@@ -53,6 +57,8 @@ export function FingerFixModal({
   const outfits = useCharacterStore((s) => s.outfits[charId])
   const hasBaseImage = useCharacterStore((s) => s.hasBaseImage)
   const discardLayer = useCharacterStore((s) => s.discardWardrobeLayer)
+  const fixHands = useCharacterStore((s) => s.fixHands)
+  const cancelHandFix = useCharacterStore((s) => s.cancelHandFix)
   const present = set === null ? expressions : outfits?.[set]
   const repairing = EMOTIONS.filter((emotion: Emotion) => present?.[emotion])
 
@@ -82,7 +88,7 @@ export function FingerFixModal({
     const canvas = paintRef.current
     if (!canvas || previewing) return
     try {
-      setPreviewing(await toPngBase64(canvas))
+      setPreviewing({ paint: await toPngBase64(canvas), denoise: denoise / DENOISE_SCALE })
     } catch (err) {
       useUiStore
         .getState()
@@ -143,6 +149,14 @@ export function FingerFixModal({
               setDirty(state.dirty)
               setPainted(state.painted)
             }}
+            fields={
+              <DenoiseField
+                id="hands-denoise"
+                value={denoise}
+                disabled={previewing !== null}
+                onChange={setDenoise}
+              />
+            }
           >
             <div className="vu-foot">
               <motion.button
@@ -172,13 +186,15 @@ export function FingerFixModal({
 
       <AnimatePresence propagate>
         {previewing !== null && (
-          <HandPreviewModal
+          <RegionPreviewModal
             key="preview"
+            repair="hands"
             charId={charId}
             set={set}
             title={title}
             theme={theme}
-            paintLayer={previewing}
+            render={() => fixHands(charId, set, previewing.paint, previewing.denoise)}
+            cancel={() => void cancelHandFix(charId, set)}
             emotions={repairing}
             onCancel={() => setPreviewing(null)}
             // The preview comes down with the panel it applied to, for the discard confirm's reason.
